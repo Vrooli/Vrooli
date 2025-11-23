@@ -42,8 +42,9 @@ export function ProcessCard({ process }: ProcessCardProps) {
   };
 
   const handleTerminate = () => {
-    if (confirm(`Terminate process for task ${process.task_id}?`)) {
-      terminateProcess.mutate(process.process_id);
+    const taskId = process.task_id || process.process_id;
+    if (confirm(`Terminate process for task ${taskId}?`)) {
+      terminateProcess.mutate(taskId);
     }
   };
 

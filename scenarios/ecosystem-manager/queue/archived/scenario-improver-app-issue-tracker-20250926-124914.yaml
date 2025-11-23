@@ -13,7 +13,7 @@ dependencies: []
 blocks: []
 related_scenarios: []
 related_resources: []
-status: pending
+status: archived
 current_phase: rate_limited
 started_at: "2025-10-01T01:24:10-04:00"
 completed_at: ""

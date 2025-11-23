@@ -5,7 +5,7 @@
 
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { TaskCard } from './TaskCard';
 import type { Task, TaskStatus } from '../../types/api';
 
@@ -83,23 +83,7 @@ export function KanbanColumn({
   const taskIds = tasks.map(t => t.id);
 
   if (!isVisible) {
-    return (
-      <div className="shrink-0 w-80">
-        <button
-          onClick={onToggleVisibility}
-          className={`
-            w-full px-4 py-3 rounded-lg border ${colors.border} ${colors.header}
-            hover:bg-white/5 transition-all flex items-center justify-between
-          `}
-        >
-          <span className="text-sm font-medium">{title}</span>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400">{tasks.length}</span>
-            <EyeOff className="h-4 w-4" />
-          </div>
-        </button>
-      </div>
-    );
+    return null;
   }
 
   return (

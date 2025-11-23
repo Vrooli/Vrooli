@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Info,
   Sparkles,
+  UserCircle2,
 } from "lucide-react";
 import { analyzeDependencies, DependencyAnalysisResponse, listProfiles } from "../lib/api";
 import { cn } from "../lib/utils";
@@ -22,6 +23,8 @@ type GuidedFlowProps = {
   open: boolean;
   onClose: () => void;
 };
+
+type FlowMode = "manual" | "profile";
 
 type TierOption = {
   id: number;
@@ -45,10 +48,12 @@ const getFitnessColor = (score: number) => {
 };
 
 export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [mode, setMode] = useState<FlowMode>("manual");
   const [scenario, setScenario] = useState("");
   const [tierKey, setTierKey] = useState<TierOption["key"]>("desktop");
   const [submittedScenario, setSubmittedScenario] = useState<string | null>(null);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
 
   const selectedTier = useMemo(
     () => TIER_OPTIONS.find((tier) => tier.key === tierKey),
@@ -59,6 +64,11 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
     queryKey: ["profiles"],
     queryFn: listProfiles,
   });
+
+  const selectedProfile = useMemo(
+    () => (profiles ?? []).find((p) => p.id === selectedProfileId) ?? null,
+    [profiles, selectedProfileId],
+  );
 
   const scenarioOptions = useMemo(() => {
     const existing = Array.from(new Set((profiles ?? []).map((p) => p.scenario).filter(Boolean)));
@@ -90,6 +100,8 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
   useEffect(() => {
     if (open) {
       setStep(1);
+      setMode("manual");
+      setSelectedProfileId(null);
     }
   }, [open]);
 
@@ -134,14 +146,15 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
           <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">3-step flow</CardTitle>
-                <CardDescription>Modeled after scenario-to-desktop onboarding</CardDescription>
+                <CardTitle className="text-base">4-step flow</CardTitle>
+                <CardDescription>Modelled after scenario-to-desktop + telemetry loop</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {[
-                  { id: 1, title: "Pick scenario + tier", description: "Tell us what you’re targeting" },
+                  { id: 1, title: "Choose profile or target", description: "Start from an existing profile or pick scenario+tier" },
                   { id: 2, title: "See readiness", description: "Fitness, blockers, swaps, secrets" },
-                  { id: 3, title: "Export or hand-off", description: "Bundle download or send to packagers" },
+                  { id: 3, title: "Stage hand-off", description: "Export or trigger scenario-to-*" },
+                  { id: 4, title: "Resolve issues", description: "Upload telemetry, open issue report" },
                 ].map((item, idx, arr) => {
                   const isActive = step === item.id;
                   const isComplete = step > item.id;
@@ -190,9 +203,73 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
               <Card>
                 <CardHeader>
                   <CardTitle>Pick scenario & target tier</CardTitle>
-                  <CardDescription>We’ll run analysis and guide you through swaps and secrets</CardDescription>
+                  <CardDescription>Use an existing profile or pick scenario/tier; we’ll prefill and run analysis</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant={mode === "profile" ? "secondary" : "outline"}
+                      onClick={() => { setMode("profile"); setStep(1); }}
+                      className="gap-2"
+                    >
+                      <UserCircle2 className="h-4 w-4" />
+                      Select profile
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={mode === "manual" ? "secondary" : "outline"}
+                      onClick={() => { setMode("manual"); setSelectedProfileId(null); }}
+                      className="gap-2"
+                    >
+                      Manual scenario/tier
+                    </Button>
+                  </div>
+
+                  {mode === "profile" && (
+                    <div className="space-y-3">
+                      <div className="text-sm text-slate-300">Profiles</div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {(profiles ?? []).length === 0 && (
+                          <p className="text-xs text-slate-500">
+                            No profiles yet. Switch to manual or create one first.
+                          </p>
+                        )}
+                        {(profiles ?? []).map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedProfileId(p.id);
+                              setScenario(p.scenario);
+                              setTierKey(TIER_OPTIONS.find((t) => p.tiers.includes(t.id))?.key ?? "desktop");
+                            }}
+                            className={`rounded-lg border px-3 py-2 text-left transition ${
+                              selectedProfileId === p.id
+                                ? "border-cyan-400 bg-cyan-500/10"
+                                : "border-white/10 bg-white/5 hover:border-white/20"
+                            }`}
+                          >
+                            <p className="font-semibold">{p.name}</p>
+                            <p className="text-xs text-slate-400">Scenario: {p.scenario}</p>
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {p.tiers.map((t) => (
+                                <Badge key={t} variant="outline" className="text-[10px]">
+                                  Tier {t}
+                                </Badge>
+                              ))}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                      {selectedProfile && (
+                        <div className="rounded-lg border border-cyan-400/40 bg-cyan-500/5 p-3 text-sm text-slate-200">
+                          Using profile <span className="font-semibold">{selectedProfile.name}</span>. Scenario and tier are prefilled below.
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label htmlFor="scenario-name">Scenario</Label>
                     <Input
@@ -200,6 +277,7 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
                       placeholder="e.g., picker-wheel"
                       value={scenario}
                       onChange={(e) => setScenario(e.target.value)}
+                      disabled={mode === "profile" && !!selectedProfile}
                     />
                     <div className="text-xs text-slate-400">Start typing or pick a suggestion.</div>
                     {scenarioOptions.length > 0 && (
@@ -247,7 +325,10 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
                       <Info className="h-4 w-4" />
                       We’ll auto-run analysis and show the next best action.
                     </p>
-                    <Button onClick={startAnalysis} disabled={!scenario || isFetching}>
+                    <Button
+                      onClick={startAnalysis}
+                      disabled={!scenario || (mode === "profile" && !selectedProfileId) || isFetching}
+                    >
                       {isFetching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Run analysis
                     </Button>
@@ -398,7 +479,7 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
                 <CardContent className="space-y-4">
                   <div className="rounded-lg border border-white/10 bg-white/5 p-4">
                     <p className="text-sm text-slate-300">
-                      Use these entry points to finish: bundle export, send to scenario-to-desktop/mobile/cloud, or jump to deployments to monitor runs.
+                      Use these entry points to finish: bundle export, send to scenario-to-desktop/mobile/cloud, or jump to deployments to monitor runs. Next we’ll capture telemetry and open issues if anything fails.
                     </p>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -417,6 +498,55 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
                   </div>
                   <div className="text-xs text-slate-500">
                     This flow mirrors the scenario-to-desktop 3-part onboarding so new users can follow the same mental model: choose a target, fix blockers, export/deploy.
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <Button variant="outline" onClick={() => setStep(2)}>
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Back
+                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" onClick={() => { onClose(); reset(); }}>
+                        Finish here
+                      </Button>
+                      <Button onClick={() => setStep(4)}>
+                        Continue to issue resolution
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {step === 4 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Resolve issues & ingest telemetry</CardTitle>
+                  <CardDescription>Close the loop with deployment-telemetry.jsonl + app-issue-tracker</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
+                    <p className="font-semibold mb-1">1) Collect telemetry</p>
+                    <p className="text-slate-400">
+                      scenario-to-desktop writes <code>deployment-telemetry.jsonl</code> (startup, dependency failures, shutdowns). Upload it so deployment-manager can pinpoint missing dependencies/secrets without exposing credentials.
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
+                    <p className="font-semibold mb-1">2) File or auto-resolve issues</p>
+                    <p className="text-slate-400">
+                      Generate an issue for app-issue-tracker with telemetry attached so the built-in AI can propose fixes. Track issue status per deployment.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Button variant="secondary" className="w-full" asChild>
+                      <Link to="/deployments">Go to deployments</Link>
+                    </Button>
+                    <Button variant="outline" className="w-full" onClick={() => { onClose(); reset(); }}>
+                      Finish flow
+                    </Button>
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    Next iteration: add telemetry upload + issue creation forms directly here so users can stay in-flow.
                   </div>
                 </CardContent>
               </Card>

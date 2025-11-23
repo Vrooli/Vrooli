@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { ArrowLeft, Rocket, Loader2 } from "lucide-react";
+import { ArrowLeft, Rocket, Loader2, Focus } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -12,6 +12,14 @@ const TIER_NAMES: Record<number, string> = {
   3: "Mobile",
   4: "SaaS/Cloud",
   5: "Enterprise",
+};
+
+const TIER_KEYS: Record<number, string> = {
+  1: "local",
+  2: "desktop",
+  3: "mobile",
+  4: "saas",
+  5: "enterprise",
 };
 
 export function ProfileDetail() {
@@ -75,8 +83,11 @@ export function ProfileDetail() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Link to={`/analyze?scenario=${profile.scenario}`}>
-            <Button variant="outline">Analyze Dependencies</Button>
+          <Link to={`/analyze?scenario=${profile.scenario}&tier=${TIER_KEYS[profile.tiers?.[0] ?? 2]}`}>
+            <Button variant="outline" className="gap-2">
+              <Focus className="h-4 w-4" />
+              Analyze (focus tier)
+            </Button>
           </Link>
           <Button
             onClick={() => deployMutation.mutate(profile.id)}

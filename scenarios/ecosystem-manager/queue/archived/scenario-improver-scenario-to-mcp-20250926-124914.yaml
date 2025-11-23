@@ -13,7 +13,7 @@ dependencies: []
 blocks: []
 related_scenarios: []
 related_resources: []
-status: failed-blocked
+status: archived
 current_phase: blocked
 started_at: "2025-10-05T20:39:02-04:00"
 completed_at: "2025-10-05T20:39:32-04:00"

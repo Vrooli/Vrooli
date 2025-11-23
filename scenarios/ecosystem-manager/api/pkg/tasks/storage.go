@@ -105,6 +105,12 @@ func hasLegacyTaskFields(raw map[string]any) bool {
 func (s *Storage) normalizeTaskItem(item *TaskItem, status string, raw map[string]any) bool {
 	changed := false
 
+	// Always align status with directory as the source of truth
+	if status != "" && item.Status != status {
+		item.Status = status
+		changed = true
+	}
+
 	normalizedTargets, canonicalTarget := NormalizeTargets(item.Target, item.Targets)
 	if !slices.EqualStringSlices(item.Targets, normalizedTargets) {
 		item.Targets = normalizedTargets
@@ -265,6 +271,11 @@ func (s *Storage) SaveQueueItemSkipCleanup(item TaskItem, status string) error {
 
 // saveQueueItemWithOptions is the internal implementation with cleanup control
 func (s *Storage) saveQueueItemWithOptions(item TaskItem, status string, cleanupDuplicates bool) error {
+	// Always enforce status to match the destination directory
+	if status != "" && item.Status != status {
+		item.Status = status
+	}
+
 	queuePath := filepath.Join(s.QueueDir, status)
 	filename := fmt.Sprintf("%s.yaml", item.ID)
 	filePath := filepath.Join(queuePath, filename)
@@ -413,6 +424,67 @@ func (s *Storage) CleanupDuplicates() error {
 	return nil
 }
 
+// ResyncStatuses enforces that each task file's status matches its directory.
+// This prevents stale in-file statuses from drifting after moves or manual edits.
+func (s *Storage) ResyncStatuses() error {
+	var errs []error
+	rewritten := 0
+
+	for _, status := range queueStatuses {
+		dirPath := filepath.Join(s.QueueDir, status)
+		entries, err := os.ReadDir(dirPath)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			errs = append(errs, fmt.Errorf("read %s queue: %w", status, err))
+			continue
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
+				continue
+			}
+
+			filePath := filepath.Join(dirPath, entry.Name())
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("read %s: %w", filePath, err))
+				continue
+			}
+
+			var raw map[string]any
+			if err := yaml.Unmarshal(data, &raw); err != nil {
+				// Not fatal; continue with best-effort
+			}
+
+			var task TaskItem
+			if err := yaml.Unmarshal(data, &task); err != nil {
+				errs = append(errs, fmt.Errorf("unmarshal %s: %w", filePath, err))
+				continue
+			}
+
+			if s.normalizeTaskItem(&task, status, raw) {
+				if err := s.SaveQueueItemSkipCleanup(task, status); err != nil {
+					errs = append(errs, fmt.Errorf("rewrite %s: %w", filePath, err))
+					continue
+				}
+				rewritten++
+			}
+		}
+	}
+
+	if rewritten > 0 {
+		systemlog.Infof("Resynced %d task file status fields to match directory", rewritten)
+	}
+
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+
+	return nil
+}
+
 // CurrentStatus returns the queue directory that currently holds the task, if any.
 func (s *Storage) CurrentStatus(taskID string) (string, error) {
 	_, status, err := s.GetTaskByID(taskID)
@@ -507,6 +579,11 @@ func (s *Storage) MoveTaskTo(taskID, toStatus string) (*TaskItem, string, error)
 
 	if err := s.cleanupDuplicateTaskFiles(taskID, toStatus); err != nil {
 		return task, currentStatus, fmt.Errorf("move task %s: cleanup duplicates after move to %s: %w", taskID, toStatus, err)
+	}
+
+	// Keep returned task aligned with destination status
+	if task != nil {
+		task.Status = toStatus
 	}
 
 	return task, currentStatus, nil

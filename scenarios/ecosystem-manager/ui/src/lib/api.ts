@@ -30,6 +30,238 @@ import type {
   HealthResponse,
 } from '../types/api';
 
+// Default settings fallback (matches legacy API defaults)
+const DEFAULT_SETTINGS: Settings = {
+  processor: {
+    concurrent_slots: 1,
+    refresh_interval: 30,
+    max_tasks: 0,
+    active: false,
+  },
+  agent: {
+    max_turns: 60,
+    allowed_tools: 'Read,Write,Edit,Bash,LS,Glob,Grep',
+    skip_permissions: true,
+    task_timeout_minutes: 30,
+    idle_timeout_cap_minutes: 30,
+  },
+  display: {
+    theme: 'dark',
+    condensed_mode: false,
+  },
+  recycler: {
+    enabled_for: 'off',
+    recycle_interval: 60,
+    model_provider: 'ollama',
+    model_name: 'llama3.1:8b',
+    completion_threshold: 3,
+    failure_threshold: 5,
+  },
+};
+
+type ApiSettingsPayload = {
+  theme?: string;
+  slots?: number;
+  refresh_interval?: number;
+  active?: boolean;
+  max_turns?: number;
+  allowed_tools?: string;
+  skip_permissions?: boolean;
+  task_timeout?: number;
+  idle_timeout_cap?: number;
+  condensed_mode?: boolean;
+  max_tasks?: number;
+  recycler?: {
+    enabled_for?: string;
+    interval_seconds?: number;
+    model_provider?: string;
+    model_name?: string;
+    completion_threshold?: number;
+    failure_threshold?: number;
+  };
+  settings?: ApiSettingsPayload;
+};
+
+const isTheme = (value: unknown): value is Settings['display']['theme'] =>
+  value === 'light' || value === 'dark' || value === 'auto';
+
+const isEnabledFor = (value: unknown): value is Settings['recycler']['enabled_for'] =>
+  value === 'off' || value === 'resources' || value === 'scenarios' || value === 'both';
+
+const isModelProvider = (value: unknown): value is Settings['recycler']['model_provider'] =>
+  value === 'ollama' || value === 'openrouter';
+
+function mapApiSettingsToUi(raw: ApiSettingsPayload | Settings): Settings {
+  const source = (raw as ApiSettingsPayload)?.settings ?? raw ?? {};
+  const recycler = (source as ApiSettingsPayload)?.recycler ?? {};
+  const theme = (source as ApiSettingsPayload)?.theme;
+
+  return {
+    processor: {
+      concurrent_slots:
+        (source as ApiSettingsPayload)?.slots ?? DEFAULT_SETTINGS.processor.concurrent_slots,
+      refresh_interval:
+        (source as ApiSettingsPayload)?.refresh_interval ??
+        DEFAULT_SETTINGS.processor.refresh_interval,
+      max_tasks: (source as ApiSettingsPayload)?.max_tasks ?? DEFAULT_SETTINGS.processor.max_tasks,
+      active: (source as ApiSettingsPayload)?.active ?? DEFAULT_SETTINGS.processor.active,
+    },
+    agent: {
+      max_turns: (source as ApiSettingsPayload)?.max_turns ?? DEFAULT_SETTINGS.agent.max_turns,
+      allowed_tools:
+        (source as ApiSettingsPayload)?.allowed_tools ?? DEFAULT_SETTINGS.agent.allowed_tools,
+      skip_permissions:
+        (source as ApiSettingsPayload)?.skip_permissions ?? DEFAULT_SETTINGS.agent.skip_permissions,
+      task_timeout_minutes:
+        (source as ApiSettingsPayload)?.task_timeout ?? DEFAULT_SETTINGS.agent.task_timeout_minutes,
+      idle_timeout_cap_minutes:
+        (source as ApiSettingsPayload)?.idle_timeout_cap ??
+        DEFAULT_SETTINGS.agent.idle_timeout_cap_minutes,
+    },
+    display: {
+      theme: isTheme(theme) ? theme : DEFAULT_SETTINGS.display.theme,
+      condensed_mode:
+        (source as ApiSettingsPayload)?.condensed_mode ?? DEFAULT_SETTINGS.display.condensed_mode,
+    },
+    recycler: {
+      enabled_for: isEnabledFor(recycler?.enabled_for)
+        ? recycler.enabled_for
+        : DEFAULT_SETTINGS.recycler.enabled_for,
+      recycle_interval:
+        recycler?.interval_seconds ??
+        // Allow already-converted value to pass through for safety
+        (recycler as unknown as Settings['recycler'])?.recycle_interval ??
+        DEFAULT_SETTINGS.recycler.recycle_interval,
+      model_provider: isModelProvider(recycler?.model_provider)
+        ? recycler.model_provider
+        : DEFAULT_SETTINGS.recycler.model_provider,
+      model_name: recycler?.model_name ?? DEFAULT_SETTINGS.recycler.model_name,
+      completion_threshold:
+        recycler?.completion_threshold ?? DEFAULT_SETTINGS.recycler.completion_threshold,
+      failure_threshold:
+        recycler?.failure_threshold ?? DEFAULT_SETTINGS.recycler.failure_threshold,
+    },
+  };
+}
+
+// Normalize legacy target fields (string/array) into a consistent array
+const normalizeTaskTargets = (task: any): Task => {
+  const rawTargets = Array.isArray(task.target)
+    ? task.target
+    : Array.isArray(task.targets)
+      ? task.targets
+      : task.target
+        ? [task.target]
+        : [];
+
+  return {
+    ...task,
+    target: rawTargets.filter(Boolean),
+    // Backend uses processor_auto_requeue; UI expects auto_requeue
+    auto_requeue: task.auto_requeue ?? task.processor_auto_requeue ?? false,
+  };
+};
+
+const normalizeQueueStatus = (raw: any): QueueStatus => {
+  const rateInfo = raw?.rate_limit_info || {};
+  const running = Boolean(
+    raw?.processor_active ??
+    raw?.processor_running ??
+    raw?.active ??
+    raw?.settings_active
+  );
+
+  const slotsUsed =
+    raw?.slots_used ??
+    raw?.executing_count ??
+    raw?.running_count ??
+    0;
+
+  const maxConcurrent =
+    raw?.max_slots ??
+    raw?.max_concurrent ??
+    raw?.maxConcurrent ??
+    0;
+
+  const pendingCount = raw?.pending_count ?? 0;
+  const readyInProgress = raw?.ready_in_progress ?? 0;
+
+  return {
+    active: running,
+    slots_used: Number(slotsUsed) || 0,
+    max_concurrent: Number(maxConcurrent) || 0,
+    tasks_remaining: Number(pendingCount + readyInProgress) || 0,
+    next_refresh_in: raw?.refresh_interval ?? raw?.next_refresh_in,
+    rate_limited: Boolean(rateInfo.paused ?? raw?.rate_limited ?? false),
+    rate_limit_retry_after:
+      rateInfo.remaining_secs ??
+      raw?.rate_limit_retry_after ??
+      0,
+  };
+};
+
+const normalizeRunningProcess = (raw: any): RunningProcess => {
+  const processId =
+    raw?.process_id ??
+    raw?.ProcessID ??
+    raw?.processId ??
+    raw?.pid ??
+    raw?.id ??
+    '';
+
+  const taskId =
+    raw?.task_id ??
+    raw?.TaskID ??
+    raw?.taskId ??
+    raw?.id ??
+    '';
+
+  const startTime =
+    raw?.start_time ??
+    raw?.StartTime ??
+    raw?.startTime ??
+    '';
+
+  const elapsed =
+    raw?.elapsed_seconds ??
+    raw?.duration_seconds ??
+    raw?.DurationSeconds ??
+    0;
+
+  return {
+    task_id: taskId,
+    task_title: raw?.task_title ?? raw?.taskTitle ?? '',
+    process_id: String(processId),
+    agent_id: raw?.agent_id ?? raw?.AgentID ?? raw?.agentTag ?? '',
+    start_time: startTime,
+    elapsed_seconds: Number(elapsed) || 0,
+  };
+};
+
+function mapUiSettingsToApi(settings: Settings): ApiSettingsPayload {
+  return {
+    theme: settings.display.theme,
+    slots: settings.processor.concurrent_slots,
+    refresh_interval: settings.processor.refresh_interval,
+    active: settings.processor.active,
+    max_turns: settings.agent.max_turns,
+    allowed_tools: settings.agent.allowed_tools,
+    skip_permissions: settings.agent.skip_permissions,
+    task_timeout: settings.agent.task_timeout_minutes,
+    idle_timeout_cap: settings.agent.idle_timeout_cap_minutes,
+    condensed_mode: settings.display.condensed_mode,
+    max_tasks: settings.processor.max_tasks ?? 0,
+    recycler: {
+      enabled_for: settings.recycler.enabled_for,
+      interval_seconds: settings.recycler.recycle_interval,
+      model_provider: settings.recycler.model_provider,
+      model_name: settings.recycler.model_name,
+      completion_threshold: settings.recycler.completion_threshold,
+      failure_threshold: settings.recycler.failure_threshold,
+    },
+  };
+}
+
 // API base resolution (async, uses /config endpoint)
 let apiBasePromise: Promise<string> | null = null;
 
@@ -96,25 +328,63 @@ class ApiClient {
     const url = `/api/tasks${queryString ? '?' + queryString : ''}`;
 
     const response = await this.fetchJSON<{ tasks: Task[]; count: number }>(url);
-    return response.tasks || [];
+    const tasks = response.tasks || [];
+    return tasks.map(task => {
+      const normalized = normalizeTaskTargets(task);
+      // Trust the directory we fetched (query status) over stale file metadata
+      if (filters.status) {
+        normalized.status = filters.status as TaskStatus;
+      }
+      return normalized;
+    });
   }
 
   async getTask(taskId: string): Promise<Task> {
-    return this.fetchJSON<Task>(`/api/tasks/${taskId}`);
+    const task = await this.fetchJSON<Task>(`/api/tasks/${taskId}`);
+    return normalizeTaskTargets(task);
   }
 
   async createTask(taskData: CreateTaskInput): Promise<Task> {
-    return this.fetchJSON<Task>(`/api/tasks`, {
+    const payload: Record<string, unknown> = {
+      ...taskData,
+      processor_auto_requeue: taskData.auto_requeue,
+    };
+
+    // Normalize target payloads for API compatibility
+    if (Array.isArray(taskData.target)) {
+      payload.targets = taskData.target;
+      payload.target = taskData.target[0] ?? '';
+    } else if (taskData.target) {
+      payload.target = taskData.target;
+    }
+
+    delete (payload as any).auto_requeue;
+
+    const task = await this.fetchJSON<Task>(`/api/tasks`, {
       method: 'POST',
-      body: JSON.stringify(taskData),
+      body: JSON.stringify(payload),
     });
+    return normalizeTaskTargets(task);
   }
 
   async updateTask(taskId: string, updates: UpdateTaskInput): Promise<Task> {
-    return this.fetchJSON<Task>(`/api/tasks/${taskId}`, {
+    const payload: Record<string, unknown> = {
+      ...updates,
+      processor_auto_requeue: updates.auto_requeue,
+    };
+
+    if (Array.isArray((updates as any).target)) {
+      payload.targets = (updates as any).target;
+      payload.target = (updates as any).target[0] ?? '';
+    }
+
+    delete (payload as any).auto_requeue;
+
+    const task = await this.fetchJSON<Task>(`/api/tasks/${taskId}`, {
       method: 'PUT',
-      body: JSON.stringify(updates),
+      body: JSON.stringify(payload),
     });
+    return normalizeTaskTargets(task);
   }
 
   async updateTaskStatus(
@@ -122,10 +392,11 @@ class ApiClient {
     status: TaskStatus,
     additionalData: Record<string, unknown> = {}
   ): Promise<Task> {
-    return this.fetchJSON<Task>(`/api/tasks/${taskId}/status`, {
+    const task = await this.fetchJSON<Task>(`/api/tasks/${taskId}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status, ...additionalData }),
     });
+    return normalizeTaskTargets(task);
   }
 
   async deleteTask(taskId: string): Promise<void> {
@@ -157,7 +428,8 @@ class ApiClient {
   // ==================== Queue Management ====================
 
   async getQueueStatus(): Promise<QueueStatus> {
-    return this.fetchJSON<QueueStatus>(`/api/queue/status`);
+    const status = await this.fetchJSON<Record<string, unknown>>(`/api/queue/status`);
+    return normalizeQueueStatus(status);
   }
 
   async triggerQueueProcessing(): Promise<void> {
@@ -186,7 +458,8 @@ class ApiClient {
 
   async getRunningProcesses(): Promise<RunningProcess[]> {
     const response = await this.fetchJSON<{ processes: RunningProcess[]; count: number }>(`/api/processes/running`);
-    return response.processes || [];
+    const processes = response.processes || [];
+    return processes.map(normalizeRunningProcess);
   }
 
   async terminateProcess(taskId: string): Promise<void> {
@@ -199,20 +472,24 @@ class ApiClient {
   // ==================== Settings Management ====================
 
   async getSettings(): Promise<Settings> {
-    return this.fetchJSON<Settings>(`/api/settings`);
+    const response = await this.fetchJSON<ApiSettingsPayload>(`/api/settings`);
+    return mapApiSettingsToUi(response);
   }
 
   async updateSettings(settings: Settings): Promise<Settings> {
-    return this.fetchJSON<Settings>(`/api/settings`, {
+    const payload = mapUiSettingsToApi(settings);
+    const response = await this.fetchJSON<ApiSettingsPayload>(`/api/settings`, {
       method: 'PUT',
-      body: JSON.stringify(settings),
+      body: JSON.stringify(payload),
     });
+    return mapApiSettingsToUi(response);
   }
 
   async resetSettings(): Promise<Settings> {
-    return this.fetchJSON<Settings>(`/api/settings/reset`, {
+    const response = await this.fetchJSON<ApiSettingsPayload>(`/api/settings/reset`, {
       method: 'POST',
     });
+    return mapApiSettingsToUi(response);
   }
 
   async getRecyclerModels(provider: string): Promise<string[]> {

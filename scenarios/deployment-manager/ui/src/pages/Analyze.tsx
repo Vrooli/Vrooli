@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { Search, Loader2, AlertCircle, CheckCircle2, AlertTriangle, HelpCircle } from "lucide-react";
+import { Search, Loader2, AlertCircle, CheckCircle2, AlertTriangle, HelpCircle, Maximize2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -18,6 +18,14 @@ const TIER_NAMES: Record<string, string> = {
   mobile: "Mobile",
   saas: "SaaS/Cloud",
   enterprise: "Enterprise",
+};
+
+const TIER_KEY_BY_ID: Record<string, string> = {
+  "1": "local",
+  "2": "desktop",
+  "3": "mobile",
+  "4": "saas",
+  "5": "enterprise",
 };
 
 function getFitnessColor(score: number): string {
@@ -38,6 +46,7 @@ export function Analyze() {
   const [searchParams] = useSearchParams();
   const [scenario, setScenario] = useState("");
   const [queryScenario, setQueryScenario] = useState("");
+  const [focusedTier, setFocusedTier] = useState<string | null>(null);
   const { data: profiles } = useQuery({
     queryKey: ["profiles"],
     queryFn: listProfiles,
@@ -50,6 +59,7 @@ export function Analyze() {
   });
 
   const [analyzerTarget, setAnalyzerTarget] = useState<string | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
     fetch("/embedded/analyzer/target")
@@ -67,9 +77,17 @@ export function Analyze() {
 
   useEffect(() => {
     const fromQuery = searchParams.get("scenario");
+    const tierQuery = searchParams.get("tier");
     if (fromQuery) {
       setScenario(fromQuery);
       setQueryScenario(fromQuery);
+    }
+    if (tierQuery) {
+      if (TIER_KEY_BY_ID[tierQuery]) {
+        setFocusedTier(TIER_KEY_BY_ID[tierQuery]);
+      } else if (TIER_NAMES[tierQuery]) {
+        setFocusedTier(tierQuery);
+      }
     }
   }, [searchParams]);
 
@@ -230,10 +248,19 @@ export function Analyze() {
                   return (
                     <div
                       key={tierKey}
-                      className="rounded-lg border border-white/10 bg-white/5 p-4"
+                      className={`rounded-lg border p-4 transition ${
+                        focusedTier === tierKey
+                          ? "border-cyan-400 bg-cyan-500/10 shadow-lg shadow-cyan-500/10"
+                          : "border-white/10 bg-white/5"
+                      }`}
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-medium">{TIER_NAMES[tierKey] || tierKey}</h3>
+                        <h3 className="font-medium flex items-center gap-2">
+                          {TIER_NAMES[tierKey] || tierKey}
+                          {focusedTier === tierKey && (
+                            <Badge variant="secondary">From profile</Badge>
+                          )}
+                        </h3>
                         <Icon className={`h-5 w-5 ${getFitnessColor(scores.overall)}`} />
                       </div>
                       <div className={`text-3xl font-bold ${getFitnessColor(scores.overall)}`}>
@@ -331,16 +358,26 @@ export function Analyze() {
                   <TabsTrigger value="raw">Raw Data</TabsTrigger>
                 </TabsList>
                 <TabsContent value="overview" className="mt-4">
-                  <div className="rounded-lg border border-white/10 bg-black/30 p-2">
+                  <div className={`rounded-lg border border-white/10 bg-black/30 p-2 ${fullscreen ? "fixed inset-4 z-50 bg-slate-950" : ""}`}>
+                    <div className="flex items-center justify-between pb-2">
+                      <p className="text-xs text-slate-400">
+                        Visualization powered by scenario-dependency-analyzer. Use the search above to update the view.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setFullscreen((v) => !v)}
+                        className="inline-flex items-center gap-2 rounded border border-white/10 px-2 py-1 text-xs text-slate-200 hover:border-cyan-400 hover:text-cyan-100"
+                      >
+                        <Maximize2 className="h-3.5 w-3.5" />
+                        {fullscreen ? "Exit full screen" : "Full screen"}
+                      </button>
+                    </div>
                     <iframe
                       src={iframeUrl}
                       title="Scenario Dependency Analyzer"
-                      className="h-[560px] w-full rounded-md border border-white/10 bg-slate-950"
+                      className={`w-full rounded-md border border-white/10 bg-slate-950 ${fullscreen ? "h-[80vh]" : "h-[560px]"}`}
                       allowFullScreen
                     />
-                    <p className="mt-2 text-xs text-slate-400">
-                      Visualization powered by scenario-dependency-analyzer (proxied locally). Use the search above to update the view.
-                    </p>
                   </div>
                 </TabsContent>
                 <TabsContent value="raw" className="mt-4">

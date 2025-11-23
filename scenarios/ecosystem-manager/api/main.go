@@ -227,6 +227,10 @@ func initializeComponents() error {
 		log.Printf("Warning: duplicate task cleanup encountered issues: %v", err)
 		systemlog.Warnf("Duplicate task cleanup encountered issues: %v", err)
 	}
+	if err := storage.ResyncStatuses(); err != nil {
+		log.Printf("Warning: status resync encountered issues: %v", err)
+		systemlog.Warnf("Status resync encountered issues: %v", err)
+	}
 
 	// Initialize prompts assembler
 	assembler, err = prompts.NewAssembler(promptsDir, projectRoot)

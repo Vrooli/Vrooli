@@ -8,7 +8,10 @@ export function ProcessorStatusButton() {
 
   const isActive = (queueStatus as any)?.active ?? false;
   const slotsUsed = (queueStatus as any)?.slots_used ?? 0;
-  const maxSlots = (queueStatus as any)?.max_slots ?? 5;
+  const maxSlots =
+    (queueStatus as any)?.max_concurrent ??
+    (queueStatus as any)?.max_slots ??
+    5;
 
   const handleToggle = () => {
     const action = isActive ? 'stop' : 'start';
