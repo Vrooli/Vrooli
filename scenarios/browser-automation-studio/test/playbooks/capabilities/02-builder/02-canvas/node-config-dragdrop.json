@@ -119,7 +119,7 @@
       "type": "type",
       "data": {
         "label": "Enter target selector",
-        "selector": ".react-flow__node.selected input:nth-of-type(2)",
+        "selector": ".react-flow__node.selected input[placeholder*=\"target\" i]",
         "text": ".drop-zone",
         "timeoutMs": 5000,
         "waitForMs": 500
