@@ -49,6 +49,17 @@ export function Analyze() {
     enabled: !!queryScenario,
   });
 
+  const [analyzerTarget, setAnalyzerTarget] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/embedded/analyzer/target")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json?.url) setAnalyzerTarget(json.url as string);
+      })
+      .catch(() => {});
+  }, []);
+
   const handleAnalyze = (e: React.FormEvent) => {
     e.preventDefault();
     setQueryScenario(scenario);
@@ -88,8 +99,10 @@ export function Analyze() {
     if (queryScenario) params.set("scenario", queryScenario);
     params.set("graph_type", "combined");
     params.set("layout", "force");
-    return `/embedded/analyzer/?${params.toString()}`;
-  }, [queryScenario]);
+    const base = analyzerTarget || "/embedded/analyzer/";
+    const separator = base.endsWith("/") ? "" : "/";
+    return `${base}${separator}?${params.toString()}`;
+  }, [analyzerTarget, queryScenario]);
 
   return (
     <div className="space-y-6">
