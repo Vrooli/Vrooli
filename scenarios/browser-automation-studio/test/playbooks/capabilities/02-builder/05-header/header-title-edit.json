@@ -22,7 +22,7 @@
         "scenarioPath": "/",
         "waitUntil": "networkidle0",
         "timeoutMs": 45000,
-        "waitForMs": 2000
+        "waitForMs": 1200
       }
     },
     {
@@ -41,7 +41,7 @@
         "label": "Wait for workflows",
         "selector": "@selector/workflows.card",
         "timeoutMs": 10000,
-        "waitForMs": 1000,
+        "waitForMs": 600,
         "waitType": "element"
       }
     },

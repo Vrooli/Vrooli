@@ -31,7 +31,7 @@
         "label": "Wait for projects to load",
         "selector": "@selector/projects.grid",
         "timeoutMs": 10000,
-        "waitForMs": 1000,
+        "waitForMs": 600,
         "waitType": "element"
       }
     },

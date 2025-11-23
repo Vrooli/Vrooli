@@ -20,7 +20,6 @@
         "assertion": "Picker-wheel desktop app generates, builds, and has correct structure"
       },
       "status": "in_progress",
-      "criticality": "P0",
       "notes": "platforms/electron/ exists for picker-wheel but generation flow needs E2E validation"
     },
     {
@@ -33,7 +32,6 @@
         "assertion": "System-monitor desktop app uses advanced template features"
       },
       "status": "not_started",
-      "criticality": "P1",
       "notes": "Future reference implementation for advanced features"
     },
     {
@@ -46,7 +44,6 @@
         "assertion": "Desktop app can make requests to scenario API and receive responses"
       },
       "status": "in_progress",
-      "criticality": "P0",
       "notes": "Templates have API integration patterns; needs runtime validation"
     },
     {
@@ -59,7 +56,6 @@
         "assertion": "Electron BrowserWindow displays scenario UI correctly"
       },
       "status": "in_progress",
-      "criticality": "P0",
       "notes": "Templates have UI loading logic; needs runtime validation with real scenario"
     }
   ]

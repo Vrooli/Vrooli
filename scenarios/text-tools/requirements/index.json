@@ -12,7 +12,6 @@
       "title": "Diff and comparison API endpoint",
       "description": "POST /api/v1/text/diff compares two texts using line-by-line, word-by-word, character, or semantic algorithms and returns structured changes with similarity scores.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -29,7 +28,6 @@
       "title": "Text search and pattern matching API",
       "description": "POST /api/v1/text/search implements regex, plain text, fuzzy, and semantic search with configurable options.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -46,7 +44,6 @@
       "title": "Text transformation API endpoint",
       "description": "POST /api/v1/text/transform applies case conversion, encoding changes, format transformations, and sanitization operations.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -63,7 +60,6 @@
       "title": "Multi-format text extraction API",
       "description": "POST /api/v1/text/extract extracts text from PDF, HTML, DOCX, and images using OCR with metadata preservation.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -80,7 +76,6 @@
       "title": "Text statistics API endpoint",
       "description": "Provides word count, character count, language detection, and basic text analysis metrics.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -97,7 +92,6 @@
       "title": "RESTful API implementation",
       "description": "Implements comprehensive RESTful API with proper error handling, authentication, and documentation.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -114,7 +108,6 @@
       "title": "CLI interface with API parity",
       "description": "Command-line interface providing all API functionality with Unix-friendly input/output and piping support.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -131,7 +124,6 @@
       "title": "Semantic search with embeddings",
       "description": "Semantic search using Ollama-generated embeddings stored in vector database for conceptual matching.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -148,7 +140,6 @@
       "title": "AI-powered text summarization",
       "description": "Text summarization using Ollama integration with configurable length and style parameters.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -165,7 +156,6 @@
       "title": "Named entity extraction",
       "description": "Extracts named entities including names, dates, locations, emails, URLs with confidence scores.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -182,7 +172,6 @@
       "title": "Sentiment and tone analysis",
       "description": "Analyzes text sentiment and tone using AI models with numerical scores and categorical labels.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -199,7 +188,6 @@
       "title": "Text sanitization and PII removal",
       "description": "Sanitizes text by removing PII, cleaning HTML, and stripping dangerous content.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -216,7 +204,6 @@
       "title": "Multi-language translation support",
       "description": "Translation capabilities for multiple languages using Ollama integration.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -233,7 +220,6 @@
       "title": "Batch file processing",
       "description": "Batch processing endpoint for applying operations to multiple files efficiently.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",

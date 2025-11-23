@@ -21,7 +21,6 @@
         "assertion": "Desktop generation creates complete, valid Electron project"
       },
       "status": "in_progress",
-      "criticality": "P0",
       "implementation": "Creating test/e2e/test-desktop-generation.sh"
     },
     {
@@ -41,8 +40,7 @@
         ],
         "assertion": "All required files and directories present"
       },
-      "status": "in_progress",
-      "criticality": "P0"
+      "status": "in_progress"
     },
     {
       "id": "STD-E2E-DEPENDENCIES",
@@ -54,8 +52,7 @@
         "command": "cd <output_path> && npm install",
         "assertion": "Dependencies install without errors and node_modules/ is created"
       },
-      "status": "in_progress",
-      "criticality": "P0"
+      "status": "in_progress"
     },
     {
       "id": "STD-E2E-BUILD",
@@ -67,8 +64,7 @@
         "command": "cd <output_path> && npm run build",
         "assertion": "Build succeeds and dist/ directory contains compiled JS files"
       },
-      "status": "in_progress",
-      "criticality": "P0"
+      "status": "in_progress"
     },
     {
       "id": "STD-NATIVE-MENUS",
@@ -132,7 +128,6 @@
         "assertion": "electron-builder produces Windows installer (.exe)"
       },
       "status": "partial",
-      "criticality": "P0",
       "notes": "Templates have Windows config in package.json. Full build requires electron-builder."
     },
     {
@@ -145,7 +140,6 @@
         "assertion": "electron-builder produces macOS installer (.dmg)"
       },
       "status": "partial",
-      "criticality": "P0",
       "notes": "Templates have macOS config in package.json. Full build requires electron-builder on macOS."
     },
     {
@@ -158,7 +152,6 @@
         "assertion": "electron-builder produces Linux installer (.AppImage or .deb)"
       },
       "status": "partial",
-      "criticality": "P0",
       "notes": "Templates have Linux config in package.json. Full build requires electron-builder."
     }
   ]

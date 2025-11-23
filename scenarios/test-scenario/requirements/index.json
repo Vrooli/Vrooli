@@ -10,8 +10,13 @@
       "priority": "P0",
       "status": "validated",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "validation": ["test"],
-      "tags": ["lifecycle", "security"]
+      "validation": [
+        "test"
+      ],
+      "tags": [
+        "lifecycle",
+        "security"
+      ]
     },
     {
       "id": "TS-P0-002",
@@ -20,8 +25,13 @@
       "priority": "P0",
       "status": "validated",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
-      "validation": ["manual"],
-      "tags": ["security", "testing"]
+      "validation": [
+        "manual"
+      ],
+      "tags": [
+        "security",
+        "testing"
+      ]
     },
     {
       "id": "TS-P0-003",
@@ -30,8 +40,13 @@
       "priority": "P0",
       "status": "validated",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
-      "validation": ["test"],
-      "tags": ["api", "infrastructure"]
+      "validation": [
+        "test"
+      ],
+      "tags": [
+        "api",
+        "infrastructure"
+      ]
     },
     {
       "id": "TS-P1-001",
@@ -40,8 +55,13 @@
       "priority": "P1",
       "status": "validated",
       "prd_ref": "Operational Targets > P1 > OT-P1-001",
-      "validation": ["test"],
-      "tags": ["health", "monitoring"]
+      "validation": [
+        "test"
+      ],
+      "tags": [
+        "health",
+        "monitoring"
+      ]
     },
     {
       "id": "TS-P1-002",
@@ -50,8 +70,13 @@
       "priority": "P1",
       "status": "validated",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
-      "validation": ["test"],
-      "tags": ["cli", "installation"]
+      "validation": [
+        "test"
+      ],
+      "tags": [
+        "cli",
+        "installation"
+      ]
     }
   ],
   "metadata": {

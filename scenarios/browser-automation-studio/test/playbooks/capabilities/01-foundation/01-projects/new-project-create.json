@@ -22,7 +22,7 @@
         "scenarioPath": "/",
         "waitUntil": "networkidle0",
         "timeoutMs": 45000,
-        "waitForMs": 2000
+        "waitForMs": 1200
       }
     },
     {

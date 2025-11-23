@@ -27,7 +27,7 @@
         "label": "Hover over workflow card to reveal actions",
         "selector": "@selector/workflows.card:first-of-type",
         "timeoutMs": 3000,
-        "waitForMs": 1000
+        "waitForMs": 300
       }
     },
     {

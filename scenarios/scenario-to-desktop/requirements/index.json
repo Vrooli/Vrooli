@@ -30,7 +30,6 @@
       "title": "Electron template generation for all template types",
       "description": "Validates that all 4 Electron templates (basic, advanced, multi-window, kiosk) generate correctly with proper structure, dependencies, and configuration.",
       "status": "complete",
-      "criticality": "P0",
       "children": [
         "STD-TEMPLATE-BASIC",
         "STD-TEMPLATE-ADVANCED",
@@ -45,7 +44,6 @@
       "title": "Multi-framework desktop generation (Electron, Tauri, Neutralino)",
       "description": "Tracks support for multiple desktop frameworks. Currently only Electron is implemented.",
       "status": "partial",
-      "criticality": "P0",
       "notes": "Electron complete. Tauri and Neutralino marked as P2 future features.",
       "children": [
         "STD-FRAMEWORK-ELECTRON",
@@ -60,7 +58,6 @@
       "title": "Desktop apps integrate with scenario APIs and React UIs",
       "description": "Validates that generated desktop apps can load scenario UIs, connect to APIs, and provide native OS features.",
       "status": "in_progress",
-      "criticality": "P0",
       "children": [
         "STD-INTEGRATION-PICKER-WHEEL",
         "STD-INTEGRATION-API-CONNECTIVITY",
@@ -74,7 +71,6 @@
       "title": "End-to-end desktop generation and launch validation",
       "description": "Ensures E2E tests exist that generate desktop apps, verify structure, install dependencies, and optionally test launch.",
       "status": "in_progress",
-      "criticality": "P0",
       "children": [
         "STD-E2E-GENERATION",
         "STD-E2E-STRUCTURE",
@@ -89,7 +85,6 @@
       "title": "Native OS integration (menus, tray, file dialogs, notifications)",
       "description": "Validates that templates include native OS features and can be tested in runtime environment.",
       "status": "partial",
-      "criticality": "P0",
       "notes": "All features present in templates. Runtime validation requires Electron environment.",
       "children": [
         "STD-NATIVE-MENUS",
@@ -105,7 +100,6 @@
       "title": "Cross-platform build and packaging (Windows, macOS, Linux)",
       "description": "Validates that desktop apps can be built and packaged for all major platforms.",
       "status": "partial",
-      "criticality": "P0",
       "notes": "Structure and scripts exist. Full builds require electron-builder tooling.",
       "children": [
         "STD-PLATFORM-WINDOWS",

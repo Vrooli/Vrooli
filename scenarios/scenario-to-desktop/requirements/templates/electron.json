@@ -77,7 +77,6 @@
         "assertion": "Tauri templates generate and build successfully"
       },
       "status": "not_started",
-      "criticality": "P2",
       "notes": "Marked as future enhancement. Requires Rust toolchain and different template structure."
     },
     {
@@ -90,7 +89,6 @@
         "assertion": "Neutralino templates generate and build successfully"
       },
       "status": "not_started",
-      "criticality": "P2",
       "notes": "Marked as future enhancement. Less common framework, lower priority."
     }
   ]
