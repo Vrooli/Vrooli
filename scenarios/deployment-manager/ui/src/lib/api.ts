@@ -5,7 +5,7 @@ let API_BASE_URL: string | null = null;
 const getApiBaseUrl = () => {
   if (API_BASE_URL === null) {
     API_BASE_URL = resolveApiBase({
-      appendSuffix: true,
+      appendSuffix: false,
     });
   }
   return API_BASE_URL;

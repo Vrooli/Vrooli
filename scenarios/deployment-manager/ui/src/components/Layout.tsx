@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutGrid,
   FolderTree,
   Rocket,
   Settings,
-  Package
+  Package,
+  Menu,
+  X
 } from "lucide-react";
 import { cn } from "../lib/utils";
 
@@ -14,6 +17,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutGrid },
@@ -26,17 +30,43 @@ export function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-slate-950 text-slate-50">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/80 backdrop-blur">
-        <div className="flex h-16 items-center px-6">
+        <div className="flex h-16 items-center px-4 md:px-6">
+          <button
+            className="mr-4 md:hidden"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? (
+              <X className="h-6 w-6 text-slate-400" />
+            ) : (
+              <Menu className="h-6 w-6 text-slate-400" />
+            )}
+          </button>
           <div className="flex items-center gap-3">
             <Settings className="h-6 w-6 text-cyan-400" />
-            <h1 className="text-xl font-semibold">Deployment Manager</h1>
+            <h1 className="text-lg md:text-xl font-semibold">Deployment Manager</h1>
           </div>
         </div>
       </header>
 
       <div className="flex">
+        {/* Mobile Overlay */}
+        {mobileMenuOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/50 md:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
+
         {/* Sidebar */}
-        <aside className="sticky top-16 h-[calc(100vh-4rem)] w-64 border-r border-white/10 bg-slate-950/50">
+        <aside
+          className={cn(
+            "fixed md:sticky top-16 z-40 h-[calc(100vh-4rem)] w-64 border-r border-white/10 bg-slate-950 md:block",
+            mobileMenuOpen
+              ? "block left-0"
+              : "hidden"
+          )}
+        >
           <nav className="flex flex-col gap-1 p-4">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -46,6 +76,7 @@ export function Layout({ children }: LayoutProps) {
                 <Link
                   key={item.path}
                   to={item.path}
+                  onClick={() => setMobileMenuOpen(false)}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                     isActive
@@ -62,7 +93,7 @@ export function Layout({ children }: LayoutProps) {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4 md:p-6">
           {children}
         </main>
       </div>
