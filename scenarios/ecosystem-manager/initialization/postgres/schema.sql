@@ -172,3 +172,85 @@ LIMIT 50;
 -- Sample data for testing (optional)
 -- INSERT INTO task_executions (task_id, operation_type, target_type, target_name, category, status, completed_at)
 -- VALUES ('test-001', 'resource-generator', 'resource', 'test-matrix', 'communication', 'completed', CURRENT_TIMESTAMP);
+
+-- =============================================================================
+-- AUTO STEER SYSTEM
+-- =============================================================================
+-- Multi-dimensional scenario improvement system with configurable profiles,
+-- steering modes, and sequential phases for optimizing quality across
+-- multiple dimensions (UX, testing, refactoring, etc.)
+
+-- Auto Steer Profiles
+-- Stores reusable improvement profiles with phases and quality gates
+CREATE TABLE IF NOT EXISTS auto_steer_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    config JSONB NOT NULL,  -- Full profile configuration including phases, quality gates
+    tags TEXT[],
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+
+    CONSTRAINT auto_steer_profiles_name_unique UNIQUE(name)
+);
+
+-- Profile Executions (historical tracking)
+-- Records completed profile executions for analytics and learning
+CREATE TABLE IF NOT EXISTS profile_executions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID REFERENCES auto_steer_profiles(id) ON DELETE SET NULL,
+    task_id VARCHAR(255) NOT NULL,
+    scenario_name VARCHAR(255) NOT NULL,
+    start_metrics JSONB,
+    end_metrics JSONB,
+    phase_breakdown JSONB,  -- Array of phase execution details
+    total_iterations INTEGER DEFAULT 0,
+    total_duration_ms BIGINT,
+    user_rating INTEGER CHECK (user_rating >= 1 AND user_rating <= 5),
+    user_comments TEXT,
+    user_feedback_at TIMESTAMP,
+    executed_at TIMESTAMP DEFAULT NOW(),
+
+    CONSTRAINT profile_executions_task_unique UNIQUE(task_id)
+);
+
+-- Profile Execution State (active executions)
+-- Tracks the current state of ongoing profile executions
+CREATE TABLE IF NOT EXISTS profile_execution_state (
+    task_id VARCHAR(255) PRIMARY KEY,
+    profile_id UUID REFERENCES auto_steer_profiles(id) ON DELETE CASCADE,
+    current_phase_index INTEGER NOT NULL DEFAULT 0,
+    current_phase_iteration INTEGER NOT NULL DEFAULT 0,
+    phase_history JSONB,  -- Array of completed phase executions
+    metrics JSONB,  -- Current metrics snapshot
+    phase_start_metrics JSONB,  -- Metrics at the start of the current phase
+    started_at TIMESTAMP DEFAULT NOW(),
+    last_updated TIMESTAMP DEFAULT NOW()
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_profile_executions_profile_id ON profile_executions(profile_id);
+CREATE INDEX IF NOT EXISTS idx_profile_executions_scenario ON profile_executions(scenario_name);
+CREATE INDEX IF NOT EXISTS idx_profile_executions_executed_at ON profile_executions(executed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_profile_execution_state_profile_id ON profile_execution_state(profile_id);
+
+-- Function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to automatically update updated_at for profiles
+CREATE TRIGGER trigger_auto_steer_profiles_updated_at
+    BEFORE UPDATE ON auto_steer_profiles
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Trigger to automatically update last_updated for execution state
+CREATE TRIGGER trigger_profile_execution_state_updated
+    BEFORE UPDATE ON profile_execution_state
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

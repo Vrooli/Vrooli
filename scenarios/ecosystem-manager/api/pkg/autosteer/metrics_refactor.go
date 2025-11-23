@@ -15,14 +15,14 @@ import (
 
 // RefactorMetricsCollector handles collection of code quality/refactoring metrics
 type RefactorMetricsCollector struct {
-	projectRoot       string
+	projectRoot        string
 	tidinessManagerURL string
 }
 
 // NewRefactorMetricsCollector creates a new refactor metrics collector
 func NewRefactorMetricsCollector(projectRoot string, tidinessManagerURL string) *RefactorMetricsCollector {
 	return &RefactorMetricsCollector{
-		projectRoot:       projectRoot,
+		projectRoot:        projectRoot,
 		tidinessManagerURL: tidinessManagerURL,
 	}
 }

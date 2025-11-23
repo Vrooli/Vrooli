@@ -12,7 +12,6 @@
       "title": "Visual drag-and-drop funnel builder",
       "description": "React/TypeScript UI with intuitive step creation and ordering",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -30,7 +29,6 @@
       "title": "Multiple step types support",
       "description": "Quiz, form, content, and CTA step types with customizable fields",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -48,7 +46,6 @@
       "title": "Lead capture and storage",
       "description": "PostgreSQL-backed lead storage with full response tracking",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -66,7 +63,6 @@
       "title": "Linear funnel flow execution",
       "description": "Sequential step progression with session management",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -84,7 +80,6 @@
       "title": "API endpoints for funnel operations",
       "description": "Complete CRUD and execution endpoints with JSON responses",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -102,7 +97,6 @@
       "title": "Mobile-responsive funnel display",
       "description": "Mobile-first responsive design for funnel execution",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -120,7 +114,6 @@
       "title": "Branching logic support",
       "description": "User response-based conditional routing between steps",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -138,7 +131,6 @@
       "title": "Analytics dashboard",
       "description": "Conversion rates, drop-off points, and lead metrics visualization",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -156,7 +148,6 @@
       "title": "Template library",
       "description": "Pre-built professional funnels for common use cases",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -174,7 +165,6 @@
       "title": "Dynamic content personalization",
       "description": "User-specific content rendering based on responses",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -192,7 +182,6 @@
       "title": "Lead export functionality",
       "description": "CSV and JSON export for external processing",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -210,7 +199,6 @@
       "title": "AI-powered copy generation",
       "description": "Ollama-based compelling funnel content creation",
       "status": "planned",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -228,7 +216,6 @@
       "title": "Predictive analytics",
       "description": "ML-based conversion optimization recommendations",
       "status": "planned",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -246,7 +233,6 @@
       "title": "Webhook integrations",
       "description": "External service notifications for lead events",
       "status": "planned",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -264,7 +250,6 @@
       "title": "Advanced segmentation",
       "description": "User targeting and audience-specific funnel variants",
       "status": "planned",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -282,7 +267,6 @@
       "title": "Multi-tenant authentication",
       "description": "Scenario-authenticator integration for isolated tenants",
       "status": "planned",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -300,7 +284,6 @@
       "title": "A/B testing framework",
       "description": "Variant testing with statistical significance tracking",
       "status": "planned",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",

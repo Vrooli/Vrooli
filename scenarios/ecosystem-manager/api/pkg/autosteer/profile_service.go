@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 // ProfileService handles CRUD operations for Auto Steer profiles
@@ -55,7 +56,7 @@ func (s *ProfileService) CreateProfile(profile *AutoSteerProfile) error {
 		profile.Name,
 		profile.Description,
 		config,
-		profile.Tags,
+		pq.Array(profile.Tags),
 		profile.CreatedAt,
 		profile.UpdatedAt,
 	)
@@ -84,7 +85,7 @@ func (s *ProfileService) GetProfile(id string) (*AutoSteerProfile, error) {
 		&profile.Name,
 		&profile.Description,
 		&configJSON,
-		&tags,
+		pq.Array(&tags),
 		&profile.CreatedAt,
 		&profile.UpdatedAt,
 	)
@@ -117,7 +118,7 @@ func (s *ProfileService) ListProfiles(tags []string) ([]*AutoSteerProfile, error
 	var args []interface{}
 	if len(tags) > 0 {
 		query += " WHERE tags && $1"
-		args = append(args, tags)
+		args = append(args, pq.Array(tags))
 	}
 
 	query += " ORDER BY name ASC"
@@ -140,7 +141,7 @@ func (s *ProfileService) ListProfiles(tags []string) ([]*AutoSteerProfile, error
 			&profile.Name,
 			&profile.Description,
 			&configJSON,
-			&profileTags,
+			pq.Array(&profileTags),
 			&profile.CreatedAt,
 			&profile.UpdatedAt,
 		)
@@ -201,7 +202,7 @@ func (s *ProfileService) UpdateProfile(id string, updates *AutoSteerProfile) err
 		updates.Name,
 		updates.Description,
 		config,
-		updates.Tags,
+		pq.Array(updates.Tags),
 		updates.UpdatedAt,
 		id,
 	)

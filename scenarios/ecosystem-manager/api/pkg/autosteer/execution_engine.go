@@ -9,21 +9,21 @@ import (
 
 // ExecutionEngine manages profile execution state and phase transitions
 type ExecutionEngine struct {
-	db                *sql.DB
-	profileService    *ProfileService
+	db                 *sql.DB
+	profileService     *ProfileService
 	conditionEvaluator *ConditionEvaluator
-	metricsCollector  *MetricsCollector
-	promptEnhancer    *PromptEnhancer
+	metricsCollector   *MetricsCollector
+	promptEnhancer     *PromptEnhancer
 }
 
 // NewExecutionEngine creates a new execution engine
 func NewExecutionEngine(db *sql.DB, profileService *ProfileService, metricsCollector *MetricsCollector) *ExecutionEngine {
 	return &ExecutionEngine{
-		db:                db,
-		profileService:    profileService,
+		db:                 db,
+		profileService:     profileService,
 		conditionEvaluator: NewConditionEvaluator(),
-		metricsCollector:  metricsCollector,
-		promptEnhancer:    NewPromptEnhancer(),
+		metricsCollector:   metricsCollector,
+		promptEnhancer:     NewPromptEnhancer(),
 	}
 }
 
@@ -43,15 +43,15 @@ func (e *ExecutionEngine) StartExecution(taskID string, profileID string, scenar
 
 	// Create execution state
 	state := &ProfileExecutionState{
-		TaskID:               taskID,
-		ProfileID:            profileID,
-		CurrentPhaseIndex:    0,
+		TaskID:                taskID,
+		ProfileID:             profileID,
+		CurrentPhaseIndex:     0,
 		CurrentPhaseIteration: 0,
-		PhaseHistory:         []PhaseExecution{},
-		Metrics:              *metrics,
-		PhaseStartMetrics:    *metrics, // First phase starts with initial metrics
-		StartedAt:            time.Now(),
-		LastUpdated:          time.Now(),
+		PhaseHistory:          []PhaseExecution{},
+		Metrics:               *metrics,
+		PhaseStartMetrics:     *metrics, // First phase starts with initial metrics
+		StartedAt:             time.Now(),
+		LastUpdated:           time.Now(),
 	}
 
 	// Save to database
@@ -361,10 +361,10 @@ func (e *ExecutionEngine) completeExecution(state *ProfileExecutionState, scenar
 		}
 
 		phaseBreakdown[i] = PhasePerformance{
-			Mode:         phase.Mode,
-			Iterations:   phase.Iterations,
-			MetricDeltas: calculateMetricDeltas(phase.StartMetrics, phase.EndMetrics),
-			Duration:     duration,
+			Mode:          phase.Mode,
+			Iterations:    phase.Iterations,
+			MetricDeltas:  calculateMetricDeltas(phase.StartMetrics, phase.EndMetrics),
+			Duration:      duration,
 			Effectiveness: calculateEffectiveness(phase),
 		}
 	}

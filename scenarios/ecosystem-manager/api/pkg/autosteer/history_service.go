@@ -224,29 +224,29 @@ func (s *HistoryService) SubmitFeedback(executionID string, rating int, comments
 
 // ProfileAnalytics represents aggregated analytics for a profile
 type ProfileAnalytics struct {
-	ProfileID       string                       `json:"profile_id"`
-	TotalExecutions int                          `json:"total_executions"`
-	AvgRating       float64                      `json:"avg_rating"`
-	AvgIterations   float64                      `json:"avg_iterations"`
-	AvgDuration     int64                        `json:"avg_duration"`
-	PhaseStats      map[SteerMode]PhaseStats     `json:"phase_stats"`
-	ScenarioStats   []ScenarioStats              `json:"scenario_stats"`
+	ProfileID       string                   `json:"profile_id"`
+	TotalExecutions int                      `json:"total_executions"`
+	AvgRating       float64                  `json:"avg_rating"`
+	AvgIterations   float64                  `json:"avg_iterations"`
+	AvgDuration     int64                    `json:"avg_duration"`
+	PhaseStats      map[SteerMode]PhaseStats `json:"phase_stats"`
+	ScenarioStats   []ScenarioStats          `json:"scenario_stats"`
 }
 
 // PhaseStats represents statistics for a specific mode
 type PhaseStats struct {
-	TotalExecutions int     `json:"total_executions"`
-	AvgIterations   float64 `json:"avg_iterations"`
-	AvgDuration     int64   `json:"avg_duration"`
+	TotalExecutions  int     `json:"total_executions"`
+	AvgIterations    float64 `json:"avg_iterations"`
+	AvgDuration      int64   `json:"avg_duration"`
 	AvgEffectiveness float64 `json:"avg_effectiveness"`
 }
 
 // ScenarioStats represents statistics for a specific scenario
 type ScenarioStats struct {
-	ScenarioName    string  `json:"scenario_name"`
-	ExecutionCount  int     `json:"execution_count"`
-	AvgImprovement  float64 `json:"avg_improvement"`
-	AvgRating       float64 `json:"avg_rating"`
+	ScenarioName   string  `json:"scenario_name"`
+	ExecutionCount int     `json:"execution_count"`
+	AvgImprovement float64 `json:"avg_improvement"`
+	AvgRating      float64 `json:"avg_rating"`
 }
 
 // GetProfileAnalytics retrieves aggregated analytics for a profile
@@ -280,9 +280,9 @@ func (s *HistoryService) GetProfileAnalytics(profileID string) (*ProfileAnalytic
 
 	// Phase statistics accumulator
 	phaseData := make(map[SteerMode]struct {
-		count        int
-		iterations   int
-		duration     int64
+		count         int
+		iterations    int
+		duration      int64
 		effectiveness float64
 	})
 

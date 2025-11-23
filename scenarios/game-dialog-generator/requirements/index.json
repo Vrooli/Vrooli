@@ -12,7 +12,6 @@
       "title": "Character personality definition and storage system",
       "description": "Create and store character personalities with traits, backgrounds, speech patterns, and relationships in PostgreSQL",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -30,7 +29,6 @@
       "title": "Scene context management with semantic search via Qdrant",
       "description": "Manage scene contexts and enable semantic search using Qdrant vector embeddings",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -48,7 +46,6 @@
       "title": "Real-time dialog generation API with streaming responses",
       "description": "Generate character dialog in real-time using Ollama with < 2s response time",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -66,7 +63,6 @@
       "title": "Batch dialog generation for traditional game workflows",
       "description": "Support batch generation of multiple dialog lines for fixed-dialog games",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -84,7 +80,6 @@
       "title": "PostgreSQL integration for persistent character and project data",
       "description": "Store characters, scenes, projects, and dialog history in PostgreSQL",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -102,7 +97,6 @@
       "title": "Ollama integration for local LLM-powered dialog generation",
       "description": "Use Ollama for AI-powered dialog generation with personality constraints",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -120,7 +114,6 @@
       "title": "Voice synthesis with character-specific audio profiles",
       "description": "Generate character-specific voice audio for dialog lines",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -138,7 +131,6 @@
       "title": "Character relationship modeling affecting dialog dynamics",
       "description": "Model character relationships that influence dialog tone and content",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -156,7 +148,6 @@
       "title": "Dialog history tracking and consistency checks",
       "description": "Track dialog history and validate consistency with character personality",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -174,7 +165,6 @@
       "title": "Export formats for popular game engines",
       "description": "Export dialog in formats compatible with Unity, Unreal, Godot, and JSON",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -192,7 +182,6 @@
       "title": "Character emotion state tracking influencing dialog tone",
       "description": "Track and incorporate character emotion states in dialog generation",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -210,7 +199,6 @@
       "title": "Dialog validation against character personality constraints",
       "description": "Validate generated dialog matches character personality profiles",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -228,7 +216,6 @@
       "title": "Visual character relationship graphs",
       "description": "Display character relationships as interactive graphs",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -246,7 +233,6 @@
       "title": "Dialog analytics and quality metrics",
       "description": "Provide analytics on dialog quality, character consistency, and usage patterns",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -264,7 +250,6 @@
       "title": "Multi-language dialog generation",
       "description": "Generate dialog in multiple languages with cultural context",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -282,7 +267,6 @@
       "title": "Integration with existing game dialog systems",
       "description": "Connect to existing game dialog systems for enhanced generation",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -300,7 +284,6 @@
       "title": "Collaborative character development features",
       "description": "Enable team collaboration on character creation and dialog review",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -318,7 +301,6 @@
       "title": "Dialog A/B testing capabilities",
       "description": "Support A/B testing of different dialog variations",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",

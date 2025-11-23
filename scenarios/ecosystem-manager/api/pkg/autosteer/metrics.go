@@ -140,8 +140,7 @@ func (m *MetricsCollector) collectSecurityMetrics(scenarioName string, snapshot 
 // Helper methods to check if metrics have meaningful data
 
 func (m *MetricsCollector) hasUXData(metrics *UXMetrics) bool {
-	return metrics != nil && (
-		metrics.AccessibilityScore > 0 ||
+	return metrics != nil && (metrics.AccessibilityScore > 0 ||
 		metrics.UITestCoverage > 0 ||
 		metrics.ResponsiveBreakpoints > 0 ||
 		metrics.UserFlowsImplemented > 0 ||
@@ -150,8 +149,7 @@ func (m *MetricsCollector) hasUXData(metrics *UXMetrics) bool {
 }
 
 func (m *MetricsCollector) hasRefactorData(metrics *RefactorMetrics) bool {
-	return metrics != nil && (
-		metrics.CyclomaticComplexityAvg > 0 ||
+	return metrics != nil && (metrics.CyclomaticComplexityAvg > 0 ||
 		metrics.DuplicationPercentage > 0 ||
 		metrics.TidinessScore > 0 ||
 		metrics.StandardsViolations > 0 ||
@@ -159,8 +157,7 @@ func (m *MetricsCollector) hasRefactorData(metrics *RefactorMetrics) bool {
 }
 
 func (m *MetricsCollector) hasTestData(metrics *TestMetrics) bool {
-	return metrics != nil && (
-		metrics.UnitTestCoverage > 0 ||
+	return metrics != nil && (metrics.UnitTestCoverage > 0 ||
 		metrics.IntegrationTestCoverage > 0 ||
 		metrics.UITestCoverage > 0 ||
 		metrics.EdgeCasesCovered > 0 ||
@@ -168,15 +165,13 @@ func (m *MetricsCollector) hasTestData(metrics *TestMetrics) bool {
 }
 
 func (m *MetricsCollector) hasPerformanceData(metrics *PerformanceMetrics) bool {
-	return metrics != nil && (
-		metrics.BundleSizeKB > 0 ||
+	return metrics != nil && (metrics.BundleSizeKB > 0 ||
 		metrics.InitialLoadTimeMS > 0 ||
 		metrics.LCPMS > 0)
 }
 
 func (m *MetricsCollector) hasSecurityData(metrics *SecurityMetrics) bool {
-	return metrics != nil && (
-		metrics.InputValidationCoverage > 0 ||
+	return metrics != nil && (metrics.InputValidationCoverage > 0 ||
 		metrics.AuthImplementationScore > 0 ||
 		metrics.SecurityScanScore > 0)
 }

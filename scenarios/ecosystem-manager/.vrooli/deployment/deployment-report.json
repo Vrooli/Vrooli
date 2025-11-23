@@ -1,7 +1,7 @@
 {
   "scenario": "ecosystem-manager",
   "report_version": 1,
-  "generated_at": "2025-11-16T19:40:55.758981687Z",
+  "generated_at": "2025-11-22T21:03:57.712551154Z",
   "dependencies": [
     {
       "name": "claude-code",
@@ -42,7 +42,7 @@
   "aggregates": {},
   "bundle_manifest": {
     "scenario": "ecosystem-manager",
-    "generated_at": "2025-11-16T19:40:55.758981687Z",
+    "generated_at": "2025-11-22T21:03:57.712551154Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -105,5 +105,12 @@
         "type": "resource"
       }
     ]
+  },
+  "metadata_gaps": {
+    "total_gaps": 0,
+    "scenarios_missing_all": 0,
+    "gaps_by_scenario": {},
+    "missing_tiers": null,
+    "recommendations": []
   }
 }

@@ -16,15 +16,15 @@ func NewModeInstructions() *ModeInstructions {
 // GetInstructions returns the detailed instructions for a given mode
 func (m *ModeInstructions) GetInstructions(mode SteerMode) string {
 	instructions := map[SteerMode]string{
-		ModeProgress:     m.getProgressInstructions(),
-		ModeUX:           m.getUXInstructions(),
-		ModeRefactor:     m.getRefactorInstructions(),
-		ModeTest:         m.getTestInstructions(),
-		ModeExplore:      m.getExploreInstructions(),
-		ModePolish:       m.getPolishInstructions(),
-		ModeIntegration:  m.getIntegrationInstructions(),
-		ModePerformance:  m.getPerformanceInstructions(),
-		ModeSecurity:     m.getSecurityInstructions(),
+		ModeProgress:    m.getProgressInstructions(),
+		ModeUX:          m.getUXInstructions(),
+		ModeRefactor:    m.getRefactorInstructions(),
+		ModeTest:        m.getTestInstructions(),
+		ModeExplore:     m.getExploreInstructions(),
+		ModePolish:      m.getPolishInstructions(),
+		ModeIntegration: m.getIntegrationInstructions(),
+		ModePerformance: m.getPerformanceInstructions(),
+		ModeSecurity:    m.getSecurityInstructions(),
 	}
 
 	if instr, ok := instructions[mode]; ok {

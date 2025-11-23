@@ -178,9 +178,9 @@ func (c *PerformanceMetricsCollector) parseLighthouseResults(resultsDir string) 
 	metrics := &PerformanceMetrics{
 		BundleSizeKB:      0, // Not included in Lighthouse
 		InitialLoadTimeMS: int(report.Audits.FirstContentfulPaint.NumericValue),
-		LCPMS:            int(report.Audits.LargestContentfulPaint.NumericValue),
-		FIDMS:            int(report.Audits.TotalBlockingTime.NumericValue),
-		CLSScore:         report.Audits.CumulativeLayoutShift.NumericValue,
+		LCPMS:             int(report.Audits.LargestContentfulPaint.NumericValue),
+		FIDMS:             int(report.Audits.TotalBlockingTime.NumericValue),
+		CLSScore:          report.Audits.CumulativeLayoutShift.NumericValue,
 	}
 
 	return metrics, nil
@@ -215,9 +215,9 @@ func (c *PerformanceMetricsCollector) RunSimplifiedPerformanceTest(url string) (
 	metrics := &PerformanceMetrics{
 		BundleSizeKB:      0,
 		InitialLoadTimeMS: int(timing.TimeTotal * 1000),
-		LCPMS:            int(timing.TimeStartTransfer * 1000),
-		FIDMS:            0,
-		CLSScore:         0,
+		LCPMS:             int(timing.TimeStartTransfer * 1000),
+		FIDMS:             0,
+		CLSScore:          0,
 	}
 
 	return metrics, nil
