@@ -1,0 +1,48 @@
+id: scenario-generator-20251121-090221
+title: landing-manager
+type: scenario
+operation: improver
+category: ""
+priority: critical
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: pending
+current_phase: ""
+started_at: ""
+completed_at: ""
+completion_count: 22
+last_completed_at: "2025-11-23T01:16:48-05:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-11-21T09:02:21-05:00"
+updated_at: "2025-11-23T01:27:25-05:00"
+tags: []
+notes: |-
+    **What was accomplished:**
+    - Execution of Claude Code with specified settings
+    - Timeout set to 9780 seconds
+    - Parameters passed:
+      - --print
+      - --max-turns 100
+      - --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep
+      - --dangerously-skip-permissions
+
+    **Current status:**
+    - Non-TTY environment detected and automation-friendly settings applied
+    - Permission checks are disabled due to WARNING ⚠️
+    - Executing Claude Code with the provided parameters
+
+    **Remaining issues or limitations:**
+    - Permission checks are disabled (WARNING ⚠️)
+
+    **Suggested next actions:**
+    None reported
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true
+auto_steer_profile_id: e24c67ef-b58d-49d1-8b9f-7be880e90195

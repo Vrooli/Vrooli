@@ -259,6 +259,23 @@ func initializeComponents() error {
 
 	// Initialize Auto Steer components
 	projectRoot2 := filepath.Clean(filepath.Join(scenarioRoot, "..", ".."))
+
+	// Verify Auto Steer database tables exist
+	if err := autosteer.EnsureTablesExist(db); err != nil {
+		log.Fatalf("Auto Steer database tables missing: %v", err)
+	}
+
+	// Log table counts for debugging
+	counts, err := autosteer.GetTableCounts(db)
+	if err != nil {
+		log.Printf("Warning: Could not get table counts: %v", err)
+	} else {
+		log.Printf("Auto Steer table counts: profiles=%d, executions=%d, active_states=%d",
+			counts["auto_steer_profiles"],
+			counts["profile_executions"],
+			counts["profile_execution_state"])
+	}
+
 	autoSteerMetricsCollector = autosteer.NewMetricsCollector(projectRoot2)
 	autoSteerProfileService = autosteer.NewProfileService(db)
 	autoSteerExecutionEngine = autosteer.NewExecutionEngine(db, autoSteerProfileService, autoSteerMetricsCollector)
@@ -367,6 +384,9 @@ func setupRoutes() http.Handler {
 	api.HandleFunc("/auto-steer/templates", autoSteerHandlers.GetTemplates).Methods("GET")
 
 	// Execution management
+	api.HandleFunc("/auto-steer/execution/start", autoSteerHandlers.StartExecution).Methods("POST")
+	api.HandleFunc("/auto-steer/execution/evaluate", autoSteerHandlers.EvaluateIteration).Methods("POST")
+	api.HandleFunc("/auto-steer/execution/advance", autoSteerHandlers.AdvancePhase).Methods("POST")
 	api.HandleFunc("/auto-steer/execution/{taskId}", autoSteerHandlers.GetExecutionState).Methods("GET")
 
 	// Metrics

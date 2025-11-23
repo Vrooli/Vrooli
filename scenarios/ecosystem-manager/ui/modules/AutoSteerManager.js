@@ -42,12 +42,20 @@ export class AutoSteerManager {
             if (!response.ok) {
                 throw new Error(`Failed to load profiles: ${response.statusText}`);
             }
-            this.profiles = await response.json();
+            const data = await response.json();
+
+            // Ensure we always have an array (never null/undefined)
+            this.profiles = Array.isArray(data) ? data : [];
+
             logger.debug(`Loaded ${this.profiles.length} profiles`);
             return this.profiles;
         } catch (error) {
             logger.error('Failed to load profiles:', error);
-            throw error;
+
+            // Return empty array on error instead of throwing
+            // This prevents the UI from breaking
+            this.profiles = [];
+            return this.profiles;
         }
     }
 

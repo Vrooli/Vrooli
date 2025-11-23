@@ -146,6 +146,86 @@ func (h *AutoSteerHandlers) GetTemplates(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(templates)
 }
 
+// StartExecution handles POST /api/auto-steer/execution/start
+func (h *AutoSteerHandlers) StartExecution(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TaskID       string `json:"task_id"`
+		ProfileID    string `json:"profile_id"`
+		ScenarioName string `json:"scenario_name"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
+		return
+	}
+
+	if req.TaskID == "" || req.ProfileID == "" || req.ScenarioName == "" {
+		writeError(w, http.StatusBadRequest, "task_id, profile_id, and scenario_name are required")
+		return
+	}
+
+	state, err := h.executionEngine.StartExecution(req.TaskID, req.ProfileID, req.ScenarioName)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to start execution: "+err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, state)
+}
+
+// EvaluateIteration handles POST /api/auto-steer/execution/evaluate
+func (h *AutoSteerHandlers) EvaluateIteration(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TaskID       string `json:"task_id"`
+		ScenarioName string `json:"scenario_name"`
+		Loops        int    `json:"loops"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
+		return
+	}
+
+	if req.TaskID == "" || req.ScenarioName == "" {
+		writeError(w, http.StatusBadRequest, "task_id and scenario_name are required")
+		return
+	}
+
+	result, err := h.executionEngine.EvaluateIteration(req.TaskID, req.ScenarioName, req.Loops)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to evaluate iteration: "+err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
+}
+
+// AdvancePhase handles POST /api/auto-steer/execution/advance
+func (h *AutoSteerHandlers) AdvancePhase(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TaskID       string `json:"task_id"`
+		ScenarioName string `json:"scenario_name"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
+		return
+	}
+
+	if req.TaskID == "" || req.ScenarioName == "" {
+		writeError(w, http.StatusBadRequest, "task_id and scenario_name are required")
+		return
+	}
+
+	result, err := h.executionEngine.AdvancePhase(req.TaskID, req.ScenarioName)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to advance phase: "+err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
+}
+
 // GetExecutionState handles GET /api/auto-steer/execution/:taskId
 func (h *AutoSteerHandlers) GetExecutionState(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
