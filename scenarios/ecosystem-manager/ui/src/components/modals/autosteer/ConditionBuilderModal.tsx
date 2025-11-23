@@ -63,6 +63,21 @@ export function ConditionBuilderModal({
         </DialogHeader>
 
         <div className="space-y-4">
+          <div className="flex items-start gap-3 rounded-lg border border-blue-600/40 bg-blue-950/40 p-4 text-sm text-slate-100">
+            <div className="mt-0.5 h-6 w-6 rounded-full bg-blue-500/20 border border-blue-500/60 flex items-center justify-center text-blue-200 text-xs font-semibold">
+              i
+            </div>
+            <div className="space-y-2">
+              <p className="font-semibold text-blue-100">How to use stop conditions</p>
+              <ul className="list-disc list-inside space-y-1 text-slate-200">
+                <li><strong>Condition</strong>: single metric check (iteration count, success rate, etc.).</li>
+                <li><strong>Group</strong>: AND/OR bundle of conditions; nest groups for complex logic.</li>
+                <li>Evaluate top-down: a condition/group stops the phase when it becomes true.</li>
+                <li>You can reopen this builder from the phase card anytime to adjust.</li>
+              </ul>
+            </div>
+          </div>
+
           {/* Add Buttons */}
           <div className="flex gap-2">
             <Button

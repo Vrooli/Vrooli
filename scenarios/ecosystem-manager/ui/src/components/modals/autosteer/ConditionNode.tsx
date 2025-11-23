@@ -23,7 +23,7 @@ interface ConditionNodeProps {
   depth: number;
 }
 
-const AVAILABLE_METRICS = [
+export const AVAILABLE_METRICS = [
   { value: 'iteration_count', label: 'Iteration Count' },
   { value: 'error_rate', label: 'Error Rate' },
   { value: 'success_rate', label: 'Success Rate' },
@@ -59,8 +59,12 @@ export function ConditionNode({
           value={condition.metric}
           onValueChange={(value) => onChange({ ...condition, metric: value })}
         >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select metric..." />
+          <SelectTrigger className="w-[220px] bg-slate-900/70 border-slate-700 text-slate-100">
+            <SelectValue placeholder="Select metric..." className="truncate">
+              {AVAILABLE_METRICS.find((m) => m.value === condition.metric)?.label ||
+                condition.metric ||
+                'Select metric...'}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {AVAILABLE_METRICS.map((metric) => (
@@ -75,8 +79,10 @@ export function ConditionNode({
           value={condition.compare_operator}
           onValueChange={(value) => onChange({ ...condition, compare_operator: value })}
         >
-          <SelectTrigger className="w-[80px]">
-            <SelectValue />
+          <SelectTrigger className="w-[90px] bg-slate-900/70 border-slate-700 text-slate-100">
+            <SelectValue placeholder="Op" className="text-center">
+              {condition.compare_operator || 'Op'}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {COMPARE_OPERATORS.map((op) => (
@@ -158,8 +164,12 @@ export function ConditionNode({
               onChange({ ...condition, logic_operator: value as 'AND' | 'OR' })
             }
           >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
+            <SelectTrigger className="w-[200px] bg-slate-900/70 border-slate-700 text-slate-100">
+              <SelectValue placeholder="Logic">
+                {LOGIC_OPERATORS.find((op) => op.value === condition.logic_operator)?.label ||
+                  condition.logic_operator ||
+                  'Logic'}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {LOGIC_OPERATORS.map((op) => (

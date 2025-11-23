@@ -16,6 +16,7 @@ interface PhaseListProps {
 export function PhaseList({ phases, onChange }: PhaseListProps) {
   const handleAddPhase = () => {
     const newPhase: AutoSteerPhase = {
+      id: `phase-${Date.now()}-${phases.length}`,
       mode: 'progress',
       max_iterations: 10,
       description: '',
@@ -32,6 +33,24 @@ export function PhaseList({ phases, onChange }: PhaseListProps) {
 
   const handleRemovePhase = (index: number) => {
     onChange(phases.filter((_, i) => i !== index));
+  };
+
+  const handleDuplicatePhase = (index: number) => {
+    const phaseToCopy = phases[index];
+    if (!phaseToCopy) return;
+    const copy: AutoSteerPhase = {
+      ...JSON.parse(JSON.stringify(phaseToCopy)),
+      id: `phase-${Date.now()}-${index}-copy`,
+    };
+    onChange([...phases.slice(0, index + 1), copy, ...phases.slice(index + 1)]);
+  };
+
+  const handleMovePhase = (from: number, to: number) => {
+    if (to < 0 || to >= phases.length) return;
+    const newPhases = [...phases];
+    const [moved] = newPhases.splice(from, 1);
+    newPhases.splice(to, 0, moved);
+    onChange(newPhases);
   };
 
   return (
@@ -55,11 +74,16 @@ export function PhaseList({ phases, onChange }: PhaseListProps) {
         <div className="space-y-4">
           {phases.map((phase, index) => (
             <PhaseEditor
-              key={index}
+              key={phase.id ?? index}
               phase={phase}
               index={index}
               onChange={(updated) => handleUpdatePhase(index, updated)}
               onRemove={() => handleRemovePhase(index)}
+              onMoveUp={() => handleMovePhase(index, index - 1)}
+              onMoveDown={() => handleMovePhase(index, index + 1)}
+              onDuplicate={() => handleDuplicatePhase(index)}
+              isFirst={index === 0}
+              isLast={index === phases.length - 1}
             />
           ))}
         </div>
