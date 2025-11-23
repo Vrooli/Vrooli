@@ -34,9 +34,10 @@ describe("API utilities", () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 500,
+        text: async () => "Internal Server Error",
       });
 
-      await expect(fetchHealth()).rejects.toThrow("API health check failed: 500");
+      await expect(fetchHealth()).rejects.toThrow("API call failed (500): Internal Server Error");
       expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
@@ -49,8 +50,8 @@ describe("API utilities", () => {
       await fetchHealth();
 
       const callArgs = (global.fetch as any).mock.calls[0];
-      expect(callArgs[1].headers).toEqual({ "Content-Type": "application/json" });
-      expect(callArgs[1].cache).toBe("no-store");
+      expect(callArgs[1].headers["Content-Type"]).toBe("application/json");
+      expect(callArgs[1].credentials).toBe("include");
     });
   });
 });

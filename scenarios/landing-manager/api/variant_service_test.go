@@ -1,44 +1,15 @@
 package main
 
 import (
-	"database/sql"
-	"os"
 	"testing"
-
-	_ "github.com/lib/pq"
 )
-
-func setupTestDB(t *testing.T) *sql.DB {
-	// Use the same database as main tests
-	dbURL, err := resolveDatabaseURL()
-	if err != nil {
-		// Fallback to default test database URL if env vars not set
-		// This allows tests to run in CI/CD or local environments without full lifecycle setup
-		dbURL = os.Getenv("TEST_DATABASE_URL")
-		if dbURL == "" {
-			dbURL = "postgresql://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/landing-manager?sslmode=disable"
-		}
-		t.Logf("Using fallback database URL (lifecycle env vars not detected)")
-	}
-
-	db, err := sql.Open("postgres", dbURL)
-	if err != nil {
-		t.Fatalf("Failed to connect to test database: %v", err)
-	}
-
-	if err := db.Ping(); err != nil {
-		t.Fatalf("Failed to ping test database: %v", err)
-	}
-
-	// Clean up test data
-	db.Exec("DELETE FROM variants WHERE slug LIKE 'test-%'")
-
-	return db
-}
 
 func TestSelectVariant(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
+
+	// Clean up test data
+	db.Exec("DELETE FROM variants WHERE slug LIKE 'test-%'")
 
 	vs := NewVariantService(db)
 

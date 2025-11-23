@@ -85,7 +85,7 @@ CREATE INDEX idx_subscriptions_status ON subscriptions(status);
 CREATE TABLE IF NOT EXISTS content_sections (
     id SERIAL PRIMARY KEY,
     variant_id INTEGER REFERENCES variants(id) ON DELETE CASCADE,
-    section_type VARCHAR(50) NOT NULL CHECK (section_type IN ('hero', 'features', 'pricing', 'cta', 'testimonials', 'faq', 'footer')),
+    section_type VARCHAR(50) NOT NULL CHECK (section_type IN ('hero', 'features', 'pricing', 'cta', 'testimonials', 'faq', 'footer', 'video')),
     content JSONB NOT NULL,
     "order" INTEGER DEFAULT 0,
     enabled BOOLEAN DEFAULT TRUE,

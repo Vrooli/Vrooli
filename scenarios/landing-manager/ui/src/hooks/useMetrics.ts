@@ -36,7 +36,7 @@ interface MetricEvent {
  * Implements OT-P0-021 (METRIC-EVENTS): Emits page_view, scroll_depth, click, form_submit, conversion
  */
 export function useMetrics() {
-  const { currentVariant } = useVariant();
+  const { variant } = useVariant();
   const sessionID = useRef(getSessionID());
   const visitorID = useRef(getVisitorID());
   const scrollDepthTracked = useRef<Set<number>>(new Set());
@@ -46,14 +46,14 @@ export function useMetrics() {
     eventType: MetricEvent['event_type'],
     eventData?: Record<string, unknown>
   ) => {
-    if (!currentVariant) {
+    if (!variant) {
       console.warn('[useMetrics] No variant selected, skipping event tracking');
       return;
     }
 
     const event: MetricEvent = {
       event_type: eventType,
-      variant_id: currentVariant.id,
+      variant_id: parseInt(variant.id),
       session_id: sessionID.current,
       visitor_id: visitorID.current,
       event_data: eventData,
@@ -76,18 +76,18 @@ export function useMetrics() {
 
   // Track page view on mount
   useEffect(() => {
-    if (currentVariant) {
+    if (variant) {
       trackEvent('page_view', {
         page: window.location.pathname,
         referrer: document.referrer,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentVariant?.id]);
+  }, [variant?.id]);
 
   // Track scroll depth (bands: 25%, 50%, 75%, 100%)
   useEffect(() => {
-    if (!currentVariant) return;
+    if (!variant) return;
 
     const handleScroll = () => {
       const scrollPercentage = (window.scrollY + window.innerHeight) / document.documentElement.scrollHeight * 100;
@@ -104,7 +104,7 @@ export function useMetrics() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentVariant?.id]);
+  }, [variant?.id]);
 
   // Track CTA clicks
   const trackCTAClick = (elementId: string, elementData?: Record<string, unknown>) => {

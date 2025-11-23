@@ -89,11 +89,12 @@
         "checks": [
           {
             "type": "binaries",
-            "paths": ["api/landing-manager-api"]
+            "targets": ["api/landing-manager-api"]
           },
           {
-            "type": "command_available",
-            "command": "landing-manager"
+            "type": "cli",
+            "command": "landing-manager",
+            "targets": ["landing-manager"]
           },
           {
             "type": "ui-bundle",
@@ -165,6 +166,29 @@
           "name": "run-tests",
           "run": "cd test && ./run-tests.sh",
           "description": "Run structure/unit/integration/business/performance phases"
+        }
+      ]
+    },
+    "production": {
+      "description": "Production deployment with optimized settings",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "bash -c 'set -a && source initialization/configuration/landing-manager.env && set +a && cd api && exec ./landing-manager-api'",
+          "background": true,
+          "condition": {
+            "file_exists": "api/landing-manager-api"
+          },
+          "description": "Start Go API server in production mode"
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          },
+          "description": "Serve production UI bundle with optimized settings"
         }
       ]
     },

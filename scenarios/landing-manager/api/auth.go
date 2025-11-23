@@ -85,6 +85,8 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 	session.Options.HttpOnly = true
 	session.Options.Secure = false // Set to true in production with HTTPS
 	session.Options.MaxAge = 86400 * 7 // 7 days
+	session.Options.Path = "/"
+	session.Options.SameSite = http.SameSiteLaxMode
 	if err := session.Save(r, w); err != nil {
 		logStructured("session_save_error", map[string]interface{}{
 			"level": "error",

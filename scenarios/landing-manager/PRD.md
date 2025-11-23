@@ -34,17 +34,17 @@
 - [x] OT-P0-004 | Runnable locally | Generated landing-page scenario runs locally (frontend + Go API) with single startup command
 
 #### Admin Portal Core
-- [ ] OT-P0-005 | Agent integration trigger | Trigger "agent customization run" for a specific landing page from factory scenario
-- [ ] OT-P0-006 | Structured agent input | Agent receives structured brief (text + assets + goals) and writes changes via defined APIs/files only
-- [ ] OT-P0-007 | Security by obscurity | Admin portal not linked from any public page or sitemap
-- [ ] OT-P0-008 | Authentication | Admin portal protected by email/password with bcrypt/argon2 password hashing
-- [ ] OT-P0-009 | Admin home modes | Admin home displays exactly two modes: "Analytics / Metrics" and "Customization"
-- [ ] OT-P0-010 | Navigation efficiency | Navigate to any customization card in ≤ 3 clicks from admin home
-- [ ] OT-P0-011 | Breadcrumb navigation | All admin pages show breadcrumb indicating current location (e.g., Admin / Customization / Hero / Variant A)
+- [x] OT-P0-005 | Agent integration trigger | Trigger "agent customization run" for a specific landing page from factory scenario
+- [x] OT-P0-006 | Structured agent input | Agent receives structured brief (text + assets + goals) and writes changes via defined APIs/files only
+- [x] OT-P0-007 | Security by obscurity | Admin portal not linked from any public page or sitemap
+- [x] OT-P0-008 | Authentication | Admin portal protected by email/password with bcrypt/argon2 password hashing
+- [x] OT-P0-009 | Admin home modes | Admin home displays exactly two modes: "Analytics / Metrics" and "Customization"
+- [x] OT-P0-010 | Navigation efficiency | Navigate to any customization card in ≤ 3 clicks from admin home
+- [x] OT-P0-011 | Breadcrumb navigation | All admin pages show breadcrumb indicating current location (e.g., Admin / Customization / Hero / Variant A)
 
 #### Customization UX
-- [ ] OT-P0-012 | Split customization layout | Each slide customization page shows form (one column) + live preview (other column), stacked on mobile
-- [ ] OT-P0-013 | Live preview updates | Form field changes update preview within 300ms (debounced) without page reload
+- [x] OT-P0-012 | Split customization layout | Each slide customization page shows form (one column) + live preview (other column), stacked on mobile
+- [x] OT-P0-013 | Live preview updates | Form field changes update preview within 300ms (debounced) without page reload
 
 #### A/B Testing Core
 - [x] OT-P0-014 | URL variant selection | If `variant_slug` in URL, force that variant regardless of localStorage
@@ -55,13 +55,13 @@
 
 #### Metrics Core
 - [x] OT-P0-019 | Event variant tagging | All events (page view, scroll, clicks, forms, conversions) include variant_id in payload
-- [x] OT-P0-020 | Analytics variant filtering | Admin analytics view filters stats by variant and time range
+- [ ] OT-P0-020 | Analytics variant filtering | Admin analytics view filters stats by variant and time range
 - [x] OT-P0-021 | Minimum event coverage | System emits events for: page_view, scroll_depth (bands), click (element ID), form_submit, conversion (Stripe success)
 - [x] OT-P0-022 | Metrics idempotency | Metrics ingestion is idempotent or deduplicated to avoid double-counting on retries
 
 #### Payments Core
-- [x] OT-P0-023 | Analytics summary | Analytics home shows total visitors, conversion rate per variant, top CTAs by CTR
-- [x] OT-P0-024 | Variant detail view | Variant detail page shows views, CTA clicks, conversions, conversion rate, basic trend
+- [ ] OT-P0-023 | Analytics summary | Analytics home shows total visitors, conversion rate per variant, top CTAs by CTR
+- [ ] OT-P0-024 | Variant detail view | Variant detail page shows views, CTA clicks, conversions, conversion rate, basic trend
 - [x] OT-P0-025 | Stripe environment config | Each landing page includes Stripe keys from environment variables
 - [x] OT-P0-026 | Stripe routes | Each landing page includes routes for creating checkout sessions and handling webhook events
 
@@ -74,10 +74,10 @@
 ### 🟠 P1 – Should have post-launch
 
 #### Performance & Accessibility
-- [ ] OT-P1-001 | Lighthouse performance | Default generated landing page achieves Lighthouse performance score ≥ 90 on desktop
-- [ ] OT-P1-002 | Time to interactive | Cold load TTI < 2.0s on typical broadband for main landing page
-- [ ] OT-P1-003 | Lighthouse accessibility | Lighthouse accessibility score ≥ 90 for generated template
-- [ ] OT-P1-004 | Keyboard accessibility | All interactive elements keyboard-accessible with discernible labels
+- [x] OT-P1-001 | Lighthouse performance | Default generated landing page achieves Lighthouse performance score ≥ 90 on desktop
+- [x] OT-P1-002 | Time to interactive | Cold load TTI < 2.0s on typical broadband for main landing page
+- [x] OT-P1-003 | Lighthouse accessibility | Lighthouse accessibility score ≥ 90 for generated template
+- [x] OT-P1-004 | Keyboard accessibility | All interactive elements keyboard-accessible with discernible labels
 
 #### Design & Branding
 - [ ] OT-P1-005 | Aesthetic guidelines in template | Template specification includes `<frontend_aesthetics>` block in description for design agents

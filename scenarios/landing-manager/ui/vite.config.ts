@@ -2,11 +2,12 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  base: './',  // Required for tunnel/proxy contexts
+  base: '/',  // Absolute path required for nested routes (e.g., /admin)
   plugins: [react()],
   test: {
     globals: true,
     environment: 'jsdom',
+    setupFiles: ['./src/test-setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['json-summary', 'json', 'text'],

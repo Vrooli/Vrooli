@@ -39,6 +39,11 @@ type TemplateService struct {
 
 // NewTemplateService creates a template service instance
 func NewTemplateService() *TemplateService {
+	// Check for test environment override
+	if testDir := os.Getenv("TEMPLATES_DIR"); testDir != "" {
+		return &TemplateService{templatesDir: testDir}
+	}
+
 	// Determine templates directory relative to binary location
 	execPath, err := os.Executable()
 	if err != nil {
@@ -46,6 +51,11 @@ func NewTemplateService() *TemplateService {
 	}
 	execDir := filepath.Dir(execPath)
 	templatesDir := filepath.Join(execDir, "templates")
+
+	// Fallback to current directory + templates if binary path templates don't exist
+	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
+		templatesDir = "templates"
+	}
 
 	return &TemplateService{
 		templatesDir: templatesDir,
