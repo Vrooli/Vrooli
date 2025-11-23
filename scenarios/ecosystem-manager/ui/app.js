@@ -1830,6 +1830,26 @@ class EcosystemManager {
         previewContainer.innerHTML = this.renderAutoSteerProfilePreview(profile);
     }
 
+    handleEditAutoSteerProfileChange(profileId, taskId) {
+        const previewContainer = document.getElementById('edit-autosteer-profile-preview');
+        if (!previewContainer) return;
+
+        if (!profileId) {
+            previewContainer.style.display = 'none';
+            previewContainer.innerHTML = '';
+            return;
+        }
+
+        const profile = this.autoSteerManager.profiles.find(p => p.id === profileId);
+        if (!profile) {
+            previewContainer.style.display = 'none';
+            return;
+        }
+
+        previewContainer.style.display = 'block';
+        previewContainer.innerHTML = this.renderAutoSteerProfilePreview(profile);
+    }
+
     renderAutoSteerProfilePreview(profile) {
         const phasesCount = (profile.phases || profile.config?.phases || []).length;
         const phases = profile.phases || profile.config?.phases || [];
@@ -1923,15 +1943,16 @@ class EcosystemManager {
         const modal = document.getElementById('task-details-modal');
         const titleElement = document.getElementById('task-details-title');
         const contentElement = document.getElementById('task-details-content');
-        
+
         titleElement.textContent = 'Edit Task';
-        
+
         // Use the enhanced two-column layout
         contentElement.innerHTML = this.getTaskDetailsHTML(task);
         this.updateActionButtonLabelsForViewport();
 
         // Initialize custom interactions
         this.initializeAutoRequeueToggle(task);
+        this.initializeEditAutoSteerProfile(task);
 
         modal.classList.add('show');
         // Disable body scroll when showing modal
@@ -2021,11 +2042,31 @@ class EcosystemManager {
                                     </select>
                                 </div>
                             </div>
-                            
+
+                            <!-- Auto Steer Profile Selection -->
+                            <div class="form-group" id="edit-autosteer-profile-group">
+                                <label for="edit-task-autosteer-profile">
+                                    <i class="fas fa-route"></i>
+                                    Auto Steer Profile
+                                </label>
+                                <select id="edit-task-autosteer-profile" name="auto_steer_profile_id" onchange="ecosystemManager.handleEditAutoSteerProfileChange(this.value, '${task.id}')">
+                                    <option value="">None (Default behavior)</option>
+                                    <!-- Profiles will be loaded dynamically -->
+                                </select>
+                                <small class="form-help">
+                                    Select a profile to guide multi-dimensional improvement with phases and quality gates
+                                </small>
+                            </div>
+
+                            <!-- Auto Steer Profile Preview -->
+                            <div id="edit-autosteer-profile-preview" class="autosteer-profile-preview" style="display: none;">
+                                <!-- Profile preview will be rendered here -->
+                            </div>
+
                             <!-- Notes -->
                             <div class="form-group">
                                 <label for="edit-task-notes">Notes</label>
-                                <textarea id="edit-task-notes" name="notes" rows="16" 
+                                <textarea id="edit-task-notes" name="notes" rows="16"
                                           placeholder="Additional notes or context...">${this.escapeHtml(task.notes || '')}</textarea>
                             </div>
                         </div>
@@ -2151,6 +2192,37 @@ class EcosystemManager {
         updateAlert();
     }
 
+    initializeEditAutoSteerProfile(task) {
+        const profileSelect = document.getElementById('edit-task-autosteer-profile');
+        if (!profileSelect) return;
+
+        // Populate profile dropdown
+        if (this.autoSteerManager && this.autoSteerManager.profiles) {
+            const currentValue = task.auto_steer_profile_id || '';
+
+            // Clear existing options except the first "None" option
+            while (profileSelect.options.length > 1) {
+                profileSelect.remove(1);
+            }
+
+            // Add profile options
+            this.autoSteerManager.profiles.forEach(profile => {
+                const option = document.createElement('option');
+                option.value = profile.id;
+                option.textContent = profile.name;
+                if (profile.id === currentValue) {
+                    option.selected = true;
+                }
+                profileSelect.appendChild(option);
+            });
+
+            // Show preview if a profile is selected
+            if (currentValue) {
+                this.handleEditAutoSteerProfileChange(currentValue, task.id);
+            }
+        }
+    }
+
     getTaskResultsHTML(results) {
         return `
             <div class="form-group">
@@ -2232,6 +2304,15 @@ class EcosystemManager {
             }
         });
         updates.processor_auto_requeue = autoRequeueEnabled;
+
+        // Include Auto Steer profile
+        const autoSteerProfileId = formData.get('auto_steer_profile_id');
+        if (autoSteerProfileId && autoSteerProfileId !== '') {
+            updates.auto_steer_profile_id = autoSteerProfileId;
+        } else {
+            // Explicitly set to null to remove profile
+            updates.auto_steer_profile_id = null;
+        }
 
         this.showLoading(true);
         

@@ -129,7 +129,8 @@ func (s *ProfileService) ListProfiles(tags []string) ([]*AutoSteerProfile, error
 	}
 	defer rows.Close()
 
-	var profiles []*AutoSteerProfile
+	// Initialize to empty slice (not nil) so it serializes as [] instead of null
+	profiles := make([]*AutoSteerProfile, 0)
 
 	for rows.Next() {
 		var profile AutoSteerProfile

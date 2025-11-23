@@ -72,7 +72,8 @@ func (s *HistoryService) GetHistory(filters HistoryFilters) ([]ProfilePerformanc
 	}
 	defer rows.Close()
 
-	var history []ProfilePerformance
+	// Initialize to empty slice (not nil) so it serializes as [] instead of null
+	history := make([]ProfilePerformance, 0)
 
 	for rows.Next() {
 		var perf ProfilePerformance

@@ -25,6 +25,7 @@ export class AutoSteerManager {
                 this.loadTemplates()
             ]);
             this.renderProfilesList();
+            this.renderTemplatesGallery();
             logger.debug('Auto Steer manager initialized');
         } catch (error) {
             logger.error('Failed to initialize Auto Steer manager:', error);
