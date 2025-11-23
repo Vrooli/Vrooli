@@ -9,6 +9,7 @@ import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { Tip } from "../components/ui/tip";
 import { analyzeDependencies, listProfiles } from "../lib/api";
 
 const TIER_NAMES: Record<string, string> = {
@@ -99,12 +100,10 @@ export function Analyze() {
       </div>
 
       {showHelp && (
-        <Card>
-          <CardContent className="pt-4 space-y-2 text-sm text-slate-300">
-            <p>Select a scenario card below (pre-filled from profiles + examples) or type to filter.</p>
-            <p>We’ll auto-run analysis and show readiness by tier. From here, jump to swaps/secrets or export.</p>
-          </CardContent>
-        </Card>
+        <Tip title="How this works">
+          <p>Select a scenario card below (pre-filled from profiles + examples) or type to filter.</p>
+          <p>We’ll auto-run analysis and show readiness by tier. From here, jump to swaps/secrets or export.</p>
+        </Tip>
       )}
 
       {/* Search & choices */}
@@ -172,6 +171,12 @@ export function Analyze() {
       {/* Results */}
       {data && (
         <div className="space-y-6">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">Scenario: {data.scenario}</Badge>
+            <Badge variant="outline">Dependencies: {Object.keys(data.dependencies || {}).length}</Badge>
+            <Badge variant="outline">Tiers scored: {Object.keys(data.tiers || {}).length}</Badge>
+          </div>
+
           {/* Circular Dependencies Warning */}
           {data.circular_dependencies.length > 0 && (
             <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-4 text-yellow-200">

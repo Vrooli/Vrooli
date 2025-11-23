@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { analyzeDependencies, DependencyAnalysisResponse } from "../lib/api";
+import { cn } from "../lib/utils";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -122,21 +123,44 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
                   { id: 1, title: "Pick scenario + tier", description: "Tell us what you’re targeting" },
                   { id: 2, title: "See readiness", description: "Fitness, blockers, swaps, secrets" },
                   { id: 3, title: "Export or hand-off", description: "Bundle download or send to packagers" },
-                ].map((item) => (
-                  <div
-                    key={item.id}
-                    className={`rounded-lg border px-3 py-2 text-sm ${
-                      step === item.id ? "border-cyan-400 bg-cyan-500/10" : "border-white/5 bg-white/5"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">Step {item.id}</span>
-                      {step > item.id && <CheckCircle2 className="h-4 w-4 text-green-400" />}
+                ].map((item, idx, arr) => {
+                  const isActive = step === item.id;
+                  const isComplete = step > item.id;
+                  return (
+                    <div key={item.id} className="relative pl-12">
+                      <div
+                        className={cn(
+                          "absolute left-0 top-1 flex h-7 w-7 items-center justify-center rounded-full border text-xs",
+                          isActive
+                            ? "border-cyan-400 bg-cyan-500/20 text-cyan-100"
+                            : isComplete
+                              ? "border-emerald-400 bg-emerald-500/10 text-emerald-100"
+                              : "border-white/15 bg-white/5 text-slate-300",
+                        )}
+                      >
+                        {isComplete ? <CheckCircle2 className="h-3.5 w-3.5" /> : item.id}
+                      </div>
+                      <div
+                        className={cn(
+                          "absolute left-[13.5px] top-7 bottom-0 w-px",
+                          idx === arr.length - 1 ? "hidden" : "bg-white/10",
+                        )}
+                      />
+                      <div
+                        className={cn(
+                          "rounded-lg border px-3 py-2 text-sm",
+                          isActive
+                            ? "border-cyan-400 bg-cyan-500/10"
+                            : "border-white/5 bg-white/5",
+                        )}
+                      >
+                        <p className="font-medium">Step {item.id}</p>
+                        <p className="text-slate-300">{item.title}</p>
+                        <p className="text-xs text-slate-500">{item.description}</p>
+                      </div>
                     </div>
-                    <p className="text-slate-400">{item.title}</p>
-                    <p className="text-xs text-slate-500">{item.description}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           </div>
@@ -266,7 +290,8 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
                             </Link>
                           </CardContent>
                         </Card>
-                        <Card className="border-white/10 bg-white/5">
+                        <Card className="border-white/10 bg-white/5 relative overflow-hidden">
+                          <Badge className="absolute right-3 top-3" variant="secondary">Recommended</Badge>
                           <CardHeader>
                             <CardTitle className="text-base">Plan swaps + secrets</CardTitle>
                             <CardDescription>Create a profile to manage decisions</CardDescription>

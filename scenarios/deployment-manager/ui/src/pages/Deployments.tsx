@@ -4,6 +4,7 @@ import { Package, HelpCircle, Rocket, Plus } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { GuidedFlow } from "../components/GuidedFlow";
+import { Tip } from "../components/ui/tip";
 
 export function Deployments() {
   const [showHelp, setShowHelp] = useState(false);
@@ -30,12 +31,10 @@ export function Deployments() {
       </p>
 
       {showHelp && (
-        <Card>
-          <CardContent className="pt-4 space-y-2 text-sm text-slate-300">
-            <p>Deployments come from profiles. If you see nothing here, create a profile and run a deployment.</p>
-            <p>Use the guided flow to pick a scenario + tier, plan swaps/secrets, then export or trigger a deploy.</p>
-          </CardContent>
-        </Card>
+        <Tip title="How deployments work">
+          <p>Deployments come from profiles. If you see nothing here, create a profile and run a deployment.</p>
+          <p className="text-slate-300">Use the guided flow to pick a scenario + tier, plan swaps/secrets, then export or trigger a deploy.</p>
+        </Tip>
       )}
 
       {/* Empty State */}

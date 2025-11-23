@@ -47,17 +47,29 @@ export function Dashboard() {
             </Link>
           </div>
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {[
-            { title: "Step 1: Choose scenario + tier", desc: "Auto-run analysis to surface fitness & blockers." },
-            { title: "Step 2: Plan swaps & secrets", desc: "Use profiles to capture decisions and lift scores." },
-            { title: "Step 3: Export or send to packagers", desc: "Bundle manifests or hand-off to scenario-to-*." },
-          ].map((item) => (
-            <div key={item.title} className="rounded-lg border border-white/5 bg-white/5 p-3">
-              <p className="text-sm font-semibold">{item.title}</p>
-              <p className="text-xs text-slate-400">{item.desc}</p>
-            </div>
-          ))}
+        <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center">
+            {[
+              { id: 1, title: "Choose scenario + tier", desc: "Auto-run analysis to surface fitness & blockers." },
+              { id: 2, title: "Plan swaps & secrets", desc: "Use profiles to capture decisions and lift scores." },
+              { id: 3, title: "Export or send to packagers", desc: "Bundle manifests or hand-off to scenario-to-*." },
+            ].map((item, idx, arr) => (
+              <div key={item.id} className="flex flex-1 flex-col gap-2 md:flex-row md:items-center md:gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-slate-900 text-sm font-semibold text-slate-200">
+                    {item.id}
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold">Step {item.id}: {item.title}</p>
+                    <p className="text-xs text-slate-400">{item.desc}</p>
+                  </div>
+                </div>
+                {idx < arr.length - 1 && (
+                  <div className="hidden md:block h-px flex-1 bg-white/10" />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
