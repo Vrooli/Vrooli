@@ -7,7 +7,7 @@ import { Skeleton } from '../ui/skeleton';
 
 export function SkeletonTaskCard() {
   return (
-    <div className="bg-slate-800 border border-white/10 rounded-lg p-3 space-y-3">
+    <div className="bg-card border border-border rounded-lg p-3 space-y-3">
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-2 flex-1">
@@ -28,7 +28,7 @@ export function SkeletonTaskCard() {
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between pt-2 border-t border-white/5">
+      <div className="flex items-center justify-between pt-2 border-t border-border/60">
         <Skeleton className="h-4 w-16" />
         <Skeleton className="h-7 w-7 rounded" />
       </div>

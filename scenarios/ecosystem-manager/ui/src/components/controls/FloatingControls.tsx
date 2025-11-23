@@ -109,7 +109,7 @@ export function FloatingControls() {
           <RefreshCountdown />
         </div>
 
-        <div className="flex items-center gap-2 pl-3 border-l border-white/10">
+        <div className="flex items-center gap-2 pl-3 border-l border-border/60">
           <FilterToggleButton />
           <ProcessMonitor />
         </div>

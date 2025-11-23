@@ -46,7 +46,7 @@ export function ElapsedTimer({ startTime, className = '' }: ElapsedTimerProps) {
   }, [startTime]);
 
   return (
-    <div className={`flex items-center gap-1.5 text-xs text-slate-400 ${className}`}>
+    <div className={`flex items-center gap-1.5 text-xs text-muted-foreground ${className}`}>
       <Clock className="h-3.5 w-3.5" />
       <span>{formatElapsedTime(elapsed)}</span>
     </div>

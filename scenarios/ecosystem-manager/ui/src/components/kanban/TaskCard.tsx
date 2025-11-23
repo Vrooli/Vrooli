@@ -45,10 +45,10 @@ export function TaskCard({ task, onViewDetails, onDelete }: TaskCardProps) {
       {...attributes}
       {...listeners}
       className={`
-        bg-slate-800/50 border border-white/10 rounded-lg p-3
-        hover:border-white/20 hover:bg-slate-800/70 transition-all
+        bg-card border border-border rounded-lg p-3
+        hover:border-primary/30 hover:bg-muted/60 transition-all
         cursor-grab active:cursor-grabbing
-        ${isDragging ? 'shadow-xl ring-2 ring-blue-500/50' : ''}
+        ${isDragging ? 'shadow-xl ring-2 ring-primary/40' : ''}
       `}
     >
       <TaskCardHeader task={task} />

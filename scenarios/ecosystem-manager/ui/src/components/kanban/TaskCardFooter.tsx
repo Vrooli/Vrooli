@@ -19,14 +19,14 @@ export function TaskCardFooter({ task, onViewDetails, onDelete }: TaskCardFooter
   const executionCount = task.execution_count || 0;
 
   return (
-    <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-white/5">
+    <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border/60">
       {/* Left side: Timer and execution count */}
       <div className="flex items-center gap-3">
         {isInProgress && hasProcess && task.current_process?.start_time && (
           <ElapsedTimer startTime={task.current_process.start_time} />
         )}
         {executionCount > 0 && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-400" title="Execution count">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title="Execution count">
             <PlayCircle className="h-3.5 w-3.5" />
             <span>{executionCount}</span>
           </div>
@@ -38,7 +38,7 @@ export function TaskCardFooter({ task, onViewDetails, onDelete }: TaskCardFooter
         {onViewDetails && (
           <button
             onClick={onViewDetails}
-            className="p-1.5 rounded hover:bg-white/5 text-slate-400 hover:text-slate-200 transition-colors"
+            className="p-1.5 rounded hover:bg-foreground/5 text-muted-foreground hover:text-foreground transition-colors"
             title="View details"
             aria-label={`View details for task ${task.title || task.id}`}
           >
@@ -48,7 +48,7 @@ export function TaskCardFooter({ task, onViewDetails, onDelete }: TaskCardFooter
         {onDelete && (
           <button
             onClick={onDelete}
-            className="p-1.5 rounded hover:bg-red-500/10 text-slate-400 hover:text-red-400 transition-colors"
+            className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors"
             title="Delete task"
             aria-label={`Delete task ${task.title || task.id}`}
           >

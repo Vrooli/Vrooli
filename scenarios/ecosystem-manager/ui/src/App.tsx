@@ -36,21 +36,21 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-white/10 bg-slate-900/95 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-border/60 bg-card/80 backdrop-blur">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-4 gap-3 sm:gap-0">
           <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
             <div>
               <h1 className="text-lg sm:text-xl font-semibold">Ecosystem Manager</h1>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-muted-foreground">
                 Resource & Scenario Generation Platform
               </p>
             </div>
             {/* WebSocket Status Indicator */}
-            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-black/20 border border-white/10">
+            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-foreground/5 border border-border/70">
               <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-400' : 'bg-red-400'}`} />
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-muted-foreground">
                 {wsConnected ? 'Connected' : 'Disconnected'}
               </span>
             </div>

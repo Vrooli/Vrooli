@@ -19,7 +19,7 @@ const TooltipContent = React.forwardRef<
       align="center"
       collisionPadding={8}
       className={cn(
-        "z-50 overflow-hidden rounded-md border border-white/15 bg-slate-950/95 px-3 py-1.5 text-xs text-white shadow-lg backdrop-blur",
+        "z-50 overflow-hidden rounded-md border border-border bg-popover/95 px-3 py-1.5 text-xs text-popover-foreground shadow-lg backdrop-blur",
         "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
         "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
         className

@@ -110,13 +110,13 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
       <div className="flex h-full gap-0 overflow-x-auto">
         {COLUMNS.slice(0, 4).map(({ status, title }) => (
           <div key={status} className="flex-shrink-0 w-80">
-            <div className="bg-slate-800/50 border border-white/10">
+            <div className="bg-card/80 border border-border/60 rounded-lg overflow-hidden">
               {/* Column Header */}
-              <div className="px-4 py-3 border-b border-white/10">
+              <div className="px-4 py-3 border-b border-border/60 bg-muted/40">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-sm text-slate-300">{title}</h3>
+                  <h3 className="font-medium text-sm text-muted-foreground">{title}</h3>
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 text-xs bg-slate-700 rounded-full">...</span>
+                    <span className="px-2 py-0.5 text-xs bg-muted rounded-full text-muted-foreground">...</span>
                   </div>
                 </div>
               </div>
@@ -135,7 +135,7 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
   if (error) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-red-400">Error loading tasks: {error.message}</div>
+        <div className="text-destructive">Error loading tasks: {error.message}</div>
       </div>
     );
   }

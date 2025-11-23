@@ -140,16 +140,16 @@ export function FilterPanel() {
   return (
     <div
       ref={panelRef}
-      className="fixed w-full sm:w-96 max-w-[calc(100vw-2rem)] sm:max-w-none bg-slate-800 border border-white/10 rounded-lg shadow-2xl z-20 overflow-hidden"
+      className="fixed w-full sm:w-96 max-w-[calc(100vw-2rem)] sm:max-w-none bg-card border border-border rounded-lg shadow-2xl z-20 overflow-hidden"
       style={{ left: position.x, top: position.y }}
     >
       {/* Header */}
       <div
-        className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-slate-900/50 cursor-move select-none"
+        className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-muted/60 cursor-move select-none"
         onPointerDown={handleHeaderPointerDown}
       >
         <div className="flex items-center gap-2">
-          <FilterIcon className="h-4 w-4 text-slate-400" />
+          <FilterIcon className="h-4 w-4 text-muted-foreground" />
           <h3 className="font-medium text-sm">Filters</h3>
           {activeFilterCount > 0 && (
             <span className="px-2 py-0.5 text-xs bg-blue-500 text-white rounded-full">
@@ -172,11 +172,11 @@ export function FilterPanel() {
       <div className="p-4 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
         {/* Search */}
         <div className="space-y-2">
-          <Label htmlFor="search" className="text-xs text-slate-400">
+          <Label htmlFor="search" className="text-xs text-muted-foreground">
             Search
           </Label>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               id="search"
               type="text"
@@ -190,7 +190,7 @@ export function FilterPanel() {
 
         {/* Type Filter */}
         <div className="space-y-2">
-          <Label htmlFor="type" className="text-xs text-slate-400">
+          <Label htmlFor="type" className="text-xs text-muted-foreground">
             Type
           </Label>
           <Select
@@ -210,7 +210,7 @@ export function FilterPanel() {
 
         {/* Operation Filter */}
         <div className="space-y-2">
-          <Label htmlFor="operation" className="text-xs text-slate-400">
+          <Label htmlFor="operation" className="text-xs text-muted-foreground">
             Operation
           </Label>
           <Select
@@ -230,7 +230,7 @@ export function FilterPanel() {
 
         {/* Priority Filter */}
         <div className="space-y-2">
-          <Label htmlFor="priority" className="text-xs text-slate-400">
+          <Label htmlFor="priority" className="text-xs text-muted-foreground">
             Priority
           </Label>
           <Select
@@ -251,8 +251,8 @@ export function FilterPanel() {
         </div>
 
         {/* Divider */}
-        <div className="border-t border-white/10 pt-4">
-          <Label className="text-xs text-slate-400 mb-3 block">
+        <div className="border-t border-border/60 pt-4">
+          <Label className="text-xs text-muted-foreground mb-3 block">
             Column Visibility
           </Label>
           <div className="space-y-2">
@@ -272,14 +272,14 @@ export function FilterPanel() {
               </div>
             ))}
           </div>
-          <p className="text-xs text-slate-500 mt-3">
+          <p className="text-xs text-muted-foreground mt-3">
             {visibleColumns.length} of {Object.keys(columnVisibility).length} columns visible
           </p>
         </div>
       </div>
 
       {/* Footer Actions */}
-      <div className="px-4 py-3 border-t border-white/10 bg-slate-900/50 flex items-center justify-between">
+      <div className="px-4 py-3 border-t border-border/60 bg-muted/60 flex items-center justify-between">
         <Button
           variant="outline"
           size="sm"
@@ -289,7 +289,7 @@ export function FilterPanel() {
         >
           Clear All
         </Button>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-muted-foreground">
           {activeFilterCount} {activeFilterCount === 1 ? 'filter' : 'filters'} active
         </p>
       </div>

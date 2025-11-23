@@ -32,12 +32,12 @@ export function TaskCardHeader({ task }: TaskCardHeaderProps) {
         <div className="flex items-center gap-2 mb-1.5">
           <button
             onClick={copyTaskId}
-            className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             title="Click to copy task ID"
           >
             <span className="font-mono truncate">{task.id.slice(0, 8)}</span>
             {copied ? (
-              <Check className="h-3 w-3 text-green-400" />
+              <Check className="h-3 w-3 text-green-500" />
             ) : (
               <Copy className="h-3 w-3" />
             )}
