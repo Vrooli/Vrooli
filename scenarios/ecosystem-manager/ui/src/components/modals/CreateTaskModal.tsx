@@ -36,6 +36,7 @@ interface CreateTaskModalProps {
 }
 
 const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low'];
+const AUTO_STEER_NONE = 'none';
 
 export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
   const [type, setType] = useState<TaskType>('resource');
@@ -43,7 +44,7 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [notes, setNotes] = useState('');
-  const [autoSteerProfileId, setAutoSteerProfileId] = useState<string>('');
+  const [autoSteerProfileId, setAutoSteerProfileId] = useState<string>(AUTO_STEER_NONE);
   const [autoRequeue, setAutoRequeue] = useState(false);
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
 
@@ -59,7 +60,7 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
       setTitle('');
       setPriority('medium');
       setNotes('');
-      setAutoSteerProfileId('');
+      setAutoSteerProfileId(AUTO_STEER_NONE);
       setAutoRequeue(false);
       setSelectedTargets([]);
     }
@@ -89,7 +90,7 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
       operation,
       priority,
       notes: notes.trim() || undefined,
-      auto_steer_profile_id: autoSteerProfileId || undefined,
+      auto_steer_profile_id: autoSteerProfileId === AUTO_STEER_NONE ? undefined : autoSteerProfileId,
       auto_requeue: autoRequeue,
       target: operation === 'improver' && selectedTargets.length > 0 ? selectedTargets : undefined,
     };
@@ -187,7 +188,7 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value={AUTO_STEER_NONE}>None</SelectItem>
                   {profiles.map(profile => (
                     <SelectItem key={profile.id} value={profile.id}>
                       {profile.name}

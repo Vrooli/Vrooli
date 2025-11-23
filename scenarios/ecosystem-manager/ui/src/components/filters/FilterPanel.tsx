@@ -18,7 +18,7 @@ import { Checkbox } from '../ui/checkbox';
 import { useAppState } from '../../contexts/AppStateContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useQueryParams } from '../../hooks/useQueryParams';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 import type { TaskStatus, TaskType, OperationType, Priority } from '../../types/api';
 
 const COLUMN_LABELS: Record<TaskStatus, string> = {
@@ -45,6 +45,10 @@ export function FilterPanel() {
   // Local state for search input (to avoid lag)
   const [searchValue, setSearchValue] = useState(filters.search);
   const debouncedSearch = useDebounce(searchValue, 300);
+  const [position, setPosition] = useState({ x: 0, y: 80 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   // Sync debounced search with filters
   useEffect(() => {
@@ -58,6 +62,53 @@ export function FilterPanel() {
     });
   });
 
+  // Initialize starting position once panel dimensions are known
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || typeof window === 'undefined') return;
+
+    const margin = 16;
+    const width = panel.offsetWidth || 360;
+    const startX = window.innerWidth - width - margin;
+    setPosition({ x: Math.max(margin, startX), y: 80 });
+  }, []);
+
+  // Handle dragging
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const panel = panelRef.current;
+      if (!panel) return;
+
+      const margin = 12;
+      const width = panel.offsetWidth || 360;
+      const height = panel.offsetHeight || 400;
+      const maxX = window.innerWidth - width - margin;
+      const maxY = window.innerHeight - height - margin;
+
+      setPosition({
+        x: Math.min(Math.max(event.clientX - dragOffset.current.x, margin), maxX),
+        y: Math.min(Math.max(event.clientY - dragOffset.current.y, margin), maxY),
+      });
+    };
+
+    const handlePointerUp = () => {
+      setIsDragging(false);
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    document.body.style.userSelect = 'none';
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging]);
+
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
   const visibleColumns = (Object.keys(columnVisibility) as TaskStatus[]).filter(
     (status) => columnVisibility[status]
@@ -68,10 +119,35 @@ export function FilterPanel() {
     setSearchValue('');
   };
 
+  const handleHeaderPointerDown = (event: ReactPointerEvent) => {
+    if (event.button !== 0) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('button')) return;
+
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const rect = panel.getBoundingClientRect();
+    dragOffset.current = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
+
+    setIsDragging(true);
+    event.preventDefault();
+  };
+
   return (
-    <div className="fixed top-20 right-4 sm:right-6 w-full sm:w-96 max-w-[calc(100vw-2rem)] sm:max-w-none bg-slate-800 border border-white/10 rounded-lg shadow-2xl z-20 overflow-hidden">
+    <div
+      ref={panelRef}
+      className="fixed w-full sm:w-96 max-w-[calc(100vw-2rem)] sm:max-w-none bg-slate-800 border border-white/10 rounded-lg shadow-2xl z-20 overflow-hidden"
+      style={{ left: position.x, top: position.y }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-slate-900/50">
+      <div
+        className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-slate-900/50 cursor-move select-none"
+        onPointerDown={handleHeaderPointerDown}
+      >
         <div className="flex items-center gap-2">
           <FilterIcon className="h-4 w-4 text-slate-400" />
           <h3 className="font-medium text-sm">Filters</h3>
@@ -86,6 +162,7 @@ export function FilterPanel() {
           size="sm"
           onClick={() => setFilterPanelOpen(false)}
           className="h-8 w-8 p-0"
+          onPointerDown={(e) => e.stopPropagation()}
         >
           <X className="h-4 w-4" />
         </Button>

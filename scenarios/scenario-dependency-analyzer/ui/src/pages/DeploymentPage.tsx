@@ -5,8 +5,8 @@ interface DeploymentPageProps {
   scenarios: ScenarioSummary[];
   loading: boolean;
   onRefresh: () => void;
-  onScanScenario: (scenarioName: string, apply?: boolean) => void;
-  onSelectScenario: (scenarioName: string) => void;
+  onScanScenario: (scenarioName: string, apply?: boolean) => void | Promise<void>;
+  onSelectScenario: (scenarioName: string, options?: { openCatalog?: boolean }) => void;
 }
 
 export function DeploymentPage({

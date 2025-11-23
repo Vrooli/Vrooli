@@ -6,6 +6,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { AppStateProvider } from "./contexts/AppStateContext";
 import { WebSocketProvider } from "./contexts/WebSocketContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { TooltipProvider } from "./components/ui/tooltip";
 import App from "./App";
 import "./styles.css";
 
@@ -30,7 +31,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <ThemeProvider>
           <AppStateProvider>
             <WebSocketProvider>
-              <App />
+              <TooltipProvider delayDuration={0} skipDelayDuration={0}>
+                <App />
+              </TooltipProvider>
             </WebSocketProvider>
           </AppStateProvider>
         </ThemeProvider>

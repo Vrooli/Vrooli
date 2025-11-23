@@ -6,95 +6,99 @@
     {
       "name": "claude-code",
       "type": "resource",
+      "resource_type": "",
+      "requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0,
+        "network": "",
+        "source": "",
+        "confidence": ""
+      },
+      "tier_support": null,
+      "alternatives": null,
       "source": "declared"
     },
     {
       "name": "ollama",
       "type": "resource",
+      "resource_type": "",
+      "requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0,
+        "network": "",
+        "source": "",
+        "confidence": ""
+      },
+      "tier_support": null,
+      "alternatives": null,
       "source": "declared"
     },
     {
       "name": "postgres",
       "type": "resource",
+      "resource_type": "",
+      "requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0,
+        "network": "",
+        "source": "",
+        "confidence": ""
+      },
+      "tier_support": null,
+      "alternatives": null,
       "source": "declared"
     },
     {
       "name": "qdrant",
       "type": "resource",
+      "resource_type": "",
+      "requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0,
+        "network": "",
+        "source": "",
+        "confidence": ""
+      },
+      "tier_support": null,
+      "alternatives": null,
       "source": "declared"
     },
     {
       "name": "redis",
       "type": "resource",
+      "resource_type": "",
+      "requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0,
+        "network": "",
+        "source": "",
+        "confidence": ""
+      },
+      "tier_support": null,
+      "alternatives": null,
       "source": "declared"
     },
     {
       "name": "vault",
       "type": "resource",
+      "resource_type": "",
+      "requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0,
+        "network": "",
+        "source": "",
+        "confidence": ""
+      },
+      "tier_support": null,
+      "alternatives": null,
       "source": "declared"
     }
   ],
-  "aggregates": {},
-  "bundle_manifest": {
-    "scenario": "secrets-manager",
-    "generated_at": "2025-11-16T19:40:57.648671568Z",
-    "files": [
-      {
-        "path": ".vrooli/service.json",
-        "type": "service-config",
-        "exists": true
-      },
-      {
-        "path": "api",
-        "type": "api-source",
-        "exists": true
-      },
-      {
-        "path": "api/secrets-manager-api",
-        "type": "api-binary",
-        "exists": true
-      },
-      {
-        "path": "ui/dist",
-        "type": "ui-bundle",
-        "exists": false
-      },
-      {
-        "path": "ui/dist/index.html",
-        "type": "ui-entry",
-        "exists": false
-      },
-      {
-        "path": "cli/secrets-manager",
-        "type": "cli-binary",
-        "exists": true
-      }
-    ],
-    "dependencies": [
-      {
-        "name": "claude-code",
-        "type": "resource"
-      },
-      {
-        "name": "ollama",
-        "type": "resource"
-      },
-      {
-        "name": "postgres",
-        "type": "resource"
-      },
-      {
-        "name": "qdrant",
-        "type": "resource"
-      },
-      {
-        "name": "redis",
-        "type": "resource"
-      },
-      {
-        "name": "vault",
-        "type": "resource"
-      }
-    ]
-  }
+  "aggregates": {}
 }

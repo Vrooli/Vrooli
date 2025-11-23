@@ -107,10 +107,10 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
 
   if (isLoading) {
     return (
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="flex h-full gap-0 overflow-x-auto">
         {COLUMNS.slice(0, 4).map(({ status, title }) => (
           <div key={status} className="flex-shrink-0 w-80">
-            <div className="bg-slate-800/50 border border-white/10 rounded-lg">
+            <div className="bg-slate-800/50 border border-white/10">
               {/* Column Header */}
               <div className="px-4 py-3 border-b border-white/10">
                 <div className="flex items-center justify-between">
@@ -141,35 +141,37 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="flex gap-4 overflow-x-auto pb-4">
-        {COLUMNS.map(({ status, title }) => (
-          <KanbanColumn
-            key={status}
-            status={status}
-            title={title}
-            tasks={tasksByStatus[status]}
-            isVisible={columnVisibility[status]}
-            onToggleVisibility={() => toggleColumnVisibility(status)}
-            onViewDetails={onViewTaskDetails}
-            onDeleteTask={onDeleteTask}
-          />
-        ))}
-      </div>
+    <div className="h-full min-h-0 flex flex-col">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex h-full min-h-0 gap-0 overflow-x-auto">
+          {COLUMNS.map(({ status, title }) => (
+            <KanbanColumn
+              key={status}
+              status={status}
+              title={title}
+              tasks={tasksByStatus[status]}
+              isVisible={columnVisibility[status]}
+              onToggleVisibility={() => toggleColumnVisibility(status)}
+              onViewDetails={onViewTaskDetails}
+              onDeleteTask={onDeleteTask}
+            />
+          ))}
+        </div>
 
-      {/* Drag Overlay - Shows the task being dragged */}
-      <DragOverlay>
-        {activeTask ? (
-          <div className="rotate-3">
-            <TaskCard task={activeTask} />
-          </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+        {/* Drag Overlay - Shows the task being dragged */}
+        <DragOverlay>
+          {activeTask ? (
+            <div className="rotate-3">
+              <TaskCard task={activeTask} />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
   );
 }

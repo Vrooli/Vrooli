@@ -92,6 +92,10 @@ export const queryKeys = {
     profiles: () => [...queryKeys.autoSteer.all, 'profiles'] as const,
     profile: (id: string) => [...queryKeys.autoSteer.profiles(), 'detail', id] as const,
     templates: () => [...queryKeys.autoSteer.all, 'templates'] as const,
+    history: (profileId?: string, scenarioName?: string) =>
+      [...queryKeys.autoSteer.all, 'history', profileId ?? 'all', scenarioName ?? 'all'] as const,
+    historyDetail: (executionId: string) =>
+      [...queryKeys.autoSteer.all, 'history', 'detail', executionId] as const,
   },
 
   // Health

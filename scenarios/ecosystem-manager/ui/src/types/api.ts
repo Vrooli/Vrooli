@@ -177,6 +177,79 @@ export interface AutoSteerTemplate {
   phases?: AutoSteerPhase[];
 }
 
+export interface MetricsSnapshot {
+  timestamp: string;
+  loops: number;
+  build_status: number;
+  operational_targets_total: number;
+  operational_targets_passing: number;
+  operational_targets_percentage: number;
+  ux?: {
+    accessibility_score: number;
+    ui_test_coverage: number;
+    responsive_breakpoints: number;
+    user_flows_implemented: number;
+    loading_states_count: number;
+    error_handling_coverage: number;
+  };
+  refactor?: {
+    cyclomatic_complexity_avg: number;
+    duplication_percentage: number;
+    standards_violations: number;
+    tidiness_score: number;
+    tech_debt_items: number;
+  };
+  test?: {
+    unit_test_coverage: number;
+    integration_test_coverage: number;
+    ui_test_coverage: number;
+    edge_cases_covered: number;
+    flaky_tests: number;
+    test_quality_score: number;
+  };
+  performance?: {
+    bundle_size_kb: number;
+    initial_load_time_ms: number;
+    lcp_ms: number;
+    fid_ms: number;
+    cls_score: number;
+  };
+  security?: {
+    vulnerability_count: number;
+    input_validation_coverage: number;
+    auth_implementation_score: number;
+    security_scan_score: number;
+  };
+}
+
+export interface PhasePerformance {
+  mode: string;
+  iterations: number;
+  metric_deltas?: Record<string, number>;
+  duration: number;
+  effectiveness: number;
+}
+
+export interface UserFeedback {
+  rating: number;
+  comments?: string;
+  submitted_at: string;
+}
+
+export interface ProfilePerformance {
+  id: string;
+  profile_id: string;
+  scenario_name: string;
+  execution_id: string;
+  start_metrics: MetricsSnapshot;
+  end_metrics: MetricsSnapshot;
+  phase_breakdown: PhasePerformance[];
+  total_iterations: number;
+  total_duration: number;
+  user_feedback?: UserFeedback;
+  executed_at: string;
+}
+
 // ==================== Discovery Types ====================
 
 export interface Resource {

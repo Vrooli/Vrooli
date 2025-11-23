@@ -27,6 +27,7 @@ import type {
   PromptPreviewResult,
   AutoSteerProfile,
   AutoSteerTemplate,
+  ProfilePerformance,
   HealthResponse,
 } from '../types/api';
 
@@ -406,7 +407,19 @@ class ApiClient {
   }
 
   async getTaskLogs(taskId: string): Promise<LogEntry[]> {
-    return this.fetchJSON<LogEntry[]>(`/api/tasks/${taskId}/logs`);
+    const response = await this.fetchJSON<LogEntry[] | { entries?: LogEntry[] }>(
+      `/api/tasks/${taskId}/logs`,
+    );
+
+    if (Array.isArray(response)) {
+      return response;
+    }
+
+    if (response && Array.isArray((response as any).entries)) {
+      return (response as any).entries as LogEntry[];
+    }
+
+    return [];
   }
 
   async getTaskPrompt(taskId: string): Promise<Record<string, unknown>> {
@@ -414,7 +427,19 @@ class ApiClient {
   }
 
   async getAssembledPrompt(taskId: string): Promise<string> {
-    return this.fetchJSON<string>(`/api/tasks/${taskId}/prompt/assembled`);
+    const response = await this.fetchJSON<string | { prompt?: string }>(
+      `/api/tasks/${taskId}/prompt/assembled`,
+    );
+
+    if (typeof response === 'string') {
+      return response;
+    }
+
+    if (response && typeof (response as any).prompt === 'string') {
+      return (response as any).prompt as string;
+    }
+
+    return JSON.stringify(response ?? {}, null, 2);
   }
 
   async getActiveTargets(type?: string, operation?: string): Promise<string[]> {
@@ -526,17 +551,53 @@ class ApiClient {
   // ==================== Logs ====================
 
   async getSystemLogs(limit = 500): Promise<LogEntry[]> {
-    return this.fetchJSON<LogEntry[]>(`/api/logs?limit=${limit}`);
+    const response = await this.fetchJSON<LogEntry[] | { entries?: LogEntry[] }>(
+      `/api/logs?limit=${limit}`,
+    );
+
+    if (Array.isArray(response)) {
+      return response;
+    }
+
+    if (response && Array.isArray((response as any).entries)) {
+      return (response as any).entries as LogEntry[];
+    }
+
+    return [];
   }
 
   // ==================== Execution History ====================
 
   async getAllExecutionHistory(): Promise<ExecutionHistory[]> {
-    return this.fetchJSON<ExecutionHistory[]>(`/api/executions`);
+    const response = await this.fetchJSON<ExecutionHistory[] | { executions?: ExecutionHistory[] }>(
+      `/api/executions`,
+    );
+
+    if (Array.isArray(response)) {
+      return response;
+    }
+
+    if (response && Array.isArray((response as any).executions)) {
+      return (response as any).executions as ExecutionHistory[];
+    }
+
+    return [];
   }
 
   async getExecutionHistory(taskId: string): Promise<ExecutionHistory[]> {
-    return this.fetchJSON<ExecutionHistory[]>(`/api/tasks/${taskId}/executions`);
+    const response = await this.fetchJSON<ExecutionHistory[] | { executions?: ExecutionHistory[] }>(
+      `/api/tasks/${taskId}/executions`,
+    );
+
+    if (Array.isArray(response)) {
+      return response;
+    }
+
+    if (response && Array.isArray((response as any).executions)) {
+      return (response as any).executions as ExecutionHistory[];
+    }
+
+    return [];
   }
 
   async getExecutionPrompt(taskId: string, executionId: string): Promise<ExecutionPrompt> {
@@ -633,6 +694,31 @@ class ApiClient {
 
   async getAutoSteerTemplates(): Promise<AutoSteerTemplate[]> {
     return this.fetchJSON<AutoSteerTemplate[]>(`/api/auto-steer/templates`);
+  }
+
+  async getAutoSteerHistory(filters: { profile_id?: string; scenario?: string } = {}): Promise<ProfilePerformance[]> {
+    const params = new URLSearchParams();
+    if (filters.profile_id) params.append('profile_id', filters.profile_id);
+    if (filters.scenario) params.append('scenario', filters.scenario);
+
+    const query = params.toString();
+    const url = query ? `/api/auto-steer/history?${query}` : `/api/auto-steer/history`;
+
+    const response = await this.fetchJSON<ProfilePerformance[] | { history?: ProfilePerformance[] }>(url);
+
+    if (Array.isArray(response)) {
+      return response;
+    }
+
+    if (response && Array.isArray((response as any).history)) {
+      return (response as any).history as ProfilePerformance[];
+    }
+
+    return [];
+  }
+
+  async getAutoSteerExecution(executionId: string): Promise<ProfilePerformance> {
+    return this.fetchJSON<ProfilePerformance>(`/api/auto-steer/history/${executionId}`);
   }
 
   // ==================== Maintenance ====================

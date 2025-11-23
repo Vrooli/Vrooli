@@ -3,6 +3,7 @@ import { useRunningProcesses } from '../../hooks/useRunningProcesses';
 import { Button } from '../ui/button';
 import { ProcessCard } from './ProcessCard';
 import { Activity, ChevronDown } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 
 export function ProcessMonitor() {
   const { data: processes = [], isLoading } = useRunningProcesses();
@@ -12,22 +13,27 @@ export function ProcessMonitor() {
 
   return (
     <div className="relative">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setIsOpen(!isOpen)}
-        className="gap-2"
-        disabled={isLoading}
-      >
-        <Activity className="h-4 w-4" />
-        <span>Processes</span>
-        {processCount > 0 && (
-          <span className="px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-medium">
-            {processCount}
-          </span>
-        )}
-        <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsOpen(!isOpen)}
+            className="relative px-3"
+            disabled={isLoading}
+            aria-label={`View running processes${processCount > 0 ? ` (${processCount})` : ''}`}
+          >
+            <Activity className="h-4 w-4" />
+            {processCount > 0 && (
+              <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-medium">
+                {processCount}
+              </span>
+            )}
+            <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">Running processes</TooltipContent>
+      </Tooltip>
 
       {isOpen && (
         <>

@@ -87,9 +87,9 @@ export function KanbanColumn({
   }
 
   return (
-    <div className="shrink-0 w-80 flex flex-col">
+    <div className="shrink-0 w-80 flex flex-col h-full min-h-0">
       {/* Column Header */}
-      <div className={`px-4 py-3 rounded-t-lg border ${colors.border} ${colors.header}`}>
+      <div className={`px-4 py-3 border ${colors.border} ${colors.header}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold">{title}</h2>
@@ -111,8 +111,8 @@ export function KanbanColumn({
       <div
         ref={setNodeRef}
         className={`
-          flex-1 min-h-[200px] max-h-[calc(100vh-12rem)] overflow-y-auto
-          px-3 py-3 border-x border-b rounded-b-lg
+          flex-1 min-h-[200px] overflow-y-auto
+          px-3 py-3 border-x border-b
           ${colors.bg} ${colors.border}
           ${isOver ? 'ring-2 ring-blue-500/50 bg-blue-500/10' : ''}
           transition-all

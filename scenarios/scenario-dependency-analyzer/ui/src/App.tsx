@@ -13,6 +13,19 @@ import { CatalogPage } from "./pages/CatalogPage";
 import type { GraphType, LayoutMode } from "./types";
 
 export default function App() {
+  const updateSearchParams = useCallback((updates: Record<string, string | null | undefined>) => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === undefined || value === "") {
+        url.searchParams.delete(key);
+      } else {
+        url.searchParams.set(key, value);
+      }
+    });
+    window.history.replaceState({}, "", url.toString());
+  }, []);
+
   const searchParams = useMemo(() => {
     if (typeof window === "undefined") return null;
     return new URLSearchParams(window.location.search);
@@ -20,12 +33,14 @@ export default function App() {
 
   const initialGraphType = useMemo(() => {
     const value = searchParams?.get("graph_type");
-    return value === "scenarios" || value === "resources" || value === "combined" ? value : "combined";
+    if (value === "scenario" || value === "scenarios") return "scenario";
+    if (value === "resource" || value === "resources") return "resource";
+    return value === "combined" ? "combined" : "combined";
   }, [searchParams]);
 
   const initialLayout = useMemo(() => {
     const value = searchParams?.get("layout");
-    return value === "grid" || value === "hierarchical" ? value : "force";
+    return value === "grid" || value === "radial" ? value : "force";
   }, [searchParams]);
 
   const [activeTab, setActiveTab] = useState(() => searchParams?.get("view") ?? "overview");
@@ -87,18 +102,63 @@ export default function App() {
     [optimizeScenario, selectedScenario]
   );
 
+  const handleSelectScenario = useCallback(
+    (scenarioName: string) => {
+      selectScenario(scenarioName);
+      updateSearchParams({ scenario: scenarioName });
+    },
+    [selectScenario, updateSearchParams]
+  );
+
   useEffect(() => {
     const scenario = searchParams?.get("scenario");
     if (scenario) {
       setFilter(scenario);
       setSelectedNode(null);
+      selectScenario(scenario);
+      if (!searchParams?.get("view")) {
+        setActiveTab("catalog");
+        updateSearchParams({ view: "catalog" });
+      }
     }
 
     const view = searchParams?.get("view");
     if (view === "overview" || view === "graph" || view === "deployment" || view === "catalog") {
       setActiveTab(view);
     }
-  }, [searchParams, setFilter, setSelectedNode]);
+  }, [searchParams, selectScenario, setFilter, setSelectedNode]);
+
+  const handleTabChange = useCallback(
+    (value: string) => {
+      setActiveTab(value);
+      updateSearchParams({ view: value });
+    },
+    [updateSearchParams]
+  );
+
+  const handleGraphTypeChange = useCallback(
+    (value: GraphType) => {
+      setGraphType(value);
+      updateSearchParams({ graph_type: value });
+    },
+    [setGraphType, updateSearchParams]
+  );
+
+  const handleLayoutChange = useCallback(
+    (value: LayoutMode) => {
+      setLayout(value);
+      updateSearchParams({ layout: value });
+    },
+    [setLayout, updateSearchParams]
+  );
+
+  const handleFilterChange = useCallback(
+    (value: string) => {
+      setFilter(value);
+      updateSearchParams({ scenario: value || null });
+    },
+    [setFilter, updateSearchParams]
+  );
 
   const handleExport = () => {
     if (!graph) return;
@@ -115,16 +175,19 @@ export default function App() {
   };
 
   const handleSelectScenarioForDeployment = useCallback(
-    (scenarioName: string) => {
+    (scenarioName: string, options?: { openCatalog?: boolean }) => {
       selectScenario(scenarioName);
-      setActiveTab("catalog");
+      updateSearchParams({ scenario: scenarioName });
+      if (options?.openCatalog) {
+        handleTabChange("catalog");
+      }
     },
-    [selectScenario]
+    [handleTabChange, selectScenario, updateSearchParams]
   );
 
   return (
     <div className="min-h-screen bg-transparent text-foreground">
-      <div className="relative overflow-hidden">
+      <div className="relative overflow-hidden border-b border-border/50 backdrop-blur-sm">
         <div className="pointer-events-none absolute inset-0 opacity-40">
           <div className="absolute -left-32 top-24 h-72 w-72 rounded-full bg-primary/30 blur-3xl" />
           <div className="absolute -top-20 right-0 h-96 w-96 rounded-full bg-purple-500/20 blur-3xl" />
@@ -160,7 +223,7 @@ export default function App() {
           </Card>
         ) : null}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="mb-6 grid w-full max-w-[800px] grid-cols-4">
             <TabsTrigger value="overview">Orientation</TabsTrigger>
             <TabsTrigger value="graph">Dependency Graph</TabsTrigger>
@@ -172,9 +235,9 @@ export default function App() {
           <TabsContent value="overview" className="space-y-6">
             <OrientationPage
               onAnalyzeAll={() => void analyzeAll()}
-              onGoGraph={() => setActiveTab("graph")}
-              onGoDeployment={() => setActiveTab("deployment")}
-              onGoCatalog={() => setActiveTab("catalog")}
+              onGoGraph={() => handleTabChange("graph")}
+              onGoDeployment={() => handleTabChange("deployment")}
+              onGoCatalog={() => handleTabChange("catalog")}
               hasGraphData={Boolean(graph)}
               hasScenarioSummaries={summaries.length > 0}
               apiHealthy={apiHealthy}
@@ -193,9 +256,9 @@ export default function App() {
               selectedNode={selectedNode}
               apiHealthy={apiHealthy}
               stats={stats}
-              onGraphTypeChange={setGraphType}
-              onLayoutChange={setLayout}
-              onFilterChange={setFilter}
+              onGraphTypeChange={handleGraphTypeChange}
+              onLayoutChange={handleLayoutChange}
+              onFilterChange={handleFilterChange}
               onDriftFilterChange={setDriftFilter}
               onSelectNode={setSelectedNode}
               onRefresh={() => fetchGraph(graphType)}
@@ -225,7 +288,7 @@ export default function App() {
               detailLoading={detailLoading}
               scanLoading={scanLoading}
               optimizeLoading={optimizeLoading}
-              onSelectScenario={selectScenario}
+              onSelectScenario={handleSelectScenario}
               onRefresh={refreshSummaries}
               onScan={handleScenarioScanForDetail}
               onOptimize={handleOptimize}

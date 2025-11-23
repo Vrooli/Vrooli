@@ -40,6 +40,7 @@ interface TaskDetailsModalProps {
 }
 
 const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low'];
+const AUTO_STEER_NONE = 'none';
 
 export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalProps) {
   const [activeTab, setActiveTab] = useState('details');
@@ -48,7 +49,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [notes, setNotes] = useState('');
-  const [autoSteerProfileId, setAutoSteerProfileId] = useState<string>('');
+  const [autoSteerProfileId, setAutoSteerProfileId] = useState<string>(AUTO_STEER_NONE);
   const [autoRequeue, setAutoRequeue] = useState(false);
 
   const updateTask = useUpdateTask();
@@ -56,11 +57,12 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   const { data: profiles = [] } = useAutoSteerProfiles();
 
   // Fetch task logs
-  const { data: logs = [] } = useQuery({
+  const { data: rawLogs = [] } = useQuery({
     queryKey: queryKeys.tasks.logs(task?.id ?? ''),
     queryFn: () => api.getTaskLogs(task!.id),
     enabled: !!task && activeTab === 'logs',
   });
+  const logs = Array.isArray(rawLogs) ? rawLogs : (rawLogs as any)?.entries ?? [];
 
   // Fetch task prompt
   const { data: promptData } = useQuery({
@@ -68,13 +70,22 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
     queryFn: () => api.getAssembledPrompt(task!.id),
     enabled: !!task && activeTab === 'prompt',
   });
+  const assembledPrompt =
+    typeof promptData === 'string'
+      ? promptData
+      : promptData
+        ? JSON.stringify(promptData, null, 2)
+        : '';
 
   // Fetch task executions
-  const { data: executions = [] } = useQuery({
+  const { data: rawExecutions = [] } = useQuery({
     queryKey: queryKeys.tasks.executions(task?.id ?? ''),
     queryFn: () => api.getExecutionHistory(task!.id),
     enabled: !!task && activeTab === 'executions',
   });
+  const executions = Array.isArray(rawExecutions)
+    ? rawExecutions
+    : (rawExecutions as any)?.executions ?? [];
 
   // Initialize form when task changes
   useEffect(() => {
@@ -82,7 +93,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
       setTitle(task.title);
       setPriority(task.priority);
       setNotes(task.notes || '');
-      setAutoSteerProfileId(task.auto_steer_profile_id || '');
+      setAutoSteerProfileId(task.auto_steer_profile_id || AUTO_STEER_NONE);
       setAutoRequeue(task.auto_requeue || false);
     }
   }, [task]);
@@ -103,7 +114,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
         title: title.trim(),
         priority,
         notes: notes.trim() || undefined,
-        auto_steer_profile_id: autoSteerProfileId || undefined,
+        auto_steer_profile_id: autoSteerProfileId === AUTO_STEER_NONE ? undefined : autoSteerProfileId,
         auto_requeue: autoRequeue,
       },
     }, {
@@ -213,7 +224,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value={AUTO_STEER_NONE}>None</SelectItem>
                     {profiles.map(profile => (
                       <SelectItem key={profile.id} value={profile.id}>
                         {profile.name}
@@ -282,7 +293,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
           {/* Prompt Tab */}
           <TabsContent value="prompt" className="mt-4">
             <div className="border rounded-md p-4 max-h-96 overflow-y-auto bg-slate-900 font-mono text-xs whitespace-pre-wrap">
-              {promptData || 'No prompt available'}
+              {assembledPrompt || 'No prompt available'}
             </div>
           </TabsContent>
 

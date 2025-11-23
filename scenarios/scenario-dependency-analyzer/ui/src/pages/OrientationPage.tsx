@@ -1,4 +1,4 @@
-import { AlertCircle, BarChart3, CheckCircle2, Compass, Network, Shield } from "lucide-react";
+import { AlertCircle, ArrowRight, BarChart3, CheckCircle2, Compass, Network, Shield, MousePointerClick, Map, LifeBuoy } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -73,18 +73,36 @@ export function OrientationPage({
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="border border-border/40 bg-background/50">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Where should I click?</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <MousePointerClick className="h-4 w-4 text-primary" />
+              Where should I click?
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>
-              <strong className="text-foreground">Graph</strong>: visual map of scenarios/resources. Use after Analyze All.
-            </p>
-            <p>
-              <strong className="text-foreground">Deployment</strong>: tier fitness, blockers, metadata gaps, and Scan/Apply actions.
-            </p>
-            <p>
-              <strong className="text-foreground">Catalog</strong>: pick a single scenario to see drift, dependencies, and optimization hints.
-            </p>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <ClickRow
+              icon={<Map className="h-4 w-4 text-primary" aria-hidden="true" />}
+              title="Graph"
+              body="Visual map of scenarios/resources. Best after Analyze All. Use search to spotlight a node."
+              actionLabel="Open graph"
+              onClick={onGoGraph}
+              disabled={!hasGraphData}
+            />
+            <ClickRow
+              icon={<Shield className="h-4 w-4 text-primary" aria-hidden="true" />}
+              title="Deployment"
+              body="Tier fitness, blockers, metadata gaps. Run Scan or Scan & Apply from the table."
+              actionLabel="Open deployment"
+              onClick={onGoDeployment}
+              disabled={!hasScenarioSummaries}
+            />
+            <ClickRow
+              icon={<Network className="h-4 w-4 text-primary" aria-hidden="true" />}
+              title="Catalog"
+              body="Pick a scenario to see drift, dependencies, and optimization hints."
+              actionLabel="Open catalog"
+              onClick={onGoCatalog}
+              disabled={!hasScenarioSummaries}
+            />
           </CardContent>
         </Card>
 
@@ -104,20 +122,26 @@ export function OrientationPage({
       <Card className="border border-border/40 bg-background/50">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-primary" />
+            <LifeBuoy className="h-4 w-4 text-primary" />
             Getting unstuck
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-2 text-sm text-muted-foreground md:grid-cols-3">
-          <p>
-            API not responding? Ensure the scenario is running and retry Analyze All. Health status shows above.
-          </p>
-          <p>
-            Empty graph? Run Analyze All, then Refresh in the Graph tab. Use the search box to highlight a node.
-          </p>
-          <p>
-            Unsure what to fix? Start in Deployment, filter for issues/critical, then click a row to jump to details.
-          </p>
+        <CardContent className="grid gap-3 md:grid-cols-3">
+          <TipCard
+            icon={<AlertCircle className="h-4 w-4 text-primary" aria-hidden="true" />}
+            title="API not responding"
+            body="Ensure the scenario is running, then rerun Analyze All. Health shows above."
+          />
+          <TipCard
+            icon={<Map className="h-4 w-4 text-primary" aria-hidden="true" />}
+            title="Empty graph"
+            body="Run Analyze All, then hit Refresh in Graph. Use search to highlight a node."
+          />
+          <TipCard
+            icon={<Shield className="h-4 w-4 text-primary" aria-hidden="true" />}
+            title="Don't know what to fix"
+            body="Open Deployment, filter for issues/critical, then click a row to see details and Scan."
+          />
         </CardContent>
       </Card>
     </div>
@@ -163,6 +187,50 @@ function GlossaryItem({ term, description }: { term: string; description: string
     <div className="rounded-lg border border-border/40 bg-background/40 p-3">
       <p className="text-xs font-semibold text-foreground">{term}</p>
       <p className="text-xs text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+function ClickRow({
+  icon,
+  title,
+  body,
+  actionLabel,
+  onClick,
+  disabled
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+  actionLabel: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-lg border border-border/50 bg-background/60 p-3">
+      <div className="flex items-start gap-2">
+        {icon}
+        <div>
+          <p className="text-sm font-semibold text-foreground">{title}</p>
+          <p className="text-xs text-muted-foreground">{body}</p>
+        </div>
+      </div>
+      <Button variant="ghost" size="sm" disabled={disabled} onClick={onClick} className="gap-2">
+        {actionLabel}
+        <ArrowRight className="h-3 w-3" aria-hidden="true" />
+      </Button>
+    </div>
+  );
+}
+
+function TipCard({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
+  return (
+    <div className="rounded-lg border border-border/50 bg-background/60 p-3">
+      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        {icon}
+        <span>{title}</span>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">{body}</p>
     </div>
   );
 }

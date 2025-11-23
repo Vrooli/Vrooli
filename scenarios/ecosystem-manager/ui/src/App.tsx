@@ -36,7 +36,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50">
+    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-white/10 bg-slate-900/95 backdrop-blur">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-4 gap-3 sm:gap-0">
@@ -73,7 +73,7 @@ export default function App() {
       <FloatingControls />
 
       {/* Main Content */}
-      <main className="px-3 sm:px-6 py-4 sm:py-6">
+      <main className="p-0 flex-1 min-h-0 overflow-hidden">
         <KanbanBoard
           onViewTaskDetails={(task) => setSelectedTask(task)}
           onDeleteTask={(taskId) => console.log('Delete task:', taskId)}
