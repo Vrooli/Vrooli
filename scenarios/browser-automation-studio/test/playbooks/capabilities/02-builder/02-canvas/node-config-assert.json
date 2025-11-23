@@ -38,8 +38,7 @@
         "label": "Drag Assert node onto canvas",
         "sourceSelector": "@selector/nodePalette.cards.assert",
         "targetSelector": ".react-flow__pane",
-        "timeoutMs": 10000,
-        "waitForMs": 2000
+        "timeoutMs": 10000
       }
     },
     {
@@ -68,17 +67,7 @@
       "data": {
         "label": "Select Assert node",
         "selector": ".react-flow__node:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "capture-default-mode",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture default mode (exists)",
-        "fullPage": true,
-        "waitForMs": 500
+        "timeoutMs": 5000
       }
     },
     {
@@ -99,8 +88,7 @@
         "label": "Change mode to text_contains",
         "selector": ".react-flow__node.selected select /*dup-1*/",
         "value": "text_contains",
-        "timeoutMs": 5000,
-        "waitForMs": 800
+        "timeoutMs": 5000
       }
     },
     {
@@ -112,15 +100,6 @@
         "assertMode": "exists",
         "timeoutMs": 3000,
         "failureMessage": "Expected value input should appear for text_contains mode"
-      }
-    },
-    {
-      "id": "capture-text-contains-mode",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture text_contains mode",
-        "fullPage": true,
-        "waitForMs": 500
       }
     },
     {
@@ -141,8 +120,7 @@
         "label": "Enter expected text",
         "selector": ".react-flow__node.selected input[placeholder*=\"Expected\" i] /*dup-1*/",
         "text": "Success",
-        "timeoutMs": 5000,
-        "waitForMs": 500
+        "timeoutMs": 5000
       }
     },
     {
@@ -167,23 +145,13 @@
       }
     },
     {
-      "id": "capture-with-options",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture with case sensitive enabled",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "switch-to-attribute-mode",
       "type": "select",
       "data": {
         "label": "Change mode to attribute_equals",
         "selector": ".react-flow__node.selected select /*dup-2*/",
         "value": "attribute_equals",
-        "timeoutMs": 5000,
-        "waitForMs": 800
+        "timeoutMs": 5000
       }
     },
     {
@@ -198,15 +166,6 @@
       }
     },
     {
-      "id": "capture-attribute-mode",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture attribute_equals mode",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "save-configuration",
       "type": "click",
       "data": {
@@ -214,15 +173,6 @@
         "selector": ".react-flow__pane",
         "timeoutMs": 5000,
         "waitForMs": 1000
-      }
-    },
-    {
-      "id": "verify-final-state",
-      "type": "screenshot",
-      "data": {
-        "label": "Final Assert node configuration",
-        "fullPage": true,
-        "waitForMs": 500
       }
     }
   ],
@@ -258,18 +208,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e10",
-      "source": "select-assert-node",
-      "target": "capture-default-mode",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e11",
-      "source": "capture-default-mode",
-      "target": "find-mode-selector",
-      "type": "smoothstep"
-    },
-    {
       "id": "e12",
       "source": "find-mode-selector",
       "target": "switch-to-text-contains",
@@ -279,18 +217,6 @@
       "id": "e13",
       "source": "switch-to-text-contains",
       "target": "verify-expected-value-appears",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e14",
-      "source": "verify-expected-value-appears",
-      "target": "capture-text-contains-mode",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e15",
-      "source": "capture-text-contains-mode",
-      "target": "enter-selector",
       "type": "smoothstep"
     },
     {
@@ -312,39 +238,33 @@
       "type": "smoothstep"
     },
     {
-      "id": "e19",
-      "source": "toggle-case-sensitive",
-      "target": "capture-with-options",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e20",
-      "source": "capture-with-options",
-      "target": "switch-to-attribute-mode",
-      "type": "smoothstep"
-    },
-    {
       "id": "e21",
       "source": "switch-to-attribute-mode",
       "target": "verify-attribute-name-input",
       "type": "smoothstep"
     },
     {
-      "id": "e22",
+      "id": "e22-bridge-e23",
       "source": "verify-attribute-name-input",
-      "target": "capture-attribute-mode",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e23",
-      "source": "capture-attribute-mode",
       "target": "save-configuration",
       "type": "smoothstep"
     },
     {
-      "id": "e24",
-      "source": "save-configuration",
-      "target": "verify-final-state",
+      "id": "e10-bridge-e11",
+      "source": "select-assert-node",
+      "target": "find-mode-selector",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e19-bridge-e20",
+      "source": "toggle-case-sensitive",
+      "target": "switch-to-attribute-mode",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e14-bridge-e15",
+      "source": "verify-expected-value-appears",
+      "target": "enter-selector",
       "type": "smoothstep"
     }
   ]

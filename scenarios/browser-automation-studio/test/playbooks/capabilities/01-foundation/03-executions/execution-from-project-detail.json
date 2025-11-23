@@ -21,15 +21,6 @@
       }
     },
     {
-      "id": "capture-before-execution",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture workflow list before execution",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "hover-workflow-card",
       "type": "hover",
       "data": {
@@ -57,39 +48,9 @@
         "expression": "document.querySelector('@selector/executions.list.item, @selector/executions.viewer.status, @selector/executions.viewer.stopButton') !== null",
         "storeResult": "executionStarted"
       }
-    },
-    {
-      "id": "capture-execution-started",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture execution in progress",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "capture-final-state",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture final state",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
-    {
-      "id": "call-open-project-to-capture-before-execution",
-      "source": "call-open-project",
-      "target": "capture-before-execution",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "capture-before-execution",
-      "target": "hover-workflow-card",
-      "type": "smoothstep"
-    },
     {
       "id": "e7",
       "source": "hover-workflow-card",
@@ -103,15 +64,9 @@
       "type": "smoothstep"
     },
     {
-      "id": "e11",
-      "source": "check-execution-indicator",
-      "target": "capture-execution-started",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e12",
-      "source": "capture-execution-started",
-      "target": "capture-final-state",
+      "id": "call-open-project-to-capture-before-execution-bridge-e6",
+      "source": "call-open-project",
+      "target": "hover-workflow-card",
       "type": "smoothstep"
     }
   ]

@@ -41,15 +41,6 @@
       }
     },
     {
-      "id": "capture-before-zoom",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture canvas before zoom",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "click-zoom-in",
       "type": "click",
       "data": {
@@ -81,15 +72,6 @@
         "timeoutMs": 3000,
         "failureMessage": "Canvas should have zoom transformation applied"
       }
-    },
-    {
-      "id": "capture-after-zoom",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture canvas after zoom",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -106,18 +88,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e6",
-      "source": "get-initial-zoom",
-      "target": "capture-before-zoom",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e7",
-      "source": "capture-before-zoom",
-      "target": "click-zoom-in",
-      "type": "smoothstep"
-    },
-    {
       "id": "e8",
       "source": "click-zoom-in",
       "target": "get-zoomed-level",
@@ -130,9 +100,9 @@
       "type": "smoothstep"
     },
     {
-      "id": "e10",
-      "source": "verify-zoom-increased",
-      "target": "capture-after-zoom",
+      "id": "e6-bridge-e7",
+      "source": "get-initial-zoom",
+      "target": "click-zoom-in",
       "type": "smoothstep"
     }
   ]

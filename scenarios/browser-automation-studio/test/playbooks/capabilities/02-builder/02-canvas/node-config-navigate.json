@@ -32,23 +32,13 @@
       }
     },
     {
-      "id": "capture-before",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture builder before adding node",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "drag-navigate-node",
       "type": "dragDrop",
       "data": {
         "label": "Drag Navigate node onto canvas",
         "sourceSelector": "@selector/nodePalette.cards.navigate",
         "targetSelector": ".react-flow__pane",
-        "timeoutMs": 10000,
-        "waitForMs": 2000
+        "timeoutMs": 10000
       }
     },
     {
@@ -72,22 +62,12 @@
       }
     },
     {
-      "id": "capture-node-added",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture Navigate node on canvas",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "click-navigate-node",
       "type": "click",
       "data": {
         "label": "Click Navigate node to select it",
         "selector": ".react-flow__node[data-type=\"navigate\"] /*dup-1*/",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
+        "timeoutMs": 5000
       }
     },
     {
@@ -138,7 +118,9 @@
       "type": "keyboard",
       "data": {
         "label": "Clear URL input",
-        "keys": ["a"],
+        "keys": [
+          "a"
+        ],
         "modifiers": {
           "ctrl": true
         },
@@ -164,15 +146,6 @@
         "selector": ".react-flow__pane",
         "timeoutMs": 5000,
         "waitForMs": 1000
-      }
-    },
-    {
-      "id": "capture-url-configured",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture after URL configuration",
-        "fullPage": true,
-        "waitForMs": 500
       }
     },
     {
@@ -204,18 +177,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e6",
-      "source": "wait-builder",
-      "target": "capture-before",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e7",
-      "source": "capture-before",
-      "target": "drag-navigate-node",
-      "type": "smoothstep"
-    },
-    {
       "id": "e8",
       "source": "drag-navigate-node",
       "target": "wait-node-added",
@@ -225,18 +186,6 @@
       "id": "e9",
       "source": "wait-node-added",
       "target": "verify-navigate-node",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e10",
-      "source": "verify-navigate-node",
-      "target": "capture-node-added",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e11",
-      "source": "capture-node-added",
-      "target": "click-navigate-node",
       "type": "smoothstep"
     },
     {
@@ -282,21 +231,27 @@
       "type": "smoothstep"
     },
     {
-      "id": "e19",
-      "source": "blur-url-input",
-      "target": "capture-url-configured",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e20",
-      "source": "capture-url-configured",
-      "target": "verify-url-persisted",
-      "type": "smoothstep"
-    },
-    {
       "id": "e21",
       "source": "verify-url-persisted",
       "target": "assert-url-saved",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6-bridge-e7",
+      "source": "wait-builder",
+      "target": "drag-navigate-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10-bridge-e11",
+      "source": "verify-navigate-node",
+      "target": "click-navigate-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e19-bridge-e20",
+      "source": "blur-url-input",
+      "target": "verify-url-persisted",
       "type": "smoothstep"
     }
   ]

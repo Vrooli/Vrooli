@@ -21,8 +21,7 @@
         "scenario": "browser-automation-studio",
         "scenarioPath": "/",
         "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
+        "timeoutMs": 45000
       }
     },
     {
@@ -88,15 +87,6 @@
         "timeoutMs": 20000,
         "failureMessage": "Workflow builder should render after creating a workflow"
       }
-    },
-    {
-      "id": "capture-builder",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture workflow builder",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -134,12 +124,6 @@
       "id": "e6",
       "source": "switch-to-manual",
       "target": "assert-builder-visible",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e7",
-      "source": "assert-builder-visible",
-      "target": "capture-builder",
       "type": "smoothstep"
     }
   ]

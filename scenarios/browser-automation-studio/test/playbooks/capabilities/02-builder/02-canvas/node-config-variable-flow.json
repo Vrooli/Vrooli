@@ -38,8 +38,7 @@
         "label": "Drag SetVariable node (camelCase test)",
         "sourceSelector": "@selector/nodePalette.cards.setVariable",
         "targetSelector": ".react-flow__pane",
-        "timeoutMs": 10000,
-        "waitForMs": 2000
+        "timeoutMs": 10000
       }
     },
     {
@@ -59,17 +58,7 @@
       "data": {
         "label": "Select SetVariable node",
         "selector": ".react-flow__node:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "capture-setvariable",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture SetVariable node",
-        "fullPage": true,
-        "waitForMs": 500
+        "timeoutMs": 5000
       }
     },
     {
@@ -90,8 +79,7 @@
         "label": "Enter variable name",
         "selector": ".react-flow__node.selected input:first-of-type",
         "text": "testVar",
-        "timeoutMs": 5000,
-        "waitForMs": 500
+        "timeoutMs": 5000
       }
     },
     {
@@ -127,23 +115,13 @@
       }
     },
     {
-      "id": "capture-setvariable-configured",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture configured SetVariable",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "drag-usevariable-node",
       "type": "dragDrop",
       "data": {
         "label": "Drag UseVariable node (camelCase test)",
         "sourceSelector": "@selector/nodePalette.cards.useVariable",
         "targetSelector": ".react-flow__pane",
-        "timeoutMs": 10000,
-        "waitForMs": 2000
+        "timeoutMs": 10000
       }
     },
     {
@@ -172,17 +150,7 @@
       "data": {
         "label": "Select UseVariable node",
         "selector": ".react-flow__node:nth-of-type(2) /*dup-1*/",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "capture-usevariable",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture UseVariable node",
-        "fullPage": true,
-        "waitForMs": 500
+        "timeoutMs": 5000
       }
     },
     {
@@ -216,15 +184,6 @@
         "timeoutMs": 5000,
         "waitForMs": 1000
       }
-    },
-    {
-      "id": "verify-complete-flow",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture complete variable flow",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -253,18 +212,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e10",
-      "source": "select-setvariable",
-      "target": "capture-setvariable",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e11",
-      "source": "capture-setvariable",
-      "target": "find-variable-name-input",
-      "type": "smoothstep"
-    },
-    {
       "id": "e12",
       "source": "find-variable-name-input",
       "target": "enter-variable-name",
@@ -289,18 +236,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e16",
-      "source": "save-setvariable",
-      "target": "capture-setvariable-configured",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e17",
-      "source": "capture-setvariable-configured",
-      "target": "drag-usevariable-node",
-      "type": "smoothstep"
-    },
-    {
       "id": "e18",
       "source": "drag-usevariable-node",
       "target": "wait-second-node",
@@ -319,18 +254,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e21",
-      "source": "select-usevariable",
-      "target": "capture-usevariable",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e22",
-      "source": "capture-usevariable",
-      "target": "find-variable-reference-input",
-      "type": "smoothstep"
-    },
-    {
       "id": "e23",
       "source": "find-variable-reference-input",
       "target": "enter-variable-reference",
@@ -343,9 +266,21 @@
       "type": "smoothstep"
     },
     {
-      "id": "e25",
-      "source": "save-usevariable",
-      "target": "verify-complete-flow",
+      "id": "e10-bridge-e11",
+      "source": "select-setvariable",
+      "target": "find-variable-name-input",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e16-bridge-e17",
+      "source": "save-setvariable",
+      "target": "drag-usevariable-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e21-bridge-e22",
+      "source": "select-usevariable",
+      "target": "find-variable-reference-input",
       "type": "smoothstep"
     }
   ]

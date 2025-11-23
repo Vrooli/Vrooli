@@ -42,15 +42,6 @@
       }
     },
     {
-      "id": "capture-palette-initial",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture initial palette state",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "find-category-header",
       "type": "evaluate",
       "data": {
@@ -68,15 +59,6 @@
         "timeoutMs": 5000,
         "waitForMs": 1000,
         "continueOnError": true
-      }
-    },
-    {
-      "id": "capture-palette-toggled",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture palette after category toggle",
-        "fullPage": true,
-        "waitForMs": 500
       }
     },
     {
@@ -103,33 +85,21 @@
       "type": "smoothstep"
     },
     {
-      "id": "e8",
-      "source": "assert-palette-visible",
-      "target": "capture-palette-initial",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
-      "source": "capture-palette-initial",
-      "target": "find-category-header",
-      "type": "smoothstep"
-    },
-    {
       "id": "e10",
       "source": "find-category-header",
       "target": "click-first-category",
       "type": "smoothstep"
     },
     {
-      "id": "e11",
+      "id": "e11-bridge-e12",
       "source": "click-first-category",
-      "target": "capture-palette-toggled",
+      "target": "verify-category-interaction",
       "type": "smoothstep"
     },
     {
-      "id": "e12",
-      "source": "capture-palette-toggled",
-      "target": "verify-category-interaction",
+      "id": "e8-bridge-e9",
+      "source": "assert-palette-visible",
+      "target": "find-category-header",
       "type": "smoothstep"
     }
   ]

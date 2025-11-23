@@ -32,15 +32,6 @@
       }
     },
     {
-      "id": "capture-workflows-tab",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture workflows tab view",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "verify-workflow-content-visible",
       "type": "evaluate",
       "data": {
@@ -85,15 +76,6 @@
       }
     },
     {
-      "id": "capture-executions-tab",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture executions tab view",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "verify-execution-content-visible",
       "type": "evaluate",
       "data": {
@@ -125,15 +107,6 @@
         "timeoutMs": 5000,
         "failureMessage": "Workflows tab should be active again after switching back"
       }
-    },
-    {
-      "id": "capture-workflows-tab-again",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture workflows tab after switching back",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -141,18 +114,6 @@
       "id": "e1",
       "source": "call-open-project",
       "target": "assert-workflows-tab-active",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e5",
-      "source": "assert-workflows-tab-active",
-      "target": "capture-workflows-tab",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "capture-workflows-tab",
-      "target": "verify-workflow-content-visible",
       "type": "smoothstep"
     },
     {
@@ -174,18 +135,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e11",
-      "source": "assert-workflows-tab-inactive",
-      "target": "capture-executions-tab",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e12",
-      "source": "capture-executions-tab",
-      "target": "verify-execution-content-visible",
-      "type": "smoothstep"
-    },
-    {
       "id": "e13",
       "source": "verify-execution-content-visible",
       "target": "click-workflows-tab-again",
@@ -198,9 +147,15 @@
       "type": "smoothstep"
     },
     {
-      "id": "e16",
-      "source": "assert-workflows-tab-active-again",
-      "target": "capture-workflows-tab-again",
+      "id": "e11-bridge-e12",
+      "source": "assert-workflows-tab-inactive",
+      "target": "verify-execution-content-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5-bridge-e6",
+      "source": "assert-workflows-tab-active",
+      "target": "verify-workflow-content-visible",
       "type": "smoothstep"
     }
   ]

@@ -21,8 +21,7 @@
         "scenario": "browser-automation-studio",
         "scenarioPath": "/",
         "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
+        "timeoutMs": 45000
       }
     },
     {
@@ -42,8 +41,7 @@
       "data": {
         "label": "Open project modal (X button test)",
         "selector": "@selector/dashboard.newProjectButton",
-        "timeoutMs": 15000,
-        "waitForMs": 1500
+        "timeoutMs": 15000
       }
     },
     {
@@ -62,8 +60,7 @@
       "data": {
         "label": "Click X button",
         "selector": "@selector/dialogs.base.closeButton",
-        "timeoutMs": 5000,
-        "waitForMs": 500
+        "timeoutMs": 5000
       }
     },
     {
@@ -83,8 +80,7 @@
       "data": {
         "label": "Open project modal (Cancel button test)",
         "selector": "@selector/dashboard.newProjectButton /*dup-1*/",
-        "timeoutMs": 15000,
-        "waitForMs": 1500
+        "timeoutMs": 15000
       }
     },
     {
@@ -103,8 +99,7 @@
       "data": {
         "label": "Click Cancel button",
         "selector": "@selector/dialogs.project.cancelButton",
-        "timeoutMs": 5000,
-        "waitForMs": 500
+        "timeoutMs": 5000
       }
     },
     {
@@ -124,8 +119,7 @@
       "data": {
         "label": "Open project modal (Escape key test)",
         "selector": "@selector/dashboard.newProjectButton /*dup-2*/",
-        "timeoutMs": 15000,
-        "waitForMs": 1500
+        "timeoutMs": 15000
       }
     },
     {
@@ -143,8 +137,9 @@
       "type": "keyboard",
       "data": {
         "label": "Press Escape key",
-        "waitForMs": 500,
-        "keys": ["Escape"]
+        "keys": [
+          "Escape"
+        ]
       }
     },
     {

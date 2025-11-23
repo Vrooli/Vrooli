@@ -52,15 +52,6 @@
       }
     },
     {
-      "id": "capture-before-favorite",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture before favoriting",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "click-favorite-button",
       "type": "click",
       "data": {
@@ -68,15 +59,6 @@
         "selector": "@selector/nodePalette.favoriteButtons.navigate:not([data-dedupe=\"toggle\"])",
         "timeoutMs": 5000,
         "waitForMs": 1000
-      }
-    },
-    {
-      "id": "capture-after-favorite",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture after favoriting",
-        "fullPage": true,
-        "waitForMs": 500
       }
     },
     {
@@ -109,26 +91,14 @@
       "type": "smoothstep"
     },
     {
-      "id": "e9",
+      "id": "e9-bridge-e10",
       "source": "find-favorite-button",
-      "target": "capture-before-favorite",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e10",
-      "source": "capture-before-favorite",
       "target": "click-favorite-button",
       "type": "smoothstep"
     },
     {
-      "id": "e11",
+      "id": "e11-bridge-e12",
       "source": "click-favorite-button",
-      "target": "capture-after-favorite",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e12",
-      "source": "capture-after-favorite",
       "target": "verify-favorite-toggled",
       "type": "smoothstep"
     }

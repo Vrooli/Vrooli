@@ -21,8 +21,7 @@
         "scenario": "browser-automation-studio",
         "scenarioPath": "/",
         "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
+        "timeoutMs": 45000
       }
     },
     {
@@ -110,15 +109,6 @@
       }
     },
     {
-      "id": "capture-version-history",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture version history UI",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "check-restore-buttons",
       "type": "assert",
       "data": {
@@ -134,16 +124,9 @@
       "type": "keyboard",
       "data": {
         "label": "Close version dialog with Escape",
-        "keys": ["Escape"]
-      }
-    },
-    {
-      "id": "capture-final-state",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture final workflow builder state",
-        "fullPage": true,
-        "waitForMs": 500
+        "keys": [
+          "Escape"
+        ]
       }
     }
   ],
@@ -191,27 +174,15 @@
       "type": "smoothstep"
     },
     {
-      "id": "e8",
-      "source": "check-version-list-visible",
-      "target": "capture-version-history",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
-      "source": "capture-version-history",
-      "target": "check-restore-buttons",
-      "type": "smoothstep"
-    },
-    {
       "id": "e10",
       "source": "check-restore-buttons",
       "target": "close-version-dialog",
       "type": "smoothstep"
     },
     {
-      "id": "e11",
-      "source": "close-version-dialog",
-      "target": "capture-final-state",
+      "id": "e8-bridge-e9",
+      "source": "check-version-list-visible",
+      "target": "check-restore-buttons",
       "type": "smoothstep"
     }
   ]

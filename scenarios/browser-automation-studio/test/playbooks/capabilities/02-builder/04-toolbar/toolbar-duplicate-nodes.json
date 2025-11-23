@@ -40,15 +40,6 @@
       }
     },
     {
-      "id": "capture-before",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture before duplicate",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "click-duplicate",
       "type": "click",
       "data": {
@@ -75,15 +66,6 @@
         "expression": "(() => { const initial = parseInt(localStorage.getItem('initialCount') || '0'); const final = parseInt(localStorage.getItem('finalCount') || '0'); return final > initial; })()",
         "storeResult": "nodeDuplicated"
       }
-    },
-    {
-      "id": "capture-after",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture after duplicate",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -100,18 +82,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e8",
-      "source": "click-node",
-      "target": "capture-before",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
-      "source": "capture-before",
-      "target": "click-duplicate",
-      "type": "smoothstep"
-    },
-    {
       "id": "e10",
       "source": "click-duplicate",
       "target": "count-final",
@@ -124,9 +94,9 @@
       "type": "smoothstep"
     },
     {
-      "id": "e12",
-      "source": "verify-increased",
-      "target": "capture-after",
+      "id": "e8-bridge-e9",
+      "source": "click-node",
+      "target": "click-duplicate",
       "type": "smoothstep"
     }
   ]

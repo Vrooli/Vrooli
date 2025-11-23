@@ -52,15 +52,6 @@
       }
     },
     {
-      "id": "capture-before-drag",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture canvas before adding node",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "get-navigate-node-position",
       "type": "evaluate",
       "data": {
@@ -117,15 +108,6 @@
         "timeoutMs": 5000,
         "failureMessage": "Navigate node should be visible on canvas after drag-and-drop"
       }
-    },
-    {
-      "id": "capture-after-drag",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture canvas with new node",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -145,18 +127,6 @@
       "id": "e10",
       "source": "count-initial-nodes",
       "target": "assert-palette-visible",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e11",
-      "source": "assert-palette-visible",
-      "target": "capture-before-drag",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e12",
-      "source": "capture-before-drag",
-      "target": "get-navigate-node-position",
       "type": "smoothstep"
     },
     {
@@ -190,9 +160,9 @@
       "type": "smoothstep"
     },
     {
-      "id": "e19",
-      "source": "check-navigate-node-exists",
-      "target": "capture-after-drag",
+      "id": "e11-bridge-e12",
+      "source": "assert-palette-visible",
+      "target": "get-navigate-node-position",
       "type": "smoothstep"
     }
   ]

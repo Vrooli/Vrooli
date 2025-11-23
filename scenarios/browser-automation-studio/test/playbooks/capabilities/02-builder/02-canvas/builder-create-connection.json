@@ -50,15 +50,6 @@
       }
     },
     {
-      "id": "capture-before-connect",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture canvas before connection",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "get-first-node-handle",
       "type": "evaluate",
       "data": {
@@ -125,15 +116,6 @@
         "timeoutMs": 5000,
         "failureMessage": "Connection path should be visible after creating connection"
       }
-    },
-    {
-      "id": "capture-after-connect",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture canvas with new connection",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -153,18 +135,6 @@
       "id": "e7",
       "source": "assert-multiple-nodes",
       "target": "count-initial-edges",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e8",
-      "source": "count-initial-edges",
-      "target": "capture-before-connect",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
-      "source": "capture-before-connect",
-      "target": "get-first-node-handle",
       "type": "smoothstep"
     },
     {
@@ -204,9 +174,9 @@
       "type": "smoothstep"
     },
     {
-      "id": "e17",
-      "source": "assert-edge-visible",
-      "target": "capture-after-connect",
+      "id": "e8-bridge-e9",
+      "source": "count-initial-edges",
+      "target": "get-first-node-handle",
       "type": "smoothstep"
     }
   ]

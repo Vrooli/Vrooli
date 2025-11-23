@@ -31,8 +31,7 @@
       "data": {
         "label": "Open project",
         "selector": "@selector/projects.card:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
+        "timeoutMs": 5000
       }
     },
     {
@@ -52,8 +51,7 @@
       "data": {
         "label": "Open workflow",
         "selector": "@selector/workflows.card:first-of-type",
-        "timeoutMs": 10000,
-        "waitForMs": 2000
+        "timeoutMs": 10000
       }
     },
     {
@@ -77,15 +75,6 @@
       }
     },
     {
-      "id": "cap-initial",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture initial state",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "click-palette",
       "type": "click",
       "data": {
@@ -101,8 +90,7 @@
       "data": {
         "label": "Click canvas to add",
         "selector": ".react-flow__pane",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
+        "timeoutMs": 5000
       }
     },
     {
@@ -121,15 +109,6 @@
         "label": "Check for saved indicator",
         "expression": "(() => { const status = document.querySelector('@selector/header.saveStatus.indicator'); return status ? status.textContent || status.innerHTML : ''; })()",
         "storeResult": "saveStatus"
-      }
-    },
-    {
-      "id": "cap-after-save",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture after autosave",
-        "fullPage": true,
-        "waitForMs": 500
       }
     }
   ],
@@ -159,18 +138,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e5",
-      "source": "assert-status",
-      "target": "cap-initial",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "cap-initial",
-      "target": "click-palette",
-      "type": "smoothstep"
-    },
-    {
       "id": "e7",
       "source": "click-palette",
       "target": "click-canvas",
@@ -189,15 +156,15 @@
       "type": "smoothstep"
     },
     {
-      "id": "e10",
-      "source": "check-saved-state",
-      "target": "cap-after-save",
-      "type": "smoothstep"
-    },
-    {
       "id": "e-wait-work",
       "source": "wait-workflows",
       "target": "work",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5-bridge-e6",
+      "source": "assert-status",
+      "target": "click-palette",
       "type": "smoothstep"
     }
   ]

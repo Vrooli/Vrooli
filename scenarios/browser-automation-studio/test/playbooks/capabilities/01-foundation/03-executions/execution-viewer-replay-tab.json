@@ -69,15 +69,6 @@
       }
     },
     {
-      "id": "capture-execution-viewer",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture execution viewer initial state",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "look-for-replay-tab",
       "type": "evaluate",
       "data": {
@@ -107,15 +98,6 @@
         "label": "Verify replay-related content exists",
         "expression": "(() => { const screenshots = document.querySelectorAll('@selector/executions.viewer.screenshot, @selector/replay.screenshot'); const timeline = document.querySelector('@selector/replay.timeline, @selector/replay.viewer'); return screenshots.length > 0 || timeline !== null; })()",
         "storeResult": "hasReplayContent"
-      }
-    },
-    {
-      "id": "capture-replay-tab",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture replay tab view",
-        "fullPage": true,
-        "waitForMs": 500
       }
     },
     {
@@ -163,18 +145,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e10",
-      "source": "assert-execution-viewer-visible",
-      "target": "capture-execution-viewer",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e11",
-      "source": "capture-execution-viewer",
-      "target": "look-for-replay-tab",
-      "type": "smoothstep"
-    },
-    {
       "id": "e12",
       "source": "look-for-replay-tab",
       "target": "click-replay-tab",
@@ -187,21 +157,21 @@
       "type": "smoothstep"
     },
     {
-      "id": "e14",
-      "source": "verify-replay-content",
-      "target": "capture-replay-tab",
+      "id": "e17",
+      "source": "check-for-screenshot",
+      "target": "check-for-timeline",
       "type": "smoothstep"
     },
     {
-      "id": "e16",
-      "source": "capture-replay-tab",
+      "id": "e14-bridge-e16",
+      "source": "verify-replay-content",
       "target": "check-for-screenshot",
       "type": "smoothstep"
     },
     {
-      "id": "e17",
-      "source": "check-for-screenshot",
-      "target": "check-for-timeline",
+      "id": "e10-bridge-e11",
+      "source": "assert-execution-viewer-visible",
+      "target": "look-for-replay-tab",
       "type": "smoothstep"
     }
   ]

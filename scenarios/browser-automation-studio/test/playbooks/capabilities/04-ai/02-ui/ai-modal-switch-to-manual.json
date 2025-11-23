@@ -41,8 +41,7 @@
       "data": {
         "label": "Click New Workflow button",
         "selector": "@selector/workflows.newButton",
-        "timeoutMs": 10000,
-        "waitForMs": 500
+        "timeoutMs": 10000
       }
     },
     {
@@ -54,15 +53,6 @@
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "AI modal should appear"
-      }
-    },
-    {
-      "id": "capture-ai-modal",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture AI modal",
-        "fullPage": true,
-        "waitForMs": 500
       }
     },
     {
@@ -120,15 +110,6 @@
         "timeoutMs": 5000,
         "failureMessage": "Node palette should be visible in builder"
       }
-    },
-    {
-      "id": "capture-builder",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture workflow builder",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -148,18 +129,6 @@
       "id": "e6",
       "source": "click-new-workflow",
       "target": "assert-ai-modal-visible",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e7",
-      "source": "assert-ai-modal-visible",
-      "target": "capture-ai-modal",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
-      "source": "capture-ai-modal",
-      "target": "click-manual-button",
       "type": "smoothstep"
     },
     {
@@ -187,9 +156,9 @@
       "type": "smoothstep"
     },
     {
-      "id": "e16",
-      "source": "assert-palette-visible",
-      "target": "capture-builder",
+      "id": "e7-bridge-e9",
+      "source": "assert-ai-modal-visible",
+      "target": "click-manual-button",
       "type": "smoothstep"
     }
   ]

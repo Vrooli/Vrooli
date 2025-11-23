@@ -21,8 +21,7 @@
         "scenario": "browser-automation-studio",
         "scenarioPath": "/",
         "waitUntil": "networkidle0",
-        "timeoutMs": 30000,
-        "waitForMs": 500
+        "timeoutMs": 30000
       }
     },
     {
@@ -32,8 +31,7 @@
         "label": "Wait for React app to hydrate",
         "waitType": "element",
         "selector": "@selector/app.shell.ready",
-        "timeoutMs": 30000,
-        "waitForMs": 500
+        "timeoutMs": 30000
       }
     },
     {
@@ -43,16 +41,6 @@
         "label": "Wait for page load",
         "durationMs": 2000,
         "waitType": "duration"
-      }
-    },
-    {
-      "id": "debug-screenshot-pre-assert",
-      "type": "screenshot",
-      "data": {
-        "label": "Debug: Capture state before assertion",
-        "fullPage": true,
-        "captureDomSnapshot": true,
-        "waitForMs": 500
       }
     },
     {
@@ -81,14 +69,8 @@
       "type": "smoothstep"
     },
     {
-      "id": "edge-wait-screenshot",
+      "id": "edge-wait-screenshot-bridge-edge-screenshot-assert",
       "source": "wait-for-page",
-      "target": "debug-screenshot-pre-assert",
-      "type": "smoothstep"
-    },
-    {
-      "id": "edge-screenshot-assert",
-      "source": "debug-screenshot-pre-assert",
       "target": "assert-dashboard",
       "type": "smoothstep"
     }

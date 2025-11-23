@@ -38,8 +38,7 @@
         "label": "Drag Wait node onto canvas",
         "sourceSelector": "@selector/nodePalette.cards.wait",
         "targetSelector": ".react-flow__pane",
-        "timeoutMs": 10000,
-        "waitForMs": 2000
+        "timeoutMs": 10000
       }
     },
     {
@@ -68,17 +67,7 @@
       "data": {
         "label": "Select Wait node",
         "selector": ".react-flow__node:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "capture-initial-state",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture Wait node initial state",
-        "fullPage": true,
-        "waitForMs": 500
+        "timeoutMs": 5000
       }
     },
     {
@@ -99,8 +88,7 @@
         "label": "Change wait type to 'element'",
         "selector": ".react-flow__node.selected select /*dup-1*/",
         "value": "element",
-        "timeoutMs": 5000,
-        "waitForMs": 800
+        "timeoutMs": 5000
       }
     },
     {
@@ -112,15 +100,6 @@
         "assertMode": "exists",
         "timeoutMs": 3000,
         "failureMessage": "Selector input should appear when wait type is 'element'"
-      }
-    },
-    {
-      "id": "capture-element-mode",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture element wait mode",
-        "fullPage": true,
-        "waitForMs": 500
       }
     },
     {
@@ -161,8 +140,7 @@
         "label": "Switch back to time mode",
         "selector": ".react-flow__node.selected select /*dup-2*/",
         "value": "time",
-        "timeoutMs": 5000,
-        "waitForMs": 800
+        "timeoutMs": 5000
       }
     },
     {
@@ -174,15 +152,6 @@
         "assertMode": "exists",
         "timeoutMs": 3000,
         "failureMessage": "Duration input should appear when wait type is 'time'"
-      }
-    },
-    {
-      "id": "capture-time-mode",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture time wait mode",
-        "fullPage": true,
-        "waitForMs": 500
       }
     },
     {
@@ -204,15 +173,6 @@
         "selector": ".react-flow__pane /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 1000
-      }
-    },
-    {
-      "id": "verify-config-complete",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture final Wait node configuration",
-        "fullPage": true,
-        "waitForMs": 500
       }
     }
   ],
@@ -248,18 +208,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e10",
-      "source": "click-wait-node",
-      "target": "capture-initial-state",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e11",
-      "source": "capture-initial-state",
-      "target": "find-type-selector",
-      "type": "smoothstep"
-    },
-    {
       "id": "e12",
       "source": "find-type-selector",
       "target": "switch-to-element-wait",
@@ -269,18 +217,6 @@
       "id": "e13",
       "source": "switch-to-element-wait",
       "target": "verify-selector-input-appears",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e14",
-      "source": "verify-selector-input-appears",
-      "target": "capture-element-mode",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e15",
-      "source": "capture-element-mode",
-      "target": "type-selector",
       "type": "smoothstep"
     },
     {
@@ -308,27 +244,27 @@
       "type": "smoothstep"
     },
     {
-      "id": "e20",
-      "source": "verify-duration-input-appears",
-      "target": "capture-time-mode",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e21",
-      "source": "capture-time-mode",
-      "target": "enter-duration",
-      "type": "smoothstep"
-    },
-    {
       "id": "e22",
       "source": "enter-duration",
       "target": "save-duration",
       "type": "smoothstep"
     },
     {
-      "id": "e23",
-      "source": "save-duration",
-      "target": "verify-config-complete",
+      "id": "e10-bridge-e11",
+      "source": "click-wait-node",
+      "target": "find-type-selector",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e14-bridge-e15",
+      "source": "verify-selector-input-appears",
+      "target": "type-selector",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e20-bridge-e21",
+      "source": "verify-duration-input-appears",
+      "target": "enter-duration",
       "type": "smoothstep"
     }
   ]

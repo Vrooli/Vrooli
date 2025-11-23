@@ -45,8 +45,7 @@
       "data": {
         "label": "Click canvas to add",
         "selector": ".react-flow__pane",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
+        "timeoutMs": 5000
       }
     },
     {
@@ -84,15 +83,6 @@
         "label": "Count after undo",
         "expression": "document.querySelectorAll('.react-flow__node').length",
         "storeResult": "afterUndoCount"
-      }
-    },
-    {
-      "id": "cap",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture after undo",
-        "fullPage": true,
-        "waitForMs": 500
       }
     }
   ],
@@ -137,12 +127,6 @@
       "id": "e10",
       "source": "undo",
       "target": "count3",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e11",
-      "source": "count3",
-      "target": "cap",
       "type": "smoothstep"
     }
   ]

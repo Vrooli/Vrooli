@@ -36,8 +36,7 @@
       "data": {
         "label": "Click canvas to add",
         "selector": ".react-flow__pane",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
+        "timeoutMs": 5000
       }
     },
     {
@@ -95,15 +94,6 @@
         "expression": "document.querySelectorAll('.react-flow__node').length",
         "storeResult": "afterRedoCount"
       }
-    },
-    {
-      "id": "cap",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -153,12 +143,6 @@
       "id": "e11",
       "source": "redo",
       "target": "count-after-redo",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e12",
-      "source": "count-after-redo",
-      "target": "cap",
       "type": "smoothstep"
     }
   ]

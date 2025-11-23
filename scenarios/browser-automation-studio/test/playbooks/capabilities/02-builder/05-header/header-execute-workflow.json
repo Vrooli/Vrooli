@@ -31,8 +31,7 @@
       "data": {
         "label": "Open project",
         "selector": "@selector/projects.card:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
+        "timeoutMs": 5000
       }
     },
     {
@@ -52,8 +51,7 @@
       "data": {
         "label": "Open workflow with nodes",
         "selector": "@selector/workflows.card:first-of-type",
-        "timeoutMs": 10000,
-        "waitForMs": 2000
+        "timeoutMs": 10000
       }
     },
     {
@@ -77,22 +75,12 @@
       }
     },
     {
-      "id": "cap-before",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture before execute",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "click-execute",
       "type": "click",
       "data": {
         "label": "Click execute",
         "selector": "@selector/header.buttons.execute /*dup-1*/",
-        "timeoutMs": 5000,
-        "waitForMs": 3000
+        "timeoutMs": 5000
       }
     },
     {
@@ -111,15 +99,6 @@
         "label": "Check for execution feedback",
         "expression": "(() => { const button = document.querySelector('@selector/header.buttons.execute'); if (!button) { return false; } const viewer = document.querySelector('@selector/executions.viewer.root'); return button.hasAttribute('disabled') || viewer !== null; })()",
         "storeResult": "hasExecutionFeedback"
-      }
-    },
-    {
-      "id": "cap-after",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture after execute",
-        "fullPage": true,
-        "waitForMs": 500
       }
     }
   ],
@@ -149,18 +128,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e5",
-      "source": "assert-execute-btn",
-      "target": "cap-before",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "cap-before",
-      "target": "click-execute",
-      "type": "smoothstep"
-    },
-    {
       "id": "e7",
       "source": "click-execute",
       "target": "wait-execution",
@@ -173,15 +140,15 @@
       "type": "smoothstep"
     },
     {
-      "id": "e9",
-      "source": "check-feedback",
-      "target": "cap-after",
-      "type": "smoothstep"
-    },
-    {
       "id": "e-wait-work",
       "source": "wait-workflows",
       "target": "work",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5-bridge-e6",
+      "source": "assert-execute-btn",
+      "target": "click-execute",
       "type": "smoothstep"
     }
   ]

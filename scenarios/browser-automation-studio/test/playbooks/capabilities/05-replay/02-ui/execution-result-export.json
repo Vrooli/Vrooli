@@ -39,8 +39,7 @@
       "type": "screenshot",
       "data": {
         "label": "Capture executions list",
-        "fullPage": true,
-        "waitForMs": 500
+        "fullPage": true
       }
     },
     {
@@ -71,8 +70,7 @@
       "type": "screenshot",
       "data": {
         "label": "Capture execution viewer",
-        "fullPage": true,
-        "waitForMs": 500
+        "fullPage": true
       }
     },
     {
@@ -91,8 +89,7 @@
       "type": "screenshot",
       "data": {
         "label": "Capture export controls",
-        "fullPage": true,
-        "waitForMs": 500
+        "fullPage": true
       }
     },
     {

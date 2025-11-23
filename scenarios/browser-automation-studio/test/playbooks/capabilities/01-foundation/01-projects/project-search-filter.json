@@ -21,8 +21,7 @@
         "scenario": "browser-automation-studio",
         "scenarioPath": "/",
         "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
+        "timeoutMs": 45000
       }
     },
     {
@@ -79,15 +78,6 @@
         "timeoutMs": 5000,
         "failureMessage": "Projects should reappear when search is cleared"
       }
-    },
-    {
-      "id": "capture-final-state",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture final dashboard state",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -119,12 +109,6 @@
       "id": "e8",
       "source": "clear-search",
       "target": "assert-projects-restored",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
-      "source": "assert-projects-restored",
-      "target": "capture-final-state",
       "type": "smoothstep"
     }
   ]

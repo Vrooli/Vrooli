@@ -21,8 +21,7 @@
         "scenario": "browser-automation-studio",
         "scenarioPath": "/",
         "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
+        "timeoutMs": 45000
       }
     },
     {
@@ -45,15 +44,6 @@
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "At least one project should be visible in the grid"
-      }
-    },
-    {
-      "id": "capture-dashboard",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture dashboard with projects",
-        "fullPage": true,
-        "waitForMs": 500
       }
     },
     {
@@ -88,15 +78,6 @@
         "expression": "window.location.pathname.includes('/projects/')",
         "storeResult": "urlChanged"
       }
-    },
-    {
-      "id": "capture-project-detail",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture project detail view",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -113,18 +94,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e4",
-      "source": "assert-project-cards-exist",
-      "target": "capture-dashboard",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e5",
-      "source": "capture-dashboard",
-      "target": "click-first-project",
-      "type": "smoothstep"
-    },
-    {
       "id": "e6",
       "source": "click-first-project",
       "target": "assert-project-detail-visible",
@@ -137,9 +106,9 @@
       "type": "smoothstep"
     },
     {
-      "id": "e8",
-      "source": "assert-url-changed",
-      "target": "capture-project-detail",
+      "id": "e4-bridge-e5",
+      "source": "assert-project-cards-exist",
+      "target": "click-first-project",
       "type": "smoothstep"
     }
   ]

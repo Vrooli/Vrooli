@@ -43,15 +43,6 @@
       }
     },
     {
-      "id": "capture-running",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture execution running",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "click-stop",
       "type": "click",
       "data": {
@@ -75,15 +66,6 @@
         "timeoutMs": 20000,
         "failureMessage": "Execution status should reflect stop request"
       }
-    },
-    {
-      "id": "capture-stopped",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture after stop",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -100,27 +82,15 @@
       "type": "smoothstep"
     },
     {
-      "id": "e8",
-      "source": "check-running",
-      "target": "capture-running",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
-      "source": "capture-running",
-      "target": "click-stop",
-      "type": "smoothstep"
-    },
-    {
       "id": "e12",
       "source": "click-stop",
       "target": "assert-execution-stopped",
       "type": "smoothstep"
     },
     {
-      "id": "e13",
-      "source": "assert-execution-stopped",
-      "target": "capture-stopped",
+      "id": "e8-bridge-e9",
+      "source": "check-running",
+      "target": "click-stop",
       "type": "smoothstep"
     }
   ]

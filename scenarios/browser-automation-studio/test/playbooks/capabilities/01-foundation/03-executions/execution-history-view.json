@@ -45,15 +45,6 @@
       }
     },
     {
-      "id": "capture-execution-history",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture execution history view",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "check-executions-exist",
       "type": "assert",
       "data": {
@@ -87,15 +78,6 @@
         "timeoutMs": 15000,
         "failureMessage": "Execution viewer should render after selecting an execution"
       }
-    },
-    {
-      "id": "capture-execution-viewer",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture execution viewer",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -112,18 +94,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e6-filter",
-      "source": "click-filter-failed",
-      "target": "capture-execution-history",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e7",
-      "source": "capture-execution-history",
-      "target": "check-executions-exist",
-      "type": "smoothstep"
-    },
-    {
       "id": "e8",
       "source": "check-executions-exist",
       "target": "click-first-execution",
@@ -136,9 +106,9 @@
       "type": "smoothstep"
     },
     {
-      "id": "e11",
-      "source": "check-viewer-visible",
-      "target": "capture-execution-viewer",
+      "id": "e6-filter-bridge-e7",
+      "source": "click-filter-failed",
+      "target": "check-executions-exist",
       "type": "smoothstep"
     }
   ]

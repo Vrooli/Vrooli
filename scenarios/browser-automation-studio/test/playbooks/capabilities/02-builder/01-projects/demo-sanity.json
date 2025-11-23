@@ -30,15 +30,6 @@
         "timeoutMs": 20000,
         "failureMessage": "Workflow builder should render after loading the seeded workflow"
       }
-    },
-    {
-      "id": "capture-builder",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture builder state",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -46,12 +37,6 @@
       "id": "edge-open-assert",
       "source": "call-open-demo-workflow",
       "target": "assert-builder",
-      "type": "smoothstep"
-    },
-    {
-      "id": "edge-assert-capture",
-      "source": "assert-builder",
-      "target": "capture-builder",
       "type": "smoothstep"
     }
   ]

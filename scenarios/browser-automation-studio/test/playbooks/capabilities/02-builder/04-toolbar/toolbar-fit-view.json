@@ -41,15 +41,6 @@
       }
     },
     {
-      "id": "capture-before-fit",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture before fit view",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "click-fit-view",
       "type": "click",
       "data": {
@@ -72,15 +63,6 @@
         "timeoutMs": 3000,
         "failureMessage": "Nodes should be visible after fit view"
       }
-    },
-    {
-      "id": "capture-after-fit",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture after fit view",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -97,27 +79,15 @@
       "type": "smoothstep"
     },
     {
-      "id": "e6",
-      "source": "zoom-out-more",
-      "target": "capture-before-fit",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e7",
-      "source": "capture-before-fit",
-      "target": "click-fit-view",
-      "type": "smoothstep"
-    },
-    {
       "id": "e8",
       "source": "click-fit-view",
       "target": "assert-nodes-visible",
       "type": "smoothstep"
     },
     {
-      "id": "e9",
-      "source": "assert-nodes-visible",
-      "target": "capture-after-fit",
+      "id": "e6-bridge-e7",
+      "source": "zoom-out-more",
+      "target": "click-fit-view",
       "type": "smoothstep"
     }
   ]

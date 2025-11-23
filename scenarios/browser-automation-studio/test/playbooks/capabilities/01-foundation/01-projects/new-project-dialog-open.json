@@ -21,8 +21,7 @@
         "scenario": "browser-automation-studio",
         "scenarioPath": "/",
         "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
+        "timeoutMs": 45000
       }
     },
     {
@@ -37,24 +36,13 @@
       }
     },
     {
-      "id": "capture-dashboard",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture dashboard state",
-        "fullPage": true,
-        "waitForMs": 1000,
-        "captureDomSnapshot": true
-      }
-    },
-    {
       "id": "click-new-project",
       "type": "click",
       "data": {
         "label": "Click New Project button",
         "selector": "@selector/dashboard.newProjectButton",
         "timeoutMs": 15000,
-        "waitForSelector": "@selector/dashboard.newProjectButton",
-        "waitForMs": 1500
+        "waitForSelector": "@selector/dashboard.newProjectButton"
       }
     },
     {
@@ -80,24 +68,6 @@
       "data": {}
     },
     {
-      "id": "edge-wait-capture",
-      "source": "wait-for-projects",
-      "target": "capture-dashboard",
-      "sourceHandle": "source",
-      "targetHandle": "target",
-      "type": "smoothstep",
-      "data": {}
-    },
-    {
-      "id": "edge-capture-click",
-      "source": "capture-dashboard",
-      "target": "click-new-project",
-      "sourceHandle": "source",
-      "targetHandle": "target",
-      "type": "smoothstep",
-      "data": {}
-    },
-    {
       "id": "edge-click-assert",
       "source": "click-new-project",
       "target": "assert-modal-visible",
@@ -105,6 +75,12 @@
       "targetHandle": "target",
       "type": "smoothstep",
       "data": {}
+    },
+    {
+      "id": "edge-wait-capture-bridge-edge-capture-click",
+      "source": "wait-for-projects",
+      "target": "click-new-project",
+      "type": "smoothstep"
     }
   ]
 }

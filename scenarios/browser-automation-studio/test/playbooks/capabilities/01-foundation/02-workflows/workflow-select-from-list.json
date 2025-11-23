@@ -21,8 +21,7 @@
         "scenario": "browser-automation-studio",
         "scenarioPath": "/",
         "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
+        "timeoutMs": 45000
       }
     },
     {
@@ -70,15 +69,6 @@
       }
     },
     {
-      "id": "capture-workflow-list",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture workflow list",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "click-first-workflow",
       "type": "click",
       "data": {
@@ -119,15 +109,6 @@
         "timeoutMs": 20000,
         "failureMessage": "Workflow builder should render after selecting a workflow"
       }
-    },
-    {
-      "id": "capture-builder",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture loaded workflow builder",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -156,18 +137,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e7",
-      "source": "check-workflows-exist",
-      "target": "capture-workflow-list",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e8",
-      "source": "capture-workflow-list",
-      "target": "click-first-workflow",
-      "type": "smoothstep"
-    },
-    {
       "id": "e9",
       "source": "click-first-workflow",
       "target": "verify-url-changed",
@@ -186,9 +155,9 @@
       "type": "smoothstep"
     },
     {
-      "id": "e11",
-      "source": "verify-builder-loaded",
-      "target": "capture-builder",
+      "id": "e7-bridge-e8",
+      "source": "check-workflows-exist",
+      "target": "click-first-workflow",
       "type": "smoothstep"
     }
   ]

@@ -570,7 +570,7 @@ testing::playbooks::run_workflow() {
     start_time=$(date +%s)
     local execution_summary
     local wait_rc=0
-    local workflow_timeout=${TESTING_PLAYBOOKS_WORKFLOW_TIMEOUT:-90}
+    local workflow_timeout=${TESTING_PLAYBOOKS_WORKFLOW_TIMEOUT:-45}
     if execution_summary=$(_testing_playbooks__wait_for_execution "$api_base" "$execution_id" "$workflow_timeout"); then
         wait_rc=0
     else

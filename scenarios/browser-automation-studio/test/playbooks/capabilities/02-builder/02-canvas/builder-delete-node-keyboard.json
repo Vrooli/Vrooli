@@ -51,22 +51,12 @@
       }
     },
     {
-      "id": "capture-before-delete",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture canvas before delete",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "click-first-node",
       "type": "click",
       "data": {
         "label": "Click first node to select it",
         "selector": ".react-flow__node:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
+        "timeoutMs": 5000
       }
     },
     {
@@ -86,8 +76,9 @@
       "data": {
         "label": "Press Delete key",
         "timeoutMs": 3000,
-        "waitForMs": 1500,
-        "keys": ["Delete"]
+        "keys": [
+          "Delete"
+        ]
       }
     },
     {
@@ -116,15 +107,6 @@
         "expression": "(() => { const initial = Number({{initialNodeCount}} || 0); const final = Number({{finalNodeCount}} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final < initial; })()",
         "storeResult": "nodeWasDeleted"
       }
-    },
-    {
-      "id": "capture-after-delete",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture canvas after delete",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -144,18 +126,6 @@
       "id": "e7",
       "source": "assert-nodes-exist",
       "target": "count-initial-nodes",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e8",
-      "source": "count-initial-nodes",
-      "target": "capture-before-delete",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
-      "source": "capture-before-delete",
-      "target": "click-first-node",
       "type": "smoothstep"
     },
     {
@@ -189,9 +159,9 @@
       "type": "smoothstep"
     },
     {
-      "id": "e15",
-      "source": "verify-node-deleted",
-      "target": "capture-after-delete",
+      "id": "e8-bridge-e9",
+      "source": "count-initial-nodes",
+      "target": "click-first-node",
       "type": "smoothstep"
     }
   ]

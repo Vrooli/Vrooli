@@ -41,8 +41,7 @@
       "data": {
         "label": "Click New Workflow button",
         "selector": "@selector/workflows.newButton",
-        "timeoutMs": 10000,
-        "waitForMs": 500
+        "timeoutMs": 10000
       }
     },
     {
@@ -54,15 +53,6 @@
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "AI modal should appear after clicking New Workflow"
-      }
-    },
-    {
-      "id": "capture-ai-modal",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture AI modal initial state",
-        "fullPage": true,
-        "waitForMs": 500
       }
     },
     {
@@ -97,15 +87,6 @@
       }
     },
     {
-      "id": "capture-populated-modal",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture modal with populated prompt",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "assert-generate-button-enabled",
       "type": "evaluate",
       "data": {
@@ -135,18 +116,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e7",
-      "source": "assert-ai-modal-visible",
-      "target": "capture-ai-modal",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
-      "source": "capture-ai-modal",
-      "target": "click-example-prompt",
-      "type": "smoothstep"
-    },
-    {
       "id": "e11",
       "source": "click-example-prompt",
       "target": "verify-prompt-populated",
@@ -159,14 +128,14 @@
       "type": "smoothstep"
     },
     {
-      "id": "e13",
-      "source": "verify-workflow-name-populated",
-      "target": "capture-populated-modal",
+      "id": "e7-bridge-e9",
+      "source": "assert-ai-modal-visible",
+      "target": "click-example-prompt",
       "type": "smoothstep"
     },
     {
-      "id": "e14",
-      "source": "capture-populated-modal",
+      "id": "e13-bridge-e14",
+      "source": "verify-workflow-name-populated",
       "target": "assert-generate-button-enabled",
       "type": "smoothstep"
     }

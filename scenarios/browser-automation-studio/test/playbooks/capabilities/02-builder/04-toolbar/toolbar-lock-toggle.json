@@ -32,15 +32,6 @@
       }
     },
     {
-      "id": "capture-unlocked",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture unlocked state",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "click-lock",
       "type": "click",
       "data": {
@@ -54,15 +45,6 @@
       }
     },
     {
-      "id": "capture-locked",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture locked state",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "click-unlock",
       "type": "click",
       "data": {
@@ -73,15 +55,6 @@
           "successSelector": "@selector/toolbar.lockButton",
           "successTimeoutMs": 8000
         }
-      }
-    },
-    {
-      "id": "capture-unlocked-again",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture unlocked state again",
-        "fullPage": true,
-        "waitForMs": 500
       }
     },
     {
@@ -102,38 +75,20 @@
       "type": "smoothstep"
     },
     {
-      "id": "e7",
-      "source": "find-lock-button",
-      "target": "capture-unlocked",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e8",
-      "source": "capture-unlocked",
-      "target": "click-lock",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
+      "id": "e9-bridge-e10",
       "source": "click-lock",
-      "target": "capture-locked",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e10",
-      "source": "capture-locked",
       "target": "click-unlock",
       "type": "smoothstep"
     },
     {
-      "id": "e11",
-      "source": "click-unlock",
-      "target": "capture-unlocked-again",
+      "id": "e7-bridge-e8",
+      "source": "find-lock-button",
+      "target": "click-lock",
       "type": "smoothstep"
     },
     {
-      "id": "e12",
-      "source": "capture-unlocked-again",
+      "id": "e11-bridge-e12",
+      "source": "click-unlock",
       "target": "verify-toggle",
       "type": "smoothstep"
     }

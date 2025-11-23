@@ -21,8 +21,7 @@
         "scenario": "browser-automation-studio",
         "scenarioPath": "/",
         "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
+        "timeoutMs": 45000
       }
     },
     {
@@ -98,21 +97,14 @@
       }
     },
     {
-      "id": "capture-popover",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture info popover",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "close-popover",
       "type": "keyboard",
       "data": {
         "label": "Close popover with Escape",
         "waitForMs": 500,
-        "keys": ["Escape"]
+        "keys": [
+          "Escape"
+        ]
       }
     }
   ],
@@ -154,14 +146,8 @@
       "type": "smoothstep"
     },
     {
-      "id": "e7",
+      "id": "e7-bridge-e8",
       "source": "assert-popover-visible",
-      "target": "capture-popover",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e8",
-      "source": "capture-popover",
       "target": "close-popover",
       "type": "smoothstep"
     }

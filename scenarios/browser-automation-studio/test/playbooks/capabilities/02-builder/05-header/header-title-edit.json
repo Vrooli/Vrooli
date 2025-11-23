@@ -31,8 +31,7 @@
       "data": {
         "label": "Open project",
         "selector": "@selector/projects.card:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
+        "timeoutMs": 5000
       }
     },
     {
@@ -52,8 +51,7 @@
       "data": {
         "label": "Open workflow",
         "selector": "@selector/workflows.card:first-of-type",
-        "timeoutMs": 10000,
-        "waitForMs": 2000
+        "timeoutMs": 10000
       }
     },
     {
@@ -80,8 +78,7 @@
       "data": {
         "label": "Click edit button",
         "selector": "@selector/header.title.editButton",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
+        "timeoutMs": 5000
       }
     },
     {
@@ -113,8 +110,7 @@
       "data": {
         "label": "Save title",
         "selector": "@selector/header.title.saveButton",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
+        "timeoutMs": 5000
       }
     },
     {
@@ -135,15 +131,6 @@
         "assertMode": "not_exists",
         "timeoutMs": 3000,
         "failureMessage": "Input should be hidden after save"
-      }
-    },
-    {
-      "id": "cap",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture",
-        "fullPage": true,
-        "waitForMs": 500
       }
     }
   ],
@@ -212,12 +199,6 @@
       "id": "e10",
       "source": "wait2",
       "target": "verify-saved",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e11",
-      "source": "verify-saved",
-      "target": "cap",
       "type": "smoothstep"
     }
   ]

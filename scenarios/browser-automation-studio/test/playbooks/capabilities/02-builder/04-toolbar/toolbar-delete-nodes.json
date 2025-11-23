@@ -51,15 +51,6 @@
       }
     },
     {
-      "id": "capture-before-delete",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture before delete",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "click-delete-button",
       "type": "click",
       "data": {
@@ -86,15 +77,6 @@
         "expression": "(() => { const initial = parseInt(localStorage.getItem('initialNodeCount') || '0'); const final = parseInt(localStorage.getItem('finalNodeCount') || '0'); return final < initial; })()",
         "storeResult": "nodeWasDeleted"
       }
-    },
-    {
-      "id": "capture-after-delete",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture after delete",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -117,18 +99,6 @@
       "type": "smoothstep"
     },
     {
-      "id": "e9",
-      "source": "click-first-node",
-      "target": "capture-before-delete",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e10",
-      "source": "capture-before-delete",
-      "target": "click-delete-button",
-      "type": "smoothstep"
-    },
-    {
       "id": "e11",
       "source": "click-delete-button",
       "target": "count-final-nodes",
@@ -141,9 +111,9 @@
       "type": "smoothstep"
     },
     {
-      "id": "e13",
-      "source": "verify-node-deleted",
-      "target": "capture-after-delete",
+      "id": "e9-bridge-e10",
+      "source": "click-first-node",
+      "target": "click-delete-button",
       "type": "smoothstep"
     }
   ]

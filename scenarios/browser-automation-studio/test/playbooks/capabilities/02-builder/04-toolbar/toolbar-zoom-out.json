@@ -76,15 +76,6 @@
         "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
         "storeResult": "zoomedOutLevel"
       }
-    },
-    {
-      "id": "capture-after-zoom-out",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture after zoom out",
-        "fullPage": true,
-        "waitForMs": 500
-      }
     }
   ],
   "edges": [
@@ -116,12 +107,6 @@
       "id": "e8",
       "source": "click-zoom-out",
       "target": "get-zoomed-out-level",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
-      "source": "get-zoomed-out-level",
-      "target": "capture-after-zoom-out",
       "type": "smoothstep"
     }
   ]

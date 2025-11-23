@@ -35,8 +35,7 @@
       "data": {
         "label": "Click edit/pencil button",
         "selector": "@selector/projects.editButton",
-        "timeoutMs": 5000,
-        "waitForMs": 1500
+        "timeoutMs": 5000
       }
     },
     {
@@ -89,8 +88,7 @@
       "data": {
         "label": "Submit project updates",
         "selector": "@selector/dialogs.project.submitButton",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
+        "timeoutMs": 5000
       }
     },
     {
@@ -102,15 +100,6 @@
         "assertMode": "not_exists",
         "timeoutMs": 5000,
         "failureMessage": "Modal should close after successful project update"
-      }
-    },
-    {
-      "id": "capture-updated-state",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture updated project detail",
-        "fullPage": true,
-        "waitForMs": 500
       }
     }
   ],
@@ -161,12 +150,6 @@
       "id": "e11",
       "source": "submit-changes",
       "target": "assert-modal-closed",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e12",
-      "source": "assert-modal-closed",
-      "target": "capture-updated-state",
       "type": "smoothstep"
     }
   ]

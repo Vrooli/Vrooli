@@ -82,15 +82,6 @@
       }
     },
     {
-      "id": "cap",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture filtered",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "clear",
       "type": "type",
       "data": {
@@ -150,21 +141,15 @@
       "type": "smoothstep"
     },
     {
-      "id": "e9",
-      "source": "assert-navigate-visible",
-      "target": "cap",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e10",
-      "source": "cap",
-      "target": "clear",
-      "type": "smoothstep"
-    },
-    {
       "id": "e11",
       "source": "clear",
       "target": "count-cleared",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9-bridge-e10",
+      "source": "assert-navigate-visible",
+      "target": "clear",
       "type": "smoothstep"
     }
   ]

@@ -435,7 +435,7 @@ testing::runner::print_contextual_tips() {
                 [ -z "$line" ] && continue
                 local detail="${line#*\[WF_TIMEOUT_HIGH\] }"
                 if [ -z "$detail" ] || [ "$detail" = "$line" ]; then
-                    detail="$(basename "$log_path") reports workflow timeout >90s"
+                    detail="$(basename "$log_path") reports workflow timeout >45s"
                 fi
                 high_timeout_workflows+=("$detail")
             done < <(grep -F "[WF_TIMEOUT_HIGH]" "$log_path" 2>/dev/null || true)
@@ -444,7 +444,7 @@ testing::runner::print_contextual_tips() {
                 [ -z "$line" ] && continue
                 local detail="${line#*\[WF_RUNTIME_SLOW\] }"
                 if [ -z "$detail" ] || [ "$detail" = "$line" ]; then
-                    detail="$(basename "$log_path") reports workflow runtime >90s"
+                    detail="$(basename "$log_path") reports workflow runtime >45s"
                 fi
                 slow_timeouts+=("$detail")
             done < <(grep -F "[WF_RUNTIME_SLOW]" "$log_path" 2>/dev/null || true)
@@ -553,7 +553,7 @@ PY
 
     if [ ${#slow_timeouts[@]} -gt 0 ]; then
         local joined=$(_testing_runner_join_list "; " "${slow_timeouts[@]}")
-        tips+=("• Workflows exceeded 90s ($joined). BAS flows should finish quickly—trim waits/selectors or lower per-node timeouts so executions never block the test suite.")
+        tips+=("• Workflows exceeded 45s ($joined). BAS flows should finish quickly—trim waits/selectors or lower per-node timeouts so executions never block the test suite.")
     fi
 
     if [ ${#wait_saturation_info[@]} -gt 0 ]; then
@@ -631,7 +631,7 @@ PY
 
     if [ ${#high_timeout_workflows[@]} -gt 0 ]; then
         local joined=$(_testing_runner_join_list "; " "${high_timeout_workflows[@]}")
-        tips+=("• Workflow timeouts too high (>90s): $joined. Lower BAS workflow timeouts so each run completes faster and avoids starving other workflows.")
+        tips+=("• Workflow timeouts too high (>45s): $joined. Lower BAS workflow timeouts so each run completes faster and avoids starving other workflows.")
     fi
 
     if [ "$overall_duration" -gt 600 ]; then
