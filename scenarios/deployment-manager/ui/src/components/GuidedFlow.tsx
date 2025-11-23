@@ -10,7 +10,7 @@ import {
   Info,
   Sparkles,
 } from "lucide-react";
-import { analyzeDependencies, DependencyAnalysisResponse } from "../lib/api";
+import { analyzeDependencies, DependencyAnalysisResponse, listProfiles } from "../lib/api";
 import { cn } from "../lib/utils";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -54,6 +54,25 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
     () => TIER_OPTIONS.find((tier) => tier.key === tierKey),
     [tierKey],
   );
+
+  const { data: profiles } = useQuery({
+    queryKey: ["profiles"],
+    queryFn: listProfiles,
+  });
+
+  const scenarioOptions = useMemo(() => {
+    const existing = Array.from(new Set((profiles ?? []).map((p) => p.scenario).filter(Boolean)));
+    const defaults = ["picker-wheel", "system-monitor", "browser-automation-studio"];
+    const combined = Array.from(new Set([...existing, ...defaults]));
+    const typed = scenario.trim().toLowerCase();
+    const filtered = combined.filter((name) =>
+      typed ? name.toLowerCase().includes(typed) : true,
+    );
+    if (typed && !combined.some((name) => name.toLowerCase() === typed)) {
+      filtered.unshift(scenario);
+    }
+    return filtered.slice(0, 12);
+  }, [profiles, scenario]);
 
   const {
     data,
@@ -182,6 +201,26 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
                       value={scenario}
                       onChange={(e) => setScenario(e.target.value)}
                     />
+                    <div className="text-xs text-slate-400">Start typing or pick a suggestion.</div>
+                    {scenarioOptions.length > 0 && (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {scenarioOptions.map((name) => (
+                          <button
+                            key={name}
+                            type="button"
+                            onClick={() => setScenario(name)}
+                            className={`rounded-lg border px-3 py-2 text-left transition ${
+                              scenario === name
+                                ? "border-cyan-400 bg-cyan-500/10"
+                                : "border-white/10 bg-white/5 hover:border-white/20"
+                            }`}
+                          >
+                            <p className="text-sm font-semibold">{name}</p>
+                            <p className="text-[11px] text-slate-400">Select to autofill</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Target tier</Label>

@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecosystem Manager - Vrooli</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+    
+    <!-- Apply cached theme immediately to prevent flicker -->
+    <script>
+        (function() {
+            const cachedTheme = localStorage.getItem('ecosystemManager_theme');
+            const userPreferenceSet = localStorage.getItem('ecosystemManager_theme_user_choice') === 'true';
+            const themeToApply = (userPreferenceSet && cachedTheme) ? cachedTheme : 'dark';
+
+            if (!userPreferenceSet || !cachedTheme) {
+                localStorage.setItem('ecosystemManager_theme', themeToApply);
+            }
+
+            if (themeToApply === 'dark') {
+                // Inject dark mode styles immediately
+                const style = document.createElement('style');
+                style.textContent = `
+                    body { 
+                        background-color: #1a1a1a !important;
+                        color: #f3f4f6 !important;
+                    }
+                    .header {
+                        background: #2d2d2d !important;
+                        border-bottom-color: #404040 !important;
+                    }
+                    .fixed-top-container {
+                        background: #1a1a1a !important;
+                    }
+                    .kanban-column {
+                        background: #2d2d2d !important;
+                    }
+                    .column-header {
+                        background: #3a3a3a !important;
+                        border-bottom-color: #404040 !important;
+                    }
+                    .filters {
+                        background: #2d2d2d !important;
+                        border-bottom-color: #404040 !important;
+                    }
+                `;
+                document.head.appendChild(style);
+                // Also set a flag to transfer to proper dark mode when body loads
+                window.applyDarkModeOnLoad = true;
+            } else {
+                window.applyDarkModeOnLoad = false;
+            }
+        })();
+    </script>
+</head>
+<body>
+    <h1 class="sr-only">Ecosystem Manager</h1>
+
+    <!-- Kanban Board -->
+    <main class="kanban-layout">
+        <div class="kanban-board">
+        <!-- Pending Column -->
+        <div class="kanban-column" data-status="pending">
+            <div class="column-header">
+                <div class="column-title">
+                    <i class="fas fa-clock" title="Tasks waiting to be started."></i>
+                    <span title="Tasks waiting to be started.">Pending</span>
+                    <span class="task-count" id="pending-count">0</span>
+                </div>
+                <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('pending')" title="Hide Column">
+                    <i class="fas fa-eye-slash"></i>
+                </button>
+            </div>
+            <div class="column-content" id="pending-tasks">
+                <!-- Tasks will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Active Column -->
+        <div class="kanban-column" data-status="in-progress">
+            <div class="column-header">
+                <div class="column-title">
+                    <i class="fas fa-spinner fa-spin" title="Tasks currently being worked on."></i>
+                    <span title="Tasks currently being worked on.">Active</span>
+                    <span class="task-count" id="in-progress-count">0</span>
+                </div>
+                <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('in-progress')" title="Hide Column">
+                    <i class="fas fa-eye-slash"></i>
+                </button>
+            </div>
+            <div class="column-content" id="in-progress-tasks">
+                <!-- Tasks will be loaded here -->
+            </div>
+        </div>
+
+
+        <!-- Completed Column -->
+        <div class="kanban-column" data-status="completed">
+            <div class="column-header">
+                <div class="column-title">
+                    <i class="fas fa-check-circle" title="Tasks completed and awaiting verification."></i>
+                    <span title="Tasks completed and awaiting verification.">Completed</span>
+                    <span class="task-count" id="completed-count">0</span>
+                </div>
+                <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('completed')" title="Hide Column">
+                    <i class="fas fa-eye-slash"></i>
+                </button>
+            </div>
+            <div class="column-content" id="completed-tasks">
+                <!-- Tasks will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Finished Column -->
+        <div class="kanban-column success" data-status="completed-finalized">
+            <div class="column-header success">
+                <div class="column-title">
+                    <i class="fas fa-check-double" title="Tasks finalized and fully delivered."></i>
+                    <span title="Tasks finalized and fully delivered.">Finished</span>
+                    <span class="task-count" id="completed-finalized-count">0</span>
+                </div>
+                <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('completed-finalized')" title="Hide Column">
+                    <i class="fas fa-eye-slash"></i>
+                </button>
+            </div>
+            <div class="column-content" id="completed-finalized-tasks">
+                <!-- Finalized tasks will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Failed Column -->
+        <div class="kanban-column" data-status="failed">
+            <div class="column-header error">
+                <div class="column-title">
+                    <i class="fas fa-exclamation-triangle" title="Tasks that ended unsuccessfully and need attention."></i>
+                    <span title="Tasks that ended unsuccessfully and need attention.">Failed</span>
+                    <span class="task-count" id="failed-count">0</span>
+                </div>
+                <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('failed')" title="Hide Column">
+                    <i class="fas fa-eye-slash"></i>
+                </button>
+            </div>
+            <div class="column-content" id="failed-tasks">
+                <!-- Tasks will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Blocked Column -->
+        <div class="kanban-column danger" data-status="failed-blocked">
+            <div class="column-header danger">
+                <div class="column-title">
+                    <i class="fas fa-ban" title="Tasks blocked by external issues."></i>
+                    <span title="Tasks blocked by external issues.">Blocked</span>
+                    <span class="task-count" id="failed-blocked-count">0</span>
+                </div>
+                <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('failed-blocked')" title="Hide Column">
+                    <i class="fas fa-eye-slash"></i>
+                </button>
+            </div>
+            <div class="column-content" id="failed-blocked-tasks">
+                <!-- Blocked tasks will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Archived Column -->
+        <div class="kanban-column archived" data-status="archived">
+            <div class="column-header archived">
+                <div class="column-title">
+                    <i class="fas fa-box-archive" title="Tasks you want to keep but hide from active workflows."></i>
+                    <span title="Tasks you want to keep but hide from active workflows.">Archived</span>
+                    <span class="task-count" id="archived-count">0</span>
+                </div>
+                <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('archived')" title="Hide Column">
+                    <i class="fas fa-eye-slash"></i>
+                </button>
+            </div>
+            <div class="column-content" id="archived-tasks">
+                <!-- Archived tasks will be loaded here -->
+            </div>
+        </div>
+        </div>
+    </main>
+
+    <!-- Floating Controls -->
+    <aside class="floating-controls" id="floating-controls" aria-label="Quick actions">
+        <div class="floating-controls-secondary">
+            <button class="queue-processor-status btn-processor-toggle" id="processor-toggle-btn" onclick="ecosystemManager.toggleProcessor()" title="Click to toggle processor" aria-live="polite">
+                <i class="fas fa-play" id="processor-status-icon"></i>
+                <span id="processor-status" class="sr-only">Active</span>
+                <span class="processor-remaining-count" id="processor-remaining-count" hidden>0</span>
+            </button>
+            <button type="button" class="btn-icon filter-btn" id="filter-toggle-btn" onclick="ecosystemManager.toggleFilterPanel()" aria-controls="filter-panel" aria-expanded="false" title="Open filters">
+                <i class="fas fa-sliders-h" aria-hidden="true"></i>
+                <span class="sr-only">Filters</span>
+                <span class="filter-active-count" id="filter-active-count" hidden>0</span>
+            </button>
+            <div class="queue-timer" aria-live="polite">
+                <i class="fas fa-clock" aria-hidden="true"></i>
+                <span id="next-refresh">Next: <span id="refresh-countdown">--</span>s</span>
+            </div>
+            <div class="process-monitor" id="process-monitor" style="display: none;">
+                <button type="button" class="process-monitor-toggle" id="process-monitor-toggle" title="View running agents">
+                    <span class="process-info">
+                        <i class="fas fa-brain"></i>
+                        <span id="running-process-count">0</span> Claude
+                    </span>
+                    <i class="fas fa-chevron-down process-monitor-arrow" id="process-monitor-arrow"></i>
+                </button>
+                <div class="process-dropdown" id="process-monitor-dropdown"></div>
+            </div>
+            <button class="btn-icon logs-btn" onclick="ecosystemManager.openLogsModal()" title="View API Logs">
+                <i class="fas fa-scroll"></i>
+            </button>
+            <button class="btn-icon settings-btn" onclick="ecosystemManager.openSettingsModal()" title="Settings">
+                <i class="fas fa-cog"></i>
+            </button>
+            <button class="btn-icon btn-icon-primary new-task-btn" onclick="ecosystemManager.showCreateTaskModal()" aria-label="Create new task" title="New Task">
+                <i class="fas fa-plus" aria-hidden="true"></i>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Filters Dialog -->
+    <section class="filters" id="filters" aria-hidden="true" hidden>
+        <div class="filters-backdrop" id="filters-backdrop" hidden></div>
+        <div class="filter-panel" id="filter-panel" role="dialog" aria-labelledby="filter-dialog-title" aria-hidden="true" tabindex="-1" hidden inert>
+            <div class="filter-dialog-header" id="filter-dialog-header">
+                <h2 class="filter-dialog-title" id="filter-dialog-title">Filters</h2>
+                <button type="button" class="filter-dialog-close" id="filter-close-btn" aria-label="Close filters">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="filter-group">
+                <label for="search-input" class="filter-label">Search</label>
+                <div class="filter-search">
+                    <i class="fas fa-search search-icon" aria-hidden="true"></i>
+                    <input 
+                        type="text" 
+                        id="search-input" 
+                        class="search-input" 
+                        placeholder="Search tasks..."
+                        oninput="ecosystemManager.applyFilters()"
+                        autocomplete="off"
+                    >
+                </div>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="filter-type">Type</label>
+                <select id="filter-type" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Type">
+                    <option value="">All Types</option>
+                    <option value="resource">Resources</option>
+                    <option value="scenario">Scenarios</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="filter-operation">Operation</label>
+                <select id="filter-operation" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Operation">
+                    <option value="">All Operations</option>
+                    <option value="generator">Generators</option>
+                    <option value="improver">Improvers</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="filter-priority">Priority</label>
+                <select id="filter-priority" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Priority">
+                    <option value="">All Priorities</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <span class="filter-label" id="column-toggle-label">Columns</span>
+                <div class="column-toggle-chip-list" id="column-toggle-container" role="group" aria-labelledby="column-toggle-label">
+                    <button type="button" class="column-toggle-chip" data-column="pending" aria-pressed="true">Pending</button>
+                    <button type="button" class="column-toggle-chip" data-column="in-progress" aria-pressed="true">Active</button>
+                    <button type="button" class="column-toggle-chip" data-column="completed" aria-pressed="true">Completed</button>
+                    <button type="button" class="column-toggle-chip" data-column="completed-finalized" aria-pressed="true">Finished</button>
+                    <button type="button" class="column-toggle-chip" data-column="failed" aria-pressed="true">Failed</button>
+                    <button type="button" class="column-toggle-chip" data-column="failed-blocked" aria-pressed="true">Blocked</button>
+                    <button type="button" class="column-toggle-chip" data-column="archived" aria-pressed="false">Archived</button>
+                </div>
+            </div>
+            <div class="filter-group filter-clear-group">
+                <button class="btn btn-secondary" onclick="ecosystemManager.clearFilters()">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                    <span class="btn-label">Clear</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Create Task Modal -->
+    <div id="create-task-modal" class="modal">
+        <div class="modal-content modal-extra-large">
+            <div class="modal-header">
+                <h3>Create New Task</h3>
+                <button class="modal-close" onclick="ecosystemManager.closeModal('create-task-modal')">&times;</button>
+            </div>
+            
+            <div class="modal-body-scroll">
+            <form id="create-task-form" class="task-form-grid">
+                <div class="task-form-left">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Type *</label>
+                        <div class="toggle-group" role="radiogroup" aria-label="Task type">
+                            <input type="radio" id="type-resource" name="type" value="resource" checked onchange="ecosystemManager.updateFormForType().catch(console.error)" class="toggle-input">
+                            <label for="type-resource" class="toggle-btn">Resource</label>
+                            <input type="radio" id="type-scenario" name="type" value="scenario" onchange="ecosystemManager.updateFormForType().catch(console.error)" class="toggle-input">
+                            <label for="type-scenario" class="toggle-btn">Scenario</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Operation *</label>
+                        <div class="toggle-group" role="radiogroup" aria-label="Task operation">
+                            <input type="radio" id="op-generator" name="operation" value="generator" checked onchange="ecosystemManager.updateFormForOperation().catch(console.error)" class="toggle-input">
+                            <label for="op-generator" class="toggle-btn">
+                                <i class="fas fa-plus-circle"></i>
+                                <span>Create New</span>
+                            </label>
+                            <input type="radio" id="op-improver" name="operation" value="improver" onchange="ecosystemManager.updateFormForOperation().catch(console.error)" class="toggle-input">
+                            <label for="op-improver" class="toggle-btn">
+                                <i class="fas fa-sparkles"></i>
+                                <span>Enhance</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group" id="title-group">
+                    <label for="task-title">Title *</label>
+                    <input type="text" id="task-title" name="title" required 
+                           placeholder="e.g., Generate Matrix Synapse resource">
+                </div>
+
+                <div class="form-group">
+                    <label for="task-priority">Priority</label>
+                    <select id="task-priority" name="priority">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                </div>
+
+                <!-- Auto Steer Profile Selection -->
+                <div class="form-group" id="autosteer-profile-group">
+                    <label for="task-autosteer-profile">
+                        <i class="fas fa-route"></i>
+                        Auto Steer Profile (Optional)
+                    </label>
+                    <select id="task-autosteer-profile" name="auto_steer_profile_id" onchange="ecosystemManager.handleAutoSteerProfileChange(this.value)">
+                        <option value="">None (Default behavior)</option>
+                        <!-- Profiles will be loaded dynamically -->
+                    </select>
+                    <small class="form-help">
+                        Select a profile to guide multi-dimensional improvement with phases and quality gates
+                    </small>
+                </div>
+
+                <!-- Auto Steer Profile Preview -->
+                <div id="autosteer-profile-preview" class="autosteer-profile-preview" style="display: none;">
+                    <!-- Profile preview will be rendered here -->
+                </div>
+
+                <!-- Target field for improver operations -->
+                <div class="form-group" id="target-group" style="display: none;">
+                    <label for="task-target-search">Target (for improvements) *</label>
+                    <div class="target-selector-wrapper">
+                        <div class="tag-multiselect" id="task-target-selector" data-placeholder="Search targets...">
+                            <div class="tag-multiselect-selection" role="combobox" aria-controls="task-target-dropdown" aria-expanded="false" aria-haspopup="listbox">
+                                <div class="tag-multiselect-tags" id="task-target-tags"></div>
+                                <input type="text" id="task-target-search" autocomplete="off" placeholder="Search targets..." disabled aria-autocomplete="list" aria-controls="task-target-dropdown" aria-describedby="task-target-help">
+                            </div>
+                            <div class="tag-multiselect-dropdown" id="task-target-dropdown" role="listbox" aria-multiselectable="true" hidden>
+                                <div class="tag-multiselect-status">Loading available targets...</div>
+                                <ul class="tag-multiselect-options"></ul>
+                            </div>
+                        </div>
+                        <select id="task-target" name="target" multiple disabled hidden></select>
+                    </div>
+                    <small id="task-target-help" class="form-help">Select one or more targets to enhance. Already-tracked targets appear greyed out with their existing task ID.</small>
+                </div>
+
+                </div>
+                
+                <div class="task-form-right">
+                    <div class="form-group">
+                        <label for="task-notes">Notes</label>
+                        <textarea id="task-notes" name="notes" rows="12" 
+                                  placeholder="Additional notes or context...">
+</textarea>
+                    </div>
+                </div>
+            </form>
+            </div>
+            
+            <div class="form-actions form-actions--contained">
+                <button type="button" class="btn btn-secondary" onclick="ecosystemManager.closeModal('create-task-modal')">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                    <span class="btn-label" data-label-desktop="Cancel" data-label-mobile="Cancel">Cancel</span>
+                </button>
+                <button type="submit" class="btn btn-primary" form="create-task-form" aria-label="Create Task">
+                    <i class="fas fa-plus" aria-hidden="true"></i>
+                    <span class="btn-label" data-label-desktop="Create Task" data-label-mobile="Create">Create Task</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Details Modal -->
+    <div id="task-details-modal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3 id="task-details-title">Task Details</h3>
+                <button class="modal-close" onclick="ecosystemManager.closeModal('task-details-modal')">&times;</button>
+            </div>
+            
+            <div id="task-details-content">
+                <!-- Task details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>
+                    <i class="fas fa-cog"></i>
+                    Settings
+                </h3>
+                <button class="modal-close" onclick="ecosystemManager.closeModal('settings-modal')">&times;</button>
+            </div>
+            
+            <!-- Settings Tabs Navigation (Desktop only) -->
+            <div class="settings-tabs-nav">
+                <button type="button" class="settings-tab-btn active" data-tab="processor" onclick="ecosystemManager.switchSettingsTab('processor')">
+                    <i class="fas fa-server"></i>
+                    <span>Processor</span>
+                </button>
+                <button type="button" class="settings-tab-btn" data-tab="agent" onclick="ecosystemManager.switchSettingsTab('agent')">
+                    <i class="fas fa-robot"></i>
+                    <span>Agent</span>
+                </button>
+                <button type="button" class="settings-tab-btn" data-tab="display" onclick="ecosystemManager.switchSettingsTab('display')">
+                    <i class="fas fa-palette"></i>
+                    <span>Display</span>
+                </button>
+                <button type="button" class="settings-tab-btn" data-tab="prompt" onclick="ecosystemManager.switchSettingsTab('prompt')">
+                    <i class="fas fa-flask"></i>
+                    <span>Prompt Tester</span>
+                </button>
+                <button type="button" class="settings-tab-btn" data-tab="limits" onclick="ecosystemManager.switchSettingsTab('limits')">
+                    <i class="fas fa-hourglass-half"></i>
+                    <span>Rate Limits</span>
+                </button>
+                <button type="button" class="settings-tab-btn" data-tab="recycler" onclick="ecosystemManager.switchSettingsTab('recycler')">
+                    <i class="fas fa-recycle"></i>
+                    <span>Recycler</span>
+                </button>
+                <button type="button" class="settings-tab-btn" data-tab="autosteer" onclick="ecosystemManager.switchSettingsTab('autosteer')">
+                    <i class="fas fa-route"></i>
+                    <span>Auto Steer</span>
+                </button>
+            </div>
+
+            <!-- Settings Mobile Selector -->
+            <div class="settings-mobile-tab-selector">
+                <label class="sr-only" for="settings-mobile-tab">Select settings section</label>
+                <select id="settings-mobile-tab">
+                    <option value="processor">Processor</option>
+                    <option value="agent">Agent</option>
+                    <option value="display">Display</option>
+                    <option value="prompt">Prompt Tester</option>
+                    <option value="limits">Rate Limits</option>
+                    <option value="recycler">Recycler</option>
+                    <option value="autosteer">Auto Steer</option>
+                </select>
+            </div>
+            
+            <form id="settings-form" class="settings-form">
+                <div class="settings-content">
+                    
+                    <!-- Queue Processor Settings Tab -->
+                    <div class="settings-tab-content active" data-tab="processor">
+                        <div class="settings-section">
+                            <h4 class="settings-section-title">
+                                <i class="fas fa-server"></i>
+                                Queue Processor Settings
+                            </h4>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="settings-slots">Concurrent Task Slots</label>
+                                    <div class="slider-container">
+                                        <input type="range" id="settings-slots" name="slots" min="1" max="5" value="1"
+                                               oninput="ecosystemManager.updateSliderValue('settings-slots', 'slots-value')">
+                                        <span id="slots-value" class="slider-value">1</span>
+                                    </div>
+                                    <small class="form-help">Number of tasks that can run simultaneously</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="settings-refresh">Refresh Interval (seconds)</label>
+                                    <input type="number" id="settings-refresh" name="refresh_interval"
+                                           min="5" max="300" value="30" step="1">
+                                    <small class="form-help">How often to check for new tasks</small>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="settings-max-tasks">Maximum Tasks to Process (disabled)</label>
+                                <input type="number" id="settings-max-tasks" name="max_tasks"
+                                       min="0" max="1000" value="0" step="1" disabled>
+                                <small class="form-help">Temporarily disabled: the processor keeps running to avoid starvation issues. Any saved value is ignored. <span id="tasks-remaining-display"></span></small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="settings-active">
+                                    <input type="checkbox" id="settings-active" name="active">
+                                    Processor Active
+                                </label>
+                                <small class="form-help">Enable automatic task processing (default: false for maintenance)</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Agent Settings Tab -->
+                    <div class="settings-tab-content" data-tab="agent">
+                        <div class="settings-section">
+                            <h4 class="settings-section-title">
+                                <i class="fas fa-robot"></i>
+                                Claude Agent Settings
+                            </h4>
+                            
+                            <div class="form-group">
+                                <label for="settings-max-turns">Maximum Turns</label>
+                                <div class="slider-container">
+                                    <input type="range" id="settings-max-turns" name="max_turns" min="5" max="100" value="80"
+                                           oninput="ecosystemManager.updateSliderValue('settings-max-turns', 'max-turns-value')">
+                                    <span id="max-turns-value" class="slider-value">80</span>
+                                </div>
+                                <small class="form-help">Maximum conversation turns Claude can use per task (dynamically set by backend)</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="settings-tools">Allowed Tools</label>
+                                <input type="text" id="settings-tools" name="allowed_tools" 
+                                       value="Read,Write,Edit,Bash,LS,Glob,Grep">
+                                <small class="form-help">Comma-separated list of tools Claude can use</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="settings-skip-permissions">
+                                    <input type="checkbox" id="settings-skip-permissions" name="skip_permissions" checked>
+                                    Skip Permission Checks
+                                </label>
+                                <small class="form-help">Allow Claude to bypass permission prompts for faster execution</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="settings-task-timeout">Task Timeout (minutes)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="settings-task-timeout" name="task_timeout" min="5" max="240" value="30"
+                                           oninput="ecosystemManager.updateSliderValue('settings-task-timeout', 'task-timeout-value')">
+                                    <span id="task-timeout-value" class="slider-value">30</span>
+                                </div>
+                                <small class="form-help">Maximum time for task execution (range dynamically set by backend)</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="settings-idle-timeout">Idle Timeout Cap (minutes)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="settings-idle-timeout" name="idle_timeout_cap" min="2" max="240" value="30"
+                                           oninput="ecosystemManager.updateSliderValue('settings-idle-timeout', 'idle-timeout-value')">
+                                    <span id="idle-timeout-value" class="slider-value">30</span>
+                                </div>
+                                <small class="form-help">Maximum time a task may stay silent before the watchdog cancels it</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Display Settings Tab -->
+                    <div class="settings-tab-content" data-tab="display">
+                        <div class="settings-section">
+                            <h4 class="settings-section-title">
+                                <i class="fas fa-palette"></i>
+                                Display Settings
+                            </h4>
+                            
+                            <div class="form-group">
+                                <label for="settings-theme">Theme</label>
+                                <select id="settings-theme" name="theme" onchange="ecosystemManager.previewTheme(this.value)">
+                                    <option value="light">Light</option>
+                                    <option value="dark">Dark</option>
+                                    <option value="auto">Auto (System Preference)</option>
+                                </select>
+                                <small class="form-help">Choose your preferred color theme</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="settings-condensed-mode">
+                                    <input type="checkbox" id="settings-condensed-mode" name="condensed_mode">
+                                    Condensed Task Cards
+                                </label>
+                                <small class="form-help">Show less information on task cards to fit more on screen</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Prompt Tester Tab -->
+                    <div class="settings-tab-content" data-tab="prompt">
+                        <div class="settings-section prompt-tester-section">
+                            <h4 class="settings-section-title">
+                                <i class="fas fa-flask"></i>
+                                Prompt Tester
+                            </h4>
+                            <p class="form-help prompt-tester-intro">
+                                Assemble prompts exactly how the agent would receive them by supplying task metadata and viewing the resulting sections, context, and token footprint.
+                            </p>
+
+                            <div class="prompt-tester-grid">
+                                <div class="prompt-tester-config">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="prompt-type">Task Type</label>
+                                            <select id="prompt-type" name="prompt_type">
+                                                <option value="resource">Resource</option>
+                                                <option value="scenario">Scenario</option>
+                                            </select>
+                                            <small class="form-help">Determines resource- vs scenario-specific prompt sections</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="prompt-operation">Operation</label>
+                                            <select id="prompt-operation" name="prompt_operation">
+                                                <option value="generator">Generator</option>
+                                                <option value="improver">Improver</option>
+                                            </select>
+                                            <small class="form-help">Filtered to operations available for the selected task type</small>
+                                        </div>
+                                    </div>
+
+                                    <div id="prompt-operation-summary" class="prompt-operation-summary"></div>
+
+                                    <div class="form-group">
+                                        <label for="prompt-title">Task Title</label>
+                                        <input type="text" id="prompt-title" name="prompt_title" placeholder="Generate Ollama resource" value="Prompt Preview Task">
+                                        <small class="form-help">Used in task context appended to the assembled prompt</small>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="prompt-priority">Priority</label>
+                                        <select id="prompt-priority" name="prompt_priority">
+                                            <option value="critical">Critical</option>
+                                            <option value="high">High</option>
+                                            <option value="medium" selected>Medium</option>
+                                            <option value="low">Low</option>
+                                        </select>
+                                        <small class="form-help">Included in agent context for triage decisions</small>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="prompt-notes">Task Notes</label>
+                                        <textarea id="prompt-notes" name="prompt_notes" rows="3" placeholder="Key context or guardrails for the agent"></textarea>
+                                    </div>
+
+                                    <div class="form-group prompt-tester-actions">
+                                        <button type="button" class="btn btn-primary" id="prompt-preview-btn">
+                                            <i class="fas fa-microscope"></i>
+                                            Preview Prompt
+                                        </button>
+                                    </div>
+
+                                    <div id="prompt-preview-status" class="prompt-preview-status"></div>
+                                </div>
+
+                                <div class="prompt-tester-results" id="prompt-tester-results">
+                                    <div class="prompt-preview-placeholder" id="prompt-preview-placeholder">
+                                        <i class="fas fa-microscope"></i>
+                                        <p>Configure a task and select “Preview Prompt” to inspect the assembled output.</p>
+                                    </div>
+                                    <div class="prompt-preview-details collapsed" id="prompt-preview-details" hidden>
+                                        <div class="prompt-preview-details-header">
+                                            <div class="prompt-preview-summary" id="prompt-preview-summary"></div>
+                                            <button type="button" class="prompt-preview-toggle" id="prompt-preview-toggle" aria-expanded="false">
+                                                <i class="fas fa-chevron-down"></i>
+                                                Show Details
+                                            </button>
+                                        </div>
+                                        <div class="prompt-preview-details-content">
+                                            <div class="prompt-preview-metadata" id="prompt-preview-metadata"></div>
+                                            <div class="prompt-preview-sections" id="prompt-preview-sections"></div>
+                                        </div>
+                                    </div>
+                                    <div class="prompt-preview-output-wrapper" id="prompt-preview-output-wrapper" hidden>
+                                        <button type="button" class="prompt-preview-copy-icon" id="prompt-preview-copy-icon" aria-label="Copy prompt" title="Copy prompt" disabled>
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                        <pre class="prompt-preview-output" id="prompt-preview-output" hidden></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Rate Limit Management Tab -->
+                    <div class="settings-tab-content" data-tab="limits">
+                        <div class="settings-section">
+                            <h4 class="settings-section-title">
+                                <i class="fas fa-hourglass-half"></i>
+                                Rate Limit Management
+                            </h4>
+                            
+                            <div class="form-group">
+                                <div id="rate-limit-status" style="margin-bottom: 1rem;">
+                                    <!-- Rate limit status will be displayed here -->
+                                </div>
+                                
+                                <button type="button" id="reset-rate-limit-btn" class="btn btn-warning" onclick="ecosystemManager.resetRateLimit()">
+                                    <i class="fas fa-refresh"></i>
+                                    Reset Rate Limit Pause
+                                </button>
+                                <small class="form-help">Manually reset the rate limit pause if you've resolved the API limit issue</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recycler Settings Tab -->
+                    <div class="settings-tab-content" data-tab="recycler">
+                        <div class="settings-section">
+                            <h4 class="settings-section-title">
+                                <i class="fas fa-recycle"></i>
+                                Recycler Automation
+                            </h4>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="settings-recycler-enabled">Enabled For</label>
+                                    <select id="settings-recycler-enabled" name="recycler_enabled">
+                                        <option value="off">Disabled</option>
+                                        <option value="resources">Resources Only</option>
+                                        <option value="scenarios">Scenarios Only</option>
+                                        <option value="both">Resources &amp; Scenarios</option>
+                                    </select>
+                                    <small class="form-help">Choose which task types the recycler should automatically process.</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="settings-recycler-interval">Recycle Interval (seconds)</label>
+                                    <input type="number" id="settings-recycler-interval" name="recycler_interval" min="30" max="1800" step="5" value="60">
+                                    <small class="form-help">How often the recycler picks up the next eligible task.</small>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="settings-recycler-model-provider">Model Provider</label>
+                                    <select id="settings-recycler-model-provider" name="recycler_model_provider">
+                                        <option value="ollama">Ollama (local)</option>
+                                        <option value="openrouter">OpenRouter</option>
+                                    </select>
+                                    <small class="form-help">Select which inference resource summarizes task output.</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="settings-recycler-model-name">Model Name</label>
+                                    <select id="settings-recycler-model-name" name="recycler_model_name" disabled>
+                                        <option value="">Loading models…</option>
+                                    </select>
+                                    <input type="text" id="settings-recycler-model-name-custom" class="custom-model-input hidden" placeholder="Enter custom model identifier">
+                                    <small class="form-help">Select an available model or choose custom to enter one manually.</small>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="settings-recycler-completion-threshold">Completion Streak Threshold</label>
+                                    <input type="number" id="settings-recycler-completion-threshold" name="recycler_completion_threshold" min="1" max="10" value="3">
+                                    <small class="form-help">Number of consecutive "done" runs before finalizing.</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="settings-recycler-failure-threshold">Failure Streak Threshold</label>
+                                    <input type="number" id="settings-recycler-failure-threshold" name="recycler_failure_threshold" min="1" max="10" value="5">
+                                    <small class="form-help">Number of consecutive failures before blocking.</small>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <div class="info-card">
+                                    <i class="fas fa-info-circle"></i>
+                                    <div>
+                                        <strong>What the recycler does</strong>
+                                        <p>Each cycle the recycler reviews one task in Completed or Failed, refreshes its notes, updates streak counters, and either requeues it for another attempt or moves it into a terminal lane.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-section recycler-testbed">
+                                <h5 class="settings-section-title">
+                                    <i class="fas fa-vial"></i>
+                                    Recycler Testbed
+                                </h5>
+
+                                <div class="form-group recycler-mode-toggle">
+                                    <label>Test Mode</label>
+                                    <div class="recycler-mode-buttons">
+                                        <button type="button" class="btn btn-primary" data-recycler-mode="custom" aria-pressed="true">
+                                            <i class="fas fa-microscope"></i>
+                                            Custom Run
+                                        </button>
+                                        <button type="button" class="btn btn-outline" data-recycler-mode="suite" aria-pressed="false">
+                                            <i class="fas fa-list-check"></i>
+                                            Preset Suite
+                                        </button>
+                                    </div>
+                                    <small class="form-help">Switch between single-run experiments and full preset sweeps.</small>
+                                </div>
+
+                                <div class="recycler-mode-section" data-mode="custom">
+                                    <div class="form-group recycler-preset-selector">
+                                        <label for="recycler-test-preset">Preset Transcript</label>
+                                        <div class="recycler-preset-row">
+                                            <select id="recycler-test-preset">
+                                                <option value="">Select a preset transcript…</option>
+                                            </select>
+                                        </div>
+                                        <small class="form-help">
+                                            Expected classification: <span id="recycler-preset-expected">—</span>
+                                        </small>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="recycler-test-output">Mock Output Text</label>
+                                        <textarea id="recycler-test-output" rows="12">[INFO]    Started health monitor for claude-code (PID: 47592, interval: 30s)
+[HEADER]  🤖 Running Claude Code
+[INFO]    Non-TTY environment detected - using automation-friendly settings
+[WARNING] ⚠️  WARNING: Permission checks are disabled!
+[INFO]    Executing: timeout 1800 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 23840 chars)
+
+## Task Completion Summary
+
+**Task ID**: scenario-improver-calendar-20250218-091422
+**Target**: calendar
+**Operation**: improver
+
+### Status: Successfully Improved ✅
+
+### Work Completed
+1. **Patched recurring events** so first occurrence is scheduled correctly.
+2. **Added availability guardrails** to prevent overlapping invites.
+3. **Extended CLI** with `calendar sync --watch` option and usage docs.
+4. **Refreshed PRD checkpoints** to reflect 6/6 P0 requirements met.
+
+### Evidence of Working Features
+                                        - Health check: `curl https://api.ecosystem-manager.internal/health` -> `{"status":"healthy"}`
+- CLI smoke: `CALENDAR_PORT=19830 calendar status` -> reports active services.
+- Tests: Jest suite improved from 18/26 ✅ to 26/26 ✅.
+
+### Remaining Issues
+- OAuth handoff still uses placeholder redirect URL.
+- Notification hub integration pending service credentials.
+- Load tests not yet executed for 500+ concurrent users.
+
+### Recommendations
+1. Wire up production OAuth callback once credentials are issued.
+2. Implement notification hub webhooks and alert fan-out.
+3. Schedule load suite to capture 500 user concurrency baseline.
+4. Add integration test covering sync failure retry branch.
+
+The calendar scenario is now production-ready with all P0 requirements verified.
+</textarea>
+                                        <small class="form-help">Runs the recycler summarizer using the current settings. Adjust this text to simulate different agent outputs.</small>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="recycler-prompt-label">
+                                            <label for="recycler-test-prompt">Prompt (editable)</label>
+                                            <button type="button" class="btn btn-outline" id="recycler-prompt-refresh">
+                                                <i class="fas fa-sync-alt"></i>
+                                                Reload Default Prompt
+                                            </button>
+                                        </div>
+                                        <textarea id="recycler-test-prompt" rows="14" spellcheck="false"></textarea>
+                                        <small class="form-help">The testbed loads the actual recycler prompt using the mock output. Edit it to experiment; reload to sync with the current template.</small>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <button type="button" class="btn btn-primary" id="recycler-test-run">
+                                            <i class="fas fa-play"></i>
+                                            Run Recycler Test
+                                        </button>
+                                    </div>
+
+                                    <div id="recycler-test-result" class="info-card" style="display: none;"></div>
+                                </div>
+
+                                <div class="recycler-mode-section" data-mode="suite" hidden>
+                                    <div class="recycler-preset-actions">
+                                        <button type="button" class="btn btn-primary" id="recycler-run-suite">
+                                            <i class="fas fa-tasks"></i>
+                                            Run All Presets
+                                        </button>
+                                        <button type="button" class="btn btn-outline" id="recycler-clear-suite">
+                                            Clear Results
+                                        </button>
+                                    </div>
+                                    <small class="form-help">Executes every preset with the current settings and records the recycler verdicts.</small>
+
+                                    <div id="recycler-test-suite-results" class="info-card recycler-suite-results" style="display: none;">
+                                        <div class="recycler-suite-header">
+                                            <strong>Preset Test Runs</strong>
+                                            <span id="recycler-suite-summary" class="recycler-suite-summary"></span>
+                                        </div>
+                                        <div class="recycler-suite-body">
+                                            <table>
+                                                <thead>
+                                                    <tr>
+                                                        <th>Preset</th>
+                                                        <th>Expected</th>
+                                                        <th>Actual</th>
+                                                        <th>Outcome</th>
+                                                        <th>Note Preview</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="recycler-suite-results-body"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Auto Steer Profiles Tab -->
+                    <div class="settings-tab-content" data-tab="autosteer">
+                        <div class="settings-section">
+                            <div class="autosteer-header">
+                                <div>
+                                    <h4 class="settings-section-title">
+                                        <i class="fas fa-route"></i>
+                                        Auto Steer Profiles
+                                    </h4>
+                                    <p class="section-description">
+                                        Configure multi-dimensional improvement profiles to guide scenario development through progressive phases.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="btn btn-primary"
+                                    onclick="ecosystemManager.autoSteerManager?.openProfileEditor(null)">
+                                    <i class="fas fa-plus"></i> Create Profile
+                                </button>
+                            </div>
+
+                            <!-- Profiles List -->
+                            <div id="autosteer-profiles-list" class="autosteer-profiles-list">
+                                <!-- Profiles will be rendered here by AutoSteerManager -->
+                                <div class="loading-placeholder">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading profiles...
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <!-- Templates Section -->
+                            <div class="autosteer-templates">
+                                <h4 class="section-subtitle">
+                                    <i class="fas fa-magic"></i>
+                                    Built-in Templates
+                                </h4>
+                                <p class="section-description">
+                                    Start with a pre-configured profile template and customize it for your needs.
+                                </p>
+                                <div id="autosteer-templates-gallery" class="autosteer-templates-gallery">
+                                    <!-- Templates will be rendered here by AutoSteerManager -->
+                                    <div class="loading-placeholder">
+                                        <i class="fas fa-spinner fa-spin"></i> Loading templates...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="form-actions form-actions--flush">
+                    <button type="button" class="btn btn-secondary" onclick="ecosystemManager.closeModal('settings-modal')" aria-label="Cancel">
+                        <i class="fas fa-times" aria-hidden="true"></i>
+                        <span class="btn-label" data-label-desktop="Cancel" data-label-mobile="Cancel">Cancel</span>
+                    </button>
+                    
+                    <button type="button" class="btn btn-outline" onclick="ecosystemManager.resetSettingsToDefault()" aria-label="Reset to Defaults">
+                        <i class="fas fa-undo" aria-hidden="true"></i>
+                        <span class="btn-label" data-label-desktop="Reset to Defaults" data-label-mobile="Reset">Reset to Defaults</span>
+                    </button>
+                    
+                    <button type="button" class="btn btn-primary" onclick="ecosystemManager.saveSettingsFromForm()" aria-label="Save Settings">
+                        <i class="fas fa-save" aria-hidden="true"></i>
+                        <span class="btn-label" data-label-desktop="Save Settings" data-label-mobile="Save">Save Settings</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Auto Steer Profile Editor Modal -->
+    <div id="autosteer-profile-editor-modal" class="modal" style="display: none;">
+        <div class="modal-content modal-xlarge">
+            <div class="modal-header">
+                <h3>
+                    <i class="fas fa-route"></i>
+                    <span class="modal-title-text">Create Profile</span>
+                </h3>
+                <button class="modal-close" onclick="ecosystemManager.autoSteerManager?.closeModal('autosteer-profile-editor-modal')">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="profile-editor-content">
+                    <!-- Content will be dynamically rendered by AutoSteerManager -->
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    onclick="ecosystemManager.autoSteerManager?.closeModal('autosteer-profile-editor-modal')">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    onclick="ecosystemManager.autoSteerManager?.saveProfile()">
+                    <i class="fas fa-save"></i> Save Profile
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Condition Builder Modal -->
+    <div id="condition-builder-modal" class="modal" style="display: none;">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>
+                    <i class="fas fa-code-branch"></i>
+                    <span class="modal-title-text">Configure Stop Conditions</span>
+                </h3>
+                <button class="modal-close" onclick="ecosystemManager.autoSteerManager?.closeConditionBuilder(false)">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="condition-builder-help">
+                    <p><strong>Build conditions that determine when a phase should stop.</strong></p>
+                    <p>Create simple conditions (e.g., "loops > 10") or combine them with AND/OR logic.</p>
+                </div>
+
+                <div id="condition-builder-tree" class="condition-builder-tree">
+                    <!-- Tree will be dynamically rendered -->
+                </div>
+
+                <div class="condition-builder-actions">
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-secondary"
+                        onclick="ecosystemManager.autoSteerManager?.addConditionToBuilder('simple')">
+                        <i class="fas fa-plus"></i> Add Condition
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-secondary"
+                        onclick="ecosystemManager.autoSteerManager?.addConditionToBuilder('compound')">
+                        <i class="fas fa-folder-plus"></i> Add Group
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    onclick="ecosystemManager.autoSteerManager?.closeConditionBuilder(false)">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    onclick="ecosystemManager.autoSteerManager?.saveConditionsFromBuilder()">
+                    <i class="fas fa-check"></i> Apply Conditions
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <div class="loading-text">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Prompt Viewer Modal -->
+    <div id="prompt-viewer-modal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>Task Prompt</h3>
+                <button class="modal-close" onclick="ecosystemManager.closeModal('prompt-viewer-modal')">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <pre id="prompt-content" style="white-space: pre-wrap; word-wrap: break-word; background: var(--light-gray); padding: 1rem; border-radius: var(--border-radius); max-height: 70vh; overflow-y: auto;"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log Viewer Modal -->
+    <div id="log-viewer-modal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3 id="log-viewer-title">Task Execution Logs</h3>
+                <div class="log-controls">
+                    <button class="btn btn-secondary" id="log-auto-scroll-toggle" onclick="ecosystemManager.toggleLogAutoScroll()">
+                        <i class="fas fa-arrow-down"></i>
+                        Auto-scroll
+                    </button>
+                    <button class="btn btn-secondary" onclick="ecosystemManager.clearLogViewer()">
+                        <i class="fas fa-trash"></i>
+                        Clear
+                    </button>
+                </div>
+                <button class="modal-close" onclick="ecosystemManager.closeLogViewer()">&times;</button>
+            </div>
+
+            <div class="log-viewer-content">
+                <div id="log-output" class="log-output">
+                    <div class="log-placeholder">
+                        <i class="fas fa-terminal"></i>
+                        <p>Waiting for task execution logs...</p>
+                        <p class="log-hint">Logs will appear here when the task starts executing with Claude Code</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Logs Modal -->
+    <div id="system-logs-modal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>System Logs & History</h3>
+                <button class="modal-close" onclick="ecosystemManager.closeModal('system-logs-modal')">&times;</button>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div class="log-tabs">
+                <button class="log-tab active" data-tab="api-logs" onclick="ecosystemManager.switchSystemTab('api-logs')">
+                    <i class="fas fa-file-alt"></i>
+                    API Logs
+                </button>
+                <button class="log-tab" data-tab="execution-history" onclick="ecosystemManager.switchSystemTab('execution-history')">
+                    <i class="fas fa-history"></i>
+                    Execution History
+                </button>
+                <button class="log-tab" data-tab="profile-performance" onclick="ecosystemManager.switchSystemTab('profile-performance')">
+                    <i class="fas fa-chart-line"></i>
+                    Profile Performance
+                </button>
+            </div>
+
+            <!-- API Logs Tab Content -->
+            <div class="tab-content active" id="api-logs-content">
+                <div class="system-logs-toolbar">
+                    <div class="logs-left-controls">
+                        <label for="system-log-level" class="log-filter-label">
+                            Level:
+                            <select id="system-log-level" class="log-filter-select" onchange="ecosystemManager.filterSystemLogs()">
+                                <option value="all">All</option>
+                                <option value="error">Error</option>
+                                <option value="warn">Warn</option>
+                                <option value="info">Info</option>
+                                <option value="debug">Debug</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="logs-right-controls">
+                        <button class="btn btn-secondary" onclick="ecosystemManager.copySystemLogs()">
+                            <i class="fas fa-copy"></i>
+                            Copy
+                        </button>
+                        <button class="btn btn-secondary" onclick="ecosystemManager.refreshSystemLogs()">
+                            <i class="fas fa-sync"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+                <div class="system-logs-content" id="system-logs-container">
+                    <div class="logs-empty">Loading logs...</div>
+                </div>
+            </div>
+
+            <!-- Execution History Tab Content -->
+            <div class="tab-content" id="execution-history-content">
+                <!-- Filter/Search Toolbar -->
+                <div class="execution-history-toolbar">
+                    <div class="execution-filters">
+                        <input type="text" id="execution-search" class="execution-search-input" placeholder="Search by task ID..." onkeyup="ecosystemManager.filterExecutionHistory()">
+                        <select id="execution-status-filter" class="execution-filter-select" onchange="ecosystemManager.filterExecutionHistory()">
+                            <option value="all">All Statuses</option>
+                            <option value="success">Success</option>
+                            <option value="failure">Failure</option>
+                            <option value="timeout">Timeout</option>
+                        </select>
+                        <select id="execution-task-filter" class="execution-filter-select" onchange="ecosystemManager.filterExecutionHistory()">
+                            <option value="all">All Tasks</option>
+                        </select>
+                    </div>
+                    <div class="execution-actions">
+                        <button class="btn btn-secondary" onclick="ecosystemManager.refreshExecutionHistory()">
+                            <i class="fas fa-sync"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- List View -->
+                <div id="execution-history-list" class="execution-history-list">
+                    <div class="log-placeholder">
+                        <i class="fas fa-history"></i>
+                        <p>Loading execution history...</p>
+                    </div>
+                </div>
+
+                <!-- Detail View -->
+                <div id="execution-detail-view" class="execution-detail-view" style="display: none;">
+                    <div class="execution-detail-header">
+                        <button class="btn btn-secondary" onclick="ecosystemManager.showExecutionList()">
+                            <i class="fas fa-arrow-left"></i>
+                            Back to List
+                        </button>
+                        <h4 id="execution-detail-title">Execution Details</h4>
+                    </div>
+                    <div class="execution-detail-tabs">
+                        <button class="detail-tab active" data-detail-tab="prompt" onclick="ecosystemManager.switchDetailTab('prompt')">
+                            <i class="fas fa-file-code"></i>
+                            Prompt
+                        </button>
+                        <button class="detail-tab" data-detail-tab="output" onclick="ecosystemManager.switchDetailTab('output')">
+                            <i class="fas fa-terminal"></i>
+                            Output
+                        </button>
+                        <button class="detail-tab" data-detail-tab="metadata" onclick="ecosystemManager.switchDetailTab('metadata')">
+                            <i class="fas fa-info-circle"></i>
+                            Metadata
+                        </button>
+                    </div>
+                    <div class="execution-detail-content">
+                        <div id="execution-prompt-view" class="detail-tab-content active">
+                            <pre id="execution-prompt-text" class="execution-detail-text"></pre>
+                        </div>
+                        <div id="execution-output-view" class="detail-tab-content">
+                            <pre id="execution-output-text" class="execution-detail-text"></pre>
+                        </div>
+                        <div id="execution-metadata-view" class="detail-tab-content">
+                            <div id="execution-metadata-content" class="execution-metadata"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Performance Tab Content -->
+            <div class="tab-content" id="profile-performance-content">
+                <!-- Filters Toolbar -->
+                <div class="profile-performance-toolbar">
+                    <div class="performance-filters">
+                        <select id="performance-profile-filter" class="performance-filter-select" onchange="ecosystemManager.profilePerformanceManager?.filterPerformanceHistory()">
+                            <option value="">All Profiles</option>
+                        </select>
+                        <select id="performance-scenario-filter" class="performance-filter-select" onchange="ecosystemManager.profilePerformanceManager?.filterPerformanceHistory()">
+                            <option value="">All Scenarios</option>
+                        </select>
+                        <input type="date" id="performance-start-date" class="performance-date-input" onchange="ecosystemManager.profilePerformanceManager?.filterPerformanceHistory()">
+                        <input type="date" id="performance-end-date" class="performance-date-input" onchange="ecosystemManager.profilePerformanceManager?.filterPerformanceHistory()">
+                    </div>
+                    <div class="performance-actions">
+                        <button class="btn btn-secondary" onclick="ecosystemManager.profilePerformanceManager?.refreshPerformance()">
+                            <i class="fas fa-sync"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Executions Table -->
+                <div id="profile-performance-list" class="profile-performance-list">
+                    <div class="performance-empty">
+                        <i class="fas fa-chart-line"></i>
+                        <p>Loading profile performance data...</p>
+                    </div>
+                </div>
+
+                <!-- Execution Detail Panel -->
+                <div id="profile-execution-detail" class="profile-execution-detail" style="display: none;">
+                    <div class="execution-detail-header">
+                        <button class="btn btn-secondary" onclick="ecosystemManager.profilePerformanceManager?.closeExecutionDetail()">
+                            <i class="fas fa-arrow-left"></i>
+                            Back to List
+                        </button>
+                        <div class="execution-detail-title-group">
+                            <h4 id="profile-execution-title">Execution Details</h4>
+                            <button id="rate-execution-btn" class="btn btn-primary" onclick="ecosystemManager.profilePerformanceManager?.openFeedbackDialog()" style="display: none;">
+                                <i class="fas fa-star"></i>
+                                Rate Execution
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Summary Stats -->
+                    <div id="profile-execution-summary" class="profile-execution-summary">
+                        <!-- Summary will be rendered here -->
+                    </div>
+
+                    <!-- Metrics Comparison -->
+                    <div class="profile-execution-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-chart-bar"></i>
+                            Metrics Improvement
+                        </h5>
+                        <div id="profile-metrics-comparison" class="metrics-comparison-table">
+                            <!-- Metrics comparison will be rendered here -->
+                        </div>
+                    </div>
+
+                    <!-- Phase Breakdown -->
+                    <div class="profile-execution-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-layer-group"></i>
+                            Phase Breakdown
+                        </h5>
+                        <div id="profile-phase-breakdown" class="phase-breakdown">
+                            <!-- Phase breakdown will be rendered here -->
+                        </div>
+                    </div>
+
+                    <!-- User Feedback -->
+                    <div id="profile-execution-feedback" class="profile-execution-section" style="display: none;">
+                        <h5 class="section-title">
+                            <i class="fas fa-comments"></i>
+                            Your Feedback
+                        </h5>
+                        <div id="profile-feedback-content" class="feedback-content">
+                            <!-- Feedback will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Dialog -->
+    <div id="feedback-dialog-modal" class="modal" style="display: none;">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3>Rate This Execution</h3>
+                <button class="modal-close" onclick="ecosystemManager.profilePerformanceManager?.closeFeedbackDialog()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>How well did this profile work?</label>
+                    <div id="feedback-rating" class="rating-stars">
+                        <i class="far fa-star" data-rating="1" onclick="ecosystemManager.profilePerformanceManager?.setRating(1)"></i>
+                        <i class="far fa-star" data-rating="2" onclick="ecosystemManager.profilePerformanceManager?.setRating(2)"></i>
+                        <i class="far fa-star" data-rating="3" onclick="ecosystemManager.profilePerformanceManager?.setRating(3)"></i>
+                        <i class="far fa-star" data-rating="4" onclick="ecosystemManager.profilePerformanceManager?.setRating(4)"></i>
+                        <i class="far fa-star" data-rating="5" onclick="ecosystemManager.profilePerformanceManager?.setRating(5)"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="feedback-comments">Comments (optional)</label>
+                    <textarea id="feedback-comments" class="form-control" rows="4" placeholder="What worked well? What could be improved?"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="ecosystemManager.profilePerformanceManager?.closeFeedbackDialog()">Cancel</button>
+                <button class="btn btn-primary" onclick="ecosystemManager.profilePerformanceManager?.submitFeedback()">Submit Feedback</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Modular application -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -83,6 +83,14 @@ export function Analyze() {
     setQueryScenario(name);
   };
 
+  const iframeUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    if (queryScenario) params.set("scenario", queryScenario);
+    params.set("graph_type", "combined");
+    params.set("layout", "force");
+    return `/embedded/analyzer/?${params.toString()}`;
+  }, [queryScenario]);
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -310,9 +318,17 @@ export function Analyze() {
                   <TabsTrigger value="raw">Raw Data</TabsTrigger>
                 </TabsList>
                 <TabsContent value="overview" className="mt-4">
-                  <p className="text-sm text-slate-400">
-                    Dependency tree visualization coming soon. View raw data for now.
-                  </p>
+                  <div className="rounded-lg border border-white/10 bg-black/30 p-2">
+                    <iframe
+                      src={iframeUrl}
+                      title="Scenario Dependency Analyzer"
+                      className="h-[560px] w-full rounded-md border border-white/10 bg-slate-950"
+                      allowFullScreen
+                    />
+                    <p className="mt-2 text-xs text-slate-400">
+                      Visualization powered by scenario-dependency-analyzer (proxied locally). Use the search above to update the view.
+                    </p>
+                  </div>
                 </TabsContent>
                 <TabsContent value="raw" className="mt-4">
                   <pre className="rounded-lg bg-black/40 p-4 text-xs overflow-auto max-h-96">

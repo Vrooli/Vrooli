@@ -5,6 +5,7 @@ import { Plus, Package, Loader2, HelpCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { Tip } from "../components/ui/tip";
 import { listProfiles } from "../lib/api";
 
 const TIER_NAMES: Record<number, string> = {
@@ -47,12 +48,10 @@ export function Profiles() {
       </div>
 
       {showHelp && (
-        <Card>
-          <CardContent className="pt-4 space-y-2 text-sm text-slate-300">
-            <p>Create a profile to capture swaps/secrets for a scenario + tier. Profiles feed deployments.</p>
-            <p>Tip: use the guided flow from the dashboard to prefill scenario/tier and jump straight here.</p>
-          </CardContent>
-        </Card>
+        <Tip title="Profiles 101">
+          <p>Create a profile to capture swaps/secrets for a scenario + tier. Profiles feed deployments.</p>
+          <p className="text-slate-300">Use the guided flow from the dashboard to prefill scenario/tier and jump straight here.</p>
+        </Tip>
       )}
 
       {/* Error */}
