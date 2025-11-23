@@ -49,6 +49,7 @@ func registerRoutes(router *gin.Engine, handler *handler) {
 		api.GET("/scenarios", handler.listScenarios)
 		api.GET("/scenarios/:scenario", handler.getScenarioDetail)
 		api.GET("/scenarios/:scenario/deployment", handler.getDeploymentReport)
+		api.GET("/scenarios/:scenario/bundle/manifest", handler.getBundleManifest)
 		api.GET("/scenarios/:scenario/dag/export", handler.exportDAG)
 		api.GET("/analyze/:scenario", handler.analyzeScenario)
 		api.GET("/scenarios/:scenario/dependencies", handler.getDependencies)

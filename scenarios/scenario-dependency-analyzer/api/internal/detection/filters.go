@@ -85,6 +85,20 @@ func shouldIgnoreDetectionFile(relPath string) bool {
 	lower := strings.ToLower(relPath)
 	base := strings.ToLower(filepath.Base(lower))
 
+	// Skip test files (e.g., *_test.go, *.test.js, *.spec.ts)
+	if strings.HasSuffix(base, "_test.go") {
+		return true
+	}
+	if strings.HasSuffix(base, ".test.js") || strings.HasSuffix(base, ".test.ts") {
+		return true
+	}
+	if strings.HasSuffix(base, ".spec.js") || strings.HasSuffix(base, ".spec.ts") || strings.HasSuffix(base, ".spec.tsx") {
+		return true
+	}
+	if strings.HasSuffix(base, "_test.ts") || strings.HasSuffix(base, "_test.tsx") {
+		return true
+	}
+
 	// Check if filename is in the doc files list
 	if _, ok := docFileNames[base]; ok {
 		return true
@@ -127,7 +141,9 @@ var analysisIgnoreSegments = map[string]struct{}{
 	"specs":         {},
 	"coverage":      {},
 	"examples":      {},
+	"example":       {},
 	"playbooks":     {},
+	"playbook":      {},
 	"data":          {},
 	"draft":         {},
 	"drafts":        {},
@@ -136,6 +152,10 @@ var analysisIgnoreSegments = map[string]struct{}{
 	"build":         {},
 	"out":           {},
 	"outputs":       {},
+	"fixtures":      {},
+	"mocks":         {},
+	"mock":          {},
+	"stubs":         {},
 }
 
 // docExtensions lists file extensions that are considered documentation

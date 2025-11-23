@@ -413,3 +413,20 @@ func (h *handler) exportDAG(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
+
+func (h *handler) getBundleManifest(c *gin.Context) {
+	scenarioName := c.Param("scenario")
+
+	deploymentSvc := h.deploymentService()
+	report, err := deploymentSvc.GetDeploymentReport(scenarioName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"scenario":  scenarioName,
+		"generated": report.GeneratedAt,
+		"manifest":  report.BundleManifest,
+	})
+}

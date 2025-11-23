@@ -310,11 +310,13 @@ type BundleDependencyEntry struct {
 
 // DeploymentMetadataGaps reports missing deployment metadata across the dependency tree.
 type DeploymentMetadataGaps struct {
-	TotalGaps           int                        `json:"total_gaps"`
-	ScenariosMissingAll int                        `json:"scenarios_missing_all"`
-	GapsByScenario      map[string]ScenarioGapInfo `json:"gaps_by_scenario"`
-	MissingTiers        []string                   `json:"missing_tiers"`
-	Recommendations     []string                   `json:"recommendations"`
+	TotalGaps              int                       `json:"total_gaps"`
+	ScenariosMissingAll    int                       `json:"scenarios_missing_all"`
+	GapsByScenario         map[string]ScenarioGapInfo `json:"gaps_by_scenario"`
+	MissingTiers           []string                  `json:"missing_tiers"`
+	SecretRequirements     []SecretRequirement       `json:"secret_requirements,omitempty"`
+	ResourceSwapSuggestions []ResourceSwapSuggestion  `json:"resource_swap_suggestions,omitempty"`
+	Recommendations        []string                  `json:"recommendations"`
 }
 
 // ScenarioGapInfo describes metadata gaps for a single scenario in the tree.
@@ -400,4 +402,24 @@ type ScanRequest struct {
 	Apply          bool `json:"apply"`
 	ApplyResources bool `json:"apply_resources"`
 	ApplyScenarios bool `json:"apply_scenarios"`
+}
+
+// SecretRequirement identifies a dependency that needs secret configuration
+type SecretRequirement struct {
+	DependencyName    string   `json:"dependency_name"`
+	DependencyType    string   `json:"dependency_type"`
+	SecretType        string   `json:"secret_type"`
+	RequiredSecrets   []string `json:"required_secrets"`
+	PlaybookReference string   `json:"playbook_reference"`
+	Priority          string   `json:"priority"`
+}
+
+// ResourceSwapSuggestion recommends a lighter alternative for specific deployment tiers
+type ResourceSwapSuggestion struct {
+	OriginalResource    string   `json:"original_resource"`
+	AlternativeResource string   `json:"alternative_resource"`
+	Reason              string   `json:"reason"`
+	ApplicableTiers     []string `json:"applicable_tiers"`
+	Relationship        string   `json:"relationship"`
+	ImpactDescription   string   `json:"impact_description"`
 }

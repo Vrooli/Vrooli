@@ -20,7 +20,7 @@ var (
 			Type: "postgres",
 			Patterns: []*regexp.Regexp{
 				regexp.MustCompile(`postgres(ql)?:\/\/`),
-				regexp.MustCompile(`PGHOST`),
+				regexp.MustCompile(`PGHOST|POSTGRES_HOST|POSTGRES_URL`),
 			},
 		},
 		{
@@ -28,38 +28,47 @@ var (
 			Type: "redis",
 			Patterns: []*regexp.Regexp{
 				regexp.MustCompile(`redis:\/\/`),
-				regexp.MustCompile(`REDIS_URL`),
+				regexp.MustCompile(`REDIS_URL|REDIS_HOST`),
 			},
 		},
 		{
 			Name: "ollama",
 			Type: "ollama",
 			Patterns: []*regexp.Regexp{
-				regexp.MustCompile(`ollama`),
+				// More specific patterns - require context indicating actual usage
+				regexp.MustCompile(`OLLAMA_(?:HOST|URL|API|BASE_URL)`),
+				regexp.MustCompile(`ollama(?:\.|\s+)(?:generate|embeddings|list|pull|push)`),
+				regexp.MustCompile(`http://[^"'\s]*ollama[^"'\s]*:\d+`),
 			},
 		},
 		{
 			Name: "qdrant",
 			Type: "qdrant",
 			Patterns: []*regexp.Regexp{
-				regexp.MustCompile(`qdrant`),
+				// More specific - require context
+				regexp.MustCompile(`QDRANT_(?:HOST|URL|API_KEY)`),
+				regexp.MustCompile(`qdrant(?:\.|\s+)(?:search|upsert|delete|create_collection)`),
+				regexp.MustCompile(`http://[^"'\s]*qdrant[^"'\s]*:\d+`),
 			},
 		},
 		{
 			Name: "n8n",
 			Type: "n8n",
 			Patterns: []*regexp.Regexp{
-				regexp.MustCompile(`resource-?n8n`),
-				regexp.MustCompile(`N8N_[A-Z0-9_]+`),
+				regexp.MustCompile(`resource-n8n`), // Exact match only
+				regexp.MustCompile(`N8N_(?:HOST|URL|API_KEY|WEBHOOK)`),
 				regexp.MustCompile(`RESOURCE_PORT_N8N`),
-				regexp.MustCompile(`n8n/(?:api|webhook)`),
+				regexp.MustCompile(`http://[^"'\s]*n8n[^"'\s]*/(?:api|webhook)`),
 			},
 		},
 		{
 			Name: "minio",
 			Type: "minio",
 			Patterns: []*regexp.Regexp{
-				regexp.MustCompile(`minio`),
+				// More specific - require context
+				regexp.MustCompile(`MINIO_(?:ENDPOINT|ACCESS_KEY|SECRET_KEY|BUCKET)`),
+				regexp.MustCompile(`minio\.(?:Client|BucketExists|GetObject|PutObject)`),
+				regexp.MustCompile(`http://[^"'\s]*minio[^"'\s]*:\d+`),
 			},
 		},
 	}
@@ -76,8 +85,9 @@ var (
 	scenarioPortCallPattern = regexp.MustCompile(`resolveScenarioPortViaCLI\s*\(\s*[^,]+,\s*(?:"([a-z0-9-]+)"|([A-Za-z0-9_]+))\s*,`)
 
 	// Patterns for detecting scenario references in code
-	vrooliScenarioPattern = regexp.MustCompile(`vrooli\s+scenario\s+(?:run|test|status)\s+([a-z0-9-]+)`)
-	cliScenarioPattern    = regexp.MustCompile(`([a-z0-9-]+)-cli\.sh|\b([a-z0-9-]+)\s+(?:analyze|process|generate|run)`)
+	vrooliScenarioPattern = regexp.MustCompile(`vrooli\s+scenario\s+(?:run|test|status|start|stop)\s+([a-z0-9-]+)`)
+	// More specific CLI pattern - require explicit CLI script reference
+	cliScenarioPattern = regexp.MustCompile(`([a-z0-9-]+)-(?:cli|api)(?:\.sh)?`)
 
 	// Pattern for detecting shared workflow references
 	sharedWorkflowPattern = regexp.MustCompile(`initialization/(?:automation/)?(?:n8n|huginn|windmill)/([^/]+\.json)`)

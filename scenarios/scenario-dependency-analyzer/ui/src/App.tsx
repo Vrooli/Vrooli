@@ -1,22 +1,33 @@
-import { useCallback, useMemo, useState } from "react";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { useCallback, useMemo, useState, useEffect } from "react";
+import { AlertCircle } from "lucide-react";
 
-import { ControlPanel } from "./components/ControlPanel";
-import { GraphCanvas } from "./components/graph/GraphCanvas";
-import { SelectedNodePanel } from "./components/SelectedNodePanel";
-import { StatsPanel } from "./components/StatsPanel";
-import { ScenarioCatalogPanel } from "./components/ScenarioCatalogPanel";
-import { ScenarioDetailPanel } from "./components/ScenarioDetailPanel";
-import { DeploymentDashboard } from "./components/deployment/DeploymentDashboard";
 import { Badge } from "./components/ui/badge";
 import { Card, CardContent } from "./components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { useGraphData } from "./hooks/useGraphData";
 import { useScenarioCatalog } from "./hooks/useScenarioCatalog";
-import type { DependencyGraphNode } from "./types";
+import { GraphPage } from "./pages/GraphPage";
+import { DeploymentPage } from "./pages/DeploymentPage";
+import { CatalogPage } from "./pages/CatalogPage";
+import type { GraphType, LayoutMode } from "./types";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState("graph");
+  const searchParams = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search);
+  }, []);
+
+  const initialGraphType = useMemo(() => {
+    const value = searchParams?.get("graph_type");
+    return value === "scenarios" || value === "resources" || value === "combined" ? value : "combined";
+  }, [searchParams]);
+
+  const initialLayout = useMemo(() => {
+    const value = searchParams?.get("layout");
+    return value === "grid" || value === "hierarchical" ? value : "force";
+  }, [searchParams]);
+
+  const [activeTab, setActiveTab] = useState(() => searchParams?.get("view") ?? "graph");
 
   const {
     analyzeAll,
@@ -36,7 +47,7 @@ export default function App() {
     setLayout,
     setSelectedNode,
     stats
-  } = useGraphData();
+  } = useGraphData({ defaultType: initialGraphType as GraphType, defaultLayout: initialLayout as LayoutMode });
 
   const {
     summaries,
@@ -75,40 +86,18 @@ export default function App() {
     [optimizeScenario, selectedScenario]
   );
 
-  const influentialNodes = useMemo(() => {
-    if (!graph) return [] as Array<{ node: DependencyGraphNode; score: number }>;
-    const map = new Map<string, { node: DependencyGraphNode; score: number }>();
+  useEffect(() => {
+    const scenario = searchParams?.get("scenario");
+    if (scenario) {
+      setFilter(scenario);
+      setSelectedNode(null);
+    }
 
-    graph.nodes.forEach((node) => {
-      map.set(node.id, { node, score: 0 });
-    });
-
-    graph.edges.forEach((edge) => {
-      const baseWeight = edge.required ? 2 : 1;
-      const weight = baseWeight + Math.max(edge.weight, 0);
-      const currentSource = map.get(edge.source);
-      const currentTarget = map.get(edge.target);
-      if (currentSource) currentSource.score += weight;
-      if (currentTarget) currentTarget.score += weight;
-    });
-
-    return Array.from(map.values())
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 8);
-  }, [graph]);
-
-  const selectedConnections = useMemo(() => {
-    if (!graph || !selectedNode) return [];
-    return graph.edges
-      .filter((edge) => edge.source === selectedNode.id || edge.target === selectedNode.id)
-      .map((edge) => {
-        const peerId = edge.source === selectedNode.id ? edge.target : edge.source;
-        const peer = graph.nodes.find((node) => node.id === peerId);
-        if (!peer) return null;
-        return { node: peer, edge };
-      })
-      .filter(Boolean) as Array<{ node: DependencyGraphNode; edge: typeof graph.edges[number] }>;
-  }, [graph, selectedNode]);
+    const view = searchParams?.get("view");
+    if (view === "graph" || view === "deployment" || view === "catalog") {
+      setActiveTab(view);
+    }
+  }, [searchParams, setFilter, setSelectedNode]);
 
   const handleExport = () => {
     if (!graph) return;
@@ -184,78 +173,30 @@ export default function App() {
 
           {/* Tab 1: Dependency Graph */}
           <TabsContent value="graph" className="space-y-6">
-            <section className="grid flex-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)_320px]">
-              <aside className="space-y-6">
-                <ControlPanel
-                  graphType={graphType}
-                  layout={layout}
-                  filter={filter}
-                  driftFilter={driftFilter}
-                  onGraphTypeChange={(value) => setGraphType(value)}
-                  onLayoutChange={(value) => setLayout(value)}
-                  onFilterChange={setFilter}
-                  onDriftFilterChange={setDriftFilter}
-                  onRefresh={() => fetchGraph(graphType)}
-                  onAnalyzeAll={analyzeAll}
-                  onExport={handleExport}
-                  loading={loading}
-                />
-                <Card className="glass border border-border/40">
-                  <CardContent className="space-y-3 py-5 text-sm text-muted-foreground">
-                    <p className="text-foreground">Why this matters</p>
-                    <p>
-                      Every visualization crystallizes how Vrooli deploys compound intelligence across the local
-                      ecosystem. Use these insights to prioritize engineering investment, derisk launches, and
-                      unlock new business capabilities.
-                    </p>
-                  </CardContent>
-                </Card>
-              </aside>
-
-              <div className="relative min-h-[540px] overflow-hidden rounded-3xl border border-border/50 bg-background/40 shadow-2xl shadow-black/40">
-                {loading ? (
-                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/70 backdrop-blur">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
-                    <p className="text-sm text-muted-foreground">Compiling live dependency intelligence…</p>
-                  </div>
-                ) : null}
-                <GraphCanvas
-                  graph={graph}
-                  layout={layout}
-                  filter={filter}
-                  driftFilter={driftFilter}
-                  selectedNodeId={selectedNode?.id}
-                  onSelectNode={(node) => setSelectedNode(node)}
-                  className="h-full"
-                />
-              </div>
-
-              <aside className="space-y-6">
-                <StatsPanel
-                  stats={stats}
-                  apiHealthy={apiHealthy}
-                  influentialNodes={influentialNodes}
-                />
-                {selectedNode ? (
-                  <SelectedNodePanel node={selectedNode} connections={selectedConnections} />
-                ) : (
-                  <Card className="glass border border-border/40">
-                    <CardContent className="space-y-3 py-6 text-sm text-muted-foreground">
-                      <p className="font-medium text-foreground">Select a node to inspect dependencies</p>
-                      <p>
-                        Hover or click any scenario or resource to surface its purpose, relationships, and
-                        contextual metadata. Keyboard users can use <kbd className="rounded border border-border/60 bg-background/50 px-1">Tab</kbd> to focus nodes.
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </aside>
-            </section>
+            <GraphPage
+              graph={graph}
+              graphType={graphType}
+              layout={layout}
+              filter={filter}
+              driftFilter={driftFilter}
+              loading={loading}
+              selectedNode={selectedNode}
+              apiHealthy={apiHealthy}
+              stats={stats}
+              onGraphTypeChange={setGraphType}
+              onLayoutChange={setLayout}
+              onFilterChange={setFilter}
+              onDriftFilterChange={setDriftFilter}
+              onSelectNode={setSelectedNode}
+              onRefresh={() => fetchGraph(graphType)}
+              onAnalyzeAll={analyzeAll}
+              onExport={handleExport}
+            />
           </TabsContent>
 
           {/* Tab 2: Deployment Readiness */}
           <TabsContent value="deployment" className="space-y-6">
-            <DeploymentDashboard
+            <DeploymentPage
               scenarios={summaries}
               loading={loadingSummaries}
               onRefresh={refreshSummaries}
@@ -266,23 +207,19 @@ export default function App() {
 
           {/* Tab 3: Scenario Catalog */}
           <TabsContent value="catalog" className="space-y-6">
-            <section className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-              <ScenarioCatalogPanel
-                scenarios={summaries}
-                selected={selectedScenario}
-                loading={loadingSummaries}
-                onSelect={selectScenario}
-                onRefresh={refreshSummaries}
-              />
-              <ScenarioDetailPanel
-                detail={detail}
-                loading={detailLoading}
-                scanning={scanLoading}
-                optimizing={optimizeLoading}
-                onScan={handleScenarioScanForDetail}
-                onOptimize={handleOptimize}
-              />
-            </section>
+            <CatalogPage
+              scenarios={summaries}
+              selectedScenario={selectedScenario}
+              detail={detail}
+              loadingSummaries={loadingSummaries}
+              detailLoading={detailLoading}
+              scanLoading={scanLoading}
+              optimizeLoading={optimizeLoading}
+              onSelectScenario={selectScenario}
+              onRefresh={refreshSummaries}
+              onScan={handleScenarioScanForDetail}
+              onOptimize={handleOptimize}
+            />
           </TabsContent>
         </Tabs>
       </main>

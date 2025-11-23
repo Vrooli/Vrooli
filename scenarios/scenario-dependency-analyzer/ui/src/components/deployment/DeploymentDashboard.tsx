@@ -5,6 +5,7 @@ import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import type { ScenarioSummary, DeploymentAnalysisReport } from "../../types";
 import { MetadataGapsPanel } from "./MetadataGapsPanel";
+import { RecommendedFlowPanel } from "./RecommendedFlowPanel";
 
 interface DeploymentDashboardProps {
   scenarios: ScenarioSummary[];
@@ -202,6 +203,25 @@ export function DeploymentDashboard({ scenarios, loading, onRefresh, onScanScena
 
   return (
     <div className="space-y-6">
+      {/* Recommended Flow Guide */}
+      <RecommendedFlowPanel
+        onScanAll={() => {
+          // Trigger scan for all scenarios with issues
+          statusArray
+            .filter(s => s.status !== "ready")
+            .forEach(s => onScanScenario(s.scenario.name, false));
+        }}
+        onExportDAG={() => {
+          // Show CLI hint for DAG export
+          alert(
+            'To export a DAG, use the CLI:\n\n' +
+            'scenario-dependency-analyzer dag export <scenario> --recursive\n\n' +
+            'Example:\n' +
+            'scenario-dependency-analyzer dag export ecosystem-manager --recursive'
+          );
+        }}
+      />
+
       {/* Summary Stats */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="border border-green-500/40 bg-green-500/5">
