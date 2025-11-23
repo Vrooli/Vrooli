@@ -306,7 +306,7 @@ const SetVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
               value={name}
               onChange={(event) => setName(event.target.value)}
               onBlur={() => updateNodeData({ name })}
-              placeholder="loginToken"
+              placeholder="variableName"
             />
           </div>
           <div>

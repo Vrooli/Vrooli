@@ -162,7 +162,7 @@ const DragDropNode: FC<NodeProps> = ({ data, selected, id }) => {
           <input
             type="text"
             value={targetSelector}
-            placeholder="#done-column .dropzone"
+            placeholder=".drop-target"
             onChange={(event) => setTargetSelector(event.target.value)}
             onBlur={() => commitSelector('targetSelector', targetSelector)}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"

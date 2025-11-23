@@ -3970,7 +3970,7 @@ function ActiveExecutionViewer({
           ) : (
             <>
               <div className="flex-1 p-3 overflow-auto">
-                <div className="space-y-4">
+                <div className="space-y-4" data-testid={selectors.executions.viewer.screenshots}>
                   {screenshots.map((screenshot) => (
                     <div
                       key={screenshot.id}
