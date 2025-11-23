@@ -8,6 +8,8 @@ import { ProcessMonitor } from './modules/ProcessMonitor.js';
 import { UIComponents } from './modules/UIComponents.js';
 import { WebSocketHandler } from './modules/WebSocketHandler.js';
 import { DragDropHandler } from './modules/DragDropHandler.js';
+import { AutoSteerManager } from './modules/AutoSteerManager.js';
+import { ProfilePerformanceManager } from './modules/ProfilePerformanceManager.js';
 import { RECYCLER_TEST_PRESETS } from './data/recycler-test-presets.js';
 import { TagMultiSelect } from './components/TagMultiSelect.js';
 
@@ -57,6 +59,8 @@ class EcosystemManager {
             this.showLoading.bind(this)
         );
         this.settingsManager = new SettingsManager(this.apiBase, this.showToast.bind(this));
+        this.autoSteerManager = new AutoSteerManager(this.apiBase, this.showToast.bind(this));
+        this.profilePerformanceManager = new ProfilePerformanceManager(this.apiBase, this.showToast.bind(this));
         this.processMonitor = new ProcessMonitor(this.apiBase, this.showToast.bind(this));
         this.webSocketHandler = new WebSocketHandler(
             this.wsBase,
@@ -1775,16 +1779,92 @@ class EcosystemManager {
             this.resetCreateTaskTitleState();
             await this.updateFormForType();
             await this.updateFormForOperation();
+            await this.loadAutoSteerProfilesIntoSelect();
             modal.classList.add('show');
             // Disable body scroll when showing modal
             document.body.style.overflow = 'hidden';
         }
     }
 
+    async loadAutoSteerProfilesIntoSelect() {
+        try {
+            const select = document.getElementById('task-autosteer-profile');
+            if (!select) return;
+
+            const profiles = await this.autoSteerManager.loadProfiles();
+
+            // Clear existing options except the first one (None)
+            while (select.options.length > 1) {
+                select.remove(1);
+            }
+
+            // Add profile options
+            profiles.forEach(profile => {
+                const option = document.createElement('option');
+                option.value = profile.id;
+                option.textContent = profile.name;
+                select.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Failed to load Auto Steer profiles:', error);
+        }
+    }
+
+    handleAutoSteerProfileChange(profileId) {
+        const previewContainer = document.getElementById('autosteer-profile-preview');
+        if (!previewContainer) return;
+
+        if (!profileId) {
+            previewContainer.style.display = 'none';
+            previewContainer.innerHTML = '';
+            return;
+        }
+
+        const profile = this.autoSteerManager.profiles.find(p => p.id === profileId);
+        if (!profile) {
+            previewContainer.style.display = 'none';
+            return;
+        }
+
+        previewContainer.style.display = 'block';
+        previewContainer.innerHTML = this.renderAutoSteerProfilePreview(profile);
+    }
+
+    renderAutoSteerProfilePreview(profile) {
+        const phasesCount = (profile.phases || profile.config?.phases || []).length;
+        const phases = profile.phases || profile.config?.phases || [];
+
+        const phaseIcons = phases.slice(0, 8).map(phase => {
+            const icon = this.autoSteerManager.getModeIcon(phase.mode);
+            const modeName = this.autoSteerManager.formatModeName(phase.mode);
+            return `<span class="phase-timeline-item" title="${modeName} (max ${phase.max_iterations} iterations)">${icon}</span>`;
+        }).join('');
+
+        const morePhases = phasesCount > 8 ? `<span class="phase-timeline-more">+${phasesCount - 8}</span>` : '';
+
+        return `
+            <div class="autosteer-profile-preview-card">
+                <div class="autosteer-profile-preview-header">
+                    <h4><i class="fas fa-route"></i> ${this.escapeHtml(profile.name)}</h4>
+                </div>
+                <p class="autosteer-profile-preview-description">${this.escapeHtml(profile.description || '')}</p>
+
+                <div class="autosteer-profile-preview-phases">
+                    <div class="phase-timeline-label">
+                        <strong>${phasesCount}</strong> phase${phasesCount !== 1 ? 's' : ''}
+                    </div>
+                    <div class="phase-timeline">
+                        ${phaseIcons}${morePhases}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     async handleCreateTask() {
         const form = document.getElementById('create-task-form');
         const formData = new FormData(form);
-        
+
         const taskData = {
             title: (formData.get('title') || '').trim(),
             type: formData.get('type'),
@@ -1793,6 +1873,12 @@ class EcosystemManager {
             notes: formData.get('notes'),
             status: 'pending'
         };
+
+        // Include Auto Steer profile if selected
+        const autoSteerProfileId = formData.get('auto_steer_profile_id');
+        if (autoSteerProfileId && autoSteerProfileId !== '') {
+            taskData.auto_steer_profile_id = autoSteerProfileId;
+        }
 
         const selectedTargets = this.getSelectedTargets();
 
@@ -3406,6 +3492,13 @@ class EcosystemManager {
                 const activeSettingsButton = document.querySelector('.settings-tab-btn.active');
                 this.switchSettingsTab(activeSettingsButton?.dataset.tab || 'processor');
             });
+
+            // Initialize Auto Steer manager if not already initialized
+            if (this.autoSteerManager && !this.autoSteerManager.profiles.length) {
+                this.autoSteerManager.initialize().catch(err => {
+                    console.error('Failed to initialize Auto Steer manager:', err);
+                });
+            }
         }
     }
 
@@ -4623,6 +4716,11 @@ class EcosystemManager {
         // Load execution history if switching to that tab
         if (tabName === 'execution-history') {
             this.loadAllExecutionHistory();
+        }
+
+        // Load profile performance if switching to that tab
+        if (tabName === 'profile-performance') {
+            this.profilePerformanceManager.initialize();
         }
     }
 

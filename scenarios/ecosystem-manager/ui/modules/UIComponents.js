@@ -67,6 +67,7 @@ export class UIComponents {
                 </span>
             </div>
             ${this.renderStreakInfo(task)}
+            ${this.renderAutoSteerProgress(task)}
             ${isRunning ? `
                 <div class="task-execution-indicator">
                     <i class="fas fa-brain fa-spin"></i>
@@ -212,6 +213,87 @@ export class UIComponents {
         }
 
         return `<div class="task-streaks">${chips.join('')}</div>`;
+    }
+
+    static renderAutoSteerProgress(task) {
+        // Check if task has Auto Steer enabled
+        if (!task.auto_steer_profile_id || !task.autosteer_state) {
+            return '';
+        }
+
+        const state = task.autosteer_state;
+        const currentPhase = state.current_phase || {};
+        const currentMode = currentPhase.mode || 'progress';
+        const currentIteration = state.current_phase_iteration || 0;
+        const maxIterations = currentPhase.max_iterations || 10;
+        const totalPhases = state.total_phases || 1;
+        const currentPhaseIndex = state.current_phase_index || 0;
+
+        // Get mode icon and name
+        const modeIcon = this.getModeIcon(currentMode);
+        const modeName = this.formatModeName(currentMode);
+
+        // Calculate phase progress percentage
+        const phaseProgress = Math.round((currentPhaseIndex / totalPhases) * 100);
+
+        return `
+            <div class="autosteer-progress">
+                <div class="autosteer-header">
+                    <i class="fas fa-route"></i>
+                    <span class="autosteer-label">Auto Steer Active</span>
+                </div>
+
+                <div class="autosteer-current-phase">
+                    <div class="autosteer-phase-info">
+                        <span class="autosteer-mode-badge mode-${currentMode}">
+                            ${modeIcon} ${modeName}
+                        </span>
+                        <span class="autosteer-iteration-count">
+                            ${currentIteration} / ${maxIterations} iterations
+                        </span>
+                    </div>
+                </div>
+
+                <div class="autosteer-phase-progress">
+                    <div class="autosteer-progress-label">
+                        Phase ${currentPhaseIndex + 1} of ${totalPhases}
+                    </div>
+                    <div class="autosteer-progress-bar">
+                        <div class="autosteer-progress-fill" style="width: ${phaseProgress}%"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    static getModeIcon(mode) {
+        const icons = {
+            progress: '<i class="fas fa-tasks"></i>',
+            ux: '<i class="fas fa-palette"></i>',
+            refactor: '<i class="fas fa-code"></i>',
+            test: '<i class="fas fa-vial"></i>',
+            explore: '<i class="fas fa-flask"></i>',
+            polish: '<i class="fas fa-gem"></i>',
+            integration: '<i class="fas fa-plug"></i>',
+            performance: '<i class="fas fa-tachometer-alt"></i>',
+            security: '<i class="fas fa-shield-alt"></i>'
+        };
+        return icons[mode] || '<i class="fas fa-circle"></i>';
+    }
+
+    static formatModeName(mode) {
+        const names = {
+            progress: 'Progress',
+            ux: 'UX',
+            refactor: 'Refactor',
+            test: 'Test',
+            explore: 'Explore',
+            polish: 'Polish',
+            integration: 'Integration',
+            performance: 'Performance',
+            security: 'Security'
+        };
+        return names[mode] || mode;
     }
 
     static showToast(message, type = 'info') {

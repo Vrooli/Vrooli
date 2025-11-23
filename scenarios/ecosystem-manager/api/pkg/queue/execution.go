@@ -95,6 +95,16 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 	timeoutDuration := time.Duration(currentSettings.TaskTimeout) * time.Minute
 	history.TimeoutAllowed = timeoutDuration.String()
 
+	// Initialize Auto Steer if needed (first time executing with Auto Steer profile)
+	if qp.autoSteerIntegration != nil && task.AutoSteerProfileID != "" {
+		scenarioName := getScenarioNameFromTask(&task)
+		if err := qp.autoSteerIntegration.InitializeAutoSteer(&task, scenarioName); err != nil {
+			log.Printf("Failed to initialize Auto Steer for task %s: %v", task.ID, err)
+			systemlog.Errorf("Auto Steer initialization failed for task %s: %v", task.ID, err)
+			// Continue without Auto Steer rather than failing the task
+		}
+	}
+
 	// Generate the full prompt for the task
 	assembly, err := qp.assembler.AssemblePromptForTask(task)
 	if err != nil {
@@ -112,6 +122,19 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 		return
 	}
 	prompt := assembly.Prompt
+
+	// Enhance prompt with Auto Steer context if active
+	if qp.autoSteerIntegration != nil && task.AutoSteerProfileID != "" {
+		enhancedPrompt, err := qp.autoSteerIntegration.EnhancePrompt(&task, prompt)
+		if err != nil {
+			log.Printf("Warning: Failed to enhance prompt with Auto Steer for task %s: %v", task.ID, err)
+			// Continue with base prompt
+		} else if enhancedPrompt != prompt {
+			prompt = enhancedPrompt
+			log.Printf("Prompt enhanced with Auto Steer for task %s", task.ID)
+		}
+	}
+
 	history.PromptSize = len(prompt)
 
 	// Store the assembled prompt in execution history
@@ -181,6 +204,30 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 		task.CompletionCount++
 		task.LastCompletedAt = task.CompletedAt
 
+		// Auto Steer: Evaluate iteration and determine if task should continue
+		if qp.autoSteerIntegration != nil && task.AutoSteerProfileID != "" {
+			scenarioName := getScenarioNameFromTask(&task)
+			shouldContinue, err := qp.autoSteerIntegration.ShouldContinueTask(&task, scenarioName)
+			if err != nil {
+				log.Printf("Warning: Auto Steer evaluation failed for task %s: %v", task.ID, err)
+				systemlog.Warnf("Auto Steer evaluation error for %s: %v", task.ID, err)
+				// Continue with normal requeue behavior on error
+			} else {
+				if !shouldContinue {
+					log.Printf("Auto Steer: Task %s completed all phases - will not requeue", task.ID)
+					systemlog.Infof("Auto Steer: Task %s fully complete", task.ID)
+					// Override status to prevent requeue
+					task.ProcessorAutoRequeue = false
+					task.Status = "completed"
+				} else {
+					log.Printf("Auto Steer: Task %s will continue - requeuing for next iteration", task.ID)
+					// Ensure task will be requeued
+					task.ProcessorAutoRequeue = true
+					task.Status = "pending"
+				}
+			}
+		}
+
 		// Update execution history
 		history.EndTime = time.Now()
 		history.Duration = executionTime.Round(time.Second).String()
@@ -189,7 +236,9 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 
 		// CRITICAL: Finalize status to disk BEFORE broadcasting to prevent UI/disk state divergence
 		// This also prevents reconciliation race condition where task appears orphaned
-		if finalizeErr := qp.finalizeTaskStatus(&task, "completed"); finalizeErr != nil {
+		// Use the task's actual status (which may be "pending" if Auto Steer wants to continue)
+		finalizeStatus := task.Status
+		if finalizeErr := qp.finalizeTaskStatus(&task, finalizeStatus); finalizeErr != nil {
 			log.Printf("CRITICAL: Failed to finalize completed task %s: %v", task.ID, finalizeErr)
 			systemlog.Errorf("Failed to finalize completed task %s: %v - task will remain in executions for reconciler", task.ID, finalizeErr)
 			// CRITICAL: Use verified cleanup to prevent agent remaining in registry
@@ -915,4 +964,18 @@ func (qp *Processor) broadcastUpdate(updateType string, data any) {
 	default:
 		log.Printf("Warning: WebSocket broadcast channel full, dropping update")
 	}
+}
+
+// getScenarioNameFromTask extracts the scenario name from a task
+// For scenario-related tasks, returns the target scenario name
+func getScenarioNameFromTask(task *tasks.TaskItem) string {
+	if task.Type == "scenario" && task.Target != "" {
+		return task.Target
+	}
+	// For multiple targets, use the first one
+	if len(task.Targets) > 0 {
+		return task.Targets[0]
+	}
+	// Fallback: try to extract from title or use task ID
+	return task.Target
 }

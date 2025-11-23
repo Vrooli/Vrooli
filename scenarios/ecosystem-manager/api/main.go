@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,7 +12,9 @@ import (
 
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
 
+	"github.com/ecosystem-manager/api/pkg/autosteer"
 	"github.com/ecosystem-manager/api/pkg/handlers"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
@@ -55,6 +58,13 @@ var (
 	processor    *queue.Processor
 	wsManager    *websocket.Manager
 	taskRecycler *recycler.Recycler
+	db           *sql.DB
+
+	// Auto Steer components
+	autoSteerProfileService  *autosteer.ProfileService
+	autoSteerExecutionEngine *autosteer.ExecutionEngine
+	autoSteerHistoryService  *autosteer.HistoryService
+	autoSteerMetricsCollector *autosteer.MetricsCollector
 
 	// Handlers
 	taskHandlers      *handlers.TaskHandlers
@@ -62,6 +72,7 @@ var (
 	discoveryHandlers *handlers.DiscoveryHandlers
 	healthHandlers    *handlers.HealthHandlers
 	settingsHandlers  *handlers.SettingsHandlers
+	autoSteerHandlers *autosteer.AutoSteerHandlers
 )
 
 func main() {
@@ -81,6 +92,12 @@ func main() {
 	log.Println("🚀 Starting Ecosystem Manager API...")
 	systemlog.Init()
 	systemlog.Info("API startup initiated")
+
+	// Initialize database connection
+	if err := initializeDatabase(); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer db.Close()
 
 	// Initialize core components
 	if err := initializeComponents(); err != nil {
@@ -117,6 +134,63 @@ func main() {
 	if err := http.ListenAndServe(":"+port, router); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
+}
+
+// initializeDatabase initializes the PostgreSQL database connection
+func initializeDatabase() error {
+	// Get database connection details from environment
+	dbHost := os.Getenv("POSTGRES_HOST")
+	if dbHost == "" {
+		dbHost = "localhost"
+	}
+
+	dbPort := os.Getenv("POSTGRES_PORT")
+	if dbPort == "" {
+		dbPort = "5432"
+	}
+
+	dbUser := os.Getenv("POSTGRES_USER")
+	if dbUser == "" {
+		dbUser = "postgres"
+	}
+
+	dbPassword := os.Getenv("POSTGRES_PASSWORD")
+	if dbPassword == "" {
+		dbPassword = "postgres"
+	}
+
+	dbName := os.Getenv("POSTGRES_DB")
+	if dbName == "" {
+		dbName = "ecosystem_manager"
+	}
+
+	// Build connection string
+	connStr := fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		dbHost, dbPort, dbUser, dbPassword, dbName,
+	)
+
+	// Open database connection
+	var err error
+	db, err = sql.Open("postgres", connStr)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+
+	// Test connection
+	if err := db.Ping(); err != nil {
+		return fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
+	log.Println("✅ Database connection established")
+	systemlog.Info("Database connection established")
+
+	return nil
 }
 
 // initializeComponents initializes all core system components
@@ -183,12 +257,26 @@ func initializeComponents() error {
 	log.Println("✅ Queue processor initialized")
 	systemlog.Info("Queue processor initialized")
 
+	// Initialize Auto Steer components
+	projectRoot2 := filepath.Clean(filepath.Join(scenarioRoot, "..", ".."))
+	autoSteerMetricsCollector = autosteer.NewMetricsCollector(projectRoot2)
+	autoSteerProfileService = autosteer.NewProfileService(db)
+	autoSteerExecutionEngine = autosteer.NewExecutionEngine(db, autoSteerProfileService, autoSteerMetricsCollector)
+	autoSteerHistoryService = autosteer.NewHistoryService(db)
+	log.Println("✅ Auto Steer components initialized")
+	systemlog.Info("Auto Steer components initialized")
+
+	// Connect Auto Steer to queue processor
+	autoSteerIntegration := queue.NewAutoSteerIntegration(autoSteerExecutionEngine)
+	processor.SetAutoSteerIntegration(autoSteerIntegration)
+
 	// Initialize handlers
 	taskHandlers = handlers.NewTaskHandlers(storage, assembler, processor, wsManager)
 	queueHandlers = handlers.NewQueueHandlers(processor, wsManager, storage)
 	discoveryHandlers = handlers.NewDiscoveryHandlers(assembler)
 	healthHandlers = handlers.NewHealthHandlers(processor)
 	settingsHandlers = handlers.NewSettingsHandlers(processor, wsManager, taskRecycler)
+	autoSteerHandlers = autosteer.NewAutoSteerHandlers(autoSteerProfileService, autoSteerExecutionEngine, autoSteerHistoryService)
 	log.Println("✅ HTTP handlers initialized")
 
 	return nil
@@ -266,6 +354,31 @@ func setupRoutes() http.Handler {
 	api.HandleFunc("/scenarios/{name}/status", discoveryHandlers.GetScenarioStatusHandler).Methods("GET")
 	api.HandleFunc("/operations", discoveryHandlers.GetOperationsHandler).Methods("GET")
 	api.HandleFunc("/categories", discoveryHandlers.GetCategoriesHandler).Methods("GET")
+
+	// Auto Steer routes
+	// Profile management
+	api.HandleFunc("/auto-steer/profiles", autoSteerHandlers.CreateProfile).Methods("POST")
+	api.HandleFunc("/auto-steer/profiles", autoSteerHandlers.ListProfiles).Methods("GET")
+	api.HandleFunc("/auto-steer/profiles/{id}", autoSteerHandlers.GetProfile).Methods("GET")
+	api.HandleFunc("/auto-steer/profiles/{id}", autoSteerHandlers.UpdateProfile).Methods("PUT")
+	api.HandleFunc("/auto-steer/profiles/{id}", autoSteerHandlers.DeleteProfile).Methods("DELETE")
+
+	// Profile templates
+	api.HandleFunc("/auto-steer/templates", autoSteerHandlers.GetTemplates).Methods("GET")
+
+	// Execution management
+	api.HandleFunc("/auto-steer/execution/{taskId}", autoSteerHandlers.GetExecutionState).Methods("GET")
+
+	// Metrics
+	api.HandleFunc("/auto-steer/metrics/{taskId}", autoSteerHandlers.GetMetrics).Methods("GET")
+
+	// Historical performance
+	api.HandleFunc("/auto-steer/history", autoSteerHandlers.GetHistory).Methods("GET")
+	api.HandleFunc("/auto-steer/history/{executionId}", autoSteerHandlers.GetExecution).Methods("GET")
+	api.HandleFunc("/auto-steer/history/{executionId}/feedback", autoSteerHandlers.SubmitFeedback).Methods("POST")
+
+	// Analytics
+	api.HandleFunc("/auto-steer/analytics/{profileId}", autoSteerHandlers.GetProfileAnalytics).Methods("GET")
 
 	// Enable CORS for all routes
 	corsHandler := gorillaHandlers.CORS(

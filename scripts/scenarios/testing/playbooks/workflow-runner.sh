@@ -219,6 +219,8 @@ _testing_playbooks__wait_for_execution() {
     TESTING_PLAYBOOKS_LAST_PROGRESS_LINES=()
 
     while true; do
+        local poll_start
+        poll_start=$(date +%s)
         local exec_resp
         exec_resp=$(curl -s --max-time 10 "$api_base/executions/${execution_id}" || true)
         local status
@@ -271,7 +273,42 @@ _testing_playbooks__wait_for_execution() {
             return 2
         fi
 
-        sleep 2
+        # Adaptive polling: faster when running, slower when queued
+        local poll_interval=1
+        case "$status" in
+            running)
+                poll_interval=0.5  # Fast polling during active execution
+                ;;
+            pending|queued)
+                poll_interval=2    # Slow polling while waiting to start
+                ;;
+            *)
+                poll_interval=1    # Default for unknown/transitional states
+                ;;
+        esac
+
+        # Sleep for remaining interval time (avoid overlapping requests if API was slow)
+        local poll_duration=$((now - poll_start))
+        if command -v bc >/dev/null 2>&1; then
+            local sleep_time
+            sleep_time=$(echo "$poll_interval - $poll_duration" | bc -l)
+            if [ "$(echo "$sleep_time > 0" | bc -l)" -eq 1 ]; then
+                sleep "$sleep_time"
+            fi
+        else
+            # Fallback without bc: use integer math with 500ms minimum
+            if [ "$poll_interval" = "0.5" ]; then
+                # For 500ms interval, only sleep if poll took <1s
+                if [ "$poll_duration" -lt 1 ]; then
+                    sleep 0.5
+                fi
+            else
+                local sleep_time=$((poll_interval - poll_duration))
+                if [ "$sleep_time" -gt 0 ]; then
+                    sleep "$sleep_time"
+                fi
+            fi
+        fi
     done
 }
 

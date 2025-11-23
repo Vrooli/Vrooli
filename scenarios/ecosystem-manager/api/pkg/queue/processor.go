@@ -87,6 +87,9 @@ type Processor struct {
 	executionHistoryCache     []ExecutionHistory
 	executionHistoryCacheTime time.Time
 	executionHistoryCacheMu   sync.RWMutex
+
+	// Auto Steer integration for multi-dimensional improvement
+	autoSteerIntegration *AutoSteerIntegration
 }
 
 // NewProcessor creates a new queue processor
@@ -120,6 +123,14 @@ func NewProcessor(interval time.Duration, storage *tasks.Storage, assembler *pro
 	go processor.timeoutEnforcementWatchdog()
 
 	return processor
+}
+
+// SetAutoSteerIntegration sets the Auto Steer integration for the processor
+// This must be called after the processor is created but before processing starts
+func (qp *Processor) SetAutoSteerIntegration(integration *AutoSteerIntegration) {
+	qp.autoSteerIntegration = integration
+	log.Println("✅ Auto Steer integration configured for queue processor")
+	systemlog.Info("Auto Steer integration enabled")
 }
 
 // Start begins the queue processing loop

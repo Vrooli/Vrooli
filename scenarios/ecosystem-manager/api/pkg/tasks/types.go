@@ -36,6 +36,7 @@ type TaskItem struct {
 	ConsecutiveCompletionClaims float64        `json:"consecutive_completion_claims" yaml:"consecutive_completion_claims"`
 	ConsecutiveFailures         int            `json:"consecutive_failures" yaml:"consecutive_failures"`
 	ProcessorAutoRequeue        bool           `json:"processor_auto_requeue" yaml:"processor_auto_requeue"`
+	AutoSteerProfileID          string         `json:"auto_steer_profile_id,omitempty" yaml:"auto_steer_profile_id,omitempty"` // Auto Steer profile to use
 }
 
 // OperationConfig represents configuration for each operation type

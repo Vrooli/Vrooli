@@ -346,8 +346,27 @@
                         <option value="critical">Critical</option>
                     </select>
                 </div>
-                
-                
+
+                <!-- Auto Steer Profile Selection -->
+                <div class="form-group" id="autosteer-profile-group">
+                    <label for="task-autosteer-profile">
+                        <i class="fas fa-route"></i>
+                        Auto Steer Profile (Optional)
+                    </label>
+                    <select id="task-autosteer-profile" name="auto_steer_profile_id" onchange="ecosystemManager.handleAutoSteerProfileChange(this.value)">
+                        <option value="">None (Default behavior)</option>
+                        <!-- Profiles will be loaded dynamically -->
+                    </select>
+                    <small class="form-help">
+                        Select a profile to guide multi-dimensional improvement with phases and quality gates
+                    </small>
+                </div>
+
+                <!-- Auto Steer Profile Preview -->
+                <div id="autosteer-profile-preview" class="autosteer-profile-preview" style="display: none;">
+                    <!-- Profile preview will be rendered here -->
+                </div>
+
                 <!-- Target field for improver operations -->
                 <div class="form-group" id="target-group" style="display: none;">
                     <label for="task-target-search">Target (for improvements) *</label>
@@ -444,6 +463,10 @@
                     <i class="fas fa-recycle"></i>
                     <span>Recycler</span>
                 </button>
+                <button type="button" class="settings-tab-btn" data-tab="autosteer" onclick="ecosystemManager.switchSettingsTab('autosteer')">
+                    <i class="fas fa-route"></i>
+                    <span>Auto Steer</span>
+                </button>
             </div>
 
             <!-- Settings Mobile Selector -->
@@ -456,6 +479,7 @@
                     <option value="prompt">Prompt Tester</option>
                     <option value="limits">Rate Limits</option>
                     <option value="recycler">Recycler</option>
+                    <option value="autosteer">Auto Steer</option>
                 </select>
             </div>
             
@@ -912,7 +936,57 @@ The calendar scenario is now production-ready with all P0 requirements verified.
                             </div>
                         </div>
                     </div>
-                    
+
+                    <!-- Auto Steer Profiles Tab -->
+                    <div class="settings-tab-content" data-tab="autosteer">
+                        <div class="settings-section">
+                            <div class="autosteer-header">
+                                <div>
+                                    <h4 class="settings-section-title">
+                                        <i class="fas fa-route"></i>
+                                        Auto Steer Profiles
+                                    </h4>
+                                    <p class="section-description">
+                                        Configure multi-dimensional improvement profiles to guide scenario development through progressive phases.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="btn btn-primary"
+                                    onclick="ecosystemManager.autoSteerManager?.openProfileEditor(null)">
+                                    <i class="fas fa-plus"></i> Create Profile
+                                </button>
+                            </div>
+
+                            <!-- Profiles List -->
+                            <div id="autosteer-profiles-list" class="autosteer-profiles-list">
+                                <!-- Profiles will be rendered here by AutoSteerManager -->
+                                <div class="loading-placeholder">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading profiles...
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <!-- Templates Section -->
+                            <div class="autosteer-templates">
+                                <h4 class="section-subtitle">
+                                    <i class="fas fa-magic"></i>
+                                    Built-in Templates
+                                </h4>
+                                <p class="section-description">
+                                    Start with a pre-configured profile template and customize it for your needs.
+                                </p>
+                                <div id="autosteer-templates-gallery" class="autosteer-templates-gallery">
+                                    <!-- Templates will be rendered here by AutoSteerManager -->
+                                    <div class="loading-placeholder">
+                                        <i class="fas fa-spinner fa-spin"></i> Loading templates...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- Action Buttons -->
@@ -933,6 +1007,94 @@ The calendar scenario is now production-ready with all P0 requirements verified.
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Auto Steer Profile Editor Modal -->
+    <div id="autosteer-profile-editor-modal" class="modal" style="display: none;">
+        <div class="modal-content modal-xlarge">
+            <div class="modal-header">
+                <h3>
+                    <i class="fas fa-route"></i>
+                    <span class="modal-title-text">Create Profile</span>
+                </h3>
+                <button class="modal-close" onclick="ecosystemManager.autoSteerManager?.closeModal('autosteer-profile-editor-modal')">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="profile-editor-content">
+                    <!-- Content will be dynamically rendered by AutoSteerManager -->
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    onclick="ecosystemManager.autoSteerManager?.closeModal('autosteer-profile-editor-modal')">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    onclick="ecosystemManager.autoSteerManager?.saveProfile()">
+                    <i class="fas fa-save"></i> Save Profile
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Condition Builder Modal -->
+    <div id="condition-builder-modal" class="modal" style="display: none;">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>
+                    <i class="fas fa-code-branch"></i>
+                    <span class="modal-title-text">Configure Stop Conditions</span>
+                </h3>
+                <button class="modal-close" onclick="ecosystemManager.autoSteerManager?.closeConditionBuilder(false)">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="condition-builder-help">
+                    <p><strong>Build conditions that determine when a phase should stop.</strong></p>
+                    <p>Create simple conditions (e.g., "loops > 10") or combine them with AND/OR logic.</p>
+                </div>
+
+                <div id="condition-builder-tree" class="condition-builder-tree">
+                    <!-- Tree will be dynamically rendered -->
+                </div>
+
+                <div class="condition-builder-actions">
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-secondary"
+                        onclick="ecosystemManager.autoSteerManager?.addConditionToBuilder('simple')">
+                        <i class="fas fa-plus"></i> Add Condition
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-secondary"
+                        onclick="ecosystemManager.autoSteerManager?.addConditionToBuilder('compound')">
+                        <i class="fas fa-folder-plus"></i> Add Group
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    onclick="ecosystemManager.autoSteerManager?.closeConditionBuilder(false)">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    onclick="ecosystemManager.autoSteerManager?.saveConditionsFromBuilder()">
+                    <i class="fas fa-check"></i> Apply Conditions
+                </button>
+            </div>
         </div>
     </div>
 
@@ -1005,6 +1167,10 @@ The calendar scenario is now production-ready with all P0 requirements verified.
                 <button class="log-tab" data-tab="execution-history" onclick="ecosystemManager.switchSystemTab('execution-history')">
                     <i class="fas fa-history"></i>
                     Execution History
+                </button>
+                <button class="log-tab" data-tab="profile-performance" onclick="ecosystemManager.switchSystemTab('profile-performance')">
+                    <i class="fas fa-chart-line"></i>
+                    Profile Performance
                 </button>
             </div>
 
@@ -1106,6 +1272,122 @@ The calendar scenario is now production-ready with all P0 requirements verified.
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Profile Performance Tab Content -->
+            <div class="tab-content" id="profile-performance-content">
+                <!-- Filters Toolbar -->
+                <div class="profile-performance-toolbar">
+                    <div class="performance-filters">
+                        <select id="performance-profile-filter" class="performance-filter-select" onchange="ecosystemManager.profilePerformanceManager?.filterPerformanceHistory()">
+                            <option value="">All Profiles</option>
+                        </select>
+                        <select id="performance-scenario-filter" class="performance-filter-select" onchange="ecosystemManager.profilePerformanceManager?.filterPerformanceHistory()">
+                            <option value="">All Scenarios</option>
+                        </select>
+                        <input type="date" id="performance-start-date" class="performance-date-input" onchange="ecosystemManager.profilePerformanceManager?.filterPerformanceHistory()">
+                        <input type="date" id="performance-end-date" class="performance-date-input" onchange="ecosystemManager.profilePerformanceManager?.filterPerformanceHistory()">
+                    </div>
+                    <div class="performance-actions">
+                        <button class="btn btn-secondary" onclick="ecosystemManager.profilePerformanceManager?.refreshPerformance()">
+                            <i class="fas fa-sync"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Executions Table -->
+                <div id="profile-performance-list" class="profile-performance-list">
+                    <div class="performance-empty">
+                        <i class="fas fa-chart-line"></i>
+                        <p>Loading profile performance data...</p>
+                    </div>
+                </div>
+
+                <!-- Execution Detail Panel -->
+                <div id="profile-execution-detail" class="profile-execution-detail" style="display: none;">
+                    <div class="execution-detail-header">
+                        <button class="btn btn-secondary" onclick="ecosystemManager.profilePerformanceManager?.closeExecutionDetail()">
+                            <i class="fas fa-arrow-left"></i>
+                            Back to List
+                        </button>
+                        <div class="execution-detail-title-group">
+                            <h4 id="profile-execution-title">Execution Details</h4>
+                            <button id="rate-execution-btn" class="btn btn-primary" onclick="ecosystemManager.profilePerformanceManager?.openFeedbackDialog()" style="display: none;">
+                                <i class="fas fa-star"></i>
+                                Rate Execution
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Summary Stats -->
+                    <div id="profile-execution-summary" class="profile-execution-summary">
+                        <!-- Summary will be rendered here -->
+                    </div>
+
+                    <!-- Metrics Comparison -->
+                    <div class="profile-execution-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-chart-bar"></i>
+                            Metrics Improvement
+                        </h5>
+                        <div id="profile-metrics-comparison" class="metrics-comparison-table">
+                            <!-- Metrics comparison will be rendered here -->
+                        </div>
+                    </div>
+
+                    <!-- Phase Breakdown -->
+                    <div class="profile-execution-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-layer-group"></i>
+                            Phase Breakdown
+                        </h5>
+                        <div id="profile-phase-breakdown" class="phase-breakdown">
+                            <!-- Phase breakdown will be rendered here -->
+                        </div>
+                    </div>
+
+                    <!-- User Feedback -->
+                    <div id="profile-execution-feedback" class="profile-execution-section" style="display: none;">
+                        <h5 class="section-title">
+                            <i class="fas fa-comments"></i>
+                            Your Feedback
+                        </h5>
+                        <div id="profile-feedback-content" class="feedback-content">
+                            <!-- Feedback will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Dialog -->
+    <div id="feedback-dialog-modal" class="modal" style="display: none;">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3>Rate This Execution</h3>
+                <button class="modal-close" onclick="ecosystemManager.profilePerformanceManager?.closeFeedbackDialog()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>How well did this profile work?</label>
+                    <div id="feedback-rating" class="rating-stars">
+                        <i class="far fa-star" data-rating="1" onclick="ecosystemManager.profilePerformanceManager?.setRating(1)"></i>
+                        <i class="far fa-star" data-rating="2" onclick="ecosystemManager.profilePerformanceManager?.setRating(2)"></i>
+                        <i class="far fa-star" data-rating="3" onclick="ecosystemManager.profilePerformanceManager?.setRating(3)"></i>
+                        <i class="far fa-star" data-rating="4" onclick="ecosystemManager.profilePerformanceManager?.setRating(4)"></i>
+                        <i class="far fa-star" data-rating="5" onclick="ecosystemManager.profilePerformanceManager?.setRating(5)"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="feedback-comments">Comments (optional)</label>
+                    <textarea id="feedback-comments" class="form-control" rows="4" placeholder="What worked well? What could be improved?"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="ecosystemManager.profilePerformanceManager?.closeFeedbackDialog()">Cancel</button>
+                <button class="btn btn-primary" onclick="ecosystemManager.profilePerformanceManager?.submitFeedback()">Submit Feedback</button>
             </div>
         </div>
     </div>
