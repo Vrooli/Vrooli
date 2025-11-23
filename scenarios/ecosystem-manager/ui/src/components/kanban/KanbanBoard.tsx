@@ -3,7 +3,7 @@
  * Main Kanban board with 7 status columns and drag-and-drop functionality
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -14,7 +14,6 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { useState } from 'react';
 import { KanbanColumn } from './KanbanColumn';
 import { TaskCard } from './TaskCard';
 import { SkeletonTaskCard } from './SkeletonTaskCard';
@@ -42,6 +41,8 @@ interface KanbanBoardProps {
 
 export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const kanbanGridRef = useRef<HTMLDivElement | null>(null);
+  const scrollLockRef = useRef<{ timeout: number | null }>({ timeout: null });
 
   const { columnVisibility, toggleColumnVisibility, filters } = useAppState();
   const { data: tasks = [], isLoading, error } = useTasks(filters);
@@ -105,12 +106,53 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
     }
   };
 
+  // Match legacy scroll behavior: convert vertical wheel scroll to horizontal unless a column can scroll vertically
+  useEffect(() => {
+    const kanbanGrid = kanbanGridRef.current;
+    if (!kanbanGrid) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      if (event.defaultPrevented) return;
+
+      const scrollLock = scrollLockRef.current;
+      const horizontalLockActive = scrollLock.timeout !== null;
+
+      const columnBody = (event.target as HTMLElement | null)?.closest('.kanban-column-body') as HTMLElement | null;
+      if (columnBody && !horizontalLockActive) {
+        const canScrollVertically = columnBody.scrollHeight > columnBody.clientHeight;
+        if (canScrollVertically) {
+          const scrollTop = columnBody.scrollTop;
+          const atTop = scrollTop <= 0;
+          const atBottom = (columnBody.scrollHeight - columnBody.clientHeight - scrollTop) <= 1;
+          if ((event.deltaY < 0 && !atTop) || (event.deltaY > 0 && !atBottom)) {
+            return;
+          }
+        }
+      }
+
+      if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+        event.preventDefault();
+        kanbanGrid.scrollLeft += event.deltaY;
+
+        if (scrollLock.timeout !== null) {
+          clearTimeout(scrollLock.timeout);
+        }
+        scrollLock.timeout = window.setTimeout(() => {
+          scrollLock.timeout = null;
+        }, 250);
+      }
+    };
+
+    kanbanGrid.addEventListener('wheel', handleWheel, { passive: false });
+    return () => kanbanGrid.removeEventListener('wheel', handleWheel);
+  }, [isLoading]);
+
   if (isLoading) {
     return (
-      <div className="flex h-full gap-0 overflow-x-auto">
+      <div className="flex h-full min-h-0 gap-0 overflow-x-auto">
         {COLUMNS.slice(0, 4).map(({ status, title }) => (
-          <div key={status} className="flex-shrink-0 w-80">
-            <div className="bg-card/80 border border-border/60 rounded-lg overflow-hidden">
+          <div key={status} className="flex-shrink-0 w-80 h-screen max-h-screen">
+            <div className="bg-card/80 border border-border/60 rounded-lg overflow-hidden flex flex-col h-full">
               {/* Column Header */}
               <div className="px-4 py-3 border-b border-border/60 bg-muted/40">
                 <div className="flex items-center justify-between">
@@ -121,7 +163,7 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
                 </div>
               </div>
               {/* Skeleton Cards */}
-              <div className="p-3 space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto">
+              <div className="p-3 space-y-3 flex-1 min-h-0 overflow-y-auto">
                 <SkeletonTaskCard />
                 <SkeletonTaskCard />
               </div>
@@ -141,17 +183,17 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
   }
 
   return (
-    <div className="h-full min-h-0 flex flex-col">
+    <div className="h-full min-h-0 flex flex-col overflow-hidden">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex h-full min-h-0 gap-0 overflow-x-auto">
-          {COLUMNS.map(({ status, title }) => (
-            <KanbanColumn
-              key={status}
+      <div ref={kanbanGridRef} className="flex h-full min-h-0 gap-0 overflow-x-auto">
+        {COLUMNS.map(({ status, title }) => (
+          <KanbanColumn
+            key={status}
               status={status}
               title={title}
               tasks={tasksByStatus[status]}
