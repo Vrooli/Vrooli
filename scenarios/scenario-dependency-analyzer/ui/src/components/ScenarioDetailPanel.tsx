@@ -147,6 +147,9 @@ export function ScenarioDetailPanel({ detail, loading, scanning, optimizing, onS
             Optimize & apply
           </Button>
         </div>
+        <p className="text-[11px] text-muted-foreground">
+          Scan = read-only. Scan &amp; apply writes detected dependencies back to service.json. Optimize is exploratory unless you choose apply.
+        </p>
 
         <Tabs defaultValue="dependencies" className="w-full">
           <TabsList className="grid w-full grid-cols-3">

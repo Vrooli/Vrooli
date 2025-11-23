@@ -4,6 +4,7 @@ import { AlertCircle } from "lucide-react";
 import { Badge } from "./components/ui/badge";
 import { Card, CardContent } from "./components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
+import { OrientationPage } from "./pages/OrientationPage";
 import { useGraphData } from "./hooks/useGraphData";
 import { useScenarioCatalog } from "./hooks/useScenarioCatalog";
 import { GraphPage } from "./pages/GraphPage";
@@ -27,7 +28,7 @@ export default function App() {
     return value === "grid" || value === "hierarchical" ? value : "force";
   }, [searchParams]);
 
-  const [activeTab, setActiveTab] = useState(() => searchParams?.get("view") ?? "graph");
+  const [activeTab, setActiveTab] = useState(() => searchParams?.get("view") ?? "overview");
 
   const {
     analyzeAll,
@@ -94,7 +95,7 @@ export default function App() {
     }
 
     const view = searchParams?.get("view");
-    if (view === "graph" || view === "deployment" || view === "catalog") {
+    if (view === "overview" || view === "graph" || view === "deployment" || view === "catalog") {
       setActiveTab(view);
     }
   }, [searchParams, setFilter, setSelectedNode]);
@@ -138,14 +139,9 @@ export default function App() {
                 Systems-level intelligence for the Vrooli ecosystem
               </h1>
               <p className="max-w-2xl text-sm text-muted-foreground">
-                Explore dependency graphs, assess deployment readiness, and manage scenario metadata with
-                a responsive, accessible interface designed for compound intelligence.
+                Explore dependency graphs, assess deployment readiness, and manage scenario metadata with a responsive,
+                accessible interface designed for compound intelligence. Start in Orientation to get a quick walkthrough.
               </p>
-            </div>
-            <div className="rounded-xl border border-border/40 bg-background/60 px-4 py-3 text-right text-xs text-muted-foreground">
-              <p className="font-medium text-foreground">Live business signal</p>
-              <p>Revenue leverage: $10K - $50K per shipped scenario</p>
-              <p>Compound intelligence → Autonomous delivery</p>
             </div>
           </div>
         </header>
@@ -165,11 +161,25 @@ export default function App() {
         ) : null}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-6 grid w-full max-w-[600px] grid-cols-3">
+          <TabsList className="mb-6 grid w-full max-w-[800px] grid-cols-4">
+            <TabsTrigger value="overview">Orientation</TabsTrigger>
             <TabsTrigger value="graph">Dependency Graph</TabsTrigger>
             <TabsTrigger value="deployment">Deployment Readiness</TabsTrigger>
             <TabsTrigger value="catalog">Scenario Catalog</TabsTrigger>
           </TabsList>
+
+          {/* Tab 0: Orientation */}
+          <TabsContent value="overview" className="space-y-6">
+            <OrientationPage
+              onAnalyzeAll={() => void analyzeAll()}
+              onGoGraph={() => setActiveTab("graph")}
+              onGoDeployment={() => setActiveTab("deployment")}
+              onGoCatalog={() => setActiveTab("catalog")}
+              hasGraphData={Boolean(graph)}
+              hasScenarioSummaries={summaries.length > 0}
+              apiHealthy={apiHealthy}
+            />
+          </TabsContent>
 
           {/* Tab 1: Dependency Graph */}
           <TabsContent value="graph" className="space-y-6">

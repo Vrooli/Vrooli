@@ -42,6 +42,9 @@ export function ScenarioCatalogPanel({ scenarios, selected, loading, onSelect, o
             className="pl-9"
           />
         </div>
+        <p className="text-[11px] text-muted-foreground">
+          Tip: pick any scenario to see its scans, drift, and deployment fitness. If nothing is scanned yet, start with Scan in the table below.
+        </p>
         <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
           {filtered.map((scenario) => (
             <button
@@ -60,6 +63,11 @@ export function ScenarioCatalogPanel({ scenarios, selected, loading, onSelect, o
           {!filtered.length && !loading ? (
             <div className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-xs text-muted-foreground">
               No scenarios match your search.
+            </div>
+          ) : null}
+          {!filtered.length && loading ? (
+            <div className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-xs text-muted-foreground">
+              Loading scenarios…
             </div>
           ) : null}
         </div>

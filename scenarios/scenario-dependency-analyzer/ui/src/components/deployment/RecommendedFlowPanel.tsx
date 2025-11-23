@@ -5,6 +5,8 @@ import { Badge } from "../ui/badge";
 interface RecommendedFlowPanelProps {
   onScanAll?: () => void;
   onExportDAG?: () => void;
+  onOpenDocs?: () => void;
+  dagHelp?: string | null;
 }
 
 interface FlowStep {
@@ -51,7 +53,7 @@ const flowSteps: FlowStep[] = [
  * RecommendedFlowPanel - displays a guided workflow for deployment readiness
  * Helps users understand the sequential steps to prepare scenarios for deployment
  */
-export function RecommendedFlowPanel({ onScanAll, onExportDAG }: RecommendedFlowPanelProps) {
+export function RecommendedFlowPanel({ onScanAll, onExportDAG, onOpenDocs, dagHelp }: RecommendedFlowPanelProps) {
   return (
     <Card className="border border-primary/30 bg-primary/5">
       <CardHeader className="pb-3">
@@ -117,25 +119,41 @@ export function RecommendedFlowPanel({ onScanAll, onExportDAG }: RecommendedFlow
               className="rounded border border-border/60 bg-background/60 px-2 py-1 hover:bg-background/80 transition-colors"
               onClick={onExportDAG}
             >
-              📦 Export DAG (CLI)
+              📦 Export DAG help
             </button>
-            <button
-              className="rounded border border-border/60 bg-background/60 px-2 py-1 hover:bg-background/80 transition-colors"
-              onClick={() => window.open('/docs/deployment-guide.md', '_blank')}
-            >
-              📖 View docs
-            </button>
+            {onOpenDocs ? (
+              <button
+                className="rounded border border-border/60 bg-background/60 px-2 py-1 hover:bg-background/80 transition-colors"
+                onClick={onOpenDocs}
+              >
+                📖 View docs
+              </button>
+            ) : null}
           </div>
         </div>
 
-        <div className="pt-2 rounded bg-background/40 border border-border/30 p-2">
-          <p className="text-[11px] text-muted-foreground">
-            💡 <strong>Pro tip:</strong> Use the <code className="rounded bg-background/80 px-1 py-0.5 text-primary">deployment</code> CLI command to view detailed readiness reports:
-            <code className="block mt-1 rounded bg-background/80 px-2 py-1 text-xs">
-              scenario-dependency-analyzer deployment &lt;scenario&gt;
-            </code>
-          </p>
-        </div>
+        {dagHelp ? (
+          <div className="pt-2 rounded bg-background/40 border border-border/30 p-2">
+            <p className="text-[11px] text-muted-foreground">
+              💡 <strong>How to export a DAG:</strong>
+            </p>
+            <pre className="mt-1 rounded bg-background/80 px-2 py-1 text-xs text-foreground">
+scenario-dependency-analyzer dag export &lt;scenario&gt; --recursive
+            </pre>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Swap &lt;scenario&gt; for any name, then feed the JSON to deployment-manager.
+            </p>
+          </div>
+        ) : (
+          <div className="pt-2 rounded bg-background/40 border border-border/30 p-2">
+            <p className="text-[11px] text-muted-foreground">
+              💡 <strong>Pro tip:</strong> Use the <code className="rounded bg-background/80 px-1 py-0.5 text-primary">deployment</code> CLI command to view detailed readiness reports:
+              <code className="block mt-1 rounded bg-background/80 px-2 py-1 text-xs">
+                scenario-dependency-analyzer deployment &lt;scenario&gt;
+              </code>
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

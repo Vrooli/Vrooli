@@ -72,6 +72,7 @@ function getTierFitnessBadge(tierFitness: { best: number; worst: number } | null
 export function DeploymentDashboard({ scenarios, loading, onRefresh, onScanScenario, onSelectScenario }: DeploymentDashboardProps) {
   const [statuses, setStatuses] = useState<Map<string, ScenarioDeploymentStatus>>(new Map());
   const [loadingReports, setLoadingReports] = useState(false);
+  const [showDagHelp, setShowDagHelp] = useState(false);
 
   // Fetch deployment reports for all scenarios
   useEffect(() => {
@@ -201,25 +202,20 @@ export function DeploymentDashboard({ scenarios, loading, onRefresh, onScanScena
   const criticalCount = statusArray.filter(s => s.status === "critical").length;
   const notScannedCount = statusArray.filter(s => s.status === "not-scanned").length;
 
+  const handleScanAllNonReady = () => {
+    statusArray
+      .filter((s) => s.status !== "ready")
+      .forEach((s) => onScanScenario(s.scenario.name, false));
+  };
+
   return (
     <div className="space-y-6">
       {/* Recommended Flow Guide */}
       <RecommendedFlowPanel
-        onScanAll={() => {
-          // Trigger scan for all scenarios with issues
-          statusArray
-            .filter(s => s.status !== "ready")
-            .forEach(s => onScanScenario(s.scenario.name, false));
-        }}
-        onExportDAG={() => {
-          // Show CLI hint for DAG export
-          alert(
-            'To export a DAG, use the CLI:\n\n' +
-            'scenario-dependency-analyzer dag export <scenario> --recursive\n\n' +
-            'Example:\n' +
-            'scenario-dependency-analyzer dag export ecosystem-manager --recursive'
-          );
-        }}
+        onScanAll={handleScanAllNonReady}
+        onExportDAG={() => setShowDagHelp(true)}
+        dagHelp={showDagHelp ? "dag" : null}
+        onOpenDocs={() => window.open("/docs/deployment", "_blank")}
       />
 
       {/* Summary Stats */}
@@ -250,13 +246,27 @@ export function DeploymentDashboard({ scenarios, loading, onRefresh, onScanScena
         </Card>
       </div>
 
+      <Card className="border border-border/40 bg-background/40">
+        <CardContent className="py-4 text-xs text-muted-foreground">
+          <p className="font-medium text-foreground">Status legend</p>
+          <p className="mt-1">
+            Ready = metadata present, no blockers. Issues = gaps or blockers detected. Critical = missing all deployment
+            metadata. Not scanned = run Scan to populate data. Fitness is best/worst tier score; blockers are dependencies
+            that fail a tier. Scan &amp; Apply writes updates to service.json.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Metadata Gaps Panel */}
       {aggregatedGaps && <MetadataGapsPanel gaps={aggregatedGaps} />}
 
       {/* Scenarios Table */}
       <Card className="border border-border/40 bg-background/40">
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="text-base">Scenario Deployment Status</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between pb-1">
+          <div>
+            <CardTitle className="text-base">Scenario Deployment Status</CardTitle>
+            <p className="text-xs text-muted-foreground">Click any row to jump to details and remediation tips.</p>
+          </div>
           <Button
             variant="outline"
             size="sm"

@@ -112,6 +112,29 @@ export function GraphPage({
       </aside>
 
       <div className="relative min-h-[540px] overflow-hidden rounded-3xl border border-border/50 bg-background/40 shadow-2xl shadow-black/40">
+        {!loading && !graph ? (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 px-6 text-center">
+            <p className="text-base font-semibold text-foreground">No graph loaded yet</p>
+            <p className="max-w-xl text-sm text-muted-foreground">
+              Kick off a scan to populate the dependency graph. We’ll pull every scenario and resource
+              link and then you can filter or export the results.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow hover:opacity-90"
+                onClick={() => void onAnalyzeAll()}
+              >
+                Analyze all scenarios
+              </button>
+              <button
+                className="rounded-lg border border-border/60 px-3 py-2 text-xs font-semibold text-foreground hover:bg-background/70"
+                onClick={onRefresh}
+              >
+                Retry loading graph
+              </button>
+            </div>
+          </div>
+        ) : null}
         {loading ? (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/70 backdrop-blur">
             <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
