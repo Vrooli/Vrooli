@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
@@ -19,6 +19,7 @@ const TIER_INFO = [
 
 export function NewProfile() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: "",
@@ -45,6 +46,16 @@ export function NewProfile() {
   const handleSubmit = () => {
     createMutation.mutate(formData);
   };
+
+  useEffect(() => {
+    const scenarioParam = searchParams.get("scenario");
+    const tierParam = searchParams.get("tier");
+    setFormData((prev) => ({
+      ...prev,
+      scenario: scenarioParam || prev.scenario,
+      tiers: tierParam ? [Number(tierParam)] : prev.tiers,
+    }));
+  }, [searchParams]);
 
   const canProceed = () => {
     if (step === 1) return formData.name && formData.scenario;

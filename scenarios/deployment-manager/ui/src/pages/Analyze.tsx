@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Loader2, AlertCircle, CheckCircle2, AlertTriangle } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Search, Loader2, AlertCircle, CheckCircle2, AlertTriangle, HelpCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -8,7 +9,7 @@ import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
-import { analyzeDependencies } from "../lib/api";
+import { analyzeDependencies, listProfiles } from "../lib/api";
 
 const TIER_NAMES: Record<string, string> = {
   local: "Local/Dev",
@@ -32,8 +33,14 @@ function getFitnessIcon(score: number) {
 }
 
 export function Analyze() {
+  const [showHelp, setShowHelp] = useState(false);
+  const [searchParams] = useSearchParams();
   const [scenario, setScenario] = useState("");
   const [queryScenario, setQueryScenario] = useState("");
+  const { data: profiles } = useQuery({
+    queryKey: ["profiles"],
+    queryFn: listProfiles,
+  });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["analyze", queryScenario],
@@ -46,31 +53,75 @@ export function Analyze() {
     setQueryScenario(scenario);
   };
 
+  useEffect(() => {
+    const fromQuery = searchParams.get("scenario");
+    if (fromQuery) {
+      setScenario(fromQuery);
+      setQueryScenario(fromQuery);
+    }
+  }, [searchParams]);
+
+  const scenarioOptions = useMemo(() => {
+    const existing = Array.from(
+      new Set((profiles ?? []).map((p) => p.scenario).filter(Boolean))
+    );
+    const defaults = ["picker-wheel", "system-monitor", "browser-automation-studio"];
+    const combined = Array.from(new Set([...existing, ...defaults]));
+    const typed = scenario.trim().toLowerCase();
+    const filtered = combined.filter((name) =>
+      typed ? name.toLowerCase().includes(typed) : true
+    );
+    if (typed && !combined.some((name) => name.toLowerCase() === typed)) {
+      filtered.unshift(scenario);
+    }
+    return filtered;
+  }, [profiles, scenario]);
+
+  const selectScenario = (name: string) => {
+    setScenario(name);
+    setQueryScenario(name);
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Dependency Analysis</h1>
-        <p className="text-slate-400 mt-1">
-          Analyze scenario dependencies and calculate fitness scores for deployment tiers
-        </p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-bold">Dependency Analysis</h1>
+          <p className="text-slate-400 mt-1">
+            Pick a scenario to see dependencies, fitness, and blockers for each tier.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setShowHelp((v) => !v)} className="gap-2">
+          <HelpCircle className="h-4 w-4" />
+          {showHelp ? "Hide help" : "How this works"}
+        </Button>
       </div>
 
-      {/* Search */}
+      {showHelp && (
+        <Card>
+          <CardContent className="pt-4 space-y-2 text-sm text-slate-300">
+            <p>Select a scenario card below (pre-filled from profiles + examples) or type to filter.</p>
+            <p>We’ll auto-run analysis and show readiness by tier. From here, jump to swaps/secrets or export.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Search & choices */}
       <Card>
         <CardHeader>
-          <CardTitle>Analyze Scenario</CardTitle>
+          <CardTitle>Choose a scenario</CardTitle>
           <CardDescription>
-            Enter a scenario name to analyze its dependencies and deployment fitness
+            Start from an existing profile or suggested scenario; typing filters cards.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <form onSubmit={handleAnalyze} className="flex gap-3">
             <div className="flex-1">
               <Label htmlFor="scenario" className="sr-only">Scenario Name</Label>
               <Input
                 id="scenario"
-                placeholder="e.g., picker-wheel"
+                placeholder="Search or type a scenario name"
                 value={scenario}
                 onChange={(e) => setScenario(e.target.value)}
               />
@@ -84,6 +135,27 @@ export function Analyze() {
               Analyze
             </Button>
           </form>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {scenarioOptions.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => selectScenario(name)}
+                className="rounded-lg border border-white/10 bg-white/5 p-3 text-left transition hover:border-cyan-400 hover:bg-cyan-500/10"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold">{name}</p>
+                  {queryScenario === name && (
+                    <Badge variant="secondary">Selected</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  Click to run analysis and view fitness per tier.
+                </p>
+              </button>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
