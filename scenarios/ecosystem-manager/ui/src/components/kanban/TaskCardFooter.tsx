@@ -37,7 +37,10 @@ export function TaskCardFooter({ task, onViewDetails, onDelete }: TaskCardFooter
       <div className="flex items-center gap-1">
         {onViewDetails && (
           <button
-            onClick={onViewDetails}
+            onClick={(event) => {
+              event.stopPropagation();
+              onViewDetails();
+            }}
             className="p-1.5 rounded hover:bg-foreground/5 text-muted-foreground hover:text-foreground transition-colors"
             title="View details"
             aria-label={`View details for task ${task.title || task.id}`}
@@ -47,7 +50,10 @@ export function TaskCardFooter({ task, onViewDetails, onDelete }: TaskCardFooter
         )}
         {onDelete && (
           <button
-            onClick={onDelete}
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete();
+            }}
             className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors"
             title="Delete task"
             aria-label={`Delete task ${task.title || task.id}`}

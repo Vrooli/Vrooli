@@ -1,0 +1,508 @@
+package recorder
+
+import (
+	"context"
+	"encoding/base64"
+	"fmt"
+	"strings"
+	"time"
+
+	"crypto/sha256"
+	"encoding/hex"
+
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/storage"
+)
+
+// DBRecorder persists step outcomes and telemetry into the scenario database.
+// It intentionally normalizes payloads into existing ExecutionStep/Artifact
+// tables so UI/replay consumers can evolve without engine-specific fields.
+type DBRecorder struct {
+	repo    database.Repository
+	storage *storage.MinIOClient
+	log     *logrus.Logger
+}
+
+// NewDBRecorder constructs a Recorder backed by the database + optional storage.
+func NewDBRecorder(repo database.Repository, storage *storage.MinIOClient, log *logrus.Logger) *DBRecorder {
+	return &DBRecorder{repo: repo, storage: storage, log: log}
+}
+
+// RecordStepOutcome stores the execution step and key artifacts. For now, this
+// focuses on minimal parity: step row + outcome artifact + optional screenshot.
+func (r *DBRecorder) RecordStepOutcome(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (RecordResult, error) {
+	if r == nil || r.repo == nil {
+		return RecordResult{}, nil
+	}
+
+	outcome = sanitizeOutcome(outcome)
+
+	step := &database.ExecutionStep{
+		ID:          uuid.New(),
+		ExecutionID: plan.ExecutionID,
+		StepIndex:   outcome.StepIndex,
+		NodeID:      outcome.NodeID,
+		StepType:    outcome.StepType,
+		Status:      statusFromOutcome(outcome),
+		StartedAt:   outcome.StartedAt,
+		CompletedAt: outcome.CompletedAt,
+		DurationMs:  outcome.DurationMs,
+		Metadata: database.JSONMap{
+			"attempt":         outcome.Attempt,
+			"payload_version": outcome.PayloadVersion,
+		},
+	}
+	if outcome.Failure != nil {
+		step.Metadata["failure"] = outcome.Failure
+		if step.Error == "" {
+			step.Error = outcome.Failure.Message
+		}
+	}
+	if err := r.repo.CreateExecutionStep(ctx, step); err != nil {
+		return RecordResult{}, err
+	}
+
+	artifactIDs := make([]uuid.UUID, 0, 3)
+
+	// Store core outcome payload as JSON artifact to keep parity with existing exports.
+	outcomeArtifact := &database.ExecutionArtifact{
+		ID:           uuid.New(),
+		ExecutionID:  plan.ExecutionID,
+		StepID:       &step.ID,
+		StepIndex:    &outcome.StepIndex,
+		ArtifactType: "step_outcome",
+		Payload:      database.JSONMap{"outcome": outcome},
+	}
+	if err := r.repo.CreateExecutionArtifact(ctx, outcomeArtifact); err == nil {
+		artifactIDs = append(artifactIDs, outcomeArtifact.ID)
+	}
+
+	// Console logs
+	if len(outcome.ConsoleLogs) > 0 {
+		artifact := &database.ExecutionArtifact{
+			ID:           uuid.New(),
+			ExecutionID:  plan.ExecutionID,
+			StepID:       &step.ID,
+			StepIndex:    &outcome.StepIndex,
+			ArtifactType: "console",
+			Label:        deriveStepLabel(outcome),
+			Payload: database.JSONMap{
+				"entries": outcome.ConsoleLogs,
+			},
+		}
+		if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
+			artifactIDs = append(artifactIDs, artifact.ID)
+		}
+	}
+
+	// Network events
+	if len(outcome.Network) > 0 {
+		artifact := &database.ExecutionArtifact{
+			ID:           uuid.New(),
+			ExecutionID:  plan.ExecutionID,
+			StepID:       &step.ID,
+			StepIndex:    &outcome.StepIndex,
+			ArtifactType: "network",
+			Label:        deriveStepLabel(outcome),
+			Payload: database.JSONMap{
+				"events": outcome.Network,
+			},
+		}
+		if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
+			artifactIDs = append(artifactIDs, artifact.ID)
+		}
+	}
+
+	// Assertion result
+	if outcome.Assertion != nil {
+		artifact := &database.ExecutionArtifact{
+			ID:           uuid.New(),
+			ExecutionID:  plan.ExecutionID,
+			StepID:       &step.ID,
+			StepIndex:    &outcome.StepIndex,
+			ArtifactType: "assertion",
+			Label:        deriveStepLabel(outcome),
+			Payload: database.JSONMap{
+				"assertion": outcome.Assertion,
+			},
+		}
+		if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
+			artifactIDs = append(artifactIDs, artifact.ID)
+		}
+	}
+
+	// Extracted data
+	if outcome.ExtractedData != nil {
+		if len(outcome.ExtractedData) > 0 {
+			artifact := &database.ExecutionArtifact{
+				ID:           uuid.New(),
+				ExecutionID:  plan.ExecutionID,
+				StepID:       &step.ID,
+				StepIndex:    &outcome.StepIndex,
+				ArtifactType: "extracted_data",
+				Label:        deriveStepLabel(outcome),
+				Payload: database.JSONMap{
+					"value": outcome.ExtractedData,
+				},
+			}
+			if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
+				artifactIDs = append(artifactIDs, artifact.ID)
+			}
+		}
+	}
+
+	var timelineScreenshot string
+
+	// Persist screenshot if available.
+	if outcome.Screenshot != nil && len(outcome.Screenshot.Data) > 0 {
+		screenshotInfo, err := r.persistScreenshot(ctx, plan.ExecutionID, outcome)
+		if err != nil && r.log != nil {
+			r.log.WithError(err).Warn("Failed to persist screenshot artifact")
+		} else if screenshotInfo != nil {
+			artifact := &database.ExecutionArtifact{
+				ID:           uuid.New(),
+				ExecutionID:  plan.ExecutionID,
+				StepID:       &step.ID,
+				StepIndex:    &outcome.StepIndex,
+				ArtifactType: "screenshot",
+				StorageURL:   screenshotInfo.URL,
+				ThumbnailURL: screenshotInfo.ThumbnailURL,
+				SizeBytes:    &screenshotInfo.SizeBytes,
+				Payload: database.JSONMap{
+					"width":      screenshotInfo.Width,
+					"height":     screenshotInfo.Height,
+					"from_cache": outcome.Screenshot.FromCache,
+					"hash":       outcome.Screenshot.Hash,
+				},
+			}
+			if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
+				artifactIDs = append(artifactIDs, artifact.ID)
+			}
+			timelineScreenshot = screenshotInfo.URL
+		} else {
+			// Fallback: embed base64 if storage is unavailable.
+			artifact := &database.ExecutionArtifact{
+				ID:           uuid.New(),
+				ExecutionID:  plan.ExecutionID,
+				StepID:       &step.ID,
+				StepIndex:    &outcome.StepIndex,
+				ArtifactType: "screenshot_inline",
+				ContentType:  outcome.Screenshot.MediaType,
+				Payload: database.JSONMap{
+					"base64": base64.StdEncoding.EncodeToString(outcome.Screenshot.Data),
+					"hash":   outcome.Screenshot.Hash,
+				},
+			}
+			if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
+				artifactIDs = append(artifactIDs, artifact.ID)
+			}
+			timelineScreenshot = fmt.Sprintf("inline:%s", deriveStepLabel(outcome))
+		}
+	}
+
+	var domSnapshotArtifactID *uuid.UUID
+	var domSnapshotPreview string
+
+	// DOM snapshot
+	if outcome.DOMSnapshot != nil && outcome.DOMSnapshot.HTML != "" {
+		html := outcome.DOMSnapshot.HTML
+		truncated := false
+		if len(html) > contracts.DOMSnapshotMaxBytes {
+			html = html[:contracts.DOMSnapshotMaxBytes]
+			truncated = true
+			outcome.DOMSnapshot.Truncated = true
+		}
+		artifact := &database.ExecutionArtifact{
+			ID:           uuid.New(),
+			ExecutionID:  plan.ExecutionID,
+			StepID:       &step.ID,
+			StepIndex:    &outcome.StepIndex,
+			ArtifactType: "dom_snapshot",
+			Label:        deriveStepLabel(outcome),
+			Payload: database.JSONMap{
+				"html": html,
+			},
+		}
+		if truncated {
+			artifact.Payload["truncated"] = true
+		}
+		if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
+			artifactIDs = append(artifactIDs, artifact.ID)
+			domSnapshotArtifactID = &artifact.ID
+			domSnapshotPreview = truncateRunes(html, 256)
+		}
+	}
+
+	// Timeline frame for replay parity; include references to persisted artifacts.
+	timelinePayload := buildTimelinePayload(outcome, timelineScreenshot, domSnapshotArtifactID, domSnapshotPreview, artifactIDs)
+	artifact := &database.ExecutionArtifact{
+		ID:           uuid.New(),
+		ExecutionID:  plan.ExecutionID,
+		StepID:       &step.ID,
+		StepIndex:    &outcome.StepIndex,
+		ArtifactType: "timeline_frame",
+		Label:        deriveStepLabel(outcome),
+		Payload:      timelinePayload,
+	}
+	if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
+		artifactIDs = append(artifactIDs, artifact.ID)
+		timelineID := artifact.ID
+		return RecordResult{
+			StepID:             step.ID,
+			ArtifactIDs:        artifactIDs,
+			TimelineArtifactID: &timelineID,
+		}, nil
+	}
+
+	return RecordResult{
+		StepID:      step.ID,
+		ArtifactIDs: artifactIDs,
+	}, nil
+}
+
+// RecordTelemetry persists telemetry as lightweight artifacts so replay can
+// inspect dropped messages during early rollout.
+func (r *DBRecorder) RecordTelemetry(ctx context.Context, plan contracts.ExecutionPlan, telemetry contracts.StepTelemetry) error {
+	if r == nil || r.repo == nil {
+		return nil
+	}
+	artifact := &database.ExecutionArtifact{
+		ID:           uuid.New(),
+		ExecutionID:  plan.ExecutionID,
+		StepIndex:    &telemetry.StepIndex,
+		ArtifactType: "telemetry",
+		Payload: database.JSONMap{
+			"telemetry": telemetry,
+		},
+	}
+	return r.repo.CreateExecutionArtifact(ctx, artifact)
+}
+
+// MarkCrash annotates executions when the executor/engine terminates abruptly.
+func (r *DBRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, failure contracts.StepFailure) error {
+	if r == nil || r.repo == nil {
+		return nil
+	}
+	now := time.Now()
+	step := &database.ExecutionStep{
+		ID:          uuid.New(),
+		ExecutionID: executionID,
+		StepIndex:   -1,
+		NodeID:      "crash",
+		StepType:    "crash",
+		Status:      "failed",
+		StartedAt:   now,
+		CompletedAt: &now,
+		Error:       failure.Message,
+		Metadata: database.JSONMap{
+			"failure": failure,
+			"partial": true,
+		},
+	}
+	return r.repo.CreateExecutionStep(ctx, step)
+}
+
+func (r *DBRecorder) persistScreenshot(ctx context.Context, executionID uuid.UUID, outcome contracts.StepOutcome) (*storage.ScreenshotInfo, error) {
+	if r.storage == nil {
+		return nil, nil
+	}
+	if outcome.Screenshot == nil || len(outcome.Screenshot.Data) == 0 {
+		return nil, nil
+	}
+	contentType := outcome.Screenshot.MediaType
+	if contentType == "" {
+		contentType = "image/png"
+	}
+	return r.storage.StoreScreenshot(ctx, executionID, outcome.NodeID, outcome.Screenshot.Data, contentType)
+}
+
+func statusFromOutcome(outcome contracts.StepOutcome) string {
+	if outcome.Success {
+		return "completed"
+	}
+	if outcome.Failure != nil && outcome.Failure.Kind == contracts.FailureKindCancelled {
+		return "failed"
+	}
+	return "failed"
+}
+
+func deriveStepLabel(outcome contracts.StepOutcome) string {
+	if strings.TrimSpace(outcome.NodeID) != "" {
+		return outcome.NodeID
+	}
+	if outcome.StepIndex >= 0 {
+		return fmt.Sprintf("step-%d", outcome.StepIndex)
+	}
+	return "step"
+}
+
+func sanitizeOutcome(out contracts.StepOutcome) contracts.StepOutcome {
+	// DOM truncation
+	if out.DOMSnapshot != nil && len(out.DOMSnapshot.HTML) > contracts.DOMSnapshotMaxBytes {
+		hash := hashString(out.DOMSnapshot.HTML)
+		out.DOMSnapshot.HTML = out.DOMSnapshot.HTML[:contracts.DOMSnapshotMaxBytes]
+		out.DOMSnapshot.Truncated = true
+		out.DOMSnapshot.Hash = hash
+		if out.Notes == nil {
+			out.Notes = map[string]string{}
+		}
+		out.Notes["dom_truncated_hash"] = hash
+	}
+
+	out.ConsoleLogs = sanitizeConsole(out.ConsoleLogs)
+	out.Network = sanitizeNetwork(out.Network, &out)
+
+	return out
+}
+
+func sanitizeConsole(entries []contracts.ConsoleLogEntry) []contracts.ConsoleLogEntry {
+	if len(entries) == 0 {
+		return entries
+	}
+	sanitized := make([]contracts.ConsoleLogEntry, 0, len(entries))
+	for idx, entry := range entries {
+		if len(entry.Text) > contracts.ConsoleEntryMaxBytes {
+			hash := hashString(entry.Text)
+			entry.Text = entry.Text[:contracts.ConsoleEntryMaxBytes] + "[truncated]"
+			entry.Location = appendHash(entry.Location, hash)
+		}
+		entry.Timestamp = entry.Timestamp.UTC()
+		sanitized = append(sanitized, entry)
+		if idx >= contracts.ConsoleEntryMaxBytes { // prevent runaway artifacts in extreme cases
+			break
+		}
+	}
+	return sanitized
+}
+
+func sanitizeNetwork(events []contracts.NetworkEvent, out *contracts.StepOutcome) []contracts.NetworkEvent {
+	if len(events) == 0 {
+		return events
+	}
+	sanitized := make([]contracts.NetworkEvent, 0, len(events))
+	for idx, ev := range events {
+		if len(ev.RequestBodyPreview) > contracts.NetworkPayloadPreviewMaxBytes {
+			ev.Truncated = true
+			ev.RequestBodyPreview = ev.RequestBodyPreview[:contracts.NetworkPayloadPreviewMaxBytes]
+		}
+		if len(ev.ResponseBodyPreview) > contracts.NetworkPayloadPreviewMaxBytes {
+			ev.Truncated = true
+			ev.ResponseBodyPreview = ev.ResponseBodyPreview[:contracts.NetworkPayloadPreviewMaxBytes]
+		}
+		ev.Timestamp = ev.Timestamp.UTC()
+		sanitized = append(sanitized, ev)
+		if idx >= contracts.NetworkPayloadPreviewMaxBytes { // avoid unbounded slices from noisy pages
+			break
+		}
+	}
+	return sanitized
+}
+
+func hashString(val string) string {
+	sum := sha256.Sum256([]byte(val))
+	return hex.EncodeToString(sum[:])
+}
+
+func appendHash(location, hash string) string {
+	if strings.TrimSpace(hash) == "" {
+		return location
+	}
+	if strings.TrimSpace(location) == "" {
+		return "hash:" + hash
+	}
+	return location + " hash:" + hash
+}
+
+func toStringIDs(ids []uuid.UUID) []string {
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, id.String())
+	}
+	return out
+}
+
+// truncateRunes trims a string to the specified rune count to avoid cutting
+// multibyte characters mid-codepoint.
+func truncateRunes(s string, limit int) string {
+	if limit <= 0 {
+		return ""
+	}
+	runes := []rune(s)
+	if len(runes) <= limit {
+		return s
+	}
+	return string(runes[:limit])
+}
+
+func buildTimelinePayload(outcome contracts.StepOutcome, screenshotURL string, domSnapshotID *uuid.UUID, domSnapshotPreview string, artifactIDs []uuid.UUID) map[string]any {
+	payload := map[string]any{
+		"stepIndex":     outcome.StepIndex,
+		"nodeId":        outcome.NodeID,
+		"stepType":      outcome.StepType,
+		"screenshotUrl": screenshotURL,
+		"success":       outcome.Success,
+		"attempt":       outcome.Attempt,
+		"durationMs":    outcome.DurationMs,
+	}
+	if len(outcome.CursorTrail) > 0 {
+		payload["cursorTrail"] = outcome.CursorTrail
+	}
+	if outcome.Failure != nil || !outcome.Success {
+		payload["partial"] = true
+	}
+	if outcome.StartedAt.Unix() > 0 {
+		payload["startedAt"] = outcome.StartedAt
+	}
+	if outcome.CompletedAt != nil {
+		payload["completedAt"] = *outcome.CompletedAt
+	}
+	if outcome.FinalURL != "" {
+		payload["finalUrl"] = outcome.FinalURL
+	}
+	if outcome.ElementBoundingBox != nil {
+		payload["elementBoundingBox"] = outcome.ElementBoundingBox
+	}
+	if outcome.ClickPosition != nil {
+		payload["clickPosition"] = outcome.ClickPosition
+	}
+	if outcome.FocusedElement != nil {
+		payload["focusedElement"] = outcome.FocusedElement
+	}
+	if len(outcome.HighlightRegions) > 0 {
+		payload["highlightRegions"] = outcome.HighlightRegions
+	}
+	if len(outcome.MaskRegions) > 0 {
+		payload["maskRegions"] = outcome.MaskRegions
+	}
+	if outcome.ZoomFactor != 0 {
+		payload["zoomFactor"] = outcome.ZoomFactor
+	}
+	if outcome.ExtractedData != nil {
+		payload["extractedDataPreview"] = outcome.ExtractedData
+	}
+	if outcome.Assertion != nil {
+		payload["assertion"] = outcome.Assertion
+	}
+	if len(outcome.ConsoleLogs) > 0 {
+		payload["consoleLogCount"] = len(outcome.ConsoleLogs)
+	}
+	if len(outcome.Network) > 0 {
+		payload["networkEventCount"] = len(outcome.Network)
+	}
+	if outcome.Failure != nil && strings.TrimSpace(outcome.Failure.Message) != "" {
+		payload["error"] = strings.TrimSpace(outcome.Failure.Message)
+	}
+	if domSnapshotID != nil {
+		payload["domSnapshotArtifactId"] = domSnapshotID.String()
+	}
+	if domSnapshotPreview != "" {
+		payload["domSnapshotPreview"] = domSnapshotPreview
+	}
+	if len(artifactIDs) > 0 {
+		payload["artifactIds"] = toStringIDs(artifactIDs)
+	}
+	return payload
+}

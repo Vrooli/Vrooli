@@ -3,11 +3,12 @@
  * Main Kanban board with 7 status columns and drag-and-drop functionality
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
+  closestCenter,
+  pointerWithin,
   PointerSensor,
   useSensor,
   useSensors,
@@ -60,6 +61,15 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
     })
   );
 
+  // Prefer pointer collisions to avoid snapping back to the source column
+  const collisionDetection = useCallback((args: Parameters<typeof pointerWithin>[0]) => {
+    const intersections = pointerWithin(args);
+    if (intersections.length > 0) {
+      return intersections;
+    }
+    return closestCenter(args);
+  }, []);
+
   // Group tasks by status
   const tasksByStatus = useMemo(() => {
     const grouped: Record<TaskStatus, Task[]> = {
@@ -97,7 +107,29 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
     if (!over) return;
 
     const taskId = active.id as string;
-    const newStatus = over.id as TaskStatus;
+    const overType = over.data.current?.type;
+    let newStatus: TaskStatus | null = null;
+
+    if (overType === 'column') {
+      newStatus = over.data.current?.status as TaskStatus | null;
+    } else if (overType === 'task') {
+      // Dropped onto another task - infer status from that task
+      const overTask = over.data.current?.task as Task | undefined;
+      newStatus = overTask?.status ?? null;
+      if (!newStatus) {
+        const targetTask = tasks.find(t => t.id === over.id);
+        newStatus = targetTask?.status ?? null;
+      }
+    } else if (typeof over.id === 'string') {
+      // Fallback: if over.id matches a column status
+      const maybeStatus = over.id as TaskStatus;
+      if (COLUMNS.some(col => col.status === maybeStatus)) {
+        newStatus = maybeStatus;
+      }
+    }
+
+    if (!newStatus) return;
+
     const task = tasks.find(t => t.id === taskId);
 
     // Only update if status actually changed
@@ -186,7 +218,7 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
     <div className="h-full min-h-0 flex flex-col overflow-hidden">
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={collisionDetection}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
@@ -206,12 +238,8 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
         </div>
 
         {/* Drag Overlay - Shows the task being dragged */}
-        <DragOverlay>
-          {activeTask ? (
-            <div className="rotate-3">
-              <TaskCard task={activeTask} />
-            </div>
-          ) : null}
+        <DragOverlay dropAnimation={null}>
+          {activeTask ? <TaskCard task={activeTask} dragOverlay /> : null}
         </DragOverlay>
       </DndContext>
     </div>
