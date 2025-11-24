@@ -73,7 +73,13 @@ type ApiSettingsPayload = {
   task_timeout?: number;
   idle_timeout_cap?: number;
   condensed_mode?: boolean;
+  condensedMode?: boolean;
   max_tasks?: number;
+  display?: {
+    theme?: string;
+    condensed_mode?: boolean;
+    condensedMode?: boolean;
+  };
   recycler?: {
     enabled_for?: string;
     interval_seconds?: number;
@@ -97,7 +103,13 @@ const isModelProvider = (value: unknown): value is Settings['recycler']['model_p
 function mapApiSettingsToUi(raw: ApiSettingsPayload | Settings): Settings {
   const source = (raw as ApiSettingsPayload)?.settings ?? raw ?? {};
   const recycler = (source as ApiSettingsPayload)?.recycler ?? {};
-  const theme = (source as ApiSettingsPayload)?.theme;
+  const display = (source as ApiSettingsPayload)?.display ?? {};
+  const theme = (source as ApiSettingsPayload)?.theme ?? display?.theme;
+  const condensed =
+    (source as ApiSettingsPayload)?.condensed_mode ??
+    (source as ApiSettingsPayload)?.condensedMode ??
+    display?.condensed_mode ??
+    (display as any)?.condensedMode;
 
   return {
     processor: {
@@ -123,8 +135,7 @@ function mapApiSettingsToUi(raw: ApiSettingsPayload | Settings): Settings {
     },
     display: {
       theme: isTheme(theme) ? theme : DEFAULT_SETTINGS.display.theme,
-      condensed_mode:
-        (source as ApiSettingsPayload)?.condensed_mode ?? DEFAULT_SETTINGS.display.condensed_mode,
+      condensed_mode: condensed ?? DEFAULT_SETTINGS.display.condensed_mode,
     },
     recycler: {
       enabled_for: isEnabledFor(recycler?.enabled_for)
@@ -283,27 +294,58 @@ const normalizeRunningProcess = (raw: any): RunningProcess => {
 };
 
 function mapUiSettingsToApi(settings: Settings): ApiSettingsPayload {
-  return {
-    theme: settings.display.theme,
+  const processor = {
     slots: settings.processor.concurrent_slots,
     refresh_interval: settings.processor.refresh_interval,
     active: settings.processor.active,
+    max_tasks: settings.processor.max_tasks ?? 0,
+  };
+
+  const agent = {
     max_turns: settings.agent.max_turns,
     allowed_tools: settings.agent.allowed_tools,
     skip_permissions: settings.agent.skip_permissions,
     task_timeout: settings.agent.task_timeout_minutes,
     idle_timeout_cap: settings.agent.idle_timeout_cap_minutes,
+  };
+
+  const display = {
+    theme: settings.display.theme,
     condensed_mode: settings.display.condensed_mode,
-    max_tasks: settings.processor.max_tasks ?? 0,
-    recycler: {
-      enabled_for: settings.recycler.enabled_for,
-      interval_seconds: settings.recycler.recycle_interval,
-      model_provider: settings.recycler.model_provider,
-      model_name: settings.recycler.model_name,
-      completion_threshold: settings.recycler.completion_threshold,
-      failure_threshold: settings.recycler.failure_threshold,
+    condensedMode: settings.display.condensed_mode,
+  };
+
+  const recycler = {
+    enabled_for: settings.recycler.enabled_for,
+    interval_seconds: settings.recycler.recycle_interval,
+    model_provider: settings.recycler.model_provider,
+    model_name: settings.recycler.model_name,
+    completion_threshold: settings.recycler.completion_threshold,
+    failure_threshold: settings.recycler.failure_threshold,
+  };
+
+  const payload: ApiSettingsPayload = {
+    // Flat shape
+    theme: display.theme,
+    ...processor,
+    ...agent,
+    condensed_mode: display.condensed_mode,
+    condensedMode: display.condensedMode,
+    display,
+    recycler,
+    // Legacy nested shape under "settings"
+    settings: {
+      ...processor,
+      ...agent,
+      theme: display.theme,
+      condensed_mode: display.condensed_mode,
+      condensedMode: display.condensedMode,
+      display,
+      recycler,
     },
   };
+
+  return payload;
 }
 
 // API base resolution (async, uses /config endpoint)

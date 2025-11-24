@@ -55,6 +55,7 @@ const (
 	DefaultAllowedTools    = "Read,Write,Edit,Bash,LS,Glob,Grep"
 	DefaultSkipPermissions = true
 	DefaultActive          = false
+	DefaultCondensedMode   = false
 
 	// Recycler defaults
 	DefaultRecyclerEnabledFor          = "off"

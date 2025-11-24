@@ -17,7 +17,8 @@ type RecyclerSettings struct {
 // Settings represents the application settings
 type Settings struct {
 	// Display settings
-	Theme string `json:"theme"`
+	Theme         string `json:"theme"`
+	CondensedMode bool   `json:"condensed_mode"`
 
 	// Queue processor settings
 	Slots           int  `json:"slots"`
@@ -40,6 +41,7 @@ type Settings struct {
 func newDefaultSettings() Settings {
 	return Settings{
 		Theme:           "light",
+		CondensedMode:   DefaultCondensedMode,
 		Slots:           DefaultSlots,
 		RefreshInterval: DefaultRefreshInterval,
 		Active:          DefaultActive, // ALWAYS start/reset inactive for safety

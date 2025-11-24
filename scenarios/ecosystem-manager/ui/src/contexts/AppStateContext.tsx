@@ -3,8 +3,9 @@
  * Manages global UI state (filters, column visibility, modals)
  */
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { TaskFilters, TaskStatus, Settings } from '../types/api';
+import { useSettings } from '../hooks/useSettings';
 
 interface ColumnVisibility {
   pending: boolean;
@@ -43,6 +44,7 @@ interface AppState {
 
   // Cached settings (for quick access without query)
   cachedSettings: Settings | null;
+  setCachedSettings: React.Dispatch<React.SetStateAction<Settings | null>>;
 }
 
 const AppStateContext = createContext<AppState | undefined>(undefined);
@@ -73,6 +75,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [isFilterPanelOpen, setFilterPanelOpen] = useState(false);
   const [activeModal, setActiveModalState] = useState<string | null>(null);
   const [cachedSettings, setCachedSettings] = useState<Settings | null>(null);
+  const { data: fetchedSettings } = useSettings();
 
   const setFilters = useCallback((newFilters: TaskFilters) => {
     setFiltersState(newFilters);
@@ -110,6 +113,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setActiveModalState(null);
   }, []);
 
+  // Keep cached settings in sync with the API response
+  useEffect(() => {
+    if (fetchedSettings) {
+      setCachedSettings(fetchedSettings);
+    }
+  }, [fetchedSettings]);
+
   const value: AppState = {
     filters,
     setFilters,
@@ -127,6 +137,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     openModal,
     closeModal,
     cachedSettings,
+    setCachedSettings,
   };
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

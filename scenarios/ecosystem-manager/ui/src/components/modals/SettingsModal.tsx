@@ -24,6 +24,7 @@ import { RateLimitsTab } from './settings/RateLimitsTab';
 import { RecyclerTab } from './settings/RecyclerTab';
 import { AutoSteerTab } from './settings/AutoSteerTab';
 import type { Settings } from '@/types/api';
+import { useAppState } from '@/contexts/AppStateContext';
 
 interface SettingsModalProps {
   open: boolean;
@@ -34,6 +35,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const { data: settings, isLoading } = useSettings();
   const saveSettings = useSaveSettings();
   const resetSettings = useResetSettings();
+  const { setCachedSettings } = useAppState();
 
   const [localSettings, setLocalSettings] = useState<Settings | null>(null);
   const [activeTab, setActiveTab] = useState('processor');
@@ -48,7 +50,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const handleSave = () => {
     if (localSettings) {
       saveSettings.mutate(localSettings, {
-        onSuccess: () => {
+        onSuccess: (updated) => {
+          setCachedSettings(updated);
           onOpenChange(false);
         },
       });
@@ -59,6 +62,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     resetSettings.mutate(undefined, {
       onSuccess: (resetData) => {
         setLocalSettings(JSON.parse(JSON.stringify(resetData)));
+        setCachedSettings(resetData);
       },
     });
   };

@@ -44,7 +44,7 @@ export function ProcessMonitor() {
           />
 
           {/* Dropdown panel */}
-          <div className="absolute right-0 top-full mt-2 w-80 bg-background border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+          <div className="absolute right-0 bottom-full mb-2 w-80 bg-background border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
             <div className="p-3 border-b">
               <h3 className="font-semibold text-sm">Running Processes</h3>
               <p className="text-xs text-muted-foreground mt-0.5">

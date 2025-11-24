@@ -89,8 +89,27 @@ export function useDeleteTask() {
 
   return useMutation({
     mutationFn: (id: string) => api.deleteTask(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.tasks.lists() });
+
+      const previousTasks = queryClient.getQueriesData({ queryKey: queryKeys.tasks.lists() });
+
+      queryClient.setQueriesData<Task[]>({ queryKey: queryKeys.tasks.lists() }, (old) => {
+        if (!old) return old;
+        return old.filter((task) => task.id !== id);
+      });
+
+      return { previousTasks };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousTasks) {
+        context.previousTasks.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
     },
   });
 }

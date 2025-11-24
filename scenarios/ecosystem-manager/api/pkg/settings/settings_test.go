@@ -37,6 +37,9 @@ func TestGetSettings(t *testing.T) {
 	if settings.Active != DefaultActive {
 		t.Errorf("Expected Active=%v, got %v", DefaultActive, settings.Active)
 	}
+	if settings.CondensedMode != DefaultCondensedMode {
+		t.Errorf("Expected CondensedMode=%v, got %v", DefaultCondensedMode, settings.CondensedMode)
+	}
 }
 
 // TestUpdateSettings verifies that UpdateSettings correctly updates settings
@@ -55,6 +58,7 @@ func TestUpdateSettings(t *testing.T) {
 		SkipPermissions: false,
 		TaskTimeout:     120,
 		IdleTimeoutCap:  90,
+		CondensedMode:   true,
 		Recycler: RecyclerSettings{
 			EnabledFor:          "both",
 			IntervalSeconds:     600,
@@ -96,6 +100,9 @@ func TestUpdateSettings(t *testing.T) {
 	if retrieved.IdleTimeoutCap != 90 {
 		t.Errorf("Expected IdleTimeoutCap=90, got %d", retrieved.IdleTimeoutCap)
 	}
+	if !retrieved.CondensedMode {
+		t.Error("Expected CondensedMode=true, got false")
+	}
 	if retrieved.Recycler.EnabledFor != "both" {
 		t.Errorf("Expected Recycler.EnabledFor='both', got '%s'", retrieved.Recycler.EnabledFor)
 	}
@@ -126,6 +133,7 @@ func TestResetSettings(t *testing.T) {
 		SkipPermissions: false,
 		TaskTimeout:     240,
 		IdleTimeoutCap:  180,
+		CondensedMode:   true,
 	})
 
 	// Reset
@@ -156,6 +164,9 @@ func TestResetSettings(t *testing.T) {
 	if reset.SkipPermissions != DefaultSkipPermissions {
 		t.Errorf("Expected SkipPermissions=%v after reset, got %v", DefaultSkipPermissions, reset.SkipPermissions)
 	}
+	if reset.CondensedMode != DefaultCondensedMode {
+		t.Errorf("Expected CondensedMode=%v after reset, got %v", DefaultCondensedMode, reset.CondensedMode)
+	}
 
 	// Verify GetSettings also returns defaults
 	current := GetSettings()
@@ -184,6 +195,7 @@ func TestIsActive(t *testing.T) {
 		SkipPermissions: DefaultSkipPermissions,
 		TaskTimeout:     DefaultTaskTimeout,
 		IdleTimeoutCap:  DefaultIdleTimeoutCap,
+		CondensedMode:   false,
 	})
 
 	if !IsActive() {
@@ -200,6 +212,7 @@ func TestIsActive(t *testing.T) {
 		SkipPermissions: DefaultSkipPermissions,
 		TaskTimeout:     DefaultTaskTimeout,
 		IdleTimeoutCap:  DefaultIdleTimeoutCap,
+		CondensedMode:   false,
 	})
 
 	if IsActive() {
@@ -315,6 +328,9 @@ func TestDefaultsMatchConstants(t *testing.T) {
 	}
 	if defaults.Active != DefaultActive {
 		t.Errorf("Default Active mismatch: constant=%v, function=%v", DefaultActive, defaults.Active)
+	}
+	if defaults.CondensedMode != DefaultCondensedMode {
+		t.Errorf("Default CondensedMode mismatch: constant=%v, function=%v", DefaultCondensedMode, defaults.CondensedMode)
 	}
 
 	// Recycler settings

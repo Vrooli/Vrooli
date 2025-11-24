@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Activity, ChevronsDown, Clock3, History, LineChart, RefreshCw, X } from 'lucide-react';
+import { Activity, ChevronsDown, Clock3, History, LineChart, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -124,29 +124,36 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
     return '--';
   };
 
-  const getLevelColor = (level: LogEntry['level']) => {
+  const getLevelStyles = (level: LogEntry['level']) => {
     switch (level) {
       case 'error':
-        return 'text-red-400 bg-red-500/10 border-red-500/30';
+        return {
+          container: 'border-red-500/40 bg-red-500/10 shadow-[0_0_0_1px_rgba(248,113,113,0.25)]',
+          accent: 'bg-red-500/70',
+          badge: 'bg-red-500/20 text-red-100 border-red-500/50',
+          timestamp: 'text-red-100/80',
+        };
       case 'warning':
-        return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30';
+        return {
+          container: 'border-amber-400/50 bg-amber-400/10 shadow-[0_0_0_1px_rgba(251,191,36,0.2)]',
+          accent: 'bg-amber-400/80',
+          badge: 'bg-amber-500/20 text-amber-100 border-amber-500/50',
+          timestamp: 'text-amber-100/80',
+        };
       case 'info':
-        return 'text-blue-400 bg-blue-500/10 border-blue-500/30';
+        return {
+          container: 'border-blue-400/40 bg-blue-500/10 shadow-[0_0_0_1px_rgba(96,165,250,0.2)]',
+          accent: 'bg-blue-400/80',
+          badge: 'bg-blue-500/20 text-blue-100 border-blue-500/50',
+          timestamp: 'text-blue-100/80',
+        };
       default:
-        return 'text-slate-400 bg-slate-500/10 border-slate-500/30';
-    }
-  };
-
-  const getLevelBadgeColor = (level: LogEntry['level']) => {
-    switch (level) {
-      case 'error':
-        return 'bg-red-500/20 text-red-300 border-red-500/50';
-      case 'warning':
-        return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50';
-      case 'info':
-        return 'bg-blue-500/20 text-blue-300 border-blue-500/50';
-      default:
-        return 'bg-slate-500/20 text-slate-300 border-slate-500/50';
+        return {
+          container: 'border-slate-500/40 bg-slate-700/20',
+          accent: 'bg-slate-400/70',
+          badge: 'bg-slate-500/20 text-slate-200 border-slate-500/50',
+          timestamp: 'text-slate-200/80',
+        };
     }
   };
 
@@ -239,16 +246,8 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl h-[82vh] flex flex-col bg-slate-950/95 border border-white/10 text-white shadow-2xl">
-        <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <DialogHeader className="flex flex-row items-center space-y-0 pb-2">
           <DialogTitle>System Logs & History</DialogTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-            className="h-8 w-8 p-0"
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </DialogHeader>
 
         <Tabs
@@ -361,33 +360,38 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                     No logs found
                   </div>
                 ) : (
-                  logs.map((log, index) => (
-                    <div
-                      key={`${log.timestamp}-${index}`}
-                      className={`flex gap-3 p-3 rounded-lg border ${getLevelColor(log.level)} bg-slate-950/60`}
-                    >
-                      <div className="flex-shrink-0 text-xs text-slate-300 font-mono w-40">
-                        {formatDateTime(log.timestamp)}
-                      </div>
+                  logs.map((log, index) => {
+                    const levelStyles = getLevelStyles(log.level);
+                    return (
+                      <div
+                        key={`${log.timestamp}-${index}`}
+                        className={`relative flex gap-3 p-3 rounded-lg border overflow-hidden ${levelStyles.container}`}
+                      >
+                        <div className={`absolute inset-y-0 left-0 w-1 ${levelStyles.accent}`} />
 
-                      <div className="flex-shrink-0">
-                        <span
-                          className={`text-xs font-semibold px-2 py-1 rounded border uppercase ${getLevelBadgeColor(log.level)}`}
-                        >
-                          {log.level}
-                        </span>
-                      </div>
+                        <div className={`flex-shrink-0 text-xs font-mono w-40 ${levelStyles.timestamp}`}>
+                          {formatDateTime(log.timestamp)}
+                        </div>
 
-                      <div className="flex-1 text-sm break-words text-slate-100">
-                        {log.message}
-                        {log.context && Object.keys(log.context).length > 0 && (
-                          <pre className="mt-2 text-xs text-slate-300 overflow-x-auto bg-white/5 rounded p-2">
-                            {JSON.stringify(log.context, null, 2)}
-                          </pre>
-                        )}
+                        <div className="flex-shrink-0">
+                          <span
+                            className={`text-xs font-semibold px-2 py-1 rounded border uppercase ${levelStyles.badge}`}
+                          >
+                            {log.level}
+                          </span>
+                        </div>
+
+                        <div className="flex-1 text-sm break-words text-slate-100">
+                          {log.message}
+                          {log.context && Object.keys(log.context).length > 0 && (
+                            <pre className="mt-2 text-xs text-slate-300 overflow-x-auto bg-white/5 rounded p-2">
+                              {JSON.stringify(log.context, null, 2)}
+                            </pre>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
                 <div ref={logsEndRef} />
               </div>
