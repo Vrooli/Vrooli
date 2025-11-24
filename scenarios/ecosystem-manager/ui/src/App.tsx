@@ -9,6 +9,8 @@ import { FilterPanel } from "./components/filters/FilterPanel";
 import { FloatingControls } from "./components/controls/FloatingControls";
 import { useDeleteTask } from "./hooks/useTaskMutations";
 import type { Task } from "./types/api";
+import { useEffect } from "react";
+import { ensureDiscoveryLoaded } from "./stores/discoveryStore";
 
 export default function App() {
   const { activeModal, setActiveModal, isFilterPanelOpen } = useAppState();
@@ -30,6 +32,10 @@ export default function App() {
       },
     });
   };
+
+  useEffect(() => {
+    ensureDiscoveryLoaded();
+  }, []);
 
   return (
     <div className="h-screen bg-background text-foreground flex flex-col">

@@ -62,7 +62,6 @@ export interface TaskFilters {
 }
 
 export interface CreateTaskInput {
-  title: string;
   type: TaskType;
   operation: OperationType;
   priority: Priority;
@@ -73,11 +72,11 @@ export interface CreateTaskInput {
 }
 
 export interface UpdateTaskInput {
-  title?: string;
   priority?: Priority;
   notes?: string;
   auto_steer_profile_id?: string;
   auto_requeue?: boolean;
+  target?: string[];
 }
 
 // ==================== Queue Types ====================
@@ -289,17 +288,24 @@ export interface ProfilePerformance {
 
 export interface Resource {
   name: string;
-  display_name: string;
-  type: string;
-  status: 'running' | 'stopped' | 'unknown';
+  display_name?: string;
   description?: string;
+  path?: string;
+  port?: number;
+  category?: string;
+  version?: string;
+  healthy?: boolean;
+  status?: string;
 }
 
 export interface Scenario {
   name: string;
-  display_name: string;
-  status: 'running' | 'stopped' | 'unknown';
+  display_name?: string;
+  status?: string;
   description?: string;
+  path?: string;
+  category?: string;
+  version?: string;
 }
 
 export interface Operation {
@@ -311,6 +317,13 @@ export interface Operation {
 export interface Category {
   name: string;
   display_name: string;
+}
+
+export interface ActiveTarget {
+  target: string;
+  task_id: string;
+  status: TaskStatus;
+  title?: string;
 }
 
 // ==================== Logs Types ====================

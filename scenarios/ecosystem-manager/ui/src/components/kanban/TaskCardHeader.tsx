@@ -5,7 +5,6 @@
 
 import { Copy, Check } from 'lucide-react';
 import { useState } from 'react';
-import { TaskBadges } from './TaskBadges';
 import { PriorityIndicator } from './PriorityIndicator';
 import type { Task } from '../../types/api';
 
@@ -29,7 +28,7 @@ export function TaskCardHeader({ task }: TaskCardHeaderProps) {
   return (
     <div className="flex items-start justify-between gap-2 mb-2">
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={(event) => {
               event.stopPropagation();
@@ -46,7 +45,6 @@ export function TaskCardHeader({ task }: TaskCardHeaderProps) {
             )}
           </button>
         </div>
-        <TaskBadges type={task.type} operation={task.operation} />
       </div>
       <PriorityIndicator priority={task.priority} />
     </div>

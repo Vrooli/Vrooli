@@ -32,7 +32,7 @@ import { useAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExec
 import { api } from '@/lib/api';
 import { markdownToHtml } from '@/lib/markdown';
 import { queryKeys } from '@/lib/queryKeys';
-import type { Task, Priority, ExecutionHistory } from '@/types/api';
+import type { Task, Priority, ExecutionHistory, UpdateTaskInput, LogEntry } from '@/types/api';
 
 interface TaskDetailsModalProps {
   task: Task | null;
@@ -56,7 +56,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   const [activeTab, setActiveTab] = useState('details');
 
   // Form state
-  const [title, setTitle] = useState('');
+  const [targetName, setTargetName] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [notes, setNotes] = useState('');
   const [autoSteerProfileId, setAutoSteerProfileId] = useState<string>(AUTO_STEER_NONE);
@@ -80,7 +80,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
     queryFn: () => api.getTaskLogs(task!.id),
     enabled: !!task && activeTab === 'logs',
   });
-  const logs = Array.isArray(rawLogs) ? rawLogs : (rawLogs as any)?.entries ?? [];
+  const logs: LogEntry[] = Array.isArray(rawLogs) ? rawLogs as LogEntry[] : ((rawLogs as any)?.entries ?? []) as LogEntry[];
 
   // Fetch task prompt
   const { data: promptData } = useQuery({
@@ -121,7 +121,10 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   // Initialize form when task changes
   useEffect(() => {
     if (task) {
-      setTitle(task.title);
+      const derivedTarget = (Array.isArray(task.target) && task.target.length > 0)
+        ? task.target[0]
+        : task.title;
+      setTargetName(derivedTarget || '');
       setPriority(task.priority);
       setNotes(task.notes || '');
       setAutoSteerProfileId(task.auto_steer_profile_id || AUTO_STEER_NONE);
@@ -294,15 +297,25 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   };
 
   const handleSave = () => {
+    if (!task) return;
+    if (canEditTarget && !normalizedTarget) {
+      return;
+    }
+
+    const updates: UpdateTaskInput = {
+      priority,
+      notes: notes.trim() || undefined,
+      auto_steer_profile_id: autoSteerProfileId === AUTO_STEER_NONE ? undefined : autoSteerProfileId,
+      auto_requeue: autoRequeue,
+    };
+
+    if (canEditTarget && normalizedTarget) {
+      updates.target = [normalizedTarget];
+    }
+
     updateTask.mutate({
       id: task.id,
-      updates: {
-        title: title.trim(),
-        priority,
-        notes: notes.trim() || undefined,
-        auto_steer_profile_id: autoSteerProfileId === AUTO_STEER_NONE ? undefined : autoSteerProfileId,
-        auto_requeue: autoRequeue,
-      },
+      updates,
     }, {
       onSuccess: () => {
         onOpenChange(false);
@@ -331,6 +344,9 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
     });
   };
 
+  const canEditTarget = task?.operation === 'generator' && task?.status === 'pending';
+  const normalizedTarget = targetName.trim();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl md:max-w-6xl max-h-[90vh] overflow-y-auto">
@@ -355,12 +371,19 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
             <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="detail-title">Title</Label>
+                  <Label htmlFor="detail-target">Target</Label>
                   <Input
-                    id="detail-title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    id="detail-target"
+                    value={targetName}
+                    onChange={(e) => setTargetName(e.target.value)}
+                    disabled={!canEditTarget}
+                    placeholder="No target recorded"
                   />
+                  {!canEditTarget && (
+                    <p className="text-xs text-muted-foreground">
+                      Target can only be edited for pending generator tasks.
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -390,19 +413,6 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                     </SelectContent>
                   </Select>
                 </div>
-
-                {task.target && task.target.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Targets</Label>
-                    <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
-                      {task.target.map((t, idx) => (
-                        <div key={idx} className="text-sm py-1">
-                          • {t}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {(profiles && profiles.length > 0) && (
                   <div className="space-y-2">
@@ -534,7 +544,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                         </div>
                         <Button
                           size="sm"
-                          variant="secondary"
+                          variant="outline"
                           onClick={() => setActiveTab('executions')}
                         >
                           View details
@@ -761,7 +771,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
           </Button>
           <Button
             onClick={handleSave}
-            disabled={updateTask.isPending || !title.trim()}
+            disabled={updateTask.isPending || (canEditTarget && !normalizedTarget)}
           >
             {updateTask.isPending ? (
               'Saving...'

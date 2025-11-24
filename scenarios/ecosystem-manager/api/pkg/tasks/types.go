@@ -1,6 +1,8 @@
 package tasks
 
 import (
+	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -161,4 +163,122 @@ func NormalizeTargets(primary string, targets []string) ([]string, string) {
 	}
 
 	return normalized, canonical
+}
+
+// InferTargetFromTitle attempts to extract a target name from a human-readable title.
+func InferTargetFromTitle(title string, taskType string) string {
+	trimmed := strings.TrimSpace(title)
+	if trimmed == "" {
+		return ""
+	}
+
+	typeToken := strings.ToLower(strings.TrimSpace(taskType))
+	var typePattern string
+	if typeToken == "" {
+		typePattern = "(resource|scenario)"
+	} else {
+		typePattern = regexp.QuoteMeta(typeToken)
+	}
+
+	targetPattern := `([A-Za-z0-9][A-Za-z0-9\-_.\s/]+?)`
+	patterns := []string{
+		fmt.Sprintf(`(?i)(enhance|improve|upgrade|fix|polish|validate)\s+%s\s+%s`, typePattern, targetPattern),
+		fmt.Sprintf(`(?i)(enhance|improve|upgrade|fix|polish|validate)\s+%s\s+%s`, targetPattern, typePattern),
+		fmt.Sprintf(`(?i)(create|generate|build|produce)\s+%s\s+%s`, typePattern, targetPattern),
+		fmt.Sprintf(`(?i)(create|generate|build|produce)\s+%s\s+%s`, targetPattern, typePattern),
+	}
+
+	for _, pattern := range patterns {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			continue
+		}
+
+		match := re.FindStringSubmatch(trimmed)
+		if len(match) >= 3 {
+			target := strings.TrimSpace(match[len(match)-1])
+			target = strings.Trim(target, "-_")
+			target = strings.ReplaceAll(target, "  ", " ")
+			if target != "" {
+				return target
+			}
+		}
+	}
+
+	return ""
+}
+
+// InferTargetFromID attempts to recover a target from a generated task ID.
+func InferTargetFromID(id, taskType, operation string) string {
+	trimmed := strings.TrimSpace(id)
+	if trimmed == "" {
+		return ""
+	}
+
+	prefix := strings.ToLower(strings.TrimSpace(taskType))
+	op := strings.ToLower(strings.TrimSpace(operation))
+	compoundPrefix := fmt.Sprintf("%s-%s-", prefix, op)
+
+	lowerID := strings.ToLower(trimmed)
+	if strings.HasPrefix(lowerID, compoundPrefix) {
+		trimmed = trimmed[len(compoundPrefix):]
+	}
+
+	reNumeric := regexp.MustCompile(`-[0-9]{4,}$`)
+	for {
+		if loc := reNumeric.FindStringIndex(trimmed); loc != nil && loc[0] > 0 {
+			trimmed = trimmed[:loc[0]]
+		} else {
+			break
+		}
+	}
+
+	trimmed = strings.Trim(trimmed, "-_")
+	trimmed = strings.TrimSpace(trimmed)
+	trimmed = strings.ReplaceAll(trimmed, "-", " ")
+	trimmed = strings.Join(strings.Fields(trimmed), " ")
+
+	if trimmed == "" {
+		return ""
+	}
+
+	return trimmed
+}
+
+// CollectTargets returns a canonical list of targets for a task, inferring when necessary.
+func CollectTargets(item *TaskItem) []string {
+	normalizedTargets, _ := NormalizeTargets(item.Target, item.Targets)
+	if len(normalizedTargets) > 0 {
+		return normalizedTargets
+	}
+
+	var derived []string
+
+	// Use related fields when explicit targets are missing
+	if strings.EqualFold(item.Type, "resource") {
+		derived = append(derived, item.RelatedResources...)
+	} else if strings.EqualFold(item.Type, "scenario") {
+		derived = append(derived, item.RelatedScenarios...)
+	}
+
+	for _, candidate := range derived {
+		trimmed := strings.TrimSpace(candidate)
+		if trimmed != "" {
+			normalizedTargets = append(normalizedTargets, trimmed)
+		}
+	}
+
+	if len(normalizedTargets) > 0 {
+		return normalizedTargets
+	}
+
+	if inferred := InferTargetFromTitle(item.Title, item.Type); inferred != "" {
+		return []string{inferred}
+	}
+
+	if inferred := InferTargetFromID(item.ID, item.Type, item.Operation); inferred != "" {
+		return []string{inferred}
+	}
+
+	return normalizedTargets
 }

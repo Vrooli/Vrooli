@@ -2,6 +2,9 @@ id: resource-improver-judge0-20250110
 title: Improve Judge0 resource - performance and health checks
 type: resource
 operation: improver
+target: Judge0
+targets:
+    - Judge0
 category: ""
 priority: medium
 effort_estimate: 4h

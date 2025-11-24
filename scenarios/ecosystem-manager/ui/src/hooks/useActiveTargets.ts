@@ -6,9 +6,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
+import type { ActiveTarget } from '@/types/api';
 
 export function useActiveTargets(type?: string, operation?: string) {
-  return useQuery({
+  return useQuery<ActiveTarget[]>({
     queryKey: queryKeys.tasks.activeTargets(type, operation),
     queryFn: async () => {
       const targets = await api.getActiveTargets(type, operation);

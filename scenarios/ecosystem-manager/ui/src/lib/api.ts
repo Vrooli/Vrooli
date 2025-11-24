@@ -30,6 +30,7 @@ import type {
   ProfilePerformance,
   HealthResponse,
   AutoSteerExecutionState,
+  ActiveTarget,
 } from '../types/api';
 
 // Default settings fallback (matches legacy API defaults)
@@ -615,12 +616,31 @@ class ApiClient {
     return JSON.stringify(response ?? {}, null, 2);
   }
 
-  async getActiveTargets(type?: string, operation?: string): Promise<string[]> {
+  async getActiveTargets(type?: string, operation?: string): Promise<ActiveTarget[]> {
     const params = new URLSearchParams();
     if (type) params.append('type', type);
     if (operation) params.append('operation', operation);
 
-    return this.fetchJSON<string[]>(`/api/tasks/active-targets?${params.toString()}`);
+    const response = await this.fetchJSON<
+      Array<ActiveTarget | { target?: string; task_id?: string; status?: string; title?: string }>
+    >(`/api/tasks/active-targets?${params.toString()}`);
+
+    return (Array.isArray(response) ? response : [])
+      .map(entry => {
+        if (!entry) return null;
+        const target = (entry as any).target ?? '';
+        const taskId = (entry as any).task_id ?? '';
+        const status = (entry as any).status ?? '';
+        return target && taskId && status
+          ? {
+              target,
+              task_id: taskId,
+              status: status as TaskStatus,
+              title: (entry as any).title ?? undefined,
+            }
+          : null;
+      })
+      .filter(Boolean) as ActiveTarget[];
   }
 
   // ==================== Queue Management ====================
@@ -698,11 +718,41 @@ class ApiClient {
   // ==================== Discovery ====================
 
   async getResources(): Promise<Resource[]> {
-    return this.fetchJSON<Resource[]>(`/api/resources`);
+    const raw = await this.fetchJSON<any>(`/api/resources`);
+    const list: any[] = Array.isArray(raw) ? raw : Array.isArray((raw as any)?.resources) ? (raw as any).resources : [];
+    return (list || []).map((item) => {
+      const name = (item.name ?? item.Name ?? '').toString();
+      const display = (item.display_name ?? item.DisplayName ?? '').toString();
+      return {
+        name,
+        display_name: display || name,
+        description: item.description ?? item.Description,
+        path: item.path ?? item.Path,
+        port: item.port ?? item.Port,
+        category: item.category ?? item.Category,
+        version: item.version ?? item.Version,
+        healthy: item.healthy ?? item.Healthy,
+        status: item.status ?? item.Status,
+      } as Resource;
+    });
   }
 
   async getScenarios(): Promise<Scenario[]> {
-    return this.fetchJSON<Scenario[]>(`/api/scenarios`);
+    const raw = await this.fetchJSON<any>(`/api/scenarios`);
+    const list: any[] = Array.isArray(raw) ? raw : Array.isArray((raw as any)?.scenarios) ? (raw as any).scenarios : [];
+    return (list || []).map((item) => {
+      const name = (item.name ?? item.Name ?? '').toString();
+      const display = (item.display_name ?? item.DisplayName ?? '').toString();
+      return {
+        name,
+        display_name: display || name,
+        status: item.status ?? item.Status,
+        description: item.description ?? item.Description,
+        path: item.path ?? item.Path,
+        category: item.category ?? item.Category,
+        version: item.version ?? item.Version,
+      } as Scenario;
+    });
   }
 
   async getResourceStatus(resourceName: string): Promise<Resource> {

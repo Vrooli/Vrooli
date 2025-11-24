@@ -3,7 +3,7 @@
  * Displays task title, target (for improver tasks), notes preview, and auto-steer indicator
  */
 
-import { Target, FileText, Zap } from 'lucide-react';
+import { FileText, Zap } from 'lucide-react';
 import type { Task, AutoSteerProfile } from '../../types/api';
 import { useAppState } from '../../contexts/AppStateContext';
 
@@ -17,7 +17,6 @@ export function TaskCardBody({ task, autoSteerProfile, autoSteerPhaseIndex }: Ta
   const { cachedSettings } = useAppState();
   const condensedMode = cachedSettings?.display?.condensed_mode ?? false;
 
-  const hasTarget = task.target && task.target.length > 0;
   const hasNotes = task.notes && task.notes.trim().length > 0;
   const hasAutoSteer = !!task.auto_steer_profile_id || !!autoSteerProfile;
   const phaseIndex = typeof autoSteerPhaseIndex === 'number'
@@ -26,6 +25,9 @@ export function TaskCardBody({ task, autoSteerProfile, autoSteerPhaseIndex }: Ta
       ? task.auto_steer_phase_index
       : undefined;
   const phaseLabel = autoSteerProfile?.phases?.[phaseIndex ?? -1]?.mode;
+  const primaryTarget = (task.target && task.target[0]) || '';
+  const derivedTitle = `${task.operation === 'improver' ? 'Improve' : 'Generate'} ${primaryTarget || task.type}`;
+  const displayTitle = derivedTitle.trim() || task.title;
 
   // Truncate notes to first 150 characters
   const truncatedNotes = hasNotes ? task.notes!.slice(0, 150) + (task.notes!.length > 150 ? '...' : '') : '';
@@ -36,23 +38,8 @@ export function TaskCardBody({ task, autoSteerProfile, autoSteerPhaseIndex }: Ta
     <div className={spacingClass}>
       {/* Title */}
       <h3 className="text-sm font-medium text-foreground line-clamp-2">
-        {task.title}
+        {displayTitle}
       </h3>
-
-      {/* Target (for improver tasks) */}
-      {hasTarget && (
-        <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
-          <Target className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <div className="flex-1 min-w-0">
-            {task.target!.map((t, i) => (
-              <span key={i} className="inline-block">
-                {t}
-                {i < task.target!.length - 1 && ', '}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Notes preview */}
       {showNotesPreview && (

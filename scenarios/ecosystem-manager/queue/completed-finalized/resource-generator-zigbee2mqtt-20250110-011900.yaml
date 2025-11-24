@@ -2,6 +2,9 @@ id: resource-generator-zigbee2mqtt-20250110-011900
 title: Zigbee2MQTT IoT Bridge
 type: resource
 operation: generator
+target: zigbee2mqtt
+targets:
+    - zigbee2mqtt
 category: ""
 priority: low
 effort_estimate: 1h

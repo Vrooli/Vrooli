@@ -111,7 +111,12 @@ func (s *Storage) normalizeTaskItem(item *TaskItem, status string, raw map[strin
 		changed = true
 	}
 
-	normalizedTargets, canonicalTarget := NormalizeTargets(item.Target, item.Targets)
+	normalizedTargets := CollectTargets(item)
+	canonicalTarget := ""
+	if len(normalizedTargets) > 0 {
+		canonicalTarget = normalizedTargets[0]
+	}
+
 	if !slices.EqualStringSlices(item.Targets, normalizedTargets) {
 		item.Targets = normalizedTargets
 		changed = true
@@ -193,7 +198,7 @@ func (s *Storage) FindActiveTargetTask(taskType, operation, target string) (*Tas
 				continue
 			}
 
-			normalizedTargets, _ := NormalizeTargets(item.Target, item.Targets)
+			normalizedTargets := CollectTargets(&item)
 			for _, candidate := range normalizedTargets {
 				if strings.ToLower(candidate) == normalizedTarget {
 					copy := item

@@ -2,6 +2,9 @@ id: resource-generator-ros2-20250110-011100
 title: ROS2 Robotics Operating System
 type: resource
 operation: generator
+target: ros2
+targets:
+    - ros2
 category: ""
 priority: low
 effort_estimate: 1h

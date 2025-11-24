@@ -2,6 +2,9 @@ id: resource-generator-pihole-20250110-011400
 title: Pi-hole Network Ad Blocking
 type: resource
 operation: generator
+target: pihole
+targets:
+    - pihole
 category: networking
 priority: low
 effort_estimate: 4h

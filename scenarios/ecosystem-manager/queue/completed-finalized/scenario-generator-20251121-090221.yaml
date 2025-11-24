@@ -2,6 +2,9 @@ id: scenario-generator-20251121-090221
 title: landing-manager
 type: scenario
 operation: improver
+target: scenario generator
+targets:
+    - scenario generator
 category: ""
 priority: critical
 effort_estimate: ""
@@ -10,7 +13,7 @@ dependencies: []
 blocks: []
 related_scenarios: []
 related_resources: []
-status: pending
+status: completed-finalized
 current_phase: ""
 started_at: "2025-11-23T16:08:17-05:00"
 completed_at: ""
@@ -19,7 +22,7 @@ last_completed_at: "2025-11-23T01:16:48-05:00"
 validation_criteria: []
 created_by: ""
 created_at: "2025-11-21T09:02:21-05:00"
-updated_at: "2025-11-23T16:08:18-05:00"
+updated_at: "2025-11-24T01:24:34-05:00"
 tags: []
 notes: |-
     **What was accomplished:**
@@ -44,5 +47,5 @@ notes: |-
 results: {}
 consecutive_completion_claims: 0
 consecutive_failures: 0
-processor_auto_requeue: true
+processor_auto_requeue: false
 auto_steer_profile_id: e24c67ef-b58d-49d1-8b9f-7be880e90195

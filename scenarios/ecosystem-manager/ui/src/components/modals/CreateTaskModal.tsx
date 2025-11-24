@@ -3,7 +3,7 @@
  * Modal for creating new tasks with form validation
  */
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import {
   Dialog,
@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -24,10 +25,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useCreateTask } from '@/hooks/useTaskMutations';
 import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { useActiveTargets } from '@/hooks/useActiveTargets';
+import { useDiscoveryStore, refreshDiscovery } from '@/stores/discoveryStore';
 import type { TaskType, OperationType, Priority, CreateTaskInput } from '@/types/api';
 
 interface CreateTaskModalProps {
@@ -41,58 +42,124 @@ const AUTO_STEER_NONE = 'none';
 export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
   const [type, setType] = useState<TaskType>('resource');
   const [operation, setOperation] = useState<OperationType>('generator');
-  const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [notes, setNotes] = useState('');
   const [autoSteerProfileId, setAutoSteerProfileId] = useState<string>(AUTO_STEER_NONE);
   const [autoRequeue, setAutoRequeue] = useState(false);
-  const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
+  const [selectedTarget, setSelectedTarget] = useState('');
+  const [generatorTarget, setGeneratorTarget] = useState('');
 
   const createTask = useCreateTask();
   const { data: profiles = [] } = useAutoSteerProfiles();
-  const { data: targets = [] } = useActiveTargets(type, operation);
+  const { resources, scenarios, loading: discoveryLoading } = useDiscoveryStore(state => ({
+    resources: state.resources,
+    scenarios: state.scenarios,
+    loading: state.loading,
+  }));
+  const activeType = open ? type : undefined;
+  const { data: activeImproverTargets = [] } = useActiveTargets(activeType, 'improver');
+  const { data: activeGeneratorTargets = [] } = useActiveTargets(activeType, 'generator');
+
+  const occupiedTargetSet = useMemo(() => {
+    const combined = [...(activeImproverTargets || []), ...(activeGeneratorTargets || [])];
+    const set = new Set<string>();
+    combined.forEach(t => {
+      if (t?.target) {
+        set.add(t.target.toLowerCase());
+      }
+    });
+    return set;
+  }, [activeGeneratorTargets, activeImproverTargets]);
+
+  const discoveryOptions = useMemo(() => (type === 'resource' ? resources : scenarios), [resources, scenarios, type]);
+  const normalizedGeneratorTarget = generatorTarget.trim();
+  const normalizedSelectedTarget = selectedTarget.trim();
+  const nameSet = useMemo(() => {
+    const list = type === 'resource' ? resources : scenarios;
+    const set = new Set<string>();
+    list.forEach(item => {
+      if (item.name) {
+        set.add(item.name.toLowerCase());
+      }
+      if (item.display_name) {
+        set.add(item.display_name.toLowerCase());
+      }
+    });
+    return set;
+  }, [resources, scenarios, type]);
+
+  const isTargetOccupied = (name: string) => {
+    const key = name.trim().toLowerCase();
+    return key !== '' && occupiedTargetSet.has(key);
+  };
+
+  const generatorConflictsExisting = normalizedGeneratorTarget !== '' && nameSet.has(normalizedGeneratorTarget.toLowerCase());
+  const generatorConflictsActive = normalizedGeneratorTarget !== '' && isTargetOccupied(normalizedGeneratorTarget);
+  const generatorChecking = discoveryLoading && normalizedGeneratorTarget.length > 0;
+  const generatorError = !generatorChecking && (generatorConflictsExisting
+    ? 'That name already exists.'
+    : generatorConflictsActive
+      ? 'An active task already targets this name.'
+      : '');
+  const generatorSuccess = !generatorChecking && !generatorConflictsExisting && !generatorConflictsActive && normalizedGeneratorTarget.length > 0;
+  const targetValue = operation === 'improver' ? normalizedSelectedTarget : normalizedGeneratorTarget;
+  const submitDisabled =
+    createTask.isPending ||
+    targetValue === '' ||
+    (operation === 'improver' && isTargetOccupied(targetValue)) ||
+    (operation === 'generator' && (generatorConflictsExisting || generatorConflictsActive || generatorChecking));
 
   // Reset form when modal closes
   useEffect(() => {
     if (!open) {
       setType('resource');
       setOperation('generator');
-      setTitle('');
+      setGeneratorTarget('');
+      setSelectedTarget('');
       setPriority('medium');
       setNotes('');
       setAutoSteerProfileId(AUTO_STEER_NONE);
       setAutoRequeue(false);
-      setSelectedTargets([]);
     }
   }, [open]);
 
-  // Auto-generate title based on type and operation
   useEffect(() => {
-    if (!title || title.startsWith('Generate') || title.startsWith('Improve')) {
-      if (operation === 'generator') {
-        setTitle(`Generate ${type}`);
-      } else {
-        setTitle(`Improve ${type}`);
-      }
+    if (operation === 'improver') {
+      setGeneratorTarget('');
+    } else {
+      setSelectedTarget('');
     }
-  }, [type, operation, title]);
+  }, [operation, type]);
+
+  useEffect(() => {
+    if (open) {
+      refreshDiscovery();
+    }
+  }, [open, type, operation]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title.trim()) {
+    if (!targetValue) {
+      return;
+    }
+
+    if (operation === 'improver' && isTargetOccupied(targetValue)) {
+      return;
+    }
+
+    if (operation === 'generator' && (generatorConflictsExisting || generatorConflictsActive)) {
       return;
     }
 
     const taskData: CreateTaskInput = {
-      title: title.trim(),
       type,
       operation,
       priority,
       notes: notes.trim() || undefined,
       auto_steer_profile_id: autoSteerProfileId === AUTO_STEER_NONE ? undefined : autoSteerProfileId,
       auto_requeue: autoRequeue,
-      target: operation === 'improver' && selectedTargets.length > 0 ? selectedTargets : undefined,
+      target: targetValue ? [targetValue] : undefined,
     };
 
     createTask.mutate(taskData, {
@@ -100,14 +167,6 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
         onOpenChange(false);
       },
     });
-  };
-
-  const toggleTarget = (target: string) => {
-    setSelectedTargets(prev =>
-      prev.includes(target)
-        ? prev.filter(t => t !== target)
-        : [...prev, target]
-    );
   };
 
   return (
@@ -125,7 +184,10 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="type">Type</Label>
-              <Select value={type} onValueChange={(val: string) => setType(val as TaskType)}>
+              <Select value={type} onValueChange={(val: string) => {
+                setType(val as TaskType);
+                refreshDiscovery();
+              }}>
                 <SelectTrigger id="type">
                   <SelectValue />
                 </SelectTrigger>
@@ -150,17 +212,64 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
             </div>
           </div>
 
-          {/* Title */}
-          <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Task title"
-              required
-            />
-          </div>
+          {/* Target */}
+          {operation === 'improver' ? (
+            <div className="space-y-2">
+              <Label htmlFor="target-select">Target</Label>
+              <Select
+                value={selectedTarget}
+                onValueChange={(val: string) => setSelectedTarget(val)}
+                disabled={discoveryLoading}
+              >
+                <SelectTrigger id="target-select">
+                  <SelectValue placeholder={discoveryLoading ? 'Loading targets...' : 'Select target'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {discoveryOptions.map(option => {
+                    const optionValue = option.name;
+                    const disabled = isTargetOccupied(optionValue);
+                    const label =
+                      option.display_name && option.display_name !== option.name
+                        ? `${option.display_name} (${option.name})`
+                        : option.name;
+                    return (
+                      <SelectItem key={optionValue} value={optionValue} disabled={disabled}>
+                        {label} {disabled ? '• in queue' : ''}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              {discoveryLoading && discoveryOptions.length === 0 && (
+                <p className="text-xs text-amber-500">Loading available targets…</p>
+              )}
+              {selectedTarget && isTargetOccupied(selectedTarget) && (
+                <p className="text-xs text-amber-500">An active task already targets this item.</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="target-name">Target</Label>
+              <Input
+                id="target-name"
+                value={generatorTarget}
+                onChange={(e) => setGeneratorTarget(e.target.value)}
+                placeholder={`Enter new ${type} name`}
+                required
+              />
+              {generatorChecking && (
+                <p className="text-xs text-amber-500">Checking if name already exists...</p>
+              )}
+              {generatorError && (
+                <p className="text-xs text-red-500">
+                  {generatorError}
+                </p>
+              )}
+              {generatorSuccess && (
+                <p className="text-xs text-emerald-500">Name is available.</p>
+              )}
+            </div>
+          )}
 
           {/* Priority */}
           <div className="space-y-2">
@@ -199,30 +308,6 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
             </div>
           )}
 
-          {/* Target Multi-Select (Improver only) */}
-          {operation === 'improver' && targets && targets.length > 0 && (
-            <div className="space-y-2">
-              <Label>Targets ({selectedTargets.length} selected)</Label>
-              <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
-                {targets.map(target => (
-                  <div key={target} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`target-${target}`}
-                      checked={selectedTargets.includes(target)}
-                      onCheckedChange={() => toggleTarget(target)}
-                    />
-                    <label
-                      htmlFor={`target-${target}`}
-                      className="text-sm cursor-pointer flex-1"
-                    >
-                      {target}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Notes */}
           <div className="space-y-2">
             <Label htmlFor="notes">Notes (Optional)</Label>
@@ -251,7 +336,7 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createTask.isPending || !title.trim()}>
+            <Button type="submit" disabled={submitDisabled}>
               {createTask.isPending ? (
                 'Creating...'
               ) : (

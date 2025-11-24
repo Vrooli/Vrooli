@@ -2,6 +2,9 @@ id: resource-improver-node-red-20250110
 title: Improve Node-RED resource - visual workflow optimization
 type: resource
 operation: improver
+target: Node-RED
+targets:
+    - Node-RED
 category: ""
 priority: low
 effort_estimate: 4h

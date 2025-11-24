@@ -77,7 +77,7 @@ func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask t
 	created := make([]tasks.TaskItem, 0, len(baseTask.Targets))
 	skipped := make([]map[string]string, 0)
 	errors := make([]map[string]string, 0)
-	baseTitle := baseTask.Title
+	baseTitle := ""
 
 	for _, target := range baseTask.Targets {
 		existing, status, lookupErr := h.storage.FindActiveTargetTask(baseTask.Type, baseTask.Operation, target)
@@ -195,9 +195,9 @@ func deriveTaskTitle(baseTitle, operation, taskType, target string) string {
 func operationDisplayName(operation string) string {
 	switch operation {
 	case "generator":
-		return "Create"
+		return "Generate"
 	case "improver":
-		return "Enhance"
+		return "Improve"
 	default:
 		if operation == "" {
 			return "Task"
@@ -519,12 +519,6 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Generators shouldn't carry target metadata
-	if task.Operation == "generator" {
-		task.Target = ""
-		task.Targets = nil
-	}
-
 	// Handle multi-target creation as a batch operation
 	if len(task.Targets) > 1 {
 		h.handleMultiTargetCreate(w, task)
@@ -554,9 +548,7 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		task.Status = "pending"
 	}
 
-	if strings.TrimSpace(task.Title) == "" {
-		task.Title = deriveTaskTitle("", task.Operation, task.Type, task.Target)
-	}
+	task.Title = deriveTaskTitle("", task.Operation, task.Type, task.Target)
 
 	if task.CreatedAt == "" {
 		task.CreatedAt = timeutil.NowRFC3339()
@@ -627,7 +619,7 @@ func (h *TaskHandlers) GetActiveTargetsHandler(w http.ResponseWriter, r *http.Re
 				continue
 			}
 
-			targets := h.collectTaskTargets(&item)
+			targets := tasks.CollectTargets(&item)
 			for _, target := range targets {
 				normalized := strings.ToLower(strings.TrimSpace(target))
 				if normalized == "" {
@@ -650,118 +642,6 @@ func (h *TaskHandlers) GetActiveTargetsHandler(w http.ResponseWriter, r *http.Re
 	}
 
 	writeJSON(w, response, http.StatusOK)
-}
-
-func (h *TaskHandlers) collectTaskTargets(item *tasks.TaskItem) []string {
-	normalizedTargets, _ := tasks.NormalizeTargets(item.Target, item.Targets)
-	if len(normalizedTargets) > 0 {
-		return normalizedTargets
-	}
-
-	var derived []string
-
-	if strings.EqualFold(item.Type, "resource") {
-		derived = append(derived, item.RelatedResources...)
-	} else if strings.EqualFold(item.Type, "scenario") {
-		derived = append(derived, item.RelatedScenarios...)
-	}
-
-	for _, candidate := range derived {
-		trimmed := strings.TrimSpace(candidate)
-		if trimmed != "" {
-			normalizedTargets = append(normalizedTargets, trimmed)
-		}
-	}
-
-	if len(normalizedTargets) > 0 {
-		return normalizedTargets
-	}
-
-	if inferred := inferTargetFromTitle(item.Title, item.Type); inferred != "" {
-		return []string{inferred}
-	}
-
-	if inferred := inferTargetFromID(item.ID, item.Type, item.Operation); inferred != "" {
-		return []string{inferred}
-	}
-
-	return normalizedTargets
-}
-
-func inferTargetFromTitle(title string, taskType string) string {
-	trimmed := strings.TrimSpace(title)
-	if trimmed == "" {
-		return ""
-	}
-
-	typeToken := strings.ToLower(strings.TrimSpace(taskType))
-	var typePattern string
-	if typeToken == "" {
-		typePattern = "(resource|scenario)"
-	} else {
-		typePattern = regexp.QuoteMeta(typeToken)
-	}
-
-	tarTargetPattern := `([A-Za-z0-9][A-Za-z0-9\-_.\s/]+?)`
-	patterns := []string{
-		fmt.Sprintf(`(?i)(enhance|improve|upgrade|fix|polish)\s+%s\s+%s`, typePattern, tarTargetPattern),
-		fmt.Sprintf(`(?i)(enhance|improve|upgrade|fix|polish)\s+%s\s+%s`, tarTargetPattern, typePattern),
-	}
-
-	for _, pattern := range patterns {
-		re, err := regexp.Compile(pattern)
-		if err != nil {
-			continue
-		}
-
-		match := re.FindStringSubmatch(trimmed)
-		if len(match) >= 3 {
-			target := strings.TrimSpace(match[len(match)-1])
-			target = strings.Trim(target, "-_")
-			target = strings.ReplaceAll(target, "  ", " ")
-			if target != "" {
-				return target
-			}
-		}
-	}
-
-	return ""
-}
-
-func inferTargetFromID(id, taskType, operation string) string {
-	trimmed := strings.TrimSpace(id)
-	if trimmed == "" {
-		return ""
-	}
-
-	prefix := strings.ToLower(strings.TrimSpace(taskType))
-	op := strings.ToLower(strings.TrimSpace(operation))
-	compoundPrefix := fmt.Sprintf("%s-%s-", prefix, op)
-
-	lowerID := strings.ToLower(trimmed)
-	if strings.HasPrefix(lowerID, compoundPrefix) {
-		trimmed = trimmed[len(compoundPrefix):]
-	}
-
-	reNumeric := regexp.MustCompile(`-[0-9]{4,}$`)
-	for {
-		if loc := reNumeric.FindStringIndex(trimmed); loc != nil && loc[0] > 0 {
-			trimmed = trimmed[:loc[0]]
-		} else {
-			break
-		}
-	}
-
-	trimmed = strings.Trim(trimmed, "-_")
-	trimmed = strings.TrimSpace(trimmed)
-	trimmed = strings.ReplaceAll(trimmed, "-", " ")
-	trimmed = strings.Join(strings.Fields(trimmed), " ")
-
-	if trimmed == "" {
-		return ""
-	}
-
-	return trimmed
 }
 
 // UpdateTaskHandler updates an existing task
@@ -789,11 +669,6 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	// Allow operation to be updated but preserve if not provided
 	if updatedTask.Operation == "" {
 		updatedTask.Operation = currentTask.Operation
-	}
-
-	if updatedTask.Operation == "generator" {
-		updatedTask.Target = ""
-		updatedTask.Targets = nil
 	}
 
 	// Validate operation if it was changed
@@ -825,6 +700,19 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	if newStatus == "" {
 		newStatus = currentStatus
 		updatedTask.Status = currentStatus
+	}
+
+	if updatedTask.Operation == "improver" && len(updatedTask.Targets) == 1 {
+		existing, status, lookupErr := h.storage.FindActiveTargetTask(updatedTask.Type, updatedTask.Operation, updatedTask.Targets[0])
+		if lookupErr != nil {
+			writeError(w, fmt.Sprintf("Failed to verify existing tasks: %v", lookupErr), http.StatusInternalServerError)
+			return
+		}
+
+		if existing != nil && existing.ID != taskID {
+			writeError(w, fmt.Sprintf("An active %s task (%s) already exists for %s (%s status)", updatedTask.Operation, existing.ID, updatedTask.Targets[0], status), http.StatusConflict)
+			return
+		}
 	}
 
 	// Handle status transitions using consolidated logic
@@ -884,6 +772,8 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 			}
 		}
 	}
+
+	updatedTask.Title = deriveTaskTitle("", updatedTask.Operation, updatedTask.Type, updatedTask.Target)
 
 	// Save updated task
 	if newStatus != currentStatus {

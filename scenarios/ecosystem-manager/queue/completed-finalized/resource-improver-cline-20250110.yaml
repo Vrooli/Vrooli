@@ -2,6 +2,9 @@ id: resource-improver-cline-20250110
 title: Improve Cline resource - AI assistant integration
 type: resource
 operation: improver
+target: Cline
+targets:
+    - Cline
 category: ""
 priority: high
 effort_estimate: 1h

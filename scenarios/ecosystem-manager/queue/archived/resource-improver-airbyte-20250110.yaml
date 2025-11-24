@@ -2,6 +2,9 @@ id: resource-improver-airbyte-20250110
 title: Improve Airbyte resource - data pipeline optimization
 type: resource
 operation: improver
+target: Airbyte
+targets:
+    - Airbyte
 category: ""
 priority: low
 effort_estimate: 1h

@@ -2,6 +2,9 @@ id: resource-improver-simpy-20250110
 title: Improve SimPy resource
 type: resource
 operation: improver
+target: SimPy
+targets:
+    - SimPy
 category: ""
 priority: low
 effort_estimate: 4h

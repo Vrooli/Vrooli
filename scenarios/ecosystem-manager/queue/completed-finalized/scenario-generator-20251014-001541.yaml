@@ -2,6 +2,9 @@ id: scenario-generator-20251014-001541
 title: Improve git-control-tower
 type: scenario
 operation: improver
+target: scenario generator
+targets:
+    - scenario generator
 category: ""
 priority: high
 effort_estimate: ""
