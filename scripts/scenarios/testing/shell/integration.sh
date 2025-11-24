@@ -148,6 +148,19 @@ testing::integration::validate_all() {
     local scenario_dir="${TESTING_PHASE_SCENARIO_DIR:-$(pwd)}"
     local scenario_name="$(basename "$scenario_dir")"
 
+    # Set browser session strategy from config
+    local config_file="$scenario_dir/.vrooli/testing.json"
+    local session_strategy="clean"  # Safe default
+    if [ -f "$config_file" ] && command -v jq >/dev/null 2>&1; then
+        local configured_strategy
+        configured_strategy=$(jq -r '.phases.integration.browser_session_strategy // empty' "$config_file" 2>/dev/null || echo "")
+        if [ -n "$configured_strategy" ]; then
+            session_strategy="$configured_strategy"
+        fi
+    fi
+    export BAS_SESSION_STRATEGY="$session_strategy"
+    log::info "Browser session strategy: $session_strategy"
+
     # Check bundle freshness before running integration tests
     # This prevents wasting time on tests that will fail due to outdated UI
     if ! testing::integration::check_bundle_freshness "$scenario_dir" "$scenario_name"; then

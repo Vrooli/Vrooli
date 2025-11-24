@@ -1,10 +1,510 @@
 #!/bin/bash
-# Generic Go unit test runner for scenarios
+# Generic Go unit test runner for scenarios with structured output formatting
 # Can be sourced and used by any scenario's test suite
 set -euo pipefail
 
 declare -gA TESTING_GO_REQUIREMENT_STATUS=()
 declare -gA TESTING_GO_REQUIREMENT_EVIDENCE=()
+
+# ============================================================================
+# Output Formatting - Provides clean console output with rich debug files
+# ============================================================================
+# This formatter provides:
+# - Clean console output (2 lines per package max, similar to integration tests)
+# - Structured debug files in coverage/unit/ for failures
+# - README.md files explaining failures with actionable guidance
+# - Smart compilation error grouping
+# - Cross-reference to related test failures
+#
+# Design Philosophy:
+# - Console is a dashboard (scannable at a glance)
+# - Files contain debug details (screenshots of the problem)
+# - READMEs explain what went wrong and how to fix it
+# ============================================================================
+
+_testing_go__create_unit_coverage_dirs() {
+    local scenario_root="${1:-$(pwd)}"
+    local coverage_root="$scenario_root/coverage/unit"
+
+    # Clear previous run's failure reports (keep other artifacts)
+    rm -rf "$coverage_root/go" "$coverage_root/compilation" "$coverage_root/README.md" 2>/dev/null || true
+
+    mkdir -p "$coverage_root"/{go,compilation}
+
+    echo "$coverage_root"
+}
+
+_testing_go__group_compilation_errors() {
+    local build_output="$1"
+    local output_dir="$2"
+
+    if [ ! -s "$build_output" ]; then
+        return 0
+    fi
+
+    # Check if there are compilation errors
+    if ! grep -q "^#" "$build_output" 2>/dev/null; then
+        return 0
+    fi
+
+    mkdir -p "$output_dir"
+
+    # Group errors by package and error message
+    local current_package=""
+    local -A package_errors=()
+    local -A error_locations=()
+
+    while IFS= read -r line; do
+        # Package header: # github.com/...
+        if [[ "$line" =~ ^#[[:space:]]+(.*) ]]; then
+            current_package="${BASH_REMATCH[1]}"
+            continue
+        fi
+
+        # Error line: path/file.go:line:col: error message
+        if [[ "$line" =~ ^([^:]+):([0-9]+):([0-9]+):[[:space:]]*(.*)$ ]]; then
+            local file="${BASH_REMATCH[1]}"
+            local lineno="${BASH_REMATCH[2]}"
+            local colno="${BASH_REMATCH[3]}"
+            local error_msg="${BASH_REMATCH[4]}"
+
+            if [ -n "$current_package" ]; then
+                # Group by error message pattern
+                local error_key=$(echo "$error_msg" | sed 's/[0-9]\+/N/g; s/"[^"]*"/"..."/g')
+                package_errors["$current_package|$error_key"]+="$file:$lineno:$colno: $error_msg"$'\n'
+
+                if [ -z "${error_locations[$current_package|$error_key]:-}" ]; then
+                    error_locations["$current_package|$error_key"]="$file:$lineno"
+                else
+                    error_locations["$current_package|$error_key"]+=", $file:$lineno"
+                fi
+            fi
+        fi
+    done < "$build_output"
+
+    # Generate per-package compilation error files
+    local -A packages_seen=()
+    for key in "${!package_errors[@]}"; do
+        local package="${key%%|*}"
+        local package_safe=$(echo "$package" | tr '/' '-')
+
+        if [ -z "${packages_seen[$package]:-}" ]; then
+            packages_seen[$package]=1
+
+            local package_file="$output_dir/${package_safe}.txt"
+            {
+                echo "Compilation Errors in Package: $package"
+                echo "=============================================="
+                echo ""
+            } > "$package_file"
+        fi
+
+        local package_file="$output_dir/${package_safe}.txt"
+        local error_pattern="${key#*|}"
+        local locations="${error_locations[$key]}"
+        local errors="${package_errors[$key]}"
+
+        {
+            echo "Error Pattern:"
+            echo "$error_pattern"
+            echo ""
+            echo "Locations: $locations"
+            echo ""
+            echo "Full Errors:"
+            echo "$errors"
+            echo ""
+        } >> "$package_file"
+    done
+
+    # Generate compilation README
+    if [ ${#packages_seen[@]} -gt 0 ]; then
+        local readme="$output_dir/README.md"
+        {
+            echo "# Compilation Failures"
+            echo ""
+            echo "## Summary"
+            echo ""
+            echo "${#packages_seen[@]} package(s) failed to compile."
+            echo ""
+            echo "## Packages"
+            echo ""
+            for pkg in "${!packages_seen[@]}"; do
+                local pkg_safe=$(echo "$pkg" | tr '/' '-')
+                echo "- \`$pkg\` - see [${pkg_safe}.txt](./${pkg_safe}.txt)"
+            done
+            echo ""
+            echo "## Next Steps"
+            echo ""
+            echo "1. Fix compilation errors in the order they appear"
+            echo "2. Run \`go build ./...\` to verify fixes"
+            echo "3. Rerun tests: \`vrooli test unit $(basename "$(pwd)")\`"
+        } > "$readme"
+    fi
+
+    # Return count of failed packages
+    echo "${#packages_seen[@]}"
+}
+
+_testing_go__parse_test_json() {
+    local json_output="$1"
+    local coverage_root="$2"
+
+    # Parse go test -json output and create structured reports
+    declare -gA _go_package_status=()
+    declare -gA _go_package_output=()
+    declare -gA _go_package_duration=()
+    declare -gA _go_package_coverage=()
+    declare -gA _go_test_status=()
+    declare -gA _go_test_output=()
+    declare -ga _go_packages_order=()
+    declare -gA _go_package_seen=()
+
+    local current_package=""
+    local current_test=""
+
+    while IFS= read -r line; do
+        if [ -z "$line" ]; then
+            continue
+        fi
+
+        local action=$(echo "$line" | jq -r '.Action // empty' 2>/dev/null || true)
+        local package=$(echo "$line" | jq -r '.Package // empty' 2>/dev/null || true)
+        local test=$(echo "$line" | jq -r '.Test // empty' 2>/dev/null || true)
+        local output=$(echo "$line" | jq -r '.Output // empty' 2>/dev/null || true)
+        local elapsed=$(echo "$line" | jq -r '.Elapsed // 0' 2>/dev/null || echo "0")
+
+        if [ -z "$action" ]; then
+            continue
+        fi
+
+        # Track package (deduplicate using separate array)
+        if [ -n "$package" ] && [ -z "${_go_package_seen[$package]:-}" ]; then
+            _go_packages_order+=("$package")
+            _go_package_seen["$package"]=1
+        fi
+
+        # Accumulate output
+        if [ -n "$output" ] && [ -n "$package" ]; then
+            if [ -n "$test" ]; then
+                _go_test_output["$package|$test"]+="$output"
+            else
+                _go_package_output["$package"]+="$output"
+            fi
+        fi
+
+        # Handle test completion
+        if [ -n "$test" ]; then
+            case "$action" in
+                pass)
+                    _go_test_status["$package|$test"]="passed"
+                    ;;
+                fail)
+                    _go_test_status["$package|$test"]="failed"
+                    ;;
+                skip)
+                    _go_test_status["$package|$test"]="skipped"
+                    ;;
+            esac
+        fi
+
+        # Handle package completion
+        if [ -z "$test" ]; then
+            case "$action" in
+                pass)
+                    _go_package_status["$package"]="passed"
+                    _go_package_duration["$package"]="$elapsed"
+                    ;;
+                fail)
+                    _go_package_status["$package"]="failed"
+                    _go_package_duration["$package"]="$elapsed"
+                    ;;
+                skip)
+                    _go_package_status["$package"]="skipped"
+                    _go_package_duration["$package"]="$elapsed"
+                    ;;
+            esac
+        fi
+    done < "$json_output"
+
+    # Extract coverage from package output
+    for package in "${_go_packages_order[@]}"; do
+        local pkg_output="${_go_package_output[$package]:-}"
+        if [ -n "$pkg_output" ]; then
+            local coverage=$(echo "$pkg_output" | grep -oP 'coverage: \K[0-9.]+(?=% of statements)' | head -1 || echo "")
+            if [ -n "$coverage" ]; then
+                _go_package_coverage["$package"]="$coverage"
+            fi
+        fi
+    done
+}
+
+_testing_go__create_failure_reports() {
+    local coverage_root="$1"
+    local go_dir="$2"
+
+    for package in "${_go_packages_order[@]}"; do
+        local status="${_go_package_status[$package]:-unknown}"
+
+        if [ "$status" != "failed" ]; then
+            continue
+        fi
+
+        # Create package failure directory
+        # Use last 2 path components to avoid collisions (e.g., "automation-executor" from "github.com/.../automation/executor")
+        local package_safe=$(echo "$package" | awk -F'/' '{if (NF >= 2) print $(NF-1) "-" $NF; else print $NF}')
+        local pkg_dir="$coverage_root/go/$package_safe"
+        mkdir -p "$pkg_dir/tests"
+
+        # Save full package output
+        local pkg_output="${_go_package_output[$package]:-}"
+        if [ -n "$pkg_output" ]; then
+            echo "$pkg_output" > "$pkg_dir/output.txt"
+        fi
+
+        # Count test results
+        local test_passed=0
+        local test_failed=0
+        local test_skipped=0
+        local failed_tests=()
+
+        for key in "${!_go_test_status[@]}"; do
+            if [[ "$key" == "$package|"* ]]; then
+                local test_name="${key#$package|}"
+                local test_status="${_go_test_status[$key]}"
+
+                case "$test_status" in
+                    passed) ((test_passed++)) || true ;;
+                    failed)
+                        ((test_failed++)) || true
+                        failed_tests+=("$test_name")
+                        ;;
+                    skipped) ((test_skipped++)) || true ;;
+                esac
+            fi
+        done
+
+        # Create per-test failure reports
+        for test_name in "${failed_tests[@]}"; do
+            local test_safe=$(echo "$test_name" | tr '/' '-')
+            local test_dir="$pkg_dir/tests/$test_safe"
+            mkdir -p "$test_dir"
+
+            local test_output="${_go_test_output[$package|$test_name]:-}"
+            if [ -n "$test_output" ]; then
+                echo "$test_output" > "$test_dir/output.txt"
+            fi
+
+            # Generate test failure README
+            {
+                echo "# Test Failure: $test_name"
+                echo ""
+                echo "## Package"
+                echo "\`$package\`"
+                echo ""
+                echo "## Error Output"
+                echo "\`\`\`"
+                echo "$test_output"
+                echo "\`\`\`"
+                echo ""
+                echo "## Next Steps"
+                echo "1. Read the error output above"
+                echo "2. Run single test: \`cd $go_dir && go test -v $package -run ^${test_name}$\`"
+                echo "3. Fix the issue and rerun tests"
+            } > "$test_dir/README.md"
+        done
+
+        # Generate package README
+        {
+            echo "# Package Failure: $package"
+            echo ""
+            echo "## Summary"
+            echo "- ✅ Passed: $test_passed"
+            echo "- ❌ Failed: $test_failed"
+            echo "- ⏭️  Skipped: $test_skipped"
+            echo ""
+
+            if [ ${#failed_tests[@]} -gt 0 ]; then
+                echo "## Failed Tests"
+                echo ""
+                for test_name in "${failed_tests[@]}"; do
+                    local test_safe=$(echo "$test_name" | tr '/' '-')
+                    echo "- \`$test_name\` - see [tests/$test_safe/README.md](./tests/$test_safe/README.md)"
+                done
+                echo ""
+            fi
+
+            echo "## Full Output"
+            echo "See [output.txt](./output.txt) for complete package output."
+            echo ""
+            echo "## Next Steps"
+            echo "1. Review failed test details above"
+            echo "2. Run package tests: \`cd $go_dir && go test -v $package\`"
+            echo "3. Fix failures and rerun: \`vrooli test unit $(basename "$(pwd)")\`"
+        } > "$pkg_dir/README.md"
+    done
+}
+
+_testing_go__print_console_summary() {
+    local compilation_failed="$1"
+    local coverage_root="$2"
+
+    echo ""
+
+    if [ "$compilation_failed" -gt 0 ]; then
+        echo "🔨 Compilation: ❌ $compilation_failed package(s) failed to compile"
+        echo "   ↳ Read coverage/unit/compilation/README.md"
+        return 1
+    fi
+
+    echo "🔨 Compilation: ✅ All packages compile"
+
+    local total_tests_passed=0
+    local total_tests_failed=0
+    local total_tests_skipped=0
+    local total_packages_failed=0
+    local has_failures=false
+
+    # First pass: count test totals (not package totals)
+    for package in "${_go_packages_order[@]}"; do
+        local pkg_status="${_go_package_status[$package]:-unknown}"
+
+        # Count individual tests within each package
+        for key in "${!_go_test_status[@]}"; do
+            if [[ "$key" == "$package|"* ]]; then
+                local test_status="${_go_test_status[$key]}"
+                case "$test_status" in
+                    passed) ((total_tests_passed++)) || true ;;
+                    failed) ((total_tests_failed++)) || true ;;
+                    skipped) ((total_tests_skipped++)) || true ;;
+                esac
+            fi
+        done
+
+        # Track package-level failures for display
+        if [ "$pkg_status" = "failed" ]; then
+            ((total_packages_failed++)) || true
+            has_failures=true
+        fi
+    done
+
+    # Only show failures (if any)
+    if [ "$has_failures" = true ]; then
+        echo ""
+        echo "🧪 Failed packages:"
+        for package in "${_go_packages_order[@]}"; do
+            local status="${_go_package_status[$package]:-unknown}"
+
+            if [ "$status" = "failed" ]; then
+                local duration="${_go_package_duration[$package]:-0}"
+
+                # Shorten package name for display
+                local pkg_display="$package"
+                pkg_display="${pkg_display#github.com/vrooli/*/}" # Remove common prefix
+
+                local duration_fmt=$(printf "%.3fs" "$duration" 2>/dev/null || echo "${duration}s")
+
+                # Count actual test pass/fail for better messaging
+                local test_passed=0
+                local test_failed=0
+                for key in "${!_go_test_status[@]}"; do
+                    if [[ "$key" == "$package|"* ]]; then
+                        local test_status="${_go_test_status[$key]}"
+                        case "$test_status" in
+                            passed) ((test_passed++)) || true ;;
+                            failed) ((test_failed++)) || true ;;
+                        esac
+                    fi
+                done
+
+                local package_safe=$(echo "$package" | awk -F'/' '{if (NF >= 2) print $(NF-1) "-" $NF; else print $NF}')
+                echo "❌ $pkg_display ($duration_fmt, $test_passed passed, $test_failed failed)"
+                echo "   ↳ Read coverage/unit/go/$package_safe/README.md"
+            fi
+        done
+    fi
+
+    echo ""
+    echo "📊 Go Test Summary:"
+    echo "   ✅ $total_tests_passed tests passed  ❌ $total_tests_failed tests failed  ⏭️ $total_tests_skipped tests skipped"
+    echo "   📦 $total_packages_failed of ${#_go_packages_order[@]} packages had failures"
+
+    if [ "$has_failures" = true ]; then
+        echo ""
+        echo "❌ Unit tests failed - see coverage/unit/README.md"
+        return 1
+    fi
+
+    return 0
+}
+
+_testing_go__generate_overall_readme() {
+    local coverage_root="$1"
+    local compilation_failed="$2"
+    local has_test_failures="$3"
+
+    local readme="$coverage_root/README.md"
+
+    {
+        echo "# Unit Test Results"
+        echo ""
+        echo "Generated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+        echo ""
+
+        if [ "$compilation_failed" -gt 0 ]; then
+            echo "## ❌ Compilation Failed"
+            echo ""
+            echo "$compilation_failed package(s) failed to compile. Fix compilation errors before tests can run."
+            echo ""
+            echo "See [compilation/README.md](./compilation/README.md) for details."
+            echo ""
+        elif [ "$has_test_failures" = "true" ]; then
+            echo "## ❌ Tests Failed"
+            echo ""
+            echo "Some tests failed. See package-specific reports below."
+            echo ""
+            echo "## Failed Packages"
+            echo ""
+            for package in "${_go_packages_order[@]}"; do
+                local status="${_go_package_status[$package]:-unknown}"
+                if [ "$status" = "failed" ]; then
+                    local package_safe=$(echo "$package" | awk -F'/' '{if (NF >= 2) print $(NF-1) "-" $NF; else print $NF}')
+                    echo "- \`$package\` - see [go/$package_safe/README.md](./go/$package_safe/README.md)"
+                fi
+            done
+            echo ""
+        else
+            echo "## ✅ All Tests Passed"
+            echo ""
+            echo "All compilation and tests completed successfully."
+            echo ""
+        fi
+
+        echo "## Files"
+        echo "- [full-output.txt](./full-output.txt) - Complete test output"
+        if [ "$compilation_failed" -gt 0 ]; then
+            echo "- [compilation/](./compilation/) - Compilation error details"
+        fi
+        if [ "$has_test_failures" = "true" ]; then
+            echo "- [go/](./go/) - Test failure details by package"
+        fi
+        echo ""
+        echo "## Next Steps"
+        if [ "$compilation_failed" -gt 0 ]; then
+            echo "1. Fix compilation errors in [compilation/README.md](./compilation/README.md)"
+            echo "2. Run \`go build ./...\` to verify"
+        elif [ "$has_test_failures" = "true" ]; then
+            echo "1. Review failed packages above"
+            echo "2. Run individual package tests for focused debugging"
+            echo "3. Fix failures and rerun: \`vrooli test unit $(basename "$(pwd)")\`"
+        else
+            echo "No action required - all tests passing!"
+        fi
+    } > "$readme"
+}
+
+# ============================================================================
+# Main Test Runner - Public Interface
+# ============================================================================
 
 # Run Go unit tests for a scenario
 # Usage: testing::unit::run_go_tests [options]
@@ -62,30 +562,31 @@ testing::unit::run_go_tests() {
                 ;;
         esac
     done
-    
+
     echo "🐹 Running Go unit tests..."
-    
+
     # Check if Go is available
     if ! command -v go >/dev/null 2>&1; then
         echo "❌ Go is not installed"
         return 1
     fi
-    
+
     # Check if we have Go code
     if [ ! -d "$api_dir" ]; then
         echo "ℹ️  No $api_dir directory found, skipping Go tests"
         return 0
     fi
-    
+
     if [ ! -f "$api_dir/go.mod" ]; then
         echo "ℹ️  No go.mod found in $api_dir, skipping Go tests"
         return 0
     fi
-    
+
     # Save current directory and change to API directory
     local original_dir=$(pwd)
+    local scenario_name=$(basename "$original_dir")
     cd "$api_dir"
-    
+
     # Check if there are any test files
     local test_files=$(find . -name "*_test.go" -type f | wc -l)
     if [ "$test_files" -eq 0 ]; then
@@ -93,22 +594,28 @@ testing::unit::run_go_tests() {
         cd "$original_dir"
         return 0
     fi
-    
-    echo "📦 Downloading Go module dependencies..."
-    if ! go mod download; then
+
+    # Create coverage directory structure
+    local coverage_root=$(_testing_go__create_unit_coverage_dirs "$original_dir")
+
+    echo -n "📦 Downloading Go module dependencies... "
+    if ! go mod download >"$coverage_root/go-mod-download.log" 2>&1; then
+        echo "failed"
         echo "❌ Failed to download Go dependencies"
         cd "$original_dir"
         return 1
     fi
-    
+    echo "done"
+
+    local build_output="$coverage_root/build-output.txt"
+    local json_output="$coverage_root/test-output.json"
+    local full_output="$coverage_root/full-output.txt"
+
     # Build test command
-    local test_cmd="go test"
-    if [ "$verbose" = true ]; then
-        test_cmd="$test_cmd -v"
-    fi
-    test_cmd="$test_cmd ./... -timeout $timeout"
+    local test_cmd="go test -json ./... -timeout $timeout"
     local coverage_profile_path="coverage.out"
     local coverage_html_path="coverage.html"
+
     if [ "$coverage" = true ]; then
         if [ -n "${TESTING_UNIT_WORK_DIR:-}" ]; then
             local go_work_dir="${TESTING_UNIT_WORK_DIR%/}/go"
@@ -118,93 +625,134 @@ testing::unit::run_go_tests() {
         fi
         test_cmd="$test_cmd -cover -coverprofile=$coverage_profile_path"
     fi
-    
-    echo "🧪 Running Go tests..."
 
-    local go_output_file
-    go_output_file=$(mktemp)
+    # Run tests and capture output
     local go_exit=0
-
     set +e
-    eval "$test_cmd" | tee "$go_output_file"
-    go_exit=${PIPESTATUS[0]}
+
+    # Try to build first to separate compilation errors from test failures
+    echo -n "🔨 Building packages... "
+    if ! go build ./... >"$build_output" 2>&1; then
+        echo "failed"
+
+        # Compilation failed - group errors and report
+        local compilation_failed=$(_testing_go__group_compilation_errors "$build_output" "$coverage_root/compilation")
+
+        if [ "$compilation_failed" -gt 0 ]; then
+            echo ""
+            echo "🔨 Compilation: ❌ $compilation_failed package(s) failed to compile"
+            echo "   ↳ Read coverage/unit/compilation/README.md"
+
+            _testing_go__generate_overall_readme "$coverage_root" "$compilation_failed" "false"
+
+            cd "$original_dir"
+            set -e
+            return 1
+        fi
+    fi
+    echo "success"
+
+    # Compilation succeeded, now run tests (capture silently, show progress)
+    echo -n "🧪 Running tests (this may take a while)... "
+    eval "$test_cmd" >"$full_output" 2>&1
+    go_exit=$?
+    echo "done"
+
+    # Copy full output to JSON file for parsing (they're the same in -json mode)
+    cp "$full_output" "$json_output"
     set -e
 
-    testing::unit::_go_collect_requirement_tags "$go_output_file"
+    # Parse JSON output and create structured reports
+    _testing_go__parse_test_json "$json_output" "$coverage_root"
+
+    # Collect requirement tags from output
+    testing::unit::_go_collect_requirement_tags "$full_output"
 
     local enforce_requirements="${TESTING_REQUIREMENTS_ENFORCE:-${VROOLI_REQUIREMENTS_ENFORCE:-0}}"
     if [ "$enforce_requirements" = "1" ] && [ ${#TESTING_GO_REQUIREMENT_STATUS[@]} -eq 0 ]; then
         echo "⚠️  No REQ:<ID> tags detected in Go test output; add requirement tags to tie unit tests to coverage."
     fi
 
-    if [ "$go_exit" -eq 0 ]; then
-        echo "✅ Go unit tests completed successfully"
+    # Create failure reports for failed packages/tests
+    if [ $go_exit -ne 0 ]; then
+        _testing_go__create_failure_reports "$coverage_root" "$api_dir"
+    fi
 
-        # Display coverage summary if coverage file exists
-        if [ "$coverage" = true ] && [ -f "coverage.out" ]; then
+    # Print console summary
+    local has_test_failures="false"
+    if ! _testing_go__print_console_summary "0" "$coverage_root"; then
+        has_test_failures="true"
+    fi
+
+    # Generate overall README
+    _testing_go__generate_overall_readme "$coverage_root" "0" "$has_test_failures"
+
+    # Handle coverage reporting
+    if [ "$coverage" = true ] && [ -f "$coverage_profile_path" ]; then
+        echo ""
+        echo "📊 Go Test Coverage Summary:"
+        local coverage_line=$(go tool cover -func="$coverage_profile_path" | tail -1)
+        echo "$coverage_line"
+
+        # Extract coverage percentage
+        local coverage_percent=$(echo "$coverage_line" | grep -o '[0-9]*\.[0-9]*%' | sed 's/%//' | head -1)
+        if [ -n "$coverage_percent" ]; then
+            local coverage_num=$(echo "$coverage_percent" | cut -d. -f1)
+
+            # Check coverage thresholds
             echo ""
-            echo "📊 Go Test Coverage Summary:"
-            local coverage_line=$(go tool cover -func="$coverage_profile_path" | tail -1)
-            echo "$coverage_line"
-
-            # Extract coverage percentage
-            local coverage_percent=$(echo "$coverage_line" | grep -o '[0-9]*\.[0-9]*%' | sed 's/%//' | head -1)
-            if [ -n "$coverage_percent" ]; then
-                local coverage_num=$(echo "$coverage_percent" | cut -d. -f1)
-
-                # Check coverage thresholds
-                echo ""
-                if [ "$coverage_num" -lt "$coverage_error_threshold" ]; then
-                    echo "❌ ERROR: Go test coverage ($coverage_percent%) is below error threshold ($coverage_error_threshold%)"
-                    echo "   This indicates insufficient test coverage. Please add more comprehensive tests."
-                    rm -f "$go_output_file"
-                    cd "$original_dir"
-                    return 1
-                elif [ "$coverage_num" -lt "$coverage_warn_threshold" ]; then
-                    echo "⚠️  WARNING: Go test coverage ($coverage_percent%) is below warning threshold ($coverage_warn_threshold%)"
-                    echo "   Consider adding more tests to improve code coverage."
-                else
-                    echo "✅ Go test coverage ($coverage_percent%) meets quality thresholds"
-                fi
-
-                # Export parsed percentage for downstream aggregation
-                declare -g TESTING_GO_COVERAGE_PERCENT="$coverage_percent"
+            if [ "$coverage_num" -lt "$coverage_error_threshold" ]; then
+                echo "❌ ERROR: Go test coverage ($coverage_percent%) is below error threshold ($coverage_error_threshold%)"
+                echo "   This indicates insufficient test coverage. Please add more comprehensive tests."
+                cd "$original_dir"
+                return 1
+            elif [ "$coverage_num" -lt "$coverage_warn_threshold" ]; then
+                echo "⚠️  WARNING: Go test coverage ($coverage_percent%) is below warning threshold ($coverage_warn_threshold%)"
+                echo "   Consider adding more tests to improve code coverage."
             else
-                echo "⚠️  WARNING: Could not parse coverage percentage from: $coverage_line"
+                echo "✅ Go test coverage ($coverage_percent%) meets quality thresholds"
             fi
 
-            # Always record artifact paths so they can be copied later
-            declare -g TESTING_GO_COVERAGE_COLLECTED="true"
-            local profile_abs_path="$coverage_profile_path"
-            if [[ "$profile_abs_path" != /* ]]; then
-                profile_abs_path="$PWD/$profile_abs_path"
-            fi
-            declare -g TESTING_GO_COVERAGE_PROFILE="$profile_abs_path"
-
-            if go tool cover -html="$coverage_profile_path" -o "$coverage_html_path" 2>/dev/null; then
-                local html_abs_path="$coverage_html_path"
-                if [[ "$html_abs_path" != /* ]]; then
-                    html_abs_path="$PWD/$html_abs_path"
-                fi
-                declare -g TESTING_GO_COVERAGE_HTML="$html_abs_path"
-                local html_display="$html_abs_path"
-                if [[ "$html_display" == "$original_dir/"* ]]; then
-                    html_display="${html_display#$original_dir/}"
-                fi
-                echo "ℹ️  HTML coverage report generated: ${html_display:-$html_abs_path}"
-            fi
+            # Export parsed percentage for downstream aggregation
+            declare -g TESTING_GO_COVERAGE_PERCENT="$coverage_percent"
+        else
+            echo "⚠️  WARNING: Could not parse coverage percentage from: $coverage_line"
         fi
 
-        rm -f "$go_output_file"
-        cd "$original_dir"
-        return 0
-    else
-        echo "❌ Go unit tests failed"
-        rm -f "$go_output_file"
-        cd "$original_dir"
+        # Always record artifact paths so they can be copied later
+        declare -g TESTING_GO_COVERAGE_COLLECTED="true"
+        local profile_abs_path="$coverage_profile_path"
+        if [[ "$profile_abs_path" != /* ]]; then
+            profile_abs_path="$PWD/$profile_abs_path"
+        fi
+        declare -g TESTING_GO_COVERAGE_PROFILE="$profile_abs_path"
+
+        if go tool cover -html="$coverage_profile_path" -o "$coverage_html_path" 2>/dev/null; then
+            local html_abs_path="$coverage_html_path"
+            if [[ "$html_abs_path" != /* ]]; then
+                html_abs_path="$PWD/$html_abs_path"
+            fi
+            declare -g TESTING_GO_COVERAGE_HTML="$html_abs_path"
+            local html_display="$html_abs_path"
+            if [[ "$html_display" == "$original_dir/"* ]]; then
+                html_display="${html_display#$original_dir/}"
+            fi
+            echo "ℹ️  HTML coverage report generated: ${html_display:-$html_abs_path}"
+        fi
+    fi
+
+    cd "$original_dir"
+
+    if [ "$has_test_failures" = "true" ]; then
         return 1
     fi
+
+    return 0
 }
+
+# ============================================================================
+# Requirement Tracking - Legacy Support
+# ============================================================================
 
 testing::unit::_go_status_rank() {
     case "$1" in
