@@ -26,6 +26,7 @@ type TaskItem struct {
 	CurrentPhase                string         `json:"current_phase" yaml:"current_phase"`
 	StartedAt                   string         `json:"started_at" yaml:"started_at"`
 	CompletedAt                 string         `json:"completed_at" yaml:"completed_at"`
+	CooldownUntil               string         `json:"cooldown_until,omitempty" yaml:"cooldown_until,omitempty"`
 	CompletionCount             int            `json:"completion_count" yaml:"completion_count"`
 	LastCompletedAt             string         `json:"last_completed_at" yaml:"last_completed_at"`
 	ValidationCriteria          []string       `json:"validation_criteria" yaml:"validation_criteria"`

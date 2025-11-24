@@ -50,13 +50,13 @@ func (te *taskExecution) isTimedOut() bool {
 
 // Processor manages automated queue processing
 type Processor struct {
-	mu              sync.Mutex
-	isRunning       bool
-	isPaused        bool // Added for maintenance state awareness
-	stopChannel     chan bool
-	processInterval time.Duration
-	storage         *tasks.Storage
-	assembler       *prompts.Assembler
+	mu          sync.Mutex
+	isRunning   bool
+	isPaused    bool // Added for maintenance state awareness
+	stopChannel chan bool
+	wakeCh      chan struct{}
+	storage     *tasks.Storage
+	assembler   *prompts.Assembler
 
 	// Live task executions keyed by task ID
 	executions   map[string]*taskExecution
@@ -100,16 +100,16 @@ type Processor struct {
 }
 
 // NewProcessor creates a new queue processor
-func NewProcessor(interval time.Duration, storage *tasks.Storage, assembler *prompts.Assembler, broadcast chan<- any, recycler *recycler.Recycler) *Processor {
+func NewProcessor(storage *tasks.Storage, assembler *prompts.Assembler, broadcast chan<- any, recycler *recycler.Recycler) *Processor {
 	processor := &Processor{
-		processInterval: interval,
-		stopChannel:     make(chan bool),
-		storage:         storage,
-		assembler:       assembler,
-		executions:      make(map[string]*taskExecution),
-		broadcast:       broadcast,
-		taskLogs:        make(map[string]*TaskLogBuffer),
-		recycler:        recycler,
+		stopChannel: make(chan bool),
+		wakeCh:      make(chan struct{}, 1),
+		storage:     storage,
+		assembler:   assembler,
+		executions:  make(map[string]*taskExecution),
+		broadcast:   broadcast,
+		taskLogs:    make(map[string]*TaskLogBuffer),
+		recycler:    recycler,
 	}
 
 	processor.vrooliRoot = paths.DetectVrooliRoot()
@@ -159,6 +159,7 @@ func (qp *Processor) Start() {
 
 	qp.isRunning = true
 	go qp.processLoop()
+	qp.Wake()
 	log.Println("Queue processor started")
 }
 
@@ -199,17 +200,31 @@ func (qp *Processor) Resume() {
 	_ = qp.ResumeWithReset()
 }
 
+// Wake requests the processor to immediately attempt to fill available slots.
+func (qp *Processor) Wake() {
+	if qp == nil {
+		return
+	}
+	select {
+	case qp.wakeCh <- struct{}{}:
+	default:
+	}
+}
+
 // processLoop is the main queue processing loop
 func (qp *Processor) processLoop() {
-	ticker := time.NewTicker(qp.processInterval)
-	defer ticker.Stop()
+	// Safety backstop to recover from any missed wake signals
+	safetyTicker := time.NewTicker(30 * time.Second)
+	defer safetyTicker.Stop()
 
 	for {
 		select {
-		case <-ticker.C:
-			qp.ProcessQueue()
 		case <-qp.stopChannel:
 			return
+		case <-qp.wakeCh:
+			qp.ProcessQueue()
+		case <-safetyTicker.C:
+			qp.ProcessQueue()
 		}
 	}
 }
@@ -305,73 +320,86 @@ func (qp *Processor) ProcessQueue() {
 		"low":      1,
 	}
 
-	// Find highest priority task from all ready tasks
-	var selectedTask *tasks.TaskItem
-	highestPriority := 0
+	for availableSlots > 0 {
+		// Find highest priority task from all ready tasks
+		var selectedTask *tasks.TaskItem
+		var selectedIdx int
+		highestPriority := 0
 
-	for i, task := range pendingTasks {
-		if !task.ProcessorAutoRequeue {
-			continue
+		for i, task := range pendingTasks {
+			if !task.ProcessorAutoRequeue {
+				continue
+			}
+			priority := priorityOrder[task.Priority]
+			if priority > highestPriority {
+				highestPriority = priority
+				selectedTask = &pendingTasks[i]
+				selectedIdx = i
+			}
 		}
-		priority := priorityOrder[task.Priority]
-		if priority > highestPriority {
-			highestPriority = priority
-			selectedTask = &pendingTasks[i]
+
+		if selectedTask == nil {
+			return
+		}
+
+		log.Printf("Processing task: %s - %s (from pending)", selectedTask.ID, selectedTask.Title)
+		systemlog.Debugf("Queue selecting %s from pending (priority %s)", selectedTask.ID, selectedTask.Priority)
+
+		movedTask, previousStatus, err := qp.storage.MoveTaskTo(selectedTask.ID, "in-progress")
+		if err != nil {
+			log.Printf("Failed to move task %s to in-progress: %v", selectedTask.ID, err)
+			systemlog.Errorf("Failed to move task %s to in-progress: %v", selectedTask.ID, err)
+			return
+		}
+		if movedTask != nil {
+			selectedTask = movedTask
+		}
+
+		selectedTask.Status = "in-progress"
+		selectedTask.CurrentPhase = "in-progress"
+		selectedTask.Results = nil
+		selectedTask.CompletedAt = ""
+		if selectedTask.StartedAt == "" {
+			selectedTask.StartedAt = timeutil.NowRFC3339()
+		}
+		selectedTask.UpdatedAt = timeutil.NowRFC3339()
+
+		// Use SkipCleanup since MoveTaskTo already cleaned up duplicates
+		if err := qp.storage.SaveQueueItemSkipCleanup(*selectedTask, "in-progress"); err != nil {
+			log.Printf("Failed to persist in-progress task %s: %v", selectedTask.ID, err)
+		}
+
+		agentIdentifier := makeAgentTag(selectedTask.ID)
+		if _, active := externalActive[selectedTask.ID]; active {
+			log.Printf("Detected lingering Claude agent for task %s; attempting cleanup before restart", selectedTask.ID)
+			if err := qp.stopClaudeAgent(agentIdentifier, 0); err != nil {
+				log.Printf("Warning: failed to stop lingering agent %s: %v", agentIdentifier, err)
+			}
+			delete(externalActive, selectedTask.ID)
+		}
+
+		// Reserve execution slot immediately so reconciliation won't recycle the task
+		qp.reserveExecution(selectedTask.ID, agentIdentifier, time.Now())
+
+		qp.broadcastUpdate("task_status_changed", map[string]any{
+			"task_id":    selectedTask.ID,
+			"old_status": previousStatus,
+			"new_status": "in-progress",
+			"task":       selectedTask,
+		})
+
+		// Process the task asynchronously
+		go qp.executeTask(*selectedTask)
+
+		executingCount++
+		availableSlots--
+
+		// Remove the selected task from the local slice to avoid reselection in the same pass
+		pendingTasks = append(pendingTasks[:selectedIdx], pendingTasks[selectedIdx+1:]...)
+		if len(pendingTasks) == 0 {
+			return
 		}
 	}
-
-	if selectedTask == nil {
-		return
-	}
-
-	log.Printf("Processing task: %s - %s (from pending)", selectedTask.ID, selectedTask.Title)
-	systemlog.Debugf("Queue selecting %s from pending (priority %s)", selectedTask.ID, selectedTask.Priority)
-
-	movedTask, previousStatus, err := qp.storage.MoveTaskTo(selectedTask.ID, "in-progress")
-	if err != nil {
-		log.Printf("Failed to move task %s to in-progress: %v", selectedTask.ID, err)
-		systemlog.Errorf("Failed to move task %s to in-progress: %v", selectedTask.ID, err)
-		return
-	}
-	if movedTask != nil {
-		selectedTask = movedTask
-	}
-
-	selectedTask.Status = "in-progress"
-	selectedTask.CurrentPhase = "in-progress"
-	selectedTask.Results = nil
-	selectedTask.CompletedAt = ""
-	if selectedTask.StartedAt == "" {
-		selectedTask.StartedAt = timeutil.NowRFC3339()
-	}
-	selectedTask.UpdatedAt = timeutil.NowRFC3339()
-
-	// Use SkipCleanup since MoveTaskTo already cleaned up duplicates
-	if err := qp.storage.SaveQueueItemSkipCleanup(*selectedTask, "in-progress"); err != nil {
-		log.Printf("Failed to persist in-progress task %s: %v", selectedTask.ID, err)
-	}
-
-	agentIdentifier := makeAgentTag(selectedTask.ID)
-	if _, active := externalActive[selectedTask.ID]; active {
-		log.Printf("Detected lingering Claude agent for task %s; attempting cleanup before restart", selectedTask.ID)
-		if err := qp.stopClaudeAgent(agentIdentifier, 0); err != nil {
-			log.Printf("Warning: failed to stop lingering agent %s: %v", agentIdentifier, err)
-		}
-		delete(externalActive, selectedTask.ID)
-	}
-
-	// Reserve execution slot immediately so reconciliation won't recycle the task
-	qp.reserveExecution(selectedTask.ID, agentIdentifier, time.Now())
-
-	qp.broadcastUpdate("task_status_changed", map[string]any{
-		"task_id":    selectedTask.ID,
-		"old_status": previousStatus,
-		"new_status": "in-progress",
-		"task":       selectedTask,
-	})
-
-	// Process the task asynchronously
-	go qp.executeTask(*selectedTask)
 }
 
 func (qp *Processor) finalizeTaskStatus(task *tasks.TaskItem, toStatus string) error {

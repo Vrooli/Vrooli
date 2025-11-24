@@ -97,6 +97,7 @@ func (qp *Processor) appendDefaultProgressSection(prompt string) string {
 func (qp *Processor) executeTask(task tasks.TaskItem) {
 	log.Printf("Executing task %s: %s", task.ID, task.Title)
 	systemlog.Infof("Executing task %s (%s)", task.ID, task.Title)
+	defer qp.Wake()
 
 	// Track execution timing and create execution ID
 	executionStartTime := time.Now()
@@ -255,6 +256,17 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 			}
 		}
 
+		if task.Status == "completed" && task.ProcessorAutoRequeue {
+			cooldownSeconds := settings.GetSettings().CooldownSeconds
+			if cooldownSeconds > 0 {
+				task.CooldownUntil = time.Now().Add(time.Duration(cooldownSeconds) * time.Second).Format(time.RFC3339)
+			} else {
+				task.CooldownUntil = ""
+			}
+		} else {
+			task.CooldownUntil = ""
+		}
+
 		// Update execution history
 		history.EndTime = time.Now()
 		history.Duration = executionTime.Round(time.Second).String()
@@ -304,6 +316,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 			// Move task back to pending (don't mark as failed)
 			task.CurrentPhase = "rate_limited"
 			task.Status = "pending"
+			task.CooldownUntil = ""
 
 			// Store rate limit info using structured results
 			hitAt := timeutil.NowRFC3339()
@@ -446,6 +459,17 @@ func (qp *Processor) handleTaskFailureWithTiming(task *tasks.TaskItem, errorMsg 
 	task.CurrentPhase = "failed"
 	task.Status = "failed"
 	task.CompletedAt = timeutil.NowRFC3339()
+
+	if task.ProcessorAutoRequeue {
+		cooldownSeconds := settings.GetSettings().CooldownSeconds
+		if cooldownSeconds > 0 {
+			task.CooldownUntil = time.Now().Add(time.Duration(cooldownSeconds) * time.Second).Format(time.RFC3339)
+		} else {
+			task.CooldownUntil = ""
+		}
+	} else {
+		task.CooldownUntil = ""
+	}
 
 	// Log detailed timing information
 	if isTimeout {

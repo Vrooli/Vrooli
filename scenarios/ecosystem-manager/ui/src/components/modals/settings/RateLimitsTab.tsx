@@ -37,7 +37,7 @@ export function RateLimitsTab({ settings, onChange }: RateLimitsTabProps) {
   const slotsUsed = queueStatus?.slots_used ?? 0;
   const availableSlots = queueStatus?.available_slots ?? Math.max(maxConcurrent - slotsUsed, 0);
   const tasksRemaining = queueStatus?.tasks_remaining ?? 0;
-  const nextRefreshIn = queueStatus?.next_refresh_in ?? 0;
+  const cooldownSeconds = queueStatus?.cooldown_seconds ?? settings.cooldown_seconds ?? 0;
 
   const utilization = useMemo(() => {
     if (maxConcurrent <= 0) return 0;
@@ -87,10 +87,10 @@ export function RateLimitsTab({ settings, onChange }: RateLimitsTabProps) {
     }
   };
 
-  const handleRefreshIntervalChange = (value: number) => {
+  const handleCooldownChange = (value: number) => {
     if (Number.isNaN(value)) return;
     const clamped = Math.max(5, Math.min(300, value));
-    onChange({ refresh_interval: clamped });
+    onChange({ cooldown_seconds: clamped });
   };
 
   return (
@@ -107,7 +107,7 @@ export function RateLimitsTab({ settings, onChange }: RateLimitsTabProps) {
           </div>
         </div>
         <div className="text-xs text-slate-500">
-          Next refresh in {formatDuration(nextRefreshIn)}
+          Task cooldown {formatDuration(cooldownSeconds)}
         </div>
       </div>
 
@@ -143,7 +143,7 @@ export function RateLimitsTab({ settings, onChange }: RateLimitsTabProps) {
             <div className="rounded-lg border border-white/5 bg-white/5 p-3">
               <p className="text-slate-400">Throttle</p>
               <p className="text-sm font-semibold text-white">
-                {settings.refresh_interval}s refresh
+                {settings.cooldown_seconds}s cooldown
               </p>
             </div>
           </div>
@@ -209,7 +209,7 @@ export function RateLimitsTab({ settings, onChange }: RateLimitsTabProps) {
                 <div className="rounded-lg border border-white/5 bg-white/5 p-3">
                   <p className="text-slate-400">Current throttle</p>
                   <p className="text-sm font-semibold text-white">
-                    {maxConcurrent} concurrent · {settings.refresh_interval}s refresh
+                    {maxConcurrent} concurrent · {settings.cooldown_seconds}s cooldown
                   </p>
                 </div>
                 <div className="rounded-lg border border-white/5 bg-white/5 p-3">
@@ -266,23 +266,23 @@ export function RateLimitsTab({ settings, onChange }: RateLimitsTabProps) {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="limit-refresh">Refresh interval (seconds)</Label>
+              <Label htmlFor="limit-cooldown">Task cooldown (seconds)</Label>
               <span className="text-sm font-medium text-slate-200">
-                {settings.refresh_interval}s
+                {settings.cooldown_seconds}s
               </span>
             </div>
             <Input
-              id="limit-refresh"
+              id="limit-cooldown"
               type="number"
               min={5}
               max={300}
               step={5}
-              value={settings.refresh_interval}
-              onChange={(e) => handleRefreshIntervalChange(Number(e.target.value))}
+              value={settings.cooldown_seconds}
+              onChange={(e) => handleCooldownChange(Number(e.target.value))}
               className="bg-slate-950/70"
             />
             <p className="text-xs text-slate-500">
-              How often we poll the queue. Increasing the interval can help avoid provider spikes.
+              Delay before the recycler revisits completed/failed tasks. Longer cooldowns reduce churn after errors.
             </p>
           </div>
         </div>
@@ -308,7 +308,7 @@ export function RateLimitsTab({ settings, onChange }: RateLimitsTabProps) {
         <h4 className="text-sm font-medium text-blue-300 mb-2">Rate limit guidance</h4>
         <ul className="text-xs text-slate-300 space-y-1">
           <li>• Rate limits come from your AI provider (OpenRouter, Anthropic, etc.)</li>
-          <li>• Tighten concurrency or increase refresh interval if you see frequent pauses</li>
+          <li>• Tighten concurrency or increase cooldown if you see frequent pauses</li>
           <li>• The processor auto-pauses and resumes; manual reset is for confirmed recoveries</li>
           <li>• Consider upgrading your API plan if you repeatedly exhaust capacity</li>
         </ul>

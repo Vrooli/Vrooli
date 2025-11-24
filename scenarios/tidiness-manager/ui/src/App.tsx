@@ -13,6 +13,7 @@ export default function App() {
       <AppShell>
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/scenario/:scenarioName" element={<ScenarioDetail />} />
           <Route path="/scenario/:scenarioName/file/*" element={<FileDetail />} />
           <Route path="/scenario/:scenarioName/issues" element={<IssuesView />} />

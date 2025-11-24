@@ -19,8 +19,15 @@ export default function Dashboard() {
 
   const { data: scenarios = [], isLoading, error } = useQuery({
     queryKey: ["scenarios"],
-    queryFn: fetchScenarioStats,
+    queryFn: async () => {
+      console.log('[Dashboard] Fetching scenario stats...');
+      const result = await fetchScenarioStats();
+      console.log('[Dashboard] Fetched scenarios:', result.length);
+      return result;
+    },
   });
+
+  console.log('[Dashboard] Render - isLoading:', isLoading, 'error:', error, 'scenarios:', scenarios.length);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -80,7 +87,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div>
+    <div data-testid="dashboard-page">
       <PageHeader
         title="Dashboard"
         description="Monitor code tidiness across all scenarios"

@@ -55,25 +55,25 @@ export function ProcessorTab({ settings, onChange }: ProcessorTabProps) {
         </p>
       </div>
 
-      {/* Refresh Interval */}
+      {/* Cooldown */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label htmlFor="refresh-interval">Refresh Interval</Label>
+          <Label htmlFor="cooldown-seconds">Cooldown</Label>
           <span className="text-sm font-medium text-slate-300">
-            {settings.refresh_interval}s
+            {settings.cooldown_seconds}s
           </span>
         </div>
         <Slider
-          id="refresh-interval"
+          id="cooldown-seconds"
           min={5}
           max={300}
           step={5}
-          value={[settings.refresh_interval]}
-          onValueChange={(value) => onChange({ refresh_interval: value[0] })}
+          value={[settings.cooldown_seconds]}
+          onValueChange={(value) => onChange({ cooldown_seconds: value[0] })}
           className="w-full"
         />
         <p className="text-xs text-slate-500">
-          How often the processor checks for new tasks in the queue (in seconds). Lower values provide faster response but increase system load.
+          Cooldown applied to completed/failed tasks before the recycler requeues them (in seconds).
         </p>
       </div>
 

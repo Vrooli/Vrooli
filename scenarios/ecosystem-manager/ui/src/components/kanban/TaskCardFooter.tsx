@@ -4,6 +4,8 @@
  */
 
 import { Eye, Trash2, PlayCircle, CheckCircle2 } from 'lucide-react';
+import { Snowflake } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { ElapsedTimer } from './ElapsedTimer';
 import type { Task } from '../../types/api';
 
@@ -18,6 +20,7 @@ export function TaskCardFooter({ task, onViewDetails, onDelete }: TaskCardFooter
   const hasProcess = task.current_process;
   const executionCount = task.execution_count || 0;
   const completionCount = task.completion_count ?? 0;
+  const showCooldown = (task.status === 'completed' || task.status === 'failed') && !!task.cooldown_until;
 
   return (
     <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border/60">
@@ -26,6 +29,7 @@ export function TaskCardFooter({ task, onViewDetails, onDelete }: TaskCardFooter
         {isInProgress && hasProcess && task.current_process?.start_time && (
           <ElapsedTimer startTime={task.current_process.start_time} />
         )}
+        {showCooldown && <CooldownCountdown until={task.cooldown_until!} />}
         <div
           className="flex items-center gap-1.5 text-xs text-muted-foreground"
           title="Completion count"
@@ -70,6 +74,45 @@ export function TaskCardFooter({ task, onViewDetails, onDelete }: TaskCardFooter
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+function CooldownCountdown({ until }: { until: string }) {
+  const target = useMemo(() => {
+    const parsed = new Date(until);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }, [until]);
+
+  const computeRemaining = () => {
+    if (!target) return 0;
+    return Math.max(0, Math.floor((target.getTime() - Date.now()) / 1000));
+  };
+
+  const [remaining, setRemaining] = useState<number>(() => computeRemaining());
+
+  useEffect(() => {
+    setRemaining(computeRemaining());
+    const timer = setInterval(() => {
+      setRemaining(computeRemaining());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [until]);
+
+  if (!target || remaining <= 0) return null;
+
+  const format = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins === 0) return `${secs}s`;
+    return `${mins}m${secs > 0 ? ` ${secs}s` : ''}`;
+  };
+
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-sky-500" title="Recycler cooldown">
+      <Snowflake className="h-3.5 w-3.5" />
+      <span className="tabular-nums">{format(remaining)}</span>
     </div>
   );
 }

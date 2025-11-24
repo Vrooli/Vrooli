@@ -13,6 +13,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
+	"github.com/ecosystem-manager/api/pkg/settings"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
@@ -135,6 +136,10 @@ func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask t
 		statusCode = http.StatusCreated
 	} else if len(errors) > 0 {
 		statusCode = http.StatusInternalServerError
+	}
+
+	if len(created) > 0 && h.processor != nil {
+		h.processor.Wake()
 	}
 
 	writeJSON(w, response, statusCode)
@@ -292,6 +297,7 @@ func clearTaskExecutionData(task *tasks.TaskItem, taskID, fromStatus, toStatus s
 	task.StartedAt = ""
 	task.CompletedAt = ""
 	task.CurrentPhase = ""
+	task.CooldownUntil = ""
 }
 
 // applyStatusTransitionLogic handles status change logic including timestamps, completion counts,
@@ -329,6 +335,19 @@ func (h *TaskHandlers) applyStatusTransitionLogic(task *tasks.TaskItem, taskID, 
 		task.CompletedAt = now
 	}
 
+	if newStatus == "completed" || newStatus == "failed" {
+		if task.ProcessorAutoRequeue {
+			cooldownSeconds := settings.GetSettings().CooldownSeconds
+			if cooldownSeconds > 0 {
+				task.CooldownUntil = time.Now().Add(time.Duration(cooldownSeconds) * time.Second).Format(time.RFC3339)
+			} else {
+				task.CooldownUntil = ""
+			}
+		} else {
+			task.CooldownUntil = ""
+		}
+	}
+
 	if newStatus == "archived" {
 		if strings.TrimSpace(task.CurrentPhase) == "" {
 			task.CurrentPhase = "archived"
@@ -340,6 +359,7 @@ func (h *TaskHandlers) applyStatusTransitionLogic(task *tasks.TaskItem, taskID, 
 		task.ConsecutiveCompletionClaims = 0
 		task.ConsecutiveFailures = 0
 		task.ProcessorAutoRequeue = true
+		task.CooldownUntil = ""
 	}
 
 	if newStatus == "completed-finalized" {
@@ -565,6 +585,10 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 	if err := h.storage.SaveQueueItem(task, "pending"); err != nil {
 		writeError(w, fmt.Sprintf("Failed to save task: %v", err), http.StatusInternalServerError)
 		return
+	}
+
+	if h.processor != nil {
+		h.processor.Wake()
 	}
 
 	writeJSON(w, map[string]any{
@@ -893,6 +917,10 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 
 	// Broadcast the update via WebSocket
 	h.wsManager.BroadcastUpdate("task_status_updated", *task)
+
+	if h.processor != nil && (task.Status == "pending" || currentStatus == "in-progress") {
+		h.processor.Wake()
+	}
 
 	writeJSON(w, *task, http.StatusOK)
 }

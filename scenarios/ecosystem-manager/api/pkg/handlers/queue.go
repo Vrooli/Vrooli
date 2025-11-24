@@ -201,6 +201,10 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 			})
 
 			log.Printf("Cancelled task %s moved back to pending", request.TaskID)
+
+			if h.processor != nil {
+				h.processor.Wake()
+			}
 		}
 	}
 

@@ -160,6 +160,7 @@ func (qp *Processor) ResumeWithReset() ResumeResetSummary {
 
 	qp.isPaused = false
 	log.Println("Queue processor resumed from maintenance")
+	qp.Wake()
 
 	return summary
 }
@@ -235,7 +236,7 @@ func (qp *Processor) GetQueueStatus() map[string]any {
 		readyInProgress++
 	}
 
-	// Get maxConcurrent and refresh interval from settings
+	// Get maxConcurrent and cooldown from settings
 	currentSettings := settings.GetSettings()
 	maxConcurrent := currentSettings.Slots
 	availableSlots := maxConcurrent - executingCount
@@ -270,7 +271,7 @@ func (qp *Processor) GetQueueStatus() map[string]any {
 		"failed_blocked_count":      len(failedBlockedTasks),
 		"archived_count":            len(archivedTasks),
 		"ready_in_progress":         readyInProgress,
-		"refresh_interval":          currentSettings.RefreshInterval, // from settings
+		"cooldown_seconds":          currentSettings.CooldownSeconds, // from settings
 		"processor_running":         processorActive,
 		"timestamp":                 time.Now().Unix(),
 		"last_processed_at":         lastProcessedAt,

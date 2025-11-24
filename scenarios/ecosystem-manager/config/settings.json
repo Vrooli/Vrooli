@@ -2,7 +2,8 @@
   "theme": "dark",
   "condensed_mode": false,
   "slots": 3,
-  "refresh_interval": 100,
+  "cooldown_seconds": 60,
+  "refresh_interval": 60,
   "active": false,
   "max_turns": 100,
   "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
@@ -10,11 +11,13 @@
   "task_timeout": 125,
   "idle_timeout_cap": 102,
   "recycler": {
-    "enabled_for": "off",
-    "interval_seconds": 300,
+    "enabled_for": "scenarios",
+    "interval_seconds": 240,
     "model_provider": "ollama",
     "model_name": "llama3.1:8b",
     "completion_threshold": 3,
-    "failure_threshold": 5
+    "failure_threshold": 5,
+    "max_retries": 3,
+    "retry_delay_seconds": 10
   }
 }

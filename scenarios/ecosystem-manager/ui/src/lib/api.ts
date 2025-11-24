@@ -37,7 +37,7 @@ import type {
 const DEFAULT_SETTINGS: Settings = {
   processor: {
     concurrent_slots: 1,
-    refresh_interval: 30,
+    cooldown_seconds: 30,
     max_tasks: 0,
     active: false,
   },
@@ -67,7 +67,8 @@ const DEFAULT_SETTINGS: Settings = {
 type ApiSettingsPayload = {
   theme?: string;
   slots?: number;
-  refresh_interval?: number;
+  refresh_interval?: number; // legacy
+  cooldown_seconds?: number;
   active?: boolean;
   max_turns?: number;
   allowed_tools?: string;
@@ -114,14 +115,16 @@ function mapApiSettingsToUi(raw: ApiSettingsPayload | Settings): Settings {
     (source as ApiSettingsPayload)?.condensedMode ??
     display?.condensed_mode ??
     (display as any)?.condensedMode;
+  const cooldown =
+    (source as ApiSettingsPayload)?.cooldown_seconds ??
+    (source as ApiSettingsPayload)?.refresh_interval ??
+    DEFAULT_SETTINGS.processor.cooldown_seconds;
 
   return {
     processor: {
       concurrent_slots:
         (source as ApiSettingsPayload)?.slots ?? DEFAULT_SETTINGS.processor.concurrent_slots,
-      refresh_interval:
-        (source as ApiSettingsPayload)?.refresh_interval ??
-        DEFAULT_SETTINGS.processor.refresh_interval,
+      cooldown_seconds: cooldown,
       max_tasks: (source as ApiSettingsPayload)?.max_tasks ?? DEFAULT_SETTINGS.processor.max_tasks,
       active: (source as ApiSettingsPayload)?.active ?? DEFAULT_SETTINGS.processor.active,
     },
@@ -199,6 +202,7 @@ const normalizeTaskTargets = (task: any): Task => {
         ? task.completionCount
         : 0;
   const lastCompletedAt = task.last_completed_at ?? task.lastCompletedAt ?? '';
+  const cooldownUntil = task.cooldown_until ?? task.cooldownUntil ?? '';
 
   return {
     ...task,
@@ -206,6 +210,7 @@ const normalizeTaskTargets = (task: any): Task => {
     current_process: normalizedProcess,
     completion_count: completionCount,
     last_completed_at: lastCompletedAt,
+    cooldown_until: cooldownUntil,
     // Backend uses processor_auto_requeue; UI expects auto_requeue
     auto_requeue: task.auto_requeue ?? task.processor_auto_requeue ?? false,
   };
@@ -326,7 +331,10 @@ const normalizeQueueStatus = (raw: any): QueueStatus => {
     slots_used: Number(slotsUsed) || 0,
     max_concurrent: Number(maxConcurrent) || 0,
     tasks_remaining: Number(pendingCount + readyInProgress) || 0,
-    next_refresh_in: raw?.refresh_interval ?? raw?.next_refresh_in,
+    cooldown_seconds:
+      raw?.cooldown_seconds ??
+      raw?.refresh_interval ??
+      0,
     rate_limited: Boolean(rateInfo.paused ?? raw?.rate_limited ?? false),
     rate_limit_retry_after:
       rateInfo.remaining_secs ??
@@ -380,7 +388,8 @@ function normalizeRunningProcess(raw: any): RunningProcess {
 function mapUiSettingsToApi(settings: Settings): ApiSettingsPayload {
   const processor = {
     slots: settings.processor.concurrent_slots,
-    refresh_interval: settings.processor.refresh_interval,
+    cooldown_seconds: settings.processor.cooldown_seconds,
+    refresh_interval: settings.processor.cooldown_seconds, // legacy compatibility
     active: settings.processor.active,
     max_tasks: settings.processor.max_tasks ?? 0,
   };

@@ -6,9 +6,9 @@ const (
 	MinSlots = 1
 	MaxSlots = 5
 
-	// Refresh interval constraints (seconds)
-	MinRefreshInterval = 5
-	MaxRefreshInterval = 300
+	// Cooldown constraints (seconds)
+	MinCooldownSeconds = 5
+	MaxCooldownSeconds = 300
 
 	// Max turns constraints
 	MinMaxTurns = 5
@@ -54,7 +54,7 @@ const (
 // Default settings values
 const (
 	DefaultSlots           = 1
-	DefaultRefreshInterval = 30
+	DefaultCooldownSeconds = 30
 	DefaultMaxTurns        = 80
 	DefaultTaskTimeout     = 30
 	DefaultIdleTimeoutCap  = DefaultTaskTimeout

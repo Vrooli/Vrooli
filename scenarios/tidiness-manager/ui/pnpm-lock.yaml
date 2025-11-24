@@ -16,7 +16,7 @@ importers:
         version: 5.90.10(react@18.3.1)
       '@vrooli/api-base':
         specifier: file:../../../packages/api-base
-        version: file:../../../packages/api-base(express@4.21.2)
+        version: file:../../../packages/api-base
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge
@@ -791,11 +791,6 @@ packages:
 
   '@vrooli/api-base@file:../../../packages/api-base':
     resolution: {directory: ../../../packages/api-base, type: directory}
-    peerDependencies:
-      express: ^4.18.0
-    peerDependenciesMeta:
-      express:
-        optional: true
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
@@ -2852,9 +2847,14 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 1.2.0
 
-  '@vrooli/api-base@file:../../../packages/api-base(express@4.21.2)':
-    optionalDependencies:
+  '@vrooli/api-base@file:../../../packages/api-base':
+    dependencies:
       express: 4.21.2
+      ws: 8.18.3
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 

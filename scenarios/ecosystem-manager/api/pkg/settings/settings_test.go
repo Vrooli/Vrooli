@@ -18,8 +18,8 @@ func TestGetSettings(t *testing.T) {
 	if settings.Slots != DefaultSlots {
 		t.Errorf("Expected Slots=%d, got %d", DefaultSlots, settings.Slots)
 	}
-	if settings.RefreshInterval != DefaultRefreshInterval {
-		t.Errorf("Expected RefreshInterval=%d, got %d", DefaultRefreshInterval, settings.RefreshInterval)
+	if settings.CooldownSeconds != DefaultCooldownSeconds {
+		t.Errorf("Expected CooldownSeconds=%d, got %d", DefaultCooldownSeconds, settings.CooldownSeconds)
 	}
 	if settings.MaxTurns != DefaultMaxTurns {
 		t.Errorf("Expected MaxTurns=%d, got %d", DefaultMaxTurns, settings.MaxTurns)
@@ -53,7 +53,7 @@ func TestUpdateSettings(t *testing.T) {
 	newSettings := Settings{
 		Theme:           "dark",
 		Slots:           3,
-		RefreshInterval: 60,
+		CooldownSeconds: 60,
 		Active:          true,
 		MaxTurns:        50,
 		AllowedTools:    "Read,Write,Edit",
@@ -81,8 +81,8 @@ func TestUpdateSettings(t *testing.T) {
 	if retrieved.Slots != 3 {
 		t.Errorf("Expected Slots=3, got %d", retrieved.Slots)
 	}
-	if retrieved.RefreshInterval != 60 {
-		t.Errorf("Expected RefreshInterval=60, got %d", retrieved.RefreshInterval)
+	if retrieved.CooldownSeconds != 60 {
+		t.Errorf("Expected CooldownSeconds=60, got %d", retrieved.CooldownSeconds)
 	}
 	if !retrieved.Active {
 		t.Error("Expected Active=true, got false")
@@ -128,7 +128,7 @@ func TestResetSettings(t *testing.T) {
 	UpdateSettings(Settings{
 		Theme:           "dark",
 		Slots:           5,
-		RefreshInterval: 120,
+		CooldownSeconds: 120,
 		Active:          true,
 		MaxTurns:        80,
 		AllowedTools:    "Read",
@@ -145,8 +145,8 @@ func TestResetSettings(t *testing.T) {
 	if reset.Slots != DefaultSlots {
 		t.Errorf("Expected Slots=%d after reset, got %d", DefaultSlots, reset.Slots)
 	}
-	if reset.RefreshInterval != DefaultRefreshInterval {
-		t.Errorf("Expected RefreshInterval=%d after reset, got %d", DefaultRefreshInterval, reset.RefreshInterval)
+	if reset.CooldownSeconds != DefaultCooldownSeconds {
+		t.Errorf("Expected CooldownSeconds=%d after reset, got %d", DefaultCooldownSeconds, reset.CooldownSeconds)
 	}
 	if reset.Active != DefaultActive {
 		t.Errorf("Expected Active=%v after reset, got %v", DefaultActive, reset.Active)
@@ -191,7 +191,7 @@ func TestIsActive(t *testing.T) {
 	UpdateSettings(Settings{
 		Active:          true,
 		Slots:           DefaultSlots,
-		RefreshInterval: DefaultRefreshInterval,
+		CooldownSeconds: DefaultCooldownSeconds,
 		MaxTurns:        DefaultMaxTurns,
 		AllowedTools:    DefaultAllowedTools,
 		SkipPermissions: DefaultSkipPermissions,
@@ -208,7 +208,7 @@ func TestIsActive(t *testing.T) {
 	UpdateSettings(Settings{
 		Active:          false,
 		Slots:           DefaultSlots,
-		RefreshInterval: DefaultRefreshInterval,
+		CooldownSeconds: DefaultCooldownSeconds,
 		MaxTurns:        DefaultMaxTurns,
 		AllowedTools:    DefaultAllowedTools,
 		SkipPermissions: DefaultSkipPermissions,
@@ -288,7 +288,7 @@ func TestConcurrentAccess(t *testing.T) {
 			for j := 0; j < numOperations; j++ {
 				UpdateSettings(Settings{
 					Slots:           DefaultSlots + (id % 3),
-					RefreshInterval: DefaultRefreshInterval,
+					CooldownSeconds: DefaultCooldownSeconds,
 					Active:          (id+j)%2 == 0,
 					MaxTurns:        DefaultMaxTurns,
 					AllowedTools:    DefaultAllowedTools,
@@ -313,8 +313,8 @@ func TestDefaultsMatchConstants(t *testing.T) {
 	if defaults.Slots != DefaultSlots {
 		t.Errorf("Default Slots mismatch: constant=%d, function=%d", DefaultSlots, defaults.Slots)
 	}
-	if defaults.RefreshInterval != DefaultRefreshInterval {
-		t.Errorf("Default RefreshInterval mismatch: constant=%d, function=%d", DefaultRefreshInterval, defaults.RefreshInterval)
+	if defaults.CooldownSeconds != DefaultCooldownSeconds {
+		t.Errorf("Default CooldownSeconds mismatch: constant=%d, function=%d", DefaultCooldownSeconds, defaults.CooldownSeconds)
 	}
 	if defaults.MaxTurns != DefaultMaxTurns {
 		t.Errorf("Default MaxTurns mismatch: constant=%d, function=%d", DefaultMaxTurns, defaults.MaxTurns)
@@ -381,7 +381,8 @@ func TestValidateAndNormalize(t *testing.T) {
 
 	input := Settings{
 		Slots:           2,
-		RefreshInterval: 45,
+		CooldownSeconds: 0,
+		RefreshInterval: 45, // legacy field should migrate
 		MaxTurns:        60,
 		TaskTimeout:     90,
 		IdleTimeoutCap:  0, // should fall back to previous
@@ -414,6 +415,9 @@ func TestValidateAndNormalize(t *testing.T) {
 	if result.Slots != 2 {
 		t.Fatalf("unexpected Slots value %d", result.Slots)
 	}
+	if result.CooldownSeconds != 45 {
+		t.Fatalf("expected CooldownSeconds to migrate from legacy refresh interval, got %d", result.CooldownSeconds)
+	}
 }
 
 // TestSaveAndLoadToDisk ensures settings persist across calls and never persist Active=true.
@@ -426,7 +430,7 @@ func TestSaveAndLoadToDisk(t *testing.T) {
 	updated := GetSettings()
 	updated.Theme = "dark"
 	updated.Slots = 3
-	updated.RefreshInterval = 75
+	updated.CooldownSeconds = 75
 	updated.Active = true
 	updated.Recycler.EnabledFor = "both"
 	updated.Recycler.IntervalSeconds = 200
@@ -447,7 +451,7 @@ func TestSaveAndLoadToDisk(t *testing.T) {
 	}
 
 	result := GetSettings()
-	if result.Theme != "dark" || result.Slots != 3 || result.RefreshInterval != 75 {
+	if result.Theme != "dark" || result.Slots != 3 || result.CooldownSeconds != 75 {
 		t.Fatalf("loaded settings do not match saved values: %+v", result)
 	}
 	if result.Active {

@@ -43,6 +43,7 @@ export interface Task {
   completion_count?: number;
   last_completed_at?: string;
   current_process?: ProcessInfo;
+  cooldown_until?: string;
 }
 
 export interface ProcessInfo {
@@ -87,7 +88,7 @@ export interface QueueStatus {
   max_concurrent: number;
   available_slots?: number;
   tasks_remaining: number;
-  next_refresh_in?: number;
+  cooldown_seconds?: number;
   rate_limited?: boolean;
   rate_limit_retry_after?: number;
   rate_limit_pause_until?: string;
@@ -113,7 +114,7 @@ export interface Settings {
 
 export interface ProcessorSettings {
   concurrent_slots: number;
-  refresh_interval: number;
+  cooldown_seconds: number;
   max_tasks?: number;
   active: boolean;
 }

@@ -49,9 +49,9 @@ func (h *SettingsHandlers) GetSettingsHandler(w http.ResponseWriter, r *http.Req
 				"min": settings.MinSlots,
 				"max": settings.MaxSlots,
 			},
-			"refresh_interval": map[string]int{
-				"min": settings.MinRefreshInterval,
-				"max": settings.MaxRefreshInterval,
+			"cooldown_seconds": map[string]int{
+				"min": settings.MinCooldownSeconds,
+				"max": settings.MaxCooldownSeconds,
 			},
 			"max_turns": map[string]int{
 				"min": settings.MinMaxTurns,
@@ -147,8 +147,8 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 
 	writeJSON(w, response, http.StatusOK)
 
-	log.Printf("Settings updated: slots=%d, refresh=%ds, active=%v, max_turns=%d, timeout=%dm, idle_cap=%dm",
-		validated.Slots, validated.RefreshInterval, validated.Active, validated.MaxTurns, validated.TaskTimeout, validated.IdleTimeoutCap)
+	log.Printf("Settings updated: slots=%d, cooldown=%ds, active=%v, max_turns=%d, timeout=%dm, idle_cap=%dm",
+		validated.Slots, validated.CooldownSeconds, validated.Active, validated.MaxTurns, validated.TaskTimeout, validated.IdleTimeoutCap)
 }
 
 // GetRecyclerModelsHandler returns available models for a given provider.

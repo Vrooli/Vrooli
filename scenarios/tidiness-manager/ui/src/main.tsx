@@ -5,7 +5,20 @@ import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
 import App from "./App";
 import "./styles.css";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Disable retries for faster failure feedback
+      retry: false,
+      // Shorter staleTime for testing environments
+      staleTime: 0,
+      // Always refetch on mount to ensure fresh data
+      refetchOnMount: true,
+      // Keep data in cache for 5 minutes
+      gcTime: 5 * 60 * 1000,
+    },
+  },
+});
 
 // Initialize iframe bridge before React render
 const BRIDGE_FLAG = '__vrooli_iframe_bridge_initialized__';

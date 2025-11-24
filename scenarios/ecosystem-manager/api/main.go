@@ -260,12 +260,12 @@ func initializeComponents() error {
 
 	// Initialize queue processor
 	processor = queue.NewProcessor(
-		30*time.Second, // 30-second processing interval
 		storage,
 		assembler,
 		wsManager.GetBroadcastChannel(),
 		taskRecycler,
 	)
+	taskRecycler.SetWakeFunc(processor.Wake)
 	log.Println("✅ Queue processor initialized")
 	systemlog.Info("Queue processor initialized")
 

@@ -46,6 +46,7 @@ type Recycler struct {
 	workCh          chan string
 	pending         map[string]struct{}
 	failureAttempts map[string]int
+	cooldownTimers  map[string]struct{}
 	active          bool
 	sweepOnly       bool
 
@@ -54,6 +55,8 @@ type Recycler struct {
 	retryDelay       func(int) time.Duration
 
 	stats recyclerStats
+
+	wake func()
 }
 
 // New creates a recycler instance.
@@ -70,6 +73,13 @@ func New(storage *tasks.Storage, wsManager *websocket.Manager) *Recycler {
 	}
 }
 
+// SetWakeFunc registers a callback to nudge the queue processor after requeues.
+func (r *Recycler) SetWakeFunc(fn func()) {
+	r.mu.Lock()
+	r.wake = fn
+	r.mu.Unlock()
+}
+
 // Start launches the background loop if not already running.
 func (r *Recycler) Start() {
 	r.mu.Lock()
@@ -83,6 +93,7 @@ func (r *Recycler) Start() {
 	r.workCh = make(chan string, 256)
 	r.pending = make(map[string]struct{})
 	r.failureAttempts = make(map[string]int)
+	r.cooldownTimers = make(map[string]struct{})
 	r.processCompleted = r.processCompletedTask
 	r.processFailed = r.processFailedTask
 	r.active = true
@@ -238,6 +249,10 @@ func (r *Recycler) processOnce() error {
 			if status != bucket {
 				continue
 			}
+			if remaining := cooldownRemaining(task); remaining > 0 {
+				r.scheduleAfterCooldown(task.ID, remaining)
+				continue
+			}
 
 			// Process the task and continue to next one (don't return early)
 			// This allows recycler to process multiple tasks per interval instead of just one
@@ -295,6 +310,12 @@ func (r *Recycler) handleWork(taskID string) {
 		return
 	}
 	if !isTypeEnabled(task.Type, strings.ToLower(strings.TrimSpace(cfg.EnabledFor))) {
+		r.resetFailures(taskID)
+		return
+	}
+
+	if remaining := cooldownRemaining(task); remaining > 0 {
+		r.scheduleAfterCooldown(taskID, remaining)
 		r.resetFailures(taskID)
 		return
 	}
@@ -375,6 +396,7 @@ func (r *Recycler) clearPending() {
 	r.mu.Lock()
 	r.pending = make(map[string]struct{})
 	r.failureAttempts = make(map[string]int)
+	r.cooldownTimers = make(map[string]struct{})
 	for {
 		select {
 		case <-r.workCh:
@@ -431,6 +453,54 @@ func (r *Recycler) resetFailures(taskID string) {
 	r.mu.Lock()
 	delete(r.failureAttempts, taskID)
 	r.mu.Unlock()
+}
+
+func cooldownRemaining(task *tasks.TaskItem) time.Duration {
+	if task == nil {
+		return 0
+	}
+	if strings.TrimSpace(task.CooldownUntil) == "" {
+		return 0
+	}
+	ts, err := time.Parse(time.RFC3339, task.CooldownUntil)
+	if err != nil {
+		return 0
+	}
+	remaining := time.Until(ts)
+	if remaining <= 0 {
+		return 0
+	}
+	return remaining
+}
+
+func (r *Recycler) scheduleAfterCooldown(taskID string, delay time.Duration) {
+	if delay <= 0 {
+		r.Enqueue(taskID)
+		return
+	}
+
+	r.mu.Lock()
+	if r.cooldownTimers == nil {
+		r.cooldownTimers = make(map[string]struct{})
+	}
+	if _, exists := r.cooldownTimers[taskID]; exists {
+		r.mu.Unlock()
+		return
+	}
+	r.cooldownTimers[taskID] = struct{}{}
+	r.mu.Unlock()
+
+	log.Printf("Recycler delaying task %s until cooldown expires (%v)", taskID, delay.Round(time.Second))
+
+	go func() {
+		timer := time.NewTimer(delay)
+		defer timer.Stop()
+		<-timer.C
+		r.mu.Lock()
+		delete(r.cooldownTimers, taskID)
+		r.mu.Unlock()
+		r.Enqueue(taskID)
+	}()
 }
 
 // Stats exposes basic recycler counters for observability/testing.
@@ -610,6 +680,14 @@ func (r *Recycler) persistTask(task *tasks.TaskItem, targetStatus string) error 
 	// Use SkipCleanup since MoveTaskTo already cleaned up duplicates
 	if err := r.storage.SaveQueueItemSkipCleanup(*task, targetStatus); err != nil {
 		return fmt.Errorf("save task %s in %s: %w", task.ID, targetStatus, err)
+	}
+	if targetStatus == "pending" {
+		r.mu.Lock()
+		wake := r.wake
+		r.mu.Unlock()
+		if wake != nil {
+			wake()
+		}
 	}
 	return nil
 }

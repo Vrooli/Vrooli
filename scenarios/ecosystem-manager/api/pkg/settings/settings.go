@@ -28,8 +28,10 @@ type Settings struct {
 	CondensedMode bool   `json:"condensed_mode"`
 
 	// Queue processor settings
-	Slots           int  `json:"slots"`
-	RefreshInterval int  `json:"refresh_interval"`
+	Slots           int `json:"slots"`
+	CooldownSeconds int `json:"cooldown_seconds"`
+	// Legacy field for backward compatibility; populated only on load and not persisted.
+	RefreshInterval int  `json:"refresh_interval,omitempty"`
 	Active          bool `json:"active"`
 
 	// Agent settings
@@ -53,7 +55,7 @@ func newDefaultSettings() Settings {
 		Theme:           "light",
 		CondensedMode:   DefaultCondensedMode,
 		Slots:           DefaultSlots,
-		RefreshInterval: DefaultRefreshInterval,
+		CooldownSeconds: DefaultCooldownSeconds,
 		Active:          DefaultActive, // ALWAYS start/reset inactive for safety
 		MaxTurns:        DefaultMaxTurns,
 		AllowedTools:    DefaultAllowedTools,
@@ -129,8 +131,12 @@ func ValidateAndNormalize(input Settings, previous Settings) (Settings, error) {
 	if s.Slots < MinSlots || s.Slots > MaxSlots {
 		return previous, fmt.Errorf("Slots must be between %d and %d", MinSlots, MaxSlots)
 	}
-	if s.RefreshInterval < MinRefreshInterval || s.RefreshInterval > MaxRefreshInterval {
-		return previous, fmt.Errorf("Refresh interval must be between %d and %d seconds", MinRefreshInterval, MaxRefreshInterval)
+	// Migrate legacy refresh_interval to cooldown_seconds
+	if s.CooldownSeconds == 0 && s.RefreshInterval > 0 {
+		s.CooldownSeconds = s.RefreshInterval
+	}
+	if s.CooldownSeconds < MinCooldownSeconds || s.CooldownSeconds > MaxCooldownSeconds {
+		return previous, fmt.Errorf("Cooldown must be between %d and %d seconds", MinCooldownSeconds, MaxCooldownSeconds)
 	}
 	if s.MaxTurns < MinMaxTurns || s.MaxTurns > MaxMaxTurns {
 		return previous, fmt.Errorf("Max turns must be between %d and %d", MinMaxTurns, MaxMaxTurns)

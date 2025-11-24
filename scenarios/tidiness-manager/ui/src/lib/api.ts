@@ -1,6 +1,37 @@
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
 
-const API_BASE = resolveApiBase({ appendSuffix: true });
+// Fallback to direct API URL if proxy metadata resolution fails
+// In local development, use the API port from window.__VROOLI_CONFIG__ or default to localhost
+const API_BASE = (() => {
+  try {
+    const resolved = resolveApiBase({ appendSuffix: true });
+    console.log('[tidiness-manager] resolveApiBase returned:', resolved);
+
+    const currentPort = window.location.port;
+    const apiPort = (window as any).__VROOLI_CONFIG__?.apiPort || '16820';
+
+    // If resolution returns empty, just a path, undefined, or points to the UI port (wrong!), use direct API port
+    if (!resolved ||
+        typeof resolved !== 'string' ||
+        resolved.trim() === '' ||
+        resolved.startsWith('/') ||
+        (currentPort && resolved.includes(`:${currentPort}`))) {
+      const fallback = `http://localhost:${apiPort}/api/v1`;
+      console.log('[tidiness-manager] Using fallback API base (resolved pointed to UI port or was invalid):', fallback);
+      return fallback;
+    }
+
+    console.log('[tidiness-manager] Using resolved API base:', resolved);
+    return resolved;
+  } catch (e) {
+    // Fallback to default localhost API
+    const fallback = 'http://localhost:16820/api/v1';
+    console.warn('[tidiness-manager] Failed to resolve API base, using fallback:', fallback, e);
+    return fallback;
+  }
+})();
+
+console.log('[tidiness-manager] Final API_BASE:', API_BASE);
 
 // ============================================================================
 // Type Definitions

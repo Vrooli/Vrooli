@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { GripVertical } from 'lucide-react';
 import { ProcessorStatusButton } from './ProcessorStatusButton';
 import { FilterToggleButton } from './FilterToggleButton';
-import { RefreshCountdown } from './RefreshCountdown';
 import { ProcessMonitor } from './ProcessMonitor';
 import { LogsButton } from './LogsButton';
 import { SettingsButton } from './SettingsButton';
@@ -106,7 +105,6 @@ export function FloatingControls() {
 
         <div className="flex items-center gap-2">
           <ProcessorStatusButton />
-          <RefreshCountdown />
         </div>
 
         <div className="flex items-center gap-2 pl-3 border-l border-border/60">
