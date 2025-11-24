@@ -11,12 +11,11 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
-	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
 type stubHub struct {
 	mu      sync.Mutex
-	updates []wsHub.ExecutionUpdate
+	updates []any
 }
 
 func (s *stubHub) ServeWS(*websocket.Conn, *uuid.UUID) {}
@@ -28,27 +27,15 @@ func (s *stubHub) GetClientCount() int {
 }
 
 func (s *stubHub) BroadcastEnvelope(event any) {
-	if env, ok := event.(contracts.EventEnvelope); ok {
-		s.BroadcastUpdate(wsHub.ExecutionUpdate{
-			ExecutionID: env.ExecutionID,
-			Data:        env,
-			Type:        string(env.Kind),
-		})
-		return
-	}
-	s.BroadcastUpdate(wsHub.ExecutionUpdate{Data: event})
-}
-
-func (s *stubHub) BroadcastUpdate(update wsHub.ExecutionUpdate) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.updates = append(s.updates, update)
+	s.updates = append(s.updates, event)
 }
 
-func (s *stubHub) Updates() []wsHub.ExecutionUpdate {
+func (s *stubHub) Updates() []any {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cp := make([]wsHub.ExecutionUpdate, len(s.updates))
+	cp := make([]any, len(s.updates))
 	copy(cp, s.updates)
 	return cp
 }
@@ -93,16 +80,14 @@ func TestWSHubSinkPublishesAdaptedEvent(t *testing.T) {
 	if len(updates) != 1 {
 		t.Fatalf("expected 1 update, got %d", len(updates))
 	}
-	update := updates[0]
-	if update.ExecutionID != execID || update.Type != string(contracts.EventKindStepCompleted) {
-		t.Fatalf("unexpected update metadata: %+v", update)
-	}
-
-	payload, ok := update.Data.(contracts.EventEnvelope)
+	payload, ok := updates[0].(contracts.EventEnvelope)
 	if !ok {
-		t.Fatalf("expected envelope payload, got %T", update.Data)
+		t.Fatalf("expected envelope payload, got %T", updates[0])
 	}
-	if payload.Kind != contracts.EventKindStepCompleted || payload.StepIndex == nil || *payload.StepIndex != stepIndex {
+	if payload.ExecutionID != execID || payload.Kind != contracts.EventKindStepCompleted {
+		t.Fatalf("unexpected payload metadata: %+v", payload)
+	}
+	if payload.StepIndex == nil || *payload.StepIndex != stepIndex {
 		t.Fatalf("unexpected payload content: %+v", payload)
 	}
 
@@ -162,9 +147,9 @@ func TestWSHubSinkStepEnvelopeShapeMatchesLegacyExpectations(t *testing.T) {
 		t.Fatalf("expected one update, got %d", len(updates))
 	}
 
-	payload, ok := updates[0].Data.(contracts.EventEnvelope)
+	payload, ok := updates[0].(contracts.EventEnvelope)
 	if !ok {
-		t.Fatalf("expected envelope payload, got %T", updates[0].Data)
+		t.Fatalf("expected envelope payload, got %T", updates[0])
 	}
 
 	payloadMap, ok := payload.Payload.(map[string]any)
@@ -227,7 +212,7 @@ func TestWSHubSinkCloseExecutionStopsEnqueue(t *testing.T) {
 // blockingHub simulates a slow downstream consumer to trigger backpressure logic.
 type blockingHub struct {
 	mu      sync.Mutex
-	updates []wsHub.ExecutionUpdate
+	updates []any
 	unblock chan struct{}
 }
 
@@ -243,17 +228,10 @@ func (b *blockingHub) GetClientCount() int {
 	return len(b.updates)
 }
 
-func (b *blockingHub) BroadcastUpdate(update wsHub.ExecutionUpdate) {
-	<-b.unblock
+func (b *blockingHub) Updates() []any {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.updates = append(b.updates, update)
-}
-
-func (b *blockingHub) Updates() []wsHub.ExecutionUpdate {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	cp := make([]wsHub.ExecutionUpdate, len(b.updates))
+	cp := make([]any, len(b.updates))
 	copy(cp, b.updates)
 	return cp
 }
@@ -263,11 +241,10 @@ func (b *blockingHub) CloseExecution(executionID uuid.UUID) {
 }
 
 func (b *blockingHub) BroadcastEnvelope(event any) {
-	if env, ok := event.(contracts.EventEnvelope); ok {
-		b.BroadcastUpdate(wsHub.ExecutionUpdate{ExecutionID: env.ExecutionID, Data: env, Type: string(env.Kind)})
-		return
-	}
-	b.BroadcastUpdate(wsHub.ExecutionUpdate{Data: event})
+	<-b.unblock
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.updates = append(b.updates, event)
 }
 
 func TestWSHubSinkDropsTelemetryWhenBufferFull(t *testing.T) {
@@ -319,9 +296,9 @@ func TestWSHubSinkDropsTelemetryWhenBufferFull(t *testing.T) {
 	receivedSeqs := []uint64{}
 	var dropsSeen contracts.DropCounters
 	for _, update := range updates {
-		payload, ok := update.Data.(contracts.EventEnvelope)
+		payload, ok := update.(contracts.EventEnvelope)
 		if !ok {
-			t.Fatalf("expected envelope payload, got %T", update.Data)
+			t.Fatalf("expected envelope payload, got %T", update)
 		}
 		receivedSeqs = append(receivedSeqs, payload.Sequence)
 		dropsSeen = payload.Drops
@@ -345,9 +322,9 @@ func TestWSHubSinkDropsTelemetryWhenBufferFull(t *testing.T) {
 	}
 
 	// Ensure drops metadata flows through WS payload wrapper.
-	lastPayload, ok := updates[len(updates)-1].Data.(contracts.EventEnvelope)
+	lastPayload, ok := updates[len(updates)-1].(contracts.EventEnvelope)
 	if !ok {
-		t.Fatalf("expected envelope payload, got %T", updates[len(updates)-1].Data)
+		t.Fatalf("expected envelope payload, got %T", updates[len(updates)-1])
 	}
 	if lastPayload.Drops.Dropped == 0 {
 		t.Fatalf("expected drops metadata propagated in WS payload, got %+v", lastPayload.Drops)
@@ -355,10 +332,10 @@ func TestWSHubSinkDropsTelemetryWhenBufferFull(t *testing.T) {
 }
 
 type updatesReader interface {
-	Updates() []wsHub.ExecutionUpdate
+	Updates() []any
 }
 
-func waitForUpdates(h updatesReader, expected int, timeout time.Duration) []wsHub.ExecutionUpdate {
+func waitForUpdates(h updatesReader, expected int, timeout time.Duration) []any {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		if updates := h.Updates(); len(updates) >= expected {

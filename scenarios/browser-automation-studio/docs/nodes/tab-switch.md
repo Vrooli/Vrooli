@@ -7,7 +7,7 @@
 | Field | Description | Required | Notes |
 | --- | --- | --- | --- |
 | **Switch strategy** | How the next tab is chosen: `newest`, `oldest`, `index`, `title`, or `url`. | No | Defaults to `newest` if left blank. |
-| **Tab index** | Zero-based index of the target tab. | When `switchBy = index` | Must be \>= 0; validated by `instructions.go`. |
+| **Tab index** | Zero-based index of the target tab. | When `switchBy = index` | Must be \>= 0; validated by the workflow validator. |
 | **Title pattern** | Substring or `/regex/` that must match the tab title. | When `switchBy = title` | Trimmed before execution. |
 | **URL pattern** | Substring or `/regex/` that must match the tab URL. | When `switchBy = url` | Helpful for OAuth callback URLs. |
 | **Wait for new tab** | Blocks until a brand-new tab appears before switching. | No | Detects popups spawned by the previous node. |
@@ -16,7 +16,7 @@
 
 ## Runtime Behavior
 
-1. `api/browserless/runtime/instructions.go:1331` parses and validates the mode, ensuring the required fields (index, title, URL) are present before emitting a Browserless instruction.
+1. The automation compiler/executor forwards the mode/index/title/url/wait/close flags as-authored; validation is handled by the workflow validator/UI.
 2. `api/browserless/cdp/evaluation_actions.go:92-155` keeps a live inventory of Chrome targets, optionally waits for a brand-new tab, picks one based on the configured strategy, and switches focus. When `closeOld` is set it also disposes the previous target to free memory.
 3. Execution artifacts capture the active tab's title/URL and the `targetId`, making it easy to debug which window the workflow selected.
 

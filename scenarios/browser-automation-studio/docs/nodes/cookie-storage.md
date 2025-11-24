@@ -63,7 +63,7 @@ Browser Automation Studio now ships dedicated nodes for browser cookies and web 
 - **Variable Suggestions:** Result-bearing nodes surface the `storeResult` field so values become first-class workflow variables immediately.
 
 ## Testing & Traceability
-- **Go Unit Tests:** `api/browserless/runtime/instructions_test.go` covers validation for all six instruction types.
+- **Go Unit Tests:** Coverage now lives in the automation stack and CDP adapters (`automation/executor/*_test.go`, `browserless/cdp/cookie_actions.go`, `browserless/cdp/storage_actions.go`), ensuring contract payloads map cleanly to Browserless.
 - **CDP Exercises:** `cookie_actions.go` and `storage_actions.go` handle Chrome DevTools orchestration, including JSON parsing and expiry math.
 - **UI Regression:** `ui/src/components/__tests__/NodePalette.test.tsx` asserts palette counts and discoverability.
 

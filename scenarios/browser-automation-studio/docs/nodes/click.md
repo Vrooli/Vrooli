@@ -22,7 +22,7 @@
 
 ## Runtime Behavior
 
-1. `runtime/instructions.go:793-820` validates the selector/button/count combo, applies timeout defaults, and copies wait settings into the `Instruction`.
+1. The automation compiler/executor forwards selector/button/count/timeout/wait params as-authored; validation is handled by the workflow validator/UI.
 2. The Browserless session waits for the selector, scrolls it into view, and dispatches the configured button events. When `waitForSelector` is set, it waits for that selector after the click to confirm downstream UI changes.
 3. Telemetry captures the selector, click strategy, and DOM path inside execution artifacts, making debugging easier via Execution Viewer.
 

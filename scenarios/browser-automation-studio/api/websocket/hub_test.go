@@ -11,7 +11,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 )
 
-func newTestHub(t *testing.T) *Hub {
+func newTestHubBase(t *testing.T) *Hub {
 	t.Helper()
 
 	logger := logrus.New()
@@ -22,7 +22,11 @@ func newTestHub(t *testing.T) *Hub {
 	return hub
 }
 
-func waitForUpdate(t *testing.T, ch <-chan ExecutionUpdate) ExecutionUpdate {
+func newTestHub(t *testing.T) *Hub {
+	return newTestHubBase(t)
+}
+
+func waitForMessage(t *testing.T, ch <-chan any) any {
 	t.Helper()
 
 	select {
@@ -31,14 +35,13 @@ func waitForUpdate(t *testing.T, ch <-chan ExecutionUpdate) ExecutionUpdate {
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for update")
 	}
-	return ExecutionUpdate{}
+	return nil
 }
 
 type mockHub struct{}
 
 func (m *mockHub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID) {}
 func (m *mockHub) BroadcastEnvelope(event any)                          {}
-func (m *mockHub) BroadcastUpdate(update ExecutionUpdate)               {}
 func (m *mockHub) GetClientCount() int                                  { return 0 }
 func (m *mockHub) Run()                                                 {}
 func (m *mockHub) CloseExecution(executionID uuid.UUID)                 {}
@@ -49,26 +52,33 @@ func TestHubBroadcastsToRegisteredClients(t *testing.T) {
 
 		client := &Client{
 			ID:   uuid.New(),
-			Send: make(chan ExecutionUpdate, 4),
+			Send: make(chan any, 4),
 			Hub:  hub,
 		}
 
 		hub.register <- client
 
 		// Drain welcome message to avoid interfering with assertions.
-		_ = waitForUpdate(t, client.Send)
+		_ = waitForMessage(t, client.Send)
 
-		update := ExecutionUpdate{
-			Type:        "progress",
-			ExecutionID: uuid.New(),
-			Progress:    42,
+		update := contracts.EventEnvelope{
+			SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			Kind:           contracts.EventKindExecutionProgress,
+			ExecutionID:    uuid.New(),
+			WorkflowID:     uuid.New(),
+			Sequence:       1,
 		}
 
-		hub.BroadcastUpdate(update)
+		hub.BroadcastEnvelope(update)
 
-		received := waitForUpdate(t, client.Send)
-		if received.Type != update.Type || received.Progress != update.Progress {
-			t.Fatalf("expected %+v, got %+v", update, received)
+		msg := waitForMessage(t, client.Send)
+		env, ok := msg.(contracts.EventEnvelope)
+		if !ok {
+			t.Fatalf("expected envelope, got %T", msg)
+		}
+		if env.Kind != update.Kind || env.ExecutionID != update.ExecutionID {
+			t.Fatalf("expected %+v, got %+v", update, env)
 		}
 	})
 }
@@ -81,13 +91,13 @@ func TestHubFiltersByExecutionID(t *testing.T) {
 
 		broadcastClient := &Client{
 			ID:   uuid.New(),
-			Send: make(chan ExecutionUpdate, 4),
+			Send: make(chan any, 4),
 			Hub:  hub,
 		}
 
 		filteredClient := &Client{
 			ID:          uuid.New(),
-			Send:        make(chan ExecutionUpdate, 4),
+			Send:        make(chan any, 4),
 			Hub:         hub,
 			ExecutionID: &executionID,
 		}
@@ -96,30 +106,38 @@ func TestHubFiltersByExecutionID(t *testing.T) {
 		hub.register <- filteredClient
 
 		// Drain welcome updates
-		_ = waitForUpdate(t, broadcastClient.Send)
-		_ = waitForUpdate(t, filteredClient.Send)
+		_ = waitForMessage(t, broadcastClient.Send)
+		_ = waitForMessage(t, filteredClient.Send)
 
-		matching := ExecutionUpdate{
-			Type:        "log",
-			ExecutionID: executionID,
-			Message:     "hello",
+		matching := contracts.EventEnvelope{
+			SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			Kind:           contracts.EventKindExecutionProgress,
+			ExecutionID:    executionID,
+			WorkflowID:     uuid.New(),
+			Sequence:       1,
 		}
-		different := ExecutionUpdate{
-			Type:        "log",
-			ExecutionID: uuid.New(),
-			Message:     "ignored",
-		}
-
-		hub.BroadcastUpdate(matching)
-		hub.BroadcastUpdate(different)
-
-		receivedBroadcast := waitForUpdate(t, broadcastClient.Send)
-		if receivedBroadcast.Message != matching.Message {
-			t.Fatalf("expected broadcast client to receive matching update, got %+v", receivedBroadcast)
+		different := contracts.EventEnvelope{
+			SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			Kind:           contracts.EventKindExecutionProgress,
+			ExecutionID:    uuid.New(),
+			WorkflowID:     uuid.New(),
+			Sequence:       2,
 		}
 
-		receivedFiltered := waitForUpdate(t, filteredClient.Send)
-		if receivedFiltered.ExecutionID != executionID {
+		hub.BroadcastEnvelope(matching)
+		hub.BroadcastEnvelope(different)
+
+		receivedBroadcast := waitForMessage(t, broadcastClient.Send)
+		envBroadcast, ok := receivedBroadcast.(contracts.EventEnvelope)
+		if !ok || envBroadcast.ExecutionID != matching.ExecutionID {
+			t.Fatalf("expected broadcast client to receive matching envelope, got %+v", receivedBroadcast)
+		}
+
+		receivedFiltered := waitForMessage(t, filteredClient.Send)
+		envFiltered, ok := receivedFiltered.(contracts.EventEnvelope)
+		if !ok || envFiltered.ExecutionID != executionID {
 			t.Fatalf("filtered client received wrong execution: %+v", receivedFiltered)
 		}
 
@@ -132,37 +150,37 @@ func TestHubFiltersByExecutionID(t *testing.T) {
 	})
 }
 
-func TestBroadcastEnvelopeDeliversEnvelopePayload(t *testing.T) {
+func TestBroadcastEnvelopeRawWhenLegacyDisabled(t *testing.T) {
 	hub := newTestHub(t)
 
 	client := &Client{
 		ID:   uuid.New(),
-		Send: make(chan ExecutionUpdate, 4),
+		Send: make(chan any, 4),
 		Hub:  hub,
 	}
 	hub.register <- client
-	_ = waitForUpdate(t, client.Send) // welcome
+	_ = waitForMessage(t, client.Send) // welcome
 
 	env := contracts.EventEnvelope{
 		SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
 		PayloadVersion: contracts.PayloadVersion,
-		Kind:           contracts.EventKindStepCompleted,
+		Kind:           contracts.EventKindExecutionStarted,
 		ExecutionID:    uuid.New(),
 		WorkflowID:     uuid.New(),
-		Sequence:       5,
+		Sequence:       1,
 		Timestamp:      time.Now().UTC(),
-		Payload:        map[string]any{"note": "ok"},
+		Payload:        map[string]any{"note": "raw"},
 	}
 
 	hub.BroadcastEnvelope(env)
 
-	received := waitForUpdate(t, client.Send)
-	payload, ok := received.Data.(contracts.EventEnvelope)
+	msg := waitForMessage(t, client.Send)
+	payload, ok := msg.(contracts.EventEnvelope)
 	if !ok {
-		t.Fatalf("expected envelope payload, got %T", received.Data)
+		t.Fatalf("expected raw envelope, got %T", msg)
 	}
-	if payload.Kind != env.Kind || payload.Sequence != env.Sequence {
-		t.Fatalf("payload mismatch: %+v", payload)
+	if payload.Kind != env.Kind || payload.ExecutionID != env.ExecutionID {
+		t.Fatalf("envelope payload mismatch: %+v", payload)
 	}
 }
 
@@ -176,12 +194,12 @@ func TestGetClientCount(t *testing.T) {
 
 		client1 := &Client{
 			ID:   uuid.New(),
-			Send: make(chan ExecutionUpdate, 4),
+			Send: make(chan any, 4),
 			Hub:  hub,
 		}
 		client2 := &Client{
 			ID:   uuid.New(),
-			Send: make(chan ExecutionUpdate, 4),
+			Send: make(chan any, 4),
 			Hub:  hub,
 		}
 
@@ -215,18 +233,22 @@ func TestHubSendsWelcomeMessage(t *testing.T) {
 
 		client := &Client{
 			ID:   uuid.New(),
-			Send: make(chan ExecutionUpdate, 4),
+			Send: make(chan any, 4),
 			Hub:  hub,
 		}
 
 		hub.register <- client
 
-		welcome := waitForUpdate(t, client.Send)
-		if welcome.Type != "connected" {
-			t.Errorf("expected welcome message type 'connected', got %s", welcome.Type)
+		msg := waitForMessage(t, client.Send)
+		welcome, ok := msg.(map[string]any)
+		if !ok {
+			t.Fatalf("expected welcome map, got %T", msg)
 		}
-		if welcome.Message != "Connected to Browser Automation Studio" {
-			t.Errorf("expected welcome message, got %s", welcome.Message)
+		if welcome["type"] != "connected" {
+			t.Errorf("expected welcome message type 'connected', got %v", welcome["type"])
+		}
+		if welcome["message"] != "Connected to Browser Automation Studio" {
+			t.Errorf("expected welcome message, got %v", welcome["message"])
 		}
 	})
 }
@@ -238,29 +260,45 @@ func TestHubHandlesMultipleBroadcasts(t *testing.T) {
 
 		client := &Client{
 			ID:   uuid.New(),
-			Send: make(chan ExecutionUpdate, 10),
+			Send: make(chan any, 10),
 			Hub:  hub,
 		}
 
 		hub.register <- client
-		_ = waitForUpdate(t, client.Send) // Drain welcome message
+		_ = waitForMessage(t, client.Send) // Drain welcome message
 
 		executionID := uuid.New()
 
 		// Send multiple updates rapidly
 		for i := 0; i < 5; i++ {
-			hub.BroadcastUpdate(ExecutionUpdate{
-				Type:        "progress",
-				ExecutionID: executionID,
-				Progress:    i * 20,
+			hub.BroadcastEnvelope(contracts.EventEnvelope{
+				SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
+				PayloadVersion: contracts.PayloadVersion,
+				Kind:           contracts.EventKindExecutionProgress,
+				ExecutionID:    executionID,
+				WorkflowID:     uuid.New(),
+				Sequence:       uint64(i + 1),
+				Payload:        map[string]any{"progress": i * 20},
 			})
 		}
 
 		// Verify all updates were received
 		receivedProgress := make([]int, 0, 5)
 		for i := 0; i < 5; i++ {
-			update := waitForUpdate(t, client.Send)
-			receivedProgress = append(receivedProgress, update.Progress)
+			msg := waitForMessage(t, client.Send)
+			env, ok := msg.(contracts.EventEnvelope)
+			if !ok {
+				t.Fatalf("expected envelope, got %T", msg)
+			}
+			progress := 0
+			if m, ok := env.Payload.(map[string]any); ok {
+				if p, ok := m["progress"].(int); ok {
+					progress = p
+				} else if pFloat, ok := m["progress"].(float64); ok {
+					progress = int(pFloat)
+				}
+			}
+			receivedProgress = append(receivedProgress, progress)
 		}
 
 		if len(receivedProgress) != 5 {
@@ -276,7 +314,7 @@ func TestHubCleanupOnClientDisconnect(t *testing.T) {
 
 		client := &Client{
 			ID:   uuid.New(),
-			Send: make(chan ExecutionUpdate, 4),
+			Send: make(chan any, 4),
 			Hub:  hub,
 		}
 

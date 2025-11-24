@@ -22,7 +22,7 @@
 ## Runtime Behavior
 
 1. `api/automation/executor/plan_builder.go` compiles the loop body into its own `PlanGraph` and wires the special break/continue edges.
-2. `api/browserless/runtime/instructions.go` validates the configuration, clamps limits, and records metadata (`loopArraySource`, `loopCount`, timeouts, iteration variables) in the instruction payload.
+2. The automation compiler/executor preserves loop metadata (`loopArraySource`, `loopCount`, timeouts, iteration variables`) in the contract plan; validation and clamping live in the workflow validator and executor.
 3. `api/automation/executor/flow_executor.go` drives the loop:
    - Maintains executor-scoped variables per iteration so `loop.item`/`loop.index` stay consistent.
    - Executes the nested graph sequentially, honoring `loop_continue` and `loop_break` handles without leaving orphaned nodes.

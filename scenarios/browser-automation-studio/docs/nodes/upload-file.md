@@ -13,7 +13,7 @@
 
 ## Runtime Behavior
 
-1. `api/browserless/runtime/instructions.go:1505-1567` trims selectors, validates file lists, and normalizes timeouts/waits.
+1. The automation compiler forwards selector/file list/timeout/wait params as authored; validation is handled by the workflow validator.
 2. Browserless resolves the selector, verifies it’s a file input, and calls `chromedp.SetUploadFiles`, pointing to the provided paths.
 3. Execution artifacts store the selector and file count (paths themselves are not logged for security).
 

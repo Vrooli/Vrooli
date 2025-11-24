@@ -1,7 +1,7 @@
 {
   "scenario": "browser-automation-studio",
   "report_version": 1,
-  "generated_at": "2025-11-16T19:40:55.172704815Z",
+  "generated_at": "2025-11-23T19:34:24.044965006Z",
   "dependencies": [
     {
       "name": "browserless",
@@ -252,7 +252,7 @@
   },
   "bundle_manifest": {
     "scenario": "browser-automation-studio",
-    "generated_at": "2025-11-16T19:40:55.172704815Z",
+    "generated_at": "2025-11-23T19:34:24.044965006Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -434,6 +434,116 @@
           "in-memory-pubsub"
         ]
       }
+    ]
+  },
+  "metadata_gaps": {
+    "total_gaps": 0,
+    "scenarios_missing_all": 0,
+    "gaps_by_scenario": {},
+    "missing_tiers": null,
+    "secret_requirements": [
+      {
+        "dependency_name": "browserless",
+        "dependency_type": "resource",
+        "secret_type": "browser_automation_token",
+        "required_secrets": [
+          "browserless_token"
+        ],
+        "playbook_reference": "secrets-manager/playbooks/browser-automation.md",
+        "priority": "required"
+      },
+      {
+        "dependency_name": "minio",
+        "dependency_type": "resource",
+        "secret_type": "object_storage_credentials",
+        "required_secrets": [
+          "minio_access_key",
+          "minio_secret_key"
+        ],
+        "playbook_reference": "secrets-manager/playbooks/object-storage.md",
+        "priority": "required"
+      },
+      {
+        "dependency_name": "postgres",
+        "dependency_type": "resource",
+        "secret_type": "database_credentials",
+        "required_secrets": [
+          "postgres_password",
+          "postgres_user"
+        ],
+        "playbook_reference": "secrets-manager/playbooks/database-credentials.md",
+        "priority": "required"
+      },
+      {
+        "dependency_name": "redis",
+        "dependency_type": "resource",
+        "secret_type": "cache_credentials",
+        "required_secrets": [
+          "redis_password"
+        ],
+        "playbook_reference": "secrets-manager/playbooks/cache-credentials.md",
+        "priority": "required"
+      }
+    ],
+    "resource_swap_suggestions": [
+      {
+        "original_resource": "minio",
+        "alternative_resource": "s3",
+        "reason": "Cloud object storage for production deployments",
+        "applicable_tiers": [
+          "saas",
+          "enterprise"
+        ],
+        "relationship": "cloud_alternative",
+        "impact_description": "Better reliability and global availability"
+      },
+      {
+        "original_resource": "ollama",
+        "alternative_resource": "openrouter",
+        "reason": "Lighter alternative for SaaS/mobile deployments",
+        "applicable_tiers": [
+          "mobile",
+          "saas"
+        ],
+        "relationship": "api_alternative",
+        "impact_description": "Reduces deployment size and resource requirements"
+      },
+      {
+        "original_resource": "ollama",
+        "alternative_resource": "anthropic",
+        "reason": "Managed AI API for production deployments",
+        "applicable_tiers": [
+          "saas",
+          "enterprise"
+        ],
+        "relationship": "api_alternative",
+        "impact_description": "Better scalability and reliability"
+      },
+      {
+        "original_resource": "postgres",
+        "alternative_resource": "supabase",
+        "reason": "Managed PostgreSQL with built-in APIs",
+        "applicable_tiers": [
+          "mobile",
+          "saas"
+        ],
+        "relationship": "managed_service",
+        "impact_description": "Eliminates database management overhead"
+      },
+      {
+        "original_resource": "redis",
+        "alternative_resource": "in-memory-cache",
+        "reason": "Embedded caching for desktop deployments",
+        "applicable_tiers": [
+          "desktop"
+        ],
+        "relationship": "embedded_alternative",
+        "impact_description": "Simplifies deployment, no separate service needed"
+      }
+    ],
+    "recommendations": [
+      "Configure 4 secret(s) for dependencies - see secrets-manager playbooks",
+      "Consider 5 resource swap(s) for deployment optimization"
     ]
   }
 }

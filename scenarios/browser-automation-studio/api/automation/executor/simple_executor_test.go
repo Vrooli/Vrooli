@@ -34,7 +34,7 @@ func TestSimpleExecutorHappyPath(t *testing.T) {
 
 	req := Request{
 		Plan: contracts.ExecutionPlan{
-			SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+			SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
 			PayloadVersion: contracts.PayloadVersion,
 			ExecutionID:    execID,
 			WorkflowID:     workflowID,
@@ -124,7 +124,7 @@ func TestSimpleExecutorPropagatesEngineError(t *testing.T) {
 
 	req := Request{
 		Plan: contracts.ExecutionPlan{
-			SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+			SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
 			PayloadVersion: contracts.PayloadVersion,
 			ExecutionID:    execID,
 			WorkflowID:     workflowID,
@@ -373,7 +373,7 @@ func TestSimpleExecutorFailsOnCapabilityGap(t *testing.T) {
 
 	req := Request{
 		Plan: contracts.ExecutionPlan{
-			SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+			SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
 			PayloadVersion: contracts.PayloadVersion,
 			ExecutionID:    execID,
 			WorkflowID:     workflowID,
@@ -814,7 +814,7 @@ func TestSimpleExecutorEventPayloadsCarrySchemaVersions(t *testing.T) {
 
 	req := Request{
 		Plan: contracts.ExecutionPlan{
-			SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+			SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
 			PayloadVersion: contracts.PayloadVersion,
 			ExecutionID:    execID,
 			WorkflowID:     workflowID,
@@ -888,7 +888,7 @@ func TestSimpleExecutorCapabilityError(t *testing.T) {
 
 	req := Request{
 		Plan: contracts.ExecutionPlan{
-			SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+			SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
 			PayloadVersion: contracts.PayloadVersion,
 			ExecutionID:    execID,
 			WorkflowID:     workflowID,
@@ -941,7 +941,7 @@ func TestSimpleExecutorCapabilityErrorDownloads(t *testing.T) {
 
 	req := Request{
 		Plan: contracts.ExecutionPlan{
-			SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+			SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
 			PayloadVersion: contracts.PayloadVersion,
 			ExecutionID:    execID,
 			WorkflowID:     workflowID,
@@ -964,6 +964,82 @@ func TestSimpleExecutorCapabilityErrorDownloads(t *testing.T) {
 	}
 	if _, ok := err.(*CapabilityError); !ok {
 		t.Fatalf("expected CapabilityError, got %T", err)
+	}
+}
+
+func TestSimpleExecutorValidatesEngineCapabilities(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	badCaps := &contracts.EngineCapabilities{
+		Engine:                "fake",
+		MaxConcurrentSessions: 1,
+		AllowsParallelTabs:    true,
+	}
+
+	rec := &memoryRecorder{}
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			ExecutionID:    execID,
+			WorkflowID:     workflowID,
+			Instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "nav", Type: "navigate"},
+			},
+			CreatedAt: time.Now().UTC(),
+		},
+		EngineName:        "browserless",
+		EngineFactory:     &fakeEngineFactory{session: &fakeSession{outcome: contracts.StepOutcome{Success: true}}, caps: badCaps},
+		Recorder:          rec,
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 0,
+	}
+
+	err := NewSimpleExecutor(nil).Execute(context.Background(), req)
+	if err == nil {
+		t.Fatalf("expected invalid capability error")
+	}
+	if !strings.Contains(err.Error(), "engine capabilities invalid") {
+		t.Fatalf("expected invalid capabilities error, got %v", err)
+	}
+	if len(rec.outcomes) != 0 {
+		t.Fatalf("expected no outcomes recorded on capability validation failure, got %d", len(rec.outcomes))
+	}
+}
+
+func TestSimpleExecutorRejectsPlanWithMismatchedSchemaVersions(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	rec := &memoryRecorder{}
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			SchemaVersion:  "unexpected-schema",
+			PayloadVersion: contracts.PayloadVersion,
+			ExecutionID:    execID,
+			WorkflowID:     workflowID,
+			Instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "nav", Type: "navigate"},
+			},
+			CreatedAt: time.Now().UTC(),
+		},
+		EngineName:        "browserless",
+		EngineFactory:     &fakeEngineFactory{session: &fakeSession{outcome: contracts.StepOutcome{Success: true}}},
+		Recorder:          rec,
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 0,
+	}
+
+	err := NewSimpleExecutor(nil).Execute(context.Background(), req)
+	if err == nil {
+		t.Fatalf("expected schema mismatch error")
+	}
+	if !strings.Contains(err.Error(), "schema_version mismatch") {
+		t.Fatalf("expected schema mismatch error message, got %v", err)
+	}
+	if len(rec.outcomes) != 0 {
+		t.Fatalf("expected no outcomes recorded on schema mismatch, got %d", len(rec.outcomes))
 	}
 }
 

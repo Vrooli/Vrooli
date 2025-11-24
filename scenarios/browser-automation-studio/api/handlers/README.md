@@ -52,4 +52,4 @@ flowchart LR
 Notes:
 - Handlers are intentionally logic-light; business rules live in `services/`.
 - Engine choice honors `ENGINE` / `ENGINE_OVERRIDE` and flows through `automation/engine.DefaultFactory`, keeping runtime engine-agnostic as new engines arrive.
-- Websocket clients receive ordered automation envelopes via `WSHubSink`; legacy `ExecutionUpdate` messages remain for compatibility but should be phased out in favor of envelopes.
+- Websocket clients receive ordered automation envelopes via `WSHubSink`; payloads are contract `EventEnvelope` objects.

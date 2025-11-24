@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
-	"github.com/vrooli/browser-automation-studio/browserless/compiler"
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
@@ -17,7 +17,7 @@ import (
 type ContractPlanCompiler struct{}
 
 func (c *ContractPlanCompiler) Compile(ctx context.Context, executionID uuid.UUID, workflow *database.Workflow) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error) {
-	plan, err := compiler.CompileWorkflow(workflow)
+	plan, err := autocompiler.CompileWorkflow(workflow)
 	if err != nil {
 		return contracts.ExecutionPlan{}, nil, err
 	}
@@ -45,7 +45,7 @@ func (c *ContractPlanCompiler) Compile(ctx context.Context, executionID uuid.UUI
 		ExecutionID:    executionID,
 		WorkflowID:     workflow.ID,
 		Instructions:   instructions,
-		Graph:          toContractsGraph(plan),
+		Graph:          toContractsGraphFromAutomation(plan),
 		Metadata:       plan.Metadata,
 		CreatedAt:      time.Now().UTC(),
 	}

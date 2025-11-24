@@ -17,7 +17,7 @@
 ## Runtime Behavior
 
 1. The compiler treats Extract as part of the Set Variable pipeline (`setVariable` with `sourceType=extract`).
-2. `api/browserless/runtime/instructions.go` (extract portion) reads the selector, wait, extract type, and attribute, enforcing validation rules.
+2. The automation executor forwards selector/extract type/attribute/timeout fields to the engine without Browserless-specific shaping; validation happens in the workflow validator.
 3. Browserless queries the DOM, normalizes whitespace for text, and returns either a string or array based on `allMatches`.
 4. Execution artifacts include the extracted payload (truncated) for debugging.
 

@@ -19,7 +19,7 @@ _The current UI exposes the primary URL/selector/text fields; advanced options (
 ## Runtime Behavior
 
 1. The compiler records the node as `StepTypeInput` and passes the raw data into the runtime.
-2. `api/browserless/runtime/instructions.go:780-820` trims selectors/text, applies timeout/delay defaults, and copies optional `clear`/`submit` flags into the `InstructionParam`.
+2. The automation executor forwards selector/text/timeout/delay/clear/submit params to the engine; validation is handled by the workflow validator.
 3. Browserless waits for the selector, optionally clears the field, types the text using the requested cadence, and presses Enter when `submit` is set.
 4. Execution artifacts capture the typed value (masked for password fields) along with timing metadata for replay/debugging.
 

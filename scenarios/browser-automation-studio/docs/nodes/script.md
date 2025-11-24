@@ -12,9 +12,9 @@
 
 ## Runtime Behavior
 
-1. `api/browserless/runtime/instructions.go:1750-1785` trims the expression, enforces presence, clamps timeout, and records `storeResult` if provided.
-2. Browserless injects the expression into the page context, runs it via `chromedp.Evaluate`, and returns the result (JSON-serializable) to the workflow engine.
-3. When `storeResult` is set, the value is saved into the execution context, making it available to Use Variable nodes.
+1. The automation compiler passes the expression/timeout/storeResult fields directly into the contract instruction; validation is handled upstream (UI + validator).
+2. BrowserlessEngine forwards the instruction to the CDP adapter, which evaluates the script in-page and returns the JSON-serializable result.
+3. When `storeResult` is set, the executor persists the returned value so downstream Use Variable nodes can read it.
 
 ## Example
 

@@ -115,6 +115,7 @@ type ExecutionPlan struct {
 // ExecutionStep captures the information required to execute one workflow node.
 type ExecutionStep struct {
 	Index          int            `json:"index"`
+	SourceIndex    int            `json:"source_index"`
 	NodeID         string         `json:"node_id"`
 	Type           StepType       `json:"type"`
 	Params         map[string]any `json:"params"`
@@ -518,20 +519,201 @@ func (p *planner) pruneLoopBodies(assigned map[string]string) error {
 
 	newIncoming := make(map[string]int, len(p.nodesByID))
 	for nodeID := range p.nodesByID {
-		newIncoming[nodeID] = 0
-	}
-	for source, edges := range p.outgoing {
-		if _, ok := p.nodesByID[source]; !ok {
-			continue
+		incoming := p.findIncomingEdges(nodeID)
+		count := 0
+		for _, edge := range incoming {
+			if isLoopBodyEdge(edge) {
+				continue
+			}
+			count++
 		}
+		newIncoming[nodeID] = count
+	}
+	p.incomingCount = newIncoming
+	p.definition.Nodes = rawNodeMapToSlice(p.nodesByID)
+	rebuiltEdges := make([]rawEdge, 0)
+	for _, edges := range p.outgoing {
+		rebuiltEdges = append(rebuiltEdges, edges...)
+	}
+	p.definition.Edges = rebuiltEdges
+	return nil
+}
+
+func (p *planner) findIncomingEdges(nodeID string) []rawEdge {
+	incoming := make([]rawEdge, 0)
+	for _, edges := range p.outgoing {
 		for _, edge := range edges {
-			if _, ok := p.nodesByID[edge.Target]; ok {
-				newIncoming[edge.Target]++
+			if edge.Target == nodeID {
+				incoming = append(incoming, edge)
 			}
 		}
 	}
-	p.incomingCount = newIncoming
-	return nil
+	return incoming
+}
+
+func (p *planner) buildSteps() ([]ExecutionStep, error) {
+	order := p.topologicalOrder()
+	if len(order) != len(p.definition.Nodes) {
+		return nil, errors.New("workflow contains a cycle or disconnected nodes")
+	}
+
+	steps := make([]ExecutionStep, 0, len(order))
+	for idx, nodeID := range order {
+		node := p.nodesByID[nodeID]
+		stepType, err := normalizeStepType(node.Type)
+		if err != nil {
+			return nil, err
+		}
+		step := ExecutionStep{
+			Index:       idx,
+			SourceIndex: p.order[nodeID],
+			NodeID:      node.ID,
+			Type:        stepType,
+			Params:      copyMap(node.Data),
+		}
+		if pos := toPosition(node.Position); pos != nil {
+			step.SourcePosition = pos
+		}
+		for _, edge := range p.outgoing[nodeID] {
+			if isLoopBodyEdge(edge) {
+				continue
+			}
+			step.OutgoingEdges = append(step.OutgoingEdges, EdgeRef{
+				ID:         edge.ID,
+				TargetNode: edge.Target,
+				Condition:  strings.TrimSpace(edgeCondition(edge)),
+				SourcePort: strings.TrimSpace(edge.SourceHandle),
+				TargetPort: strings.TrimSpace(edge.TargetHandle),
+			})
+		}
+		steps = append(steps, step)
+	}
+
+	return steps, nil
+}
+
+func (p *planner) topologicalOrder() []string {
+	incoming := make(map[string]int, len(p.incomingCount))
+	for k, v := range p.incomingCount {
+		incoming[k] = v
+	}
+
+	queue := make([]string, 0)
+	for nodeID, count := range incoming {
+		if count == 0 {
+			queue = append(queue, nodeID)
+		}
+	}
+	sort.Slice(queue, func(i, j int) bool {
+		return p.order[queue[i]] < p.order[queue[j]]
+	})
+
+	order := make([]string, 0, len(p.definition.Nodes))
+	for len(queue) > 0 {
+		nodeID := queue[0]
+		queue = queue[1:]
+		order = append(order, nodeID)
+
+		for _, edge := range p.outgoing[nodeID] {
+			if isLoopBodyEdge(edge) {
+				continue
+			}
+			incoming[edge.Target]--
+			if incoming[edge.Target] == 0 {
+				queue = append(queue, edge.Target)
+			}
+		}
+		sort.Slice(queue, func(i, j int) bool {
+			return p.order[queue[i]] < p.order[queue[j]]
+		})
+	}
+
+	return order
+}
+
+func normalizeStepType(raw string) (StepType, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", errors.New("step type cannot be empty")
+	}
+	stepType := StepType(trimmed)
+	if _, ok := supportedStepTypes[stepType]; !ok {
+		return "", fmt.Errorf("unsupported step type: %s", stepType)
+	}
+	return stepType, nil
+}
+
+func copyMap(src map[string]any) map[string]any {
+	if src == nil {
+		return map[string]any{}
+	}
+	dst := make(map[string]any, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
+
+func toPosition(pos map[string]any) *Position {
+	if pos == nil {
+		return nil
+	}
+	x := toPositiveFloat(pos["x"])
+	y := toPositiveFloat(pos["y"])
+	if x == 0 && y == 0 {
+		return nil
+	}
+	return &Position{X: x, Y: y}
+}
+
+func toPositiveFloat(value any) float64 {
+	switch v := value.(type) {
+	case float64:
+		if v > 0 {
+			return v
+		}
+	case float32:
+		if v > 0 {
+			return float64(v)
+		}
+	case int:
+		if v > 0 {
+			return float64(v)
+		}
+	case int64:
+		if v > 0 {
+			return float64(v)
+		}
+	case json.Number:
+		if fVal, err := v.Float64(); err == nil && fVal > 0 {
+			return fVal
+		}
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return 0
+		}
+		if parsed, err := strconv.ParseFloat(trimmed, 64); err == nil && parsed > 0 {
+			return parsed
+		}
+	}
+	return 0
+}
+
+func uniqueStrings(values []string) []string {
+	seen := make(map[string]struct{})
+	out := make([]string, 0, len(values))
+	for _, v := range values {
+		if strings.TrimSpace(v) == "" {
+			continue
+		}
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		out = append(out, v)
+	}
+	return out
 }
 
 func rawNodeMapToSlice(m map[string]rawNode) []rawNode {
@@ -545,252 +727,33 @@ func rawNodeMapToSlice(m map[string]rawNode) []rawNode {
 	return result
 }
 
-func uniqueStrings(values []string) []string {
-	if len(values) <= 1 {
-		return values
-	}
-	seen := make(map[string]struct{}, len(values))
-	result := make([]string, 0, len(values))
-	for _, value := range values {
-		trimmed := strings.TrimSpace(value)
-		if trimmed == "" {
-			continue
-		}
-		if _, exists := seen[trimmed]; exists {
-			continue
-		}
-		seen[trimmed] = struct{}{}
-		result = append(result, trimmed)
-	}
-	return result
+func isLoopBodyEdge(edge rawEdge) bool {
+	return strings.EqualFold(strings.TrimSpace(edge.SourceHandle), loopHandleBody) ||
+		strings.EqualFold(strings.TrimSpace(edge.TargetHandle), loopConditionBody)
 }
 
 func loopDirectiveFromEdge(edge rawEdge) (EdgeRef, bool) {
-	handle := normalizeHandle(edge.TargetHandle)
-	condition := strings.ToLower(strings.TrimSpace(extractString(edge.Data, "condition", "label")))
-	if condition == loopConditionContinue || handle == loopHandleContinue {
-		return EdgeRef{
-			ID:         edge.ID,
-			TargetNode: LoopContinueTarget,
-			Condition:  loopConditionContinue,
-			SourcePort: edge.SourceHandle,
-			TargetPort: edge.TargetHandle,
-		}, true
+	handle := strings.ToLower(strings.TrimSpace(edge.TargetHandle))
+	switch handle {
+	case loopHandleContinue, loopConditionContinue:
+		return EdgeRef{ID: edge.ID, TargetNode: LoopContinueTarget, Condition: loopConditionContinue}, true
+	case loopHandleBreak, loopConditionBreak:
+		return EdgeRef{ID: edge.ID, TargetNode: LoopBreakTarget, Condition: loopConditionBreak}, true
+	case loopHandleAfter, loopConditionAfter:
+		return EdgeRef{ID: edge.ID, TargetNode: loopHandleAfter, Condition: loopConditionAfter}, true
+	default:
+		return EdgeRef{}, false
 	}
-	if condition == loopConditionBreak || handle == loopHandleBreak {
-		return EdgeRef{
-			ID:         edge.ID,
-			TargetNode: LoopBreakTarget,
-			Condition:  loopConditionBreak,
-			SourcePort: edge.SourceHandle,
-			TargetPort: edge.TargetHandle,
-		}, true
-	}
-	return EdgeRef{}, false
 }
 
-func isLoopBodyEdge(edge rawEdge) bool {
-	if normalizeHandle(edge.SourceHandle) == loopHandleBody {
-		return true
+func edgeCondition(edge rawEdge) string {
+	if edge.Data == nil {
+		return ""
 	}
-	condition := strings.ToLower(strings.TrimSpace(extractString(edge.Data, "condition", "label")))
-	return condition == loopConditionBody
-}
-
-func normalizeHandle(value string) string {
-	if value == "" {
-		return value
-	}
-	return strings.ToLower(strings.TrimSpace(value))
-}
-
-func (p *planner) findIncomingEdges(nodeID string) []rawEdge {
-	if nodeID == "" {
-		return nil
-	}
-	result := make([]rawEdge, 0)
-	for _, edge := range p.definition.Edges {
-		if strings.TrimSpace(edge.Target) == nodeID {
-			result = append(result, edge)
-		}
-	}
-	return result
-}
-
-func (p *planner) buildSteps() ([]ExecutionStep, error) {
-	type queueItem struct {
-		nodeID string
-	}
-
-	var queue []queueItem
-	for nodeID, indegree := range p.incomingCount {
-		if indegree == 0 {
-			queue = append(queue, queueItem{nodeID: nodeID})
-		}
-	}
-
-	sort.Slice(queue, func(i, j int) bool {
-		return p.less(queue[i].nodeID, queue[j].nodeID)
-	})
-
-	var order []string
-	visitedCount := 0
-
-	incoming := make(map[string]int, len(p.incomingCount))
-	for k, v := range p.incomingCount {
-		incoming[k] = v
-	}
-
-	for len(queue) > 0 {
-		item := queue[0]
-		queue = queue[1:]
-		order = append(order, item.nodeID)
-		visitedCount++
-
-		for _, edge := range p.outgoing[item.nodeID] {
-			incoming[edge.Target]--
-			if incoming[edge.Target] == 0 {
-				queue = append(queue, queueItem{nodeID: edge.Target})
-			}
-		}
-
-		sort.Slice(queue, func(i, j int) bool {
-			return p.less(queue[i].nodeID, queue[j].nodeID)
-		})
-	}
-
-	if visitedCount != len(p.nodesByID) {
-		return nil, errors.New("workflow graph contains cycles or disconnected nodes")
-	}
-
-	steps := make([]ExecutionStep, 0, len(order))
-	for idx, nodeID := range order {
-		node := p.nodesByID[nodeID]
-		stepType, err := normalizeStepType(node.Type)
-		if err != nil {
-			return nil, err
-		}
-
-		params := make(map[string]any)
-		for k, v := range node.Data {
-			params[k] = v
-		}
-
-		edges := p.outgoing[nodeID]
-		edgeRefs := make([]EdgeRef, 0, len(edges))
-		for _, edge := range edges {
-			edgeRefs = append(edgeRefs, EdgeRef{
-				ID:         edge.ID,
-				TargetNode: edge.Target,
-				Condition:  extractString(edge.Data, "condition", "label"),
-				SourcePort: edge.SourceHandle,
-				TargetPort: edge.TargetHandle,
-			})
-		}
-
-		executionStep := ExecutionStep{
-			Index:          idx,
-			NodeID:         nodeID,
-			Type:           stepType,
-			Params:         params,
-			OutgoingEdges:  edgeRefs,
-			SourcePosition: extractPosition(node.Position),
-		}
-		steps = append(steps, executionStep)
-	}
-
-	return steps, nil
-}
-
-func (p *planner) less(a, b string) bool {
-	oa, ob := p.order[a], p.order[b]
-	if oa != ob {
-		return oa < ob
-	}
-
-	posA := extractPosition(p.nodesByID[a].Position)
-	posB := extractPosition(p.nodesByID[b].Position)
-
-	if posA != nil && posB != nil {
-		if posA.X != posB.X {
-			return posA.X < posB.X
-		}
-		if posA.Y != posB.Y {
-			return posA.Y < posB.Y
-		}
-	}
-
-	return strings.Compare(a, b) < 0
-}
-
-func normalizeStepType(raw string) (StepType, error) {
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		return "", fmt.Errorf("node type is required")
-	}
-
-	// Case-insensitive lookup: check if the lowercased input matches any supported type
-	lowercased := strings.ToLower(trimmed)
-	for supportedType := range supportedStepTypes {
-		if strings.ToLower(string(supportedType)) == lowercased {
-			return supportedType, nil
-		}
-	}
-
-	return "", fmt.Errorf("unsupported node type: %s", raw)
-}
-
-func extractString(m map[string]any, keys ...string) string {
-	for _, key := range keys {
-		if m == nil {
-			continue
-		}
-		if val, ok := m[key]; ok {
-			if str, ok := val.(string); ok {
-				return str
-			}
+	if cond, ok := edge.Data["condition"]; ok {
+		if s, ok := cond.(string); ok {
+			return s
 		}
 	}
 	return ""
-}
-
-func extractPosition(raw map[string]any) *Position {
-	if raw == nil {
-		return nil
-	}
-
-	var xVal, yVal float64
-	var xOK, yOK bool
-
-	if v, ok := raw["x"]; ok {
-		switch t := v.(type) {
-		case float64:
-			xVal = t
-			xOK = true
-		case json.Number:
-			if f, err := t.Float64(); err == nil {
-				xVal = f
-				xOK = true
-			}
-		}
-	}
-
-	if v, ok := raw["y"]; ok {
-		switch t := v.(type) {
-		case float64:
-			yVal = t
-			yOK = true
-		case json.Number:
-			if f, err := t.Float64(); err == nil {
-				yVal = f
-				yOK = true
-			}
-		}
-	}
-
-	if !xOK || !yOK {
-		return nil
-	}
-
-	return &Position{X: xVal, Y: yVal}
 }

@@ -166,6 +166,7 @@ func (s *stubEngine) Name() string { return "stub" }
 
 func (s *stubEngine) Capabilities(ctx context.Context) (autocontracts.EngineCapabilities, error) {
 	return autocontracts.EngineCapabilities{
+		SchemaVersion:         autocontracts.CapabilitiesSchemaVersion,
 		Engine:                s.Name(),
 		MaxViewportWidth:      1920,
 		MaxViewportHeight:     1080,
@@ -238,7 +239,7 @@ func TestExecuteWithAutomationEngine_UsesInjectedCompilerAndEngine(t *testing.T)
 
 	compiler := &stubPlanCompiler{
 		plan: autocontracts.ExecutionPlan{
-			SchemaVersion:  autocontracts.StepOutcomeSchemaVersion,
+			SchemaVersion:  autocontracts.ExecutionPlanSchemaVersion,
 			PayloadVersion: autocontracts.PayloadVersion,
 			ExecutionID:    execID,
 			WorkflowID:     wfID,

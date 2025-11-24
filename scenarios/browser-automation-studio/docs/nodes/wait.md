@@ -15,10 +15,9 @@ _Note:_ The UI currently exposes the time/element options. Navigation waits are 
 
 ## Runtime Behavior
 
-1. `api/browserless/runtime/instructions.go:723-750` decodes the node, normalizes the wait type, and enforces required fields (e.g., selector for element mode).
-2. For `time`, it sets `DurationMs` (default 1 000). For `element`, it sets `Selector` and `TimeoutMs`. For `navigation`, it sets `WaitType="navigation"` plus the optional timeout.
-3. Browserless either sleeps locally (`time.Sleep`), polls the DOM for the selector, or waits for the next navigation event coming from Chrome DevTools Protocol, depending on the mode.
-4. Step telemetry records the final wait type/duration for Execution Viewer.
+1. The automation compiler (`api/automation/compiler`) keeps the wait params as-authored (`waitType`, `duration`, `selector`, `timeoutMs`) in the contract plan; the executor forwards them without Browserless-specific shaping.
+2. BrowserlessEngine translates the instruction to CDP via `browserless/cdp/actions.go`, sleeping for time waits or polling the DOM/navigation for element/navigation waits.
+3. Step telemetry still records the effective wait type and duration for the Execution Viewer.
 
 ## Examples
 

@@ -91,6 +91,9 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 		}
 		caps = &descriptor
 	}
+	if err := caps.Validate(); err != nil {
+		return fmt.Errorf("engine capabilities invalid: %w", err)
+	}
 	if gap := caps.CheckCompatibility(requirements); !gap.Satisfied() {
 		return &CapabilityError{
 			Engine:    eng.Name(),
@@ -272,6 +275,10 @@ func (e *SimpleExecutor) validateRequest(req Request) error {
 		return errors.New("plan execution_id is required")
 	case req.Plan.WorkflowID == uuid.Nil:
 		return errors.New("plan workflow_id is required")
+	case req.Plan.SchemaVersion != "" && req.Plan.SchemaVersion != contracts.ExecutionPlanSchemaVersion:
+		return fmt.Errorf("plan schema_version mismatch: got %s want %s", req.Plan.SchemaVersion, contracts.ExecutionPlanSchemaVersion)
+	case req.Plan.PayloadVersion != "" && req.Plan.PayloadVersion != contracts.PayloadVersion:
+		return fmt.Errorf("plan payload_version mismatch: got %s want %s", req.Plan.PayloadVersion, contracts.PayloadVersion)
 	}
 	return nil
 }

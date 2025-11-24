@@ -19,20 +19,14 @@ import (
 type mockWebSocketHub struct {
 	serveWSFn         func(conn *websocket.Conn, executionID *uuid.UUID)
 	broadcastEnvelope func(event any)
-	broadcastUpdateFn func(update wsHub.ExecutionUpdate)
 	getClientCountFn  func() int
 	runFn             func()
+	closeExecutionFn  func(uuid.UUID)
 }
 
 func (m *mockWebSocketHub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID) {
 	if m.serveWSFn != nil {
 		m.serveWSFn(conn, executionID)
-	}
-}
-
-func (m *mockWebSocketHub) BroadcastUpdate(update wsHub.ExecutionUpdate) {
-	if m.broadcastUpdateFn != nil {
-		m.broadcastUpdateFn(update)
 	}
 }
 
@@ -52,6 +46,12 @@ func (m *mockWebSocketHub) GetClientCount() int {
 func (m *mockWebSocketHub) Run() {
 	if m.runFn != nil {
 		m.runFn()
+	}
+}
+
+func (m *mockWebSocketHub) CloseExecution(id uuid.UUID) {
+	if m.closeExecutionFn != nil {
+		m.closeExecutionFn(id)
 	}
 }
 

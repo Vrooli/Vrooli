@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"os"
 	"strings"
 	"sync"
 
@@ -22,8 +21,8 @@ type PlanCompiler interface {
 	Compile(ctx context.Context, executionID uuid.UUID, workflow *database.Workflow) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error)
 }
 
-// DefaultPlanCompiler supplies the legacy browserless-backed compiler while we
-// bring additional engines online.
+// DefaultPlanCompiler supplies the contract-native compiler so multiple engines
+// can share the same plan shape.
 var DefaultPlanCompiler PlanCompiler = &ContractPlanCompiler{}
 
 // BuildContractsPlan compiles a workflow into the engine-agnostic plan +
@@ -56,15 +55,6 @@ func RegisterPlanCompiler(engineName string, compiler PlanCompiler) {
 // PlanCompilerForEngine returns a compiler registered for the engine name, or
 // the default compiler when none is registered.
 func PlanCompilerForEngine(engineName string) PlanCompiler {
-	if env := strings.ToLower(strings.TrimSpace(os.Getenv("BAS_PLAN_COMPILER"))); env != "" {
-		switch env {
-		case "contract":
-			return &ContractPlanCompiler{}
-		case "legacy", "runtime":
-			return &BrowserlessPlanCompiler{}
-		}
-	}
-
 	name := strings.ToLower(strings.TrimSpace(engineName))
 	compilerRegistryMu.RLock()
 	if c, ok := compilerRegistry[name]; ok && c != nil {
@@ -76,8 +66,7 @@ func PlanCompilerForEngine(engineName string) PlanCompiler {
 }
 
 func init() {
-	// Contract-native compiler is default; browserless-runtime stays available for legacy parity checks.
+	// Contract-native compiler is default; browserless runtime shaping was removed.
 	RegisterPlanCompiler("browserless", DefaultPlanCompiler)
 	RegisterPlanCompiler("browserless-contract", &ContractPlanCompiler{})
-	RegisterPlanCompiler("browserless-runtime", &BrowserlessPlanCompiler{})
 }

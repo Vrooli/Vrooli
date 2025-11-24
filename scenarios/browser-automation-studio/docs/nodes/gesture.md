@@ -19,7 +19,7 @@
 
 ## Runtime Behavior
 
-1. `api/browserless/runtime/instructions.go:1290-1330` normalizes the gesture payload, clamps duration/distance/steps/scale, and records whether explicit coordinates were provided so Browserless respects them.
+1. The automation compiler forwards gesture params (type, selector, direction, distance, duration, steps, hold, scale, coordinates) as-is; validation/clamping runs in the workflow validator.
 2. `api/browserless/cdp/gestures.go:14-118` resolves the anchor point (selector center or viewport center/coordinates) and dispatches the requested gesture via `Input.dispatchTouchEvent`, automatically constructing swipe paths or pinch arcs.
 3. Execution artifacts capture the resolved anchor, generated coordinates, and gesture metadata, making failed gestures easy to diagnose from telemetry alone.
 

@@ -14,7 +14,7 @@
 
 ## Runtime Behavior
 
-1. `api/browserless/runtime/instructions.go:112-132,1133-1173` validates the selector, clamps timing/step inputs, and writes them into `InstructionParam`.
+1. The automation compiler keeps hover params (selector, timeout, wait, steps, duration) intact; validation is handled by the workflow validator/UI.
 2. Browserless issues `Input.dispatchMouseEvent` events to simulate moving from the current pointer position to the target element in the requested number of steps/duration.
 3. After the hover completes, the runtime optionally waits `waitForMs` before handing off to the next instruction.
 4. Telemetry records the selector, timing, and resulting bounding box so Execution Viewer can visualize the pointer path.

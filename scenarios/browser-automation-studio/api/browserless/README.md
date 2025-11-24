@@ -1,11 +1,10 @@
 # Browserless Adapter
 
-This package keeps the Browserless-specific pieces contained while the automation stack stays engine-agnostic. It resolves Browserless configuration, compiles workflows into executable instructions, and drives a CDP session that the automation executor can treat as just another engine.
+This package keeps the Browserless-specific pieces contained while the automation stack stays engine-agnostic. It resolves Browserless configuration, exposes shared Browserless types, and drives a CDP session that the automation executor treats as just another engine.
 
 ## What lives here
 - `config.go`: environment detection (`BROWSERLESS_URL`/`PORT`), normalization, and health checks.
-- `compiler/`: workflow graph → Browserless execution plan (still used by the automation plan compiler).
-- `runtime/`: instruction shaping and defaults for the Browserless runtime.
+- `runtime/`: shared Browserless instruction/result types consumed by the CDP adapter.
 - `cdp/`: thin Chrome DevTools client (`Session`) plus action adapters (click, navigate, assert, file upload, etc.).
 
 ## Flow at a Glance
@@ -16,8 +15,7 @@ flowchart LR
         EXEC["SimpleExecutor\n(engine-agnostic)"]
     end
     subgraph BrowserlessAdapter["api/browserless"]
-        COMP["compiler\nworkflow → plan"]
-        RT["runtime\nplan → instructions"]
+        RT["runtime types\nInstruction/ExecutionResponse"]
         CDP["cdp.Session\nExecuteInstruction"]
         CFG["config\nResolveURL + health"]
     end
@@ -28,7 +26,7 @@ flowchart LR
         BL["Chrome + browserless\n(local or remote)"]
     end
 
-    PLAN --> COMP --> RT --> ENG --> CDP --> BL
+    PLAN --> ENG --> CDP --> BL
     CFG --> ENG
     EXEC --> ENG
 ```

@@ -15,10 +15,6 @@ type HubInterface interface {
 	// BroadcastEnvelope sends a normalized automation event envelope to all connected clients.
 	BroadcastEnvelope(event any)
 
-	// BroadcastUpdate sends an update to all connected clients
-	// If clients are subscribed to specific executions, updates are filtered accordingly
-	BroadcastUpdate(update ExecutionUpdate)
-
 	// GetClientCount returns the number of currently connected clients
 	GetClientCount() int
 

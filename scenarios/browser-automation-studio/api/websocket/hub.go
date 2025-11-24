@@ -10,23 +10,11 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 )
 
-// ExecutionUpdate represents a real-time update for workflow execution
-type ExecutionUpdate struct {
-	Type        string    `json:"type"` // "progress", "log", "screenshot", "completed", "failed"
-	ExecutionID uuid.UUID `json:"execution_id"`
-	Progress    int       `json:"progress,omitempty"`
-	CurrentStep string    `json:"current_step,omitempty"`
-	Status      string    `json:"status,omitempty"`
-	Message     string    `json:"message,omitempty"`
-	Data        any       `json:"data,omitempty"`
-	Timestamp   string    `json:"timestamp"`
-}
-
 // Client represents a WebSocket client
 type Client struct {
 	ID          uuid.UUID
 	Conn        *websocket.Conn
-	Send        chan ExecutionUpdate
+	Send        chan any
 	Hub         *Hub
 	ExecutionID *uuid.UUID // Optional: client can subscribe to specific execution
 }
@@ -34,7 +22,7 @@ type Client struct {
 // Hub maintains the set of active clients and broadcasts messages to them
 type Hub struct {
 	clients    map[*Client]bool
-	broadcast  chan ExecutionUpdate
+	broadcast  chan any
 	register   chan *Client
 	unregister chan *Client
 	log        *logrus.Logger
@@ -45,7 +33,7 @@ type Hub struct {
 func NewHub(log *logrus.Logger) *Hub {
 	return &Hub{
 		clients:    make(map[*Client]bool),
-		broadcast:  make(chan ExecutionUpdate),
+		broadcast:  make(chan any),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		log:        log,
@@ -65,10 +53,10 @@ func (h *Hub) Run() {
 
 			// Send a welcome message
 			select {
-			case client.Send <- ExecutionUpdate{
-				Type:      "connected",
-				Message:   "Connected to Browser Automation Studio",
-				Timestamp: getCurrentTimestamp(),
+			case client.Send <- map[string]any{
+				"type":      "connected",
+				"message":   "Connected to Browser Automation Studio",
+				"timestamp": getCurrentTimestamp(),
 			}:
 			default:
 				close(client.Send)
@@ -88,9 +76,10 @@ func (h *Hub) Run() {
 
 		case update := <-h.broadcast:
 			h.mu.RLock()
+			execID := extractExecutionID(update)
 			for client := range h.clients {
 				// If client is subscribed to a specific execution, filter updates
-				if client.ExecutionID != nil && *client.ExecutionID != update.ExecutionID {
+				if client.ExecutionID != nil && execID != nil && *client.ExecutionID != *execID {
 					continue
 				}
 
@@ -107,50 +96,29 @@ func (h *Hub) Run() {
 }
 
 // BroadcastUpdate sends an update to all connected clients
-func (h *Hub) BroadcastUpdate(update ExecutionUpdate) {
-	update.Timestamp = getCurrentTimestamp()
-	h.broadcast <- update
-}
-
 // BroadcastEnvelope pushes an automation event envelope directly to clients.
 func (h *Hub) BroadcastEnvelope(event any) {
-	if env, ok := event.(contracts.EventEnvelope); ok {
-		h.BroadcastUpdate(ExecutionUpdate{
-			Type:        string(env.Kind),
-			ExecutionID: env.ExecutionID,
-			Message:     string(env.Kind),
-			Data:        env,
-			Timestamp:   env.Timestamp.Format(time.RFC3339Nano),
-		})
-		return
-	}
-	h.BroadcastUpdate(ExecutionUpdate{
-		Type:      "event",
-		Message:   "automation_event",
-		Data:      event,
-		Timestamp: getCurrentTimestamp(),
-	})
+	h.broadcast <- event
 }
 
-// GetClientCount returns the number of connected clients
+// GetClientCount returns the number of connected clients.
 func (h *Hub) GetClientCount() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return len(h.clients)
 }
 
-// CloseExecution is a no-op for the hub but satisfies the interface so sinks
-// can call it when an execution completes.
+// CloseExecution is a no-op for the hub; it satisfies the interface used by sinks.
 func (h *Hub) CloseExecution(executionID uuid.UUID) {
 	_ = executionID
 }
 
-// ServeWS handles WebSocket requests from clients
+// ServeWS handles WebSocket requests from clients.
 func (h *Hub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID) {
 	client := &Client{
 		ID:          uuid.New(),
 		Conn:        conn,
-		Send:        make(chan ExecutionUpdate, 256),
+		Send:        make(chan any, 256),
 		Hub:         h,
 		ExecutionID: executionID,
 	}
@@ -163,7 +131,7 @@ func (h *Hub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID) {
 	go client.readPump()
 }
 
-// readPump pumps messages from the websocket connection to the hub
+// readPump pumps messages from the websocket connection to the hub.
 func (c *Client) readPump() {
 	defer func() {
 		c.Hub.unregister <- c
@@ -207,7 +175,7 @@ func (c *Client) readPump() {
 	}
 }
 
-// writePump pumps messages from the hub to the websocket connection
+// writePump pumps messages from the hub to the websocket connection.
 func (c *Client) writePump() {
 	defer c.Conn.Close()
 
@@ -215,7 +183,7 @@ func (c *Client) writePump() {
 		select {
 		case update, ok := <-c.Send:
 			if !ok {
-				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				_ = c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
@@ -230,4 +198,34 @@ func (c *Client) writePump() {
 // getCurrentTimestamp returns the current timestamp as ISO8601 string
 func getCurrentTimestamp() string {
 	return time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
+}
+
+func extractExecutionID(msg any) *uuid.UUID {
+	switch v := msg.(type) {
+	case contracts.EventEnvelope:
+		return &v.ExecutionID
+	case *contracts.EventEnvelope:
+		return &v.ExecutionID
+	case map[string]any:
+		if env, ok := v["data"].(contracts.EventEnvelope); ok {
+			return &env.ExecutionID
+		}
+		if raw, ok := v["execution_id"]; ok {
+			if s, ok := raw.(string); ok {
+				if id, err := uuid.Parse(s); err == nil {
+					return &id
+				}
+			}
+		}
+		if raw, ok := v["executionId"]; ok {
+			if s, ok := raw.(string); ok {
+				if id, err := uuid.Parse(s); err == nil {
+					return &id
+				}
+			}
+		}
+	default:
+		return nil
+	}
+	return nil
 }

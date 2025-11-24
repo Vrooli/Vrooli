@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -55,12 +54,5 @@ func TestContractPlanCompilerProducesContractsPlan(t *testing.T) {
 }
 
 func TestPlanCompilerEnvOverride(t *testing.T) {
-	t.Setenv("BAS_PLAN_COMPILER", "contract")
-	if os.Getenv("BAS_PLAN_COMPILER") == "" {
-		t.Skip("env override not supported on this platform")
-	}
-	comp := PlanCompilerForEngine("browserless")
-	if _, ok := comp.(*ContractPlanCompiler); !ok {
-		t.Fatalf("expected ContractPlanCompiler from env override, got %T", comp)
-	}
+	t.Skip("BAS_PLAN_COMPILER override removed in favor of contract-native compiler")
 }

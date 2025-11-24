@@ -17,8 +17,8 @@
 
 ## Runtime Behavior
 
-1. `api/browserless/runtime/instructions.go:1366-1406` validates the strategy-specific inputs and emits a Browserless instruction with the normalized mode + value.
-2. `api/browserless/cdp/frame_actions.go:12-113` resolves the requested frame via selector/index/name/url and pushes the resulting scope onto a managed stack; `parent` pops once while `main` clears the stack entirely.
+1. The automation compiler passes `switchBy`/value/timeout fields directly into the contract instruction; validation is handled by the workflow validator.
+2. `browserless/cdp/frame_actions.go` resolves the requested frame via selector/index/name/url and pushes the resulting scope onto a managed stack; `parent` pops once while `main` clears the stack entirely.
 3. Subsequent steps automatically reuse the active frame scope because the session calls `s.evalWithFrame` for DOM work, so clicks, extracts, and scripts target the correct iframe until another Frame Switch resets it.
 
 ## Example

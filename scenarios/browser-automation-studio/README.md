@@ -7,7 +7,7 @@ Visual browser automation workflow builder with AI-powered generation and debugg
 Browser Automation Studio transforms browser automation from code-based scripts to visual, self-healing workflows. It provides a drag-and-drop interface for creating browser automation workflows, real-time execution monitoring with screenshots, and AI assistance for both generation and debugging.
 
 ## ⚠️ Current Implementation Status (2025-11-14)
-- The Go executor (`api/browserless/client.go`) maintains a persistent Browserless session and executes `navigate`, `wait`, `click`, `type`, `extract`, `loop`, and `screenshot` nodes in sequence. Step results capture console logs, network events, bounding boxes, click coordinates, cursor trails, extracted payloads, and focus/highlight/mask/zoom metadata; artifacts persist via `execution_steps` and `execution_artifacts` (including timeline frames). Success/failure/else branching, runtime loop execution (for-each, repeat, and while), and per-node retry/backoff policies record attempt history alongside screenshots and telemetry.
+- The automation executor/engine stack (`api/automation/{executor,engine,recorder,events}`) now drives Browserless via the `BrowserlessEngine`, emitting normalized `StepOutcome` payloads through `WSHubSink` and persisting through `DBRecorder`. It covers `navigate`, `wait`, `click`, `type`, `extract`, `loop`, and `screenshot` nodes with console/network telemetry, bounding boxes, click coordinates, cursor trails, extracted payloads, and focus/highlight/mask/zoom metadata recorded in `execution_steps` and `execution_artifacts` (timeline frames included). Success/failure/else branching, runtime loop execution (for-each, repeat, while), and per-node retry/backoff policies record attempt history alongside screenshots and telemetry.
 - Assertion nodes now evaluate selector existence/text/attributes directly in Browserless, emitting structured assertion artifacts, timeline metadata, and CLI/UI logs that short-circuit executions on failure.
 - Structured WebSocket events (`execution.*`, `step.*`) now include mid-step `step.heartbeat` telemetry. The UI panel surfaces the latest heartbeat with elapsed timing while console/network payloads continue streaming via `step.telemetry` events.
 - The CLI watcher attaches to the WebSocket stream when Node.js is available, echoing heartbeats alongside step events and retaining HTTP polling + timeline summary fallbacks. The `execution export` command now streams replay-export packages and can write the JSON payload to disk for automation tooling.
@@ -163,7 +163,7 @@ On first run (or whenever the database is empty) the API seeds a ready-to-run wo
 
 2. **API (Go + Chi)**
    - RESTful API for workflow management
-   - Gorilla WebSocket hub broadcasting structured `ExecutionUpdate` + event payloads consumed directly by the UI
+   - Gorilla WebSocket hub broadcasting automation `EventEnvelope` payloads (legacy wrapper opt-in via `WS_LEGACY_UPDATES=true`)
    - PostgreSQL for persistence
    - MinIO for screenshot storage
 
@@ -200,7 +200,7 @@ On first run (or whenever the database is empty) the API seeds a ready-to-run wo
   2. Set `greeting` to `Hello {{pageTitle}}!` (interpolation happens automatically before the node executes).
   3. Add a Use Variable node, pick `greeting` from the suggestions, transform it with `Greeting => {{value}}`, and store the result as `greetingEcho` for downstream assertions or screenshots.
 
-The end-to-end regression `TestVariableFlowEndToEnd` in `api/browserless/client_test.go` mirrors this flow to ensure variables are interpolated, aliased, and snapshotted correctly.
+The end-to-end regression `TestVariableFlowEndToEnd` in `api/automation/executor/integration_test.go` mirrors this flow to ensure variables are interpolated, aliased, and snapshotted correctly.
 
 ### Scenario Registry Overrides
 

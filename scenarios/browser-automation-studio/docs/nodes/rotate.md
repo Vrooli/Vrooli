@@ -12,9 +12,9 @@
 
 ## Runtime Behavior
 
-1. `api/browserless/runtime/instructions.go:1257-1289` normalizes the orientation/angle combination, preventing invalid values (e.g., 90 degrees in portrait mode) and adds an optional post-rotate wait.
-2. `api/browserless/cdp/scroll_actions.go:91-141` calls `Emulation.setDeviceMetricsOverride` with the rotated width/height, updates the session's cached viewport, and records the new dimensions plus `orientationType` in execution artifacts.
-3. Any subsequent Gesture/Scroll/Interaction nodes inherit the updated viewport size so coordinates continue to line up with mobile expectations.
+1. The automation compiler retains the orientation/angle/wait fields in the contract instruction; validation for allowed combinations happens in the workflow validator.
+2. BrowserlessEngine maps the instruction to `browserless/cdp/scroll_actions.go` where `Emulation.setDeviceMetricsOverride` applies the new dimensions and orientation, emitting viewport metadata for artifacts.
+3. Subsequent Gesture/Scroll/Interaction nodes inherit the updated viewport so coordinates and animations reflect the rotated device.
 
 ## Example
 

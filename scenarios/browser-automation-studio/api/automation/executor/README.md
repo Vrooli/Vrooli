@@ -42,7 +42,7 @@ Flow feature map (where to look/extend):
 - Built-in variable mutation node for flow control: `set_variable` / `setVariable` handled in `flow_executor.go`
 - Session/retry/timing normalization: `simple_executor.go`
 - Tests to extend for new flow shapes: `simple_executor_test.go`, `integration_test.go`, `requirements_test.go`
-- Plan compiler selection: defaults to contract-native compiler (no runtime shaping). Set `BAS_PLAN_COMPILER=legacy` to force browserless runtime shaping for parity checks.
+- Plan compiler selection: contract-native compiler is the only path; custom engines register a compiler via `RegisterPlanCompiler`.
 
 Not yet parity-complete (to implement here):
 - Variable expressions (beyond replacement) / advanced evaluation

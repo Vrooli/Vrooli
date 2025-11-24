@@ -15,7 +15,7 @@
 
 ## Runtime Behavior
 
-1. `api/browserless/runtime/instructions.go:900-937` (keyboard portion) validates the key/event type, normalizes modifiers, and clamps timeouts.
+1. The automation compiler forwards key/event/modifier/focus/timeout params as-is; validation occurs in the workflow validator.
 2. Browserless focuses the optional selector, then dispatches the requested key event through CDP’s `Input.dispatchKeyEvent` with the correct modifier state.
 3. Execution artifacts capture the key/event/modifiers for debugging.
 

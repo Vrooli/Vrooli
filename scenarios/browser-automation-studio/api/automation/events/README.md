@@ -4,7 +4,7 @@ Bridges executor emissions to downstream consumers with ordering and backpressur
 
 Components:
 - `Sequencer`: per-execution ordering; enforces drop policy using `EventBufferLimits`
-- `WSHubSink`: adapts `EventEnvelope` → legacy websocket events; maintains per-execution queues; drops only heartbeat/telemetry under pressure, never completion/failure
+- `WSHubSink`: pushes contract `EventEnvelope` payloads to the websocket hub; maintains per-execution queues; drops only heartbeat/telemetry under pressure, never completion/failure
 - `MemorySink`: in-memory capture for tests
 - `backpressure_helpers.go`: drop rules, attempt-level keys
 

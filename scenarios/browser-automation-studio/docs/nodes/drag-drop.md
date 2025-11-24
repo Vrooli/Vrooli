@@ -17,8 +17,8 @@
 
 ## Runtime Behavior
 
-1. `api/browserless/runtime/instructions.go:1368-1450` normalizes selectors, clamps steps/duration/offsets, and validates required fields.
-2. Browserless first scrolls both elements into view, issues pointer events to simulate pressing, moving, and releasing, and synthesizes HTML5 `dragstart/dragenter/dragover/drop/dragleave` events so frameworks like React DnD respond.
+1. The automation compiler forwards drag/drop params unchanged; validation runs in the workflow validator/UI (selectors required, timing bounds).
+2. Browserless scrolls both elements into view, issues pointer events to simulate press/move/release, and synthesizes HTML5 drag/drop events so React DnD–style handlers fire.
 3. When offsets are provided, the runtime adjusts the drag path accordingly and records the values in execution artifacts for replay.
 4. Telemetry captures the movement profile (steps, duration, offsets) so Execution Viewer explains how cards moved.
 

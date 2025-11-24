@@ -13,7 +13,7 @@
 
 ## Runtime Behavior
 
-1. `api/browserless/runtime/instructions.go:1415-1448` ensures the variable exists (when required), resolves the current value, and applies template replacements (`{{value}}`).
+1. The automation executor handles variable resolution and templating (`{{value}}`), failing fast when `required` is set but the variable is missing.
 2. The result is written back into the context map under the alias so later nodes can reuse it.
 3. Execution artifacts note whether the variable existed and what alias was written.
 

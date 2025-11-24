@@ -19,7 +19,7 @@
 
 ## Runtime Behavior
 
-1. `api/browserless/runtime/instructions.go:1815-1865` validates the mode, ensures required fields are set (selector, expected value, attribute name), and copies the configuration into `InstructionParam`.
+1. The automation compiler/executor forwards the assertion payload (mode, selector/value/attribute, negate/continue flags, timeout) as-authored; validation is handled by the workflow validator/UI.
 2. Browserless evaluates the condition: selectors run inside the active frame, visibility checks rely on computed bounding boxes, and expression mode executes arbitrary JS with access to `document`.
 3. The executor records `ConditionResult` metadata (type, outcome, selector) so Execution Viewer can highlight which branch fired.
 4. When `continueOnFailure` is false, the workflow stops immediately and surfaces the provided failure message.

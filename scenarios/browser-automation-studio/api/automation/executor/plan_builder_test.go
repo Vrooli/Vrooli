@@ -81,11 +81,3 @@ func TestPlanCompilerDefaultsToContractCompiler(t *testing.T) {
 		t.Fatalf("expected default contract compiler, got %T", comp)
 	}
 }
-
-func TestPlanCompilerEnvOverrideRuntime(t *testing.T) {
-	t.Setenv("BAS_PLAN_COMPILER", "legacy")
-	comp := PlanCompilerForEngine("browserless")
-	if _, ok := comp.(*BrowserlessPlanCompiler); !ok {
-		t.Fatalf("expected legacy runtime compiler from env override, got %T", comp)
-	}
-}

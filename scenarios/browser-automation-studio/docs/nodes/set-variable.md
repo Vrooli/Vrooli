@@ -18,9 +18,9 @@
 
 ## Runtime Behavior
 
-1. `api/browserless/runtime/instructions.go:1347-1412` normalizes configuration, enforces required fields per source, and clamps timeouts.
-2. For static sources, values are coerced based on `valueType`. Expression sources execute in the browser context; extract sources behave like Extract nodes.
-3. The value is stored in the execution context map (`ExecutionContext`), and snapshots are written to artifacts for debugging.
+1. The automation compiler keeps the Set Variable payload intact (sourceType/valueType/expression/extract settings); validation is handled by the workflow validator/UI.
+2. For static sources, the executor stores the literal/coerced value; expression sources run in-page via BrowserlessEngine; extract sources reuse the Extract flow.
+3. The value is stored in the execution context map and snapshots are written to artifacts for debugging.
 
 ## Example
 

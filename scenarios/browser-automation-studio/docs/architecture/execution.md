@@ -29,7 +29,7 @@ WorkflowService.ExecuteWorkflow ---> Workflow Graph Compiler ---> Execution Plan
 ## Component Breakdown
 
 ### 1. Workflow Graph Compiler
-**Location:** `api/browserless/compiler` (new package)
+**Location:** `api/automation/compiler` (engine-agnostic package)
 
 Responsibilities:
 - Parse `workflow.FlowDefinition` (React Flow JSON) into an ordered DAG respecting `edges`, including branch metadata (conditions, success/failure paths).

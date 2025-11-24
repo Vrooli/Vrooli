@@ -12,7 +12,7 @@
 
 ## Runtime Behavior
 
-1. Focus and Blur share the same runtime configuration (`focusConfig`). `api/browserless/runtime/instructions.go:817-833` validates the selector and copies timeout/wait metadata into the instruction.
+1. Focus and Blur share the same payload shape (`focusConfig`). The automation compiler/executor forwards selector/timeout/wait values as-authored; validation happens in the workflow validator.
 2. Browserless executes a small script that calls `element.blur()` inside the active frame, ensuring any bound `onBlur` handlers fire.
 3. Execution telemetry records the selector plus the wait time so you can inspect validation timing in Execution Viewer.
 

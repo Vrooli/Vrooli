@@ -17,7 +17,6 @@ import (
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 	"github.com/vrooli/browser-automation-studio/database"
-	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
 var (
@@ -387,16 +386,6 @@ func (s *WorkflowService) StopExecution(ctx context.Context, executionID uuid.UU
 		s.log.WithError(err).WithField("execution_id", execution.ID).Warn("Failed to persist cancellation log entry")
 	}
 
-	// Broadcast cancellation
-	s.wsHub.BroadcastUpdate(wsHub.ExecutionUpdate{
-		Type:        "cancelled",
-		ExecutionID: execution.ID,
-		Status:      "cancelled",
-		Progress:    execution.Progress,
-		CurrentStep: execution.CurrentStep,
-		Message:     "Execution cancelled by user",
-	})
-
 	s.log.WithField("execution_id", executionID).Info("Execution stopped by user request")
 	return nil
 }
@@ -423,15 +412,6 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 		s.log.WithError(err).Error("Failed to update execution status to running")
 		return
 	}
-
-	s.wsHub.BroadcastUpdate(wsHub.ExecutionUpdate{
-		Type:        "progress",
-		ExecutionID: execution.ID,
-		Status:      "running",
-		Progress:    0,
-		CurrentStep: "Initializing",
-		Message:     "Workflow execution started",
-	})
 
 	var err error
 	selection := autoengine.FromEnv()
@@ -482,19 +462,6 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 
 		s.log.WithField("execution_id", execution.ID).Info("Workflow execution completed successfully")
 
-		s.wsHub.BroadcastUpdate(wsHub.ExecutionUpdate{
-			Type:        "completed",
-			ExecutionID: execution.ID,
-			Status:      "completed",
-			Progress:    100,
-			CurrentStep: "Completed",
-			Message:     "Workflow completed successfully",
-			Data: map[string]any{
-				"success": true,
-				"result":  execution.Result,
-			},
-		})
-
 		publishLifecycle(autocontracts.EventKindExecutionCompleted, map[string]any{"status": "completed"})
 
 	case errors.Is(err, context.Canceled):
@@ -518,15 +485,6 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 		if err := s.repo.CreateExecutionLog(persistenceCtx, logEntry); err != nil && s.log != nil {
 			s.log.WithError(err).WithField("execution_id", execution.ID).Warn("Failed to persist cancellation log entry")
 		}
-
-		s.wsHub.BroadcastUpdate(wsHub.ExecutionUpdate{
-			Type:        "cancelled",
-			ExecutionID: execution.ID,
-			Status:      "cancelled",
-			Progress:    execution.Progress,
-			CurrentStep: execution.CurrentStep,
-			Message:     "Workflow execution cancelled",
-		})
 
 		publishLifecycle(autocontracts.EventKindExecutionCancelled, map[string]any{"status": "cancelled"})
 
@@ -553,15 +511,6 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 			s.log.WithError(persistErr).WithField("execution_id", execution.ID).Warn("Failed to persist timeout log entry")
 		}
 
-		s.wsHub.BroadcastUpdate(wsHub.ExecutionUpdate{
-			Type:        "failed",
-			ExecutionID: execution.ID,
-			Status:      "failed",
-			Progress:    execution.Progress,
-			CurrentStep: execution.CurrentStep,
-			Message:     "Execution timed out",
-		})
-
 		publishLifecycle(autocontracts.EventKindExecutionFailed, map[string]any{"status": "failed", "error": execution.Error.String})
 
 	default:
@@ -582,15 +531,6 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 		if persistErr := s.repo.CreateExecutionLog(persistenceCtx, logEntry); persistErr != nil && s.log != nil {
 			s.log.WithError(persistErr).WithField("execution_id", execution.ID).Warn("Failed to persist failure log entry")
 		}
-
-		s.wsHub.BroadcastUpdate(wsHub.ExecutionUpdate{
-			Type:        "failed",
-			ExecutionID: execution.ID,
-			Status:      "failed",
-			Progress:    execution.Progress,
-			CurrentStep: execution.CurrentStep,
-			Message:     "Workflow execution failed: " + err.Error(),
-		})
 
 		publishLifecycle(autocontracts.EventKindExecutionFailed, map[string]any{"status": "failed", "error": err.Error()})
 
