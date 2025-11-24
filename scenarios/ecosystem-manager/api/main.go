@@ -19,6 +19,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
 	"github.com/ecosystem-manager/api/pkg/recycler"
+	"github.com/ecosystem-manager/api/pkg/settings"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
@@ -218,6 +219,11 @@ func initializeComponents() error {
 		if err := os.MkdirAll(fullPath, 0755); err != nil {
 			return err
 		}
+	}
+
+	settings.SetPersistencePath(filepath.Join(scenarioRoot, "config", "settings.json"))
+	if err := settings.LoadFromDisk(); err != nil {
+		log.Printf("Warning: could not load persisted settings, using defaults: %v", err)
 	}
 
 	// Initialize storage

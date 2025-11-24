@@ -4,13 +4,15 @@ Orchestrates instructions against an engine and emits normalized artifacts/event
 
 Core pieces:
 - `plan_builder.go`: compiles workflow → `ExecutionPlan` + `CompiledInstruction`
-- `SimpleExecutor`: sequential executor with basic graph/loop-repeat, heartbeats, retries, capability checks, telemetry/event emission, and normalization of outcomes
-- Capability preflight via `deriveRequirements` + `EngineCapabilities.CheckCompatibility`
+- `flow_executor.go`: graph traversal and loop orchestration
+- `flow_utils.go`: graph helpers and value coercion
+- `preflight.go`: capability requirement derivation for engine compatibility checks
+- `SimpleExecutor`: orchestration shell (heartbeats, retries, outcome normalization, persistence + events)
 - Sequencing/backpressure delegation to `events.Sequencer`
 
 Behavior snapshot:
 - For each instruction (or graph node): emit `step.started`, start heartbeats, run with retries, normalize `StepOutcome`, persist via recorder, emit `step.completed/failed` and screenshot/telemetry events.
-- Graph: follows outgoing edges using condition/assertion/failure routing; loop-repeat supported.
+- Graph: follows outgoing edges using condition/assertion/failure routing; loop-repeat supported (other loop/branch shapes should be added here).
 - Heartbeats/telemetry: executor-managed, engine only returns `StepOutcome`.
 
 ```mermaid
@@ -31,4 +33,23 @@ sequenceDiagram
     end
 ```
 
-Not yet parity-complete: full branching semantics, variable interpolation, reuse/clean/fresh policy, cancellation/timeout taxonomy, cursor trails/timeline framing. Tests: `simple_executor_test.go`, `integration_test.go`, `requirements_test.go`.***
+Flow feature map (where to look/extend):
+- Branching/graph traversal: `flow_executor.go` (+ helpers in `flow_utils.go`)
+- Loop semantics: `flow_executor.go` (repeat + forEach + while conditionals)
+- Capability preflight (tabs/iframe/upload/HAR/video/download/viewport): `preflight.go`
+- Variable scope + `${var}` interpolation: `flow_utils.go` (`flowState`, `interpolateInstruction`)
+- Built-in variable mutation node for flow control: `set_variable` handled in `flow_executor.go`
+- Session/retry/timing normalization: `simple_executor.go`
+- Tests to extend for new flow shapes: `simple_executor_test.go`, `integration_test.go`, `requirements_test.go`
+
+Not yet parity-complete (to implement here):
+- Loop parity for forEach/while (iteration semantics + artifact counts aligned with legacy)
+- Richer variable interpolation/expressions
+- Session reuse policies (`reuse/clean/fresh`) and reset semantics
+- Cancellation/timeout taxonomy and propagation
+- Retry/failure taxonomy alignment + telemetry/drop metrics
+- Capability enforcement matrix (tabs/iframes/HAR/tracing/uploads/downloads/video/viewport) with fail-fast behavior
+- Artifact shaping: DOM truncation/dedupe, cursor trails/timeline framing, screenshot handling, backpressure/drop counters
+- Crash handling/recovery markers
+
+Keep new logic discoverable in the flow/preflight/simple_executor files above.

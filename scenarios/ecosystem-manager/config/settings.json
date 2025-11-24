@@ -1,0 +1,20 @@
+{
+  "theme": "dark",
+  "condensed_mode": false,
+  "slots": 3,
+  "refresh_interval": 100,
+  "active": false,
+  "max_turns": 100,
+  "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
+  "skip_permissions": true,
+  "task_timeout": 125,
+  "idle_timeout_cap": 102,
+  "recycler": {
+    "enabled_for": "off",
+    "interval_seconds": 300,
+    "model_provider": "ollama",
+    "model_name": "llama3.1:8b",
+    "completion_threshold": 3,
+    "failure_threshold": 5
+  }
+}

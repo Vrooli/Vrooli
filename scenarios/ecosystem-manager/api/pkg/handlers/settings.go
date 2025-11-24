@@ -91,101 +91,26 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 	if !ok {
 		return
 	}
-	newSettings := *newSettingsPtr
 	oldSettings := settings.GetSettings()
-
-	// Validate settings
-	if newSettings.Slots < settings.MinSlots || newSettings.Slots > settings.MaxSlots {
-		writeError(w, fmt.Sprintf("Slots must be between %d and %d", settings.MinSlots, settings.MaxSlots), http.StatusBadRequest)
+	validated, err := settings.ValidateAndNormalize(*newSettingsPtr, oldSettings)
+	if err != nil {
+		writeError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if newSettings.RefreshInterval < settings.MinRefreshInterval || newSettings.RefreshInterval > settings.MaxRefreshInterval {
-		writeError(w, fmt.Sprintf("Refresh interval must be between %d and %d seconds", settings.MinRefreshInterval, settings.MaxRefreshInterval), http.StatusBadRequest)
-		return
-	}
-	if newSettings.MaxTurns < settings.MinMaxTurns || newSettings.MaxTurns > settings.MaxMaxTurns {
-		writeError(w, fmt.Sprintf("Max turns must be between %d and %d", settings.MinMaxTurns, settings.MaxMaxTurns), http.StatusBadRequest)
-		return
-	}
-	if newSettings.TaskTimeout < settings.MinTaskTimeout || newSettings.TaskTimeout > settings.MaxTaskTimeout {
-		writeError(w, fmt.Sprintf("Task timeout must be between %d and %d minutes", settings.MinTaskTimeout, settings.MaxTaskTimeout), http.StatusBadRequest)
-		return
-	}
-	if newSettings.IdleTimeoutCap == 0 {
-		newSettings.IdleTimeoutCap = oldSettings.IdleTimeoutCap
-	}
-	if newSettings.IdleTimeoutCap < settings.MinIdleTimeoutCap || newSettings.IdleTimeoutCap > settings.MaxIdleTimeoutCap {
-		writeError(w, fmt.Sprintf("Idle timeout cap must be between %d and %d minutes", settings.MinIdleTimeoutCap, settings.MaxIdleTimeoutCap), http.StatusBadRequest)
-		return
-	}
-
-	recycler := newSettings.Recycler
-	if recycler.EnabledFor == "" {
-		recycler.EnabledFor = oldSettings.Recycler.EnabledFor
-	}
-	recycler.EnabledFor = strings.ToLower(strings.TrimSpace(recycler.EnabledFor))
-	switch recycler.EnabledFor {
-	case "", "off", "resources", "scenarios", "both":
-		if recycler.EnabledFor == "" {
-			recycler.EnabledFor = "off"
-		}
-	default:
-		writeError(w, "Recycler enabled_for must be one of off, resources, scenarios, both", http.StatusBadRequest)
-		return
-	}
-
-	if recycler.IntervalSeconds == 0 {
-		recycler.IntervalSeconds = oldSettings.Recycler.IntervalSeconds
-	}
-	if recycler.IntervalSeconds < settings.MinRecyclerInterval || recycler.IntervalSeconds > settings.MaxRecyclerInterval {
-		writeError(w, fmt.Sprintf("Recycler interval must be between %d and %d seconds", settings.MinRecyclerInterval, settings.MaxRecyclerInterval), http.StatusBadRequest)
-		return
-	}
-
-	if recycler.ModelProvider == "" {
-		recycler.ModelProvider = oldSettings.Recycler.ModelProvider
-	}
-	recycler.ModelProvider = strings.ToLower(strings.TrimSpace(recycler.ModelProvider))
-	if recycler.ModelProvider != "ollama" && recycler.ModelProvider != "openrouter" {
-		writeError(w, "Recycler model_provider must be 'ollama' or 'openrouter'", http.StatusBadRequest)
-		return
-	}
-
-	if recycler.ModelName == "" {
-		recycler.ModelName = oldSettings.Recycler.ModelName
-	}
-
-	if recycler.CompletionThreshold == 0 {
-		recycler.CompletionThreshold = oldSettings.Recycler.CompletionThreshold
-	}
-	if recycler.CompletionThreshold < settings.MinRecyclerCompletionThreshold || recycler.CompletionThreshold > settings.MaxRecyclerCompletionThreshold {
-		writeError(w, fmt.Sprintf("Recycler completion_threshold must be between %d and %d", settings.MinRecyclerCompletionThreshold, settings.MaxRecyclerCompletionThreshold), http.StatusBadRequest)
-		return
-	}
-
-	if recycler.FailureThreshold == 0 {
-		recycler.FailureThreshold = oldSettings.Recycler.FailureThreshold
-	}
-	if recycler.FailureThreshold < settings.MinRecyclerFailureThreshold || recycler.FailureThreshold > settings.MaxRecyclerFailureThreshold {
-		writeError(w, fmt.Sprintf("Recycler failure_threshold must be between %d and %d", settings.MinRecyclerFailureThreshold, settings.MaxRecyclerFailureThreshold), http.StatusBadRequest)
-		return
-	}
-
-	newSettings.Recycler = recycler
 
 	// Store old active state for comparison
 	wasActive := oldSettings.Active
 
 	// Update settings
-	settings.UpdateSettings(newSettings)
+	settings.UpdateSettings(validated)
 	if h.recycler != nil {
 		h.recycler.Wake()
 	}
 
 	var resumeSummary *queue.ResumeResetSummary
 	// Apply processor settings
-	if wasActive != newSettings.Active {
-		if newSettings.Active {
+	if wasActive != validated.Active {
+		if validated.Active {
 			summary := h.processor.ResumeWithReset() // Remove from maintenance mode with cleanup
 			resumeSummary = &summary
 			log.Println("Queue processor activated via settings")
@@ -195,12 +120,18 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 		}
 	}
 
+	if err := settings.SaveToDisk(); err != nil {
+		log.Printf("Failed to persist settings: %v", err)
+		writeError(w, "Failed to persist settings", http.StatusInternalServerError)
+		return
+	}
+
 	// Broadcast settings change via WebSocket
-	h.wsManager.BroadcastUpdate("settings_updated", newSettings)
+	h.wsManager.BroadcastUpdate("settings_updated", validated)
 
 	response := map[string]any{
 		"success":  true,
-		"settings": newSettings,
+		"settings": validated,
 		"message":  "Settings updated successfully",
 	}
 	if resumeSummary != nil {
@@ -210,7 +141,7 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 	writeJSON(w, response, http.StatusOK)
 
 	log.Printf("Settings updated: slots=%d, refresh=%ds, active=%v, max_turns=%d, timeout=%dm, idle_cap=%dm",
-		newSettings.Slots, newSettings.RefreshInterval, newSettings.Active, newSettings.MaxTurns, newSettings.TaskTimeout, newSettings.IdleTimeoutCap)
+		validated.Slots, validated.RefreshInterval, validated.Active, validated.MaxTurns, validated.TaskTimeout, validated.IdleTimeoutCap)
 }
 
 // GetRecyclerModelsHandler returns available models for a given provider.
@@ -361,6 +292,12 @@ func (h *SettingsHandlers) ResetSettingsHandler(w http.ResponseWriter, r *http.R
 
 	// Reset to defaults
 	newSettings := settings.ResetSettings()
+
+	if err := settings.SaveToDisk(); err != nil {
+		log.Printf("Failed to persist settings: %v", err)
+		writeError(w, "Failed to persist settings", http.StatusInternalServerError)
+		return
+	}
 
 	// Broadcast settings change via WebSocket
 	h.wsManager.BroadcastUpdate("settings_reset", newSettings)

@@ -1,6 +1,11 @@
 package settings
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -36,6 +41,9 @@ type Settings struct {
 	Recycler RecyclerSettings `json:"recycler"`
 }
 
+// persistencePath points to the on-disk settings file (optional).
+var persistencePath string
+
 // newDefaultSettings returns a fresh Settings instance with default values.
 // This is the single source of truth for default settings.
 func newDefaultSettings() Settings {
@@ -65,7 +73,13 @@ func newDefaultSettings() Settings {
 var (
 	currentSettings = newDefaultSettings()
 	settingsMutex   sync.RWMutex
+	persistMutex    sync.Mutex
 )
+
+// SetPersistencePath configures the on-disk path used to persist settings.
+func SetPersistencePath(path string) {
+	persistencePath = path
+}
 
 // GetSettings returns a copy of the current settings (thread-safe)
 func GetSettings() Settings {
@@ -102,4 +116,140 @@ func GetRecyclerSettings() RecyclerSettings {
 	settingsMutex.RLock()
 	defer settingsMutex.RUnlock()
 	return currentSettings.Recycler
+}
+
+// ValidateAndNormalize enforces constraints and fills missing fields using the previous values.
+func ValidateAndNormalize(input Settings, previous Settings) (Settings, error) {
+	s := input
+
+	if s.Slots < MinSlots || s.Slots > MaxSlots {
+		return previous, fmt.Errorf("Slots must be between %d and %d", MinSlots, MaxSlots)
+	}
+	if s.RefreshInterval < MinRefreshInterval || s.RefreshInterval > MaxRefreshInterval {
+		return previous, fmt.Errorf("Refresh interval must be between %d and %d seconds", MinRefreshInterval, MaxRefreshInterval)
+	}
+	if s.MaxTurns < MinMaxTurns || s.MaxTurns > MaxMaxTurns {
+		return previous, fmt.Errorf("Max turns must be between %d and %d", MinMaxTurns, MaxMaxTurns)
+	}
+	if s.TaskTimeout < MinTaskTimeout || s.TaskTimeout > MaxTaskTimeout {
+		return previous, fmt.Errorf("Task timeout must be between %d and %d minutes", MinTaskTimeout, MaxTaskTimeout)
+	}
+	if s.IdleTimeoutCap == 0 {
+		s.IdleTimeoutCap = previous.IdleTimeoutCap
+	}
+	if s.IdleTimeoutCap < MinIdleTimeoutCap || s.IdleTimeoutCap > MaxIdleTimeoutCap {
+		return previous, fmt.Errorf("Idle timeout cap must be between %d and %d minutes", MinIdleTimeoutCap, MaxIdleTimeoutCap)
+	}
+
+	recycler := s.Recycler
+	if recycler.EnabledFor == "" {
+		recycler.EnabledFor = previous.Recycler.EnabledFor
+	}
+	recycler.EnabledFor = strings.ToLower(strings.TrimSpace(recycler.EnabledFor))
+	switch recycler.EnabledFor {
+	case "", "off", "resources", "scenarios", "both":
+		if recycler.EnabledFor == "" {
+			recycler.EnabledFor = "off"
+		}
+	default:
+		return previous, fmt.Errorf("Recycler enabled_for must be one of off, resources, scenarios, both")
+	}
+
+	if recycler.IntervalSeconds == 0 {
+		recycler.IntervalSeconds = previous.Recycler.IntervalSeconds
+	}
+	if recycler.IntervalSeconds < MinRecyclerInterval || recycler.IntervalSeconds > MaxRecyclerInterval {
+		return previous, fmt.Errorf("Recycler interval must be between %d and %d seconds", MinRecyclerInterval, MaxRecyclerInterval)
+	}
+
+	if recycler.ModelProvider == "" {
+		recycler.ModelProvider = previous.Recycler.ModelProvider
+	}
+	recycler.ModelProvider = strings.ToLower(strings.TrimSpace(recycler.ModelProvider))
+	if recycler.ModelProvider != "ollama" && recycler.ModelProvider != "openrouter" {
+		return previous, fmt.Errorf("Recycler model_provider must be 'ollama' or 'openrouter'")
+	}
+
+	if recycler.ModelName == "" {
+		recycler.ModelName = previous.Recycler.ModelName
+	}
+
+	if recycler.CompletionThreshold == 0 {
+		recycler.CompletionThreshold = previous.Recycler.CompletionThreshold
+	}
+	if recycler.CompletionThreshold < MinRecyclerCompletionThreshold || recycler.CompletionThreshold > MaxRecyclerCompletionThreshold {
+		return previous, fmt.Errorf("Recycler completion_threshold must be between %d and %d", MinRecyclerCompletionThreshold, MaxRecyclerCompletionThreshold)
+	}
+
+	if recycler.FailureThreshold == 0 {
+		recycler.FailureThreshold = previous.Recycler.FailureThreshold
+	}
+	if recycler.FailureThreshold < MinRecyclerFailureThreshold || recycler.FailureThreshold > MaxRecyclerFailureThreshold {
+		return previous, fmt.Errorf("Recycler failure_threshold must be between %d and %d", MinRecyclerFailureThreshold, MaxRecyclerFailureThreshold)
+	}
+
+	s.Recycler = recycler
+	return s, nil
+}
+
+// SaveToDisk persists current settings to the configured path, always forcing Active=false.
+func SaveToDisk() error {
+	if persistencePath == "" {
+		return nil
+	}
+
+	persistMutex.Lock()
+	defer persistMutex.Unlock()
+
+	settings := GetSettings()
+	settings.Active = false
+
+	if err := os.MkdirAll(filepath.Dir(persistencePath), 0755); err != nil {
+		return fmt.Errorf("failed creating persistence directory: %w", err)
+	}
+
+	data, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed marshaling settings: %w", err)
+	}
+
+	tmpPath := persistencePath + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+		return fmt.Errorf("failed writing temp settings file: %w", err)
+	}
+
+	if err := os.Rename(tmpPath, persistencePath); err != nil {
+		return fmt.Errorf("failed replacing settings file: %w", err)
+	}
+
+	return nil
+}
+
+// LoadFromDisk loads persisted settings (if present) and applies them, forcing Active=false.
+func LoadFromDisk() error {
+	if persistencePath == "" {
+		return nil
+	}
+
+	data, err := os.ReadFile(persistencePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed reading settings file: %w", err)
+	}
+
+	var loaded Settings
+	if err := json.Unmarshal(data, &loaded); err != nil {
+		return fmt.Errorf("failed unmarshaling settings file: %w", err)
+	}
+
+	loaded.Active = false // always start inactive
+	validated, err := ValidateAndNormalize(loaded, currentSettings)
+	if err != nil {
+		return fmt.Errorf("persisted settings invalid: %w", err)
+	}
+
+	UpdateSettings(validated)
+	return nil
 }

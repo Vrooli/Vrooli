@@ -1,6 +1,8 @@
 package settings
 
 import (
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 )
@@ -368,5 +370,92 @@ func TestSettingsAreIndependent(t *testing.T) {
 	// Should still be default, not 999
 	if settings2.Slots != DefaultSlots {
 		t.Errorf("Settings are not independent: expected Slots=%d, got %d (modified copy leaked)", DefaultSlots, settings2.Slots)
+	}
+}
+
+// TestValidateAndNormalize ensures defaults are carried forward and constraints enforced.
+func TestValidateAndNormalize(t *testing.T) {
+	previous := newDefaultSettings()
+	previous.IdleTimeoutCap = 45
+	previous.Recycler.IntervalSeconds = 120
+
+	input := Settings{
+		Slots:           2,
+		RefreshInterval: 45,
+		MaxTurns:        60,
+		TaskTimeout:     90,
+		IdleTimeoutCap:  0, // should fall back to previous
+		AllowedTools:    "Read,Bash",
+		SkipPermissions: true,
+		Recycler: RecyclerSettings{
+			EnabledFor:          "",
+			IntervalSeconds:     0,
+			ModelProvider:       "ollama",
+			ModelName:           "llama3.1:8b",
+			CompletionThreshold: 4,
+			FailureThreshold:    6,
+		},
+	}
+
+	result, err := ValidateAndNormalize(input, previous)
+	if err != nil {
+		t.Fatalf("expected validation to succeed: %v", err)
+	}
+
+	if result.IdleTimeoutCap != previous.IdleTimeoutCap {
+		t.Fatalf("expected IdleTimeoutCap to fall back to previous (%d), got %d", previous.IdleTimeoutCap, result.IdleTimeoutCap)
+	}
+	if result.Recycler.IntervalSeconds != previous.Recycler.IntervalSeconds {
+		t.Fatalf("expected recycler interval to fall back to previous (%d), got %d", previous.Recycler.IntervalSeconds, result.Recycler.IntervalSeconds)
+	}
+	if result.Recycler.EnabledFor != "off" {
+		t.Fatalf("expected enabled_for to default to off, got %s", result.Recycler.EnabledFor)
+	}
+	if result.Slots != 2 {
+		t.Fatalf("unexpected Slots value %d", result.Slots)
+	}
+}
+
+// TestSaveAndLoadToDisk ensures settings persist across calls and never persist Active=true.
+func TestSaveAndLoadToDisk(t *testing.T) {
+	ResetSettings()
+	tempDir := t.TempDir()
+	SetPersistencePath(filepath.Join(tempDir, "settings.json"))
+	defer SetPersistencePath("")
+
+	updated := GetSettings()
+	updated.Theme = "dark"
+	updated.Slots = 3
+	updated.RefreshInterval = 75
+	updated.Active = true
+	updated.Recycler.EnabledFor = "both"
+	updated.Recycler.IntervalSeconds = 200
+	updated.Recycler.ModelProvider = "openrouter"
+	updated.Recycler.ModelName = "claude-test"
+	updated.Recycler.CompletionThreshold = 6
+	updated.Recycler.FailureThreshold = 7
+	UpdateSettings(updated)
+
+	if err := SaveToDisk(); err != nil {
+		t.Fatalf("failed to save settings: %v", err)
+	}
+
+	// Force different in-memory state before loading
+	ResetSettings()
+	if err := LoadFromDisk(); err != nil {
+		t.Fatalf("failed to load settings: %v", err)
+	}
+
+	result := GetSettings()
+	if result.Theme != "dark" || result.Slots != 3 || result.RefreshInterval != 75 {
+		t.Fatalf("loaded settings do not match saved values: %+v", result)
+	}
+	if result.Active {
+		t.Fatalf("expected Active to be false after load, got true")
+	}
+
+	// Ensure file exists
+	if _, err := os.Stat(filepath.Join(tempDir, "settings.json")); err != nil {
+		t.Fatalf("expected settings file to exist: %v", err)
 	}
 }

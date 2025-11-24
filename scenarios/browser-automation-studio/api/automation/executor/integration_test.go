@@ -292,6 +292,101 @@ func TestSimpleExecutorEmitsLegacyEventPayloads(t *testing.T) {
 	checkCompletePayload(events[3], "assert-1", true)
 }
 
+func TestSimpleExecutorLinearGoldenEvents(t *testing.T) {
+	executionID := uuid.New()
+	workflowID := uuid.New()
+
+	fixedStart := time.Date(2024, 10, 1, 12, 0, 0, 0, time.UTC)
+	fixedEnd := fixedStart.Add(1500 * time.Millisecond)
+
+	plan := contracts.ExecutionPlan{
+		SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+		PayloadVersion: contracts.PayloadVersion,
+		ExecutionID:    executionID,
+		WorkflowID:     workflowID,
+		Instructions: []contracts.CompiledInstruction{
+			{Index: 0, NodeID: "nav-1", Type: "navigate", Params: map[string]any{"url": "https://example.test"}},
+		},
+		CreatedAt: fixedStart,
+	}
+
+	memSink := events.NewMemorySink(contracts.DefaultEventBufferLimits)
+	rec := &stubRecorder{}
+
+	stub := &stubEngine{
+		outcomes: map[int]contracts.StepOutcome{
+			0: {
+				Success:     true,
+				StepIndex:   0,
+				NodeID:      "nav-1",
+				StepType:    "navigate",
+				StartedAt:   fixedStart,
+				CompletedAt: &fixedEnd,
+				DurationMs:  1500,
+				FinalURL:    "https://example.test/home",
+			},
+		},
+	}
+
+	exec := NewSimpleExecutor(nil)
+	req := Request{
+		Plan:              plan,
+		EngineName:        stub.Name(),
+		EngineFactory:     engine.NewStaticFactory(stub),
+		Recorder:          rec,
+		EventSink:         memSink,
+		HeartbeatInterval: 0,
+	}
+
+	if err := exec.Execute(context.Background(), req); err != nil {
+		t.Fatalf("executor returned error: %v", err)
+	}
+
+	evs := memSink.Events()
+	if len(evs) != 2 {
+		t.Fatalf("expected 2 events (start + complete), got %d", len(evs))
+	}
+
+	// Normalize dynamic fields so comparisons stay deterministic.
+	for i := range evs {
+		evs[i].Timestamp = time.Time{}
+		evs[i].Sequence = 0
+	}
+
+	start := evs[0]
+	if start.Kind != contracts.EventKindStepStarted {
+		t.Fatalf("first event kind mismatch: want %s got %s", contracts.EventKindStepStarted, start.Kind)
+	}
+	if start.StepIndex == nil || *start.StepIndex != 0 {
+		t.Fatalf("start event step index mismatch: %+v", start.StepIndex)
+	}
+	if payload, ok := start.Payload.(map[string]any); !ok || payload["node_id"] != "nav-1" {
+		t.Fatalf("start payload node mismatch: %+v", start.Payload)
+	}
+
+	complete := evs[1]
+	if complete.Kind != contracts.EventKindStepCompleted {
+		t.Fatalf("second event kind mismatch: want %s got %s", contracts.EventKindStepCompleted, complete.Kind)
+	}
+	if complete.StepIndex == nil || *complete.StepIndex != 0 {
+		t.Fatalf("complete event step index mismatch: %+v", complete.StepIndex)
+	}
+	payload, ok := complete.Payload.(map[string]any)
+	if !ok {
+		t.Fatalf("unexpected payload type: %T", complete.Payload)
+	}
+	outcome, ok := payload["outcome"].(contracts.StepOutcome)
+	if !ok {
+		t.Fatalf("expected outcome payload in completion event, got %T", payload["outcome"])
+	}
+	if outcome.FinalURL != "https://example.test/home" {
+		t.Fatalf("expected final_url to propagate, got %s", outcome.FinalURL)
+	}
+	if outcome.DurationMs != 1500 {
+		t.Fatalf("expected duration to be preserved, got %d", outcome.DurationMs)
+	}
+}
+
 func setupRepo(t *testing.T) (database.Repository, func()) {
 	t.Helper()
 
