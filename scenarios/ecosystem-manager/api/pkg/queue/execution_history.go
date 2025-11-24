@@ -161,6 +161,29 @@ func (qp *Processor) LoadExecutionHistory(taskID string) ([]ExecutionHistory, er
 		history = append(history, exec)
 	}
 
+	// Ensure newest executions are returned first for consistent consumers
+	sort.Slice(history, func(i, j int) bool {
+		a := history[i]
+		b := history[j]
+
+		// Prefer non-zero StartTime when available
+		if !a.StartTime.IsZero() && !b.StartTime.IsZero() {
+			if a.StartTime.Equal(b.StartTime) {
+				return a.ExecutionID > b.ExecutionID
+			}
+			return a.StartTime.After(b.StartTime)
+		}
+		if a.StartTime.IsZero() && !b.StartTime.IsZero() {
+			return false
+		}
+		if !a.StartTime.IsZero() && b.StartTime.IsZero() {
+			return true
+		}
+
+		// Fallback to execution IDs (timestamp-based) when times are missing
+		return a.ExecutionID > b.ExecutionID
+	})
+
 	return history, nil
 }
 

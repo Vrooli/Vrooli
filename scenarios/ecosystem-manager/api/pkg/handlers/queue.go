@@ -7,6 +7,7 @@ import (
 
 	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/queue"
+	"github.com/ecosystem-manager/api/pkg/settings"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
@@ -224,9 +225,18 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 func (h *QueueHandlers) StopQueueProcessorHandler(w http.ResponseWriter, r *http.Request) {
 	h.processor.Stop()
 
-	response := SimpleSuccessResponse{
-		Success: true,
-		Message: "Queue processor stopped",
+	// Keep settings in sync with the processor lifecycle so the play/pause button reflects reality.
+	currentSettings := settings.GetSettings()
+	if currentSettings.Active {
+		currentSettings.Active = false
+		settings.UpdateSettings(currentSettings)
+		h.wsManager.BroadcastUpdate("settings_updated", currentSettings)
+	}
+
+	response := map[string]any{
+		"success": true,
+		"message": "Queue processor stopped",
+		"status":  h.processor.GetQueueStatus(),
 	}
 
 	writeJSON(w, response, http.StatusOK)
@@ -237,11 +247,39 @@ func (h *QueueHandlers) StopQueueProcessorHandler(w http.ResponseWriter, r *http
 
 // StartQueueProcessorHandler starts the queue processor
 func (h *QueueHandlers) StartQueueProcessorHandler(w http.ResponseWriter, r *http.Request) {
-	h.processor.Start()
+	// Ensure settings are marked active so the processor actually runs
+	currentSettings := settings.GetSettings()
+	if !currentSettings.Active {
+		currentSettings.Active = true
+		settings.UpdateSettings(currentSettings)
+		h.wsManager.BroadcastUpdate("settings_updated", currentSettings)
+	}
 
-	response := SimpleSuccessResponse{
-		Success: true,
-		Message: "Queue processor started",
+	status := h.processor.GetQueueStatus()
+	processorActive, _ := status["processor_active"].(bool)
+
+	// Resume from maintenance mode and clear stale state before starting when inactive; otherwise just ensure the loop is running.
+	var resumeSummary queue.ResumeResetSummary
+	if processorActive {
+		h.processor.Start()
+	} else {
+		running := h.processor.GetRunningProcessesInfo()
+		if len(running) > 0 {
+			h.processor.ResumeWithoutReset()
+		} else {
+			resumeSummary = h.processor.ResumeWithReset()
+		}
+	}
+
+	status = h.processor.GetQueueStatus()
+
+	response := map[string]any{
+		"success": true,
+		"message": "Queue processor started",
+		"status":  status,
+	}
+	if resumeSummary.ActionsTaken > 0 {
+		response["resume_reset_summary"] = resumeSummary
 	}
 
 	writeJSON(w, response, http.StatusOK)

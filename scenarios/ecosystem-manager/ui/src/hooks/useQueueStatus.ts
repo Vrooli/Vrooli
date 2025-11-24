@@ -31,6 +31,7 @@ export function useToggleProcessor() {
     onSuccess: () => {
       // Invalidate queue status to reflect new state
       queryClient.invalidateQueries({ queryKey: queryKeys.queue.status() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.get() });
     },
   });
 }

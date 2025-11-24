@@ -164,6 +164,22 @@ func (qp *Processor) ResumeWithReset() ResumeResetSummary {
 	return summary
 }
 
+// ResumeWithoutReset restarts processing without terminating running executions or clearing state.
+func (qp *Processor) ResumeWithoutReset() {
+	qp.mu.Lock()
+	defer qp.mu.Unlock()
+
+	if !qp.isRunning {
+		qp.isRunning = true
+		go qp.processLoop()
+		log.Println("Queue processor started without reset")
+	} else {
+		log.Println("Queue processor already running; skipping reset and clearing maintenance flag")
+	}
+
+	qp.isPaused = false
+}
+
 // GetQueueStatus returns current queue processor status and metrics
 func (qp *Processor) GetQueueStatus() map[string]any {
 	// Get current maintenance state

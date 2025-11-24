@@ -8,11 +8,6 @@ export function ProcessorStatusButton() {
   const toggleProcessor = useToggleProcessor();
 
   const isActive = (queueStatus as any)?.active ?? false;
-  const slotsUsed = (queueStatus as any)?.slots_used ?? 0;
-  const maxSlots =
-    (queueStatus as any)?.max_concurrent ??
-    (queueStatus as any)?.max_slots ??
-    5;
 
   const handleToggle = () => {
     const action = isActive ? 'stop' : 'start';
@@ -38,11 +33,6 @@ export function ProcessorStatusButton() {
             <Square className="h-4 w-4" />
           ) : (
             <Play className="h-4 w-4" />
-          )}
-          {isActive && (
-            <span className="text-[11px] leading-none px-1 py-0.5 rounded bg-white/15">
-              {slotsUsed}/{maxSlots}
-            </span>
           )}
         </Button>
       </TooltipTrigger>

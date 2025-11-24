@@ -317,10 +317,24 @@ export interface LogEntry {
 export interface ExecutionHistory {
   id: string;
   task_id: string;
+  task_title?: string;
+  task_type?: TaskType;
+  task_operation?: OperationType;
+  agent_tag?: string;
+  process_id?: number;
   start_time: string;
   end_time?: string;
-  status: 'running' | 'completed' | 'failed';
+  duration?: string;
+  status: 'running' | 'completed' | 'failed' | 'rate_limited';
   exit_code?: number;
+  exit_reason?: string;
+  prompt_size?: number;
+  prompt_path?: string;
+  output_path?: string;
+  timeout_allowed?: string;
+  rate_limited?: boolean;
+  retry_after?: number;
+  success?: boolean;
   metadata?: Record<string, unknown>;
 }
 
@@ -337,22 +351,34 @@ export interface ExecutionOutput {
 // ==================== WebSocket Types ====================
 
 export type WebSocketMessageType =
-  | 'task_status_update'
-  | 'process_started'
-  | 'process_completed'
-  | 'queue_status_update'
-  | 'rate_limit_notification';
+  | 'connected'
+  | 'task_status_changed'
+  | 'task_status_updated'
+  | 'task_updated'
+  | 'task_recycled'
+  | 'task_deleted'
+  | 'task_started'
+  | 'task_executing'
+  | 'task_progress'
+  | 'task_completed'
+  | 'task_failed'
+  | 'claude_execution_complete'
+  | 'process_terminated'
+  | 'settings_updated'
+  | 'settings_reset'
+  | 'rate_limit_pause'
+  | 'rate_limit_pause_started'
+  | 'rate_limit_resume'
+  | 'rate_limit_manual_reset'
+  | 'rate_limit_hit'
+  | 'log_entry'
+  | string;
 
 export interface WebSocketMessage {
   type: WebSocketMessageType;
-  task_id?: string;
-  status?: TaskStatus;
-  process_id?: string;
-  agent_id?: string;
-  start_time?: string;
-  active?: boolean;
-  slots_used?: number;
-  retry_after?: number;
+  data?: Record<string, unknown>;
+  message?: string;
+  timestamp?: number;
   [key: string]: unknown;
 }
 

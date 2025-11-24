@@ -117,6 +117,26 @@ func TestProcessor_StartStop(t *testing.T) {
 	}
 }
 
+func TestProcessor_StopAllowsRunningTasksToFinish(t *testing.T) {
+	processor, _, cleanup := setupTestProcessor(t)
+	defer cleanup()
+
+	processor.Start()
+	time.Sleep(10 * time.Millisecond)
+
+	taskID := "test-running-on-stop"
+	processor.registerExecution(taskID, "ecosystem-"+taskID, nil, time.Now())
+
+	processor.Stop()
+	time.Sleep(10 * time.Millisecond)
+
+	if !processor.IsTaskRunning(taskID) {
+		t.Errorf("Expected running task %s to remain tracked after Stop()", taskID)
+	}
+
+	processor.unregisterExecution(taskID)
+}
+
 func TestProcessor_MaxConcurrent(t *testing.T) {
 	processor, _, cleanup := setupTestProcessor(t)
 	defer cleanup()

@@ -32,7 +32,7 @@ import { useAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExec
 import { api } from '@/lib/api';
 import { markdownToHtml } from '@/lib/markdown';
 import { queryKeys } from '@/lib/queryKeys';
-import type { Task, Priority } from '@/types/api';
+import type { Task, Priority, ExecutionHistory } from '@/types/api';
 
 interface TaskDetailsModalProps {
   task: Task | null;
@@ -87,15 +87,27 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
         : '';
 
   // Fetch task executions
-  const { data: rawExecutions = [] } = useQuery({
+  const { data: rawExecutions = [], isFetching: isFetchingExecutions } = useQuery({
     queryKey: queryKeys.tasks.executions(task?.id ?? ''),
     queryFn: () => api.getExecutionHistory(task!.id),
-    enabled: !!task && activeTab === 'executions',
+    enabled: !!task,
+    staleTime: 10000,
   });
   const executions = Array.isArray(rawExecutions)
     ? rawExecutions
     : (rawExecutions as any)?.executions ?? [];
-  const selectedExecution = executions.find(exec => exec.id === selectedExecutionId) || null;
+  const sortedExecutions = useMemo(() => {
+    return [...executions].sort((a, b) => {
+      const aTime = a?.start_time ? new Date(a.start_time).getTime() : 0;
+      const bTime = b?.start_time ? new Date(b.start_time).getTime() : 0;
+      if (aTime === bTime) {
+        return (b?.id ?? '').localeCompare(a?.id ?? '');
+      }
+      return bTime - aTime;
+    });
+  }, [executions]);
+  const latestExecution = sortedExecutions[0] ?? null;
+  const selectedExecution = sortedExecutions.find(exec => exec.id === selectedExecutionId) || null;
 
   // Initialize form when task changes
   useEffect(() => {
@@ -123,14 +135,136 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   }, [open]);
 
   useEffect(() => {
-    if (executions.length > 0 && !selectedExecutionId) {
-      const firstId = executions.find(exec => exec.id)?.id ?? executions[0]?.id ?? null;
+    if (sortedExecutions.length > 0 && !selectedExecutionId) {
+      const firstId = sortedExecutions.find(exec => exec.id)?.id ?? sortedExecutions[0]?.id ?? null;
       setSelectedExecutionId(firstId);
-    } else if (selectedExecutionId && !executions.some(exec => exec.id === selectedExecutionId)) {
-      const fallbackId = executions.find(exec => exec.id)?.id ?? executions[0]?.id ?? null;
+    } else if (selectedExecutionId && !sortedExecutions.some(exec => exec.id === selectedExecutionId)) {
+      const fallbackId = sortedExecutions.find(exec => exec.id)?.id ?? sortedExecutions[0]?.id ?? null;
       setSelectedExecutionId(fallbackId);
     }
-  }, [executions, selectedExecutionId]);
+  }, [sortedExecutions, selectedExecutionId]);
+
+  const latestExecutionId = latestExecution?.id ?? null;
+
+  const {
+    data: selectedExecutionOutput,
+    isLoading: isLoadingSelectedOutput,
+  } = useQuery({
+    queryKey: selectedExecutionId
+      ? queryKeys.executions.output(task?.id ?? '', selectedExecutionId)
+      : ['executions', 'output', 'inactive', task?.id ?? ''],
+    queryFn: () => api.getExecutionOutput(task!.id, selectedExecutionId!),
+    enabled: !!task && !!selectedExecutionId,
+    staleTime: 15000,
+  });
+
+  const {
+    data: latestExecutionOutput,
+    isLoading: isLoadingLatestOutput,
+  } = useQuery({
+    queryKey: latestExecutionId
+      ? queryKeys.executions.output(task?.id ?? '', latestExecutionId)
+      : ['executions', 'output', 'latest', task?.id ?? ''],
+    queryFn: () => api.getExecutionOutput(task!.id, latestExecutionId!),
+    enabled: !!task && !!latestExecutionId,
+    staleTime: 15000,
+  });
+
+  const formatDateTime = (value?: string) => {
+    if (!value) return '—';
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+  };
+
+  const formatDurationMs = (ms: number) => {
+    if (!ms || ms < 0) return '—';
+    const totalSeconds = Math.round(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const hours = Math.floor(minutes / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes % 60}m`;
+    }
+    if (minutes > 0) {
+      return `${minutes}m ${totalSeconds % 60}s`;
+    }
+    return `${totalSeconds}s`;
+  };
+
+  const formatExecutionDuration = (execution?: ExecutionHistory | null) => {
+    if (!execution) return '—';
+    if (execution.duration) return execution.duration;
+    if (execution.start_time && execution.end_time) {
+      const start = new Date(execution.start_time).getTime();
+      const end = new Date(execution.end_time).getTime();
+      if (!Number.isNaN(start) && !Number.isNaN(end) && end >= start) {
+        return formatDurationMs(end - start);
+      }
+    }
+    return '—';
+  };
+
+  const getStatusTone = (status: ExecutionHistory['status']) => {
+    switch (status) {
+      case 'completed':
+        return 'text-emerald-400';
+      case 'failed':
+        return 'text-red-400';
+      case 'rate_limited':
+        return 'text-amber-300';
+      default:
+        return 'text-yellow-300';
+    }
+  };
+
+  const extractFinalMessage = (output?: string, maxLength = 600) => {
+    if (!output) return '';
+    const lines = output
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean);
+
+    if (lines.length === 0) return '';
+
+    // Prefer the last summary/final section if present
+    for (let i = lines.length - 1; i >= 0; i -= 1) {
+      const line = lines[i].toLowerCase();
+      const isSummaryHeading = /^#+\s+(task\s+)?(completion\s+)?summary/.test(line);
+      const isFinalHeading = line.startsWith('final response') || line.startsWith('final message');
+      if (isSummaryHeading || isFinalHeading) {
+        const summaryLines = lines.slice(i + 1);
+        if (summaryLines.length > 0) {
+          const message = summaryLines.join(' ');
+          if (message.length > maxLength) {
+            return `${message.slice(0, maxLength)}…`;
+          }
+          return message;
+        }
+      }
+    }
+
+    const tailLines = lines.slice(-5).join(' ');
+    if (tailLines.length > maxLength) {
+      return `${tailLines.slice(tailLines.length - maxLength)}`;
+    }
+    return tailLines;
+  };
+
+  const selectedOutputText =
+    (selectedExecutionOutput as any)?.output ??
+    (selectedExecutionOutput as any)?.content ??
+    '';
+  const latestOutputText =
+    (latestExecutionOutput as any)?.output ??
+    (latestExecutionOutput as any)?.content ??
+    '';
+  const selectedFinalMessage = useMemo(
+    () => extractFinalMessage(selectedOutputText),
+    [selectedOutputText],
+  );
+  const latestFinalMessage = useMemo(
+    () => extractFinalMessage(latestOutputText),
+    [latestOutputText],
+  );
 
   const assembledPromptHtml = useMemo(() => markdownToHtml(assembledPrompt), [assembledPrompt]);
 
@@ -360,7 +494,56 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
+                <div className="rounded-md border border-white/10 bg-slate-900/70 p-3 shadow-inner">
+                  {latestExecution ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-xs uppercase text-slate-400">Last execution</div>
+                          <div className="text-sm font-semibold text-foreground">
+                            {formatDateTime(latestExecution.end_time ?? latestExecution.start_time)}
+                          </div>
+                          <div className="text-xs text-slate-400">
+                            Status:{' '}
+                            <span className={getStatusTone(latestExecution.status)}>
+                              {latestExecution.status}
+                            </span>
+                            {' • '}
+                            Duration: {formatExecutionDuration(latestExecution)}
+                          </div>
+                          <div className="text-xs text-slate-400">
+                            Timeout: {latestExecution.timeout_allowed ?? '—'}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setActiveTab('executions')}
+                        >
+                          View details
+                        </Button>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-[11px] uppercase text-slate-500">Final response</div>
+                        {isLoadingLatestOutput ? (
+                          <div className="text-xs text-slate-500">Loading output...</div>
+                        ) : latestFinalMessage ? (
+                          <div className="rounded-md border border-white/5 bg-slate-800/60 p-2 text-sm text-slate-100 whitespace-pre-wrap max-h-28 overflow-y-auto">
+                            {latestFinalMessage}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-slate-500">No output captured yet.</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-500">
+                      {isFetchingExecutions ? 'Loading executions...' : 'No executions yet.'}
+                    </div>
+                  )}
+                </div>
+
                 <Label htmlFor="detail-notes">Notes</Label>
                 <Textarea
                   id="detail-notes"
@@ -425,12 +608,14 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
 
           {/* Executions Tab */}
           <TabsContent value="executions" className="mt-4">
-            {executions.length === 0 ? (
-              <div className="text-slate-400 text-center py-8">No executions yet</div>
+            {sortedExecutions.length === 0 ? (
+              <div className="text-slate-400 text-center py-8">
+                {isFetchingExecutions ? 'Loading executions...' : 'No executions yet'}
+              </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
                 <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-                  {executions.map((exec, idx) => {
+                  {sortedExecutions.map((exec, idx) => {
                     const isSelected = exec.id === selectedExecutionId;
                     return (
                       <div
@@ -454,17 +639,14 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                           <div>
                             <div className="text-sm font-medium">Execution #{idx + 1}</div>
                             <div className="text-xs text-slate-400">
-                              Started: {new Date(exec.start_time).toLocaleString()}
-                              {exec.end_time && (
-                                <> • Ended: {new Date(exec.end_time).toLocaleString()}</>
-                              )}
+                              Started: {formatDateTime(exec.start_time)}
+                              {exec.end_time && <> • Ended: {formatDateTime(exec.end_time)}</>}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              Duration: {formatExecutionDuration(exec)}{exec.timeout_allowed ? ` • Timeout: ${exec.timeout_allowed}` : ''}
                             </div>
                           </div>
-                          <div className={`text-sm font-semibold ${
-                            exec.status === 'completed' ? 'text-green-400' :
-                            exec.status === 'failed' ? 'text-red-400' :
-                            'text-yellow-400'
-                          }`}>
+                          <div className={`text-sm font-semibold ${getStatusTone(exec.status)}`}>
                             {exec.status}
                           </div>
                         </div>
@@ -480,21 +662,43 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
 
                 <div className="rounded-md border border-primary/30 bg-slate-900/60 p-3 min-h-[220px]">
                   {selectedExecution ? (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <div className="text-xs uppercase text-slate-400">Selected execution</div>
                       <div className="text-sm font-medium text-foreground break-words">ID: {selectedExecution.id}</div>
                       <div className="text-xs text-slate-300">
-                        Task: {selectedExecution.task_id} • Status: {selectedExecution.status}
+                        Task: {selectedExecution.task_id} • Status:{' '}
+                        <span className={getStatusTone(selectedExecution.status)}>
+                          {selectedExecution.status}
+                        </span>
                       </div>
                       <div className="text-xs text-slate-400">
-                        Started: {new Date(selectedExecution.start_time).toLocaleString()}
+                        Started: {formatDateTime(selectedExecution.start_time)}
                         {selectedExecution.end_time && (
-                          <> • Ended: {new Date(selectedExecution.end_time).toLocaleString()}</>
+                          <> • Ended: {formatDateTime(selectedExecution.end_time)}</>
                         )}
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        Duration: {formatExecutionDuration(selectedExecution)}
+                        {selectedExecution.timeout_allowed ? ` • Timeout: ${selectedExecution.timeout_allowed}` : ''}
                       </div>
                       {selectedExecution.exit_code !== undefined && (
                         <div className="text-xs text-slate-400">Exit code: {selectedExecution.exit_code}</div>
                       )}
+                      {selectedExecution.exit_reason && (
+                        <div className="text-xs text-slate-400">Exit reason: {selectedExecution.exit_reason}</div>
+                      )}
+                      <div className="space-y-1">
+                        <div className="text-[11px] uppercase text-slate-400">Final message</div>
+                        {isLoadingSelectedOutput ? (
+                          <div className="text-xs text-slate-500">Loading output...</div>
+                        ) : selectedFinalMessage ? (
+                          <div className="rounded-md border border-white/5 bg-slate-800/70 p-2 text-sm text-slate-100 whitespace-pre-wrap max-h-36 overflow-y-auto">
+                            {selectedFinalMessage}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-slate-500">No output captured for this execution.</div>
+                        )}
+                      </div>
                       {selectedExecution.metadata && Object.keys(selectedExecution.metadata).length > 0 ? (
                         <pre className="text-xs text-slate-200 bg-black/30 border border-white/5 rounded p-2 overflow-x-auto">
                           {JSON.stringify(selectedExecution.metadata, null, 2)}

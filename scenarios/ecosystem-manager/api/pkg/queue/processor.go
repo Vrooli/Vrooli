@@ -161,22 +161,17 @@ func (qp *Processor) Stop() {
 	if !qp.isRunning {
 		return
 	}
-	qp.stopChannel <- true
-	qp.isRunning = false
-	log.Println("Queue processor stopped")
 
-	// Terminate all tracked executions
 	qp.executionsMu.RLock()
-	taskIDs := make([]string, 0, len(qp.executions))
-	for taskID := range qp.executions {
-		taskIDs = append(taskIDs, taskID)
-	}
+	runningCount := len(qp.executions)
 	qp.executionsMu.RUnlock()
 
-	for _, taskID := range taskIDs {
-		if err := qp.TerminateRunningProcess(taskID); err != nil {
-			log.Printf("Warning: failed to terminate task %s during shutdown: %v", taskID, err)
-		}
+	qp.stopChannel <- true
+	qp.isRunning = false
+	if runningCount > 0 {
+		log.Printf("Queue processor stopped; allowing %d running task(s) to finish", runningCount)
+	} else {
+		log.Println("Queue processor stopped")
 	}
 }
 

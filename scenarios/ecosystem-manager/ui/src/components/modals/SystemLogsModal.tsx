@@ -23,7 +23,7 @@ interface SystemLogsModalProps {
 }
 
 type LogLevel = 'all' | 'info' | 'warning' | 'error';
-type ExecutionStatus = 'all' | 'running' | 'completed' | 'failed';
+type ExecutionStatus = 'all' | 'running' | 'completed' | 'failed' | 'rate_limited';
 
 export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
   const [activeTab, setActiveTab] = useState<'logs' | 'executions' | 'performance'>('logs');
@@ -116,6 +116,9 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
   };
 
   const formatExecutionDuration = (execution: ExecutionHistory) => {
+    if (execution.duration) {
+      return execution.duration;
+    }
     if (execution.end_time) {
       const start = new Date(execution.start_time).getTime();
       const end = new Date(execution.end_time).getTime();
@@ -165,6 +168,8 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
         return 'bg-amber-400/20 text-amber-100 border-amber-300/60';
       case 'failed':
         return 'bg-red-500/20 text-red-100 border-red-400/60';
+      case 'rate_limited':
+        return 'bg-orange-500/20 text-orange-100 border-orange-400/60';
       default:
         return 'bg-slate-500/20 text-slate-200 border-slate-500/40';
     }
@@ -415,6 +420,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                   <SelectItem value="running">Running</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="failed">Failed</SelectItem>
+                  <SelectItem value="rate_limited">Rate limited</SelectItem>
                 </SelectContent>
               </Select>
               <div className="text-xs text-slate-500">

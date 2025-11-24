@@ -15,36 +15,72 @@ export function useTaskUpdates() {
   useEffect(() => {
     if (!lastMessage) return;
 
-    const { type, task_id } = lastMessage;
+    const { type, data } = lastMessage;
+    const payload = (data ?? {}) as Record<string, unknown>;
+    const taskId = typeof payload.task_id === 'string' ? payload.task_id : undefined;
+
+    const invalidateTasks = () => {
+      if (taskId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(taskId) });
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.queue.status() });
+    };
+
+    const invalidateProcesses = () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.processes.running() });
+    };
 
     // Handle different WebSocket message types
     switch (type) {
-      case 'task_status_update':
-        // Task status changed - invalidate task lists and specific task
-        if (task_id) {
-          queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(task_id) });
-        }
-        queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
+      case 'task_status_changed':
+      case 'task_status_updated':
+      case 'task_updated':
+      case 'task_recycled':
+      case 'task_deleted':
+        invalidateTasks();
         break;
 
-      case 'process_started':
-      case 'process_completed':
-        // Process state changed - invalidate task details and lists
-        if (task_id) {
-          queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(task_id) });
-        }
-        queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
-        queryClient.invalidateQueries({ queryKey: queryKeys.processes.running() });
+      case 'task_started':
+      case 'task_executing':
+        invalidateTasks();
+        invalidateProcesses();
         break;
 
-      case 'queue_status_update':
-        // Queue status changed - invalidate queue status
+      case 'task_completed':
+      case 'task_failed':
+      case 'claude_execution_complete':
+      case 'process_terminated':
+        invalidateTasks();
+        invalidateProcesses();
+        break;
+
+      case 'task_progress':
+        if (taskId) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(taskId) });
+        }
+        break;
+
+      case 'log_entry':
+        // High-volume streaming event; UI components subscribe directly elsewhere.
+        break;
+
+      case 'settings_updated':
+      case 'settings_reset':
+        queryClient.invalidateQueries({ queryKey: queryKeys.settings.get() });
         queryClient.invalidateQueries({ queryKey: queryKeys.queue.status() });
         break;
 
-      case 'rate_limit_notification':
-        // Rate limit hit - invalidate queue status
+      case 'rate_limit_pause':
+      case 'rate_limit_pause_started':
+      case 'rate_limit_resume':
+      case 'rate_limit_manual_reset':
+      case 'rate_limit_hit':
         queryClient.invalidateQueries({ queryKey: queryKeys.queue.status() });
+        break;
+
+      case 'connected':
+        // Initial handshake event; no invalidation needed
         break;
 
       default:

@@ -169,9 +169,19 @@ const normalizeTaskTargets = (task: any): Task => {
         ? [task.target]
         : [];
 
+  const currentProcess = task.current_process || task.process || task.running_process;
+  const normalizedProcess = currentProcess
+    ? normalizeRunningProcess({
+        ...currentProcess,
+        task_id: currentProcess.task_id ?? task.id ?? task.task_id,
+        task_title: currentProcess.task_title ?? task.title,
+      })
+    : undefined;
+
   return {
     ...task,
     target: rawTargets.filter(Boolean),
+    current_process: normalizedProcess,
     // Backend uses processor_auto_requeue; UI expects auto_requeue
     auto_requeue: task.auto_requeue ?? task.processor_auto_requeue ?? false,
   };
@@ -190,21 +200,67 @@ const normalizeExecution = (raw: any): ExecutionHistory => {
     raw?.start_time ??
     '';
 
+  const startTime =
+    raw?.start_time ??
+    raw?.startTime ??
+    raw?.StartTime ??
+    '';
+
+  const endTime =
+    raw?.end_time ??
+    raw?.endTime ??
+    raw?.EndTime ??
+    undefined;
+
+  const duration =
+    raw?.duration ??
+    raw?.Duration ??
+    raw?.execution_time ??
+    raw?.ExecutionTime ??
+    undefined;
+
+  const timeoutAllowed =
+    raw?.timeout_allowed ??
+    raw?.TimeoutAllowed ??
+    raw?.timeout ??
+    raw?.Timeout ??
+    undefined;
+
+  const exitReason = raw?.exit_reason ?? raw?.exitReason ?? raw?.ExitReason ?? undefined;
+  const rateLimited = raw?.rate_limited ?? raw?.RateLimited ?? exitReason === 'rate_limited';
+  const success = raw?.success ?? raw?.Success;
+  const rawStatus = typeof raw?.status === 'string' ? raw.status.toLowerCase() : raw?.status;
+
   const status: ExecutionHistory['status'] =
-    raw?.status ??
-    (raw?.success === true
-      ? 'completed'
-      : raw?.success === false || raw?.failed
-        ? 'failed'
-        : 'running');
+    rawStatus === 'rate_limited' || rateLimited
+      ? 'rate_limited'
+      : rawStatus === 'completed' || success === true
+        ? 'completed'
+        : rawStatus === 'failed' || success === false || raw?.failed
+          ? 'failed'
+          : 'running';
 
   return {
     id: String(id),
     task_id: raw?.task_id ?? raw?.taskId ?? raw?.TaskID ?? raw?.task ?? '',
-    start_time: raw?.start_time ?? raw?.startTime ?? '',
-    end_time: raw?.end_time ?? raw?.endTime ?? undefined,
+    task_title: raw?.task_title ?? raw?.taskTitle ?? raw?.TaskTitle,
+    task_type: raw?.task_type ?? raw?.taskType ?? raw?.TaskType,
+    task_operation: raw?.task_operation ?? raw?.taskOperation ?? raw?.TaskOperation,
+    agent_tag: raw?.agent_tag ?? raw?.agentTag ?? raw?.AgentTag,
+    process_id: raw?.process_id ?? raw?.processId ?? raw?.ProcessID,
+    start_time: startTime,
+    end_time: endTime,
+    duration,
     status,
     exit_code: raw?.exit_code ?? raw?.exitCode ?? raw?.ExitCode,
+    exit_reason: exitReason,
+    prompt_size: raw?.prompt_size ?? raw?.PromptSize,
+    prompt_path: raw?.prompt_path ?? raw?.PromptPath ?? raw?.promptPath,
+    output_path: raw?.output_path ?? raw?.OutputPath ?? raw?.outputPath,
+    timeout_allowed: timeoutAllowed,
+    rate_limited: rateLimited,
+    retry_after: raw?.retry_after ?? raw?.RetryAfter,
+    success,
     metadata: raw?.metadata,
   };
 };
@@ -256,7 +312,7 @@ const normalizeQueueStatus = (raw: any): QueueStatus => {
   };
 };
 
-const normalizeRunningProcess = (raw: any): RunningProcess => {
+function normalizeRunningProcess(raw: any): RunningProcess {
   const processId =
     raw?.process_id ??
     raw?.ProcessID ??
@@ -467,11 +523,13 @@ class ApiClient {
 
     delete (payload as any).auto_requeue;
 
-    const task = await this.fetchJSON<Task>(`/api/tasks/${taskId}`, {
+    const response = await this.fetchJSON<Task | { task?: Task }>(`/api/tasks/${taskId}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
-    return normalizeTaskTargets(task);
+
+    const task = (response as any)?.task ?? response;
+    return normalizeTaskTargets(task as Task);
   }
 
   async updateTaskStatus(

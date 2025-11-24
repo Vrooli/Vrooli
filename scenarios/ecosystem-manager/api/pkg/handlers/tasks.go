@@ -33,6 +33,36 @@ type TaskHandlers struct {
 	autoSteerProfiles *autosteer.ProfileService
 }
 
+// taskWithRuntime decorates a task with live execution metadata without mutating persisted files.
+type taskWithRuntime struct {
+	tasks.TaskItem
+	CurrentProcess *queue.ProcessInfo `json:"current_process,omitempty"`
+}
+
+// buildRuntimeIndex returns a map of running processes keyed by task ID for quick enrichment.
+func (h *TaskHandlers) buildRuntimeIndex() map[string]queue.ProcessInfo {
+	index := make(map[string]queue.ProcessInfo)
+	if h.processor == nil {
+		return index
+	}
+
+	for _, proc := range h.processor.GetRunningProcessesInfo() {
+		index[proc.TaskID] = proc
+	}
+	return index
+}
+
+// attachRuntime copies the task and adds runtime info when available.
+func attachRuntime(task tasks.TaskItem, runtime map[string]queue.ProcessInfo) taskWithRuntime {
+	enriched := taskWithRuntime{TaskItem: task}
+	if proc, ok := runtime[task.ID]; ok {
+		// Copy to avoid aliasing the map entry
+		procCopy := proc
+		enriched.CurrentProcess = &procCopy
+	}
+	return enriched
+}
+
 func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask tasks.TaskItem) {
 	created := make([]tasks.TaskItem, 0, len(baseTask.Targets))
 	skipped := make([]map[string]string, 0)
@@ -364,10 +394,16 @@ func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 
 	systemlog.Debugf("Task list requested: status=%s count=%d", status, len(filteredItems))
 
+	runtimeIndex := h.buildRuntimeIndex()
+	enriched := make([]taskWithRuntime, 0, len(filteredItems))
+	for _, item := range filteredItems {
+		enriched = append(enriched, attachRuntime(item, runtimeIndex))
+	}
+
 	// Wrap response in object for consistency with other endpoints
 	response := map[string]any{
-		"tasks": filteredItems,
-		"count": len(filteredItems),
+		"tasks": enriched,
+		"count": len(enriched),
 	}
 
 	writeJSON(w, response, http.StatusOK)
@@ -471,7 +507,10 @@ func (h *TaskHandlers) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, task, http.StatusOK)
+	runtimeIndex := h.buildRuntimeIndex()
+	enriched := attachRuntime(*task, runtimeIndex)
+
+	writeJSON(w, enriched, http.StatusOK)
 }
 
 // GetActiveTargetsHandler returns active targets for the specified type and operation across relevant queues.
@@ -699,6 +738,12 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	if newStatus != "" && !tasks.IsValidStatus(newStatus) {
 		writeError(w, fmt.Sprintf("Invalid status: %s. Must be one of: %v", newStatus, tasks.GetValidStatuses()), http.StatusBadRequest)
 		return
+	}
+
+	// If no status was provided, keep the current status so we don't attempt a move with an empty destination.
+	if newStatus == "" {
+		newStatus = currentStatus
+		updatedTask.Status = currentStatus
 	}
 
 	// Handle status transitions using consolidated logic
