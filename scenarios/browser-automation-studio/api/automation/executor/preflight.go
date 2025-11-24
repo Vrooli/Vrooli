@@ -7,6 +7,20 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 )
 
+var stepTypeCapabilityMatrix = map[string]contracts.CapabilityRequirement{
+	"tabswitch":    {NeedsParallelTabs: true},
+	"frameswitch":  {NeedsIframes: true},
+	"uploadfile":   {NeedsFileUploads: true},
+	"upload":       {NeedsFileUploads: true},
+	"fileupload":   {NeedsFileUploads: true},
+	"downloadfile": {NeedsDownloads: true},
+	"download":     {NeedsDownloads: true},
+	"networkmock":  {NeedsHAR: true, NeedsTracing: true},
+	"har":          {NeedsHAR: true},
+	"video":        {NeedsVideo: true},
+	"trace":        {NeedsTracing: true},
+}
+
 // preflight.go derives capability requirements from plans/instructions so
 // engine selection can fail fast before execution starts.
 
@@ -125,6 +139,11 @@ func numericParam(params map[string]any, key string) (int, bool) {
 }
 
 func applyInstructionCapabilities(req contracts.CapabilityRequirement, stepType string, params map[string]any) contracts.CapabilityRequirement {
+	normalizedType := normalizeType(stepType)
+	if addition, ok := stepTypeCapabilityMatrix[normalizedType]; ok {
+		req = mergeRequirements(req, addition)
+	}
+
 	// Multi-tab support required when any tab switch directive is present.
 	if requiresParallelTabs(params) {
 		req.NeedsParallelTabs = true
@@ -194,4 +213,26 @@ func applyGraphCapabilities(req contracts.CapabilityRequirement, graph *contract
 		}
 	}
 	return req
+}
+
+func mergeRequirements(req, addition contracts.CapabilityRequirement) contracts.CapabilityRequirement {
+	req.NeedsParallelTabs = req.NeedsParallelTabs || addition.NeedsParallelTabs
+	req.NeedsHAR = req.NeedsHAR || addition.NeedsHAR
+	req.NeedsVideo = req.NeedsVideo || addition.NeedsVideo
+	req.NeedsIframes = req.NeedsIframes || addition.NeedsIframes
+	req.NeedsFileUploads = req.NeedsFileUploads || addition.NeedsFileUploads
+	req.NeedsDownloads = req.NeedsDownloads || addition.NeedsDownloads
+	req.NeedsTracing = req.NeedsTracing || addition.NeedsTracing
+	if addition.MinViewportWidth > req.MinViewportWidth {
+		req.MinViewportWidth = addition.MinViewportWidth
+	}
+	if addition.MinViewportHeight > req.MinViewportHeight {
+		req.MinViewportHeight = addition.MinViewportHeight
+	}
+	return req
+}
+
+func normalizeType(stepType string) string {
+	lower := strings.ToLower(strings.TrimSpace(stepType))
+	return strings.ReplaceAll(lower, "_", "")
 }

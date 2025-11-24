@@ -7,7 +7,7 @@ import (
 
 func TestEngineCapabilitiesValidate(t *testing.T) {
 	valid := EngineCapabilities{
-		SchemaVersion:         EventEnvelopeSchemaVersion,
+		SchemaVersion:         CapabilitiesSchemaVersion,
 		Engine:                "browserless",
 		MaxConcurrentSessions: 2,
 	}
@@ -37,7 +37,7 @@ func TestEngineCapabilitiesValidate(t *testing.T) {
 
 func TestEngineCapabilitiesCheckCompatibility(t *testing.T) {
 	caps := EngineCapabilities{
-		SchemaVersion:         EventEnvelopeSchemaVersion,
+		SchemaVersion:         CapabilitiesSchemaVersion,
 		Engine:                "browserless",
 		MaxConcurrentSessions: 1,
 		AllowsParallelTabs:    false,

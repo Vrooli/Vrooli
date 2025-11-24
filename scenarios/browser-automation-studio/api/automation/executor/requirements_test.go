@@ -105,6 +105,25 @@ func TestDeriveRequirementsIgnoresEmptyParams(t *testing.T) {
 	}
 }
 
+func TestDeriveRequirementsUsesStepTypeMatrix(t *testing.T) {
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		CreatedAt:   time.Now().UTC(),
+		Instructions: []contracts.CompiledInstruction{
+			{Index: 0, Type: "uploadFile"},
+			{Index: 1, Type: "tabSwitch"},
+			{Index: 2, Type: "frame_switch"},
+			{Index: 3, Type: "networkMock"},
+		},
+	}
+
+	req := deriveRequirements(plan)
+	if !req.NeedsFileUploads || !req.NeedsParallelTabs || !req.NeedsIframes || !req.NeedsHAR || !req.NeedsTracing {
+		t.Fatalf("expected matrix-derived requirements to include uploads/tabs/iframes/HAR/tracing, got %+v", req)
+	}
+}
+
 func TestDeriveRequirementsIncludesGraphStepsAndTypes(t *testing.T) {
 	plan := contracts.ExecutionPlan{
 		ExecutionID: uuid.New(),

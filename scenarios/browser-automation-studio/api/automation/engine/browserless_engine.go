@@ -45,7 +45,7 @@ func (e *BrowserlessEngine) Name() string { return "browserless" }
 // Capabilities returns a static descriptor for the Browserless engine.
 func (e *BrowserlessEngine) Capabilities(ctx context.Context) (contracts.EngineCapabilities, error) {
 	return contracts.EngineCapabilities{
-		SchemaVersion:         contracts.EventEnvelopeSchemaVersion,
+		SchemaVersion:         contracts.CapabilitiesSchemaVersion,
 		Engine:                e.Name(),
 		Version:               "v1",
 		RequiresDocker:        false,

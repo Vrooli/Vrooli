@@ -94,7 +94,7 @@ func TestDeriveRequirementsDownloadsVideoViewport(t *testing.T) {
 	}
 
 	caps := contracts.EngineCapabilities{
-		SchemaVersion:         contracts.EventEnvelopeSchemaVersion,
+		SchemaVersion:         contracts.CapabilitiesSchemaVersion,
 		Engine:                "stub",
 		MaxConcurrentSessions: 1,
 		AllowsParallelTabs:    true,

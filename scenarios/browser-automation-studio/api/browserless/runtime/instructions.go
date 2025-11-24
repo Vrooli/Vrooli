@@ -211,12 +211,6 @@ type InstructionParam struct {
 	LoopIndexVariable       string            `json:"loopIndexVariable,omitempty"`
 	LoopIterationTimeoutMs  int               `json:"loopIterationTimeoutMs,omitempty"`
 	LoopTotalTimeoutMs      int               `json:"loopTotalTimeoutMs,omitempty"`
-	WorkflowCallID          string            `json:"workflowCallId,omitempty"`
-	WorkflowCallName        string            `json:"workflowCallName,omitempty"`
-	WorkflowCallWait        *bool             `json:"workflowCallWait,omitempty"`
-	WorkflowCallParams      map[string]any    `json:"workflowCallParams,omitempty"`
-	WorkflowCallOutputs     map[string]string `json:"workflowCallOutputs,omitempty"`
-	WorkflowCallDefinition  map[string]any    `json:"workflowCallDefinition,omitempty"`
 	CookieName              string            `json:"cookieName,omitempty"`
 	CookieValue             string            `json:"cookieValue,omitempty"`
 	CookieURL               string            `json:"cookieUrl,omitempty"`
@@ -500,9 +494,9 @@ type uploadFileConfig struct {
 }
 
 type keyboardConfig struct {
-	Key       string               `json:"key"`       // Legacy singular format (deprecated)
-	Keys      []string             `json:"keys"`      // Modern array format (preferred)
-	Sequence  string               `json:"sequence"`  // Alternative sequence format
+	Key       string               `json:"key"`      // Legacy singular format (deprecated)
+	Keys      []string             `json:"keys"`     // Modern array format (preferred)
+	Sequence  string               `json:"sequence"` // Alternative sequence format
 	EventType string               `json:"eventType"`
 	Modifiers keyboardModifierSpec `json:"modifiers"`
 	DelayMs   int                  `json:"delayMs"`
@@ -557,15 +551,6 @@ type loopConfig struct {
 	ConditionVariable   string `json:"conditionVariable"`
 	ConditionOperator   string `json:"conditionOperator"`
 	ConditionValue      any    `json:"conditionValue"`
-}
-
-type workflowCallConfig struct {
-	WorkflowID        string            `json:"workflowId"`
-	WorkflowName      string            `json:"workflowName"`
-	WaitForCompletion *bool             `json:"waitForCompletion"`
-	Parameters        map[string]any    `json:"parameters"`
-	OutputMapping     map[string]string `json:"outputMapping"`
-	InlineDefinition  map[string]any    `json:"workflowDefinition"`
 }
 
 type setCookieConfig struct {
@@ -1306,42 +1291,6 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		}
 		base.Params = params
 		return base, nil
-	case compiler.StepWorkflowCall:
-		var cfg workflowCallConfig
-		if err := decodeParams(step.Params, &cfg); err != nil {
-			return Instruction{}, fmt.Errorf("workflow call node %s has invalid data: %w", step.NodeID, err)
-		}
-		workflowID := strings.TrimSpace(cfg.WorkflowID)
-		inlineDefinition := cfg.InlineDefinition
-		if len(inlineDefinition) == 0 {
-			inlineDefinition = nil
-		}
-		if workflowID == "" && inlineDefinition == nil {
-			return Instruction{}, fmt.Errorf("workflow call node %s requires workflowId or workflowDefinition", step.NodeID)
-		}
-		waitForCompletion := true
-		if cfg.WaitForCompletion != nil {
-			waitForCompletion = *cfg.WaitForCompletion
-		}
-		if !waitForCompletion {
-			return Instruction{}, fmt.Errorf("workflow call node %s must wait for completion (async execution not supported yet)", step.NodeID)
-		}
-		if workflowID != "" {
-			base.Params.WorkflowCallID = workflowID
-		}
-		if trimmedName := strings.TrimSpace(cfg.WorkflowName); trimmedName != "" {
-			base.Params.WorkflowCallName = trimmedName
-		}
-		base.Params.WorkflowCallWait = &waitForCompletion
-		if cleaned := sanitizeWorkflowCallParams(cfg.Parameters); len(cleaned) > 0 {
-			base.Params.WorkflowCallParams = cleaned
-		}
-		if outputs := normalizeWorkflowCallOutputs(cfg.OutputMapping); len(outputs) > 0 {
-			base.Params.WorkflowCallOutputs = outputs
-		}
-		if inlineDefinition != nil {
-			base.Params.WorkflowCallDefinition = inlineDefinition
-		}
 	case compiler.StepRotate:
 		// [REQ:BAS-NODE-ROTATE-MOBILE]
 		var cfg rotateConfig
@@ -2955,43 +2904,6 @@ func normalizeLoopOperator(value string) string {
 	default:
 		return value
 	}
-}
-
-func sanitizeWorkflowCallParams(params map[string]any) map[string]any {
-	if len(params) == 0 {
-		return nil
-	}
-	cleaned := make(map[string]any, len(params))
-	for key, value := range params {
-		trimmed := strings.TrimSpace(key)
-		if trimmed == "" {
-			continue
-		}
-		cleaned[trimmed] = value
-	}
-	if len(cleaned) == 0 {
-		return nil
-	}
-	return cleaned
-}
-
-func normalizeWorkflowCallOutputs(outputs map[string]string) map[string]string {
-	if len(outputs) == 0 {
-		return nil
-	}
-	cleaned := make(map[string]string, len(outputs))
-	for source, target := range outputs {
-		src := strings.TrimSpace(source)
-		dst := strings.TrimSpace(target)
-		if src == "" || dst == "" {
-			continue
-		}
-		cleaned[src] = dst
-	}
-	if len(cleaned) == 0 {
-		return nil
-	}
-	return cleaned
 }
 
 func isFunctionKey(value string) bool {

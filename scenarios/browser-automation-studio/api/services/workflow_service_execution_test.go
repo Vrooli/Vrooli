@@ -16,8 +16,10 @@ import (
 
 func TestUnsupportedAutomationNodes(t *testing.T) {
 	tests := []struct {
-		name string
-		flow database.JSONMap
+		name         string
+		flow         database.JSONMap
+		expectUnsafe bool
+		expected     []string
 	}{
 		{
 			name: "simple linear nodes allowed",
@@ -51,6 +53,16 @@ func TestUnsupportedAutomationNodes(t *testing.T) {
 			name: "missing nodes ignored",
 			flow: database.JSONMap{},
 		},
+		{
+			name: "loop type mismatch flagged",
+			flow: database.JSONMap{
+				"nodes": []any{
+					map[string]any{"id": "loop1", "type": "loop", "data": map[string]any{"loopType": "until"}},
+				},
+			},
+			expectUnsafe: true,
+			expected:     []string{"loop:until"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -58,11 +70,46 @@ func TestUnsupportedAutomationNodes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Helper()
 			unsupported := unsupportedAutomationNodes(tt.flow)
-			if len(unsupported) > 0 {
+			if tt.expectUnsafe && len(unsupported) == 0 {
+				t.Fatalf("expected unsupported nodes, got none")
+			}
+			if !tt.expectUnsafe && len(unsupported) > 0 {
 				t.Fatalf("expected no unsupported nodes, got %v", unsupported)
+			}
+			if len(tt.expected) > 0 {
+				if len(unsupported) != len(tt.expected) {
+					t.Fatalf("expected %v, got %v", tt.expected, unsupported)
+				}
+				for i := range tt.expected {
+					if unsupported[i] != tt.expected[i] {
+						t.Fatalf("expected %v, got %v", tt.expected, unsupported)
+					}
+				}
 			}
 		})
 	}
+}
+
+type closableSink struct {
+	closed []uuid.UUID
+}
+
+func (c *closableSink) Publish(_ context.Context, _ autocontracts.EventEnvelope) error { return nil }
+func (c *closableSink) Limits() autocontracts.EventBufferLimits {
+	return autocontracts.DefaultEventBufferLimits
+}
+func (c *closableSink) CloseExecution(id uuid.UUID) { c.closed = append(c.closed, id) }
+
+func TestCloseEventSink(t *testing.T) {
+	execID := uuid.New()
+	sink := &closableSink{}
+	closeEventSink(sink, execID)
+	if len(sink.closed) != 1 || sink.closed[0] != execID {
+		t.Fatalf("expected close to be invoked with %s, got %+v", execID, sink.closed)
+	}
+
+	var nilSink autoevents.Sink
+	closeEventSink(nilSink, execID) // should not panic
 }
 
 type markerRecorder struct {

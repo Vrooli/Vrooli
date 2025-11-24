@@ -83,7 +83,7 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 			// Time-based wait - just sleep
 			time.Sleep(time.Duration(instruction.Params.DurationMs) * time.Millisecond)
 			result = &StepResult{
-				Success: true,
+				Success:    true,
 				DurationMs: instruction.Params.DurationMs,
 			}
 		} else {
@@ -373,8 +373,6 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 	case "extract":
 		allMatches := instruction.Params.AllMatches != nil && *instruction.Params.AllMatches
 		result, err = s.ExecuteExtract(ctx, instruction.Params.Selector, instruction.Params.ExtractType, instruction.Params.Attribute, allMatches, instruction.Params.TimeoutMs)
-	case "setVariable":
-		result, err = s.ExecuteSetVariable(ctx, instruction)
 	case "useVariable":
 		result, err = executeUseVariableInstruction(instruction)
 	case "setCookie":

@@ -21,13 +21,13 @@
 
 ## Runtime Behavior
 
-1. `api/browser-automation-studio/browserless/compiler/compiler.go` extracts the loop body into its own `ExecutionPlan` and wires the special break/continue edges.
-2. `api/browserless/runtime/instructions.go:1185-1245` validates the configuration, clamps limits, and records metadata (`loopArraySource`, `loopCount`, timeouts, iteration variables) in the instruction payload.
-3. `api/browserless/client.go:1867-2115` drives the loop:
-   - Maintains an `ExecutionContext` snapshot per iteration so variables such as `loop.item`/`loop.index` stay consistent.
-   - Executes the nested plan sequentially, honoring `loop_continue` and `loop_break` handles without leaving orphaned nodes.
+1. `api/automation/executor/plan_builder.go` compiles the loop body into its own `PlanGraph` and wires the special break/continue edges.
+2. `api/browserless/runtime/instructions.go` validates the configuration, clamps limits, and records metadata (`loopArraySource`, `loopCount`, timeouts, iteration variables) in the instruction payload.
+3. `api/automation/executor/flow_executor.go` drives the loop:
+   - Maintains executor-scoped variables per iteration so `loop.item`/`loop.index` stay consistent.
+   - Executes the nested graph sequentially, honoring `loop_continue` and `loop_break` handles without leaving orphaned nodes.
    - Enforces per-iteration and total timeouts, aborting with descriptive errors when the workflow risks hanging.
-4. Loop telemetry (iteration counters, break reasons) is stored in execution artifacts so you can debug dataset-driven runs later.
+4. Loop telemetry (iteration counters, break reasons) is stored in execution artifacts via `DBRecorder` so you can debug dataset-driven runs later.
 
 ## Examples
 

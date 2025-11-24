@@ -22,6 +22,8 @@ const (
 	// EventSink. This is distinct from WebSocket contracts so the bridge can
 	// enforce ordering/backpressure while keeping UI payloads unchanged.
 	EventEnvelopeSchemaVersion = "automation-event-envelope-v1"
+	// CapabilitiesSchemaVersion tracks the shape of EngineCapabilities payloads.
+	CapabilitiesSchemaVersion = "automation-capabilities-v1"
 	// PayloadVersion identifies semantic changes inside the payloads without
 	// altering the envelope shape. Keep this stable until the meaning of a
 	// field changes.

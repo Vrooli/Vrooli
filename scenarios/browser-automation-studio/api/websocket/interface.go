@@ -25,4 +25,8 @@ type HubInterface interface {
 	// Run starts the hub's main event loop
 	// This should be called in a goroutine when the hub is created
 	Run()
+
+	// CloseExecution drains and tears down per-execution queues when the run
+	// finishes. Optional; hubs may no-op.
+	CloseExecution(executionID uuid.UUID)
 }

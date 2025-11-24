@@ -37,11 +37,12 @@ sequenceDiagram
 Flow feature map (where to look/extend):
 - Branching/graph traversal: `flow_executor.go` (+ helpers in `flow_utils.go`)
 - Loop semantics: `flow_executor.go` (repeat + forEach + while conditionals)
-- Capability preflight (tabs/iframe/upload/HAR/video/download/viewport): `preflight.go`
+- Capability preflight (tabs/iframe/upload/HAR/video/download/viewport): `preflight.go` (step-type matrix + param heuristics)
 - Variable scope + `${var}` interpolation (nested maps/slices, dot/index paths): `flow_utils.go` (`flowState`, `interpolateInstruction`)
 - Built-in variable mutation node for flow control: `set_variable` / `setVariable` handled in `flow_executor.go`
 - Session/retry/timing normalization: `simple_executor.go`
 - Tests to extend for new flow shapes: `simple_executor_test.go`, `integration_test.go`, `requirements_test.go`
+- Plan compiler selection: defaults to contract-native compiler (no runtime shaping). Set `BAS_PLAN_COMPILER=legacy` to force browserless runtime shaping for parity checks.
 
 Not yet parity-complete (to implement here):
 - Variable expressions (beyond replacement) / advanced evaluation
@@ -51,5 +52,6 @@ Not yet parity-complete (to implement here):
 - Capability enforcement matrix (tabs/iframes/HAR/tracing/uploads/downloads/video/viewport) with fail-fast behavior
 - Artifact shaping: DOM truncation/dedupe, cursor trails/timeline framing, screenshot handling, backpressure/drop counters
 - Crash handling/recovery markers
+- Subflows: `subflow` nodes run as child executions with recursion/depth guards; variables merge back into the parent scope using the same engine session by default. Legacy `workflowCall` is no longer accepted.
 
 Keep new logic discoverable in the flow/preflight/simple_executor files above.

@@ -6,6 +6,12 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	// ExecutionPlanSchemaVersion tracks the shape of ExecutionPlan and PlanGraph payloads.
+	// Bump when plan or graph fields change so executors and engines can assert compatibility.
+	ExecutionPlanSchemaVersion = "automation-plan-v1"
+)
+
 // ExecutionPlan represents the compiled workflow ready for orchestration. It
 // deliberately omits engine-specific details so multiple engines can reuse the
 // same plan without recompilation.

@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
 )
 
 func newTestHub(t *testing.T) *Hub {
@@ -32,28 +34,37 @@ func waitForUpdate(t *testing.T, ch <-chan ExecutionUpdate) ExecutionUpdate {
 	return ExecutionUpdate{}
 }
 
+type mockHub struct{}
+
+func (m *mockHub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID) {}
+func (m *mockHub) BroadcastEnvelope(event any)                          {}
+func (m *mockHub) BroadcastUpdate(update ExecutionUpdate)               {}
+func (m *mockHub) GetClientCount() int                                  { return 0 }
+func (m *mockHub) Run()                                                 {}
+func (m *mockHub) CloseExecution(executionID uuid.UUID)                 {}
+
 func TestHubBroadcastsToRegisteredClients(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] broadcasts execution updates to all connected clients", func(t *testing.T) {
-	hub := newTestHub(t)
+		hub := newTestHub(t)
 
-	client := &Client{
-		ID:   uuid.New(),
-		Send: make(chan ExecutionUpdate, 4),
-		Hub:  hub,
-	}
+		client := &Client{
+			ID:   uuid.New(),
+			Send: make(chan ExecutionUpdate, 4),
+			Hub:  hub,
+		}
 
-	hub.register <- client
+		hub.register <- client
 
-	// Drain welcome message to avoid interfering with assertions.
-	_ = waitForUpdate(t, client.Send)
+		// Drain welcome message to avoid interfering with assertions.
+		_ = waitForUpdate(t, client.Send)
 
-	update := ExecutionUpdate{
-		Type:        "progress",
-		ExecutionID: uuid.New(),
-		Progress:    42,
-	}
+		update := ExecutionUpdate{
+			Type:        "progress",
+			ExecutionID: uuid.New(),
+			Progress:    42,
+		}
 
-	hub.BroadcastUpdate(update)
+		hub.BroadcastUpdate(update)
 
 		received := waitForUpdate(t, client.Send)
 		if received.Type != update.Type || received.Progress != update.Progress {
@@ -64,53 +75,53 @@ func TestHubBroadcastsToRegisteredClients(t *testing.T) {
 
 func TestHubFiltersByExecutionID(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] filters updates by execution ID for subscribed clients", func(t *testing.T) {
-	hub := newTestHub(t)
+		hub := newTestHub(t)
 
-	executionID := uuid.New()
+		executionID := uuid.New()
 
-	broadcastClient := &Client{
-		ID:   uuid.New(),
-		Send: make(chan ExecutionUpdate, 4),
-		Hub:  hub,
-	}
+		broadcastClient := &Client{
+			ID:   uuid.New(),
+			Send: make(chan ExecutionUpdate, 4),
+			Hub:  hub,
+		}
 
-	filteredClient := &Client{
-		ID:          uuid.New(),
-		Send:        make(chan ExecutionUpdate, 4),
-		Hub:         hub,
-		ExecutionID: &executionID,
-	}
+		filteredClient := &Client{
+			ID:          uuid.New(),
+			Send:        make(chan ExecutionUpdate, 4),
+			Hub:         hub,
+			ExecutionID: &executionID,
+		}
 
-	hub.register <- broadcastClient
-	hub.register <- filteredClient
+		hub.register <- broadcastClient
+		hub.register <- filteredClient
 
-	// Drain welcome updates
-	_ = waitForUpdate(t, broadcastClient.Send)
-	_ = waitForUpdate(t, filteredClient.Send)
+		// Drain welcome updates
+		_ = waitForUpdate(t, broadcastClient.Send)
+		_ = waitForUpdate(t, filteredClient.Send)
 
-	matching := ExecutionUpdate{
-		Type:        "log",
-		ExecutionID: executionID,
-		Message:     "hello",
-	}
-	different := ExecutionUpdate{
-		Type:        "log",
-		ExecutionID: uuid.New(),
-		Message:     "ignored",
-	}
+		matching := ExecutionUpdate{
+			Type:        "log",
+			ExecutionID: executionID,
+			Message:     "hello",
+		}
+		different := ExecutionUpdate{
+			Type:        "log",
+			ExecutionID: uuid.New(),
+			Message:     "ignored",
+		}
 
-	hub.BroadcastUpdate(matching)
-	hub.BroadcastUpdate(different)
+		hub.BroadcastUpdate(matching)
+		hub.BroadcastUpdate(different)
 
-	receivedBroadcast := waitForUpdate(t, broadcastClient.Send)
-	if receivedBroadcast.Message != matching.Message {
-		t.Fatalf("expected broadcast client to receive matching update, got %+v", receivedBroadcast)
-	}
+		receivedBroadcast := waitForUpdate(t, broadcastClient.Send)
+		if receivedBroadcast.Message != matching.Message {
+			t.Fatalf("expected broadcast client to receive matching update, got %+v", receivedBroadcast)
+		}
 
-	receivedFiltered := waitForUpdate(t, filteredClient.Send)
-	if receivedFiltered.ExecutionID != executionID {
-		t.Fatalf("filtered client received wrong execution: %+v", receivedFiltered)
-	}
+		receivedFiltered := waitForUpdate(t, filteredClient.Send)
+		if receivedFiltered.ExecutionID != executionID {
+			t.Fatalf("filtered client received wrong execution: %+v", receivedFiltered)
+		}
 
 		select {
 		case extra := <-filteredClient.Send:
@@ -121,41 +132,75 @@ func TestHubFiltersByExecutionID(t *testing.T) {
 	})
 }
 
-func TestGetClientCount(t *testing.T) {
-	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] tracks connected client count", func(t *testing.T) {
+func TestBroadcastEnvelopeDeliversEnvelopePayload(t *testing.T) {
 	hub := newTestHub(t)
 
-	if count := hub.GetClientCount(); count != 0 {
-		t.Fatalf("expected 0 clients, got %d", count)
-	}
-
-	client1 := &Client{
+	client := &Client{
 		ID:   uuid.New(),
 		Send: make(chan ExecutionUpdate, 4),
 		Hub:  hub,
 	}
-	client2 := &Client{
-		ID:   uuid.New(),
-		Send: make(chan ExecutionUpdate, 4),
-		Hub:  hub,
+	hub.register <- client
+	_ = waitForUpdate(t, client.Send) // welcome
+
+	env := contracts.EventEnvelope{
+		SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
+		PayloadVersion: contracts.PayloadVersion,
+		Kind:           contracts.EventKindStepCompleted,
+		ExecutionID:    uuid.New(),
+		WorkflowID:     uuid.New(),
+		Sequence:       5,
+		Timestamp:      time.Now().UTC(),
+		Payload:        map[string]any{"note": "ok"},
 	}
 
-	hub.register <- client1
-	time.Sleep(50 * time.Millisecond)
+	hub.BroadcastEnvelope(env)
 
-	if count := hub.GetClientCount(); count != 1 {
-		t.Fatalf("expected 1 client after registration, got %d", count)
+	received := waitForUpdate(t, client.Send)
+	payload, ok := received.Data.(contracts.EventEnvelope)
+	if !ok {
+		t.Fatalf("expected envelope payload, got %T", received.Data)
 	}
-
-	hub.register <- client2
-	time.Sleep(50 * time.Millisecond)
-
-	if count := hub.GetClientCount(); count != 2 {
-		t.Fatalf("expected 2 clients after second registration, got %d", count)
+	if payload.Kind != env.Kind || payload.Sequence != env.Sequence {
+		t.Fatalf("payload mismatch: %+v", payload)
 	}
+}
 
-	hub.unregister <- client1
-	time.Sleep(50 * time.Millisecond)
+func TestGetClientCount(t *testing.T) {
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] tracks connected client count", func(t *testing.T) {
+		hub := newTestHub(t)
+
+		if count := hub.GetClientCount(); count != 0 {
+			t.Fatalf("expected 0 clients, got %d", count)
+		}
+
+		client1 := &Client{
+			ID:   uuid.New(),
+			Send: make(chan ExecutionUpdate, 4),
+			Hub:  hub,
+		}
+		client2 := &Client{
+			ID:   uuid.New(),
+			Send: make(chan ExecutionUpdate, 4),
+			Hub:  hub,
+		}
+
+		hub.register <- client1
+		time.Sleep(50 * time.Millisecond)
+
+		if count := hub.GetClientCount(); count != 1 {
+			t.Fatalf("expected 1 client after registration, got %d", count)
+		}
+
+		hub.register <- client2
+		time.Sleep(50 * time.Millisecond)
+
+		if count := hub.GetClientCount(); count != 2 {
+			t.Fatalf("expected 2 clients after second registration, got %d", count)
+		}
+
+		hub.unregister <- client1
+		time.Sleep(50 * time.Millisecond)
 
 		if count := hub.GetClientCount(); count != 1 {
 			t.Fatalf("expected 1 client after unregister, got %d", count)

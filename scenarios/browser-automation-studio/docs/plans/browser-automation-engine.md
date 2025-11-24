@@ -1,6 +1,6 @@
 # Browser Automation Engine Refactor Plan
 
-Context: The API execution path is tightly coupled to Browserless (see `api/browserless/client.go`), making new features (desktop/Electron bundles, alternative providers) hard to add. This plan introduces an engine abstraction and refactors orchestration/persistence to support multiple implementations (Browserless today, Desktop/Playwright next) without changing workflow JSON or replay consumers.
+Context: The refactor is now landed in `api/automation/{executor,engine,recorder,events}`; the API executes exclusively through `executeWithAutomationEngine` + `BrowserlessEngine`, and the legacy `browserless/client.go` path has been removed. This document remains as the historical plan and a checklist for future engine additions (Desktop/Playwright, etc.).
 
 ## Goals
 - Isolate engine concerns from orchestration, persistence, and event streaming.

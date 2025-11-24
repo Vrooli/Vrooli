@@ -35,7 +35,6 @@ const (
 	StepExtract      StepType = "extract"
 	StepEvaluate     StepType = "evaluate"
 	StepAssert       StepType = "assert"
-	StepWorkflowCall StepType = "workflowcall"
 	StepCustom       StepType = "custom"
 	StepSetVariable  StepType = "setVariable"
 	StepUseVariable  StepType = "useVariable"
@@ -89,7 +88,6 @@ var supportedStepTypes = map[StepType]struct{}{
 	StepExtract:      {},
 	StepEvaluate:     {},
 	StepAssert:       {},
-	StepWorkflowCall: {},
 	StepCustom:       {},
 	StepSetVariable:  {},
 	StepUseVariable:  {},

@@ -235,8 +235,8 @@ var nodeRules = map[string]nodeRule{
 	"screenshot": {
 		custom: lintScreenshotNode,
 	},
-	"workflowCall": {
-		custom: lintWorkflowCallNode,
+	"subflow": {
+		custom: lintSubflowNode,
 	},
 }
 
@@ -690,24 +690,30 @@ func lintAssertNode(node map[string]any, data map[string]any, idx int) ([]Issue,
 	return errorsList, nil
 }
 
-func lintWorkflowCallNode(node map[string]any, data map[string]any, idx int) ([]Issue, []Issue) {
+func lintSubflowNode(node map[string]any, data map[string]any, idx int) ([]Issue, []Issue) {
+	return lintSubflowLikeNode(node, data, idx)
+}
+
+func lintSubflowLikeNode(node map[string]any, data map[string]any, idx int) ([]Issue, []Issue) {
 	var errorsList []Issue
+	var warningsList []Issue
 	nodeID := getString(node["id"])
 	nodeType := getString(node["type"])
 	pointer := fmt.Sprintf("/nodes/%d/data", idx)
 
 	workflowID := strings.TrimSpace(getString(data["workflowId"]))
 	inlineDef, hasInline := toMap(data["workflowDefinition"])
+
 	if workflowID == "" && (!hasInline || len(inlineDef) == 0) {
 		errorsList = append(errorsList, Issue{
 			Severity: SeverityError,
-			Code:     "WF_WORKFLOW_CALL_TARGET",
-			Message:  "Workflow call must define workflowId or workflowDefinition",
+			Code:     "WF_SUBFLOW_TARGET",
+			Message:  "subflow node must define workflowId or workflowDefinition",
 			NodeID:   nodeID,
 			NodeType: nodeType,
 			Pointer:  pointer,
 		})
-		return errorsList, nil
+		return errorsList, warningsList
 	}
 
 	if hasInline && len(inlineDef) > 0 {
@@ -715,8 +721,8 @@ func lintWorkflowCallNode(node map[string]any, data map[string]any, idx int) ([]
 		if len(nodes) == 0 {
 			errorsList = append(errorsList, Issue{
 				Severity: SeverityError,
-				Code:     "WF_WORKFLOW_CALL_INLINE_NODES",
-				Message:  "workflowDefinition must include at least one node",
+				Code:     "WF_SUBFLOW_INLINE_NODES",
+				Message:  "subflow workflowDefinition must include at least one node",
 				NodeID:   nodeID,
 				NodeType: nodeType,
 				Pointer:  pointer + "/workflowDefinition/nodes",
@@ -725,8 +731,8 @@ func lintWorkflowCallNode(node map[string]any, data map[string]any, idx int) ([]
 		if _, ok := inlineDef["edges"]; !ok {
 			errorsList = append(errorsList, Issue{
 				Severity: SeverityError,
-				Code:     "WF_WORKFLOW_CALL_INLINE_EDGES",
-				Message:  "workflowDefinition must include edges even if empty",
+				Code:     "WF_SUBFLOW_INLINE_EDGES",
+				Message:  "subflow workflowDefinition must include edges even if empty",
 				NodeID:   nodeID,
 				NodeType: nodeType,
 				Pointer:  pointer + "/workflowDefinition/edges",
@@ -734,7 +740,7 @@ func lintWorkflowCallNode(node map[string]any, data map[string]any, idx int) ([]
 		}
 	}
 
-	return errorsList, nil
+	return errorsList, warningsList
 }
 
 func lintNavigateNode(node map[string]any, data map[string]any, idx int) ([]Issue, []Issue) {

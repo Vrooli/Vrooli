@@ -236,13 +236,13 @@
         {
           "if": {
             "properties": {
-              "type": { "const": "workflowCall" }
+              "type": { "const": "subflow" }
             }
           },
           "then": {
             "properties": {
               "data": {
-                "$ref": "#/definitions/workflowCallNodeData"
+                "$ref": "#/definitions/subflowNodeData"
               }
             }
           }
@@ -479,7 +479,7 @@
       },
       "additionalProperties": true
     },
-    "workflowCallNodeData": {
+    "subflowNodeData": {
       "allOf": [
         { "$ref": "#/definitions/commonNodeFields" }
       ],

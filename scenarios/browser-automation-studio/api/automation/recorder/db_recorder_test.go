@@ -246,7 +246,7 @@ func TestBuildTimelinePayloadPartial(t *testing.T) {
 	}
 
 	domID := uuid.New()
-	payload := buildTimelinePayload(outcome, "s3://shot.png", &domID, "<html>", []uuid.UUID{uuid.New()})
+	payload := buildTimelinePayload(outcome, "s3://shot.png", nil, &domID, "<html>", []uuid.UUID{uuid.New()})
 	if payload["screenshotUrl"] != "s3://shot.png" {
 		t.Fatalf("expected screenshotUrl to propagate, got %v", payload["screenshotUrl"])
 	}

@@ -20,6 +20,7 @@ type WSHubSink struct {
 
 	mu     sync.Mutex
 	queues map[uuid.UUID]*executionQueue
+	closed map[uuid.UUID]struct{}
 }
 
 // NewWSHubSink constructs a WSHubSink. Limits are carried for interface
@@ -33,6 +34,7 @@ func NewWSHubSink(hub wsHub.HubInterface, log *logrus.Logger, limits contracts.E
 		limits: limits,
 		log:    log,
 		queues: make(map[uuid.UUID]*executionQueue),
+		closed: make(map[uuid.UUID]struct{}),
 	}
 }
 
@@ -42,8 +44,14 @@ func (s *WSHubSink) Publish(_ context.Context, event contracts.EventEnvelope) er
 	if s == nil || s.hub == nil {
 		return nil
 	}
+	if s.isClosed(event.ExecutionID) {
+		return nil
+	}
 
 	queue := s.ensureQueue(event.ExecutionID)
+	if queue == nil {
+		return nil
+	}
 	queue.enqueue(event)
 	return nil
 }
@@ -54,6 +62,10 @@ func (s *WSHubSink) Limits() contracts.EventBufferLimits {
 }
 
 func (s *WSHubSink) ensureQueue(executionID uuid.UUID) *executionQueue {
+	if s.isClosed(executionID) {
+		return nil
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -65,6 +77,27 @@ func (s *WSHubSink) ensureQueue(executionID uuid.UUID) *executionQueue {
 	s.queues[executionID] = queue
 	go queue.run()
 	return queue
+}
+
+// CloseExecution drains and closes the per-execution queue to avoid goroutine
+// leaks after a run finishes.
+func (s *WSHubSink) CloseExecution(executionID uuid.UUID) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	queue, ok := s.queues[executionID]
+	if ok {
+		delete(s.queues, executionID)
+	}
+	s.closed[executionID] = struct{}{}
+	s.mu.Unlock()
+	if ok && queue != nil {
+		queue.close()
+	}
+	if s.hub != nil {
+		s.hub.CloseExecution(executionID)
+	}
 }
 
 type executionQueue struct {
@@ -79,6 +112,7 @@ type executionQueue struct {
 	perAttempt  map[string]int
 	inflight    int
 	dropCounter contracts.DropCounters
+	closed      bool
 }
 
 func newExecutionQueue(executionID uuid.UUID, hub wsHub.HubInterface, limits contracts.EventBufferLimits, log *logrus.Logger) *executionQueue {
@@ -96,6 +130,9 @@ func newExecutionQueue(executionID uuid.UUID, hub wsHub.HubInterface, limits con
 func (q *executionQueue) enqueue(event contracts.EventEnvelope) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	if q.closed {
+		return
+	}
 
 	// Drop oldest droppable events when execution or attempt buffers are full.
 	currentSize := len(q.events) + q.inflight
@@ -129,8 +166,12 @@ func (q *executionQueue) enqueue(event contracts.EventEnvelope) {
 func (q *executionQueue) run() {
 	for {
 		q.mu.Lock()
-		for len(q.events) == 0 {
+		for len(q.events) == 0 && !q.closed {
 			q.cond.Wait()
+		}
+		if q.closed && len(q.events) == 0 {
+			q.mu.Unlock()
+			return
 		}
 		event := q.events[0]
 		q.events = q.events[1:]
@@ -181,4 +222,19 @@ func (q *executionQueue) dropOldest(stepIndex, attempt *int) (uint64, bool) {
 
 func attemptKey(stepIndex, attempt int) string {
 	return fmt.Sprintf("%d:%d", stepIndex, attempt)
+}
+
+func (q *executionQueue) close() {
+	q.mu.Lock()
+	q.closed = true
+	q.events = nil
+	q.cond.Broadcast()
+	q.mu.Unlock()
+}
+
+func (s *WSHubSink) isClosed(executionID uuid.UUID) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.closed[executionID]
+	return ok
 }

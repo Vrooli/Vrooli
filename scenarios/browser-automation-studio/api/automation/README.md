@@ -56,6 +56,7 @@ Key invariants:
 ### Legacy isolation
 - The legacy Browserless client (`browserless/client.go`) has been removed. Runtime execution flows exclusively through `automation/executor` + `BrowserlessEngine` + `DBRecorder` + `WSHubSink`.
 - There is no feature-flag fallback to the legacy executor; `executeWithAutomationEngine` is the sole workflow execution path.
+- Subflows: only `subflow` nodes are supported for child execution; legacy `workflowCall` is rejected.
 
 ### Flow navigation (where complex orchestration lives)
 - Planning/compilation: `executor/plan_builder.go`

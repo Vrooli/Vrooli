@@ -686,7 +686,7 @@ func (s *flowStubEngine) Name() string { return "stub-engine" }
 
 func (s *flowStubEngine) Capabilities(context.Context) (contracts.EngineCapabilities, error) {
 	return contracts.EngineCapabilities{
-		SchemaVersion:         contracts.EventEnvelopeSchemaVersion,
+		SchemaVersion:         contracts.CapabilitiesSchemaVersion,
 		Engine:                s.Name(),
 		MaxConcurrentSessions: 1,
 	}, nil
@@ -728,7 +728,7 @@ func (c *captureEngine) Name() string { return "capture-engine" }
 
 func (c *captureEngine) Capabilities(context.Context) (contracts.EngineCapabilities, error) {
 	return contracts.EngineCapabilities{
-		SchemaVersion:         contracts.EventEnvelopeSchemaVersion,
+		SchemaVersion:         contracts.CapabilitiesSchemaVersion,
 		Engine:                c.Name(),
 		MaxConcurrentSessions: 1,
 	}, nil

@@ -18,10 +18,10 @@ Implements `[REQ:BAS-NODE-CONDITIONAL]` by branching the workflow before the nex
 
 ## Behavior
 
-1. The compiler records the node’s branch handles so only the `if_true` or `if_false` edge is followed in `api/browserless/client.go`.
-2. `api/browserless/runtime/instructions.go:1125-1180` normalizes the configuration (default mode, poll/timeout clamping, operator defaults, negation flag) and produces a Browserless instruction payload.
+1. The compiler records the node’s branch handles so only the `if_true` or `if_false` edge is followed in `api/automation/executor/plan_builder.go`.
+2. `api/browserless/runtime/instructions.go` normalizes the configuration (default mode, poll/timeout clamping, operator defaults, negation flag) and produces a Browserless instruction payload.
 3. `api/browserless/cdp/conditional_actions.go` evaluates the condition inside the active frame/session and captures a `ConditionResult` so telemetry and artifacts show which branch fired.
-4. The execution engine updates the step metadata with the result, making it visible in Execution Viewer and JSON artifacts for later debugging.
+4. The automation executor updates the step metadata with the result, making it visible in Execution Viewer and JSON artifacts for later debugging.
 
 ## Examples
 

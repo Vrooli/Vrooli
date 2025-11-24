@@ -23,9 +23,27 @@ func (c *BrowserlessPlanCompiler) Compile(ctx context.Context, executionID uuid.
 	if err != nil {
 		return contracts.ExecutionPlan{}, nil, err
 	}
-	instructions, err := runtime.InstructionsFromPlan(ctx, plan)
+	instructions, err := c.compileInstructions(ctx, plan)
 	if err != nil {
 		return contracts.ExecutionPlan{}, nil, err
+	}
+
+	return contracts.ExecutionPlan{
+		SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
+		PayloadVersion: contracts.PayloadVersion,
+		ExecutionID:    executionID,
+		WorkflowID:     workflow.ID,
+		Instructions:   instructions,
+		Graph:          toContractsGraph(plan),
+		Metadata:       plan.Metadata,
+		CreatedAt:      time.Now().UTC(),
+	}, instructions, nil
+}
+
+func (c *BrowserlessPlanCompiler) compileInstructions(ctx context.Context, plan *compiler.ExecutionPlan) ([]contracts.CompiledInstruction, error) {
+	instructions, err := runtime.InstructionsFromPlan(ctx, plan)
+	if err != nil {
+		return nil, err
 	}
 
 	compiled := make([]contracts.CompiledInstruction, 0, len(instructions))
@@ -50,15 +68,40 @@ func (c *BrowserlessPlanCompiler) Compile(ctx context.Context, executionID uuid.
 			Metadata:    map[string]string{},
 		})
 	}
+	return compiled, nil
+}
 
-	return contracts.ExecutionPlan{
-		SchemaVersion:  contracts.StepOutcomeSchemaVersion,
-		PayloadVersion: contracts.PayloadVersion,
-		ExecutionID:    executionID,
-		WorkflowID:     workflow.ID,
-		Instructions:   compiled,
-		Graph:          toContractsGraph(plan),
-		Metadata:       plan.Metadata,
-		CreatedAt:      time.Now().UTC(),
-	}, compiled, nil
+func toContractsGraph(plan *compiler.ExecutionPlan) *contracts.PlanGraph {
+	if plan == nil {
+		return nil
+	}
+	steps := make([]contracts.PlanStep, 0, len(plan.Steps))
+	for _, step := range plan.Steps {
+		edges := make([]contracts.PlanEdge, 0, len(step.OutgoingEdges))
+		for _, edge := range step.OutgoingEdges {
+			edges = append(edges, contracts.PlanEdge{
+				ID:         edge.ID,
+				Target:     edge.TargetNode,
+				Condition:  edge.Condition,
+				SourcePort: edge.SourcePort,
+				TargetPort: edge.TargetPort,
+			})
+		}
+		converted := contracts.PlanStep{
+			Index:     step.Index,
+			NodeID:    step.NodeID,
+			Type:      string(step.Type),
+			Params:    step.Params,
+			Outgoing:  edges,
+			Metadata:  map[string]string{},
+			Context:   map[string]any{},
+			Preload:   "",
+			SourcePos: nil,
+		}
+		if step.LoopPlan != nil {
+			converted.Loop = toContractsGraph(step.LoopPlan)
+		}
+		steps = append(steps, converted)
+	}
+	return &contracts.PlanGraph{Steps: steps}
 }

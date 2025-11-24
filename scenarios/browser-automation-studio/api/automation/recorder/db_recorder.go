@@ -21,13 +21,13 @@ import (
 // It intentionally normalizes payloads into existing ExecutionStep/Artifact
 // tables so UI/replay consumers can evolve without engine-specific fields.
 type DBRecorder struct {
-	repo    database.Repository
-	storage *storage.MinIOClient
+	repo    ExecutionRepository
+	storage storage.StorageInterface
 	log     *logrus.Logger
 }
 
 // NewDBRecorder constructs a Recorder backed by the database + optional storage.
-func NewDBRecorder(repo database.Repository, storage *storage.MinIOClient, log *logrus.Logger) *DBRecorder {
+func NewDBRecorder(repo ExecutionRepository, storage storage.StorageInterface, log *logrus.Logger) *DBRecorder {
 	return &DBRecorder{repo: repo, storage: storage, log: log}
 }
 
@@ -155,6 +155,7 @@ func (r *DBRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	}
 
 	var timelineScreenshot string
+	var timelineScreenshotID *uuid.UUID
 
 	// Persist screenshot if available.
 	if outcome.Screenshot != nil && len(outcome.Screenshot.Data) > 0 {
@@ -180,6 +181,7 @@ func (r *DBRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 			}
 			if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
 				artifactIDs = append(artifactIDs, artifact.ID)
+				timelineScreenshotID = &artifact.ID
 			}
 			timelineScreenshot = screenshotInfo.URL
 		} else {
@@ -198,6 +200,7 @@ func (r *DBRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 			}
 			if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
 				artifactIDs = append(artifactIDs, artifact.ID)
+				timelineScreenshotID = &artifact.ID
 			}
 			timelineScreenshot = fmt.Sprintf("inline:%s", deriveStepLabel(outcome))
 		}
@@ -237,7 +240,7 @@ func (r *DBRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	}
 
 	// Timeline frame for replay parity; include references to persisted artifacts.
-	timelinePayload := buildTimelinePayload(outcome, timelineScreenshot, domSnapshotArtifactID, domSnapshotPreview, artifactIDs)
+	timelinePayload := buildTimelinePayload(outcome, timelineScreenshot, timelineScreenshotID, domSnapshotArtifactID, domSnapshotPreview, artifactIDs)
 	artifact := &database.ExecutionArtifact{
 		ID:           uuid.New(),
 		ExecutionID:  plan.ExecutionID,
@@ -453,7 +456,7 @@ func truncateRunes(s string, limit int) string {
 	return string(runes[:limit])
 }
 
-func buildTimelinePayload(outcome contracts.StepOutcome, screenshotURL string, domSnapshotID *uuid.UUID, domSnapshotPreview string, artifactIDs []uuid.UUID) map[string]any {
+func buildTimelinePayload(outcome contracts.StepOutcome, screenshotURL string, screenshotID *uuid.UUID, domSnapshotID *uuid.UUID, domSnapshotPreview string, artifactIDs []uuid.UUID) map[string]any {
 	payload := map[string]any{
 		"stepIndex":     outcome.StepIndex,
 		"nodeId":        outcome.NodeID,
@@ -510,6 +513,9 @@ func buildTimelinePayload(outcome contracts.StepOutcome, screenshotURL string, d
 	}
 	if outcome.Failure != nil && strings.TrimSpace(outcome.Failure.Message) != "" {
 		payload["error"] = strings.TrimSpace(outcome.Failure.Message)
+	}
+	if screenshotID != nil {
+		payload["screenshotArtifactId"] = screenshotID.String()
 	}
 	if domSnapshotID != nil {
 		payload["domSnapshotArtifactId"] = domSnapshotID.String()

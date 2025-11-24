@@ -116,11 +116,9 @@ func NewHandler(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, 
 	recordingService := services.NewRecordingService(repo, storageClient, wsHub, log, recordingsRoot)
 	// Wire automation stack (feature-flag protected inside service).
 	autoExecutor := autoexecutor.NewSimpleExecutor(nil)
-	var autoEngineFactory autoengine.Factory
-	if eng, engErr := autoengine.NewBrowserlessEngine(log); engErr == nil {
-		autoEngineFactory = autoengine.NewStaticFactory(eng)
-	} else {
-		log.WithError(engErr).Warn("Failed to initialize browserless automation engine; automation executor will be disabled")
+	autoEngineFactory, engErr := autoengine.DefaultFactory(log)
+	if engErr != nil {
+		log.WithError(engErr).Warn("Failed to initialize automation engine; automation executor will be disabled")
 	}
 	autoRecorder := autorecorder.NewDBRecorder(repo, storageClient, log)
 

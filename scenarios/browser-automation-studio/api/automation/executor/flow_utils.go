@@ -14,7 +14,8 @@ import (
 // flow_utils.go holds small helpers for graph traversal and value coercion.
 
 type flowState struct {
-	vars map[string]any
+	vars      map[string]any
+	nextIndex int
 }
 
 func newFlowState(seed map[string]any) *flowState {
@@ -82,6 +83,40 @@ func (s *flowState) set(key string, value any) {
 		s.vars = map[string]any{}
 	}
 	s.vars[key] = value
+}
+
+func (s *flowState) merge(vars map[string]any) {
+	if s == nil || vars == nil {
+		return
+	}
+	for k, v := range vars {
+		s.set(k, v)
+	}
+}
+
+func (s *flowState) setNextIndexFromPlan(plan contracts.ExecutionPlan) {
+	if s == nil {
+		return
+	}
+	maxIdx := -1
+	for _, instr := range plan.Instructions {
+		if instr.Index > maxIdx {
+			maxIdx = instr.Index
+		}
+	}
+	maxIdx = maxInt(maxIdx, maxGraphIndex(plan.Graph))
+	if maxIdx >= s.nextIndex {
+		s.nextIndex = maxIdx + 1
+	}
+}
+
+func (s *flowState) allocateIndexRange(count int) int {
+	if s == nil {
+		return 0
+	}
+	base := s.nextIndex
+	s.nextIndex += count
+	return base
 }
 
 func extractLoopItems(params map[string]any, state *flowState) []any {
@@ -218,6 +253,16 @@ func (e *SimpleExecutor) interpolateInstruction(instr contracts.CompiledInstruct
 		instr.Params = params
 	}
 	return instr
+}
+
+func (e *SimpleExecutor) interpolatePlanStep(step contracts.PlanStep, state *flowState) contracts.PlanStep {
+	if state == nil || len(state.vars) == 0 || step.Params == nil {
+		return step
+	}
+	if params, ok := interpolateValue(step.Params, state).(map[string]any); ok {
+		step.Params = params
+	}
+	return step
 }
 
 func interpolateValue(v any, state *flowState) any {
@@ -434,6 +479,24 @@ func firstStep(graph *contracts.PlanGraph) *contracts.PlanStep {
 	return first
 }
 
+func maxGraphIndex(graph *contracts.PlanGraph) int {
+	if graph == nil {
+		return -1
+	}
+	maxIdx := -1
+	for _, step := range graph.Steps {
+		if step.Index > maxIdx {
+			maxIdx = step.Index
+		}
+		if step.Loop != nil {
+			if nested := maxGraphIndex(step.Loop); nested > maxIdx {
+				maxIdx = nested
+			}
+		}
+	}
+	return maxIdx
+}
+
 func planStepToInstruction(step contracts.PlanStep) contracts.CompiledInstruction {
 	return contracts.CompiledInstruction{
 		Index:       step.Index,
@@ -443,6 +506,18 @@ func planStepToInstruction(step contracts.PlanStep) contracts.CompiledInstructio
 		PreloadHTML: step.Preload,
 		Context:     step.Context,
 		Metadata:    step.Metadata,
+	}
+}
+
+func planStepToInstructionStep(instr contracts.CompiledInstruction) contracts.PlanStep {
+	return contracts.PlanStep{
+		Index:    instr.Index,
+		NodeID:   instr.NodeID,
+		Type:     instr.Type,
+		Params:   instr.Params,
+		Metadata: instr.Metadata,
+		Context:  instr.Context,
+		Preload:  instr.PreloadHTML,
 	}
 }
 
@@ -536,6 +611,13 @@ func intPtr(v int) *int {
 
 func minInt(a, b int) int {
 	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxInt(a, b int) int {
+	if a > b {
 		return a
 	}
 	return b

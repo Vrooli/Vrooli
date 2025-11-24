@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/vrooli/browser-automation-studio/browserless/runtime"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
@@ -53,9 +53,9 @@ func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
 						Width:      1280,
 						Height:     720,
 					},
-					CursorTrail:      []runtime.Point{{X: 640, Y: 360}, {X: 700, Y: 420}},
-					ClickPosition:    &runtime.Point{X: 700, Y: 420},
-					HighlightRegions: []runtime.HighlightRegion{{Selector: "#hero"}},
+					CursorTrail:      []autocontracts.Point{{X: 640, Y: 360}, {X: 700, Y: 420}},
+					ClickPosition:    &autocontracts.Point{X: 700, Y: 420},
+					HighlightRegions: []autocontracts.HighlightRegion{{Selector: "#hero"}},
 				},
 				{
 					StepIndex:  1,
@@ -70,9 +70,9 @@ func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
 						Width:      1440,
 						Height:     900,
 					},
-					FocusedElement: &runtime.ElementFocus{
+					FocusedElement: &autocontracts.ElementFocus{
 						Selector:    "#cta",
-						BoundingBox: &runtime.BoundingBox{X: 120, Y: 200, Width: 240, Height: 80},
+						BoundingBox: &autocontracts.BoundingBox{X: 120, Y: 200, Width: 240, Height: 80},
 					},
 					DomSnapshotPreview: "<div>Preview</div>",
 					DomSnapshot: &TimelineArtifact{

@@ -87,7 +87,7 @@ func TestSimpleExecutorPersistsArtifactsAndEvents(t *testing.T) {
 	createWorkflowFixture(t, repo, workflowID, executionID)
 
 	plan := contracts.ExecutionPlan{
-		SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+		SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
 		PayloadVersion: contracts.PayloadVersion,
 		ExecutionID:    executionID,
 		WorkflowID:     workflowID,
@@ -144,7 +144,7 @@ func TestSimpleExecutorProducesLegacyCompatibleArtifacts(t *testing.T) {
 
 	now := time.Now().UTC()
 	plan := contracts.ExecutionPlan{
-		SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+		SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
 		PayloadVersion: contracts.PayloadVersion,
 		ExecutionID:    executionID,
 		WorkflowID:     workflowID,
@@ -197,7 +197,7 @@ func TestSimpleExecutorProducesLegacyCompatibleArtifacts(t *testing.T) {
 
 func TestSimpleExecutorEmitsLegacyEventPayloads(t *testing.T) {
 	plan := contracts.ExecutionPlan{
-		SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+		SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
 		PayloadVersion: contracts.PayloadVersion,
 		ExecutionID:    uuid.New(),
 		WorkflowID:     uuid.New(),
@@ -300,7 +300,7 @@ func TestSimpleExecutorLinearGoldenEvents(t *testing.T) {
 	fixedEnd := fixedStart.Add(1500 * time.Millisecond)
 
 	plan := contracts.ExecutionPlan{
-		SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+		SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
 		PayloadVersion: contracts.PayloadVersion,
 		ExecutionID:    executionID,
 		WorkflowID:     workflowID,
@@ -662,7 +662,7 @@ func (s *stubEngine) Name() string { return "stub-engine" }
 
 func (s *stubEngine) Capabilities(context.Context) (contracts.EngineCapabilities, error) {
 	return contracts.EngineCapabilities{
-		SchemaVersion:         contracts.EventEnvelopeSchemaVersion,
+		SchemaVersion:         contracts.CapabilitiesSchemaVersion,
 		Engine:                s.Name(),
 		MaxConcurrentSessions: 1,
 	}, nil

@@ -102,6 +102,22 @@ func (m *MemorySink) DropCounters() map[uuid.UUID]contracts.DropCounters {
 	return out
 }
 
+// CloseExecution clears buffered events and drop counters for a finished
+// execution. Included to mirror WSHubSink lifecycle cleanup semantics.
+func (m *MemorySink) CloseExecution(executionID uuid.UUID) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	filtered := m.events[:0]
+	for _, ev := range m.events {
+		if ev.ExecutionID != executionID {
+			filtered = append(filtered, ev)
+		}
+	}
+	m.events = filtered
+	delete(m.dropCounters, executionID)
+}
+
 func (m *MemorySink) exceedsExecutionLimit(executionID uuid.UUID) bool {
 	count := 0
 	for _, ev := range m.events {

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/vrooli/browser-automation-studio/browserless/runtime"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
@@ -28,39 +28,39 @@ type ExecutionTimeline struct {
 
 // TimelineFrame captures a single step in the execution timeline.
 type TimelineFrame struct {
-	StepIndex            int                       `json:"step_index"`
-	NodeID               string                    `json:"node_id"`
-	StepType             string                    `json:"step_type"`
-	Status               string                    `json:"status"`
-	Success              bool                      `json:"success"`
-	DurationMs           int                       `json:"duration_ms,omitempty"`
-	TotalDurationMs      int                       `json:"total_duration_ms,omitempty"`
-	Progress             int                       `json:"progress,omitempty"`
-	StartedAt            *time.Time                `json:"started_at,omitempty"`
-	CompletedAt          *time.Time                `json:"completed_at,omitempty"`
-	FinalURL             string                    `json:"final_url,omitempty"`
-	Error                string                    `json:"error,omitempty"`
-	ConsoleLogCount      int                       `json:"console_log_count,omitempty"`
-	NetworkEventCount    int                       `json:"network_event_count,omitempty"`
-	ExtractedDataPreview any                       `json:"extracted_data_preview,omitempty"`
-	HighlightRegions     []runtime.HighlightRegion `json:"highlight_regions,omitempty"`
-	MaskRegions          []runtime.MaskRegion      `json:"mask_regions,omitempty"`
-	FocusedElement       *runtime.ElementFocus     `json:"focused_element,omitempty"`
-	ElementBoundingBox   *runtime.BoundingBox      `json:"element_bounding_box,omitempty"`
-	ClickPosition        *runtime.Point            `json:"click_position,omitempty"`
-	CursorTrail          []runtime.Point           `json:"cursor_trail,omitempty"`
-	ZoomFactor           float64                   `json:"zoom_factor,omitempty"`
-	Screenshot           *TimelineScreenshot       `json:"screenshot,omitempty"`
-	Artifacts            []TimelineArtifact        `json:"artifacts,omitempty"`
-	Assertion            *runtime.AssertionResult  `json:"assertion,omitempty"`
-	RetryAttempt         int                       `json:"retry_attempt,omitempty"`
-	RetryMaxAttempts     int                       `json:"retry_max_attempts,omitempty"`
-	RetryConfigured      int                       `json:"retry_configured,omitempty"`
-	RetryDelayMs         int                       `json:"retry_delay_ms,omitempty"`
-	RetryBackoffFactor   float64                   `json:"retry_backoff_factor,omitempty"`
-	RetryHistory         []RetryHistoryEntry       `json:"retry_history,omitempty"`
-	DomSnapshotPreview   string                    `json:"dom_snapshot_preview,omitempty"`
-	DomSnapshot          *TimelineArtifact         `json:"dom_snapshot,omitempty"`
+	StepIndex            int                             `json:"step_index"`
+	NodeID               string                          `json:"node_id"`
+	StepType             string                          `json:"step_type"`
+	Status               string                          `json:"status"`
+	Success              bool                            `json:"success"`
+	DurationMs           int                             `json:"duration_ms,omitempty"`
+	TotalDurationMs      int                             `json:"total_duration_ms,omitempty"`
+	Progress             int                             `json:"progress,omitempty"`
+	StartedAt            *time.Time                      `json:"started_at,omitempty"`
+	CompletedAt          *time.Time                      `json:"completed_at,omitempty"`
+	FinalURL             string                          `json:"final_url,omitempty"`
+	Error                string                          `json:"error,omitempty"`
+	ConsoleLogCount      int                             `json:"console_log_count,omitempty"`
+	NetworkEventCount    int                             `json:"network_event_count,omitempty"`
+	ExtractedDataPreview any                             `json:"extracted_data_preview,omitempty"`
+	HighlightRegions     []autocontracts.HighlightRegion `json:"highlight_regions,omitempty"`
+	MaskRegions          []autocontracts.MaskRegion      `json:"mask_regions,omitempty"`
+	FocusedElement       *autocontracts.ElementFocus     `json:"focused_element,omitempty"`
+	ElementBoundingBox   *autocontracts.BoundingBox      `json:"element_bounding_box,omitempty"`
+	ClickPosition        *autocontracts.Point            `json:"click_position,omitempty"`
+	CursorTrail          []autocontracts.Point           `json:"cursor_trail,omitempty"`
+	ZoomFactor           float64                         `json:"zoom_factor,omitempty"`
+	Screenshot           *TimelineScreenshot             `json:"screenshot,omitempty"`
+	Artifacts            []TimelineArtifact              `json:"artifacts,omitempty"`
+	Assertion            *autocontracts.AssertionOutcome `json:"assertion,omitempty"`
+	RetryAttempt         int                             `json:"retry_attempt,omitempty"`
+	RetryMaxAttempts     int                             `json:"retry_max_attempts,omitempty"`
+	RetryConfigured      int                             `json:"retry_configured,omitempty"`
+	RetryDelayMs         int                             `json:"retry_delay_ms,omitempty"`
+	RetryBackoffFactor   float64                         `json:"retry_backoff_factor,omitempty"`
+	RetryHistory         []RetryHistoryEntry             `json:"retry_history,omitempty"`
+	DomSnapshotPreview   string                          `json:"dom_snapshot_preview,omitempty"`
+	DomSnapshot          *TimelineArtifact               `json:"dom_snapshot,omitempty"`
 }
 
 // RetryHistoryEntry captures the outcome of a single retry attempt for a step.
@@ -460,15 +460,15 @@ func toTimePtr(value any) *time.Time {
 	return nil
 }
 
-func toAssertionResult(value any) *runtime.AssertionResult {
+func toAssertionResult(value any) *autocontracts.AssertionOutcome {
 	switch v := value.(type) {
-	case *runtime.AssertionResult:
+	case *autocontracts.AssertionOutcome:
 		return v
-	case runtime.AssertionResult:
+	case autocontracts.AssertionOutcome:
 		result := v
 		return &result
 	case map[string]any:
-		result := &runtime.AssertionResult{
+		result := &autocontracts.AssertionOutcome{
 			Mode:          toString(v["mode"]),
 			Selector:      toString(v["selector"]),
 			Message:       toString(v["message"]),
@@ -488,10 +488,10 @@ func toAssertionResult(value any) *runtime.AssertionResult {
 	}
 }
 
-func toHighlightRegions(value any) []runtime.HighlightRegion {
-	regions := make([]runtime.HighlightRegion, 0)
+func toHighlightRegions(value any) []autocontracts.HighlightRegion {
+	regions := make([]autocontracts.HighlightRegion, 0)
 	switch v := value.(type) {
-	case []runtime.HighlightRegion:
+	case []autocontracts.HighlightRegion:
 		return v
 	case []map[string]any:
 		for _, item := range v {
@@ -509,12 +509,12 @@ func toHighlightRegions(value any) []runtime.HighlightRegion {
 	return regions
 }
 
-func toHighlightRegion(value any) *runtime.HighlightRegion {
+func toHighlightRegion(value any) *autocontracts.HighlightRegion {
 	m, ok := value.(map[string]any)
 	if !ok {
 		return nil
 	}
-	region := runtime.HighlightRegion{
+	region := autocontracts.HighlightRegion{
 		Selector: toString(m["selector"]),
 		Padding:  toInt(m["padding"]),
 		Color:    toString(m["color"]),
@@ -528,10 +528,10 @@ func toHighlightRegion(value any) *runtime.HighlightRegion {
 	return &region
 }
 
-func toMaskRegions(value any) []runtime.MaskRegion {
-	regions := make([]runtime.MaskRegion, 0)
+func toMaskRegions(value any) []autocontracts.MaskRegion {
+	regions := make([]autocontracts.MaskRegion, 0)
 	switch v := value.(type) {
-	case []runtime.MaskRegion:
+	case []autocontracts.MaskRegion:
 		return v
 	case []map[string]any:
 		for _, item := range v {
@@ -549,12 +549,12 @@ func toMaskRegions(value any) []runtime.MaskRegion {
 	return regions
 }
 
-func toMaskRegion(value any) *runtime.MaskRegion {
+func toMaskRegion(value any) *autocontracts.MaskRegion {
 	m, ok := value.(map[string]any)
 	if !ok {
 		return nil
 	}
-	region := runtime.MaskRegion{
+	region := autocontracts.MaskRegion{
 		Selector: toString(m["selector"]),
 		Opacity:  toFloat(m["opacity"]),
 	}
@@ -567,12 +567,12 @@ func toMaskRegion(value any) *runtime.MaskRegion {
 	return &region
 }
 
-func toElementFocus(value any) *runtime.ElementFocus {
+func toElementFocus(value any) *autocontracts.ElementFocus {
 	m, ok := value.(map[string]any)
 	if !ok {
 		return nil
 	}
-	focus := runtime.ElementFocus{
+	focus := autocontracts.ElementFocus{
 		Selector: toString(m["selector"]),
 	}
 	if bbox := toBoundingBox(m["boundingBox"]); bbox != nil {
@@ -584,7 +584,7 @@ func toElementFocus(value any) *runtime.ElementFocus {
 	return &focus
 }
 
-func toBoundingBox(value any) *runtime.BoundingBox {
+func toBoundingBox(value any) *autocontracts.BoundingBox {
 	m, ok := value.(map[string]any)
 	if !ok {
 		return nil
@@ -592,7 +592,7 @@ func toBoundingBox(value any) *runtime.BoundingBox {
 	if len(m) == 0 {
 		return nil
 	}
-	return &runtime.BoundingBox{
+	return &autocontracts.BoundingBox{
 		X:      toFloat(m["x"]),
 		Y:      toFloat(m["y"]),
 		Width:  toFloat(m["width"]),
@@ -600,23 +600,23 @@ func toBoundingBox(value any) *runtime.BoundingBox {
 	}
 }
 
-func toPoint(value any) *runtime.Point {
+func toPoint(value any) *autocontracts.Point {
 	m, ok := value.(map[string]any)
 	if !ok {
 		return nil
 	}
-	return &runtime.Point{
+	return &autocontracts.Point{
 		X: toFloat(m["x"]),
 		Y: toFloat(m["y"]),
 	}
 }
 
-func toPointSlice(value any) []runtime.Point {
-	points := make([]runtime.Point, 0)
+func toPointSlice(value any) []autocontracts.Point {
+	points := make([]autocontracts.Point, 0)
 	switch v := value.(type) {
-	case []runtime.Point:
+	case []autocontracts.Point:
 		return v
-	case []*runtime.Point:
+	case []*autocontracts.Point:
 		for _, item := range v {
 			if item != nil {
 				points = append(points, *item)

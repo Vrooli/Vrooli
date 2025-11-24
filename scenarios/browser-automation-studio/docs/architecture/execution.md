@@ -3,7 +3,7 @@
 _Last reviewed: 2025-11-08_
 
 ## Context Snapshot
-- `api/browserless/client.go` now executes `navigate`, `wait`, `click`, `type`, `extract`, and `screenshot` nodes against a persistent Browserless session. Each step persists to `execution_steps`/`execution_artifacts`, capturing console + network telemetry, element bounding boxes, click coordinates, and highlight/mask/zoom metadata. Success/failure/else branching and per-node retry/backoff policies ship; loop constructs remain outstanding.
+- The automation stack (`api/automation/{executor,engine,recorder,events}`) orchestrates `navigate`, `wait`, `click`, `type`, `extract`, `screenshot`, and loop/branching nodes against Browserless through `BrowserlessEngine`. Outcomes are normalized into contracts payloads, persisted via `DBRecorder`, and streamed via `WSHubSink`, capturing console + network telemetry, element bounding boxes, click coordinates, and highlight/mask/zoom metadata.
 - React Flow payloads store nodes and edges; the compiler normalises the DAG and preserves branching metadata for runtime evaluation, but loop constructs and richer compile-time validation are still pending.
 - The WebSocket hub (`api/websocket/hub.go`) streams structured `execution.*`, `step.*`, and `step.heartbeat` events consumed by the UI replay panel and CLI watcher. Cursor overlays for the UI remain roadmap work, but the CLI now emits heartbeat health states and can trigger replay exports directly.
 - Artifact persistence includes MinIO-backed screenshots, per-step telemetry bundles, cursor trails, replay-ready `timeline_frame` payloads, and JSON replay export packages. DOM snapshots and automated video rendering remain future milestones.

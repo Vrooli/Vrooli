@@ -56,6 +56,9 @@ func (c EngineCapabilities) Validate() error {
 	if c.SchemaVersion == "" {
 		return errors.New("schema_version is required")
 	}
+	if c.SchemaVersion != CapabilitiesSchemaVersion {
+		return fmt.Errorf("schema_version must be %s", CapabilitiesSchemaVersion)
+	}
 	if c.Engine == "" {
 		return errors.New("engine is required")
 	}

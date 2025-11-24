@@ -29,7 +29,7 @@ func (s *WorkflowService) generateWorkflowFromPrompt(ctx context.Context, prompt
   "nodes": [
     {
       "id": "node-1",
-      "type": "navigate" | "click" | "type" | "shortcut" | "wait" | "screenshot" | "extract" | "workflowCall",
+      "type": "navigate" | "click" | "type" | "shortcut" | "wait" | "screenshot" | "extract",
       "position": {"x": <number>, "y": <number>},
       "data": { ... } // include all parameters needed for the step (url, selector, text, waitMs, etc.)
     }
@@ -44,7 +44,7 @@ Rules:
 2. Provide only the fields needed to execute the step (e.g., url, selector, text, waitMs, timeoutMs, screenshot name). Keep the response concise.
 3. Arrange nodes with sensible coordinates (e.g., x increments by ~180 horizontally, y by ~120 vertically for branches).
 4. Include necessary wait/ensure steps before interactions to make the automation reliable. Use the "wait" type for waits/ensure conditions.
-5. Valid node types are limited to: navigate, click, type, shortcut, wait, screenshot, extract, workflowCall. Do not invent new types.
+5. Valid node types are limited to: navigate, click, type, shortcut, wait, screenshot, extract. Do not invent new types or nested workflow nodes.
 6. Wrap the JSON in markers exactly like this: <WORKFLOW_JSON>{...}</WORKFLOW_JSON>.
 7. The response MUST start with '<WORKFLOW_JSON>{' and end with '}</WORKFLOW_JSON>'. Output minified JSON on a single line (no spaces or newlines) and keep it under 1200 characters in total.
 8. If you cannot produce a valid workflow, respond with <WORKFLOW_JSON>{"error":"reason"}</WORKFLOW_JSON>.
@@ -290,7 +290,7 @@ Rules:
 1. Respond with a single JSON object that uses the same schema as the original workflow ("nodes" array + "edges" array).
 2. Preserve existing node IDs when the step remains applicable. Modify node types/data/positions only where necessary, and keep data concise (only the parameters required to execute the step).
 3. Keep the graph valid: edges must describe a reachable execution path.
-4. Fill in realistic selectors, URLs, filenames, waits, etc.—no placeholders. Only use the allowed node types: navigate, click, type, shortcut, wait, screenshot, extract, workflowCall.
+4. Fill in realistic selectors, URLs, filenames, waits, etc.—no placeholders. Only use the allowed node types: navigate, click, type, shortcut, wait, screenshot, extract.
 5. Wrap the JSON in markers exactly like this: <WORKFLOW_JSON>{...}</WORKFLOW_JSON>.
 6. The response MUST start with '<WORKFLOW_JSON>{' and end with '}</WORKFLOW_JSON>'. Output minified JSON on a single line (no spaces or newlines) and keep it shorter than 1200 characters.
 7. If the request cannot be satisfied, respond with <WORKFLOW_JSON>{"error":"reason"}</WORKFLOW_JSON>.

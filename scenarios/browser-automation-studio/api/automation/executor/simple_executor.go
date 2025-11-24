@@ -25,6 +25,13 @@ type SimpleExecutor struct {
 	telemetryMu  sync.Mutex
 }
 
+type executionContext struct {
+	caps      contracts.EngineCapabilities
+	compiler  PlanCompiler
+	maxDepth  int
+	callStack []uuid.UUID
+}
+
 // NewSimpleExecutor constructs a SimpleExecutor. If no sequencer is supplied,
 // a per-execution sequencer is used.
 func NewSimpleExecutor(seq events.Sequencer) *SimpleExecutor {
@@ -58,6 +65,15 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 		engineName = "browserless"
 	}
 
+	compiler := req.PlanCompiler
+	if compiler == nil {
+		compiler = PlanCompilerForEngine(engineName)
+	}
+	maxDepth := req.MaxSubflowDepth
+	if maxDepth <= 0 {
+		maxDepth = 5
+	}
+
 	eng, err := req.EngineFactory.Resolve(ctx, engineName)
 	if err != nil {
 		return fmt.Errorf("resolve engine %q: %w", engineName, err)
@@ -67,9 +83,13 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 	requirements := deriveRequirements(req.Plan)
 
 	// Capabilities are fetched up front to allow callers to validate or log.
-	caps, err := eng.Capabilities(ctx)
-	if err != nil {
-		return fmt.Errorf("engine capabilities: %w", err)
+	caps := req.EngineCaps
+	if caps == nil {
+		descriptor, err := eng.Capabilities(ctx)
+		if err != nil {
+			return fmt.Errorf("engine capabilities: %w", err)
+		}
+		caps = &descriptor
 	}
 	if gap := caps.CheckCompatibility(requirements); !gap.Satisfied() {
 		return &CapabilityError{
@@ -108,26 +128,81 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 	state := newFlowState(seedVars)
 
 	if req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0 {
-		var err error
-		session, err = e.executeGraph(ctx, req, eng, spec, session, state, reuseMode)
-		return err
+	}
+	state.setNextIndexFromPlan(req.Plan)
+
+	execCtx := executionContext{
+		caps:     *caps,
+		compiler: compiler,
+		maxDepth: maxDepth,
+		callStack: func() []uuid.UUID {
+			stack := append([]uuid.UUID{}, req.SubflowStack...)
+			if req.Plan.WorkflowID != uuid.Nil {
+				stack = append(stack, req.Plan.WorkflowID)
+			}
+			return stack
+		}(),
+	}
+
+	_, err = e.runPlan(ctx, req, execCtx, eng, spec, session, state, reuseMode)
+	return err
+}
+
+func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, state *flowState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
+	if req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0 {
+		return e.executeGraph(ctx, req, execCtx, eng, spec, session, state, reuseMode)
 	}
 
 	for idx := range req.Plan.Instructions {
 		if session == nil {
-			session, err = eng.StartSession(ctx, spec)
+			s, err := eng.StartSession(ctx, spec)
 			if err != nil {
-				return fmt.Errorf("start session: %w", err)
+				return session, fmt.Errorf("start session: %w", err)
 			}
+			session = s
 		}
 		instruction := req.Plan.Instructions[idx]
 		instruction = e.interpolateInstruction(instruction, state)
 
+		if strings.EqualFold(strings.TrimSpace(instruction.Type), "workflowcall") {
+			return session, fmt.Errorf("workflowCall nodes are no longer supported; use subflow instead")
+		}
+
+		if isSubflowStep(instruction.Type) {
+			step := planStepToInstructionStep(instruction)
+			outcome, updatedSession, err := e.executeSubflow(ctx, req, execCtx, eng, spec, session, step, state, reuseMode)
+			session = updatedSession
+			if err != nil {
+				return session, err
+			}
+			if !outcome.Success {
+				return session, fmt.Errorf("subflow %s failed: %s", step.NodeID, e.failureMessage(outcome))
+			}
+			continue
+		}
+
+		if isSetVariableStep(instruction.Type) {
+			step := contracts.PlanStep{
+				Index:  instruction.Index,
+				NodeID: instruction.NodeID,
+				Type:   instruction.Type,
+				Params: instruction.Params,
+			}
+			outcome, setErr := e.applySetVariable(ctx, req, step.Index, step.Type, step.NodeID, step.Params, state)
+			if setErr != nil {
+				return session, setErr
+			}
+			if !outcome.Success {
+				return session, fmt.Errorf("set_variable step %d failed", step.Index)
+			}
+			continue
+		}
+
 		if ctx.Err() != nil {
 			if _, cancelErr := e.recordTerminatedStep(ctx, req, instruction, ctx.Err()); cancelErr != nil {
-				return cancelErr
+				return session, cancelErr
 			}
-			return ctx.Err()
+			return session, ctx.Err()
 		}
 
 		stepCtx, cancel := context.WithCancel(ctx)
@@ -151,7 +226,7 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 
 		recordResult, recordErr := req.Recorder.RecordStepOutcome(ctx, req.Plan, normalized)
 		if recordErr != nil {
-			return fmt.Errorf("record step outcome: %w", recordErr)
+			return session, fmt.Errorf("record step outcome: %w", recordErr)
 		}
 
 		payload := map[string]any{
@@ -170,19 +245,19 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 
 		newSession, resetErr := e.maybeResetSession(ctx, eng, spec, session, reuseMode)
 		if resetErr != nil {
-			return fmt.Errorf("reset session: %w", resetErr)
+			return session, fmt.Errorf("reset session: %w", resetErr)
 		}
 		session = newSession
 
 		if runErr != nil {
-			return runErr
+			return session, runErr
 		}
 		if !normalized.Success {
-			return fmt.Errorf("step %d failed: %s", normalized.StepIndex, e.failureMessage(normalized))
+			return session, fmt.Errorf("step %d failed: %s", normalized.StepIndex, e.failureMessage(normalized))
 		}
 	}
 
-	return nil
+	return session, nil
 }
 
 func (e *SimpleExecutor) validateRequest(req Request) error {

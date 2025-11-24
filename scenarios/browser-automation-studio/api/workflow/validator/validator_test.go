@@ -3,6 +3,8 @@ package validator
 import (
 	"context"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 func TestValidatorValidWorkflow(t *testing.T) {
@@ -265,7 +267,53 @@ func TestValidatorAllowsNodesWithoutPosition(t *testing.T) {
 	}
 }
 
-func TestValidatorWorkflowCallRequiresTarget(t *testing.T) {
+func TestValidatorSubflowWithWorkflowID(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	childID := uuid.New().String()
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":       "call",
+				"type":     "subflow",
+				"position": map[string]any{"x": 0, "y": 0},
+				"data": map[string]any{
+					"label":      "Child flow",
+					"workflowId": childID,
+					"parameters": map[string]any{"foo": "bar"},
+				},
+			},
+			map[string]any{
+				"id":       "done",
+				"type":     "navigate",
+				"position": map[string]any{"x": 100, "y": 0},
+				"data": map[string]any{
+					"label":             "Next",
+					"destinationType":   "url",
+					"url":               "https://example.com",
+					"waitForNavigation": true,
+				},
+			},
+		},
+		"edges": []any{map[string]any{"id": "edge-1", "source": "call", "target": "done"}},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if !res.Valid {
+		t.Fatalf("expected subflow with workflowId to validate; errors: %+v", res.Errors)
+	}
+	if len(res.Warnings) != 0 {
+		t.Fatalf("expected no warnings for subflow, got %+v", res.Warnings)
+	}
+}
+
+func TestValidatorRejectsWorkflowCallType(t *testing.T) {
 	v, err := NewValidator()
 	if err != nil {
 		t.Fatalf("failed to init validator: %v", err)
@@ -277,7 +325,6 @@ func TestValidatorWorkflowCallRequiresTarget(t *testing.T) {
 				"id":       "call",
 				"type":     "workflowCall",
 				"position": map[string]any{"x": 0, "y": 0},
-				"data":     map[string]any{},
 			},
 		},
 		"edges": []any{},
@@ -288,60 +335,7 @@ func TestValidatorWorkflowCallRequiresTarget(t *testing.T) {
 		t.Fatalf("validation returned error: %v", err)
 	}
 	if res.Valid {
-		t.Fatalf("expected workflow call without target to fail")
-	}
-
-	found := false
-	for _, issue := range res.Errors {
-		if issue.Code == "WF_WORKFLOW_CALL_TARGET" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected WF_WORKFLOW_CALL_TARGET error, got %+v", res.Errors)
-	}
-}
-
-func TestValidatorWorkflowCallInlineDefinition(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
-
-	workflow := map[string]any{
-		"nodes": []any{
-			map[string]any{
-				"id":       "call",
-				"type":     "workflowCall",
-				"position": map[string]any{"x": 0, "y": 0},
-				"data": map[string]any{
-					"workflowDefinition": map[string]any{
-						"nodes": []any{
-							map[string]any{
-								"id":       "inline-nav",
-								"type":     "navigate",
-								"position": map[string]any{"x": 0, "y": 0},
-								"data": map[string]any{
-									"destinationType": "url",
-									"url":             "https://example.com",
-								},
-							},
-						},
-						"edges": []any{},
-					},
-				},
-			},
-		},
-		"edges": []any{},
-	}
-
-	res, err := v.Validate(context.Background(), workflow, Options{})
-	if err != nil {
-		t.Fatalf("validation returned error: %v", err)
-	}
-	if !res.Valid {
-		t.Fatalf("expected inline workflow definition to be valid, got %+v", res.Errors)
+		t.Fatalf("expected workflowCall to be rejected by schema; warnings=%+v", res.Warnings)
 	}
 }
 
@@ -419,4 +413,24 @@ func TestValidatorAcceptsStoreResultField(t *testing.T) {
 	if !res.Valid {
 		t.Fatalf("expected workflow with 'storeResult' to be valid, got errors: %+v", res.Errors)
 	}
+}
+
+func assertIssue(t *testing.T, issues []Issue, code string) bool {
+	t.Helper()
+	for _, issue := range issues {
+		if issue.Code == code {
+			return true
+		}
+	}
+	t.Fatalf("expected issue code %s, got %+v", code, issues)
+	return false
+}
+
+func assertWarning(warnings []Issue, code string) bool {
+	for _, warn := range warnings {
+		if warn.Code == code {
+			return true
+		}
+	}
+	return false
 }

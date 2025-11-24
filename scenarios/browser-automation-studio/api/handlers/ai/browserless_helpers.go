@@ -58,16 +58,20 @@ type automationRunner struct {
 }
 
 func newAutomationRunner(log *logrus.Logger) (*automationRunner, error) {
-	eng, err := autoengine.NewBrowserlessEngineWithFallback(log, true)
+	selection := autoengine.FromEnv()
+	factory, err := autoengine.DefaultFactory(log)
 	if err != nil {
 		return nil, err
 	}
-	factory := autoengine.NewStaticFactory(eng)
+	engineName := selection.Resolve("")
+	if engineName == "" {
+		engineName = "browserless"
+	}
 	return &automationRunner{
 		executor:      autoexecutor.NewSimpleExecutor(nil),
 		engineFactory: factory,
 		log:           log,
-		defaultEngine: eng.Name(),
+		defaultEngine: engineName,
 	}, nil
 }
 
@@ -77,7 +81,7 @@ func (r *automationRunner) run(ctx context.Context, viewportWidth, viewportHeigh
 	}
 	recorder := &inMemoryRecorder{}
 	plan := autocontracts.ExecutionPlan{
-		SchemaVersion:  autocontracts.StepOutcomeSchemaVersion,
+		SchemaVersion:  autocontracts.ExecutionPlanSchemaVersion,
 		PayloadVersion: autocontracts.PayloadVersion,
 		ExecutionID:    uuid.New(),
 		WorkflowID:     uuid.New(),

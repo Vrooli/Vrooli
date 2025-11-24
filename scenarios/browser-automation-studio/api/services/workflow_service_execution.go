@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -463,6 +464,7 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 	}
 
 	publishLifecycle(autocontracts.EventKindExecutionStarted, map[string]any{"status": "running"})
+	defer closeEventSink(eventSink, execution.ID)
 
 	err = s.executeWithAutomationEngine(ctx, execution, workflow, selection, eventSink)
 
@@ -638,19 +640,57 @@ func unsupportedAutomationNodes(flowDefinition database.JSONMap) []string {
 		return nil
 	}
 
-	nodesRaw, ok := flowDefinition["nodes"]
-	if !ok {
+	nodes, ok := flowDefinition["nodes"].([]any)
+	if !ok || len(nodes) == 0 {
 		return nil
 	}
 
-	_, ok = nodesRaw.([]any)
-	if !ok {
+	supportedLoopTypes := map[string]struct{}{
+		"repeat":  {},
+		"foreach": {},
+		"forEach": {},
+		"while":   {},
+	}
+
+	unsupported := map[string]struct{}{}
+	add := func(kind string) {
+		if strings.TrimSpace(kind) == "" {
+			return
+		}
+		unsupported[kind] = struct{}{}
+	}
+
+	for _, raw := range nodes {
+		node, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		nodeType := strings.ToLower(strings.TrimSpace(extractString(node, "type")))
+		data, _ := node["data"].(map[string]any)
+
+		switch nodeType {
+		case "loop":
+			loopType := strings.TrimSpace(extractString(data, "loopType"))
+			if loopType == "" {
+				add("loop:missing_type")
+				continue
+			}
+			if _, ok := supportedLoopTypes[loopType]; !ok {
+				add(fmt.Sprintf("loop:%s", strings.ToLower(loopType)))
+			}
+		}
+	}
+
+	if len(unsupported) == 0 {
 		return nil
 	}
 
-	// All currently defined node types (including loops) are supported by the
-	// automation executor; keep hook for future capability checks.
-	return nil
+	out := make([]string, 0, len(unsupported))
+	for kind := range unsupported {
+		out = append(out, kind)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func extractString(m map[string]any, key string) string {
@@ -672,7 +712,13 @@ func (s *WorkflowService) executeWithAutomationEngine(ctx context.Context, execu
 		return errors.New("workflow service not configured")
 	}
 
+	engineName := selection.Resolve("")
+
 	compiler := s.planCompiler
+	if compiler == nil {
+		compiler = autoexecutor.PlanCompilerForEngine(engineName)
+	}
+
 	plan, _, err := autoexecutor.BuildContractsPlanWithCompiler(ctx, execution.ID, workflow, compiler)
 	if err != nil {
 		return err
@@ -682,11 +728,11 @@ func (s *WorkflowService) executeWithAutomationEngine(ctx context.Context, execu
 		s.executor = autoexecutor.NewSimpleExecutor(nil)
 	}
 	if s.engineFactory == nil {
-		if eng, engErr := autoengine.NewBrowserlessEngine(s.log); engErr == nil {
-			s.engineFactory = autoengine.NewStaticFactory(eng)
-		} else {
+		factory, engErr := autoengine.DefaultFactory(s.log)
+		if engErr != nil {
 			return engErr
 		}
+		s.engineFactory = factory
 	}
 	if s.artifactRecorder == nil {
 		s.artifactRecorder = autorecorder.NewDBRecorder(s.repo, nil, s.log)
@@ -698,11 +744,24 @@ func (s *WorkflowService) executeWithAutomationEngine(ctx context.Context, execu
 
 	req := autoexecutor.Request{
 		Plan:              plan,
-		EngineName:        selection.Resolve(""),
+		EngineName:        engineName,
 		EngineFactory:     s.engineFactory,
 		Recorder:          s.artifactRecorder,
 		EventSink:         eventSink,
 		HeartbeatInterval: 2 * time.Second,
+		WorkflowResolver:  s.repo,
+		PlanCompiler:      compiler,
+		MaxSubflowDepth:   5,
 	}
 	return s.executor.Execute(ctx, req)
+}
+
+type closableEventSink interface {
+	CloseExecution(uuid.UUID)
+}
+
+func closeEventSink(sink autoevents.Sink, executionID uuid.UUID) {
+	if closable, ok := sink.(closableEventSink); ok && closable != nil {
+		closable.CloseExecution(executionID)
+	}
 }

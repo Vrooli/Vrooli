@@ -53,6 +53,10 @@ func (s *stubHub) Updates() []wsHub.ExecutionUpdate {
 	return cp
 }
 
+func (s *stubHub) CloseExecution(executionID uuid.UUID) {
+	_ = executionID
+}
+
 func TestWSHubSinkPublishesAdaptedEvent(t *testing.T) {
 	hub := &stubHub{}
 	sink := NewWSHubSink(hub, logrus.New(), contracts.DefaultEventBufferLimits)
@@ -179,6 +183,47 @@ func TestWSHubSinkStepEnvelopeShapeMatchesLegacyExpectations(t *testing.T) {
 	}
 }
 
+func TestWSHubSinkCloseExecutionStopsEnqueue(t *testing.T) {
+	hub := &stubHub{}
+	sink := NewWSHubSink(hub, logrus.New(), contracts.DefaultEventBufferLimits)
+
+	stepIndex := 1
+	attempt := 1
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	env := contracts.EventEnvelope{
+		SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
+		PayloadVersion: contracts.PayloadVersion,
+		Kind:           contracts.EventKindStepCompleted,
+		ExecutionID:    execID,
+		WorkflowID:     workflowID,
+		StepIndex:      &stepIndex,
+		Attempt:        &attempt,
+		Sequence:       1,
+		Timestamp:      time.Unix(0, 0).UTC(),
+	}
+
+	if err := sink.Publish(context.Background(), env); err != nil {
+		t.Fatalf("publish returned error: %v", err)
+	}
+	updates := waitForUpdates(hub, 1, time.Second)
+	if len(updates) != 1 {
+		t.Fatalf("expected 1 update before close, got %d", len(updates))
+	}
+
+	sink.CloseExecution(execID)
+
+	// Attempt to publish after close should be ignored for this execution.
+	if err := sink.Publish(context.Background(), env); err != nil {
+		t.Fatalf("publish after close returned error: %v", err)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if count := len(hub.Updates()); count != 1 {
+		t.Fatalf("expected updates to stay at 1 after close, got %d", count)
+	}
+}
+
 // blockingHub simulates a slow downstream consumer to trigger backpressure logic.
 type blockingHub struct {
 	mu      sync.Mutex
@@ -211,6 +256,10 @@ func (b *blockingHub) Updates() []wsHub.ExecutionUpdate {
 	cp := make([]wsHub.ExecutionUpdate, len(b.updates))
 	copy(cp, b.updates)
 	return cp
+}
+
+func (b *blockingHub) CloseExecution(executionID uuid.UUID) {
+	_ = executionID
 }
 
 func (b *blockingHub) BroadcastEnvelope(event any) {

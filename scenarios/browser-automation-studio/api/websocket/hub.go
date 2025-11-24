@@ -139,6 +139,12 @@ func (h *Hub) GetClientCount() int {
 	return len(h.clients)
 }
 
+// CloseExecution is a no-op for the hub but satisfies the interface so sinks
+// can call it when an execution completes.
+func (h *Hub) CloseExecution(executionID uuid.UUID) {
+	_ = executionID
+}
+
 // ServeWS handles WebSocket requests from clients
 func (h *Hub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID) {
 	client := &Client{

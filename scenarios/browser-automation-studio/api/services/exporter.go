@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/vrooli/browser-automation-studio/browserless/runtime"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
@@ -149,38 +149,38 @@ type ExportClickPulse struct {
 
 // ExportFrame captures per-step replay metadata plus animation hints.
 type ExportFrame struct {
-	Index                   int                       `json:"index"`
-	StepIndex               int                       `json:"step_index"`
-	NodeID                  string                    `json:"node_id"`
-	StepType                string                    `json:"step_type"`
-	Title                   string                    `json:"title"`
-	Status                  string                    `json:"status"`
-	StartOffsetMs           int                       `json:"start_offset_ms"`
-	DurationMs              int                       `json:"duration_ms"`
-	HoldMs                  int                       `json:"hold_ms"`
-	Enter                   TransitionSpec            `json:"enter"`
-	Exit                    TransitionSpec            `json:"exit"`
-	ScreenshotAssetID       string                    `json:"screenshot_asset_id,omitempty"`
-	Viewport                ExportDimensions          `json:"viewport"`
-	ZoomFactor              float64                   `json:"zoom_factor,omitempty"`
-	HighlightRegions        []runtime.HighlightRegion `json:"highlight_regions,omitempty"`
-	MaskRegions             []runtime.MaskRegion      `json:"mask_regions,omitempty"`
-	FocusedElement          *runtime.ElementFocus     `json:"focused_element,omitempty"`
-	ElementBoundingBox      *runtime.BoundingBox      `json:"element_bounding_box,omitempty"`
-	NormalizedFocusBounds   *ExportNormalizedRect     `json:"normalized_focus_bounds,omitempty"`
-	NormalizedElementBounds *ExportNormalizedRect     `json:"normalized_element_bounds,omitempty"`
-	ClickPosition           *runtime.Point            `json:"click_position,omitempty"`
-	NormalizedClickPosition *ExportNormalizedPoint    `json:"normalized_click_position,omitempty"`
-	CursorTrail             []runtime.Point           `json:"cursor_trail,omitempty"`
-	NormalizedCursorTrail   []ExportNormalizedPoint   `json:"normalized_cursor_trail,omitempty"`
-	ConsoleLogCount         int                       `json:"console_log_count,omitempty"`
-	NetworkEventCount       int                       `json:"network_event_count,omitempty"`
-	FinalURL                string                    `json:"final_url,omitempty"`
-	Error                   string                    `json:"error,omitempty"`
-	Assertion               *runtime.AssertionResult  `json:"assertion,omitempty"`
-	DomSnapshotPreview      string                    `json:"dom_snapshot_preview,omitempty"`
-	DomSnapshotHTML         string                    `json:"dom_snapshot_html,omitempty"`
-	Resilience              ExportResilience          `json:"resilience"`
+	Index                   int                             `json:"index"`
+	StepIndex               int                             `json:"step_index"`
+	NodeID                  string                          `json:"node_id"`
+	StepType                string                          `json:"step_type"`
+	Title                   string                          `json:"title"`
+	Status                  string                          `json:"status"`
+	StartOffsetMs           int                             `json:"start_offset_ms"`
+	DurationMs              int                             `json:"duration_ms"`
+	HoldMs                  int                             `json:"hold_ms"`
+	Enter                   TransitionSpec                  `json:"enter"`
+	Exit                    TransitionSpec                  `json:"exit"`
+	ScreenshotAssetID       string                          `json:"screenshot_asset_id,omitempty"`
+	Viewport                ExportDimensions                `json:"viewport"`
+	ZoomFactor              float64                         `json:"zoom_factor,omitempty"`
+	HighlightRegions        []autocontracts.HighlightRegion `json:"highlight_regions,omitempty"`
+	MaskRegions             []autocontracts.MaskRegion      `json:"mask_regions,omitempty"`
+	FocusedElement          *autocontracts.ElementFocus     `json:"focused_element,omitempty"`
+	ElementBoundingBox      *autocontracts.BoundingBox      `json:"element_bounding_box,omitempty"`
+	NormalizedFocusBounds   *ExportNormalizedRect           `json:"normalized_focus_bounds,omitempty"`
+	NormalizedElementBounds *ExportNormalizedRect           `json:"normalized_element_bounds,omitempty"`
+	ClickPosition           *autocontracts.Point            `json:"click_position,omitempty"`
+	NormalizedClickPosition *ExportNormalizedPoint          `json:"normalized_click_position,omitempty"`
+	CursorTrail             []autocontracts.Point           `json:"cursor_trail,omitempty"`
+	NormalizedCursorTrail   []ExportNormalizedPoint         `json:"normalized_cursor_trail,omitempty"`
+	ConsoleLogCount         int                             `json:"console_log_count,omitempty"`
+	NetworkEventCount       int                             `json:"network_event_count,omitempty"`
+	FinalURL                string                          `json:"final_url,omitempty"`
+	Error                   string                          `json:"error,omitempty"`
+	Assertion               *autocontracts.AssertionOutcome `json:"assertion,omitempty"`
+	DomSnapshotPreview      string                          `json:"dom_snapshot_preview,omitempty"`
+	DomSnapshotHTML         string                          `json:"dom_snapshot_html,omitempty"`
+	Resilience              ExportResilience                `json:"resilience"`
 }
 
 // ExportResilience captures retry/backoff metadata for a step.
@@ -617,7 +617,7 @@ func transitionSpec(frame TimelineFrame, enter bool, duration int) TransitionSpe
 	}
 }
 
-func normalizePoint(point *runtime.Point, dims ExportDimensions) *ExportNormalizedPoint {
+func normalizePoint(point *autocontracts.Point, dims ExportDimensions) *ExportNormalizedPoint {
 	if point == nil || dims.Width <= 0 || dims.Height <= 0 {
 		return nil
 	}
@@ -627,7 +627,7 @@ func normalizePoint(point *runtime.Point, dims ExportDimensions) *ExportNormaliz
 	}
 }
 
-func normalizeRect(box *runtime.BoundingBox, dims ExportDimensions) *ExportNormalizedRect {
+func normalizeRect(box *autocontracts.BoundingBox, dims ExportDimensions) *ExportNormalizedRect {
 	if box == nil || dims.Width <= 0 || dims.Height <= 0 {
 		return nil
 	}
@@ -639,7 +639,7 @@ func normalizeRect(box *runtime.BoundingBox, dims ExportDimensions) *ExportNorma
 	}
 }
 
-func normalizeTrail(trail []runtime.Point, dims ExportDimensions) []ExportNormalizedPoint {
+func normalizeTrail(trail []autocontracts.Point, dims ExportDimensions) []ExportNormalizedPoint {
 	if len(trail) == 0 || dims.Width <= 0 || dims.Height <= 0 {
 		return nil
 	}

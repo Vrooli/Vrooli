@@ -130,11 +130,11 @@ func (s *WorkflowService) CheckAutomationHealth(ctx context.Context) (bool, erro
 	factory := s.engineFactory
 
 	if factory == nil {
-		engine, err := autoengine.NewBrowserlessEngine(s.log)
+		defaultFactory, err := autoengine.DefaultFactory(s.log)
 		if err != nil {
 			return false, err
 		}
-		factory = autoengine.NewStaticFactory(engine)
+		factory = defaultFactory
 	}
 
 	eng, err := factory.Resolve(ctx, engineName)

@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/events"
 	"github.com/vrooli/browser-automation-studio/automation/recorder"
+	"github.com/vrooli/browser-automation-studio/database"
 )
 
 func TestSimpleExecutorHappyPath(t *testing.T) {
@@ -157,6 +159,191 @@ func TestSimpleExecutorPropagatesEngineError(t *testing.T) {
 	}
 }
 
+func TestSimpleExecutorRunsSubflowWithWorkflowID(t *testing.T) {
+	execID := uuid.New()
+	parentWorkflowID := uuid.New()
+	childWorkflowID := uuid.New()
+
+	session := &fakeSession{
+		outcomeByNode: map[string]contracts.StepOutcome{
+			"child-step": {Success: true, NodeID: "child-step", StepType: "click"},
+			"parent-set": {Success: true, NodeID: "parent-set", StepType: "set_variable"},
+		},
+	}
+	factory := &fakeEngineFactory{session: session}
+
+	childPlan := contracts.ExecutionPlan{
+		SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
+		PayloadVersion: contracts.PayloadVersion,
+		ExecutionID:    execID,
+		WorkflowID:     childWorkflowID,
+		Instructions: []contracts.CompiledInstruction{
+			{Index: 0, NodeID: "child-step", Type: "click", Params: map[string]any{}},
+		},
+		CreatedAt: time.Now().UTC(),
+	}
+
+	rec := &memoryRecorder{}
+	sink := events.NewMemorySink(contracts.DefaultEventBufferLimits)
+
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			ExecutionID:    execID,
+			WorkflowID:     parentWorkflowID,
+			Instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "subflow-node", Type: "subflow", Params: map[string]any{"workflowId": childWorkflowID.String()}},
+				{Index: 1, NodeID: "parent-set", Type: "set_variable", Params: map[string]any{"name": "afterChild", "value": "ok"}},
+			},
+			CreatedAt: time.Now().UTC(),
+		},
+		EngineName:        "browserless",
+		EngineFactory:     factory,
+		Recorder:          rec,
+		EventSink:         sink,
+		HeartbeatInterval: 0,
+		WorkflowResolver:  &stubWorkflowResolver{workflows: map[uuid.UUID]*database.Workflow{childWorkflowID: {ID: childWorkflowID}}},
+		PlanCompiler: &subflowPlanCompiler{plans: map[uuid.UUID]contracts.ExecutionPlan{
+			childWorkflowID: childPlan,
+		}},
+		MaxSubflowDepth: 5,
+	}
+
+	executor := NewSimpleExecutor(nil)
+	if err := executor.Execute(context.Background(), req); err != nil {
+		t.Fatalf("expected subflow to succeed, got %v", err)
+	}
+
+	if session.runs < 1 {
+		t.Fatalf("expected engine to run child steps, got %d", session.runs)
+	}
+	if len(rec.outcomes) == 0 {
+		t.Fatalf("expected recorder to capture subflow outcomes")
+	}
+	if len(sink.Events()) == 0 {
+		t.Fatalf("expected events emitted for subflow execution")
+	}
+}
+
+func TestSimpleExecutorRunsInlineSubflowAndMergesVars(t *testing.T) {
+	execID := uuid.New()
+	parentWorkflowID := uuid.New()
+
+	session := &fakeSession{
+		outcomeByNode: map[string]contracts.StepOutcome{
+			"child-set": {Success: true, NodeID: "child-set", StepType: "set_variable"},
+			"parent-assert": {
+				Success: true, NodeID: "parent-assert", StepType: "assert",
+			},
+		},
+	}
+	factory := &fakeEngineFactory{session: session}
+
+	inlineChildID := uuid.New()
+	childPlan := contracts.ExecutionPlan{
+		SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
+		PayloadVersion: contracts.PayloadVersion,
+		ExecutionID:    execID,
+		WorkflowID:     inlineChildID,
+		Instructions: []contracts.CompiledInstruction{
+			{Index: 0, NodeID: "child-set", Type: "set_variable", Params: map[string]any{"name": "foo", "value": "bar"}},
+		},
+		CreatedAt: time.Now().UTC(),
+	}
+
+	rec := &memoryRecorder{}
+	sink := events.NewMemorySink(contracts.DefaultEventBufferLimits)
+
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			ExecutionID:    execID,
+			WorkflowID:     parentWorkflowID,
+			Instructions: []contracts.CompiledInstruction{
+				{
+					Index: 0, NodeID: "subflow-inline", Type: "subflow",
+					Params: map[string]any{"workflowDefinition": map[string]any{"nodes": []any{}, "edges": []any{}}},
+				},
+				{Index: 1, NodeID: "parent-assert", Type: "assert", Params: map[string]any{"selector": "${foo}"}},
+			},
+			CreatedAt: time.Now().UTC(),
+			Metadata: map[string]any{
+				"variables": map[string]any{},
+			},
+		},
+		EngineName:        "browserless",
+		EngineFactory:     factory,
+		Recorder:          rec,
+		EventSink:         sink,
+		HeartbeatInterval: 0,
+		WorkflowResolver:  &stubWorkflowResolver{},
+		PlanCompiler: &subflowPlanCompiler{
+			plans:       map[uuid.UUID]contracts.ExecutionPlan{inlineChildID: childPlan},
+			defaultPlan: &childPlan,
+		},
+	}
+
+	executor := NewSimpleExecutor(nil)
+	if err := executor.Execute(context.Background(), req); err != nil {
+		t.Fatalf("expected inline subflow to succeed, got %v", err)
+	}
+	if session.runs < 1 {
+		t.Fatalf("expected engine runs for child/parent steps, got %d", session.runs)
+	}
+	if len(rec.outcomes) == 0 {
+		t.Fatalf("expected recorder to capture outcomes")
+	}
+}
+
+func TestSimpleExecutorDetectsSubflowRecursion(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	session := &fakeSession{}
+	factory := &fakeEngineFactory{session: session}
+
+	rec := &memoryRecorder{}
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			ExecutionID:    execID,
+			WorkflowID:     workflowID,
+			Instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "self", Type: "subflow", Params: map[string]any{"workflowId": workflowID.String()}},
+			},
+			CreatedAt: time.Now().UTC(),
+		},
+		EngineName:        "browserless",
+		EngineFactory:     factory,
+		Recorder:          rec,
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 0,
+		WorkflowResolver:  &stubWorkflowResolver{workflows: map[uuid.UUID]*database.Workflow{workflowID: {ID: workflowID}}},
+		PlanCompiler: &subflowPlanCompiler{plans: map[uuid.UUID]contracts.ExecutionPlan{
+			workflowID: {
+				SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
+				PayloadVersion: contracts.PayloadVersion,
+				ExecutionID:    execID,
+				WorkflowID:     workflowID,
+				Instructions: []contracts.CompiledInstruction{
+					{Index: 0, NodeID: "noop", Type: "click"},
+				},
+				CreatedAt: time.Now().UTC(),
+			},
+		}},
+		MaxSubflowDepth: 3,
+	}
+
+	executor := NewSimpleExecutor(nil)
+	err := executor.Execute(context.Background(), req)
+	if err == nil || !strings.Contains(err.Error(), "recursion") {
+		t.Fatalf("expected recursion detection, got %v", err)
+	}
+}
+
 // Ensures capability gaps fail fast before execution.
 func TestSimpleExecutorFailsOnCapabilityGap(t *testing.T) {
 	execID := uuid.New()
@@ -166,7 +353,7 @@ func TestSimpleExecutorFailsOnCapabilityGap(t *testing.T) {
 	factory := &fakeEngineFactory{
 		session: &fakeSession{outcome: contracts.StepOutcome{Success: true}},
 		caps: &contracts.EngineCapabilities{
-			SchemaVersion:         contracts.EventEnvelopeSchemaVersion,
+			SchemaVersion:         contracts.CapabilitiesSchemaVersion,
 			Engine:                "stub",
 			MaxConcurrentSessions: 1,
 			AllowsParallelTabs:    false,
@@ -959,7 +1146,7 @@ func (f *fakeEngine) Capabilities(ctx context.Context) (contracts.EngineCapabili
 		return *f.caps, nil
 	}
 	return contracts.EngineCapabilities{
-		SchemaVersion:         contracts.EventEnvelopeSchemaVersion,
+		SchemaVersion:         contracts.CapabilitiesSchemaVersion,
 		Engine:                "fake",
 		MaxConcurrentSessions: 1,
 		AllowsParallelTabs:    false,
@@ -977,9 +1164,11 @@ type fakeSession struct {
 	err           error
 	delay         time.Duration
 	resets        int
+	runs          int
 }
 
 func (f *fakeSession) Run(ctx context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+	f.runs++
 	if f.delay > 0 {
 		select {
 		case <-ctx.Done():
@@ -1023,4 +1212,33 @@ func (m *memoryRecorder) RecordTelemetry(ctx context.Context, plan contracts.Exe
 
 func (m *memoryRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, failure contracts.StepFailure) error {
 	return nil
+}
+
+type stubWorkflowResolver struct {
+	workflows map[uuid.UUID]*database.Workflow
+}
+
+func (s *stubWorkflowResolver) GetWorkflow(ctx context.Context, workflowID uuid.UUID) (*database.Workflow, error) {
+	if wf, ok := s.workflows[workflowID]; ok {
+		return wf, nil
+	}
+	return nil, database.ErrNotFound
+}
+
+type subflowPlanCompiler struct {
+	plans       map[uuid.UUID]contracts.ExecutionPlan
+	defaultPlan *contracts.ExecutionPlan
+}
+
+func (s *subflowPlanCompiler) Compile(ctx context.Context, executionID uuid.UUID, workflow *database.Workflow) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error) {
+	if workflow == nil {
+		return contracts.ExecutionPlan{}, nil, errors.New("workflow required")
+	}
+	if plan, ok := s.plans[workflow.ID]; ok {
+		return plan, plan.Instructions, nil
+	}
+	if s.defaultPlan != nil {
+		return *s.defaultPlan, s.defaultPlan.Instructions, nil
+	}
+	return contracts.ExecutionPlan{}, nil, errors.New("plan not found")
 }

@@ -6,8 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
+	"github.com/vrooli/browser-automation-studio/database"
 )
 
 // flow_executor.go isolates graph/loop orchestration so complex flow support
@@ -18,7 +20,7 @@ const (
 	defaultLoopIndexVar = "loop.index"
 )
 
-func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, state *flowState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
+func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, state *flowState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
 	stepMap := indexGraph(req.Plan.Graph)
 	current := firstStep(req.Plan.Graph)
 	visited := 0
@@ -38,7 +40,7 @@ func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, eng engi
 			return session, ctx.Err()
 		}
 
-		outcome, updatedSession, err := e.executePlanStep(ctx, req, eng, spec, session, *current, state, reuseMode)
+		outcome, updatedSession, err := e.executePlanStep(ctx, req, execCtx, eng, spec, session, *current, state, reuseMode)
 		if err != nil {
 			return session, err
 		}
@@ -64,7 +66,14 @@ func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, eng engi
 	return session, lastFailure
 }
 
-func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, state *flowState, reuseMode engine.SessionReuseMode) (contracts.StepOutcome, engine.EngineSession, error) {
+func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, state *flowState, reuseMode engine.SessionReuseMode) (contracts.StepOutcome, engine.EngineSession, error) {
+	if strings.EqualFold(strings.TrimSpace(step.Type), "workflowcall") {
+		return contracts.StepOutcome{}, session, fmt.Errorf("workflowCall nodes are no longer supported; use subflow instead")
+	}
+	if isSubflowStep(step.Type) {
+		return e.executeSubflow(ctx, req, execCtx, eng, spec, session, step, state, reuseMode)
+	}
+
 	if session == nil {
 		newSession, err := eng.StartSession(ctx, spec)
 		if err != nil {
@@ -73,50 +82,16 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, eng e
 		session = newSession
 	}
 
+	step = e.interpolatePlanStep(step, state)
+
 	if strings.EqualFold(step.Type, "loop") && step.Loop != nil {
-		return e.executeLoop(ctx, req, eng, spec, session, step, state, reuseMode)
+		return e.executeLoop(ctx, req, execCtx, eng, spec, session, step, state, reuseMode)
 	}
 
 	// Built-in variable mutation node used to support while/forEach flows without engine involvement.
 	if isSetVariableStep(step.Type) {
-		name := stringValue(step.Params, "name")
-		if name == "" {
-			name = stringValue(step.Params, "variable")
-		}
-		if name == "" {
-			name = stringValue(step.Params, "variableName")
-		}
-		if name == "" {
-			return contracts.StepOutcome{}, session, fmt.Errorf("set_variable node %s missing name", step.NodeID)
-		}
-		value := firstPresent(step.Params, "value", "variableValue")
-		valueType := stringValue(step.Params, "valueType")
-		if valueType == "" {
-			valueType = stringValue(step.Params, "variableType")
-		}
-		state.set(name, normalizeVariableValue(value, valueType))
-		outcome := contracts.StepOutcome{
-			SchemaVersion:  contracts.StepOutcomeSchemaVersion,
-			PayloadVersion: contracts.PayloadVersion,
-			ExecutionID:    req.Plan.ExecutionID,
-			StepIndex:      step.Index,
-			NodeID:         step.NodeID,
-			StepType:       step.Type,
-			Success:        true,
-			StartedAt:      time.Now().UTC(),
-		}
-		end := outcome.StartedAt
-		outcome.CompletedAt = &end
-		recordResult, recordErr := req.Recorder.RecordStepOutcome(ctx, req.Plan, outcome)
-		if recordErr != nil {
-			return outcome, session, recordErr
-		}
-		payload := map[string]any{
-			"outcome":   outcome,
-			"artifacts": recordResult.ArtifactIDs,
-		}
-		e.emitEvent(ctx, req, contracts.EventKindStepCompleted, &step.Index, intPtr(1), payload)
-		return outcome, session, nil
+		outcome, err := e.applySetVariable(ctx, req, step.Index, step.Type, step.NodeID, step.Params, state)
+		return outcome, session, err
 	}
 
 	instruction := planStepToInstruction(step)
@@ -173,7 +148,7 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, eng e
 	return normalized, session, nil
 }
 
-func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, state *flowState, reuseMode engine.SessionReuseMode) (contracts.StepOutcome, engine.EngineSession, error) {
+func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, state *flowState, reuseMode engine.SessionReuseMode) (contracts.StepOutcome, engine.EngineSession, error) {
 	loopType := strings.ToLower(strings.TrimSpace(stringValue(step.Params, "loopType")))
 	if loopType == "" {
 		return contracts.StepOutcome{}, session, fmt.Errorf("loop node %s missing loopType", step.NodeID)
@@ -197,7 +172,7 @@ func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, eng engin
 			return contracts.StepOutcome{}, session, fmt.Errorf("loop node %s has zero iterations after clamping", step.NodeID)
 		}
 		for i := 0; i < iterations; i++ {
-			control, session, err := e.executeGraphIteration(ctx, req, eng, spec, session, step.Loop, state, reuseMode)
+			control, session, err := e.executeGraphIteration(ctx, req, execCtx, eng, spec, session, step.Loop, state, reuseMode)
 			if err != nil {
 				return contracts.StepOutcome{}, session, err
 			}
@@ -230,7 +205,7 @@ func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, eng engin
 		for i := 0; i < maxIterations; i++ {
 			state.set(itemVar, items[i])
 			state.set(indexVar, i)
-			control, session, err := e.executeGraphIteration(ctx, req, eng, spec, session, step.Loop, state, reuseMode)
+			control, session, err := e.executeGraphIteration(ctx, req, execCtx, eng, spec, session, step.Loop, state, reuseMode)
 			if err != nil {
 				return contracts.StepOutcome{}, session, err
 			}
@@ -247,7 +222,7 @@ func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, eng engin
 			if !evaluateLoopCondition(step.Params, state) {
 				break
 			}
-			control, session, err := e.executeGraphIteration(ctx, req, eng, spec, session, step.Loop, state, reuseMode)
+			control, session, err := e.executeGraphIteration(ctx, req, execCtx, eng, spec, session, step.Loop, state, reuseMode)
 			if err != nil {
 				return contracts.StepOutcome{}, session, err
 			}
@@ -300,12 +275,124 @@ func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, eng engin
 	return loopOutcome, session, nil
 }
 
+func (e *SimpleExecutor) executeSubflow(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, state *flowState, reuseMode engine.SessionReuseMode) (contracts.StepOutcome, engine.EngineSession, error) {
+	stepCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	startedAt := time.Now().UTC()
+	attempt := 1
+	stepIndex := step.Index
+
+	e.emitEvent(stepCtx, req, contracts.EventKindStepStarted, &stepIndex, &attempt, map[string]any{
+		"node_id":   step.NodeID,
+		"step_type": step.Type,
+	})
+	stopHeartbeat := e.startHeartbeat(stepCtx, req, stepIndex, attempt, startedAt)
+
+	outcome := contracts.StepOutcome{
+		SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+		PayloadVersion: contracts.PayloadVersion,
+		ExecutionID:    req.Plan.ExecutionID,
+		StepIndex:      step.Index,
+		Attempt:        attempt,
+		NodeID:         step.NodeID,
+		StepType:       step.Type,
+		Success:        true,
+		StartedAt:      startedAt,
+	}
+
+	updatedSession, runErr := e.runSubflow(stepCtx, req, execCtx, eng, spec, session, step, state, reuseMode)
+
+	if stopHeartbeat != nil {
+		stopHeartbeat()
+	}
+
+	normalized := e.normalizeOutcome(req.Plan, planStepToInstruction(step), attempt, startedAt, outcome, runErr)
+
+	recordResult, recordErr := req.Recorder.RecordStepOutcome(ctx, req.Plan, normalized)
+	if recordErr != nil {
+		return normalized, updatedSession, fmt.Errorf("record subflow outcome: %w", recordErr)
+	}
+
+	payload := map[string]any{
+		"outcome":   normalized,
+		"artifacts": recordResult.ArtifactIDs,
+	}
+	if recordResult.TimelineArtifactID != nil {
+		payload["timeline_artifact_id"] = *recordResult.TimelineArtifactID
+	}
+
+	eventKind := contracts.EventKindStepCompleted
+	if !normalized.Success {
+		eventKind = contracts.EventKindStepFailed
+	}
+	e.emitEvent(ctx, req, eventKind, &stepIndex, &attempt, payload)
+
+	return normalized, updatedSession, runErr
+}
+
+func (e *SimpleExecutor) runSubflow(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, state *flowState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
+	if execCtx.maxDepth > 0 && len(execCtx.callStack) >= execCtx.maxDepth {
+		return session, fmt.Errorf("subflow depth exceeded (max %d)", execCtx.maxDepth)
+	}
+
+	specData, err := parseSubflowSpec(step)
+	if err != nil {
+		return session, err
+	}
+
+	// Detect reference loops.
+	if specData.workflowID != nil {
+		for _, id := range execCtx.callStack {
+			if id == *specData.workflowID {
+				return session, fmt.Errorf("subflow recursion detected for workflow %s", specData.workflowID.String())
+			}
+		}
+	}
+
+	childWorkflow, childWorkflowID, err := resolveSubflowWorkflow(ctx, req, specData)
+	if err != nil {
+		return session, err
+	}
+
+	childPlan, _, err := BuildContractsPlanWithCompiler(ctx, req.Plan.ExecutionID, childWorkflow, execCtx.compiler)
+	if err != nil {
+		return session, fmt.Errorf("compile subflow %s: %w", childWorkflowID.String(), err)
+	}
+
+	childCount := planStepCount(childPlan)
+	baseIndex := state.allocateIndexRange(childCount)
+	rebasePlanIndices(&childPlan, baseIndex)
+
+	seedVars := copyMap(state.vars)
+	if len(specData.params) > 0 {
+		for k, v := range specData.params {
+			seedVars[k] = v
+		}
+	}
+
+	childState := newFlowState(seedVars)
+	childState.setNextIndexFromPlan(childPlan)
+
+	childReq := req
+	childReq.Plan = childPlan
+	childReq.SubflowStack = append(append([]uuid.UUID{}, execCtx.callStack...), childWorkflowID)
+	childReq.EngineCaps = &execCtx.caps
+
+	childCtx := execCtx
+	childCtx.callStack = childReq.SubflowStack
+
+	updatedSession, err := e.runPlan(ctx, childReq, childCtx, eng, spec, session, childState, reuseMode)
+	state.merge(childState.vars)
+	return updatedSession, err
+}
+
 type loopControl struct {
 	Break       bool
 	LastOutcome contracts.StepOutcome
 }
 
-func (e *SimpleExecutor) executeGraphIteration(ctx context.Context, req Request, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, graph *contracts.PlanGraph, state *flowState, reuseMode engine.SessionReuseMode) (loopControl, engine.EngineSession, error) {
+func (e *SimpleExecutor) executeGraphIteration(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, graph *contracts.PlanGraph, state *flowState, reuseMode engine.SessionReuseMode) (loopControl, engine.EngineSession, error) {
 	if graph == nil || len(graph.Steps) == 0 {
 		return loopControl{}, session, nil
 	}
@@ -322,7 +409,7 @@ func (e *SimpleExecutor) executeGraphIteration(ctx context.Context, req Request,
 			return loopControl{}, session, fmt.Errorf("loop body exceeded step budget (%d)", maxVisited)
 		}
 
-		outcome, updatedSession, err := e.executePlanStep(ctx, req, eng, spec, session, *current, state, reuseMode)
+		outcome, updatedSession, err := e.executePlanStep(ctx, req, execCtx, eng, spec, session, *current, state, reuseMode)
 		if err != nil {
 			return loopControl{}, session, err
 		}
@@ -352,4 +439,149 @@ func (e *SimpleExecutor) executeGraphIteration(ctx context.Context, req Request,
 func isSetVariableStep(stepType string) bool {
 	normalized := strings.ToLower(strings.ReplaceAll(stepType, "_", ""))
 	return normalized == "setvariable"
+}
+
+func isSubflowStep(stepType string) bool {
+	return strings.EqualFold(strings.TrimSpace(stepType), "subflow")
+}
+
+// applySetVariable handles executor-scoped variable mutations without invoking an engine.
+func (e *SimpleExecutor) applySetVariable(ctx context.Context, req Request, stepIndex int, stepType, nodeID string, params map[string]any, state *flowState) (contracts.StepOutcome, error) {
+	name := stringValue(params, "name")
+	if name == "" {
+		name = stringValue(params, "variable")
+	}
+	if name == "" {
+		name = stringValue(params, "variableName")
+	}
+	if name == "" {
+		return contracts.StepOutcome{}, fmt.Errorf("set_variable node %s missing name", nodeID)
+	}
+	value := firstPresent(params, "value", "variableValue")
+	valueType := stringValue(params, "valueType")
+	if valueType == "" {
+		valueType = stringValue(params, "variableType")
+	}
+	state.set(name, normalizeVariableValue(value, valueType))
+
+	outcome := contracts.StepOutcome{
+		SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+		PayloadVersion: contracts.PayloadVersion,
+		ExecutionID:    req.Plan.ExecutionID,
+		StepIndex:      stepIndex,
+		Attempt:        1,
+		NodeID:         nodeID,
+		StepType:       stepType,
+		Success:        true,
+		StartedAt:      time.Now().UTC(),
+	}
+	end := outcome.StartedAt
+	outcome.CompletedAt = &end
+
+	recordResult, recordErr := req.Recorder.RecordStepOutcome(ctx, req.Plan, outcome)
+	if recordErr != nil {
+		return outcome, recordErr
+	}
+
+	payload := map[string]any{
+		"outcome":   outcome,
+		"artifacts": recordResult.ArtifactIDs,
+	}
+	e.emitEvent(ctx, req, contracts.EventKindStepCompleted, &stepIndex, intPtr(1), payload)
+	return outcome, nil
+}
+
+type subflowSpec struct {
+	workflowID *uuid.UUID
+	inlineDef  map[string]any
+	params     map[string]any
+}
+
+func parseSubflowSpec(step contracts.PlanStep) (subflowSpec, error) {
+	spec := subflowSpec{}
+	if idStr := stringValue(step.Params, "workflowId"); strings.TrimSpace(idStr) != "" {
+		if parsed, err := uuid.Parse(idStr); err == nil {
+			spec.workflowID = &parsed
+		} else {
+			return spec, fmt.Errorf("subflow %s has invalid workflowId: %w", step.NodeID, err)
+		}
+	}
+	if rawDef, ok := step.Params["workflowDefinition"]; ok {
+		if def, ok := rawDef.(map[string]any); ok && len(def) > 0 {
+			spec.inlineDef = def
+		}
+	}
+	if rawParams, ok := step.Params["parameters"]; ok {
+		if params, ok := rawParams.(map[string]any); ok && len(params) > 0 {
+			spec.params = params
+		}
+	}
+	if spec.workflowID == nil && spec.inlineDef == nil {
+		return spec, fmt.Errorf("subflow %s missing workflowId or workflowDefinition", step.NodeID)
+	}
+	return spec, nil
+}
+
+func resolveSubflowWorkflow(ctx context.Context, req Request, spec subflowSpec) (*database.Workflow, uuid.UUID, error) {
+	if spec.workflowID != nil {
+		if req.WorkflowResolver == nil {
+			return nil, uuid.Nil, fmt.Errorf("subflow requires workflow resolver to fetch %s", spec.workflowID.String())
+		}
+		wf, err := req.WorkflowResolver.GetWorkflow(ctx, *spec.workflowID)
+		if err != nil {
+			return nil, uuid.Nil, err
+		}
+		return wf, wf.ID, nil
+	}
+
+	id := uuid.New()
+	return &database.Workflow{
+		ID:             id,
+		FlowDefinition: database.JSONMap(spec.inlineDef),
+	}, id, nil
+}
+
+func planStepCount(plan contracts.ExecutionPlan) int {
+	if plan.Graph != nil {
+		return maxGraphIndex(plan.Graph) + 1
+	}
+	maxIdx := -1
+	for _, instr := range plan.Instructions {
+		if instr.Index > maxIdx {
+			maxIdx = instr.Index
+		}
+	}
+	return maxIdx + 1
+}
+
+func rebasePlanIndices(plan *contracts.ExecutionPlan, base int) {
+	if plan == nil || base == 0 {
+		return
+	}
+	for i := range plan.Instructions {
+		plan.Instructions[i].Index += base
+	}
+	if plan.Graph != nil {
+		rebaseGraph(plan.Graph, base)
+	}
+}
+
+func rebaseGraph(graph *contracts.PlanGraph, base int) {
+	for i := range graph.Steps {
+		graph.Steps[i].Index += base
+		if graph.Steps[i].Loop != nil {
+			rebaseGraph(graph.Steps[i].Loop, base)
+		}
+	}
+}
+
+func copyMap(src map[string]any) map[string]any {
+	if len(src) == 0 {
+		return map[string]any{}
+	}
+	dst := make(map[string]any, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
 }
