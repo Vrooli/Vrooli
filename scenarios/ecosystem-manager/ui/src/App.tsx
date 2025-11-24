@@ -7,12 +7,29 @@ import { SettingsModal } from "./components/modals/SettingsModal";
 import { SystemLogsModal } from "./components/modals/SystemLogsModal";
 import { FilterPanel } from "./components/filters/FilterPanel";
 import { FloatingControls } from "./components/controls/FloatingControls";
+import { useDeleteTask } from "./hooks/useTaskMutations";
 import type { Task } from "./types/api";
 
 export default function App() {
   const { activeModal, setActiveModal, isFilterPanelOpen } = useAppState();
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const deleteTask = useDeleteTask();
+
+  const handleDeleteTask = (task: Task) => {
+    const label = task.title || task.id;
+    if (!confirm(`Delete task "${label}"? This cannot be undone.`)) {
+      return;
+    }
+
+    deleteTask.mutate(task.id, {
+      onSuccess: () => {
+        if (selectedTask?.id === task.id) {
+          setSelectedTask(null);
+        }
+      },
+    });
+  };
 
   return (
     <div className="h-screen bg-background text-foreground flex flex-col">
@@ -23,7 +40,7 @@ export default function App() {
       <main className="p-0 flex-1 min-h-0 overflow-hidden">
         <KanbanBoard
           onViewTaskDetails={(task) => setSelectedTask(task)}
-          onDeleteTask={(taskId) => console.log('Delete task:', taskId)}
+          onDeleteTask={handleDeleteTask}
         />
       </main>
 

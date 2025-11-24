@@ -7,7 +7,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Eye } from 'lucide-react';
 import { TaskCard } from './TaskCard';
-import type { Task, TaskStatus } from '../../types/api';
+import type { Task, TaskStatus, AutoSteerProfile } from '../../types/api';
 
 interface KanbanColumnProps {
   status: TaskStatus;
@@ -16,7 +16,8 @@ interface KanbanColumnProps {
   isVisible: boolean;
   onToggleVisibility: () => void;
   onViewDetails?: (task: Task) => void;
-  onDeleteTask?: (taskId: string) => void;
+  onDeleteTask?: (task: Task) => void;
+  autoSteerProfilesById?: Record<string, AutoSteerProfile>;
 }
 
 const STATUS_COLORS: Record<TaskStatus, { bg: string; border: string; header: string }> = {
@@ -70,6 +71,7 @@ export function KanbanColumn({
   onToggleVisibility,
   onViewDetails,
   onDeleteTask,
+  autoSteerProfilesById,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: status,
@@ -131,6 +133,12 @@ export function KanbanColumn({
                   task={task}
                   onViewDetails={onViewDetails}
                   onDelete={onDeleteTask}
+                  autoSteerProfile={
+                    task.auto_steer_profile_id
+                      ? autoSteerProfilesById?.[task.auto_steer_profile_id]
+                      : undefined
+                  }
+                  autoSteerPhaseIndex={task.auto_steer_phase_index}
                 />
               ))
             )}

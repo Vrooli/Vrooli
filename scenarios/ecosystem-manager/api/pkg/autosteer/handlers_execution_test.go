@@ -24,7 +24,7 @@ func TestAutoSteerHandlers_ExecutionFlow(t *testing.T) {
 	// Initialize services
 	profileService := NewProfileService(pg.db)
 	metricsCollector := NewMetricsCollector(vrooliRoot)
-	executionEngine := NewExecutionEngine(pg.db, profileService, metricsCollector)
+	executionEngine := NewExecutionEngine(pg.db, profileService, metricsCollector, testPhasePromptsDir(t))
 	historyService := NewHistoryService(pg.db)
 
 	// Create handlers

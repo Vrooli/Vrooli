@@ -15,7 +15,7 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Frontend variant context fetches variant by slug from URL parameter. Tests verify URL takes priority over localStorage.",
-          "ref": "ui/src/contexts/VariantContext.tsx:fetchVariantBySlug"
+          "ref": "ui/src/contexts/VariantContext.tsx"
         }
       ],
       "status": "complete",
@@ -32,7 +32,7 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Frontend VariantContext retrieves and stores variant in localStorage. Tests verify persistence across page reloads.",
-          "ref": "ui/src/contexts/VariantContext.tsx:getStoredVariant"
+          "ref": "ui/src/contexts/VariantContext.tsx"
         }
       ],
       "status": "complete",
@@ -52,7 +52,7 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Frontend VariantContext calls /api/v1/variants/select and stores result in localStorage. Tests verify selection and storage.",
-          "ref": "ui/src/contexts/VariantContext.tsx:selectVariant"
+          "ref": "ui/src/contexts/VariantContext.tsx"
         }
       ],
       "status": "complete",
@@ -90,7 +90,7 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Archive endpoint POST /variants/{slug}/archive implemented. SelectVariant excludes archived status.",
-          "ref": "api/variant_service.go:ArchiveVariant"
+          "ref": "api/variant_service.go"
         }
       ],
       "status": "complete",

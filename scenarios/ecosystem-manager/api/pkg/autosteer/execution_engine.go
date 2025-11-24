@@ -17,13 +17,13 @@ type ExecutionEngine struct {
 }
 
 // NewExecutionEngine creates a new execution engine
-func NewExecutionEngine(db *sql.DB, profileService *ProfileService, metricsCollector *MetricsCollector) *ExecutionEngine {
+func NewExecutionEngine(db *sql.DB, profileService *ProfileService, metricsCollector *MetricsCollector, phasesDir string) *ExecutionEngine {
 	return &ExecutionEngine{
 		db:                 db,
 		profileService:     profileService,
 		conditionEvaluator: NewConditionEvaluator(),
 		metricsCollector:   metricsCollector,
-		promptEnhancer:     NewPromptEnhancer(),
+		promptEnhancer:     NewPromptEnhancer(phasesDir),
 	}
 }
 

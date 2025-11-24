@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -286,6 +287,24 @@ func abs(x float64) float64 {
 		return -x
 	}
 	return x
+}
+
+// testPhasePromptsDir returns a directory containing phase prompt markdown files for tests.
+func testPhasePromptsDir(t *testing.T) string {
+	t.Helper()
+
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatalf("unable to determine caller location for prompt discovery")
+	}
+
+	// Prefer real prompts if available
+	dir := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", "..", "prompts", "phases"))
+	if _, err := os.Stat(dir); err != nil {
+		t.Fatalf("phase prompts directory not found at %s: %v", dir, err)
+	}
+
+	return dir
 }
 
 // WaitForCondition polls until a condition is met or timeout

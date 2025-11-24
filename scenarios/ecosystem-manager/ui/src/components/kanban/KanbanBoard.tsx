@@ -21,8 +21,9 @@ import { SkeletonTaskCard } from './SkeletonTaskCard';
 import { useTasks } from '../../hooks/useTasks';
 import { useUpdateTaskStatus } from '../../hooks/useTaskMutations';
 import { useTaskUpdates } from '../../hooks/useTaskUpdates';
+import { useAutoSteerProfiles } from '../../hooks/useAutoSteer';
 import { useAppState } from '../../contexts/AppStateContext';
-import type { Task, TaskStatus } from '../../types/api';
+import type { AutoSteerProfile, Task, TaskStatus } from '../../types/api';
 
 // Column definitions with display labels
 const COLUMNS: Array<{ status: TaskStatus; title: string }> = [
@@ -37,7 +38,7 @@ const COLUMNS: Array<{ status: TaskStatus; title: string }> = [
 
 interface KanbanBoardProps {
   onViewTaskDetails?: (task: Task) => void;
-  onDeleteTask?: (taskId: string) => void;
+  onDeleteTask?: (task: Task) => void;
 }
 
 export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProps) {
@@ -48,6 +49,15 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
   const { columnVisibility, toggleColumnVisibility, filters } = useAppState();
   const { data: tasks = [], isLoading, error } = useTasks(filters);
   const updateTaskStatus = useUpdateTaskStatus();
+  const { data: autoSteerProfiles = [] } = useAutoSteerProfiles();
+
+  const autoSteerProfileMap = useMemo<Record<string, AutoSteerProfile>>(() => {
+    const map: Record<string, AutoSteerProfile> = {};
+    autoSteerProfiles.forEach(profile => {
+      map[profile.id] = profile;
+    });
+    return map;
+  }, [autoSteerProfiles]);
 
   // Subscribe to WebSocket updates
   useTaskUpdates();
@@ -233,13 +243,25 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
               onToggleVisibility={() => toggleColumnVisibility(status)}
               onViewDetails={onViewTaskDetails}
               onDeleteTask={onDeleteTask}
+              autoSteerProfilesById={autoSteerProfileMap}
             />
           ))}
         </div>
 
         {/* Drag Overlay - Shows the task being dragged */}
         <DragOverlay dropAnimation={null}>
-          {activeTask ? <TaskCard task={activeTask} dragOverlay /> : null}
+          {activeTask ? (
+            <TaskCard
+              task={activeTask}
+              dragOverlay
+              autoSteerProfile={
+                activeTask.auto_steer_profile_id
+                  ? autoSteerProfileMap[activeTask.auto_steer_profile_id]
+                  : undefined
+              }
+              autoSteerPhaseIndex={activeTask.auto_steer_phase_index}
+            />
+          ) : null}
         </DragOverlay>
       </DndContext>
     </div>

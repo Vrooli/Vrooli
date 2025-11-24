@@ -25,6 +25,8 @@ import type {
   RecyclerTestResult,
   PromptPreviewConfig,
   PromptPreviewResult,
+  PromptFileInfo,
+  PromptFile,
   AutoSteerProfile,
   AutoSteerTemplate,
   ProfilePerformance,
@@ -160,6 +162,38 @@ const normalizeTaskTargets = (task: any): Task => {
     target: rawTargets.filter(Boolean),
     // Backend uses processor_auto_requeue; UI expects auto_requeue
     auto_requeue: task.auto_requeue ?? task.processor_auto_requeue ?? false,
+  };
+};
+
+const normalizeExecution = (raw: any): ExecutionHistory => {
+  const id =
+    raw?.id ??
+    raw?.execution_id ??
+    raw?.executionId ??
+    raw?.executionID ??
+    raw?.ExecutionID ??
+    raw?.task_execution_id ??
+    raw?.taskExecutionId ??
+    raw?.taskExecutionID ??
+    raw?.start_time ??
+    '';
+
+  const status: ExecutionHistory['status'] =
+    raw?.status ??
+    (raw?.success === true
+      ? 'completed'
+      : raw?.success === false || raw?.failed
+        ? 'failed'
+        : 'running');
+
+  return {
+    id: String(id),
+    task_id: raw?.task_id ?? raw?.taskId ?? raw?.TaskID ?? raw?.task ?? '',
+    start_time: raw?.start_time ?? raw?.startTime ?? '',
+    end_time: raw?.end_time ?? raw?.endTime ?? undefined,
+    status,
+    exit_code: raw?.exit_code ?? raw?.exitCode ?? raw?.ExitCode,
+    metadata: raw?.metadata,
   };
 };
 
@@ -583,11 +617,11 @@ class ApiClient {
     );
 
     if (Array.isArray(response)) {
-      return response;
+      return response.map(normalizeExecution);
     }
 
     if (response && Array.isArray((response as any).executions)) {
-      return (response as any).executions as ExecutionHistory[];
+      return (response as any).executions.map(normalizeExecution) as ExecutionHistory[];
     }
 
     return [];
@@ -599,11 +633,11 @@ class ApiClient {
     );
 
     if (Array.isArray(response)) {
-      return response;
+      return response.map(normalizeExecution);
     }
 
     if (response && Array.isArray((response as any).executions)) {
-      return (response as any).executions as ExecutionHistory[];
+      return (response as any).executions.map(normalizeExecution) as ExecutionHistory[];
     }
 
     return [];
@@ -671,6 +705,25 @@ class ApiClient {
     return this.getPromptPreview(taskConfig);
   }
 
+  // ==================== Prompt Files ====================
+
+  async listPromptFiles(): Promise<PromptFileInfo[]> {
+    return this.fetchJSON<PromptFileInfo[]>(`/api/prompts`);
+  }
+
+  async getPromptFile(id: string): Promise<PromptFile> {
+    const path = this.encodePromptPath(id);
+    return this.fetchJSON<PromptFile>(`/api/prompts/${path}`);
+  }
+
+  async updatePromptFile(id: string, content: string): Promise<PromptFile> {
+    const path = this.encodePromptPath(id);
+    return this.fetchJSON<PromptFile>(`/api/prompts/${path}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    });
+  }
+
   // ==================== Auto Steer ====================
 
   async getAutoSteerProfiles(): Promise<AutoSteerProfile[]> {
@@ -728,6 +781,15 @@ class ApiClient {
 
   async getAutoSteerExecution(executionId: string): Promise<ProfilePerformance> {
     return this.fetchJSON<ProfilePerformance>(`/api/auto-steer/history/${executionId}`);
+  }
+
+  // ==================== Utilities ====================
+
+  private encodePromptPath(id: string): string {
+    return id
+      .split('/')
+      .map((segment) => encodeURIComponent(segment))
+      .join('/');
   }
 
   // ==================== Maintenance ====================

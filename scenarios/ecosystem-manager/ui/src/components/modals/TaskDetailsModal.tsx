@@ -3,7 +3,7 @@
  * Modal for viewing and editing task details with 5 tabs
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useUpdateTask, useDeleteTask } from '@/hooks/useTaskMutations';
 import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { api } from '@/lib/api';
+import { markdownToHtml } from '@/lib/markdown';
 import { queryKeys } from '@/lib/queryKeys';
 import type { Task, Priority } from '@/types/api';
 
@@ -51,6 +52,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   const [notes, setNotes] = useState('');
   const [autoSteerProfileId, setAutoSteerProfileId] = useState<string>(AUTO_STEER_NONE);
   const [autoRequeue, setAutoRequeue] = useState(false);
+  const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
 
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
@@ -86,6 +88,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   const executions = Array.isArray(rawExecutions)
     ? rawExecutions
     : (rawExecutions as any)?.executions ?? [];
+  const selectedExecution = executions.find(exec => exec.id === selectedExecutionId) || null;
 
   // Initialize form when task changes
   useEffect(() => {
@@ -102,8 +105,21 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   useEffect(() => {
     if (!open) {
       setActiveTab('details');
+      setSelectedExecutionId(null);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (executions.length > 0 && !selectedExecutionId) {
+      const firstId = executions.find(exec => exec.id)?.id ?? executions[0]?.id ?? null;
+      setSelectedExecutionId(firstId);
+    } else if (selectedExecutionId && !executions.some(exec => exec.id === selectedExecutionId)) {
+      const fallbackId = executions.find(exec => exec.id)?.id ?? executions[0]?.id ?? null;
+      setSelectedExecutionId(fallbackId);
+    }
+  }, [executions, selectedExecutionId]);
+
+  const assembledPromptHtml = useMemo(() => markdownToHtml(assembledPrompt), [assembledPrompt]);
 
   if (!task) return null;
 
@@ -147,7 +163,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl md:max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Task Details</DialogTitle>
           <DialogDescription>
@@ -165,103 +181,107 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
           </TabsList>
 
           {/* Details Tab */}
-          <TabsContent value="details" className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label htmlFor="detail-title">Title</Label>
-              <Input
-                id="detail-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </div>
+          <TabsContent value="details" className="mt-4">
+            <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="detail-title">Title</Label>
+                  <Input
+                    id="detail-title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Type</Label>
-                <Input value={task.type} disabled />
-              </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Type</Label>
+                    <Input value={task.type} disabled />
+                  </div>
 
-              <div className="space-y-2">
-                <Label>Operation</Label>
-                <Input value={task.operation} disabled />
-              </div>
-            </div>
+                  <div className="space-y-2">
+                    <Label>Operation</Label>
+                    <Input value={task.operation} disabled />
+                  </div>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="detail-priority">Priority</Label>
-              <Select value={priority} onValueChange={(val: string) => setPriority(val as Priority)}>
-                <SelectTrigger id="detail-priority">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRIORITIES.map(p => (
-                    <SelectItem key={p} value={p}>
-                      {p.charAt(0).toUpperCase() + p.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="detail-priority">Priority</Label>
+                  <Select value={priority} onValueChange={(val: string) => setPriority(val as Priority)}>
+                    <SelectTrigger id="detail-priority">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PRIORITIES.map(p => (
+                        <SelectItem key={p} value={p}>
+                          {p.charAt(0).toUpperCase() + p.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {task.target && task.target.length > 0 && (
-              <div className="space-y-2">
-                <Label>Targets</Label>
-                <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
-                  {task.target.map((t, idx) => (
-                    <div key={idx} className="text-sm py-1">
-                      • {t}
+                {task.target && task.target.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Targets</Label>
+                    <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
+                      {task.target.map((t, idx) => (
+                        <div key={idx} className="text-sm py-1">
+                          • {t}
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                )}
+
+                {(profiles && profiles.length > 0) && (
+                  <div className="space-y-2">
+                    <Label htmlFor="detail-auto-steer">Auto Steer Profile</Label>
+                    <Select value={autoSteerProfileId} onValueChange={setAutoSteerProfileId}>
+                      <SelectTrigger id="detail-auto-steer">
+                        <SelectValue placeholder="None" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={AUTO_STEER_NONE}>None</SelectItem>
+                        {profiles.map(profile => (
+                          <SelectItem key={profile.id} value={profile.id}>
+                            {profile.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="detail-auto-requeue"
+                    checked={autoRequeue}
+                    onCheckedChange={(checked: boolean) => setAutoRequeue(checked)}
+                  />
+                  <Label htmlFor="detail-auto-requeue" className="cursor-pointer">
+                    Auto-requeue on completion
+                  </Label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-xs text-slate-400">
+                  <div>
+                    <span className="font-medium">Created:</span> {new Date(task.created_at).toLocaleString()}
+                  </div>
+                  <div>
+                    <span className="font-medium">Updated:</span> {new Date(task.updated_at).toLocaleString()}
+                  </div>
                 </div>
               </div>
-            )}
 
-            {(profiles && profiles.length > 0) && (
               <div className="space-y-2">
-                <Label htmlFor="detail-auto-steer">Auto Steer Profile</Label>
-                <Select value={autoSteerProfileId} onValueChange={setAutoSteerProfileId}>
-                  <SelectTrigger id="detail-auto-steer">
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={AUTO_STEER_NONE}>None</SelectItem>
-                    {profiles.map(profile => (
-                      <SelectItem key={profile.id} value={profile.id}>
-                        {profile.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="detail-notes">Notes</Label>
-              <Textarea
-                id="detail-notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={6}
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="detail-auto-requeue"
-                checked={autoRequeue}
-                onCheckedChange={(checked: boolean) => setAutoRequeue(checked)}
-              />
-              <Label htmlFor="detail-auto-requeue" className="cursor-pointer">
-                Auto-requeue on completion
-              </Label>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-xs text-slate-400">
-              <div>
-                <span className="font-medium">Created:</span> {new Date(task.created_at).toLocaleString()}
-              </div>
-              <div>
-                <span className="font-medium">Updated:</span> {new Date(task.updated_at).toLocaleString()}
+                <Label htmlFor="detail-notes">Notes</Label>
+                <Textarea
+                  id="detail-notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="min-h-[240px]"
+                />
               </div>
             </div>
           </TabsContent>
@@ -292,8 +312,21 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
 
           {/* Prompt Tab */}
           <TabsContent value="prompt" className="mt-4">
-            <div className="border rounded-md p-4 max-h-96 overflow-y-auto bg-slate-900 font-mono text-xs whitespace-pre-wrap">
-              {assembledPrompt || 'No prompt available'}
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+              <div className="border rounded-md p-4 max-h-[420px] overflow-y-auto bg-slate-900 font-mono text-xs whitespace-pre-wrap">
+                {assembledPrompt || 'No prompt available'}
+              </div>
+              <div className="border rounded-md p-4 max-h-[420px] overflow-y-auto bg-card">
+                <div className="text-xs uppercase text-slate-400 mb-2">Preview</div>
+                {assembledPrompt ? (
+                  <div
+                    className="text-sm leading-relaxed space-y-3 [&_code]:bg-black/40 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_pre]:text-xs [&_pre]:leading-relaxed [&_ul]:list-disc [&_ul]:pl-5"
+                    dangerouslySetInnerHTML={{ __html: assembledPromptHtml }}
+                  />
+                ) : (
+                  <div className="text-slate-500 text-sm">No prompt available</div>
+                )}
+              </div>
             </div>
           </TabsContent>
 
@@ -309,34 +342,87 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
             {executions.length === 0 ? (
               <div className="text-slate-400 text-center py-8">No executions yet</div>
             ) : (
-              <div className="space-y-2">
-                {executions.map((exec, idx) => (
-                  <div key={exec.id} className="border rounded-md p-3 hover:bg-slate-800/50">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-medium">Execution #{idx + 1}</div>
-                        <div className="text-xs text-slate-400">
-                          Started: {new Date(exec.start_time).toLocaleString()}
-                          {exec.end_time && (
-                            <> • Ended: {new Date(exec.end_time).toLocaleString()}</>
-                          )}
+              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+                <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                  {executions.map((exec, idx) => {
+                    const isSelected = exec.id === selectedExecutionId;
+                    return (
+                      <div
+                        key={exec.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setSelectedExecutionId(exec.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setSelectedExecutionId(exec.id);
+                          }
+                        }}
+                        className={`border rounded-md p-3 transition-colors cursor-pointer focus:outline-none ${
+                          isSelected
+                            ? 'border-primary/60 bg-slate-800/60 ring-1 ring-primary/40'
+                            : 'border-border hover:bg-slate-800/40'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-medium">Execution #{idx + 1}</div>
+                            <div className="text-xs text-slate-400">
+                              Started: {new Date(exec.start_time).toLocaleString()}
+                              {exec.end_time && (
+                                <> • Ended: {new Date(exec.end_time).toLocaleString()}</>
+                              )}
+                            </div>
+                          </div>
+                          <div className={`text-sm font-semibold ${
+                            exec.status === 'completed' ? 'text-green-400' :
+                            exec.status === 'failed' ? 'text-red-400' :
+                            'text-yellow-400'
+                          }`}>
+                            {exec.status}
+                          </div>
                         </div>
+                        {exec.exit_code !== undefined && (
+                          <div className="mt-2 text-xs text-slate-400">
+                            Exit code: {exec.exit_code}
+                          </div>
+                        )}
                       </div>
-                      <div className={`text-sm font-semibold ${
-                        exec.status === 'completed' ? 'text-green-400' :
-                        exec.status === 'failed' ? 'text-red-400' :
-                        'text-yellow-400'
-                      }`}>
-                        {exec.status}
+                    );
+                  })}
+                </div>
+
+                <div className="rounded-md border border-primary/30 bg-slate-900/60 p-3 min-h-[220px]">
+                  {selectedExecution ? (
+                    <div className="space-y-2">
+                      <div className="text-xs uppercase text-slate-400">Selected execution</div>
+                      <div className="text-sm font-medium text-foreground break-words">ID: {selectedExecution.id}</div>
+                      <div className="text-xs text-slate-300">
+                        Task: {selectedExecution.task_id} • Status: {selectedExecution.status}
                       </div>
+                      <div className="text-xs text-slate-400">
+                        Started: {new Date(selectedExecution.start_time).toLocaleString()}
+                        {selectedExecution.end_time && (
+                          <> • Ended: {new Date(selectedExecution.end_time).toLocaleString()}</>
+                        )}
+                      </div>
+                      {selectedExecution.exit_code !== undefined && (
+                        <div className="text-xs text-slate-400">Exit code: {selectedExecution.exit_code}</div>
+                      )}
+                      {selectedExecution.metadata && Object.keys(selectedExecution.metadata).length > 0 ? (
+                        <pre className="text-xs text-slate-200 bg-black/30 border border-white/5 rounded p-2 overflow-x-auto">
+                          {JSON.stringify(selectedExecution.metadata, null, 2)}
+                        </pre>
+                      ) : (
+                        <div className="text-xs text-slate-500">No additional metadata</div>
+                      )}
                     </div>
-                    {exec.exit_code !== undefined && (
-                      <div className="mt-2 text-xs text-slate-400">
-                        Exit code: {exec.exit_code}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-slate-500 text-sm">
+                      Select an execution to view details
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </TabsContent>

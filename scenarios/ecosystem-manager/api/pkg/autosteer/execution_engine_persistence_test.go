@@ -59,7 +59,7 @@ func TestExecutionEngine_PhaseAdvancementPersistence(t *testing.T) {
 		taskID := uuid.New().String()
 
 		// Engine 1: Start execution
-		engine1 := NewExecutionEngine(pg.db, profileService, metricsCollector)
+		engine1 := NewExecutionEngine(pg.db, profileService, metricsCollector, testPhasePromptsDir(t))
 		state, err := engine1.StartExecution(taskID, profile.ID, "test-scenario")
 		if err != nil {
 			t.Fatalf("StartExecution() error = %v", err)
@@ -69,7 +69,7 @@ func TestExecutionEngine_PhaseAdvancementPersistence(t *testing.T) {
 		}
 
 		// Engine 2: Verify state persisted from engine1
-		engine2 := NewExecutionEngine(pg.db, profileService, metricsCollector)
+		engine2 := NewExecutionEngine(pg.db, profileService, metricsCollector, testPhasePromptsDir(t))
 		retrievedState, err := engine2.GetExecutionState(taskID)
 		if err != nil {
 			t.Fatalf("GetExecutionState() error = %v", err)
@@ -112,7 +112,7 @@ func TestExecutionEngine_PhaseAdvancementPersistence(t *testing.T) {
 		}
 
 		// CRITICAL: Create NEW engine and verify persistence
-		engine3 := NewExecutionEngine(pg.db, profileService, metricsCollector)
+		engine3 := NewExecutionEngine(pg.db, profileService, metricsCollector, testPhasePromptsDir(t))
 		persistedState, err := engine3.GetExecutionState(taskID)
 		if err != nil {
 			t.Fatalf("GetExecutionState() from new engine error = %v", err)
@@ -143,7 +143,7 @@ func TestExecutionEngine_PhaseAdvancementPersistence(t *testing.T) {
 		}
 
 		taskID := uuid.New().String()
-		engine := NewExecutionEngine(pg.db, profileService, metricsCollector)
+		engine := NewExecutionEngine(pg.db, profileService, metricsCollector, testPhasePromptsDir(t))
 
 		// Start execution
 		_, err := engine.StartExecution(taskID, profile.ID, "test-scenario")

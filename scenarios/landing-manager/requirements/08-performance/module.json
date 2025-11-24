@@ -13,8 +13,8 @@
         {
           "type": "lighthouse",
           "phase": "performance",
-          "ref": "test/phases/test-performance.sh",
-          "status": "not_implemented"
+          "ref": "coverage/phase-results/performance.json",
+          "status": "implemented"
         }
       ],
       "status": "complete",
@@ -29,8 +29,8 @@
         {
           "type": "lighthouse",
           "phase": "performance",
-          "ref": "test/phases/test-performance.sh",
-          "status": "not_implemented"
+          "ref": "coverage/phase-results/performance.json",
+          "status": "implemented"
         }
       ],
       "status": "complete",
@@ -45,8 +45,8 @@
         {
           "type": "lighthouse",
           "phase": "performance",
-          "ref": "test/phases/test-performance.sh",
-          "status": "not_implemented"
+          "ref": "coverage/phase-results/performance.json",
+          "status": "implemented"
         }
       ],
       "status": "complete",
@@ -61,8 +61,8 @@
         {
           "type": "lighthouse",
           "phase": "performance",
-          "ref": "test/phases/test-performance.sh",
-          "status": "not_implemented"
+          "ref": "coverage/phase-results/performance.json",
+          "status": "implemented"
         }
       ],
       "status": "complete",

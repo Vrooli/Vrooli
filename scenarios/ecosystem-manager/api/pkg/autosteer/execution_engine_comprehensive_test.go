@@ -19,7 +19,7 @@ func TestExecutionEngine_FullCycle(t *testing.T) {
 
 	profileService := NewProfileService(pg.db)
 	metricsCollector := NewMetricsCollector(vrooliRoot)
-	engine := NewExecutionEngine(pg.db, profileService, metricsCollector)
+	engine := NewExecutionEngine(pg.db, profileService, metricsCollector, testPhasePromptsDir(t))
 
 	t.Run("start execution and verify state", func(t *testing.T) {
 		// Create profile
@@ -228,7 +228,7 @@ func TestExecutionEngine_GetCurrentMode(t *testing.T) {
 
 	profileService := NewProfileService(pg.db)
 	metricsCollector := NewMetricsCollector(vrooliRoot)
-	engine := NewExecutionEngine(pg.db, profileService, metricsCollector)
+	engine := NewExecutionEngine(pg.db, profileService, metricsCollector, testPhasePromptsDir(t))
 
 	t.Run("get mode for active execution", func(t *testing.T) {
 		profile := CreateTestProfile(t, "Mode Test", ModeUX, 10)
@@ -276,7 +276,7 @@ func TestExecutionEngine_IsAutoSteerActive(t *testing.T) {
 
 	profileService := NewProfileService(pg.db)
 	metricsCollector := NewMetricsCollector(vrooliRoot)
-	engine := NewExecutionEngine(pg.db, profileService, metricsCollector)
+	engine := NewExecutionEngine(pg.db, profileService, metricsCollector, testPhasePromptsDir(t))
 
 	t.Run("inactive before start", func(t *testing.T) {
 		taskID := uuid.New().String()
@@ -323,7 +323,7 @@ func TestExecutionEngine_GetEnhancedPrompt(t *testing.T) {
 
 	profileService := NewProfileService(pg.db)
 	metricsCollector := NewMetricsCollector(vrooliRoot)
-	engine := NewExecutionEngine(pg.db, profileService, metricsCollector)
+	engine := NewExecutionEngine(pg.db, profileService, metricsCollector, testPhasePromptsDir(t))
 
 	t.Run("get enhanced prompt with profile info", func(t *testing.T) {
 		profile := &AutoSteerProfile{

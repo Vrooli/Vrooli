@@ -256,7 +256,7 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 					LastUpdated:           time.Now(),
 				}
 
-				enhancer := autosteer.NewPromptEnhancer()
+				enhancer := autosteer.NewPromptEnhancer(filepath.Join(h.assembler.PromptsDir, "phases"))
 				evaluator := autosteer.NewConditionEvaluator()
 				autoSteerSection := enhancer.GenerateAutoSteerSection(&state, profile, evaluator)
 				if autoSteerSection != "" {

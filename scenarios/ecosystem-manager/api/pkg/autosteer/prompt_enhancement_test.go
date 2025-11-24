@@ -7,7 +7,7 @@ import (
 )
 
 func TestPromptEnhancer_GenerateAutoSteerSection(t *testing.T) {
-	enhancer := NewPromptEnhancer()
+	enhancer := newTestPromptEnhancer(t)
 
 	profile := &AutoSteerProfile{
 		ID:          "test-profile",
@@ -183,7 +183,7 @@ func TestPromptEnhancer_GenerateAutoSteerSection(t *testing.T) {
 }
 
 func TestPromptEnhancer_GetKeyImprovements(t *testing.T) {
-	enhancer := NewPromptEnhancer()
+	enhancer := newTestPromptEnhancer(t)
 
 	t.Run("extract significant improvements", func(t *testing.T) {
 		phase := PhaseExecution{
@@ -280,7 +280,7 @@ func TestPromptEnhancer_GetKeyImprovements(t *testing.T) {
 }
 
 func TestPromptEnhancer_FormatImprovement(t *testing.T) {
-	enhancer := NewPromptEnhancer()
+	enhancer := newTestPromptEnhancer(t)
 
 	tests := []struct {
 		name         string
@@ -334,7 +334,7 @@ func TestPromptEnhancer_FormatImprovement(t *testing.T) {
 }
 
 func TestPromptEnhancer_GeneratePhaseTransitionMessage(t *testing.T) {
-	enhancer := NewPromptEnhancer()
+	enhancer := newTestPromptEnhancer(t)
 
 	oldPhase := SteerPhase{
 		ID:            "phase-1",
@@ -369,7 +369,7 @@ func TestPromptEnhancer_GeneratePhaseTransitionMessage(t *testing.T) {
 }
 
 func TestPromptEnhancer_GenerateCompletionMessage(t *testing.T) {
-	enhancer := NewPromptEnhancer()
+	enhancer := newTestPromptEnhancer(t)
 
 	profile := &AutoSteerProfile{
 		ID:   "test-profile",
@@ -453,7 +453,7 @@ func TestPromptEnhancer_GenerateCompletionMessage(t *testing.T) {
 }
 
 func TestPromptEnhancer_EdgeCases(t *testing.T) {
-	enhancer := NewPromptEnhancer()
+	enhancer := newTestPromptEnhancer(t)
 
 	t.Run("state with no metrics", func(t *testing.T) {
 		profile := &AutoSteerProfile{
@@ -540,4 +540,9 @@ func TestPromptEnhancer_EdgeCases(t *testing.T) {
 			t.Error("Should not have quality gates section when none defined")
 		}
 	})
+}
+
+func newTestPromptEnhancer(t *testing.T) *PromptEnhancer {
+	t.Helper()
+	return NewPromptEnhancer(testPhasePromptsDir(t))
 }

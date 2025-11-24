@@ -13,28 +13,28 @@
         {
           "type": "manual",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD"
+          "ref": "coverage/manual-validations/log.jsonl"
         }
       ],
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TMPL-MARKET",
       "title": "Template marketplace",
-      "prd_ref": "OT-P2-002",
+      "prd_ref": "OT-P2-001",
       "description": "Community-contributed templates with ratings and reviews",
       "validation": [
         {
           "type": "manual",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD"
+          "ref": "coverage/manual-validations/log.jsonl"
         }
       ],
-      "status": "pending",
+      "status": "in_progress",
       "dependencies": [
         "TMPL-MULTI"
       ]
@@ -48,28 +48,28 @@
         {
           "type": "manual",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD"
+          "ref": "coverage/manual-validations/log.jsonl"
         }
       ],
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "AB-AUTO-WINNER",
       "title": "Automatic winner selection",
-      "prd_ref": "OT-P2-004",
+      "prd_ref": "OT-P2-003",
       "description": "System automatically promotes winning variant after reaching significance threshold",
       "validation": [
         {
           "type": "manual",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD"
+          "ref": "coverage/manual-validations/log.jsonl"
         }
       ],
-      "status": "pending",
+      "status": "in_progress",
       "dependencies": [
         "AB-SIGNIFICANCE"
       ]
@@ -77,18 +77,18 @@
     {
       "id": "AB-BANDIT",
       "title": "Multi-armed bandit",
-      "prd_ref": "OT-P2-005",
+      "prd_ref": "OT-P2-003",
       "description": "Implement Thompson sampling or UCB for dynamic traffic allocation",
       "validation": [
         {
           "type": "manual",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD"
+          "ref": "coverage/manual-validations/log.jsonl"
         }
       ],
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "METRIC-HEATMAP",
@@ -99,44 +99,44 @@
         {
           "type": "manual",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD"
+          "ref": "coverage/manual-validations/log.jsonl"
         }
       ],
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "METRIC-REPLAY",
       "title": "Session replay",
-      "prd_ref": "OT-P2-007",
+      "prd_ref": "OT-P2-006",
       "description": "Record and replay user sessions for UX analysis",
       "validation": [
         {
           "type": "manual",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD"
+          "ref": "coverage/manual-validations/log.jsonl"
         }
       ],
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "METRIC-FUNNEL",
       "title": "Funnel analysis",
-      "prd_ref": "OT-P2-008",
+      "prd_ref": "OT-P2-006",
       "description": "Multi-step conversion funnel tracking (landing → CTA → checkout → success)",
       "validation": [
         {
           "type": "manual",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD"
+          "ref": "coverage/manual-validations/log.jsonl"
         }
       ],
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "AGENT-VARIANTS",
@@ -147,44 +147,44 @@
         {
           "type": "manual",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD"
+          "ref": "coverage/manual-validations/log.jsonl"
         }
       ],
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "AGENT-MVT",
       "title": "Multivariate testing",
-      "prd_ref": "OT-P2-010",
+      "prd_ref": "OT-P2-009",
       "description": "Test multiple elements simultaneously (hero copy + CTA button + pricing)",
       "validation": [
         {
           "type": "manual",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD"
+          "ref": "coverage/manual-validations/log.jsonl"
         }
       ],
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "AGENT-PERSONA",
       "title": "Persona-based variants",
-      "prd_ref": "OT-P2-011",
+      "prd_ref": "OT-P2-009",
       "description": "Generate variants optimized for different user personas",
       "validation": [
         {
           "type": "manual",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD"
+          "ref": "coverage/manual-validations/log.jsonl"
         }
       ],
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "INTEG-CRM",
@@ -195,28 +195,28 @@
         {
           "type": "manual",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD"
+          "ref": "coverage/manual-validations/log.jsonl"
         }
       ],
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "INTEG-EMAIL",
       "title": "Email marketing integration",
-      "prd_ref": "OT-P2-013",
+      "prd_ref": "OT-P2-012",
       "description": "Sync subscribers to Mailchimp, ConvertKit, etc.",
       "validation": [
         {
           "type": "manual",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD"
+          "ref": "coverage/manual-validations/log.jsonl"
         }
       ],
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "INTEG-WEBHOOK",
@@ -227,12 +227,12 @@
         {
           "type": "manual",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD"
+          "ref": "coverage/manual-validations/log.jsonl"
         }
       ],
-      "status": "pending"
+      "status": "in_progress"
     }
   ],
   "_metadata": {}

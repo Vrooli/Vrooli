@@ -12,9 +12,9 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/template-management.bats"
+          "ref": "api/template_service_test.go"
         }
       ],
       "status": "complete",
@@ -28,9 +28,9 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/template-management.bats"
+          "ref": "api/template_service_test.go"
         }
       ],
       "status": "complete",
@@ -47,9 +47,9 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/template-management.bats"
+          "ref": "api/template_service_test.go"
         }
       ],
       "status": "complete",
@@ -67,9 +67,9 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/template-management.bats"
+          "ref": "api/template_service_test.go"
         }
       ],
       "status": "complete",

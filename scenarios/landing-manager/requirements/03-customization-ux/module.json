@@ -11,17 +11,14 @@
       "description": "Each slide customization page shows form (one column) + live preview (other column), stacked on mobile",
       "validation": [
         {
-          "type": "test",
-          "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/pages/SectionEditor.test.tsx:53",
-          "notes": "Responsive grid layout verified via test. Implementation: lg:grid-cols-2 for split view on desktop, stacked on mobile. Form in left column (data-testid='section-form'), preview in right column (data-testid='section-preview').",
-          "test_duration_ms": 0,
-          "last_test_run": "2025-11-22",
-          "phase_result": "passed"
+          "type": "manual",
+          "phase": "integration",
+          "status": "failing",
+          "ref": "ui/src/pages/SectionEditor.tsx",
+          "notes": "Responsive grid layout using lg:grid-cols-2 for desktop split view and stacked layout on mobile. Form and preview panes marked with data-testid for future tests."
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "Implemented via responsive grid in SectionEditor.tsx (line 164). Layout splits at lg breakpoint, stacks below. Validated by unit tests."
     },
     {
@@ -31,17 +28,14 @@
       "description": "Form field changes update preview within 300ms (debounced) without page reload",
       "validation": [
         {
-          "type": "test",
-          "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/pages/SectionEditor.test.tsx:88",
-          "notes": "useDebounce hook with 300ms delay verified by test checking debounce indicator text. Implementation uses debouncedContent which updates automatically when form fields change.",
-          "test_duration_ms": 0,
-          "last_test_run": "2025-11-22",
-          "phase_result": "passed"
+          "type": "manual",
+          "phase": "integration",
+          "status": "failing",
+          "ref": "ui/src/pages/SectionEditor.tsx",
+          "notes": "Live preview uses debounced content updates (300ms) via useDebounce hook to refresh preview without reload when form fields change."
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "dependencies": [
         "CUSTOM-SPLIT"
       ],

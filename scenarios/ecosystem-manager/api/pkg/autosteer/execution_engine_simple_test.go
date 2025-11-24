@@ -142,7 +142,7 @@ func TestExecutionEngineSimple_StartAndGetState(t *testing.T) {
 		t.Fatalf("Failed to create profile: %v", err)
 	}
 
-	engine := NewExecutionEngine(db, profileService, metricsCollector)
+	engine := NewExecutionEngine(db, profileService, metricsCollector, testPhasePromptsDir(t))
 	taskID := uuid.New().String()
 
 	// Start execution
@@ -199,7 +199,7 @@ func TestExecutionEngineSimple_IsAutoSteerActive(t *testing.T) {
 		t.Fatalf("Failed to create profile: %v", err)
 	}
 
-	engine := NewExecutionEngine(db, profileService, metricsCollector)
+	engine := NewExecutionEngine(db, profileService, metricsCollector, testPhasePromptsDir(t))
 	taskID := uuid.New().String()
 
 	// Should not be active before start
@@ -257,7 +257,7 @@ func TestExecutionEngineSimple_GetCurrentMode(t *testing.T) {
 		t.Fatalf("Failed to create profile: %v", err)
 	}
 
-	engine := NewExecutionEngine(db, profileService, metricsCollector)
+	engine := NewExecutionEngine(db, profileService, metricsCollector, testPhasePromptsDir(t))
 	taskID := uuid.New().String()
 
 	// Start execution

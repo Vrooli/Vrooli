@@ -30,6 +30,7 @@ export interface Task {
   target?: string[];
   notes?: string;
   auto_steer_profile_id?: string;
+  auto_steer_phase_index?: number;
   auto_requeue?: boolean;
   created_at: string;
   updated_at: string;
@@ -371,6 +372,23 @@ export interface PromptPreviewResult {
   token_count?: number;
   sections?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+}
+
+export interface PromptFileInfo {
+  id: string;
+  path: string;
+  display_name?: string;
+  type?: string;
+  size?: number;
+  modified_at?: string;
+}
+
+export interface PromptFile {
+  id: string;
+  path: string;
+  content: string;
+  size: number;
+  modified_at?: string;
 }
 
 // ==================== API Response Wrappers ====================

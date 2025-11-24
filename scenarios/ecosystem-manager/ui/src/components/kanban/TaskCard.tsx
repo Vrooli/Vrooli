@@ -9,16 +9,25 @@ import { CSS } from '@dnd-kit/utilities';
 import { TaskCardHeader } from './TaskCardHeader';
 import { TaskCardBody } from './TaskCardBody';
 import { TaskCardFooter } from './TaskCardFooter';
-import type { Task } from '../../types/api';
+import type { Task, AutoSteerProfile } from '../../types/api';
 
 interface TaskCardProps {
   task: Task;
   onViewDetails?: (task: Task) => void;
-  onDelete?: (taskId: string) => void;
+  onDelete?: (task: Task) => void;
+  autoSteerProfile?: AutoSteerProfile;
+  autoSteerPhaseIndex?: number;
   dragOverlay?: boolean;
 }
 
-export function TaskCard({ task, onViewDetails, onDelete, dragOverlay = false }: TaskCardProps) {
+export function TaskCard({
+  task,
+  onViewDetails,
+  onDelete,
+  autoSteerProfile,
+  autoSteerPhaseIndex,
+  dragOverlay = false,
+}: TaskCardProps) {
   if (dragOverlay) {
     return (
       <div
@@ -28,7 +37,11 @@ export function TaskCard({ task, onViewDetails, onDelete, dragOverlay = false }:
         "
       >
         <TaskCardHeader task={task} />
-        <TaskCardBody task={task} />
+        <TaskCardBody
+          task={task}
+          autoSteerProfile={autoSteerProfile}
+          autoSteerPhaseIndex={autoSteerPhaseIndex}
+        />
         <TaskCardFooter task={task} />
       </div>
     );
@@ -109,11 +122,15 @@ export function TaskCard({ task, onViewDetails, onDelete, dragOverlay = false }:
       `}
     >
       <TaskCardHeader task={task} />
-      <TaskCardBody task={task} />
+      <TaskCardBody
+        task={task}
+        autoSteerProfile={autoSteerProfile}
+        autoSteerPhaseIndex={autoSteerPhaseIndex}
+      />
       <TaskCardFooter
         task={task}
         onViewDetails={onViewDetails ? () => onViewDetails(task) : undefined}
-        onDelete={onDelete ? () => onDelete(task.id) : undefined}
+        onDelete={onDelete ? () => onDelete(task) : undefined}
       />
     </div>
   );

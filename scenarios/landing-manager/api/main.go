@@ -58,6 +58,10 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
+	if err := seedDefaultData(db); err != nil {
+		return nil, fmt.Errorf("failed to seed default data: %w", err)
+	}
+
 	srv := &Server{
 		config:          cfg,
 		db:              db,
@@ -180,6 +184,71 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// seedDefaultData ensures the public landing page has content without requiring admin setup
+func seedDefaultData(db *sql.DB) error {
+	// Seed default admin user for local use
+	const defaultAdminEmail = "admin@localhost"
+	const defaultAdminHash = "$2a$10$nhmpbhFPQUZZwEH.qaYHCeiKBWDvr8z5Z7eM4v62MmNwm.0N.5xeG"
+
+	if _, err := db.Exec(
+		`INSERT INTO admin_users (email, password_hash) VALUES ($1, $2)
+		 ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash`,
+		defaultAdminEmail,
+		defaultAdminHash,
+	); err != nil {
+		return fmt.Errorf("failed to seed admin user: %w", err)
+	}
+
+	// Ensure control and variant-a exist and are active
+	controlID, err := upsertVariant(db, "control", "Control (Original)", "Original landing page design", 50)
+	if err != nil {
+		return err
+	}
+	if _, err := upsertVariant(db, "variant-a", "Variant A", "Experimental variant A", 50); err != nil {
+		return err
+	}
+
+	// Seed sections for control if none exist
+	var sectionCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM content_sections WHERE variant_id = $1`, controlID).Scan(&sectionCount); err != nil {
+		return fmt.Errorf("failed to count sections: %w", err)
+	}
+
+	if sectionCount == 0 {
+		hero := `{"headline": "Build Landing Pages in Minutes", "subheadline": "Create beautiful, conversion-optimized landing pages with A/B testing and analytics built-in", "cta_text": "Get Started Free", "cta_url": "/signup", "background_color": "#0f172a"}`
+		features := `{"title": "Everything You Need", "items": [{"title": "A/B Testing", "description": "Test variants and optimize conversions", "icon": "Zap"}, {"title": "Analytics", "description": "Track visitor behavior and metrics", "icon": "BarChart"}, {"title": "Stripe Integration", "description": "Accept payments instantly", "icon": "CreditCard"}]}`
+		pricing := `{"title": "Simple Pricing", "plans": [{"name": "Starter", "price": "$29", "features": ["5 landing pages", "Basic analytics", "Email support"], "cta_text": "Start Free Trial"}, {"name": "Pro", "price": "$99", "features": ["Unlimited pages", "Advanced analytics", "Priority support", "Custom domains"], "cta_text": "Get Started", "highlighted": true}]}`
+		cta := `{"headline": "Ready to Launch Your Landing Page?", "subheadline": "Join thousands of marketers using Landing Manager", "cta_text": "Start Building Now", "cta_url": "/signup"}`
+
+		if _, err := db.Exec(`
+			INSERT INTO content_sections (variant_id, section_type, content, "order", enabled) VALUES
+			($1, 'hero', $2::jsonb, 1, TRUE),
+			($1, 'features', $3::jsonb, 2, TRUE),
+			($1, 'pricing', $4::jsonb, 3, TRUE),
+			($1, 'cta', $5::jsonb, 4, TRUE)
+		`, controlID, hero, features, pricing, cta); err != nil {
+			return fmt.Errorf("failed to seed default sections: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func upsertVariant(db *sql.DB, slug, name, description string, weight int) (int, error) {
+	var id int
+	err := db.QueryRow(`
+		INSERT INTO variants (slug, name, description, weight, status)
+		VALUES ($1, $2, $3, $4, 'active')
+		ON CONFLICT (slug)
+		DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, weight = EXCLUDED.weight, status = 'active', updated_at = NOW()
+		RETURNING id
+	`, slug, name, description, weight).Scan(&id)
+	if err != nil {
+		return 0, fmt.Errorf("failed to upsert variant %s: %w", slug, err)
+	}
+	return id, nil
 }
 
 func (s *Server) handleTemplateList(w http.ResponseWriter, r *http.Request) {

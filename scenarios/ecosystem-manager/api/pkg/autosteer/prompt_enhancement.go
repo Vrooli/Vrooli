@@ -11,9 +11,9 @@ type PromptEnhancer struct {
 }
 
 // NewPromptEnhancer creates a new prompt enhancer
-func NewPromptEnhancer() *PromptEnhancer {
+func NewPromptEnhancer(phasesDir string) *PromptEnhancer {
 	return &PromptEnhancer{
-		modeInstructions: NewModeInstructions(),
+		modeInstructions: NewModeInstructions(phasesDir),
 	}
 }
 

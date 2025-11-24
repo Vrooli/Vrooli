@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  base: '/',  // Absolute path required for nested routes (e.g., /admin)
+  base: './',  // Required for tunnel/proxy contexts
   plugins: [react()],
   test: {
     globals: true,

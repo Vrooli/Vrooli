@@ -4,16 +4,24 @@
  */
 
 import { Target, FileText, Zap } from 'lucide-react';
-import type { Task } from '../../types/api';
+import type { Task, AutoSteerProfile } from '../../types/api';
 
 interface TaskCardBodyProps {
   task: Task;
+  autoSteerProfile?: AutoSteerProfile;
+  autoSteerPhaseIndex?: number;
 }
 
-export function TaskCardBody({ task }: TaskCardBodyProps) {
+export function TaskCardBody({ task, autoSteerProfile, autoSteerPhaseIndex }: TaskCardBodyProps) {
   const hasTarget = task.target && task.target.length > 0;
   const hasNotes = task.notes && task.notes.trim().length > 0;
-  const hasAutoSteer = !!task.auto_steer_profile_id;
+  const hasAutoSteer = !!task.auto_steer_profile_id || !!autoSteerProfile;
+  const phaseIndex = typeof autoSteerPhaseIndex === 'number'
+    ? autoSteerPhaseIndex
+    : typeof task.auto_steer_phase_index === 'number'
+      ? task.auto_steer_phase_index
+      : undefined;
+  const phaseLabel = autoSteerProfile?.phases?.[phaseIndex ?? -1]?.mode;
 
   // Truncate notes to first 150 characters
   const truncatedNotes = hasNotes ? task.notes!.slice(0, 150) + (task.notes!.length > 150 ? '...' : '') : '';
@@ -50,9 +58,18 @@ export function TaskCardBody({ task }: TaskCardBodyProps) {
 
       {/* Auto Steer indicator */}
       {hasAutoSteer && (
-        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-100 text-indigo-800 border border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-100 dark:border-indigo-500/30">
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-100 text-indigo-900 border border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-100 dark:border-indigo-500/30">
           <Zap className="h-3.5 w-3.5" />
-          <span className="text-xs font-medium">Auto Steer</span>
+          <div className="flex flex-col leading-tight">
+            <span className="text-xs font-semibold">
+              {autoSteerProfile?.name ?? 'Auto Steer'}
+            </span>
+            {phaseIndex !== undefined && (
+              <span className="text-[11px] text-indigo-800/80 dark:text-indigo-100/80">
+                Phase {phaseIndex + 1}{phaseLabel ? `: ${phaseLabel}` : ''}
+              </span>
+            )}
+          </div>
         </div>
       )}
     </div>

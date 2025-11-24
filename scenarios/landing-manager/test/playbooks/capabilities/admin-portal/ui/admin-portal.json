@@ -1,146 +1,141 @@
 {
   "metadata": {
-    "reset": "full"
-  },
-  "flow_definition": {
-    "metadata": {
-      "name": "Admin Portal Authentication and Navigation",
-      "description": "Validates admin portal login, breadcrumb navigation, and mode switching. Tests requirements ADMIN-HIDDEN, ADMIN-AUTH, ADMIN-MODES, ADMIN-NAV, ADMIN-BREADCRUMB. Note: Session persistence across navigations fails in BAS/Browserless environment (known limitation), so workflow stays on admin home page after login.",
-      "reset": "full",
-      "requirements": [
-        "ADMIN-HIDDEN",
-        "ADMIN-AUTH",
-        "ADMIN-MODES",
-        "ADMIN-NAV",
-        "ADMIN-BREADCRUMB"
-      ],
-      "tags": ["admin", "auth", "navigation", "critical"]
-    },
-    "nodes": [
-      {
-        "id": "navigate-1",
-        "type": "navigate",
-        "data": {
-          "label": "Navigate to public home page",
-          "destinationType": "url",
-          "url": "${BASE_URL}/",
-          "waitForMs": 1000,
-          "timeoutMs": 10000
-        }
-      },
-      {
-        "id": "wait-public",
-        "type": "wait",
-        "data": {
-          "label": "[REQ:ADMIN-HIDDEN] Wait for public page to load",
-          "waitType": "duration",
-          "durationMs": 1000,
-          "timeoutMs": 5000
-        }
-      },
-      {
-        "id": "navigate-2",
-        "type": "navigate",
-        "data": {
-          "label": "Navigate directly to admin login",
-          "destinationType": "url",
-          "url": "${BASE_URL}/admin/login",
-          "waitForMs": 1000,
-          "timeoutMs": 10000
-        }
-      },
-      {
-        "id": "type-1",
-        "type": "type",
-        "data": {
-          "label": "[REQ:ADMIN-AUTH] Enter admin email",
-          "selector": "@selector/admin.login.email",
-          "text": "admin@localhost"
-        }
-      },
-      {
-        "id": "type-2",
-        "type": "type",
-        "data": {
-          "label": "Enter admin password",
-          "selector": "@selector/admin.login.passwordField",
-          "text": "changeme123"
-        }
-      },
-      {
-        "id": "click-1",
-        "type": "click",
-        "data": {
-          "label": "[REQ:ADMIN-AUTH] Submit login form",
-          "selector": "@selector/admin.login.submit",
-          "waitForMs": 2000,
-          "timeoutMs": 10000
-        }
-      },
-      {
-        "id": "wait-url",
-        "type": "wait",
-        "data": {
-          "label": "[REQ:ADMIN-AUTH] Wait for redirect to admin home",
-          "waitType": "duration",
-          "durationMs": 2000,
-          "timeoutMs": 5000
-        }
-      },
-      {
-        "id": "assert-3",
-        "type": "assert",
-        "data": {
-          "label": "[REQ:ADMIN-BREADCRUMB] Verify breadcrumb shows 'Admin'",
-          "assertMode": "text_contains",
-          "selector": "@selector/admin.breadcrumb",
-          "expectedValue": "Admin",
-          "timeoutMs": 3000
-        }
-      },
-      {
-        "id": "assert-modes",
-        "type": "assert",
-        "data": {
-          "label": "[REQ:ADMIN-MODES] Verify both mode buttons exist (Analytics and Customization)",
-          "assertMode": "exists",
-          "selector": "@selector/admin.mode.analytics",
-          "timeoutMs": 3000
-        }
-      },
-      {
-        "id": "assert-customization-mode",
-        "type": "assert",
-        "data": {
-          "label": "[REQ:ADMIN-MODES] Verify Customization mode button exists",
-          "assertMode": "exists",
-          "selector": "@selector/admin.mode.customization",
-          "timeoutMs": 3000
-        }
-      },
-      {
-        "id": "assert-nav-efficiency",
-        "type": "assert",
-        "data": {
-          "label": "[REQ:ADMIN-NAV] Verify admin home title (≤3 clicks to any customization)",
-          "assertMode": "text_contains",
-          "selector": "h1",
-          "expectedValue": "Landing Manager Admin",
-          "timeoutMs": 3000
-        }
-      }
+    "name": "Admin Portal Authentication and Navigation",
+    "description": "Validates admin portal login, breadcrumb navigation, and mode switching. Tests requirements ADMIN-HIDDEN, ADMIN-AUTH, ADMIN-MODES, ADMIN-NAV, ADMIN-BREADCRUMB. Note: Session persistence across navigations fails in BAS/Browserless environment (known limitation), so workflow stays on admin home page after login.",
+    "reset": "full",
+    "requirements": [
+      "ADMIN-HIDDEN",
+      "ADMIN-AUTH",
+      "ADMIN-MODES",
+      "ADMIN-NAV",
+      "ADMIN-BREADCRUMB"
     ],
-    "edges": [
-      {"id": "e1", "source": "navigate-1", "target": "wait-public", "type": "smoothstep"},
-      {"id": "e2", "source": "wait-public", "target": "navigate-2", "type": "smoothstep"},
-      {"id": "e3", "source": "navigate-2", "target": "type-1", "type": "smoothstep"},
-      {"id": "e4", "source": "type-1", "target": "type-2", "type": "smoothstep"},
-      {"id": "e6", "source": "type-2", "target": "click-1", "type": "smoothstep"},
-      {"id": "e7", "source": "click-1", "target": "wait-url", "type": "smoothstep"},
-      {"id": "e8", "source": "wait-url", "target": "assert-3", "type": "smoothstep"},
-      {"id": "e9", "source": "assert-3", "target": "assert-modes", "type": "smoothstep"},
-      {"id": "e10", "source": "assert-modes", "target": "assert-customization-mode", "type": "smoothstep"},
-      {"id": "e11", "source": "assert-customization-mode", "target": "assert-nav-efficiency", "type": "smoothstep"}
-    ]
-  }
+    "tags": ["admin", "auth", "navigation", "critical"]
+  },
+  "nodes": [
+    {
+      "id": "navigate-1",
+      "type": "navigate",
+      "data": {
+        "label": "Navigate to public home page",
+        "destinationType": "url",
+        "url": "${BASE_URL}/",
+        "waitForMs": 1000,
+        "timeoutMs": 10000
+      }
+    },
+    {
+      "id": "wait-public",
+      "type": "wait",
+      "data": {
+        "label": "[REQ:ADMIN-HIDDEN] Wait for public page to load",
+        "waitType": "duration",
+        "durationMs": 1000,
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "navigate-2",
+      "type": "navigate",
+      "data": {
+        "label": "Navigate directly to admin login",
+        "destinationType": "url",
+        "url": "${BASE_URL}/admin/login",
+        "waitForMs": 1000,
+        "timeoutMs": 10000
+      }
+    },
+    {
+      "id": "type-1",
+      "type": "type",
+      "data": {
+        "label": "[REQ:ADMIN-AUTH] Enter admin email",
+        "selector": "@selector/admin.login.email",
+        "text": "admin@localhost"
+      }
+    },
+    {
+      "id": "type-2",
+      "type": "type",
+      "data": {
+        "label": "Enter admin password",
+        "selector": "@selector/admin.login.passwordField",
+        "text": "changeme123"
+      }
+    },
+    {
+      "id": "click-1",
+      "type": "click",
+      "data": {
+        "label": "[REQ:ADMIN-AUTH] Submit login form",
+        "selector": "@selector/admin.login.submit",
+        "waitForMs": 2000,
+        "timeoutMs": 10000
+      }
+    },
+    {
+      "id": "wait-url",
+      "type": "wait",
+      "data": {
+        "label": "[REQ:ADMIN-AUTH] Wait for redirect to admin home",
+        "waitType": "duration",
+        "durationMs": 2000,
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "assert-3",
+      "type": "assert",
+      "data": {
+        "label": "[REQ:ADMIN-BREADCRUMB] Verify breadcrumb shows 'Admin'",
+        "assertMode": "text_contains",
+        "selector": "@selector/admin.breadcrumb",
+        "expectedValue": "Admin",
+        "timeoutMs": 3000
+      }
+    },
+    {
+      "id": "assert-modes",
+      "type": "assert",
+      "data": {
+        "label": "[REQ:ADMIN-MODES] Verify both mode buttons exist (Analytics and Customization)",
+        "assertMode": "exists",
+        "selector": "@selector/admin.mode.analytics",
+        "timeoutMs": 3000
+      }
+    },
+    {
+      "id": "assert-customization-mode",
+      "type": "assert",
+      "data": {
+        "label": "[REQ:ADMIN-MODES] Verify Customization mode button exists",
+        "assertMode": "exists",
+        "selector": "@selector/admin.mode.customization",
+        "timeoutMs": 3000
+      }
+    },
+    {
+      "id": "assert-nav-efficiency",
+      "type": "assert",
+      "data": {
+        "label": "[REQ:ADMIN-NAV] Verify admin home title (≤3 clicks to any customization)",
+        "assertMode": "text_contains",
+        "selector": "h1",
+        "expectedValue": "Landing Manager Admin",
+        "timeoutMs": 3000
+      }
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate-1", "target": "wait-public", "type": "smoothstep"},
+    {"id": "e2", "source": "wait-public", "target": "navigate-2", "type": "smoothstep"},
+    {"id": "e3", "source": "navigate-2", "target": "type-1", "type": "smoothstep"},
+    {"id": "e4", "source": "type-1", "target": "type-2", "type": "smoothstep"},
+    {"id": "e6", "source": "type-2", "target": "click-1", "type": "smoothstep"},
+    {"id": "e7", "source": "click-1", "target": "wait-url", "type": "smoothstep"},
+    {"id": "e8", "source": "wait-url", "target": "assert-3", "type": "smoothstep"},
+    {"id": "e9", "source": "assert-3", "target": "assert-modes", "type": "smoothstep"},
+    {"id": "e10", "source": "assert-modes", "target": "assert-customization-mode", "type": "smoothstep"},
+    {"id": "e11", "source": "assert-customization-mode", "target": "assert-nav-efficiency", "type": "smoothstep"}
+  ]
 }

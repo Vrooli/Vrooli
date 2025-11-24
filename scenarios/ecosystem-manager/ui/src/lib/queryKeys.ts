@@ -65,6 +65,12 @@ export const queryKeys = {
     list: () => [...queryKeys.categories.all, 'list'] as const,
   },
 
+  prompts: {
+    all: ['prompts'] as const,
+    list: () => [...queryKeys.prompts.all, 'list'] as const,
+    file: (id: string) => [...queryKeys.prompts.all, 'file', id] as const,
+  },
+
   // Logs
   logs: {
     all: ['logs'] as const,

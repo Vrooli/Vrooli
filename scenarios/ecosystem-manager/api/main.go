@@ -61,9 +61,9 @@ var (
 	db           *sql.DB
 
 	// Auto Steer components
-	autoSteerProfileService  *autosteer.ProfileService
-	autoSteerExecutionEngine *autosteer.ExecutionEngine
-	autoSteerHistoryService  *autosteer.HistoryService
+	autoSteerProfileService   *autosteer.ProfileService
+	autoSteerExecutionEngine  *autosteer.ExecutionEngine
+	autoSteerHistoryService   *autosteer.HistoryService
 	autoSteerMetricsCollector *autosteer.MetricsCollector
 
 	// Handlers
@@ -72,6 +72,7 @@ var (
 	discoveryHandlers *handlers.DiscoveryHandlers
 	healthHandlers    *handlers.HealthHandlers
 	settingsHandlers  *handlers.SettingsHandlers
+	promptsHandlers   *handlers.PromptsHandlers
 	autoSteerHandlers *autosteer.AutoSteerHandlers
 )
 
@@ -282,7 +283,12 @@ func initializeComponents() error {
 
 	autoSteerMetricsCollector = autosteer.NewMetricsCollector(projectRoot2)
 	autoSteerProfileService = autosteer.NewProfileService(db)
-	autoSteerExecutionEngine = autosteer.NewExecutionEngine(db, autoSteerProfileService, autoSteerMetricsCollector)
+	autoSteerExecutionEngine = autosteer.NewExecutionEngine(
+		db,
+		autoSteerProfileService,
+		autoSteerMetricsCollector,
+		filepath.Join(promptsDir, "phases"),
+	)
 	autoSteerHistoryService = autosteer.NewHistoryService(db)
 	log.Println("✅ Auto Steer components initialized")
 	systemlog.Info("Auto Steer components initialized")
@@ -297,6 +303,7 @@ func initializeComponents() error {
 	discoveryHandlers = handlers.NewDiscoveryHandlers(assembler)
 	healthHandlers = handlers.NewHealthHandlers(processor)
 	settingsHandlers = handlers.NewSettingsHandlers(processor, wsManager, taskRecycler)
+	promptsHandlers = handlers.NewPromptsHandlers(assembler)
 	autoSteerHandlers = autosteer.NewAutoSteerHandlers(autoSteerProfileService, autoSteerExecutionEngine, autoSteerHistoryService)
 	log.Println("✅ HTTP handlers initialized")
 
@@ -339,6 +346,9 @@ func setupRoutes() http.Handler {
 
 	// Prompt viewer (no task ID required)
 	api.HandleFunc("/prompt-viewer", taskHandlers.PromptViewerHandler).Methods("POST")
+	api.HandleFunc("/prompts", promptsHandlers.ListPromptFilesHandler).Methods("GET")
+	api.HandleFunc("/prompts/{path:.*}", promptsHandlers.GetPromptFileHandler).Methods("GET")
+	api.HandleFunc("/prompts/{path:.*}", promptsHandlers.UpdatePromptFileHandler).Methods("PUT")
 
 	// Queue management routes
 	api.HandleFunc("/queue/status", queueHandlers.GetQueueStatusHandler).Methods("GET")
