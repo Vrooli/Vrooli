@@ -27,9 +27,12 @@ type Config struct {
 
 // Server wires the HTTP router and database connection
 type Server struct {
-	config *Config
-	db     *sql.DB
-	router *mux.Router
+	config            *Config
+	db                *sql.DB
+	router            *mux.Router
+	scenarioCache     []string
+	scenarioCacheTime time.Time
+	scenarioCacheTTL  time.Duration
 }
 
 // NewServer initializes configuration, database, and routes
@@ -54,9 +57,10 @@ func NewServer() (*Server, error) {
 	}
 
 	srv := &Server{
-		config: cfg,
-		db:     db,
-		router: mux.NewRouter(),
+		config:           cfg,
+		db:               db,
+		router:           mux.NewRouter(),
+		scenarioCacheTTL: 5 * time.Minute, // Cache scenario list for 5 minutes
 	}
 
 	srv.setupRoutes()
@@ -73,6 +77,11 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/scan/light", s.handleLightScan).Methods("POST")
 	s.router.HandleFunc("/api/v1/scan/light/parse-lint", s.handleParseLint).Methods("POST")
 	s.router.HandleFunc("/api/v1/scan/light/parse-type", s.handleParseType).Methods("POST")
+
+	// Agent API endpoints (TM-API-001 through TM-API-007)
+	s.router.HandleFunc("/api/v1/agent/issues", s.handleAgentGetIssues).Methods("GET")
+	s.router.HandleFunc("/api/v1/agent/issues", s.handleAgentStoreIssue).Methods("POST")
+	s.router.HandleFunc("/api/v1/agent/scenarios", s.handleAgentGetScenarios).Methods("GET")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -192,10 +201,16 @@ func resolveDatabaseURL() (string, error) {
 	port := strings.TrimSpace(os.Getenv("POSTGRES_PORT"))
 	user := strings.TrimSpace(os.Getenv("POSTGRES_USER"))
 	password := strings.TrimSpace(os.Getenv("POSTGRES_PASSWORD"))
-	name := strings.TrimSpace(os.Getenv("POSTGRES_DB"))
+
+	// Use SCENARIO_NAME for the database name when running in scenario mode
+	// This allows each scenario to have its own isolated database
+	name := strings.TrimSpace(os.Getenv("SCENARIO_NAME"))
+	if name == "" {
+		name = strings.TrimSpace(os.Getenv("POSTGRES_DB"))
+	}
 
 	if host == "" || port == "" || user == "" || password == "" || name == "" {
-		return "", fmt.Errorf("DATABASE_URL or POSTGRES_HOST/PORT/USER/PASSWORD/DB must be set by the lifecycle system")
+		return "", fmt.Errorf("DATABASE_URL or POSTGRES_HOST/PORT/USER/PASSWORD and SCENARIO_NAME must be set by the lifecycle system")
 	}
 
 	pgURL := &url.URL{
