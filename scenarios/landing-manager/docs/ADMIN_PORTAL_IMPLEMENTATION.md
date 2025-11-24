@@ -22,12 +22,13 @@ The admin portal is a P0 feature that enables landing page owners to:
   - `admin.breadcrumb`
   - `admin.mode.{analytics, customization}`
 - Documented requirements and implementation TODOs in component comments
+- Agent handoff is expected to go through **app-issue-tracker** (no on-box model dependency).
 
 ### ❌ Blocked Requirements (7 P0)
 
 | Requirement | PRD Ref | Status | Blocker |
 |-------------|---------|--------|---------|
-| AGENT-TRIGGER | OT-P0-005 | Not Implemented | No agent integration API |
+| AGENT-TRIGGER | OT-P0-005 | Not Implemented | No verified agent handoff via app-issue-tracker |
 | AGENT-INPUT | OT-P0-006 | Not Implemented | Depends on AGENT-TRIGGER |
 | ADMIN-HIDDEN | OT-P0-007 | Not Implemented | No routing system |
 | ADMIN-AUTH | OT-P0-008 | Partial (UI only) | No API endpoint, no session management |
@@ -415,7 +416,7 @@ export function Customization() {
 #### 4.2 Implement Agent Integration
 - POST /api/v1/admin/trigger-agent endpoint
 - Accepts structured brief (text + assets + goals) - OT-P0-006
-- Spawns resource-claude-code process with scenario context
+- Files customization requests into app-issue-tracker and triggers investigation
 - Returns job_id for polling status
 
 #### 4.3 Live Preview System

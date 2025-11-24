@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -116,6 +117,40 @@ func TestTemplateService_GenerateScenario(t *testing.T) {
 	ts := &TemplateService{templatesDir: tmpDir}
 
 	t.Run("valid generation", func(t *testing.T) {
+		// Provide a minimal payload so scaffolding succeeds without touching the real repo
+		payload := t.TempDir()
+		minimalFiles := []string{
+			filepath.Join(payload, "api", "main.go"),
+			filepath.Join(payload, "ui", "src", "App.tsx"),
+			filepath.Join(payload, "requirements", "index.json"),
+			filepath.Join(payload, "initialization", "configuration", "landing-manager.env"),
+			filepath.Join(payload, "Makefile"),
+			filepath.Join(payload, "PRD.md"),
+			filepath.Join(payload, ".vrooli", "service.json"),
+		}
+		for _, p := range minimalFiles {
+			if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+				t.Fatalf("failed to create payload dir %s: %v", p, err)
+			}
+			// lightweight file contents to satisfy rewriteServiceConfig
+			if strings.HasSuffix(p, "service.json") {
+				content := `{
+  "service": {"name": "stub", "displayName": "Stub", "description": "stub", "repository": {"directory": "/scenarios/stub"}},
+  "lifecycle": {"develop": {"steps": [{"name": "start-api", "run": ""}]} }
+}`
+				if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+					t.Fatalf("failed to write stub service.json: %v", err)
+				}
+				continue
+			}
+			if err := os.WriteFile(p, []byte("// stub"), 0o644); err != nil {
+				t.Fatalf("failed to write stub file %s: %v", p, err)
+			}
+		}
+
+		t.Setenv("TEMPLATE_PAYLOAD_DIR", payload)
+		t.Setenv("GEN_OUTPUT_DIR", filepath.Join(t.TempDir(), "generated"))
+
 		result, err := ts.GenerateScenario("test-template", "My Landing Page", "my-landing", nil)
 		if err != nil {
 			t.Errorf("GenerateScenario() returned error: %v", err)

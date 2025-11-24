@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -37,6 +38,17 @@ type MetricHook struct {
 // TemplateService handles template operations
 type TemplateService struct {
 	templatesDir string
+}
+
+// GeneratedScenario summarizes a generated landing scenario for the factory UI.
+type GeneratedScenario struct {
+	ScenarioID      string `json:"scenario_id"`
+	Name            string `json:"name"`
+	TemplateID      string `json:"template_id,omitempty"`
+	TemplateVersion string `json:"template_version,omitempty"`
+	Path            string `json:"path"`
+	Status          string `json:"status"`
+	GeneratedAt     string `json:"generated_at,omitempty"`
 }
 
 // NewTemplateService creates a template service instance
@@ -237,8 +249,17 @@ func (ts *TemplateService) GenerateScenario(templateID, name, slug string, optio
 // resolveGenerationPath returns an absolute path for the generated scenario.
 // Priority: GEN_OUTPUT_DIR env override → ../generated/<slug> relative to API binary.
 func resolveGenerationPath(slug string) (string, error) {
+	root, err := generationRoot()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, slug), nil
+}
+
+// generationRoot resolves the base directory for generated scenarios.
+func generationRoot() (string, error) {
 	if override := strings.TrimSpace(os.Getenv("GEN_OUTPUT_DIR")); override != "" {
-		return filepath.Abs(filepath.Join(override, slug))
+		return filepath.Abs(override)
 	}
 
 	execPath, err := os.Executable()
@@ -249,7 +270,7 @@ func resolveGenerationPath(slug string) (string, error) {
 	// Assume binary resides in /scenarios/landing-manager/api
 	scenarioRoot := filepath.Dir(execDir)
 	defaultRoot := filepath.Join(scenarioRoot, "generated")
-	return filepath.Abs(filepath.Join(defaultRoot, slug))
+	return filepath.Abs(defaultRoot)
 }
 
 // scaffoldScenario copies the existing landing template assets into the output directory.
@@ -270,11 +291,14 @@ func scaffoldScenario(outputDir string) error {
 	execDir := filepath.Dir(execPath)
 	scenarioRoot := filepath.Dir(execDir)
 
-	// Prefer dedicated template payload (co-located with react-vite template)
-	templatePayload := filepath.Join(scenarioRoot, "..", "scripts", "scenarios", "templates", "saas-landing-page", "payload")
+	// Prefer dedicated template payload from repo root (scripts/scenarios/templates/saas-landing-page/payload)
+	repoRoot := filepath.Dir(filepath.Dir(scenarioRoot))
+	templatePayload := filepath.Join(repoRoot, "scripts", "scenarios", "templates", "saas-landing-page", "payload")
 	if _, err := os.Stat(templatePayload); err == nil {
-		scenarioRoot = templatePayload
+		return copyTemplatePayload(templatePayload, outputDir)
 	}
+
+	// Fallback: copy from current scenario root (useful in tests with TEMPLATE_PAYLOAD_DIR)
 	return copyTemplatePayload(scenarioRoot, outputDir)
 }
 
@@ -288,6 +312,7 @@ func copyTemplatePayload(scenarioRoot, outputDir string) error {
 		{src: filepath.Join(scenarioRoot, "api"), dst: filepath.Join(outputDir, "api")},
 		{src: filepath.Join(scenarioRoot, "ui"), dst: filepath.Join(outputDir, "ui")},
 		{src: filepath.Join(scenarioRoot, "requirements"), dst: filepath.Join(outputDir, "requirements")},
+		{src: filepath.Join(scenarioRoot, "initialization"), dst: filepath.Join(outputDir, "initialization")},
 		{src: filepath.Join(scenarioRoot, ".vrooli"), dst: filepath.Join(outputDir, ".vrooli")},
 		{src: filepath.Join(scenarioRoot, "Makefile"), dst: filepath.Join(outputDir, "Makefile")},
 		{src: filepath.Join(scenarioRoot, "PRD.md"), dst: filepath.Join(outputDir, "PRD.md")},
@@ -530,6 +555,74 @@ func validateGeneratedScenario(outputDir string) map[string]interface{} {
 		"missing":       missing,
 		"checked_paths": required,
 	}
+}
+
+// ListGeneratedScenarios reports any generated scenarios under the generation root for factory UI display.
+func (ts *TemplateService) ListGeneratedScenarios() ([]GeneratedScenario, error) {
+	root, err := generationRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []GeneratedScenario{}, nil
+		}
+		return nil, fmt.Errorf("failed to read generated directory: %w", err)
+	}
+
+	var scenarios []GeneratedScenario
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		slug := entry.Name()
+		scenarioPath := filepath.Join(root, slug)
+		gs := GeneratedScenario{
+			ScenarioID: slug,
+			Name:       slug,
+			Path:       scenarioPath,
+			Status:     "present",
+		}
+
+		// Provenance: template id/version/timestamp
+		if provData, err := os.ReadFile(filepath.Join(scenarioPath, ".vrooli", "template.json")); err == nil {
+			var prov map[string]interface{}
+			if err := json.Unmarshal(provData, &prov); err == nil {
+				if v, ok := prov["template_id"].(string); ok {
+					gs.TemplateID = v
+				}
+				if v, ok := prov["template_version"].(string); ok {
+					gs.TemplateVersion = v
+				}
+				if v, ok := prov["generated_at"].(string); ok {
+					gs.GeneratedAt = v
+				}
+			}
+		}
+
+		// Human-friendly name from service metadata
+		if svcData, err := os.ReadFile(filepath.Join(scenarioPath, ".vrooli", "service.json")); err == nil {
+			var svc map[string]interface{}
+			if err := json.Unmarshal(svcData, &svc); err == nil {
+				if service, ok := svc["service"].(map[string]interface{}); ok {
+					if display, ok := service["displayName"].(string); ok && display != "" {
+						gs.Name = display
+					}
+				}
+			}
+		}
+
+		scenarios = append(scenarios, gs)
+	}
+
+	sort.Slice(scenarios, func(i, j int) bool {
+		return scenarios[i].ScenarioID < scenarios[j].ScenarioID
+	})
+
+	return scenarios, nil
 }
 
 // copyDir copies a directory tree, skipping heavy build artifacts.

@@ -1,10 +1,14 @@
 package main
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -159,4 +163,62 @@ func TestLogStructured(t *testing.T) {
 	})
 
 	logStructured("test_event_no_fields", nil)
+}
+
+func TestHandleCustomizeCreatesIssue(t *testing.T) {
+	issueCalled := false
+	investigateCalled := false
+
+	mockTracker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if strings.HasSuffix(r.URL.Path, "/issues") {
+			issueCalled = true
+			_ = json.Unmarshal(body, &map[string]interface{}{})
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true, "data": {"issue_id": "ISS-123"}}`))
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/investigate") {
+			investigateCalled = true
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true, "data": {"run_id": "run-1", "status": "active", "agent_id": "unified-resolver"}}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer mockTracker.Close()
+
+	os.Setenv("APP_ISSUE_TRACKER_API_BASE", mockTracker.URL)
+	defer os.Unsetenv("APP_ISSUE_TRACKER_API_BASE")
+
+	srv := &Server{
+		router:          mux.NewRouter(),
+		templateService: NewTemplateService(),
+		httpClient:      &http.Client{Timeout: 5 * time.Second},
+	}
+	srv.router.HandleFunc("/api/v1/customize", srv.handleCustomize).Methods("POST")
+
+	req := httptest.NewRequest("POST", "/api/v1/customize", strings.NewReader(`{"scenario_id":"demo","brief":"make it bold","assets":["logo.svg"],"preview":true}`))
+	w := httptest.NewRecorder()
+
+	srv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", w.Code)
+	}
+	if !issueCalled {
+		t.Fatal("expected issue tracker create to be called")
+	}
+	if !investigateCalled {
+		t.Fatal("expected investigation to be triggered")
+	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+	if resp["issue_id"] != "ISS-123" {
+		t.Fatalf("expected issue_id ISS-123, got %v", resp["issue_id"])
+	}
 }

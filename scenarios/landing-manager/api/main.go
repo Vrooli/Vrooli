@@ -1,14 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -31,6 +34,7 @@ type Server struct {
 	db              *sql.DB
 	router          *mux.Router
 	templateService *TemplateService
+	httpClient      *http.Client
 }
 
 // NewServer initializes configuration, database, and routes
@@ -63,6 +67,7 @@ func NewServer() (*Server, error) {
 		db:              db,
 		router:          mux.NewRouter(),
 		templateService: NewTemplateService(),
+		httpClient:      &http.Client{Timeout: 15 * time.Second},
 	}
 
 	srv.setupRoutes()
@@ -80,6 +85,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/templates/{id}", s.handleTemplateShow).Methods("GET")
 	s.router.HandleFunc("/api/v1/generate", s.handleGenerate).Methods("POST")
 	s.router.HandleFunc("/api/v1/customize", s.handleCustomize).Methods("POST")
+	s.router.HandleFunc("/api/v1/generated", s.handleGeneratedList).Methods("GET")
 
 	// Admin authentication endpoints (OT-P0-008)
 	s.router.HandleFunc("/api/v1/admin/login", handleTemplateOnly("admin authentication")).Methods("POST")
@@ -239,6 +245,18 @@ func (s *Server) handleGenerate(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (s *Server) handleGeneratedList(w http.ResponseWriter, r *http.Request) {
+	scenarios, err := s.templateService.ListGeneratedScenarios()
+	if err != nil {
+		s.log("failed to list generated scenarios", map[string]interface{}{"error": err.Error()})
+		http.Error(w, "Failed to list generated scenarios", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(scenarios)
+}
+
 func (s *Server) handleCustomize(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ScenarioID string   `json:"scenario_id"`
@@ -252,11 +270,102 @@ func (s *Server) handleCustomize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Stub implementation
+	issueTrackerBase, err := s.resolveIssueTrackerBase()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Issue tracker unavailable: %v", err), http.StatusBadGateway)
+		return
+	}
+
+	issueTitle := fmt.Sprintf("Customize landing page scenario: %s", strings.TrimSpace(req.ScenarioID))
+	if strings.TrimSpace(req.ScenarioID) == "" {
+		issueTitle = "Customize landing page scenario (unnamed)"
+	}
+
+	description := fmt.Sprintf(
+		"Requested customization for landing page scenario.\n\nScenario: %s\nBrief:\n%s\nAssets: %v\nPreview: %t\nSource: landing-manager factory\nTimestamp: %s\n\nExpected deliverables:\n- Apply brief to template-safe areas (content, design tokens, imagery)\n- Run A/B variant setup if applicable\n- Regenerate preview links and summarize changes\n- Return next steps and validation status.",
+		req.ScenarioID, req.Brief, req.Assets, req.Preview, time.Now().UTC().Format(time.RFC3339),
+	)
+
+	issuePayload := map[string]interface{}{
+		"title":       issueTitle,
+		"description": description,
+		"type":        "feature",
+		"priority":    "high",
+		"app_id":      "landing-manager",
+		"tags":        []string{"landing-manager", "landing-page", "customization", "automation"},
+		"environment": map[string]interface{}{
+			"scenario_id":  req.ScenarioID,
+			"template_id":  "saas-landing-page",
+			"requested_by": "landing-manager",
+			"preview_mode": req.Preview,
+			"asset_hints":  req.Assets,
+		},
+	}
+
+	issueResp := struct {
+		Success bool                   `json:"success"`
+		Message string                 `json:"message"`
+		Data    map[string]interface{} `json:"data"`
+	}{}
+
+	if err := s.postJSON(issueTrackerBase+"/issues", issuePayload, &issueResp); err != nil {
+		s.log("issue_tracker_create_failed", map[string]interface{}{"error": err.Error()})
+		http.Error(w, fmt.Sprintf("Failed to file issue: %v", err), http.StatusBadGateway)
+		return
+	}
+
+	issueID := ""
+	if issueResp.Data != nil {
+		if v, ok := issueResp.Data["issue_id"].(string); ok {
+			issueID = v
+		}
+		if issueID == "" {
+			if nested, ok := issueResp.Data["issue"].(map[string]interface{}); ok {
+				if v, ok := nested["id"].(string); ok {
+					issueID = v
+				}
+			}
+		}
+	}
+
+	// Trigger investigation to kick off the agent workflow
+	investigation := struct {
+		RunID   string `json:"run_id,omitempty"`
+		Status  string `json:"status,omitempty"`
+		AgentID string `json:"agent_id,omitempty"`
+	}{}
+
+	if issueID != "" {
+		investigatePayload := map[string]interface{}{
+			"issue_id": issueID,
+			"priority": "high",
+		}
+		investigateResp := struct {
+			Success bool                   `json:"success"`
+			Data    map[string]interface{} `json:"data"`
+		}{}
+		if err := s.postJSON(issueTrackerBase+"/investigate", investigatePayload, &investigateResp); err == nil && investigateResp.Data != nil {
+			if v, ok := investigateResp.Data["run_id"].(string); ok {
+				investigation.RunID = v
+			}
+			if v, ok := investigateResp.Data["status"].(string); ok {
+				investigation.Status = v
+			}
+			if v, ok := investigateResp.Data["agent_id"].(string); ok {
+				investigation.AgentID = v
+			}
+		} else if err != nil {
+			s.log("issue_tracker_investigate_failed", map[string]interface{}{"error": err.Error(), "issue_id": issueID})
+		}
+	}
+
 	response := map[string]interface{}{
-		"job_id":   fmt.Sprintf("job-%d", time.Now().Unix()),
-		"status":   "queued",
-		"agent_id": "agent-claude-code-1",
+		"status":      "queued",
+		"issue_id":    issueID,
+		"tracker_url": issueTrackerBase,
+		"agent":       investigation.AgentID,
+		"run_id":      investigation.RunID,
+		"message":     issueResp.Message,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -348,6 +457,68 @@ func resolveDatabaseURL() (string, error) {
 	pgURL.RawQuery = values.Encode()
 
 	return pgURL.String(), nil
+}
+
+func (s *Server) resolveIssueTrackerBase() (string, error) {
+	if raw := strings.TrimSpace(os.Getenv("APP_ISSUE_TRACKER_API_BASE")); raw != "" {
+		return strings.TrimSuffix(raw, "/"), nil
+	}
+
+	if port := strings.TrimSpace(os.Getenv("APP_ISSUE_TRACKER_API_PORT")); port != "" {
+		return fmt.Sprintf("http://localhost:%s/api/v1", port), nil
+	}
+
+	// Fallback: attempt to discover via vrooli CLI
+	cmd := execCommandContext(context.Background(), "vrooli", "scenario", "port", "app-issue-tracker", "API_PORT")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("unable to resolve app-issue-tracker API port")
+	}
+	port := strings.TrimSpace(string(out))
+	if port == "" {
+		return "", fmt.Errorf("app-issue-tracker API port not available")
+	}
+	return fmt.Sprintf("http://localhost:%s/api/v1", port), nil
+}
+
+// execCommandContext is wrapped for testability
+var execCommandContext = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+	return exec.CommandContext(ctx, name, args...)
+}
+
+func (s *Server) postJSON(url string, payload interface{}, out interface{}) error {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal payload: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("issue tracker request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("read response: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("issue tracker responded %d: %s", resp.StatusCode, string(body))
+	}
+
+	if out != nil {
+		if err := json.Unmarshal(body, out); err != nil {
+			return fmt.Errorf("decode response: %w", err)
+		}
+	}
+	return nil
 }
 
 func main() {
