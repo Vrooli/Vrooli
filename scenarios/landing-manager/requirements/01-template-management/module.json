@@ -88,7 +88,8 @@
           "type": "manual",
           "phase": "business",
           "status": "implemented",
-          "ref": ".vrooli/template.json written at generation time"
+          "ref": "api/template_service.go",
+          "notes": "writeLandingApp + template.json stamping for generated scenarios"
         }
       ],
       "status": "complete",
@@ -104,14 +105,14 @@
       "description": "Factory triggers agent customization for a generated landing page with structured brief",
       "validation": [
         {
-          "type": "manual",
-          "phase": "business",
-          "status": "not_run",
-          "ref": "TBD"
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
         }
       ],
-      "status": "in_progress",
-      "notes": "Customize endpoint exists but remains a stub; agent personas not wired."
+      "status": "complete",
+      "notes": "Customize endpoint now files a detailed issue in app-issue-tracker and triggers investigation with agent handoff; covered by unit test."
     },
     {
       "id": "TMPL-MULTIPLE",
@@ -122,7 +123,7 @@
         {
           "type": "manual",
           "phase": "business",
-          "status": "not_run",
+          "status": "planned",
           "ref": "TBD"
         }
       ],
@@ -138,7 +139,7 @@
         {
           "type": "manual",
           "phase": "business",
-          "status": "not_run",
+          "status": "planned",
           "ref": "TBD"
         }
       ],
@@ -155,7 +156,8 @@
           "type": "manual",
           "phase": "business",
           "status": "implemented",
-          "ref": "api/template_service.go dry_run plan"
+          "ref": "api/template_service.go",
+          "notes": "GenerateScenario dry_run plan maps planned paths"
         }
       ],
       "status": "complete",
@@ -170,7 +172,7 @@
         {
           "type": "manual",
           "phase": "business",
-          "status": "not_run",
+          "status": "planned",
           "ref": "TBD"
         }
       ],
@@ -186,7 +188,7 @@
         {
           "type": "manual",
           "phase": "business",
-          "status": "not_run",
+          "status": "planned",
           "ref": "TBD"
         }
       ],
@@ -202,7 +204,7 @@
         {
           "type": "manual",
           "phase": "business",
-          "status": "not_run",
+          "status": "planned",
           "ref": "TBD"
         }
       ],
@@ -218,7 +220,7 @@
         {
           "type": "manual",
           "phase": "business",
-          "status": "not_run",
+          "status": "planned",
           "ref": "TBD"
         }
       ],

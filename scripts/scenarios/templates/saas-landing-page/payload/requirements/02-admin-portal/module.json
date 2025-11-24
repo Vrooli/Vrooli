@@ -8,12 +8,12 @@
       "id": "AGENT-TRIGGER",
       "title": "Agent integration trigger",
       "prd_ref": "OT-P0-005",
-      "description": "Trigger agent customization run for a specific landing page from factory scenario",
+      "description": "Expose customization trigger in generated landing so the factory can initiate agent runs (factory calls into template endpoint)",
       "validation": [
         {
           "type": "automation",
           "phase": "business",
-          "status": "not_run",
+          "status": "planned",
           "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
         }
       ],
@@ -24,12 +24,12 @@
       "id": "AGENT-INPUT",
       "title": "Structured agent input",
       "prd_ref": "OT-P0-006",
-      "description": "Agent receives structured brief (text + assets + goals) and writes changes via defined APIs/files only",
+      "description": "Agent receives structured brief (text + assets + goals) and is constrained to template-defined APIs/files only; factory remains read-only",
       "validation": [
         {
           "type": "automation",
           "phase": "business",
-          "status": "not_run",
+          "status": "planned",
           "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
         }
       ],
@@ -46,14 +46,14 @@
       "description": "Admin portal not linked from any public page or sitemap",
       "validation": [
         {
-          "type": "automation",
+          "type": "code",
           "phase": "integration",
-          "status": "not_run",
-          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+          "status": "implemented",
+          "ref": "ui/src/pages/PublicHome.tsx (no admin links) & ui/src/App.tsx (admin routes protected)"
         }
       ],
-      "status": "in_progress",
-      "notes": "Admin routes exist, but verification playbook is missing; needs React Flow BAS script."
+      "status": "complete",
+      "notes": "Admin portal routes are protected and not linked from the public landing; hidden link removed from public page."
     },
     {
       "id": "ADMIN-AUTH",
@@ -62,14 +62,14 @@
       "description": "Admin portal protected by email/password with bcrypt/argon2 password hashing",
       "validation": [
         {
-          "type": "automation",
-          "phase": "integration",
-          "status": "not_run",
-          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/contexts/AuthContext.test.tsx"
         }
       ],
-      "status": "in_progress",
-      "notes": "bcrypt auth implemented (api/auth.go) but lacks automated validation. BAS playbook placeholder only."
+      "status": "complete",
+      "notes": "bcrypt auth implemented in api/auth.go with session cookies; validated via AuthContext tests."
     },
     {
       "id": "ADMIN-MODES",
@@ -78,17 +78,17 @@
       "description": "Admin home displays exactly two modes: Analytics / Metrics and Customization",
       "validation": [
         {
-          "type": "automation",
-          "phase": "integration",
-          "status": "not_run",
-          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+          "type": "code",
+          "phase": "business",
+          "status": "implemented",
+          "ref": "ui/src/pages/AdminHome.tsx (two mode cards only)"
         }
       ],
-      "status": "in_progress",
+      "status": "complete",
       "dependencies": [
         "ADMIN-AUTH"
       ],
-      "notes": "UI implements two mode cards; needs BAS validation once playbooks exist."
+      "notes": "Two cards only (Analytics/Metrics, Customization) with navigation to respective routes."
     },
     {
       "id": "ADMIN-NAV",
@@ -97,17 +97,17 @@
       "description": "Navigate to any customization card in ≤ 3 clicks from admin home",
       "validation": [
         {
-          "type": "automation",
-          "phase": "integration",
-          "status": "not_run",
-          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+          "type": "code",
+          "phase": "business",
+          "status": "implemented",
+          "ref": "ui/src/pages/AdminHome.tsx + ui/src/components/AdminLayout.tsx"
         }
       ],
-      "status": "in_progress",
+      "status": "complete",
       "dependencies": [
         "ADMIN-MODES"
       ],
-      "notes": "Navigation exists; needs BAS flow to confirm click counts."
+      "notes": "Mode cards link directly to analytics/customization; nav bar provides single-click access."
     },
     {
       "id": "ADMIN-BREADCRUMB",
@@ -116,14 +116,14 @@
       "description": "All admin pages show breadcrumb indicating current location",
       "validation": [
         {
-          "type": "automation",
-          "phase": "integration",
-          "status": "not_run",
-          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+          "type": "code",
+          "phase": "business",
+          "status": "implemented",
+          "ref": "ui/src/components/AdminLayout.tsx"
         }
       ],
-      "status": "in_progress",
-      "notes": "Breadcrumb UI present; needs BAS validation once playbooks are rebuilt in payload."
+      "status": "complete",
+      "notes": "AdminLayout renders breadcrumb trail with dynamic segments for analytics/customization variants."
     }
   ],
   "_metadata": {}

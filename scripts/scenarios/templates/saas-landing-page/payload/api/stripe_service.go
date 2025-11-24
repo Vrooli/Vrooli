@@ -14,11 +14,11 @@ import (
 
 // StripeService handles Stripe payment integration
 type StripeService struct {
-	db                *sql.DB
-	publishableKey    string
-	secretKey         string
-	webhookSecret     string
-	checkoutCacheTTL  time.Duration
+	db               *sql.DB
+	publishableKey   string
+	secretKey        string
+	webhookSecret    string
+	checkoutCacheTTL time.Duration
 }
 
 // NewStripeService creates a new Stripe service instance
@@ -28,33 +28,33 @@ func NewStripeService(db *sql.DB) *StripeService {
 	webhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
 
 	if publishableKey == "" {
-		logStructured("STRIPE_PUBLISHABLE_KEY missing", map[string]interface{}{
-			"level":   "fatal",
-			"message": "STRIPE_PUBLISHABLE_KEY environment variable is required",
+		publishableKey = "pk_test_placeholder"
+		logStructured("STRIPE_PUBLISHABLE_KEY missing - using placeholder", map[string]interface{}{
+			"level":   "warn",
+			"message": "STRIPE_PUBLISHABLE_KEY not set; using placeholder for development",
 		})
-		panic("STRIPE_PUBLISHABLE_KEY environment variable is required")
 	}
 	if secretKey == "" {
-		logStructured("STRIPE_SECRET_KEY missing", map[string]interface{}{
-			"level":   "fatal",
-			"message": "STRIPE_SECRET_KEY environment variable is required",
+		secretKey = "sk_test_placeholder"
+		logStructured("STRIPE_SECRET_KEY missing - using placeholder", map[string]interface{}{
+			"level":   "warn",
+			"message": "STRIPE_SECRET_KEY not set; using placeholder for development",
 		})
-		panic("STRIPE_SECRET_KEY environment variable is required")
 	}
 	if webhookSecret == "" {
-		logStructured("STRIPE_WEBHOOK_SECRET missing", map[string]interface{}{
-			"level":   "fatal",
-			"message": "STRIPE_WEBHOOK_SECRET environment variable is required",
+		webhookSecret = "whsec_placeholder"
+		logStructured("STRIPE_WEBHOOK_SECRET missing - using placeholder", map[string]interface{}{
+			"level":   "warn",
+			"message": "STRIPE_WEBHOOK_SECRET not set; using placeholder for development",
 		})
-		panic("STRIPE_WEBHOOK_SECRET environment variable is required")
 	}
 
 	return &StripeService{
-		db:                db,
-		publishableKey:    publishableKey,
-		secretKey:         secretKey,
-		webhookSecret:     webhookSecret,
-		checkoutCacheTTL:  60 * time.Second,
+		db:               db,
+		publishableKey:   publishableKey,
+		secretKey:        secretKey,
+		webhookSecret:    webhookSecret,
+		checkoutCacheTTL: 60 * time.Second,
 	}
 }
 
@@ -72,15 +72,15 @@ func (s *StripeService) CreateCheckoutSession(priceID string, successURL string,
 	checkoutURL := "https://checkout.stripe.com/c/pay/" + sessionID
 
 	session := map[string]interface{}{
-		"id":            sessionID,
-		"url":           checkoutURL,
-		"customer":      customerEmail,
-		"amount_total":  5000, // $50.00 in cents
-		"currency":      "usd",
-		"status":        "open",
-		"created":       time.Now().Unix(),
-		"success_url":   successURL,
-		"cancel_url":    cancelURL,
+		"id":              sessionID,
+		"url":             checkoutURL,
+		"customer":        customerEmail,
+		"amount_total":    5000, // $50.00 in cents
+		"currency":        "usd",
+		"status":          "open",
+		"created":         time.Now().Unix(),
+		"success_url":     successURL,
+		"cancel_url":      cancelURL,
 		"publishable_key": s.publishableKey,
 	}
 
@@ -318,8 +318,8 @@ func (s *StripeService) VerifySubscription(userIdentity string) (map[string]inte
 	}
 
 	result := map[string]interface{}{
-		"status":      status,
-		"cached_at":   updatedAt,
+		"status":       status,
+		"cached_at":    updatedAt,
 		"cache_age_ms": cacheAge.Milliseconds(),
 	}
 

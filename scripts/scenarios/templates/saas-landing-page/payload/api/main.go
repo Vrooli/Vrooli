@@ -112,7 +112,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/metrics/variants", s.requireAdmin(handleMetricsVariantStats(s.metricsService))).Methods("GET")
 
 	// Stripe Payment endpoints (OT-P0-025 through OT-P0-030)
-	s.router.HandleFunc("/api/v1/checkout/create", handleCreateCheckout(s.stripeService)).Methods("POST")
+	s.router.HandleFunc("/api/v1/checkout/create", handleCheckoutCreate(s.stripeService)).Methods("POST")
 	s.router.HandleFunc("/api/v1/webhooks/stripe", handleStripeWebhook(s.stripeService)).Methods("POST")
 	s.router.HandleFunc("/api/v1/subscription/verify", handleSubscriptionVerify(s.stripeService)).Methods("GET")
 	s.router.HandleFunc("/api/v1/subscription/cancel", s.requireAdmin(handleSubscriptionCancel(s.stripeService))).Methods("POST")
@@ -188,6 +188,10 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 // seedDefaultData ensures the public landing page has content without requiring admin setup
 func seedDefaultData(db *sql.DB) error {
+	if err := ensureSchema(db); err != nil {
+		return fmt.Errorf("failed to apply schema: %w", err)
+	}
+
 	// Seed default admin user for local use
 	const defaultAdminEmail = "admin@localhost"
 	const defaultAdminHash = "$2a$10$nhmpbhFPQUZZwEH.qaYHCeiKBWDvr8z5Z7eM4v62MmNwm.0N.5xeG"
@@ -249,6 +253,92 @@ func upsertVariant(db *sql.DB, slug, name, description string, weight int) (int,
 		return 0, fmt.Errorf("failed to upsert variant %s: %w", slug, err)
 	}
 	return id, nil
+}
+
+// ensureSchema creates required tables if they do not exist (runtime guard when psql is unavailable)
+func ensureSchema(db *sql.DB) error {
+	stmts := []string{
+		`CREATE TABLE IF NOT EXISTS admin_users (
+			id SERIAL PRIMARY KEY,
+			email VARCHAR(255) UNIQUE NOT NULL,
+			password_hash VARCHAR(255) NOT NULL,
+			created_at TIMESTAMP DEFAULT NOW(),
+			last_login TIMESTAMP
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);`,
+		`CREATE TABLE IF NOT EXISTS variants (
+			id SERIAL PRIMARY KEY,
+			slug VARCHAR(100) UNIQUE NOT NULL,
+			name VARCHAR(255) NOT NULL,
+			description TEXT,
+			weight INTEGER DEFAULT 50 CHECK (weight >= 0 AND weight <= 100),
+			status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'archived', 'deleted')),
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW(),
+			archived_at TIMESTAMP
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_variants_slug ON variants(slug);`,
+		`CREATE INDEX IF NOT EXISTS idx_variants_status ON variants(status);`,
+		`CREATE TABLE IF NOT EXISTS metrics_events (
+			id SERIAL PRIMARY KEY,
+			variant_id INTEGER REFERENCES variants(id),
+			event_type VARCHAR(50) NOT NULL CHECK (event_type IN ('page_view', 'scroll_depth', 'click', 'form_submit', 'conversion')),
+			event_data JSONB,
+			session_id VARCHAR(255),
+			visitor_id VARCHAR(255),
+			created_at TIMESTAMP DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_metrics_events_variant ON metrics_events(variant_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_metrics_events_type ON metrics_events(event_type);`,
+		`CREATE INDEX IF NOT EXISTS idx_metrics_events_created ON metrics_events(created_at);`,
+		`CREATE INDEX IF NOT EXISTS idx_metrics_events_session ON metrics_events(session_id);`,
+		`CREATE TABLE IF NOT EXISTS checkout_sessions (
+			id SERIAL PRIMARY KEY,
+			session_id VARCHAR(255) UNIQUE NOT NULL,
+			customer_email VARCHAR(255),
+			price_id VARCHAR(255),
+			subscription_id VARCHAR(255),
+			status VARCHAR(50) NOT NULL,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_checkout_sessions_session_id ON checkout_sessions(session_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_checkout_sessions_status ON checkout_sessions(status);`,
+		`CREATE TABLE IF NOT EXISTS subscriptions (
+			id SERIAL PRIMARY KEY,
+			subscription_id VARCHAR(255) UNIQUE NOT NULL,
+			customer_id VARCHAR(255),
+			customer_email VARCHAR(255),
+			status VARCHAR(50) NOT NULL CHECK (status IN ('active', 'trialing', 'past_due', 'canceled', 'unpaid')),
+			canceled_at TIMESTAMP,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_subscriptions_subscription_id ON subscriptions(subscription_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_subscriptions_customer_email ON subscriptions(customer_email);`,
+		`CREATE INDEX IF NOT EXISTS idx_subscriptions_customer_id ON subscriptions(customer_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);`,
+		`CREATE TABLE IF NOT EXISTS content_sections (
+			id SERIAL PRIMARY KEY,
+			variant_id INTEGER REFERENCES variants(id) ON DELETE CASCADE,
+			section_type VARCHAR(50) NOT NULL CHECK (section_type IN ('hero', 'features', 'pricing', 'cta', 'testimonials', 'faq', 'footer', 'video')),
+			content JSONB NOT NULL,
+			"order" INTEGER DEFAULT 0,
+			enabled BOOLEAN DEFAULT TRUE,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_content_sections_variant ON content_sections(variant_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_content_sections_type ON content_sections(section_type);`,
+		`CREATE INDEX IF NOT EXISTS idx_content_sections_order ON content_sections("order");`,
+	}
+
+	for _, stmt := range stmts {
+		if _, err := db.Exec(stmt); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Server) handleTemplateList(w http.ResponseWriter, r *http.Request) {

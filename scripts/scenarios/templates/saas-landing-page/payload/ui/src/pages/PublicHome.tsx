@@ -174,13 +174,6 @@ export default function PublicHome() {
               This variant ({variant.name}) doesn't have any sections yet.
               Visit the admin panel to add content sections.
             </p>
-            {/* Admin preview link kept under /preview */}
-            <a
-              href="/preview/admin"
-              className="inline-block px-6 py-2 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg transition-colors text-purple-300 text-sm"
-            >
-              Go to Admin Panel
-            </a>
           </div>
         </div>
       )}

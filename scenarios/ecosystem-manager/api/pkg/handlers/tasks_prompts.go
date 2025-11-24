@@ -227,7 +227,9 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 		"task":              tempTask,
 	}
 
-	if tempTask.AutoSteerProfileID != "" && req.AutoSteerPhaseIdx != nil {
+	autoSteerEligible := tempTask.AutoSteerProfileID != "" && tempTask.Type == "scenario" && tempTask.Operation == "improver"
+
+	if autoSteerEligible && req.AutoSteerPhaseIdx != nil {
 		response["auto_steer_profile_id"] = tempTask.AutoSteerProfileID
 		response["auto_steer_phase_index"] = *req.AutoSteerPhaseIdx
 
@@ -271,7 +273,7 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 				}
 			}
 		}
-	} else if tempTask.AutoSteerProfileID != "" && h.processor != nil && h.processor.AutoSteerIntegration() != nil {
+	} else if autoSteerEligible && h.processor != nil && h.processor.AutoSteerIntegration() != nil {
 		autoSteer := h.processor.AutoSteerIntegration()
 		scenarioName := queue.GetScenarioNameFromTask(&tempTask)
 		if strings.TrimSpace(scenarioName) == "" {
@@ -300,7 +302,11 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 		}
 	} else if tempTask.AutoSteerProfileID != "" {
 		response["auto_steer_applied"] = false
-		response["auto_steer_error"] = "Auto Steer integration unavailable"
+		if tempTask.Type != "scenario" || tempTask.Operation != "improver" {
+			response["auto_steer_error"] = "Auto Steer currently supports scenario improver tasks only"
+		} else {
+			response["auto_steer_error"] = "Auto Steer integration unavailable"
+		}
 	}
 
 	promptSize := len(prompt)

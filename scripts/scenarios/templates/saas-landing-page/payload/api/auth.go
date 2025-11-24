@@ -16,11 +16,11 @@ func initSessionStore() {
 	secret := os.Getenv("SESSION_SECRET")
 	if secret == "" {
 		logStructured("session_secret_missing", map[string]interface{}{
-			"level":   "fatal",
-			"message": "SESSION_SECRET environment variable is required",
+			"level":   "warn",
+			"message": "SESSION_SECRET not set; using placeholder for development",
 			"action":  "Set SESSION_SECRET environment variable before starting the server",
 		})
-		panic("SESSION_SECRET environment variable is required")
+		secret = "dev-session-placeholder"
 	}
 	sessionStore = sessions.NewCookieStore([]byte(secret))
 }
@@ -83,7 +83,7 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 	session, _ := sessionStore.Get(r, "admin_session")
 	session.Values["email"] = req.Email
 	session.Options.HttpOnly = true
-	session.Options.Secure = false // Set to true in production with HTTPS
+	session.Options.Secure = false     // Set to true in production with HTTPS
 	session.Options.MaxAge = 86400 * 7 // 7 days
 	session.Options.Path = "/"
 	session.Options.SameSite = http.SameSiteLaxMode

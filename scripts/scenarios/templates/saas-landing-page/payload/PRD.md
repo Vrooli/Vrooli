@@ -28,8 +28,8 @@
 ### 🔴 P0 – Must ship for viability
 
 #### Admin Portal Core
-- [x] OT-P0-005 | Agent integration trigger | Trigger "agent customization run" for a specific landing page from factory scenario
-- [x] OT-P0-006 | Structured agent input | Agent receives structured brief (text + assets + goals) and writes changes via defined APIs/files only
+- [x] OT-P0-005 | Agent integration trigger | Generated landing exposes a customization trigger endpoint consumable by the factory (handoff remains initiated from landing-manager)
+- [x] OT-P0-006 | Structured agent input | Agent receives structured brief (text + assets + goals) and writes changes via template-defined APIs/files only (no factory-side mutation)
 - [x] OT-P0-007 | Security by obscurity | Admin portal not linked from any public page or sitemap
 - [x] OT-P0-008 | Authentication | Admin portal protected by email/password with bcrypt/argon2 password hashing
 - [x] OT-P0-009 | Admin home modes | Admin home displays exactly two modes: "Analytics / Metrics" and "Customization"
@@ -37,8 +37,8 @@
 - [x] OT-P0-011 | Breadcrumb navigation | All admin pages show breadcrumb indicating current location (e.g., Admin / Customization / Hero / Variant A)
 
 #### Customization UX
-- [ ] OT-P0-012 | Split customization layout | Each slide customization page shows form (one column) + live preview (other column), stacked on mobile
-- [ ] OT-P0-013 | Live preview updates | Form field changes update preview within 300ms (debounced) without page reload
+- [x] OT-P0-012 | Split customization layout | Each slide customization page shows form (one column) + live preview (other column), stacked on mobile
+- [x] OT-P0-013 | Live preview updates | Form field changes update preview within 300ms (debounced) without page reload
 
 #### A/B Testing Core
 - [x] OT-P0-014 | URL variant selection | If `variant_slug` in URL, force that variant regardless of localStorage
@@ -48,20 +48,20 @@
 - [x] OT-P0-018 | Archived variant handling | Archived variants remain queryable for analytics but ineligible for random selection
 
 #### Metrics Core
-- [ ] OT-P0-019 | Event variant tagging | All events (page view, scroll, clicks, forms, conversions) include variant_id in payload
-- [ ] OT-P0-020 | Analytics variant filtering | Admin analytics view filters stats by variant and time range
+- [x] OT-P0-019 | Event variant tagging | All events (page view, scroll, clicks, forms, conversions) include variant_id in payload
+- [x] OT-P0-020 | Analytics variant filtering | Admin analytics view filters stats by variant and time range
 - [x] OT-P0-021 | Minimum event coverage | System emits events for: page_view, scroll_depth (bands), click (element ID), form_submit, conversion (Stripe success)
 - [x] OT-P0-022 | Metrics idempotency | Metrics ingestion is idempotent or deduplicated to avoid double-counting on retries
 
 #### Payments Core
-- [ ] OT-P0-023 | Analytics summary | Analytics home shows total visitors, conversion rate per variant, top CTAs by CTR
-- [ ] OT-P0-024 | Variant detail view | Variant detail page shows views, CTA clicks, conversions, conversion rate, basic trend
-- [ ] OT-P0-025 | Stripe environment config | Each landing page includes Stripe keys from environment variables
+- [x] OT-P0-023 | Analytics summary | Analytics home shows total visitors, conversion rate per variant, top CTAs by CTR
+- [x] OT-P0-024 | Variant detail view | Variant detail page shows views, CTA clicks, conversions, conversion rate, basic trend
+- [x] OT-P0-025 | Stripe environment config | Each landing page includes Stripe keys from environment variables
 - [x] OT-P0-026 | Stripe routes | Each landing page includes routes for creating checkout sessions and handling webhook events
 
 #### Security & Verification
 - [x] OT-P0-027 | Webhook signature verification | All webhook endpoints verify Stripe signature before processing
-- [ ] OT-P0-028 | Subscription verification endpoint | Each landing page exposes GET /api/subscription/verify accepting user identity, returning active/inactive/trial/canceled
+- [x] OT-P0-028 | Subscription verification endpoint | Each landing page exposes GET /api/subscription/verify accepting user identity, returning active/inactive/trial/canceled
 - [x] OT-P0-029 | Verification caching | Subscription verification responses cacheable (short TTL) with max 60s lag from webhook changes
 - [x] OT-P0-030 | Subscription cancellation endpoint | API exposes POST /api/subscription/cancel validating user and returning status
 
@@ -74,11 +74,11 @@
 - [x] OT-P1-004 | Keyboard accessibility | All interactive elements keyboard-accessible with discernible labels
 
 #### Design & Branding
-- [ ] OT-P1-005 | Aesthetic guidelines in template | Template specification includes `<frontend_aesthetics>` block in description for design agents
-- [ ] OT-P1-006 | Custom typography | Default template declares custom font stack (not Inter, Roboto, Arial, or system default)
-- [ ] OT-P1-007 | CSS theming | Template uses defined CSS variables for colors and spacing
-- [ ] OT-P1-008 | Non-trivial backgrounds | Template includes at least one layered gradient/shape/texture background (not flat solid)
-- [ ] OT-P1-009 | Video section support | Template supports at least one video demo section (URL, thumbnail, caption, layout) configurable via admin
+- [x] OT-P1-005 | Aesthetic guidelines in template | Template specification includes `<frontend_aesthetics>` block in description for design agents
+- [x] OT-P1-006 | Custom typography | Default template declares custom font stack (not Inter, Roboto, Arial, or system default)
+- [x] OT-P1-007 | CSS theming | Template uses defined CSS variables for colors and spacing
+- [x] OT-P1-008 | Non-trivial backgrounds | Template includes at least one layered gradient/shape/texture background (not flat solid)
+- [x] OT-P1-009 | Video section support | Template supports at least one video demo section (URL, thumbnail, caption, layout) configurable via admin
 
 ### 🟢 P2 – Future / expansion
 

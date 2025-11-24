@@ -21,6 +21,14 @@ func NewAutoSteerIntegration(executionEngine *autosteer.ExecutionEngine) *AutoSt
 	}
 }
 
+// isEligible constrains Auto Steer usage to the task shapes it was designed for.
+func (a *AutoSteerIntegration) isEligible(task *tasks.TaskItem) bool {
+	if task == nil {
+		return false
+	}
+	return task.AutoSteerProfileID != "" && task.Type == "scenario" && task.Operation == "improver"
+}
+
 // ExecutionEngine exposes the underlying execution engine for advanced workflows.
 func (a *AutoSteerIntegration) ExecutionEngine() *autosteer.ExecutionEngine {
 	return a.executionEngine
@@ -29,7 +37,7 @@ func (a *AutoSteerIntegration) ExecutionEngine() *autosteer.ExecutionEngine {
 // InitializeAutoSteer initializes Auto Steer execution for a task if needed
 // Should be called before executing a task for the first time
 func (a *AutoSteerIntegration) InitializeAutoSteer(task *tasks.TaskItem, scenarioName string) error {
-	if task.AutoSteerProfileID == "" {
+	if !a.isEligible(task) {
 		return nil // No Auto Steer profile configured
 	}
 
@@ -67,7 +75,7 @@ func (a *AutoSteerIntegration) InitializeAutoSteer(task *tasks.TaskItem, scenari
 // EnhancePrompt adds Auto Steer context to the task prompt
 // Returns the enhanced prompt or the original prompt if no Auto Steer is active
 func (a *AutoSteerIntegration) EnhancePrompt(task *tasks.TaskItem, basePrompt string) (string, error) {
-	if task.AutoSteerProfileID == "" {
+	if !a.isEligible(task) {
 		return basePrompt, nil // No enhancement needed
 	}
 
@@ -97,7 +105,7 @@ func (a *AutoSteerIntegration) EnhancePrompt(task *tasks.TaskItem, basePrompt st
 // Should be called after successful task execution
 // Returns: shouldContinue, needsPhaseAdvance, error
 func (a *AutoSteerIntegration) EvaluateIteration(task *tasks.TaskItem, scenarioName string) (bool, bool, error) {
-	if task.AutoSteerProfileID == "" {
+	if !a.isEligible(task) {
 		// No Auto Steer - task should continue normally based on ProcessorAutoRequeue
 		return true, false, nil
 	}
@@ -194,7 +202,7 @@ func (a *AutoSteerIntegration) ShouldContinueTask(task *tasks.TaskItem, scenario
 
 // GetCurrentMode returns the current Auto Steer mode for a task
 func (a *AutoSteerIntegration) GetCurrentMode(task *tasks.TaskItem) (autosteer.SteerMode, error) {
-	if task.AutoSteerProfileID == "" {
+	if !a.isEligible(task) {
 		return "", nil
 	}
 
@@ -203,7 +211,7 @@ func (a *AutoSteerIntegration) GetCurrentMode(task *tasks.TaskItem) (autosteer.S
 
 // IsActive checks if Auto Steer is active for a task
 func (a *AutoSteerIntegration) IsActive(task *tasks.TaskItem) bool {
-	if task.AutoSteerProfileID == "" {
+	if !a.isEligible(task) {
 		return false
 	}
 

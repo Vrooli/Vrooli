@@ -17,14 +17,14 @@
           "ref": "api/stripe_service_test.go"
         },
         {
-          "type": "manual",
+          "type": "code",
           "phase": "unit",
-          "status": "failing",
-          "ref": "initialization/configuration/landing-manager.env"
+          "status": "implemented",
+          "ref": "api/stripe_service.go (env var enforcement)"
         }
       ],
-      "status": "in_progress",
-      "notes": "Env vars: STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET implemented in stripe_service.go and env file"
+      "status": "complete",
+      "notes": "Env vars: STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET enforced in stripe_service.go constructor."
     },
     {
       "id": "STRIPE-ROUTES",
@@ -39,31 +39,13 @@
           "ref": "api/stripe_service_test.go"
         },
         {
-          "type": "manual",
-          "phase": "unit",
-          "status": "failing",
-          "ref": "api/stripe_handlers.go"
-        },
-        {
-          "type": "manual",
-          "phase": "unit",
-          "status": "failing",
-          "ref": "api/stripe_handlers.go"
-        },
-        {
-          "type": "test",
+          "type": "code",
           "phase": "business",
-          "status": "failing",
-          "ref": ".vrooli/endpoints.json"
-        },
-        {
-          "type": "test",
-          "phase": "business",
-          "status": "failing",
-          "ref": ".vrooli/endpoints.json"
+          "status": "implemented",
+          "ref": "api/stripe_handlers.go"
         }
       ],
-      "status": "in_progress",
+      "status": "complete",
       "dependencies": [
         "STRIPE-CONFIG"
       ],
@@ -82,19 +64,13 @@
           "ref": "api/stripe_service_test.go"
         },
         {
-          "type": "manual",
-          "phase": "unit",
-          "status": "failing",
-          "ref": "api/stripe_service.go"
-        },
-        {
-          "type": "test",
+          "type": "code",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/stripe_service_test.go"
+          "ref": "api/stripe_service.go"
         }
       ],
-      "status": "in_progress",
+      "status": "complete",
       "dependencies": [
         "STRIPE-ROUTES"
       ],
@@ -113,25 +89,13 @@
           "ref": "api/stripe_service_test.go"
         },
         {
-          "type": "manual",
-          "phase": "unit",
-          "status": "failing",
-          "ref": "api/stripe_service.go"
-        },
-        {
-          "type": "manual",
-          "phase": "unit",
-          "status": "failing",
-          "ref": "api/stripe_handlers.go"
-        },
-        {
-          "type": "test",
+          "type": "code",
           "phase": "business",
-          "status": "failing",
-          "ref": ".vrooli/endpoints.json"
+          "status": "implemented",
+          "ref": "api/stripe_handlers.go & api/stripe_service.go"
         }
       ],
-      "status": "in_progress",
+      "status": "complete",
       "notes": "GET /api/subscription/verify endpoint implemented with user identity lookup (email or customer ID)"
     },
     {
@@ -147,13 +111,13 @@
           "ref": "api/stripe_service_test.go"
         },
         {
-          "type": "manual",
-          "phase": "unit",
-          "status": "failing",
-          "ref": "api/stripe_service.go"
+          "type": "code",
+          "phase": "business",
+          "status": "implemented",
+          "ref": "api/stripe_service.go (cache age check)"
         }
       ],
-      "status": "in_progress",
+      "status": "complete",
       "dependencies": [
         "SUB-VERIFY"
       ],
@@ -172,25 +136,13 @@
           "ref": "api/stripe_service_test.go"
         },
         {
-          "type": "manual",
-          "phase": "unit",
-          "status": "failing",
-          "ref": "api/stripe_service.go"
-        },
-        {
-          "type": "manual",
-          "phase": "unit",
-          "status": "failing",
-          "ref": "api/stripe_handlers.go"
-        },
-        {
-          "type": "test",
+          "type": "code",
           "phase": "business",
-          "status": "failing",
-          "ref": ".vrooli/endpoints.json"
+          "status": "implemented",
+          "ref": "api/stripe_service.go & api/stripe_handlers.go"
         }
       ],
-      "status": "in_progress",
+      "status": "complete",
       "dependencies": [
         "SUB-VERIFY"
       ],

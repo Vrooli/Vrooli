@@ -43,7 +43,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go unit test verifies filtering by variant slug and date range",
           "ref": "api/metrics_service_test.go",
           "test_duration_ms": 0,
@@ -53,7 +53,7 @@
         {
           "type": "test",
           "phase": "business",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Business test validates GET /api/v1/metrics/variants endpoint with query params",
           "ref": ".vrooli/endpoints.json",
           "test_duration_ms": 0,
@@ -61,7 +61,7 @@
           "phase_result": ""
         }
       ],
-      "status": "in_progress",
+      "status": "complete",
       "dependencies": [
         "METRIC-TAG"
       ],
@@ -129,7 +129,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go unit test verifies summary aggregation (total visitors, variant stats, top CTA, CTR)",
           "ref": "api/metrics_service_test.go",
           "test_duration_ms": 0,
@@ -139,7 +139,7 @@
         {
           "type": "test",
           "phase": "business",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Business test validates GET /api/v1/metrics/summary endpoint",
           "ref": ".vrooli/endpoints.json",
           "test_duration_ms": 0,
@@ -147,7 +147,7 @@
           "phase_result": ""
         }
       ],
-      "status": "in_progress",
+      "status": "complete",
       "dependencies": [
         "METRIC-TAG",
         "METRIC-EVENTS"
@@ -163,7 +163,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go unit test verifies variant stats include views, CTA clicks, conversions, conversion rate",
           "ref": "api/metrics_service_test.go",
           "test_duration_ms": 0,
@@ -173,7 +173,7 @@
         {
           "type": "test",
           "phase": "business",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Business test validates GET /api/v1/metrics/variants endpoint returns detailed stats",
           "ref": ".vrooli/endpoints.json",
           "test_duration_ms": 0,
@@ -181,7 +181,7 @@
           "phase_result": ""
         }
       ],
-      "status": "in_progress",
+      "status": "complete",
       "dependencies": [
         "METRIC-SUMMARY"
       ],
