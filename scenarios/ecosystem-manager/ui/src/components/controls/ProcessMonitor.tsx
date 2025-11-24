@@ -1,15 +1,53 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRunningProcesses } from '../../hooks/useRunningProcesses';
 import { Button } from '../ui/button';
 import { ProcessCard } from './ProcessCard';
 import { Activity, ChevronDown } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
+import { api } from '@/lib/api';
+import { queryKeys } from '@/lib/queryKeys';
+import type { Task } from '@/types/api';
 
-export function ProcessMonitor() {
+interface ProcessMonitorProps {
+  onSelectTask?: (task: Task) => void;
+}
+
+export function ProcessMonitor({ onSelectTask }: ProcessMonitorProps) {
   const { data: processes = [], isLoading } = useRunningProcesses();
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
+  const [loadingTaskId, setLoadingTaskId] = useState<string | null>(null);
 
   const processCount = processes.length;
+
+  const findTaskInCache = (taskId: string): Task | undefined => {
+    const listQueries = queryClient.getQueriesData<Task[]>({ queryKey: queryKeys.tasks.lists() });
+    for (const [, data] of listQueries) {
+      if (Array.isArray(data)) {
+        const match = data.find(task => task.id === taskId);
+        if (match) return match;
+      }
+    }
+
+    return queryClient.getQueryData<Task>(queryKeys.tasks.detail(taskId));
+  };
+
+  const handleOpenTask = async (taskId: string) => {
+    if (!onSelectTask) return;
+    setLoadingTaskId(taskId);
+    try {
+      const cachedTask = findTaskInCache(taskId);
+      const task = cachedTask ?? (await api.getTask(taskId));
+      onSelectTask(task);
+      setIsOpen(false);
+    } catch (error) {
+      console.error('Failed to open task from process monitor', error);
+      alert('Unable to load task details right now. Please try again.');
+    } finally {
+      setLoadingTaskId(null);
+    }
+  };
 
   return (
     <div className="relative">
@@ -59,7 +97,11 @@ export function ProcessMonitor() {
                 </div>
               ) : (
                 processes.map((process) => (
-                  <ProcessCard key={process.process_id} process={process} />
+                  <ProcessCard
+                    key={process.process_id}
+                    process={process}
+                    onSelect={loadingTaskId ? undefined : () => handleOpenTask(process.task_id)}
+                  />
                 ))
               )}
             </div>

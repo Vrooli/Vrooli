@@ -262,13 +262,30 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   if (!task) return null;
 
   const activeProfile = profiles.find(profile => profile.id === autoSteerProfileId);
-  const currentPhaseNumber = autoSteerState ? autoSteerState.current_phase_index + 1 : 0;
+  const toNumber = (val: unknown): number =>
+    typeof val === 'number' ? val : Number(val ?? 0);
+
+  const currentPhaseNumber = autoSteerState ? toNumber(autoSteerState.current_phase_index) + 1 : 0;
   const totalPhases = activeProfile?.phases?.length ?? 0;
   const currentMode =
     activeProfile?.phases?.[autoSteerState?.current_phase_index ?? 0]?.mode ??
     (activeProfile?.phases?.[0]?.mode ?? undefined);
-  const autoSteerIteration = autoSteerState?.auto_steer_iteration ?? 0;
-  const phaseIteration = autoSteerState ? autoSteerState.current_phase_iteration + 1 : 0;
+  const completedPhaseIterations =
+    autoSteerState?.phase_history?.reduce((sum, phase) => sum + toNumber(phase?.iterations), 0) ?? 0;
+  const currentPhaseIteration = toNumber(autoSteerState?.current_phase_iteration);
+  const derivedTotalIterations = completedPhaseIterations + currentPhaseIteration;
+  const historyIterationCount = sortedExecutions.length;
+  const latestAutoSteerIteration = toNumber(latestExecution?.auto_steer_iteration);
+  const latestPhaseIteration = toNumber(latestExecution?.steer_phase_iteration);
+  const autoSteerIteration = Math.max(
+    toNumber(autoSteerState?.auto_steer_iteration),
+    derivedTotalIterations,
+    latestAutoSteerIteration,
+    historyIterationCount,
+  );
+  const phaseIteration = autoSteerState
+    ? currentPhaseIteration + 1
+    : latestPhaseIteration || (historyIterationCount > 0 ? 1 : 0);
 
   const handleResetAutoSteer = async () => {
     if (!task) return;

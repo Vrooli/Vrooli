@@ -40,7 +40,7 @@ export default function App() {
   return (
     <div className="h-screen bg-background text-foreground flex flex-col">
       {/* Floating Controls */}
-      <FloatingControls />
+      <FloatingControls onSelectTask={(task) => setSelectedTask(task)} />
 
       {/* Main Content */}
       <main className="p-0 flex-1 min-h-0 overflow-hidden">

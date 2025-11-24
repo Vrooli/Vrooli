@@ -38,7 +38,13 @@ function detectValidationSource(validation) {
     // - test/cli/: CLI wrapper tests, not requirement validation
     // - test/unit/, test/integration/: Test runner scripts or infrastructure
     // - Only test/playbooks/ contains actual test sources (e2e automation)
-    console.warn(`[gaming-prevention] Validation ref rejected: ${ref} (unsupported test/ directory - only test/playbooks/*.{json,yaml} allowed)`);
+
+    // Only log warning for non-standard paths (debug mode)
+    // Known phase scripts (test/phases/*.sh, test/unit/*.sh, etc.) are expected and filtered silently
+    const isKnownInfrastructure = ref.match(/^test\/(phases|unit|integration|cli|fixtures)\//);
+    if (!isKnownInfrastructure && process.env.DEBUG_GAMING_PREVENTION === '1') {
+      console.warn(`[gaming-prevention] Validation ref rejected: ${ref} (unsupported test/ directory - only test/playbooks/*.{json,yaml} allowed)`);
+    }
     return null;
   }
 

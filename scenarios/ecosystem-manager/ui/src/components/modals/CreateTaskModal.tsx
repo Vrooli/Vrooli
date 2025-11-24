@@ -140,6 +140,14 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
     }
   }, [open, type, operation]);
 
+  // Clear steering choices when task shape changes away from scenario improver
+  useEffect(() => {
+    if (!(type === 'scenario' && operation === 'improver')) {
+      setAutoSteerProfileId(AUTO_STEER_NONE);
+      setSteerMode('none');
+    }
+  }, [type, operation]);
+
   // Keep steer mode cleared when a profile is selected (guard against stale state on reopen)
   useEffect(() => {
     if (autoSteerProfileId !== AUTO_STEER_NONE && steerMode !== 'none') {
@@ -332,7 +340,7 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
           )}
 
           {/* Auto Steer Profile */}
-          {(profiles && profiles.length > 0) && (
+          {type === 'scenario' && operation === 'improver' && profiles && profiles.length > 0 && (
             <div className="space-y-2">
               <Label htmlFor="auto-steer">Auto Steer Profile (Optional)</Label>
               <Select

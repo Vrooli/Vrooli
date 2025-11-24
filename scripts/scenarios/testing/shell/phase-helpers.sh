@@ -328,11 +328,12 @@ testing::phase::cleanup() {
 # Usage: testing::phase::end_with_summary [custom_message]
 testing::phase::end_with_summary() {
     local custom_message="${1:-}"
+    local override_status="${2:-}"  # Optional status override (e.g., "skipped")
     local end_time=$(date +%s)
     local duration=$((end_time - TESTING_PHASE_START_TIME))
-    
+
     echo ""
-    
+
     # Build summary message
     local summary_parts=()
     if [ $TESTING_PHASE_TEST_COUNT -gt 0 ]; then
@@ -342,7 +343,7 @@ testing::phase::end_with_summary() {
         summary_parts+=("$TESTING_PHASE_ERROR_COUNT errors")
     fi
     if [ $TESTING_PHASE_WARNING_COUNT -gt 0 ]; then
-        summary_parts+=("$TESTING_PHASE_WARNING_COUNT warnings")  
+        summary_parts+=("$TESTING_PHASE_WARNING_COUNT warnings")
     fi
     if [ $TESTING_PHASE_SKIPPED_COUNT -gt 0 ]; then
         summary_parts+=("$TESTING_PHASE_SKIPPED_COUNT skipped")
@@ -350,7 +351,7 @@ testing::phase::end_with_summary() {
     if [ ${#TESTING_PHASE_REQUIREMENTS[@]} -gt 0 ]; then
         summary_parts+=("${#TESTING_PHASE_REQUIREMENTS[@]} requirements")
     fi
-    
+
     local summary=""
     if [ ${#summary_parts[@]} -gt 0 ]; then
         summary=" ($(IFS=', '; echo "${summary_parts[*]}"))"
@@ -407,7 +408,10 @@ testing::phase::end_with_summary() {
     fi
     
     local phase_status="passed"
-    if [ $TESTING_PHASE_ERROR_COUNT -gt 0 ]; then
+    if [ -n "$override_status" ]; then
+        # Allow explicit status override (e.g., for "skipped" phases)
+        phase_status="$override_status"
+    elif [ $TESTING_PHASE_ERROR_COUNT -gt 0 ]; then
         phase_status="failed"
     fi
 
@@ -470,13 +474,20 @@ JSON
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     local status_symbol
     local status_text
-    if [ "$phase_status" = "passed" ]; then
-        status_symbol="✅"
-        status_text="PASSED"
-    else
-        status_symbol="❌"
-        status_text="FAILED"
-    fi
+    case "$phase_status" in
+        passed)
+            status_symbol="✅"
+            status_text="PASSED"
+            ;;
+        skipped)
+            status_symbol="⚠️ "
+            status_text="SKIPPED"
+            ;;
+        *)
+            status_symbol="❌"
+            status_text="FAILED"
+            ;;
+    esac
 
     echo "${status_symbol} [${phase_index}/${phase_total}] ${TESTING_PHASE_NAME^^} ${status_text} • ${duration}s${summary}${time_warning}"
 
@@ -492,17 +503,21 @@ JSON
     echo ""
 
     # Display final status message
-    if [ "$phase_status" = "passed" ]; then
-        TESTING_PHASE_INITIALIZED=false
-        TESTING_PHASE_AUTO_MANAGED=false
-        TESTING_PHASE_AUTO_SUMMARY=""
-        exit 0
-    else
-        TESTING_PHASE_INITIALIZED=false
-        TESTING_PHASE_AUTO_MANAGED=false
-        TESTING_PHASE_AUTO_SUMMARY=""
-        exit 1
-    fi
+    TESTING_PHASE_INITIALIZED=false
+    TESTING_PHASE_AUTO_MANAGED=false
+    TESTING_PHASE_AUTO_SUMMARY=""
+
+    case "$phase_status" in
+        passed)
+            exit 0
+            ;;
+        skipped)
+            exit 200  # Exit code 200 signals skipped (not failed)
+            ;;
+        *)
+            exit 1
+            ;;
+    esac
 }
 
 # Measure and report execution time for a command

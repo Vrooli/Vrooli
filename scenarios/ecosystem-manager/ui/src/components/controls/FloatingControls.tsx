@@ -6,8 +6,13 @@ import { ProcessMonitor } from './ProcessMonitor';
 import { LogsButton } from './LogsButton';
 import { SettingsButton } from './SettingsButton';
 import { NewTaskButton } from './NewTaskButton';
+import type { Task } from '@/types/api';
 
-export function FloatingControls() {
+interface FloatingControlsProps {
+  onSelectTask?: (task: Task) => void;
+}
+
+export function FloatingControls({ onSelectTask }: FloatingControlsProps) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
@@ -109,7 +114,7 @@ export function FloatingControls() {
 
         <div className="flex items-center gap-2 pl-3 border-l border-border/60">
           <FilterToggleButton />
-          <ProcessMonitor />
+          <ProcessMonitor onSelectTask={onSelectTask} />
         </div>
 
         <div className="flex items-center gap-2">

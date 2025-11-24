@@ -265,6 +265,7 @@ _testing_runner_analyze_failures() {
         ["test_failure"]="tests? failed|❌.*failed"
         ["dependency"]="not_installed|not healthy|missing"
         ["timeout"]="timed out|timeout|exceeded.*time"
+        ["api_port"]="Unable to resolve API_PORT|API.*not responding|HTTP 502|Bad Gateway"
     )
 
     for item in "${TESTING_RUNNER_EXECUTION_ITEMS[@]}"; do
@@ -278,6 +279,102 @@ _testing_runner_analyze_failures() {
             fi
         fi
     done
+
+    # =========================================================================
+    # CONSOLIDATED ERROR DIGEST
+    # =========================================================================
+    echo "╔═══════════════════════════════════════════════════════════════╗"
+    echo "║  ERROR DIGEST                                                 ║"
+    echo "╚═══════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    # Extract and display specific error messages for each failed phase
+    for i in "${!failed_phases[@]}"; do
+        local phase="${failed_phases[$i]}"
+        local log="${failed_logs[$i]}"
+
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "❌ Phase: ${phase^^}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+        if [ ! -f "$log" ]; then
+            echo "   Error: Log file not found"
+            echo "   File:  $log"
+            echo ""
+            continue
+        fi
+
+        # Extract specific error based on phase type
+        case "$phase" in
+            unit)
+                # Extract Go/Node test failures
+                if grep -qE "❌.*failed" "$log" 2>/dev/null; then
+                    local go_failures=$(grep -E "❌.*\(.*passed.*failed\)" "$log" 2>/dev/null | head -3)
+                    if [ -n "$go_failures" ]; then
+                        echo "   Test Failures:"
+                        echo "$go_failures" | sed 's/^/     /'
+                        echo ""
+                        echo "   Details:"
+                        while IFS= read -r failure_line; do
+                            if [[ "$failure_line" =~ coverage/unit/go/([^/]+)/README.md ]]; then
+                                echo "     → coverage/unit/go/${BASH_REMATCH[1]}/README.md"
+                            fi
+                        done < <(grep "coverage/unit" "$log" 2>/dev/null | head -5)
+                    fi
+                fi
+                ;;
+            integration)
+                # Extract integration-specific errors
+                if grep -qE "${error_patterns[api_port]}" "$log" 2>/dev/null; then
+                    echo "   Cause:  API not available"
+                    local error_msg=$(grep -E "Unable to resolve API_PORT|HTTP 502|API.*not responding" "$log" 2>/dev/null | head -1 | sed 's/^[[:space:]]*//')
+                    echo "   Error:  $error_msg"
+                    echo ""
+                    echo "   Fix:    vrooli scenario restart ${TESTING_RUNNER_SCENARIO_NAME}"
+                fi
+                ;;
+            performance)
+                # Extract performance audit failures
+                if grep -qE "Lighthouse.*failed|performance:.*FAIL" "$log" 2>/dev/null; then
+                    echo "   Lighthouse Failures:"
+                    grep -E "❌.*failed|performance:.*%.*FAIL|accessibility:.*%.*FAIL" "$log" 2>/dev/null | head -5 | sed 's/^/     /'
+                    echo ""
+                    echo "   Reports: test/artifacts/lighthouse/"
+                fi
+                if grep -qE "UI bundle.*exceeds limit" "$log" 2>/dev/null; then
+                    local bundle_msg=$(grep "UI bundle.*exceeds limit" "$log" | head -1)
+                    echo "   Bundle:  $bundle_msg"
+                fi
+                ;;
+            structure)
+                # Extract structure validation errors
+                if grep -qE "UI smoke.*failed|HTTP 502" "$log" 2>/dev/null; then
+                    echo "   Cause:  UI smoke test failed"
+                    local smoke_error=$(grep -A1 "UI smoke.*failed" "$log" 2>/dev/null | tail -1 | sed 's/^[[:space:]]*//')
+                    echo "   Error:  $smoke_error"
+                    echo ""
+                    echo "   Fix:    Check if scenario is running properly"
+                fi
+                ;;
+            *)
+                # Generic error extraction
+                local error_line=$(grep -E "\[ERROR\]|❌" "$log" 2>/dev/null | head -1 | sed 's/^\[ERROR\][[:space:]]*//' | sed 's/^[[:space:]]*//')
+                if [ -n "$error_line" ]; then
+                    echo "   Error:  ${error_line:0:90}"
+                fi
+                ;;
+        esac
+
+        echo "   Log:    test/artifacts/${phase}-*.log"
+        echo ""
+    done
+
+    # =========================================================================
+    # CRITICAL PATH ANALYSIS
+    # =========================================================================
+    echo "╔═══════════════════════════════════════════════════════════════╗"
+    echo "║  CRITICAL PATH ANALYSIS                                       ║"
+    echo "╚═══════════════════════════════════════════════════════════════╝"
 
     # Analyze errors and determine root cause
     local primary_blocker=""
@@ -299,11 +396,8 @@ _testing_runner_analyze_failures() {
             if [ -z "$primary_blocker" ]; then
                 primary_blocker="TypeScript compilation error"
                 primary_blocker_phase="$phase"
-                # Extract specific error
                 local ts_error=$(grep -E "error TS[0-9]+|Cannot find name" "$log" 2>/dev/null | head -1 | sed 's/^[[:space:]]*//')
                 primary_blocker_details="$ts_error"
-
-                # These typically block integration and performance
                 blocked_phases+=("integration" "performance")
             fi
         # Check for UI bundle staleness
@@ -339,15 +433,13 @@ _testing_runner_analyze_failures() {
         done
     done
 
-    # Print analysis
-    echo "CRITICAL PATH ANALYSIS:"
-
     if [ -n "$primary_blocker" ]; then
+        echo ""
         echo "  🔴 PRIMARY BLOCKER: $primary_blocker"
         echo "     Phase: $primary_blocker_phase"
         if [ -n "$primary_blocker_details" ]; then
-            echo "     Details: $primary_blocker_details" | head -c 120
-            echo ""
+            local truncated_details="${primary_blocker_details:0:100}"
+            echo "     Details: $truncated_details"
         fi
         if [ ${#actually_blocked[@]} -gt 0 ]; then
             local blocked_str=$(IFS=', '; echo "${actually_blocked[*]}")
@@ -364,64 +456,160 @@ _testing_runner_analyze_failures() {
         echo ""
     fi
 
-    # Provide actionable recommendations
-    echo "RECOMMENDED ACTIONS (in order):"
+    # =========================================================================
+    # QUICK FIX GUIDE (RECOMMENDED ACTIONS)
+    # =========================================================================
+    echo "╔═══════════════════════════════════════════════════════════════╗"
+    echo "║  QUICK FIX GUIDE                                              ║"
+    echo "╚═══════════════════════════════════════════════════════════════╝"
+    echo ""
     local action_num=1
 
     if [[ "$primary_blocker" == *"TypeScript"* ]]; then
-        echo "  ${action_num}. Fix TypeScript error:"
+        echo "  ${action_num}. Fix TypeScript compilation error"
         ((action_num++))
-        # Try to extract file and line number
         for log in "${failed_logs[@]}"; do
             if [ -f "$log" ]; then
                 local file_line=$(grep -E "\.ts.*error TS|\.ts\([0-9]+,[0-9]+\)" "$log" 2>/dev/null | head -1 | sed 's/:.*$//' | sed 's/^[[:space:]]*//')
                 if [ -n "$file_line" ]; then
-                    echo "     • Check: $file_line"
+                    echo "     Check:   $file_line"
                     break
                 fi
             fi
         done
-        echo "     • Fix compilation errors in TypeScript files"
+        echo "     Action:  Fix compilation errors in TypeScript files"
+        echo "     Rerun:   make test"
         echo ""
     elif [[ "$primary_blocker" == *"bundle"* ]] || [[ "$primary_blocker" == *"Build"* ]]; then
-        echo "  ${action_num}. Rebuild and restart scenario:"
+        echo "  ${action_num}. Rebuild and restart scenario"
         ((action_num++))
-        echo "     • Run: vrooli scenario restart ${TESTING_RUNNER_SCENARIO_NAME}"
-        echo "     • This will rebuild the UI and unblock ${#actually_blocked[@]} phase(s)"
+        echo "     Run:     vrooli scenario restart ${TESTING_RUNNER_SCENARIO_NAME}"
+        echo "     Effect:  Rebuilds UI and unblocks ${#actually_blocked[@]} phase(s)"
+        echo "     Rerun:   make test"
         echo ""
     fi
 
     if [ ${#secondary_issues[@]} -gt 0 ]; then
-        echo "  ${action_num}. Address test failures:"
+        echo "  ${action_num}. Address test failures"
         ((action_num++))
         for i in "${!failed_phases[@]}"; do
             local phase="${failed_phases[$i]}"
             local log="${failed_logs[$i]}"
             if [ -f "$log" ] && grep -qE "${error_patterns[test_failure]}" "$log" 2>/dev/null; then
-                # Find coverage README if it exists
-                local coverage_readme=$(find coverage/unit -name README.md -path "*/${phase}*" 2>/dev/null | head -1)
+                local coverage_readme=""
+                # Check common coverage paths
+                if [ -d "coverage/unit/go" ]; then
+                    coverage_readme=$(find coverage/unit/go -name README.md 2>/dev/null | grep -E "${phase}|executor|database" | head -1)
+                fi
                 if [ -n "$coverage_readme" ]; then
-                    echo "     • Review: $coverage_readme"
+                    echo "     Review:  $coverage_readme"
                 else
-                    echo "     • Review: test/artifacts/${phase}-*.log"
+                    echo "     Review:  test/artifacts/${phase}-*.log"
                 fi
             fi
+        done
+        echo "     Run individually:"
+        for phase in "${failed_phases[@]}"; do
+            case "$phase" in
+                unit)
+                    echo "       • cd api && go test -v ./... -run <TestName>"
+                    echo "       • cd ui && pnpm test <test-file>"
+                    ;;
+                integration)
+                    echo "       • vrooli test integration ${TESTING_RUNNER_SCENARIO_NAME}"
+                    ;;
+                performance)
+                    echo "       • vrooli test performance ${TESTING_RUNNER_SCENARIO_NAME}"
+                    ;;
+            esac
         done
         echo ""
     fi
 
-    echo "  ${action_num}. Re-run full test suite:"
-    ((action_num++))
-    echo "     • Run: make test"
+    # =========================================================================
+    # PHASE-SPECIFIC DEBUG GUIDES
+    # =========================================================================
+    echo "╔═══════════════════════════════════════════════════════════════╗"
+    echo "║  PHASE-SPECIFIC DEBUG GUIDES                                  ║"
+    echo "╚═══════════════════════════════════════════════════════════════╝"
     echo ""
 
-    echo "DETAILED LOGS:"
-    echo "   Phase logs:      test/artifacts/{phase}-{timestamp}.log"
+    for phase in "${failed_phases[@]}"; do
+        case "$phase" in
+            unit)
+                echo "━━━ UNIT PHASE ━━━"
+                echo "Common issues:"
+                echo "  • Database migrations not applied"
+                echo "  • Missing test dependencies"
+                echo "  • Stale module cache"
+                echo ""
+                echo "Quick fixes:"
+                echo "  → Check migrations:   ls initialization/postgres/migrations/"
+                echo "  → Clear Go cache:     go clean -testcache"
+                echo "  → Reinstall modules:  cd ui && pnpm install"
+                echo ""
+                ;;
+            integration)
+                echo "━━━ INTEGRATION PHASE ━━━"
+                echo "Common issues:"
+                echo "  • Scenario not running (API_PORT unavailable)"
+                echo "  • Stale UI bundle"
+                echo "  • Missing BAS CLI"
+                echo ""
+                echo "Quick fixes:"
+                echo "  → Restart scenario:   vrooli scenario restart ${TESTING_RUNNER_SCENARIO_NAME}"
+                echo "  → Check scenario:     vrooli scenario status ${TESTING_RUNNER_SCENARIO_NAME}"
+                echo "  → Install BAS:        cd ../browser-automation-studio && make install-cli"
+                echo ""
+                ;;
+            performance)
+                echo "━━━ PERFORMANCE PHASE ━━━"
+                echo "Common issues:"
+                echo "  • Lighthouse audits below threshold"
+                echo "  • UI bundle too large"
+                echo "  • Slow page load times"
+                echo ""
+                echo "Quick fixes:"
+                echo "  → View reports:       open test/artifacts/lighthouse/*.html"
+                echo "  → Analyze bundle:     cd ui && pnpm run analyze"
+                echo "  → Check bundle size:  ls -lh ui/dist/assets/*.js"
+                echo ""
+                ;;
+            structure)
+                echo "━━━ STRUCTURE PHASE ━━━"
+                echo "Common issues:"
+                echo "  • UI smoke test failing (API not responding)"
+                echo "  • Missing required files"
+                echo "  • Invalid JSON configuration"
+                echo ""
+                echo "Quick fixes:"
+                echo "  → Check API logs:     tail -f logs/${TESTING_RUNNER_SCENARIO_NAME}-api.log"
+                echo "  → Restart scenario:   vrooli scenario restart ${TESTING_RUNNER_SCENARIO_NAME}"
+                echo "  → Validate JSON:      jq . .vrooli/service.json"
+                echo ""
+                ;;
+        esac
+    done
+
+    # =========================================================================
+    # DETAILED REFERENCES
+    # =========================================================================
+    echo "╔═══════════════════════════════════════════════════════════════╗"
+    echo "║  DETAILED REFERENCES                                          ║"
+    echo "╚═══════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "  Logs:"
+    echo "    Phase logs:      test/artifacts/{phase}-{timestamp}.log"
     if [ -d "coverage/unit" ]; then
-        echo "   Coverage:        coverage/unit/{lang}/{package}/"
+        echo "    Coverage:        coverage/unit/{lang}/{package}/"
     fi
     if [ -f "requirements/index.json" ]; then
-        echo "   Requirements:    requirements/index.json"
+        echo "    Requirements:    requirements/index.json"
     fi
+    echo ""
+    echo "  Documentation:"
+    echo "    Architecture:    docs/testing/architecture/PHASED_TESTING.md"
+    echo "    Quick Start:     docs/testing/guides/requirement-tracking-quick-start.md"
+    echo "    UI Testing:      docs/testing/guides/ui-automation-with-bas.md"
     echo ""
 }

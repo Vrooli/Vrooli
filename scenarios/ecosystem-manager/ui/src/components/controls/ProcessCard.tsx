@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type KeyboardEvent, type MouseEvent } from 'react';
 import { Button } from '../ui/button';
 import { XCircle, Clock } from 'lucide-react';
 import { useTerminateProcess } from '../../hooks/useRunningProcesses';
@@ -6,9 +6,10 @@ import type { RunningProcess } from '../../types/api';
 
 interface ProcessCardProps {
   process: RunningProcess;
+  onSelect?: (process: RunningProcess) => void;
 }
 
-export function ProcessCard({ process }: ProcessCardProps) {
+export function ProcessCard({ process, onSelect }: ProcessCardProps) {
   const terminateProcess = useTerminateProcess();
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
@@ -41,7 +42,8 @@ export function ProcessCard({ process }: ProcessCardProps) {
     }
   };
 
-  const handleTerminate = () => {
+  const handleTerminate = (event: MouseEvent) => {
+    event.stopPropagation();
     const taskId = process.task_id || process.process_id;
     if (confirm(`Terminate process for task ${taskId}?`)) {
       terminateProcess.mutate(taskId);
@@ -49,7 +51,24 @@ export function ProcessCard({ process }: ProcessCardProps) {
   };
 
   return (
-    <div className="flex items-center justify-between gap-3 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+    <div
+      role={onSelect ? 'button' : undefined}
+      tabIndex={onSelect ? 0 : -1}
+      onClick={onSelect ? () => onSelect(process) : undefined}
+      onKeyDown={
+        onSelect
+          ? (event: KeyboardEvent) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onSelect(process);
+              }
+            }
+          : undefined
+      }
+      className={`flex items-center justify-between gap-3 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors ${
+        onSelect ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60' : ''
+      }`}
+    >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium truncate">

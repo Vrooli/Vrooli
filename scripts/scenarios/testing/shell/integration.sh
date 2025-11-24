@@ -184,6 +184,21 @@ testing::integration::validate_all() {
         fi
     fi
 
+    # Check if any tests actually ran
+    # If test count is 0, this indicates the phase was effectively skipped
+    # (e.g., due to API_PORT issues, missing BAS CLI, or no playbooks)
+    if [ "$TESTING_PHASE_TEST_COUNT" -eq 0 ]; then
+        # Override phase status to "skipped" instead of "passed"
+        force_end=true
+        # Provide informative message about why no tests ran
+        local skip_reason="No tests executed"
+        if [ "$TESTING_PHASE_ERROR_COUNT" -gt 0 ]; then
+            skip_reason="Prerequisites not met (check errors above)"
+        fi
+        testing::phase::end_with_summary "$skip_reason" "skipped"
+        return 200
+    fi
+
     force_end=true  # Mark that we're doing normal completion
     testing::phase::auto_lifecycle_end "$summary"
 }
