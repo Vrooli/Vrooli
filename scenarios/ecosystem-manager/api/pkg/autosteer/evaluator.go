@@ -2,6 +2,7 @@ package autosteer
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 )
@@ -78,56 +79,70 @@ func (e *ConditionEvaluator) evaluateCompound(condition StopCondition, metrics M
 
 // GetMetricValue extracts a metric value from the metrics snapshot
 func (e *ConditionEvaluator) GetMetricValue(metricName string, metrics MetricsSnapshot) (float64, error) {
+	if !IsAllowedMetric(metricName) {
+		return 0, &MetricUnavailableError{
+			Metric: metricName,
+			Reason: fmt.Sprintf("metric not supported; allowed: %v", AllowedMetrics()),
+		}
+	}
+
 	// Try direct fields first
 	switch metricName {
 	case "loops":
-		return float64(metrics.Loops), nil
+		return e.ensureAvailable(metricName, float64(metrics.PhaseLoops))
+	case "phase_loops":
+		return e.ensureAvailable(metricName, float64(metrics.PhaseLoops))
+	case "total_loops":
+		return e.ensureAvailable(metricName, float64(metrics.TotalLoops))
 	case "build_status":
-		return float64(metrics.BuildStatus), nil
+		return e.ensureAvailable(metricName, float64(metrics.BuildStatus))
 	case "operational_targets_total":
-		return float64(metrics.OperationalTargetsTotal), nil
+		return e.ensureAvailable(metricName, float64(metrics.OperationalTargetsTotal))
 	case "operational_targets_passing":
-		return float64(metrics.OperationalTargetsPassing), nil
+		return e.ensureAvailable(metricName, float64(metrics.OperationalTargetsPassing))
 	case "operational_targets_percentage":
-		return metrics.OperationalTargetsPercentage, nil
+		return e.ensureAvailable(metricName, metrics.OperationalTargetsPercentage)
 	}
 
 	// Check UX metrics
 	if metrics.UX != nil {
 		if value, ok := e.extractFromStruct(metricName, *metrics.UX); ok {
-			return value, nil
+			return e.ensureAvailable(metricName, value)
 		}
 	}
 
 	// Check Refactor metrics
 	if metrics.Refactor != nil {
 		if value, ok := e.extractFromStruct(metricName, *metrics.Refactor); ok {
-			return value, nil
+			return e.ensureAvailable(metricName, value)
 		}
 	}
 
 	// Check Test metrics
 	if metrics.Test != nil {
 		if value, ok := e.extractFromStruct(metricName, *metrics.Test); ok {
-			return value, nil
+			return e.ensureAvailable(metricName, value)
 		}
 	}
 
 	// Check Performance metrics
 	if metrics.Performance != nil {
 		if value, ok := e.extractFromStruct(metricName, *metrics.Performance); ok {
-			return value, nil
+			return e.ensureAvailable(metricName, value)
 		}
 	}
 
 	// Check Security metrics
 	if metrics.Security != nil {
 		if value, ok := e.extractFromStruct(metricName, *metrics.Security); ok {
-			return value, nil
+			return e.ensureAvailable(metricName, value)
 		}
 	}
 
-	return 0, fmt.Errorf("metric not found: %s", metricName)
+	return 0, &MetricUnavailableError{
+		Metric: metricName,
+		Reason: fmt.Sprintf("metric '%s' not present in current snapshot", metricName),
+	}
 }
 
 // extractFromStruct attempts to extract a metric from a struct using reflection
@@ -165,6 +180,17 @@ func (e *ConditionEvaluator) extractFromStruct(metricName string, structData int
 	}
 
 	return 0, false
+}
+
+// ensureAvailable treats negative or NaN metric values as unavailable signals.
+func (e *ConditionEvaluator) ensureAvailable(metricName string, value float64) (float64, error) {
+	if math.IsNaN(value) || value < 0 {
+		return 0, &MetricUnavailableError{
+			Metric: metricName,
+			Reason: fmt.Sprintf("metric '%s' not collected yet", metricName),
+		}
+	}
+	return value, nil
 }
 
 // compareValues compares two values using the specified operator

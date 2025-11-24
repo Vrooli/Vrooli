@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { AutoSteerPhase } from '@/types/api';
+import type { AutoSteerPhase, SteerMode } from '@/types/api';
 import { ConditionBuilderModal } from './ConditionBuilderModal';
 import { Slider } from '@/components/ui/slider';
 import { AVAILABLE_METRICS } from './ConditionNode';
@@ -39,7 +39,6 @@ const PHASE_MODES = [
   { value: 'test', label: 'Test' },
   { value: 'explore', label: 'Explore' },
   { value: 'polish', label: 'Polish' },
-  { value: 'integration', label: 'Integration' },
   { value: 'performance', label: 'Performance' },
   { value: 'security', label: 'Security' },
 ];
@@ -51,7 +50,6 @@ const MODE_DESCRIPTIONS: Record<string, string> = {
   test: 'Validation-heavy; adds/updates coverage and reliability.',
   explore: 'Discovery and research without strict output constraints.',
   polish: 'Tighten copy, micro-interactions, and quality details.',
-  integration: 'Wire external/internal systems together safely.',
   performance: 'Optimize throughput, memory, and responsiveness.',
   security: 'Harden surfaces, permissions, and guardrails.',
 };
@@ -164,7 +162,7 @@ export function PhaseEditor({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label>Mode *</Label>
-          <Select value={phase.mode} onValueChange={(value) => updateField('mode', value)}>
+          <Select value={phase.mode} onValueChange={(value) => updateField('mode', value as SteerMode)}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -275,7 +273,7 @@ function summarizeCondition(condition: any): string {
 
   if (condition.type === 'compound' && condition.conditions?.length) {
     const inner = condition.conditions.map((child: any) => summarizeCondition(child)).join(' • ');
-    return `${condition.logic_operator || 'AND'}: ${inner}`;
+    return `${condition.operator || 'AND'}: ${inner}`;
   }
 
   return 'Empty condition';

@@ -62,7 +62,8 @@ func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioNam
 
 	startMetrics := MetricsSnapshot{
 		Timestamp:                    time.Now().Add(-1 * time.Hour),
-		Loops:                        0,
+		PhaseLoops:                   0,
+		TotalLoops:                   0,
 		BuildStatus:                  1,
 		OperationalTargetsTotal:      10,
 		OperationalTargetsPassing:    5,
@@ -75,7 +76,8 @@ func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioNam
 
 	endMetrics := MetricsSnapshot{
 		Timestamp:                    time.Now(),
-		Loops:                        15,
+		PhaseLoops:                   5,
+		TotalLoops:                   15,
 		BuildStatus:                  1,
 		OperationalTargetsTotal:      10,
 		OperationalTargetsPassing:    9,

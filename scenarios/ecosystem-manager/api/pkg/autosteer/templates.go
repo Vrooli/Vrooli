@@ -369,22 +369,10 @@ func getProductionReadyTemplate() *AutoSteerProfile {
 				MaxIterations: 8,
 				StopConditions: []StopCondition{
 					{
-						Type:     ConditionTypeCompound,
-						Operator: LogicalAND,
-						Conditions: []StopCondition{
-							{
-								Type:            ConditionTypeSimple,
-								Metric:          "initial_load_time_ms",
-								CompareOperator: OpLessThan,
-								Value:           3000,
-							},
-							{
-								Type:            ConditionTypeSimple,
-								Metric:          "lcp_ms",
-								CompareOperator: OpLessThan,
-								Value:           2500,
-							},
-						},
+						Type:            ConditionTypeSimple,
+						Metric:          "bundle_size_kb",
+						CompareOperator: OpLessThan,
+						Value:           3000,
 					},
 				},
 			},
@@ -555,9 +543,9 @@ func getUXExcellenceTemplate() *AutoSteerProfile {
 				StopConditions: []StopCondition{
 					{
 						Type:            ConditionTypeSimple,
-						Metric:          "initial_load_time_ms",
+						Metric:          "bundle_size_kb",
 						CompareOperator: OpLessThan,
-						Value:           2000,
+						Value:           2500,
 					},
 				},
 			},

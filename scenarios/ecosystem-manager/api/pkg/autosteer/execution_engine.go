@@ -3,7 +3,9 @@ package autosteer
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -36,7 +38,8 @@ func (e *ExecutionEngine) StartExecution(taskID string, profileID string, scenar
 	}
 
 	// Collect initial metrics
-	metrics, err := e.metricsCollector.CollectMetrics(scenarioName, 0)
+	now := time.Now()
+	metrics, err := e.metricsCollector.CollectMetrics(scenarioName, 0, 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to collect initial metrics: %w", err)
 	}
@@ -48,11 +51,12 @@ func (e *ExecutionEngine) StartExecution(taskID string, profileID string, scenar
 		CurrentPhaseIndex:     0,
 		CurrentPhaseIteration: 0,
 		AutoSteerIteration:    0,
+		PhaseStartedAt:        now,
 		PhaseHistory:          []PhaseExecution{},
 		Metrics:               *metrics,
 		PhaseStartMetrics:     *metrics, // First phase starts with initial metrics
-		StartedAt:             time.Now(),
-		LastUpdated:           time.Now(),
+		StartedAt:             now,
+		LastUpdated:           now,
 	}
 
 	// Save to database
@@ -72,13 +76,14 @@ func (e *ExecutionEngine) StartExecution(taskID string, profileID string, scenar
 func (e *ExecutionEngine) GetExecutionState(taskID string) (*ProfileExecutionState, error) {
 	query := `
 		SELECT task_id, profile_id, current_phase_index, current_phase_iteration,
-		       auto_steer_iteration, phase_history, metrics, phase_start_metrics, started_at, last_updated
+		       auto_steer_iteration, phase_started_at, phase_history, metrics, phase_start_metrics, started_at, last_updated
 		FROM profile_execution_state
 		WHERE task_id = $1
 	`
 
 	var state ProfileExecutionState
 	var phaseHistoryJSON, metricsJSON, phaseStartMetricsJSON []byte
+	var phaseStartedAt sql.NullTime
 
 	err := e.db.QueryRow(query, taskID).Scan(
 		&state.TaskID,
@@ -86,6 +91,7 @@ func (e *ExecutionEngine) GetExecutionState(taskID string) (*ProfileExecutionSta
 		&state.CurrentPhaseIndex,
 		&state.CurrentPhaseIteration,
 		&state.AutoSteerIteration,
+		&phaseStartedAt,
 		&phaseHistoryJSON,
 		&metricsJSON,
 		&phaseStartMetricsJSON,
@@ -111,6 +117,12 @@ func (e *ExecutionEngine) GetExecutionState(taskID string) (*ProfileExecutionSta
 
 	if err := json.Unmarshal(phaseStartMetricsJSON, &state.PhaseStartMetrics); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal phase start metrics: %w", err)
+	}
+
+	if phaseStartedAt.Valid {
+		state.PhaseStartedAt = phaseStartedAt.Time
+	} else {
+		state.PhaseStartedAt = state.StartedAt
 	}
 
 	return &state, nil
@@ -149,16 +161,16 @@ func (e *ExecutionEngine) EvaluateIteration(taskID string, scenarioName string) 
 
 	// Increment Auto Steer iteration counter (per successful run)
 	state.AutoSteerIteration++
+	state.CurrentPhaseIteration++
 
 	// Collect current metrics
-	metrics, err := e.metricsCollector.CollectMetrics(scenarioName, state.AutoSteerIteration)
+	metrics, err := e.metricsCollector.CollectMetrics(scenarioName, state.CurrentPhaseIteration, state.AutoSteerIteration)
 	if err != nil {
 		return nil, fmt.Errorf("failed to collect metrics: %w", err)
 	}
 
 	// Update state with new metrics
 	state.Metrics = *metrics
-	state.CurrentPhaseIteration++
 	state.LastUpdated = time.Now()
 
 	// Check if max iterations reached
@@ -177,6 +189,13 @@ func (e *ExecutionEngine) EvaluateIteration(taskID string, scenarioName string) 
 	for i, condition := range currentPhase.StopConditions {
 		result, err := e.conditionEvaluator.Evaluate(condition, *metrics)
 		if err != nil {
+			var unavailable *MetricUnavailableError
+			if errors.As(err, &unavailable) {
+				// Non-fatal: metric is unavailable. Log and continue evaluating the next condition.
+				log.Printf("Auto Steer: condition %d skipped due to unavailable metric '%s': %v", i, unavailable.Metric, unavailable.Error())
+				continue
+			}
+
 			return nil, fmt.Errorf("failed to evaluate condition %d: %w", i, err)
 		}
 
@@ -261,6 +280,7 @@ func (e *ExecutionEngine) AdvancePhase(taskID string, scenarioName string) (*Pha
 	state.CurrentPhaseIndex++
 	state.CurrentPhaseIteration = 0
 	state.PhaseStartMetrics = state.Metrics // Capture metrics at start of new phase
+	state.PhaseStartedAt = time.Now()
 	state.LastUpdated = time.Now()
 
 	// Start next phase
@@ -330,7 +350,7 @@ func (e *ExecutionEngine) completePhase(state *ProfileExecutionState, profile *A
 		StartMetrics: startMetrics,
 		EndMetrics:   state.Metrics,
 		Commits:      []string{}, // Git commits collection deferred to Phase 2
-		StartedAt:    state.StartedAt,
+		StartedAt:    state.PhaseStartedAt,
 		CompletedAt:  &now,
 		StopReason:   stopReason,
 	}
@@ -445,14 +465,15 @@ func (e *ExecutionEngine) saveExecutionState(state *ProfileExecutionState) error
 
 	query := `
 		INSERT INTO profile_execution_state (
-			task_id, profile_id, current_phase_index, current_phase_iteration, auto_steer_iteration,
+			task_id, profile_id, current_phase_index, current_phase_iteration, auto_steer_iteration, phase_started_at,
 			phase_history, metrics, phase_start_metrics, started_at, last_updated
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		ON CONFLICT (task_id) DO UPDATE SET
 			profile_id = EXCLUDED.profile_id,
 			current_phase_index = EXCLUDED.current_phase_index,
 			current_phase_iteration = EXCLUDED.current_phase_iteration,
 			auto_steer_iteration = EXCLUDED.auto_steer_iteration,
+			phase_started_at = EXCLUDED.phase_started_at,
 			phase_history = EXCLUDED.phase_history,
 			metrics = EXCLUDED.metrics,
 			phase_start_metrics = EXCLUDED.phase_start_metrics,
@@ -465,6 +486,7 @@ func (e *ExecutionEngine) saveExecutionState(state *ProfileExecutionState) error
 		state.CurrentPhaseIndex,
 		state.CurrentPhaseIteration,
 		state.AutoSteerIteration,
+		state.PhaseStartedAt,
 		phaseHistoryJSON,
 		metricsJSON,
 		phaseStartMetricsJSON,

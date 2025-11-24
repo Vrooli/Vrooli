@@ -161,7 +161,7 @@ func TestMetricsCollector_HasData(t *testing.T) {
 			{
 				name:    "all zero",
 				metrics: &PerformanceMetrics{},
-				want:    false,
+				want:    true, // now treated as available snapshot even if values are defaulted
 			},
 			{
 				name: "bundle size present",
@@ -203,7 +203,7 @@ func TestMetricsCollector_HasData(t *testing.T) {
 			{
 				name:    "all zero - vulnerability count",
 				metrics: &SecurityMetrics{VulnerabilityCount: 0},
-				want:    false,
+				want:    true, // non-nil metrics are considered available
 			},
 			{
 				name: "input validation present",
@@ -372,13 +372,16 @@ func TestMetricsCollector_CollectMetrics(t *testing.T) {
 
 	t.Run("collect metrics successfully", func(t *testing.T) {
 		collector := NewMetricsCollector(tmpDir)
-		snapshot, err := collector.CollectMetrics("test-scenario", 5)
+		snapshot, err := collector.CollectMetrics("test-scenario", 5, 5)
 		if err != nil {
 			t.Fatalf("CollectMetrics() error = %v", err)
 		}
 
-		if snapshot.Loops != 5 {
-			t.Errorf("Expected 5 loops, got %d", snapshot.Loops)
+		if snapshot.PhaseLoops != 5 {
+			t.Errorf("Expected 5 phase loops, got %d", snapshot.PhaseLoops)
+		}
+		if snapshot.TotalLoops != 5 {
+			t.Errorf("Expected 5 total loops, got %d", snapshot.TotalLoops)
 		}
 		if snapshot.OperationalTargetsTotal != 2 {
 			t.Errorf("Expected 2 total targets, got %d", snapshot.OperationalTargetsTotal)
@@ -393,7 +396,7 @@ func TestMetricsCollector_CollectMetrics(t *testing.T) {
 
 	t.Run("error on empty scenario name", func(t *testing.T) {
 		collector := NewMetricsCollector(tmpDir)
-		_, err := collector.CollectMetrics("", 5)
+		_, err := collector.CollectMetrics("", 5, 5)
 		if err == nil {
 			t.Error("Expected error for empty scenario name")
 		}
@@ -401,7 +404,7 @@ func TestMetricsCollector_CollectMetrics(t *testing.T) {
 
 	t.Run("error on nonexistent scenario", func(t *testing.T) {
 		collector := NewMetricsCollector(tmpDir)
-		_, err := collector.CollectMetrics("nonexistent", 5)
+		_, err := collector.CollectMetrics("nonexistent", 5, 5)
 		if err == nil {
 			t.Error("Expected error for nonexistent scenario")
 		}

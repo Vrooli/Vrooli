@@ -398,7 +398,7 @@ func (c *RefactorMetricsCollector) runJSCPD(scenarioName string, jscpdPath strin
 func (c *RefactorMetricsCollector) estimateDuplication(scenarioPath string) float64 {
 	// Simple hash-based duplication detection
 	// This is a placeholder - real implementation would use AST-based comparison
-	return 0
+	return -1
 }
 
 // countTechDebt counts technical debt items (TODOs, FIXMEs, HACK comments)

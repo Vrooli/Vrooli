@@ -374,6 +374,8 @@ func previewMetricsSnapshot() autosteer.MetricsSnapshot {
 	now := time.Now()
 	return autosteer.MetricsSnapshot{
 		Timestamp:                    now,
+		PhaseLoops:                   0,
+		TotalLoops:                   0,
 		BuildStatus:                  1,
 		OperationalTargetsTotal:      0,
 		OperationalTargetsPassing:    0,

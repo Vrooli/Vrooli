@@ -64,7 +64,8 @@ func TestPromptEnhancer_GenerateAutoSteerSection(t *testing.T) {
 		PhaseHistory:          []PhaseExecution{},
 		Metrics: MetricsSnapshot{
 			Timestamp:                    time.Now(),
-			Loops:                        3,
+			PhaseLoops:                   3,
+			TotalLoops:                   3,
 			BuildStatus:                  1,
 			OperationalTargetsPercentage: 70.0,
 		},
@@ -86,7 +87,7 @@ func TestPromptEnhancer_GenerateAutoSteerSection(t *testing.T) {
 		if !strings.Contains(section, "Phase 1 of 2") {
 			t.Error("Expected phase progress in output")
 		}
-		if !strings.Contains(section, "Iteration: 3 of 10") {
+		if !strings.Contains(section, "Iteration: 4 of 10") {
 			t.Error("Expected iteration progress in output")
 		}
 		if !strings.Contains(section, "Stop Conditions") {

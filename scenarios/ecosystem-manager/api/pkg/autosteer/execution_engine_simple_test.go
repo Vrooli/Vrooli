@@ -46,6 +46,7 @@ func setupSimpleExecutionTest(t *testing.T) (*sql.DB, *ProfileService, *MetricsC
 			current_phase_index INTEGER NOT NULL,
 			current_phase_iteration INTEGER NOT NULL,
 			auto_steer_iteration INTEGER NOT NULL DEFAULT 0,
+			phase_started_at TIMESTAMP DEFAULT NOW(),
 			phase_history JSONB,
 			metrics JSONB,
 			phase_start_metrics JSONB,

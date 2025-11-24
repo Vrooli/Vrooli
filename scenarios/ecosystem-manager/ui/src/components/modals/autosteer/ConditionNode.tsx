@@ -24,12 +24,37 @@ interface ConditionNodeProps {
 }
 
 export const AVAILABLE_METRICS = [
-  { value: 'iteration_count', label: 'Iteration Count' },
-  { value: 'error_rate', label: 'Error Rate' },
-  { value: 'success_rate', label: 'Success Rate' },
-  { value: 'elapsed_time', label: 'Elapsed Time (s)' },
-  { value: 'memory_usage', label: 'Memory Usage (MB)' },
-  { value: 'cpu_usage', label: 'CPU Usage (%)' },
+  { value: 'phase_loops', label: 'Phase Iterations' },
+  { value: 'total_loops', label: 'Total Iterations' },
+  { value: 'operational_targets_percentage', label: 'Operational Targets %' },
+  { value: 'operational_targets_passing', label: 'Operational Targets Passing' },
+  { value: 'operational_targets_total', label: 'Operational Targets Total' },
+  { value: 'build_status', label: 'Build Status (1 = passing)' },
+  { value: 'unit_test_coverage', label: 'Unit Test Coverage' },
+  { value: 'integration_test_coverage', label: 'Integration Test Coverage' },
+  { value: 'ui_test_coverage', label: 'UI Test Coverage' },
+  { value: 'accessibility_score', label: 'Accessibility Score' },
+  { value: 'responsive_breakpoints', label: 'Responsive Breakpoints' },
+  { value: 'user_flows_implemented', label: 'User Flows Implemented' },
+  { value: 'loading_states_count', label: 'Loading States Count' },
+  { value: 'error_handling_coverage', label: 'Error Handling Coverage' },
+  { value: 'tidiness_score', label: 'Tidiness Score' },
+  { value: 'cyclomatic_complexity_avg', label: 'Cyclomatic Complexity (avg)' },
+  { value: 'duplication_percentage', label: 'Duplication %' },
+  { value: 'standards_violations', label: 'Standards Violations' },
+  { value: 'tech_debt_items', label: 'Tech Debt Items' },
+  { value: 'edge_cases_covered', label: 'Edge Cases Covered' },
+  { value: 'flaky_tests', label: 'Flaky Tests' },
+  { value: 'test_quality_score', label: 'Test Quality Score' },
+  { value: 'bundle_size_kb', label: 'Bundle Size (KB)' },
+  { value: 'initial_load_time_ms', label: 'Initial Load Time (ms)' },
+  { value: 'lcp_ms', label: 'LCP (ms)' },
+  { value: 'fid_ms', label: 'FID/Blocking Time (ms)' },
+  { value: 'cls_score', label: 'CLS Score' },
+  { value: 'vulnerability_count', label: 'Vulnerability Count' },
+  { value: 'input_validation_coverage', label: 'Input Validation Coverage' },
+  { value: 'auth_implementation_score', label: 'Auth Implementation Score' },
+  { value: 'security_scan_score', label: 'Security Scan Score' },
 ];
 
 const COMPARE_OPERATORS = ['>', '<', '>=', '<=', '==', '!='];
@@ -144,7 +169,7 @@ export function ConditionNode({
       } else {
         const newCondition: StopCondition = {
           type: 'compound',
-          logic_operator: 'AND',
+          operator: 'AND',
           conditions: [],
         };
         onChange({ ...condition, conditions: [...subConditions, newCondition] });
@@ -159,15 +184,15 @@ export function ConditionNode({
         {/* Group Header */}
         <div className="flex items-center gap-2 p-3 bg-blue-900/20 rounded border border-blue-700">
           <Select
-            value={condition.logic_operator}
+            value={condition.operator}
             onValueChange={(value) =>
-              onChange({ ...condition, logic_operator: value as 'AND' | 'OR' })
+              onChange({ ...condition, operator: value as 'AND' | 'OR' })
             }
           >
             <SelectTrigger className="w-[200px] bg-slate-900/70 border-slate-700 text-slate-100">
               <SelectValue placeholder="Logic">
-                {LOGIC_OPERATORS.find((op) => op.value === condition.logic_operator)?.label ||
-                  condition.logic_operator ||
+                {LOGIC_OPERATORS.find((op) => op.value === condition.operator)?.label ||
+                  condition.operator ||
                   'Logic'}
               </SelectValue>
             </SelectTrigger>

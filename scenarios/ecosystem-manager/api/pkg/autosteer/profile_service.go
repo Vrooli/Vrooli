@@ -292,13 +292,22 @@ func (s *ProfileService) validateCondition(condition StopCondition) error {
 		if condition.Metric == "" {
 			return fmt.Errorf("simple condition must have a metric")
 		}
+		if !IsAllowedMetric(condition.Metric) {
+			return fmt.Errorf("unsupported metric '%s' (allowed: %v)", condition.Metric, AllowedMetrics())
+		}
 		if condition.CompareOperator == "" {
 			return fmt.Errorf("simple condition must have a compare operator")
+		}
+		if !IsValidConditionOperator(condition.CompareOperator) {
+			return fmt.Errorf("invalid compare operator '%s'", condition.CompareOperator)
 		}
 
 	case ConditionTypeCompound:
 		if condition.Operator == "" {
 			return fmt.Errorf("compound condition must have a logical operator")
+		}
+		if !IsValidLogicalOperator(condition.Operator) {
+			return fmt.Errorf("invalid logical operator '%s'", condition.Operator)
 		}
 		if len(condition.Conditions) == 0 {
 			return fmt.Errorf("compound condition must have sub-conditions")

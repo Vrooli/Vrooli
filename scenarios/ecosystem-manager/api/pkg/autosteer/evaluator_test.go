@@ -10,7 +10,8 @@ func TestConditionEvaluator_EvaluateSimple(t *testing.T) {
 
 	metrics := MetricsSnapshot{
 		Timestamp:                    time.Now(),
-		Loops:                        5,
+		PhaseLoops:                   5,
+		TotalLoops:                   5,
 		BuildStatus:                  1,
 		OperationalTargetsTotal:      10,
 		OperationalTargetsPassing:    7,
@@ -140,7 +141,8 @@ func TestConditionEvaluator_EvaluateCompound(t *testing.T) {
 
 	metrics := MetricsSnapshot{
 		Timestamp:                    time.Now(),
-		Loops:                        5,
+		PhaseLoops:                   5,
+		TotalLoops:                   5,
 		OperationalTargetsPercentage: 80.0,
 		UX: &UXMetrics{
 			AccessibilityScore: 92.0,
@@ -302,7 +304,8 @@ func TestConditionEvaluator_FormatCondition(t *testing.T) {
 
 	metrics := MetricsSnapshot{
 		Timestamp:                    time.Now(),
-		Loops:                        5,
+		PhaseLoops:                   5,
+		TotalLoops:                   5,
 		OperationalTargetsPercentage: 80.0,
 		UX: &UXMetrics{
 			AccessibilityScore: 85.0,

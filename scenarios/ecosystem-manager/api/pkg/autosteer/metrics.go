@@ -34,7 +34,8 @@ func NewMetricsCollector(projectRoot string) *MetricsCollector {
 }
 
 // CollectMetrics collects all available metrics for a scenario
-func (m *MetricsCollector) CollectMetrics(scenarioName string, currentLoops int) (*MetricsSnapshot, error) {
+// phaseLoops tracks iterations within the current phase; totalLoops tracks cumulative iterations.
+func (m *MetricsCollector) CollectMetrics(scenarioName string, phaseLoops int, totalLoops int) (*MetricsSnapshot, error) {
 	// Validate scenario name
 	if scenarioName == "" {
 		return nil, fmt.Errorf("scenario name cannot be empty")
@@ -47,8 +48,9 @@ func (m *MetricsCollector) CollectMetrics(scenarioName string, currentLoops int)
 	}
 
 	snapshot := &MetricsSnapshot{
-		Timestamp: time.Now(),
-		Loops:     currentLoops,
+		Timestamp:  time.Now(),
+		PhaseLoops: phaseLoops,
+		TotalLoops: totalLoops,
 	}
 
 	// Collect universal metrics (required - will fail if these fail)
@@ -124,17 +126,22 @@ func (m *MetricsCollector) collectTestMetrics(scenarioName string, snapshot *Met
 // collectPerformanceMetrics uses the specialized performance collector
 func (m *MetricsCollector) collectPerformanceMetrics(scenarioName string, snapshot *MetricsSnapshot) {
 	perfMetrics, err := m.performanceCollector.Collect(scenarioName)
-	if err == nil && m.hasPerformanceData(perfMetrics) {
-		snapshot.Performance = perfMetrics
+	if err != nil {
+		return
 	}
+	// Always set performance metrics when collection succeeds so conditions can evaluate,
+	// even if some fields remain zero/uncollected.
+	snapshot.Performance = perfMetrics
 }
 
 // collectSecurityMetrics uses the specialized security collector
 func (m *MetricsCollector) collectSecurityMetrics(scenarioName string, snapshot *MetricsSnapshot) {
 	securityMetrics, err := m.securityCollector.Collect(scenarioName)
-	if err == nil && m.hasSecurityData(securityMetrics) {
-		snapshot.Security = securityMetrics
+	if err != nil {
+		return
 	}
+	// Always set security metrics when collection succeeds so conditions can evaluate.
+	snapshot.Security = securityMetrics
 }
 
 // Helper methods to check if metrics have meaningful data
@@ -165,15 +172,11 @@ func (m *MetricsCollector) hasTestData(metrics *TestMetrics) bool {
 }
 
 func (m *MetricsCollector) hasPerformanceData(metrics *PerformanceMetrics) bool {
-	return metrics != nil && (metrics.BundleSizeKB > 0 ||
-		metrics.InitialLoadTimeMS > 0 ||
-		metrics.LCPMS > 0)
+	return metrics != nil
 }
 
 func (m *MetricsCollector) hasSecurityData(metrics *SecurityMetrics) bool {
-	return metrics != nil && (metrics.InputValidationCoverage > 0 ||
-		metrics.AuthImplementationScore > 0 ||
-		metrics.SecurityScanScore > 0)
+	return metrics != nil
 }
 
 // OperationalTargetCounts represents counts of operational targets
@@ -250,9 +253,9 @@ func (m *MetricsCollector) SetTidinessManagerURL(url string) {
 }
 
 // CollectWithURL is a convenience method for collecting metrics with dynamic URL for running apps
-func (m *MetricsCollector) CollectWithURL(scenarioName string, currentLoops int, appURL string) (*MetricsSnapshot, error) {
+func (m *MetricsCollector) CollectWithURL(scenarioName string, phaseLoops int, totalLoops int, appURL string) (*MetricsSnapshot, error) {
 	// Collect standard metrics
-	snapshot, err := m.CollectMetrics(scenarioName, currentLoops)
+	snapshot, err := m.CollectMetrics(scenarioName, phaseLoops, totalLoops)
 	if err != nil {
 		return nil, err
 	}

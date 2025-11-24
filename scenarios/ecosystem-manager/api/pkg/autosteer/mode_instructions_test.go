@@ -25,7 +25,8 @@ func TestModeInstructions_FormatConditionProgress(t *testing.T) {
 	}
 
 	output := instructions.FormatConditionProgress(conditions, MetricsSnapshot{
-		Loops:                        2,
+		PhaseLoops:                   2,
+		TotalLoops:                   2,
 		OperationalTargetsPercentage: 50,
 	}, evaluator)
 

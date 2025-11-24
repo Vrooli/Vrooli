@@ -41,6 +41,9 @@ func EnsureTablesExist(db *sql.DB) error {
 	if err := ensureColumnExists(db, "profile_execution_state", "auto_steer_iteration", "INTEGER NOT NULL DEFAULT 0"); err != nil {
 		return fmt.Errorf("failed to ensure column auto_steer_iteration exists: %w", err)
 	}
+	if err := ensureColumnExists(db, "profile_execution_state", "phase_started_at", "TIMESTAMP DEFAULT NOW()"); err != nil {
+		return fmt.Errorf("failed to ensure column phase_started_at exists: %w", err)
+	}
 
 	log.Println("✅ Auto Steer database tables verified")
 	return nil

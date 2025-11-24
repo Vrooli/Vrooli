@@ -41,7 +41,7 @@ export function ConditionBuilderModal({
     } else {
       const newCondition: StopCondition = {
         type: 'compound',
-        logic_operator: 'AND',
+        operator: 'AND',
         conditions: [],
       };
       onChange([...conditions, newCondition]);

@@ -112,7 +112,10 @@ type MetricsSnapshot struct {
 	Timestamp time.Time `json:"timestamp"`
 
 	// Universal metrics
-	Loops                        int     `json:"loops"`
+	// PhaseLoops counts iterations within the current phase (resets when a phase advances)
+	PhaseLoops int `json:"phase_loops"`
+	// TotalLoops is the global iteration counter across all phases
+	TotalLoops                   int     `json:"total_loops"`
 	BuildStatus                  int     `json:"build_status"` // 0 = failing, 1 = passing
 	OperationalTargetsTotal      int     `json:"operational_targets_total"`
 	OperationalTargetsPassing    int     `json:"operational_targets_passing"`
@@ -192,6 +195,7 @@ type ProfileExecutionState struct {
 	CurrentPhaseIndex     int              `json:"current_phase_index"`
 	CurrentPhaseIteration int              `json:"current_phase_iteration"`
 	AutoSteerIteration    int              `json:"auto_steer_iteration"`
+	PhaseStartedAt        time.Time        `json:"phase_started_at"`
 	PhaseHistory          []PhaseExecution `json:"phase_history"`
 	Metrics               MetricsSnapshot  `json:"metrics"`             // Current metrics
 	PhaseStartMetrics     MetricsSnapshot  `json:"phase_start_metrics"` // Metrics at start of current phase

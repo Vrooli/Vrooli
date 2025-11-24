@@ -28,11 +28,11 @@ func (c *PerformanceMetricsCollector) Collect(scenarioName string) (*Performance
 	metrics.BundleSizeKB = c.getBundleSize(scenarioName)
 
 	// For dynamic metrics (Lighthouse), we'd need the app running
-	// These will be 0 unless RunLighthouse is called separately
-	metrics.InitialLoadTimeMS = 0
-	metrics.LCPMS = 0
-	metrics.FIDMS = 0
-	metrics.CLSScore = 0
+	// These are set to -1 as a sentinel until collected explicitly
+	metrics.InitialLoadTimeMS = -1
+	metrics.LCPMS = -1
+	metrics.FIDMS = -1
+	metrics.CLSScore = -1
 
 	return metrics, nil
 }
@@ -49,7 +49,7 @@ func (c *PerformanceMetricsCollector) getBundleSize(scenarioName string) float64
 
 	// Recalculate directory size
 	if _, err := os.Stat(distPath); os.IsNotExist(err) {
-		return 0
+		return -1
 	}
 
 	var size int64
@@ -64,7 +64,7 @@ func (c *PerformanceMetricsCollector) getBundleSize(scenarioName string) float64
 	})
 
 	if err != nil {
-		return 0
+		return -1
 	}
 
 	// Convert to KB

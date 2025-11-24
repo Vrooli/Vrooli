@@ -65,9 +65,9 @@ func (a *AutoSteerIntegration) InitializeAutoSteer(task *tasks.TaskItem, scenari
 	}
 
 	log.Printf("Auto Steer initialized successfully for task %s - starting with %d recorded loop(s)",
-		task.ID, state.Metrics.Loops)
+		task.ID, state.Metrics.TotalLoops)
 	systemlog.Infof("Auto Steer: Task %s initialized - recorded loops: %d",
-		task.ID, state.Metrics.Loops)
+		task.ID, state.Metrics.TotalLoops)
 
 	return nil
 }

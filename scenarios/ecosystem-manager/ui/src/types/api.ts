@@ -181,7 +181,7 @@ export interface AutoSteerProfile {
 
 export interface AutoSteerPhase {
   id?: string;
-  mode: string;
+  mode: SteerMode;
   max_iterations: number;
   description?: string;
   stop_conditions?: StopCondition[];
@@ -194,7 +194,7 @@ export interface StopCondition {
   compare_operator?: string;
   value?: number;
   // Compound condition fields
-  logic_operator?: 'AND' | 'OR';
+  operator?: 'AND' | 'OR';
   conditions?: StopCondition[];
 }
 
@@ -238,7 +238,8 @@ export interface AutoSteerExecutionState {
 
 export interface MetricsSnapshot {
   timestamp: string;
-  loops: number;
+  phase_loops: number;
+  total_loops: number;
   build_status: number;
   operational_targets_total: number;
   operational_targets_passing: number;
