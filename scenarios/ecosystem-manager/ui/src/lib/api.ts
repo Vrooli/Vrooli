@@ -31,6 +31,7 @@ import type {
   AutoSteerTemplate,
   ProfilePerformance,
   HealthResponse,
+  AutoSteerExecutionState,
 } from '../types/api';
 
 // Default settings fallback (matches legacy API defaults)
@@ -783,6 +784,10 @@ class ApiClient {
     return this.fetchJSON<AutoSteerProfile>(`/api/auto-steer/profiles/${id}`);
   }
 
+  async getAutoSteerExecutionState(taskId: string): Promise<AutoSteerExecutionState> {
+    return this.fetchJSON<AutoSteerExecutionState>(`/api/auto-steer/execution/${taskId}`);
+  }
+
   async updateAutoSteerProfile(id: string, profile: Partial<AutoSteerProfile>): Promise<AutoSteerProfile> {
     return this.fetchJSON<AutoSteerProfile>(`/api/auto-steer/profiles/${id}`, {
       method: 'PUT',
@@ -823,6 +828,13 @@ class ApiClient {
 
   async getAutoSteerExecution(executionId: string): Promise<ProfilePerformance> {
     return this.fetchJSON<ProfilePerformance>(`/api/auto-steer/history/${executionId}`);
+  }
+
+  async resetAutoSteerExecution(taskId: string): Promise<{ success: boolean; message?: string }> {
+    return this.fetchJSON<{ success: boolean; message?: string }>(`/api/auto-steer/execution/reset`, {
+      method: 'POST',
+      body: JSON.stringify({ task_id: taskId }),
+    });
   }
 
   // ==================== Utilities ====================

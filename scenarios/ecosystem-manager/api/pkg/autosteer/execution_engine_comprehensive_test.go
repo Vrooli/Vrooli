@@ -89,24 +89,30 @@ func TestExecutionEngine_FullCycle(t *testing.T) {
 			t.Fatalf("StartExecution() error = %v", err)
 		}
 
-		// Evaluate at loop 3 (should not stop)
-		result, err := engine.EvaluateIteration(taskID, "test-scenario", 3)
-		if err != nil {
-			t.Fatalf("EvaluateIteration() error = %v", err)
-		}
-		if result.ShouldStop {
-			t.Error("Expected iteration to continue at loop 3")
+		// Advance through iterations
+		for i := 0; i < 3; i++ {
+			result, err := engine.EvaluateIteration(taskID, "test-scenario")
+			if err != nil {
+				t.Fatalf("EvaluateIteration() error at loop %d: %v", i+1, err)
+			}
+			if result.ShouldStop {
+				t.Fatalf("Expected iteration to continue at loop %d", i+1)
+			}
 		}
 
-		// Evaluate at loop 6 (should stop - condition met)
-		result, err = engine.EvaluateIteration(taskID, "test-scenario", 6)
-		if err != nil {
-			t.Fatalf("EvaluateIteration() error = %v", err)
+		// Continue until loop 6 (condition should be met)
+		var result *IterationEvaluation
+		for i := 3; i < 6; i++ {
+			var err error
+			result, err = engine.EvaluateIteration(taskID, "test-scenario")
+			if err != nil {
+				t.Fatalf("EvaluateIteration() error at loop %d: %v", i+1, err)
+			}
 		}
-		if !result.ShouldStop {
+
+		if result == nil || !result.ShouldStop {
 			t.Error("Expected iteration to stop at loop 6")
-		}
-		if result.Reason != "condition_met" {
+		} else if result.Reason != "condition_met" {
 			t.Errorf("Expected reason 'condition_met', got %s", result.Reason)
 		}
 	})
@@ -158,11 +164,18 @@ func TestExecutionEngine_FullCycle(t *testing.T) {
 		}
 
 		// Complete first phase iterations
-		for i := 1; i <= 4; i++ {
-			_, err := engine.EvaluateIteration(taskID, "test-scenario", i)
+		var phaseOneResult *IterationEvaluation
+		for i := 0; i < 5; i++ {
+			phaseOneResult, err = engine.EvaluateIteration(taskID, "test-scenario")
 			if err != nil {
-				t.Fatalf("EvaluateIteration(%d) error = %v", i, err)
+				t.Fatalf("EvaluateIteration() error at loop %d: %v", i+1, err)
 			}
+			if phaseOneResult.ShouldStop {
+				break
+			}
+		}
+		if phaseOneResult == nil || !phaseOneResult.ShouldStop {
+			t.Fatal("Expected first phase to stop based on stop condition")
 		}
 
 		// Advance to next phase
@@ -190,11 +203,18 @@ func TestExecutionEngine_FullCycle(t *testing.T) {
 		}
 
 		// Complete second phase - advance should complete execution
-		for i := 1; i <= 5; i++ {
-			_, err := engine.EvaluateIteration(taskID, "test-scenario", i)
+		var phaseTwoResult *IterationEvaluation
+		for i := 0; i < 6; i++ {
+			phaseTwoResult, err = engine.EvaluateIteration(taskID, "test-scenario")
 			if err != nil {
-				t.Fatalf("Phase 2 EvaluateIteration(%d) error = %v", i, err)
+				t.Fatalf("Phase 2 EvaluateIteration() error at loop %d: %v", i+1, err)
 			}
+			if phaseTwoResult.ShouldStop {
+				break
+			}
+		}
+		if phaseTwoResult == nil || !phaseTwoResult.ShouldStop {
+			t.Fatal("Expected second phase to stop based on stop condition")
 		}
 
 		advanceResult, err = engine.AdvancePhase(taskID, "test-scenario")
@@ -370,10 +390,10 @@ func TestExecutionEngine_GetEnhancedPrompt(t *testing.T) {
 		}
 
 		// Run a few iterations
-		for i := 1; i <= 3; i++ {
-			_, err := engine.EvaluateIteration(taskID, "test-scenario", i)
+		for i := 0; i < 3; i++ {
+			_, err := engine.EvaluateIteration(taskID, "test-scenario")
 			if err != nil {
-				t.Fatalf("EvaluateIteration(%d) error = %v", i, err)
+				t.Fatalf("EvaluateIteration() error at loop %d: %v", i+1, err)
 			}
 		}
 

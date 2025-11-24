@@ -28,7 +28,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Save, Archive, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useUpdateTask, useDeleteTask } from '@/hooks/useTaskMutations';
-import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
+import { useAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExecution } from '@/hooks/useAutoSteer';
 import { api } from '@/lib/api';
 import { markdownToHtml } from '@/lib/markdown';
 import { queryKeys } from '@/lib/queryKeys';
@@ -57,6 +57,13 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
   const { data: profiles = [] } = useAutoSteerProfiles();
+  const {
+    data: autoSteerState,
+    isFetching: isAutoSteerStateLoading,
+    isError: autoSteerStateError,
+    refetch: refetchAutoSteerState,
+  } = useAutoSteerExecutionState(task && autoSteerProfileId !== AUTO_STEER_NONE ? task.id : undefined);
+  const resetAutoSteer = useResetAutoSteerExecution();
 
   // Fetch task logs
   const { data: rawLogs = [] } = useQuery({
@@ -101,6 +108,12 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
     }
   }, [task]);
 
+  useEffect(() => {
+    if (task && autoSteerProfileId !== AUTO_STEER_NONE) {
+      refetchAutoSteerState();
+    }
+  }, [task, autoSteerProfileId, refetchAutoSteerState]);
+
   // Reset when modal closes
   useEffect(() => {
     if (!open) {
@@ -122,6 +135,20 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   const assembledPromptHtml = useMemo(() => markdownToHtml(assembledPrompt), [assembledPrompt]);
 
   if (!task) return null;
+
+  const activeProfile = profiles.find(profile => profile.id === autoSteerProfileId);
+  const currentPhaseNumber = autoSteerState ? autoSteerState.current_phase_index + 1 : 0;
+  const totalPhases = activeProfile?.phases?.length ?? 0;
+  const currentMode =
+    activeProfile?.phases?.[autoSteerState?.current_phase_index ?? 0]?.mode ??
+    (activeProfile?.phases?.[0]?.mode ?? undefined);
+  const autoSteerIteration = autoSteerState?.auto_steer_iteration ?? 0;
+
+  const handleResetAutoSteer = async () => {
+    if (!task) return;
+    await resetAutoSteer.mutateAsync(task.id);
+    await refetchAutoSteerState();
+  };
 
   const handleSave = () => {
     updateTask.mutate({
@@ -250,6 +277,65 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                )}
+
+                {autoSteerProfileId !== AUTO_STEER_NONE && (
+                  <div className="rounded-md border border-slate-800 bg-slate-900/50 p-3 text-xs text-slate-200 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-medium text-slate-100">Auto Steer status</div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => refetchAutoSteerState()}
+                          disabled={isAutoSteerStateLoading}
+                        >
+                          Refresh
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleResetAutoSteer}
+                          disabled={resetAutoSteer.isPending || !task}
+                        >
+                          Restart
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-slate-400">Iteration</div>
+                        <div className="font-semibold text-slate-50">{autoSteerIteration}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400">Phase</div>
+                        <div className="font-semibold text-slate-50">
+                          {autoSteerState
+                            ? `Phase ${currentPhaseNumber}${totalPhases ? ` of ${totalPhases}` : ''}`
+                            : 'Not started'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400">Mode</div>
+                        <div className="font-semibold text-slate-50">
+                          {currentMode ? currentMode.toUpperCase() : '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400">Updated</div>
+                        <div className="font-semibold text-slate-50">
+                          {autoSteerState?.last_updated
+                            ? new Date(autoSteerState.last_updated).toLocaleString()
+                            : '—'}
+                        </div>
+                      </div>
+                    </div>
+                    {autoSteerStateError && (
+                      <div className="text-amber-400 text-[11px]">
+                        No active Auto Steer state yet. It will initialize on next run.
+                      </div>
+                    )}
                   </div>
                 )}
 

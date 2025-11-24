@@ -221,6 +221,7 @@ CREATE TABLE IF NOT EXISTS profile_execution_state (
     profile_id UUID REFERENCES auto_steer_profiles(id) ON DELETE CASCADE,
     current_phase_index INTEGER NOT NULL DEFAULT 0,
     current_phase_iteration INTEGER NOT NULL DEFAULT 0,
+    auto_steer_iteration INTEGER NOT NULL DEFAULT 0,
     phase_history JSONB,  -- Array of completed phase executions
     metrics JSONB,  -- Current metrics snapshot
     phase_start_metrics JSONB,  -- Metrics at the start of the current phase

@@ -44,6 +44,7 @@ func setupHandlersTestDB(t *testing.T) (*sql.DB, func()) {
 			profile_id UUID NOT NULL,
 			current_phase_index INTEGER NOT NULL,
 			current_phase_iteration INTEGER NOT NULL,
+			auto_steer_iteration INTEGER NOT NULL DEFAULT 0,
 			phase_history JSONB,
 			metrics JSONB,
 			phase_start_metrics JSONB,

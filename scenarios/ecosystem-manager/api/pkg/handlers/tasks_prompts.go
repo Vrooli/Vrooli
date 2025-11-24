@@ -249,6 +249,7 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 					ProfileID:             profile.ID,
 					CurrentPhaseIndex:     phaseIdx,
 					CurrentPhaseIteration: 0,
+					AutoSteerIteration:    0,
 					PhaseHistory:          []autosteer.PhaseExecution{},
 					Metrics:               previewMetricsSnapshot(),
 					PhaseStartMetrics:     previewMetricsSnapshot(),

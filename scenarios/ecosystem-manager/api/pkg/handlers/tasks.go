@@ -745,6 +745,20 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		updatedTask.UpdatedAt = timeutil.NowRFC3339()
 	}
 
+	// If the Auto Steer profile changed, clear any existing Auto Steer execution state and reset iteration counter.
+	autoSteerChanged := strings.TrimSpace(updatedTask.AutoSteerProfileID) != strings.TrimSpace(currentTask.AutoSteerProfileID)
+	if autoSteerChanged && h.processor != nil {
+		if integration := h.processor.AutoSteerIntegration(); integration != nil {
+			if engine := integration.ExecutionEngine(); engine != nil {
+				if err := engine.DeleteExecutionState(taskID); err != nil {
+					systemlog.Warnf("Failed to reset Auto Steer state for task %s after profile change: %v", taskID, err)
+				} else {
+					systemlog.Infof("Reset Auto Steer state for task %s due to profile change", taskID)
+				}
+			}
+		}
+	}
+
 	// Save updated task
 	if newStatus != currentStatus {
 		// Move the task file to the new status directory

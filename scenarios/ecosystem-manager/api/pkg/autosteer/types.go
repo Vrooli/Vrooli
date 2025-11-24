@@ -192,6 +192,7 @@ type ProfileExecutionState struct {
 	ProfileID             string           `json:"profile_id"`
 	CurrentPhaseIndex     int              `json:"current_phase_index"`
 	CurrentPhaseIteration int              `json:"current_phase_iteration"`
+	AutoSteerIteration    int              `json:"auto_steer_iteration"`
 	PhaseHistory          []PhaseExecution `json:"phase_history"`
 	Metrics               MetricsSnapshot  `json:"metrics"`             // Current metrics
 	PhaseStartMetrics     MetricsSnapshot  `json:"phase_start_metrics"` // Metrics at start of current phase

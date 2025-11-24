@@ -178,7 +178,6 @@ func (h *AutoSteerHandlers) EvaluateIteration(w http.ResponseWriter, r *http.Req
 	var req struct {
 		TaskID       string `json:"task_id"`
 		ScenarioName string `json:"scenario_name"`
-		Loops        int    `json:"loops"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -191,13 +190,45 @@ func (h *AutoSteerHandlers) EvaluateIteration(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	result, err := h.executionEngine.EvaluateIteration(req.TaskID, req.ScenarioName, req.Loops)
+	result, err := h.executionEngine.EvaluateIteration(req.TaskID, req.ScenarioName)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "Failed to evaluate iteration: "+err.Error())
 		return
 	}
 
 	writeJSON(w, http.StatusOK, result)
+}
+
+// ResetExecution handles POST /api/auto-steer/execution/reset
+func (h *AutoSteerHandlers) ResetExecution(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TaskID string `json:"task_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
+		return
+	}
+
+	if req.TaskID == "" {
+		writeError(w, http.StatusBadRequest, "task_id is required")
+		return
+	}
+
+	if h.executionEngine == nil {
+		writeError(w, http.StatusServiceUnavailable, "Auto Steer execution engine unavailable")
+		return
+	}
+
+	if err := h.executionEngine.DeleteExecutionState(req.TaskID); err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to reset Auto Steer state: "+err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"message": "Auto Steer state reset",
+	})
 }
 
 // AdvancePhase handles POST /api/auto-steer/execution/advance

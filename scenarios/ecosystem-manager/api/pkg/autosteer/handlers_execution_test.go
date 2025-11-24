@@ -102,11 +102,9 @@ func TestAutoSteerHandlers_ExecutionFlow(t *testing.T) {
 			evalReq := struct {
 				TaskID       string `json:"task_id"`
 				ScenarioName string `json:"scenario_name"`
-				Loops        int    `json:"loops"`
 			}{
 				TaskID:       taskID,
 				ScenarioName: "test-scenario",
-				Loops:        i,
 			}
 
 			body, _ := json.Marshal(evalReq)
@@ -183,6 +181,47 @@ func TestAutoSteerHandlers_ExecutionFlow(t *testing.T) {
 
 		if len(retrievedState.PhaseHistory) != 1 {
 			t.Errorf("Expected 1 completed phase in history, got %d", len(retrievedState.PhaseHistory))
+		}
+	})
+
+	t.Run("reset execution clears state", func(t *testing.T) {
+		taskID := uuid.New().String()
+		startReq := struct {
+			TaskID       string `json:"task_id"`
+			ProfileID    string `json:"profile_id"`
+			ScenarioName string `json:"scenario_name"`
+		}{
+			TaskID:       taskID,
+			ProfileID:    profile.ID,
+			ScenarioName: "test-scenario",
+		}
+
+		body, _ := json.Marshal(startReq)
+		req := httptest.NewRequest("POST", "/api/auto-steer/execution/start", bytes.NewBuffer(body))
+		w := httptest.NewRecorder()
+		handlers.StartExecution(w, req)
+		if w.Code != http.StatusCreated {
+			t.Fatalf("Expected status 201, got %d", w.Code)
+		}
+
+		resetReq := struct {
+			TaskID string `json:"task_id"`
+		}{TaskID: taskID}
+		body, _ = json.Marshal(resetReq)
+		req = httptest.NewRequest("POST", "/api/auto-steer/execution/reset", bytes.NewBuffer(body))
+		w = httptest.NewRecorder()
+		handlers.ResetExecution(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("Expected status 200 on reset, got %d: %s", w.Code, w.Body.String())
+		}
+
+		// Verify state was removed
+		req = httptest.NewRequest("GET", "/api/auto-steer/execution/"+taskID, nil)
+		req = mux.SetURLVars(req, map[string]string{"taskId": taskID})
+		w = httptest.NewRecorder()
+		handlers.GetExecutionState(w, req)
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("Expected 404 after reset, got %d", w.Code)
 		}
 	})
 

@@ -47,6 +47,7 @@ func (e *ExecutionEngine) StartExecution(taskID string, profileID string, scenar
 		ProfileID:             profileID,
 		CurrentPhaseIndex:     0,
 		CurrentPhaseIteration: 0,
+		AutoSteerIteration:    0,
 		PhaseHistory:          []PhaseExecution{},
 		Metrics:               *metrics,
 		PhaseStartMetrics:     *metrics, // First phase starts with initial metrics
@@ -71,7 +72,7 @@ func (e *ExecutionEngine) StartExecution(taskID string, profileID string, scenar
 func (e *ExecutionEngine) GetExecutionState(taskID string) (*ProfileExecutionState, error) {
 	query := `
 		SELECT task_id, profile_id, current_phase_index, current_phase_iteration,
-		       phase_history, metrics, phase_start_metrics, started_at, last_updated
+		       auto_steer_iteration, phase_history, metrics, phase_start_metrics, started_at, last_updated
 		FROM profile_execution_state
 		WHERE task_id = $1
 	`
@@ -84,6 +85,7 @@ func (e *ExecutionEngine) GetExecutionState(taskID string) (*ProfileExecutionSta
 		&state.ProfileID,
 		&state.CurrentPhaseIndex,
 		&state.CurrentPhaseIteration,
+		&state.AutoSteerIteration,
 		&phaseHistoryJSON,
 		&metricsJSON,
 		&phaseStartMetricsJSON,
@@ -115,7 +117,7 @@ func (e *ExecutionEngine) GetExecutionState(taskID string) (*ProfileExecutionSta
 }
 
 // EvaluateIteration evaluates the current iteration and determines if the phase should stop
-func (e *ExecutionEngine) EvaluateIteration(taskID string, scenarioName string, loops int) (*IterationEvaluation, error) {
+func (e *ExecutionEngine) EvaluateIteration(taskID string, scenarioName string) (*IterationEvaluation, error) {
 	// Get execution state
 	state, err := e.GetExecutionState(taskID)
 	if err != nil {
@@ -145,8 +147,11 @@ func (e *ExecutionEngine) EvaluateIteration(taskID string, scenarioName string, 
 
 	currentPhase := profile.Phases[state.CurrentPhaseIndex]
 
+	// Increment Auto Steer iteration counter (per successful run)
+	state.AutoSteerIteration++
+
 	// Collect current metrics
-	metrics, err := e.metricsCollector.CollectMetrics(scenarioName, loops)
+	metrics, err := e.metricsCollector.CollectMetrics(scenarioName, state.AutoSteerIteration)
 	if err != nil {
 		return nil, fmt.Errorf("failed to collect metrics: %w", err)
 	}
@@ -347,9 +352,11 @@ func (e *ExecutionEngine) completeExecution(state *ProfileExecutionState, scenar
 
 	// Calculate total duration and iterations
 	totalDuration := time.Since(state.StartedAt).Milliseconds()
-	totalIterations := 0
-	for _, phase := range state.PhaseHistory {
-		totalIterations += phase.Iterations
+	totalIterations := state.AutoSteerIteration
+	if totalIterations == 0 {
+		for _, phase := range state.PhaseHistory {
+			totalIterations += phase.Iterations
+		}
 	}
 
 	// Create phase breakdown
@@ -438,13 +445,14 @@ func (e *ExecutionEngine) saveExecutionState(state *ProfileExecutionState) error
 
 	query := `
 		INSERT INTO profile_execution_state (
-			task_id, profile_id, current_phase_index, current_phase_iteration,
+			task_id, profile_id, current_phase_index, current_phase_iteration, auto_steer_iteration,
 			phase_history, metrics, phase_start_metrics, started_at, last_updated
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT (task_id) DO UPDATE SET
 			profile_id = EXCLUDED.profile_id,
 			current_phase_index = EXCLUDED.current_phase_index,
 			current_phase_iteration = EXCLUDED.current_phase_iteration,
+			auto_steer_iteration = EXCLUDED.auto_steer_iteration,
 			phase_history = EXCLUDED.phase_history,
 			metrics = EXCLUDED.metrics,
 			phase_start_metrics = EXCLUDED.phase_start_metrics,
@@ -456,6 +464,7 @@ func (e *ExecutionEngine) saveExecutionState(state *ProfileExecutionState) error
 		state.ProfileID,
 		state.CurrentPhaseIndex,
 		state.CurrentPhaseIteration,
+		state.AutoSteerIteration,
 		phaseHistoryJSON,
 		metricsJSON,
 		phaseStartMetricsJSON,
@@ -493,7 +502,7 @@ func calculateMetricDeltas(start, end MetricsSnapshot) map[string]float64 {
 	// Refactor metrics
 	if start.Refactor != nil && end.Refactor != nil {
 		deltas["tidiness_score"] = end.Refactor.TidinessScore - start.Refactor.TidinessScore
-		deltas["cyclomatic_complexity_avg"] = start.Refactor.CyclomaticComplexityAvg - end.Refactor.CyclomaticComplexityAvg // Negative is good
+		deltas["cyclomatic_complexity_avg"] = end.Refactor.CyclomaticComplexityAvg - start.Refactor.CyclomaticComplexityAvg // Negative indicates a reduction
 	}
 
 	return deltas

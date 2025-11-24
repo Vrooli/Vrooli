@@ -37,6 +37,11 @@ func EnsureTablesExist(db *sql.DB) error {
 		}
 	}
 
+	// Ensure new columns exist for backward compatibility
+	if err := ensureColumnExists(db, "profile_execution_state", "auto_steer_iteration", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+		return fmt.Errorf("failed to ensure column auto_steer_iteration exists: %w", err)
+	}
+
 	log.Println("✅ Auto Steer database tables verified")
 	return nil
 }
@@ -62,4 +67,25 @@ func GetTableCounts(db *sql.DB) (map[string]int, error) {
 	}
 
 	return counts, nil
+}
+
+// ensureColumnExists adds a column if it does not already exist. Useful for lightweight migrations.
+func ensureColumnExists(db *sql.DB, table string, column string, definition string) error {
+	query := fmt.Sprintf(`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_name = '%s' AND column_name = '%s'
+			) THEN
+				EXECUTE 'ALTER TABLE %s ADD COLUMN %s %s';
+			END IF;
+		END;
+		$$;
+	`, table, column, table, column, definition)
+
+	if _, err := db.Exec(query); err != nil {
+		return fmt.Errorf("failed to ensure column %s.%s: %w", table, column, err)
+	}
+	return nil
 }

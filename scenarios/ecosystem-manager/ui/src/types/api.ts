@@ -180,6 +180,28 @@ export interface AutoSteerTemplate {
   phases?: AutoSteerPhase[];
 }
 
+export interface PhaseExecution {
+  phase_id?: string;
+  mode?: string;
+  iterations: number;
+  stop_reason?: string;
+  started_at?: string;
+  completed_at?: string | null;
+}
+
+export interface AutoSteerExecutionState {
+  task_id: string;
+  profile_id: string;
+  current_phase_index: number;
+  current_phase_iteration: number;
+  auto_steer_iteration: number;
+  phase_history?: PhaseExecution[];
+  metrics?: MetricsSnapshot;
+  phase_start_metrics?: MetricsSnapshot;
+  started_at?: string;
+  last_updated?: string;
+}
+
 export interface MetricsSnapshot {
   timestamp: string;
   loops: number;

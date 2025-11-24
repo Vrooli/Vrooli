@@ -70,8 +70,8 @@ func (p *PromptEnhancer) GenerateAutoSteerSection(
 
 	// Phase progress
 	output.WriteString("### Phase Progress\n\n")
-	output.WriteString(fmt.Sprintf("**Phase:** %d of %d\n", state.CurrentPhaseIndex+1, len(profile.Phases)))
-	output.WriteString(fmt.Sprintf("**Iteration:** %d of %d (max)\n\n", state.CurrentPhaseIteration, currentPhase.MaxIterations))
+	output.WriteString(fmt.Sprintf("Phase %d of %d\n", state.CurrentPhaseIndex+1, len(profile.Phases)))
+	output.WriteString(fmt.Sprintf("Iteration: %d of %d (max)\n\n", state.CurrentPhaseIteration, currentPhase.MaxIterations))
 
 	// Stop conditions with progress
 	if len(currentPhase.StopConditions) > 0 {

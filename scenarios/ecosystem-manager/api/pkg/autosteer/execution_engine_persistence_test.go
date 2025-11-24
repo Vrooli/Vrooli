@@ -79,10 +79,10 @@ func TestExecutionEngine_PhaseAdvancementPersistence(t *testing.T) {
 		}
 
 		// Engine 1: Complete some iterations
-		for i := 1; i <= 3; i++ {
-			_, err := engine1.EvaluateIteration(taskID, "test-scenario", i)
+		for i := 0; i < 3; i++ {
+			_, err := engine1.EvaluateIteration(taskID, "test-scenario")
 			if err != nil {
-				t.Fatalf("EvaluateIteration(%d) error = %v", i, err)
+				t.Fatalf("EvaluateIteration() error at loop %d: %v", i+1, err)
 			}
 		}
 

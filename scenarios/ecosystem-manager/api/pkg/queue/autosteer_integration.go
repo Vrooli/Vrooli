@@ -102,20 +102,17 @@ func (a *AutoSteerIntegration) EvaluateIteration(task *tasks.TaskItem, scenarioN
 		return true, false, nil
 	}
 
-	// Use CompletionCount as the loop counter
-	loops := task.CompletionCount
-
-	log.Printf("Evaluating Auto Steer iteration for task %s (loop %d)", task.ID, loops)
+	log.Printf("Evaluating Auto Steer iteration for task %s", task.ID)
 
 	// Evaluate iteration
-	evaluation, err := a.executionEngine.EvaluateIteration(task.ID, scenarioName, loops)
+	evaluation, err := a.executionEngine.EvaluateIteration(task.ID, scenarioName)
 	if err != nil {
 		return false, false, fmt.Errorf("failed to evaluate Auto Steer iteration: %w", err)
 	}
 
 	if !evaluation.ShouldStop {
 		// Continue in current phase
-		log.Printf("Auto Steer: Task %s continuing in current phase (loop %d)", task.ID, loops)
+		log.Printf("Auto Steer: Task %s continuing in current phase", task.ID)
 		return true, false, nil
 	}
 

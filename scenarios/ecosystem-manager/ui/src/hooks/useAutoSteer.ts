@@ -6,7 +6,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
-import type { AutoSteerProfile } from '@/types/api';
+import type { AutoSteerProfile, AutoSteerExecutionState } from '@/types/api';
 
 /**
  * Fetch all Auto Steer profiles
@@ -30,6 +30,33 @@ export function useAutoSteerProfile(id: string) {
     queryKey: queryKeys.autoSteer.profile(id),
     queryFn: () => api.getAutoSteerProfile(id),
     enabled: !!id,
+  });
+}
+
+/**
+ * Fetch Auto Steer execution state for a task
+ */
+export function useAutoSteerExecutionState(taskId?: string) {
+  return useQuery({
+    queryKey: queryKeys.autoSteer.executionState(taskId ?? 'none'),
+    queryFn: (): Promise<AutoSteerExecutionState> => api.getAutoSteerExecutionState(taskId as string),
+    enabled: !!taskId,
+    staleTime: 15000,
+    retry: 1,
+  });
+}
+
+/**
+ * Reset Auto Steer execution state for a task
+ */
+export function useResetAutoSteerExecution() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (taskId: string) => api.resetAutoSteerExecution(taskId),
+    onSuccess: (_, taskId) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.executionState(taskId ?? 'none') });
+    },
   });
 }
 
