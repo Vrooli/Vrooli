@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -117,6 +120,50 @@ func TestClassifyFileTargetsPRD(t *testing.T) {
 	}
 	if len(targets) != 1 || targets[0] != targetDocumentation {
 		t.Fatalf("expected targets [%s], got %v", targetDocumentation, targets)
+	}
+}
+
+func TestGetStandardsViolationsSummaryHandler(t *testing.T) {
+	scenario := "summary-target"
+	violations := []StandardsViolation{
+		{ID: "V-1", ScenarioName: scenario, Severity: "critical", Title: "Critical issue", FilePath: "api/main.go", LineNumber: 10, Recommendation: "Patch immediately"},
+		{ID: "V-2", ScenarioName: scenario, Severity: "medium", Title: "Medium issue", FilePath: "ui/src/App.tsx", LineNumber: 42},
+		{ID: "V-3", ScenarioName: scenario, Severity: "low", Title: "Low issue", FilePath: "README.md", LineNumber: 5},
+	}
+	standardsStore.StoreViolations(scenario, violations)
+
+	req := httptest.NewRequest(http.MethodGet, "/standards/violations/summary?scenario="+scenario+"&limit=2&min_severity=medium", nil)
+	recorder := httptest.NewRecorder()
+
+	getStandardsViolationsSummaryHandler(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200 response, got %d", recorder.Code)
+	}
+
+	var payload struct {
+		Summary *ViolationSummary `json:"summary"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if payload.Summary == nil {
+		t.Fatal("expected summary payload")
+	}
+	if payload.Summary.Total != len(violations) {
+		t.Fatalf("expected total %d, got %d", len(violations), payload.Summary.Total)
+	}
+	if payload.Summary.HighestSeverity != "critical" {
+		t.Fatalf("expected highest severity critical, got %s", payload.Summary.HighestSeverity)
+	}
+	if len(payload.Summary.TopViolations) == 0 {
+		t.Fatalf("expected top violations slice to be populated")
+	}
+	for _, v := range payload.Summary.TopViolations {
+		if normalizeSeverity(v.Severity) == "low" {
+			t.Fatalf("expected min_severity filter to exclude low severity entries, got %#v", v)
+		}
 	}
 }
 

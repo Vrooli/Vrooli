@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -68,25 +70,26 @@ type securityScanTarget struct {
 }
 
 type SecurityScanResult struct {
-	ScanID               string                   `json:"scan_id"`
-	Status               string                   `json:"status"`
-	ScanType             string                   `json:"scan_type"`
-	StartedAt            string                   `json:"started_at"`
-	CompletedAt          string                   `json:"completed_at"`
-	DurationSeconds      float64                  `json:"duration_seconds"`
-	FilesScanned         int                      `json:"files_scanned"`
-	LinesScanned         int                      `json:"lines_scanned"`
-	VulnerabilitiesFound int                      `json:"vulnerabilities_found"`
-	Vulnerabilities      map[string]int           `json:"vulnerabilities"`
-	Statistics           scanners.ScanStatistics  `json:"statistics"`
-	Findings             []map[string]any `json:"findings"`
-	ScenarioName         string                   `json:"scenario_name,omitempty"`
-	ScenariosScanned     int                      `json:"scenarios_scanned,omitempty"`
-	Message              string                   `json:"message"`
-	RuleValidation       map[string]any   `json:"rule_validation,omitempty"`
-	Warnings             []string                 `json:"warnings,omitempty"`
-	ScannersUsed         []map[string]any `json:"scanners_used"`
-	ScanNotes            string                   `json:"scan_notes,omitempty"`
+	ScanID               string                  `json:"scan_id"`
+	Status               string                  `json:"status"`
+	ScanType             string                  `json:"scan_type"`
+	StartedAt            string                  `json:"started_at"`
+	CompletedAt          string                  `json:"completed_at"`
+	DurationSeconds      float64                 `json:"duration_seconds"`
+	FilesScanned         int                     `json:"files_scanned"`
+	LinesScanned         int                     `json:"lines_scanned"`
+	VulnerabilitiesFound int                     `json:"vulnerabilities_found"`
+	Vulnerabilities      map[string]int          `json:"vulnerabilities"`
+	Statistics           scanners.ScanStatistics `json:"statistics"`
+	Findings             []map[string]any        `json:"findings"`
+	ScenarioName         string                  `json:"scenario_name,omitempty"`
+	ScenariosScanned     int                     `json:"scenarios_scanned,omitempty"`
+	Message              string                  `json:"message"`
+	RuleValidation       map[string]any          `json:"rule_validation,omitempty"`
+	Warnings             []string                `json:"warnings,omitempty"`
+	ScannersUsed         []map[string]any        `json:"scanners_used"`
+	ScanNotes            string                  `json:"scan_notes,omitempty"`
+	Summary              *ViolationSummary       `json:"summary,omitempty"`
 }
 
 type SecurityScanStatus struct {
@@ -342,18 +345,18 @@ func (job *SecurityScanJob) run(ctx context.Context, targets []securityScanTarge
 			ScanType:       req.Type,
 			TargetedChecks: req.TargetedChecks,
 			ExcludePatterns: []string{
-				"*_test.go",           // Go test files
-				"*test*.go",           // Test utility files
-				"*/test/*",            // Test directories
-				"*/tests/*",           // Tests directories
-				"**/test/**",          // Nested test directories
-				"**/tests/**",         // Nested tests directories
-				"*/testdata/*",        // Test data
-				"**/testdata/**",      // Nested test data
-				"*/fixtures/*",        // Test fixtures
-				"**/fixtures/**",      // Nested test fixtures
+				"*_test.go",      // Go test files
+				"*test*.go",      // Test utility files
+				"*/test/*",       // Test directories
+				"*/tests/*",      // Tests directories
+				"**/test/**",     // Nested test directories
+				"**/tests/**",    // Nested tests directories
+				"*/testdata/*",   // Test data
+				"**/testdata/**", // Nested test data
+				"*/fixtures/*",   // Test fixtures
+				"**/fixtures/**", // Nested test fixtures
 			},
-			Context:        ctx,
+			Context: ctx,
 			Progress: func(scannerType scanners.ScannerType, result *scanners.ScanResult) {
 				job.handleScannerProgress(target.Name, scannerType, result)
 			},
@@ -491,6 +494,16 @@ func (job *SecurityScanJob) run(ctx context.Context, targets []securityScanTarge
 		result.ScenariosScanned = len(targets)
 	}
 
+	records := convertSecurityFindingsToRecords(allFindings)
+	summary := buildViolationSummary(records, maxSummaryBuffer)
+	if artifact, err := persistScanArtifact("security", scenarioName, jobID, result); err == nil {
+		summary.Artifact = artifact
+	} else {
+		logger.Warn("Failed to persist security scan artifact", map[string]any{"error": err.Error(), "job_id": jobID})
+	}
+	summary.RecommendedSteps = buildRecommendedSteps(&summary)
+	result.Summary = &summary
+
 	job.markCompleted(result, totalFiles)
 	logger.Info(fmt.Sprintf("Security scan %s completed", jobID))
 }
@@ -504,7 +517,6 @@ func enhancedScanScenarioHandler(w http.ResponseWriter, r *http.Request) {
 	} else if strings.EqualFold(scenarioName, "all") {
 		scenarioName = "all"
 	}
-
 
 	requestBody := struct {
 		Type               string   `json:"type"`
@@ -614,6 +626,24 @@ func convertScanFindingsToResponse(findings []scanners.Finding) []map[string]any
 	return vulnerabilities
 }
 
+func convertSecurityFindingsToRecords(findings []scanners.Finding) []violationRecord {
+	records := make([]violationRecord, 0, len(findings))
+	for _, finding := range findings {
+		records = append(records, violationRecord{
+			ID:             finding.ID,
+			Severity:       string(finding.Severity),
+			RuleID:         finding.RuleID,
+			Title:          finding.Title,
+			FilePath:       finding.FilePath,
+			LineNumber:     finding.LineNumber,
+			Scenario:       extractScenarioName(finding.FilePath),
+			Source:         string(finding.ScannerType),
+			Recommendation: finding.Recommendation,
+		})
+	}
+	return records
+}
+
 func getSecurityScanStatusHandler(w http.ResponseWriter, r *http.Request) {
 	jobID := strings.TrimSpace(mux.Vars(r)["jobId"])
 	if jobID == "" {
@@ -664,6 +694,108 @@ func cancelSecurityScanHandler(w http.ResponseWriter, r *http.Request) {
 		"success": true,
 		"status":  status,
 	})
+}
+
+func getSecurityScanSummaryHandler(w http.ResponseWriter, r *http.Request) {
+	jobID := strings.TrimSpace(mux.Vars(r)["jobId"])
+	if jobID == "" {
+		HTTPError(w, "Job ID is required", http.StatusBadRequest, nil)
+		return
+	}
+
+	job, ok := securityScanManager.Get(jobID)
+	if !ok {
+		HTTPError(w, "Security scan not found", http.StatusNotFound, errSecurityScanNotFound)
+		return
+	}
+
+	limit, minSeverity, groupBy := parseSummaryFilters(r)
+	status := job.snapshot()
+	if status.Result == nil || status.Result.Summary == nil {
+		HTTPError(w, "Summary not available; scan still running", http.StatusAccepted, nil)
+		return
+	}
+
+	responseSummary := cloneSummary(status.Result.Summary, limit, minSeverity)
+	if responseSummary == nil {
+		HTTPError(w, "Summary unavailable", http.StatusInternalServerError, nil)
+		return
+	}
+
+	resp := map[string]any{
+		"summary": responseSummary,
+		"filters": map[string]any{
+			"limit":        limit,
+			"min_severity": minSeverity,
+			"group_by":     groupBy,
+		},
+	}
+	if groupBy == "rule" {
+		resp["groups"] = responseSummary.ByRule
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+func downloadSecurityScanArtifactHandler(w http.ResponseWriter, r *http.Request) {
+	jobID := strings.TrimSpace(mux.Vars(r)["jobId"])
+	if jobID == "" {
+		HTTPError(w, "Job ID is required", http.StatusBadRequest, nil)
+		return
+	}
+	job, ok := securityScanManager.Get(jobID)
+	if !ok {
+		HTTPError(w, "Security scan not found", http.StatusNotFound, errSecurityScanNotFound)
+		return
+	}
+	status := job.snapshot()
+	if status.Result == nil || status.Result.Summary == nil || status.Result.Summary.Artifact == nil {
+		HTTPError(w, "No artifact recorded for this scan", http.StatusNotFound, nil)
+		return
+	}
+
+	artifactPath, err := resolveArtifactAbsolutePath(status.Result.Summary.Artifact.Path)
+	if err != nil {
+		HTTPError(w, "Artifact path invalid", http.StatusBadRequest, err)
+		return
+	}
+
+	file, err := os.Open(artifactPath)
+	if err != nil {
+		HTTPError(w, "Artifact not found", http.StatusNotFound, err)
+		return
+	}
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil {
+		HTTPError(w, "Unable to read artifact", http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=security-%s.json", jobID))
+	http.ServeContent(w, r, filepath.Base(artifactPath), info.ModTime(), file)
+}
+
+func parseSummaryFilters(r *http.Request) (int, string, string) {
+	limit := defaultSummaryLimit
+	if rawLimit := strings.TrimSpace(r.URL.Query().Get("limit")); rawLimit != "" {
+		if parsed, err := strconv.Atoi(rawLimit); err == nil && parsed >= 0 {
+			limit = parsed
+		}
+	}
+
+	minSeverity := r.URL.Query().Get("min_severity")
+	if minSeverity == "" {
+		minSeverity = "info"
+	} else {
+		minSeverity = normalizeSeverity(minSeverity)
+	}
+
+	groupBy := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("group_by")))
+	return limit, minSeverity, groupBy
 }
 
 // storeScanResults saves scan results to database

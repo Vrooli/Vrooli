@@ -112,13 +112,13 @@ type Scenario struct {
 
 // APIEndpoint represents a discovered API endpoint
 type APIEndpoint struct {
-	ID                   uuid.UUID   `json:"id"`
-	ScenarioID           uuid.UUID   `json:"scenario_id"`
-	Method               string      `json:"method"`
-	Path                 string      `json:"path"`
-	HandlerFunction      string      `json:"handler_function,omitempty"`
-	LineNumber           *int        `json:"line_number,omitempty"`
-	FilePath             string      `json:"file_path,omitempty"`
+	ID                   uuid.UUID  `json:"id"`
+	ScenarioID           uuid.UUID  `json:"scenario_id"`
+	Method               string     `json:"method"`
+	Path                 string     `json:"path"`
+	HandlerFunction      string     `json:"handler_function,omitempty"`
+	LineNumber           *int       `json:"line_number,omitempty"`
+	FilePath             string     `json:"file_path,omitempty"`
 	Description          string     `json:"description,omitempty"`
 	Parameters           JSONObject `json:"parameters,omitempty"`
 	Responses            JSONObject `json:"responses,omitempty"`
@@ -309,6 +309,8 @@ func main() {
 	api.HandleFunc("/scenarios/{name}", getScenarioHandler).Methods("GET")
 	// Use enhanced scanner with real vulnerability detection
 	api.HandleFunc("/scenarios/scan/jobs/{jobId}", getSecurityScanStatusHandler).Methods("GET")
+	api.HandleFunc("/scenarios/scan/jobs/{jobId}/summary", getSecurityScanSummaryHandler).Methods("GET")
+	api.HandleFunc("/scenarios/scan/jobs/{jobId}/artifact", downloadSecurityScanArtifactHandler).Methods("GET")
 	api.HandleFunc("/scenarios/scan/jobs/{jobId}/cancel", cancelSecurityScanHandler).Methods("POST")
 	api.HandleFunc("/scenarios/{name}/scan", enhancedScanScenarioHandler).Methods("POST")
 	api.HandleFunc("/scenarios/{name}/security-audit", securityAuditHandler).Methods("POST")
@@ -354,9 +356,12 @@ func main() {
 
 	// Standards compliance endpoints
 	api.HandleFunc("/standards/check/jobs/{jobId}", getStandardsCheckStatusHandler).Methods("GET")
+	api.HandleFunc("/standards/check/jobs/{jobId}/summary", getStandardsScanSummaryHandler).Methods("GET")
+	api.HandleFunc("/standards/check/jobs/{jobId}/artifact", downloadStandardsScanArtifactHandler).Methods("GET")
 	api.HandleFunc("/standards/check/jobs/{jobId}/cancel", cancelStandardsCheckHandler).Methods("POST")
 	api.HandleFunc("/standards/check/{name}", enhancedStandardsCheckHandler).Methods("POST")
 	api.HandleFunc("/standards/violations", getStandardsViolationsHandler).Methods("GET")
+	api.HandleFunc("/standards/violations/summary", getStandardsViolationsSummaryHandler).Methods("GET")
 
 	// Claude Fix endpoints
 	api.HandleFunc("/claude/fix", triggerClaudeFixHandler).Methods("POST")
@@ -1281,12 +1286,12 @@ func getScenarioHealthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(map[string]any{
-		"scenario":           scenarioName,
-		"health_score":       healthScore,
-		"status":             "unknown",
-		"vulnerabilities":    len(vulns),
-		"critical_vulns":     criticalCount,
-		"last_health_check":  time.Now().UTC(),
+		"scenario":          scenarioName,
+		"health_score":      healthScore,
+		"status":            "unknown",
+		"vulnerabilities":   len(vulns),
+		"critical_vulns":    criticalCount,
+		"last_health_check": time.Now().UTC(),
 	})
 }
 

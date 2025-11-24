@@ -61,6 +61,7 @@ open http://localhost:35001
 scenario-auditor scan current
 scenario-auditor rules --category config
 scenario-auditor fix ecosystem-manager --auto
+scenario-auditor audit browser-automation-studio --limit 10 --min-severity high
 ```
 
 ## 📋 CLI Commands
@@ -80,6 +81,18 @@ scenario-auditor help                # Show help
 ```
 
 **Note**: The CLI now uses async job-based scanning. Scans run in the background and the CLI polls for completion. Large scenarios may take 20-30 seconds to scan completely.
+
+`scenario-auditor audit` defaults to summary output optimized for agent loops: once the security + standards scans finish, the CLI prints severity counts, the top N violations (default 20), and the artifact path for each scan. Use `--limit <n>` to change how many entries appear, `--min-severity <critical|high|...>` to filter noise, `--json` to emit the summary payload for downstream tooling, and `--all` to fall back to the legacy raw JSON stream. Pass `--download-artifacts <dir>` if you want the CLI to save the referenced artifact files locally.
+
+### Summary API & Artifacts
+
+- `GET /api/v1/scenarios/scan/jobs/{id}/summary` and `GET /api/v1/standards/check/jobs/{id}/summary` expose the same actionable payload that the CLI renders (total counts, severity distribution, rule aggregates, top violations, recommended steps). Query parameters:
+  - `limit=<n>` – cap the `top_violations` array (default 20, max buffered 200)
+  - `min_severity=<critical|high|medium|low|info>` – filter noisy entries when thousands of low-level warnings exist
+  - `group_by=rule` – include an aggregated `groups` array keyed by rule_id for quick remediation planning
+- `GET /api/v1/standards/violations/summary?scenario=<name>` returns the cached summary for the latest standards scan of a scenario (or the fleet-wide `all` bucket when omitted). It accepts the same filtering parameters so dashboards like app-monitor can present prioritized results without rerunning a scan.
+- `GET /api/v1/scenarios/scan/jobs/{id}/artifact` (and `/standards/.../artifact`) streams the archived JSON blob persisted under `logs/scenario-auditor/<type>/<scenario>/…`. Artifacts stay on disk for 14 days and the CLI’s `--download-artifacts <dir>` flag simply mirrors these endpoints locally.
+- Consumers that still need the full payload can combine the artifact endpoint with `scenario-auditor audit --all`; everyone else should rely on the lightweight summary for faster feedback loops.
 
 ### Port Detection
 

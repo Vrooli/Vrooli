@@ -50,6 +50,7 @@ type StandardsCheckResult struct {
 	Statistics   map[string]int       `json:"statistics"`
 	Message      string               `json:"message"`
 	ScenarioName string               `json:"scenario_name,omitempty"`
+	Summary      *ViolationSummary    `json:"summary,omitempty"`
 }
 
 const (
@@ -265,6 +266,121 @@ func (job *StandardsScanJob) markCompleted(result StandardsCheckResult, processe
 	})
 }
 
+func getStandardsScanSummaryHandler(w http.ResponseWriter, r *http.Request) {
+	jobID := strings.TrimSpace(mux.Vars(r)["jobId"])
+	if jobID == "" {
+		HTTPError(w, "Job ID is required", http.StatusBadRequest, nil)
+		return
+	}
+
+	job, ok := standardsScanManager.Get(jobID)
+	if !ok {
+		HTTPError(w, "Standards scan not found", http.StatusNotFound, errStandardsScanNotFound)
+		return
+	}
+
+	limit, minSeverity, groupBy := parseSummaryFilters(r)
+	status := job.snapshot()
+	if status.Result == nil || status.Result.Summary == nil {
+		HTTPError(w, "Summary not available; scan still running", http.StatusAccepted, nil)
+		return
+	}
+
+	summary := cloneSummary(status.Result.Summary, limit, minSeverity)
+	if summary == nil {
+		HTTPError(w, "Summary unavailable", http.StatusInternalServerError, nil)
+		return
+	}
+
+	resp := map[string]any{
+		"summary": summary,
+		"filters": map[string]any{
+			"limit":        limit,
+			"min_severity": minSeverity,
+			"group_by":     groupBy,
+		},
+	}
+	if groupBy == "rule" {
+		resp["groups"] = summary.ByRule
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+// getStandardsViolationsSummaryHandler returns an aggregated summary for cached violations
+func getStandardsViolationsSummaryHandler(w http.ResponseWriter, r *http.Request) {
+	scenario := strings.TrimSpace(r.URL.Query().Get("scenario"))
+	limit, minSeverity, groupBy := parseSummaryFilters(r)
+
+	// Default to "all" scenarios when no specific name is provided so users can
+	// quickly inspect fleet-wide trends from the cached violation store.
+	lookup := scenario
+	if lookup == "" {
+		lookup = "all"
+	}
+
+	violations := standardsStore.GetViolations(lookup)
+	records := convertStandardsViolationsToRecords(violations)
+	summary := buildViolationSummary(records, limit)
+	filtered := cloneSummary(&summary, limit, minSeverity)
+
+	response := map[string]any{
+		"scenario": scenario,
+		"summary":  filtered,
+		"filters": map[string]any{
+			"limit":        limit,
+			"min_severity": minSeverity,
+			"group_by":     groupBy,
+		},
+	}
+	if filtered != nil && groupBy == "rule" {
+		response["groups"] = filtered.ByRule
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func downloadStandardsScanArtifactHandler(w http.ResponseWriter, r *http.Request) {
+	jobID := strings.TrimSpace(mux.Vars(r)["jobId"])
+	if jobID == "" {
+		HTTPError(w, "Job ID is required", http.StatusBadRequest, nil)
+		return
+	}
+	job, ok := standardsScanManager.Get(jobID)
+	if !ok {
+		HTTPError(w, "Standards scan not found", http.StatusNotFound, errStandardsScanNotFound)
+		return
+	}
+	status := job.snapshot()
+	if status.Result == nil || status.Result.Summary == nil || status.Result.Summary.Artifact == nil {
+		HTTPError(w, "No artifact recorded for this scan", http.StatusNotFound, nil)
+		return
+	}
+	artifactPath, err := resolveArtifactAbsolutePath(status.Result.Summary.Artifact.Path)
+	if err != nil {
+		HTTPError(w, "Artifact path invalid", http.StatusBadRequest, err)
+		return
+	}
+	file, err := os.Open(artifactPath)
+	if err != nil {
+		HTTPError(w, "Artifact not found", http.StatusNotFound, err)
+		return
+	}
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil {
+		HTTPError(w, "Unable to read artifact", http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=standards-%s.json", jobID))
+	http.ServeContent(w, r, filepath.Base(artifactPath), info.ModTime(), file)
+}
+
 func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTarget, scenarioName, scanType string, specificStandards []string, forceDisabled bool) {
 	jobSnapshot := job.snapshot()
 	start := jobSnapshot.StartedAt
@@ -346,6 +462,16 @@ func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTar
 	if scenarioName != "all" {
 		result.ScenarioName = scenarioName
 	}
+
+	records := convertStandardsViolationsToRecords(allViolations)
+	summary := buildViolationSummary(records, maxSummaryBuffer)
+	if artifact, err := persistScanArtifact("standards", scenarioName, jobSnapshot.ID, result); err == nil {
+		summary.Artifact = artifact
+	} else {
+		logger.Warn("Failed to persist standards scan artifact", map[string]any{"error": err.Error(), "job_id": jobSnapshot.ID})
+	}
+	summary.RecommendedSteps = buildRecommendedSteps(&summary)
+	result.Summary = &summary
 
 	standardsStore.StoreViolations(scenarioName, allViolations)
 	logger.Info(fmt.Sprintf("Stored %d standards violations for %s", len(allViolations), scenarioName))
@@ -438,6 +564,24 @@ func computeViolationStats(violations []StandardsViolation) map[string]int {
 	}
 
 	return stats
+}
+
+func convertStandardsViolationsToRecords(violations []StandardsViolation) []violationRecord {
+	records := make([]violationRecord, 0, len(violations))
+	for _, violation := range violations {
+		records = append(records, violationRecord{
+			ID:             violation.ID,
+			Severity:       violation.Severity,
+			RuleID:         violation.Standard,
+			Title:          violation.Title,
+			FilePath:       violation.FilePath,
+			LineNumber:     violation.LineNumber,
+			Scenario:       violation.ScenarioName,
+			Source:         violation.Type,
+			Recommendation: violation.Recommendation,
+		})
+	}
+	return records
 }
 
 // Standards compliance check handler
