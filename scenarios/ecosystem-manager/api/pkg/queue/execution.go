@@ -72,21 +72,26 @@ func (qp *Processor) cleanupAgentAfterFinalizationFailure(taskID string, cleanup
 	qp.cleanupTaskWithVerifiedAgentRemoval(taskID, cleanupFunc, context, true)
 }
 
-// appendDefaultProgressSection attaches the Progress phase guidance when Auto Steer is inactive.
-func (qp *Processor) appendDefaultProgressSection(prompt string) string {
+// appendManualSteeringSection attaches a manual steering mode when provided, otherwise falls back to Progress.
+func (qp *Processor) appendManualSteeringSection(prompt string, steerMode autosteer.SteerMode) string {
 	if qp.assembler == nil {
 		return prompt
 	}
 
+	mode := steerMode
+	if !mode.IsValid() {
+		mode = autosteer.ModeProgress
+	}
+
 	// Prefer the execution engine’s cached prompt enhancer when available.
 	if qp.autoSteerIntegration != nil && qp.autoSteerIntegration.executionEngine != nil {
-		if section := strings.TrimSpace(qp.autoSteerIntegration.executionEngine.GenerateModeSection(autosteer.ModeProgress)); section != "" {
-			return prompt + "\n\n" + section
+		if section := strings.TrimSpace(qp.autoSteerIntegration.executionEngine.GenerateModeSection(mode)); section != "" {
+			return autosteer.InjectSteeringSection(prompt, section)
 		}
 	}
 
 	phasesDir := filepath.Join(qp.assembler.PromptsDir, "phases")
-	section := strings.TrimSpace(autosteer.NewPromptEnhancer(phasesDir).GenerateModeSection(autosteer.ModeProgress))
+	section := strings.TrimSpace(autosteer.NewPromptEnhancer(phasesDir).GenerateModeSection(mode))
 	if section == "" {
 		return autosteer.InjectSteeringSection(prompt, "")
 	}
@@ -128,12 +133,18 @@ func (qp *Processor) enrichSteeringMetadata(task *tasks.TaskItem, history *Execu
 		}
 	}
 
-	// For improver tasks without Auto Steer we still inject a Progress steering section by default.
+	// For improver tasks without Auto Steer we still inject steering guidance.
 	if history.SteeringSource == "none" && task.Type == "scenario" && task.Operation == "improver" {
-		history.SteerMode = string(autosteer.ModeProgress)
+		mode := autosteer.SteerMode(strings.ToLower(strings.TrimSpace(task.SteerMode)))
+		if mode.IsValid() {
+			history.SteerMode = string(mode)
+			history.SteeringSource = "manual_mode"
+		} else {
+			history.SteerMode = string(autosteer.ModeProgress)
+			history.SteeringSource = "default_progress"
+		}
 		history.SteerPhaseIndex = 1
 		history.SteerPhaseIteration = 1
-		history.SteeringSource = "default_progress"
 	}
 }
 
@@ -192,7 +203,8 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 
 	// Apply default Progress steering when Auto Steer is not configured
 	if strings.TrimSpace(task.AutoSteerProfileID) == "" && task.Type == "scenario" && task.Operation == "improver" {
-		prompt = qp.appendDefaultProgressSection(prompt)
+		mode := autosteer.SteerMode(strings.ToLower(strings.TrimSpace(task.SteerMode)))
+		prompt = qp.appendManualSteeringSection(prompt, mode)
 	}
 
 	// Enhance prompt with Auto Steer context if active

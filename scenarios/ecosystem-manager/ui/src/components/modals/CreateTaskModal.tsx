@@ -29,7 +29,8 @@ import { useCreateTask } from '@/hooks/useTaskMutations';
 import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { useActiveTargets } from '@/hooks/useActiveTargets';
 import { useDiscoveryStore, refreshDiscovery } from '@/stores/discoveryStore';
-import type { TaskType, OperationType, Priority, CreateTaskInput } from '@/types/api';
+import type { TaskType, OperationType, Priority, CreateTaskInput, SteerMode } from '@/types/api';
+import { STEER_MODES } from '@/types/api';
 
 interface CreateTaskModalProps {
   open: boolean;
@@ -45,6 +46,7 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
   const [priority, setPriority] = useState<Priority>('medium');
   const [notes, setNotes] = useState('');
   const [autoSteerProfileId, setAutoSteerProfileId] = useState<string>(AUTO_STEER_NONE);
+  const [steerMode, setSteerMode] = useState<SteerMode | 'none'>('none');
   const [autoRequeue, setAutoRequeue] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState('');
   const [generatorTarget, setGeneratorTarget] = useState('');
@@ -118,6 +120,7 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
       setSelectedTarget('');
       setPriority('medium');
       setNotes('');
+      setSteerMode('none');
       setAutoSteerProfileId(AUTO_STEER_NONE);
       setAutoRequeue(false);
     }
@@ -136,6 +139,13 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
       refreshDiscovery();
     }
   }, [open, type, operation]);
+
+  // Keep steer mode cleared when a profile is selected (guard against stale state on reopen)
+  useEffect(() => {
+    if (autoSteerProfileId !== AUTO_STEER_NONE && steerMode !== 'none') {
+      setSteerMode('none');
+    }
+  }, [autoSteerProfileId, steerMode]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,6 +167,7 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
       operation,
       priority,
       notes: notes.trim() || undefined,
+      steer_mode: autoSteerProfileId === AUTO_STEER_NONE && steerMode !== 'none' ? steerMode : undefined,
       auto_steer_profile_id: autoSteerProfileId === AUTO_STEER_NONE ? undefined : autoSteerProfileId,
       auto_requeue: autoRequeue,
       target: targetValue ? [targetValue] : undefined,
@@ -288,11 +299,51 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
             </Select>
           </div>
 
+          {type === 'scenario' && operation === 'improver' && (
+            <div className="space-y-2">
+              <Label htmlFor="steer-mode">Steering focus (optional)</Label>
+              <Select
+                value={steerMode}
+                onValueChange={(val: string) => {
+                  const mode = val as SteerMode | 'none';
+                  setSteerMode(mode);
+                  if (mode !== 'none') {
+                    setAutoSteerProfileId(AUTO_STEER_NONE);
+                  }
+                }}
+                disabled={autoSteerProfileId !== AUTO_STEER_NONE}
+              >
+                <SelectTrigger id="steer-mode">
+                  <SelectValue placeholder="None (defaults to Progress)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None (use Progress)</SelectItem>
+                  {STEER_MODES.map(mode => (
+                    <SelectItem key={mode} value={mode}>
+                      {mode.toUpperCase()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-slate-500">
+                Choose a manual focus OR an Auto Steer profile. Selecting a profile disables manual steering until cleared.
+              </p>
+            </div>
+          )}
+
           {/* Auto Steer Profile */}
           {(profiles && profiles.length > 0) && (
             <div className="space-y-2">
               <Label htmlFor="auto-steer">Auto Steer Profile (Optional)</Label>
-              <Select value={autoSteerProfileId} onValueChange={setAutoSteerProfileId}>
+              <Select
+                value={autoSteerProfileId}
+                onValueChange={(val: string) => {
+                  setAutoSteerProfileId(val);
+                  if (val !== AUTO_STEER_NONE) {
+                    setSteerMode('none');
+                  }
+                }}
+              >
                 <SelectTrigger id="auto-steer">
                   <SelectValue placeholder="None" />
                 </SelectTrigger>

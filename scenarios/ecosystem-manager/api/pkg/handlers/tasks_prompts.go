@@ -58,6 +58,7 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 		return
 	}
 	prompt := assembly.Prompt
+	var manualSteerMode autosteer.SteerMode
 
 	// Check for cached prompt content (legacy behavior)
 	promptPath := filepath.Join(os.TempDir(), fmt.Sprintf("%s%s.txt", queue.PromptFilePrefix, taskID))
@@ -71,11 +72,14 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 
 	// Apply default Progress steering when Auto Steer is not configured
 	if task.Type == "scenario" && task.Operation == "improver" && strings.TrimSpace(task.AutoSteerProfileID) == "" {
-		section := h.defaultProgressSection()
+		section := h.manualOrDefaultSteeringSection(*task)
 		prompt = autosteer.InjectSteeringSection(prompt, section)
 		assembly.Prompt = prompt
 		if strings.TrimSpace(section) != "" {
 			defaultProgressApplied = true
+			if mode := normalizeSteerMode(task.SteerMode); mode.IsValid() {
+				manualSteerMode = mode
+			}
 		}
 	}
 
@@ -94,6 +98,9 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 		"task_details":      task,
 		"default_progress":  defaultProgressApplied,
 	}
+	if manualSteerMode.IsValid() {
+		response["manual_steer_mode"] = manualSteerMode
+	}
 
 	writeJSON(w, response, http.StatusOK)
 }
@@ -111,6 +118,7 @@ type promptPreviewRequest struct {
 	Tags               []string        `json:"tags,omitempty"`
 	Target             string          `json:"target,omitempty"`
 	Targets            []string        `json:"targets,omitempty"`
+	SteerMode          string          `json:"steer_mode,omitempty"`
 	AutoSteerProfileID string          `json:"auto_steer_profile_id,omitempty"`
 	AutoSteerPhaseIdx  *int            `json:"auto_steer_phase_index,omitempty"`
 }
@@ -136,6 +144,9 @@ func (r promptPreviewRequest) buildTask(defaultID string) tasks.TaskItem {
 	}
 	if r.Priority != "" {
 		task.Priority = r.Priority
+	}
+	if r.SteerMode != "" {
+		task.SteerMode = r.SteerMode
 	}
 	if r.Notes != "" {
 		task.Notes = r.Notes
@@ -323,10 +334,13 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 
 	// Apply default Progress steering when Auto Steer is not configured
 	if tempTask.Type == "scenario" && tempTask.Operation == "improver" && strings.TrimSpace(tempTask.AutoSteerProfileID) == "" {
-		section := h.defaultProgressSection()
+		section := h.manualOrDefaultSteeringSection(tempTask)
 		prompt = autosteer.InjectSteeringSection(prompt, section)
 		if strings.TrimSpace(section) != "" {
 			response["default_progress_applied"] = true
+			if mode := normalizeSteerMode(tempTask.SteerMode); mode.IsValid() {
+				response["manual_steer_mode"] = mode
+			}
 		}
 	}
 
@@ -367,11 +381,17 @@ func previewMetricsSnapshot() autosteer.MetricsSnapshot {
 	}
 }
 
-// defaultProgressSection renders the Progress phase guidance for scenarios without Auto Steer.
-func (h *TaskHandlers) defaultProgressSection() string {
+// manualOrDefaultSteeringSection renders the manual steer mode (if provided) or defaults to Progress.
+func (h *TaskHandlers) manualOrDefaultSteeringSection(task tasks.TaskItem) string {
 	if h == nil || h.assembler == nil {
 		return ""
 	}
+
+	mode := normalizeSteerMode(task.SteerMode)
+	if !mode.IsValid() {
+		mode = autosteer.ModeProgress
+	}
+
 	phasesDir := filepath.Join(h.assembler.PromptsDir, "phases")
-	return strings.TrimSpace(autosteer.NewPromptEnhancer(phasesDir).GenerateModeSection(autosteer.ModeProgress))
+	return strings.TrimSpace(autosteer.NewPromptEnhancer(phasesDir).GenerateModeSection(mode))
 }

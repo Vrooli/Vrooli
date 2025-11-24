@@ -1,9 +1,9 @@
 /**
  * TaskCardBody Component
- * Displays task title, target (for improver tasks), notes preview, and auto-steer indicator
+ * Displays task title, target (for improver tasks), notes preview, and steering indicators
  */
 
-import { FileText, Zap } from 'lucide-react';
+import { Compass, FileText, Zap } from 'lucide-react';
 import type { Task, AutoSteerProfile } from '../../types/api';
 import { useAppState } from '../../contexts/AppStateContext';
 
@@ -19,6 +19,7 @@ export function TaskCardBody({ task, autoSteerProfile, autoSteerPhaseIndex }: Ta
 
   const hasNotes = task.notes && task.notes.trim().length > 0;
   const hasAutoSteer = !!task.auto_steer_profile_id || !!autoSteerProfile;
+  const manualSteerMode = !hasAutoSteer && task.steer_mode ? task.steer_mode.toUpperCase() : '';
   const phaseIndex = typeof autoSteerPhaseIndex === 'number'
     ? autoSteerPhaseIndex
     : typeof task.auto_steer_phase_index === 'number'
@@ -62,6 +63,16 @@ export function TaskCardBody({ task, autoSteerProfile, autoSteerPhaseIndex }: Ta
                 Phase {phaseIndex + 1}{phaseLabel ? `: ${phaseLabel}` : ''}
               </span>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Manual steering indicator */}
+      {!hasAutoSteer && manualSteerMode && (
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-amber-100 text-amber-900 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-50 dark:border-amber-500/30">
+          <Compass className="h-3.5 w-3.5" />
+          <div className="leading-tight text-xs font-semibold">
+            {manualSteerMode}
           </div>
         </div>
       )}

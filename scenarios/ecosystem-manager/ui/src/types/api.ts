@@ -25,6 +25,27 @@ export type OperationType = 'generator' | 'improver';
 
 export type Priority = 'critical' | 'high' | 'medium' | 'low';
 
+export type SteerMode =
+  | 'progress'
+  | 'ux'
+  | 'refactor'
+  | 'test'
+  | 'explore'
+  | 'polish'
+  | 'performance'
+  | 'security';
+
+export const STEER_MODES: SteerMode[] = [
+  'progress',
+  'ux',
+  'refactor',
+  'test',
+  'explore',
+  'polish',
+  'performance',
+  'security',
+];
+
 export interface Task {
   id: string;
   title: string;
@@ -34,6 +55,7 @@ export interface Task {
   status: TaskStatus;
   target?: string[];
   notes?: string;
+  steer_mode?: SteerMode;
   auto_steer_profile_id?: string;
   auto_steer_phase_index?: number;
   auto_requeue?: boolean;
@@ -66,6 +88,7 @@ export interface CreateTaskInput {
   type: TaskType;
   operation: OperationType;
   priority: Priority;
+  steer_mode?: SteerMode;
   target?: string[];
   notes?: string;
   auto_steer_profile_id?: string;
@@ -75,6 +98,7 @@ export interface CreateTaskInput {
 export interface UpdateTaskInput {
   priority?: Priority;
   notes?: string;
+  steer_mode?: SteerMode;
   auto_steer_profile_id?: string;
   auto_requeue?: boolean;
   target?: string[];

@@ -32,7 +32,8 @@ import { useAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExec
 import { api } from '@/lib/api';
 import { markdownToHtml } from '@/lib/markdown';
 import { queryKeys } from '@/lib/queryKeys';
-import type { Task, Priority, ExecutionHistory, UpdateTaskInput, LogEntry } from '@/types/api';
+import type { Task, Priority, ExecutionHistory, UpdateTaskInput, LogEntry, SteerMode } from '@/types/api';
+import { STEER_MODES } from '@/types/api';
 
 interface TaskDetailsModalProps {
   task: Task | null;
@@ -59,6 +60,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   const [targetName, setTargetName] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [notes, setNotes] = useState('');
+  const [steerMode, setSteerMode] = useState<SteerMode | 'none'>('none');
   const [autoSteerProfileId, setAutoSteerProfileId] = useState<string>(AUTO_STEER_NONE);
   const [autoRequeue, setAutoRequeue] = useState(false);
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
@@ -127,6 +129,11 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
       setTargetName(derivedTarget || '');
       setPriority(task.priority);
       setNotes(task.notes || '');
+      const initialMode: SteerMode | 'none' =
+        task.auto_steer_profile_id && task.auto_steer_profile_id !== AUTO_STEER_NONE
+          ? 'none'
+          : (task.steer_mode as SteerMode) || 'none';
+      setSteerMode(initialMode);
       setAutoSteerProfileId(task.auto_steer_profile_id || AUTO_STEER_NONE);
       setAutoRequeue(task.auto_requeue || false);
     }
@@ -145,6 +152,12 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
       setSelectedExecutionId(null);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (autoSteerProfileId !== AUTO_STEER_NONE && steerMode !== 'none') {
+      setSteerMode('none');
+    }
+  }, [autoSteerProfileId, steerMode]);
 
   useEffect(() => {
     if (sortedExecutions.length > 0 && !selectedExecutionId) {
@@ -321,6 +334,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
     const updates: UpdateTaskInput = {
       priority,
       notes: notes.trim() || undefined,
+      steer_mode: autoSteerProfileId === AUTO_STEER_NONE && steerMode !== 'none' ? steerMode : 'none',
       auto_steer_profile_id: autoSteerProfileId === AUTO_STEER_NONE ? undefined : autoSteerProfileId,
       auto_requeue: autoRequeue,
     };
@@ -420,24 +434,64 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                     <SelectTrigger id="detail-priority">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      {PRIORITIES.map(p => (
-                        <SelectItem key={p} value={p}>
-                          {p.charAt(0).toUpperCase() + p.slice(1)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <SelectContent>
+                  {PRIORITIES.map(p => (
+                    <SelectItem key={p} value={p}>
+                      {p.charAt(0).toUpperCase() + p.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-                {(profiles && profiles.length > 0) && (
-                  <div className="space-y-2">
-                    <Label htmlFor="detail-auto-steer">Auto Steer Profile</Label>
-                    <Select value={autoSteerProfileId} onValueChange={setAutoSteerProfileId}>
-                      <SelectTrigger id="detail-auto-steer">
-                        <SelectValue placeholder="None" />
-                      </SelectTrigger>
-                      <SelectContent>
+            {task?.type === 'scenario' && task?.operation === 'improver' && (
+              <div className="space-y-2">
+                <Label htmlFor="detail-steer-mode">Steering focus (manual)</Label>
+                <Select
+                  value={steerMode}
+                  onValueChange={(val: string) => {
+                    const mode = val as SteerMode | 'none';
+                    setSteerMode(mode);
+                    if (mode !== 'none') {
+                      setAutoSteerProfileId(AUTO_STEER_NONE);
+                    }
+                  }}
+                  disabled={autoSteerProfileId !== AUTO_STEER_NONE}
+                >
+                  <SelectTrigger id="detail-steer-mode">
+                    <SelectValue placeholder="None (use Progress)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None (use Progress)</SelectItem>
+                    {STEER_MODES.map(mode => (
+                      <SelectItem key={mode} value={mode}>
+                        {mode.toUpperCase()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500">
+                  Pick a manual focus OR an Auto Steer profile. Selecting a profile disables manual steering until cleared.
+                </p>
+              </div>
+            )}
+
+            {(profiles && profiles.length > 0) && (
+              <div className="space-y-2">
+                <Label htmlFor="detail-auto-steer">Auto Steer Profile</Label>
+                <Select
+                  value={autoSteerProfileId}
+                  onValueChange={(val: string) => {
+                    setAutoSteerProfileId(val);
+                    if (val !== AUTO_STEER_NONE) {
+                      setSteerMode('none');
+                    }
+                  }}
+                >
+                  <SelectTrigger id="detail-auto-steer">
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
+                  <SelectContent>
                         <SelectItem value={AUTO_STEER_NONE}>None</SelectItem>
                         {profiles.map(profile => (
                           <SelectItem key={profile.id} value={profile.id}>

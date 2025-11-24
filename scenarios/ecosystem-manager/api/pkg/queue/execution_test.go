@@ -587,3 +587,26 @@ func TestReconciliation_DoesNotMoveTasksWithVerifiedCleanup(t *testing.T) {
 		t.Errorf("Task status should be completed, got %s", finalTask.Status)
 	}
 }
+
+func TestEnrichSteeringMetadataManualMode(t *testing.T) {
+	qp := &Processor{}
+	task := tasks.TaskItem{
+		ID:        "manual-steer",
+		Type:      "scenario",
+		Operation: "improver",
+		SteerMode: "ux",
+	}
+	history := ExecutionHistory{}
+
+	qp.enrichSteeringMetadata(&task, &history)
+
+	if history.SteeringSource != "manual_mode" {
+		t.Fatalf("expected manual_mode steering source, got %s", history.SteeringSource)
+	}
+	if history.SteerMode != "ux" {
+		t.Fatalf("expected steer_mode ux, got %s", history.SteerMode)
+	}
+	if history.SteerPhaseIndex != 1 || history.SteerPhaseIteration != 1 {
+		t.Fatalf("expected phase index/iteration to default to 1, got %d/%d", history.SteerPhaseIndex, history.SteerPhaseIteration)
+	}
+}

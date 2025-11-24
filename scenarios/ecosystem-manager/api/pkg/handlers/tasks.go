@@ -249,9 +249,49 @@ func (h *TaskHandlers) validateTaskTypeAndOperation(task *tasks.TaskItem, w http
 	return true
 }
 
+// normalizeSteerMode trims and lowercases a provided steer mode string, treating "none" as empty.
+func normalizeSteerMode(raw string) autosteer.SteerMode {
+	trimmed := strings.TrimSpace(strings.ToLower(raw))
+	if trimmed == "none" {
+		return ""
+	}
+	return autosteer.SteerMode(trimmed)
+}
+
+// validateAndNormalizeSteerMode ensures the steer mode is supported for the task shape and valid.
+func validateAndNormalizeSteerMode(task *tasks.TaskItem, w http.ResponseWriter) bool {
+	mode := normalizeSteerMode(task.SteerMode)
+	if mode == "" {
+		task.SteerMode = ""
+		return true
+	}
+
+	if task.Type != "scenario" || task.Operation != "improver" {
+		writeError(w, "Manual steering is only supported for scenario improver tasks", http.StatusBadRequest)
+		return false
+	}
+
+	if !mode.IsValid() {
+		writeError(w, fmt.Sprintf("Invalid steer_mode: %s. Must be one of: %v", mode, []autosteer.SteerMode{
+			autosteer.ModeProgress,
+			autosteer.ModeUX,
+			autosteer.ModeRefactor,
+			autosteer.ModeTest,
+			autosteer.ModeExplore,
+			autosteer.ModePolish,
+			autosteer.ModePerformance,
+			autosteer.ModeSecurity,
+		}), http.StatusBadRequest)
+		return false
+	}
+
+	task.SteerMode = string(mode)
+	return true
+}
+
 // preserveUnsetFields copies non-zero values from current to updated for fields that are unset.
 // This helper consolidates field preservation logic used when updating tasks.
-func preserveUnsetFields(updated, current *tasks.TaskItem) {
+func preserveUnsetFields(updated, current *tasks.TaskItem, preserveSteerMode bool) {
 	if updated.Title == "" {
 		updated.Title = current.Title
 	}
@@ -279,6 +319,9 @@ func preserveUnsetFields(updated, current *tasks.TaskItem) {
 	if len(updated.Targets) == 0 && len(current.Targets) > 0 {
 		updated.Targets = current.Targets
 		updated.Target = current.Target
+	}
+	if preserveSteerMode && updated.SteerMode == "" && current.SteerMode != "" {
+		updated.SteerMode = current.SteerMode
 	}
 }
 
@@ -533,6 +576,10 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if !validateAndNormalizeSteerMode(&task, w) {
+		return
+	}
+
 	// Target validation for improver operations
 	if task.Operation == "improver" && len(task.Targets) == 0 {
 		writeError(w, "Improver tasks require at least one target", http.StatusBadRequest)
@@ -684,6 +731,7 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	taskID := currentTask.ID
 
 	updatedTask.Targets, updatedTask.Target = tasks.NormalizeTargets(updatedTask.Target, updatedTask.Targets)
+	steerModeCleared := strings.EqualFold(strings.TrimSpace(updatedTask.SteerMode), "none")
 
 	// Preserve certain fields that shouldn't be changed via general update
 	updatedTask.ID = taskID
@@ -712,7 +760,11 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Preserve all other fields if they weren't provided in the update
-	preserveUnsetFields(&updatedTask, currentTask)
+	preserveUnsetFields(&updatedTask, currentTask, !steerModeCleared)
+
+	if !validateAndNormalizeSteerMode(&updatedTask, w) {
+		return
+	}
 
 	// Validate status if provided
 	newStatus := updatedTask.Status
