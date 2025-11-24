@@ -13,19 +13,24 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/browserless/runtime"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/internal/httpjson"
 )
 
 // ElementAnalysisHandler handles element analysis and coordinate-based operations
 type ElementAnalysisHandler struct {
-	log *logrus.Logger
+	log    *logrus.Logger
+	runner *automationRunner
 }
 
 // NewElementAnalysisHandler creates a new element analysis handler
 func NewElementAnalysisHandler(log *logrus.Logger) *ElementAnalysisHandler {
-	return &ElementAnalysisHandler{log: log}
+	runner, err := newAutomationRunner(log)
+	if err != nil && log != nil {
+		log.WithError(err).Warn("Failed to initialize automation runner for element analysis; requests will fail")
+	}
+	return &ElementAnalysisHandler{log: log, runner: runner}
 }
 
 // AnalyzeElements handles POST /api/v1/analyze-elements
@@ -123,74 +128,55 @@ func (h *ElementAnalysisHandler) GetElementAtCoordinate(w http.ResponseWriter, r
 
 // getElementAtCoordinate uses browserless to get element candidates at specific coordinates
 func (h *ElementAnalysisHandler) getElementAtCoordinate(ctx context.Context, url string, x, y int) (*ElementSelectionResult, error) {
-	browserlessURL := resolveBrowserlessURL()
-	if browserlessURL == "" {
-		return nil, fmt.Errorf("browserless URL not configured")
+	if h.runner == nil {
+		return nil, fmt.Errorf("automation runner not configured")
 	}
 
-	httpClient := &http.Client{Timeout: constants.AIRequestTimeout}
-	session := runtime.NewSession(browserlessURL, httpClient, h.log)
-
-	navigateInstruction := runtime.Instruction{
-		Index:  0,
-		NodeID: "probe.navigate",
-		Type:   "navigate",
-		Params: runtime.InstructionParam{
-			URL:       url,
-			WaitUntil: "networkidle2",
-			TimeoutMs: 45000,
+	instructions := []autocontracts.CompiledInstruction{
+		{
+			Index:  0,
+			NodeID: "probe.navigate",
+			Type:   "navigate",
+			Params: map[string]any{
+				"url":       url,
+				"waitUntil": "networkidle2",
+				"timeoutMs": 45000,
+			},
+		},
+		{
+			Index:  1,
+			NodeID: "probe.element",
+			Type:   "probeElements",
+			Params: map[string]any{
+				"probeX":       x,
+				"probeY":       y,
+				"probeRadius":  8,
+				"probeSamples": 36,
+			},
 		},
 	}
 
-	navResponse, err := session.ExecuteInstruction(ctx, navigateInstruction)
+	outcomes, _, err := h.runner.run(ctx, 0, 0, instructions)
 	if err != nil {
-		return nil, fmt.Errorf("failed to navigate to URL: %w", err)
+		return nil, fmt.Errorf("automation probe failed: %w", err)
+	}
+	if len(outcomes) < 2 {
+		return nil, fmt.Errorf("probe did not return any outcomes")
 	}
 
-	if navResponse == nil || len(navResponse.Steps) == 0 || !navResponse.Steps[0].Success {
-		errMsg := "navigation failed"
-		if navResponse != nil && len(navResponse.Steps) > 0 {
-			if trimmed := strings.TrimSpace(navResponse.Steps[0].Error); trimmed != "" {
-				errMsg = trimmed
-			}
-		}
-		return nil, errors.New(errMsg)
-	}
-
-	probeInstruction := runtime.Instruction{
-		Index:  1,
-		NodeID: "probe.element",
-		Type:   "probeElements",
-		Params: runtime.InstructionParam{
-			ProbeX:       x,
-			ProbeY:       y,
-			ProbeRadius:  8,
-			ProbeSamples: 36,
-		},
-	}
-
-	probeResponse, err := session.ExecuteInstruction(ctx, probeInstruction)
-	if err != nil {
-		return nil, fmt.Errorf("element probe failed: %w", err)
-	}
-
-	if probeResponse == nil || len(probeResponse.Steps) == 0 {
-		return nil, fmt.Errorf("element probe returned no results")
-	}
-
-	probeStep := probeResponse.Steps[0]
-	if !probeStep.Success {
-		if trimmed := strings.TrimSpace(probeStep.Error); trimmed != "" {
-			return nil, errors.New(trimmed)
+	probe := outcomes[1]
+	if !probe.Success {
+		if probe.Failure != nil && strings.TrimSpace(probe.Failure.Message) != "" {
+			return nil, errors.New(strings.TrimSpace(probe.Failure.Message))
 		}
 		return nil, fmt.Errorf("element probe unsuccessful")
 	}
 
-	if probeStep.ProbeResult == nil {
+	if probe.ProbeResult == nil {
 		return nil, fmt.Errorf("element probe did not return data")
 	}
 
-	data, err := json.Marshal(probeStep.ProbeResult)
+	data, err := json.Marshal(probe.ProbeResult)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal probe result: %w", err)
 	}

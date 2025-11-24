@@ -16,6 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/storage"
 )
 
 // mockWorkflowServiceForProjects provides minimal workflow service implementation for project tests
@@ -129,6 +130,14 @@ func (m *mockWorkflowServiceForProjects) DeleteProjectWorkflows(ctx context.Cont
 		return m.deleteProjectWorkflowsFn(ctx, projectID, workflowIDs)
 	}
 	return nil
+}
+
+func (m *mockWorkflowServiceForProjects) CheckAutomationHealth(ctx context.Context) (bool, error) {
+	return true, nil
+}
+
+func (m *mockWorkflowServiceForProjects) ExportToFolder(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error {
+	return errors.New("not implemented")
 }
 
 // Stub implementations for other WorkflowService methods (matching handler.go interface)

@@ -18,7 +18,7 @@ const (
 	defaultLoopIndexVar = "loop.index"
 )
 
-func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, state *flowState, reuseMode engine.SessionReuseMode) error {
+func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, state *flowState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
 	stepMap := indexGraph(req.Plan.Graph)
 	current := firstStep(req.Plan.Graph)
 	visited := 0
@@ -28,19 +28,19 @@ func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, eng engi
 	for current != nil {
 		visited++
 		if maxVisited > 0 && visited > maxVisited {
-			return fmt.Errorf("graph execution exceeded step budget (%d)", maxVisited)
+			return session, fmt.Errorf("graph execution exceeded step budget (%d)", maxVisited)
 		}
 		if ctx.Err() != nil {
 			instr := planStepToInstruction(*current)
-			if _, err := e.recordCancelledStep(ctx, req, instr); err != nil {
-				return err
+			if _, err := e.recordTerminatedStep(ctx, req, instr, ctx.Err()); err != nil {
+				return session, err
 			}
-			return ctx.Err()
+			return session, ctx.Err()
 		}
 
 		outcome, updatedSession, err := e.executePlanStep(ctx, req, eng, spec, session, *current, state, reuseMode)
 		if err != nil {
-			return err
+			return session, err
 		}
 		session = updatedSession
 		if !outcome.Success {
@@ -50,18 +50,18 @@ func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, eng engi
 		nextID := e.nextNodeID(*current, outcome)
 		if nextID == "" {
 			if lastFailure != nil {
-				return lastFailure
+				return session, lastFailure
 			}
-			return nil
+			return session, nil
 		}
 		next, ok := stepMap[nextID]
 		if !ok {
-			return fmt.Errorf("graph references missing node %s", nextID)
+			return session, fmt.Errorf("graph references missing node %s", nextID)
 		}
 		current = next
 	}
 
-	return lastFailure
+	return session, lastFailure
 }
 
 func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, state *flowState, reuseMode engine.SessionReuseMode) (contracts.StepOutcome, engine.EngineSession, error) {

@@ -9,7 +9,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/browserless"
+	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
+	autoexec "github.com/vrooli/browser-automation-studio/automation/executor"
+	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 	"github.com/vrooli/browser-automation-studio/database"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
@@ -42,10 +44,12 @@ type WorkflowVersionSummary struct {
 // WorkflowService handles workflow business logic
 type WorkflowService struct {
 	repo             database.Repository
-	browserless      *browserless.Client
 	wsHub            *wsHub.Hub
 	log              *logrus.Logger
 	aiClient         *OpenRouterClient
+	executor         autoexec.Executor
+	engineFactory    autoengine.Factory
+	artifactRecorder autorecorder.Recorder
 	syncLocks        sync.Map
 	filePathCache    sync.Map
 	executionCancels sync.Map
@@ -93,14 +97,32 @@ type ExecutionExportPreview struct {
 }
 
 // NewWorkflowService creates a new workflow service
-func NewWorkflowService(repo database.Repository, browserless *browserless.Client, wsHub *wsHub.Hub, log *logrus.Logger) *WorkflowService {
-	return &WorkflowService{
-		repo:        repo,
-		browserless: browserless,
-		wsHub:       wsHub,
-		log:         log,
-		aiClient:    NewOpenRouterClient(log),
+func NewWorkflowService(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger) *WorkflowService {
+	return NewWorkflowServiceWithDeps(repo, wsHub, log, WorkflowServiceOptions{})
+}
+
+// WorkflowServiceOptions allow injecting the refactored engine/executor/recorder
+// stack without disrupting existing call sites.
+type WorkflowServiceOptions struct {
+	Executor         autoexec.Executor
+	EngineFactory    autoengine.Factory
+	ArtifactRecorder autorecorder.Recorder
+}
+
+// NewWorkflowServiceWithDeps allows advanced configuration for upcoming engine
+// abstraction work while keeping the legacy constructor stable.
+func NewWorkflowServiceWithDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, opts WorkflowServiceOptions) *WorkflowService {
+	svc := &WorkflowService{
+		repo:             repo,
+		wsHub:            wsHub,
+		log:              log,
+		aiClient:         NewOpenRouterClient(log),
+		executor:         opts.Executor,
+		engineFactory:    opts.EngineFactory,
+		artifactRecorder: opts.ArtifactRecorder,
 	}
+
+	return svc
 }
 
 func cloneJSONMap(source database.JSONMap) database.JSONMap {

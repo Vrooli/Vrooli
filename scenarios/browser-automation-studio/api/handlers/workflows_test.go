@@ -16,6 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/storage"
 )
 
 // mockWorkflowServiceForWorkflows provides workflow service implementation for workflow handler tests
@@ -184,6 +185,14 @@ func (m *mockWorkflowServiceForWorkflows) ListExecutions(ctx context.Context, wo
 }
 func (m *mockWorkflowServiceForWorkflows) StopExecution(ctx context.Context, executionID uuid.UUID) error {
 	return nil
+}
+
+func (m *mockWorkflowServiceForWorkflows) ExportToFolder(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error {
+	return errors.New("not implemented")
+}
+
+func (m *mockWorkflowServiceForWorkflows) CheckAutomationHealth(ctx context.Context) (bool, error) {
+	return true, nil
 }
 
 func setupWorkflowTestHandler(t *testing.T, workflowService WorkflowService) *Handler {

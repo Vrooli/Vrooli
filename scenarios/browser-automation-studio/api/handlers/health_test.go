@@ -161,11 +161,13 @@ func TestHealth(t *testing.T) {
 
 	t.Run("[REQ:BAS-FUNC-002] returns degraded when database is healthy but browserless is unavailable", func(t *testing.T) {
 		mockRepo := &healthMockRepository{healthy: true}
-		// Set browserless to nil to simulate unavailable service
 		handler := &Handler{
-			repo:        mockRepo,
-			browserless: nil,
-			log:         log,
+			repo: mockRepo,
+			workflowService: &workflowServiceMock{
+				automationHealthy: false,
+				automationErr:     errors.New("automation engine unavailable"),
+			},
+			log: log,
 		}
 
 		req := httptest.NewRequest("GET", "/health", nil)
@@ -195,11 +197,12 @@ func TestHealth(t *testing.T) {
 
 	t.Run("[REQ:BAS-FUNC-002] returns unhealthy when database is down", func(t *testing.T) {
 		mockRepo := &healthMockRepository{listProjectsErr: errors.New("connection refused")}
-		// Browserless can be nil here since database failure dominates
 		handler := &Handler{
-			repo:        mockRepo,
-			browserless: nil,
-			log:         log,
+			repo: mockRepo,
+			workflowService: &workflowServiceMock{
+				automationHealthy: true,
+			},
+			log: log,
 		}
 
 		req := httptest.NewRequest("GET", "/health", nil)
@@ -226,11 +229,13 @@ func TestHealth(t *testing.T) {
 
 	t.Run("[REQ:BAS-FUNC-002] returns degraded when browserless is down but database is up", func(t *testing.T) {
 		mockRepo := &healthMockRepository{healthy: true}
-		// Browserless will be nil to simulate it not being available
 		handler := &Handler{
-			repo:        mockRepo,
-			browserless: nil,
-			log:         log,
+			repo: mockRepo,
+			workflowService: &workflowServiceMock{
+				automationHealthy: false,
+				automationErr:     errors.New("automation engine unavailable"),
+			},
+			log: log,
 		}
 
 		req := httptest.NewRequest("GET", "/health", nil)
@@ -258,9 +263,11 @@ func TestHealth(t *testing.T) {
 
 	t.Run("[REQ:BAS-FUNC-002] returns error when repository is nil", func(t *testing.T) {
 		handler := &Handler{
-			repo:        nil,
-			browserless: nil,
-			log:         log,
+			repo: nil,
+			workflowService: &workflowServiceMock{
+				automationHealthy: true,
+			},
+			log: log,
 		}
 
 		req := httptest.NewRequest("GET", "/health", nil)

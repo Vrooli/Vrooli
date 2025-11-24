@@ -50,26 +50,24 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check browserless health
-	var browserlessHealthy bool
-	var browserlessError map[string]any
+	var automationHealthy bool
+	var automationError map[string]any
 
-	if h.browserless != nil {
-		if err := h.browserless.CheckBrowserlessHealth(); err != nil {
-			browserlessHealthy = false
-			browserlessError = map[string]any{
-				"code":      "BROWSERLESS_CONNECTION_ERROR",
-				"message":   fmt.Sprintf("Browserless health check failed: %v", err),
+	if h.workflowService != nil {
+		ok, err := h.workflowService.CheckAutomationHealth(ctx)
+		if err != nil {
+			automationError = map[string]any{
+				"code":      "AUTOMATION_ENGINE_ERROR",
+				"message":   fmt.Sprintf("Automation engine health check failed: %v", err),
 				"category":  "resource",
 				"retryable": true,
 			}
-		} else {
-			browserlessHealthy = true
 		}
+		automationHealthy = ok
 	} else {
-		browserlessHealthy = false
-		browserlessError = map[string]any{
-			"code":      "BROWSERLESS_NOT_INITIALIZED",
-			"message":   "Browserless client not initialized",
+		automationError = map[string]any{
+			"code":      "AUTOMATION_ENGINE_NOT_INITIALIZED",
+			"message":   "Automation workflow service not initialized",
 			"category":  "internal",
 			"retryable": false,
 		}
@@ -82,7 +80,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	if !databaseHealthy {
 		status = "unhealthy"
 		readiness = false
-	} else if !browserlessHealthy {
+	} else if !automationHealthy {
 		status = "degraded"
 		// Keep readiness true for degraded state - we can still serve some requests
 	}
@@ -96,8 +94,8 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		},
 		"external_services": []map[string]any{
 			{
-				"name":      "browserless",
-				"connected": browserlessHealthy,
+				"name":      "automation_engine",
+				"connected": automationHealthy,
 				"error":     nil,
 			},
 		},
@@ -107,8 +105,8 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	if databaseError != nil {
 		dependencies["database"].(map[string]any)["error"] = databaseError
 	}
-	if browserlessError != nil {
-		dependencies["external_services"].([]map[string]any)[0]["error"] = browserlessError
+	if automationError != nil {
+		dependencies["external_services"].([]map[string]any)[0]["error"] = automationError
 	}
 
 	response := HealthResponse{

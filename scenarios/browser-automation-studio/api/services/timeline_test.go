@@ -296,7 +296,7 @@ func TestGetExecutionTimeline(t *testing.T) {
 		log := logrus.New()
 		log.SetOutput(io.Discard)
 
-		svc := NewWorkflowService(repo, nil, nil, log)
+		svc := NewWorkflowService(repo, nil, log)
 
 		timeline, err := svc.GetExecutionTimeline(context.Background(), executionID)
 		if err != nil {

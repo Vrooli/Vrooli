@@ -141,3 +141,36 @@ func TestDeriveRequirementsIncludesGraphStepsAndTypes(t *testing.T) {
 		t.Fatalf("expected graph-derived requirements to mark downloads/uploads/HAR/tracing, got %+v", req)
 	}
 }
+
+func TestDeriveRequirementsHonorsTracingAndViewportMetadata(t *testing.T) {
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		CreatedAt:   time.Now().UTC(),
+		Metadata: map[string]any{
+			"executionViewport": map[string]any{
+				"width":  float64(1400),
+				"height": float64(900),
+			},
+			"requiresTracing": true,
+			"requiresVideo":   true,
+		},
+		Instructions: []contracts.CompiledInstruction{
+			{
+				Index: 0,
+				Type:  "navigate",
+				Params: map[string]any{
+					"trace": true,
+				},
+			},
+		},
+	}
+
+	req := deriveRequirements(plan)
+	if !req.NeedsTracing || !req.NeedsVideo {
+		t.Fatalf("expected tracing/video requirements, got %+v", req)
+	}
+	if req.MinViewportWidth != 1400 || req.MinViewportHeight != 900 {
+		t.Fatalf("expected viewport minima 1400x900, got %dx%d", req.MinViewportWidth, req.MinViewportHeight)
+	}
+}

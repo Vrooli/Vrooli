@@ -1,224 +1,32 @@
 package ai
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha1"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/internal/httpjson"
 )
 
 const (
-	previewMinViewportDimension  = 200
-	previewMaxViewportDimension  = 10000
-	previewDefaultViewportWidth  = 1920
-	previewDefaultViewportHeight = 1080
-
-	browserlessFunctionPath           = "/chrome/function"
+	previewMinViewportDimension       = 200
+	previewMaxViewportDimension       = 10000
+	previewDefaultViewportWidth       = 1920
+	previewDefaultViewportHeight      = 1080
 	defaultPreviewWaitMilliseconds    = 1200
 	defaultPreviewTimeoutMilliseconds = 20000
-	maxPreviewTimeoutMilliseconds     = 45000
-	maxPreviewWaitMilliseconds        = 8000
-	maxPreviewConsoleLogs             = 200
 	defaultPreviewWaitUntil           = "networkidle2"
-)
-
-var previewScreenshotScript = fmt.Sprintf(`export default async ({ page, context }) => {
-  const logs = [];
-  const cap = %d;
-  const now = () => new Date().toISOString();
-
-  const normalizeLevel = (value) => {
-    if (typeof value !== "string") {
-      return "log";
-    }
-    const normalized = value.toLowerCase();
-    if (normalized === "warning") {
-      return "warn";
-    }
-    if (normalized === "error" || normalized === "warn" || normalized === "info" || normalized === "debug" || normalized === "trace") {
-      return normalized;
-    }
-    return "log";
-  };
-
-  const toMessage = (value) => {
-    if (typeof value === "string") {
-      return value;
-    }
-    if (value === null || typeof value === "undefined") {
-      return "";
-    }
-    try {
-      return JSON.stringify(value);
-    } catch (stringifyError) {
-      return String(value);
-    }
-  };
-
-  const pushLog = (level, message) => {
-    if (logs.length >= cap) {
-      return;
-    }
-    logs.push({
-      level: normalizeLevel(level),
-      message: toMessage(message),
-      timestamp: now(),
-    });
-  };
-
-  const contextValue = context || {};
-  const targetUrl = typeof contextValue.url === "string" ? contextValue.url : "";
-  const rawWaitUntil = typeof contextValue.waitUntil === "string" ? contextValue.waitUntil.trim() : "";
-  const waitUntil = rawWaitUntil ? rawWaitUntil : "%s";
-
-  if (!targetUrl) {
-    return {
-      success: false,
-      error: "Missing URL",
-      consoleLogs: logs,
-      finalUrl: "",
-    };
-  }
-
-  try {
-    const viewport = contextValue.viewport || {};
-    const rawWidth = Number(viewport.width);
-    const rawHeight = Number(viewport.height);
-    if (Number.isFinite(rawWidth) && Number.isFinite(rawHeight)) {
-      const width = Math.max(%d, Math.min(%d, Math.floor(rawWidth)));
-      const height = Math.max(%d, Math.min(%d, Math.floor(rawHeight)));
-      await page.setViewport({ width, height });
-    }
-
-    try {
-      await page.setCacheEnabled(true);
-    } catch (_) {
-      // ignore cache enable errors
-    }
-
-    const rawWait = Number(contextValue.waitMs);
-    const waitMs = Number.isFinite(rawWait) ? Math.max(0, Math.min(%d, Math.floor(rawWait))) : %d;
-
-    const rawTimeout = Number(contextValue.timeout);
-    const timeout = Number.isFinite(rawTimeout) ? Math.max(5000, Math.min(%d, Math.floor(rawTimeout))) : %d;
-
-    if (typeof page.setDefaultNavigationTimeout === "function") {
-      page.setDefaultNavigationTimeout(timeout);
-    }
-    if (typeof page.setDefaultTimeout === "function") {
-      page.setDefaultTimeout(timeout);
-    }
-
-    page.on("console", (message) => {
-      try {
-        const level = typeof message.type === "function" ? message.type() : "log";
-        const text = typeof message.text === "function" ? message.text() : "";
-        pushLog(level, text);
-      } catch (consoleError) {
-        const message = consoleError && consoleError.message ? consoleError.message : String(consoleError);
-        pushLog("warn", "Failed to process console message: " + message);
-      }
-    });
-
-    page.on("pageerror", (pageError) => {
-      const message = pageError && pageError.message ? pageError.message : String(pageError);
-      pushLog("error", message);
-    });
-
-    page.on("requestfailed", (request) => {
-      const failure = typeof request.failure === "function" ? request.failure() : null;
-      const parts = ["Request failed"];
-      const url = typeof request.url === "function" ? request.url() : "";
-      if (url) {
-        parts.push(url);
-      }
-      if (failure && failure.errorText) {
-        parts.push("(" + failure.errorText + ")");
-      }
-      pushLog("error", parts.join(" "));
-    });
-
-    const response = await page.goto(targetUrl, { waitUntil, timeout });
-    if (response && typeof response.ok === "function" && !response.ok()) {
-      const status = typeof response.status === "function" ? response.status() : "unknown";
-      pushLog("warn", "Navigation returned status " + status + " for " + targetUrl);
-    }
-
-    try {
-      await page.waitForFunction(() => document.readyState === "complete", { timeout: 5000 });
-    } catch (_) {
-      // ignore wait timeout
-    }
-
-    if (waitMs > 0 && typeof page.waitForTimeout === "function") {
-      await page.waitForTimeout(waitMs);
-    }
-
-    const screenshot = await page.screenshot({ type: "png", encoding: "base64" });
-
-    const finalUrl = typeof page.url === "function" ? page.url() : targetUrl;
-
-    return {
-      success: true,
-      screenshot,
-      consoleLogs: logs,
-      finalUrl,
-    };
-  } catch (error) {
-    const message = error && error.message ? error.message : "Failed to take screenshot";
-    let finalUrl = targetUrl;
-    try {
-      if (typeof page.url === "function") {
-        finalUrl = page.url();
-      }
-    } catch (urlError) {
-      if (urlError && urlError.message) {
-        pushLog("warn", "Unable to read final URL: " + urlError.message);
-      }
-    }
-    pushLog("error", message);
-    return {
-      success: false,
-      error: message,
-      consoleLogs: logs,
-      finalUrl,
-    };
-  }
-};`,
-	maxPreviewConsoleLogs,
-	defaultPreviewWaitUntil,
-	previewMinViewportDimension,
-	previewMaxViewportDimension,
-	previewMinViewportDimension,
-	previewMaxViewportDimension,
-	maxPreviewWaitMilliseconds,
-	defaultPreviewWaitMilliseconds,
-	maxPreviewTimeoutMilliseconds,
-	defaultPreviewTimeoutMilliseconds,
 )
 
 type previewConsoleLog struct {
 	Level     string `json:"level"`
 	Message   string `json:"message"`
 	Timestamp string `json:"timestamp"`
-}
-
-type previewResponse struct {
-	Success     bool                `json:"success"`
-	Screenshot  string              `json:"screenshot"`
-	ConsoleLogs []previewConsoleLog `json:"consoleLogs"`
-	Error       string              `json:"error"`
-	FinalURL    string              `json:"finalUrl"`
 }
 
 type previewRequest struct {
@@ -230,28 +38,16 @@ type previewRequest struct {
 }
 
 type ScreenshotHandler struct {
-	log            *logrus.Logger
-	httpClient     *http.Client
-	browserlessURL string
-}
-
-func derivePreviewSessionID(rawURL string, width, height int) string {
-	trimmed := strings.TrimSpace(strings.ToLower(rawURL))
-	if trimmed == "" {
-		return ""
-	}
-	data := fmt.Sprintf("%s|%d|%d", trimmed, width, height)
-	sum := sha1.Sum([]byte(data))
-	return fmt.Sprintf("preview-%x", sum)
+	log    *logrus.Logger
+	runner *automationRunner
 }
 
 func NewScreenshotHandler(log *logrus.Logger) *ScreenshotHandler {
-	client := &http.Client{Timeout: constants.AIRequestTimeout}
-	return &ScreenshotHandler{
-		log:            log,
-		httpClient:     client,
-		browserlessURL: resolveBrowserlessURL(),
+	runner, err := newAutomationRunner(log)
+	if err != nil && log != nil {
+		log.WithError(err).Warn("Failed to initialize automation runner for screenshots; requests will fail")
 	}
+	return &ScreenshotHandler{log: log, runner: runner}
 }
 
 func clampPreviewViewport(value int) int {
@@ -291,126 +87,95 @@ func (h *ScreenshotHandler) TakePreviewScreenshot(w http.ResponseWriter, r *http
 		}
 	}
 
-	if h.browserlessURL == "" {
-		h.browserlessURL = resolveBrowserlessURL()
-	}
-	endpoint := strings.TrimRight(h.browserlessURL, "/") + browserlessFunctionPath
-
-	sessionID := derivePreviewSessionID(req.URL, viewportWidth, viewportHeight)
-
-	contextPayload := map[string]any{
-		"url": req.URL,
-		"viewport": map[string]int{
-			"width":  viewportWidth,
-			"height": viewportHeight,
-		},
-		"waitMs":    defaultPreviewWaitMilliseconds,
-		"timeout":   defaultPreviewTimeoutMilliseconds,
-		"waitUntil": defaultPreviewWaitUntil,
-	}
-
-	if sessionID != "" {
-		contextPayload["sessionId"] = sessionID
-		contextPayload["keepAlive"] = true
-	}
-
-	payload := map[string]any{
-		"code":    previewScreenshotScript,
-		"context": contextPayload,
-	}
-
-	body, err := json.Marshal(payload)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to encode browserless payload")
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "encode_payload"}))
+	if h.runner == nil {
+		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "automation_runner"}))
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), constants.AIRequestTimeout)
 	defer cancel()
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
-	if err != nil {
-		h.log.WithError(err).Error("Failed to create browserless request")
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "create_request"}))
-		return
+	instructions := []autocontracts.CompiledInstruction{
+		{
+			Index:  0,
+			NodeID: "preview.navigate",
+			Type:   "navigate",
+			Params: map[string]any{
+				"url":       req.URL,
+				"waitUntil": defaultPreviewWaitUntil,
+				"timeoutMs": defaultPreviewTimeoutMilliseconds,
+			},
+		},
+		{
+			Index:  1,
+			NodeID: "preview.screenshot",
+			Type:   "screenshot",
+			Params: map[string]any{
+				"fullPage":  true,
+				"waitForMs": defaultPreviewWaitMilliseconds,
+				"timeoutMs": defaultPreviewTimeoutMilliseconds,
+			},
+		},
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
 
 	start := time.Now()
-	resp, err := h.httpClient.Do(httpReq)
+	outcomes, events, err := h.runner.run(ctx, viewportWidth, viewportHeight, instructions)
 	if err != nil {
-		h.log.WithError(err).Error("Browserless request failed")
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "browserless_request"}))
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		h.log.WithFields(logrus.Fields{
-			"status": resp.StatusCode,
-			"body":   string(bodyBytes),
-		}).Error("Browserless returned error status")
-		RespondError(w, ErrInternalServer.WithMessage("Failed to take preview screenshot").WithDetails(map[string]any{
-			"operation": "browserless_response",
-			"status":    resp.StatusCode,
-		}))
+		h.log.WithError(err).Error("Preview automation failed")
+		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "automation_run", "error": err.Error()}))
 		return
 	}
 
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to read browserless response")
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "read_response"}))
+	if len(outcomes) < 2 {
+		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "automation_run", "error": "no screenshot outcome"}))
 		return
 	}
 
-	var preview previewResponse
-	if err := json.Unmarshal(bodyBytes, &preview); err != nil {
-		h.log.WithError(err).WithField("body", string(bodyBytes)).Error("Failed to parse browserless response")
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "decode_response"}))
-		return
-	}
-
-	if !preview.Success || strings.TrimSpace(preview.Screenshot) == "" {
-		detail := map[string]any{
-			"operation": "browserless_preview",
+	nav := outcomes[0]
+	if !nav.Success {
+		message := "navigation failed"
+		if nav.Failure != nil && strings.TrimSpace(nav.Failure.Message) != "" {
+			message = strings.TrimSpace(nav.Failure.Message)
 		}
-		if strings.TrimSpace(preview.Error) != "" {
-			detail["error"] = preview.Error
+		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "navigate", "error": message}))
+		return
+	}
+
+	shot := outcomes[1]
+	if !shot.Success {
+		message := "screenshot failed"
+		if shot.Failure != nil && strings.TrimSpace(shot.Failure.Message) != "" {
+			message = strings.TrimSpace(shot.Failure.Message)
 		}
-		if len(preview.ConsoleLogs) > 0 {
-			detail["consoleLogCount"] = len(preview.ConsoleLogs)
-		}
-		RespondError(w, ErrInternalServer.WithMessage("Failed to capture preview screenshot").WithDetails(detail))
+		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "screenshot", "error": message}))
 		return
 	}
 
-	rawScreenshot, err := base64.StdEncoding.DecodeString(preview.Screenshot)
-	if err != nil {
-		h.log.WithError(err).Error("Invalid screenshot base64")
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "decode_screenshot"}))
+	if shot.Screenshot == nil || len(shot.Screenshot.Data) == 0 {
+		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "screenshot", "error": "no image data"}))
 		return
 	}
 
-	if len(rawScreenshot) < 8 || !bytes.Equal(rawScreenshot[:8], []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}) {
-		h.log.Error("Browserless response is not a valid PNG")
-		RespondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "invalid_png_format"}))
-		return
+	encoded := base64.StdEncoding.EncodeToString(shot.Screenshot.Data)
+	logs := make([]previewConsoleLog, 0, len(shot.ConsoleLogs))
+	for _, entry := range shot.ConsoleLogs {
+		logs = append(logs, previewConsoleLog{
+			Level:     entry.Type,
+			Message:   entry.Text,
+			Timestamp: entry.Timestamp.Format(time.RFC3339Nano),
+		})
 	}
-
-	dataURI := fmt.Sprintf("data:image/png;base64,%s", preview.Screenshot)
 
 	response := map[string]any{
 		"success":        true,
-		"screenshot":     dataURI,
-		"consoleLogs":    preview.ConsoleLogs,
-		"url":            preview.FinalURL,
+		"screenshot":     fmt.Sprintf("data:image/png;base64,%s", encoded),
+		"consoleLogs":    logs,
+		"url":            shot.FinalURL,
 		"timestamp":      time.Now().Unix(),
 		"duration_ms":    time.Since(start).Milliseconds(),
 		"viewportWidth":  viewportWidth,
 		"viewportHeight": viewportHeight,
+		"events":         events,
 	}
 
 	h.log.WithFields(logrus.Fields{
@@ -418,7 +183,7 @@ func (h *ScreenshotHandler) TakePreviewScreenshot(w http.ResponseWriter, r *http
 		"viewport_width":  viewportWidth,
 		"viewport_height": viewportHeight,
 		"duration_ms":     response["duration_ms"],
-		"console_logs":    len(preview.ConsoleLogs),
+		"console_logs":    len(logs),
 	}).Info("Captured preview screenshot")
 
 	RespondSuccess(w, http.StatusOK, response)

@@ -157,6 +157,64 @@ func TestSimpleExecutorPropagatesEngineError(t *testing.T) {
 	}
 }
 
+// Ensures capability gaps fail fast before execution.
+func TestSimpleExecutorFailsOnCapabilityGap(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	// Engine that does not support uploads/downloads.
+	factory := &fakeEngineFactory{
+		session: &fakeSession{outcome: contracts.StepOutcome{Success: true}},
+		caps: &contracts.EngineCapabilities{
+			SchemaVersion:         contracts.EventEnvelopeSchemaVersion,
+			Engine:                "stub",
+			MaxConcurrentSessions: 1,
+			AllowsParallelTabs:    false,
+			SupportsHAR:           false,
+			SupportsVideo:         false,
+			SupportsIframes:       false,
+			SupportsFileUploads:   false,
+			SupportsDownloads:     false,
+			SupportsTracing:       false,
+			MaxViewportWidth:      1024,
+			MaxViewportHeight:     768,
+		},
+	}
+
+	rec := &memoryRecorder{}
+	sink := events.NewMemorySink(contracts.DefaultEventBufferLimits)
+
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			ExecutionID:    execID,
+			WorkflowID:     workflowID,
+			Instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "upload", Type: "upload", Params: map[string]any{"filePaths": []any{"one.txt"}}},
+			},
+			CreatedAt: time.Now().UTC(),
+			Metadata: map[string]any{
+				"executionViewport": map[string]any{"width": float64(1920), "height": float64(1080)},
+			},
+		},
+		EngineName:        "stub",
+		EngineFactory:     factory,
+		Recorder:          rec,
+		EventSink:         sink,
+		HeartbeatInterval: 0,
+	}
+
+	executor := NewSimpleExecutor(nil)
+	err := executor.Execute(context.Background(), req)
+	if err == nil {
+		t.Fatalf("expected capability error")
+	}
+	if _, ok := err.(*CapabilityError); !ok {
+		t.Fatalf("expected CapabilityError, got %T: %v", err, err)
+	}
+}
+
 func TestSimpleExecutorHonorsInstructionTimeout(t *testing.T) {
 	execID := uuid.New()
 	workflowID := uuid.New()
@@ -245,6 +303,46 @@ func TestSimpleExecutorExecutionTimeoutCancelsRun(t *testing.T) {
 	}
 	if out.Failure.Source != contracts.FailureSourceExecutor {
 		t.Fatalf("expected failure source executor, got %s", out.Failure.Source)
+	}
+}
+
+func TestSimpleExecutorCancellationRecordsCancelledOutcome(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	session := &fakeSession{
+		outcome: contracts.StepOutcome{Success: true},
+	}
+	rec := &memoryRecorder{}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			ExecutionID: execID,
+			WorkflowID:  workflowID,
+			Instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "cancel-me", Type: "navigate"},
+			},
+			CreatedAt: time.Now().UTC(),
+		},
+		EngineFactory:     &fakeEngineFactory{session: session},
+		Recorder:          rec,
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 0,
+	}
+
+	executor := NewSimpleExecutor(nil)
+	err := executor.Execute(ctx, req)
+	if err == nil || !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected cancellation error, got %v", err)
+	}
+	if len(rec.outcomes) != 1 {
+		t.Fatalf("expected one recorded cancellation outcome, got %d", len(rec.outcomes))
+	}
+	out := rec.outcomes[0]
+	if out.Failure == nil || out.Failure.Kind != contracts.FailureKindCancelled || out.Failure.Retryable {
+		t.Fatalf("expected cancelled failure, got %+v", out.Failure)
 	}
 }
 
@@ -838,11 +936,12 @@ func TestGraphExecutorFreshCreatesSessionPerGraphStep(t *testing.T) {
 type fakeEngineFactory struct {
 	session *fakeSession
 	engine  *fakeEngine
+	caps    *contracts.EngineCapabilities
 }
 
 func (f *fakeEngineFactory) Resolve(ctx context.Context, name string) (engine.AutomationEngine, error) {
 	if f.engine == nil {
-		f.engine = &fakeEngine{session: f.session}
+		f.engine = &fakeEngine{session: f.session, caps: f.caps}
 	}
 	return f.engine, nil
 }
@@ -850,11 +949,15 @@ func (f *fakeEngineFactory) Resolve(ctx context.Context, name string) (engine.Au
 type fakeEngine struct {
 	session    *fakeSession
 	startCount int
+	caps       *contracts.EngineCapabilities
 }
 
 func (f *fakeEngine) Name() string { return "fake" }
 
 func (f *fakeEngine) Capabilities(ctx context.Context) (contracts.EngineCapabilities, error) {
+	if f.caps != nil {
+		return *f.caps, nil
+	}
 	return contracts.EngineCapabilities{
 		SchemaVersion:         contracts.EventEnvelopeSchemaVersion,
 		Engine:                "fake",

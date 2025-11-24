@@ -10,7 +10,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/browserless/events"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
+	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
+	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
+	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 	"github.com/vrooli/browser-automation-studio/database"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
@@ -403,7 +407,6 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 	}
 	defer s.cancelExecutionByID(execution.ID)
 
-	emitter := events.NewEmitter(s.wsHub, s.log)
 	s.log.WithFields(logrus.Fields{
 		"execution_id": execution.ID,
 		"workflow_id":  execution.WorkflowID,
@@ -429,18 +432,40 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 		Message:     "Workflow execution started",
 	})
 
-	if emitter != nil {
-		emitter.Emit(events.NewEvent(
-			events.EventExecutionStarted,
-			execution.ID,
-			execution.WorkflowID,
-			events.WithStatus("running"),
-			events.WithMessage("Workflow execution started"),
-			events.WithProgress(0),
-		))
+	var err error
+	selection := autoengine.FromEnv()
+	eventSink := autoevents.NewWSHubSink(s.wsHub, s.log, autocontracts.DefaultEventBufferLimits)
+	seq := autoevents.NewPerExecutionSequencer()
+	publishLifecycle := func(kind autocontracts.EventKind, payload any) {
+		if eventSink == nil {
+			return
+		}
+		env := autocontracts.EventEnvelope{
+			SchemaVersion:  autocontracts.EventEnvelopeSchemaVersion,
+			PayloadVersion: autocontracts.PayloadVersion,
+			Kind:           kind,
+			ExecutionID:    execution.ID,
+			WorkflowID:     execution.WorkflowID,
+			Sequence:       seq.Next(execution.ID),
+			Timestamp:      time.Now().UTC(),
+			Payload:        payload,
+		}
+		_ = eventSink.Publish(ctx, env)
 	}
 
-	err := s.browserless.ExecuteWorkflow(ctx, execution, workflow, emitter)
+	if s.log != nil && workflow != nil {
+		if unsupported := unsupportedAutomationNodes(workflow.FlowDefinition); len(unsupported) > 0 {
+			s.log.WithFields(logrus.Fields{
+				"workflow_id":       workflow.ID,
+				"unsupported_nodes": unsupported,
+			}).Warn("Executing workflow with nodes that exceed current automation coverage; execution may fail")
+		}
+	}
+
+	publishLifecycle(autocontracts.EventKindExecutionStarted, map[string]any{"status": "running"})
+
+	err = s.executeWithAutomationEngine(ctx, execution, workflow, selection, eventSink)
+
 	switch {
 	case err == nil:
 		execution.Status = "completed"
@@ -468,19 +493,7 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 			},
 		})
 
-		if emitter != nil {
-			emitter.Emit(events.NewEvent(
-				events.EventExecutionCompleted,
-				execution.ID,
-				execution.WorkflowID,
-				events.WithStatus("completed"),
-				events.WithProgress(100),
-				events.WithMessage("Workflow completed successfully"),
-				events.WithPayload(map[string]any{
-					"result": execution.Result,
-				}),
-			))
-		}
+		publishLifecycle(autocontracts.EventKindExecutionCompleted, map[string]any{"status": "completed"})
 
 	case errors.Is(err, context.Canceled):
 		s.log.WithField("execution_id", execution.ID).Info("Workflow execution cancelled")
@@ -488,6 +501,11 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 		execution.Error.Valid = false
 		now := time.Now()
 		execution.CompletedAt = &now
+		s.recordExecutionMarker(ctx, execution.ID, autocontracts.StepFailure{
+			Kind:    autocontracts.FailureKindCancelled,
+			Message: "execution cancelled",
+			Source:  autocontracts.FailureSourceExecutor,
+		})
 
 		logEntry := &database.ExecutionLog{
 			ExecutionID: execution.ID,
@@ -508,16 +526,41 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 			Message:     "Workflow execution cancelled",
 		})
 
-		if emitter != nil {
-			emitter.Emit(events.NewEvent(
-				events.EventExecutionCancelled,
-				execution.ID,
-				execution.WorkflowID,
-				events.WithStatus("cancelled"),
-				events.WithMessage("Workflow execution cancelled"),
-				events.WithProgress(execution.Progress),
-			))
+		publishLifecycle(autocontracts.EventKindExecutionCancelled, map[string]any{"status": "cancelled"})
+
+	case errors.Is(err, context.DeadlineExceeded):
+		s.log.WithField("execution_id", execution.ID).Warn("Workflow execution timed out")
+		execution.Status = "failed"
+		execution.Error.Valid = true
+		execution.Error.String = "execution timed out"
+		now := time.Now()
+		execution.CompletedAt = &now
+		s.recordExecutionMarker(ctx, execution.ID, autocontracts.StepFailure{
+			Kind:    autocontracts.FailureKindTimeout,
+			Message: "execution timed out",
+			Source:  autocontracts.FailureSourceExecutor,
+		})
+
+		logEntry := &database.ExecutionLog{
+			ExecutionID: execution.ID,
+			Level:       "error",
+			StepName:    "execution_timeout",
+			Message:     "Execution timed out",
 		}
+		if persistErr := s.repo.CreateExecutionLog(persistenceCtx, logEntry); persistErr != nil && s.log != nil {
+			s.log.WithError(persistErr).WithField("execution_id", execution.ID).Warn("Failed to persist timeout log entry")
+		}
+
+		s.wsHub.BroadcastUpdate(wsHub.ExecutionUpdate{
+			Type:        "failed",
+			ExecutionID: execution.ID,
+			Status:      "failed",
+			Progress:    execution.Progress,
+			CurrentStep: execution.CurrentStep,
+			Message:     "Execution timed out",
+		})
+
+		publishLifecycle(autocontracts.EventKindExecutionFailed, map[string]any{"status": "failed", "error": execution.Error.String})
 
 	default:
 		s.log.WithError(err).Error("Workflow execution failed")
@@ -547,25 +590,21 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 			Message:     "Workflow execution failed: " + err.Error(),
 		})
 
-		if emitter != nil {
-			emitter.Emit(events.NewEvent(
-				events.EventExecutionFailed,
-				execution.ID,
-				execution.WorkflowID,
-				events.WithStatus("failed"),
-				events.WithMessage(err.Error()),
-				events.WithProgress(execution.Progress),
-				events.WithPayload(map[string]any{
-					"current_step": execution.CurrentStep,
-					"error":        err.Error(),
-				}),
-			))
-		}
+		publishLifecycle(autocontracts.EventKindExecutionFailed, map[string]any{"status": "failed", "error": err.Error()})
+
 	}
 
 	if err := s.repo.UpdateExecution(persistenceCtx, execution); err != nil {
 		s.log.WithError(err).Error("Failed to update final execution status")
 	}
+}
+
+// recordExecutionMarker best-effort persists a crash/timeout/cancel marker via recorder when available.
+func (s *WorkflowService) recordExecutionMarker(ctx context.Context, executionID uuid.UUID, failure autocontracts.StepFailure) {
+	if s == nil || s.artifactRecorder == nil {
+		return
+	}
+	_ = s.artifactRecorder.MarkCrash(context.WithoutCancel(ctx), executionID, failure)
 }
 
 func (s *WorkflowService) startExecutionRunner(execution *database.Execution, workflow *database.Workflow) {
@@ -589,4 +628,80 @@ func (s *WorkflowService) cancelExecutionByID(executionID uuid.UUID) {
 	if cancel, valid := value.(context.CancelFunc); valid && cancel != nil {
 		cancel()
 	}
+}
+
+// unsupportedAutomationNodes returns node types that the new automation
+// executor cannot yet orchestrate. Results are used for logging/alerting only;
+// execution continues on the automation stack.
+func unsupportedAutomationNodes(flowDefinition database.JSONMap) []string {
+	if flowDefinition == nil {
+		return nil
+	}
+
+	nodesRaw, ok := flowDefinition["nodes"]
+	if !ok {
+		return nil
+	}
+
+	_, ok = nodesRaw.([]any)
+	if !ok {
+		return nil
+	}
+
+	// All currently defined node types (including loops) are supported by the
+	// automation executor; keep hook for future capability checks.
+	return nil
+}
+
+func extractString(m map[string]any, key string) string {
+	if m == nil {
+		return ""
+	}
+	if v, ok := m[key]; ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
+// executeWithAutomationEngine is the sole execution path; the legacy
+// browserless.Client is quarantined for parity tests and is not invoked here.
+func (s *WorkflowService) executeWithAutomationEngine(ctx context.Context, execution *database.Execution, workflow *database.Workflow, selection autoengine.SelectionConfig, eventSink autoevents.EventSink) error {
+	if s == nil {
+		return errors.New("workflow service not configured")
+	}
+
+	plan, _, err := autoexecutor.BuildContractsPlan(ctx, execution.ID, workflow)
+	if err != nil {
+		return err
+	}
+
+	if s.executor == nil {
+		s.executor = autoexecutor.NewSimpleExecutor(nil)
+	}
+	if s.engineFactory == nil {
+		if eng, engErr := autoengine.NewBrowserlessEngine(s.log); engErr == nil {
+			s.engineFactory = autoengine.NewStaticFactory(eng)
+		} else {
+			return engErr
+		}
+	}
+	if s.artifactRecorder == nil {
+		s.artifactRecorder = autorecorder.NewDBRecorder(s.repo, nil, s.log)
+	}
+
+	if eventSink == nil {
+		eventSink = autoevents.NewWSHubSink(s.wsHub, s.log, autocontracts.DefaultEventBufferLimits)
+	}
+
+	req := autoexecutor.Request{
+		Plan:              plan,
+		EngineName:        selection.Resolve(""),
+		EngineFactory:     s.engineFactory,
+		Recorder:          s.artifactRecorder,
+		EventSink:         eventSink,
+		HeartbeatInterval: 2 * time.Second,
+	}
+	return s.executor.Execute(ctx, req)
 }

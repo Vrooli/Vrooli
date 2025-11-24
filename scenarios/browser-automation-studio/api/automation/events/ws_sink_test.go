@@ -273,6 +273,15 @@ func TestWSHubSinkDropsTelemetryWhenBufferFull(t *testing.T) {
 			t.Fatalf("expected drop counters to reflect missing sequence %d, got %+v", missing, dropsSeen)
 		}
 	}
+
+	// Ensure drops metadata flows through WS payload wrapper.
+	lastPayload, ok := updates[len(updates)-1].Data.(browserlessEvents.Event)
+	if !ok {
+		t.Fatalf("expected browserless event payload, got %T", updates[len(updates)-1].Data)
+	}
+	if drops, ok := lastPayload.Payload["drops"].(contracts.DropCounters); !ok || drops.Dropped == 0 {
+		t.Fatalf("expected drops metadata propagated in WS payload, got %+v", lastPayload.Payload["drops"])
+	}
 }
 
 type updatesReader interface {

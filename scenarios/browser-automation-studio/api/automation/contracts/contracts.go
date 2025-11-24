@@ -31,6 +31,11 @@ const (
 const (
 	// DOMSnapshotMaxBytes caps the HTML snapshot length before truncation.
 	DOMSnapshotMaxBytes = 512 * 1024
+	// ScreenshotMaxBytes caps inline screenshot payload size to prevent oversized artifacts.
+	ScreenshotMaxBytes = 512 * 1024
+	// Default screenshot dimensions when engine omits them.
+	DefaultScreenshotWidth  = 800
+	DefaultScreenshotHeight = 600
 	// ConsoleEntryMaxBytes caps the size of a single console entry before
 	// truncation.
 	ConsoleEntryMaxBytes = 16 * 1024

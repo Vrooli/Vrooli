@@ -5,7 +5,7 @@ Interfaces and implementations that run browser instructions.
 What lives here:
 - `AutomationEngine` / `EngineSession`: StartSession → Run/Reset/Close
 - `SessionSpec`: execution/workflow IDs, viewport, reuse mode, capability requirements
-- Env-based selection (`ENGINE`, `ENGINE_OVERRIDE`, `ENGINE_FEATURE_FLAG`, `ENGINE_SHADOW_MODE`) via `selection.go`
+- Env-based selection (`ENGINE`, `ENGINE_OVERRIDE`) via `selection.go`
 - Static factory for dependency injection
 - `BrowserlessEngine`: thin adapter over CDP session; converts runtime responses → contract `StepOutcome`
 

@@ -92,11 +92,12 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 		Capabilities:   requirements,
 	}
 
-	session, err := eng.StartSession(ctx, spec)
-	if err != nil {
-		return fmt.Errorf("start session: %w", err)
-	}
-	defer session.Close(context.Background()) // Best-effort cleanup.
+	var session engine.EngineSession
+	defer func() {
+		if session != nil {
+			_ = session.Close(context.Background()) // Best-effort cleanup.
+		}
+	}()
 
 	seedVars := map[string]any{}
 	if metaVars, ok := req.Plan.Metadata["variables"].(map[string]any); ok {
@@ -107,7 +108,9 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 	state := newFlowState(seedVars)
 
 	if req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0 {
-		return e.executeGraph(ctx, req, eng, spec, session, state, reuseMode)
+		var err error
+		session, err = e.executeGraph(ctx, req, eng, spec, session, state, reuseMode)
+		return err
 	}
 
 	for idx := range req.Plan.Instructions {
@@ -121,7 +124,7 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 		instruction = e.interpolateInstruction(instruction, state)
 
 		if ctx.Err() != nil {
-			if _, cancelErr := e.recordCancelledStep(ctx, req, instruction); cancelErr != nil {
+			if _, cancelErr := e.recordTerminatedStep(ctx, req, instruction, ctx.Err()); cancelErr != nil {
 				return cancelErr
 			}
 			return ctx.Err()
@@ -589,15 +592,19 @@ func executionTimeout(plan contracts.ExecutionPlan) time.Duration {
 	return 0
 }
 
-// recordCancelledStep best-effort persists a cancelled outcome and emits a failed event.
-func (e *SimpleExecutor) recordCancelledStep(ctx context.Context, req Request, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+// recordTerminatedStep best-effort persists an outcome when execution is cancelled or times out,
+// and emits a failed event with appropriate failure taxonomy.
+func (e *SimpleExecutor) recordTerminatedStep(ctx context.Context, req Request, instruction contracts.CompiledInstruction, cause error) (contracts.StepOutcome, error) {
 	startedAt := time.Now().UTC()
-	outcome := e.normalizeOutcome(req.Plan, instruction, 1, startedAt, contracts.StepOutcome{}, context.Canceled)
+	if cause == nil {
+		cause = context.Canceled
+	}
+	outcome := e.normalizeOutcome(req.Plan, instruction, 1, startedAt, contracts.StepOutcome{}, cause)
 
 	persistCtx := context.WithoutCancel(ctx)
 	recordResult, recordErr := req.Recorder.RecordStepOutcome(persistCtx, req.Plan, outcome)
 	if recordErr != nil {
-		return outcome, fmt.Errorf("record cancelled step outcome: %w", recordErr)
+		return outcome, fmt.Errorf("record terminated step outcome: %w", recordErr)
 	}
 
 	payload := map[string]any{
@@ -609,5 +616,5 @@ func (e *SimpleExecutor) recordCancelledStep(ctx context.Context, req Request, i
 	}
 	e.emitEvent(persistCtx, req, contracts.EventKindStepFailed, &outcome.StepIndex, &outcome.Attempt, payload)
 
-	return outcome, context.Canceled
+	return outcome, cause
 }

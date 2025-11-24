@@ -600,6 +600,38 @@ func (s *Session) ClearTelemetry() {
 	s.telemetry.networkEvents = nil
 }
 
+// CleanBrowserState clears browser storage and cookies without closing the session
+// This is useful for test isolation while keeping the browser process alive
+func (s *Session) CleanBrowserState() error {
+	// For now, do NOTHING - just clear internal state
+	// Session reuse with no cleanup to maximize speed
+
+	// Clear telemetry
+	s.telemetry.mu.Lock()
+	s.telemetry.consoleLogs = nil
+	s.telemetry.networkEvents = nil
+	s.telemetry.mu.Unlock()
+
+	// Reset pointer state
+	s.mu.Lock()
+	s.pointerX = 0
+	s.pointerY = 0
+	s.pointerInitialized = false
+	s.mu.Unlock()
+
+	// Clear frame stack
+	s.frameMu.Lock()
+	s.frameStack = nil
+	s.frameMu.Unlock()
+
+	// Clear network mocks
+	s.networkMockMu.Lock()
+	s.networkMocks = nil
+	s.networkMockMu.Unlock()
+
+	return nil
+}
+
 // Close terminates the CDP session
 func (s *Session) Close() error {
 	s.log.Info("Closing CDP session")

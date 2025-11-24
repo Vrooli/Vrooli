@@ -10,7 +10,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/browserless"
+	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
+	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
+	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers/ai"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
@@ -49,6 +51,7 @@ type WorkflowService interface {
 	DeleteProject(ctx context.Context, projectID uuid.UUID) error
 	ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error)
 	DeleteProjectWorkflows(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error
+	CheckAutomationHealth(ctx context.Context) (bool, error)
 }
 
 // Handler contains all HTTP handlers
@@ -61,7 +64,6 @@ type Handler struct {
 	workflowService   WorkflowService
 	workflowValidator *workflowvalidator.Validator
 	repo              database.Repository
-	browserless       *browserless.Client
 	wsHub             wsHub.HubInterface
 	storage           storage.StorageInterface
 	recordingService  services.RecordingServiceInterface
@@ -103,7 +105,7 @@ type HealthResponse struct {
 }
 
 // NewHandler creates a new handler instance
-func NewHandler(repo database.Repository, browserless *browserless.Client, wsHub *wsHub.Hub, log *logrus.Logger, allowAllOrigins bool, allowedOrigins []string) *Handler {
+func NewHandler(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, allowAllOrigins bool, allowedOrigins []string) *Handler {
 	// Initialize MinIO client for screenshot serving
 	storageClient, err := storage.NewMinIOClient(log)
 	if err != nil {
@@ -112,7 +114,21 @@ func NewHandler(repo database.Repository, browserless *browserless.Client, wsHub
 
 	recordingsRoot := paths.ResolveRecordingsRoot(log)
 	recordingService := services.NewRecordingService(repo, storageClient, wsHub, log, recordingsRoot)
-	workflowSvc := services.NewWorkflowService(repo, browserless, wsHub, log)
+	// Wire automation stack (feature-flag protected inside service).
+	autoExecutor := autoexecutor.NewSimpleExecutor(nil)
+	var autoEngineFactory autoengine.Factory
+	if eng, engErr := autoengine.NewBrowserlessEngine(log); engErr == nil {
+		autoEngineFactory = autoengine.NewStaticFactory(eng)
+	} else {
+		log.WithError(engErr).Warn("Failed to initialize browserless automation engine; automation executor will be disabled")
+	}
+	autoRecorder := autorecorder.NewDBRecorder(repo, storageClient, log)
+
+	workflowSvc := services.NewWorkflowServiceWithDeps(repo, wsHub, log, services.WorkflowServiceOptions{
+		Executor:         autoExecutor,
+		EngineFactory:    autoEngineFactory,
+		ArtifactRecorder: autoRecorder,
+	})
 	replayRenderer := services.NewReplayRenderer(log, recordingsRoot)
 
 	allowedCopy := append([]string(nil), allowedOrigins...)
@@ -126,7 +142,6 @@ func NewHandler(repo database.Repository, browserless *browserless.Client, wsHub
 		workflowService:   workflowSvc,
 		workflowValidator: validatorInstance,
 		repo:              repo,
-		browserless:       browserless,
 		wsHub:             wsHub,
 		storage:           storageClient,
 		recordingService:  recordingService,

@@ -357,7 +357,7 @@ func TestDescribeExecutionExportHandlesZeroFrameExecutions(t *testing.T) {
 
 	log := logrus.New()
 	log.SetOutput(io.Discard)
-	svc := NewWorkflowService(repo, nil, nil, log)
+	svc := NewWorkflowService(repo, nil, log)
 
 	preview, err := svc.DescribeExecutionExport(context.Background(), executionID)
 	if err != nil {
@@ -405,7 +405,7 @@ func TestDescribeExecutionExportPendingForRunningExecutions(t *testing.T) {
 
 	log := logrus.New()
 	log.SetOutput(io.Discard)
-	svc := NewWorkflowService(repo, nil, nil, log)
+	svc := NewWorkflowService(repo, nil, log)
 
 	preview, err := svc.DescribeExecutionExport(context.Background(), executionID)
 	if err != nil {
@@ -500,7 +500,7 @@ func TestDescribeExecutionExportReadyIncludesMetrics(t *testing.T) {
 
 	log := logrus.New()
 	log.SetOutput(io.Discard)
-	svc := NewWorkflowService(repo, nil, nil, log)
+	svc := NewWorkflowService(repo, nil, log)
 
 	preview, err := svc.DescribeExecutionExport(context.Background(), executionID)
 	if err != nil {

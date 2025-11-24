@@ -2,21 +2,24 @@ package services
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
+	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
 func (s *WorkflowService) CheckHealth() string {
-	status := "healthy"
-
-	if err := s.browserless.CheckBrowserlessHealth(); err != nil {
-		s.log.WithError(err).Warn("Browserless health check failed")
-		status = "degraded"
+	ok, err := s.CheckAutomationHealth(context.Background())
+	if err != nil || !ok {
+		if s.log != nil && err != nil {
+			s.log.WithError(err).Warn("Automation engine health check failed")
+		}
+		return "degraded"
 	}
 
-	return status
+	return "healthy"
 }
 
 // CreateProject creates a new project
@@ -115,4 +118,31 @@ func (s *WorkflowService) ListWorkflowsByProject(ctx context.Context, projectID 
 		}
 	}
 	return workflows, nil
+}
+
+// CheckAutomationHealth reports whether the configured automation engine is reachable.
+func (s *WorkflowService) CheckAutomationHealth(ctx context.Context) (bool, error) {
+	if s == nil {
+		return false, errors.New("workflow service not configured")
+	}
+
+	engineName := autoengine.FromEnv().Resolve("")
+	factory := s.engineFactory
+
+	if factory == nil {
+		engine, err := autoengine.NewBrowserlessEngine(s.log)
+		if err != nil {
+			return false, err
+		}
+		factory = autoengine.NewStaticFactory(engine)
+	}
+
+	eng, err := factory.Resolve(ctx, engineName)
+	if err != nil {
+		return false, err
+	}
+	if _, err := eng.Capabilities(ctx); err != nil {
+		return false, err
+	}
+	return true, nil
 }

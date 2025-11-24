@@ -14,9 +14,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/browserless"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
@@ -149,6 +149,8 @@ type workflowServiceMock struct {
 	restoreWorkflowVersionFn  func(ctx context.Context, workflowID uuid.UUID, version int, changeDescription string) (*database.Workflow, error)
 	describeExecutionExportFn func(ctx context.Context, executionID uuid.UUID) (*services.ExecutionExportPreview, error)
 	executeAdhocWorkflowFn    func(ctx context.Context, flowDefinition map[string]any, parameters map[string]any, name string) (*database.Execution, error)
+	automationHealthy         bool
+	automationErr             error
 }
 
 func (m *workflowServiceMock) CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error) {
@@ -274,21 +276,31 @@ func (m *workflowServiceMock) DeleteProjectWorkflows(ctx context.Context, projec
 	return errors.New("not implemented")
 }
 
+func (m *workflowServiceMock) ExportToFolder(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error {
+	return errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) CheckAutomationHealth(ctx context.Context) (bool, error) {
+	if m.automationErr != nil {
+		return false, m.automationErr
+	}
+	if m.automationHealthy {
+		return true, nil
+	}
+	return false, nil
+}
+
 // TestNewHandler verifies handler initialization with all dependencies
 func TestNewHandler(t *testing.T) {
-	// Set required environment variables for testing
-	t.Setenv("BROWSERLESS_URL", "http://localhost:3000")
-
 	log := logrus.New()
 	log.SetOutput(io.Discard) // Suppress output during tests
 
 	// Create mock dependencies
 	repo := &mockRepository{}
-	browserlessClient := browserless.NewClient(log, repo)
 	hub := wsHub.NewHub(log)
 
 	// Initialize handler
-	handler := NewHandler(repo, browserlessClient, hub, log, true, nil)
+	handler := NewHandler(repo, hub, log, true, nil)
 
 	if handler == nil {
 		t.Fatal("Expected handler to be initialized, got nil")
@@ -302,10 +314,6 @@ func TestNewHandler(t *testing.T) {
 		t.Error("Expected repository to be set")
 	}
 
-	if handler.browserless == nil {
-		t.Error("Expected browserless client to be set")
-	}
-
 	if handler.wsHub == nil {
 		t.Error("Expected WebSocket hub to be set")
 	}
@@ -317,16 +325,13 @@ func TestNewHandler(t *testing.T) {
 
 // TestHandlerUpgraderConfiguration verifies WebSocket upgrader settings
 func TestHandlerUpgraderConfiguration(t *testing.T) {
-	t.Setenv("BROWSERLESS_URL", "http://localhost:3000")
-
 	log := logrus.New()
 	log.SetOutput(io.Discard)
 
 	repo := &mockRepository{}
-	browserlessClient := browserless.NewClient(log, repo)
 	hub := wsHub.NewHub(log)
 
-	handler := NewHandler(repo, browserlessClient, hub, log, true, nil)
+	handler := NewHandler(repo, hub, log, true, nil)
 
 	// Verify upgrader allows cross-origin by default (needed for iframe embedding)
 	if handler.upgrader.CheckOrigin == nil {
@@ -335,17 +340,14 @@ func TestHandlerUpgraderConfiguration(t *testing.T) {
 }
 
 func TestHandlerWebSocketOriginEnforcement(t *testing.T) {
-	t.Setenv("BROWSERLESS_URL", "http://localhost:3000")
-
 	log := logrus.New()
 	log.SetOutput(io.Discard)
 
 	repo := &mockRepository{}
-	browserlessClient := browserless.NewClient(log, repo)
 	hub := wsHub.NewHub(log)
 
 	allowed := []string{"http://allowed.local"}
-	handler := NewHandler(repo, browserlessClient, hub, log, false, allowed)
+	handler := NewHandler(repo, hub, log, false, allowed)
 
 	goodReq := httptest.NewRequest(http.MethodGet, "/ws", nil)
 	goodReq.Header.Set("Origin", "http://allowed.local")
@@ -362,22 +364,18 @@ func TestHandlerWebSocketOriginEnforcement(t *testing.T) {
 
 // TestHandlerDependencies verifies all critical dependencies are present
 func TestHandlerDependencies(t *testing.T) {
-	t.Setenv("BROWSERLESS_URL", "http://localhost:3000")
-
 	log := logrus.New()
 	log.SetOutput(io.Discard)
 
 	tests := []struct {
 		name        string
 		repo        database.Repository
-		browserless *browserless.Client
 		wsHub       *wsHub.Hub
 		shouldPanic bool
 	}{
 		{
 			name:        "all dependencies present",
 			repo:        &mockRepository{},
-			browserless: browserless.NewClient(log, &mockRepository{}),
 			wsHub:       wsHub.NewHub(log),
 			shouldPanic: false,
 		},
@@ -392,7 +390,7 @@ func TestHandlerDependencies(t *testing.T) {
 				}
 			}()
 
-			handler := NewHandler(tt.repo, tt.browserless, tt.wsHub, log, true, nil)
+			handler := NewHandler(tt.repo, tt.wsHub, log, true, nil)
 			if !tt.shouldPanic && handler == nil {
 				t.Error("Expected handler to be created")
 			}

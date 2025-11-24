@@ -11,7 +11,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/browserless"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
@@ -102,14 +101,11 @@ func main() {
 	hub := wsHub.NewHub(log)
 	go hub.Run()
 
-	// Initialize browserless client
-	browserlessClient := browserless.NewClient(log, repo)
-
 	// Resolve allowed origins before constructing handlers
 	corsCfg := resolveAllowedOrigins()
 
 	// Initialize handlers
-	handler := handlers.NewHandler(repo, browserlessClient, hub, log, corsCfg.allowAll, corsCfg.allowedOrigins)
+	handler := handlers.NewHandler(repo, hub, log, corsCfg.allowAll, corsCfg.allowedOrigins)
 
 	// Get port configuration - required from lifecycle system
 	port := os.Getenv("API_PORT")

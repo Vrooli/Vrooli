@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
@@ -30,6 +31,47 @@ func (s *flowState) get(key string) (any, bool) {
 	}
 	v, ok := s.vars[key]
 	return v, ok
+}
+
+// resolve supports dot/index path resolution (e.g., user.name, items.0) and
+// falls back to a direct lookup for raw keys.
+func (s *flowState) resolve(path string) (any, bool) {
+	if s == nil {
+		return nil, false
+	}
+	if v, ok := s.get(path); ok {
+		return v, true
+	}
+
+	parts := strings.Split(path, ".")
+	if len(parts) == 0 {
+		return nil, false
+	}
+
+	current, ok := s.get(parts[0])
+	if !ok {
+		return nil, false
+	}
+
+	for _, part := range parts[1:] {
+		switch val := current.(type) {
+		case map[string]any:
+			current, ok = val[part]
+		case []any:
+			idx, err := strconv.Atoi(part)
+			if err != nil || idx < 0 || idx >= len(val) {
+				return nil, false
+			}
+			current = val[idx]
+			ok = true
+		default:
+			return nil, false
+		}
+		if !ok {
+			return nil, false
+		}
+	}
+	return current, true
 }
 
 func (s *flowState) set(key string, value any) {
@@ -107,12 +149,18 @@ func evaluateLoopCondition(params map[string]any, state *flowState) bool {
 		}
 		return compareValues(current, expected, op)
 	case "expression":
-		// Placeholder: expression evaluation not yet implemented; treat non-empty expression as true.
 		expr := strings.TrimSpace(stringValue(params, "conditionExpression"))
 		if expr == "" {
 			expr = strings.TrimSpace(stringValue(params, "loopConditionExpression"))
 		}
-		return expr != ""
+		if expr == "" {
+			return false
+		}
+		result, ok := evaluateExpression(expr, state)
+		if !ok {
+			return false
+		}
+		return result
 	default:
 		return false
 	}
@@ -158,36 +206,207 @@ func toFloat(v any) (float64, bool) {
 	return 0, false
 }
 
-// interpolateInstruction performs simple variable substitution on instruction
-// params/strings using ${var} tokens. Only string values are interpolated.
+// interpolateInstruction performs variable substitution on instruction
+// params/strings using ${var} tokens. Strings, maps, and slices are traversed
+// recursively so nested params get interpolated. Supports dot/index paths
+// (e.g., ${user.name}, ${items.0}).
 func (e *SimpleExecutor) interpolateInstruction(instr contracts.CompiledInstruction, state *flowState) contracts.CompiledInstruction {
 	if state == nil || len(state.vars) == 0 || instr.Params == nil {
 		return instr
 	}
-	clone := make(map[string]any, len(instr.Params))
-	for k, v := range instr.Params {
-		clone[k] = interpolateValue(v, state)
+	if params, ok := interpolateValue(instr.Params, state).(map[string]any); ok {
+		instr.Params = params
 	}
-	instr.Params = clone
 	return instr
 }
 
 func interpolateValue(v any, state *flowState) any {
-	s, ok := v.(string)
-	if !ok {
+	switch typed := v.(type) {
+	case string:
+		return interpolateString(typed, state)
+	case map[string]any:
+		clone := make(map[string]any, len(typed))
+		for key, val := range typed {
+			clone[key] = interpolateValue(val, state)
+		}
+		return clone
+	case []any:
+		out := make([]any, len(typed))
+		for i, val := range typed {
+			out[i] = interpolateValue(val, state)
+		}
+		return out
+	default:
 		return v
 	}
+}
+
+func interpolateString(s string, state *flowState) string {
 	if !strings.Contains(s, "${") {
 		return s
 	}
+
 	out := s
-	for key, val := range state.vars {
-		placeholder := "${" + key + "}"
-		if strings.Contains(out, placeholder) {
-			out = strings.ReplaceAll(out, placeholder, fmt.Sprint(val))
+	for {
+		start := strings.Index(out, "${")
+		if start == -1 {
+			break
+		}
+		end := strings.Index(out[start:], "}")
+		if end == -1 {
+			break
+		}
+		end = start + end
+		token := out[start+2 : end]
+
+		if resolved, ok := state.resolve(token); ok {
+			out = out[:start] + stringify(resolved) + out[end+1:]
+		} else {
+			// Drop unresolved token to avoid infinite loops.
+			out = out[:start] + out[end+1:]
 		}
 	}
 	return out
+}
+
+func stringify(val any) string {
+	switch t := val.(type) {
+	case string:
+		return t
+	case []byte:
+		return string(t)
+	case fmt.Stringer:
+		return t.String()
+	default:
+		if b, err := json.Marshal(t); err == nil {
+			return string(b)
+		}
+		return fmt.Sprint(t)
+	}
+}
+
+// evaluateExpression supports simple boolean expressions such as:
+// - true/false literals
+// - ${var} == 3
+// - ${var} != "ok"
+// - ${count} > 1
+// Whitespace around tokens is allowed. Only a single binary comparison is supported today.
+func evaluateExpression(expr string, state *flowState) (bool, bool) {
+	expr = strings.TrimSpace(expr)
+	if expr == "" {
+		return false, false
+	}
+
+	// Literal booleans
+	if strings.EqualFold(expr, "true") {
+		return true, true
+	}
+	if strings.EqualFold(expr, "false") {
+		return false, true
+	}
+
+	tokens := tokenizeExpression(expr)
+	if len(tokens) != 3 {
+		return false, false
+	}
+
+	left := resolveOperand(tokens[0], state)
+	right := resolveOperand(tokens[2], state)
+	return compareValues(left.val, right.val, tokens[1]), true
+}
+
+type operand struct {
+	val any
+}
+
+func resolveOperand(token string, state *flowState) operand {
+	token = strings.TrimSpace(token)
+	if strings.HasPrefix(token, "${") && strings.HasSuffix(token, "}") {
+		path := strings.TrimSuffix(strings.TrimPrefix(token, "${"), "}")
+		if v, ok := state.resolve(path); ok {
+			return operand{val: v}
+		}
+		return operand{}
+	}
+	if unquoted, ok := unquote(token); ok {
+		return operand{val: unquoted}
+	}
+	if i, err := strconv.Atoi(token); err == nil {
+		return operand{val: i}
+	}
+	if f, err := strconv.ParseFloat(token, 64); err == nil {
+		return operand{val: f}
+	}
+	if b, err := strconv.ParseBool(token); err == nil {
+		return operand{val: b}
+	}
+	return operand{val: token}
+}
+
+func unquote(v string) (string, bool) {
+	if len(v) < 2 {
+		return v, false
+	}
+	start, end := v[0], v[len(v)-1]
+	if (start == '"' && end == '"') || (start == '\'' && end == '\'') {
+		return v[1 : len(v)-1], true
+	}
+	return v, false
+}
+
+// tokenizeExpression splits a simple binary expression into [lhs, op, rhs].
+func tokenizeExpression(expr string) []string {
+	var tokens []string
+	var current strings.Builder
+	inQuote := rune(0)
+
+	flush := func() {
+		if current.Len() > 0 {
+			tokens = append(tokens, current.String())
+			current.Reset()
+		}
+	}
+
+	for _, r := range expr {
+		switch {
+		case inQuote != 0:
+			current.WriteRune(r)
+			if r == inQuote {
+				inQuote = 0
+			}
+		case r == '"' || r == '\'':
+			inQuote = r
+			current.WriteRune(r)
+		case unicode.IsSpace(r):
+			flush()
+		case strings.ContainsRune("=<>!", r):
+			flush()
+			current.WriteRune(r)
+			flush()
+		default:
+			current.WriteRune(r)
+		}
+	}
+	flush()
+
+	// Rejoin multi-char operators if they were split.
+	if len(tokens) >= 3 {
+		reconstructed := make([]string, 0, len(tokens))
+		for i := 0; i < len(tokens); i++ {
+			switch tokens[i] {
+			case "=", "!", ">", "<":
+				if i+1 < len(tokens) && tokens[i+1] == "=" {
+					reconstructed = append(reconstructed, tokens[i]+"=")
+					i++
+					continue
+				}
+			}
+			reconstructed = append(reconstructed, tokens[i])
+		}
+		tokens = reconstructed
+	}
+
+	return tokens
 }
 
 func indexGraph(graph *contracts.PlanGraph) map[string]*contracts.PlanStep {

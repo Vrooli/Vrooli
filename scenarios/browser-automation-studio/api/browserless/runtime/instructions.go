@@ -198,6 +198,7 @@ type InstructionParam struct {
 	FrameSelector           string            `json:"frameSelector,omitempty"`
 	FrameURLMatch           string            `json:"frameUrlMatch,omitempty"`
 	LoopType                string            `json:"loopType,omitempty"`
+	LoopItems               []any             `json:"loopItems,omitempty"`
 	LoopArraySource         string            `json:"loopArraySource,omitempty"`
 	LoopCount               int               `json:"loopCount,omitempty"`
 	LoopConditionExpression string            `json:"loopConditionExpression,omitempty"`
@@ -544,6 +545,7 @@ type conditionalConfig struct {
 type loopConfig struct {
 	LoopType            string `json:"loopType"`
 	ArraySource         string `json:"arraySource"`
+	LoopItems           []any  `json:"loopItems"`
 	Count               int    `json:"count"`
 	MaxIterations       int    `json:"maxIterations"`
 	IterationTimeoutMs  int    `json:"iterationTimeoutMs"`
@@ -1256,10 +1258,14 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		switch loopType {
 		case "foreach":
 			source := strings.TrimSpace(cfg.ArraySource)
-			if source == "" {
-				return Instruction{}, fmt.Errorf("loop node %s requires an arraySource for forEach loops", step.NodeID)
+			// Permit inline loopItems when arraySource is not provided to align with new executor.
+			if source != "" {
+				params.LoopArraySource = source
+			} else if len(cfg.LoopItems) > 0 {
+				params.LoopItems = cfg.LoopItems
+			} else {
+				return Instruction{}, fmt.Errorf("loop node %s requires an arraySource or loopItems for forEach loops", step.NodeID)
 			}
-			params.LoopArraySource = source
 		case "repeat":
 			if cfg.Count <= 0 {
 				return Instruction{}, fmt.Errorf("loop node %s requires count > 0 for repeat loops", step.NodeID)

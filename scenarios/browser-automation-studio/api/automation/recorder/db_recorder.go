@@ -340,15 +340,31 @@ func deriveStepLabel(outcome contracts.StepOutcome) string {
 }
 
 func sanitizeOutcome(out contracts.StepOutcome) contracts.StepOutcome {
+	if out.Notes == nil {
+		out.Notes = map[string]string{}
+	}
+
+	// Screenshot shaping: clamp size and ensure defaults.
+	if out.Screenshot != nil {
+		if len(out.Screenshot.Data) > contracts.ScreenshotMaxBytes {
+			out.Screenshot.Data = out.Screenshot.Data[:contracts.ScreenshotMaxBytes]
+			out.Notes["screenshot_truncated"] = fmt.Sprintf("%d_bytes", contracts.ScreenshotMaxBytes)
+		}
+		if out.Screenshot.MediaType == "" {
+			out.Screenshot.MediaType = "image/png"
+		}
+		if out.Screenshot.Width == 0 || out.Screenshot.Height == 0 {
+			out.Screenshot.Width = contracts.DefaultScreenshotWidth
+			out.Screenshot.Height = contracts.DefaultScreenshotHeight
+		}
+	}
+
 	// DOM truncation
 	if out.DOMSnapshot != nil && len(out.DOMSnapshot.HTML) > contracts.DOMSnapshotMaxBytes {
 		hash := hashString(out.DOMSnapshot.HTML)
 		out.DOMSnapshot.HTML = out.DOMSnapshot.HTML[:contracts.DOMSnapshotMaxBytes]
 		out.DOMSnapshot.Truncated = true
 		out.DOMSnapshot.Hash = hash
-		if out.Notes == nil {
-			out.Notes = map[string]string{}
-		}
 		out.Notes["dom_truncated_hash"] = hash
 	}
 

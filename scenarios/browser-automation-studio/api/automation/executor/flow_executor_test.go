@@ -587,6 +587,96 @@ func TestInterpolateInstructionVariables(t *testing.T) {
 	}
 }
 
+func TestInterpolateInstructionNestedStructuresAndPaths(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	var captured contracts.CompiledInstruction
+	capture := &captureEngine{onRun: func(instr contracts.CompiledInstruction) {
+		captured = instr
+	}}
+
+	plan := contracts.ExecutionPlan{
+		ExecutionID: execID,
+		WorkflowID:  workflowID,
+		Metadata: map[string]any{
+			"variables": map[string]any{
+				"user": map[string]any{
+					"name": "Ada",
+					"id":   123,
+				},
+				"items": []any{"a", "b"},
+			},
+		},
+		Instructions: []contracts.CompiledInstruction{
+			{
+				Index:  0,
+				NodeID: "nav",
+				Type:   "navigate",
+				Params: map[string]any{
+					"url": "https://${user.name}.test/u/${user.id}",
+					"headers": map[string]any{
+						"X-User": "${user.name}",
+						"X-Ids":  []any{"${user.id}", "static", "${items.0}"},
+					},
+					"body": map[string]any{
+						"path": "/user/${user.id}",
+						"tags": []any{"${items.1}", map[string]any{"ref": "${user.name}"}},
+					},
+				},
+			},
+		},
+	}
+
+	exec := NewSimpleExecutor(nil)
+	err := exec.Execute(context.Background(), Request{
+		Plan:              plan,
+		EngineName:        capture.Name(),
+		EngineFactory:     engine.NewStaticFactory(capture),
+		Recorder:          &recordingRecorder{},
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 0,
+	})
+	if err != nil {
+		t.Fatalf("executor returned error: %v", err)
+	}
+
+	url, _ := captured.Params["url"].(string)
+	if url != "https://Ada.test/u/123" {
+		t.Fatalf("expected url interpolation, got %s", url)
+	}
+	headers, ok := captured.Params["headers"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected headers map, got %T", captured.Params["headers"])
+	}
+	if headers["X-User"] != "Ada" {
+		t.Fatalf("expected X-User Ada, got %v", headers["X-User"])
+	}
+	ids, ok := headers["X-Ids"].([]any)
+	if !ok || len(ids) != 3 || ids[0] != "123" || ids[2] != "a" {
+		t.Fatalf("expected X-Ids interpolation, got %+v", ids)
+	}
+
+	body, ok := captured.Params["body"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected body map, got %T", captured.Params["body"])
+	}
+	if body["path"] != "/user/123" {
+		t.Fatalf("expected path interpolation, got %v", body["path"])
+	}
+	tags, ok := body["tags"].([]any)
+	if !ok || len(tags) != 2 {
+		t.Fatalf("expected tags slice, got %+v", body["tags"])
+	}
+	if tags[0] != "b" {
+		t.Fatalf("expected first tag 'b', got %v", tags[0])
+	}
+	nested, ok := tags[1].(map[string]any)
+	if !ok || nested["ref"] != "Ada" {
+		t.Fatalf("expected nested ref Ada, got %+v", nested)
+	}
+}
+
 // flowStubEngine/flowStubSession keep flow tests deterministic without clashing with other helpers.
 type flowStubEngine struct {
 	outcomes map[int]contracts.StepOutcome

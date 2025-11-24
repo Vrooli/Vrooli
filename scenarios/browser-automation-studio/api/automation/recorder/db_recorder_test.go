@@ -56,6 +56,33 @@ func TestSanitizeOutcomeConsoleTruncation(t *testing.T) {
 	}
 }
 
+func TestSanitizeOutcomeScreenshotClamping(t *testing.T) {
+	oversized := make([]byte, contracts.ScreenshotMaxBytes+10)
+	for i := range oversized {
+		oversized[i] = 0x01
+	}
+	out := sanitizeOutcome(contracts.StepOutcome{
+		Screenshot: &contracts.Screenshot{
+			Data: oversized,
+		},
+	})
+	if out.Screenshot == nil {
+		t.Fatalf("expected screenshot to remain present")
+	}
+	if len(out.Screenshot.Data) != contracts.ScreenshotMaxBytes {
+		t.Fatalf("expected screenshot to be clamped to %d bytes, got %d", contracts.ScreenshotMaxBytes, len(out.Screenshot.Data))
+	}
+	if out.Screenshot.MediaType == "" {
+		t.Fatalf("expected default media type set")
+	}
+	if out.Screenshot.Width == 0 || out.Screenshot.Height == 0 {
+		t.Fatalf("expected default dimensions set")
+	}
+	if out.Notes["screenshot_truncated"] == "" {
+		t.Fatalf("expected screenshot_truncated note set")
+	}
+}
+
 func TestSanitizeOutcomeNetworkTruncation(t *testing.T) {
 	long := strings.Repeat("y", contracts.NetworkPayloadPreviewMaxBytes+10)
 	now := time.Now()
