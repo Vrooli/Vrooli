@@ -65,6 +65,9 @@ type Processor struct {
 	// Root of the Vrooli workspace for resource CLI commands
 	vrooliRoot string
 
+	// Scenario root (parent of queue dir) for local artifact writes
+	scenarioRoot string
+
 	// Folder where we persist per-task execution logs
 	taskLogsDir string
 
@@ -110,6 +113,7 @@ func NewProcessor(interval time.Duration, storage *tasks.Storage, assembler *pro
 	}
 
 	processor.vrooliRoot = paths.DetectVrooliRoot()
+	processor.scenarioRoot = filepath.Dir(storage.QueueDir)
 	processor.taskLogsDir = filepath.Join(storage.QueueDir, "..", "logs", "task-runs")
 	if err := os.MkdirAll(processor.taskLogsDir, 0755); err != nil {
 		log.Printf("Warning: unable to create task logs directory %s: %v", processor.taskLogsDir, err)

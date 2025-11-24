@@ -191,11 +191,20 @@ const normalizeTaskTargets = (task: any): Task => {
         task_title: currentProcess.task_title ?? task.title,
       })
     : undefined;
+  const completionCount =
+    typeof task.completion_count === 'number'
+      ? task.completion_count
+      : typeof task.completionCount === 'number'
+        ? task.completionCount
+        : 0;
+  const lastCompletedAt = task.last_completed_at ?? task.lastCompletedAt ?? '';
 
   return {
     ...task,
     target: rawTargets.filter(Boolean),
     current_process: normalizedProcess,
+    completion_count: completionCount,
+    last_completed_at: lastCompletedAt,
     // Backend uses processor_auto_requeue; UI expects auto_requeue
     auto_requeue: task.auto_requeue ?? task.processor_auto_requeue ?? false,
   };
@@ -271,6 +280,9 @@ const normalizeExecution = (raw: any): ExecutionHistory => {
     prompt_size: raw?.prompt_size ?? raw?.PromptSize,
     prompt_path: raw?.prompt_path ?? raw?.PromptPath ?? raw?.promptPath,
     output_path: raw?.output_path ?? raw?.OutputPath ?? raw?.outputPath,
+    clean_output_path: raw?.clean_output_path ?? raw?.CleanOutputPath ?? raw?.cleanOutputPath,
+    last_message_path: raw?.last_message_path ?? raw?.LastMessagePath ?? raw?.lastMessagePath,
+    transcript_path: raw?.transcript_path ?? raw?.TranscriptPath ?? raw?.transcriptPath,
     timeout_allowed: timeoutAllowed,
     rate_limited: rateLimited,
     retry_after: raw?.retry_after ?? raw?.RetryAfter,

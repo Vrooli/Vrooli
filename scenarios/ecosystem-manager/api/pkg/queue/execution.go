@@ -185,7 +185,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 	log.Printf("Task %s: Prompt size: %d characters (%.2f KB / %.2f MB)", task.ID, len(prompt), promptSizeKB, promptSizeMB)
 
 	// Call Claude Code resource
-	result, cleanup, err := qp.callClaudeCode(prompt, task, executionStartTime, timeoutDuration, &history)
+	result, cleanup, err := qp.callClaudeCode(prompt, task, executionID, executionStartTime, timeoutDuration, &history)
 	executionTime := time.Since(executionStartTime)
 
 	// Handle Claude Code execution errors
@@ -470,7 +470,7 @@ func (qp *Processor) handleTaskFailureWithTiming(task *tasks.TaskItem, errorMsg 
 }
 
 // callClaudeCode executes Claude Code while streaming logs for real-time monitoring
-func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTime time.Time, timeoutDuration time.Duration, history *ExecutionHistory) (*tasks.ClaudeCodeResponse, func(), error) {
+func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, executionID string, startTime time.Time, timeoutDuration time.Duration, history *ExecutionHistory) (*tasks.ClaudeCodeResponse, func(), error) {
 	cleanup := func() {}
 	log.Printf("Executing Claude Code for task %s (prompt length: %d characters, timeout: %v)", task.ID, len(prompt), timeoutDuration)
 
@@ -497,6 +497,12 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		return &tasks.ClaudeCodeResponse{Success: false, Error: msg}, cleanup, nil
 	}
 
+	execDir := qp.getExecutionDir(task.ID, executionID)
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
+		log.Printf("Warning: failed to ensure execution directory %s: %v", execDir, err)
+	}
+	transcriptFile, lastMessageFile := createTranscriptPaths(execDir, agentTag, time.Now)
+
 	cmd := exec.CommandContext(ctx, ClaudeCodeResourceCommand, "run", "--tag", agentTag, "-")
 	cmd.Dir = vrooliRoot
 
@@ -505,6 +511,12 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 	if currentSettings.SkipPermissions {
 		skipPermissionsValue = "yes"
 	}
+	codexSkipValue := "false"
+	codexSkipConfirm := "false"
+	if currentSettings.SkipPermissions {
+		codexSkipValue = "true"
+		codexSkipConfirm = "true"
+	}
 
 	cmd.Env = append(os.Environ(),
 		"MAX_TURNS="+strconv.Itoa(currentSettings.MaxTurns),
@@ -512,6 +524,14 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		"TIMEOUT="+strconv.Itoa(timeoutSeconds),
 		"SKIP_PERMISSIONS="+skipPermissionsValue,
 		"AGENT_TAG="+agentTag,
+		"CODEX_MAX_TURNS="+strconv.Itoa(currentSettings.MaxTurns),
+		"CODEX_ALLOWED_TOOLS="+currentSettings.AllowedTools,
+		"CODEX_TIMEOUT="+strconv.Itoa(timeoutSeconds),
+		"CODEX_SKIP_PERMISSIONS="+codexSkipValue,
+		"CODEX_SKIP_CONFIRMATIONS="+codexSkipConfirm,
+		"CODEX_AGENT_TAG="+agentTag,
+		"CODEX_TRANSCRIPT_FILE="+transcriptFile,
+		"CODEX_LAST_MESSAGE_FILE="+lastMessageFile,
 	)
 
 	log.Printf("Claude execution settings: MAX_TURNS=%d, ALLOWED_TOOLS=%s, SKIP_PERMISSIONS=%v, TIMEOUT=%ds (%dm)",
@@ -741,6 +761,24 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		close(stopWatch)
 	})
 
+	finalMessage := extractFinalAgentMessage(combinedOutput)
+	if msg := readLastMessageFile(lastMessageFile); msg != "" {
+		finalMessage = msg
+	}
+	persistArtifacts := func(res *tasks.ClaudeCodeResponse) *tasks.ClaudeCodeResponse {
+		cleanRel, lastRel, transcriptRel := qp.saveCleanOutputs(task.ID, executionID, execDir, prompt, combinedOutput, finalMessage, transcriptFile, lastMessageFile)
+		if history != nil {
+			history.LastMessagePath = lastRel
+			history.TranscriptPath = transcriptRel
+			history.CleanOutputPath = cleanRel
+		}
+		res.FinalMessage = finalMessage
+		res.LastMessagePath = lastRel
+		res.TranscriptPath = transcriptRel
+		res.CleanOutputPath = cleanRel
+		return res
+	}
+
 	ctxErr := ctx.Err()
 
 	// Timeout takes precedence regardless of wait error
@@ -755,7 +793,7 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		actualRuntime := time.Since(startTime).Round(time.Second)
 		msg := fmt.Sprintf("⏰ TIMEOUT: Task execution exceeded %v limit (ran for %v)\n\nThe task was automatically terminated because it exceeded the configured timeout.\nConsider:\n- Increasing timeout in Settings if this is a complex task\n- Breaking the task into smaller parts\n- Checking for blocking steps in the prompt", timeoutDuration, actualRuntime)
 		qp.appendTaskLog(task.ID, agentTag, "stderr", msg)
-		return &tasks.ClaudeCodeResponse{Success: false, Error: msg, Output: combinedOutput}, cleanup, nil
+		return persistArtifacts(&tasks.ClaudeCodeResponse{Success: false, Error: msg, Output: combinedOutput}), cleanup, nil
 	}
 
 	if waitErr != nil {
@@ -770,32 +808,32 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		if waitErr != nil && atomic.LoadInt32(&idleTriggered) == 1 {
 			idleMsg := fmt.Sprintf("IDLE TIMEOUT: No Claude output for %v (idle cap %v). The watchdog cancelled execution. Increase the Idle Timeout Cap in Settings or emit periodic heartbeats during long operations.", idleLimitRounded, idleCapRounded)
 			qp.appendTaskLog(task.ID, agentTag, "stderr", idleMsg)
-			return &tasks.ClaudeCodeResponse{
+			return persistArtifacts(&tasks.ClaudeCodeResponse{
 				Success:     false,
 				Error:       idleMsg,
 				Output:      combinedOutput,
 				IdleTimeout: true,
-			}, cleanup, nil
+			}), cleanup, nil
 		}
 
 		if waitErr != nil {
 			if detectMaxTurnsExceeded(combinedOutput) {
 				maxTurnsMsg := fmt.Sprintf("Claude reached the configured MAX_TURNS limit (%d). Consider simplifying the task or increasing the limit in Settings.", currentSettings.MaxTurns)
 				qp.appendTaskLog(task.ID, agentTag, "stderr", maxTurnsMsg)
-				return &tasks.ClaudeCodeResponse{
+				return persistArtifacts(&tasks.ClaudeCodeResponse{
 					Success:          false,
 					Error:            maxTurnsMsg,
 					Output:           combinedOutput,
 					MaxTurnsExceeded: true,
-				}, cleanup, nil
+				}), cleanup, nil
 			}
 
 			if response, handled := qp.handleNonZeroExit(waitErr, combinedOutput, task, agentTag, currentSettings.MaxTurns, time.Since(startTime)); handled {
-				return response, cleanup, nil
+				return persistArtifacts(response), cleanup, nil
 			}
 
 			log.Printf("Claude Code process errored for task %s: %v", task.ID, waitErr)
-			return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to execute Claude Code: %v", waitErr), Output: combinedOutput}, cleanup, nil
+			return persistArtifacts(&tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to execute Claude Code: %v", waitErr), Output: combinedOutput}), cleanup, nil
 		}
 	}
 
@@ -813,31 +851,31 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		// Only trigger rate limit handling if within detection window OR exit code was 429
 		if !detection.CheckWindow || elapsed <= ratelimit.DetectionWindow {
 			qp.appendTaskLog(task.ID, agentTag, "stderr", fmt.Sprintf("🚫 Rate limit detected. Suggested backoff %d seconds", detection.RetryAfter))
-			return &tasks.ClaudeCodeResponse{
+			return persistArtifacts(&tasks.ClaudeCodeResponse{
 				Success:     false,
 				Error:       "RATE_LIMIT: API rate limit reached",
 				RateLimited: true,
 				RetryAfter:  detection.RetryAfter,
 				Output:      combinedOutput,
-			}, cleanup, nil
+			}), cleanup, nil
 		}
 	}
 
 	if detectMaxTurnsExceeded(combinedOutput) {
 		maxTurnsMsg := fmt.Sprintf("Claude reached the configured MAX_TURNS limit (%d). Consider simplifying the task or increasing the limit in Settings.", currentSettings.MaxTurns)
 		qp.appendTaskLog(task.ID, agentTag, "stderr", maxTurnsMsg)
-		return &tasks.ClaudeCodeResponse{
+		return persistArtifacts(&tasks.ClaudeCodeResponse{
 			Success:          false,
 			Error:            maxTurnsMsg,
 			Output:           combinedOutput,
 			MaxTurnsExceeded: true,
-		}, cleanup, nil
+		}), cleanup, nil
 	}
 
 	if strings.Contains(strings.ToLower(combinedOutput), "error:") {
 		msg := "Claude execution reported an error – review output for details."
 		qp.appendTaskLog(task.ID, agentTag, "stderr", msg)
-		return &tasks.ClaudeCodeResponse{Success: false, Error: msg, Output: combinedOutput}, cleanup, nil
+		return persistArtifacts(&tasks.ClaudeCodeResponse{Success: false, Error: msg, Output: combinedOutput}), cleanup, nil
 	}
 
 	log.Printf("Claude Code completed successfully for task %s (output length: %d characters)", task.ID, len(combinedOutput))
@@ -851,11 +889,11 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 	qp.broadcastUpdate("claude_execution_complete", task)
 
 	completed = true
-	return &tasks.ClaudeCodeResponse{
+	return persistArtifacts(&tasks.ClaudeCodeResponse{
 		Success: true,
 		Message: "Task completed successfully",
 		Output:  combinedOutput,
-	}, cleanup, nil
+	}), cleanup, nil
 }
 
 func (qp *Processor) handleNonZeroExit(waitErr error, combinedOutput string, task tasks.TaskItem, agentTag string, maxTurns int, elapsed time.Duration) (*tasks.ClaudeCodeResponse, bool) {
@@ -897,6 +935,26 @@ func (qp *Processor) handleNonZeroExit(waitErr error, combinedOutput string, tas
 func detectMaxTurnsExceeded(output string) bool {
 	lower := strings.ToLower(output)
 	return strings.Contains(lower, "max turns") && strings.Contains(lower, "reached")
+}
+
+func createTranscriptPaths(execDir, agentTag string, now func() time.Time) (string, string) {
+	if now == nil {
+		now = time.Now
+	}
+	_ = os.MkdirAll(execDir, 0o755)
+	base := fmt.Sprintf("%s-%d", sanitizeForFilename(agentTag), now().UnixNano())
+	return filepath.Join(execDir, fmt.Sprintf("%s-conversation.jsonl", base)),
+		filepath.Join(execDir, fmt.Sprintf("%s-last.txt", base))
+}
+
+func sanitizeForFilename(input string) string {
+	replacer := strings.NewReplacer(" ", "-", "/", "-", "\\", "-", ":", "-", "|", "-", "*", "-", "?", "-", "\"", "-", "<", "-", ">", "-", "%", "-", "$", "-", "@", "-", "!", "-", "#", "-")
+	trimmed := strings.TrimSpace(input)
+	sanitized := replacer.Replace(trimmed)
+	if sanitized == "" {
+		return "agent"
+	}
+	return sanitized
 }
 
 func (qp *Processor) ensureValidClaudeConfig() error {
@@ -961,6 +1019,173 @@ func (qp *Processor) resetClaudeConfig(path string, original []byte) error {
 	}
 
 	return nil
+}
+
+func fileExistsAndNotEmpty(path string) bool {
+	if strings.TrimSpace(path) == "" {
+		return false
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.Size() > 0
+}
+
+// extractFinalAgentMessage attempts to pull the final agent-authored content from combined output.
+// This mirrors the app-issue-tracker approach and stays robust even if new agents are added.
+func extractFinalAgentMessage(output string) string {
+	cleaned := strings.TrimSpace(output)
+	if cleaned == "" {
+		return ""
+	}
+
+	lines := strings.Split(cleaned, "\n")
+	for len(lines) > 0 {
+		last := strings.TrimSpace(lines[len(lines)-1])
+		if last == "" || strings.HasPrefix(last, "[20") || strings.HasPrefix(strings.ToUpper(last), "[SUCCESS") {
+			lines = lines[:len(lines)-1]
+			continue
+		}
+		break
+	}
+	cleaned = strings.TrimSpace(strings.Join(lines, "\n"))
+	if cleaned == "" {
+		return ""
+	}
+
+	lower := strings.ToLower(cleaned)
+	if idx := strings.LastIndex(lower, "**summary**"); idx != -1 {
+		cleaned = strings.TrimSpace(cleaned[idx:])
+	} else if idx := strings.LastIndex(lower, "summary:"); idx != -1 {
+		cleaned = strings.TrimSpace(cleaned[idx:])
+	}
+
+	return cleaned
+}
+
+func readLastMessageFile(path string) string {
+	if !fileExistsAndNotEmpty(path) {
+		return ""
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+func writeFallbackTranscript(path, prompt, finalMessage, combinedOutput string) error {
+	if strings.TrimSpace(path) == "" {
+		return nil
+	}
+	if strings.TrimSpace(prompt) == "" && strings.TrimSpace(finalMessage) == "" && strings.TrimSpace(combinedOutput) == "" {
+		return nil
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+	defer writer.Flush()
+
+	entries := []map[string]any{
+		{"sandbox": map[string]any{"provider": "claude-code"}},
+		{"prompt": prompt},
+	}
+
+	if msg := strings.TrimSpace(finalMessage); msg != "" {
+		entries = append(entries, map[string]any{
+			"msg": map[string]any{
+				"role":    "assistant",
+				"content": []map[string]string{{"type": "text", "text": msg}},
+			},
+		})
+	} else if trimmed := strings.TrimSpace(combinedOutput); trimmed != "" {
+		entries = append(entries, map[string]any{
+			"msg": map[string]any{
+				"role":    "assistant",
+				"content": []map[string]string{{"type": "text", "text": trimmed}},
+			},
+		})
+	}
+
+	for _, entry := range entries {
+		data, err := json.Marshal(entry)
+		if err != nil {
+			return err
+		}
+		if _, err := writer.Write(data); err != nil {
+			return err
+		}
+		if err := writer.WriteByte('\n'); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// saveCleanOutputs persists clean agent-facing artifacts (clean output, last message, transcript)
+// alongside the legacy timestamped output.log. Returns relative paths for metadata/bookkeeping.
+func (qp *Processor) saveCleanOutputs(taskID, executionID, execDir, prompt, combinedOutput, finalMessage, transcriptFile, lastMessageFile string) (string, string, string) {
+	makeRel := func(filename string) string {
+		return filepath.Join(taskID, "executions", executionID, filename)
+	}
+
+	// Ensure execution directory exists
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
+		log.Printf("Warning: unable to ensure execution directory %s: %v", execDir, err)
+	}
+
+	var cleanRel, lastRel, transcriptRel string
+
+	// Clean output (no timestamp prefixes)
+	if strings.TrimSpace(combinedOutput) != "" {
+		cleanPath := filepath.Join(execDir, "clean_output.txt")
+		if err := os.WriteFile(cleanPath, []byte(combinedOutput), 0o644); err != nil {
+			log.Printf("Warning: failed to persist clean output for %s/%s: %v", taskID, executionID, err)
+		} else {
+			cleanRel = makeRel("clean_output.txt")
+		}
+	}
+
+	// Last message (prefer agent-written file, otherwise write fallback)
+	lastPath := lastMessageFile
+	if strings.TrimSpace(lastPath) == "" {
+		lastPath = filepath.Join(execDir, "last_message.txt")
+	}
+	if fileExistsAndNotEmpty(lastPath) {
+		lastRel = makeRel(filepath.Base(lastPath))
+	} else if strings.TrimSpace(finalMessage) != "" {
+		if err := os.WriteFile(lastPath, []byte(finalMessage), 0o644); err != nil {
+			log.Printf("Warning: failed to persist last message for %s/%s: %v", taskID, executionID, err)
+		} else {
+			lastRel = makeRel(filepath.Base(lastPath))
+		}
+	}
+
+	// Transcript (prefer agent-written file, otherwise create fallback)
+	transcriptPath := transcriptFile
+	if strings.TrimSpace(transcriptPath) == "" {
+		transcriptPath = filepath.Join(execDir, "conversation.jsonl")
+	}
+	if fileExistsAndNotEmpty(transcriptPath) {
+		transcriptRel = makeRel(filepath.Base(transcriptPath))
+	} else if err := writeFallbackTranscript(transcriptPath, prompt, finalMessage, combinedOutput); err != nil {
+		log.Printf("Warning: failed to persist transcript for %s/%s: %v", taskID, executionID, err)
+	} else {
+		transcriptRel = makeRel(filepath.Base(transcriptPath))
+	}
+
+	return cleanRel, lastRel, transcriptRel
 }
 
 func isValidClaudeConfig(data []byte) bool {

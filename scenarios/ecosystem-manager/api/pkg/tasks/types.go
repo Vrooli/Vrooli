@@ -80,6 +80,10 @@ type ClaudeCodeResponse struct {
 	RetryAfter       int    `json:"retry_after,omitempty"` // Seconds to wait before retry
 	MaxTurnsExceeded bool   `json:"max_turns_exceeded,omitempty"`
 	IdleTimeout      bool   `json:"idle_timeout,omitempty"`
+	FinalMessage     string `json:"final_message,omitempty"`
+	TranscriptPath   string `json:"transcript_path,omitempty"`
+	LastMessagePath  string `json:"last_message_path,omitempty"`
+	CleanOutputPath  string `json:"clean_output_path,omitempty"`
 }
 
 // ResourceInfo represents information about a discovered resource

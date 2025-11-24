@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/queue"
@@ -129,8 +130,21 @@ func (h *TaskHandlers) GetExecutionOutputHandler(w http.ResponseWriter, r *http.
 	executionID := vars["execution_id"]
 	taskID := task.ID
 
-	// Load the output log from execution history
+	// Prefer clean output if present; otherwise sanitize legacy timestamped logs
+	cleanPath := h.processor.GetExecutionFilePath(taskID, executionID, "clean_output.txt")
 	outputPath := h.processor.GetExecutionFilePath(taskID, executionID, "output.log")
+
+	if content, err := os.ReadFile(cleanPath); err == nil {
+		writeJSON(w, map[string]any{
+			"task_id":      taskID,
+			"execution_id": executionID,
+			"output":       string(content),
+			"size":         len(content),
+			"source":       "clean_output",
+		}, http.StatusOK)
+		return
+	}
+
 	content, err := os.ReadFile(outputPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -144,11 +158,14 @@ func (h *TaskHandlers) GetExecutionOutputHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
+	sanitized := stripLogPrefixes(string(content))
+
 	writeJSON(w, map[string]any{
 		"task_id":      taskID,
 		"execution_id": executionID,
-		"output":       string(content),
-		"size":         len(content),
+		"output":       sanitized,
+		"size":         len(sanitized),
+		"source":       "output_log",
 	}, http.StatusOK)
 }
 
@@ -188,4 +205,19 @@ func (h *TaskHandlers) GetExecutionMetadataHandler(w http.ResponseWriter, r *htt
 	}
 
 	writeJSON(w, execution, http.StatusOK)
+}
+
+// stripLogPrefixes removes timestamp/stream prefixes from legacy output logs for readability.
+func stripLogPrefixes(content string) string {
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		parts := strings.SplitN(trimmed, " ", 4)
+		if len(parts) == 4 && strings.HasPrefix(parts[0], "20") && strings.HasPrefix(parts[1], "[") && strings.HasPrefix(parts[2], "(") {
+			lines[i] = strings.TrimSpace(parts[3])
+			continue
+		}
+		lines[i] = trimmed
+	}
+	return strings.TrimSpace(strings.Join(lines, "\n"))
 }

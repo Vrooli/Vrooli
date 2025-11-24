@@ -40,6 +40,15 @@ interface TaskDetailsModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const stripLogLine = (line: string) => {
+  const trimmed = line.trim();
+  const match = trimmed.match(/^[0-9T:.\-+]+ \[[^\]]+\] \([^)]+\)\s+(.*)$/);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  return trimmed;
+};
+
 const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low'];
 const AUTO_STEER_NONE = 'none';
 
@@ -220,7 +229,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
     if (!output) return '';
     const lines = output
       .split('\n')
-      .map(line => line.trim())
+      .map(stripLogLine)
       .filter(Boolean);
 
     if (lines.length === 0) return '';
@@ -485,6 +494,13 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-xs text-slate-400">
+                  <div>
+                    <span className="font-medium">Completions:</span> {task.completion_count ?? 0}
+                  </div>
+                  <div>
+                    <span className="font-medium">Last completed:</span>{' '}
+                    {task.last_completed_at ? formatDateTime(task.last_completed_at) : '—'}
+                  </div>
                   <div>
                     <span className="font-medium">Created:</span> {new Date(task.created_at).toLocaleString()}
                   </div>

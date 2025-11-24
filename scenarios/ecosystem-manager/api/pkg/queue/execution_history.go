@@ -14,24 +14,27 @@ import (
 
 // ExecutionHistory tracks metadata about a single task execution
 type ExecutionHistory struct {
-	TaskID         string    `json:"task_id"`
-	TaskTitle      string    `json:"task_title"`      // Human-readable task title
-	TaskType       string    `json:"task_type"`       // resource or scenario
-	TaskOperation  string    `json:"task_operation"`  // generator or improver
-	ExecutionID    string    `json:"execution_id"`    // Timestamp-based ID
-	AgentTag       string    `json:"agent_tag"`       // Claude Code agent identifier
-	ProcessID      int       `json:"process_id"`      // OS process ID
-	StartTime      time.Time `json:"start_time"`      // When execution began
-	EndTime        time.Time `json:"end_time"`        // When execution completed
-	Duration       string    `json:"duration"`        // Human-readable duration
-	Success        bool      `json:"success"`         // Whether task succeeded
-	ExitReason     string    `json:"exit_reason"`     // completed/failed/timeout/rate_limited
-	PromptSize     int       `json:"prompt_size"`     // Size of assembled prompt in bytes
-	PromptPath     string    `json:"prompt_path"`     // Relative path to prompt file
-	OutputPath     string    `json:"output_path"`     // Relative path to output log
-	TimeoutAllowed string    `json:"timeout_allowed"` // Configured timeout
-	RateLimited    bool      `json:"rate_limited"`    // Whether rate limit was hit
-	RetryAfter     int       `json:"retry_after"`     // Rate limit retry seconds
+	TaskID          string    `json:"task_id"`
+	TaskTitle       string    `json:"task_title"`                  // Human-readable task title
+	TaskType        string    `json:"task_type"`                   // resource or scenario
+	TaskOperation   string    `json:"task_operation"`              // generator or improver
+	ExecutionID     string    `json:"execution_id"`                // Timestamp-based ID
+	AgentTag        string    `json:"agent_tag"`                   // Claude Code agent identifier
+	ProcessID       int       `json:"process_id"`                  // OS process ID
+	StartTime       time.Time `json:"start_time"`                  // When execution began
+	EndTime         time.Time `json:"end_time"`                    // When execution completed
+	Duration        string    `json:"duration"`                    // Human-readable duration
+	Success         bool      `json:"success"`                     // Whether task succeeded
+	ExitReason      string    `json:"exit_reason"`                 // completed/failed/timeout/rate_limited
+	PromptSize      int       `json:"prompt_size"`                 // Size of assembled prompt in bytes
+	PromptPath      string    `json:"prompt_path"`                 // Relative path to prompt file
+	OutputPath      string    `json:"output_path"`                 // Relative path to output log
+	CleanOutputPath string    `json:"clean_output_path,omitempty"` // Relative path to clean agent output (no timestamps)
+	LastMessagePath string    `json:"last_message_path,omitempty"` // Relative path to last-agent-message text
+	TranscriptPath  string    `json:"transcript_path,omitempty"`   // Relative path to transcript JSONL (if available)
+	TimeoutAllowed  string    `json:"timeout_allowed"`             // Configured timeout
+	RateLimited     bool      `json:"rate_limited"`                // Whether rate limit was hit
+	RetryAfter      int       `json:"retry_after"`                 // Rate limit retry seconds
 }
 
 // getExecutionHistoryDir returns the directory for a task's execution history

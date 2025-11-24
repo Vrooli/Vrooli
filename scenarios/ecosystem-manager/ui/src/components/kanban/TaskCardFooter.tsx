@@ -3,7 +3,7 @@
  * Displays elapsed timer (for in-progress tasks), execution count, and action buttons
  */
 
-import { Eye, Trash2, PlayCircle } from 'lucide-react';
+import { Eye, Trash2, PlayCircle, CheckCircle2 } from 'lucide-react';
 import { ElapsedTimer } from './ElapsedTimer';
 import type { Task } from '../../types/api';
 
@@ -17,6 +17,7 @@ export function TaskCardFooter({ task, onViewDetails, onDelete }: TaskCardFooter
   const isInProgress = task.status === 'in-progress';
   const hasProcess = task.current_process;
   const executionCount = task.execution_count || 0;
+  const completionCount = task.completion_count ?? 0;
 
   return (
     <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border/60">
@@ -25,6 +26,13 @@ export function TaskCardFooter({ task, onViewDetails, onDelete }: TaskCardFooter
         {isInProgress && hasProcess && task.current_process?.start_time && (
           <ElapsedTimer startTime={task.current_process.start_time} />
         )}
+        <div
+          className="flex items-center gap-1.5 text-xs text-muted-foreground"
+          title="Completion count"
+        >
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+          <span>{completionCount}</span>
+        </div>
         {executionCount > 0 && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title="Execution count">
             <PlayCircle className="h-3.5 w-3.5" />

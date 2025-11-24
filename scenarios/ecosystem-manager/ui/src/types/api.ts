@@ -35,6 +35,8 @@ export interface Task {
   created_at: string;
   updated_at: string;
   execution_count?: number;
+  completion_count?: number;
+  last_completed_at?: string;
   current_process?: ProcessInfo;
 }
 
@@ -333,6 +335,9 @@ export interface ExecutionHistory {
   prompt_size?: number;
   prompt_path?: string;
   output_path?: string;
+  clean_output_path?: string;
+  last_message_path?: string;
+  transcript_path?: string;
   timeout_allowed?: string;
   rate_limited?: boolean;
   retry_after?: number;
