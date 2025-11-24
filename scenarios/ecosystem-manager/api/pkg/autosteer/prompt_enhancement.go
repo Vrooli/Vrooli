@@ -55,6 +55,7 @@ func (p *PromptEnhancer) renderModeContent(mode SteerMode) string {
 	}
 
 	var b strings.Builder
+
 	b.WriteString(strings.TrimSpace(data.Instructions))
 
 	if len(data.SuccessCriteria) > 0 {

@@ -166,24 +166,78 @@ func runOpenRouter(ctx context.Context, model, prompt string) (Result, error) {
 }
 
 func parseResult(raw string) (Result, error) {
-	// NEW: No classification parsing - just extract the note content
-	// The completeness metrics system will provide classification
-
-	note := strings.TrimSpace(raw)
-
-	if note == "" {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
 		return Result{}, errors.New("summarizer returned empty output")
 	}
 
-	// Return note content only, no classification
+	lower := strings.ToLower(trimmed)
+	if !strings.HasPrefix(lower, "classification:") {
+		return Result{}, errors.New("missing classification prefix")
+	}
+
+	lines := strings.SplitN(trimmed, "\n", 2)
+	parts := strings.SplitN(lines[0], ":", 2)
+	if len(parts) != 2 {
+		return Result{}, errors.New("invalid classification line")
+	}
+
+	classification := normalizeClassification(strings.TrimSpace(strings.ToLower(parts[1])))
+
+	remainder := ""
+	if len(lines) > 1 {
+		remainder = lines[1]
+	}
+	note := strings.TrimSpace(stripNotePrefix(remainder))
+	if note == "" {
+		return Result{
+			Note:           "Not sure current status",
+			Classification: classificationUncertain,
+		}, nil
+	}
+
 	return Result{
-		Note:           note,
-		Classification: "", // Not used - metrics system provides classification
+		Note:           decorateNote(classification, note),
+		Classification: classification,
 	}, nil
 }
 
-// decorateNote is no longer used - removed in favor of metrics-based classification
-// The completeness system provides the prefix based on objective scores
+func normalizeClassification(raw string) string {
+	switch raw {
+	case classificationFull:
+		return classificationFull
+	case classificationSignificant:
+		return classificationSignificant
+	case classificationSome, "partial_progress":
+		return classificationSome
+	case classificationUncertain, "":
+		return classificationUncertain
+	default:
+		return classificationUncertain
+	}
+}
+
+func stripNotePrefix(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	lower := strings.ToLower(trimmed)
+	if strings.HasPrefix(lower, "note:") {
+		return strings.TrimSpace(trimmed[len("note:"):])
+	}
+	return trimmed
+}
+
+func decorateNote(classification, note string) string {
+	switch classification {
+	case classificationFull:
+		return "Likely complete, but may benefit from additional validation/tidying. Notes from last time:\n\n" + note
+	case classificationSignificant:
+		return "Already pretty good, but could use some additional validation/tidying. Notes from last time:\n\n" + note
+	case classificationSome:
+		return "Notes from last time:\n\n" + note
+	default:
+		return note
+	}
+}
 
 func resolveVrooliRoot() string {
 	if root := os.Getenv("VROOLI_ROOT"); root != "" {
@@ -211,7 +265,7 @@ func resolveVrooliRoot() string {
 func DefaultResult() Result {
 	return Result{
 		Note:           "Unable to generate summary - no execution output was captured",
-		Classification: "", // Not used - metrics system provides classification
+		Classification: classificationUncertain,
 	}
 }
 

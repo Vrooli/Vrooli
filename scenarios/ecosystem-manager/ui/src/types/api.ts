@@ -358,6 +358,12 @@ export interface ExecutionHistory {
   clean_output_path?: string;
   last_message_path?: string;
   transcript_path?: string;
+  auto_steer_profile_id?: string;
+  auto_steer_iteration?: number;
+  steer_mode?: string;
+  steer_phase_index?: number;
+  steer_phase_iteration?: number;
+  steering_source?: string;
   timeout_allowed?: string;
   rate_limited?: boolean;
   retry_after?: number;
@@ -366,12 +372,21 @@ export interface ExecutionHistory {
 }
 
 export interface ExecutionPrompt {
-  content: string;
+  prompt?: string;
+  content?: string;
+  size?: number;
+  task_id?: string;
+  execution_id?: string;
   metadata?: Record<string, unknown>;
 }
 
 export interface ExecutionOutput {
-  content: string;
+  output?: string;
+  content?: string;
+  size?: number;
+  source?: string;
+  task_id?: string;
+  execution_id?: string;
   metadata?: Record<string, unknown>;
 }
 

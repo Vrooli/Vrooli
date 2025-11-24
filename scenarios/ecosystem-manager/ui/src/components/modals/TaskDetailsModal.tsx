@@ -171,6 +171,18 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   });
 
   const {
+    data: selectedExecutionPrompt,
+    isLoading: isLoadingSelectedPrompt,
+  } = useQuery({
+    queryKey: selectedExecutionId
+      ? queryKeys.executions.prompt(task?.id ?? '', selectedExecutionId)
+      : ['executions', 'prompt', 'inactive', task?.id ?? ''],
+    queryFn: () => api.getExecutionPrompt(task!.id, selectedExecutionId!),
+    enabled: !!task && !!selectedExecutionId,
+    staleTime: 15000,
+  });
+
+  const {
     data: latestExecutionOutput,
     isLoading: isLoadingLatestOutput,
   } = useQuery({
@@ -264,6 +276,10 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   const selectedOutputText =
     (selectedExecutionOutput as any)?.output ??
     (selectedExecutionOutput as any)?.content ??
+    '';
+  const selectedPromptText =
+    (selectedExecutionPrompt as any)?.prompt ??
+    (selectedExecutionPrompt as any)?.content ??
     '';
   const latestOutputText =
     (latestExecutionOutput as any)?.output ??
@@ -723,6 +739,18 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                           </div>
                         ) : (
                           <div className="text-xs text-slate-500">No output captured for this execution.</div>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-[11px] uppercase text-slate-400">Prompt sent to agent</div>
+                        {isLoadingSelectedPrompt ? (
+                          <div className="text-xs text-slate-500">Loading prompt...</div>
+                        ) : selectedPromptText ? (
+                          <div className="rounded-md border border-white/5 bg-slate-900/70 p-2 text-xs text-slate-100 whitespace-pre-wrap max-h-40 overflow-y-auto">
+                            {selectedPromptText}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-slate-500">Prompt not captured for this execution.</div>
                         )}
                       </div>
                       {selectedExecution.metadata && Object.keys(selectedExecution.metadata).length > 0 ? (

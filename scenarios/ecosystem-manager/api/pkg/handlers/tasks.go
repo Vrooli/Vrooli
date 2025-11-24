@@ -597,6 +597,7 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 	}, http.StatusCreated)
 }
 
+// GET /api/tasks/{id}
 // GetTaskHandler retrieves a specific task by ID
 func (h *TaskHandlers) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	task, _, ok := h.getTaskFromRequest(r, w)

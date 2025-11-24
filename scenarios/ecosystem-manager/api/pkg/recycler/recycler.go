@@ -64,12 +64,6 @@ func New(storage *tasks.Storage, wsManager *websocket.Manager) *Recycler {
 	return &Recycler{
 		storage:   storage,
 		wsManager: wsManager,
-		retryDelay: func(attempt int) time.Duration {
-			if attempt <= 0 {
-				return time.Second
-			}
-			return time.Duration(attempt) * time.Second
-		},
 	}
 }
 
@@ -436,6 +430,12 @@ func (r *Recycler) handleProcessingError(taskID string, err error) {
 
 	atomic.AddUint64(&r.stats.Requeued, 1)
 	delay := time.Duration(delaySeconds*attempt) * time.Second
+	if r.retryDelay != nil {
+		delay = r.retryDelay(attempt)
+	}
+	if delay < 0 {
+		delay = 0
+	}
 	go func(id string, d time.Duration) {
 		time.Sleep(d)
 		r.Enqueue(id)

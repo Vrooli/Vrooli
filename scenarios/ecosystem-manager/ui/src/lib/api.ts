@@ -289,6 +289,12 @@ const normalizeExecution = (raw: any): ExecutionHistory => {
     clean_output_path: raw?.clean_output_path ?? raw?.CleanOutputPath ?? raw?.cleanOutputPath,
     last_message_path: raw?.last_message_path ?? raw?.LastMessagePath ?? raw?.lastMessagePath,
     transcript_path: raw?.transcript_path ?? raw?.TranscriptPath ?? raw?.transcriptPath,
+    auto_steer_profile_id: raw?.auto_steer_profile_id ?? raw?.autoSteerProfileId ?? raw?.AutoSteerProfileID,
+    auto_steer_iteration: raw?.auto_steer_iteration ?? raw?.autoSteerIteration ?? raw?.AutoSteerIteration,
+    steer_mode: raw?.steer_mode ?? raw?.steerMode ?? raw?.SteerMode,
+    steer_phase_index: raw?.steer_phase_index ?? raw?.steerPhaseIndex ?? raw?.SteerPhaseIndex,
+    steer_phase_iteration: raw?.steer_phase_iteration ?? raw?.steerPhaseIteration ?? raw?.SteerPhaseIteration,
+    steering_source: raw?.steering_source ?? raw?.steeringSource ?? raw?.SteeringSource,
     timeout_allowed: timeoutAllowed,
     rate_limited: rateLimited,
     retry_after: raw?.retry_after ?? raw?.RetryAfter,
@@ -833,15 +839,27 @@ class ApiClient {
   }
 
   async getExecutionPrompt(taskId: string, executionId: string): Promise<ExecutionPrompt> {
-    return this.fetchJSON<ExecutionPrompt>(
+    const response = await this.fetchJSON<any>(
       `/api/tasks/${taskId}/executions/${executionId}/prompt`
     );
+    const prompt = response?.prompt ?? response?.content ?? '';
+    return {
+      ...response,
+      prompt,
+      content: prompt,
+    };
   }
 
   async getExecutionOutput(taskId: string, executionId: string): Promise<ExecutionOutput> {
-    return this.fetchJSON<ExecutionOutput>(
+    const response = await this.fetchJSON<any>(
       `/api/tasks/${taskId}/executions/${executionId}/output`
     );
+    const output = response?.output ?? response?.content ?? '';
+    return {
+      ...response,
+      output,
+      content: output,
+    };
   }
 
   async getExecutionMetadata(taskId: string, executionId: string): Promise<Record<string, unknown>> {

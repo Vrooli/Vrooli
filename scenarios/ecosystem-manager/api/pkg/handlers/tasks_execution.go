@@ -115,6 +115,7 @@ func (h *TaskHandlers) GetExecutionPromptHandler(w http.ResponseWriter, r *http.
 		"task_id":      taskID,
 		"execution_id": executionID,
 		"prompt":       string(content),
+		"content":      string(content),
 		"size":         len(content),
 	}, http.StatusOK)
 }
@@ -139,6 +140,7 @@ func (h *TaskHandlers) GetExecutionOutputHandler(w http.ResponseWriter, r *http.
 			"task_id":      taskID,
 			"execution_id": executionID,
 			"output":       string(content),
+			"content":      string(content),
 			"size":         len(content),
 			"source":       "clean_output",
 		}, http.StatusOK)
@@ -164,6 +166,7 @@ func (h *TaskHandlers) GetExecutionOutputHandler(w http.ResponseWriter, r *http.
 		"task_id":      taskID,
 		"execution_id": executionID,
 		"output":       sanitized,
+		"content":      sanitized,
 		"size":         len(sanitized),
 		"source":       "output_log",
 	}, http.StatusOK)

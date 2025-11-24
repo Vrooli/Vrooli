@@ -115,6 +115,29 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 	return taskHandlers, queueHandlers, healthHandlers, discoveryHandlers, settingsHandlers
 }
 
+func mustSaveTask(t *testing.T, storage *tasks.Storage, status string, task tasks.TaskItem) tasks.TaskItem {
+	t.Helper()
+	now := time.Now().Format(time.RFC3339)
+
+	if task.ID == "" {
+		task.ID = "task-" + status
+	}
+	if task.CreatedAt == "" {
+		task.CreatedAt = now
+	}
+	if task.UpdatedAt == "" {
+		task.UpdatedAt = now
+	}
+	if task.Status == "" {
+		task.Status = status
+	}
+
+	if err := storage.SaveQueueItem(task, status); err != nil {
+		t.Fatalf("Failed to save task %s: %v", task.ID, err)
+	}
+	return task
+}
+
 // TestHealthCheckHandler tests the health check endpoint
 func TestHealthCheckHandler(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
@@ -274,6 +297,43 @@ func TestTaskHandlers_CreateTask(t *testing.T) {
 	})
 }
 
+func TestTaskHandlers_CreateTask_MultiTarget(t *testing.T) {
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+
+	body := map[string]any{
+		"type":      "resource",
+		"operation": "generator",
+		"targets":   []string{"alpha", "beta"},
+		"title":     "Generate resources",
+	}
+
+	bodyBytes, _ := json.Marshal(body)
+	req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	taskHandlers.CreateTaskHandler(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("Expected status 201, got %d. Response: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool             `json:"success"`
+		Created []tasks.TaskItem `json:"created"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if len(resp.Created) != 2 {
+		t.Fatalf("expected 2 created tasks, got %d", len(resp.Created))
+	}
+}
+
 // TestTaskHandlers_GetTask tests the get single task endpoint
 func TestTaskHandlers_GetTask(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
@@ -383,4 +443,188 @@ func TestDiscoveryHandlers_GetScenarios(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 	})
+}
+
+func TestTaskHandlers_GetActiveTargets(t *testing.T) {
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+
+	mustSaveTask(t, taskHandlers.storage, "pending", tasks.TaskItem{
+		ID:        "t-pending",
+		Type:      "resource",
+		Operation: "generator",
+		Target:    "alpha",
+	})
+	mustSaveTask(t, taskHandlers.storage, "in-progress", tasks.TaskItem{
+		ID:        "t-progress",
+		Type:      "resource",
+		Operation: "generator",
+		Target:    "beta",
+	})
+	mustSaveTask(t, taskHandlers.storage, "pending", tasks.TaskItem{
+		ID:        "t-ignore",
+		Type:      "scenario",
+		Operation: "generator",
+		Target:    "gamma",
+	})
+
+	t.Run("RequiresParams", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/tasks/active-targets", nil)
+		w := httptest.NewRecorder()
+
+		taskHandlers.GetActiveTargetsHandler(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400 for missing params, got %d", w.Code)
+		}
+	})
+
+	t.Run("ReturnsActiveTargets", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/tasks/active-targets?type=resource&operation=generator", nil)
+		w := httptest.NewRecorder()
+
+		taskHandlers.GetActiveTargetsHandler(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("Expected status 200, got %d", w.Code)
+		}
+
+		var resp []map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		if len(resp) != 2 {
+			t.Fatalf("expected two active targets, got %d", len(resp))
+		}
+	})
+}
+
+func TestTaskHandlers_UpdateTask(t *testing.T) {
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+
+	current := mustSaveTask(t, taskHandlers.storage, "pending", tasks.TaskItem{
+		ID:        "update-task",
+		Type:      "resource",
+		Operation: "generator",
+		Target:    "delta",
+		Title:     "Original Title",
+		Priority:  "P1",
+	})
+
+	updateBody := map[string]any{
+		"title": "Refined Title",
+		// omit priority to ensure preserveUnsetFields keeps the original value
+	}
+	bodyBytes, _ := json.Marshal(updateBody)
+
+	req := httptest.NewRequest("PUT", "/api/tasks/update-task", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": current.ID})
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	taskHandlers.UpdateTaskHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d. Response: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool           `json:"success"`
+		Task    tasks.TaskItem `json:"task"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if resp.Task.Priority != "P1" {
+		t.Fatalf("expected priority to be preserved, got %s", resp.Task.Priority)
+	}
+
+	expectedTitle := deriveTaskTitle("", current.Operation, current.Type, "")
+	if resp.Task.Title != expectedTitle {
+		t.Fatalf("expected derived title %q, got %q", expectedTitle, resp.Task.Title)
+	}
+}
+
+func TestTaskHandlers_UpdateTaskStatus_BackwardsTransition(t *testing.T) {
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+
+	completed := mustSaveTask(t, taskHandlers.storage, "completed", tasks.TaskItem{
+		ID:        "status-task",
+		Type:      "resource",
+		Operation: "generator",
+		Target:    "epsilon",
+		Status:    "completed",
+		Results: map[string]any{
+			"success": true,
+		},
+		CompletedAt: time.Now().Add(-1 * time.Hour).Format(time.RFC3339),
+	})
+
+	body := map[string]any{
+		"status": "pending",
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("PUT", "/api/tasks/status-task/status", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": completed.ID})
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	taskHandlers.UpdateTaskStatusHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d. Response: %s", w.Code, w.Body.String())
+	}
+
+	var updated tasks.TaskItem
+	if err := json.Unmarshal(w.Body.Bytes(), &updated); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if updated.Status != "pending" {
+		t.Fatalf("expected status pending, got %s", updated.Status)
+	}
+	if updated.Results != nil {
+		t.Fatalf("expected results to be cleared on backwards transition, got %v", updated.Results)
+	}
+	if updated.CurrentPhase == "archived" {
+		t.Fatalf("current phase should not be archived on backwards transition")
+	}
+}
+
+func TestTaskHandlers_DeleteTask(t *testing.T) {
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+
+	task := mustSaveTask(t, taskHandlers.storage, "pending", tasks.TaskItem{
+		ID:        "delete-me",
+		Type:      "resource",
+		Operation: "generator",
+		Target:    "zeta",
+	})
+
+	req := httptest.NewRequest("DELETE", "/api/tasks/delete-me", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": task.ID})
+	w := httptest.NewRecorder()
+
+	taskHandlers.DeleteTaskHandler(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 response, got %d", w.Code)
+	}
+
+	if _, _, err := taskHandlers.storage.GetTaskByID(task.ID); err == nil {
+		t.Fatalf("expected task %s to be deleted", task.ID)
+	}
 }

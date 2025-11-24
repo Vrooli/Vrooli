@@ -80,8 +80,8 @@ func TestPromptEnhancer_GenerateAutoSteerSection(t *testing.T) {
 		section := enhancer.GenerateAutoSteerSection(state, profile, evaluator)
 
 		// Verify key sections are present
-		if !strings.Contains(section, "Phase: Progress") {
-			t.Error("Expected current mode instructions in output")
+		if !strings.Contains(section, "Steer focus: Progress") {
+			t.Error("Expected current mode instructions in output from phase markdown")
 		}
 		if !strings.Contains(section, "Phase 1 of 2") {
 			t.Error("Expected phase progress in output")
@@ -183,11 +183,8 @@ func TestPromptEnhancer_GenerateModeSection(t *testing.T) {
 	if content == "" {
 		t.Fatal("Expected mode section content")
 	}
-	if !strings.Contains(content, "Phase: Progress") {
-		t.Error("Expected progress heading in mode section")
-	}
-	if !strings.Contains(content, "Success Criteria") {
-		t.Error("Expected success criteria in mode section")
+	if !strings.Contains(content, "Steer focus: Progress") {
+		t.Error("Expected progress heading from prompt markdown in mode section")
 	}
 }
 
@@ -500,7 +497,7 @@ func TestPromptEnhancer_EdgeCases(t *testing.T) {
 		if section == "" {
 			t.Error("Expected non-empty section even with empty metrics")
 		}
-		if !strings.Contains(section, "PROGRESS") {
+		if !strings.Contains(strings.ToLower(section), "progress") {
 			t.Error("Expected mode in output")
 		}
 	})

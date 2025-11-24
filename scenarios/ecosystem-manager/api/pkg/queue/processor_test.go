@@ -12,6 +12,7 @@ import (
 
 func setupTestProcessor(t *testing.T) (*Processor, string, func()) {
 	t.Helper()
+	t.Setenv("QUEUE_SKIP_PROCESS_SCAN", "1")
 
 	tempDir := t.TempDir()
 	queueDir := filepath.Join(tempDir, "queue")
@@ -239,6 +240,8 @@ func TestProcessor_MultipleStates(t *testing.T) {
 }
 
 func TestProcessor_ConcurrentAccess(t *testing.T) {
+	t.Setenv("QUEUE_SKIP_PROCESS_SCAN", "1")
+
 	processor, _, cleanup := setupTestProcessor(t)
 	defer cleanup()
 

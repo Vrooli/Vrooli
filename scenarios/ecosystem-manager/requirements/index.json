@@ -1,0 +1,22 @@
+{
+  "_metadata": {
+    "description": "Operational requirements registry for ecosystem-manager scenario.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false,
+    "last_validated_at": "2025-11-30",
+    "last_synced_at": "2025-11-30"
+  },
+  "meta": {
+    "scenario": "ecosystem-manager",
+    "version": "2025.11",
+    "generated": "2025-11-30",
+    "owners": [
+      {
+        "team": "Vrooli Platform",
+        "contact": "platform@vrooli.dev"
+      }
+    ]
+  },
+  "imports": [],
+  "requirements": []
+}

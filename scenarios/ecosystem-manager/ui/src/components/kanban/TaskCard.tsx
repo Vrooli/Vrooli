@@ -28,25 +28,6 @@ export function TaskCard({
   autoSteerPhaseIndex,
   dragOverlay = false,
 }: TaskCardProps) {
-  if (dragOverlay) {
-    return (
-      <div
-        className="
-          bg-card border border-border rounded-lg p-3
-          shadow-xl ring-2 ring-primary/40 rotate-3
-        "
-      >
-        <TaskCardHeader task={task} />
-        <TaskCardBody
-          task={task}
-          autoSteerProfile={autoSteerProfile}
-          autoSteerPhaseIndex={autoSteerPhaseIndex}
-        />
-        <TaskCardFooter task={task} />
-      </div>
-    );
-  }
-
   const {
     attributes,
     listeners,
@@ -100,6 +81,27 @@ export function TaskCard({
       onViewDetails?.(task);
     }
   };
+
+  if (dragOverlay) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={{ transform: CSS.Transform.toString(transform), transition }}
+        className="
+          bg-card border border-border rounded-lg p-3
+          shadow-xl ring-2 ring-primary/40 rotate-3
+        "
+      >
+        <TaskCardHeader task={task} />
+        <TaskCardBody
+          task={task}
+          autoSteerProfile={autoSteerProfile}
+          autoSteerPhaseIndex={autoSteerPhaseIndex}
+        />
+        <TaskCardFooter task={task} />
+      </div>
+    );
+  }
 
   return (
     <div

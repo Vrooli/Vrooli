@@ -33,6 +33,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
   const [executionSearch, setExecutionSearch] = useState('');
   const [profileFilter, setProfileFilter] = useState<string>('all');
   const [scenarioFilter, setScenarioFilter] = useState('');
+  const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
   const [selectedPerformanceId, setSelectedPerformanceId] = useState<string | null>(null);
 
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -127,6 +128,54 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
     return '--';
   };
 
+  const stripLogLine = (line: string) => {
+    const trimmed = line.trim();
+    const match = trimmed.match(/^[0-9T:.\-+]+ \[[^\]]+\] \([^)]+\)\s+(.*)$/);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+    return trimmed;
+  };
+
+  const extractFinalMessage = (output?: string, maxLength = 600) => {
+    if (!output) return '';
+    const lines = output
+      .split('\n')
+      .map(stripLogLine)
+      .filter(Boolean);
+
+    if (lines.length === 0) return '';
+
+    for (let i = lines.length - 1; i >= 0; i -= 1) {
+      const line = lines[i].toLowerCase();
+      const isSummaryHeading = /^#+\s+(task\s+)?(completion\s+)?summary/.test(line);
+      const isFinalHeading = line.startsWith('final response') || line.startsWith('final message');
+      if (isSummaryHeading || isFinalHeading) {
+        const summaryLines = lines.slice(i + 1);
+        if (summaryLines.length > 0) {
+          const message = summaryLines.join(' ');
+          if (message.length > maxLength) {
+            return `${message.slice(0, maxLength)}…`;
+          }
+          return message;
+        }
+      }
+    }
+
+    const tailLines = lines.slice(-5).join(' ');
+    if (tailLines.length > maxLength) {
+      return tailLines.slice(tailLines.length - maxLength);
+    }
+    return tailLines;
+  };
+
+  const formatSteerInfo = (execution?: ExecutionHistory | null) => {
+    if (!execution) return '—';
+    const mode = execution.steer_mode || execution.steering_source || '';
+    const phase = execution.steer_phase_index ? ` • phase ${execution.steer_phase_index}` : '';
+    return mode ? `${mode}${phase}` : '—';
+  };
+
   const getLevelStyles = (level: LogEntry['level']) => {
     switch (level) {
       case 'error':
@@ -197,6 +246,70 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
           new Date(b.start_time).getTime() - new Date(a.start_time).getTime(),
       );
   }, [executions, executionSearch, executionStatus]);
+
+  useEffect(() => {
+    if (filteredExecutions.length === 0) {
+      if (selectedExecutionId !== null) {
+        setSelectedExecutionId(null);
+      }
+      return;
+    }
+
+    if (!selectedExecutionId) {
+      setSelectedExecutionId(filteredExecutions[0]?.id ?? null);
+      return;
+    }
+
+    if (!filteredExecutions.some((exec) => exec.id === selectedExecutionId)) {
+      setSelectedExecutionId(filteredExecutions[0]?.id ?? null);
+    }
+  }, [filteredExecutions, selectedExecutionId]);
+
+  const selectedExecution =
+    filteredExecutions.find((exec) => exec.id === selectedExecutionId) ?? null;
+
+  const { data: selectedExecutionPrompt, isFetching: isFetchingPrompt } = useQuery({
+    queryKey:
+      selectedExecution && selectedExecution.task_id && selectedExecution.id
+        ? queryKeys.executions.prompt(selectedExecution.task_id, selectedExecution.id)
+        : ['executions', 'prompt', 'inactive'],
+    queryFn: () => api.getExecutionPrompt(selectedExecution!.task_id, selectedExecution!.id),
+    enabled:
+      !!selectedExecution &&
+      !!selectedExecution.task_id &&
+      !!selectedExecution.id &&
+      open &&
+      activeTab === 'executions',
+    staleTime: 15000,
+  });
+
+  const { data: selectedExecutionOutput, isFetching: isFetchingSelectedOutput } = useQuery({
+    queryKey:
+      selectedExecution && selectedExecution.task_id && selectedExecution.id
+        ? queryKeys.executions.output(selectedExecution.task_id, selectedExecution.id)
+        : ['executions', 'output', 'inactive'],
+    queryFn: () => api.getExecutionOutput(selectedExecution!.task_id, selectedExecution!.id),
+    enabled:
+      !!selectedExecution &&
+      !!selectedExecution.task_id &&
+      !!selectedExecution.id &&
+      open &&
+      activeTab === 'executions',
+    staleTime: 15000,
+  });
+
+  const selectedPromptText =
+    (selectedExecutionPrompt as any)?.content ??
+    (selectedExecutionPrompt as any)?.prompt ??
+    '';
+  const selectedOutputText =
+    (selectedExecutionOutput as any)?.output ??
+    (selectedExecutionOutput as any)?.content ??
+    '';
+  const selectedFinalMessage = useMemo(
+    () => extractFinalMessage(selectedOutputText),
+    [selectedOutputText],
+  );
 
   const filteredPerformance = useMemo(() => {
     const scenarioTerm = scenarioFilter.trim().toLowerCase();
@@ -428,59 +541,170 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
               </div>
             </div>
 
-            <div className="flex-1 overflow-hidden rounded-lg border border-white/5 bg-slate-900/50">
-              <div className="max-h-[58vh] overflow-y-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-white/5 text-slate-200 sticky top-0 backdrop-blur">
-                    <tr>
-                      <th className="text-left px-4 py-3 font-medium">Execution</th>
-                      <th className="text-left px-4 py-3 font-medium">Task</th>
-                      <th className="text-left px-4 py-3 font-medium">Status</th>
-                      <th className="text-left px-4 py-3 font-medium">Started</th>
-                      <th className="text-left px-4 py-3 font-medium">Duration</th>
-                      <th className="text-left px-4 py-3 font-medium">Exit</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {isLoadingExecutions && filteredExecutions.length === 0 && (
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-4 flex-1">
+              <div className="overflow-hidden rounded-lg border border-white/5 bg-slate-900/50">
+                <div className="max-h-[58vh] overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-white/5 text-slate-200 sticky top-0 backdrop-blur">
                       <tr>
-                        <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
-                          Loading execution history...
-                        </td>
+                        <th className="text-left px-4 py-3 font-medium">Execution</th>
+                        <th className="text-left px-4 py-3 font-medium">Task</th>
+                        <th className="text-left px-4 py-3 font-medium">Steer</th>
+                        <th className="text-left px-4 py-3 font-medium">Status</th>
+                        <th className="text-left px-4 py-3 font-medium">Started</th>
+                        <th className="text-left px-4 py-3 font-medium">Duration</th>
+                        <th className="text-left px-4 py-3 font-medium">Exit</th>
                       </tr>
-                    )}
-                    {!isLoadingExecutions && filteredExecutions.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
-                          No executions found
-                        </td>
-                      </tr>
-                    )}
-                    {filteredExecutions.map((exec) => (
-                      <tr key={exec.id} className="border-t border-white/5 hover:bg-white/5">
-                        <td className="px-4 py-2 font-mono text-xs text-slate-200">{exec.id}</td>
-                        <td className="px-4 py-2 font-mono text-xs text-slate-300">{exec.task_id}</td>
-                        <td className="px-4 py-3">
-                          <span className={`text-xs px-2 py-1 rounded border ${getStatusTone(exec.status)}`}>
-                            {exec.status}
+                    </thead>
+                    <tbody>
+                      {isLoadingExecutions && filteredExecutions.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                            Loading execution history...
+                          </td>
+                        </tr>
+                      )}
+                      {!isLoadingExecutions && filteredExecutions.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                            No executions found
+                          </td>
+                        </tr>
+                      )}
+                      {filteredExecutions.map((exec) => {
+                        const isSelected = exec.id === selectedExecutionId;
+                        return (
+                          <tr
+                            key={exec.id}
+                            onClick={() => setSelectedExecutionId(exec.id)}
+                            className={`border-t border-white/5 cursor-pointer transition-colors ${
+                              isSelected ? 'bg-white/10' : 'hover:bg-white/5'
+                            }`}
+                          >
+                            <td className="px-4 py-2 font-mono text-xs text-slate-200">{exec.id}</td>
+                            <td className="px-4 py-2 font-mono text-xs text-slate-300">
+                              {exec.task_title || exec.task_id}
+                            </td>
+                            <td className="px-4 py-2 text-slate-200 text-xs">{formatSteerInfo(exec)}</td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs px-2 py-1 rounded border ${getStatusTone(exec.status)}`}>
+                                {exec.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-slate-200">{formatDateTime(exec.start_time)}</td>
+                            <td className="px-4 py-3 text-slate-200">
+                              {exec.end_time ? (
+                                formatExecutionDuration(exec)
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-amber-200">
+                                  <Clock3 className="h-3 w-3" />
+                                  In progress
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-slate-200">
+                              {exec.exit_reason ?? (exec.exit_code !== undefined ? exec.exit_code : '—')}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-white/5 bg-slate-900/70 p-4 flex flex-col gap-3 min-h-[320px]">
+                {!selectedExecution ? (
+                  <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">
+                    {isLoadingExecutions ? 'Loading execution history...' : 'Select a run to inspect details'}
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xs uppercase text-slate-400">Execution</div>
+                        <div className="font-mono text-sm text-white break-all">{selectedExecution.id}</div>
+                        <div className="text-xs text-slate-400">
+                          Task: {selectedExecution.task_id}
+                        </div>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <span className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded border ${getStatusTone(selectedExecution.status)}`}>
+                          {selectedExecution.status}
+                        </span>
+                        <div className="text-xs text-slate-400">
+                          Exit: {selectedExecution.exit_reason ?? '—'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-slate-300">
+                      <div>Started: {formatDateTime(selectedExecution.start_time)}</div>
+                      <div>Ended: {selectedExecution.end_time ? formatDateTime(selectedExecution.end_time) : '—'}</div>
+                      <div>Duration: {formatExecutionDuration(selectedExecution)}</div>
+                      <div>Timeout: {selectedExecution.timeout_allowed ?? '—'}</div>
+                      <div>Prompt size: {selectedExecution.prompt_size ?? '—'}</div>
+                      <div>Agent: {selectedExecution.agent_tag ?? '—'}</div>
+                      <div>Process: {selectedExecution.process_id ?? '—'}</div>
+                      <div>
+                        Steer: {formatSteerInfo(selectedExecution)}
+                        {selectedExecution.steer_phase_iteration
+                          ? ` • iteration ${selectedExecution.steer_phase_iteration}`
+                          : ''}
+                      </div>
+                      <div>Steer source: {selectedExecution.steering_source ?? '—'}</div>
+                      <div>Auto Steer profile: {selectedExecution.auto_steer_profile_id ?? '—'}</div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] text-slate-400">
+                      <div className="truncate">
+                        Prompt path:{' '}
+                        <span className="font-mono text-slate-200">
+                          {selectedExecution.prompt_path || '—'}
+                        </span>
+                      </div>
+                      <div className="truncate">
+                        Output path:{' '}
+                        <span className="font-mono text-slate-200">
+                          {selectedExecution.clean_output_path || selectedExecution.output_path || '—'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-[11px] uppercase text-slate-400">Prompt sent to agent</div>
+                      {isFetchingPrompt ? (
+                        <div className="text-xs text-slate-500">Loading prompt...</div>
+                      ) : selectedPromptText ? (
+                        <pre className="bg-slate-950/60 border border-white/10 rounded p-2 text-xs text-slate-100 max-h-48 overflow-y-auto whitespace-pre-wrap">
+                          {selectedPromptText}
+                        </pre>
+                      ) : (
+                        <div className="text-xs text-slate-500">Prompt not captured for this run.</div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-[11px] uppercase text-slate-400">
+                        <span>Output</span>
+                        {selectedFinalMessage && (
+                          <span className="text-[11px] normal-case text-slate-300">
+                            Final: {selectedFinalMessage}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 text-slate-200">{formatDateTime(exec.start_time)}</td>
-                        <td className="px-4 py-3 text-slate-200">
-                          {exec.end_time ? formatExecutionDuration(exec) : (
-                            <span className="inline-flex items-center gap-1 text-amber-200">
-                              <Clock3 className="h-3 w-3" />
-                              In progress
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-slate-200">
-                          {exec.exit_code !== undefined ? exec.exit_code : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        )}
+                      </div>
+                      {isFetchingSelectedOutput ? (
+                        <div className="text-xs text-slate-500">Loading output...</div>
+                      ) : selectedOutputText ? (
+                        <pre className="bg-slate-950/60 border border-white/10 rounded p-2 text-xs text-slate-100 max-h-48 overflow-y-auto whitespace-pre-wrap">
+                          {selectedOutputText}
+                        </pre>
+                      ) : (
+                        <div className="text-xs text-slate-500">No output captured for this execution.</div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </TabsContent>

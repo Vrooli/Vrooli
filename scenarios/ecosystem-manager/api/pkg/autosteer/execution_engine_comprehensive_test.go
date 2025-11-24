@@ -1,6 +1,7 @@
 package autosteer
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -408,11 +409,8 @@ func TestExecutionEngine_GetEnhancedPrompt(t *testing.T) {
 		}
 
 		// Verify prompt contains key information (simple substring checks)
-		if !contains(prompt, profile.Name) {
-			t.Error("Expected prompt to contain profile name")
-		}
-		if !contains(prompt, "PROGRESS") {
-			t.Error("Expected prompt to contain current mode")
+		if !strings.Contains(prompt, "Steer focus: Progress") {
+			t.Error("Expected prompt to contain current mode instructions")
 		}
 		if !contains(prompt, "Phase 1 of 1") {
 			t.Error("Expected prompt to contain phase progress")

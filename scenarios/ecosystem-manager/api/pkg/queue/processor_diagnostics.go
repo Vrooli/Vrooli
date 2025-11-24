@@ -3,6 +3,7 @@ package queue
 import (
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/internal/slices"
@@ -215,7 +216,11 @@ func (qp *Processor) GetQueueStatus() map[string]any {
 	archivedTasks, _ := qp.storage.GetQueueItems("archived")
 
 	internalRunning := qp.getInternalRunningTaskIDs()
-	externalActive := qp.getExternalActiveTaskIDs()
+
+	externalActive := map[string]struct{}{}
+	if os.Getenv("QUEUE_SKIP_PROCESS_SCAN") != "1" {
+		externalActive = qp.getExternalActiveTaskIDs()
+	}
 
 	executingCount := len(internalRunning)
 	for taskID := range externalActive {

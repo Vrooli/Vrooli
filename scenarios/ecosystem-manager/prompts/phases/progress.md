@@ -112,5 +112,5 @@ You must:
 
 ---
 
-**Focus this loop on advancing the scenario *forward*.  
+**Focus on advancing the scenario *forward*.  
 Finish what’s partially built, close end-to-end gaps, solidify correctness, and reduce ambiguity — always in a stable, incremental, test-driven way.**

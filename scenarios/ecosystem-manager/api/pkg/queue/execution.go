@@ -93,6 +93,50 @@ func (qp *Processor) appendDefaultProgressSection(prompt string) string {
 	return autosteer.InjectSteeringSection(prompt, section)
 }
 
+// enrichSteeringMetadata captures the steering context used for an execution so we can analyze prompts later.
+func (qp *Processor) enrichSteeringMetadata(task *tasks.TaskItem, history *ExecutionHistory) {
+	if task == nil || history == nil {
+		return
+	}
+
+	history.SteeringSource = "none"
+
+	// Capture Auto Steer state when active.
+	if qp.autoSteerIntegration != nil && strings.TrimSpace(task.AutoSteerProfileID) != "" {
+		engine := qp.autoSteerIntegration.ExecutionEngine()
+		if engine != nil {
+			if state, err := engine.GetExecutionState(task.ID); err == nil && state != nil {
+				history.AutoSteerProfileID = state.ProfileID
+				history.AutoSteerIteration = state.AutoSteerIteration
+				history.SteerPhaseIndex = state.CurrentPhaseIndex + 1
+				history.SteerPhaseIteration = state.CurrentPhaseIteration + 1
+				history.SteeringSource = "auto_steer"
+			} else if err != nil {
+				log.Printf("Warning: Failed to capture Auto Steer state for task %s: %v", task.ID, err)
+			}
+
+			if mode, err := engine.GetCurrentMode(task.ID); err == nil {
+				if mode != "" {
+					history.SteerMode = string(mode)
+					if history.SteeringSource == "none" {
+						history.SteeringSource = "auto_steer"
+					}
+				}
+			} else {
+				log.Printf("Warning: Failed to capture Auto Steer mode for task %s: %v", task.ID, err)
+			}
+		}
+	}
+
+	// For improver tasks without Auto Steer we still inject a Progress steering section by default.
+	if history.SteeringSource == "none" && task.Type == "scenario" && task.Operation == "improver" {
+		history.SteerMode = string(autosteer.ModeProgress)
+		history.SteerPhaseIndex = 1
+		history.SteerPhaseIteration = 1
+		history.SteeringSource = "default_progress"
+	}
+}
+
 // executeTask executes a single task
 func (qp *Processor) executeTask(task tasks.TaskItem) {
 	log.Printf("Executing task %s: %s", task.ID, task.Title)
@@ -164,6 +208,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 	}
 
 	history.PromptSize = len(prompt)
+	qp.enrichSteeringMetadata(&task, &history)
 
 	// Store the assembled prompt in execution history
 	promptRelPath, err := qp.savePromptToHistory(task.ID, executionID, prompt)
