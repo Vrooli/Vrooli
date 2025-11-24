@@ -12,7 +12,7 @@ This document captures the design and implementation plan for adding automatic t
 
 ## Key Concepts
 
-- **Recycler Daemon**: Background loop that periodically processes one eligible task from `completed/` or `failed/` queues, updates notes via LLM analysis, and either requeues or finalizes the task.
+- **Recycler Daemon**: Event-driven worker that processes tasks as soon as they land in `completed/` or `failed/`, with a periodic sweep as a backstop; it updates notes via LLM analysis + completeness scoring, and either requeues or finalizes the task.
 - **Terminal Columns**: New board lanes (`completed-finalized/`, `failed-blocked/`) for tasks that should stop recycling. Cards show distinctive borders/icons.
 - **Streak Counters**: Two YAML fields per task track consecutive success claims and consecutive failures. Thresholds (defaults 3 and 5) control when tasks move into terminal columns.
 - **LLM Summarizer**: Configurable model (Ollama or Resource OpenRouter) that converts task output into the canonical note styles and returns a completion classification flag.
@@ -53,22 +53,21 @@ Create a new Recycler tab in the settings modal and extend the API schema:
 
 ### Recycler Loop Logic
 
-1. On interval tick, load settings and exit early if automation disabled.
-2. Enumerate `completed/` then `failed/` directories to find the first eligible task matching enabled types.
-3. Verify `processor_auto_requeue` is true and task not already in terminal status.
-4. Summarize output:
+1. On task transition into `completed/failed`, enqueue the task ID; load settings and exit early if automation disabled.
+2. Verify `processor_auto_requeue` is true and task not already in terminal status; drop ineligible tasks quietly.
+3. Summarize output:
    - If `results.output` present, call LLM with prompt returning plain text with classification and multi-section note (see Prompt Contract below).
    - On failure or missing output, fallback to conservative note (`Not sure current status`) and classification `uncertain`.
-5. Update note and streak counters:
+4. Update note and streak counters:
    - `full_complete`: increment completion streak, reset failure streak.
    - `significant_progress` / `some_progress`: reset completion streak, reset failure streak.
    - `uncertain`: reset completion streak, reset failure streak only if there was no error.
    - Failed tasks without output: increment failure streak, reset completion streak.
-6. Compare streaks to thresholds:
+5. Compare streaks to thresholds:
    - If completion streak >= threshold → move file to `completed-finalized/`, set `processor_auto_requeue=false`, broadcast UI update with green styling data.
    - Else if failure streak >= threshold → move file to `failed-blocked/`, set `processor_auto_requeue=false`, broadcast with red styling.
    - Otherwise → move file back to `pending/` and persist updates.
-7. Only process one task per interval; exit loop until next tick.
+6. Process immediately on enqueue; retain a periodic sweep as a backstop for manual moves or missed events.
 
 ### Execution Processor Adjustments
 

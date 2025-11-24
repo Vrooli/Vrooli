@@ -44,7 +44,7 @@ func setupExecutionTestProcessor(t *testing.T) (*Processor, *tasks.Storage, stri
 	}
 
 	broadcast := make(chan any, 100)
-	processor := NewProcessor(30*time.Second, storage, assembler, broadcast)
+	processor := NewProcessor(30*time.Second, storage, assembler, broadcast, nil)
 
 	return processor, storage, tmpDir
 }

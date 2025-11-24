@@ -12,6 +12,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/internal/paths"
 	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/prompts"
+	"github.com/ecosystem-manager/api/pkg/recycler"
 	"github.com/ecosystem-manager/api/pkg/settings"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
@@ -90,10 +91,13 @@ type Processor struct {
 
 	// Auto Steer integration for multi-dimensional improvement
 	autoSteerIntegration *AutoSteerIntegration
+
+	// Recycler to trigger recycling on task completion/failure
+	recycler *recycler.Recycler
 }
 
 // NewProcessor creates a new queue processor
-func NewProcessor(interval time.Duration, storage *tasks.Storage, assembler *prompts.Assembler, broadcast chan<- any) *Processor {
+func NewProcessor(interval time.Duration, storage *tasks.Storage, assembler *prompts.Assembler, broadcast chan<- any, recycler *recycler.Recycler) *Processor {
 	processor := &Processor{
 		processInterval: interval,
 		stopChannel:     make(chan bool),
@@ -102,6 +106,7 @@ func NewProcessor(interval time.Duration, storage *tasks.Storage, assembler *pro
 		executions:      make(map[string]*taskExecution),
 		broadcast:       broadcast,
 		taskLogs:        make(map[string]*TaskLogBuffer),
+		recycler:        recycler,
 	}
 
 	processor.vrooliRoot = paths.DetectVrooliRoot()
@@ -399,6 +404,11 @@ func (qp *Processor) finalizeTaskStatus(task *tasks.TaskItem, toStatus string) e
 		systemlog.Debugf("Task %s post-finalize location: %s", task.ID, status)
 	} else {
 		systemlog.Warnf("Task %s post-finalize location unknown: %v", task.ID, err)
+	}
+
+	// Trigger recycler for eligible completions/failures
+	if qp.recycler != nil && (toStatus == "completed" || toStatus == "failed") && task.ProcessorAutoRequeue {
+		qp.recycler.Enqueue(task.ID)
 	}
 
 	return nil

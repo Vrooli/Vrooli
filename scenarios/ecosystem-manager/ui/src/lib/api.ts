@@ -21,8 +21,6 @@ import type {
   ExecutionHistory,
   ExecutionPrompt,
   ExecutionOutput,
-  RecyclerTestPayload,
-  RecyclerTestResult,
   PromptPreviewConfig,
   PromptPreviewResult,
   PromptFileInfo,
@@ -56,6 +54,8 @@ const DEFAULT_SETTINGS: Settings = {
   recycler: {
     enabled_for: 'off',
     recycle_interval: 60,
+    max_retries: 3,
+    retry_delay_seconds: 2,
     model_provider: 'ollama',
     model_name: 'llama3.1:8b',
     completion_threshold: 3,
@@ -84,6 +84,8 @@ type ApiSettingsPayload = {
   recycler?: {
     enabled_for?: string;
     interval_seconds?: number;
+    max_retries?: number;
+    retry_delay_seconds?: number;
     model_provider?: string;
     model_name?: string;
     completion_threshold?: number;
@@ -147,6 +149,18 @@ function mapApiSettingsToUi(raw: ApiSettingsPayload | Settings): Settings {
         // Allow already-converted value to pass through for safety
         (recycler as unknown as Settings['recycler'])?.recycle_interval ??
         DEFAULT_SETTINGS.recycler.recycle_interval,
+      max_retries:
+        typeof recycler?.max_retries === 'number'
+          ? recycler.max_retries
+          : (recycler as any)?.max_retries ??
+            (recycler as unknown as Settings['recycler'])?.max_retries ??
+            DEFAULT_SETTINGS.recycler.max_retries,
+      retry_delay_seconds:
+        typeof recycler?.retry_delay_seconds === 'number'
+          ? recycler.retry_delay_seconds
+          : (recycler as any)?.retry_delay_seconds ??
+            (recycler as unknown as Settings['recycler'])?.retry_delay_seconds ??
+            DEFAULT_SETTINGS.recycler.retry_delay_seconds,
       model_provider: isModelProvider(recycler?.model_provider)
         ? recycler.model_provider
         : DEFAULT_SETTINGS.recycler.model_provider,
@@ -375,6 +389,8 @@ function mapUiSettingsToApi(settings: Settings): ApiSettingsPayload {
   const recycler = {
     enabled_for: settings.recycler.enabled_for,
     interval_seconds: settings.recycler.recycle_interval,
+    max_retries: settings.recycler.max_retries,
+    retry_delay_seconds: settings.recycler.retry_delay_seconds,
     model_provider: settings.recycler.model_provider,
     model_name: settings.recycler.model_name,
     completion_threshold: settings.recycler.completion_threshold,
@@ -760,38 +776,6 @@ class ApiClient {
     return this.fetchJSON<Record<string, unknown>>(
       `/api/tasks/${taskId}/executions/${executionId}/metadata`
     );
-  }
-
-  // ==================== Recycler & Testing ====================
-
-  async testRecycler(payload: RecyclerTestPayload): Promise<RecyclerTestResult> {
-    return this.fetchJSON<RecyclerTestResult>(`/api/recycler/test`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  }
-
-  // Alias with simplified input for hook compatibility
-  async testRecyclerOutput(data: { output: string }): Promise<{
-    should_recycle: boolean;
-    completion_score: number;
-    confidence?: number;
-    reasoning?: string;
-  }> {
-    const result = await this.testRecycler({ output_text: data.output });
-    return {
-      should_recycle: result.suggested_status !== 'completed-finalized',
-      completion_score: result.confidence * 10, // Convert 0-1 to 0-10
-      confidence: result.confidence,
-      reasoning: result.reasoning,
-    };
-  }
-
-  async getRecyclerPromptPreview(outputText: string): Promise<string> {
-    return this.fetchJSON<string>(`/api/recycler/preview-prompt`, {
-      method: 'POST',
-      body: JSON.stringify({ output_text: outputText }),
-    });
   }
 
   async getPromptPreview(taskConfig: PromptPreviewConfig): Promise<PromptPreviewResult> {

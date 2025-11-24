@@ -155,7 +155,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             </TabsContent>
 
             <TabsContent value="recycler" className="space-y-4">
-              <RecyclerTab />
+              <RecyclerTab
+                settings={localSettings.recycler}
+                onChange={(updates) => updateLocalSettings('recycler', updates)}
+              />
             </TabsContent>
 
             <TabsContent value="auto-steer" className="space-y-4">

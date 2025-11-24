@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"sync/atomic"
+
 	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/settings"
 	"github.com/ecosystem-manager/api/pkg/summarizer"
@@ -38,10 +40,20 @@ type Recycler struct {
 	storage   *tasks.Storage
 	wsManager *websocket.Manager
 
-	mu     sync.Mutex
-	stopCh chan struct{}
-	wakeCh chan struct{}
-	active bool
+	mu              sync.Mutex
+	stopCh          chan struct{}
+	wakeCh          chan struct{}
+	workCh          chan string
+	pending         map[string]struct{}
+	failureAttempts map[string]int
+	active          bool
+	sweepOnly       bool
+
+	processCompleted func(*tasks.TaskItem, settings.RecyclerSettings) error
+	processFailed    func(*tasks.TaskItem, settings.RecyclerSettings) error
+	retryDelay       func(int) time.Duration
+
+	stats recyclerStats
 }
 
 // New creates a recycler instance.
@@ -49,6 +61,12 @@ func New(storage *tasks.Storage, wsManager *websocket.Manager) *Recycler {
 	return &Recycler{
 		storage:   storage,
 		wsManager: wsManager,
+		retryDelay: func(attempt int) time.Duration {
+			if attempt <= 0 {
+				return time.Second
+			}
+			return time.Duration(attempt) * time.Second
+		},
 	}
 }
 
@@ -62,7 +80,15 @@ func (r *Recycler) Start() {
 
 	r.stopCh = make(chan struct{})
 	r.wakeCh = make(chan struct{}, 1)
+	r.workCh = make(chan string, 256)
+	r.pending = make(map[string]struct{})
+	r.failureAttempts = make(map[string]int)
+	r.processCompleted = r.processCompletedTask
+	r.processFailed = r.processFailedTask
 	r.active = true
+
+	// Seed initial work if enabled; ignore errors to avoid blocking startup
+	r.seedFromQueues()
 
 	go r.loop()
 }
@@ -76,6 +102,39 @@ func (r *Recycler) Stop() {
 	}
 	close(r.stopCh)
 	r.active = false
+	r.mu.Unlock()
+}
+
+// Enqueue schedules a task ID for recycler processing if enabled.
+func (r *Recycler) Enqueue(taskID string) {
+	if r == nil {
+		return
+	}
+
+	cfg := settings.GetRecyclerSettings()
+	if !r.isEnabled(cfg.EnabledFor) {
+		return
+	}
+
+	r.mu.Lock()
+	if !r.active {
+		r.mu.Unlock()
+		return
+	}
+	if _, exists := r.pending[taskID]; exists {
+		r.mu.Unlock()
+		return
+	}
+	r.pending[taskID] = struct{}{}
+	atomic.AddUint64(&r.stats.Enqueued, 1)
+	select {
+	case r.workCh <- taskID:
+	default:
+		// Channel full; drop and remove pending entry to avoid leaks
+		delete(r.pending, taskID)
+		atomic.AddUint64(&r.stats.Dropped, 1)
+		log.Printf("Recycler work channel full; dropping enqueue for task %s", taskID)
+	}
 	r.mu.Unlock()
 }
 
@@ -93,6 +152,7 @@ func (r *Recycler) Wake() {
 }
 
 func (r *Recycler) loop() {
+	// Keep draining work items quickly; still honor a periodic sweep as a backstop.
 	for {
 		cfg := settings.GetRecyclerSettings()
 		interval := time.Duration(cfg.IntervalSeconds)
@@ -103,19 +163,47 @@ func (r *Recycler) loop() {
 
 		select {
 		case <-timer.C:
+			r.runSweep(cfg)
 		case <-r.wakeCh:
 			if !timer.Stop() {
 				<-timer.C
 			}
+			r.runSweep(cfg)
 		case <-r.stopCh:
 			if !timer.Stop() {
 				<-timer.C
 			}
 			return
+		case id := <-r.workCh:
+			if !timer.Stop() {
+				<-timer.C
+			}
+			r.handleWork(id)
+			// Drain any burst to avoid starvation between timer resets
+			r.drainWorkQueue()
+			timer.Reset(interval * time.Second)
 		}
+	}
+}
 
-		if err := r.processOnce(); err != nil {
-			log.Printf("Recycler pass failed: %v", err)
+// runSweep scans completed/failed queues as a backstop (e.g., manual moves).
+func (r *Recycler) runSweep(cfg settings.RecyclerSettings) {
+	if !r.isEnabled(cfg.EnabledFor) {
+		return
+	}
+
+	if err := r.processOnce(); err != nil {
+		log.Printf("Recycler pass failed: %v", err)
+	}
+}
+
+func (r *Recycler) drainWorkQueue() {
+	for {
+		select {
+		case id := <-r.workCh:
+			r.handleWork(id)
+		default:
+			return
 		}
 	}
 }
@@ -166,6 +254,193 @@ func (r *Recycler) processOnce() error {
 	}
 
 	return nil
+}
+
+// handleWork revalidates and processes a single task ID from the work queue.
+func (r *Recycler) handleWork(taskID string) {
+	if r.processCompleted == nil {
+		r.processCompleted = r.processCompletedTask
+	}
+	if r.processFailed == nil {
+		r.processFailed = r.processFailedTask
+	}
+
+	cfg := settings.GetRecyclerSettings()
+	if !r.isEnabled(cfg.EnabledFor) {
+		r.removePending(taskID)
+		r.resetFailures(taskID)
+		return
+	}
+
+	if r.storage == nil {
+		log.Printf("Recycler storage unavailable; dropping task %s", taskID)
+		r.removePending(taskID)
+		r.resetFailures(taskID)
+		return
+	}
+
+	task, status, err := r.storage.GetTaskByID(taskID)
+	r.removePending(taskID)
+	if err != nil {
+		log.Printf("Recycler could not load task %s: %v", taskID, err)
+		r.resetFailures(taskID)
+		return
+	}
+	if status != "completed" && status != "failed" {
+		r.resetFailures(taskID)
+		return
+	}
+	if !task.ProcessorAutoRequeue {
+		r.resetFailures(taskID)
+		return
+	}
+	if !isTypeEnabled(task.Type, strings.ToLower(strings.TrimSpace(cfg.EnabledFor))) {
+		r.resetFailures(taskID)
+		return
+	}
+
+	atomic.AddUint64(&r.stats.Processed, 1)
+
+	if status == "completed" {
+		if err := r.processCompleted(task, cfg); err != nil {
+			r.handleProcessingError(taskID, err)
+		} else {
+			r.resetFailures(taskID)
+		}
+		return
+	}
+
+	if err := r.processFailed(task, cfg); err != nil {
+		r.handleProcessingError(taskID, err)
+	} else {
+		r.resetFailures(taskID)
+	}
+}
+
+// seedFromQueues enqueues existing eligible tasks on startup or enable.
+func (r *Recycler) seedFromQueues() {
+	cfg := settings.GetRecyclerSettings()
+	if !r.isEnabled(cfg.EnabledFor) {
+		return
+	}
+	if r.storage == nil {
+		return
+	}
+
+	for _, bucket := range recycleStatuses {
+		items, err := r.storage.GetQueueItems(bucket)
+		if err != nil {
+			log.Printf("Recycler seed: failed to read %s queue: %v", bucket, err)
+			continue
+		}
+		for _, candidate := range items {
+			if !candidate.ProcessorAutoRequeue {
+				continue
+			}
+			if !isTypeEnabled(candidate.Type, strings.ToLower(strings.TrimSpace(cfg.EnabledFor))) {
+				continue
+			}
+			r.Enqueue(candidate.ID)
+		}
+	}
+}
+
+// OnSettingsUpdated reacts to enabled_for toggles by reseeding and waking.
+func (r *Recycler) OnSettingsUpdated(previous, next settings.Settings) {
+	if r == nil {
+		return
+	}
+	prevEnabled := r.isEnabled(previous.Recycler.EnabledFor)
+	nextEnabled := r.isEnabled(next.Recycler.EnabledFor)
+
+	// Clear pending when disabling to avoid stale burst on re-enable.
+	if prevEnabled && !nextEnabled {
+		r.clearPending()
+		return
+	}
+
+	if !prevEnabled && nextEnabled {
+		r.seedFromQueues()
+		r.Wake()
+	}
+}
+
+func (r *Recycler) removePending(taskID string) {
+	r.mu.Lock()
+	delete(r.pending, taskID)
+	r.mu.Unlock()
+}
+
+func (r *Recycler) clearPending() {
+	r.mu.Lock()
+	r.pending = make(map[string]struct{})
+	r.failureAttempts = make(map[string]int)
+	for {
+		select {
+		case <-r.workCh:
+			atomic.AddUint64(&r.stats.Dropped, 1)
+		default:
+			r.mu.Unlock()
+			return
+		}
+	}
+}
+
+func (r *Recycler) handleProcessingError(taskID string, err error) {
+	cfg := settings.GetRecyclerSettings()
+	maxRetries := cfg.MaxRetries
+	if maxRetries < settings.MinRecyclerMaxRetries {
+		maxRetries = settings.MinRecyclerMaxRetries
+	}
+	if maxRetries > settings.MaxRecyclerMaxRetries {
+		maxRetries = settings.MaxRecyclerMaxRetries
+	}
+	delaySeconds := cfg.RetryDelaySeconds
+	if delaySeconds < settings.MinRecyclerRetryDelaySecs {
+		delaySeconds = settings.MinRecyclerRetryDelaySecs
+	}
+	if delaySeconds > settings.MaxRecyclerRetryDelaySecs {
+		delaySeconds = settings.MaxRecyclerRetryDelaySecs
+	}
+
+	attempt := r.incrementFailure(taskID)
+	log.Printf("Recycler failed to process task %s (attempt %d): %v", taskID, attempt, err)
+
+	if attempt > maxRetries {
+		log.Printf("Recycler giving up on task %s after %d attempts", taskID, attempt-1)
+		r.resetFailures(taskID)
+		return
+	}
+
+	atomic.AddUint64(&r.stats.Requeued, 1)
+	delay := time.Duration(delaySeconds*attempt) * time.Second
+	go func(id string, d time.Duration) {
+		time.Sleep(d)
+		r.Enqueue(id)
+	}(taskID, delay)
+}
+
+func (r *Recycler) incrementFailure(taskID string) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.failureAttempts[taskID]++
+	return r.failureAttempts[taskID]
+}
+
+func (r *Recycler) resetFailures(taskID string) {
+	r.mu.Lock()
+	delete(r.failureAttempts, taskID)
+	r.mu.Unlock()
+}
+
+// Stats exposes basic recycler counters for observability/testing.
+func (r *Recycler) Stats() recyclerStats {
+	return recyclerStats{
+		Enqueued:  atomic.LoadUint64(&r.stats.Enqueued),
+		Dropped:   atomic.LoadUint64(&r.stats.Dropped),
+		Processed: atomic.LoadUint64(&r.stats.Processed),
+		Requeued:  atomic.LoadUint64(&r.stats.Requeued),
+	}
 }
 
 func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.RecyclerSettings) error {
@@ -238,7 +513,7 @@ func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.Recyc
 			return err
 		}
 		r.broadcast(task, "task_finalized")
-		log.Printf("Recycler finalized task %s after %d consecutive completion claims", task.ID, task.ConsecutiveCompletionClaims)
+		log.Printf("Recycler finalized task %s after %.1f consecutive completion claims", task.ID, task.ConsecutiveCompletionClaims)
 		return nil
 	}
 
@@ -390,4 +665,16 @@ func isTypeEnabled(taskType string, enabled string) bool {
 	default:
 		return false
 	}
+}
+
+func (r *Recycler) isEnabled(enabledFor string) bool {
+	enabled := strings.ToLower(strings.TrimSpace(enabledFor))
+	return enabled != "" && enabled != enabledOff
+}
+
+type recyclerStats struct {
+	Enqueued  uint64
+	Dropped   uint64
+	Processed uint64
+	Requeued  uint64
 }

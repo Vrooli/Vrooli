@@ -9,18 +9,21 @@ import (
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/queue"
+	"github.com/ecosystem-manager/api/pkg/recycler"
 )
 
 // HealthHandlers contains handlers for health check endpoints
 type HealthHandlers struct {
 	processor *queue.Processor
+	recycler  *recycler.Recycler
 	startTime time.Time
 }
 
 // NewHealthHandlers creates a new health handlers instance
-func NewHealthHandlers(processor *queue.Processor) *HealthHandlers {
+func NewHealthHandlers(processor *queue.Processor, recycler *recycler.Recycler) *HealthHandlers {
 	return &HealthHandlers{
 		processor: processor,
+		recycler:  recycler,
 		startTime: time.Now(),
 	}
 }
@@ -87,6 +90,18 @@ func (h *HealthHandlers) HealthCheckHandler(w http.ResponseWriter, r *http.Reque
 			"completed_count": queueStatus["completed_count"],
 			"failed_count":    queueStatus["failed_count"],
 		},
+	}
+
+	// Recycler stats (if available)
+	if h.recycler != nil {
+		stats := h.recycler.Stats()
+		healthResponse["dependencies"].(map[string]any)["recycler"] = map[string]any{
+			"connected": true,
+			"enqueued":  stats.Enqueued,
+			"processed": stats.Processed,
+			"dropped":   stats.Dropped,
+			"requeued":  stats.Requeued,
+		}
 	}
 
 	// Add storage error if present

@@ -26,6 +26,12 @@ const (
 	MinRecyclerInterval = 30
 	MaxRecyclerInterval = 1800
 
+	// Recycler retry constraints
+	MinRecyclerMaxRetries     = 0
+	MaxRecyclerMaxRetries     = 10
+	MinRecyclerRetryDelaySecs = 1
+	MaxRecyclerRetryDelaySecs = 300
+
 	// Recycler max generations constraints
 	MinRecyclerMaxGenerations = 1
 	MaxRecyclerMaxGenerations = 10
@@ -60,6 +66,8 @@ const (
 	// Recycler defaults
 	DefaultRecyclerEnabledFor          = "off"
 	DefaultRecyclerInterval            = 300
+	DefaultRecyclerMaxRetries          = 3
+	DefaultRecyclerRetryDelaySeconds   = 2
 	DefaultRecyclerMaxGenerations      = 3
 	DefaultRecyclerBatchSize           = 5
 	DefaultRecyclerLimit               = 50

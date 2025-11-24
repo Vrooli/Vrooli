@@ -3,12 +3,9 @@
  * Configure recycler settings and run tests
  */
 
-import { useState } from 'react';
-import { Recycle, Play, Info } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Info } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
 import {
   Select,
@@ -17,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useRecyclerSettings, useRecyclerTest } from '@/hooks/useRecycler';
 import type { RecyclerSettings } from '@/types/api';
 
 const MODEL_PROVIDERS = [
@@ -39,23 +35,21 @@ const OPENROUTER_MODELS = [
   'meta-llama/llama-3.2-3b-instruct',
 ];
 
-export function RecyclerTab() {
-  const { settings, updateSetting } = useRecyclerSettings();
-  const { mutate: runTest, data: testResults, isPending: isTesting } = useRecyclerTest();
+interface RecyclerTabProps {
+  settings: RecyclerSettings;
+  onChange: (updates: Partial<RecyclerSettings>) => void;
+}
 
-  const [testOutput, setTestOutput] = useState('');
-
-  if (!settings) {
-    return <div className="text-slate-400 text-center py-8">Loading recycler settings...</div>;
-  }
+export function RecyclerTab({ settings, onChange }: RecyclerTabProps) {
+  const updateSetting = <K extends keyof RecyclerSettings>(
+    key: K,
+    value: RecyclerSettings[K]
+  ) => {
+    onChange({ [key]: value });
+  };
 
   const modelOptions =
     settings.model_provider === 'ollama' ? OLLAMA_MODELS : OPENROUTER_MODELS;
-
-  const handleRunTest = () => {
-    if (!testOutput.trim()) return;
-    runTest({ output: testOutput });
-  };
 
   return (
     <div className="space-y-6">
@@ -64,12 +58,15 @@ export function RecyclerTab() {
         <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
         <div className="text-xs text-slate-300 space-y-1">
           <p>
-            <strong>Recycler</strong> analyzes completed/failed task outputs to determine if they
-            should be automatically re-queued for improvement.
+            <strong>Recycler</strong> refreshes notes for completed/failed tasks and uses scenario
+            completeness scores to decide whether they should be automatically re-queued for
+            another improvement pass. Processing is event-driven with a periodic sweep as a safety
+            net.
           </p>
           <p>
-            It uses a lightweight LLM to assess output quality and make intelligent decisions
-            about task lifecycle management.
+            It pairs a lightweight LLM summary with `vrooli scenario completeness &lt;scenario&gt;`
+            so recycling decisions come from the same scoring pipeline used across scenarios. Retry
+            and backoff controls keep recycling from thrashing when a task is unhealthy.
           </p>
         </div>
       </div>
@@ -95,10 +92,10 @@ export function RecyclerTab() {
           </Select>
         </div>
 
-        {/* Recycle Interval */}
+        {/* Sweep Interval */}
         <div className="space-y-2">
           <Label htmlFor="recycler-interval">
-            Recycle Interval (seconds): {settings.recycle_interval}
+            Sweep Interval (seconds): {settings.recycle_interval}
           </Label>
           <Slider
             id="recycler-interval"
@@ -109,8 +106,44 @@ export function RecyclerTab() {
             onValueChange={([val]) => updateSetting('recycle_interval', val)}
           />
           <p className="text-xs text-slate-400">
-            How often to check completed/failed tasks for recycling
+            Backstop sweep to catch manual moves; event-driven triggers run immediately.
           </p>
+        </div>
+
+        {/* Retry / Backoff */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="recycler-max-retries">
+              Max Retries: {settings.max_retries}
+            </Label>
+            <Slider
+              id="recycler-max-retries"
+              min={0}
+              max={10}
+              step={1}
+              value={[settings.max_retries]}
+              onValueChange={([val]) => updateSetting('max_retries', val)}
+            />
+            <p className="text-xs text-slate-400">
+              Retries when recycler processing fails (0 = no retries)
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="recycler-retry-delay">
+              Retry Delay (seconds): {settings.retry_delay_seconds}
+            </Label>
+            <Slider
+              id="recycler-retry-delay"
+              min={1}
+              max={60}
+              step={1}
+              value={[settings.retry_delay_seconds]}
+              onValueChange={([val]) => updateSetting('retry_delay_seconds', val)}
+            />
+            <p className="text-xs text-slate-400">
+              Linear backoff per attempt (delay × attempt)
+            </p>
+          </div>
         </div>
 
         {/* Model Provider */}
@@ -197,75 +230,6 @@ export function RecyclerTab() {
             </p>
           </div>
         </div>
-      </div>
-
-      {/* Recycler Testbed */}
-      <div className="pt-6 border-t border-white/10 space-y-4">
-        <div className="flex items-center gap-2">
-          <Recycle className="h-4 w-4 text-slate-400" />
-          <h4 className="text-sm font-medium">Recycler Testbed</h4>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="test-output">Test Output</Label>
-          <Textarea
-            id="test-output"
-            value={testOutput}
-            onChange={(e) => setTestOutput(e.target.value)}
-            placeholder="Paste task output to test recycler analysis..."
-            rows={6}
-          />
-        </div>
-
-        <Button
-          onClick={handleRunTest}
-          disabled={isTesting || !testOutput.trim()}
-        >
-          {isTesting ? (
-            'Analyzing...'
-          ) : (
-            <>
-              <Play className="h-4 w-4 mr-2" />
-              Run Test
-            </>
-          )}
-        </Button>
-
-        {/* Test Results */}
-        {testResults && (
-          <div className="bg-slate-900 border border-white/10 rounded-md p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Analysis Result</span>
-              <span className={`text-sm font-semibold ${
-                testResults.should_recycle ? 'text-yellow-400' : 'text-green-400'
-              }`}>
-                {testResults.should_recycle ? 'RECYCLE' : 'FINALIZE'}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div>
-                <div className="text-slate-400">Completion Score</div>
-                <div className="text-lg font-mono font-semibold">
-                  {testResults.completion_score}/10
-                </div>
-              </div>
-              <div>
-                <div className="text-slate-400">Confidence</div>
-                <div className="text-lg font-mono font-semibold">
-                  {Math.round((testResults.confidence || 0) * 100)}%
-                </div>
-              </div>
-            </div>
-
-            {testResults.reasoning && (
-              <div className="pt-2 border-t border-white/10">
-                <div className="text-xs text-slate-400 mb-1">Reasoning</div>
-                <div className="text-sm text-slate-300">{testResults.reasoning}</div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

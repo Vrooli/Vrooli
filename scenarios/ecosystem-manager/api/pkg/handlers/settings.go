@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -13,7 +12,6 @@ import (
 	"github.com/ecosystem-manager/api/pkg/queue"
 	"github.com/ecosystem-manager/api/pkg/recycler"
 	"github.com/ecosystem-manager/api/pkg/settings"
-	"github.com/ecosystem-manager/api/pkg/summarizer"
 	"github.com/ecosystem-manager/api/pkg/websocket"
 )
 
@@ -72,6 +70,14 @@ func (h *SettingsHandlers) GetSettingsHandler(w http.ResponseWriter, r *http.Req
 					"min": settings.MinRecyclerInterval,
 					"max": settings.MaxRecyclerInterval,
 				},
+				"max_retries": map[string]int{
+					"min": settings.MinRecyclerMaxRetries,
+					"max": settings.MaxRecyclerMaxRetries,
+				},
+				"retry_delay_seconds": map[string]int{
+					"min": settings.MinRecyclerRetryDelaySecs,
+					"max": settings.MaxRecyclerRetryDelaySecs,
+				},
 				"completion_threshold": map[string]int{
 					"min": settings.MinRecyclerCompletionThreshold,
 					"max": settings.MaxRecyclerCompletionThreshold,
@@ -104,6 +110,7 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 	// Update settings
 	settings.UpdateSettings(validated)
 	if h.recycler != nil {
+		h.recycler.OnSettingsUpdated(oldSettings, validated)
 		h.recycler.Wake()
 	}
 
@@ -180,106 +187,6 @@ func (h *SettingsHandlers) GetRecyclerModelsHandler(w http.ResponseWriter, r *ht
 	}
 
 	writeJSON(w, response, http.StatusOK)
-}
-
-// TestRecyclerHandler generates a recycler summary for a mock task using current settings.
-func (h *SettingsHandlers) TestRecyclerHandler(w http.ResponseWriter, r *http.Request) {
-	type testRequest struct {
-		OutputText     string `json:"output_text"`
-		ModelProvider  string `json:"model_provider"`
-		ModelName      string `json:"model_name"`
-		PromptOverride string `json:"prompt_override"`
-	}
-
-	req, ok := decodeJSONBody[testRequest](w, r)
-	if !ok {
-		return
-	}
-
-	output := strings.TrimSpace(req.OutputText)
-	if output == "" {
-		writeError(w, "output_text is required", http.StatusBadRequest)
-		return
-	}
-
-	settingsSnapshot := settings.GetSettings()
-	config := settingsSnapshot.Recycler
-
-	overrideProvider := strings.ToLower(strings.TrimSpace(req.ModelProvider))
-	overrideModel := strings.TrimSpace(req.ModelName)
-
-	selectedProvider := config.ModelProvider
-	selectedModel := config.ModelName
-
-	if overrideProvider != "" {
-		switch overrideProvider {
-		case "ollama", "openrouter":
-			selectedProvider = overrideProvider
-		default:
-			writeError(w, "model_provider must be 'ollama' or 'openrouter'", http.StatusBadRequest)
-			return
-		}
-		if overrideModel == "" {
-			writeError(w, "model_name is required when overriding model_provider", http.StatusBadRequest)
-			return
-		}
-	}
-
-	if overrideModel != "" {
-		selectedModel = overrideModel
-	}
-
-	input := summarizer.Input{Output: output, PromptOverride: req.PromptOverride}
-
-	result, err := summarizer.GenerateNote(
-		context.Background(),
-		summarizer.Config{Provider: selectedProvider, Model: selectedModel},
-		input,
-	)
-
-	promptUsed := strings.TrimSpace(req.PromptOverride)
-	if promptUsed == "" {
-		promptUsed = summarizer.BuildPrompt(output)
-	}
-
-	response := map[string]any{
-		"success":  err == nil,
-		"result":   result,
-		"provider": selectedProvider,
-		"model":    selectedModel,
-		"prompt":   promptUsed,
-	}
-
-	if err != nil {
-		log.Printf("Recycler test summarizer error: %v", err)
-		fallback := summarizer.DefaultResult()
-		response["result"] = fallback
-		response["error"] = err.Error()
-	}
-
-	writeJSON(w, response, http.StatusOK)
-}
-
-// PreviewRecyclerPromptHandler builds the recycler LLM prompt for mock output without executing the model.
-func (h *SettingsHandlers) PreviewRecyclerPromptHandler(w http.ResponseWriter, r *http.Request) {
-	type previewRequest struct {
-		OutputText string `json:"output_text"`
-	}
-
-	req, ok := decodeJSONBody[previewRequest](w, r)
-	if !ok {
-		return
-	}
-
-	output := strings.TrimSpace(req.OutputText)
-	if output == "" {
-		writeError(w, "output_text is required", http.StatusBadRequest)
-		return
-	}
-
-	prompt := summarizer.BuildPrompt(output)
-
-	writeJSON(w, map[string]string{"prompt": prompt}, http.StatusOK)
 }
 
 // ResetSettingsHandler resets settings to defaults

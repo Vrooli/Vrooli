@@ -40,7 +40,7 @@ func setupTestProcessor(t *testing.T) (*Processor, string, func()) {
 	}
 
 	broadcast := make(chan any, 10)
-	processor := NewProcessor(30*time.Second, storage, assembler, broadcast)
+	processor := NewProcessor(30*time.Second, storage, assembler, broadcast, nil)
 
 	cleanup := func() {
 		processor.Stop()

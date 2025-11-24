@@ -264,6 +264,7 @@ func initializeComponents() error {
 		storage,
 		assembler,
 		wsManager.GetBroadcastChannel(),
+		taskRecycler,
 	)
 	log.Println("✅ Queue processor initialized")
 	systemlog.Info("Queue processor initialized")
@@ -307,7 +308,7 @@ func initializeComponents() error {
 	taskHandlers = handlers.NewTaskHandlers(storage, assembler, processor, wsManager, autoSteerProfileService)
 	queueHandlers = handlers.NewQueueHandlers(processor, wsManager, storage)
 	discoveryHandlers = handlers.NewDiscoveryHandlers(assembler)
-	healthHandlers = handlers.NewHealthHandlers(processor)
+	healthHandlers = handlers.NewHealthHandlers(processor, taskRecycler)
 	settingsHandlers = handlers.NewSettingsHandlers(processor, wsManager, taskRecycler)
 	promptsHandlers = handlers.NewPromptsHandlers(assembler)
 	autoSteerHandlers = autosteer.NewAutoSteerHandlers(autoSteerProfileService, autoSteerExecutionEngine, autoSteerHistoryService)
@@ -361,9 +362,6 @@ func setupRoutes() http.Handler {
 	api.HandleFunc("/queue/resume-diagnostics", queueHandlers.GetResumeDiagnosticsHandler).Methods("GET")
 	api.HandleFunc("/queue/trigger", queueHandlers.TriggerQueueProcessingHandler).Methods("POST")
 	api.HandleFunc("/queue/reset-rate-limit", queueHandlers.ResetRateLimitHandler).Methods("POST")
-	api.HandleFunc("/recycler/test", settingsHandlers.TestRecyclerHandler).Methods("POST")
-	api.HandleFunc("/recycler/preview-prompt", settingsHandlers.PreviewRecyclerPromptHandler).Methods("POST")
-
 	// System logs
 	api.HandleFunc("/logs", handlers.LogsHandler).Methods("GET")
 

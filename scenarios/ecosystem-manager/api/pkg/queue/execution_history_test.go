@@ -30,7 +30,7 @@ func setupTestExecutionProcessor(t *testing.T) (*Processor, func()) {
 	assembler := &prompts.Assembler{} // Mock assembler
 	broadcast := make(chan any, 10)
 
-	processor := NewProcessor(time.Second, storage, assembler, broadcast)
+	processor := NewProcessor(time.Second, storage, assembler, broadcast, nil)
 
 	cleanup := func() {
 		os.RemoveAll(tmpDir)

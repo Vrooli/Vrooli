@@ -102,13 +102,13 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 	}
 
 	broadcast := make(chan any, 10)
-	processor := queue.NewProcessor(30*time.Second, storage, assembler, broadcast)
+	processor := queue.NewProcessor(30*time.Second, storage, assembler, broadcast, nil)
 	wsManager := websocket.NewManager()
 	testRecycler := &recycler.Recycler{}
 
 	taskHandlers := NewTaskHandlers(storage, assembler, processor, wsManager, nil)
 	queueHandlers := NewQueueHandlers(processor, wsManager, storage)
-	healthHandlers := NewHealthHandlers(processor)
+	healthHandlers := NewHealthHandlers(processor, nil)
 	discoveryHandlers := NewDiscoveryHandlers(assembler)
 	settingsHandlers := NewSettingsHandlers(processor, wsManager, testRecycler)
 

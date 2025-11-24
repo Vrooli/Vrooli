@@ -17,6 +17,8 @@ type RecyclerSettings struct {
 	ModelName           string `json:"model_name"`
 	CompletionThreshold int    `json:"completion_threshold"`
 	FailureThreshold    int    `json:"failure_threshold"`
+	MaxRetries          int    `json:"max_retries"`
+	RetryDelaySeconds   int    `json:"retry_delay_seconds"`
 }
 
 // Settings represents the application settings
@@ -65,6 +67,8 @@ func newDefaultSettings() Settings {
 			ModelName:           DefaultRecyclerModelID,
 			CompletionThreshold: DefaultRecyclerCompletionThreshold,
 			FailureThreshold:    DefaultRecyclerFailureThreshold,
+			MaxRetries:          DefaultRecyclerMaxRetries,
+			RetryDelaySeconds:   DefaultRecyclerRetryDelaySeconds,
 		},
 	}
 }
@@ -186,6 +190,16 @@ func ValidateAndNormalize(input Settings, previous Settings) (Settings, error) {
 	}
 	if recycler.FailureThreshold < MinRecyclerFailureThreshold || recycler.FailureThreshold > MaxRecyclerFailureThreshold {
 		return previous, fmt.Errorf("Recycler failure_threshold must be between %d and %d", MinRecyclerFailureThreshold, MaxRecyclerFailureThreshold)
+	}
+
+	if recycler.MaxRetries < MinRecyclerMaxRetries || recycler.MaxRetries > MaxRecyclerMaxRetries {
+		return previous, fmt.Errorf("Recycler max_retries must be between %d and %d", MinRecyclerMaxRetries, MaxRecyclerMaxRetries)
+	}
+	if recycler.RetryDelaySeconds == 0 {
+		recycler.RetryDelaySeconds = previous.Recycler.RetryDelaySeconds
+	}
+	if recycler.RetryDelaySeconds < MinRecyclerRetryDelaySecs || recycler.RetryDelaySeconds > MaxRecyclerRetryDelaySecs {
+		return previous, fmt.Errorf("Recycler retry_delay_seconds must be between %d and %d", MinRecyclerRetryDelaySecs, MaxRecyclerRetryDelaySecs)
 	}
 
 	s.Recycler = recycler

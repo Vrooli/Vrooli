@@ -127,6 +127,8 @@ export interface DisplaySettings {
 export interface RecyclerSettings {
   enabled_for: 'off' | 'resources' | 'scenarios' | 'both';
   recycle_interval: number;
+  max_retries: number;
+  retry_delay_seconds: number;
   model_provider: 'ollama' | 'openrouter';
   model_name: string;
   completion_threshold: number;
@@ -388,19 +390,6 @@ export interface HealthResponse {
   status: string;
   service: string;
   timestamp: string;
-}
-
-// ==================== Recycler Types ====================
-
-export interface RecyclerTestPayload {
-  output_text: string;
-  expected_status?: TaskStatus;
-}
-
-export interface RecyclerTestResult {
-  suggested_status: TaskStatus;
-  confidence: number;
-  reasoning?: string;
 }
 
 export interface PromptPreviewConfig {
