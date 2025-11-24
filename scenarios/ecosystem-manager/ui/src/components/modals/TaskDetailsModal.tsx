@@ -32,6 +32,7 @@ import { useAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExec
 import { api } from '@/lib/api';
 import { markdownToHtml } from '@/lib/markdown';
 import { queryKeys } from '@/lib/queryKeys';
+import { ExecutionDetailCard } from '@/components/executions/ExecutionDetailCard';
 import type { Task, Priority, ExecutionHistory, UpdateTaskInput, LogEntry, SteerMode } from '@/types/api';
 import { STEER_MODES } from '@/types/api';
 
@@ -40,15 +41,6 @@ interface TaskDetailsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-const stripLogLine = (line: string) => {
-  const trimmed = line.trim();
-  const match = trimmed.match(/^[0-9T:.\-+]+ \[[^\]]+\] \([^)]+\)\s+(.*)$/);
-  if (match && match[1]) {
-    return match[1].trim();
-  }
-  return trimmed;
-};
 
 const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low'];
 const AUTO_STEER_NONE = 'none';
@@ -253,39 +245,6 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
     }
   };
 
-  const extractFinalMessage = (output?: string, maxLength = 600) => {
-    if (!output) return '';
-    const lines = output
-      .split('\n')
-      .map(stripLogLine)
-      .filter(Boolean);
-
-    if (lines.length === 0) return '';
-
-    // Prefer the last summary/final section if present
-    for (let i = lines.length - 1; i >= 0; i -= 1) {
-      const line = lines[i].toLowerCase();
-      const isSummaryHeading = /^#+\s+(task\s+)?(completion\s+)?summary/.test(line);
-      const isFinalHeading = line.startsWith('final response') || line.startsWith('final message');
-      if (isSummaryHeading || isFinalHeading) {
-        const summaryLines = lines.slice(i + 1);
-        if (summaryLines.length > 0) {
-          const message = summaryLines.join(' ');
-          if (message.length > maxLength) {
-            return `${message.slice(0, maxLength)}…`;
-          }
-          return message;
-        }
-      }
-    }
-
-    const tailLines = lines.slice(-5).join(' ');
-    if (tailLines.length > maxLength) {
-      return `${tailLines.slice(tailLines.length - maxLength)}`;
-    }
-    return tailLines;
-  };
-
   const selectedOutputText =
     (selectedExecutionOutput as any)?.output ??
     (selectedExecutionOutput as any)?.content ??
@@ -298,15 +257,6 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
     (latestExecutionOutput as any)?.output ??
     (latestExecutionOutput as any)?.content ??
     '';
-  const selectedFinalMessage = useMemo(
-    () => extractFinalMessage(selectedOutputText),
-    [selectedOutputText],
-  );
-  const latestFinalMessage = useMemo(
-    () => extractFinalMessage(latestOutputText),
-    [latestOutputText],
-  );
-
   const assembledPromptHtml = useMemo(() => markdownToHtml(assembledPrompt), [assembledPrompt]);
 
   if (!task) return null;
@@ -334,7 +284,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
     const updates: UpdateTaskInput = {
       priority,
       notes: notes.trim() || undefined,
-      steer_mode: autoSteerProfileId === AUTO_STEER_NONE && steerMode !== 'none' ? steerMode : 'none',
+      steer_mode: autoSteerProfileId === AUTO_STEER_NONE && steerMode !== 'none' ? steerMode : undefined,
       auto_steer_profile_id: autoSteerProfileId === AUTO_STEER_NONE ? undefined : autoSteerProfileId,
       auto_requeue: autoRequeue,
     };
@@ -621,13 +571,13 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                         </Button>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-[11px] uppercase text-slate-500">Final response</div>
+                        <div className="text-[11px] uppercase text-slate-500">Output</div>
                         {isLoadingLatestOutput ? (
                           <div className="text-xs text-slate-500">Loading output...</div>
-                        ) : latestFinalMessage ? (
-                          <div className="rounded-md border border-white/5 bg-slate-800/60 p-2 text-sm text-slate-100 whitespace-pre-wrap max-h-28 overflow-y-auto">
-                            {latestFinalMessage}
-                          </div>
+                        ) : latestOutputText ? (
+                          <pre className="rounded-md border border-white/5 bg-slate-800/60 p-2 text-xs text-slate-100 whitespace-pre-wrap max-h-52 overflow-y-auto">
+                            {latestOutputText}
+                          </pre>
                         ) : (
                           <div className="text-xs text-slate-500">No output captured yet.</div>
                         )}
@@ -756,71 +706,13 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                   })}
                 </div>
 
-                <div className="rounded-md border border-primary/30 bg-slate-900/60 p-3 min-h-[220px]">
-                  {selectedExecution ? (
-                    <div className="space-y-3">
-                      <div className="text-xs uppercase text-slate-400">Selected execution</div>
-                      <div className="text-sm font-medium text-foreground break-words">ID: {selectedExecution.id}</div>
-                      <div className="text-xs text-slate-300">
-                        Task: {selectedExecution.task_id} • Status:{' '}
-                        <span className={getStatusTone(selectedExecution.status)}>
-                          {selectedExecution.status}
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-400">
-                        Started: {formatDateTime(selectedExecution.start_time)}
-                        {selectedExecution.end_time && (
-                          <> • Ended: {formatDateTime(selectedExecution.end_time)}</>
-                        )}
-                      </div>
-                      <div className="text-xs text-slate-400">
-                        Duration: {formatExecutionDuration(selectedExecution)}
-                        {selectedExecution.timeout_allowed ? ` • Timeout: ${selectedExecution.timeout_allowed}` : ''}
-                      </div>
-                      {selectedExecution.exit_code !== undefined && (
-                        <div className="text-xs text-slate-400">Exit code: {selectedExecution.exit_code}</div>
-                      )}
-                      {selectedExecution.exit_reason && (
-                        <div className="text-xs text-slate-400">Exit reason: {selectedExecution.exit_reason}</div>
-                      )}
-                      <div className="space-y-1">
-                        <div className="text-[11px] uppercase text-slate-400">Final message</div>
-                        {isLoadingSelectedOutput ? (
-                          <div className="text-xs text-slate-500">Loading output...</div>
-                        ) : selectedFinalMessage ? (
-                          <div className="rounded-md border border-white/5 bg-slate-800/70 p-2 text-sm text-slate-100 whitespace-pre-wrap max-h-36 overflow-y-auto">
-                            {selectedFinalMessage}
-                          </div>
-                        ) : (
-                          <div className="text-xs text-slate-500">No output captured for this execution.</div>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-[11px] uppercase text-slate-400">Prompt sent to agent</div>
-                        {isLoadingSelectedPrompt ? (
-                          <div className="text-xs text-slate-500">Loading prompt...</div>
-                        ) : selectedPromptText ? (
-                          <div className="rounded-md border border-white/5 bg-slate-900/70 p-2 text-xs text-slate-100 whitespace-pre-wrap max-h-40 overflow-y-auto">
-                            {selectedPromptText}
-                          </div>
-                        ) : (
-                          <div className="text-xs text-slate-500">Prompt not captured for this execution.</div>
-                        )}
-                      </div>
-                      {selectedExecution.metadata && Object.keys(selectedExecution.metadata).length > 0 ? (
-                        <pre className="text-xs text-slate-200 bg-black/30 border border-white/5 rounded p-2 overflow-x-auto">
-                          {JSON.stringify(selectedExecution.metadata, null, 2)}
-                        </pre>
-                      ) : (
-                        <div className="text-xs text-slate-500">No additional metadata</div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-slate-500 text-sm">
-                      Select an execution to view details
-                    </div>
-                  )}
-                </div>
+                <ExecutionDetailCard
+                  execution={selectedExecution}
+                  promptText={selectedPromptText}
+                  outputText={selectedOutputText}
+                  isLoadingPrompt={isLoadingSelectedPrompt}
+                  isLoadingOutput={isLoadingSelectedOutput}
+                />
               </div>
             )}
           </TabsContent>

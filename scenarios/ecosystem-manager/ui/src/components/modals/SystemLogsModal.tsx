@@ -11,6 +11,7 @@ import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Input } from '../ui/input';
+import { ExecutionDetailCard } from '../executions/ExecutionDetailCard';
 import { useSystemLogs } from '@/hooks/useSystemLogs';
 import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { api } from '@/lib/api';
@@ -126,47 +127,6 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
       return formatDurationMs(end - start);
     }
     return '--';
-  };
-
-  const stripLogLine = (line: string) => {
-    const trimmed = line.trim();
-    const match = trimmed.match(/^[0-9T:.\-+]+ \[[^\]]+\] \([^)]+\)\s+(.*)$/);
-    if (match && match[1]) {
-      return match[1].trim();
-    }
-    return trimmed;
-  };
-
-  const extractFinalMessage = (output?: string, maxLength = 600) => {
-    if (!output) return '';
-    const lines = output
-      .split('\n')
-      .map(stripLogLine)
-      .filter(Boolean);
-
-    if (lines.length === 0) return '';
-
-    for (let i = lines.length - 1; i >= 0; i -= 1) {
-      const line = lines[i].toLowerCase();
-      const isSummaryHeading = /^#+\s+(task\s+)?(completion\s+)?summary/.test(line);
-      const isFinalHeading = line.startsWith('final response') || line.startsWith('final message');
-      if (isSummaryHeading || isFinalHeading) {
-        const summaryLines = lines.slice(i + 1);
-        if (summaryLines.length > 0) {
-          const message = summaryLines.join(' ');
-          if (message.length > maxLength) {
-            return `${message.slice(0, maxLength)}…`;
-          }
-          return message;
-        }
-      }
-    }
-
-    const tailLines = lines.slice(-5).join(' ');
-    if (tailLines.length > maxLength) {
-      return tailLines.slice(tailLines.length - maxLength);
-    }
-    return tailLines;
   };
 
   const formatSteerInfo = (execution?: ExecutionHistory | null) => {
@@ -306,10 +266,6 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
     (selectedExecutionOutput as any)?.output ??
     (selectedExecutionOutput as any)?.content ??
     '';
-  const selectedFinalMessage = useMemo(
-    () => extractFinalMessage(selectedOutputText),
-    [selectedOutputText],
-  );
 
   const filteredPerformance = useMemo(() => {
     const scenarioTerm = scenarioFilter.trim().toLowerCase();
@@ -613,99 +569,14 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-white/5 bg-slate-900/70 p-4 flex flex-col gap-3 min-h-[320px]">
-                {!selectedExecution ? (
-                  <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">
-                    {isLoadingExecutions ? 'Loading execution history...' : 'Select a run to inspect details'}
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <div className="text-xs uppercase text-slate-400">Execution</div>
-                        <div className="font-mono text-sm text-white break-all">{selectedExecution.id}</div>
-                        <div className="text-xs text-slate-400">
-                          Task: {selectedExecution.task_id}
-                        </div>
-                      </div>
-                      <div className="text-right space-y-1">
-                        <span className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded border ${getStatusTone(selectedExecution.status)}`}>
-                          {selectedExecution.status}
-                        </span>
-                        <div className="text-xs text-slate-400">
-                          Exit: {selectedExecution.exit_reason ?? '—'}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-slate-300">
-                      <div>Started: {formatDateTime(selectedExecution.start_time)}</div>
-                      <div>Ended: {selectedExecution.end_time ? formatDateTime(selectedExecution.end_time) : '—'}</div>
-                      <div>Duration: {formatExecutionDuration(selectedExecution)}</div>
-                      <div>Timeout: {selectedExecution.timeout_allowed ?? '—'}</div>
-                      <div>Prompt size: {selectedExecution.prompt_size ?? '—'}</div>
-                      <div>Agent: {selectedExecution.agent_tag ?? '—'}</div>
-                      <div>Process: {selectedExecution.process_id ?? '—'}</div>
-                      <div>
-                        Steer: {formatSteerInfo(selectedExecution)}
-                        {selectedExecution.steer_phase_iteration
-                          ? ` • iteration ${selectedExecution.steer_phase_iteration}`
-                          : ''}
-                      </div>
-                      <div>Steer source: {selectedExecution.steering_source ?? '—'}</div>
-                      <div>Auto Steer profile: {selectedExecution.auto_steer_profile_id ?? '—'}</div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] text-slate-400">
-                      <div className="truncate">
-                        Prompt path:{' '}
-                        <span className="font-mono text-slate-200">
-                          {selectedExecution.prompt_path || '—'}
-                        </span>
-                      </div>
-                      <div className="truncate">
-                        Output path:{' '}
-                        <span className="font-mono text-slate-200">
-                          {selectedExecution.clean_output_path || selectedExecution.output_path || '—'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="text-[11px] uppercase text-slate-400">Prompt sent to agent</div>
-                      {isFetchingPrompt ? (
-                        <div className="text-xs text-slate-500">Loading prompt...</div>
-                      ) : selectedPromptText ? (
-                        <pre className="bg-slate-950/60 border border-white/10 rounded p-2 text-xs text-slate-100 max-h-48 overflow-y-auto whitespace-pre-wrap">
-                          {selectedPromptText}
-                        </pre>
-                      ) : (
-                        <div className="text-xs text-slate-500">Prompt not captured for this run.</div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-[11px] uppercase text-slate-400">
-                        <span>Output</span>
-                        {selectedFinalMessage && (
-                          <span className="text-[11px] normal-case text-slate-300">
-                            Final: {selectedFinalMessage}
-                          </span>
-                        )}
-                      </div>
-                      {isFetchingSelectedOutput ? (
-                        <div className="text-xs text-slate-500">Loading output...</div>
-                      ) : selectedOutputText ? (
-                        <pre className="bg-slate-950/60 border border-white/10 rounded p-2 text-xs text-slate-100 max-h-48 overflow-y-auto whitespace-pre-wrap">
-                          {selectedOutputText}
-                        </pre>
-                      ) : (
-                        <div className="text-xs text-slate-500">No output captured for this execution.</div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
+              <ExecutionDetailCard
+                className="h-full"
+                execution={selectedExecution}
+                promptText={selectedPromptText}
+                outputText={selectedOutputText}
+                isLoadingPrompt={isFetchingPrompt}
+                isLoadingOutput={isFetchingSelectedOutput}
+              />
             </div>
           </TabsContent>
 
