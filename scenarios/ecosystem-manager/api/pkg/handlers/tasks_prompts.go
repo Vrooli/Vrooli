@@ -71,9 +71,10 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 
 	// Apply default Progress steering when Auto Steer is not configured
 	if task.Type == "scenario" && task.Operation == "improver" && strings.TrimSpace(task.AutoSteerProfileID) == "" {
-		if section := h.defaultProgressSection(); section != "" {
-			prompt = prompt + "\n\n" + section
-			assembly.Prompt = prompt
+		section := h.defaultProgressSection()
+		prompt = autosteer.InjectSteeringSection(prompt, section)
+		assembly.Prompt = prompt
+		if strings.TrimSpace(section) != "" {
 			defaultProgressApplied = true
 		}
 	}
@@ -273,8 +274,8 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 				enhancer := autosteer.NewPromptEnhancer(filepath.Join(h.assembler.PromptsDir, "phases"))
 				evaluator := autosteer.NewConditionEvaluator()
 				autoSteerSection := enhancer.GenerateAutoSteerSection(&state, profile, evaluator)
-				if autoSteerSection != "" {
-					prompt = prompt + "\n\n" + autoSteerSection
+				prompt = autosteer.InjectSteeringSection(prompt, autoSteerSection)
+				if strings.TrimSpace(autoSteerSection) != "" {
 					response["auto_steer_applied"] = true
 					response["auto_steer_mode"] = profile.Phases[phaseIdx].Mode
 					response["auto_steer_phase_label"] = fmt.Sprintf("Phase %d", phaseIdx+1)
@@ -322,8 +323,9 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 
 	// Apply default Progress steering when Auto Steer is not configured
 	if tempTask.Type == "scenario" && tempTask.Operation == "improver" && strings.TrimSpace(tempTask.AutoSteerProfileID) == "" {
-		if section := h.defaultProgressSection(); section != "" {
-			prompt = prompt + "\n\n" + section
+		section := h.defaultProgressSection()
+		prompt = autosteer.InjectSteeringSection(prompt, section)
+		if strings.TrimSpace(section) != "" {
 			response["default_progress_applied"] = true
 		}
 	}

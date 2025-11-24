@@ -88,9 +88,9 @@ func (qp *Processor) appendDefaultProgressSection(prompt string) string {
 	phasesDir := filepath.Join(qp.assembler.PromptsDir, "phases")
 	section := strings.TrimSpace(autosteer.NewPromptEnhancer(phasesDir).GenerateModeSection(autosteer.ModeProgress))
 	if section == "" {
-		return prompt
+		return autosteer.InjectSteeringSection(prompt, "")
 	}
-	return prompt + "\n\n" + section
+	return autosteer.InjectSteeringSection(prompt, section)
 }
 
 // executeTask executes a single task

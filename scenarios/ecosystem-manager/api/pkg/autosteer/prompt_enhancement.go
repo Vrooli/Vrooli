@@ -5,6 +5,28 @@ import (
 	"strings"
 )
 
+// AutoSteerPlaceholder is replaced by the steering section when present in templates.
+const AutoSteerPlaceholder = "{{AUTO_STEER_SECTION}}"
+
+// InjectSteeringSection inserts the steering block at the placeholder if present, otherwise appends it.
+func InjectSteeringSection(prompt string, steeringSection string) string {
+	trimmed := strings.TrimSpace(steeringSection)
+
+	if strings.Contains(prompt, AutoSteerPlaceholder) {
+		return strings.ReplaceAll(prompt, AutoSteerPlaceholder, trimmed)
+	}
+
+	if trimmed == "" {
+		return strings.ReplaceAll(prompt, AutoSteerPlaceholder, "")
+	}
+
+	if strings.TrimSpace(prompt) == "" {
+		return trimmed
+	}
+
+	return strings.TrimRight(prompt, "\n") + "\n\n" + trimmed
+}
+
 // PromptEnhancer generates mode-specific prompt enhancements for Auto Steer
 type PromptEnhancer struct {
 	modeInstructions *ModeInstructions

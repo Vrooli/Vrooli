@@ -91,8 +91,8 @@ func (a *AutoSteerIntegration) EnhancePrompt(task *tasks.TaskItem, basePrompt st
 		return basePrompt, nil
 	}
 
-	// Append Auto Steer section to prompt
-	enhancedPrompt := basePrompt + "\n\n" + autoSteerSection
+	// Insert Auto Steer section into prompt (placeholder-aware)
+	enhancedPrompt := autosteer.InjectSteeringSection(basePrompt, autoSteerSection)
 
 	// Log for debugging
 	currentMode, _ := a.executionEngine.GetCurrentMode(task.ID)

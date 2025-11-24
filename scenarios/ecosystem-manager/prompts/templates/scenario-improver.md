@@ -56,6 +56,8 @@ These files are the canonical documentation sources for future scenario improvem
 
 Use this structure for your final response; ecosystem-manager relies on it to track progress and plan the next iteration.
 
+{{AUTO_STEER_SECTION}}
+
 ## Task Context
 
 **Task ID**: {{TASK_ID}}
