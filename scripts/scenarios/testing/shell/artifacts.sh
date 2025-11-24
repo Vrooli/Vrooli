@@ -155,27 +155,6 @@ testing::artifacts::get_log_path() {
     fi
 }
 
-# Archive all current test artifacts
-# Usage: testing::artifacts::archive [run-id]
-testing::artifacts::archive() {
-    local run_id="${1:-$(date +%Y%m%d-%H%M%S)}"
-    
-    if [ -z "$TESTING_ARTIFACTS_DIR" ] || [ ! -d "$TESTING_ARTIFACTS_DIR" ]; then
-        return 0
-    fi
-    
-    local archive_name="${TESTING_ARTIFACTS_DIR}/archive-${run_id}.tar.gz"
-    
-    # Create archive of current logs
-    if ls "$TESTING_ARTIFACTS_DIR"/*.log >/dev/null 2>&1; then
-        tar -czf "$archive_name" -C "$TESTING_ARTIFACTS_DIR" \
-            --exclude="archive-*.tar.gz" \
-            $(ls -1 *.log 2>/dev/null | head -$TESTING_ARTIFACTS_MAX_LOGS) 2>/dev/null || true
-        
-        echo "Artifacts archived to: $archive_name"
-    fi
-}
-
 # Normalize scenario workspace artifacts (e.g., Playwright outputs) into coverage directory
 testing::artifacts::finalize_workspace() {
     local scenario_dir="${TESTING_RUNNER_SCENARIO_DIR:-}"

@@ -1,0 +1,32 @@
+id: scenario-improver-prd-control-tower-20251124-184842
+title: Improve scenario prd-control-tower
+type: scenario
+operation: improver
+target: prd-control-tower
+targets:
+    - prd-control-tower
+category: ""
+priority: high
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: in-progress
+current_phase: executing_claude
+started_at: "2025-11-24T18:48:42-05:00"
+completed_at: ""
+completion_count: 0
+last_completed_at: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-11-24T18:48:42-05:00"
+updated_at: "2025-11-24T18:48:42-05:00"
+tags: []
+notes: ""
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true
+steer_mode: ux

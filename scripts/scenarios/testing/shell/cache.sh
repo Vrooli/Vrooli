@@ -263,26 +263,6 @@ testing::cache::get() {
     return 0
 }
 
-# Clear cache for a specific phase or all phases
-# Usage: testing::cache::clear [PHASE]
-testing::cache::clear() {
-    local phase="${1:-}"
-    
-    if [ -z "$TESTING_CACHE_DIR" ] || [ ! -d "$TESTING_CACHE_DIR" ]; then
-        return 0
-    fi
-    
-    if [ -n "$phase" ]; then
-        # Clear specific phase
-        rm -rf "$TESTING_CACHE_DIR/${phase}"
-        echo "Cleared cache for phase: $phase"
-    else
-        # Clear all cache
-        rm -rf "$TESTING_CACHE_DIR"/*
-        echo "Cleared all test cache"
-    fi
-}
-
 # Show cache statistics
 # Usage: testing::cache::stats
 testing::cache::stats() {

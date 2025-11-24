@@ -1,9 +1,38 @@
 #!/usr/bin/env bash
 # Shared scenario test suite orchestrator
+#
+# PURPOSE:
+#   High-level test orchestrator that runs complete test suites with requirements tracking.
+#   Automatically discovers test phases, applies configuration from .vrooli/testing.json,
+#   syncs results with requirements registry, and provides preset support for quick testing.
+#
+# WHEN TO USE:
+#   - When you want automatic phase discovery and configuration
+#   - When you need requirements sync with the requirements/ directory
+#   - When you want to use test presets (--unit, --integration, etc.)
+#   - For standard scenario test/run-tests.sh scripts (recommended for most scenarios)
+#
+# KEY FUNCTIONS:
+#   - testing::suite::run: Main entry point that discovers, configures, and runs test suite
+#
+# FEATURES:
+#   - Automatic phase discovery from test/phases/*.sh
+#   - Configuration via .vrooli/testing.json
+#   - Requirements sync after test execution
+#   - Test presets (--unit, --integration, --skip-*, --only-*)
+#   - Default timeouts and optional phase configuration
+#   - Command history tracking for debugging
+#
+# SEE ALSO:
+#   - runner.sh: Lower-level phase execution engine
+#   - requirements-sync.sh: Requirements registry synchronization
+#   - phase-helpers.sh: Lifecycle management within individual phase scripts
+#
 set -euo pipefail
 
 SHELL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SHELL_DIR/runner.sh"
+source "$SHELL_DIR/requirements-sync.sh"
 
 # Default phase metadata
 declare -Ag TESTING_SUITE_DEFAULT_TIMEOUTS=(
@@ -130,142 +159,6 @@ _testing_suite_find_service_name() {
     local service_file="$scenario_dir/.vrooli/service.json"
     local fallback="$(basename "$scenario_dir")"
     _testing_suite_read_json_value "$service_file" '.service.name' "$fallback"
-}
-
-_testing_suite_sync_requirements() {
-    local scenario_dir="$1"
-    local scenario_name="$2"
-    local app_root="$3"
-
-    local registry_dir="$scenario_dir/requirements"
-
-    if [ "${TESTING_REQUIREMENTS_SYNC:-1}" != "1" ]; then
-        return 0
-    fi
-
-    if [ ! -d "$registry_dir" ]; then
-        log::warning "⚠️  Skipping requirements sync (requirements/ missing)"
-        return 0
-    fi
-
-    if ! command -v node >/dev/null 2>&1; then
-        log::warning "⚠️  Skipping requirements sync (Node.js not available)"
-        return 0
-    fi
-
-    local -a phase_entries=()
-    local -a missing_required=()
-    local -a skipped_required=()
-
-    if [ ${#TESTING_RUNNER_PHASES[@]} -gt 0 ]; then
-        local phase
-        for phase in "${TESTING_RUNNER_PHASES[@]}"; do
-            local optional_flag="${TESTING_RUNNER_PHASE_OPTIONAL[$phase]:-false}"
-            local key="phase:${phase}"
-            local status="${TESTING_RUNNER_STATUS[$key]:-}"
-            local recorded_flag="false"
-            if [ -n "$status" ]; then
-                recorded_flag="true"
-            fi
-            local normalized_status="${status:-not_run}"
-            if [ "$optional_flag" != "true" ]; then
-                if [ "$recorded_flag" = "false" ]; then
-                    missing_required+=("$phase")
-                elif [[ "$normalized_status" == "skipped" || "$normalized_status" == "missing" || "$normalized_status" == "not_executable" || "$normalized_status" == "not_run" ]]; then
-                    skipped_required+=("$phase")
-                fi
-            fi
-
-            local optional_json="false"
-            if [ "$optional_flag" = "true" ]; then
-                optional_json="true"
-            fi
-            local recorded_json="false"
-            if [ "$recorded_flag" = "true" ]; then
-                recorded_json="true"
-            fi
-            local entry="{\"phase\":\"$phase\",\"status\":\"$normalized_status\",\"optional\":$optional_json,\"recorded\":$recorded_json}"
-            phase_entries+=("$entry")
-        done
-    fi
-
-    local phase_status_json='[]'
-    if [ ${#phase_entries[@]} -gt 0 ]; then
-        local combined=""
-        local first_entry="true"
-        local entry
-        for entry in "${phase_entries[@]}"; do
-            if [ "$first_entry" = "true" ]; then
-                combined="$entry"
-                first_entry="false"
-            else
-                combined+=",$entry"
-            fi
-        done
-        phase_status_json="[${combined}]"
-    fi
-
-    if [ -z "$phase_status_json" ] || [ "$phase_status_json" = '[]' ]; then
-        log::warning "⚠️  Requirements sync skipped: no phase execution metadata recorded"
-        log::info "    ↳ Re-run tests via 'test/run-tests.sh' to regenerate coverage"
-        return 0
-    fi
-
-    if { [ ${#missing_required[@]} -gt 0 ] || [ ${#skipped_required[@]} -gt 0 ]; } && [ "${TESTING_REQUIREMENTS_SYNC_FORCE:-0}" != "1" ]; then
-        log::warning "⚠️  Requirements sync skipped: full suite not executed"
-        if [ ${#missing_required[@]} -gt 0 ]; then
-            log::info "    Missing phases: ${missing_required[*]}"
-        fi
-        if [ ${#skipped_required[@]} -gt 0 ]; then
-            log::info "    Skipped phases: ${skipped_required[*]}"
-        fi
-        log::info "    ↳ Run 'test/run-tests.sh' without presets to refresh requirements"
-        return 0
-    elif { [ ${#missing_required[@]} -gt 0 ] || [ ${#skipped_required[@]} -gt 0 ]; } && [ "${TESTING_REQUIREMENTS_SYNC_FORCE:-0}" = "1" ]; then
-        log::warning "⚠️  Forcing requirements sync despite partial suite (TESTING_REQUIREMENTS_SYNC_FORCE=1)"
-    fi
-
-    local commands_json=""
-    if [ -n "${TESTING_SUITE_COMMAND_HISTORY:-}" ] && command -v jq >/dev/null 2>&1; then
-        commands_json=$(printf '%s\n' "$TESTING_SUITE_COMMAND_HISTORY" | jq -c -R -s 'split("\n") | map(select(length > 0))')
-    fi
-    if [ -z "$commands_json" ]; then
-        commands_json='[]'
-    fi
-
-    local manifest_entry=""
-    local manifest_file="$scenario_dir/coverage/requirements-sync/run-log.jsonl"
-    local manifest_dir
-    manifest_dir=$(dirname "$manifest_file")
-    if command -v jq >/dev/null 2>&1; then
-        mkdir -p "$manifest_dir"
-        local timestamp
-        timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-        manifest_entry=$(jq -n \
-            --arg ts "$timestamp" \
-            --arg scenario "$scenario_name" \
-            --argjson commands "$commands_json" \
-            '{timestamp:$ts, scenario:$scenario, commands:$commands}')
-        printf '%s\n' "$manifest_entry" >> "$manifest_file"
-    else
-        manifest_file=""
-    fi
-
-    local sync_cmd=(node "$app_root/scripts/requirements/report.js" --scenario "$scenario_name" --mode sync)
-    local sync_status=1
-    if REQUIREMENTS_SYNC_TEST_COMMANDS="$commands_json" \
-        REQUIREMENTS_SYNC_PHASE_STATUS="$phase_status_json" \
-        REQUIREMENTS_SYNC_MANIFEST_ENTRY="$manifest_entry" \
-        REQUIREMENTS_SYNC_RUN_LOG="$manifest_file" \
-        "${sync_cmd[@]}" >/dev/null; then
-        sync_status=0
-    fi
-
-    if [ $sync_status -eq 0 ]; then
-        log::info "📋 Requirements registry synced after test run"
-    else
-        log::warning "⚠️  Failed to sync requirements registry; leaving requirement files unchanged"
-    fi
 }
 
 _testing_suite_register_presets() {
@@ -507,7 +400,7 @@ testing::suite::run() {
     local result=0
     testing::runner::execute "${runner_args[@]}" || result=$?
 
-    _testing_suite_sync_requirements "$scenario_dir" "$scenario_name" "$app_root"
+    testing::requirements::sync "$scenario_dir" "$scenario_name" "$app_root"
 
     return $result
 }

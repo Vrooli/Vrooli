@@ -1,0 +1,32 @@
+id: scenario-improver-landing-manager-20251124-184617
+title: Improve scenario landing-manager
+type: scenario
+operation: improver
+target: landing-manager
+targets:
+    - landing-manager
+category: ""
+priority: high
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: in-progress
+current_phase: executing_claude
+started_at: "2025-11-24T18:46:23-05:00"
+completed_at: ""
+completion_count: 0
+last_completed_at: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-11-24T18:46:17-05:00"
+updated_at: "2025-11-24T18:46:23-05:00"
+tags: []
+notes: ""
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true
+auto_steer_profile_id: ec725997-ceb7-4f0d-8b13-5f55ca45f336

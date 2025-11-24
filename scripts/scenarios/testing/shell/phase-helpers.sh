@@ -94,7 +94,6 @@ testing::phase::init() {
     # Source required libraries
     source "${TESTING_PHASE_APP_ROOT}/scripts/lib/utils/log.sh"
     source "${TESTING_PHASE_APP_ROOT}/scripts/scenarios/testing/shell/core.sh"
-    source "${TESTING_PHASE_APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
     if [ -f "${TESTING_PHASE_APP_ROOT}/scripts/scenarios/testing/playbooks/workflow-runner.sh" ]; then
         source "${TESTING_PHASE_APP_ROOT}/scripts/scenarios/testing/playbooks/workflow-runner.sh"
     fi

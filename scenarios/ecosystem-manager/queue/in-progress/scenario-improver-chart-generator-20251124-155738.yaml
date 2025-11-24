@@ -1,0 +1,49 @@
+id: scenario-improver-chart-generator-20251124-155738
+title: Improve scenario chart-generator
+type: scenario
+operation: improver
+target: chart-generator
+targets:
+    - chart-generator
+category: ""
+priority: medium
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: in-progress
+current_phase: executing_claude
+started_at: "2025-11-24T18:49:44-05:00"
+completed_at: ""
+cooldown_until: "2025-11-24T18:49:23-05:00"
+completion_count: 5
+last_completed_at: "2025-11-24T18:46:21-05:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-11-24T15:57:38-05:00"
+updated_at: "2025-11-24T18:49:44-05:00"
+tags: []
+notes: |-
+    **Score: 0/100** - Just starting, needs significant development
+
+    **Quality:** 30/50 pts (Req: 0%, Targets: 100%, Tests: 100%)
+    **Coverage:** 2/15 pts (Test ratio: 0.0x, Depth: 1.0 levels)
+    **Quantity:** 7/10 pts (31 reqs [excellent], 15 targets [good], 1 tests [below])
+    **UI:** 16/25 pts (18 files [ok], 12 components, 0 routes, 0/0 API endpoints, 1884 LOC)
+
+    **Priority Actions:**
+    - Integrate UI with API endpoints beyond /health
+    - Consider adding routing for multi-page navigation
+    - Increase requirement pass rate from 0% to 90%+
+    - Add 24 more tests to reach 'good' threshold (25)
+    - Add 61 more tests to reach optimal 2:1 test-to-requirement ratio
+
+    **Notes from Last Run:**
+    Unable to generate summary
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true
+auto_steer_profile_id: ec725997-ceb7-4f0d-8b13-5f55ca45f336

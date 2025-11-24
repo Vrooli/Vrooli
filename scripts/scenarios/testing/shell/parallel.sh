@@ -250,37 +250,6 @@ testing::parallel::start_phase() {
     return 1
 }
 
-# Get parallel execution statistics
-testing::parallel::get_stats() {
-    local total=0
-    local completed=0
-    local failed=0
-    local running=0
-    
-    for phase in "${!TESTING_PARALLEL_STATUS[@]}"; do
-        total=$((total + 1))
-        case "${TESTING_PARALLEL_STATUS[$phase]}" in
-            completed)
-                completed=$((completed + 1))
-                ;;
-            failed)
-                failed=$((failed + 1))
-                ;;
-            running)
-                running=$((running + 1))
-                ;;
-        esac
-    done
-    
-    echo "Total: $total, Completed: $completed, Failed: $failed, Running: $running"
-}
-
-# Reset parallel execution state
-testing::parallel::reset() {
-    TESTING_PARALLEL_STATUS=()
-    TESTING_PARALLEL_PIDS=()
-}
-
 # Check if we can optimize parallel execution for given items
 testing::parallel::can_optimize() {
     local items=("$@")

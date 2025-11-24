@@ -1,5 +1,23 @@
 #!/usr/bin/env bash
 # Generic phased test runner orchestrator shared by scenarios
+#
+# PURPOSE:
+#   Core test execution engine that runs individual test phases (structure, unit, integration, etc.)
+#   in sequence. Handles phase registration, execution order, status tracking, and result reporting.
+#
+# WHEN TO USE:
+#   - When you need low-level control over phase execution
+#   - When building custom test scripts that don't need requirements sync
+#   - When you want to run specific phases programmatically
+#
+# KEY FUNCTIONS:
+#   - testing::runner::register_phase: Register individual test phases
+#   - testing::runner::execute: Execute all registered phases in order
+#
+# SEE ALSO:
+#   - suite.sh: Higher-level orchestrator with requirements sync and presets
+#   - phase-helpers.sh: Lifecycle management within individual phase scripts
+#
 set -euo pipefail
 
 SHELL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
