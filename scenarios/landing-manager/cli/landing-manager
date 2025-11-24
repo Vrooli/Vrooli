@@ -199,6 +199,7 @@ cmd_generate() {
     local template_id=""
     local name=""
     local slug=""
+    local dry_run="false"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -209,6 +210,10 @@ cmd_generate() {
             --slug)
                 slug="$2"
                 shift 2
+                ;;
+            --dry-run|--dryrun)
+                dry_run="true"
+                shift 1
                 ;;
             *)
                 if [[ -z "$template_id" ]]; then
@@ -224,7 +229,7 @@ cmd_generate() {
 
     if [[ -z "$template_id" || -z "$name" || -z "$slug" ]]; then
         echo -e "${RED}✗${NC} Missing required arguments"
-        echo "Usage: $CLI_NAME generate <template-id> --name <name> --slug <slug>"
+        echo "Usage: $CLI_NAME generate <template-id> --name <name> --slug <slug> [--dry-run]"
         return 1
     fi
 
@@ -234,7 +239,8 @@ cmd_generate() {
         --arg tid "$template_id" \
         --arg n "$name" \
         --arg s "$slug" \
-        '{template_id: $tid, name: $n, slug: $s}')
+        --arg dr "$dry_run" \
+        '{template_id: $tid, name: $n, slug: $s, options: {dry_run: ($dr == "true")}}')
 
     response=$(curl -s -X POST \
         -H 'Content-Type: application/json' \
@@ -330,8 +336,8 @@ Commands:
     status                              Check API and dependency health
     template list                       List available landing page templates
     template show <id>                  Show detailed template metadata
-    generate <template> --name <name> --slug <slug>
-                                        Generate a new landing page scenario
+    generate <template> --name <name> --slug <slug> [--dry-run]
+                                        Generate a new landing page scenario (use --dry-run for plan only)
     customize <scenario> --brief-file <file> [--preview]
                                         Trigger agent customization of a landing page
     configure                           View or update CLI configuration

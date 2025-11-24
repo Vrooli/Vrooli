@@ -17,3 +17,8 @@ Organize requirement modules by PRD operational targets, keeping the filesystem 
 - Never add compatibility shims (duplicate folders or alias imports) during migrations—let things fail temporarily instead of adding debt.
 - Manual validations are a temporary escape hatch; if you must use one, record it with `vrooli scenario requirements manual-log <scenario> <REQ-ID>` so drift detection knows when it expires, then replace it with Browser Automation Studio workflows (`docs/testing/guides/ui-automation-with-bas.md`) or other automated phases so `scenario status` stays green.
 - Keep this README under 100 lines and link to shared docs (`docs/testing/guides/requirement-tracking-quick-start.md`) for schema details.
+
+## Factory vs Template Scope
+- Factory (landing-manager) owns template registry, generation UX, and handoff only.
+- Template-owned features (admin portal, A/B testing, metrics, Stripe, customization UX) live in the template payload and are validated in generated scenarios.
+- Runtime requirement modules remain in this folder only as pointers to the template payload; see scripts/scenarios/templates/saas-landing-page/payload/requirements for the authoritative runtime set.

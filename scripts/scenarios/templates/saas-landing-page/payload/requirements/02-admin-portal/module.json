@@ -1,0 +1,130 @@
+{
+  "module_id": "admin-portal",
+  "title": "Admin Portal Core",
+  "priority": "P0",
+  "description": "Secure admin portal for managing landing page content, A/B variants, and analytics",
+  "requirements": [
+    {
+      "id": "AGENT-TRIGGER",
+      "title": "Agent integration trigger",
+      "prd_ref": "OT-P0-005",
+      "description": "Trigger agent customization run for a specific landing page from factory scenario",
+      "validation": [
+        {
+          "type": "automation",
+          "phase": "business",
+          "status": "not_run",
+          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+        }
+      ],
+      "status": "in_progress",
+      "notes": "API endpoint exists in factory/customize, but payload lacks BAS playbook in React Flow format. Placeholder path reserved under test/playbooks/."
+    },
+    {
+      "id": "AGENT-INPUT",
+      "title": "Structured agent input",
+      "prd_ref": "OT-P0-006",
+      "description": "Agent receives structured brief (text + assets + goals) and writes changes via defined APIs/files only",
+      "validation": [
+        {
+          "type": "automation",
+          "phase": "business",
+          "status": "not_run",
+          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+        }
+      ],
+      "status": "in_progress",
+      "dependencies": [
+        "AGENT-TRIGGER"
+      ],
+      "notes": "Needs scoped APIs + playbook to validate agent touchpoints; no automation yet."
+    },
+    {
+      "id": "ADMIN-HIDDEN",
+      "title": "Security by obscurity",
+      "prd_ref": "OT-P0-007",
+      "description": "Admin portal not linked from any public page or sitemap",
+      "validation": [
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "not_run",
+          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+        }
+      ],
+      "status": "in_progress",
+      "notes": "Admin routes exist, but verification playbook is missing; needs React Flow BAS script."
+    },
+    {
+      "id": "ADMIN-AUTH",
+      "title": "Authentication",
+      "prd_ref": "OT-P0-008",
+      "description": "Admin portal protected by email/password with bcrypt/argon2 password hashing",
+      "validation": [
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "not_run",
+          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+        }
+      ],
+      "status": "in_progress",
+      "notes": "bcrypt auth implemented (api/auth.go) but lacks automated validation. BAS playbook placeholder only."
+    },
+    {
+      "id": "ADMIN-MODES",
+      "title": "Admin home modes",
+      "prd_ref": "OT-P0-009",
+      "description": "Admin home displays exactly two modes: Analytics / Metrics and Customization",
+      "validation": [
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "not_run",
+          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+        }
+      ],
+      "status": "in_progress",
+      "dependencies": [
+        "ADMIN-AUTH"
+      ],
+      "notes": "UI implements two mode cards; needs BAS validation once playbooks exist."
+    },
+    {
+      "id": "ADMIN-NAV",
+      "title": "Navigation efficiency",
+      "prd_ref": "OT-P0-010",
+      "description": "Navigate to any customization card in ≤ 3 clicks from admin home",
+      "validation": [
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "not_run",
+          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+        }
+      ],
+      "status": "in_progress",
+      "dependencies": [
+        "ADMIN-MODES"
+      ],
+      "notes": "Navigation exists; needs BAS flow to confirm click counts."
+    },
+    {
+      "id": "ADMIN-BREADCRUMB",
+      "title": "Breadcrumb navigation",
+      "prd_ref": "OT-P0-011",
+      "description": "All admin pages show breadcrumb indicating current location",
+      "validation": [
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "not_run",
+          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+        }
+      ],
+      "status": "in_progress",
+      "notes": "Breadcrumb UI present; needs BAS validation once playbooks are rebuilt in payload."
+    }
+  ],
+  "_metadata": {}
+}

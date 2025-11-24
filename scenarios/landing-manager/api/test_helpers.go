@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"os"
 	"testing"
-	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -53,19 +52,11 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 
 	// Initialize all services
 	templateService := NewTemplateService()
-	variantService := NewVariantService(db)
-	metricsService := NewMetricsService(db)
-	stripeService := NewStripeService(db)
-	contentService := NewContentService(db)
 
 	server := &Server{
 		config:          config,
 		db:              db,
 		templateService: templateService,
-		variantService:  variantService,
-		metricsService:  metricsService,
-		stripeService:   stripeService,
-		contentService:  contentService,
 	}
 
 	cleanup := func() {
@@ -76,34 +67,4 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 	}
 
 	return server, cleanup
-}
-
-// createTestVariant is a helper to create a test variant for content tests
-func createTestVariant(t *testing.T, db *sql.DB) int64 {
-	// Clean up any existing test variant first
-	db.Exec("DELETE FROM variants WHERE slug = 'test-variant'")
-
-	query := `
-		INSERT INTO variants (slug, name, description, weight, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id
-	`
-
-	var id int64
-	err := db.QueryRow(
-		query,
-		"test-variant",
-		"Test Variant",
-		"Test description",
-		50,
-		"active",
-		time.Now(),
-		time.Now(),
-	).Scan(&id)
-
-	if err != nil {
-		t.Fatalf("Failed to create test variant: %v", err)
-	}
-
-	return id
 }

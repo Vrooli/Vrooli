@@ -57,26 +57,173 @@
         "TMPL-AVAILABILITY",
         "TMPL-METADATA"
       ],
-      "notes": "Command implemented: landing-manager generate <template> --name <name> --slug <slug>. Returns generation plan (actual file creation deferred - see PROBLEMS.md). All tests passing."
+      "notes": "Command implemented: landing-manager generate <template> --name <name> --slug <slug>. Copies payload into generated/<slug>."
     },
     {
-      "id": "TMPL-RUNNABLE",
-      "title": "Runnable locally",
-      "prd_ref": "OT-P0-004",
-      "description": "Generated landing-page scenario runs locally (frontend + Go API) with single startup command",
+      "id": "TMPL-OUTPUT-VALIDATION",
+      "title": "Generation output validation",
+      "prd_ref": "OT-F-P0-004",
+      "description": "Generated scenario includes template runtime (api/ui/requirements/.vrooli) and is runnable after move to /scenarios/<slug>",
       "validation": [
         {
-          "type": "test",
-          "phase": "unit",
+          "type": "manual",
+          "phase": "integration",
           "status": "implemented",
-          "ref": "api/template_service_test.go"
+          "ref": "manual: generated demo-landing start/health 2025-11-24"
         }
       ],
       "status": "complete",
       "dependencies": [
         "TMPL-GENERATION"
       ],
-      "notes": "Generation plan includes startup command (vrooli scenario start <generated-name>). Template metadata includes deployment requirements. All tests passing."
+      "notes": "Generator copies payload, rewrites metadata, and generated demo-landing was started via vrooli scenario start (API/UI healthy)."
+    },
+    {
+      "id": "TMPL-PROVENANCE",
+      "title": "Template provenance stamping",
+      "prd_ref": "OT-F-P0-006",
+      "description": "Embed template id/version into generated scenarios for audit and migration planning",
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "implemented",
+          "ref": ".vrooli/template.json written at generation time"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "TMPL-GENERATION"
+      ],
+      "notes": "Template metadata is copied to api/templates/<id>.json but no explicit provenance/version stamp exists in service metadata."
+    },
+    {
+      "id": "AGENT-TRIGGER",
+      "title": "Agent trigger",
+      "prd_ref": "OT-F-P0-005",
+      "description": "Factory triggers agent customization for a generated landing page with structured brief",
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "not_run",
+          "ref": "TBD"
+        }
+      ],
+      "status": "in_progress",
+      "notes": "Customize endpoint exists but remains a stub; agent personas not wired."
+    },
+    {
+      "id": "TMPL-MULTIPLE",
+      "title": "Multiple templates",
+      "prd_ref": "OT-F-P1-001",
+      "description": "Support more than one landing page template in the registry",
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "not_run",
+          "ref": "TBD"
+        }
+      ],
+      "status": "pending",
+      "notes": "Registry currently contains only saas-landing-page."
+    },
+    {
+      "id": "TMPL-PREVIEW-LINKS",
+      "title": "Template preview links",
+      "prd_ref": "OT-F-P1-002",
+      "description": "Provide deep links to run previews against generated scenario paths",
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "not_run",
+          "ref": "TBD"
+        }
+      ],
+      "status": "pending",
+      "notes": "Factory UI points to guidance only; preview/admin routes are disabled in factory."
+    },
+    {
+      "id": "TMPL-DRY-RUN",
+      "title": "Generation dry-run",
+      "prd_ref": "OT-F-P1-003",
+      "description": "Offer a plan-only mode showing files that would be written",
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "implemented",
+          "ref": "api/template_service.go dry_run plan"
+        }
+      ],
+      "status": "complete",
+      "notes": "Generate supports --dry-run (no filesystem writes) returning planned paths."
+    },
+    {
+      "id": "TMPL-AGENT-PROFILES",
+      "title": "Agent profiles",
+      "prd_ref": "OT-F-P1-004",
+      "description": "Provide predefined agent prompts/personas for common landing goals",
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "not_run",
+          "ref": "TBD"
+        }
+      ],
+      "status": "pending",
+      "notes": "No persona catalog; customize remains stubbed."
+    },
+    {
+      "id": "TMPL-MARKETPLACE",
+      "title": "Template marketplace integration",
+      "prd_ref": "OT-F-P2-001",
+      "description": "Allow third-party templates with trust/safety gating",
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "not_run",
+          "ref": "TBD"
+        }
+      ],
+      "status": "pending",
+      "notes": "Registry is local-only; no marketplace endpoints."
+    },
+    {
+      "id": "TMPL-MIGRATION",
+      "title": "Template migration helper",
+      "prd_ref": "OT-F-P2-002",
+      "description": "Generate upgrade plan when template version changes",
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "not_run",
+          "ref": "TBD"
+        }
+      ],
+      "status": "pending",
+      "notes": "No migration tooling implemented; provenance stamp needed first."
+    },
+    {
+      "id": "TMPL-GENERATION-ANALYTICS",
+      "title": "Analytics on generation usage",
+      "prd_ref": "OT-F-P2-003",
+      "description": "Track template usage and success metrics at factory level",
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "not_run",
+          "ref": "TBD"
+        }
+      ],
+      "status": "pending",
+      "notes": "No telemetry emitted for generation requests."
     }
   ],
   "_metadata": {}

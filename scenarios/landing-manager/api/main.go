@@ -31,10 +31,6 @@ type Server struct {
 	db              *sql.DB
 	router          *mux.Router
 	templateService *TemplateService
-	variantService  *VariantService
-	metricsService  *MetricsService
-	stripeService   *StripeService
-	contentService  *ContentService
 }
 
 // NewServer initializes configuration, database, and routes
@@ -67,14 +63,7 @@ func NewServer() (*Server, error) {
 		db:              db,
 		router:          mux.NewRouter(),
 		templateService: NewTemplateService(),
-		variantService:  NewVariantService(db),
-		metricsService:  NewMetricsService(db),
-		stripeService:   NewStripeService(db),
-		contentService:  NewContentService(db),
 	}
-
-	// Initialize session store for authentication
-	initSessionStore()
 
 	srv.setupRoutes()
 	return srv, nil
@@ -93,36 +82,36 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/customize", s.handleCustomize).Methods("POST")
 
 	// Admin authentication endpoints (OT-P0-008)
-	s.router.HandleFunc("/api/v1/admin/login", s.handleAdminLogin).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/logout", s.handleAdminLogout).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/session", s.handleAdminSession).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/login", handleTemplateOnly("admin authentication")).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/logout", handleTemplateOnly("admin authentication")).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/session", handleTemplateOnly("admin authentication")).Methods("GET")
 
 	// A/B Testing variant endpoints (OT-P0-014 through OT-P0-018)
-	s.router.HandleFunc("/api/v1/variants/select", handleVariantSelect(s.variantService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/variants", handleVariantsList(s.variantService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/variants", handleVariantCreate(s.variantService)).Methods("POST")
-	s.router.HandleFunc("/api/v1/variants/{slug}", handleVariantBySlug(s.variantService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/variants/{slug}", handleVariantUpdate(s.variantService)).Methods("PATCH")
-	s.router.HandleFunc("/api/v1/variants/{slug}/archive", handleVariantArchive(s.variantService)).Methods("POST")
-	s.router.HandleFunc("/api/v1/variants/{slug}", handleVariantDelete(s.variantService)).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/variants/select", handleTemplateOnly("variant selection")).Methods("GET")
+	s.router.HandleFunc("/api/v1/variants", handleTemplateOnly("variant management")).Methods("GET")
+	s.router.HandleFunc("/api/v1/variants", handleTemplateOnly("variant management")).Methods("POST")
+	s.router.HandleFunc("/api/v1/variants/{slug}", handleTemplateOnly("variant management")).Methods("GET")
+	s.router.HandleFunc("/api/v1/variants/{slug}", handleTemplateOnly("variant management")).Methods("PATCH")
+	s.router.HandleFunc("/api/v1/variants/{slug}/archive", handleTemplateOnly("variant management")).Methods("POST")
+	s.router.HandleFunc("/api/v1/variants/{slug}", handleTemplateOnly("variant management")).Methods("DELETE")
 
 	// Metrics & Analytics endpoints (OT-P0-019 through OT-P0-024)
-	s.router.HandleFunc("/api/v1/metrics/track", handleMetricsTrack(s.metricsService)).Methods("POST")
-	s.router.HandleFunc("/api/v1/metrics/summary", handleMetricsSummary(s.metricsService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/metrics/variants", handleMetricsVariantStats(s.metricsService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/metrics/track", handleTemplateOnly("metrics tracking")).Methods("POST")
+	s.router.HandleFunc("/api/v1/metrics/summary", handleTemplateOnly("metrics summary")).Methods("GET")
+	s.router.HandleFunc("/api/v1/metrics/variants", handleTemplateOnly("metrics variant stats")).Methods("GET")
 
 	// Stripe Payment endpoints (OT-P0-025 through OT-P0-030)
-	s.router.HandleFunc("/api/v1/checkout/create", handleCheckoutCreate(s.stripeService)).Methods("POST")
-	s.router.HandleFunc("/api/v1/webhooks/stripe", handleStripeWebhook(s.stripeService)).Methods("POST")
-	s.router.HandleFunc("/api/v1/subscription/verify", handleSubscriptionVerify(s.stripeService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/subscription/cancel", handleSubscriptionCancel(s.stripeService)).Methods("POST")
+	s.router.HandleFunc("/api/v1/checkout/create", handleTemplateOnly("checkout")).Methods("POST")
+	s.router.HandleFunc("/api/v1/webhooks/stripe", handleTemplateOnly("Stripe webhooks")).Methods("POST")
+	s.router.HandleFunc("/api/v1/subscription/verify", handleTemplateOnly("subscription verification")).Methods("GET")
+	s.router.HandleFunc("/api/v1/subscription/cancel", handleTemplateOnly("subscription cancel")).Methods("POST")
 
 	// Content Customization endpoints (OT-P0-012, OT-P0-013: CUSTOM-SPLIT, CUSTOM-LIVE)
-	s.router.HandleFunc("/api/v1/variants/{variant_id}/sections", handleGetSections(s.contentService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/sections/{id}", handleGetSection(s.contentService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/sections/{id}", handleUpdateSection(s.contentService)).Methods("PATCH")
-	s.router.HandleFunc("/api/v1/sections", handleCreateSection(s.contentService)).Methods("POST")
-	s.router.HandleFunc("/api/v1/sections/{id}", handleDeleteSection(s.contentService)).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/variants/{variant_id}/sections", handleTemplateOnly("section listing")).Methods("GET")
+	s.router.HandleFunc("/api/v1/sections/{id}", handleTemplateOnly("section detail")).Methods("GET")
+	s.router.HandleFunc("/api/v1/sections/{id}", handleTemplateOnly("section update")).Methods("PATCH")
+	s.router.HandleFunc("/api/v1/sections", handleTemplateOnly("section creation")).Methods("POST")
+	s.router.HandleFunc("/api/v1/sections/{id}", handleTemplateOnly("section delete")).Methods("DELETE")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -186,69 +175,12 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// seedDefaultData ensures the public landing page has content without requiring admin setup
+// seedDefaultData is a no-op in factory mode; template data lives in generated scenarios.
 func seedDefaultData(db *sql.DB) error {
-	// Seed default admin user for local use
-	const defaultAdminEmail = "admin@localhost"
-	const defaultAdminHash = "$2a$10$nhmpbhFPQUZZwEH.qaYHCeiKBWDvr8z5Z7eM4v62MmNwm.0N.5xeG"
-
-	if _, err := db.Exec(
-		`INSERT INTO admin_users (email, password_hash) VALUES ($1, $2)
-		 ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash`,
-		defaultAdminEmail,
-		defaultAdminHash,
-	); err != nil {
-		return fmt.Errorf("failed to seed admin user: %w", err)
-	}
-
-	// Ensure control and variant-a exist and are active
-	controlID, err := upsertVariant(db, "control", "Control (Original)", "Original landing page design", 50)
-	if err != nil {
-		return err
-	}
-	if _, err := upsertVariant(db, "variant-a", "Variant A", "Experimental variant A", 50); err != nil {
-		return err
-	}
-
-	// Seed sections for control if none exist
-	var sectionCount int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM content_sections WHERE variant_id = $1`, controlID).Scan(&sectionCount); err != nil {
-		return fmt.Errorf("failed to count sections: %w", err)
-	}
-
-	if sectionCount == 0 {
-		hero := `{"headline": "Build Landing Pages in Minutes", "subheadline": "Create beautiful, conversion-optimized landing pages with A/B testing and analytics built-in", "cta_text": "Get Started Free", "cta_url": "/signup", "background_color": "#0f172a"}`
-		features := `{"title": "Everything You Need", "items": [{"title": "A/B Testing", "description": "Test variants and optimize conversions", "icon": "Zap"}, {"title": "Analytics", "description": "Track visitor behavior and metrics", "icon": "BarChart"}, {"title": "Stripe Integration", "description": "Accept payments instantly", "icon": "CreditCard"}]}`
-		pricing := `{"title": "Simple Pricing", "plans": [{"name": "Starter", "price": "$29", "features": ["5 landing pages", "Basic analytics", "Email support"], "cta_text": "Start Free Trial"}, {"name": "Pro", "price": "$99", "features": ["Unlimited pages", "Advanced analytics", "Priority support", "Custom domains"], "cta_text": "Get Started", "highlighted": true}]}`
-		cta := `{"headline": "Ready to Launch Your Landing Page?", "subheadline": "Join thousands of marketers using Landing Manager", "cta_text": "Start Building Now", "cta_url": "/signup"}`
-
-		if _, err := db.Exec(`
-			INSERT INTO content_sections (variant_id, section_type, content, "order", enabled) VALUES
-			($1, 'hero', $2::jsonb, 1, TRUE),
-			($1, 'features', $3::jsonb, 2, TRUE),
-			($1, 'pricing', $4::jsonb, 3, TRUE),
-			($1, 'cta', $5::jsonb, 4, TRUE)
-		`, controlID, hero, features, pricing, cta); err != nil {
-			return fmt.Errorf("failed to seed default sections: %w", err)
-		}
-	}
-
+	logStructured("seed_default_data_skipped", map[string]interface{}{
+		"reason": "factory_mode",
+	})
 	return nil
-}
-
-func upsertVariant(db *sql.DB, slug, name, description string, weight int) (int, error) {
-	var id int
-	err := db.QueryRow(`
-		INSERT INTO variants (slug, name, description, weight, status)
-		VALUES ($1, $2, $3, $4, 'active')
-		ON CONFLICT (slug)
-		DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, weight = EXCLUDED.weight, status = 'active', updated_at = NOW()
-		RETURNING id
-	`, slug, name, description, weight).Scan(&id)
-	if err != nil {
-		return 0, fmt.Errorf("failed to upsert variant %s: %w", slug, err)
-	}
-	return id, nil
 }
 
 func (s *Server) handleTemplateList(w http.ResponseWriter, r *http.Request) {
@@ -357,6 +289,20 @@ func logStructured(msg string, fields map[string]interface{}) {
 	}
 	fieldsJSON, _ := json.Marshal(fields)
 	log.Printf(`{"level":"info","message":"%s","fields":%s,"timestamp":"%s"}`, msg, fieldsJSON, time.Now().UTC().Format(time.RFC3339))
+}
+
+// handleTemplateOnly makes clear that specific capabilities belong to generated landing scenarios, not the factory.
+func handleTemplateOnly(feature string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotImplemented)
+		response := map[string]string{
+			"status":  "template_only",
+			"feature": feature,
+			"message": "Use a generated landing scenario to access this capability; the landing-manager factory only creates templates and scenarios.",
+		}
+		_ = json.NewEncoder(w).Encode(response)
+	}
 }
 
 func logStructuredError(msg string, fields map[string]interface{}) {

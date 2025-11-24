@@ -1,9 +1,23 @@
 # Problems & Known Issues
 
-> **Last Updated**: 2025-11-22 (Ecosystem Manager Improver)
-> **Status**: 6/6 test phases passing (structure, dependencies, unit, integration, business, performance); completeness score 83/100
+> **Last Updated**: 2025-11-24 (Current Agent)
+> **Status**: Factory/template split hardened; template payload runtime re-enabled; generator produces runnable sample in `generated/demo-landing`
 
 ## Open Issues
+
+### 🔴 Scope Drift: Factory vs Template Responsibilities
+**Severity**: 3/5  
+**Discovered**: 2025-11-23 (current session)  
+**Context**: Factory previously hosted landing/admin runtime; template payload routes were stubbed. This blurred responsibilities and inflated factory completeness.  
+**Impact**: Users hit admin login on factory root; template runtime unusable in generated scenarios (501 responses).  
+**Progress (2025-11-24)**:
+- Factory UI remains dashboard-only; preview/admin disabled.  
+- Template payload API now wires real handlers for auth, variants, metrics, Stripe, and content (removed 501 stubs).  
+- Generator validated: produced `generated/demo-landing` with api/ui/requirements/.vrooli rewritten for the slug.  
+**Remaining Work**:
+1) Template provenance/version stamping ✅ implemented in generator (`.vrooli/template.json` per output); add migration helpers later.  
+2) Re-sync factory PRD/requirements after drift cleanup; align status to factory-only scope (module updated, still needs PRD checkbox review).  
+3) Move BAS/UI automation to template payload once runtime validation passes; retire stale artifacts (placeholder folder created at payload/test/playbooks/...).  
 
 ### 🔴 Blockers (Prevent Progress)
 
@@ -52,6 +66,7 @@ ERROR Unknown options: 'coverage', 'coverage.reporter', 'coverage.reportOnFailur
 - File framework bug report: scripts/scenarios/testing/unit/node.sh line 241 needs `--` separator
 - This is a framework-level blocker, not a scenario issue
 - Unit tests work correctly when run manually: `cd ui && pnpm test -- --coverage --silent`
+- Environment note: browser-automation-studio is currently being refactored elsewhere; BAS-powered playbooks may fail until that stabilizes.
 
 ---
 

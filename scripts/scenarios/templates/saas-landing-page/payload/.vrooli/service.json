@@ -1,0 +1,239 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "saas-landing-template",
+    "displayName": "SaaS Landing Template",
+    "description": "Runtime payload for generated landing-page scenarios (public landing + admin portal with A/B testing, analytics, and Stripe)",
+    "version": "1.0.0",
+    "type": "application-template",
+    "category": "business_tools",
+    "tags": [
+      "react-ui",
+      "go-api",
+      "landing-template",
+      "ab-testing",
+      "stripe",
+      "analytics",
+      "templates"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scripts/scenarios/templates/saas-landing-page/payload"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "35000-39999"
+    },
+    "websocket": {
+      "env_var": "WS_PORT",
+      "description": "WebSocket channel",
+      "range": "25000-29999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "startup_grace_period": 15000,
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    },
+    "setup": {
+      "description": "Build API & UI for the generated landing scenario",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": ["api/landing-manager-api"]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o landing-manager-api .",
+          "description": "Build Go API binary (landing-manager-api) in api/ directory for reuse by start-api step"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\" && echo \"Admin: http://localhost:${UI_PORT}/admin\"",
+          "description": "Display access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and production UI bundle",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "bash -c 'set -a && source initialization/configuration/landing-manager.env && set +a && cd api && exec ./landing-manager-api'",
+          "background": true,
+          "condition": {
+            "file_exists": "api/landing-manager-api"
+          },
+          "description": "Start Go API server"
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          },
+          "description": "Serve production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\" && echo \"Admin: http://localhost:${UI_PORT}/admin\"",
+          "description": "Display access URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Execute phased test suite",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "cd test && ./run-tests.sh",
+          "description": "Run structure/unit/integration/business/performance phases"
+        }
+      ]
+    },
+    "production": {
+      "description": "Production deployment with optimized settings",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "bash -c 'set -a && source initialization/configuration/landing-manager.env && set +a && cd api && exec ./landing-manager-api'",
+          "background": true,
+          "condition": {
+            "file_exists": "api/landing-manager-api"
+          },
+          "description": "Start Go API server in production mode"
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          },
+          "description": "Serve production UI bundle with optimized settings"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'landing-manager-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Primary relational data store for generated landing pages (content, variants, metrics, subscriptions)",
+        "schema": "landing-manager"
+      },
+      "resource-claude-code": {
+        "type": "resource",
+        "enabled": false,
+        "required": false,
+        "description": "Agent-based customization of landing pages",
+        "notes": "Required for agent customization features (OT-P0-005, OT-P0-006)"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "description": "Session caching for high-traffic landing pages",
+        "notes": "Optional performance optimization for generated landing pages"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": false,
+        "required": false,
+        "description": "Template recommendations based on user intent",
+        "notes": "Optional for P2 features (semantic template search)"
+      },
+      "browserless": {
+        "type": "resource",
+        "enabled": false,
+        "required": false,
+        "description": "Screenshot generation for template previews",
+        "notes": "Optional for generating template thumbnails and admin portal previews"
+      }
+    }
+  }
+}

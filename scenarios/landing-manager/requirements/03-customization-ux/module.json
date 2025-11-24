@@ -2,45 +2,9 @@
   "module_id": "customization-ux",
   "title": "Customization UX",
   "priority": "P0",
-  "description": "Live preview and form-based customization of landing page sections",
-  "requirements": [
-    {
-      "id": "CUSTOM-SPLIT",
-      "title": "Split customization layout",
-      "prd_ref": "OT-P0-012",
-      "description": "Each slide customization page shows form (one column) + live preview (other column), stacked on mobile",
-      "validation": [
-        {
-          "type": "manual",
-          "phase": "integration",
-          "status": "failing",
-          "ref": "ui/src/pages/SectionEditor.tsx",
-          "notes": "Responsive grid layout using lg:grid-cols-2 for desktop split view and stacked layout on mobile. Form and preview panes marked with data-testid for future tests."
-        }
-      ],
-      "status": "in_progress",
-      "notes": "Implemented via responsive grid in SectionEditor.tsx (line 164). Layout splits at lg breakpoint, stacks below. Validated by unit tests."
-    },
-    {
-      "id": "CUSTOM-LIVE",
-      "title": "Live preview updates",
-      "prd_ref": "OT-P0-013",
-      "description": "Form field changes update preview within 300ms (debounced) without page reload",
-      "validation": [
-        {
-          "type": "manual",
-          "phase": "integration",
-          "status": "failing",
-          "ref": "ui/src/pages/SectionEditor.tsx",
-          "notes": "Live preview uses debounced content updates (300ms) via useDebounce hook to refresh preview without reload when form fields change."
-        }
-      ],
-      "status": "in_progress",
-      "dependencies": [
-        "CUSTOM-SPLIT"
-      ],
-      "notes": "Implemented via useDebounce hook (300ms) in SectionEditor.tsx. Form changes trigger debounced state updates that automatically refresh the live preview without page reload. Validated by unit tests."
-    }
-  ],
-  "_metadata": {}
+  "description": "Customization UX is owned by the landing template runtime, not the factory.",
+  "requirements": [],
+  "_metadata": {
+    "notes": "See scripts/scenarios/templates/saas-landing-page/payload/requirements/03-customization-ux/module.json for implementation and validation."
+  }
 }

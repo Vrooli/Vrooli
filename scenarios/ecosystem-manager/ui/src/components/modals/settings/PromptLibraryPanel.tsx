@@ -26,6 +26,35 @@ function formatBytes(size?: number) {
   return `${s.toFixed(idx === 0 ? 0 : 2)} ${units[idx]}`;
 }
 
+function toTitleCase(value: string) {
+  return value
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function describePrompt(file: PromptFileInfo) {
+  const base = file.display_name || file.id;
+  const clean = base.replace(/\.md$/, '');
+
+  if (file.type === 'phase') {
+    return `Auto Steer phase: ${toTitleCase(clean)}`;
+  }
+
+  if (file.type === 'template') {
+    return `Prompt template: ${toTitleCase(clean)}`;
+  }
+
+  return `Prompt file: ${toTitleCase(clean)}`;
+}
+
+type GroupedPrompts = {
+  key: string;
+  label: string;
+  items: PromptFileInfo[];
+};
+
 export function PromptLibraryPanel() {
   const { data: files = [], isLoading: filesLoading } = usePromptFiles();
   const [selectedId, setSelectedId] = useState<string>();
@@ -33,11 +62,33 @@ export function PromptLibraryPanel() {
   const savePrompt = useSavePromptFile();
   const [draft, setDraft] = useState('');
 
+  const groupedSections: GroupedPrompts[] = useMemo(() => {
+    const groups: Record<string, PromptFileInfo[]> = {
+      phase: [],
+      template: [],
+      other: [],
+    };
+
+    files.forEach((f) => {
+      const key = f.type && groups[f.type] ? f.type : 'other';
+      groups[key].push(f);
+    });
+
+    return [
+      { key: 'phase', label: 'Auto Steer Phases', items: groups.phase },
+      { key: 'template', label: 'Prompt Templates', items: groups.template },
+      { key: 'other', label: 'Other Prompts', items: groups.other },
+    ].filter((section) => section.items.length > 0);
+  }, [files]);
+
   useEffect(() => {
-    if (files.length > 0 && !selectedId) {
-      setSelectedId(files[0].id);
+    if (!selectedId && groupedSections.length > 0) {
+      const first = groupedSections[0].items[0];
+      if (first) {
+        setSelectedId(first.id);
+      }
     }
-  }, [files, selectedId]);
+  }, [groupedSections, selectedId]);
 
   useEffect(() => {
     setDraft(file?.content ?? '');
@@ -90,10 +141,20 @@ export function PromptLibraryPanel() {
                 <SelectValue placeholder={filesLoading ? 'Loading...' : 'Select file'} />
               </SelectTrigger>
               <SelectContent>
-                {files.map((fileInfo) => (
-                  <SelectItem key={fileInfo.id} value={fileInfo.id}>
-                    {fileInfo.display_name || fileInfo.id}
-                  </SelectItem>
+                {groupedSections.map((section) => (
+                  <div key={section.key} className="px-2 py-1">
+                    <div className="text-xs uppercase tracking-wide text-slate-400 px-2 pb-1">
+                      {section.label}
+                    </div>
+                    {section.items.map((fileInfo) => (
+                      <SelectItem key={fileInfo.id} value={fileInfo.id} className="py-2">
+                        <div className="flex flex-col">
+                          <span className="font-medium">{fileInfo.display_name || fileInfo.id}</span>
+                          <span className="text-xs text-slate-400">{describePrompt(fileInfo)}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </div>
                 ))}
               </SelectContent>
             </Select>

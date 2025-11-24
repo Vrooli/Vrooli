@@ -1,106 +1,47 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import { VariantProvider } from './contexts/VariantContext';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { AdminLogin } from './pages/AdminLogin';
-import { AdminHome } from './pages/AdminHome';
-import { AdminAnalytics } from './pages/AdminAnalytics';
-import { Customization } from './pages/Customization';
-import { VariantEditor } from './pages/VariantEditor';
-import { SectionEditor } from './pages/SectionEditor';
-import { AgentCustomization } from './pages/AgentCustomization';
-import PublicHome from './pages/PublicHome';
+import FactoryHome from './pages/FactoryHome';
 
-/**
- * Main App Router
- *
- * Navigation structure (implements OT-P0-010: ≤ 3 clicks to any customization card):
- * - Click 1: Admin Home → Customization
- * - Click 2: Customization → Variant
- * - Click 3: Variant → Section Editor
- *
- * [REQ:ADMIN-NAV]
- */
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <VariantProvider>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<PublicHome />} />
-            <Route path="/health" element={<PublicHome />} />
+      <Routes>
+        {/* Factory home (default entrypoint) */}
+        <Route path="/" element={<FactoryHome />} />
+        <Route path="/health" element={<SimpleHealth />} />
 
-            {/* Admin routes - hidden from public (OT-P0-007) */}
-            <Route path="/admin/login" element={<AdminLogin />} />
+        {/* Preview disabled inside factory to avoid scope drift */}
+        <Route path="/preview/*" element={<PreviewPlaceholder />} />
+        <Route path="/admin/*" element={<Navigate to="/" replace />} />
 
-            {/* Protected admin routes */}
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute>
-                  <AdminHome />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Analytics routes */}
-            <Route
-              path="/admin/analytics"
-              element={
-                <ProtectedRoute>
-                  <AdminAnalytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/analytics/:variantSlug"
-              element={
-                <ProtectedRoute>
-                  <AdminAnalytics />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Customization routes */}
-            <Route
-              path="/admin/customization"
-              element={
-                <ProtectedRoute>
-                  <Customization />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/customization/agent"
-              element={
-                <ProtectedRoute>
-                  <AgentCustomization />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/customization/variants/:slug"
-              element={
-                <ProtectedRoute>
-                  <VariantEditor />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/customization/variants/:variantSlug/sections/:sectionId"
-              element={
-                <ProtectedRoute>
-                  <SectionEditor />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* 404 redirect */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </VariantProvider>
-      </AuthProvider>
+        {/* 404 redirect */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </BrowserRouter>
+  );
+}
+
+function SimpleHealth() {
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+      <div className="text-center space-y-2">
+        <div className="text-sm text-slate-400">landing-manager ui</div>
+        <div className="text-xl font-semibold">healthy</div>
+      </div>
+    </div>
+  );
+}
+
+function PreviewPlaceholder() {
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center px-6">
+      <div className="max-w-xl text-center space-y-4">
+        <p className="text-sm text-amber-200/80">Template preview moved</p>
+        <h2 className="text-2xl font-semibold">Preview lives in the generated landing scenario</h2>
+        <p className="text-slate-300">
+          To review the public landing and admin portal, generate a scenario and run it directly
+          (e.g. <code className="px-1 py-0.5 rounded bg-slate-900">landing-manager generate saas-landing-page --name "demo" --slug "demo"</code> then <code className="px-1 py-0.5 rounded bg-slate-900">cd generated/demo && make start</code>).
+        </p>
+      </div>
+    </div>
   );
 }

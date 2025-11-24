@@ -1,0 +1,201 @@
+{
+  "module_id": "payments",
+  "title": "Payments & Stripe Integration",
+  "priority": "P0",
+  "description": "Stripe checkout sessions and webhook handling",
+  "requirements": [
+    {
+      "id": "STRIPE-CONFIG",
+      "title": "Stripe environment config",
+      "prd_ref": "OT-P0-025",
+      "description": "Each landing page includes Stripe keys from environment variables",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go"
+        },
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "ref": "initialization/configuration/landing-manager.env"
+        }
+      ],
+      "status": "in_progress",
+      "notes": "Env vars: STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET implemented in stripe_service.go and env file"
+    },
+    {
+      "id": "STRIPE-ROUTES",
+      "title": "Stripe routes",
+      "prd_ref": "OT-P0-025",
+      "description": "Each landing page includes routes for creating checkout sessions and handling webhook events",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go"
+        },
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "ref": "api/stripe_handlers.go"
+        },
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "ref": "api/stripe_handlers.go"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "failing",
+          "ref": ".vrooli/endpoints.json"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "failing",
+          "ref": ".vrooli/endpoints.json"
+        }
+      ],
+      "status": "in_progress",
+      "dependencies": [
+        "STRIPE-CONFIG"
+      ],
+      "notes": "Routes: POST /api/checkout/create, POST /api/webhooks/stripe - implemented with handlers and endpoints"
+    },
+    {
+      "id": "STRIPE-SIG",
+      "title": "Webhook signature verification",
+      "prd_ref": "OT-P0-025",
+      "description": "All webhook endpoints verify Stripe signature before processing",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go"
+        },
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "ref": "api/stripe_service.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go"
+        }
+      ],
+      "status": "in_progress",
+      "dependencies": [
+        "STRIPE-ROUTES"
+      ],
+      "notes": "HMAC-SHA256 signature verification implemented with proper timing attack protection"
+    },
+    {
+      "id": "SUB-VERIFY",
+      "title": "Subscription verification endpoint",
+      "prd_ref": "OT-P0-028",
+      "description": "Each landing page exposes GET /api/subscription/verify accepting user identity, returning active/inactive/trial/canceled",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go"
+        },
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "ref": "api/stripe_service.go"
+        },
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "ref": "api/stripe_handlers.go"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "failing",
+          "ref": ".vrooli/endpoints.json"
+        }
+      ],
+      "status": "in_progress",
+      "notes": "GET /api/subscription/verify endpoint implemented with user identity lookup (email or customer ID)"
+    },
+    {
+      "id": "SUB-CACHE",
+      "title": "Verification caching",
+      "prd_ref": "OT-P0-028",
+      "description": "Subscription verification responses cacheable (short TTL) with max 60s lag from webhook changes",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go"
+        },
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "ref": "api/stripe_service.go"
+        }
+      ],
+      "status": "in_progress",
+      "dependencies": [
+        "SUB-VERIFY"
+      ],
+      "notes": "Cache metadata (cached_at, cache_age_ms) included in response. Warning logged if cache > 60s old"
+    },
+    {
+      "id": "SUB-CANCEL",
+      "title": "Subscription cancellation endpoint",
+      "prd_ref": "OT-P0-028",
+      "description": "API exposes POST /api/subscription/cancel validating user and returning status",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go"
+        },
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "ref": "api/stripe_service.go"
+        },
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "ref": "api/stripe_handlers.go"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "failing",
+          "ref": ".vrooli/endpoints.json"
+        }
+      ],
+      "status": "in_progress",
+      "dependencies": [
+        "SUB-VERIFY"
+      ],
+      "notes": "POST /api/subscription/cancel endpoint implemented with user validation and status update"
+    }
+  ],
+  "_metadata": {}
+}
