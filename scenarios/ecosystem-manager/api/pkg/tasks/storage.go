@@ -14,9 +14,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var activeTaskStatuses = []string{"pending", "in-progress", "review"}
+var activeTaskStatuses = []string{"pending", "in-progress"}
 
-var queueStatuses = []string{"pending", "in-progress", "review", "completed", "failed", "completed-finalized", "failed-blocked", "archived"}
+var queueStatuses = []string{"pending", "in-progress", "completed", "failed", "completed-finalized", "failed-blocked", "archived"}
 
 // IsValidStatus checks if a status string is a valid queue status
 func IsValidStatus(status string) bool {
@@ -174,7 +174,7 @@ func (s *Storage) normalizeTaskItem(item *TaskItem, status string, raw map[strin
 	return changed
 }
 
-// FindActiveTargetTask returns an active task (pending/in-progress/review) for the same type/operation/target if it exists.
+// FindActiveTargetTask returns an active task (pending/in-progress) for the same type/operation/target if it exists.
 func (s *Storage) FindActiveTargetTask(taskType, operation, target string) (*TaskItem, string, error) {
 	normalizedTarget := strings.ToLower(strings.TrimSpace(target))
 	if normalizedTarget == "" {

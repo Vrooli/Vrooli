@@ -24,7 +24,7 @@ related_scenarios: []  # scenarios that might be affected
 related_resources: []  # resources that might be affected
 
 # Progress tracking
-status: "pending"      # pending | in_progress | review | completed | failed
+status: "pending"      # pending | in_progress | completed | failed
 current_phase: ""      # research | design | implementation | testing | documentation
 started_at: ""         # ISO timestamp
 completed_at: ""       # ISO timestamp

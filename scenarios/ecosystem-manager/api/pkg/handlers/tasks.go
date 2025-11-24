@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -22,6 +23,15 @@ import (
 var (
 	validTaskTypes      = []string{"resource", "scenario"}
 	validTaskOperations = []string{"generator", "improver"}
+)
+
+type taskSort string
+
+const (
+	taskSortUpdatedDesc taskSort = "updated_desc"
+	taskSortUpdatedAsc  taskSort = "updated_asc"
+	taskSortCreatedDesc taskSort = "created_desc"
+	taskSortCreatedAsc  taskSort = "created_asc"
 )
 
 // TaskHandlers contains handlers for task-related endpoints
@@ -360,6 +370,41 @@ func (h *TaskHandlers) applyStatusTransitionLogic(task *tasks.TaskItem, taskID, 
 	return now, nil
 }
 
+func parseTaskSortParam(raw string) taskSort {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "updated_asc", "updated-asc", "updated_at_asc", "updated-at-asc":
+		return taskSortUpdatedAsc
+	case "created_desc", "created-desc", "created_at_desc", "created-at-desc":
+		return taskSortCreatedDesc
+	case "created_asc", "created-asc", "created_at_asc", "created-at-asc":
+		return taskSortCreatedAsc
+	default:
+		return taskSortUpdatedDesc
+	}
+}
+
+func parseTimestamp(raw string) time.Time {
+	if strings.TrimSpace(raw) == "" {
+		return time.Time{}
+	}
+	t, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return time.Time{}
+	}
+	return t
+}
+
+func updatedTimestamp(task tasks.TaskItem) time.Time {
+	if ts := parseTimestamp(task.UpdatedAt); !ts.IsZero() {
+		return ts
+	}
+	return parseTimestamp(task.CreatedAt)
+}
+
+func createdTimestamp(task tasks.TaskItem) time.Time {
+	return parseTimestamp(task.CreatedAt)
+}
+
 // GetTasksHandler retrieves tasks with optional filtering
 func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
@@ -370,6 +415,7 @@ func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 	taskType := r.URL.Query().Get("type")       // filter by resource/scenario
 	operation := r.URL.Query().Get("operation") // filter by generator/improver
 	category := r.URL.Query().Get("category")   // filter by category
+	sortParam := parseTaskSortParam(r.URL.Query().Get("sort"))
 
 	items, err := h.storage.GetQueueItems(status)
 	if err != nil {
@@ -391,6 +437,41 @@ func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		filteredItems = append(filteredItems, item)
 	}
+
+	// Apply sorting (default: most recently updated first)
+	sort.SliceStable(filteredItems, func(i, j int) bool {
+		left := filteredItems[i]
+		right := filteredItems[j]
+
+		switch sortParam {
+		case taskSortUpdatedAsc:
+			li, ri := updatedTimestamp(left), updatedTimestamp(right)
+			if li.Equal(ri) {
+				return left.ID < right.ID
+			}
+			return li.Before(ri)
+		case taskSortCreatedDesc:
+			li, ri := createdTimestamp(left), createdTimestamp(right)
+			if li.Equal(ri) {
+				return left.ID < right.ID
+			}
+			return li.After(ri)
+		case taskSortCreatedAsc:
+			li, ri := createdTimestamp(left), createdTimestamp(right)
+			if li.Equal(ri) {
+				return left.ID < right.ID
+			}
+			return li.Before(ri)
+		case taskSortUpdatedDesc:
+			fallthrough
+		default:
+			li, ri := updatedTimestamp(left), updatedTimestamp(right)
+			if li.Equal(ri) {
+				return left.ID < right.ID
+			}
+			return li.After(ri)
+		}
+	})
 
 	systemlog.Debugf("Task list requested: status=%s count=%d", status, len(filteredItems))
 
@@ -526,7 +607,7 @@ func (h *TaskHandlers) GetActiveTargetsHandler(w http.ResponseWriter, r *http.Re
 	reqType := strings.ToLower(taskType)
 	reqOperation := strings.ToLower(operation)
 
-	statuses := []string{"pending", "in-progress", "review"}
+	statuses := []string{"pending", "in-progress"}
 	response := make([]map[string]string, 0)
 	seen := make(map[string]struct{})
 

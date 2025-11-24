@@ -494,6 +494,7 @@ class ApiClient {
     if (filters.type) params.append('type', filters.type);
     if (filters.operation) params.append('operation', filters.operation);
     if (filters.priority) params.append('priority', filters.priority);
+    if (filters.sort) params.append('sort', filters.sort);
 
     const queryString = params.toString();
     const url = `/api/tasks${queryString ? '?' + queryString : ''}`;

@@ -15,7 +15,6 @@ interface ColumnVisibility {
   failed: boolean;
   'failed-blocked': boolean;
   archived: boolean;
-  review: boolean;
 }
 
 interface AppState {
@@ -58,7 +57,6 @@ const defaultColumnVisibility: ColumnVisibility = {
   failed: true,
   'failed-blocked': true,
   archived: false, // Hidden by default
-  review: true,
 };
 
 const defaultFilters: TaskFilters = {
@@ -67,6 +65,7 @@ const defaultFilters: TaskFilters = {
   type: '',
   operation: '',
   priority: '',
+  sort: 'updated_desc',
 };
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {

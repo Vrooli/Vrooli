@@ -18,8 +18,8 @@ import { Checkbox } from '../ui/checkbox';
 import { useAppState } from '../../contexts/AppStateContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useQueryParams } from '../../hooks/useQueryParams';
-import { useState, useEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react';
-import type { TaskStatus, TaskType, OperationType, Priority } from '../../types/api';
+import { useState, useEffect, useLayoutEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react';
+import type { TaskStatus, TaskType, OperationType, Priority, TaskSort } from '../../types/api';
 
 const COLUMN_LABELS: Record<TaskStatus, string> = {
   pending: 'Pending',
@@ -29,7 +29,6 @@ const COLUMN_LABELS: Record<TaskStatus, string> = {
   failed: 'Failed',
   'failed-blocked': 'Blocked',
   archived: 'Archived',
-  review: 'Review',
 };
 
 export function FilterPanel() {
@@ -62,8 +61,8 @@ export function FilterPanel() {
     });
   });
 
-  // Initialize starting position once panel dimensions are known
-  useEffect(() => {
+  // Initialize starting position once panel dimensions are known (useLayoutEffect to avoid flicker)
+  useLayoutEffect(() => {
     const panel = panelRef.current;
     if (!panel || typeof window === 'undefined') return;
 
@@ -109,7 +108,12 @@ export function FilterPanel() {
     };
   }, [isDragging]);
 
-  const activeFilterCount = Object.values(filters).filter(Boolean).length;
+  const defaultSort: TaskSort = 'updated_desc';
+  const activeFilterCount = Object.entries(filters).reduce((count, [key, value]) => {
+    if (!value) return count;
+    if (key === 'sort' && value === defaultSort) return count;
+    return count + 1;
+  }, 0);
   const visibleColumns = (Object.keys(columnVisibility) as TaskStatus[]).filter(
     (status) => columnVisibility[status]
   );
@@ -246,6 +250,27 @@ export function FilterPanel() {
               <SelectItem value="high">High</SelectItem>
               <SelectItem value="medium">Medium</SelectItem>
               <SelectItem value="low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Sort */}
+        <div className="space-y-2">
+          <Label htmlFor="sort" className="text-xs text-muted-foreground">
+            Sort by
+          </Label>
+          <Select
+            value={filters.sort || defaultSort}
+            onValueChange={(value) => updateFilter('sort', value as TaskSort)}
+          >
+            <SelectTrigger id="sort">
+              <SelectValue placeholder="Most recently updated" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="updated_desc">Most recently updated</SelectItem>
+              <SelectItem value="updated_asc">Least recently updated</SelectItem>
+              <SelectItem value="created_desc">Newest first (created)</SelectItem>
+              <SelectItem value="created_asc">Oldest first (created)</SelectItem>
             </SelectContent>
           </Select>
         </div>

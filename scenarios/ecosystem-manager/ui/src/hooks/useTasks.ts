@@ -16,7 +16,6 @@ const ALL_STATUSES: TaskStatus[] = [
   'failed',
   'failed-blocked',
   'archived',
-  'review',
 ];
 
 export function useTasks(filters: TaskFilters = {}) {

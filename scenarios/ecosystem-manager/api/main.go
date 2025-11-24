@@ -213,7 +213,7 @@ func initializeComponents() error {
 	promptsDir := filepath.Join(scenarioRoot, "prompts")
 
 	// Ensure queue directories exist
-	dirs := []string{"pending", "in-progress", "review", "completed", "failed", "completed-finalized", "failed-blocked", "archived"}
+	dirs := []string{"pending", "in-progress", "completed", "failed", "completed-finalized", "failed-blocked", "archived"}
 	for _, dir := range dirs {
 		fullPath := filepath.Join(queueDir, dir)
 		if err := os.MkdirAll(fullPath, 0755); err != nil {

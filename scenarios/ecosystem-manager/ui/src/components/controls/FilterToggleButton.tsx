@@ -12,6 +12,7 @@ export function FilterToggleButton() {
     filters.type,
     filters.operation,
     filters.priority,
+    filters.sort && filters.sort !== 'updated_desc' ? filters.sort : '',
   ].filter(Boolean).length;
 
   const label = `${isFilterPanelOpen ? 'Close' : 'Open'} filter panel${activeFilterCount > 0 ? ` (${activeFilterCount} active filters)` : ''}`;

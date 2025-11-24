@@ -90,7 +90,6 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
       'failed': [],
       'failed-blocked': [],
       'archived': [],
-      'review': [],
     };
 
     tasks.forEach(task => {

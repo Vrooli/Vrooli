@@ -11,8 +11,13 @@ export type TaskStatus =
   | 'completed-finalized'
   | 'failed'
   | 'failed-blocked'
-  | 'archived'
-  | 'review';
+  | 'archived';
+
+export type TaskSort =
+  | 'updated_desc'
+  | 'updated_asc'
+  | 'created_desc'
+  | 'created_asc';
 
 export type TaskType = 'resource' | 'scenario';
 
@@ -53,6 +58,7 @@ export interface TaskFilters {
   type?: TaskType | '';
   operation?: OperationType | '';
   priority?: Priority | '';
+  sort?: TaskSort;
 }
 
 export interface CreateTaskInput {

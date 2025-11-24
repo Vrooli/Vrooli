@@ -13,7 +13,6 @@ import (
 var statuses = []string{
 	"pending",
 	"in-progress",
-	"review",
 	"completed",
 	"completed-finalized",
 	"failed",

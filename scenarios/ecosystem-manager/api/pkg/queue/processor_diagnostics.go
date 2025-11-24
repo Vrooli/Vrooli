@@ -212,7 +212,6 @@ func (qp *Processor) GetQueueStatus() map[string]any {
 	completedFinalizedTasks, _ := qp.storage.GetQueueItems("completed-finalized")
 	failedBlockedTasks, _ := qp.storage.GetQueueItems("failed-blocked")
 	archivedTasks, _ := qp.storage.GetQueueItems("archived")
-	reviewTasks, _ := qp.storage.GetQueueItems("review")
 
 	internalRunning := qp.getInternalRunningTaskIDs()
 	externalActive := qp.getExternalActiveTaskIDs()
@@ -270,7 +269,6 @@ func (qp *Processor) GetQueueStatus() map[string]any {
 		"completed_finalized_count": len(completedFinalizedTasks),
 		"failed_blocked_count":      len(failedBlockedTasks),
 		"archived_count":            len(archivedTasks),
-		"review_count":              len(reviewTasks),
 		"ready_in_progress":         readyInProgress,
 		"refresh_interval":          currentSettings.RefreshInterval, // from settings
 		"processor_running":         processorActive,
