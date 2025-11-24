@@ -33,7 +33,7 @@
   "nodes": [
     {
       "id": "fixture-seed-state",
-      "type": "workflowCall",
+      "type": "subflow",
       "data": {
         "label": "Load seed metadata",
         "workflowId": "@fixture/load-seed-state"

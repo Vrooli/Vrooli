@@ -16,7 +16,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/browserless/compiler/compiler_test.go",
+          "ref": "api/automation/compiler/compiler_test.go",
           "phase": "unit",
           "status": "failing",
           "notes": "Ensures ordering, cycle detection, and unsupported node handling."

@@ -7,6 +7,7 @@ import {
   parseTimestamp,
   type ExecutionEventMessage,
   type ExecutionEventHandlers,
+  type ExecutionEventType,
   type Screenshot,
   type LogEntry,
 } from './executionEventProcessor';
@@ -23,6 +24,20 @@ interface ExecutionUpdateMessage {
   message?: string;
   data?: ExecutionEventMessage | null;
   timestamp?: string;
+}
+
+interface EventEnvelopeMessage {
+  schema_version?: string;
+  payload_version?: string;
+  kind?: string;
+  execution_id?: string;
+  workflow_id?: string;
+  step_index?: number;
+  stepIndex?: number;
+  attempt?: number;
+  sequence?: number;
+  timestamp?: string;
+  payload?: Record<string, unknown> | null;
 }
 
 export interface TimelineBoundingBox {
@@ -223,6 +238,78 @@ const normalizeExecution = (raw: unknown): Execution => {
     progress: typeof rawData.progress === 'number' ? rawData.progress : 0,
     error: typeof errorValue === 'string' ? errorValue : undefined,
     lastHeartbeat: undefined,
+  };
+};
+
+const isEventEnvelope = (value: unknown): value is EventEnvelopeMessage => {
+  if (!value || typeof value !== 'object') return false;
+  const obj = value as Record<string, unknown>;
+  return typeof obj.schema_version === 'string' && typeof obj.kind === 'string';
+};
+
+const extractProgressFromPayload = (payload: Record<string, unknown> | null | undefined): number | undefined => {
+  if (!payload || typeof payload !== 'object') return undefined;
+  const candidates = [
+    payload.progress,
+    payload.progress_percent,
+    payload.progressPercent,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+      return candidate;
+    }
+  }
+  return undefined;
+};
+
+const envelopeToExecutionEvent = (envelope: EventEnvelopeMessage | null | undefined): ExecutionEventMessage | null => {
+  if (!envelope || typeof envelope !== 'object' || typeof envelope.kind !== 'string') {
+    return null;
+  }
+  const payload = (typeof envelope.payload === 'object' && envelope.payload !== null)
+    ? (envelope.payload as Record<string, unknown>)
+    : undefined;
+  const stepIndex = typeof envelope.step_index === 'number'
+    ? envelope.step_index
+    : typeof envelope.stepIndex === 'number'
+      ? envelope.stepIndex
+      : undefined;
+
+  const progress = extractProgressFromPayload(payload);
+
+  const toStringOrEmpty = (value: unknown) => (typeof value === 'string' && value.trim().length > 0 ? value : '');
+  const executionId = toStringOrEmpty((envelope as Record<string, unknown>).execution_id ?? (envelope as Record<string, unknown>).executionId);
+  const workflowId = toStringOrEmpty((envelope as Record<string, unknown>).workflow_id ?? (envelope as Record<string, unknown>).workflowId);
+
+  const stepNodeId = (() => {
+    if (typeof payload?.node_id === 'string') return payload.node_id;
+    if (typeof (payload as Record<string, unknown> | undefined)?.nodeId === 'string') return (payload as Record<string, unknown>).nodeId as string;
+    if (typeof payload?.step_node_id === 'string') return payload.step_node_id;
+    return undefined;
+  })();
+
+  const stepType = (() => {
+    if (typeof payload?.step_type === 'string') return payload.step_type;
+    if (typeof (payload as Record<string, unknown> | undefined)?.stepType === 'string') return (payload as Record<string, unknown>).stepType as string;
+    return undefined;
+  })();
+
+  const message = (() => {
+    if (typeof payload?.message === 'string') return payload.message;
+    return undefined;
+  })();
+
+  return {
+    type: envelope.kind as ExecutionEventType,
+    execution_id: executionId,
+    workflow_id: workflowId,
+    step_index: stepIndex,
+    step_node_id: stepNodeId,
+    step_type: stepType,
+    progress,
+    message,
+    payload,
+    timestamp: typeof envelope.timestamp === 'string' ? envelope.timestamp : undefined,
   };
 };
 
@@ -634,7 +721,16 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       });
     };
 
-    const handleUpdate = (raw: ExecutionUpdateMessage) => {
+    const handleEnvelopeMessage = (envelope: EventEnvelopeMessage) => {
+      const event = envelopeToExecutionEvent(envelope);
+      if (!event) return;
+      const progress = extractProgressFromPayload(
+        (typeof envelope.payload === 'object' ? envelope.payload : undefined) as Record<string, unknown> | undefined,
+      );
+      handleEvent(event, envelope.timestamp, progress ?? event.progress);
+    };
+
+    const handleLegacyUpdate = (raw: ExecutionUpdateMessage) => {
       const progressValue = typeof raw.progress === 'number' ? raw.progress : undefined;
       const currentStep = raw.current_step;
 
@@ -677,8 +773,19 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
     const messageListener: EventListener = (event) => {
       try {
-        const data = JSON.parse((event as MessageEvent).data) as ExecutionUpdateMessage;
-        handleUpdate(data);
+        const data = JSON.parse((event as MessageEvent).data) as Record<string, unknown>;
+
+        if (isEventEnvelope(data)) {
+          handleEnvelopeMessage(data);
+          return;
+        }
+
+        if (data && typeof data === 'object' && isEventEnvelope((data as Record<string, unknown>).data)) {
+          handleEnvelopeMessage((data as { data: EventEnvelopeMessage }).data);
+          return;
+        }
+
+        handleLegacyUpdate(data as ExecutionUpdateMessage);
       } catch (err) {
         logger.error('Failed to parse execution update', { component: 'ExecutionStore', action: 'handleWebSocketMessage', executionId }, err);
       }

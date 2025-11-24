@@ -14,7 +14,7 @@
   "nodes": [
     {
       "id": "call-open-builder",
-      "type": "workflowCall",
+      "type": "subflow",
       "data": {
         "label": "Open builder via fixture",
         "workflowId": "@fixture/open-builder-from-demo(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"

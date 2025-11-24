@@ -256,9 +256,9 @@ export const WORKFLOW_NODE_DEFINITIONS: Record<string, WorkflowNodeDefinition> =
     color: 'text-blue-300',
     keywords: ['repeat', 'for each', 'iteration'],
   },
-  workflowCall: {
-    type: 'workflowCall',
-    label: 'Call Workflow',
+  subflow: {
+    type: 'subflow',
+    label: 'Subflow',
     description: 'Execute another workflow',
     icon: Play,
     color: 'text-violet-400',
@@ -369,7 +369,7 @@ export const NODE_CATEGORIES: NodeCategory[] = [
     icon: GitBranch,
     description: 'Branch, loop, and reuse existing workflows',
     defaultExpanded: false,
-    nodes: ['conditional', 'loop', 'workflowCall'],
+    nodes: ['conditional', 'loop', 'subflow'],
   },
   {
     id: 'storage-network',

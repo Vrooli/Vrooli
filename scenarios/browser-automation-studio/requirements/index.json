@@ -69,7 +69,7 @@
       "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
       "title": "Persist normalized execution artifacts for replay & video rendering",
       "description": "Ensures replay artifacts are persisted, queryable, and exportable for downstream renderers.",
-      "status": "in_progress",
+      "status": "complete",
       "children": [
         "BAS-REPLAY-TIMELINE-PERSISTENCE",
         "BAS-REPLAY-EXPORT-BUNDLE"
@@ -81,7 +81,7 @@
       "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "AI-generated workflows validated against the execution plan",
       "description": "Validates that AI prompts produce executable workflows with deterministic smoke coverage.",
-      "status": "in_progress",
+      "status": "complete",
       "children": [
         "BAS-AI-GENERATION-SMOKE",
         "BAS-AI-GENERATION-VALIDATION"
@@ -93,7 +93,7 @@
       "prd_ref": "Autosave & Version History",
       "title": "Conflict-aware autosave with auditable version history",
       "description": "Captures autosave behaviour, version history presentation, and restore flows across UI and API.",
-      "status": "in_progress",
+      "status": "complete",
       "children": [
         "BAS-VERSION-AUTOSAVE",
         "BAS-VERSION-RESTORE"

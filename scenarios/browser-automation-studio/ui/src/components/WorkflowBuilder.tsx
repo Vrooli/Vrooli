@@ -68,7 +68,7 @@ import TypeNode from "./nodes/TypeNode";
 import UploadFileNode from "./nodes/UploadFileNode";
 import UseVariableNode from "./nodes/UseVariableNode";
 import WaitNode from "./nodes/WaitNode";
-import WorkflowCallNode from "./nodes/WorkflowCallNode";
+import SubflowNode from "./nodes/SubflowNode";
 import ResponsiveDialog from "./ResponsiveDialog";
 import WorkflowToolbar from "./WorkflowToolbar";
 
@@ -105,7 +105,7 @@ const nodeTypes: NodeTypes = {
   extract: ExtractNode,
   assert: AssertNode,
   useVariable: UseVariableNode,
-  workflowCall: WorkflowCallNode,
+  subflow: SubflowNode,
   loop: LoopNode,
 };
 
@@ -966,7 +966,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
                   return "#ec4899";
                 case "wait":
                   return "#6b7280";
-                case "workflowCall":
+                case "subflow":
                   return "#a855f7";
                 default:
                   return "#4a5568";
@@ -988,7 +988,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
                   return "#9f1239";
                 case "wait":
                   return "#374151";
-                case "workflowCall":
+                case "subflow":
                   return "#7c3aed";
                 default:
                   return "#1a1d29";

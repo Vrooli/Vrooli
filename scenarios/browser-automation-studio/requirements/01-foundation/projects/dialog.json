@@ -43,13 +43,13 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "New project dialog closes through all affordances",
       "description": "Ensures the modal dismisses through the X button, cancel button, backdrop click, and Escape key, restoring the underlying canvas state.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/01-projects/new-project-dialog-close.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "BAS workflow covering dismissal affordances (pending export)."
         },
         {

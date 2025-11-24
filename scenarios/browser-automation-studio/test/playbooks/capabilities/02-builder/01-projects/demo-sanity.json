@@ -14,7 +14,7 @@
   "nodes": [
     {
       "id": "call-open-demo-workflow",
-      "type": "workflowCall",
+      "type": "subflow",
       "data": {
         "label": "Open seeded workflow",
         "workflowId": "@fixture/open-demo-workflow(projectName=@seed/projectName, projectFolder=@seed/projectFolder, workflowName=@seed/workflowName)"

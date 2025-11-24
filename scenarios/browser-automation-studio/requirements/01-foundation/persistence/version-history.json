@@ -43,7 +43,7 @@
       "prd_ref": "Autosave & Version History",
       "title": "Version history exposes restore flows across API, UI, and CLI",
       "description": "Ensures version listing, diffing, and restore endpoints are available and parity exists between CLI and UI flows.",
-      "status": "in_progress",
+      "status": "complete",
       "validation": [
         {
           "type": "test",
@@ -70,14 +70,14 @@
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/02-workflows/workflow-version-restore.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "UI workflow validates version history modal, version listing, and restore functionality"
         },
         {
           "type": "manual",
           "ref": "cli/browser-automation-studio",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CLI restore commands documented and verified during operator workflows."
         }
       ]

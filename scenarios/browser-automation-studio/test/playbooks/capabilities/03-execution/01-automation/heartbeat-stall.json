@@ -13,11 +13,11 @@
   },
   "nodes": [
     {
-      "id": "call-open-project",
-      "type": "workflowCall",
+      "id": "call-open-workflow",
+      "type": "subflow",
       "data": {
-        "label": "Open demo project via fixture",
-        "workflowId": "@fixture/open-demo-project(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
+        "label": "Open demo workflow in builder",
+        "workflowId": "@fixture/open-demo-workflow(projectName=@seed/projectName, projectFolder=@seed/projectFolder, workflowId=@seed/workflowId, workflowName=@seed/workflowName)"
       }
     },
     {
@@ -25,12 +25,18 @@
       "type": "click",
       "data": {
         "label": "Execute workflow",
-        "selector": "@selector/workflowBuilder.executeButton",
+        "selector": "@selector/header.buttons.execute",
         "timeoutMs": 10000,
-        "resilience": {
-          "successSelector": "@selector/executions.viewer.root",
-          "successTimeoutMs": 15000
-        }
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "capture-after-execute",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture state after clicking execute",
+        "fullPage": true,
+        "waitForMs": 2000
       }
     },
     {
@@ -38,7 +44,7 @@
       "type": "assert",
       "data": {
         "label": "Execution viewer functional",
-        "selector": "@selector/executions.viewer.root:where(:not(:root))",
+        "selector": "@selector/executions.viewer.root",
         "assertMode": "exists",
         "timeoutMs": 20000,
         "failureMessage": "Execution viewer should render"
@@ -48,13 +54,19 @@
   "edges": [
     {
       "id": "e1",
-      "source": "call-open-project",
+      "source": "call-open-workflow",
       "target": "click-execute-workflow",
       "type": "smoothstep"
     },
     {
-      "id": "e7",
+      "id": "e2",
       "source": "click-execute-workflow",
+      "target": "capture-after-execute",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "capture-after-execute",
       "target": "assert-heartbeat-indicator",
       "type": "smoothstep"
     }

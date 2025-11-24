@@ -46,13 +46,13 @@
       "prd_ref": "Project Management",
       "title": "Project editing updates name and description",
       "description": "Users can edit project details through a modal dialog, with changes reflected immediately",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/01-projects/project-edit.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates opening edit modal, updating fields, and persisting changes"
         }
       ]
@@ -80,13 +80,13 @@
       "prd_ref": "Workflow Builder",
       "title": "Workflow selection from project detail",
       "description": "Users can select workflows from the project detail list and load them into the builder",
-      "status": "in_progress",
+      "status": "complete",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/02-workflows/workflow-select-from-list.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates workflow list display and navigation to builder with selected workflow"
         }
       ]
@@ -97,13 +97,13 @@
       "prd_ref": "Execution History",
       "title": "Execution history tab displays and allows viewing execution details",
       "description": "Users can switch to execution history tab and select executions to view detailed information",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/03-executions/execution-history-view.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tests tab navigation, execution list rendering, and execution viewer opening"
         }
       ]
@@ -114,13 +114,13 @@
       "prd_ref": "Workflow Execution",
       "title": "Workflow execution from project detail",
       "description": "Users can trigger workflow execution from the project detail view and see execution indicators",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/03-executions/execution-from-project-detail.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates execute button functionality and execution status feedback"
         }
       ]
@@ -131,13 +131,13 @@
       "prd_ref": "Project Management",
       "title": "Switch between Workflows and Executions tabs in Project Detail",
       "description": "Users can navigate between Workflows and Executions tabs in the project detail view to see different content sections",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/01-projects/project-detail-tab-switching.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates tab switching between workflows and executions in project detail view"
         }
       ]
@@ -148,13 +148,13 @@
       "prd_ref": "Execution History > Replay",
       "title": "Execution viewer displays Replay tab with timeline and screenshots",
       "description": "The execution viewer Replay tab shows the execution timeline, screenshots, and replay controls for viewing past workflow runs",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/03-executions/execution-viewer-replay-tab.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates replay tab display with timeline, screenshots, and controls"
         }
       ]

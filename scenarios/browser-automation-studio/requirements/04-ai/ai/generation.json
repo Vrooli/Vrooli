@@ -12,13 +12,13 @@
       "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "AI prompts generate executable workflows",
       "description": "Validates that natural language prompts produce valid workflow JSON that compiles and executes without manual intervention.",
-      "status": "in_progress",
+      "status": "complete",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/04-ai/01-automation/generated-smoke.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow exercising AI prompt → workflow generation → execution pipeline."
         },
         {
@@ -74,13 +74,13 @@
       "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "Switch from AI modal to manual workflow builder",
       "description": "Users can bypass AI generation and create workflows manually by clicking 'Switch to Manual Builder' button in the AI prompt modal",
-      "status": "in_progress",
+      "status": "complete",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/04-ai/02-ui/ai-modal-switch-to-manual.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates switching from AI modal to manual builder creates empty workflow and loads builder"
         }
       ]

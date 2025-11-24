@@ -16,7 +16,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/browserless/client_test.go",
+          "ref": "api/automation/executor/integration_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Exercises telemetry persistence, retries, and artifact metadata."

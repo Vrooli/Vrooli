@@ -3,7 +3,7 @@ import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
 import { Play, ChevronDown, Settings, AlertCircle } from 'lucide-react';
 import { useWorkflowStore } from '@stores/workflowStore';
 
-interface WorkflowCallData {
+interface SubflowData {
   workflowId?: string;
   workflowName?: string;
   parameters?: Record<string, any>;
@@ -11,7 +11,7 @@ interface WorkflowCallData {
   outputMapping?: Record<string, string>;
 }
 
-const WorkflowCallNode: FC<NodeProps> = ({ data, selected, id }) => {
+const SubflowNode: FC<NodeProps> = ({ data, selected, id }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { getNodes, setNodes } = useReactFlow();
   const workflows = useWorkflowStore((state) => state.workflows);
@@ -33,7 +33,7 @@ const WorkflowCallNode: FC<NodeProps> = ({ data, selected, id }) => {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [workflows]);
   
-  const updateNodeData = (updates: Partial<WorkflowCallData>) => {
+  const updateNodeData = (updates: Partial<SubflowData>) => {
     const nodes = getNodes();
     const updatedNodes = nodes.map(node => {
       if (node.id === id) {
@@ -60,7 +60,7 @@ const WorkflowCallNode: FC<NodeProps> = ({ data, selected, id }) => {
       
       <div className="flex items-center gap-2 mb-3">
         <Play size={16} className="text-violet-400" />
-        <span className="font-semibold text-sm">Call Workflow</span>
+        <span className="font-semibold text-sm">Subflow</span>
         <button
           onClick={() => setIsExpanded(!isExpanded)}
           className="ml-auto p-1 hover:bg-gray-700 rounded"
@@ -74,7 +74,7 @@ const WorkflowCallNode: FC<NodeProps> = ({ data, selected, id }) => {
       </div>
       <div className="space-y-3">
         <div className="space-y-1">
-          <label className="text-xs text-gray-400">Target Workflow</label>
+          <label className="text-xs text-gray-400">Target workflow</label>
           <select
             value={data.workflowId || ''}
             className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
@@ -87,7 +87,7 @@ const WorkflowCallNode: FC<NodeProps> = ({ data, selected, id }) => {
               });
             }}
           >
-            <option value="">Select workflow...</option>
+            <option value="">Select workflow…</option>
             {sortedWorkflows.map((workflow) => (
               <option key={workflow.id} value={workflow.id}>
                 {workflow.name}
@@ -130,7 +130,7 @@ const WorkflowCallNode: FC<NodeProps> = ({ data, selected, id }) => {
           />
           <label htmlFor={`wait-${id}`} className="text-xs text-gray-300">Wait for completion</label>
         </div>
-        <p className="text-xs text-gray-500 -mt-2">Async workflow calls coming soon; current implementation always waits.</p>
+        <p className="text-xs text-gray-500 -mt-2">Async subflows coming soon; current implementation always waits.</p>
 
         {isExpanded && (
           <div className="space-y-3 pt-3 border-t border-gray-700">
@@ -157,7 +157,7 @@ const WorkflowCallNode: FC<NodeProps> = ({ data, selected, id }) => {
             <div className="space-y-1">
               <label className="flex items-center gap-1 text-xs text-gray-400">
                 <Settings size={12} />
-                Output Mapping (JSON)
+                Output mapping (JSON)
               </label>
               <textarea
                 value={data.outputMapping ? JSON.stringify(data.outputMapping, null, 2) : '{}'}
@@ -186,4 +186,4 @@ const WorkflowCallNode: FC<NodeProps> = ({ data, selected, id }) => {
   );
 };
 
-export default memo(WorkflowCallNode);
+export default memo(SubflowNode);

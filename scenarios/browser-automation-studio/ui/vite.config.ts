@@ -202,11 +202,15 @@ export default defineConfig({
       },
     },
     reporters: [
-      'default',
+      // Note: 'default' reporter removed when using conciseMode to eliminate verbose output
+      // Our custom reporter provides all necessary output in a concise format
       new RequirementReporter({
         outputFile: 'coverage/vitest-requirements.json',
         emitStdout: true,  // CRITICAL: Required for existing shell parsers
         verbose: true,
+        conciseMode: true,  // Enable concise output with failure artifacts
+        artifactsDir: 'coverage/unit',
+        autoClear: true,
       }),
     ],
     coverage: {

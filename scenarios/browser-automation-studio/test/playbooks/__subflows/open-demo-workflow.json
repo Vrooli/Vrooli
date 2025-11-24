@@ -42,15 +42,12 @@
         "description": "Seed workflow to open"
       }
     ],
-    "requirements": [
-      "BAS-WORKFLOW-DEMO-SEED"
-    ],
     "reset": "none"
   },
   "nodes": [
     {
       "id": "fixture-call-open-project",
-      "type": "workflowCall",
+      "type": "subflow",
       "data": {
         "label": "Open Demo project",
         "workflowId": "@fixture/open-demo-project(projectId=\"${fixture.projectId}\", projectName=\"${fixture.projectName}\", projectFolder=\"${fixture.projectFolder}\")"

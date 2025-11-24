@@ -99,19 +99,19 @@ if [ -z "$project_id" ]; then
 fi
 
 # Seed a simple workflow so workflow-listing tests have something to select.
+# NOTE: This workflow must NOT navigate the browser, as it runs in the same
+# context as test automation. Use evaluate/wait nodes instead.
 IFS= read -r -d '' workflow_definition <<'JSON' || true
 {
   "nodes": [
     {
-      "id": "seed-navigate",
-      "type": "navigate",
+      "id": "seed-evaluate",
+      "type": "evaluate",
       "position": {"x": 0, "y": 0},
       "data": {
-        "label": "Navigate to example.com",
-        "destinationType": "url",
-        "url": "https://example.com",
-        "waitUntil": "domcontentloaded",
-        "timeoutMs": 15000
+        "label": "Get page title",
+        "expression": "document.title",
+        "storeResult": "pageTitle"
       }
     },
     {
@@ -119,14 +119,14 @@ IFS= read -r -d '' workflow_definition <<'JSON' || true
       "type": "wait",
       "position": {"x": 240, "y": 0},
       "data": {
-        "label": "Settle page",
-        "durationMs": 1500,
+        "label": "Wait for test assertions",
+        "durationMs": 5000,
         "waitType": "duration"
       }
     }
   ],
   "edges": [
-    {"id": "seed-edge", "source": "seed-navigate", "target": "seed-wait", "type": "smoothstep"}
+    {"id": "seed-edge", "source": "seed-evaluate", "target": "seed-wait", "type": "smoothstep"}
   ]
 }
 JSON
