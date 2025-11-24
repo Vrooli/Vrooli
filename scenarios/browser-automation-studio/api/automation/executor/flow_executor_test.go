@@ -357,6 +357,71 @@ func TestFlowExecutorForEachLiteralItems(t *testing.T) {
 	}
 }
 
+func TestFlowExecutorForEachArraySourceFromState(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	plan := contracts.ExecutionPlan{
+		ExecutionID: execID,
+		WorkflowID:  workflowID,
+		Graph: &contracts.PlanGraph{
+			Steps: []contracts.PlanStep{
+				{
+					Index:  0,
+					NodeID: "seed",
+					Type:   "setVariable",
+					Params: map[string]any{
+						"name":      "items",
+						"value":     `["x","y"]`,
+						"valueType": "json",
+					},
+					Outgoing: []contracts.PlanEdge{{Target: "loop-foreach"}},
+				},
+				{
+					Index:  1,
+					NodeID: "loop-foreach",
+					Type:   "loop",
+					Params: map[string]any{
+						"loopType":         "forEach",
+						"loopArraySource":  "items",
+						"loopItemVariable": "item",
+					},
+					Loop: &contracts.PlanGraph{
+						Steps: []contracts.PlanStep{
+							{Index: 2, NodeID: "body", Type: "click"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	rec := &recordingRecorder{}
+	sink := events.NewMemorySink(contracts.DefaultEventBufferLimits)
+	stub := &flowStubEngine{
+		outcomes: map[int]contracts.StepOutcome{
+			2: {Success: true},
+		},
+	}
+
+	exec := NewSimpleExecutor(nil)
+	err := exec.Execute(context.Background(), Request{
+		Plan:              plan,
+		EngineName:        stub.Name(),
+		EngineFactory:     engine.NewStaticFactory(stub),
+		Recorder:          rec,
+		EventSink:         sink,
+		HeartbeatInterval: 0,
+	})
+	if err != nil {
+		t.Fatalf("executor returned error: %v", err)
+	}
+	// seed + 2 body iterations + loop synthetic
+	if len(rec.outcomes) != 4 {
+		t.Fatalf("expected 4 outcomes, got %d", len(rec.outcomes))
+	}
+}
+
 func TestFlowExecutorWhileStopsAfterConditionChanges(t *testing.T) {
 	execID := uuid.New()
 	workflowID := uuid.New()
@@ -462,8 +527,12 @@ func TestFlowExecutorHonorsCancelledContext(t *testing.T) {
 	if err == nil || err != context.Canceled {
 		t.Fatalf("expected context.Canceled, got %v", err)
 	}
-	if len(rec.outcomes) != 0 {
-		t.Fatalf("expected no outcomes recorded when context is cancelled")
+	if len(rec.outcomes) != 1 {
+		t.Fatalf("expected one cancellation outcome recorded, got %d", len(rec.outcomes))
+	}
+	out := rec.outcomes[0]
+	if out.Success || out.Failure == nil || out.Failure.Kind != contracts.FailureKindCancelled {
+		t.Fatalf("expected cancellation failure, got %+v", out.Failure)
 	}
 }
 

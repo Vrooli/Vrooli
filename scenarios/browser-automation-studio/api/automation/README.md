@@ -53,27 +53,44 @@ Key invariants:
   - [recorder/README.md](recorder/README.md)
   - [events/README.md](events/README.md)
 
+### Flow navigation (where complex orchestration lives)
+- Planning/compilation: `executor/plan_builder.go`
+- Graph + branching + loop execution: `executor/flow_executor.go` (helpers in `executor/flow_utils.go`)
+- Loop coverage: repeat + forEach + while (basic variable condition); built-in `set_variable` node for executor-scoped vars; `${var}` interpolation on instruction params.
+- Capability preflight (tabs/iframe/upload/HAR/video/download/viewport): `executor/preflight.go`
+- Retry/heartbeat/normalization shell: `executor/simple_executor.go`
+- Future variable interpolation/cancellation/session policy should also land in `executor/` alongside these files so flow logic stays discoverable.
+
 ## Feature Flags / Selection
 - `ENGINE` sets the default engine (e.g., `browserless`).
 - `ENGINE_OVERRIDE` forces all executions to use a specific engine.
 - `ENGINE_FEATURE_FLAG` controls whether the new executor path is enabled (`on` by default; set `off` to disable).
 - `ENGINE_SHADOW_MODE=on` runs the new executor alongside the legacy path without affecting status.
 - Routing logic lives in `services/workflow_service_execution.go`:
-  - If feature flag enabled and workflow uses only supported nodes (currently linear/basic loop repeat), we run the new executor.
+  - If feature flag enabled and workflow uses only supported nodes (linear + loop repeat/foreach/while), we run the new executor.
   - Shadow mode runs the new executor in the background while legacy remains source of truth.
 
 ## Current Coverage vs. Legacy
-- Covered: linear + basic graph execution, heartbeats, retries, capability checks, DB persistence of step outcomes/console/network/assert/assertion/screenshot artifacts, websocket event emission.
-- Not yet covered: full branching semantics parity, variable interpolation, session reuse policy (`reuse/clean/fresh`), detailed failure taxonomy mapping, cursor trails/timeline framing/DOM truncation and dedupe, crash reconciliation, and backpressure/drop metrics parity.
+- Covered: linear + graph execution (repeat/forEach/while loops with executor-owned `set_variable`), `${var}` interpolation, heartbeats, retries, capability preflight, DB persistence of step outcomes/console/network/assert/assertion/screenshot artifacts, websocket event emission, clean reuse mode (session reset between steps).
+- Not yet covered (needs implementation/parity work):
+  - Rich variable expressions/interpolation beyond simple replacements.
+  - Session reuse policies: true `fresh` (per-step session spin-up) and policy-driven reset/failure recovery.
+  - Cancellation/timeout taxonomy and propagation (executor now enforces `timeoutMs` per step and `executionTimeoutMs` at the plan level; still need workflow-level status/artifact/event semantics).
+  - Retry/failure taxonomy alignment (failure kinds/messages, retryable flags) and telemetry parity/drop metrics.
+  - Capability enforcement matrix (tabs/iframes/HAR/tracing/uploads/downloads/video/viewport) with clear fail-fast gaps.
+  - Artifact shaping: DOM truncation/dedupe, cursor trails/timeline framing payloads, screenshot handling parity, backpressure/drop counters.
+  - Crash handling/recovery markers.
 
 ## How to Gain Confidence (and Delete Legacy Code)
 1. Add contract/golden tests that compare DB artifacts + websocket event ordering between the new stack and the legacy path for a small workflow slice (navigate/click/assert).
 2. Expand executor parity (variable interpolation, cancellation/timeout, reuse modes) for those covered nodes until tests pass.
 3. Route compatible workflows through the new path (fallback only for unsupported features), then trim the duplicated persistence/event logic in `browserless/client.go`.
+4. Mirror parity harness: grow `browserless/client_mirror_test.go` so legacy mirror emissions stay aligned with the automation contracts before deleting monolithic persistence/event code.
 
 ## Testing
 - Unit tests live alongside packages (`contracts_test.go`, `selection_test.go`, `simple_executor_test.go`, etc.).
 - Integration tests should prefer `testcontainers-go` + `DBRecorder` + `MemorySink` so we exercise real persistence and event sequencing without relying on Browserless.
+- Legacy mirror parity: `browserless/client_mirror_test.go` asserts the legacy client’s mirror translation into automation contracts; extend with real workflow fixtures while legacy/event code is still present.
 
 ## What to Tackle Next (to delete legacy code)
 1) Golden parity: add tests that run the same mini workflow through legacy `browserless.Client` and `SimpleExecutor+BrowserlessEngine+DBRecorder+WSHubSink`, then diff DB artifacts + WS payloads.

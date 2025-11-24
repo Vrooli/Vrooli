@@ -1,7 +1,9 @@
 package executor
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -45,21 +47,28 @@ func extractLoopItems(params map[string]any, state *flowState) []any {
 		return nil
 	}
 	if raw, ok := params["loopItems"]; ok {
-		if arr, ok := raw.([]any); ok {
+		if arr := coerceArray(raw); len(arr) > 0 {
 			return arr
 		}
 	}
 	if raw, ok := params["items"]; ok {
-		if arr, ok := raw.([]any); ok {
+		if arr := coerceArray(raw); len(arr) > 0 {
 			return arr
 		}
 	}
+	source := ""
 	if raw, ok := params["arraySource"]; ok {
-		if name, ok := raw.(string); ok && name != "" {
-			if v, ok := state.get(name); ok {
-				if arr, ok := v.([]any); ok {
-					return arr
-				}
+		source, _ = raw.(string)
+	}
+	if source == "" {
+		if raw, ok := params["loopArraySource"]; ok {
+			source, _ = raw.(string)
+		}
+	}
+	if source != "" {
+		if v, ok := state.get(source); ok {
+			if arr := coerceArray(v); len(arr) > 0 {
+				return arr
 			}
 		}
 	}
@@ -72,6 +81,9 @@ func evaluateLoopCondition(params map[string]any, state *flowState) bool {
 	}
 	condType := strings.ToLower(strings.TrimSpace(stringValue(params, "conditionType")))
 	if condType == "" {
+		condType = strings.ToLower(strings.TrimSpace(stringValue(params, "loopConditionType")))
+	}
+	if condType == "" {
 		condType = "variable"
 	}
 
@@ -79,10 +91,16 @@ func evaluateLoopCondition(params map[string]any, state *flowState) bool {
 	case "variable":
 		name := stringValue(params, "conditionVariable")
 		if name == "" {
+			name = stringValue(params, "loopConditionVariable")
+		}
+		if name == "" {
 			return false
 		}
 		op := strings.ToLower(strings.TrimSpace(stringValue(params, "conditionOperator")))
-		expected, _ := params["conditionValue"]
+		if op == "" {
+			op = strings.ToLower(strings.TrimSpace(stringValue(params, "loopConditionOperator")))
+		}
+		expected := firstPresent(params, "conditionValue", "loopConditionValue")
 		current, ok := state.get(name)
 		if !ok {
 			return false
@@ -90,7 +108,11 @@ func evaluateLoopCondition(params map[string]any, state *flowState) bool {
 		return compareValues(current, expected, op)
 	case "expression":
 		// Placeholder: expression evaluation not yet implemented; treat non-empty expression as true.
-		return strings.TrimSpace(stringValue(params, "conditionExpression")) != ""
+		expr := strings.TrimSpace(stringValue(params, "conditionExpression"))
+		if expr == "" {
+			expr = strings.TrimSpace(stringValue(params, "loopConditionExpression"))
+		}
+		return expr != ""
 	default:
 		return false
 	}
@@ -282,6 +304,8 @@ func intValue(m map[string]any, key string) int {
 			return int(t)
 		case float64:
 			return int(t)
+		case float32:
+			return int(t)
 		}
 	}
 	return 0
@@ -303,4 +327,60 @@ func uuidOrDefault(value, fallback uuid.UUID) uuid.UUID {
 		return value
 	}
 	return fallback
+}
+
+func coerceArray(raw any) []any {
+	switch v := raw.(type) {
+	case []any:
+		return v
+	case []string:
+		out := make([]any, len(v))
+		for i := range v {
+			out[i] = v[i]
+		}
+		return out
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return nil
+		}
+		var decoded []any
+		if err := json.Unmarshal([]byte(trimmed), &decoded); err == nil {
+			return decoded
+		}
+	}
+	return nil
+}
+
+func firstPresent(params map[string]any, keys ...string) any {
+	for _, k := range keys {
+		if v, ok := params[k]; ok {
+			return v
+		}
+	}
+	return nil
+}
+
+func normalizeVariableValue(value any, valueType string) any {
+	switch strings.ToLower(strings.TrimSpace(valueType)) {
+	case "boolean", "bool":
+		if b, err := strconv.ParseBool(fmt.Sprint(value)); err == nil {
+			return b
+		}
+	case "number", "float", "int":
+		if f, ok := toFloat(value); ok {
+			if strings.Contains(strings.ToLower(valueType), "int") {
+				return int(f)
+			}
+			return f
+		}
+	case "json":
+		if s, ok := value.(string); ok {
+			var decoded any
+			if err := json.Unmarshal([]byte(strings.TrimSpace(s)), &decoded); err == nil {
+				return decoded
+			}
+		}
+	}
+	return value
 }

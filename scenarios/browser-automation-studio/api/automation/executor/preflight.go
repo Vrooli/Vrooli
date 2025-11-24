@@ -2,6 +2,7 @@ package executor
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 )
@@ -24,35 +25,10 @@ func deriveRequirements(plan contracts.ExecutionPlan) contracts.CapabilityRequir
 	req = mergeMetadataCapabilities(req, plan.Metadata)
 
 	for _, instr := range plan.Instructions {
-		params := instr.Params
-		if params == nil {
-			continue
-		}
-		// Multi-tab support required when any tab switch directive is present.
-		if requiresParallelTabs(params) {
-			req.NeedsParallelTabs = true
-		}
-		// Iframe support required when frame navigation occurs.
-		if requiresIframes(params) {
-			req.NeedsIframes = true
-		}
-		// Network interception/mocking implies HAR/tracing capability.
-		if requiresNetworkMock(params) {
-			req.NeedsHAR = true
-			req.NeedsTracing = true
-		}
-		// File upload support required when uploads are configured.
-		if requiresFileUploads(params) {
-			req.NeedsFileUploads = true
-		}
-		// Instruction-level viewport hints should not shrink global minima.
-		if w, ok := numericParam(params, "viewportWidth"); ok && w > req.MinViewportWidth {
-			req.MinViewportWidth = w
-		}
-		if h, ok := numericParam(params, "viewportHeight"); ok && h > req.MinViewportHeight {
-			req.MinViewportHeight = h
-		}
+		req = applyInstructionCapabilities(req, instr.Type, instr.Params)
 	}
+
+	req = applyGraphCapabilities(req, plan.Graph)
 	return req
 }
 
@@ -146,4 +122,76 @@ func numericParam(params map[string]any, key string) (int, bool) {
 		}
 	}
 	return 0, false
+}
+
+func applyInstructionCapabilities(req contracts.CapabilityRequirement, stepType string, params map[string]any) contracts.CapabilityRequirement {
+	// Multi-tab support required when any tab switch directive is present.
+	if requiresParallelTabs(params) {
+		req.NeedsParallelTabs = true
+	}
+	// Iframe support required when frame navigation occurs.
+	if requiresIframes(params) {
+		req.NeedsIframes = true
+	}
+	// Network interception/mocking implies HAR/tracing capability.
+	if requiresNetworkMock(params) {
+		req.NeedsHAR = true
+		req.NeedsTracing = true
+	}
+	// File upload support required when uploads are configured.
+	if requiresFileUploads(params) || strings.EqualFold(stepType, "upload") {
+		req.NeedsFileUploads = true
+	}
+
+	lowerType := strings.ToLower(stepType)
+	if strings.Contains(lowerType, "download") {
+		req.NeedsDownloads = true
+	}
+	if strings.Contains(lowerType, "har") {
+		req.NeedsHAR = true
+	}
+	if strings.Contains(lowerType, "video") {
+		req.NeedsVideo = true
+	}
+	if strings.Contains(lowerType, "trace") {
+		req.NeedsTracing = true
+	}
+
+	// Param-derived signals for HAR/video/tracing/downloads.
+	if params != nil {
+		for key := range params {
+			lower := strings.ToLower(key)
+			switch {
+			case strings.Contains(lower, "download"):
+				req.NeedsDownloads = true
+			case strings.Contains(lower, "har"):
+				req.NeedsHAR = true
+			case strings.Contains(lower, "video"):
+				req.NeedsVideo = true
+			case strings.Contains(lower, "trace"):
+				req.NeedsTracing = true
+			}
+		}
+		// Instruction-level viewport hints should not shrink global minima.
+		if w, ok := numericParam(params, "viewportWidth"); ok && w > req.MinViewportWidth {
+			req.MinViewportWidth = w
+		}
+		if h, ok := numericParam(params, "viewportHeight"); ok && h > req.MinViewportHeight {
+			req.MinViewportHeight = h
+		}
+	}
+	return req
+}
+
+func applyGraphCapabilities(req contracts.CapabilityRequirement, graph *contracts.PlanGraph) contracts.CapabilityRequirement {
+	if graph == nil {
+		return req
+	}
+	for _, step := range graph.Steps {
+		req = applyInstructionCapabilities(req, step.Type, step.Params)
+		if step.Loop != nil {
+			req = applyGraphCapabilities(req, step.Loop)
+		}
+	}
+	return req
 }

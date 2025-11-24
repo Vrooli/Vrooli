@@ -14,6 +14,7 @@ Behavior snapshot:
 - For each instruction (or graph node): emit `step.started`, start heartbeats, run with retries, normalize `StepOutcome`, persist via recorder, emit `step.completed/failed` and screenshot/telemetry events.
 - Graph: follows outgoing edges using condition/assertion/failure routing; loop-repeat supported (other loop/branch shapes should be added here).
 - Heartbeats/telemetry: executor-managed, engine only returns `StepOutcome`.
+- Session policy: `BAS_SESSION_STRATEGY` or `plan.metadata.sessionReuseMode` controls `reuse|clean|fresh`; clean mode triggers `EngineSession.Reset` between steps (fresh still maps to per-execution sessions today).
 
 ```mermaid
 sequenceDiagram
@@ -38,15 +39,14 @@ Flow feature map (where to look/extend):
 - Loop semantics: `flow_executor.go` (repeat + forEach + while conditionals)
 - Capability preflight (tabs/iframe/upload/HAR/video/download/viewport): `preflight.go`
 - Variable scope + `${var}` interpolation: `flow_utils.go` (`flowState`, `interpolateInstruction`)
-- Built-in variable mutation node for flow control: `set_variable` handled in `flow_executor.go`
+- Built-in variable mutation node for flow control: `set_variable` / `setVariable` handled in `flow_executor.go`
 - Session/retry/timing normalization: `simple_executor.go`
 - Tests to extend for new flow shapes: `simple_executor_test.go`, `integration_test.go`, `requirements_test.go`
 
 Not yet parity-complete (to implement here):
-- Loop parity for forEach/while (iteration semantics + artifact counts aligned with legacy)
 - Richer variable interpolation/expressions
-- Session reuse policies (`reuse/clean/fresh`) and reset semantics
-- Cancellation/timeout taxonomy and propagation
+- Session reuse policies (`fresh` should spin new sessions per-step) and deeper reset semantics
+- Cancellation/timeout taxonomy and propagation (executor enforces per-step `timeoutMs` and plan-level `executionTimeoutMs`; still need workflow-level semantics)
 - Retry/failure taxonomy alignment + telemetry/drop metrics
 - Capability enforcement matrix (tabs/iframes/HAR/tracing/uploads/downloads/video/viewport) with fail-fast behavior
 - Artifact shaping: DOM truncation/dedupe, cursor trails/timeline framing, screenshot handling, backpressure/drop counters

@@ -157,6 +157,97 @@ func TestSimpleExecutorPropagatesEngineError(t *testing.T) {
 	}
 }
 
+func TestSimpleExecutorHonorsInstructionTimeout(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	session := &fakeSession{
+		outcome: contracts.StepOutcome{Success: true},
+		delay:   50 * time.Millisecond,
+	}
+
+	rec := &memoryRecorder{}
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			ExecutionID: execID,
+			WorkflowID:  workflowID,
+			Instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "slow", Type: "navigate", Params: map[string]any{"timeoutMs": float64(5)}},
+			},
+			CreatedAt: time.Now().UTC(),
+		},
+		EngineFactory:     &fakeEngineFactory{session: session},
+		Recorder:          rec,
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 0,
+	}
+
+	executor := NewSimpleExecutor(nil)
+	start := time.Now()
+	err := executor.Execute(context.Background(), req)
+	if err == nil || !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected context deadline exceeded, got %v", err)
+	}
+	if time.Since(start) > 200*time.Millisecond {
+		t.Fatalf("timeout should abort quickly, took %v", time.Since(start))
+	}
+	if len(rec.outcomes) != 1 {
+		t.Fatalf("expected recorder to capture one outcome, got %d", len(rec.outcomes))
+	}
+	out := rec.outcomes[0]
+	if out.Success {
+		t.Fatalf("expected timeout outcome to be unsuccessful")
+	}
+	if out.Failure == nil || out.Failure.Kind != contracts.FailureKindTimeout || out.Failure.Retryable {
+		t.Fatalf("expected timeout failure non-retryable, got %+v", out.Failure)
+	}
+}
+
+func TestSimpleExecutorExecutionTimeoutCancelsRun(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	session := &fakeSession{
+		outcome: contracts.StepOutcome{Success: true},
+		delay:   50 * time.Millisecond,
+	}
+
+	rec := &memoryRecorder{}
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			ExecutionID: execID,
+			WorkflowID:  workflowID,
+			Metadata: map[string]any{
+				"executionTimeoutMs": float64(5),
+			},
+			Instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "slow", Type: "navigate"},
+			},
+			CreatedAt: time.Now().UTC(),
+		},
+		EngineFactory:     &fakeEngineFactory{session: session},
+		Recorder:          rec,
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 0,
+	}
+
+	executor := NewSimpleExecutor(nil)
+	err := executor.Execute(context.Background(), req)
+	if err == nil || !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected execution timeout (deadline exceeded), got %v", err)
+	}
+	if len(rec.outcomes) != 1 {
+		t.Fatalf("expected one recorded timeout outcome, got %d", len(rec.outcomes))
+	}
+	out := rec.outcomes[0]
+	if out.Failure == nil || out.Failure.Kind != contracts.FailureKindTimeout {
+		t.Fatalf("expected timeout failure, got %+v", out.Failure)
+	}
+	if out.Failure.Source != contracts.FailureSourceExecutor {
+		t.Fatalf("expected failure source executor, got %s", out.Failure.Source)
+	}
+}
+
 func TestNormalizeOutcomeDefaultsAndFailureTaxonomy(t *testing.T) {
 	exec := NewSimpleExecutor(nil)
 	execID := uuid.New()
@@ -195,6 +286,33 @@ func TestNormalizeOutcomeDefaultsAndFailureTaxonomy(t *testing.T) {
 	}
 	if out.Failure == nil || out.Failure.Kind != contracts.FailureKindTimeout || out.Failure.Retryable {
 		t.Fatalf("expected timeout failure and non-retryable, got %+v", out.Failure)
+	}
+}
+
+func TestNormalizeOutcomeDefaultsFailureSource(t *testing.T) {
+	exec := NewSimpleExecutor(nil)
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	plan := contracts.ExecutionPlan{
+		ExecutionID: execID,
+		WorkflowID:  workflowID,
+		CreatedAt:   time.Now().UTC(),
+	}
+	instruction := contracts.CompiledInstruction{
+		Index:  1,
+		NodeID: "node-1",
+		Type:   "click",
+	}
+
+	raw := contracts.StepOutcome{
+		Success: false,
+		Failure: &contracts.StepFailure{Kind: contracts.FailureKindEngine},
+	}
+
+	out := exec.normalizeOutcome(plan, instruction, 1, time.Now().UTC(), raw, nil)
+	if out.Failure == nil || out.Failure.Source != contracts.FailureSourceEngine {
+		t.Fatalf("expected failure source to default to engine, got %+v", out.Failure)
 	}
 }
 
@@ -526,18 +644,212 @@ func TestSimpleExecutorCapabilityError(t *testing.T) {
 	}
 }
 
+func TestSimpleExecutorCapabilityErrorDownloads(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	factory := &fakeEngineFactory{
+		session: &fakeSession{
+			outcome: contracts.StepOutcome{Success: true},
+		},
+	}
+
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			ExecutionID:    execID,
+			WorkflowID:     workflowID,
+			Instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "download", Type: "download_file"},
+			},
+			CreatedAt: time.Now().UTC(),
+		},
+		EngineName:        "browserless",
+		EngineFactory:     factory,
+		Recorder:          &memoryRecorder{},
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 0,
+	}
+
+	executor := NewSimpleExecutor(nil)
+	err := executor.Execute(context.Background(), req)
+	if err == nil {
+		t.Fatalf("expected capability error")
+	}
+	if _, ok := err.(*CapabilityError); !ok {
+		t.Fatalf("expected CapabilityError, got %T", err)
+	}
+}
+
+func TestSimpleExecutorResetsSessionInCleanMode(t *testing.T) {
+	session := &fakeSession{
+		outcomeByNode: map[string]contracts.StepOutcome{
+			"one": {Success: true},
+			"two": {Success: true},
+		},
+	}
+
+	rec := &memoryRecorder{}
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			ExecutionID: uuid.New(),
+			WorkflowID:  uuid.New(),
+			Instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "one", Type: "navigate"},
+				{Index: 1, NodeID: "two", Type: "click"},
+			},
+		},
+		EngineFactory:     &fakeEngineFactory{session: session},
+		Recorder:          rec,
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 0,
+		ReuseMode:         engine.ReuseModeClean,
+	}
+
+	exec := NewSimpleExecutor(nil)
+	if err := exec.Execute(context.Background(), req); err != nil {
+		t.Fatalf("execute returned error: %v", err)
+	}
+	if session.resets != 2 {
+		t.Fatalf("expected session reset after each step, got %d", session.resets)
+	}
+}
+
+func TestSimpleExecutorFreshCreatesSessionPerStep(t *testing.T) {
+	session := &fakeSession{
+		outcomeByNode: map[string]contracts.StepOutcome{
+			"a": {Success: true},
+			"b": {Success: true},
+		},
+	}
+
+	engineFactory := &fakeEngineFactory{session: session}
+	rec := &memoryRecorder{}
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			ExecutionID: uuid.New(),
+			WorkflowID:  uuid.New(),
+			Instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "a", Type: "navigate"},
+				{Index: 1, NodeID: "b", Type: "click"},
+			},
+		},
+		EngineFactory:     engineFactory,
+		Recorder:          rec,
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 0,
+		ReuseMode:         engine.ReuseModeFresh,
+	}
+
+	exec := NewSimpleExecutor(nil)
+	if err := exec.Execute(context.Background(), req); err != nil {
+		t.Fatalf("execute returned error: %v", err)
+	}
+
+	if engineFactory.engine == nil || engineFactory.engine.startCount != 2 {
+		t.Fatalf("expected StartSession to be called per step (2), got %d", engineFactory.engine.startCount)
+	}
+	if session.resets != 0 {
+		t.Fatalf("fresh mode should not reset; got %d resets", session.resets)
+	}
+}
+
+func TestGraphExecutorCleanResetsBetweenSteps(t *testing.T) {
+	session := &fakeSession{
+		outcomeByNode: map[string]contracts.StepOutcome{
+			"first":  {Success: true},
+			"second": {Success: true},
+		},
+	}
+
+	engineFactory := &fakeEngineFactory{session: session}
+	rec := &memoryRecorder{}
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			ExecutionID: uuid.New(),
+			WorkflowID:  uuid.New(),
+			Graph: &contracts.PlanGraph{
+				Steps: []contracts.PlanStep{
+					{Index: 0, NodeID: "first", Type: "navigate", Outgoing: []contracts.PlanEdge{{Target: "second"}}},
+					{Index: 1, NodeID: "second", Type: "click"},
+				},
+			},
+		},
+		EngineFactory:     engineFactory,
+		Recorder:          rec,
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 0,
+		ReuseMode:         engine.ReuseModeClean,
+	}
+
+	exec := NewSimpleExecutor(nil)
+	if err := exec.Execute(context.Background(), req); err != nil {
+		t.Fatalf("execute returned error: %v", err)
+	}
+	if session.resets != 2 {
+		t.Fatalf("expected reset after each graph step (2), got %d", session.resets)
+	}
+}
+
+func TestGraphExecutorFreshCreatesSessionPerGraphStep(t *testing.T) {
+	session := &fakeSession{
+		outcomeByNode: map[string]contracts.StepOutcome{
+			"first":  {Success: true},
+			"second": {Success: true},
+		},
+	}
+
+	engineFactory := &fakeEngineFactory{session: session}
+	rec := &memoryRecorder{}
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			ExecutionID: uuid.New(),
+			WorkflowID:  uuid.New(),
+			Graph: &contracts.PlanGraph{
+				Steps: []contracts.PlanStep{
+					{Index: 0, NodeID: "first", Type: "navigate", Outgoing: []contracts.PlanEdge{{Target: "second"}}},
+					{Index: 1, NodeID: "second", Type: "click"},
+				},
+			},
+		},
+		EngineFactory:     engineFactory,
+		Recorder:          rec,
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 0,
+		ReuseMode:         engine.ReuseModeFresh,
+	}
+
+	exec := NewSimpleExecutor(nil)
+	if err := exec.Execute(context.Background(), req); err != nil {
+		t.Fatalf("execute returned error: %v", err)
+	}
+
+	if engineFactory.engine == nil || engineFactory.engine.startCount != 2 {
+		t.Fatalf("expected StartSession per graph step (2), got %d", engineFactory.engine.startCount)
+	}
+	if session.resets != 0 {
+		t.Fatalf("fresh mode should not reset in graph mode; got %d resets", session.resets)
+	}
+}
+
 // --- test fakes ---
 
 type fakeEngineFactory struct {
 	session *fakeSession
+	engine  *fakeEngine
 }
 
 func (f *fakeEngineFactory) Resolve(ctx context.Context, name string) (engine.AutomationEngine, error) {
-	return &fakeEngine{session: f.session}, nil
+	if f.engine == nil {
+		f.engine = &fakeEngine{session: f.session}
+	}
+	return f.engine, nil
 }
 
 type fakeEngine struct {
-	session *fakeSession
+	session    *fakeSession
+	startCount int
 }
 
 func (f *fakeEngine) Name() string { return "fake" }
@@ -552,6 +864,7 @@ func (f *fakeEngine) Capabilities(ctx context.Context) (contracts.EngineCapabili
 }
 
 func (f *fakeEngine) StartSession(ctx context.Context, spec engine.SessionSpec) (engine.EngineSession, error) {
+	f.startCount++
 	return f.session, nil
 }
 
@@ -560,6 +873,7 @@ type fakeSession struct {
 	outcomeByNode map[string]contracts.StepOutcome
 	err           error
 	delay         time.Duration
+	resets        int
 }
 
 func (f *fakeSession) Run(ctx context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
@@ -578,7 +892,10 @@ func (f *fakeSession) Run(ctx context.Context, instruction contracts.CompiledIns
 	return f.outcome, f.err
 }
 
-func (f *fakeSession) Reset(ctx context.Context) error { return nil }
+func (f *fakeSession) Reset(ctx context.Context) error {
+	f.resets++
+	return nil
+}
 func (f *fakeSession) Close(ctx context.Context) error { return nil }
 
 type memoryRecorder struct {

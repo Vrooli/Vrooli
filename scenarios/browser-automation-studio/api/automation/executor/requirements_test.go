@@ -104,3 +104,40 @@ func TestDeriveRequirementsIgnoresEmptyParams(t *testing.T) {
 		t.Fatalf("expected no capability requirements, got %+v", req)
 	}
 }
+
+func TestDeriveRequirementsIncludesGraphStepsAndTypes(t *testing.T) {
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		CreatedAt:   time.Now().UTC(),
+		Graph: &contracts.PlanGraph{
+			Steps: []contracts.PlanStep{
+				{
+					Index:  0,
+					Type:   "download_file",
+					Params: map[string]any{"downloadTarget": "file"},
+				},
+				{
+					Index:  1,
+					Type:   "upload",
+					Params: map[string]any{"filePath": "one.txt"},
+				},
+				{
+					Index:  2,
+					Type:   "loop",
+					Params: map[string]any{"loopType": "repeat"},
+					Loop: &contracts.PlanGraph{
+						Steps: []contracts.PlanStep{
+							{Index: 3, Type: "networkMock", Params: map[string]any{"networkMockType": "delay"}},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	req := deriveRequirements(plan)
+	if !req.NeedsDownloads || !req.NeedsFileUploads || !req.NeedsHAR || !req.NeedsTracing {
+		t.Fatalf("expected graph-derived requirements to mark downloads/uploads/HAR/tracing, got %+v", req)
+	}
+}

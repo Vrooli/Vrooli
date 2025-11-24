@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -45,6 +47,12 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 		return err
 	}
 
+	if timeout := executionTimeout(req.Plan); timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+
 	engineName := req.EngineName
 	if engineName == "" {
 		engineName = "browserless"
@@ -55,12 +63,15 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 		return fmt.Errorf("resolve engine %q: %w", engineName, err)
 	}
 
+	reuseMode := resolveReuseMode(req)
+	requirements := deriveRequirements(req.Plan)
+
 	// Capabilities are fetched up front to allow callers to validate or log.
 	caps, err := eng.Capabilities(ctx)
 	if err != nil {
 		return fmt.Errorf("engine capabilities: %w", err)
 	}
-	if gap := caps.CheckCompatibility(deriveRequirements(req.Plan)); !gap.Satisfied() {
+	if gap := caps.CheckCompatibility(requirements); !gap.Satisfied() {
 		return &CapabilityError{
 			Engine:    eng.Name(),
 			Missing:   gap.Missing,
@@ -70,15 +81,18 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 		}
 	}
 
-	session, err := eng.StartSession(ctx, engine.SessionSpec{
-		ExecutionID: req.Plan.ExecutionID,
-		WorkflowID:  req.Plan.WorkflowID,
-		ReuseMode:   engine.ReuseModeReuse,
-		Labels:      map[string]string{},
-		Capabilities: contracts.CapabilityRequirement{
-			NeedsParallelTabs: false,
-		},
-	})
+	viewportWidth, viewportHeight := extractViewport(req.Plan.Metadata)
+	spec := engine.SessionSpec{
+		ExecutionID:    req.Plan.ExecutionID,
+		WorkflowID:     req.Plan.WorkflowID,
+		ReuseMode:      reuseMode,
+		ViewportWidth:  viewportWidth,
+		ViewportHeight: viewportHeight,
+		Labels:         map[string]string{},
+		Capabilities:   requirements,
+	}
+
+	session, err := eng.StartSession(ctx, spec)
 	if err != nil {
 		return fmt.Errorf("start session: %w", err)
 	}
@@ -93,15 +107,25 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 	state := newFlowState(seedVars)
 
 	if req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0 {
-		return e.executeGraph(ctx, req, session, state)
+		return e.executeGraph(ctx, req, eng, spec, session, state, reuseMode)
 	}
 
 	for idx := range req.Plan.Instructions {
-		if ctx.Err() != nil {
-			return ctx.Err()
+		if session == nil {
+			session, err = eng.StartSession(ctx, spec)
+			if err != nil {
+				return fmt.Errorf("start session: %w", err)
+			}
 		}
 		instruction := req.Plan.Instructions[idx]
 		instruction = e.interpolateInstruction(instruction, state)
+
+		if ctx.Err() != nil {
+			if _, cancelErr := e.recordCancelledStep(ctx, req, instruction); cancelErr != nil {
+				return cancelErr
+			}
+			return ctx.Err()
+		}
 
 		stepCtx, cancel := context.WithCancel(ctx)
 		startedAt := time.Now().UTC()
@@ -140,6 +164,12 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 			eventKind = contracts.EventKindStepFailed
 		}
 		e.emitEvent(ctx, req, eventKind, &instruction.Index, &attempt, payload)
+
+		newSession, resetErr := e.maybeResetSession(ctx, eng, spec, session, reuseMode)
+		if resetErr != nil {
+			return fmt.Errorf("reset session: %w", resetErr)
+		}
+		session = newSession
 
 		if runErr != nil {
 			return runErr
@@ -206,7 +236,12 @@ func (e *SimpleExecutor) normalizeOutcome(plan contracts.ExecutionPlan, instruct
 				Kind:      kind,
 				Message:   runErr.Error(),
 				Retryable: retryable,
-				Source:    contracts.FailureSourceEngine,
+				Source: func() contracts.FailureSource {
+					if errors.Is(runErr, context.DeadlineExceeded) || errors.Is(runErr, context.Canceled) {
+						return contracts.FailureSourceExecutor
+					}
+					return contracts.FailureSourceEngine
+				}(),
 				OccurredAt: func() *time.Time {
 					t := now
 					return &t
@@ -226,6 +261,10 @@ func (e *SimpleExecutor) normalizeOutcome(plan contracts.ExecutionPlan, instruct
 				return &t
 			}(),
 		}
+	}
+
+	if outcome.Failure != nil && outcome.Failure.Source == "" {
+		outcome.Failure.Source = contracts.FailureSourceEngine
 	}
 
 	return outcome
@@ -350,15 +389,77 @@ func intOrDefault(value, fallback int) int {
 	return fallback
 }
 
+// resolveReuseMode selects the session reuse policy from the request, plan metadata, or environment.
+func resolveReuseMode(req Request) engine.SessionReuseMode {
+	if req.ReuseMode != "" {
+		return req.ReuseMode
+	}
+	if v, ok := req.Plan.Metadata["sessionReuseMode"].(string); ok && strings.TrimSpace(v) != "" {
+		return normalizeReuseMode(v)
+	}
+	if env := strings.TrimSpace(os.Getenv("BAS_SESSION_STRATEGY")); env != "" {
+		return normalizeReuseMode(env)
+	}
+	return engine.ReuseModeReuse
+}
+
+func normalizeReuseMode(raw string) engine.SessionReuseMode {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "fresh":
+		return engine.ReuseModeFresh
+	case "clean":
+		return engine.ReuseModeClean
+	default:
+		return engine.ReuseModeReuse
+	}
+}
+
+// maybeResetSession clears or recreates browser state based on reuse policy.
+func (e *SimpleExecutor) maybeResetSession(ctx context.Context, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
+	if session == nil {
+		return session, nil
+	}
+
+	switch reuseMode {
+	case engine.ReuseModeClean:
+		return session, session.Reset(ctx)
+	case engine.ReuseModeFresh:
+		_ = session.Close(ctx)
+		return nil, nil
+	default:
+		return session, nil
+	}
+}
+
+func extractViewport(metadata map[string]any) (int, int) {
+	raw, ok := metadata["executionViewport"].(map[string]any)
+	if !ok || raw == nil {
+		return 0, 0
+	}
+	return intValue(raw, "width"), intValue(raw, "height")
+}
+
 func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, session engine.EngineSession, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
 	cfg := retryConfigFromInstruction(instruction)
 	var lastOutcome contracts.StepOutcome
 	var lastErr error
 	delay := cfg.Delay
+	timeout := instructionTimeout(req.Plan, instruction)
 
 	for attempt := 1; attempt <= cfg.MaxAttempts; attempt++ {
 		attemptStart := time.Now().UTC()
-		outcome, err := session.Run(ctx, instruction)
+
+		attemptCtx := ctx
+		var cancel context.CancelFunc
+		if timeout > 0 {
+			attemptCtx, cancel = context.WithTimeout(ctx, timeout)
+		}
+
+		outcome, err := session.Run(attemptCtx, instruction)
+		if cancel != nil {
+			cancel()
+		}
+
 		outcome.Attempt = attempt
 		outcome = e.normalizeOutcome(req.Plan, instruction, attempt, attemptStart, outcome, err)
 
@@ -430,4 +531,83 @@ func retryConfigFromInstruction(instruction contracts.CompiledInstruction) retry
 		cfg.BackoffFactor = 1
 	}
 	return cfg
+}
+
+// instructionTimeout returns a step-level timeout derived from instruction params or plan metadata.
+// timeoutMs is expected to be milliseconds; zero disables executor-side deadline enforcement.
+func instructionTimeout(plan contracts.ExecutionPlan, instruction contracts.CompiledInstruction) time.Duration {
+	ms := 0
+	if v, ok := instruction.Params["timeoutMs"]; ok {
+		switch t := v.(type) {
+		case int:
+			ms = t
+		case int64:
+			ms = int(t)
+		case float64:
+			ms = int(t)
+		}
+	}
+	if ms <= 0 {
+		if v, ok := plan.Metadata["defaultTimeoutMs"]; ok {
+			switch t := v.(type) {
+			case int:
+				ms = t
+			case int64:
+				ms = int(t)
+			case float64:
+				ms = int(t)
+			}
+		}
+	}
+	if ms <= 0 {
+		return 0
+	}
+	return time.Duration(ms) * time.Millisecond
+}
+
+// executionTimeout reads the execution-level timeout (ms) from plan metadata.
+func executionTimeout(plan contracts.ExecutionPlan) time.Duration {
+	if plan.Metadata == nil {
+		return 0
+	}
+	if v, ok := plan.Metadata["executionTimeoutMs"]; ok {
+		switch t := v.(type) {
+		case int:
+			if t > 0 {
+				return time.Duration(t) * time.Millisecond
+			}
+		case int64:
+			if t > 0 {
+				return time.Duration(t) * time.Millisecond
+			}
+		case float64:
+			if t > 0 {
+				return time.Duration(t) * time.Millisecond
+			}
+		}
+	}
+	return 0
+}
+
+// recordCancelledStep best-effort persists a cancelled outcome and emits a failed event.
+func (e *SimpleExecutor) recordCancelledStep(ctx context.Context, req Request, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+	startedAt := time.Now().UTC()
+	outcome := e.normalizeOutcome(req.Plan, instruction, 1, startedAt, contracts.StepOutcome{}, context.Canceled)
+
+	persistCtx := context.WithoutCancel(ctx)
+	recordResult, recordErr := req.Recorder.RecordStepOutcome(persistCtx, req.Plan, outcome)
+	if recordErr != nil {
+		return outcome, fmt.Errorf("record cancelled step outcome: %w", recordErr)
+	}
+
+	payload := map[string]any{
+		"outcome":   outcome,
+		"artifacts": recordResult.ArtifactIDs,
+	}
+	if recordResult.TimelineArtifactID != nil {
+		payload["timeline_artifact_id"] = *recordResult.TimelineArtifactID
+	}
+	e.emitEvent(persistCtx, req, contracts.EventKindStepFailed, &outcome.StepIndex, &outcome.Attempt, payload)
+
+	return outcome, context.Canceled
 }

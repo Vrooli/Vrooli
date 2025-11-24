@@ -20,6 +20,7 @@ type Request struct {
 	Recorder          recorder.Recorder
 	EventSink         events.Sink
 	HeartbeatInterval time.Duration
+	ReuseMode         engine.SessionReuseMode
 }
 
 // Executor orchestrates plan execution using an engine, recorder, and event sink.
