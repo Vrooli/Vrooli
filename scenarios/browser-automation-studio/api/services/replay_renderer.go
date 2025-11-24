@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/browserless"
 )
 
 // RenderedMedia represents a generated media artifact ready for download.
@@ -74,24 +75,7 @@ const (
 func NewReplayRenderer(log *logrus.Logger, recordingsRoot string) *ReplayRenderer {
 	ffmpegPath := detectFFmpegBinary()
 	client := &http.Client{Timeout: 16 * time.Minute}
-	browserlessURL := strings.TrimSpace(os.Getenv("BROWSERLESS_URL"))
-	if browserlessURL == "" {
-		browserlessURL = strings.TrimSpace(os.Getenv("BROWSERLESS_BASE_URL"))
-	}
-	if browserlessURL == "" {
-		port := strings.TrimSpace(os.Getenv("BROWSERLESS_PORT"))
-		if port != "" {
-			host := strings.TrimSpace(os.Getenv("BROWSERLESS_HOST"))
-			if host == "" {
-				host = "127.0.0.1"
-			}
-			scheme := strings.TrimSpace(os.Getenv("BROWSERLESS_SCHEME"))
-			if scheme == "" {
-				scheme = "http"
-			}
-			browserlessURL = fmt.Sprintf("%s://%s:%s", scheme, host, port)
-		}
-	}
+	browserlessURL, _ := browserless.ResolveURL(log, false)
 	exportPageURL := strings.TrimSpace(os.Getenv("BAS_EXPORT_PAGE_URL"))
 	if exportPageURL == "" {
 		exportPageURL = strings.TrimSpace(os.Getenv("BAS_UI_EXPORT_URL"))

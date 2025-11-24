@@ -18,6 +18,7 @@ import (
 // Mock WebSocket hub for testing
 type mockWebSocketHub struct {
 	serveWSFn         func(conn *websocket.Conn, executionID *uuid.UUID)
+	broadcastEnvelope func(event any)
 	broadcastUpdateFn func(update wsHub.ExecutionUpdate)
 	getClientCountFn  func() int
 	runFn             func()
@@ -32,6 +33,12 @@ func (m *mockWebSocketHub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID)
 func (m *mockWebSocketHub) BroadcastUpdate(update wsHub.ExecutionUpdate) {
 	if m.broadcastUpdateFn != nil {
 		m.broadcastUpdateFn(update)
+	}
+}
+
+func (m *mockWebSocketHub) BroadcastEnvelope(event any) {
+	if m.broadcastEnvelope != nil {
+		m.broadcastEnvelope(event)
 	}
 }
 
@@ -185,34 +192,34 @@ func TestHandleWebSocket_NonWebSocketRequest(t *testing.T) {
 
 func TestHandleWebSocket_ExecutionIDParsing(t *testing.T) {
 	testCases := []struct {
-		name               string
-		queryParam         string
+		name                string
+		queryParam          string
 		expectedExecutionID *uuid.UUID
-		description        string
+		description         string
 	}{
 		{
-			name:               "valid UUID",
-			queryParam:         uuid.New().String(),
+			name:                "valid UUID",
+			queryParam:          uuid.New().String(),
 			expectedExecutionID: func() *uuid.UUID { id := uuid.New(); return &id }(),
-			description:        "should parse valid UUID",
+			description:         "should parse valid UUID",
 		},
 		{
-			name:               "empty string",
-			queryParam:         "",
+			name:                "empty string",
+			queryParam:          "",
 			expectedExecutionID: nil,
-			description:        "should handle empty execution ID",
+			description:         "should handle empty execution ID",
 		},
 		{
-			name:               "whitespace",
-			queryParam:         "   ",
+			name:                "whitespace",
+			queryParam:          "   ",
 			expectedExecutionID: nil,
-			description:        "should handle whitespace execution ID",
+			description:         "should handle whitespace execution ID",
 		},
 		{
-			name:               "malformed UUID",
-			queryParam:         "not-a-uuid-at-all",
+			name:                "malformed UUID",
+			queryParam:          "not-a-uuid-at-all",
 			expectedExecutionID: nil,
-			description:        "should handle malformed UUID",
+			description:         "should handle malformed UUID",
 		},
 	}
 

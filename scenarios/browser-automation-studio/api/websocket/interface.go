@@ -12,6 +12,9 @@ type HubInterface interface {
 	// It creates a new client, registers it with the hub, and starts message pumps
 	ServeWS(conn *websocket.Conn, executionID *uuid.UUID)
 
+	// BroadcastEnvelope sends a normalized automation event envelope to all connected clients.
+	BroadcastEnvelope(event any)
+
 	// BroadcastUpdate sends an update to all connected clients
 	// If clients are subscribed to specific executions, updates are filtered accordingly
 	BroadcastUpdate(update ExecutionUpdate)

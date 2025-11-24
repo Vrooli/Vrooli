@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/browserless/runtime"
 )
@@ -12,7 +13,7 @@ import (
 // buildStepOutcomeFromRuntime normalizes a runtime.ExecutionResponse into a
 // StepOutcome that matches the automation contracts. This enables legacy
 // Browserless orchestration to reuse the recorder/event sink path.
-func buildStepOutcomeFromRuntime(instruction contracts.CompiledInstruction, start time.Time, resp *runtime.ExecutionResponse) (contracts.StepOutcome, error) {
+func buildStepOutcomeFromRuntime(executionID uuid.UUID, instruction contracts.CompiledInstruction, start time.Time, resp *runtime.ExecutionResponse) (contracts.StepOutcome, error) {
 	if resp == nil || len(resp.Steps) == 0 {
 		return contracts.StepOutcome{
 			Success: false,
@@ -28,6 +29,7 @@ func buildStepOutcomeFromRuntime(instruction contracts.CompiledInstruction, star
 	outcome := contracts.StepOutcome{
 		SchemaVersion:  contracts.StepOutcomeSchemaVersion,
 		PayloadVersion: contracts.PayloadVersion,
+		ExecutionID:    executionID,
 		StepIndex:      step.Index,
 		NodeID:         step.NodeID,
 		StepType:       step.Type,

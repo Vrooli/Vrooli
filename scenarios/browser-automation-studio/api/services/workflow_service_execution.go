@@ -667,12 +667,13 @@ func extractString(m map[string]any, key string) string {
 
 // executeWithAutomationEngine is the sole execution path; the legacy
 // browserless.Client is quarantined for parity tests and is not invoked here.
-func (s *WorkflowService) executeWithAutomationEngine(ctx context.Context, execution *database.Execution, workflow *database.Workflow, selection autoengine.SelectionConfig, eventSink autoevents.EventSink) error {
+func (s *WorkflowService) executeWithAutomationEngine(ctx context.Context, execution *database.Execution, workflow *database.Workflow, selection autoengine.SelectionConfig, eventSink autoevents.Sink) error {
 	if s == nil {
 		return errors.New("workflow service not configured")
 	}
 
-	plan, _, err := autoexecutor.BuildContractsPlan(ctx, execution.ID, workflow)
+	compiler := s.planCompiler
+	plan, _, err := autoexecutor.BuildContractsPlanWithCompiler(ctx, execution.ID, workflow, compiler)
 	if err != nil {
 		return err
 	}

@@ -2,43 +2,28 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
-	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/internal/httpjson"
 )
 
-// DOMHandler handles DOM tree extraction operations
-type DOMHandler struct {
-	log *logrus.Logger
-}
+const (
+	domExtractionNodeID        = "dom.extract"
+	defaultDomExtractionWaitMs = 750
+)
 
-// NewDOMHandler creates a new DOM handler
-func NewDOMHandler(log *logrus.Logger) *DOMHandler {
-	return &DOMHandler{log: log}
-}
-
-// ExtractDOMTree extracts the DOM tree from a given URL
-func (h *DOMHandler) ExtractDOMTree(ctx context.Context, url string) (string, error) {
-	// Normalize URL - add protocol if missing
-	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
-		url = "https://" + url
-	}
-
-	// JavaScript to extract DOM tree with selectors - explore meaningful nodes
-	script := `
-try {
+var domExtractionExpression = `(function() {
   const MAX_DEPTH = 6;
   const MAX_CHILDREN_PER_NODE = 12;
   const MAX_TOTAL_NODES = 800;
   const TEXT_LIMIT = 120;
-
-  await new Promise((resolve) => setTimeout(resolve, 750));
 
   let nodeCount = 0;
 
@@ -118,34 +103,31 @@ try {
       text,
       type: element.type || null,
       href: typeof element.href === 'string' ? element.href : null,
-      ariaLabel: element.getAttribute('aria-label') || null,
+      ariaLabel: element.getAttribute ? element.getAttribute('aria-label') : null,
       placeholder: element.placeholder || null,
-      value: typeof element.value === 'string' && element.value !== '' ? element.value : null,
+      value: element.value || null,
       selector,
-      children: [],
+      children: []
     };
 
-    if (depth >= MAX_DEPTH) {
-      return node;
-    }
-
-    const childElements = Array.from(element.children || []);
-    let included = 0;
-    for (const child of childElements) {
-      if (included >= MAX_CHILDREN_PER_NODE) {
-        break;
+    if (depth < MAX_DEPTH) {
+      const children = [];
+      for (const child of Array.from(element.children)) {
+        if (children.length >= MAX_CHILDREN_PER_NODE) {
+          break;
+        }
+        const built = buildNode(child, depth + 1);
+        if (built) {
+          children.push(built);
+        }
       }
-      const childNode = buildNode(child, depth + 1);
-      if (childNode) {
-        node.children.push(childNode);
-        included += 1;
-      }
+      node.children = children;
     }
 
     return node;
   };
 
-  const root = document.documentElement || document.body;
+  const root = document.body || document.documentElement;
   const tree = buildNode(root, 0);
 
   if (tree) {
@@ -170,41 +152,93 @@ try {
     selector: 'body',
     children: [],
   };
-} catch (error) {
-  return {
-    tagName: 'ERROR',
-    selector: 'error',
-    text: error && error.message ? String(error.message) : 'Failed to extract DOM',
-    children: [],
-  };
-}`
+})()`
 
-	// Create temp file for output
-	tmpFile, err := os.CreateTemp("", "dom-extract-*.json")
-	if err != nil {
-		return "", fmt.Errorf("failed to create temp file: %w", err)
+// DOMHandler handles DOM tree extraction operations
+type DOMHandler struct {
+	log    *logrus.Logger
+	runner *automationRunner
+}
+
+// NewDOMHandler creates a new DOM handler
+func NewDOMHandler(log *logrus.Logger) *DOMHandler {
+	runner, err := newAutomationRunner(log)
+	if err != nil && log != nil {
+		log.WithError(err).Warn("Failed to initialize automation runner for DOM extraction; requests will fail")
 	}
-	defer os.Remove(tmpFile.Name())
-	defer tmpFile.Close()
+	return &DOMHandler{log: log, runner: runner}
+}
 
-	// Use browserless extract to get the DOM
-	extractCmd := exec.CommandContext(ctx, "resource-browserless", "extract", url,
-		"--script", script,
-		"--output", tmpFile.Name())
-
-	output, err := extractCmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("failed to extract DOM: %w, output: %s", err, string(output))
+// ExtractDOMTree extracts the DOM tree from a given URL
+func (h *DOMHandler) ExtractDOMTree(ctx context.Context, url string) (string, error) {
+	// Normalize URL - add protocol if missing
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		url = "https://" + url
 	}
 
-	// Read the extracted DOM data
-	domData, err := os.ReadFile(tmpFile.Name())
-	if err != nil {
-		return "", fmt.Errorf("failed to read DOM data: %w", err)
+	if h.runner == nil {
+		return "", errors.New("automation runner not configured")
 	}
 
-	// Return the extracted DOM data directly (browserless now returns proper JSON)
-	return string(domData), nil
+	instructions := []autocontracts.CompiledInstruction{
+		{
+			Index:  0,
+			NodeID: "dom.navigate",
+			Type:   "navigate",
+			Params: map[string]any{
+				"url":       url,
+				"waitUntil": defaultPreviewWaitUntil,
+				"timeoutMs": defaultPreviewTimeoutMilliseconds,
+			},
+		},
+		{
+			Index:  1,
+			NodeID: "dom.wait",
+			Type:   "wait",
+			Params: map[string]any{
+				"waitType":   "time",
+				"durationMs": defaultDomExtractionWaitMs,
+			},
+		},
+		{
+			Index:  2,
+			NodeID: domExtractionNodeID,
+			Type:   "evaluate",
+			Params: map[string]any{
+				"expression": domExtractionExpression,
+				"timeoutMs":  defaultPreviewTimeoutMilliseconds,
+			},
+		},
+	}
+
+	outcomes, _, err := h.runner.run(ctx, previewDefaultViewportWidth, previewDefaultViewportHeight, instructions)
+	if err != nil {
+		return "", fmt.Errorf("automation run failed: %w", err)
+	}
+
+	for _, outcome := range outcomes {
+		if outcome.NodeID != domExtractionNodeID {
+			continue
+		}
+		if !outcome.Success {
+			return "", fmt.Errorf("dom extraction failed: %s", failureMessage(outcome.Failure))
+		}
+		raw := outcome.ExtractedData
+		if raw == nil {
+			return "", errors.New("dom extraction returned no data")
+		}
+		value, ok := raw["value"]
+		if !ok {
+			return "", errors.New("dom extraction missing value payload")
+		}
+		encoded, marshalErr := json.Marshal(value)
+		if marshalErr != nil {
+			return "", fmt.Errorf("failed to encode dom extraction: %w", marshalErr)
+		}
+		return string(encoded), nil
+	}
+
+	return "", errors.New("no dom extraction outcome recorded")
 }
 
 // GetDOMTree handles POST /api/v1/dom-tree - returns the DOM structure for Browser Inspector
@@ -237,4 +271,17 @@ func (h *DOMHandler) GetDOMTree(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(domData))
+}
+
+func failureMessage(f *autocontracts.StepFailure) string {
+	if f == nil {
+		return "unknown failure"
+	}
+	if trimmed := strings.TrimSpace(f.Message); trimmed != "" {
+		return trimmed
+	}
+	if f.Kind != "" {
+		return string(f.Kind)
+	}
+	return "unknown failure"
 }

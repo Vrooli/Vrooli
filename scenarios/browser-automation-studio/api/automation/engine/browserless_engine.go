@@ -3,12 +3,12 @@ package engine
 import (
 	"context"
 	"fmt"
-	"os"
-	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/browserless"
 	"github.com/vrooli/browser-automation-studio/browserless/cdp"
 	"github.com/vrooli/browser-automation-studio/browserless/runtime"
 )
@@ -23,8 +23,14 @@ type BrowserlessEngine struct {
 
 // NewBrowserlessEngine creates an engine using environment configuration.
 func NewBrowserlessEngine(log *logrus.Logger) (*BrowserlessEngine, error) {
-	url := resolveBrowserlessURL(log)
-	if url == "" {
+	return NewBrowserlessEngineWithFallback(log, false)
+}
+
+// NewBrowserlessEngineWithFallback allows opting into the default localhost
+// URL when explicit configuration is absent (useful for local helpers).
+func NewBrowserlessEngineWithFallback(log *logrus.Logger, allowDefault bool) (*BrowserlessEngine, error) {
+	url, err := browserless.ResolveURL(log, allowDefault)
+	if err != nil || url == "" {
 		return nil, fmt.Errorf("BROWSERLESS_URL or BROWSERLESS_PORT is required")
 	}
 	return &BrowserlessEngine{
@@ -72,12 +78,13 @@ func (e *BrowserlessEngine) StartSession(ctx context.Context, spec SessionSpec) 
 	if err != nil {
 		return nil, err
 	}
-	return &browserlessSession{sess: sess, log: e.log}, nil
+	return &browserlessSession{sess: sess, log: e.log, executionID: spec.ExecutionID}, nil
 }
 
 type browserlessSession struct {
-	sess cdpSession
-	log  *logrus.Logger
+	sess        cdpSession
+	log         *logrus.Logger
+	executionID uuid.UUID
 }
 
 type cdpSession interface {
@@ -97,7 +104,7 @@ func (s *browserlessSession) Run(ctx context.Context, instruction contracts.Comp
 	if err != nil {
 		return contracts.StepOutcome{}, err
 	}
-	return buildStepOutcomeFromRuntime(instruction, start, resp)
+	return buildStepOutcomeFromRuntime(s.executionID, instruction, start, resp)
 }
 
 func (s *browserlessSession) Reset(ctx context.Context) error {
@@ -106,23 +113,4 @@ func (s *browserlessSession) Reset(ctx context.Context) error {
 
 func (s *browserlessSession) Close(ctx context.Context) error {
 	return s.sess.Close()
-}
-
-// resolveBrowserlessURL mirrors the logic used by the legacy client so engines
-// can be constructed independently.
-func resolveBrowserlessURL(log *logrus.Logger) string {
-	if url := strings.TrimSpace(os.Getenv("BROWSERLESS_URL")); url != "" {
-		return strings.TrimRight(url, "/")
-	}
-	if port := os.Getenv("BROWSERLESS_PORT"); port != "" {
-		host := os.Getenv("BROWSERLESS_HOST")
-		if host == "" {
-			host = "localhost"
-		}
-		return fmt.Sprintf("http://%s:%s", host, port)
-	}
-	if log != nil {
-		log.Warn("BROWSERLESS_URL not configured")
-	}
-	return ""
 }

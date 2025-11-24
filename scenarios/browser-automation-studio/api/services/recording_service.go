@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/browserless/events"
 	"github.com/vrooli/browser-automation-studio/browserless/runtime"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/storage"
@@ -96,7 +95,6 @@ type RecordingService struct {
 	repo           RecordingRepository
 	storage        *storage.MinIOClient
 	log            *logrus.Logger
-	emitter        events.Sink
 	recordingsRoot string
 }
 
@@ -113,16 +111,10 @@ func NewRecordingService(repo RecordingRepository, storageClient *storage.MinIOC
 		log.WithError(err).Warn("Failed to ensure recordings root directory exists")
 	}
 
-	var emitter events.Sink
-	if hub != nil {
-		emitter = events.NewEmitter(hub, log)
-	}
-
 	return &RecordingService{
 		repo:           repo,
 		storage:        storageClient,
 		log:            log,
-		emitter:        emitter,
 		recordingsRoot: absRoot,
 	}
 }
@@ -234,22 +226,6 @@ func (s *RecordingService) ImportArchive(ctx context.Context, archivePath string
 		},
 	}
 	_ = s.repo.CreateExecutionLog(ctx, logEntry)
-
-	if s.emitter != nil {
-		s.emitter.Emit(events.NewEvent(
-			events.EventExecutionCompleted,
-			execution.ID,
-			workflow.ID,
-			events.WithStatus("completed"),
-			events.WithProgress(100),
-			events.WithMessage("Recording imported"),
-			events.WithPayload(map[string]any{
-				"origin":     "extension",
-				"frameCount": frameResult.frameCount,
-				"durationMs": frameResult.totalDurationMs,
-			}),
-		))
-	}
 
 	return &RecordingImportResult{
 		Execution:  execution,

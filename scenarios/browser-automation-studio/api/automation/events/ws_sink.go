@@ -4,19 +4,19 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
-	browserlessEvents "github.com/vrooli/browser-automation-studio/browserless/events"
+	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
-// WSHubSink bridges the new event envelopes to the existing WebSocket hub.
+// WSHubSink bridges contract event envelopes to the websocket hub while
+// preserving per-execution ordering and drop policy.
 type WSHubSink struct {
-	emitter *browserlessEvents.Emitter
-	limits  contracts.EventBufferLimits
-	log     *logrus.Logger
+	hub    wsHub.HubInterface
+	limits contracts.EventBufferLimits
+	log    *logrus.Logger
 
 	mu     sync.Mutex
 	queues map[uuid.UUID]*executionQueue
@@ -24,22 +24,22 @@ type WSHubSink struct {
 
 // NewWSHubSink constructs a WSHubSink. Limits are carried for interface
 // completeness; backpressure is handled upstream.
-func NewWSHubSink(hub browserlessEvents.UpdateBroadcaster, log *logrus.Logger, limits contracts.EventBufferLimits) *WSHubSink {
+func NewWSHubSink(hub wsHub.HubInterface, log *logrus.Logger, limits contracts.EventBufferLimits) *WSHubSink {
 	if limits.Validate() != nil {
 		limits = contracts.DefaultEventBufferLimits
 	}
 	return &WSHubSink{
-		emitter: browserlessEvents.NewEmitter(hub, log),
-		limits:  limits,
-		log:     log,
-		queues:  make(map[uuid.UUID]*executionQueue),
+		hub:    hub,
+		limits: limits,
+		log:    log,
+		queues: make(map[uuid.UUID]*executionQueue),
 	}
 }
 
 // Publish adapts the envelope to the legacy event shape. Payload is wrapped
 // into the event payload map under "data" to avoid altering consumers.
 func (s *WSHubSink) Publish(_ context.Context, event contracts.EventEnvelope) error {
-	if s == nil || s.emitter == nil {
+	if s == nil || s.hub == nil {
 		return nil
 	}
 
@@ -61,7 +61,7 @@ func (s *WSHubSink) ensureQueue(executionID uuid.UUID) *executionQueue {
 		return queue
 	}
 
-	queue := newExecutionQueue(executionID, s.emitter, s.limits, s.log)
+	queue := newExecutionQueue(executionID, s.hub, s.limits, s.log)
 	s.queues[executionID] = queue
 	go queue.run()
 	return queue
@@ -69,7 +69,7 @@ func (s *WSHubSink) ensureQueue(executionID uuid.UUID) *executionQueue {
 
 type executionQueue struct {
 	executionID uuid.UUID
-	emitter     *browserlessEvents.Emitter
+	hub         wsHub.HubInterface
 	limits      contracts.EventBufferLimits
 	log         *logrus.Logger
 
@@ -81,10 +81,10 @@ type executionQueue struct {
 	dropCounter contracts.DropCounters
 }
 
-func newExecutionQueue(executionID uuid.UUID, emitter *browserlessEvents.Emitter, limits contracts.EventBufferLimits, log *logrus.Logger) *executionQueue {
+func newExecutionQueue(executionID uuid.UUID, hub wsHub.HubInterface, limits contracts.EventBufferLimits, log *logrus.Logger) *executionQueue {
 	q := &executionQueue{
 		executionID: executionID,
-		emitter:     emitter,
+		hub:         hub,
 		limits:      limits,
 		log:         log,
 		perAttempt:  make(map[string]int),
@@ -152,30 +152,7 @@ func (q *executionQueue) run() {
 }
 
 func (q *executionQueue) emit(event contracts.EventEnvelope) {
-	payload := map[string]any{
-		"data":      event.Payload,
-		"sequence":  event.Sequence,
-		"timestamp": event.Timestamp.Format(time.RFC3339Nano),
-	}
-	if event.Drops.Dropped > 0 {
-		payload["drops"] = event.Drops
-	}
-
-	stepIndex := -1
-	if event.StepIndex != nil {
-		stepIndex = *event.StepIndex
-	}
-
-	ev := browserlessEvents.NewEvent(
-		adaptEventKind(event.Kind),
-		event.ExecutionID,
-		event.WorkflowID,
-		browserlessEvents.WithStep(stepIndex, stepNodeID(event), ""), // Step type not critical for bridge.
-		browserlessEvents.WithStatus("event"),
-		browserlessEvents.WithMessage(string(event.Kind)),
-		browserlessEvents.WithPayload(payload),
-	)
-	q.emitter.Emit(ev)
+	q.hub.BroadcastEnvelope(event)
 }
 
 func (q *executionQueue) dropOldest(stepIndex, attempt *int) (uint64, bool) {
@@ -204,38 +181,4 @@ func (q *executionQueue) dropOldest(stepIndex, attempt *int) (uint64, bool) {
 
 func attemptKey(stepIndex, attempt int) string {
 	return fmt.Sprintf("%d:%d", stepIndex, attempt)
-}
-
-func adaptEventKind(kind contracts.EventKind) browserlessEvents.EventType {
-	switch kind {
-	case contracts.EventKindExecutionStarted:
-		return browserlessEvents.EventExecutionStarted
-	case contracts.EventKindExecutionProgress:
-		return browserlessEvents.EventExecutionProgress
-	case contracts.EventKindExecutionCompleted:
-		return browserlessEvents.EventExecutionCompleted
-	case contracts.EventKindExecutionFailed:
-		return browserlessEvents.EventExecutionFailed
-	case contracts.EventKindExecutionCancelled:
-		return browserlessEvents.EventExecutionCancelled
-	case contracts.EventKindStepStarted:
-		return browserlessEvents.EventStepStarted
-	case contracts.EventKindStepCompleted:
-		return browserlessEvents.EventStepCompleted
-	case contracts.EventKindStepFailed:
-		return browserlessEvents.EventStepFailed
-	case contracts.EventKindStepScreenshot:
-		return browserlessEvents.EventStepScreenshot
-	case contracts.EventKindStepHeartbeat:
-		return browserlessEvents.EventStepHeartbeat
-	default:
-		return browserlessEvents.EventStepTelemetry
-	}
-}
-
-func stepNodeID(event contracts.EventEnvelope) string {
-	if event.StepIndex != nil {
-		return fmt.Sprintf("step-%d", *event.StepIndex)
-	}
-	return ""
 }

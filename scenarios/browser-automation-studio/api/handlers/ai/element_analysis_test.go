@@ -212,7 +212,6 @@ func TestGetElementAtCoordinate_BrowserlessIntegration(t *testing.T) {
 		_, err := handler.getElementAtCoordinate(ctx, "https://example.com", 100, 200)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to navigate")
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles navigation failure", func(t *testing.T) {

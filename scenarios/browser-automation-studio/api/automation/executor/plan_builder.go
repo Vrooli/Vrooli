@@ -2,61 +2,36 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/browserless/compiler"
-	"github.com/vrooli/browser-automation-studio/browserless/runtime"
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
+// PlanCompiler emits engine-agnostic execution plans and compiled instructions
+// ready for orchestration.
+type PlanCompiler interface {
+	Compile(ctx context.Context, executionID uuid.UUID, workflow *database.Workflow) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error)
+}
+
+// DefaultPlanCompiler supplies the legacy browserless-backed compiler while we
+// bring additional engines online.
+var DefaultPlanCompiler PlanCompiler = &BrowserlessPlanCompiler{}
+
 // BuildContractsPlan compiles a workflow into the engine-agnostic plan +
-// instructions expected by the new executor path.
+// instructions expected by the executor path.
 func BuildContractsPlan(ctx context.Context, executionID uuid.UUID, workflow *database.Workflow) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error) {
-	plan, err := compiler.CompileWorkflow(workflow)
-	if err != nil {
-		return contracts.ExecutionPlan{}, nil, err
+	return BuildContractsPlanWithCompiler(ctx, executionID, workflow, DefaultPlanCompiler)
+}
+
+// BuildContractsPlanWithCompiler allows callers to inject a custom compiler
+// (e.g., desktop automation) without altering executor orchestration.
+func BuildContractsPlanWithCompiler(ctx context.Context, executionID uuid.UUID, workflow *database.Workflow, compiler PlanCompiler) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error) {
+	if compiler == nil {
+		compiler = DefaultPlanCompiler
 	}
-	instructions, err := runtime.InstructionsFromPlan(ctx, plan)
-	if err != nil {
-		return contracts.ExecutionPlan{}, nil, err
-	}
-
-	compiled := make([]contracts.CompiledInstruction, 0, len(instructions))
-	for _, instr := range instructions {
-		params := map[string]any{}
-		raw, _ := json.Marshal(instr.Params)
-		_ = json.Unmarshal(raw, &params)
-
-		contextMap := map[string]any{}
-		if len(instr.Context) > 0 {
-			rawCtx, _ := json.Marshal(instr.Context)
-			_ = json.Unmarshal(rawCtx, &contextMap)
-		}
-
-		compiled = append(compiled, contracts.CompiledInstruction{
-			Index:       instr.Index,
-			NodeID:      instr.NodeID,
-			Type:        instr.Type,
-			Params:      params,
-			PreloadHTML: instr.PreloadHTML,
-			Context:     contextMap,
-			Metadata:    map[string]string{},
-		})
-	}
-
-	return contracts.ExecutionPlan{
-		SchemaVersion:  contracts.StepOutcomeSchemaVersion,
-		PayloadVersion: contracts.PayloadVersion,
-		ExecutionID:    executionID,
-		WorkflowID:     workflow.ID,
-		Instructions:   compiled,
-		Graph:          toContractsGraph(plan),
-		Metadata:       plan.Metadata,
-		CreatedAt:      time.Now().UTC(),
-	}, compiled, nil
+	return compiler.Compile(ctx, executionID, workflow)
 }
 
 func toContractsGraph(plan *compiler.ExecutionPlan) *contracts.PlanGraph {

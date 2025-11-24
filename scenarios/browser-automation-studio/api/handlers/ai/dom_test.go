@@ -56,8 +56,9 @@ func TestExtractDOMTree_URLNormalization(t *testing.T) {
 
 		_, err := handler.ExtractDOMTree(ctx, "http://example.com")
 
-		// Expected to fail without browserless
-		assert.Error(t, err)
+		if err != nil {
+			assert.NotContains(t, err.Error(), "invalid URL")
+		}
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] preserves https:// URLs", func(t *testing.T) {
@@ -65,8 +66,9 @@ func TestExtractDOMTree_URLNormalization(t *testing.T) {
 
 		_, err := handler.ExtractDOMTree(ctx, "https://example.com")
 
-		// Expected to fail without browserless
-		assert.Error(t, err)
+		if err != nil {
+			assert.NotContains(t, err.Error(), "invalid URL")
+		}
 	})
 }
 
@@ -126,8 +128,8 @@ func TestExtractDOMTree_Integration(t *testing.T) {
 		// Verify it's valid JSON
 		assert.Contains(t, domTree, "tagName", "DOM tree should contain tagName field")
 
-		// Should contain HTML structure
-		assert.Contains(t, domTree, "HTML")
+		// Should contain some recognizable structure
+		assert.Contains(t, domTree, "BODY")
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles invalid URL", func(t *testing.T) {

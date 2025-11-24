@@ -3,9 +3,13 @@ package services
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
+	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
+	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 	"github.com/vrooli/browser-automation-studio/database"
 )
@@ -93,5 +97,141 @@ func TestRecordExecutionMarker(t *testing.T) {
 	}
 	if rec.marked[0].Kind != autocontracts.FailureKindTimeout {
 		t.Fatalf("expected timeout failure kind, got %+v", rec.marked[0])
+	}
+}
+
+type stubPlanCompiler struct {
+	called bool
+	plan   autocontracts.ExecutionPlan
+	instr  []autocontracts.CompiledInstruction
+}
+
+func (s *stubPlanCompiler) Compile(ctx context.Context, executionID uuid.UUID, workflow *database.Workflow) (autocontracts.ExecutionPlan, []autocontracts.CompiledInstruction, error) {
+	s.called = true
+	return s.plan, s.instr, nil
+}
+
+type stubEngine struct {
+	session *stubSession
+}
+
+func (s *stubEngine) Name() string { return "stub" }
+
+func (s *stubEngine) Capabilities(ctx context.Context) (autocontracts.EngineCapabilities, error) {
+	return autocontracts.EngineCapabilities{
+		Engine:                s.Name(),
+		MaxViewportWidth:      1920,
+		MaxViewportHeight:     1080,
+		AllowsParallelTabs:    true,
+		SupportsHAR:           true,
+		SupportsVideo:         true,
+		SupportsIframes:       true,
+		SupportsFileUploads:   true,
+		SupportsDownloads:     true,
+		SupportsTracing:       true,
+		MaxConcurrentSessions: 1,
+	}, nil
+}
+
+func (s *stubEngine) StartSession(ctx context.Context, spec autoengine.SessionSpec) (autoengine.EngineSession, error) {
+	if s.session == nil {
+		s.session = &stubSession{}
+	}
+	return s.session, nil
+}
+
+type stubSession struct {
+	runs int
+}
+
+func (s *stubSession) Run(ctx context.Context, instruction autocontracts.CompiledInstruction) (autocontracts.StepOutcome, error) {
+	s.runs++
+	now := time.Now().UTC()
+	return autocontracts.StepOutcome{
+		SchemaVersion:  autocontracts.StepOutcomeSchemaVersion,
+		PayloadVersion: autocontracts.PayloadVersion,
+		StepIndex:      instruction.Index,
+		NodeID:         instruction.NodeID,
+		StepType:       instruction.Type,
+		Success:        true,
+		StartedAt:      now,
+		CompletedAt: func() *time.Time {
+			t := now
+			return &t
+		}(),
+	}, nil
+}
+
+func (s *stubSession) Reset(ctx context.Context) error { return nil }
+func (s *stubSession) Close(ctx context.Context) error { return nil }
+
+type stubRecorder struct {
+	outcomes []autocontracts.StepOutcome
+}
+
+func (r *stubRecorder) RecordStepOutcome(ctx context.Context, plan autocontracts.ExecutionPlan, outcome autocontracts.StepOutcome) (autorecorder.RecordResult, error) {
+	r.outcomes = append(r.outcomes, outcome)
+	return autorecorder.RecordResult{}, nil
+}
+
+func (r *stubRecorder) RecordTelemetry(ctx context.Context, plan autocontracts.ExecutionPlan, telemetry autocontracts.StepTelemetry) error {
+	return nil
+}
+
+func (r *stubRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, failure autocontracts.StepFailure) error {
+	return nil
+}
+
+// Verify executeWithAutomationEngine respects injected plan compiler / engine / recorder.
+func TestExecuteWithAutomationEngine_UsesInjectedCompilerAndEngine(t *testing.T) {
+	execID := uuid.New()
+	wfID := uuid.New()
+	execution := &database.Execution{ID: execID, WorkflowID: wfID}
+	workflow := &database.Workflow{ID: wfID}
+
+	compiler := &stubPlanCompiler{
+		plan: autocontracts.ExecutionPlan{
+			SchemaVersion:  autocontracts.StepOutcomeSchemaVersion,
+			PayloadVersion: autocontracts.PayloadVersion,
+			ExecutionID:    execID,
+			WorkflowID:     wfID,
+			CreatedAt:      time.Now().UTC(),
+			Instructions: []autocontracts.CompiledInstruction{
+				{Index: 0, NodeID: "n1", Type: "noop"},
+			},
+		},
+		instr: []autocontracts.CompiledInstruction{
+			{Index: 0, NodeID: "n1", Type: "noop"},
+		},
+	}
+
+	engine := &stubEngine{}
+	rec := &stubRecorder{}
+	exec := autoexecutor.NewSimpleExecutor(nil)
+	eventSink := autoevents.NewMemorySink(autocontracts.DefaultEventBufferLimits)
+
+	svc := NewWorkflowServiceWithDeps(nil, nil, nil, WorkflowServiceOptions{
+		Executor:         exec,
+		EngineFactory:    autoengine.NewStaticFactory(engine),
+		ArtifactRecorder: rec,
+		PlanCompiler:     compiler,
+	})
+
+	err := svc.executeWithAutomationEngine(context.Background(), execution, workflow, autoengine.SelectionConfig{DefaultEngine: "stub"}, eventSink)
+	if err != nil {
+		t.Fatalf("executeWithAutomationEngine returned error: %v", err)
+	}
+
+	if !compiler.called {
+		t.Fatalf("expected custom plan compiler to be used")
+	}
+	if len(rec.outcomes) != 1 {
+		t.Fatalf("expected one recorded outcome, got %d", len(rec.outcomes))
+	}
+	if engine.session == nil || engine.session.runs != 1 {
+		t.Fatalf("expected stub engine session to run once, got %+v", engine.session)
+	}
+	if events := eventSink.Events(); len(events) == 0 {
+		t.Fatalf("expected events emitted to sink")
 	}
 }

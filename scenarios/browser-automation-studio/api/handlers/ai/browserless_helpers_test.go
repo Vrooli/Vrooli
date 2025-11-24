@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vrooli/browser-automation-studio/browserless"
 )
 
 func TestResolveBrowserlessURL(t *testing.T) {
@@ -31,7 +32,8 @@ func TestResolveBrowserlessURL(t *testing.T) {
 		os.Unsetenv("BROWSERLESS_PORT")
 		os.Unsetenv("BROWSERLESS_SCHEME")
 
-		url := resolveBrowserlessURL()
+		url, err := browserless.ResolveURL(nil, true)
+		assert.NoError(t, err)
 		assert.Equal(t, "http://custom-browserless:3000", url)
 	})
 
@@ -39,7 +41,8 @@ func TestResolveBrowserlessURL(t *testing.T) {
 		os.Setenv("BROWSERLESS_URL", "http://custom-browserless:3000/")
 		os.Unsetenv("BROWSERLESS_BASE_URL")
 
-		url := resolveBrowserlessURL()
+		url, err := browserless.ResolveURL(nil, true)
+		assert.NoError(t, err)
 		assert.Equal(t, "http://custom-browserless:3000", url)
 	})
 
@@ -49,7 +52,8 @@ func TestResolveBrowserlessURL(t *testing.T) {
 		os.Unsetenv("BROWSERLESS_HOST")
 		os.Unsetenv("BROWSERLESS_PORT")
 
-		url := resolveBrowserlessURL()
+		url, err := browserless.ResolveURL(nil, true)
+		assert.NoError(t, err)
 		assert.Equal(t, "http://base-browserless:4000", url)
 	})
 
@@ -60,7 +64,8 @@ func TestResolveBrowserlessURL(t *testing.T) {
 		os.Setenv("BROWSERLESS_PORT", "5000")
 		os.Setenv("BROWSERLESS_SCHEME", "https")
 
-		url := resolveBrowserlessURL()
+		url, err := browserless.ResolveURL(nil, true)
+		assert.NoError(t, err)
 		assert.Equal(t, "https://192.168.1.100:5000", url)
 	})
 
@@ -71,7 +76,8 @@ func TestResolveBrowserlessURL(t *testing.T) {
 		os.Unsetenv("BROWSERLESS_PORT")
 		os.Unsetenv("BROWSERLESS_SCHEME")
 
-		url := resolveBrowserlessURL()
+		url, err := browserless.ResolveURL(nil, true)
+		assert.NoError(t, err)
 		assert.Equal(t, "http://127.0.0.1:4110", url)
 	})
 
@@ -82,7 +88,8 @@ func TestResolveBrowserlessURL(t *testing.T) {
 		os.Setenv("BROWSERLESS_PORT", "9000")
 		os.Unsetenv("BROWSERLESS_SCHEME")
 
-		url := resolveBrowserlessURL()
+		url, err := browserless.ResolveURL(nil, true)
+		assert.NoError(t, err)
 		assert.Equal(t, "http://127.0.0.1:9000", url)
 	})
 
@@ -93,7 +100,8 @@ func TestResolveBrowserlessURL(t *testing.T) {
 		os.Setenv("BROWSERLESS_PORT", "  8080  ")
 		os.Setenv("BROWSERLESS_SCHEME", "  http  ")
 
-		url := resolveBrowserlessURL()
+		url, err := browserless.ResolveURL(nil, true)
+		assert.NoError(t, err)
 		assert.Equal(t, "http://localhost:8080", url)
 	})
 
@@ -103,7 +111,8 @@ func TestResolveBrowserlessURL(t *testing.T) {
 		os.Setenv("BROWSERLESS_HOST", "custom-host")
 		os.Setenv("BROWSERLESS_PORT", "3000")
 
-		url := resolveBrowserlessURL()
+		url, err := browserless.ResolveURL(nil, true)
+		assert.NoError(t, err)
 		assert.Equal(t, "http://custom-host:3000", url)
 	})
 }

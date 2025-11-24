@@ -50,6 +50,7 @@ type WorkflowService struct {
 	executor         autoexec.Executor
 	engineFactory    autoengine.Factory
 	artifactRecorder autorecorder.Recorder
+	planCompiler     autoexec.PlanCompiler
 	syncLocks        sync.Map
 	filePathCache    sync.Map
 	executionCancels sync.Map
@@ -107,6 +108,7 @@ type WorkflowServiceOptions struct {
 	Executor         autoexec.Executor
 	EngineFactory    autoengine.Factory
 	ArtifactRecorder autorecorder.Recorder
+	PlanCompiler     autoexec.PlanCompiler
 }
 
 // NewWorkflowServiceWithDeps allows advanced configuration for upcoming engine
@@ -120,6 +122,7 @@ func NewWorkflowServiceWithDeps(repo database.Repository, wsHub *wsHub.Hub, log 
 		executor:         opts.Executor,
 		engineFactory:    opts.EngineFactory,
 		artifactRecorder: opts.ArtifactRecorder,
+		planCompiler:     opts.PlanCompiler,
 	}
 
 	return svc

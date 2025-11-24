@@ -8,15 +8,35 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
-	browserlessEvents "github.com/vrooli/browser-automation-studio/browserless/events"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
 type stubHub struct {
 	mu      sync.Mutex
 	updates []wsHub.ExecutionUpdate
+}
+
+func (s *stubHub) ServeWS(*websocket.Conn, *uuid.UUID) {}
+func (s *stubHub) Run()                                {}
+func (s *stubHub) GetClientCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.updates)
+}
+
+func (s *stubHub) BroadcastEnvelope(event any) {
+	if env, ok := event.(contracts.EventEnvelope); ok {
+		s.BroadcastUpdate(wsHub.ExecutionUpdate{
+			ExecutionID: env.ExecutionID,
+			Data:        env,
+			Type:        string(env.Kind),
+		})
+		return
+	}
+	s.BroadcastUpdate(wsHub.ExecutionUpdate{Data: event})
 }
 
 func (s *stubHub) BroadcastUpdate(update wsHub.ExecutionUpdate) {
@@ -70,29 +90,28 @@ func TestWSHubSinkPublishesAdaptedEvent(t *testing.T) {
 		t.Fatalf("expected 1 update, got %d", len(updates))
 	}
 	update := updates[0]
-	if update.ExecutionID != execID || update.Message != string(browserlessEvents.EventStepCompleted) {
+	if update.ExecutionID != execID || update.Type != string(contracts.EventKindStepCompleted) {
 		t.Fatalf("unexpected update metadata: %+v", update)
 	}
 
-	payload, ok := update.Data.(browserlessEvents.Event)
+	payload, ok := update.Data.(contracts.EventEnvelope)
 	if !ok {
-		t.Fatalf("expected browserless event payload, got %T", update.Data)
+		t.Fatalf("expected envelope payload, got %T", update.Data)
 	}
-	if payload.Type != browserlessEvents.EventStepCompleted || payload.StepIndex == nil || *payload.StepIndex != stepIndex {
+	if payload.Kind != contracts.EventKindStepCompleted || payload.StepIndex == nil || *payload.StepIndex != stepIndex {
 		t.Fatalf("unexpected payload content: %+v", payload)
 	}
 
-	dataWrapper, ok := payload.Payload["data"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected data wrapper map, got %+v", payload.Payload)
-	}
-	if dataWrapper["foo"] != "bar" {
-		t.Fatalf("expected payload data foo=bar, got %+v", dataWrapper)
+	if m, ok := payload.Payload.(map[string]any); ok {
+		if val, exists := m["foo"]; !exists || val != "bar" {
+			t.Fatalf("expected payload data foo=bar, got %+v", payload.Payload)
+		}
+	} else {
+		t.Fatalf("expected map payload, got %T", payload.Payload)
 	}
 
-	dropsVal, ok := payload.Payload["drops"].(contracts.DropCounters)
-	if !ok || dropsVal.Dropped != 2 || dropsVal.OldestDropped != 7 {
-		t.Fatalf("expected drops counters propagated, got %+v", payload.Payload["drops"])
+	if payload.Drops.Dropped != 2 || payload.Drops.OldestDropped != 7 {
+		t.Fatalf("expected drops counters propagated, got %+v", payload.Drops)
 	}
 }
 
@@ -139,18 +158,18 @@ func TestWSHubSinkStepEnvelopeShapeMatchesLegacyExpectations(t *testing.T) {
 		t.Fatalf("expected one update, got %d", len(updates))
 	}
 
-	payload, ok := updates[0].Data.(browserlessEvents.Event)
+	payload, ok := updates[0].Data.(contracts.EventEnvelope)
 	if !ok {
-		t.Fatalf("expected browserless event payload, got %T", updates[0].Data)
+		t.Fatalf("expected envelope payload, got %T", updates[0].Data)
 	}
 
-	dataWrapper, ok := payload.Payload["data"].(map[string]any)
+	payloadMap, ok := payload.Payload.(map[string]any)
 	if !ok {
-		t.Fatalf("expected data wrapper, got %+v", payload.Payload)
+		t.Fatalf("expected map payload, got %T", payload.Payload)
 	}
-	out, ok := dataWrapper["outcome"].(contracts.StepOutcome)
+	out, ok := payloadMap["outcome"].(contracts.StepOutcome)
 	if !ok {
-		t.Fatalf("expected outcome in payload, got %T", dataWrapper["outcome"])
+		t.Fatalf("expected outcome in payload, got %T", payloadMap["outcome"])
 	}
 	if out.SchemaVersion != contracts.StepOutcomeSchemaVersion || out.PayloadVersion != contracts.PayloadVersion {
 		t.Fatalf("expected outcome schema/payload versions to be preserved, got %s/%s", out.SchemaVersion, out.PayloadVersion)
@@ -171,6 +190,14 @@ func newBlockingHub() *blockingHub {
 	return &blockingHub{unblock: make(chan struct{})}
 }
 
+func (b *blockingHub) ServeWS(*websocket.Conn, *uuid.UUID) {}
+func (b *blockingHub) Run()                                {}
+func (b *blockingHub) GetClientCount() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return len(b.updates)
+}
+
 func (b *blockingHub) BroadcastUpdate(update wsHub.ExecutionUpdate) {
 	<-b.unblock
 	b.mu.Lock()
@@ -184,6 +211,14 @@ func (b *blockingHub) Updates() []wsHub.ExecutionUpdate {
 	cp := make([]wsHub.ExecutionUpdate, len(b.updates))
 	copy(cp, b.updates)
 	return cp
+}
+
+func (b *blockingHub) BroadcastEnvelope(event any) {
+	if env, ok := event.(contracts.EventEnvelope); ok {
+		b.BroadcastUpdate(wsHub.ExecutionUpdate{ExecutionID: env.ExecutionID, Data: env, Type: string(env.Kind)})
+		return
+	}
+	b.BroadcastUpdate(wsHub.ExecutionUpdate{Data: event})
 }
 
 func TestWSHubSinkDropsTelemetryWhenBufferFull(t *testing.T) {
@@ -235,26 +270,12 @@ func TestWSHubSinkDropsTelemetryWhenBufferFull(t *testing.T) {
 	receivedSeqs := []uint64{}
 	var dropsSeen contracts.DropCounters
 	for _, update := range updates {
-		payload, ok := update.Data.(browserlessEvents.Event)
+		payload, ok := update.Data.(contracts.EventEnvelope)
 		if !ok {
-			t.Fatalf("expected browserless event payload, got %T", update.Data)
+			t.Fatalf("expected envelope payload, got %T", update.Data)
 		}
-		rawSeq := payload.Payload["sequence"]
-		seqVal, ok := rawSeq.(uint64)
-		if !ok {
-			if f, okFloat := rawSeq.(float64); okFloat {
-				seqVal = uint64(f)
-				ok = true
-			}
-		}
-		if !ok {
-			t.Fatalf("expected sequence in payload, got %+v", rawSeq)
-		}
-		receivedSeqs = append(receivedSeqs, seqVal)
-
-		if drops, ok := payload.Payload["drops"].(contracts.DropCounters); ok {
-			dropsSeen = drops
-		}
+		receivedSeqs = append(receivedSeqs, payload.Sequence)
+		dropsSeen = payload.Drops
 	}
 
 	if len(receivedSeqs) != 2 {
@@ -275,12 +296,12 @@ func TestWSHubSinkDropsTelemetryWhenBufferFull(t *testing.T) {
 	}
 
 	// Ensure drops metadata flows through WS payload wrapper.
-	lastPayload, ok := updates[len(updates)-1].Data.(browserlessEvents.Event)
+	lastPayload, ok := updates[len(updates)-1].Data.(contracts.EventEnvelope)
 	if !ok {
-		t.Fatalf("expected browserless event payload, got %T", updates[len(updates)-1].Data)
+		t.Fatalf("expected envelope payload, got %T", updates[len(updates)-1].Data)
 	}
-	if drops, ok := lastPayload.Payload["drops"].(contracts.DropCounters); !ok || drops.Dropped == 0 {
-		t.Fatalf("expected drops metadata propagated in WS payload, got %+v", lastPayload.Payload["drops"])
+	if lastPayload.Drops.Dropped == 0 {
+		t.Fatalf("expected drops metadata propagated in WS payload, got %+v", lastPayload.Drops)
 	}
 }
 

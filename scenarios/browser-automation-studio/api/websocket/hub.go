@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
 )
 
 // ExecutionUpdate represents a real-time update for workflow execution
@@ -109,6 +110,26 @@ func (h *Hub) Run() {
 func (h *Hub) BroadcastUpdate(update ExecutionUpdate) {
 	update.Timestamp = getCurrentTimestamp()
 	h.broadcast <- update
+}
+
+// BroadcastEnvelope pushes an automation event envelope directly to clients.
+func (h *Hub) BroadcastEnvelope(event any) {
+	if env, ok := event.(contracts.EventEnvelope); ok {
+		h.BroadcastUpdate(ExecutionUpdate{
+			Type:        string(env.Kind),
+			ExecutionID: env.ExecutionID,
+			Message:     string(env.Kind),
+			Data:        env,
+			Timestamp:   env.Timestamp.Format(time.RFC3339Nano),
+		})
+		return
+	}
+	h.BroadcastUpdate(ExecutionUpdate{
+		Type:      "event",
+		Message:   "automation_event",
+		Data:      event,
+		Timestamp: getCurrentTimestamp(),
+	})
 }
 
 // GetClientCount returns the number of connected clients
