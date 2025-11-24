@@ -106,16 +106,25 @@ testing::phase::init() {
 
     testing::phase::_load_expected_requirements "$phase_name"
     
-    # Display phase header
-    local header="=== ${TESTING_PHASE_NAME^} Phase"
-    if [ -n "$TESTING_PHASE_TARGET_TIME" ]; then
-        header="$header (Target: <${TESTING_PHASE_TARGET_TIME})"
-    fi
-    header="$header ==="
-    echo "$header"
-    
     # Start timing
     TESTING_PHASE_START_TIME=$(date +%s)
+    local start_timestamp=$(date +%s)
+
+    # Emit machine-parseable marker
+    local phase_index="${TESTING_PHASE_INDEX:-?}"
+    local phase_total="${TESTING_PHASE_TOTAL:-?}"
+    echo "[PHASE_START:${TESTING_PHASE_NAME}:${phase_index}/${phase_total}:${start_timestamp}]"
+
+    # Display unified phase header
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    local header_line="[${phase_index}/${phase_total}] ${TESTING_PHASE_NAME^^}"
+    if [ -n "$TESTING_PHASE_TARGET_TIME" ]; then
+        header_line="${header_line} • Target: <${TESTING_PHASE_TARGET_TIME}"
+    fi
+    local start_time=$(date +%H:%M:%S)
+    header_line="${header_line} • Started: ${start_time}"
+    echo "$header_line"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     
     # Handle runtime requirements
     if [ "$require_runtime" = true ] && [ "$skip_runtime_check" = false ]; then
@@ -163,6 +172,9 @@ testing::phase::add_error() {
     local message="${1:-}"
     TESTING_PHASE_ERROR_COUNT=$((TESTING_PHASE_ERROR_COUNT + 1))
     if [ -n "$message" ]; then
+        # Emit machine-parseable marker
+        local context="${2:-general}"
+        echo "[ERROR:${TESTING_PHASE_NAME}:${context}]" >&2
         log::error "$message"
     fi
 }
@@ -173,6 +185,9 @@ testing::phase::add_warning() {
     local message="${1:-}"
     TESTING_PHASE_WARNING_COUNT=$((TESTING_PHASE_WARNING_COUNT + 1))
     if [ -n "$message" ]; then
+        # Emit machine-parseable marker
+        local context="${2:-general}"
+        echo "[WARNING:${TESTING_PHASE_NAME}:${context}]" >&2
         log::warning "$message"
     fi
 }
@@ -446,23 +461,43 @@ testing::phase::end_with_summary() {
 JSON
     fi
 
-    # Display final status
+    # Emit machine-parseable marker with detailed stats
+    local phase_index="${TESTING_PHASE_INDEX:-?}"
+    local phase_total="${TESTING_PHASE_TOTAL:-?}"
+    echo "[PHASE_END:${TESTING_PHASE_NAME}:${phase_status}:${duration}s:${TESTING_PHASE_TEST_COUNT}tests:${TESTING_PHASE_ERROR_COUNT}errors:${TESTING_PHASE_WARNING_COUNT}warnings]"
+
+    # Display unified phase footer
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    local status_symbol
+    local status_text
     if [ "$phase_status" = "passed" ]; then
-        if [ -n "$custom_message" ]; then
-            log::success "✅ $custom_message in ${duration}s${summary}${time_warning}"
-        else
-            log::success "✅ ${TESTING_PHASE_NAME^} phase completed successfully in ${duration}s${summary}${time_warning}"
+        status_symbol="✅"
+        status_text="PASSED"
+    else
+        status_symbol="❌"
+        status_text="FAILED"
+    fi
+
+    echo "${status_symbol} [${phase_index}/${phase_total}] ${TESTING_PHASE_NAME^^} ${status_text} • ${duration}s${summary}${time_warning}"
+
+    # Show log path if available
+    if [ -n "${TESTING_PHASE_SCENARIO_DIR:-}" ]; then
+        local log_path="${TESTING_PHASE_SCENARIO_DIR}/test/artifacts/${TESTING_PHASE_NAME}-$(date +%s).log"
+        if [ -f "$log_path" ] || [ -L "$log_path" ]; then
+            echo "    → Log: test/artifacts/${TESTING_PHASE_NAME}-*.log"
         fi
+    fi
+
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    # Display final status message
+    if [ "$phase_status" = "passed" ]; then
         TESTING_PHASE_INITIALIZED=false
         TESTING_PHASE_AUTO_MANAGED=false
         TESTING_PHASE_AUTO_SUMMARY=""
         exit 0
     else
-        if [ -n "$custom_message" ]; then
-            log::error "❌ $custom_message in ${duration}s${summary}${time_warning}"
-        else
-            log::error "❌ ${TESTING_PHASE_NAME^} phase failed in ${duration}s${summary}${time_warning}"
-        fi
         TESTING_PHASE_INITIALIZED=false
         TESTING_PHASE_AUTO_MANAGED=false
         TESTING_PHASE_AUTO_SUMMARY=""
