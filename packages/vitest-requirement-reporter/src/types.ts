@@ -74,4 +74,48 @@ export interface RequirementReporterOptions {
 
   /** When true, merge with an existing output file instead of overwriting */
   append?: boolean;
+
+  /** Enable concise output mode (minimal console, artifacts on failure) (default: false) */
+  conciseMode?: boolean;
+
+  /** Directory for failure artifacts (default: coverage/unit) */
+  artifactsDir?: string;
+
+  /** Auto-clear artifacts directory before run (default: true when conciseMode enabled) */
+  autoClear?: boolean;
+}
+
+/**
+ * Test failure information for artifact generation
+ */
+export interface TestFailure {
+  /** Project name (e.g., components-palette) */
+  projectName: string;
+
+  /** Full test path with suite hierarchy */
+  testPath: string;
+
+  /** Test file path relative to cwd */
+  filePath: string;
+
+  /** Line number in test file */
+  line?: number;
+
+  /** Error message */
+  errorMessage: string;
+
+  /** Full error stack trace */
+  stackTrace?: string;
+
+  /** HTML snapshot if available (from testing-library errors) */
+  htmlSnapshot?: string;
+
+  /** Duration in milliseconds */
+  duration: number;
+
+  /** Requirements being tested */
+  requirements: string[];
+
+  /** Test status */
+  status: 'failed' | 'passed';
 }

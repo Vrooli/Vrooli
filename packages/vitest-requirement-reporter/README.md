@@ -86,6 +86,92 @@ describe('CRUD [REQ:BAS-WORKFLOW-PERSIST-CRUD, BAS-PROJECT-API]', () => {
 | `verbose` | `boolean` | `true` | Enable console summary |
 | `emitStdout` | `boolean` | `true` | Emit parseable stdout (required for phase integration) |
 | `pattern` | `RegExp` | `/\[REQ:...\]/gi` | Custom extraction pattern |
+| `conciseMode` | `boolean` | `false` | Enable concise output with failure artifacts |
+| `artifactsDir` | `string` | `'coverage/unit'` | Directory for failure artifacts |
+| `autoClear` | `boolean` | `true` (when conciseMode enabled) | Auto-clear artifacts before run |
+
+## Concise Mode (NEW!)
+
+Enable concise output mode for minimal console spam and structured failure artifacts.
+
+**IMPORTANT:** When using `conciseMode: true`, **remove `'default'` from the reporters array**. Our reporter provides all necessary output in a clean format.
+
+```typescript
+// ❌ WRONG - Includes 'default' reporter (causes verbose spam)
+reporters: [
+  'default',
+  new RequirementReporter({ conciseMode: true, ... })
+]
+
+// ✅ CORRECT - Only custom reporter
+reporters: [
+  new RequirementReporter({
+    outputFile: 'coverage/vitest-requirements.json',
+    emitStdout: true,
+    verbose: true,
+    conciseMode: true,        // Enable concise output
+    artifactsDir: 'coverage/unit',
+    autoClear: true,
+  })
+]
+```
+
+**Result:** 18x less output (351 lines → 19 lines in real tests)
+
+### Features
+
+**Minimal Console Output:**
+```
+[INFO]    Running 3 projects: components-palette, components-builder, utils
+
+✅ components-builder: 12/12 passed (2.3s)
+✅ utils: 8/8 passed (1.1s)
+❌ components-palette: 5/6 passed, 1 failed (0.3s)
+   ↳ NodePalette > renders categories and exposes every node definition
+   ↳ Read coverage/unit/components-palette/NodePalette-renders-categories/README.md
+
+Summary: 25/26 passed (1 failed) in 3.7s
+```
+
+**Structured Failure Artifacts:**
+```
+coverage/unit/
+├── components-palette/
+│   └── NodePalette-renders-categories/
+│       ├── README.md          # Context-aware failure explanation
+│       ├── error.txt          # Full error message
+│       ├── stack-trace.txt    # Complete stack trace
+│       ├── html-snapshot.html # DOM state (if applicable)
+│       └── test-context.json  # Test metadata and timing
+```
+
+**Context-Aware README.md:**
+- Error summary with first line highlighted
+- Requirements tested (with ❌ indicators)
+- Likely causes (pattern-matched from error)
+- Recent changes from git status
+- Deleted files that may be related
+- Debug artifact inventory
+
+### Pattern Matching
+
+The reporter analyzes failures and suggests likely causes:
+
+| Error Pattern | Suggested Cause |
+|---------------|----------------|
+| "Unable to find element" | Element not rendered or query selector incorrect + checks deleted files |
+| "Expected X to be Y" | Assertion mismatch - check expected vs actual values |
+| "Timeout" / "Timed out" | Async operation not completing - check waitFor conditions |
+| "Cannot read property" / "undefined" | Null/undefined access - check component state initialization |
+
+### Auto-Clear
+
+When `autoClear: true`, the artifacts directory is cleared on each test run, ensuring:
+- Fresh debug output without accumulation
+- No stale artifacts from previous runs
+- Disk space management
+
+The artifacts are preserved until the next test run, giving you time to review them.
 
 ## Why This Exists
 
@@ -204,7 +290,7 @@ The helper rebuilds the package, filters to the scenarios that include `@vrooli/
    ```
 
 4. **Requirement not in registry**
-   - Check `requirements/*.json` or `docs/requirements.json`
+   - Check `requirements/*.json`
    - Ensure requirement ID exists before tagging tests
    - Run `node scripts/requirements/validate.js --scenario <name>`
 
