@@ -268,6 +268,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
     activeProfile?.phases?.[autoSteerState?.current_phase_index ?? 0]?.mode ??
     (activeProfile?.phases?.[0]?.mode ?? undefined);
   const autoSteerIteration = autoSteerState?.auto_steer_iteration ?? 0;
+  const phaseIteration = autoSteerState ? autoSteerState.current_phase_iteration + 1 : 0;
 
   const handleResetAutoSteer = async () => {
     if (!task) return;
@@ -478,8 +479,14 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <div className="text-slate-400">Iteration</div>
+                        <div className="text-slate-400">Overall iterations</div>
                         <div className="font-semibold text-slate-50">{autoSteerIteration}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400">Phase iteration</div>
+                        <div className="font-semibold text-slate-50">
+                          {autoSteerState ? phaseIteration : '—'}
+                        </div>
                       </div>
                       <div>
                         <div className="text-slate-400">Phase</div>

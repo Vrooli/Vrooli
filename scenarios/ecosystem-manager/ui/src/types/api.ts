@@ -57,6 +57,7 @@ export interface Task {
   notes?: string;
   steer_mode?: SteerMode;
   auto_steer_profile_id?: string;
+  auto_steer_mode?: string;
   auto_steer_phase_index?: number;
   auto_requeue?: boolean;
   created_at: string;

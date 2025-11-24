@@ -330,9 +330,9 @@ func getProductionReadyTemplate() *AutoSteerProfile {
 							},
 							{
 								Type:            ConditionTypeSimple,
-								Metric:          "duplication_percentage",
+								Metric:          "tech_debt_items",
 								CompareOperator: OpLessThan,
-								Value:           3,
+								Value:           10,
 							},
 						},
 					},

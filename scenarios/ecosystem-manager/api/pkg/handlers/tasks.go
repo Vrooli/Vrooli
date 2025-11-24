@@ -47,7 +47,9 @@ type TaskHandlers struct {
 // taskWithRuntime decorates a task with live execution metadata without mutating persisted files.
 type taskWithRuntime struct {
 	tasks.TaskItem
-	CurrentProcess *queue.ProcessInfo `json:"current_process,omitempty"`
+	CurrentProcess       *queue.ProcessInfo `json:"current_process,omitempty"`
+	AutoSteerPhaseIndex  *int               `json:"auto_steer_phase_index,omitempty"`
+	AutoSteerCurrentMode string             `json:"auto_steer_mode,omitempty"`
 }
 
 // buildRuntimeIndex returns a map of running processes keyed by task ID for quick enrichment.
@@ -72,6 +74,52 @@ func attachRuntime(task tasks.TaskItem, runtime map[string]queue.ProcessInfo) ta
 		enriched.CurrentProcess = &procCopy
 	}
 	return enriched
+}
+
+type autoSteerRuntime struct {
+	phaseIndex *int
+	mode       string
+}
+
+// buildAutoSteerRuntime gathers live Auto Steer state for the provided tasks.
+func (h *TaskHandlers) buildAutoSteerRuntime(tasks []tasks.TaskItem) map[string]autoSteerRuntime {
+	result := make(map[string]autoSteerRuntime)
+
+	if h.processor == nil {
+		return result
+	}
+	integration := h.processor.AutoSteerIntegration()
+	if integration == nil {
+		return result
+	}
+	engine := integration.ExecutionEngine()
+	if engine == nil {
+		return result
+	}
+
+	for _, task := range tasks {
+		if strings.TrimSpace(task.AutoSteerProfileID) == "" {
+			continue
+		}
+
+		state, err := engine.GetExecutionState(task.ID)
+		if err != nil || state == nil {
+			continue
+		}
+
+		var idxPtr *int
+		idx := state.CurrentPhaseIndex
+		idxPtr = &idx
+
+		mode, _ := engine.GetCurrentMode(task.ID)
+
+		result[task.ID] = autoSteerRuntime{
+			phaseIndex: idxPtr,
+			mode:       string(mode),
+		}
+	}
+
+	return result
 }
 
 func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask tasks.TaskItem) {
@@ -539,9 +587,17 @@ func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 	systemlog.Debugf("Task list requested: status=%s count=%d", status, len(filteredItems))
 
 	runtimeIndex := h.buildRuntimeIndex()
+	autoSteerIndex := h.buildAutoSteerRuntime(filteredItems)
 	enriched := make([]taskWithRuntime, 0, len(filteredItems))
 	for _, item := range filteredItems {
-		enriched = append(enriched, attachRuntime(item, runtimeIndex))
+		enrichedTask := attachRuntime(item, runtimeIndex)
+		if steer, ok := autoSteerIndex[item.ID]; ok {
+			enrichedTask.AutoSteerPhaseIndex = steer.phaseIndex
+			if strings.TrimSpace(steer.mode) != "" {
+				enrichedTask.AutoSteerCurrentMode = steer.mode
+			}
+		}
+		enriched = append(enriched, enrichedTask)
 	}
 
 	// Wrap response in object for consistency with other endpoints

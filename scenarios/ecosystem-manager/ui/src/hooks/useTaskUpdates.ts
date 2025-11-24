@@ -17,7 +17,12 @@ export function useTaskUpdates() {
 
     const { type, data } = lastMessage;
     const payload = (data ?? {}) as Record<string, unknown>;
-    const taskId = typeof payload.task_id === 'string' ? payload.task_id : undefined;
+    const taskId =
+      typeof payload.task_id === 'string'
+        ? payload.task_id
+        : typeof payload.id === 'string'
+          ? payload.id
+          : undefined;
 
     const invalidateTasks = () => {
       if (taskId) {
@@ -29,6 +34,12 @@ export function useTaskUpdates() {
 
     const invalidateProcesses = () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.processes.running() });
+    };
+
+    const invalidateAutoSteerState = () => {
+      if (taskId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.executionState(taskId) });
+      }
     };
 
     // Handle different WebSocket message types
@@ -45,6 +56,7 @@ export function useTaskUpdates() {
       case 'task_executing':
         invalidateTasks();
         invalidateProcesses();
+        invalidateAutoSteerState();
         break;
 
       case 'task_completed':
@@ -53,6 +65,7 @@ export function useTaskUpdates() {
       case 'process_terminated':
         invalidateTasks();
         invalidateProcesses();
+        invalidateAutoSteerState();
         break;
 
       case 'task_progress':

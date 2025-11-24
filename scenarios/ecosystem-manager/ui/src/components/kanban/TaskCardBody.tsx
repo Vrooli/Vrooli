@@ -26,6 +26,10 @@ export function TaskCardBody({ task, autoSteerProfile, autoSteerPhaseIndex }: Ta
       ? task.auto_steer_phase_index
       : undefined;
   const phaseLabel = autoSteerProfile?.phases?.[phaseIndex ?? -1]?.mode;
+  const phaseMode = phaseLabel || task.auto_steer_mode;
+  const phaseTooltip = phaseIndex !== undefined && phaseMode
+    ? `Phase ${phaseIndex + 1}: ${phaseMode}`
+    : phaseMode || autoSteerProfile?.name || 'Auto Steer';
   const primaryTarget = (task.target && task.target[0]) || '';
   const derivedTitle = `${task.operation === 'improver' ? 'Improve' : 'Generate'} ${primaryTarget || task.type}`;
   const displayTitle = derivedTitle.trim() || task.title;
@@ -52,17 +56,23 @@ export function TaskCardBody({ task, autoSteerProfile, autoSteerPhaseIndex }: Ta
 
       {/* Auto Steer indicator */}
       {hasAutoSteer && (
-        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-100 text-indigo-900 border border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-100 dark:border-indigo-500/30">
+        <div
+          className="flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-100 text-indigo-900 border border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-100 dark:border-indigo-500/30"
+          title={phaseTooltip}
+        >
           <Zap className="h-3.5 w-3.5" />
           <div className="flex flex-col leading-tight">
-            <span className="text-xs font-semibold">
-              {autoSteerProfile?.name ?? 'Auto Steer'}
+              <span className="text-xs font-semibold flex items-center gap-1">
+                <span>{autoSteerProfile?.name ?? 'Auto Steer'}</span>
+              {phaseMode && (
+                <>
+                  <span className="text-[10px] text-indigo-800/70 dark:text-indigo-100/70">•</span>
+                  <span className="font-normal text-[11px] text-indigo-800/90 dark:text-indigo-100/90 uppercase">
+                    {phaseMode}
+                  </span>
+                </>
+              )}
             </span>
-            {phaseIndex !== undefined && (
-              <span className="text-[11px] text-indigo-800/80 dark:text-indigo-100/80">
-                Phase {phaseIndex + 1}{phaseLabel ? `: ${phaseLabel}` : ''}
-              </span>
-            )}
           </div>
         </div>
       )}

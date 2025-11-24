@@ -81,6 +81,11 @@ func (m *MetricsCollector) collectUniversalMetrics(scenarioName string, snapshot
 
 	if targets.Total > 0 {
 		snapshot.OperationalTargetsPercentage = (float64(targets.Passing) / float64(targets.Total)) * 100
+	} else {
+		// When no targets are defined, surface metrics as unavailable so stop conditions skip gracefully.
+		snapshot.OperationalTargetsTotal = -1
+		snapshot.OperationalTargetsPassing = -1
+		snapshot.OperationalTargetsPercentage = -1
 	}
 
 	// Check build status
