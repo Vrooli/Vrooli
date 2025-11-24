@@ -1,6 +1,6 @@
-## 🧹 **Phase: Refactor & Structural Improvement**
+## Steer focus: Refactor & Structural Improvement
 
-During this loop, prioritize **code quality, structure, and maintainability** across this scenario’s implementation.
+Prioritize **code quality, structure, and maintainability** across this scenario’s implementation.
 Do **not** change the intended behavior, regress tests, or weaken safety guarantees; all changes must maintain or improve completeness.
 
 Focus on producing a **cleaner, clearer, easier-to-extend codebase**, guided by the following principles:

@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ecosystem-manager/api/pkg/autosteer"
 	"github.com/ecosystem-manager/api/pkg/internal/paths"
 	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/ratelimit"
@@ -71,6 +72,27 @@ func (qp *Processor) cleanupAgentAfterFinalizationFailure(taskID string, cleanup
 	qp.cleanupTaskWithVerifiedAgentRemoval(taskID, cleanupFunc, context, true)
 }
 
+// appendDefaultProgressSection attaches the Progress phase guidance when Auto Steer is inactive.
+func (qp *Processor) appendDefaultProgressSection(prompt string) string {
+	if qp.assembler == nil {
+		return prompt
+	}
+
+	// Prefer the execution engine’s cached prompt enhancer when available.
+	if qp.autoSteerIntegration != nil && qp.autoSteerIntegration.executionEngine != nil {
+		if section := strings.TrimSpace(qp.autoSteerIntegration.executionEngine.GenerateModeSection(autosteer.ModeProgress)); section != "" {
+			return prompt + "\n\n" + section
+		}
+	}
+
+	phasesDir := filepath.Join(qp.assembler.PromptsDir, "phases")
+	section := strings.TrimSpace(autosteer.NewPromptEnhancer(phasesDir).GenerateModeSection(autosteer.ModeProgress))
+	if section == "" {
+		return prompt
+	}
+	return prompt + "\n\n" + section
+}
+
 // executeTask executes a single task
 func (qp *Processor) executeTask(task tasks.TaskItem) {
 	log.Printf("Executing task %s: %s", task.ID, task.Title)
@@ -122,6 +144,11 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 		return
 	}
 	prompt := assembly.Prompt
+
+	// Apply default Progress steering when Auto Steer is not configured
+	if strings.TrimSpace(task.AutoSteerProfileID) == "" && task.Type == "scenario" && task.Operation == "improver" {
+		prompt = qp.appendDefaultProgressSection(prompt)
+	}
 
 	// Enhance prompt with Auto Steer context if active
 	if qp.autoSteerIntegration != nil && task.AutoSteerProfileID != "" {

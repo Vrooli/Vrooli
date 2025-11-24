@@ -80,11 +80,8 @@ func TestPromptEnhancer_GenerateAutoSteerSection(t *testing.T) {
 		section := enhancer.GenerateAutoSteerSection(state, profile, evaluator)
 
 		// Verify key sections are present
-		if !strings.Contains(section, "Test Profile") {
-			t.Error("Expected profile name in output")
-		}
-		if !strings.Contains(section, "PROGRESS") {
-			t.Error("Expected current mode (PROGRESS) in output")
+		if !strings.Contains(section, "Phase: Progress") {
+			t.Error("Expected current mode instructions in output")
 		}
 		if !strings.Contains(section, "Phase 1 of 2") {
 			t.Error("Expected phase progress in output")
@@ -138,9 +135,6 @@ func TestPromptEnhancer_GenerateAutoSteerSection(t *testing.T) {
 		if !strings.Contains(section, "Completed Phases") {
 			t.Error("Expected completed phases section")
 		}
-		if !strings.Contains(section, "PROGRESS") {
-			t.Error("Expected completed phase mode in history")
-		}
 		if !strings.Contains(section, "10 iterations") {
 			t.Error("Expected iteration count in history")
 		}
@@ -180,6 +174,21 @@ func TestPromptEnhancer_GenerateAutoSteerSection(t *testing.T) {
 			t.Error("Expected empty section for nil profile")
 		}
 	})
+}
+
+func TestPromptEnhancer_GenerateModeSection(t *testing.T) {
+	enhancer := newTestPromptEnhancer(t)
+	content := enhancer.GenerateModeSection(ModeProgress)
+
+	if content == "" {
+		t.Fatal("Expected mode section content")
+	}
+	if !strings.Contains(content, "Phase: Progress") {
+		t.Error("Expected progress heading in mode section")
+	}
+	if !strings.Contains(content, "Success Criteria") {
+		t.Error("Expected success criteria in mode section")
+	}
 }
 
 func TestPromptEnhancer_GetKeyImprovements(t *testing.T) {

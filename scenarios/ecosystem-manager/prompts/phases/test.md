@@ -1,6 +1,6 @@
-## 🧪 **Phase: Test Suite Strengthening**
+## Steer focus: Test Suite Strengthening
 
-During this loop, prioritize **test quality, coverage, and reliability** across this scenario.
+Prioritize **test quality, coverage, and reliability** across this scenario.
 Do **not** break functionality or regress existing tests; all changes must maintain or improve overall completeness.
 
 Focus on producing a **high-signal, trustworthy test suite** that accurately reflects the scenario’s operational targets and technical requirements.

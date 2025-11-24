@@ -1,6 +1,6 @@
-## ⚡ **Phase: Performance & Responsiveness**
+## Steer focus: Performance & Responsiveness
 
-During this loop, prioritize **runtime performance and perceived responsiveness** across this entire scenario.
+Prioritize **runtime performance and perceived responsiveness** across this entire scenario.
 Do **not** break functionality or regress tests; all changes must maintain or improve completeness.
 
 Focus on delivering a **faster, smoother experience**, guided by the following principles:

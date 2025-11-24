@@ -51,6 +51,7 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 	taskID := task.ID
 
 	fromCache := false
+	defaultProgressApplied := false
 	assembly, err := h.assembler.AssemblePromptForTask(*task)
 	if err != nil {
 		writeError(w, fmt.Sprintf("Failed to assemble prompt: %v", err), http.StatusInternalServerError)
@@ -68,6 +69,15 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 
 	assembly.Prompt = prompt
 
+	// Apply default Progress steering when Auto Steer is not configured
+	if task.Type == "scenario" && task.Operation == "improver" && strings.TrimSpace(task.AutoSteerProfileID) == "" {
+		if section := h.defaultProgressSection(); section != "" {
+			prompt = prompt + "\n\n" + section
+			assembly.Prompt = prompt
+			defaultProgressApplied = true
+		}
+	}
+
 	// Get operation config for metadata
 	operationConfig, _ := h.assembler.SelectPromptAssembly(task.Type, task.Operation)
 
@@ -81,6 +91,7 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 		"operation_config":  operationConfig,
 		"task_status":       status,
 		"task_details":      task,
+		"default_progress":  defaultProgressApplied,
 	}
 
 	writeJSON(w, response, http.StatusOK)
@@ -309,6 +320,14 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
+	// Apply default Progress steering when Auto Steer is not configured
+	if tempTask.Type == "scenario" && tempTask.Operation == "improver" && strings.TrimSpace(tempTask.AutoSteerProfileID) == "" {
+		if section := h.defaultProgressSection(); section != "" {
+			prompt = prompt + "\n\n" + section
+			response["default_progress_applied"] = true
+		}
+	}
+
 	promptSize := len(prompt)
 	promptSizeKB := float64(promptSize) / 1024.0
 	promptSizeMB := promptSizeKB / 1024.0
@@ -344,4 +363,13 @@ func previewMetricsSnapshot() autosteer.MetricsSnapshot {
 		OperationalTargetsPassing:    0,
 		OperationalTargetsPercentage: 0,
 	}
+}
+
+// defaultProgressSection renders the Progress phase guidance for scenarios without Auto Steer.
+func (h *TaskHandlers) defaultProgressSection() string {
+	if h == nil || h.assembler == nil {
+		return ""
+	}
+	phasesDir := filepath.Join(h.assembler.PromptsDir, "phases")
+	return strings.TrimSpace(autosteer.NewPromptEnhancer(phasesDir).GenerateModeSection(autosteer.ModeProgress))
 }

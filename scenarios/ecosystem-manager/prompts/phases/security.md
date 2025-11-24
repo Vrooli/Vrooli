@@ -1,6 +1,6 @@
-## 🔒 **Phase: Security Hardening**
+## Steer focus: Security Hardening
 
-During this loop, prioritize **improving the security posture** of this scenario across its UI, APIs, background jobs, and data flows.
+Prioritize **improving the security posture** of this scenario across its UI, APIs, background jobs, and data flows.
 
 Do **not** break functionality, regress tests, or weaken existing protections. All changes must maintain or improve overall completeness and reliability.
 

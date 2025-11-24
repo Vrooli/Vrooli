@@ -63,8 +63,11 @@ export function PromptTesterTab() {
       notes: notes || undefined,
       target: type === 'scenario' ? target.trim() || undefined : undefined,
       targets: type === 'scenario' && target.trim() ? [target.trim()] : undefined,
-      auto_steer_profile_id: type === 'scenario' && selectedPhaseIndex !== undefined ? autoSteerProfileId : undefined,
-      auto_steer_phase_index: type === 'scenario' ? selectedPhaseIndex : undefined,
+      auto_steer_profile_id:
+        type === 'scenario' && operation === 'improver' && selectedPhaseIndex !== undefined
+          ? autoSteerProfileId
+          : undefined,
+      auto_steer_phase_index: type === 'scenario' && operation === 'improver' ? selectedPhaseIndex : undefined,
     });
   };
 
@@ -117,7 +120,16 @@ export function PromptTesterTab() {
 
             <div className="space-y-2">
               <Label htmlFor="pt-operation">Operation</Label>
-              <Select value={operation} onValueChange={(val: string) => setOperation(val as OperationType)}>
+              <Select
+                value={operation}
+                onValueChange={(val: string) => {
+                  setOperation(val as OperationType);
+                  if (val !== 'improver') {
+                    setAutoSteerProfileId('');
+                    setAutoSteerPhaseKey('none');
+                  }
+                }}
+              >
                 <SelectTrigger id="pt-operation">
                   <SelectValue />
                 </SelectTrigger>
@@ -143,34 +155,41 @@ export function PromptTesterTab() {
 
               <div className="space-y-2">
                 <Label htmlFor="pt-autosteer">Auto Steer Profile</Label>
-              <Select
-                value={autoSteerProfileId || 'none'}
-                onValueChange={(val: string) => {
-                  const normalized = val === 'none' ? '' : val;
-                  setAutoSteerProfileId(normalized);
-                  setAutoSteerPhaseKey('none');
-                }}
-                disabled={profilesLoading || profiles.length === 0}
-              >
-                <SelectTrigger id="pt-autosteer">
-                  <SelectValue placeholder={profilesLoading ? 'Loading...' : 'None'} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {profiles.map(profile => (
-                    <SelectItem key={profile.id} value={profile.id}>
-                      {profile.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <Select
+                  value={autoSteerProfileId || 'none'}
+                  onValueChange={(val: string) => {
+                    const normalized = val === 'none' ? '' : val;
+                    setAutoSteerProfileId(normalized);
+                    setAutoSteerPhaseKey('none');
+                  }}
+                  disabled={operation !== 'improver' || profilesLoading || profiles.length === 0}
+                >
+                  <SelectTrigger id="pt-autosteer">
+                    <SelectValue placeholder={profilesLoading ? 'Loading...' : 'None'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {profiles.map(profile => (
+                      <SelectItem key={profile.id} value={profile.id}>
+                        {profile.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {operation !== 'improver' && (
+                  <p className="text-xs text-amber-400">
+                    Auto Steer applies only to scenario improver tasks.
+                  </p>
+                )}
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="pt-autosteer-phase">Steer Phase</Label>
                 <Select
                   value={autoSteerPhaseKey}
                   onValueChange={(val: string) => setAutoSteerPhaseKey(val)}
-                  disabled={!currentProfile || !currentProfile.phases?.length}
+                  disabled={
+                    operation !== 'improver' || !currentProfile || !currentProfile.phases?.length
+                  }
                 >
                   <SelectTrigger id="pt-autosteer-phase">
                     <SelectValue placeholder="Select a phase" />

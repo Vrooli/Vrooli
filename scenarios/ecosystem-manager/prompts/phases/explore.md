@@ -1,6 +1,6 @@
-## 🧪 **Phase: Exploration & Discovery**
+## Steer focus: Exploration & Discovery
 
-During this loop, prioritize **creative exploration, experimentation, and discovery** within the boundaries of the scenario’s architecture.
+Prioritize **creative exploration, experimentation, and discovery** within the boundaries of the scenario’s architecture.
 Do **not** break functionality or regress tests; all changes must remain isolated, reversible, and safe.
 
 Focus on generating **novel ideas, alternative approaches, and fresh perspectives**, guided by the principles below.

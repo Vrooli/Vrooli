@@ -14,7 +14,6 @@ const (
 	ModeTest        SteerMode = "test"        // Coverage, edge cases, test quality
 	ModeExplore     SteerMode = "explore"     // Experimentation, novel approaches
 	ModePolish      SteerMode = "polish"      // Final touches, error messages, loading states
-	ModeIntegration SteerMode = "integration" // Connect with other scenarios/resources
 	ModePerformance SteerMode = "performance" // Profiling, optimization, caching
 	ModeSecurity    SteerMode = "security"    // Vulnerability scanning, input validation
 )
@@ -22,7 +21,7 @@ const (
 // IsValid checks if a SteerMode is valid
 func (m SteerMode) IsValid() bool {
 	switch m {
-	case ModeProgress, ModeUX, ModeRefactor, ModeTest, ModeExplore, ModePolish, ModeIntegration, ModePerformance, ModeSecurity:
+	case ModeProgress, ModeUX, ModeRefactor, ModeTest, ModeExplore, ModePolish, ModePerformance, ModeSecurity:
 		return true
 	default:
 		return false

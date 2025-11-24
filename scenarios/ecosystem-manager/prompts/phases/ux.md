@@ -1,6 +1,6 @@
-## 🎨 **Phase: UX Improvement**
+## Steer focus: UX Improvement
 
-During this loop, prioritize **user experience quality** across all interfaces in this scenario.
+Prioritize **user experience quality** across all interfaces in this scenario.
 Do **not** break functionality or regress tests; all changes must maintain or improve completeness.
 
 Focus on producing a **professional, polished, friction-free user experience**, guided by the following principles:

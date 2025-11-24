@@ -2,7 +2,7 @@ You are executing a **scenario improvement** task for the Ecosystem Manager.
 
 ## Boundaries & Focus
 - Work strictly inside `{{PROJECT_PATH}}/scenarios/{{TARGET}}/` (and its `.vrooli/`, `docs/`, and `requirements/` folders). If you uncover problems elsewhere, record them in your notes instead of editing unrelated paths.
-- Respect the generator’s scaffold. Your goal is to advance operational targets, close regressions, and prove them with tests—not to redesign the scenario from scratch.
+- Respect the generator’s scaffold. Follow the current steering focus, avoid regressions, and stay within the existing architecture rather than redesigning the scenario from scratch.
 
 ## Quick Validation Loop (repeat until green)
 1. `vrooli scenario status {{TARGET}}`
@@ -31,15 +31,9 @@ You are executing a **scenario improvement** task for the Ecosystem Manager.
 - **test/playbooks/README.md** – document any new surfaces or journey folders you add and ensure the per-target structure matches the requirements. Re-run the registry script (`node scripts/scenarios/testing/playbooks/build-registry.mjs --scenario {{PROJECT_PATH}}/scenarios/{{TARGET}}`) after changes.
 These files are the canonical documentation sources for future scenario improvement agents to read.
 
-## Improvement Priorities
-1. **Failing checks** from `scenario status` / `scenario-auditor` (structure, lifecycle, security).
-2. **Unimplemented P0/P1 operational targets** – focus on completing one target end-to-end (requirements + tests) before switching context.
-3. **Experience polish / performance / docs** once critical gaps are resolved.
-Always fix regressions you introduce before starting a new target.
-
 ## Implementation & Stack Expectations
 - Honor the existing architecture. If you add UI, default to React + TypeScript + Vite + shadcn/ui + lucide unless the scenario already uses another stack.
-- Keep changes surgical: address one operational target, prove it with requirements-linked tests, log the result in `{{PROJECT_PATH}}/scenarios/{{TARGET}}/docs/PROGRESS.md`, and leave TODOs for remaining gaps.
+- Keep changes scoped to the current steering focus, prove results with requirements-linked tests, log the result in `{{PROJECT_PATH}}/scenarios/{{TARGET}}/docs/PROGRESS.md`, and leave TODOs for remaining gaps.
 - Preserve `[REQ:ID]` annotations in tests so requirement tracking stays accurate.
 
 ## Security & Standards Guardrails

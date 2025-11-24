@@ -17,6 +17,41 @@ func NewPromptEnhancer(phasesDir string) *PromptEnhancer {
 	}
 }
 
+// GenerateModeSection renders a standalone section for a specific mode (no Auto Steer framing).
+func (p *PromptEnhancer) GenerateModeSection(mode SteerMode) string {
+	if p == nil {
+		return ""
+	}
+	return p.renderModeContent(mode)
+}
+
+// renderModeContent returns the markdown for a mode with success criteria and tools appended.
+func (p *PromptEnhancer) renderModeContent(mode SteerMode) string {
+	data, err := p.modeInstructions.loadPrompt(mode)
+	if err != nil {
+		return fmt.Sprintf("Auto Steer instructions unavailable for %s: %v", mode, err)
+	}
+
+	var b strings.Builder
+	b.WriteString(strings.TrimSpace(data.Instructions))
+
+	if len(data.SuccessCriteria) > 0 {
+		b.WriteString("\n\n**Success Criteria:**\n")
+		for _, criterion := range data.SuccessCriteria {
+			b.WriteString(fmt.Sprintf("- %s\n", criterion))
+		}
+	}
+
+	if len(data.ToolRecommendations) > 0 {
+		b.WriteString("\n**Recommended Tools:**\n")
+		for _, tool := range data.ToolRecommendations {
+			b.WriteString(fmt.Sprintf("- %s\n", tool))
+		}
+	}
+
+	return strings.TrimSpace(b.String())
+}
+
 // GenerateAutoSteerSection generates the Auto Steer section for agent prompts
 func (p *PromptEnhancer) GenerateAutoSteerSection(
 	state *ProfileExecutionState,
@@ -31,41 +66,16 @@ func (p *PromptEnhancer) GenerateAutoSteerSection(
 		return "\n## Auto Steer Status\nAll phases completed. Task should be finalized.\n"
 	}
 
-	var output strings.Builder
-
 	currentPhase := profile.Phases[state.CurrentPhaseIndex]
 
-	// Header
-	output.WriteString("\n## Auto Steer Profile: ")
-	output.WriteString(profile.Name)
-	output.WriteString("\n\n")
-	output.WriteString(profile.Description)
-	output.WriteString("\n\n")
+	var output strings.Builder
 
-	// Current mode
-	output.WriteString("### Current Mode: ")
-	output.WriteString(strings.ToUpper(string(currentPhase.Mode)))
-	output.WriteString("\n\n")
-
-	// Mode-specific instructions
-	output.WriteString(p.modeInstructions.GetInstructions(currentPhase.Mode))
-	output.WriteString("\n\n")
-
-	// Success criteria
-	output.WriteString("**Success Criteria:**\n")
-	for _, criterion := range p.modeInstructions.GetSuccessCriteria(currentPhase.Mode) {
-		output.WriteString(fmt.Sprintf("- %s\n", criterion))
-	}
-	output.WriteString("\n")
-
-	// Available tools
-	tools := p.modeInstructions.GetToolRecommendations(currentPhase.Mode)
-	if len(tools) > 0 {
-		output.WriteString("**Recommended Tools:**\n")
-		for _, tool := range tools {
-			output.WriteString(fmt.Sprintf("- %s\n", tool))
-		}
+	// Mode-specific instructions first (phase markdown owns the heading)
+	modeContent := p.renderModeContent(currentPhase.Mode)
+	if strings.TrimSpace(modeContent) != "" {
 		output.WriteString("\n")
+		output.WriteString(modeContent)
+		output.WriteString("\n\n")
 	}
 
 	// Phase progress
@@ -127,10 +137,10 @@ func (p *PromptEnhancer) GenerateAutoSteerSection(
 
 	// Important reminders
 	output.WriteString("### Important Reminders\n\n")
-	output.WriteString("1. Your primary focus is the **current mode** - all work should align with its objectives\n")
-	output.WriteString("2. You can continue working in this phase until stop conditions are met or max iterations reached\n")
-	output.WriteString("3. Maintain existing functionality - don't break operational targets that are already passing\n")
-	output.WriteString("4. Document your changes clearly for context in future phases\n")
+	output.WriteString("1. Stay aligned with this phase’s focus; if you defer target advancement, state why and keep existing targets passing\n")
+	output.WriteString("2. Continue in this phase until stop conditions are met or max iterations reached\n")
+	output.WriteString("3. Protect operational targets and passing tests—no regressions\n")
+	output.WriteString("4. Document changes and reasoning for the next phase\n")
 	output.WriteString("\n")
 
 	return output.String()

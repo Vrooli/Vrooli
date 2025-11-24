@@ -553,6 +553,14 @@ func (e *ExecutionEngine) GetEnhancedPrompt(taskID string) (string, error) {
 	return promptSection, nil
 }
 
+// GenerateModeSection renders a standalone mode block (used for default Progress steering when Auto Steer is inactive).
+func (e *ExecutionEngine) GenerateModeSection(mode SteerMode) string {
+	if e == nil || e.promptEnhancer == nil {
+		return ""
+	}
+	return e.promptEnhancer.GenerateModeSection(mode)
+}
+
 // GetCurrentMode returns the current steering mode for a task
 // Returns empty string if the task doesn't have an Auto Steer profile
 func (e *ExecutionEngine) GetCurrentMode(taskID string) (SteerMode, error) {

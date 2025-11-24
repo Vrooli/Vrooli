@@ -1,6 +1,6 @@
-## ✨ **Phase: Polish**
+## Steer focus: Polish
 
-During this loop, prioritize **overall quality, coherence, and finish** across the scenario.
+Prioritize **overall quality, coherence, and finish** across the scenario.
 Do **not** break functionality or regress tests; all changes must maintain or improve completeness.
 Avoid large structural refactors or new feature work — focus on **refinement, not reinvention**.
 
