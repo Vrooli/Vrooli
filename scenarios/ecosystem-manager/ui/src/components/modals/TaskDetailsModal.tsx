@@ -321,6 +321,8 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   const phaseIteration = autoSteerState
     ? currentPhaseIteration + 1
     : latestPhaseIteration || (historyIterationCount > 0 ? 1 : 0);
+  const currentPhaseIndex = autoSteerState?.current_phase_index ?? 0;
+  const currentPhaseIterationRaw = autoSteerState?.current_phase_iteration ?? 0;
   const selectedPhase = activeProfile?.phases?.[phaseDraft];
   const selectedPhaseMaxIterations = selectedPhase?.max_iterations ?? 1;
 
@@ -349,7 +351,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
     await refetchAutoSteerState();
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!task) return;
     if (canEditTarget && !normalizedTarget) {
       return;
@@ -367,16 +369,34 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
       updates.target = [normalizedTarget];
     }
 
-    updateTask.mutate({
-      id: task.id,
-      updates,
-    }, {
-      onSuccess: () => {
-        lastSyncedNotesRef.current = updates.notes ?? notes.trim();
-        setNotesDirty(false);
-        onOpenChange(false);
-      },
-    });
+    const desiredPhaseIteration = Math.min(iterationDraft, selectedPhaseMaxIterations);
+    const seekNeeded =
+      canSeekAutoSteer &&
+      autoSteerState &&
+      (phaseDraft !== currentPhaseIndex || desiredPhaseIteration !== currentPhaseIterationRaw);
+
+    try {
+      if (seekNeeded) {
+        await seekAutoSteer.mutateAsync({
+          taskId: task.id,
+          phaseIndex: phaseDraft,
+          phaseIteration: desiredPhaseIteration,
+        });
+        await refetchAutoSteerState();
+      }
+
+      await updateTask.mutateAsync({
+        id: task.id,
+        updates,
+      });
+
+      lastSyncedNotesRef.current = updates.notes ?? notes.trim();
+      setNotesDirty(false);
+      onOpenChange(false);
+    } catch (err) {
+      console.error('Failed to save task or Auto Steer state', err);
+      alert('Unable to save changes right now. Please try again.');
+    }
   };
 
   const handleDelete = () => {
