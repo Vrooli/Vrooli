@@ -1,7 +1,7 @@
 {
   "scenario": "landing-manager",
   "report_version": 1,
-  "generated_at": "2025-11-23T02:44:40.791746549Z",
+  "generated_at": "2025-11-23T19:34:23.916138987Z",
   "dependencies": [
     {
       "name": "browserless",
@@ -244,7 +244,7 @@
   },
   "bundle_manifest": {
     "scenario": "landing-manager",
-    "generated_at": "2025-11-23T02:44:40.791746549Z",
+    "generated_at": "2025-11-23T19:34:23.916138987Z",
     "files": [
       {
         "path": ".vrooli/service.json",

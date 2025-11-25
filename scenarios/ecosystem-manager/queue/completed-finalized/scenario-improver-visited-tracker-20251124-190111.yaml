@@ -13,21 +13,23 @@ dependencies: []
 blocks: []
 related_scenarios: []
 related_resources: []
-status: in-progress
-current_phase: executing_claude
-started_at: "2025-11-25T02:28:07-05:00"
+status: completed-finalized
+current_phase: cancelled
+started_at: "2025-11-25T02:48:56-05:00"
 completed_at: ""
-cooldown_until: "2025-11-25T02:25:29-05:00"
-completion_count: 13
-last_completed_at: "2025-11-25T02:08:05-05:00"
+completion_count: 15
+last_completed_at: "2025-11-25T02:48:53-05:00"
 validation_criteria: []
 created_by: ""
 created_at: "2025-11-24T19:01:11-05:00"
-updated_at: "2025-11-25T02:28:07-05:00"
+updated_at: "2025-11-25T02:52:27-05:00"
 tags: []
 notes: ""
-results: {}
+results:
+    cancelled_at: "2025-11-25T02:52:27-05:00"
+    error: Task execution was cancelled (moved to completed-finalized)
+    success: false
 consecutive_completion_claims: 0
-consecutive_failures: 2
-processor_auto_requeue: true
+consecutive_failures: 0
+processor_auto_requeue: false
 auto_steer_profile_id: ec725997-ceb7-4f0d-8b13-5f55ca45f336

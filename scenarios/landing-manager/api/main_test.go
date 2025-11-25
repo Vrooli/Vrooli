@@ -165,6 +165,107 @@ func TestLogStructured(t *testing.T) {
 	logStructured("test_event_no_fields", nil)
 }
 
+func TestHandleGenerate(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpTemplatesDir := t.TempDir()
+
+	// Set generation output directory
+	os.Setenv("GEN_OUTPUT_DIR", tmpDir)
+	defer os.Unsetenv("GEN_OUTPUT_DIR")
+
+	// Create a minimal test template
+	tmplPath := tmpTemplatesDir + "/test-template.json"
+	tmplContent := `{
+		"id": "test-template",
+		"name": "Test Template",
+		"description": "Test",
+		"version": "1.0.0",
+		"payload_path": "test-payload"
+	}`
+	if err := os.WriteFile(tmplPath, []byte(tmplContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create payload directory with minimal structure
+	payloadDir := tmpTemplatesDir + "/test-payload"
+	os.MkdirAll(payloadDir+"/.vrooli", 0755)
+	os.WriteFile(payloadDir+"/.vrooli/service.json", []byte(`{"name":"template"}`), 0644)
+	os.WriteFile(payloadDir+"/test.txt", []byte("test"), 0644)
+
+	srv := &Server{
+		router:          mux.NewRouter(),
+		templateService: &TemplateService{templatesDir: tmpTemplatesDir},
+	}
+	srv.router.HandleFunc("/api/v1/generate", srv.handleGenerate).Methods("POST")
+
+	t.Run("dry run mode", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/api/v1/generate",
+			strings.NewReader(`{"template_id":"test-template","name":"Test","slug":"test-dry","options":{"dry_run":true}}`))
+		w := httptest.NewRecorder()
+
+		srv.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusCreated {
+			t.Errorf("Expected status 201, got %d: %s", w.Code, w.Body.String())
+		}
+
+		var resp map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &resp)
+		if resp["status"] != "dry_run" {
+			t.Errorf("Expected status dry_run, got %v", resp["status"])
+		}
+	})
+
+	t.Run("invalid request body", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/api/v1/generate", strings.NewReader(`{invalid json`))
+		w := httptest.NewRecorder()
+
+		srv.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d", w.Code)
+		}
+	})
+}
+
+func TestHandleGeneratedList(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Set generation output directory
+	os.Setenv("GEN_OUTPUT_DIR", tmpDir)
+	defer os.Unsetenv("GEN_OUTPUT_DIR")
+
+	// Create test generated scenario
+	scenarioDir := tmpDir + "/test-scenario"
+	os.MkdirAll(scenarioDir+"/.vrooli", 0755)
+	serviceJSON := `{"name": "Test Scenario", "slug": "test-scenario"}`
+	os.WriteFile(scenarioDir+"/.vrooli/service.json", []byte(serviceJSON), 0644)
+
+	srv := &Server{
+		router:          mux.NewRouter(),
+		templateService: &TemplateService{},
+	}
+	srv.router.HandleFunc("/api/v1/generated", srv.handleGeneratedList).Methods("GET")
+
+	req := httptest.NewRequest("GET", "/api/v1/generated", nil)
+	w := httptest.NewRecorder()
+
+	srv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	var scenarios []GeneratedScenario
+	if err := json.Unmarshal(w.Body.Bytes(), &scenarios); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if len(scenarios) != 1 {
+		t.Errorf("Expected 1 scenario, got %d", len(scenarios))
+	}
+}
+
 func TestHandleCustomizeCreatesIssue(t *testing.T) {
 	issueCalled := false
 	investigateCalled := false

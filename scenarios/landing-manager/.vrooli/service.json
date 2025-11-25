@@ -5,7 +5,7 @@
     "parent": "vrooli",
     "name": "landing-manager",
     "displayName": "Landing Manager",
-    "description": "Factory for creating and managing SaaS landing page scenarios with A/B testing, analytics, and Stripe integration",
+    "description": "Factory for creating and managing landing-page scenarios (template registry, generation, and agent handoff)",
     "version": "0.0.1",
     "type": "business-application",
     "category": "business_tools",

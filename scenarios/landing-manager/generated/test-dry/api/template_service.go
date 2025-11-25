@@ -6,9 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
-	"time"
 )
 
 // Template represents a landing page template with full metadata
@@ -38,17 +36,6 @@ type MetricHook struct {
 // TemplateService handles template operations
 type TemplateService struct {
 	templatesDir string
-}
-
-// GeneratedScenario summarizes a generated landing scenario for the factory UI.
-type GeneratedScenario struct {
-	ScenarioID      string `json:"scenario_id"`
-	Name            string `json:"name"`
-	TemplateID      string `json:"template_id,omitempty"`
-	TemplateVersion string `json:"template_version,omitempty"`
-	Path            string `json:"path"`
-	Status          string `json:"status"`
-	GeneratedAt     string `json:"generated_at,omitempty"`
 }
 
 // NewTemplateService creates a template service instance
@@ -149,52 +136,10 @@ func (ts *TemplateService) GenerateScenario(templateID, name, slug string, optio
 		return nil, fmt.Errorf("name and slug are required")
 	}
 
-	dryRun := false
-	if options != nil {
-		if val, ok := options["dry_run"]; ok {
-			switch v := val.(type) {
-			case bool:
-				dryRun = v
-			case string:
-				dryRun = strings.EqualFold(v, "true")
-			}
-		}
-	}
-
 	// Resolve output directory (default: ../generated/<slug> relative to scenario root)
 	outputDir, err := resolveGenerationPath(slug)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve generation path: %w", err)
-	}
-
-	plannedPaths := []string{
-		outputDir,
-		filepath.Join(outputDir, "api"),
-		filepath.Join(outputDir, "ui"),
-		filepath.Join(outputDir, "requirements"),
-		filepath.Join(outputDir, ".vrooli"),
-		filepath.Join(outputDir, ".vrooli", "template.json"),
-		filepath.Join(outputDir, "Makefile"),
-		filepath.Join(outputDir, "PRD.md"),
-		filepath.Join(outputDir, "README.md"),
-	}
-
-	if dryRun {
-		return map[string]interface{}{
-			"scenario_id": slug,
-			"name":        name,
-			"template":    template.ID,
-			"path":        outputDir,
-			"status":      "dry_run",
-			"plan": map[string]interface{}{
-				"paths": plannedPaths,
-			},
-			"next_steps": []string{
-				"Re-run without --dry-run to materialize the scenario",
-				"Move the folder to /scenarios/<slug> when ready to run independently",
-				"Start scenario: vrooli scenario start " + slug,
-			},
-		}, nil
 	}
 
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
@@ -216,15 +161,9 @@ func (ts *TemplateService) GenerateScenario(templateID, name, slug string, optio
 		return nil, fmt.Errorf("failed to write template metadata: %w", err)
 	}
 
-	if err := writeTemplateProvenance(outputDir, template); err != nil {
-		return nil, fmt.Errorf("failed to stamp template provenance: %w", err)
-	}
-
 	if err := rewriteServiceConfig(outputDir, name, slug); err != nil {
 		return nil, fmt.Errorf("failed to rewrite service config: %w", err)
 	}
-
-	validation := validateGeneratedScenario(outputDir)
 
 	result := map[string]interface{}{
 		"scenario_id": slug,
@@ -232,14 +171,11 @@ func (ts *TemplateService) GenerateScenario(templateID, name, slug string, optio
 		"template":    template.ID,
 		"path":        outputDir,
 		"status":      "created",
-		"validation":  validation,
 		"next_steps": []string{
 			"Review generated scenario files under generated/" + slug,
 			"Move the folder to /scenarios/<slug> when ready to run independently",
-			"Start scenario: vrooli scenario start " + slug,
-			"Preview public landing: http://localhost:${UI_PORT}/ (after start)",
-			"Preview admin portal: http://localhost:${UI_PORT}/admin (after start, login required)",
 			"Customize content via CLI or admin portal in the generated scenario",
+			"Start scenario: vrooli scenario start " + slug,
 		},
 	}
 
@@ -249,17 +185,8 @@ func (ts *TemplateService) GenerateScenario(templateID, name, slug string, optio
 // resolveGenerationPath returns an absolute path for the generated scenario.
 // Priority: GEN_OUTPUT_DIR env override → ../generated/<slug> relative to API binary.
 func resolveGenerationPath(slug string) (string, error) {
-	root, err := generationRoot()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(root, slug), nil
-}
-
-// generationRoot resolves the base directory for generated scenarios.
-func generationRoot() (string, error) {
 	if override := strings.TrimSpace(os.Getenv("GEN_OUTPUT_DIR")); override != "" {
-		return filepath.Abs(override)
+		return filepath.Abs(filepath.Join(override, slug))
 	}
 
 	execPath, err := os.Executable()
@@ -270,20 +197,12 @@ func generationRoot() (string, error) {
 	// Assume binary resides in /scenarios/landing-manager/api
 	scenarioRoot := filepath.Dir(execDir)
 	defaultRoot := filepath.Join(scenarioRoot, "generated")
-	return filepath.Abs(defaultRoot)
+	return filepath.Abs(filepath.Join(defaultRoot, slug))
 }
 
 // scaffoldScenario copies the existing landing template assets into the output directory.
 // It creates a self-contained scenario that can later be moved into /scenarios/<slug>.
 func scaffoldScenario(outputDir string) error {
-	// Allow explicit override for tooling runs outside lifecycle
-	if override := strings.TrimSpace(os.Getenv("TEMPLATE_PAYLOAD_DIR")); override != "" {
-		if err := copyTemplatePayload(override, outputDir); err != nil {
-			return err
-		}
-		return nil
-	}
-
 	execPath, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("failed to resolve executable path: %w", err)
@@ -291,19 +210,6 @@ func scaffoldScenario(outputDir string) error {
 	execDir := filepath.Dir(execPath)
 	scenarioRoot := filepath.Dir(execDir)
 
-	// Prefer dedicated template payload from repo root (scripts/scenarios/templates/saas-landing-page/payload)
-	repoRoot := filepath.Dir(filepath.Dir(scenarioRoot))
-	templatePayload := filepath.Join(repoRoot, "scripts", "scenarios", "templates", "saas-landing-page", "payload")
-	if _, err := os.Stat(templatePayload); err == nil {
-		return copyTemplatePayload(templatePayload, outputDir)
-	}
-
-	// Fallback: copy from current scenario root (useful in tests with TEMPLATE_PAYLOAD_DIR)
-	return copyTemplatePayload(scenarioRoot, outputDir)
-}
-
-// copyTemplatePayload copies template assets from the resolved template root into the output directory.
-func copyTemplatePayload(scenarioRoot, outputDir string) error {
 	// Source directories to copy
 	sources := []struct {
 		src string
@@ -311,8 +217,6 @@ func copyTemplatePayload(scenarioRoot, outputDir string) error {
 	}{
 		{src: filepath.Join(scenarioRoot, "api"), dst: filepath.Join(outputDir, "api")},
 		{src: filepath.Join(scenarioRoot, "ui"), dst: filepath.Join(outputDir, "ui")},
-		{src: filepath.Join(scenarioRoot, "requirements"), dst: filepath.Join(outputDir, "requirements")},
-		{src: filepath.Join(scenarioRoot, "initialization"), dst: filepath.Join(outputDir, "initialization")},
 		{src: filepath.Join(scenarioRoot, ".vrooli"), dst: filepath.Join(outputDir, ".vrooli")},
 		{src: filepath.Join(scenarioRoot, "Makefile"), dst: filepath.Join(outputDir, "Makefile")},
 		{src: filepath.Join(scenarioRoot, "PRD.md"), dst: filepath.Join(outputDir, "PRD.md")},
@@ -476,153 +380,12 @@ func rewriteServiceConfig(outputDir, name, slug string) error {
 		repo["directory"] = fmt.Sprintf("/scenarios/%s", slug)
 	}
 
-	// Remove factory-only steps (e.g., install-cli) from generated lifecycle
-	if lifecycle, ok := cfg["lifecycle"].(map[string]interface{}); ok {
-		if setup, ok := lifecycle["setup"].(map[string]interface{}); ok {
-			if steps, ok := setup["steps"].([]interface{}); ok {
-				var filtered []interface{}
-				for _, s := range steps {
-					stepMap, ok := s.(map[string]interface{})
-					if ok {
-						if name, _ := stepMap["name"].(string); name == "install-cli" {
-							continue
-						}
-					}
-					filtered = append(filtered, s)
-				}
-				setup["steps"] = filtered
-			}
-		}
-		if develop, ok := lifecycle["develop"].(map[string]interface{}); ok {
-			if steps, ok := develop["steps"].([]interface{}); ok {
-				for i, s := range steps {
-					if stepMap, ok := s.(map[string]interface{}); ok {
-						if name, _ := stepMap["name"].(string); name == "start-api" {
-							stepMap["run"] = "cd api && exec ./landing-manager-api"
-							steps[i] = stepMap
-						}
-					}
-				}
-				develop["steps"] = steps
-			}
-		}
-	}
-
 	updated, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal updated service.json: %w", err)
 	}
 
 	return os.WriteFile(path, updated, 0o644)
-}
-
-// writeTemplateProvenance records template id/version and generation timestamp.
-func writeTemplateProvenance(outputDir string, template *Template) error {
-	provenance := map[string]interface{}{
-		"template_id":      template.ID,
-		"template_version": template.Version,
-		"generated_at":     time.Now().UTC().Format(time.RFC3339),
-	}
-	outPath := filepath.Join(outputDir, ".vrooli", "template.json")
-	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(provenance, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(outPath, data, 0o644)
-}
-
-// validateGeneratedScenario performs a lightweight sanity check on required assets.
-func validateGeneratedScenario(outputDir string) map[string]interface{} {
-	required := []string{"api", "ui", "requirements", ".vrooli", "Makefile", "PRD.md"}
-	var missing []string
-
-	for _, rel := range required {
-		if _, err := os.Stat(filepath.Join(outputDir, rel)); err != nil {
-			missing = append(missing, rel)
-		}
-	}
-
-	status := "passed"
-	if len(missing) > 0 {
-		status = "failed"
-	}
-
-	return map[string]interface{}{
-		"status":        status,
-		"missing":       missing,
-		"checked_paths": required,
-	}
-}
-
-// ListGeneratedScenarios reports any generated scenarios under the generation root for factory UI display.
-func (ts *TemplateService) ListGeneratedScenarios() ([]GeneratedScenario, error) {
-	root, err := generationRoot()
-	if err != nil {
-		return nil, err
-	}
-
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return []GeneratedScenario{}, nil
-		}
-		return nil, fmt.Errorf("failed to read generated directory: %w", err)
-	}
-
-	var scenarios []GeneratedScenario
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		slug := entry.Name()
-		scenarioPath := filepath.Join(root, slug)
-		gs := GeneratedScenario{
-			ScenarioID: slug,
-			Name:       slug,
-			Path:       scenarioPath,
-			Status:     "present",
-		}
-
-		// Provenance: template id/version/timestamp
-		if provData, err := os.ReadFile(filepath.Join(scenarioPath, ".vrooli", "template.json")); err == nil {
-			var prov map[string]interface{}
-			if err := json.Unmarshal(provData, &prov); err == nil {
-				if v, ok := prov["template_id"].(string); ok {
-					gs.TemplateID = v
-				}
-				if v, ok := prov["template_version"].(string); ok {
-					gs.TemplateVersion = v
-				}
-				if v, ok := prov["generated_at"].(string); ok {
-					gs.GeneratedAt = v
-				}
-			}
-		}
-
-		// Human-friendly name from service metadata
-		if svcData, err := os.ReadFile(filepath.Join(scenarioPath, ".vrooli", "service.json")); err == nil {
-			var svc map[string]interface{}
-			if err := json.Unmarshal(svcData, &svc); err == nil {
-				if service, ok := svc["service"].(map[string]interface{}); ok {
-					if display, ok := service["displayName"].(string); ok && display != "" {
-						gs.Name = display
-					}
-				}
-			}
-		}
-
-		scenarios = append(scenarios, gs)
-	}
-
-	sort.Slice(scenarios, func(i, j int) bool {
-		return scenarios[i].ScenarioID < scenarios[j].ScenarioID
-	})
-
-	return scenarios, nil
 }
 
 // copyDir copies a directory tree, skipping heavy build artifacts.
@@ -692,113 +455,4 @@ func copyFile(src, dst string, mode os.FileMode) error {
 	}
 
 	return nil
-}
-
-// GetPreviewLinks generates preview URLs for a generated scenario.
-// Returns deep links to the public landing page and admin portal.
-func (ts *TemplateService) GetPreviewLinks(scenarioID string) (map[string]interface{}, error) {
-	root, err := generationRoot()
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve generation root: %w", err)
-	}
-
-	scenarioPath := filepath.Join(root, scenarioID)
-	if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("generated scenario not found: %s", scenarioID)
-	}
-
-	// Read service.json to get allocated ports
-	serviceData, err := os.ReadFile(filepath.Join(scenarioPath, ".vrooli", "service.json"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read service.json: %w", err)
-	}
-
-	var svcConfig map[string]interface{}
-	if err := json.Unmarshal(serviceData, &svcConfig); err != nil {
-		return nil, fmt.Errorf("failed to parse service.json: %w", err)
-	}
-
-	// Extract UI port from ports config
-	uiPort := ""
-	if ports, ok := svcConfig["ports"].(map[string]interface{}); ok {
-		if p, ok := ports["UI_PORT"].(float64); ok {
-			uiPort = fmt.Sprintf("%.0f", p)
-		} else if p, ok := ports["UI_PORT"].(string); ok {
-			uiPort = p
-		}
-	}
-
-	if uiPort == "" {
-		return nil, fmt.Errorf("UI_PORT not found in service.json for scenario %s", scenarioID)
-	}
-
-	baseURL := fmt.Sprintf("http://localhost:%s", uiPort)
-
-	return map[string]interface{}{
-		"scenario_id": scenarioID,
-		"path":        scenarioPath,
-		"base_url":    baseURL,
-		"links": map[string]string{
-			"public_landing": baseURL + "/",
-			"admin_portal":   baseURL + "/admin",
-			"admin_login":    baseURL + "/admin/login",
-			"health":         baseURL + "/health",
-		},
-		"instructions": []string{
-			fmt.Sprintf("Start the scenario: vrooli scenario start %s", scenarioID),
-			fmt.Sprintf("Public landing page: %s/", baseURL),
-			fmt.Sprintf("Admin portal: %s/admin", baseURL),
-			"Note: Scenario must be running for preview links to work",
-		},
-		"notes": "Move scenario to /scenarios/" + scenarioID + " before starting if not already moved",
-	}, nil
-}
-
-// Persona represents an agent customization profile
-type Persona struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Prompt      string   `json:"prompt"`
-	UseCases    []string `json:"use_cases"`
-	Keywords    []string `json:"keywords"`
-}
-
-// PersonaCatalog represents the personas catalog structure
-type PersonaCatalog struct {
-	Personas []Persona              `json:"personas"`
-	Metadata map[string]interface{} `json:"_metadata"`
-}
-
-// GetPersonas retrieves all available agent personas from the catalog
-func (ts *TemplateService) GetPersonas() ([]Persona, error) {
-	catalogPath := filepath.Join(ts.templatesDir, "..", "personas", "catalog.json")
-
-	data, err := os.ReadFile(catalogPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read persona catalog: %w", err)
-	}
-
-	var catalog PersonaCatalog
-	if err := json.Unmarshal(data, &catalog); err != nil {
-		return nil, fmt.Errorf("failed to parse persona catalog: %w", err)
-	}
-
-	return catalog.Personas, nil
-}
-
-// GetPersona retrieves a specific persona by ID
-func (ts *TemplateService) GetPersona(id string) (*Persona, error) {
-	personas, err := ts.GetPersonas()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, p := range personas {
-		if p.ID == id {
-			return &p, nil
-		}
-	}
-
-	return nil, fmt.Errorf("persona not found: %s", id)
 }

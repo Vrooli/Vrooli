@@ -1,0 +1,296 @@
+package main
+
+import (
+	"testing"
+)
+
+func TestSelectVariant(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Clean up test data
+	db.Exec("DELETE FROM variants WHERE slug LIKE 'test-%'")
+
+	vs := NewVariantService(db)
+
+	// Test that SelectVariant returns a variant
+	variant, err := vs.SelectVariant()
+	if err != nil {
+		t.Fatalf("SelectVariant failed: %v", err)
+	}
+
+	if variant == nil {
+		t.Fatal("SelectVariant returned nil variant")
+	}
+
+	if variant.Slug == "" {
+		t.Error("Selected variant has empty slug")
+	}
+
+	if variant.Status != "active" {
+		t.Errorf("Selected variant has status %s, expected active", variant.Status)
+	}
+}
+
+func TestGetVariantBySlug(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	vs := NewVariantService(db)
+
+	// Test getting existing variant
+	variant, err := vs.GetVariantBySlug("control")
+	if err != nil {
+		t.Fatalf("GetVariantBySlug failed: %v", err)
+	}
+
+	if variant.Slug != "control" {
+		t.Errorf("Got variant with slug %s, expected control", variant.Slug)
+	}
+
+	// Test getting non-existent variant
+	_, err = vs.GetVariantBySlug("nonexistent")
+	if err == nil {
+		t.Error("GetVariantBySlug should fail for non-existent variant")
+	}
+}
+
+func TestCreateVariant(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	vs := NewVariantService(db)
+
+	// Test creating a new variant
+	variant, err := vs.CreateVariant("test-variant", "Test Variant", "Test description", 30)
+	if err != nil {
+		t.Fatalf("CreateVariant failed: %v", err)
+	}
+
+	if variant.Slug != "test-variant" {
+		t.Errorf("Created variant has slug %s, expected test-variant", variant.Slug)
+	}
+
+	if variant.Weight != 30 {
+		t.Errorf("Created variant has weight %d, expected 30", variant.Weight)
+	}
+
+	if variant.Status != "active" {
+		t.Errorf("Created variant has status %s, expected active", variant.Status)
+	}
+
+	// Test invalid weight
+	_, err = vs.CreateVariant("test-invalid", "Invalid", "Invalid weight", 150)
+	if err == nil {
+		t.Error("CreateVariant should fail for weight > 100")
+	}
+
+	// Clean up
+	db.Exec("DELETE FROM variants WHERE slug = 'test-variant'")
+}
+
+func TestUpdateVariant(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	vs := NewVariantService(db)
+
+	// Create a test variant
+	_, err := vs.CreateVariant("test-update", "Update Test", "Test update", 50)
+	if err != nil {
+		t.Fatalf("Failed to create test variant: %v", err)
+	}
+
+	// Test updating weight
+	newWeight := 70
+	updated, err := vs.UpdateVariant("test-update", nil, nil, &newWeight)
+	if err != nil {
+		t.Fatalf("UpdateVariant failed: %v", err)
+	}
+
+	if updated.Weight != 70 {
+		t.Errorf("Updated variant has weight %d, expected 70", updated.Weight)
+	}
+
+	// Test updating name
+	newName := "Updated Name"
+	updated, err = vs.UpdateVariant("test-update", &newName, nil, nil)
+	if err != nil {
+		t.Fatalf("UpdateVariant name failed: %v", err)
+	}
+
+	if updated.Name != "Updated Name" {
+		t.Errorf("Updated variant has name %s, expected Updated Name", updated.Name)
+	}
+
+	// Test invalid weight
+	invalidWeight := 150
+	_, err = vs.UpdateVariant("test-update", nil, nil, &invalidWeight)
+	if err == nil {
+		t.Error("UpdateVariant should fail for weight > 100")
+	}
+
+	// Clean up
+	db.Exec("DELETE FROM variants WHERE slug = 'test-update'")
+}
+
+func TestArchiveVariant(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	vs := NewVariantService(db)
+
+	// Create a test variant
+	_, err := vs.CreateVariant("test-archive", "Archive Test", "Test archive", 50)
+	if err != nil {
+		t.Fatalf("Failed to create test variant: %v", err)
+	}
+
+	// Test archiving
+	err = vs.ArchiveVariant("test-archive")
+	if err != nil {
+		t.Fatalf("ArchiveVariant failed: %v", err)
+	}
+
+	// Verify it's archived
+	variant, err := vs.GetVariantBySlug("test-archive")
+	if err != nil {
+		t.Fatalf("Failed to get archived variant: %v", err)
+	}
+
+	if variant.Status != "archived" {
+		t.Errorf("Variant has status %s, expected archived", variant.Status)
+	}
+
+	if variant.ArchivedAt == nil {
+		t.Error("Archived variant should have ArchivedAt timestamp")
+	}
+
+	// Verify archived variants are excluded from selection
+	// (This test assumes control and variant-a are still active)
+	for i := 0; i < 10; i++ {
+		selected, err := vs.SelectVariant()
+		if err != nil {
+			t.Fatalf("SelectVariant failed: %v", err)
+		}
+
+		if selected.Slug == "test-archive" {
+			t.Error("SelectVariant returned archived variant")
+		}
+	}
+
+	// Clean up
+	db.Exec("DELETE FROM variants WHERE slug = 'test-archive'")
+}
+
+func TestDeleteVariant(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	vs := NewVariantService(db)
+
+	// Create a test variant
+	_, err := vs.CreateVariant("test-delete", "Delete Test", "Test delete", 50)
+	if err != nil {
+		t.Fatalf("Failed to create test variant: %v", err)
+	}
+
+	// Test deleting
+	err = vs.DeleteVariant("test-delete")
+	if err != nil {
+		t.Fatalf("DeleteVariant failed: %v", err)
+	}
+
+	// Verify it's soft-deleted
+	variant, err := vs.GetVariantBySlug("test-delete")
+	if err != nil {
+		t.Fatalf("Failed to get deleted variant: %v", err)
+	}
+
+	if variant.Status != "deleted" {
+		t.Errorf("Variant has status %s, expected deleted", variant.Status)
+	}
+
+	// Clean up
+	db.Exec("DELETE FROM variants WHERE slug = 'test-delete'")
+}
+
+func TestListVariants(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	vs := NewVariantService(db)
+
+	// Test listing all non-deleted variants
+	variants, err := vs.ListVariants("")
+	if err != nil {
+		t.Fatalf("ListVariants failed: %v", err)
+	}
+
+	if len(variants) < 2 {
+		t.Errorf("ListVariants returned %d variants, expected at least 2 (control, variant-a)", len(variants))
+	}
+
+	// Test filtering by status
+	activeVariants, err := vs.ListVariants("active")
+	if err != nil {
+		t.Fatalf("ListVariants with status filter failed: %v", err)
+	}
+
+	for _, v := range activeVariants {
+		if v.Status != "active" {
+			t.Errorf("ListVariants(active) returned variant with status %s", v.Status)
+		}
+	}
+}
+
+func TestWeightedSelection(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	vs := NewVariantService(db)
+
+	// Create test variants with different weights
+	_, err := vs.CreateVariant("test-heavy", "Heavy Weight", "High weight variant", 90)
+	if err != nil {
+		t.Fatalf("Failed to create heavy variant: %v", err)
+	}
+
+	_, err = vs.CreateVariant("test-light", "Light Weight", "Low weight variant", 10)
+	if err != nil {
+		t.Fatalf("Failed to create light variant: %v", err)
+	}
+
+	// Run selection many times and verify distribution
+	selections := make(map[string]int)
+	iterations := 1000
+
+	for i := 0; i < iterations; i++ {
+		variant, err := vs.SelectVariant()
+		if err != nil {
+			t.Fatalf("SelectVariant failed: %v", err)
+		}
+
+		selections[variant.Slug]++
+	}
+
+	// Heavy variant should be selected more often (not exact, but statistically likely)
+	heavyCount := selections["test-heavy"]
+	lightCount := selections["test-light"]
+
+	if heavyCount == 0 {
+		t.Error("Heavy variant was never selected")
+	}
+
+	if lightCount == 0 {
+		t.Error("Light variant was never selected")
+	}
+
+	// Rough check: heavy should be selected more than light (allowing for randomness)
+	if heavyCount < lightCount {
+		t.Logf("Warning: Heavy variant (%d) selected less than light variant (%d) over %d iterations", heavyCount, lightCount, iterations)
+	}
+
+	// Clean up
+	db.Exec("DELETE FROM variants WHERE slug LIKE 'test-%'")
+}

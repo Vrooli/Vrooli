@@ -86,6 +86,9 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/generate", s.handleGenerate).Methods("POST")
 	s.router.HandleFunc("/api/v1/customize", s.handleCustomize).Methods("POST")
 	s.router.HandleFunc("/api/v1/generated", s.handleGeneratedList).Methods("GET")
+	s.router.HandleFunc("/api/v1/preview/{scenario_id}", s.handlePreviewLinks).Methods("GET")
+	s.router.HandleFunc("/api/v1/personas", s.handlePersonaList).Methods("GET")
+	s.router.HandleFunc("/api/v1/personas/{id}", s.handlePersonaShow).Methods("GET")
 
 	// Admin authentication endpoints (OT-P0-008)
 	s.router.HandleFunc("/api/v1/admin/login", handleTemplateOnly("admin authentication")).Methods("POST")
@@ -257,12 +260,31 @@ func (s *Server) handleGeneratedList(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(scenarios)
 }
 
+func (s *Server) handlePreviewLinks(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	scenarioID := vars["scenario_id"]
+
+	preview, err := s.templateService.GetPreviewLinks(scenarioID)
+	if err != nil {
+		s.log("failed to get preview links", map[string]interface{}{
+			"scenario_id": scenarioID,
+			"error":       err.Error(),
+		})
+		http.Error(w, fmt.Sprintf("Failed to get preview links: %v", err), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(preview)
+}
+
 func (s *Server) handleCustomize(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ScenarioID string   `json:"scenario_id"`
 		Brief      string   `json:"brief"`
 		Assets     []string `json:"assets"`
 		Preview    bool     `json:"preview"`
+		PersonaID  string   `json:"persona_id,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -281,9 +303,18 @@ func (s *Server) handleCustomize(w http.ResponseWriter, r *http.Request) {
 		issueTitle = "Customize landing page scenario (unnamed)"
 	}
 
+	// Build description with persona prompt if provided
+	personaPrompt := ""
+	if req.PersonaID != "" {
+		persona, err := s.templateService.GetPersona(req.PersonaID)
+		if err == nil {
+			personaPrompt = fmt.Sprintf("\n\nPersona: %s\nGuidance:\n%s", persona.Name, persona.Prompt)
+		}
+	}
+
 	description := fmt.Sprintf(
-		"Requested customization for landing page scenario.\n\nScenario: %s\nBrief:\n%s\nAssets: %v\nPreview: %t\nSource: landing-manager factory\nTimestamp: %s\n\nExpected deliverables:\n- Apply brief to template-safe areas (content, design tokens, imagery)\n- Run A/B variant setup if applicable\n- Regenerate preview links and summarize changes\n- Return next steps and validation status.",
-		req.ScenarioID, req.Brief, req.Assets, req.Preview, time.Now().UTC().Format(time.RFC3339),
+		"Requested customization for landing page scenario.\n\nScenario: %s\nBrief:\n%s\nAssets: %v\nPreview: %t%s\nSource: landing-manager factory\nTimestamp: %s\n\nExpected deliverables:\n- Apply brief to template-safe areas (content, design tokens, imagery)\n- Run A/B variant setup if applicable\n- Regenerate preview links and summarize changes\n- Return next steps and validation status.",
+		req.ScenarioID, req.Brief, req.Assets, req.Preview, personaPrompt, time.Now().UTC().Format(time.RFC3339),
 	)
 
 	issuePayload := map[string]interface{}{
@@ -371,6 +402,33 @@ func (s *Server) handleCustomize(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(w).Encode(response)
+}
+
+func (s *Server) handlePersonaList(w http.ResponseWriter, r *http.Request) {
+	personas, err := s.templateService.GetPersonas()
+	if err != nil {
+		s.log("failed to list personas", map[string]interface{}{"error": err.Error()})
+		http.Error(w, "Failed to list personas", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(personas)
+}
+
+func (s *Server) handlePersonaShow(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	persona, err := s.templateService.GetPersona(id)
+	if err != nil {
+		s.log("failed to get persona", map[string]interface{}{"id": id, "error": err.Error()})
+		http.Error(w, "Persona not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(persona)
 }
 
 // loggingMiddleware prints structured request logs

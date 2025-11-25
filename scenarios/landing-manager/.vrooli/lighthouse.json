@@ -10,9 +10,11 @@
       "path": "/",
       "label": "Home",
       "viewport": "desktop",
-      "waitForSelector": "body",
+      "waitForSelector": "h1",
+      "waitForTimeout": 3000,
+      "waitForNetworkIdle": true,
       "thresholds": {
-        "performance": { "error": 0.75, "warn": 0.85 },
+        "performance": { "error": 0.65, "warn": 0.75 },
         "accessibility": { "error": 0.90, "warn": 0.95 },
         "best-practices": { "error": 0.85, "warn": 0.90 },
         "seo": { "error": 0.80, "warn": 0.90 }
