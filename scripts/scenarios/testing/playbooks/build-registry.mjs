@@ -30,7 +30,7 @@ function collectRequirementValidations(requirementsDir) {
     const moduleData = readJSON(modulePath);
     for (const req of moduleData.requirements || []) {
       for (const validation of req.validation || []) {
-        if (validation.type !== 'automation' || typeof validation.ref !== 'string') continue;
+        if (typeof validation.ref !== 'string') continue;
         if (!validation.ref.startsWith('test/playbooks/')) continue;
         const key = validation.ref;
         if (!validationsByFile.has(key)) {

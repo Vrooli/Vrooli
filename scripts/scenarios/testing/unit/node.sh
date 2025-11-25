@@ -250,6 +250,33 @@ testing::unit::run_node_tests() {
 
     if [ $node_exit -ne 0 ]; then
         echo "$test_output"
+
+        # Display requirement-to-test mapping for failed requirements
+        local has_failed_reqs=false
+        for req_id in "${!TESTING_NODE_REQUIREMENT_STATUS[@]}"; do
+            if [ "${TESTING_NODE_REQUIREMENT_STATUS[$req_id]}" = "failed" ]; then
+                has_failed_reqs=true
+                break
+            fi
+        done
+
+        if [ "$has_failed_reqs" = true ]; then
+            echo ""
+            echo "━━━ Failed Requirements → Test Mapping ━━━"
+            for req_id in "${!TESTING_NODE_REQUIREMENT_STATUS[@]}"; do
+                if [ "${TESTING_NODE_REQUIREMENT_STATUS[$req_id]}" = "failed" ]; then
+                    local evidence="${TESTING_NODE_REQUIREMENT_EVIDENCE[$req_id]:-unknown test}"
+                    echo "  ✗ REQ:$req_id"
+                    # Split evidence by semicolons (multiple tests) and display each
+                    echo "$evidence" | tr ';' '\n' | while IFS= read -r test_name; do
+                        test_name=$(echo "$test_name" | sed 's/^\s*//' | sed 's/\s*$//')
+                        [ -n "$test_name" ] && echo "      → $test_name"
+                    done
+                fi
+            done
+            echo ""
+        fi
+
         echo "❌ Node.js unit tests failed"
         cd "$original_dir"
         return 1
@@ -415,10 +442,21 @@ testing::unit::_node_collect_requirement_tags() {
         local trimmed_line
         trimmed_line=$(echo "$line" | sed 's/^\s\+//')
 
+        # Extract test name from common patterns: "✓ TestName" or "✗ TestName" or "PASS/FAIL TestName"
+        local test_name="$trimmed_line"
+        if [[ "$trimmed_line" =~ (✓|✗|✔|✘|PASS|FAIL)[[:space:]]+(.+)[[:space:]]+\([0-9]+ ]]; then
+            test_name="${BASH_REMATCH[2]}"
+        elif [[ "$trimmed_line" =~ (✓|✗|✔|✘|PASS|FAIL)[[:space:]]+(.+) ]]; then
+            test_name="${BASH_REMATCH[2]}"
+        fi
+
+        # Remove REQ: tags from test name for cleaner display
+        test_name=$(echo "$test_name" | sed 's/\[REQ:[A-Za-z0-9_-]\+\]//g' | sed 's/REQ:[A-Za-z0-9_-]\+//g' | sed 's/^\s*//' | sed 's/\s*$//')
+
         local token
         for token in $tokens; do
             local requirement_id="${token#REQ:}"
-            testing::unit::_node_store_requirement_result "$requirement_id" "$normalized_status" "Node test ${trimmed_line}"
+            testing::unit::_node_store_requirement_result "$requirement_id" "$normalized_status" "$test_name"
         done
     done <<< "$cleaned_output"
 }

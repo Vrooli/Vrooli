@@ -151,7 +151,7 @@ _performance_run_lighthouse() {
     log::success "✅ Lighthouse audits passed"
     testing::phase::add_test passed
   else
-    log::error "❌ Lighthouse audits failed (see test/artifacts/lighthouse/)"
+    log::error "❌ Lighthouse audits failed (see ${TESTING_PHASE_SCENARIO_DIR}/test/artifacts/lighthouse/)"
     testing::phase::add_test failed
   fi
 

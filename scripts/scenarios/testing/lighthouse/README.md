@@ -322,7 +322,7 @@ In `requirements/performance/lighthouse.json`:
       "title": "Dashboard loads with >85% performance score",
       "description": "Home page must achieve Lighthouse performance score of 0.85+ on desktop",
       "status": "complete",
-      "criticality": "P0",
+      "prd_ref": "OT-P0-001",
       "validation": [
         {
           "type": "lighthouse",

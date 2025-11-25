@@ -146,7 +146,7 @@
         },
         "phase": {
           "type": "string",
-          "enum": ["unit", "integration", "business", "performance", "structure", "dependencies"],
+          "enum": ["unit", "integration", "business", "performance", "structure", "dependencies", "cli"],
           "description": "Test phase this validation runs in"
         },
         "status": {

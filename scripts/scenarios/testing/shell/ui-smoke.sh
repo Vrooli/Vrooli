@@ -662,14 +662,51 @@ testing::ui_smoke::_write_artifacts() {
     echo "$raw_result" | jq -r '.html // ""' > "$html_path"
     echo "$raw_result" | jq 'del(.screenshot)' > "$raw_path"
 
-    local screenshot_rel="${screenshot_path#$APP_ROOT/}"
-    local console_rel="${console_path#$APP_ROOT/}"
-    local network_rel="${network_path#$APP_ROOT/}"
-    local html_rel="${html_path#$APP_ROOT/}"
-    local raw_rel="${raw_path#$APP_ROOT/}"
+    # Validate files and use absolute paths for clarity
+    local screenshot_abs=""
+    local console_abs=""
+    local network_abs=""
+    local html_abs=""
+    local raw_abs=""
 
-    if [[ ! -s "$screenshot_path" ]]; then
-        screenshot_rel=""
+    # Only include paths if files exist and have content
+    if [[ -f "$screenshot_path" && -s "$screenshot_path" ]]; then
+        screenshot_abs="$screenshot_path"
+    fi
+    if [[ -f "$console_path" && -s "$console_path" ]]; then
+        console_abs="$console_path"
+    fi
+    if [[ -f "$network_path" && -s "$network_path" ]]; then
+        network_abs="$network_path"
+    fi
+    if [[ -f "$html_path" && -s "$html_path" ]]; then
+        html_abs="$html_path"
+    fi
+    if [[ -f "$raw_path" && -s "$raw_path" ]]; then
+        raw_abs="$raw_path"
+    fi
+
+    # Return scenario-relative paths for portability (but validated)
+    local screenshot_rel=""
+    local console_rel=""
+    local network_rel=""
+    local html_rel=""
+    local raw_rel=""
+
+    if [[ -n "$screenshot_abs" ]]; then
+        screenshot_rel=$(testing::core::format_path "$screenshot_abs" "$scenario_dir")
+    fi
+    if [[ -n "$console_abs" ]]; then
+        console_rel=$(testing::core::format_path "$console_abs" "$scenario_dir")
+    fi
+    if [[ -n "$network_abs" ]]; then
+        network_rel=$(testing::core::format_path "$network_abs" "$scenario_dir")
+    fi
+    if [[ -n "$html_abs" ]]; then
+        html_rel=$(testing::core::format_path "$html_abs" "$scenario_dir")
+    fi
+    if [[ -n "$raw_abs" ]]; then
+        raw_rel=$(testing::core::format_path "$raw_abs" "$scenario_dir")
     fi
 
     jq -n \

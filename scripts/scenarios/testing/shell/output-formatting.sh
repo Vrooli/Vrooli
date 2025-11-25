@@ -240,10 +240,12 @@ _testing_runner_print_summary() {
 
     echo ""
     echo "📚 DOCUMENTATION:"
-    echo "   • docs/testing/architecture/PHASED_TESTING.md"
-    echo "   • docs/testing/guides/requirement-tracking-quick-start.md"
-    echo "   • docs/testing/guides/writing-testable-uis.md"
-    echo "   • docs/testing/guides/ui-automation-with-bas.md"
+    local app_root
+    app_root=$(cd "${TESTING_RUNNER_SCENARIO_DIR}/../.." && pwd)
+    echo "   • ${app_root}/docs/testing/architecture/PHASED_TESTING.md"
+    echo "   • ${app_root}/docs/testing/guides/requirement-tracking-quick-start.md"
+    echo "   • ${app_root}/docs/testing/guides/writing-testable-uis.md"
+    echo "   • ${app_root}/docs/testing/guides/ui-automation-with-bas.md"
     echo "   • Test files in: $TESTING_RUNNER_TEST_DIR"
     echo ""
 }
@@ -317,7 +319,7 @@ _testing_runner_analyze_failures() {
                         echo "   Details:"
                         while IFS= read -r failure_line; do
                             if [[ "$failure_line" =~ coverage/unit/go/([^/]+)/README.md ]]; then
-                                echo "     → coverage/unit/go/${BASH_REMATCH[1]}/README.md"
+                                echo "     → ${TESTING_RUNNER_SCENARIO_DIR}/coverage/unit/go/${BASH_REMATCH[1]}/README.md"
                             fi
                         done < <(grep "coverage/unit" "$log" 2>/dev/null | head -5)
                     fi
@@ -339,7 +341,8 @@ _testing_runner_analyze_failures() {
                     echo "   Lighthouse Failures:"
                     grep -E "❌.*failed|performance:.*%.*FAIL|accessibility:.*%.*FAIL" "$log" 2>/dev/null | head -5 | sed 's/^/     /'
                     echo ""
-                    echo "   Reports: test/artifacts/lighthouse/"
+                    local lighthouse_dir="${TESTING_RUNNER_SCENARIO_DIR}/test/artifacts/lighthouse"
+                    echo "   Reports: $lighthouse_dir/"
                 fi
                 if grep -qE "UI bundle.*exceeds limit" "$log" 2>/dev/null; then
                     local bundle_msg=$(grep "UI bundle.*exceeds limit" "$log" | head -1)
@@ -365,7 +368,7 @@ _testing_runner_analyze_failures() {
                 ;;
         esac
 
-        echo "   Log:    test/artifacts/${phase}-*.log"
+        echo "   Log:    $log"
         echo ""
     done
 
@@ -497,14 +500,15 @@ _testing_runner_analyze_failures() {
             local log="${failed_logs[$i]}"
             if [ -f "$log" ] && grep -qE "${error_patterns[test_failure]}" "$log" 2>/dev/null; then
                 local coverage_readme=""
-                # Check common coverage paths
-                if [ -d "coverage/unit/go" ]; then
-                    coverage_readme=$(find coverage/unit/go -name README.md 2>/dev/null | grep -E "${phase}|executor|database" | head -1)
+                # Check common coverage paths - use absolute paths
+                local coverage_unit_go="${TESTING_RUNNER_SCENARIO_DIR}/coverage/unit/go"
+                if [ -d "$coverage_unit_go" ]; then
+                    coverage_readme=$(find "$coverage_unit_go" -name README.md 2>/dev/null | grep -E "${phase}|executor|database" | head -1)
                 fi
                 if [ -n "$coverage_readme" ]; then
                     echo "     Review:  $coverage_readme"
                 else
-                    echo "     Review:  test/artifacts/${phase}-*.log"
+                    echo "     Review:  $log"
                 fi
             fi
         done
@@ -512,8 +516,8 @@ _testing_runner_analyze_failures() {
         for phase in "${failed_phases[@]}"; do
             case "$phase" in
                 unit)
-                    echo "       • cd api && go test -v ./... -run <TestName>"
-                    echo "       • cd ui && pnpm test <test-file>"
+                    echo "       • cd ${TESTING_RUNNER_SCENARIO_DIR}/api && go test -v ./... -run <TestName>"
+                    echo "       • cd ${TESTING_RUNNER_SCENARIO_DIR}/ui && pnpm test <test-file>"
                     ;;
                 integration)
                     echo "       • vrooli test integration ${TESTING_RUNNER_SCENARIO_NAME}"
@@ -544,9 +548,9 @@ _testing_runner_analyze_failures() {
                 echo "  • Stale module cache"
                 echo ""
                 echo "Quick fixes:"
-                echo "  → Check migrations:   ls initialization/postgres/migrations/"
+                echo "  → Check migrations:   ls ${TESTING_RUNNER_SCENARIO_DIR}/initialization/postgres/migrations/"
                 echo "  → Clear Go cache:     go clean -testcache"
-                echo "  → Reinstall modules:  cd ui && pnpm install"
+                echo "  → Reinstall modules:  cd ${TESTING_RUNNER_SCENARIO_DIR}/ui && pnpm install"
                 echo ""
                 ;;
             integration)
@@ -557,9 +561,10 @@ _testing_runner_analyze_failures() {
                 echo "  • Missing BAS CLI"
                 echo ""
                 echo "Quick fixes:"
+                local scenarios_root="${TESTING_RUNNER_SCENARIO_DIR}/.."
                 echo "  → Restart scenario:   vrooli scenario restart ${TESTING_RUNNER_SCENARIO_NAME}"
                 echo "  → Check scenario:     vrooli scenario status ${TESTING_RUNNER_SCENARIO_NAME}"
-                echo "  → Install BAS:        cd ../browser-automation-studio && make install-cli"
+                echo "  → Install BAS:        cd ${scenarios_root}/browser-automation-studio && make install-cli"
                 echo ""
                 ;;
             performance)
@@ -570,9 +575,9 @@ _testing_runner_analyze_failures() {
                 echo "  • Slow page load times"
                 echo ""
                 echo "Quick fixes:"
-                echo "  → View reports:       open test/artifacts/lighthouse/*.html"
-                echo "  → Analyze bundle:     cd ui && pnpm run analyze"
-                echo "  → Check bundle size:  ls -lh ui/dist/assets/*.js"
+                echo "  → View reports:       open ${TESTING_RUNNER_SCENARIO_DIR}/test/artifacts/lighthouse/*.html"
+                echo "  → Analyze bundle:     cd ${TESTING_RUNNER_SCENARIO_DIR}/ui && pnpm run analyze"
+                echo "  → Check bundle size:  ls -lh ${TESTING_RUNNER_SCENARIO_DIR}/ui/dist/assets/*.js"
                 echo ""
                 ;;
             structure)
@@ -583,9 +588,11 @@ _testing_runner_analyze_failures() {
                 echo "  • Invalid JSON configuration"
                 echo ""
                 echo "Quick fixes:"
-                echo "  → Check API logs:     tail -f logs/${TESTING_RUNNER_SCENARIO_NAME}-api.log"
+                local app_root
+                app_root=$(cd "${TESTING_RUNNER_SCENARIO_DIR}/../.." && pwd)
+                echo "  → Check API logs:     tail -f ${app_root}/logs/${TESTING_RUNNER_SCENARIO_NAME}-api.log"
                 echo "  → Restart scenario:   vrooli scenario restart ${TESTING_RUNNER_SCENARIO_NAME}"
-                echo "  → Validate JSON:      jq . .vrooli/service.json"
+                echo "  → Validate JSON:      jq . ${TESTING_RUNNER_SCENARIO_DIR}/.vrooli/service.json"
                 echo ""
                 ;;
         esac
@@ -599,17 +606,22 @@ _testing_runner_analyze_failures() {
     echo "╚═══════════════════════════════════════════════════════════════╝"
     echo ""
     echo "  Logs:"
-    echo "    Phase logs:      test/artifacts/{phase}-{timestamp}.log"
-    if [ -d "coverage/unit" ]; then
-        echo "    Coverage:        coverage/unit/{lang}/{package}/"
+    local artifacts_dir="${TESTING_RUNNER_SCENARIO_DIR}/test/artifacts"
+    echo "    Phase logs:      ${artifacts_dir}/"
+    local coverage_unit="${TESTING_RUNNER_SCENARIO_DIR}/coverage/unit"
+    if [ -d "$coverage_unit" ]; then
+        echo "    Coverage:        ${coverage_unit}/"
     fi
-    if [ -f "requirements/index.json" ]; then
-        echo "    Requirements:    requirements/index.json"
+    local requirements_index="${TESTING_RUNNER_SCENARIO_DIR}/requirements/index.json"
+    if [ -f "$requirements_index" ]; then
+        echo "    Requirements:    $requirements_index"
     fi
     echo ""
     echo "  Documentation:"
-    echo "    Architecture:    docs/testing/architecture/PHASED_TESTING.md"
-    echo "    Quick Start:     docs/testing/guides/requirement-tracking-quick-start.md"
-    echo "    UI Testing:      docs/testing/guides/ui-automation-with-bas.md"
+    local app_root
+    app_root=$(cd "${TESTING_RUNNER_SCENARIO_DIR}/../.." && pwd)
+    echo "    Architecture:    ${app_root}/docs/testing/architecture/PHASED_TESTING.md"
+    echo "    Quick Start:     ${app_root}/docs/testing/guides/requirement-tracking-quick-start.md"
+    echo "    UI Testing:      ${app_root}/docs/testing/guides/ui-automation-with-bas.md"
     echo ""
 }

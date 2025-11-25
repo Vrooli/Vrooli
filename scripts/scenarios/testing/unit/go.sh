@@ -241,6 +241,7 @@ _testing_go__parse_test_json() {
 _testing_go__create_failure_reports() {
     local coverage_root="$1"
     local go_dir="$2"
+    local scenario_root="${3:-$(pwd)}"
 
     for package in "${_go_packages_order[@]}"; do
         local status="${_go_package_status[$package]:-unknown}"
@@ -295,8 +296,21 @@ _testing_go__create_failure_reports() {
             fi
 
             # Generate test failure README
+            local test_readme="$test_dir/README.md"
+            local test_readme_abs="$(cd "$(dirname "$test_readme")" && pwd)/$(basename "$test_readme")"
+            local output_txt_abs="$test_dir/output.txt"
+            local output_exists="❌ missing"
+            if [ -f "$output_txt_abs" ]; then
+                output_exists="✅ exists"
+            fi
+
             {
                 echo "# Test Failure: $test_name"
+                echo ""
+                echo "**📍 Path Context**"
+                echo "- **This Report:** \`$test_readme_abs\`"
+                echo "- **Scenario Root:** \`$scenario_root\`"
+                echo "- **Full Test Output:** \`$output_txt_abs\` ($output_exists)"
                 echo ""
                 echo "## Package"
                 echo "\`$package\`"
@@ -306,16 +320,36 @@ _testing_go__create_failure_reports() {
                 echo "$test_output"
                 echo "\`\`\`"
                 echo ""
+                echo "## Quick Reproduce"
+                echo "\`\`\`bash"
+                echo "# From anywhere, run:"
+                echo "cd $scenario_root/$go_dir && \\"
+                echo "  go test -v $package -run ^${test_name}$"
+                echo "\`\`\`"
+                echo ""
                 echo "## Next Steps"
                 echo "1. Read the error output above"
-                echo "2. Run single test: \`cd $go_dir && go test -v $package -run ^${test_name}$\`"
-                echo "3. Fix the issue and rerun tests"
-            } > "$test_dir/README.md"
+                echo "2. Run the reproduction command to debug interactively"
+                echo "3. Fix the issue and rerun: \`vrooli test unit $(basename "$scenario_root")\`"
+            } > "$test_readme"
         done
 
         # Generate package README
+        local pkg_readme="$pkg_dir/README.md"
+        local pkg_readme_abs="$(cd "$(dirname "$pkg_readme")" && pwd)/$(basename "$pkg_readme")"
+        local pkg_output_abs="$pkg_dir/output.txt"
+        local pkg_output_exists="❌ missing"
+        if [ -f "$pkg_output_abs" ]; then
+            pkg_output_exists="✅ exists"
+        fi
+
         {
             echo "# Package Failure: $package"
+            echo ""
+            echo "**📍 Path Context**"
+            echo "- **This Report:** \`$pkg_readme_abs\`"
+            echo "- **Scenario Root:** \`$scenario_root\`"
+            echo "- **Full Package Output:** \`$pkg_output_abs\` ($pkg_output_exists)"
             echo ""
             echo "## Summary"
             echo "- ✅ Passed: $test_passed"
@@ -328,31 +362,61 @@ _testing_go__create_failure_reports() {
                 echo ""
                 for test_name in "${failed_tests[@]}"; do
                     local test_safe=$(echo "$test_name" | tr '/' '-')
-                    echo "- \`$test_name\` - see [tests/$test_safe/README.md](./tests/$test_safe/README.md)"
+                    local test_readme_path="$pkg_dir/tests/$test_safe/README.md"
+                    local test_exists="❌ missing"
+                    if [ -f "$test_readme_path" ]; then
+                        test_exists="✅ exists"
+                    fi
+                    echo "- \`$test_name\` - \`$test_readme_path\` ($test_exists)"
                 done
                 echo ""
             fi
 
-            echo "## Full Output"
-            echo "See [output.txt](./output.txt) for complete package output."
+            echo "## Quick Reproduce"
+            echo "\`\`\`bash"
+            echo "# From anywhere, run:"
+            echo "cd $scenario_root/$go_dir && \\"
+            echo "  go test -v $package"
+            echo "\`\`\`"
             echo ""
             echo "## Next Steps"
-            echo "1. Review failed test details above"
-            echo "2. Run package tests: \`cd $go_dir && go test -v $package\`"
-            echo "3. Fix failures and rerun: \`vrooli test unit $(basename "$(pwd)")\`"
-        } > "$pkg_dir/README.md"
+            echo "1. Review failed test details above (click absolute paths to open)"
+            echo "2. Run the reproduction command to debug interactively"
+            echo "3. Fix failures and rerun: \`vrooli test unit $(basename "$scenario_root")\`"
+        } > "$pkg_readme"
     done
 }
 
 _testing_go__print_console_summary() {
     local compilation_failed="$1"
     local coverage_root="$2"
+    local scenario_root="${3:-$(pwd)}"
 
     echo ""
 
     if [ "$compilation_failed" -gt 0 ]; then
+        # Show first few compilation errors inline for immediate context
+        local compilation_dir="$coverage_root/compilation"
+        local first_error_file=$(find "$compilation_dir" -name "*.txt" -type f 2>/dev/null | head -1)
+
         echo "🔨 Compilation: ❌ $compilation_failed package(s) failed to compile"
-        echo "   ↳ Read coverage/unit/compilation/README.md"
+        echo ""
+
+        if [ -n "$first_error_file" ] && [ -f "$first_error_file" ]; then
+            echo "Top compilation errors:"
+            # Extract first 5 unique error patterns
+            grep "^[^:]\+:[0-9]\+:[0-9]\+:" "$first_error_file" 2>/dev/null | head -5 | while IFS= read -r line; do
+                echo "  $line"
+            done
+            local total_errors=$(grep -c "^[^:]\+:[0-9]\+:[0-9]\+:" "$first_error_file" 2>/dev/null || echo "0")
+            if [ "$total_errors" -gt 5 ]; then
+                echo "  ... and $((total_errors - 5)) more errors"
+            fi
+            echo ""
+        fi
+
+        local readme_abs="$scenario_root/coverage/unit/compilation/README.md"
+        echo "   ↳ Full details: $readme_abs"
         return 1
     fi
 
@@ -417,8 +481,9 @@ _testing_go__print_console_summary() {
                 done
 
                 local package_safe=$(echo "$package" | awk -F'/' '{if (NF >= 2) print $(NF-1) "-" $NF; else print $NF}')
+                local readme_abs="$scenario_root/coverage/unit/go/$package_safe/README.md"
                 echo "❌ $pkg_display ($duration_fmt, $test_passed passed, $test_failed failed)"
-                echo "   ↳ Read coverage/unit/go/$package_safe/README.md"
+                echo "   ↳ Read $readme_abs"
             fi
         done
     fi
@@ -429,8 +494,9 @@ _testing_go__print_console_summary() {
     echo "   📦 $total_packages_failed of ${#_go_packages_order[@]} packages had failures"
 
     if [ "$has_failures" = true ]; then
+        local readme_abs="$scenario_root/coverage/unit/README.md"
         echo ""
-        echo "❌ Unit tests failed - see coverage/unit/README.md"
+        echo "❌ Unit tests failed - see $readme_abs"
         return 1
     fi
 
@@ -441,11 +507,23 @@ _testing_go__generate_overall_readme() {
     local coverage_root="$1"
     local compilation_failed="$2"
     local has_test_failures="$3"
+    local scenario_root="${4:-$(pwd)}"
 
     local readme="$coverage_root/README.md"
+    local readme_abs="$(cd "$(dirname "$readme")" && pwd)/$(basename "$readme")"
+    local full_output_abs="$coverage_root/full-output.txt"
+    local full_output_exists="❌ missing"
+    if [ -f "$full_output_abs" ]; then
+        full_output_exists="✅ exists"
+    fi
 
     {
         echo "# Unit Test Results"
+        echo ""
+        echo "**📍 Path Context**"
+        echo "- **This Report:** \`$readme_abs\`"
+        echo "- **Scenario Root:** \`$scenario_root\`"
+        echo "- **Full Test Output:** \`$full_output_abs\` ($full_output_exists)"
         echo ""
         echo "Generated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
         echo ""
@@ -468,7 +546,12 @@ _testing_go__generate_overall_readme() {
                 local status="${_go_package_status[$package]:-unknown}"
                 if [ "$status" = "failed" ]; then
                     local package_safe=$(echo "$package" | awk -F'/' '{if (NF >= 2) print $(NF-1) "-" $NF; else print $NF}')
-                    echo "- \`$package\` - see [go/$package_safe/README.md](./go/$package_safe/README.md)"
+                    local pkg_readme_path="$coverage_root/go/$package_safe/README.md"
+                    local pkg_exists="❌ missing"
+                    if [ -f "$pkg_readme_path" ]; then
+                        pkg_exists="✅ exists"
+                    fi
+                    echo "- \`$package\` - \`$pkg_readme_path\` ($pkg_exists)"
                 fi
             done
             echo ""
@@ -639,10 +722,7 @@ testing::unit::run_go_tests() {
         local compilation_failed=$(_testing_go__group_compilation_errors "$build_output" "$coverage_root/compilation")
 
         if [ "$compilation_failed" -gt 0 ]; then
-            echo ""
-            echo "🔨 Compilation: ❌ $compilation_failed package(s) failed to compile"
-            echo "   ↳ Read coverage/unit/compilation/README.md"
-
+            _testing_go__print_console_summary "$compilation_failed" "$coverage_root" "$original_dir"
             _testing_go__generate_overall_readme "$coverage_root" "$compilation_failed" "false"
 
             cd "$original_dir"
@@ -675,17 +755,17 @@ testing::unit::run_go_tests() {
 
     # Create failure reports for failed packages/tests
     if [ $go_exit -ne 0 ]; then
-        _testing_go__create_failure_reports "$coverage_root" "$api_dir"
+        _testing_go__create_failure_reports "$coverage_root" "$api_dir" "$original_dir"
     fi
 
     # Print console summary
     local has_test_failures="false"
-    if ! _testing_go__print_console_summary "0" "$coverage_root"; then
+    if ! _testing_go__print_console_summary "0" "$coverage_root" "$original_dir"; then
         has_test_failures="true"
     fi
 
     # Generate overall README
-    _testing_go__generate_overall_readme "$coverage_root" "0" "$has_test_failures"
+    _testing_go__generate_overall_readme "$coverage_root" "0" "$has_test_failures" "$original_dir"
 
     # Handle coverage reporting
     if [ "$coverage" = true ] && [ -f "$coverage_profile_path" ]; then
@@ -733,11 +813,9 @@ testing::unit::run_go_tests() {
                 html_abs_path="$PWD/$html_abs_path"
             fi
             declare -g TESTING_GO_COVERAGE_HTML="$html_abs_path"
-            local html_display="$html_abs_path"
-            if [[ "$html_display" == "$original_dir/"* ]]; then
-                html_display="${html_display#$original_dir/}"
-            fi
-            echo "ℹ️  HTML coverage report generated: ${html_display:-$html_abs_path}"
+            local html_rel
+            html_rel=$(testing::core::format_path "$html_abs_path" "${original_dir:-$scenario_root}")
+            echo "ℹ️  HTML coverage report generated: $html_rel"
         fi
     fi
 

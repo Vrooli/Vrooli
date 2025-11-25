@@ -176,6 +176,81 @@ testing::core::wait_for_scenario() {
     return 1
 }
 
+# === Path Utilities ===
+
+# Format a path to be scenario-relative for test output
+# This ensures consistent, portable path references in test output
+# Args:
+#   $1 - path (absolute or relative)
+#   $2 - (optional) scenario_dir override (defaults to TESTING_PHASE_SCENARIO_DIR, TESTING_RUNNER_SCENARIO_DIR, or pwd)
+# Returns: scenario-relative path
+# Examples:
+#   /home/user/Vrooli/scenarios/foo/coverage/unit/README.md → coverage/unit/README.md
+#   coverage/unit/README.md → coverage/unit/README.md
+testing::core::format_path() {
+    local path="$1"
+    local scenario_dir="${2:-${TESTING_PHASE_SCENARIO_DIR:-${TESTING_RUNNER_SCENARIO_DIR:-$(pwd)}}}"
+
+    # If path is absolute and starts with scenario_dir, make it relative
+    if [[ "$path" = "$scenario_dir"/* ]]; then
+        echo "${path#$scenario_dir/}"
+    elif [[ "$path" = /* ]]; then
+        # Absolute path but not under scenario - keep absolute with warning
+        echo "[WARNING] Path outside scenario directory: $path" >&2
+        echo "$path"
+    else
+        # Already relative
+        echo "$path"
+    fi
+}
+
+# Validate that a path exists
+# Args:
+#   $1 - path (absolute or relative)
+#   $2 - (optional) scenario_dir override
+# Returns: 0 if exists, 1 if not (with warning to stderr)
+testing::core::validate_path() {
+    local path="$1"
+    local scenario_dir="${2:-${TESTING_PHASE_SCENARIO_DIR:-${TESTING_RUNNER_SCENARIO_DIR:-$(pwd)}}}"
+
+    # Resolve to absolute for checking
+    local abs_path="$path"
+    if [[ "$path" != /* ]]; then
+        abs_path="${scenario_dir}/${path}"
+    fi
+
+    if [ ! -e "$abs_path" ]; then
+        echo "[WARNING] Referenced path does not exist: $path" >&2
+        return 1
+    fi
+    return 0
+}
+
+# Format and optionally validate a path for test output
+# Combines format_path and validate_path for convenience
+# Args:
+#   $1 - path
+#   $2 - (optional) skip_validation ("true" to skip, default: validate)
+#   $3 - (optional) scenario_dir override
+# Returns: formatted path, with "[missing]" suffix if validation fails
+testing::core::format_and_validate_path() {
+    local path="$1"
+    local skip_validation="${2:-false}"
+    local scenario_dir="${3:-${TESTING_PHASE_SCENARIO_DIR:-${TESTING_RUNNER_SCENARIO_DIR:-$(pwd)}}}"
+
+    local formatted
+    formatted=$(testing::core::format_path "$path" "$scenario_dir")
+
+    if [ "$skip_validation" != "true" ]; then
+        if ! testing::core::validate_path "$formatted" "$scenario_dir" 2>/dev/null; then
+            echo "${formatted} [missing]"
+            return 1
+        fi
+    fi
+
+    echo "$formatted"
+}
+
 # Export functions for use by test scripts
 if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     export -f testing::core::detect_scenario
@@ -185,4 +260,7 @@ if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     export -f testing::core::ensure_runtime_or_skip
     export -f testing::core::is_scenario_running
     export -f testing::core::wait_for_scenario
+    export -f testing::core::format_path
+    export -f testing::core::validate_path
+    export -f testing::core::format_and_validate_path
 fi

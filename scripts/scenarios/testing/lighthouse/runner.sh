@@ -99,8 +99,18 @@ lighthouse::run_audits() {
     testing::phase::add_test passed
     return 0
   else
-    log::error "❌ Lighthouse audits failed"
-    log::info "View detailed reports in: $output_dir"
+    log::error "❌ Lighthouse audits failed (see $output_dir/)"
+    echo ""
+    echo "   View HTML reports:"
+    # List HTML reports with absolute paths
+    local html_files
+    html_files=$(find "$output_dir" -name "*.html" -type f 2>/dev/null | sort)
+    if [ -n "$html_files" ]; then
+      echo "$html_files" | while IFS= read -r html_file; do
+        local page_name=$(basename "$html_file" .html | sed 's/_[0-9]\+$//')
+        echo "     - $page_name: $html_file"
+      done
+    fi
     testing::phase::add_test failed
     return 1
   fi

@@ -124,7 +124,12 @@ testing::phase::init() {
     header_line="${header_line} • Started: ${start_time}"
     echo "$header_line"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    
+
+    # Display path context for AI agents and debugging
+    if command -v log::debug >/dev/null 2>&1; then
+        log::debug "All paths relative to: $TESTING_PHASE_SCENARIO_DIR"
+    fi
+
     # Handle runtime requirements
     if [ "$require_runtime" = true ] && [ "$skip_runtime_check" = false ]; then
         if ! testing::core::ensure_runtime_or_skip "$TESTING_PHASE_SCENARIO_NAME" "${TESTING_PHASE_NAME} tests"; then
@@ -679,8 +684,16 @@ testing::phase::run_workflow_validations() {
         can_seed=true
     fi
 
+    echo "🧪 Running $playbook_count integration workflows..."
+    echo ""
+
     local overall_status=0
     local index=0
+    local passed_count=0
+    local failed_count=0
+    local skipped_count=0
+    declare -a failed_workflows=()
+
     while IFS= read -r entry; do
         [ -z "$entry" ] && continue
         index=$((index + 1))
@@ -741,21 +754,39 @@ testing::phase::run_workflow_validations() {
             evidence_prefix+=" (order ${order_key})"
         fi
 
-        if testing::playbooks::run_workflow "${args[@]}"; then
+        # Suppress individual workflow output, capture status
+        local workflow_output
+        workflow_output=$(mktemp)
+        if testing::playbooks::run_workflow "${args[@]}" >"$workflow_output" 2>&1; then
             status_label=passed
+            ((passed_count++)) || true
             testing::phase::add_test passed
         else
             local rc=$?
             if [ "$allow_missing" = true ] && [ "$rc" -eq 210 ]; then
                 status_label=skipped
+                ((skipped_count++)) || true
                 testing::phase::add_test skipped
                 testing::phase::add_warning "Workflow ${workflow_label} missing; export pending"
             else
                 status_label=failed
+                ((failed_count++)) || true
                 testing::phase::add_test failed
                 overall_status=1
+
+                # Store failed workflow info for summary
+                local workflow_name=$(basename "$rel_path" .json)
+                local artifact_path="${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE:-}"
+                failed_workflows+=("$workflow_name|$artifact_path")
             fi
         fi
+
+        # Show progress indicator every 10 workflows or on failures
+        if [ $((index % 10)) -eq 0 ] || [ "$status_label" = "failed" ]; then
+            echo "   [$index/$playbook_count] ($passed_count passed, $failed_count failed, $skipped_count skipped)"
+        fi
+
+        rm -f "$workflow_output"
 
         if [ ${#requirements[@]} -eq 0 ]; then
             testing::phase::add_warning "Workflow ${workflow_label} is not linked to any requirement IDs"
@@ -799,6 +830,45 @@ testing::phase::run_workflow_validations() {
             should_reseed=true
         fi
     done < <(jq -c '.playbooks[]?' "$registry_path")
+
+    # Print summary
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Integration Results: $passed_count/$playbook_count passed ($failed_count failed, $skipped_count skipped)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    # Show failed workflows summary (limit to first 10)
+    if [ ${#failed_workflows[@]} -gt 0 ]; then
+        echo ""
+        echo "Failed workflows (showing first 10):"
+        local shown=0
+        for entry in "${failed_workflows[@]}"; do
+            local wf_name="${entry%%|*}"
+            local artifact_path="${entry#*|}"
+
+            # Convert relative path to absolute for better UX
+            if [ -n "$artifact_path" ] && [[ "$artifact_path" == Read* ]]; then
+                # Extract path from "Read coverage/..."
+                local path_part="${artifact_path#Read }"
+                if [[ "$path_part" != /* ]]; then
+                    path_part="$scenario_dir/$path_part"
+                fi
+                echo "  ❌ $wf_name → $path_part"
+            else
+                echo "  ❌ $wf_name"
+            fi
+
+            ((shown++)) || true
+            if [ $shown -ge 10 ]; then
+                local remaining=$((${#failed_workflows[@]} - 10))
+                if [ $remaining -gt 0 ]; then
+                    echo "  ... and $remaining more failures"
+                fi
+                break
+            fi
+        done
+        echo ""
+    fi
 
     # Final cleanup after loop ends
     if [ "$can_seed" = true ] && [ -f "$seeds_dir/cleanup.sh" ]; then

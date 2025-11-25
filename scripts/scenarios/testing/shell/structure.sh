@@ -290,7 +290,21 @@ testing::structure::_log_ui_smoke() {
     log::info "  ↳ $formatted_message"
   fi
   if [[ -n "$screenshot_path" && "$screenshot_path" != "null" ]]; then
-    log::info "  ↳ Screenshot: $screenshot_path"
+    # Convert to absolute path and validate existence
+    local screenshot_abs
+    if [[ "$screenshot_path" = /* ]]; then
+      screenshot_abs="$screenshot_path"
+    else
+      screenshot_abs="$scenario_dir/$screenshot_path"
+    fi
+
+    if [[ -f "$screenshot_abs" && -s "$screenshot_abs" ]]; then
+      log::info "  ↳ Screenshot: $screenshot_abs ✅"
+    elif [[ -f "$screenshot_abs" ]]; then
+      log::info "  ↳ Screenshot: $screenshot_abs ⚠️  (empty file)"
+    else
+      log::info "  ↳ Screenshot: $screenshot_abs ❌ (file not found)"
+    fi
   fi
 }
 

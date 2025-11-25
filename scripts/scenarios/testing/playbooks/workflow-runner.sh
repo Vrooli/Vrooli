@@ -147,14 +147,21 @@ _testing_playbooks__persist_failure_artifacts() {
         fi
     fi
 
-    # Prefer folder export with README.md if available
+    # Prefer folder export with README.md if available and non-trivial
     local folder_readme="${folder_export_dir}/README.md"
-    if [ "$folder_export_success" = true ] && [ -f "$folder_readme" ]; then
-        local rel_readme="$folder_readme"
-        if [[ "$rel_readme" == "$scenario_dir/"* ]]; then
-            rel_readme="${rel_readme#$scenario_dir/}"
+    if [ "$folder_export_success" = true ] && [ -f "$folder_readme" ] && [ -s "$folder_readme" ]; then
+        # Check if README has actual content (not just template)
+        local readme_lines=$(wc -l < "$folder_readme" 2>/dev/null || echo "0")
+        if [ "$readme_lines" -gt 10 ]; then
+            local rel_readme="$folder_readme"
+            if [[ "$rel_readme" == "$scenario_dir/"* ]]; then
+                rel_readme="${rel_readme#$scenario_dir/}"
+            fi
+            TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE="Read $rel_readme"
+        else
+            # README exists but is mostly empty - treat as failed export
+            TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE=""
         fi
-        TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE="Read $rel_readme"
     else
         # Fallback to legacy artifact listing
         local recorded_paths=()
@@ -320,9 +327,9 @@ _testing_playbooks__execute_adhoc_workflow() {
     # Workflow files can have two structures:
     # 1. Direct: {metadata: {...}, nodes: [...], edges: [...]} (test playbooks)
     # 2. Wrapped: {flow_definition: {metadata: {...}, nodes: [...], edges: [...]}} (saved workflows)
-    # The API expects just the flow_definition part
+    # The API expects just the flow_definition part, without extra playbook metadata
     local flow_def
-    flow_def=$(printf '%s' "$workflow_json" | jq '.flow_definition // .')
+    flow_def=$(printf '%s' "$workflow_json" | jq '(.flow_definition // .) | del(.metadata, .description, .requirements, .cleanup, .fixtures)')
 
     # Extract metadata for the request
     local name
