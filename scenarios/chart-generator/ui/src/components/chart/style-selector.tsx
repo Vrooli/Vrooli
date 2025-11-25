@@ -51,6 +51,7 @@ export const StyleSelector: React.FC<StyleSelectorProps> = ({ value, onChange })
               onChange(preset.id);
             }
           }}
+          data-testid={`style-${preset.id.toLowerCase()}`}
           className={cn(
             'flex items-start gap-4 rounded-xl border border-transparent bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300',
             value === preset.id && 'border-brand-200 bg-brand-50 shadow-brand',

@@ -213,7 +213,12 @@ export default function App() {
           </div>
           <div className="flex gap-2">
             {(['png', 'svg'] as ExportFormat[]).map((format) => (
-              <Button key={format} variant="outline" onClick={() => handleExport(format)}>
+              <Button
+                key={format}
+                variant="outline"
+                onClick={() => handleExport(format)}
+                data-testid={`export-${format}`}
+              >
                 <DownloadIcon className="mr-2 h-4 w-4" /> {format.toUpperCase()} export
               </Button>
             ))}
@@ -224,9 +229,9 @@ export default function App() {
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <TabsList>
-            <TabsTrigger value="charts">Chart library</TabsTrigger>
-            <TabsTrigger value="styles">Styles</TabsTrigger>
-            <TabsTrigger value="data">Data</TabsTrigger>
+            <TabsTrigger value="charts" data-testid="tab-charts">Chart library</TabsTrigger>
+            <TabsTrigger value="styles" data-testid="tab-styles">Styles</TabsTrigger>
+            <TabsTrigger value="data" data-testid="tab-data">Data</TabsTrigger>
           </TabsList>
           <Button variant="link" className="text-sm text-muted-foreground" onClick={() => setActiveTab('data')}>
             Data contracts <ArrowUpRight className="ml-1 h-4 w-4" />

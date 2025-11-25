@@ -69,6 +69,7 @@ function proxyToApi(req, res, upstreamPath) {
 
 app.get('/health', (req, res) => {
   const start = Date.now();
+  const apiUrl = `http://localhost:${API_PORT}/health`;
   const upstream = http.request(
     {
       hostname: 'localhost',
@@ -86,9 +87,10 @@ app.get('/health', (req, res) => {
         timestamp: new Date().toISOString(),
         api_connectivity: {
           connected: healthy,
-          target: `http://localhost:${API_PORT}/health`,
+          api_url: apiUrl,
+          last_check: new Date().toISOString(),
           latency_ms: healthy ? latency : null,
-          status: proxyRes.statusCode,
+          error: null,
         },
       });
     },
@@ -102,9 +104,15 @@ app.get('/health', (req, res) => {
       timestamp: new Date().toISOString(),
       api_connectivity: {
         connected: false,
-        target: `http://localhost:${API_PORT}/health`,
+        api_url: apiUrl,
+        last_check: new Date().toISOString(),
         latency_ms: null,
-        error: err.message,
+        error: {
+          code: 'CONNECTION_FAILED',
+          message: err.message,
+          category: 'network',
+          retryable: true,
+        },
       },
     });
   });

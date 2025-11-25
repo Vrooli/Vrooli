@@ -45,6 +45,7 @@ export const ChartTypeSelector: React.FC<ChartTypeSelectorProps> = ({ value, onC
                 onChange(type);
               }
             }}
+            data-testid={`chart-type-${type}`}
             className={cn(
               'flex items-start gap-4 rounded-xl border border-transparent bg-white/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300',
               value === type && 'border-brand-200 bg-brand-50 shadow-brand',

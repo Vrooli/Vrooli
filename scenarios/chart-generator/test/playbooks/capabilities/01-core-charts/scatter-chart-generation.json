@@ -1,0 +1,34 @@
+{
+  "metadata": {
+    "reset": "none"
+  },
+  "description": "Validates scatter chart generation with sample data in the UI",
+  "requirements": ["CHART-P0-001-SCATTER"],
+  "steps": [
+    {
+      "type": "navigate",
+      "url": "http://localhost:${UI_PORT}/"
+    },
+    {
+      "type": "wait",
+      "selector": "@selector/CHART_PREVIEW_CONTAINER",
+      "timeout": 5000
+    },
+    {
+      "type": "click",
+      "selector": "@selector/CHART_TYPE_SCATTER"
+    },
+    {
+      "type": "wait",
+      "duration": 500
+    },
+    {
+      "type": "assert",
+      "selector": "@selector/CHART_SVG",
+      "condition": "visible",
+      "message": "Scatter chart SVG should be visible after selecting scatter chart type"
+    }
+  ],
+  "cleanup": [],
+  "fixtures": []
+}

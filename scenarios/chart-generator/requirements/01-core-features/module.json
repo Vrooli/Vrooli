@@ -1,0 +1,280 @@
+{
+  "_metadata": {
+    "prd_section": "P0 - Core Charting Features",
+    "description": "Core chart types, data ingestion, and professional styling themes"
+  },
+  "requirements": [
+    {
+      "id": "CHART-P0-001-BAR",
+      "category": "chart-generation.core",
+      "operational_target_id": "OT-P0-001",
+      "prd_ref": "OT-P0-001",
+      "title": "Bar chart generation with configurable axes and data inputs",
+      "description": "Generate bar charts with horizontal/vertical orientation, custom axis labels, and data series",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/bar_chart_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestBarChart_GenerateAndValidate validates bar chart generation"
+        },
+        {
+          "type": "test",
+          "ref": "test/integration.spec.ts",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Playwright test validates bar chart generation workflow"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-001-LINE",
+      "category": "chart-generation.core",
+      "operational_target_id": "OT-P0-001",
+      "prd_ref": "OT-P0-001",
+      "title": "Line chart generation with time-series and continuous data support",
+      "description": "Generate line charts with smooth/linear interpolation and multi-series support",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/line_chart_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestLineChart_GenerateAndValidate validates line chart generation"
+        },
+        {
+          "type": "test",
+          "ref": "test/integration.spec.ts",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Playwright test validates line chart generation workflow"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-001-PIE",
+      "category": "chart-generation.core",
+      "operational_target_id": "OT-P0-001",
+      "prd_ref": "OT-P0-001",
+      "title": "Pie and donut chart generation with percentage labels",
+      "description": "Generate pie/donut charts with automatic percentage calculation and legend",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pie_chart_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestPieChart_GenerateAndValidate validates pie chart generation"
+        },
+        {
+          "type": "test",
+          "ref": "test/integration.spec.ts",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Playwright test validates pie chart generation workflow"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-001-SCATTER",
+      "category": "chart-generation.core",
+      "operational_target_id": "OT-P0-001",
+      "prd_ref": "OT-P0-001",
+      "title": "Scatter plot generation with point customization",
+      "description": "Generate scatter plots with configurable point size, color, and opacity",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/scatter_chart_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestScatterChart_Generation validates scatter chart generation"
+        },
+        {
+          "type": "test",
+          "ref": "test/integration.spec.ts",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Playwright test validates scatter chart generation workflow"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-001-AREA",
+      "category": "chart-generation.core",
+      "operational_target_id": "OT-P0-001",
+      "prd_ref": "OT-P0-001",
+      "title": "Area chart generation with stacked and overlapped modes",
+      "description": "Generate area charts with fill styles and multi-series stacking",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/area_chart_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestAreaChart_Generation validates area chart generation"
+        },
+        {
+          "type": "test",
+          "ref": "test/integration.spec.ts",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Playwright test validates area chart generation workflow"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-002-JSON",
+      "category": "chart-generation.data",
+      "operational_target_id": "OT-P0-002",
+      "prd_ref": "OT-P0-002",
+      "title": "JSON data format parsing and validation",
+      "description": "Parse JSON data with automatic schema detection and validation",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/json_ingestion_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestJSONIngestion_ParseAndValidate validates JSON parsing"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-002-CSV",
+      "category": "chart-generation.data",
+      "operational_target_id": "OT-P0-002",
+      "prd_ref": "OT-P0-002",
+      "title": "CSV data format parsing with header detection",
+      "description": "Parse CSV files with automatic delimiter detection and header inference",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/json_ingestion_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestJSONIngestion_ParseAndValidate validates data parsing (CSV via JSON conversion)"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-002-TYPE-DETECT",
+      "category": "chart-generation.data",
+      "operational_target_id": "OT-P0-002",
+      "prd_ref": "OT-P0-002",
+      "title": "Automatic data type detection and conversion",
+      "description": "Detect and convert string, numeric, date, and categorical data types",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/json_ingestion_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestJSONIngestion_ParseAndValidate validates type detection"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-003-LIGHT",
+      "category": "chart-generation.styling",
+      "operational_target_id": "OT-P0-003",
+      "prd_ref": "OT-P0-003",
+      "title": "Light theme with professional color palette",
+      "description": "Light background theme with high contrast colors for business presentations",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/light_theme_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestLightTheme_Availability validates light theme"
+        },
+        {
+          "type": "test",
+          "ref": "test/integration.spec.ts",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Playwright test validates professional theme application workflow"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-003-DARK",
+      "category": "chart-generation.styling",
+      "operational_target_id": "OT-P0-003",
+      "prd_ref": "OT-P0-003",
+      "title": "Dark theme optimized for screens and presentations",
+      "description": "Dark background theme with vibrant colors for digital displays",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/dark_theme_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestDarkTheme_Availability validates dark theme"
+        },
+        {
+          "type": "test",
+          "ref": "cli/chart-generator.bats",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "CLI validates dark theme application"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-003-CORPORATE",
+      "category": "chart-generation.styling",
+      "operational_target_id": "OT-P0-003",
+      "prd_ref": "OT-P0-003",
+      "title": "Corporate theme with conservative styling",
+      "description": "Formal theme with muted colors for corporate reports and documentation",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/corporate_theme_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestCorporateTheme_Availability validates corporate theme"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-003-MINIMAL",
+      "category": "chart-generation.styling",
+      "operational_target_id": "OT-P0-003",
+      "prd_ref": "OT-P0-003",
+      "title": "Minimal theme for clean, distraction-free visualizations",
+      "description": "Minimal styling with reduced chrome and emphasis on data",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/minimal_theme_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestMinimalTheme_Availability validates minimal theme"
+        },
+        {
+          "type": "test",
+          "ref": "test/integration.spec.ts",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Playwright test validates minimal theme application workflow"
+        }
+      ]
+    }
+  ]
+}

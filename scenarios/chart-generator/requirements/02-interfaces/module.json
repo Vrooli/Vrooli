@@ -1,0 +1,123 @@
+{
+  "_metadata": {
+    "prd_section": "P0 - User Interfaces",
+    "description": "CLI and Web UI interfaces for chart generation and management"
+  },
+  "requirements": [
+    {
+      "id": "CHART-P0-004-CLI-GENERATE",
+      "category": "chart-generation.cli",
+      "operational_target_id": "OT-P0-004",
+      "prd_ref": "OT-P0-004",
+      "title": "CLI chart generation command with format options",
+      "description": "Generate charts via command-line with data input and format selection",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/chart-generator.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "BATS tests validate generate command functionality"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-004-CLI-STYLES",
+      "category": "chart-generation.cli",
+      "operational_target_id": "OT-P0-004",
+      "prd_ref": "OT-P0-004",
+      "title": "CLI style management commands",
+      "description": "List, create, and apply chart styles via CLI",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/chart-generator.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "BATS tests validate styles commands"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-004-CLI-TEMPLATES",
+      "category": "chart-generation.cli",
+      "operational_target_id": "OT-P0-004",
+      "prd_ref": "OT-P0-004",
+      "title": "CLI template management commands",
+      "description": "Access and use pre-configured chart templates via CLI",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/chart-generator.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "BATS tests validate templates command"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-007-UI-TABS",
+      "category": "chart-generation.ui",
+      "operational_target_id": "OT-P0-007",
+      "prd_ref": "OT-P0-007",
+      "title": "Multi-tab interface for charts, styles, and data",
+      "description": "Tabbed navigation for different aspects of chart management",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration.spec.ts",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Playwright test validates UI loads successfully"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-007-UI-PREVIEW",
+      "category": "chart-generation.ui",
+      "operational_target_id": "OT-P0-007",
+      "prd_ref": "OT-P0-007",
+      "title": "Live chart preview with mock data",
+      "description": "Real-time chart rendering and preview in UI",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration.spec.ts",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Playwright test validates chart preview rendering"
+        },
+        {
+          "type": "test",
+          "ref": ".vrooli/lighthouse.json",
+          "phase": "performance",
+          "status": "failing",
+          "notes": "Lighthouse validates UI performance"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-007-UI-STYLES",
+      "category": "chart-generation.ui",
+      "operational_target_id": "OT-P0-007",
+      "prd_ref": "OT-P0-007",
+      "title": "Style selection and application in UI",
+      "description": "Interactive style picker with live preview updates",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration.spec.ts",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Playwright test validates style application workflow"
+        }
+      ]
+    }
+  ]
+}

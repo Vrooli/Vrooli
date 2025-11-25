@@ -35,12 +35,13 @@ export const ChartPreview = React.forwardRef<HTMLDivElement, ChartPreviewProps>(
 
     return (
       <div
+        data-testid="chart-preview"
         className={cn(
           'relative flex h-[420px] min-h-[320px] w-full items-center justify-center overflow-hidden rounded-2xl border border-border bg-white/90 shadow-lg backdrop-blur',
           className,
         )}
       >
-        <div ref={containerRef} className="h-full w-full" />
+        <div ref={containerRef} className="h-full w-full" data-testid="chart-svg" />
         {!hasData && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center text-muted-foreground">
             <Lightbulb className="h-9 w-9 text-brand-500" />

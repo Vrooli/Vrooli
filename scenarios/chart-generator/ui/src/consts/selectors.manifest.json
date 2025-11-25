@@ -1,0 +1,33 @@
+{
+  "_note": "AUTO-GENERATED manifest of test selectors for UI automation. Generated from selectors.ts.",
+  "scenario": "chart-generator",
+  "generated_at": "2025-11-24T22:26:00.000Z",
+  "selectors": [
+    "TAB_CHARTS",
+    "TAB_STYLES",
+    "TAB_DATA",
+    "CHART_TYPE_BAR",
+    "CHART_TYPE_LINE",
+    "CHART_TYPE_PIE",
+    "CHART_TYPE_SCATTER",
+    "CHART_TYPE_AREA",
+    "CHART_TYPE_GANTT",
+    "CHART_TYPE_HEATMAP",
+    "CHART_TYPE_TREEMAP",
+    "CHART_TYPE_CANDLESTICK",
+    "STYLE_PROFESSIONAL",
+    "STYLE_LIGHT",
+    "STYLE_DARK",
+    "STYLE_CORPORATE",
+    "STYLE_MINIMAL",
+    "DATA_INPUT_TEXTAREA",
+    "DATA_VALIDATE_BUTTON",
+    "DATA_ERROR_MESSAGE",
+    "SAMPLE_DATA_BUTTON",
+    "CHART_PREVIEW_CONTAINER",
+    "CHART_SVG",
+    "EXPORT_PNG_BUTTON",
+    "EXPORT_SVG_BUTTON",
+    "API_STATUS_INDICATOR"
+  ]
+}

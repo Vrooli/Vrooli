@@ -1,0 +1,42 @@
+{
+  "metadata": {
+    "reset": "none"
+  },
+  "description": "Validates corporate theme application to chart in the UI",
+  "requirements": ["CHART-P0-003-CORPORATE"],
+  "steps": [
+    {
+      "type": "navigate",
+      "url": "http://localhost:${UI_PORT}/"
+    },
+    {
+      "type": "wait",
+      "selector": "@selector/CHART_PREVIEW_CONTAINER",
+      "timeout": 5000
+    },
+    {
+      "type": "click",
+      "selector": "@selector/TAB_STYLES"
+    },
+    {
+      "type": "wait",
+      "duration": 300
+    },
+    {
+      "type": "click",
+      "selector": "@selector/THEME_CORPORATE"
+    },
+    {
+      "type": "wait",
+      "duration": 500
+    },
+    {
+      "type": "assert",
+      "selector": "@selector/CHART_SVG",
+      "condition": "visible",
+      "message": "Chart SVG should be visible with corporate theme applied"
+    }
+  ],
+  "cleanup": [],
+  "fixtures": []
+}

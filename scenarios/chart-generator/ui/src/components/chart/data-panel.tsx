@@ -65,7 +65,13 @@ export const DataPanel: React.FC<DataPanelProps> = ({
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           {samples.map((sample) => (
-            <Button key={sample} variant="outline" size="sm" onClick={() => onSampleSelect(sample)}>
+            <Button
+              key={sample}
+              variant="outline"
+              size="sm"
+              onClick={() => onSampleSelect(sample)}
+              data-testid="sample-data"
+            >
               <Wand2 className="mr-1.5 h-4 w-4" />
               {sampleLabels[sample]}
             </Button>
@@ -76,6 +82,7 @@ export const DataPanel: React.FC<DataPanelProps> = ({
           spellCheck={false}
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          data-testid="data-input"
           className={cn('font-mono text-xs leading-relaxed', isValid === false && 'border-red-400 focus-visible:ring-red-400')}
           placeholder='[
   { "x": "Jan", "y": 4200 },
@@ -84,7 +91,7 @@ export const DataPanel: React.FC<DataPanelProps> = ({
         />
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={onValidate}>
+          <Button variant="secondary" size="sm" onClick={onValidate} data-testid="data-validate">
             <RefreshCw className="mr-1.5 h-4 w-4" /> Validate data
           </Button>
           <Button variant="ghost" size="sm" onClick={onClear}>
@@ -108,7 +115,7 @@ export const DataPanel: React.FC<DataPanelProps> = ({
             {lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : 'Not validated yet'}
           </span>
           {isValid === true && <span className="text-emerald-600">Data ready for charting</span>}
-          {isValid === false && errors && <span className="text-red-500">{errors}</span>}
+          {isValid === false && errors && <span className="text-red-500" data-testid="data-error">{errors}</span>}
         </div>
       </CardContent>
     </Card>

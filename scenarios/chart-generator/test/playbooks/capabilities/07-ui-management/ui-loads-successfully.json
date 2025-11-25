@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "reset": "none"
+  },
+  "description": "Validates that the UI loads and displays chart management interface",
+  "requirements": ["CHART-P0-007-UI-TABS"],
+  "steps": [
+    {
+      "type": "navigate",
+      "url": "http://localhost:${UI_PORT}/"
+    },
+    {
+      "type": "wait",
+      "selector": "@selector/CHART_PREVIEW_CONTAINER",
+      "timeout": 5000
+    },
+    {
+      "type": "assert",
+      "selector": "@selector/TAB_CHARTS",
+      "condition": "visible",
+      "message": "Charts tab should be visible"
+    },
+    {
+      "type": "assert",
+      "selector": "@selector/TAB_STYLES",
+      "condition": "visible",
+      "message": "Styles tab should be visible"
+    },
+    {
+      "type": "assert",
+      "selector": "@selector/TAB_DATA",
+      "condition": "visible",
+      "message": "Data tab should be visible"
+    }
+  ],
+  "cleanup": [],
+  "fixtures": [],
+  "reset": "none"
+}
