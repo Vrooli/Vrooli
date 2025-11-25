@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
@@ -7,6 +7,7 @@ import {
   Search,
   Sparkles,
   StickyNote,
+  Target,
 } from 'lucide-react'
 
 import { Button } from '../components/ui/button'
@@ -19,6 +20,7 @@ import { buildApiUrl } from '../utils/apiClient'
 import { usePrepareDraft } from '../utils/useDraft'
 import type { CatalogEntry, CatalogResponse } from '../types'
 import { CatalogCard, QuickAddIdeaDialog } from '../components/catalog'
+import { cn } from '../lib/utils'
 
 type CatalogFilter = 'all' | 'scenario' | 'resource'
 type CatalogSort = 'status' | 'name_asc' | 'name_desc' | 'coverage'
@@ -32,6 +34,7 @@ export default function Catalog() {
   const [sortMode, setSortMode] = useState<CatalogSort>('status')
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const navigate = useNavigate()
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const { prepareDraft, preparingId } = usePrepareDraft({
     onSuccess: (entityType, entityName) => {
@@ -65,6 +68,24 @@ export default function Catalog() {
   useEffect(() => {
     fetchCatalog()
   }, [fetchCatalog])
+
+  // Keyboard shortcuts: Cmd/Ctrl+K to focus search
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+        event.preventDefault()
+        searchInputRef.current?.focus()
+      }
+      // Escape to clear search
+      if (event.key === 'Escape' && search) {
+        event.preventDefault()
+        setSearch('')
+        searchInputRef.current?.blur()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [search])
 
   const catalogCounts = useMemo(() => {
     const summary = entries.reduce(
@@ -243,37 +264,39 @@ export default function Catalog() {
       {/* Floating Action Button - Quick Add Idea */}
       <button
         onClick={() => setQuickAddOpen(true)}
-        className="fixed bottom-8 right-8 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-lg transition-all hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2"
-        title="Quick add idea"
+        className="group fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50 flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-xl transition-all hover:scale-110 hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-amber-300 focus:ring-offset-2 active:scale-95"
+        title="Quick add idea to backlog"
+        aria-label="Quick add idea to backlog"
       >
-        <Sparkles size={24} strokeWidth={2.5} />
+        <Sparkles size={24} strokeWidth={2.5} className="sm:w-7 sm:h-7 group-hover:rotate-12 transition-transform duration-200" />
       </button>
 
       <QuickAddIdeaDialog open={quickAddOpen} onOpenChange={setQuickAddOpen} />
 
-      <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
+      <header className="rounded-3xl border bg-white/90 p-4 sm:p-6 shadow-soft-lg">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-3">
             <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Product operations</span>
-            <div className="flex items-center gap-3 text-3xl font-semibold text-slate-900">
-              <span className="rounded-2xl bg-violet-100 p-3 text-violet-600">
-                <ClipboardList size={28} strokeWidth={2.5} />
+            <div className="flex items-center gap-3 text-2xl sm:text-3xl font-semibold text-slate-900">
+              <span className="rounded-2xl bg-violet-100 p-2 sm:p-3 text-violet-600">
+                <ClipboardList size={24} strokeWidth={2.5} className="sm:w-7 sm:h-7" />
               </span>
               PRD Control Tower
             </div>
-            <p className="max-w-3xl text-base text-muted-foreground">
+            <p className="max-w-3xl text-sm sm:text-base text-muted-foreground">
               Centralized coverage for {catalogCounts.total.toLocaleString()} tracked entities. {coverage}% already ship with a published PRD.
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <Button variant="secondary" size="lg" asChild>
-              <Link to="/backlog" className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+            <Button variant="secondary" size="lg" asChild className="w-full sm:w-auto">
+              <Link to="/backlog" className="flex items-center justify-center gap-2">
                 <StickyNote size={18} />
-                Capture backlog
+                <span className="hidden sm:inline">Capture backlog</span>
+                <span className="sm:hidden">Backlog</span>
               </Link>
             </Button>
-            <Button size="lg" asChild>
-              <Link to="/drafts" className="flex items-center gap-2">
+            <Button size="lg" asChild className="w-full sm:w-auto">
+              <Link to="/drafts" className="flex items-center justify-center gap-2">
                 <Layers size={18} />
                 View drafts ({catalogCounts.drafts})
               </Link>
@@ -307,73 +330,179 @@ export default function Catalog() {
       </section>
 
       {requirementTotals.total > 0 && (
-        <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {requirementCards.map((stat) => (
-            <Card key={stat.key} className="border border-violet-100 bg-gradient-to-br from-white to-violet-50/60">
-              <CardHeader className="pb-2">
-                <CardDescription>{stat.label}</CardDescription>
-                <CardTitle className="text-3xl font-bold">{stat.value.toLocaleString()}</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0 text-sm text-muted-foreground">{stat.description}</CardContent>
-            </Card>
-          ))}
-        </section>
+        <details className="group">
+          <summary className="cursor-pointer rounded-2xl border-2 border-violet-100 bg-gradient-to-br from-white to-violet-50/30 p-4 shadow-sm hover:shadow-md transition-all hover:border-violet-200 list-none">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600 group-open:bg-violet-500 group-open:text-white transition-colors shrink-0">
+                  <Target size={20} />
+                </span>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900">Requirements Overview</h3>
+                  <p className="text-xs text-slate-600">
+                    {requirementTotals.total} total · {requirementCompletion}% complete
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-semibold text-violet-600">
+                <span className="hidden sm:inline">View details</span>
+                <span className="group-open:rotate-180 transition-transform text-base">▼</span>
+              </div>
+            </div>
+          </summary>
+          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mt-4">
+            {requirementCards.map((stat) => (
+              <Card key={stat.key} className="border border-violet-100 bg-gradient-to-br from-white to-violet-50/60">
+                <CardHeader className="pb-2">
+                  <CardDescription>{stat.label}</CardDescription>
+                  <CardTitle className="text-3xl font-bold">{stat.value.toLocaleString()}</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 text-sm text-muted-foreground">{stat.description}</CardContent>
+              </Card>
+            ))}
+          </section>
+        </details>
       )}
 
-      <section className="rounded-3xl border bg-white/90 p-5 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="relative w-full max-w-xl">
-            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <Input
-              value={search}
-              onChange={event => setSearch(event.target.value)}
-              placeholder="Search by name or description..."
-              className="pl-9"
-            />
+      <section className="rounded-3xl border-2 bg-white p-6 shadow-md">
+        <div className="space-y-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="relative w-full max-w-2xl">
+              <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+              <Input
+                ref={searchInputRef}
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+                placeholder="Search by name or description..."
+                className="h-14 border-2 pl-12 pr-24 text-base shadow-sm transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                aria-label="Search catalog"
+              />
+              {!search && (
+                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  <kbd className="hidden sm:inline-flex h-7 items-center gap-1 rounded border border-slate-200 bg-slate-50 px-2 text-[11px] font-semibold text-slate-600 shadow-sm">
+                    <span className="text-xs">⌘</span>K
+                  </kbd>
+                </div>
+              )}
+              {search && (
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-800 active:scale-95 transition-all"
+                  onClick={() => {
+                    setSearch('')
+                    searchInputRef.current?.focus()
+                  }}
+                  aria-label="Clear search"
+                >
+                  Clear
+                </button>
+              )}
+              {search && (
+                <div className={cn(
+                  "mt-2 rounded-lg border px-3 py-2 flex items-center gap-2 text-sm transition-colors",
+                  filteredEntries.length > 0
+                    ? "bg-emerald-50 border-emerald-200"
+                    : "bg-amber-50 border-amber-200"
+                )}>
+                  <span className={cn(
+                    "font-semibold",
+                    filteredEntries.length > 0 ? "text-emerald-700" : "text-amber-700"
+                  )}>
+                    {filteredEntries.length}
+                  </span>
+                  <span className="text-slate-700">
+                    {filteredEntries.length === 1 ? 'result' : 'results'} found
+                  </span>
+                  {filteredEntries.length === 0 && entries.length > 0 && (
+                    <span className="text-slate-600 ml-auto">· Try adjusting your filters</span>
+                  )}
+                  {filteredEntries.length > 0 && (
+                    <span className="text-emerald-600 ml-auto">✓</span>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="catalog-sort" className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Sort by
+                </label>
+                <select
+                  id="catalog-sort"
+                  value={sortMode}
+                  onChange={(event) => setSortMode(event.target.value as CatalogSort)}
+                  className="rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                >
+                  <option value="status">Status (PRD first)</option>
+                  <option value="coverage">Requirements coverage</option>
+                  <option value="name_asc">Name A → Z</option>
+                  <option value="name_desc">Name Z → A</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <Tabs value={typeFilter} onValueChange={(value: string) => setTypeFilter(value as CatalogFilter)}>
+              <TabsList className="h-10">
+                <TabsTrigger value="all" className="px-4">All ({catalogCounts.total})</TabsTrigger>
+                <TabsTrigger value="scenario" className="px-4">Scenarios ({catalogCounts.scenarios})</TabsTrigger>
+                <TabsTrigger value="resource" className="px-4">Resources ({catalogCounts.resources})</TabsTrigger>
+              </TabsList>
+            </Tabs>
             {search && (
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500"
-                onClick={() => setSearch('')}
-              >
-                Clear
-              </button>
+              <span className="text-sm text-slate-600">
+                Searching in: <span className="font-medium">{typeFilter === 'all' ? 'All types' : `${typeFilter}s only`}</span>
+              </span>
             )}
           </div>
-          <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-            <label htmlFor="catalog-sort" className="font-medium text-slate-700">
-              Sort by
-            </label>
-            <select
-              id="catalog-sort"
-              value={sortMode}
-              onChange={(event) => setSortMode(event.target.value as CatalogSort)}
-              className="rounded-xl border border-input bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="status">Status (PRD first)</option>
-              <option value="coverage">Requirements coverage</option>
-              <option value="name_asc">Name A → Z</option>
-              <option value="name_desc">Name Z → A</option>
-            </select>
-          </div>
-          <Tabs value={typeFilter} onValueChange={(value: string) => setTypeFilter(value as CatalogFilter)}>
-            <TabsList>
-              <TabsTrigger value="all">All ({catalogCounts.total})</TabsTrigger>
-              <TabsTrigger value="scenario">Scenarios ({catalogCounts.scenarios})</TabsTrigger>
-              <TabsTrigger value="resource">Resources ({catalogCounts.resources})</TabsTrigger>
-            </TabsList>
-          </Tabs>
         </div>
       </section>
 
       {filteredEntries.length === 0 ? (
-        <Card className="border-dashed bg-white/80">
-          <CardContent className="flex flex-col items-center gap-3 py-10 text-center text-muted-foreground">
-            <Layers size={40} />
-            <p>No entities found matching your filters.</p>
-            <Button variant="outline" onClick={() => setSearch('')}>
-              Reset filters
-            </Button>
+        <Card className="border-2 border-dashed border-slate-200 bg-gradient-to-br from-white via-slate-50/30 to-white">
+          <CardContent className="flex flex-col items-center gap-6 py-16 text-center">
+            <div className="relative">
+              <div className="absolute inset-0 animate-pulse rounded-full bg-violet-100 opacity-75 blur-xl" />
+              <div className="relative rounded-full bg-gradient-to-br from-slate-100 to-slate-200 p-6 text-slate-400 shadow-inner">
+                <Layers size={56} strokeWidth={1.5} />
+              </div>
+            </div>
+            <div className="space-y-3 max-w-lg">
+              <h3 className="text-xl font-bold text-slate-900">
+                {entries.length === 0 ? 'No Entities Found' : 'No Matching Results'}
+              </h3>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                {entries.length === 0
+                  ? 'The catalog appears empty. This may indicate a scanning issue or fresh installation. Try refreshing to scan for scenarios and resources.'
+                  : `We couldn't find any entities matching "${search}"${typeFilter !== 'all' ? ` in ${typeFilter}s` : ''}. Try adjusting your search or filters.`}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3 justify-center">
+              {search && (
+                <Button variant="outline" size="lg" onClick={() => setSearch('')} className="gap-2">
+                  <Search size={16} />
+                  Clear search
+                </Button>
+              )}
+              {typeFilter !== 'all' && (
+                <Button variant="outline" size="lg" onClick={() => setTypeFilter('all')} className="gap-2">
+                  <Layers size={16} />
+                  Show all types
+                </Button>
+              )}
+              {entries.length === 0 && (
+                <Button variant="default" size="lg" onClick={fetchCatalog} className="gap-2 shadow-md">
+                  <AlertTriangle size={16} />
+                  Refresh Catalog
+                </Button>
+              )}
+            </div>
+            {entries.length === 0 && (
+              <p className="text-xs text-slate-500 mt-4">
+                Need help? Check that the API is running and the catalog service can access the scenarios directory.
+              </p>
+            )}
           </CardContent>
         </Card>
       ) : (

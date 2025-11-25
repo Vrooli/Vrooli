@@ -17,7 +17,7 @@ type RequirementRecord struct {
 	Title         string                  `json:"title"`
 	Description   string                  `json:"description"`
 	Status        string                  `json:"status"`
-	Criticality   string                  `json:"criticality"`
+	Criticality   string                  `json:"criticality"` // Derived from prd_ref
 	FilePath      string                  `json:"file_path"`
 	Validations   []RequirementValidation `json:"validation"`
 	LinkedTargets []string                `json:"linked_operational_target_ids"`
@@ -79,6 +79,26 @@ type RequirementRecordInput struct {
 	Title       string                  `json:"title"`
 	Description string                  `json:"description"`
 	Status      string                  `json:"status"`
-	Criticality string                  `json:"criticality"`
 	Validations []RequirementValidation `json:"validation"`
+}
+
+// getCriticalityFromPRDRef extracts criticality from operational target reference
+// (e.g., "OT-P0-001" -> "P0", "OT-P1-042" -> "P1")
+// Returns empty string if prd_ref is invalid or missing
+func getCriticalityFromPRDRef(prdRef string) string {
+	if len(prdRef) < 6 {
+		return ""
+	}
+	// Expected format: OT-P[012]-NNN
+	if prdRef[0:3] != "OT-" {
+		return ""
+	}
+	if len(prdRef) < 7 || prdRef[5] != '-' {
+		return ""
+	}
+	criticality := prdRef[3:5]
+	if criticality == "P0" || criticality == "P1" || criticality == "P2" {
+		return criticality
+	}
+	return ""
 }

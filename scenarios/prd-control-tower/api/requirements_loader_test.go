@@ -71,11 +71,10 @@ func TestParseRequirementGroups(t *testing.T) {
 			{
 				ID:          "TEST-001",
 				Category:    "foundation",
-				PRDRef:      "Test > Requirement",
+				PRDRef:      "OT-P0-001",
 				Title:       "Test requirement",
 				Description: "A test requirement",
 				Status:      "complete",
-				Criticality: "P0",
 			},
 		},
 		Imports: []string{"child/child.json"},
@@ -101,10 +100,10 @@ func TestParseRequirementGroups(t *testing.T) {
 			{
 				ID:          "TEST-CHILD-001",
 				Category:    "child",
+				PRDRef:      "OT-P1-001",
 				Title:       "Child requirement",
 				Description: "A child requirement",
 				Status:      "in_progress",
-				Criticality: "P1",
 			},
 		},
 	}

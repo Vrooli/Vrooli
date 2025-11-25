@@ -159,9 +159,9 @@ func generateAIContentHTTP(baseURL string, draft Draft, section string, context 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	// Set timeout for AI generation requests (60 seconds)
+	// Set timeout for AI generation requests (3 minutes for large PRD generation)
 	client := &http.Client{
-		Timeout: 60 * time.Second,
+		Timeout: 180 * time.Second,
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -299,9 +299,9 @@ func buildPrompt(draft Draft, section string, context string, action string, inc
 	prompt.WriteString("\n")
 
 	if isFullPRD {
-		prompt.WriteString("Generate a complete PRD including all standard sections (Overview, Operational Targets, Tech Direction, Dependencies, UX & Branding, etc.). Do not include markdown headers for the document title.")
+		prompt.WriteString("Generate a complete PRD including all standard sections (Overview, Operational Targets, Tech Direction, Dependencies, UX & Branding, etc.). Do not include markdown headers for the document title.\n\nIMPORTANT: Return ONLY the PRD content. Do not include any preamble, introduction, explanations, or phrases like \"Here's the generated PRD:\" or \"Here is the content:\". Start directly with the content.")
 	} else {
-		prompt.WriteString(fmt.Sprintf("Generate only the content for the \"%s\" section. Do not include the section header itself.", section))
+		prompt.WriteString(fmt.Sprintf("Generate only the content for the \"%s\" section. Do not include the section header itself.\n\nIMPORTANT: Return ONLY the section content. Do not include any preamble, introduction, explanations, or phrases like \"Here's the section:\" or \"Here is the content:\". Start directly with the content.", section))
 	}
 
 	return prompt.String()
@@ -318,7 +318,9 @@ Requirements:
 - Use stronger, more precise language
 - Add clarity and remove ambiguity
 - Keep markdown formatting
-- Return only the improved text without explanations`,
+- Return only the improved text without explanations
+
+IMPORTANT: Return ONLY the improved text. Do not include any preamble, introduction, or explanations. Start directly with the improved content.`,
 		"expand": `Expand the following text with more detail, examples, and context:
 
 %s
@@ -328,7 +330,9 @@ Requirements:
 - Explain technical concepts more thoroughly
 - Include practical implications
 - Maintain markdown formatting
-- Return only the expanded text without explanations`,
+- Return only the expanded text without explanations
+
+IMPORTANT: Return ONLY the expanded text. Do not include any preamble, introduction, or explanations. Start directly with the expanded content.`,
 		"simplify": `Simplify the following text to be more concise and easier to understand:
 
 %s
@@ -338,7 +342,9 @@ Requirements:
 - Use simpler language where possible
 - Keep only essential information
 - Maintain markdown formatting
-- Return only the simplified text without explanations`,
+- Return only the simplified text without explanations
+
+IMPORTANT: Return ONLY the simplified text. Do not include any preamble, introduction, or explanations. Start directly with the simplified content.`,
 		"grammar": `Fix grammar, spelling, and formatting issues in the following text:
 
 %s
@@ -348,7 +354,9 @@ Requirements:
 - Fix spelling mistakes
 - Improve sentence structure
 - Ensure consistent markdown formatting
-- Return only the corrected text without explanations`,
+- Return only the corrected text without explanations
+
+IMPORTANT: Return ONLY the corrected text. Do not include any preamble, introduction, or explanations. Start directly with the corrected content.`,
 		"technical": `Make the following text more technical and precise:
 
 %s
@@ -359,7 +367,9 @@ Requirements:
 - Remove vague language
 - Add measurable criteria where applicable
 - Maintain markdown formatting
-- Return only the enhanced text without explanations`,
+- Return only the enhanced text without explanations
+
+IMPORTANT: Return ONLY the enhanced text. Do not include any preamble, introduction, or explanations. Start directly with the enhanced content.`,
 		"clarify": `Clarify and restructure the following text to be more understandable:
 
 %s
@@ -370,7 +380,9 @@ Requirements:
 - Explain ambiguous terms
 - Improve logical flow
 - Maintain markdown formatting
-- Return only the clarified text without explanations`,
+- Return only the clarified text without explanations
+
+IMPORTANT: Return ONLY the clarified text. Do not include any preamble, introduction, or explanations. Start directly with the clarified content.`,
 	}
 
 	template, exists := actionPrompts[action]

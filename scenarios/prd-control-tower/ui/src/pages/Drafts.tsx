@@ -94,14 +94,57 @@ export default function Drafts() {
   const isDetailRoute = routeEntityName !== undefined
 
   const listContent = filteredDrafts.length === 0 ? (
-    <Card className="border-dashed bg-slate-50/80">
-      <CardContent className="flex flex-col items-center gap-3 py-12 text-center text-muted-foreground">
-        <FileEdit size={48} />
-        {drafts.length === 0 ? (
-          <p>No drafts found. Create a new draft to get started.</p>
-        ) : (
-          <p>No drafts found matching your search.</p>
-        )}
+    <Card className="border-2 border-dashed bg-gradient-to-br from-white via-violet-50/20 to-slate-50">
+      <CardContent className="flex flex-col items-center gap-6 py-16 text-center">
+        <div className="rounded-full bg-gradient-to-br from-violet-100 to-violet-200 p-6 text-violet-600 shadow-inner">
+          <FileEdit size={56} />
+        </div>
+        <div className="space-y-3 max-w-lg">
+          <h3 className="text-xl font-bold text-slate-900">
+            {drafts.length === 0 ? 'No drafts yet' : 'No matches found'}
+          </h3>
+          <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+            {drafts.length === 0
+              ? 'Draft PRDs live here while you build and validate them.'
+              : `No drafts match "${filter}". Try adjusting your search or clear the filter to see all drafts.`}
+          </p>
+          {drafts.length === 0 && (
+            <div className="rounded-xl border border-violet-100 bg-white p-4 text-left space-y-3 mt-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 text-center">Quick Start Guide</p>
+              <div className="flex items-start gap-3">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700 shrink-0">1</span>
+                <p className="text-sm text-slate-700">Go to the <Link to="/catalog" className="font-semibold text-violet-600 underline">Catalog</Link> page</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700 shrink-0">2</span>
+                <p className="text-sm text-slate-700">Find a scenario or resource you want to document</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700 shrink-0">3</span>
+                <p className="text-sm text-slate-700">Click <strong>"Edit PRD"</strong> to create a draft</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700 shrink-0">4</span>
+                <p className="text-sm text-slate-700">Return here to edit, validate, and publish</p>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-3 justify-center">
+          {drafts.length === 0 ? (
+            <Button asChild size="lg" className="h-12 gap-2 font-semibold shadow-md hover:shadow-lg">
+              <Link to="/catalog">
+                <Search size={18} />
+                <span>Browse catalog</span>
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="outline" size="lg" onClick={() => setFilter('')} className="h-12 gap-2">
+              <Search size={18} />
+              <span>Clear filter</span>
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   ) : (
@@ -205,15 +248,23 @@ export default function Drafts() {
           <Input
             id="drafts-search"
             type="text"
-            className="pl-9"
+            className="pl-9 pr-20"
             placeholder="Search drafts by name, type, or owner..."
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
+            aria-label="Search drafts"
           />
+          {!filter && (
+            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+              <span className="hidden sm:inline-block text-xs text-slate-400">
+                Tip: Use filters to narrow results
+              </span>
+            </div>
+          )}
           {filter && (
             <button
               type="button"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 active:scale-95 transition-all"
               onClick={() => setFilter('')}
               aria-label="Clear search"
             >
@@ -224,22 +275,22 @@ export default function Drafts() {
       </div>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total drafts</CardDescription>
-            <CardTitle className="text-3xl">{drafts.length}</CardTitle>
+        <Card className="border-2 border-violet-100 bg-gradient-to-br from-white to-violet-50/30">
+          <CardHeader className="pb-3">
+            <CardDescription className="text-xs font-semibold uppercase tracking-wider">Total drafts</CardDescription>
+            <CardTitle className="text-4xl font-bold text-violet-700">{drafts.length}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Scenarios</CardDescription>
-            <CardTitle className="text-3xl">{drafts.filter((draft) => draft.entity_type === 'scenario').length}</CardTitle>
+        <Card className="border border-slate-200 bg-white/80 hover:border-slate-300 transition-colors">
+          <CardHeader className="pb-3">
+            <CardDescription className="text-xs font-semibold uppercase tracking-wider">Scenarios</CardDescription>
+            <CardTitle className="text-4xl font-bold text-slate-700">{drafts.filter((draft) => draft.entity_type === 'scenario').length}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Resources</CardDescription>
-            <CardTitle className="text-3xl">{drafts.filter((draft) => draft.entity_type === 'resource').length}</CardTitle>
+        <Card className="border border-slate-200 bg-white/80 hover:border-slate-300 transition-colors">
+          <CardHeader className="pb-3">
+            <CardDescription className="text-xs font-semibold uppercase tracking-wider">Resources</CardDescription>
+            <CardTitle className="text-4xl font-bold text-slate-700">{drafts.filter((draft) => draft.entity_type === 'resource').length}</CardTitle>
           </CardHeader>
         </Card>
       </section>

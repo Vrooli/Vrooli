@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Loader2, Sparkles, Eye, EyeOff, Wand2, Maximize2, Minimize2, CheckCircle, Lightbulb, WrapText, FileCode, AlertTriangle } from 'lucide-react'
+import { Loader2, Sparkles, Eye, EyeOff, Wand2, Maximize2, Minimize2, CheckCircle, Lightbulb, WrapText, FileCode, AlertTriangle, RefreshCw, Check, X } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Input } from '../ui/input'
 import { DiffViewer } from './DiffViewer'
 import { ReferencePRDSelector } from './ReferencePRDSelector'
-import type { AIAction } from '../../hooks/useAIAssistant'
+import type { AIAction, AIInsertMode } from '../../hooks/useAIAssistant'
 import { buildPrompt } from '../../hooks/useAIAssistant'
 import { extractSectionContent } from '../../utils/prdStructure'
 import type { Draft } from '../../types'
@@ -189,6 +189,7 @@ interface AIAssistantDialogProps {
   generating: boolean
   result: string | null
   error: string | null
+  insertMode: AIInsertMode
   hasSelection: boolean
   includeExistingContent: boolean
   referencePRDs: ReferencePRDData[]
@@ -199,11 +200,13 @@ interface AIAssistantDialogProps {
   onContextChange: (value: string) => void
   onActionChange: (action: AIAction) => void
   onModelChange: (model: string) => void
+  onInsertModeChange: (mode: AIInsertMode) => void
   onIncludeExistingContentChange: (value: boolean) => void
   onReferencePRDsChange: (prds: ReferencePRDData[]) => void
   onGenerate: () => void
   onQuickAction: (action: AIAction) => void
-  onInsert: (mode: 'insert' | 'replace') => void
+  onConfirm: () => void
+  onRegenerate: () => void
   onClose: () => void
 }
 
@@ -226,6 +229,7 @@ export function AIAssistantDialog({
   generating,
   result,
   error,
+  insertMode,
   hasSelection,
   includeExistingContent,
   referencePRDs,
@@ -235,14 +239,16 @@ export function AIAssistantDialog({
   onSectionChange,
   onContextChange,
   onModelChange,
+  onInsertModeChange,
   onIncludeExistingContentChange,
   onReferencePRDsChange,
   onGenerate,
   onQuickAction,
-  onInsert,
+  onConfirm,
+  onRegenerate,
   onClose,
 }: AIAssistantDialogProps) {
-  const [showDiff, setShowDiff] = useState(false)
+  const [showDiff, setShowDiff] = useState(true) // Default to showing diff
   const [showPromptPreview, setShowPromptPreview] = useState(false)
   const [customSection, setCustomSection] = useState('')
 
@@ -282,14 +288,49 @@ export function AIAssistantDialog({
   const previewContent = useMemo(() => {
     if (!result) return null
 
-    const before = originalContent.slice(0, selectionStart)
-    const after = originalContent.slice(selectionEnd)
-    return `${before}${result}${after}`
-  }, [result, originalContent, selectionStart, selectionEnd])
+    if (insertMode === 'cursor') {
+      // Cursor mode: insert at current cursor position (or replace selection)
+      const before = originalContent.slice(0, selectionStart)
+      const after = originalContent.slice(selectionEnd)
+      return `${before}${result}${after}`
+    } else {
+      // Section mode: replace the entire selected section (or full PRD)
+      const isFullPRD = effectiveSection === '🎯 Full PRD' || effectiveSection === 'Full PRD'
 
-  const selectedText = useMemo(() => {
-    return originalContent.slice(selectionStart, selectionEnd)
-  }, [originalContent, selectionStart, selectionEnd])
+      if (isFullPRD) {
+        // Replace entire content
+        return result
+      } else {
+        // Replace the specific section
+        const sectionContent = extractSectionContent(originalContent, effectiveSection)
+
+        if (sectionContent) {
+          // Replace the section content (preserving the section header)
+          const lines = originalContent.split('\n')
+          const before = lines.slice(0, sectionContent.startLine + 1).join('\n') + '\n'
+          const after = lines.slice(sectionContent.endLine).join('\n')
+          return `${before}${result}\n${after}`
+        } else {
+          // Section doesn't exist - just insert at cursor
+          const before = originalContent.slice(0, selectionStart)
+          const after = originalContent.slice(selectionEnd)
+          return `${before}${result}${after}`
+        }
+      }
+    }
+  }, [result, insertMode, effectiveSection, originalContent, selectionStart, selectionEnd])
+
+  // Generate descriptive labels for the insertion modes
+  const insertModeLabels = useMemo(() => {
+    const isFullPRD = effectiveSection === '🎯 Full PRD' || effectiveSection === 'Full PRD'
+    const cursorLabel = hasSelection ? 'Replace Selection' : 'Insert at Cursor'
+    const sectionLabel = isFullPRD ? 'Replace Full PRD' : `Replace "${effectiveSection}" Section`
+
+    return {
+      cursor: cursorLabel,
+      section: sectionLabel,
+    }
+  }, [effectiveSection, hasSelection])
 
   // Extract current section content for preview
   const currentSectionContent = useMemo(() => {
@@ -322,46 +363,53 @@ export function AIAssistantDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 px-4" role="dialog" aria-modal>
-      <div className="w-full max-w-5xl rounded-3xl border bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between gap-3 mb-6">
-          <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-slate-500">AI assistant</p>
-            <h2 className="text-2xl font-semibold text-slate-900">Generate section content</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 px-4 backdrop-blur-sm" role="dialog" aria-modal>
+      <div className="w-full max-w-5xl rounded-3xl border-2 bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b bg-gradient-to-r from-violet-50 to-white p-6">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 p-2.5 text-white shadow-md">
+              <Sparkles size={20} strokeWidth={2.5} />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">AI Assistant</p>
+              <h2 className="text-xl font-bold text-slate-900">Generate PRD Content</h2>
+            </div>
           </div>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} size="sm">
             Close
           </Button>
         </div>
+        <div className="p-6">
 
         {/* Two-column layout on desktop */}
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Left Column: Configuration */}
-          <div className="space-y-4">
-            {/* Section Selection */}
-            <div>
-              <label className="flex flex-col gap-2">
-                <span className="font-medium text-slate-700">Section name</span>
-                <select
-                  value={isCustomSection ? 'custom' : section}
-                  onChange={event => handleSectionDropdownChange(event.target.value)}
-                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                >
-                  <option value="">Select a section...</option>
-                  {DEFAULT_SECTIONS.map(sec => (
-                    <option key={sec.value} value={sec.value}>{sec.label}</option>
-                  ))}
-                </select>
-              </label>
+          <div className="space-y-5">
+            {/* Step 1: Section Selection */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-500 text-xs font-bold text-white">1</div>
+                <label className="font-semibold text-slate-900">Choose Section</label>
+              </div>
+              <select
+                value={isCustomSection ? 'custom' : section}
+                onChange={event => handleSectionDropdownChange(event.target.value)}
+                className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-medium shadow-sm transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              >
+                <option value="">Select section to generate...</option>
+                {DEFAULT_SECTIONS.map(sec => (
+                  <option key={sec.value} value={sec.value}>{sec.label}</option>
+                ))}
+              </select>
 
               {/* Custom section input - shown when "Custom" is selected */}
               {isCustomSection && (
-                <div className="mt-2">
+                <div className="animate-in fade-in slide-in-from-top-2 duration-200">
                   <Input
                     value={customSection}
                     onChange={event => handleCustomSectionChange(event.target.value)}
                     placeholder="Enter custom section name (e.g., Security Considerations)"
-                    className="text-sm"
+                    className="border-2 py-3 text-sm"
                   />
                 </div>
               )}
@@ -441,47 +489,55 @@ export function AIAssistantDialog({
               </div>
             )}
 
-            {/* AI Model Selector */}
-            <div>
-              <label className="flex flex-col gap-2">
-                <span className="font-medium text-slate-700">AI Model</span>
-                <select
-                  value={model}
-                  onChange={event => onModelChange(event.target.value)}
-                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                >
-                  {MODEL_OPTIONS.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-muted-foreground">Select which AI model to use for generation</p>
-              </label>
-            </div>
-
-            {/* Include Existing Content Toggle */}
-            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <input
-                type="checkbox"
-                id="include-existing"
-                checked={includeExistingContent}
-                onChange={event => onIncludeExistingContentChange(event.target.checked)}
-                className="h-4 w-4 rounded border-slate-300"
-              />
-              <label htmlFor="include-existing" className="flex-1 cursor-pointer">
-                <div className="font-medium text-sm text-slate-700">Include existing PRD content</div>
-                <div className="text-xs text-slate-600 mt-0.5">
-                  When enabled, the AI will see your current PRD content for context
+            {/* Advanced Options - Collapsible */}
+            <details className="group rounded-xl border-2 border-slate-200 bg-slate-50/50">
+              <summary className="cursor-pointer p-4 font-semibold text-slate-700 hover:bg-slate-100/50 transition flex items-center gap-2 select-none">
+                <span className="text-sm">Advanced Options</span>
+                <span className="ml-auto text-xs text-slate-500 group-open:hidden">(Click to expand)</span>
+              </summary>
+              <div className="space-y-4 border-t border-slate-200 bg-white p-4">
+                {/* AI Model Selector */}
+                <div>
+                  <label className="flex flex-col gap-2">
+                    <span className="text-sm font-medium text-slate-700">AI Model</span>
+                    <select
+                      value={model}
+                      onChange={event => onModelChange(event.target.value)}
+                      className="rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-sm transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                    >
+                      {MODEL_OPTIONS.map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
-              </label>
-            </div>
 
-            {/* Reference PRDs Section */}
-            <ReferencePRDSelector
-              selectedPRDs={referencePRDs}
-              onSelectionChange={onReferencePRDsChange}
-            />
+                {/* Include Existing Content Toggle */}
+                <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <input
+                    type="checkbox"
+                    id="include-existing"
+                    checked={includeExistingContent}
+                    onChange={event => onIncludeExistingContentChange(event.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                  <label htmlFor="include-existing" className="flex-1 cursor-pointer">
+                    <div className="font-medium text-sm text-slate-700">Include existing PRD content</div>
+                    <div className="text-xs text-slate-600 mt-0.5">
+                      AI will see your current PRD for better context
+                    </div>
+                  </label>
+                </div>
+
+                {/* Reference PRDs Section */}
+                <ReferencePRDSelector
+                  selectedPRDs={referencePRDs}
+                  onSelectionChange={onReferencePRDsChange}
+                />
+              </div>
+            </details>
 
             {/* Quick Actions */}
             {hasSelection && context.trim() && (
@@ -510,46 +566,85 @@ export function AIAssistantDialog({
             )}
 
             {/* Generate Button with Action Summary */}
-            <div className="space-y-3">
+            <div className="space-y-4">
               {effectiveSection && !generating && (
-                <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
-                  <p className="text-xs text-blue-900">
-                    <strong>Action:</strong>{' '}
-                    {currentSectionContent?.isFullDocument
-                      ? 'Replace entire document'
-                      : currentSectionContent?.content
-                        ? `Replace "${effectiveSection}" section`
-                        : `Create new "${effectiveSection}" section`
-                    }
-                    {' '}&middot;{' '}
-                    <strong>Model:</strong> {model === 'default' ? 'Default (scenario setting)' : model.replace('openrouter/', '')}
-                  </p>
+                <div className="rounded-xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle size={16} className="mt-0.5 shrink-0 text-blue-600" />
+                    <div className="space-y-1 text-sm">
+                      <p className="font-medium text-blue-900">
+                        {currentSectionContent?.isFullDocument
+                          ? 'Will replace your ENTIRE PRD'
+                          : currentSectionContent?.content
+                            ? `Will replace the "${effectiveSection}" section`
+                            : `Will create new "${effectiveSection}" section`
+                        }
+                      </p>
+                      <p className="text-xs text-blue-700">
+                        Model: <span className="font-medium">{model === 'default' ? 'Default (scenario setting)' : model.replace('openrouter/', '')}</span>
+                      </p>
+                      {context.trim() && (
+                        <p className="text-xs text-blue-600 mt-1">
+                          ✓ Custom context provided ({context.length} characters)
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
-              <div className="flex items-center gap-3">
-                <Button onClick={onGenerate} disabled={generating || !effectiveSection} className="flex items-center gap-2">
-                  {generating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Generate with AI
-                </Button>
-                {error && <span className="text-sm text-amber-700">{error}</span>}
-              </div>
+              <Button
+                onClick={onGenerate}
+                disabled={generating || !effectiveSection}
+                size="lg"
+                className="w-full h-14 text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 active:scale-100 transition-all duration-200"
+              >
+                {generating ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={20} />
+                    Generate with AI
+                  </>
+                )}
+              </Button>
+              {!effectiveSection && (
+                <p className="text-sm text-center text-slate-500 italic">
+                  Select a section above to enable generation
+                </p>
+              )}
+              {error && (
+                <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Right Column: Context Input (larger) */}
-          <div className="space-y-4">
-            <label className="flex flex-col gap-2">
-              <span className="font-medium text-slate-700">Context (optional)</span>
+          <div className="space-y-5">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-500 text-xs font-bold text-white">2</div>
+                <label className="font-semibold text-slate-900">Provide Context <span className="text-sm font-normal text-slate-500">(optional)</span></label>
+              </div>
               <Textarea
-                className="min-h-[320px]"
+                className="min-h-[280px] resize-none border-2 p-4 text-sm leading-relaxed transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                 value={context}
                 onChange={event => onContextChange(event.target.value)}
-                placeholder="Paste notes, requirements, or the existing section to guide the model"
+                placeholder="Describe what you want this section to cover, paste requirements, or add any notes to guide the AI...&#10;&#10;Example:&#10;- Feature must support real-time collaboration&#10;- Target 95th percentile latency < 200ms&#10;- Integration with existing auth system required"
               />
-              <p className="text-xs text-muted-foreground">
-                Provide context, requirements, or existing content to guide the AI generation
+              <p className="flex items-start gap-2 text-xs text-slate-600">
+                <Lightbulb size={14} className="mt-0.5 shrink-0 text-amber-500" />
+                <span>Add specific requirements, constraints, or examples to get better AI-generated content</span>
               </p>
-            </label>
+            </div>
 
             {/* Prompt Preview */}
             <details className="rounded-lg border border-slate-200 bg-slate-50" open={showPromptPreview} onToggle={(e) => setShowPromptPreview((e.target as HTMLDetailsElement).open)}>
@@ -574,11 +669,12 @@ export function AIAssistantDialog({
           </div>
         </div>
 
-        {/* Result Preview */}
+        {/* Result Preview with Mode Selector and Action Buttons */}
         {result && (
-          <div className="mt-6 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-700">Generated suggestion</p>
+          <div className="mt-6 space-y-4">
+            {/* Header with Mode Selector */}
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm font-medium text-slate-700">Preview & Apply</p>
               <Button
                 variant="ghost"
                 size="sm"
@@ -586,40 +682,109 @@ export function AIAssistantDialog({
                 className="flex items-center gap-2"
               >
                 {showDiff ? <EyeOff size={14} /> : <Eye size={14} />}
-                {showDiff ? 'Hide' : 'Show'} Diff Preview
+                {showDiff ? 'Hide' : 'Show'} Diff
               </Button>
             </div>
 
+            {/* Insertion Mode Selector */}
+            <div className="flex gap-2 p-1 bg-slate-100 rounded-lg">
+              <button
+                type="button"
+                onClick={() => onInsertModeChange('cursor')}
+                className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition ${
+                  insertMode === 'cursor'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {insertModeLabels.cursor}
+              </button>
+              <button
+                type="button"
+                onClick={() => onInsertModeChange('section')}
+                className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition ${
+                  insertMode === 'section'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {insertModeLabels.section}
+              </button>
+            </div>
+
+            {/* Mode Description */}
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+              <p className="text-xs text-blue-900">
+                <strong>Selected mode:</strong>{' '}
+                {insertMode === 'cursor'
+                  ? hasSelection
+                    ? `Will replace the currently selected text (${selectionEnd - selectionStart} characters) with the AI-generated content.`
+                    : `Will insert the AI-generated content at the current cursor position (character ${selectionStart}).`
+                  : effectiveSection === '🎯 Full PRD' || effectiveSection === 'Full PRD'
+                    ? 'Will replace the ENTIRE PRD content with the AI-generated content.'
+                    : `Will replace the entire "${effectiveSection}" section with the AI-generated content.`
+                }
+              </p>
+            </div>
+
+            {/* Preview */}
             {showDiff && previewContent ? (
               <div className="rounded-2xl border bg-white overflow-hidden">
                 <DiffViewer
                   original={originalContent}
                   modified={previewContent}
-                  title="AI Content Preview"
+                  title={`Preview: ${insertModeLabels[insertMode]}`}
                 />
-                <div className="border-t bg-amber-50 p-3">
-                  <p className="text-xs text-amber-800 flex items-center gap-2">
+                <div className="border-t bg-green-50 p-3">
+                  <p className="text-xs text-green-800 flex items-center gap-2">
                     <Sparkles size={12} />
-                    Preview shows how your draft will look after {selectedText ? 'replacing the selection' : 'inserting'} with AI-generated content
+                    Green highlights show the content that will be added. Red highlights show content that will be removed.
                   </p>
                 </div>
               </div>
             ) : (
-              <pre className="max-h-64 overflow-auto rounded-2xl border bg-slate-50 p-4 text-sm text-slate-800 whitespace-pre-wrap">
-                {result}
-              </pre>
+              <div className="space-y-2">
+                <p className="text-xs text-slate-600">AI-generated content:</p>
+                <pre className="max-h-64 overflow-auto rounded-2xl border bg-slate-50 p-4 text-sm text-slate-800 whitespace-pre-wrap">
+                  {result}
+                </pre>
+              </div>
             )}
 
-            <div className="flex flex-wrap gap-3">
-              <Button variant="secondary" onClick={() => onInsert('insert')}>
-                Insert at cursor
+            {/* Action Buttons */}
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button
+                onClick={onConfirm}
+                size="lg"
+                className="flex items-center gap-2 shadow-md hover:shadow-lg hover:scale-105 active:scale-100 transition-all duration-200"
+                variant="default"
+              >
+                <Check size={18} />
+                Confirm & Apply
               </Button>
-              <Button variant="outline" onClick={() => onInsert('replace')}>
-                Replace selection
+              <Button
+                onClick={onRegenerate}
+                disabled={generating}
+                size="lg"
+                className="flex items-center gap-2 hover:scale-105 active:scale-100 transition-all duration-200"
+                variant="secondary"
+              >
+                <RefreshCw size={18} className={generating ? 'animate-spin' : ''} />
+                Regenerate
+              </Button>
+              <Button
+                onClick={onClose}
+                size="lg"
+                className="flex items-center gap-2 hover:scale-105 active:scale-100 transition-all duration-200"
+                variant="outline"
+              >
+                <X size={18} />
+                Cancel
               </Button>
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   )

@@ -193,41 +193,49 @@ export default function Backlog() {
   return (
     <div className="app-container space-y-8" data-layout="dual">
       <TopNav />
-      <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
+      <header className="rounded-3xl border bg-white/90 p-4 sm:p-6 shadow-soft-lg">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Idea backlog</span>
-            <div className="flex items-center gap-3 text-3xl font-semibold text-slate-900">
-              <span className="rounded-2xl bg-amber-100 p-3 text-amber-600">
-                <StickyNote size={28} strokeWidth={2.5} />
+            <div className="flex items-center gap-3 text-2xl sm:text-3xl font-semibold text-slate-900">
+              <span className="rounded-2xl bg-amber-100 p-2 sm:p-3 text-amber-600">
+                <StickyNote size={24} strokeWidth={2.5} className="sm:w-7 sm:h-7" />
               </span>
               Scenario Backlog
             </div>
-            <p className="max-w-3xl text-base text-muted-foreground">
+            <p className="max-w-3xl text-sm sm:text-base text-muted-foreground">
               Paste raw notes, triage ideas, and convert them into drafts without leaving PRD Control Tower.
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <Button asChild variant="secondary" size="lg">
-              <Link to="/catalog" className="flex items-center gap-2">
-                <ClipboardList size={18} /> Catalog
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+            <Button asChild variant="secondary" size="lg" className="w-full sm:w-auto">
+              <Link to="/catalog" className="flex items-center justify-center gap-2">
+                <ClipboardList size={18} />
+                <span className="hidden sm:inline">Catalog</span>
+                <span className="sm:hidden">Catalog</span>
               </Link>
             </Button>
-            <Button asChild size="lg">
-              <Link to="/drafts" className="flex items-center gap-2">
-                <ListChecks size={18} /> Drafts
+            <Button asChild size="lg" className="w-full sm:w-auto">
+              <Link to="/drafts" className="flex items-center justify-center gap-2">
+                <ListChecks size={18} />
+                <span className="hidden sm:inline">Drafts</span>
+                <span className="sm:hidden">Drafts</span>
               </Link>
             </Button>
           </div>
         </div>
-        <Card className="mt-6 border-dashed bg-slate-50/70 p-4">
-          <div className="flex items-start gap-3 text-sm">
-            <span className="rounded-full bg-amber-100 p-2 text-amber-700">
-              <Sparkles size={16} />
+        <Card className="mt-4 sm:mt-6 border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4 sm:p-5">
+          <div className="flex items-start gap-3 sm:gap-4 text-sm">
+            <span className="rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 p-2.5 sm:p-3 text-white shadow-md shrink-0">
+              <Sparkles size={18} strokeWidth={2.5} className="sm:w-5 sm:h-5" />
             </span>
-            <div>
-              <p className="font-medium text-slate-900">Idea intake</p>
-              <p className="text-muted-foreground">Paste bullet lists or note dumps on the left. Preview, batch select, and spin up drafts from the right column.</p>
+            <div className="space-y-1.5">
+              <p className="font-bold text-base text-slate-900">Quick Workflow Guide</p>
+              <p className="text-sm text-slate-700 leading-relaxed">
+                <span className="font-semibold text-amber-700">Left:</span> Paste raw ideas, bullet lists, or brainstorming notes.
+                <span className="mx-2">·</span>
+                <span className="font-semibold text-amber-700">Right:</span> Preview, refine, and convert to drafts.
+              </p>
             </div>
           </div>
         </Card>
@@ -272,13 +280,19 @@ export default function Backlog() {
         onUpdateNotes={updateEntryNotes}
       />
 
-      <div className="flex flex-wrap gap-4 text-sm">
-        <Link to="/catalog" className="text-primary hover:underline">
-          ← Back to Catalog
-        </Link>
-        <Link to="/drafts" className="text-primary hover:underline">
-          ← Back to Drafts
-        </Link>
+      <div className="flex flex-wrap gap-3">
+        <Button variant="ghost" size="sm" asChild className="gap-2">
+          <Link to="/catalog">
+            <ClipboardList size={16} />
+            Catalog
+          </Link>
+        </Button>
+        <Button variant="ghost" size="sm" asChild className="gap-2">
+          <Link to="/drafts">
+            <ListChecks size={16} />
+            Drafts
+          </Link>
+        </Button>
       </div>
     </div>
   )

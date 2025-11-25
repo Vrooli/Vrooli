@@ -46,15 +46,15 @@ export function TopNav() {
   return (
     <nav className="sticky top-0 z-50 mb-6 rounded-2xl border bg-white/95 px-3 sm:px-6 py-3 shadow-sm backdrop-blur-sm">
       <div className="flex items-center justify-between gap-2">
-        {/* Hide icon and title on mobile to prevent overflow */}
-        <div className="hidden sm:flex items-center gap-2">
+        {/* Show compact logo on mobile, full branding on desktop */}
+        <div className="flex items-center gap-2">
           <span className="rounded-lg bg-violet-100 p-2 text-violet-600">
             <ClipboardList size={20} strokeWidth={2.5} />
           </span>
-          <span className="text-lg font-semibold text-slate-900">PRD Control Tower</span>
+          <span className="hidden sm:inline text-lg font-semibold text-slate-900">PRD Control Tower</span>
         </div>
 
-        <div className="flex items-center gap-1 flex-1 sm:flex-initial justify-center sm:justify-end">
+        <div className="flex items-center gap-1 sm:gap-1.5">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon
             const isActive = location.pathname === item.to
@@ -65,18 +65,18 @@ export function TopNav() {
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  'flex items-center gap-1 sm:gap-2 rounded-lg px-2 sm:px-4 py-2 text-sm font-medium transition-colors',
+                  'flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 rounded-lg px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors min-w-[3.5rem] sm:min-w-0',
                   isActive
                     ? 'bg-violet-100 text-violet-700'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 )}
               >
-                <Icon size={16} />
-                <span className="hidden xs:inline sm:inline flex items-center gap-1">
+                <Icon size={16} className="shrink-0" />
+                <span className="flex items-center gap-1 text-[10px] sm:text-sm leading-tight">
                   {item.label}
                   {showIndicator && (
                     <span
-                      className="inline-flex h-2.5 w-2.5 rounded-full bg-amber-500"
+                      className="inline-flex h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-amber-500"
                       aria-label={`${outstandingIssues} scenarios need review`}
                       title={`${outstandingIssues} scenarios need review`}
                     />

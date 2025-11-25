@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertCircle, BookOpen, Compass, FileText, Layers, ShieldAlert, Sparkles, Target, Workflow } from 'lucide-react'
+import { AlertCircle, BookOpen, ClipboardList, Compass, FileText, HelpCircle, Layers, ShieldAlert, Sparkles, Target, Workflow } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Separator } from '../components/ui/separator'
 import { TopNav } from '../components/ui/top-nav'
+import { Tooltip } from '../components/ui/tooltip'
 import { buildApiUrl } from '../utils/apiClient'
 import { fetchQualitySummary } from '../utils/quality'
 import type { CatalogResponse, QualitySummary } from '../types'
@@ -139,24 +140,28 @@ const ACTION_TILES = [
   {
     title: 'View Coverage Catalog',
     description: 'See who has published PRDs, drafts in progress, and entities missing coverage.',
+    tooltip: 'Browse all scenarios and resources, check their PRD status, and start editing',
     to: '/catalog',
     icon: Compass,
   },
   {
     title: 'Open Draft Workspace',
     description: 'Continue editing, validate sections, and publish when ready.',
+    tooltip: 'Edit PRD drafts with AI assistance, validation tools, and structure checking',
     to: '/drafts',
     icon: Layers,
   },
   {
     title: 'Review Requirements Registry',
     description: 'Ensure every requirement has a `prd_ref` and keep operational targets aligned.',
+    tooltip: 'View and manage requirements across all scenarios, track PRD linkage',
     to: '/requirements-registry',
     icon: Target,
   },
   {
     title: 'Run Quality Scanner',
     description: 'Batch-audit PRDs for template drift, missing targets, and coverage gaps.',
+    tooltip: 'Scan all PRDs for structure compliance and quality issues',
     to: '/quality-scanner',
     icon: ShieldAlert,
   },
@@ -239,28 +244,68 @@ export default function Orientation() {
     <div className="app-container space-y-8">
       <TopNav />
 
-      <header className="rounded-3xl border bg-white/95 p-8 shadow-soft-lg">
-        <div className="space-y-4">
-          <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">PRD Operating Guide</span>
-          <div className="flex items-center gap-3 text-3xl font-semibold text-slate-900">
-            <span className="rounded-2xl bg-amber-100 p-3 text-amber-600">
-              <BookOpen size={28} strokeWidth={2.5} />
-            </span>
-            Understand the Control Tower
+      <header className="rounded-3xl border bg-gradient-to-br from-amber-50 to-white p-4 sm:p-6 md:p-8 shadow-soft-lg">
+        <div className="space-y-5">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 shadow-sm">
+            <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-700">Getting Started Guide</span>
           </div>
-          <p className="max-w-3xl text-base text-muted-foreground">
-            Every scenario becomes permanent intelligence. Use this primer to understand the canonical PRD format, validation workflow, and where to take action next—including the moment to fire the scanner and keep coverage honest.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Button size="lg" asChild>
-              <Link to="/catalog">Dive into catalog</Link>
-            </Button>
-            <Button variant="secondary" size="lg" asChild>
-              <Link to="/drafts">Jump to drafts</Link>
-            </Button>
-            <Button variant="outline" size="lg" asChild>
-              <Link to="/quality-scanner">Run quality scan</Link>
-            </Button>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900">
+              <span className="rounded-2xl bg-amber-500 p-2 sm:p-3 text-white shadow-md">
+                <BookOpen size={24} strokeWidth={2.5} className="sm:w-7 sm:h-7" />
+              </span>
+              <span className="leading-tight">Welcome to PRD Control Tower</span>
+            </div>
+            <p className="max-w-3xl text-base sm:text-lg text-slate-700 leading-relaxed">
+              Every scenario becomes permanent intelligence. This control tower helps you create, validate, and publish <strong>compliant PRDs</strong> that power the entire Vrooli ecosystem.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700 shrink-0">1</span>
+                Choose your starting point:
+              </p>
+              <Tooltip content="New to PRD Control Tower? Start with the Catalog to browse existing scenarios and their PRD status" side="top">
+                <HelpCircle size={16} className="text-slate-400 hover:text-slate-600 cursor-help shrink-0 sm:ml-1" />
+              </Tooltip>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Tooltip content="Browse all scenarios and resources. Click 'Edit PRD' to create a draft, or 'View PRD' to read published documentation." side="bottom">
+                <Button size="lg" asChild className="group h-auto flex-col gap-2.5 py-6 shadow-md hover:shadow-lg hover:scale-[1.03] active:scale-[0.98] transition-all duration-200">
+                  <Link to="/catalog">
+                    <ClipboardList size={24} strokeWidth={2.5} className="text-white group-hover:scale-110 transition-transform duration-200" />
+                    <span className="text-base font-semibold">Browse Catalog</span>
+                    <span className="text-xs opacity-90 font-normal leading-tight">View all scenarios & PRDs</span>
+                  </Link>
+                </Button>
+              </Tooltip>
+              <Tooltip content="Continue editing PRD drafts that you or others have started. Changes are auto-saved as you type." side="bottom">
+                <Button variant="secondary" size="lg" asChild className="group h-auto flex-col gap-2.5 py-6 shadow-sm hover:shadow-md hover:scale-[1.03] active:scale-[0.98] transition-all duration-200">
+                  <Link to="/drafts">
+                    <Layers size={24} strokeWidth={2.5} className="group-hover:scale-110 transition-transform duration-200" />
+                    <span className="text-base font-semibold">Open Drafts</span>
+                    <span className="text-xs opacity-80 font-normal leading-tight">Continue editing work</span>
+                  </Link>
+                </Button>
+              </Tooltip>
+              <Tooltip content="Run quality checks across all PRDs to identify structure violations, missing sections, and compliance issues." side="bottom">
+                <Button variant="outline" size="lg" asChild className="group h-auto flex-col gap-2.5 py-6 border-2 hover:border-violet-300 hover:bg-violet-50/50 hover:scale-[1.03] active:scale-[0.98] transition-all duration-200">
+                  <Link to="/quality-scanner">
+                    <ShieldAlert size={24} strokeWidth={2.5} className="group-hover:scale-110 transition-transform duration-200" />
+                    <span className="text-base font-semibold">Quality Scan</span>
+                    <span className="text-xs opacity-70 font-normal leading-tight">Check PRD compliance</span>
+                  </Link>
+                </Button>
+              </Tooltip>
+            </div>
+            <div className="flex items-start gap-2 rounded-xl bg-gradient-to-r from-violet-50 to-blue-50 border border-violet-100 p-3 text-sm">
+              <Sparkles size={16} className="text-violet-600 shrink-0 mt-0.5" />
+              <p className="text-slate-700 leading-relaxed">
+                <strong className="text-slate-900">First time here?</strong> Start with the Catalog to explore existing scenarios. Click "Edit PRD" on any scenario to create a draft and see the editor in action.
+              </p>
+            </div>
           </div>
         </div>
       </header>
@@ -395,15 +440,31 @@ export default function Orientation() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {WORKFLOW_STEPS.map((step, index) => (
-              <div key={step.title} className="relative pl-10">
-                <span className="absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-sm font-semibold text-violet-700">
-                  {index + 1}
-                </span>
-                <p className="font-semibold text-slate-900">{step.title}</p>
-                <p className="text-sm text-slate-600">{step.description}</p>
+            <details className="group">
+              <summary className="cursor-pointer list-none">
+                <div className="flex items-center gap-3 rounded-xl border-2 border-violet-100 bg-gradient-to-r from-white to-violet-50/30 p-3 hover:border-violet-200 hover:shadow-sm transition-all">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-600 group-open:bg-violet-500 group-open:text-white transition-colors shrink-0">
+                    <Workflow size={18} />
+                  </span>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-slate-900">5-step workflow guide</p>
+                    <p className="text-xs text-slate-600">Click to view the complete PRD lifecycle</p>
+                  </div>
+                  <span className="group-open:rotate-180 transition-transform text-violet-600">▼</span>
+                </div>
+              </summary>
+              <div className="mt-4 space-y-4 pl-2">
+                {WORKFLOW_STEPS.map((step, index) => (
+                  <div key={step.title} className="relative pl-10">
+                    <span className="absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-sm font-semibold text-violet-700">
+                      {index + 1}
+                    </span>
+                    <p className="font-semibold text-slate-900">{step.title}</p>
+                    <p className="text-sm text-slate-600">{step.description}</p>
+                  </div>
+                ))}
               </div>
-            ))}
+            </details>
             <div className="rounded-2xl border border-dashed bg-slate-50 p-4 text-sm text-slate-600">
               🔗 Need deep dives? See <a className="text-primary underline" href="https://github.com/vrooli/Vrooli/blob/main/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md" target="_blank" rel="noreferrer">Canonical PRD Template</a> and <a className="text-primary underline" href="https://github.com/vrooli/Vrooli/blob/main/docs/testing/architecture/REQUIREMENT_FLOW.md" target="_blank" rel="noreferrer">Requirement Flow</a>.
             </div>
@@ -414,26 +475,39 @@ export default function Orientation() {
         </Card>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        {ACTION_TILES.map(({ title, description, to, icon: Icon }) => (
-          <Card key={title} className="border bg-white/90 transition hover:-translate-y-1 hover:border-violet-200 hover:shadow-lg">
-            <CardContent className="flex h-full flex-col gap-3 p-5">
-              <div className="flex items-center gap-3">
-                <span className="rounded-2xl bg-violet-100 p-2 text-violet-600">
-                  <Icon size={20} />
-                </span>
-                <p className="text-lg font-semibold text-slate-900">{title}</p>
-              </div>
-              <p className="text-sm text-slate-600 flex-1">{description}</p>
-              <Button asChild variant="link" className="self-start px-0">
-                <Link to={to} className="flex items-center gap-2">
-                  Go now
-                  <span aria-hidden="true">→</span>
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+      <section className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          <h2 className="text-xl font-semibold text-slate-900">Quick Actions</h2>
+          <span className="inline-flex rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-700 w-fit">Choose a workflow</span>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {ACTION_TILES.map(({ title, description, to, tooltip, icon: Icon }) => (
+            <Link key={title} to={to} className="group" tabIndex={-1}>
+              <Card className="h-full border-2 bg-white/90 transition-all duration-200 hover:-translate-y-1 hover:border-violet-300 hover:shadow-xl focus-within:border-violet-400 focus-within:ring-4 focus-within:ring-violet-100">
+                <CardContent className="flex h-full flex-col gap-4 p-6">
+                  <div className="flex items-start gap-3">
+                    <span className="rounded-2xl bg-gradient-to-br from-violet-100 to-violet-50 p-3 text-violet-600 shadow-sm group-hover:from-violet-500 group-hover:to-violet-400 group-hover:text-white group-hover:scale-110 transition-all duration-200">
+                      <Icon size={22} strokeWidth={2.5} />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-base font-semibold text-slate-900 group-hover:text-violet-700 transition-colors leading-snug">{title}</p>
+                        <Tooltip content={tooltip} side="top">
+                          <HelpCircle size={14} className="shrink-0 text-slate-400 hover:text-slate-600 cursor-help" />
+                        </Tooltip>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-slate-600 flex-1 leading-relaxed min-h-[3rem]">{description}</p>
+                  <div className="flex items-center gap-2 text-sm font-medium text-violet-600 group-hover:gap-3 transition-all mt-auto">
+                    <span>Open</span>
+                    <span aria-hidden="true" className="group-hover:translate-x-1 transition-transform duration-200">→</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
       </section>
 
       <section className="rounded-3xl border bg-slate-900 p-6 text-slate-100">

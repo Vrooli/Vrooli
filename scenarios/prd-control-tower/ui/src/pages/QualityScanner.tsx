@@ -321,21 +321,21 @@ export default function QualityScanner() {
     <div className="app-container space-y-6">
       <TopNav />
 
-      <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
+      <header className="rounded-3xl border bg-white/90 p-4 sm:p-6 shadow-soft-lg">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
             <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Quality Ops</span>
-            <div className="flex items-center gap-3 text-3xl font-semibold text-slate-900">
-              <span className="rounded-2xl bg-rose-100 p-3 text-rose-600">
-                <ShieldAlert size={28} />
+            <div className="flex items-center gap-3 text-2xl sm:text-3xl font-semibold text-slate-900">
+              <span className="rounded-2xl bg-gradient-to-br from-rose-100 to-rose-200 p-2.5 sm:p-3.5 text-rose-600 shadow-sm">
+                <ShieldAlert size={24} className="sm:w-7 sm:h-7" />
               </span>
               Quality Scanner
             </div>
-            <p className="max-w-2xl text-base text-muted-foreground">
-              Scan all scenarios and resources for PRD + requirements drift. Only entities with issues are shown in the results.
+            <p className="max-w-2xl text-sm sm:text-base text-slate-600 leading-relaxed">
+              Scan all scenarios and resources for PRD + requirements drift. Results show only entities with issues, making it easy to focus on what needs attention.
             </p>
             {qualityStats.length > 0 && (
-              <div className="flex flex-wrap gap-4 text-sm text-slate-600">
+              <div className="flex flex-wrap gap-3 sm:gap-4 text-xs sm:text-sm text-slate-600">
                 {qualityStats.map((stat) => (
                   <span key={stat.label}>
                     <strong className="text-slate-900">{stat.value}</strong> {stat.label}
@@ -349,18 +349,34 @@ export default function QualityScanner() {
               </div>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="gap-2" onClick={loadPreviousScan} disabled={!hasStoredScan}>
-              <ListChecks size={16} />
-              Load previous scan
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              className="gap-2 text-sm sm:text-base h-12 sm:h-auto transition-all hover:border-slate-400 hover:shadow-sm disabled:opacity-50"
+              onClick={loadPreviousScan}
+              disabled={!hasStoredScan}
+            >
+              <ListChecks size={18} className="shrink-0" />
+              <span className="hidden sm:inline">Load previous scan</span>
+              <span className="sm:hidden">Previous scan</span>
             </Button>
-            <Button variant="outline" className="gap-2" onClick={quickScanMissing} disabled={scanning}>
-              <ShieldAlert size={16} />
-              Quick scan missing PRDs
+            <Button
+              variant="outline"
+              className="gap-2 text-sm sm:text-base h-12 sm:h-auto transition-all hover:border-amber-400 hover:bg-amber-50 hover:shadow-sm disabled:opacity-50"
+              onClick={quickScanMissing}
+              disabled={scanning}
+            >
+              <ShieldAlert size={18} className="shrink-0 text-amber-600" />
+              <span className="hidden sm:inline">Quick scan missing PRDs</span>
+              <span className="sm:hidden">Quick scan</span>
             </Button>
-            <Button className="gap-2" onClick={handleScanAll} disabled={scanning || allEntities.length === 0}>
-              {scanning ? <Loader2 size={16} className="animate-spin" /> : <ScanSearch size={16} />}
-              {scanning ? 'Scanning...' : `Scan all (${allEntities.length})`}
+            <Button
+              className="gap-2 text-sm sm:text-base h-12 sm:h-auto font-semibold shadow-sm transition-all hover:shadow-md hover:scale-[1.02] active:scale-100 disabled:opacity-50 disabled:hover:scale-100"
+              onClick={handleScanAll}
+              disabled={scanning || allEntities.length === 0}
+            >
+              {scanning ? <Loader2 size={18} className="animate-spin shrink-0" /> : <ScanSearch size={18} className="shrink-0" />}
+              <span>{scanning ? 'Scanning...' : `Scan all (${allEntities.length})`}</span>
             </Button>
           </div>
         </div>
@@ -386,31 +402,40 @@ export default function QualityScanner() {
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" className="gap-2" onClick={exportJSON}>
-                <Download size={14} /> Export JSON
-              </Button>
-              <Button variant="outline" size="sm" className="gap-2" onClick={exportCSV}>
-                <Download size={14} /> Export CSV
-              </Button>
-              <Button
-                variant={allVisibleSelected ? 'ghost' : 'outline'}
-                size="sm"
-                onClick={() => toggleVisibleReportSelection(!allVisibleSelected)}
-                disabled={visibleSelectableReportIds.length === 0}
-              >
-                {allVisibleSelected
-                  ? 'Clear visible selection'
-                  : `Select all visible (${visibleSelectableReportIds.length})`}
-              </Button>
-              <Button
-                size="sm"
-                className="gap-2"
-                disabled={selectedCount === 0}
-                onClick={handleBulkReport}
-              >
-                <ListChecks size={14} /> Report selected ({selectedCount})
-              </Button>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" className="gap-2 hover:bg-slate-50 transition-colors" onClick={exportJSON} disabled={reports.length === 0}>
+                  <Download size={14} /> Export JSON
+                </Button>
+                <Button variant="outline" size="sm" className="gap-2 hover:bg-slate-50 transition-colors" onClick={exportCSV} disabled={reports.length === 0}>
+                  <Download size={14} /> Export CSV
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap gap-2 items-center">
+                <Button
+                  variant={allVisibleSelected ? 'secondary' : 'outline'}
+                  size="sm"
+                  onClick={() => toggleVisibleReportSelection(!allVisibleSelected)}
+                  disabled={visibleSelectableReportIds.length === 0}
+                  className="gap-2 min-w-[180px] justify-between font-medium transition-all hover:scale-[1.02] active:scale-100"
+                >
+                  <span>{allVisibleSelected ? 'Clear selection' : 'Select all visible'}</span>
+                  {visibleSelectableReportIds.length > 0 && (
+                    <Badge variant={visibleSelectedCount > 0 ? "default" : "secondary"} className="rounded-full px-2.5 py-0.5 text-xs font-semibold">
+                      {visibleSelectedCount}/{visibleSelectableReportIds.length}
+                    </Badge>
+                  )}
+                </Button>
+                <Button
+                  size="lg"
+                  className="gap-2 bg-gradient-to-r from-rose-600 to-rose-700 font-semibold text-white shadow-md hover:from-rose-700 hover:to-rose-800 hover:shadow-lg hover:scale-[1.02] active:scale-100 disabled:opacity-50 disabled:hover:scale-100 transition-all"
+                  disabled={selectedCount === 0}
+                  onClick={handleBulkReport}
+                >
+                  <ListChecks size={16} /> Report selected ({selectedCount})
+                </Button>
+              </div>
             </div>
 
             {scanError && (
@@ -420,9 +445,49 @@ export default function QualityScanner() {
             )}
 
             {reports.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-                Run a scan to see detailed results.
-              </div>
+              <Card className="border-2 border-dashed bg-gradient-to-br from-white via-slate-50/50 to-slate-100/30">
+                <CardContent className="flex flex-col items-center gap-6 py-16 text-center">
+                  <div className="rounded-full bg-gradient-to-br from-slate-100 to-slate-200 p-6 text-slate-400 shadow-inner">
+                    {scanning ? (
+                      <Loader2 size={56} className="animate-spin text-violet-600" />
+                    ) : (
+                      <ScanSearch size={56} />
+                    )}
+                  </div>
+                  <div className="space-y-3 max-w-lg">
+                    <h3 className="text-xl font-bold text-slate-900">
+                      {scanning ? 'Scanning in progress...' : 'No scan results yet'}
+                    </h3>
+                    <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+                      {scanning ? (
+                        <>Analyzing PRD structure, requirements coverage, and documentation quality across all entities. This typically takes 30-60 seconds.</>
+                      ) : (
+                        <>Run a quality scan to check all PRDs for structure compliance, missing sections, and coverage gaps. Results appear here automatically.
+                        {hasStoredScan && ' You can also load your previous scan results.'}</>
+                      )}
+                    </p>
+                  </div>
+                  {!scanning && (
+                    <div className="flex flex-wrap gap-3 justify-center">
+                      <Button
+                        size="lg"
+                        onClick={handleScanAll}
+                        disabled={scanning || allEntities.length === 0}
+                        className="h-12 gap-2 font-semibold shadow-md hover:shadow-lg transition-all"
+                      >
+                        <ScanSearch size={18} />
+                        <span>Run full scan</span>
+                      </Button>
+                      {hasStoredScan && (
+                        <Button variant="outline" size="lg" onClick={loadPreviousScan} className="h-12 gap-2">
+                          <ListChecks size={18} />
+                          <span>Load previous scan</span>
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             ) : (
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>
@@ -704,58 +769,63 @@ function ReportTable({
       <table className="w-full text-sm">
         <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
           <tr>
-            <th className="px-4 py-3">Select</th>
-            <th className="px-4 py-3">
+            <th className="px-4 py-3 w-12">
+              <span className="sr-only">Select</span>
+              <div className="flex items-center justify-center">
+                <div className="h-4 w-4 rounded border-2 border-slate-300" aria-hidden="true" />
+              </div>
+            </th>
+            <th className="px-4 py-3 min-w-[200px]">
               <button
                 type="button"
-                className="flex items-center hover:text-slate-700"
+                className="flex items-center gap-1 hover:text-slate-700 transition-colors font-semibold"
                 onClick={() => handleSort('entity')}
               >
                 Entity
                 <SortIcon column="entity" />
               </button>
             </th>
-            <th className="px-4 py-3">
+            <th className="px-4 py-3 min-w-[140px]">
               <button
                 type="button"
-                className="flex items-center hover:text-slate-700"
+                className="flex items-center gap-1 hover:text-slate-700 transition-colors font-semibold"
                 onClick={() => handleSort('status')}
               >
                 Status
                 <SortIcon column="status" />
               </button>
             </th>
-            <th className="px-4 py-3">
+            <th className="px-4 py-3 text-center">
               <button
                 type="button"
-                className="flex items-center hover:text-slate-700"
+                className="flex items-center gap-1 hover:text-slate-700 transition-colors font-semibold mx-auto"
                 onClick={() => handleSort('issues')}
               >
                 Issues
                 <SortIcon column="issues" />
               </button>
             </th>
-            <th className="px-4 py-3">
+            <th className="px-4 py-3 text-center">
               <button
                 type="button"
-                className="flex items-center hover:text-slate-700"
+                className="flex items-center gap-1 hover:text-slate-700 transition-colors font-semibold mx-auto"
                 onClick={() => handleSort('targets')}
               >
                 Targets
                 <SortIcon column="targets" />
               </button>
             </th>
-            <th className="px-4 py-3">
+            <th className="px-4 py-3 text-center">
               <button
                 type="button"
-                className="flex items-center hover:text-slate-700"
+                className="flex items-center gap-1 hover:text-slate-700 transition-colors font-semibold mx-auto"
                 onClick={() => handleSort('requirements')}
               >
-                Requirements
+                Reqs
                 <SortIcon column="requirements" />
               </button>
             </th>
-            <th className="px-4 py-3">Actions</th>
+            <th className="px-4 py-3 text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -766,15 +836,18 @@ function ReportTable({
             const isSelected = selectedReports.has(id)
             return (
               <Fragment key={id}>
-                <tr className="border-t text-slate-700">
+                <tr className="border-t text-slate-700 hover:bg-slate-50/50 transition-colors">
                   <td className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4"
-                      checked={isSelected}
-                      disabled={!isSelectable}
-                      onChange={() => toggleReportSelection(report)}
-                    />
+                    <div className="flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                        checked={isSelected}
+                        disabled={!isSelectable}
+                        onChange={() => toggleReportSelection(report)}
+                        aria-label={`Select ${report.entity_name}`}
+                      />
+                    </div>
                   </td>
                   <td className="px-4 py-3 font-semibold text-slate-900">
                     {report.entity_name}
@@ -782,30 +855,45 @@ function ReportTable({
                   <td className="px-4 py-3">
                     <StatusPill status={report.status} />
                   </td>
-                  <td className="px-4 py-3">
-                    {report.issue_counts.total}
+                  <td className="px-4 py-3 text-center">
+                    <span className={cn("font-semibold", report.issue_counts.total > 0 ? "text-rose-600" : "text-slate-500")}>
+                      {report.issue_counts.total}
+                    </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-center text-slate-600">
                     {report.target_count}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-center text-slate-600">
                     {report.requirement_count}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-3">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
                       <Button
-                        variant="link"
-                        className="px-0 text-sm"
+                        variant="ghost"
+                        size="sm"
+                        className="text-sm hover:bg-slate-100 transition-colors"
                         onClick={() => setExpandedReportId(isExpanded ? null : id)}
                       >
-                        {isExpanded ? 'Hide details' : 'View details'}
+                        {isExpanded ? (
+                          <>
+                            <ChevronDown size={14} className="mr-1" />
+                            Hide
+                          </>
+                        ) : (
+                          <>
+                            <ChevronRight size={14} className="mr-1" />
+                            View
+                          </>
+                        )}
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         disabled={!isSelectable}
                         onClick={() => handleReportSingle(report)}
+                        className="gap-1.5 border-rose-200 hover:bg-rose-50 hover:border-rose-300 transition-all disabled:opacity-50"
                       >
+                        <AlertTriangle size={14} className="text-rose-600" />
                         Report
                       </Button>
                     </div>

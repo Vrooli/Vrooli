@@ -16,7 +16,6 @@ type RequirementUpdateRequest struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Status      string `json:"status"`
-	Criticality string `json:"criticality"`
 	PRDRef      string `json:"prd_ref"`
 	Category    string `json:"category"`
 }
@@ -207,9 +206,10 @@ func updateRequirementInGroup(group map[string]any, requirementID string, req Re
 					r["title"] = req.Title
 					r["description"] = req.Description
 					r["status"] = req.Status
-					r["criticality"] = req.Criticality
 					r["prd_ref"] = req.PRDRef
 					r["category"] = req.Category
+					// Remove criticality if it exists (deprecated field)
+					delete(r, "criticality")
 
 					requirements[i] = r
 					group["requirements"] = requirements
@@ -239,7 +239,6 @@ type RequirementCreateRequest struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Status      string `json:"status"`
-	Criticality string `json:"criticality"`
 	PRDRef      string `json:"prd_ref"`
 	Category    string `json:"category"`
 }
@@ -314,7 +313,6 @@ func handleCreateRequirement(w http.ResponseWriter, r *http.Request) {
 		"title":       req.Title,
 		"description": req.Description,
 		"status":      req.Status,
-		"criticality": req.Criticality,
 		"prd_ref":     req.PRDRef,
 		"category":    req.Category,
 	}

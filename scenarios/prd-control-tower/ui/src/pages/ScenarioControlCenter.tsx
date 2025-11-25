@@ -277,23 +277,23 @@ export default function ScenarioControlCenter() {
   }
 
   const quickActionClasses =
-    'group block h-full rounded-2xl border border-slate-200 bg-white/90 p-4 text-left shadow-soft-sm transition hover:-translate-y-0.5 hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200'
+    'group block h-full rounded-2xl border-2 border-slate-200 bg-white/90 p-5 text-left shadow-soft-md transition hover:-translate-y-1 hover:border-violet-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-200'
 
   const renderQuickAction = (action: QuickAction) => {
     const Icon = action.icon
     const body = (
       <>
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">{action.description}</p>
-            <p className="text-lg font-semibold text-slate-900">{action.title}</p>
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1 flex-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-600">{action.description}</p>
+            <p className="text-lg font-bold text-slate-900 leading-tight group-hover:text-violet-700 transition-colors">{action.title}</p>
           </div>
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-            <Icon size={18} />
+          <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-purple-100 text-violet-600 shadow-inner group-hover:from-violet-200 group-hover:to-purple-200 transition-all">
+            <Icon size={20} strokeWidth={2.5} />
           </span>
         </div>
-        <div className="mt-4 flex items-center gap-2 text-sm text-slate-500">
-          <ArrowRight size={14} />
+        <div className="mt-4 flex items-center gap-2 text-sm font-medium text-slate-600 group-hover:text-violet-600 transition-colors">
+          <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
           <span>{action.cta || (action.to ? 'Open view' : 'Run action')}</span>
         </div>
       </>
@@ -337,24 +337,35 @@ export default function ScenarioControlCenter() {
     return (
       <div className="app-container" data-layout="dual">
         <TopNav />
-        <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="flex items-center gap-3 py-8 text-amber-900">
-            <AlertTriangle size={20} />
-            <div>
-              <p className="font-medium">Error loading data</p>
-              <p className="text-sm">{error}</p>
+        <Card className="border-2 border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50/30">
+          <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
+            <div className="rounded-full bg-amber-100 p-4 shadow-inner">
+              <AlertTriangle size={36} className="text-amber-600" />
             </div>
-            <Button
-              onClick={() => {
-                refreshRequirements()
-                refreshTargets()
-              }}
-              variant="outline"
-              size="sm"
-              className="ml-auto"
-            >
-              Retry
-            </Button>
+            <div className="space-y-2 max-w-md">
+              <p className="text-lg font-semibold text-amber-900">Failed to Load Scenario Data</p>
+              <p className="text-sm text-amber-700">{error}</p>
+              <p className="text-xs text-slate-600">Ensure the scenario exists and the API is accessible.</p>
+            </div>
+            <div className="flex gap-3 mt-2">
+              <Button
+                onClick={() => {
+                  refreshRequirements()
+                  refreshTargets()
+                }}
+                size="lg"
+                className="h-12 shadow-md hover:shadow-lg"
+              >
+                <RefreshCw size={18} className="mr-2" />
+                Retry Loading
+              </Button>
+              <Button variant="outline" size="lg" asChild className="h-12">
+                <Link to="/catalog">
+                  <ArrowRight size={18} className="mr-2" />
+                  Back to Catalog
+                </Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -367,33 +378,47 @@ export default function ScenarioControlCenter() {
       <Breadcrumbs items={breadcrumbItems} />
 
       {/* Header */}
-      <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-2 flex-1">
-            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Command Center</span>
-            <div className="flex items-center gap-3 text-3xl font-semibold text-slate-900">
-              <span className="rounded-2xl bg-gradient-to-br from-purple-100 to-blue-100 p-3 text-purple-600">
-                <ListTree size={28} strokeWidth={2.5} />
-              </span>
-              Scenario Control Center
+      <header className="rounded-3xl border bg-gradient-to-br from-white via-violet-50/20 to-white p-6 sm:p-8 shadow-soft-lg">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-3 flex-1">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 shadow-sm w-fit">
+              <div className="h-2 w-2 rounded-full bg-purple-500 animate-pulse" />
+              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-700">Command Center</span>
             </div>
-            <p className="max-w-3xl text-base text-muted-foreground">
+            <div className="flex items-center gap-3 text-2xl sm:text-3xl font-semibold text-slate-900">
+              <span className="rounded-2xl bg-gradient-to-br from-purple-100 to-blue-100 p-2.5 sm:p-3 text-purple-600 shadow-md">
+                <ListTree size={24} strokeWidth={2.5} className="sm:w-7 sm:h-7" />
+              </span>
+              <span className="leading-tight">Scenario Control Center</span>
+            </div>
+            <p className="max-w-3xl text-sm sm:text-base text-slate-600 leading-relaxed">
               Comprehensive view of PRD content, requirements, and operational targets for{' '}
-              <span className="font-medium text-slate-700">
+              <span className="font-semibold text-violet-700 bg-violet-50 px-2 py-0.5 rounded">
                 {entityType}/{entityName}
               </span>
             </p>
           </div>
-          <div className="flex flex-col gap-2 pt-6">
-            <Link to={`/draft/${entityType}/${entityName}`}>
-              <Button variant="outline" size="sm" className="gap-2 w-full">
-                <FileEdit size={14} />
-                Edit Draft
-              </Button>
-            </Link>
-            <Button variant="ghost" size="sm" className="gap-2 w-full" onClick={() => handleTabChange('prd')}>
-              <ArrowRight size={14} />
-              Jump to PRD tab
+          <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 sm:pt-0 lg:pt-6 min-w-0 lg:min-w-[200px]">
+            <Button
+              variant="outline"
+              size="lg"
+              className="gap-2.5 h-11 font-semibold hover:bg-violet-50 hover:border-violet-300 hover:text-violet-700 transition-all shadow-sm hover:shadow-md"
+              asChild
+            >
+              <Link to={`/draft/${entityType}/${entityName}`}>
+                <FileEdit size={16} />
+                <span>Edit Draft</span>
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="lg"
+              className="gap-2.5 h-11 font-semibold hover:bg-slate-100 transition-colors"
+              onClick={() => handleTabChange('prd')}
+            >
+              <ArrowRight size={16} />
+              <span className="hidden sm:inline lg:hidden">PRD</span>
+              <span className="sm:hidden lg:inline">View PRD</span>
             </Button>
           </div>
         </div>
@@ -401,18 +426,44 @@ export default function ScenarioControlCenter() {
 
       {/* Tabs */}
       <Tabs value={defaultTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full max-w-3xl grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="prd">PRD</TabsTrigger>
-          <TabsTrigger value="requirements">
-            Requirements
-            {totalRequirements > 0 && <Badge className="ml-2">{totalRequirements}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="targets">
-            Targets
-            {totalTargets > 0 && <Badge className="ml-2">{totalTargets}</Badge>}
-          </TabsTrigger>
-        </TabsList>
+        <div className="sticky top-0 z-10 bg-gradient-to-b from-white via-white to-transparent pb-3 -mt-3 pt-3">
+          <TabsList className="grid w-full max-w-4xl grid-cols-2 sm:grid-cols-4 gap-2 h-auto bg-white/80 backdrop-blur-sm p-1.5 shadow-md border">
+            <TabsTrigger
+              value="overview"
+              className="data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:shadow-md h-10 font-semibold transition-all"
+            >
+              Overview
+            </TabsTrigger>
+            <TabsTrigger
+              value="prd"
+              className="data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:shadow-md h-10 font-semibold transition-all"
+            >
+              PRD
+            </TabsTrigger>
+            <TabsTrigger
+              value="requirements"
+              className="data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:shadow-md h-10 font-semibold transition-all"
+            >
+              <span>Requirements</span>
+              {totalRequirements > 0 && (
+                <Badge className="ml-1.5 bg-violet-100 text-violet-700 data-[state=active]:bg-white data-[state=active]:text-violet-700 text-xs px-1.5 py-0.5">
+                  {totalRequirements}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger
+              value="targets"
+              className="data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:shadow-md h-10 font-semibold transition-all"
+            >
+              <span>Targets</span>
+              {totalTargets > 0 && (
+                <Badge className="ml-1.5 bg-violet-100 text-violet-700 data-[state=active]:bg-white data-[state=active]:text-violet-700 text-xs px-1.5 py-0.5">
+                  {totalTargets}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">

@@ -173,9 +173,20 @@ export function BacklogEntriesTable({
             <Loader2 size={20} className="animate-spin" /> Loading backlog...
           </div>
         ) : entries.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed bg-slate-50 py-12 text-center text-muted-foreground">
-            <Inbox size={36} />
-            <p>No backlog ideas yet. Save them from the intake panel to keep track.</p>
+          <div className="flex flex-col items-center gap-6 rounded-2xl border-2 border-dashed bg-gradient-to-br from-white via-slate-50/30 to-slate-50 py-16 text-center">
+            <div className="rounded-full bg-slate-100 p-6 shadow-inner">
+              <Inbox size={48} className="text-slate-400" />
+            </div>
+            <div className="max-w-md space-y-3">
+              <h3 className="text-xl font-bold text-slate-900">No backlog entries yet</h3>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Start capturing ideas using the intake panel above. Paste your notes, and we'll automatically structure them into trackable backlog entries.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 rounded-xl bg-violet-50 border border-violet-100 px-4 py-2.5 text-sm text-violet-800">
+              <span className="text-base">💡</span>
+              <span><strong>Tip:</strong> Use bullet points or numbered lists for best results</span>
+            </div>
           </div>
         ) : (
           <div className="overflow-x-auto">

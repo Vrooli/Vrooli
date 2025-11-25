@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Loader2, AlertTriangle, ListTree, ExternalLink, CheckCircle2, Clock, XCircle } from 'lucide-react'
+import { Search, Loader2, AlertTriangle, ListTree, ExternalLink, CheckCircle2, Clock, XCircle, RefreshCw, BookOpen } from 'lucide-react'
 import { Input } from '../components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
@@ -154,9 +154,15 @@ export default function RequirementsRegistry() {
     return (
       <div className="app-container" data-layout="dual">
         <TopNav />
-        <Card className="border-dashed bg-white/80">
-          <CardContent className="flex items-center gap-3 py-8 text-muted-foreground">
-            <Loader2 size={20} className="animate-spin" /> Loading requirements registry...
+        <Card className="border-2 border-dashed bg-gradient-to-br from-white via-violet-50/10 to-slate-50/30">
+          <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
+            <div className="rounded-full bg-violet-100 p-4 shadow-inner">
+              <Loader2 size={36} className="animate-spin text-violet-600" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-lg font-semibold text-slate-900">Loading Requirements Registry</p>
+              <p className="text-sm text-slate-600">Scanning scenarios and resources for requirements...</p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -167,15 +173,19 @@ export default function RequirementsRegistry() {
     return (
       <div className="app-container" data-layout="dual">
         <TopNav />
-        <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="flex items-center gap-3 py-8 text-amber-900">
-            <AlertTriangle size={20} />
-            <div>
-              <p className="font-medium">Error loading registry</p>
-              <p className="text-sm">{error}</p>
+        <Card className="border-2 border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50/30">
+          <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
+            <div className="rounded-full bg-amber-100 p-4 shadow-inner">
+              <AlertTriangle size={36} className="text-amber-600" />
             </div>
-            <Button onClick={fetchCatalog} variant="outline" size="sm" className="ml-auto">
-              Retry
+            <div className="space-y-2 max-w-md">
+              <p className="text-lg font-semibold text-amber-900">Failed to Load Registry</p>
+              <p className="text-sm text-amber-700">{error}</p>
+              <p className="text-xs text-slate-600">Check your API connection and try again.</p>
+            </div>
+            <Button onClick={fetchCatalog} size="lg" className="mt-2 h-12 shadow-md hover:shadow-lg">
+              <RefreshCw size={18} className="mr-2" />
+              Retry Loading
             </Button>
           </CardContent>
         </Card>
@@ -266,13 +276,35 @@ export default function RequirementsRegistry() {
       </div>
 
       {filteredEntries.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="py-12 text-center text-muted-foreground">
-            <ListTree size={48} className="mx-auto mb-3 opacity-20" />
-            <p className="font-medium">No requirements found</p>
-            <p className="text-sm">
-              {search ? 'Try adjusting your search terms' : 'No scenarios or resources have requirements defined yet'}
-            </p>
+        <Card className="border-2 border-dashed bg-gradient-to-br from-white via-slate-50/20 to-white">
+          <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
+            <div className="rounded-full bg-slate-100 p-5 shadow-inner">
+              <ListTree size={42} className="text-slate-400" />
+            </div>
+            <div className="space-y-2 max-w-md">
+              <p className="text-lg font-semibold text-slate-900">
+                {search ? 'No matching requirements' : 'No requirements found'}
+              </p>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                {search
+                  ? 'Try adjusting your search terms or clear the filter to see all entries.'
+                  : 'Scenarios and resources with requirements/ directories will appear here once they\'re created.'}
+              </p>
+            </div>
+            {search && (
+              <Button onClick={() => setSearch('')} variant="outline" size="lg" className="mt-2 h-12">
+                <XCircle size={18} className="mr-2" />
+                Clear Search Filter
+              </Button>
+            )}
+            {!search && (
+              <Button variant="outline" size="lg" asChild className="mt-2 h-12">
+                <Link to="/catalog">
+                  <BookOpen size={18} className="mr-2" />
+                  Browse Catalog
+                </Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, ListTree } from 'lucide-react'
+import { AlertTriangle, ListTree, FileEdit } from 'lucide-react'
 import type {
   Draft,
   DraftSaveStatus,
@@ -158,6 +158,7 @@ export function DraftEditorPane({
     aiResult,
     aiGenerating,
     aiError,
+    aiInsertMode,
     selectionStart,
     selectionEnd,
     hasSelection,
@@ -171,25 +172,28 @@ export function DraftEditorPane({
     setAIModel,
     setAIIncludeExistingContent,
     setAIReferencePRDs,
+    setAIInsertMode,
     handleAIGenerate,
     handleQuickAction,
     applyAIResult,
-  } = useAIAssistant({ draftId: draft.id, draft, editorContent, onContentChange })
+    regenerateAIResult,
+  } = useAIAssistant({ draftId: draft.id, editorContent, onContentChange })
 
   return (
     <section className="space-y-4" aria-labelledby="draft-editor-heading">
       {/* Breadcrumb Navigation */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="text-sm text-muted-foreground">
-          <Link to="/drafts" className="text-primary hover:underlink">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="text-sm text-slate-600">
+          <Link to="/drafts" className="text-violet-600 hover:text-violet-700 hover:underline font-medium transition-colors">
             Drafts
           </Link>{' '}
-          / <span className="capitalize">{draft.entity_type}</span> / <span className="font-medium text-foreground">{draft.entity_name}</span>
+          <span className="text-slate-400">/</span> <span className="capitalize">{draft.entity_type}</span> <span className="text-slate-400">/</span> <span className="font-semibold text-slate-900">{draft.entity_name}</span>
         </div>
         <Link to={`/scenario/${draft.entity_type}/${draft.entity_name}?tab=requirements`}>
-          <Button variant="outline" size="sm" className="gap-2">
-            <ListTree size={14} />
-            View Requirements
+          <Button variant="outline" size="sm" className="gap-2 h-10 hover:border-violet-300 hover:bg-violet-50 transition-colors">
+            <ListTree size={16} />
+            <span className="hidden sm:inline">View Requirements</span>
+            <span className="sm:hidden">Requirements</span>
           </Button>
         </Link>
       </div>
@@ -229,11 +233,11 @@ export function DraftEditorPane({
       )}
 
       {/* Main Editor Card */}
-      <Card>
-        <CardHeader className="gap-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <CardTitle id="draft-editor-heading" className="text-2xl">
+      <Card className="shadow-md">
+        <CardHeader className="gap-5 bg-gradient-to-br from-white to-slate-50/30 border-b">
+          <div className="flex flex-col lg:flex-row items-start lg:items-start justify-between gap-4">
+            <div className="space-y-2 min-w-0 flex-1">
+              <CardTitle id="draft-editor-heading" className="text-2xl font-bold text-slate-900">
                 {draft.entity_name}
               </CardTitle>
               <EditorStatusBadges
@@ -244,16 +248,18 @@ export function DraftEditorPane({
                 completenessPercent={structureSummary.completenessPercent}
               />
             </div>
-            <EditorToolbar
-              saving={saving}
-              refreshing={refreshing}
-              hasUnsavedChanges={hasUnsavedChanges}
-              onSave={onSave}
-              onDiscard={onDiscard}
-              onRefresh={onRefresh}
-              onOpenAI={openAIDialog}
-              onPublish={() => setPublishDialogOpen(true)}
-            />
+            <div className="w-full lg:w-auto">
+              <EditorToolbar
+                saving={saving}
+                refreshing={refreshing}
+                hasUnsavedChanges={hasUnsavedChanges}
+                onSave={onSave}
+                onDiscard={onDiscard}
+                onRefresh={onRefresh}
+                onOpenAI={openAIDialog}
+                onPublish={() => setPublishDialogOpen(true)}
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -265,9 +271,12 @@ export function DraftEditorPane({
           <div className={cn('grid gap-6', viewMode === ViewModes.SPLIT ? 'lg:grid-cols-2' : 'grid-cols-1')}>
             {showEditor && (
               <div className="space-y-3">
-                <label htmlFor="draft-content" className="text-sm font-semibold text-slate-700">
-                  Markdown source
-                </label>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="draft-content" className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                    Markdown source
+                  </label>
+                  <span className="text-xs text-slate-500">{editorContent.length.toLocaleString()} characters</span>
+                </div>
                 <MonacoMarkdownEditor
                   value={editorContent}
                   onChange={onContentChange}
@@ -275,20 +284,31 @@ export function DraftEditorPane({
                   onOpenAI={openAIDialog}
                   height={480}
                 />
-                <p className="text-xs text-muted-foreground">
-                  <strong>Tip:</strong> Use markdown headings (e.g., # Overview) to match the PRD structure.
-                  Press <kbd className="px-1.5 py-0.5 text-xs font-semibold bg-slate-100 border rounded">Cmd+K</kbd> for AI assist,{' '}
-                  <kbd className="px-1.5 py-0.5 text-xs font-semibold bg-slate-100 border rounded">Cmd+F</kbd> to find/replace.
-                </p>
+                <div className="rounded-xl border-2 border-violet-200/60 bg-gradient-to-br from-violet-50/70 via-purple-50/50 to-violet-50/70 p-4 shadow-sm">
+                  <p className="text-xs sm:text-sm leading-relaxed text-slate-700">
+                    <strong className="text-violet-700 font-semibold">💡 Quick tips:</strong> Use markdown headings (e.g., <code className="rounded bg-white px-2 py-0.5 text-[11px] font-mono text-violet-600 border border-violet-200"># Overview</code>) to match the PRD structure.
+                    Press <kbd className="mx-1 rounded border-2 border-violet-300 bg-white px-2 py-1 text-xs font-bold text-violet-700 shadow-sm">⌘K</kbd> for AI assist,
+                    <kbd className="mx-1 rounded border-2 border-violet-300 bg-white px-2 py-1 text-xs font-bold text-violet-700 shadow-sm">⌘S</kbd> to save.
+                  </p>
+                </div>
               </div>
             )}
 
             {showPreview && (
               <div className="space-y-3">
-                <span className="text-sm font-semibold text-slate-700">Live preview</span>
-                <div className="h-[480px] overflow-auto rounded-2xl border bg-white/80 p-4 text-sm leading-relaxed shadow-inner">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-slate-700 uppercase tracking-wide">Live preview</span>
+                  <span className="text-xs text-slate-500">{structureSummary.completenessPercent}% complete</span>
+                </div>
+                <div className="h-[480px] overflow-auto rounded-2xl border-2 bg-white p-6 text-sm leading-relaxed shadow-lg">
                   {editorContent.trim().length === 0 ? (
-                    <p className="text-muted-foreground">Start editing to see a formatted preview.</p>
+                    <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
+                      <div className="rounded-full bg-slate-100 p-4 text-slate-300">
+                        <FileEdit size={40} />
+                      </div>
+                      <p className="text-slate-500 font-medium">Start editing to see a formatted preview</p>
+                      <p className="text-xs text-slate-400">Your markdown will render here in real-time</p>
+                    </div>
                   ) : (
                     <div className="prd-content">
                       <ReactMarkdown>{editorContent}</ReactMarkdown>
@@ -357,6 +377,7 @@ export function DraftEditorPane({
         generating={aiGenerating}
         result={aiResult}
         error={aiError}
+        insertMode={aiInsertMode}
         hasSelection={hasSelection}
         includeExistingContent={aiIncludeExistingContent}
         referencePRDs={aiReferencePRDs}
@@ -367,11 +388,13 @@ export function DraftEditorPane({
         onContextChange={setAIContext}
         onActionChange={setAIAction}
         onModelChange={setAIModel}
+        onInsertModeChange={setAIInsertMode}
         onIncludeExistingContentChange={setAIIncludeExistingContent}
         onReferencePRDsChange={setAIReferencePRDs}
         onGenerate={handleAIGenerate}
         onQuickAction={handleQuickAction}
-        onInsert={applyAIResult}
+        onConfirm={applyAIResult}
+        onRegenerate={regenerateAIResult}
         onClose={closeAIDialog}
       />
       <PublishPreviewDialog

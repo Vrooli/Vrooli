@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast'
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 import { ConfirmDialogProvider } from './utils/confirmDialog'
 import { ReportIssueProvider } from './components/issues/ReportIssueProvider'
+import { KeyboardShortcutsDialog } from './components/ui/keyboard-shortcuts-dialog'
 import './styles/global.css'
 import './styles/legacy.css'
 
@@ -17,10 +18,14 @@ const RequirementsRegistry = lazy(() => import('./pages/RequirementsRegistry'))
 const ScenarioControlCenter = lazy(() => import('./pages/ScenarioControlCenter'))
 const QualityScanner = lazy(() => import('./pages/QualityScanner'))
 
-// Loading fallback component
+// Loading fallback component with better visual feedback
 const PageLoader = () => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', fontSize: '16px', color: '#64748b' }}>
-    Loading...
+  <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gradient-to-br from-violet-50/30 via-white to-slate-50/30">
+    <div className="flex items-center justify-center gap-3">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-200 border-t-violet-600"></div>
+      <span className="text-lg font-medium text-slate-700">Loading PRD Control Tower...</span>
+    </div>
+    <div className="text-sm text-slate-500">Preparing your workspace</div>
   </div>
 )
 
@@ -83,6 +88,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
+          <KeyboardShortcutsDialog />
         </HashRouter>
         <Toaster
           position="top-right"

@@ -38,17 +38,22 @@ export function BacklogPreviewPanel({
   return (
     <Card className="h-full">
       <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div className="space-y-1">
+        <div className="space-y-1 flex-1">
           <CardTitle className="text-2xl font-semibold">Live preview</CardTitle>
           <CardDescription>Select entries to save in backlog or instantly create drafts.</CardDescription>
         </div>
-        <div className="flex flex-col items-end gap-2 text-sm text-muted-foreground">
-          <Button variant="link" className="h-auto px-0" onClick={onToggleSelectAll}>
-            {selection.size === ideas.length ? 'Clear selection' : 'Select all'}
+        <div className="flex flex-col items-end gap-2">
+          <Button
+            variant={selection.size > 0 ? "secondary" : "outline"}
+            size="sm"
+            onClick={onToggleSelectAll}
+            className="gap-2 min-w-[140px] justify-between font-medium"
+          >
+            <span>{selection.size === ideas.length && ideas.length > 0 ? 'Clear all' : 'Select all'}</span>
+            <Badge variant={selection.size > 0 ? "default" : "secondary"} className="rounded-full px-2 py-0.5 text-xs font-semibold">
+              {selectedCount}/{ideas.length}
+            </Badge>
           </Button>
-          <Badge variant="secondary" className="rounded-lg px-2 py-1 text-xs">
-            {selectedCount} selected
-          </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -126,17 +131,35 @@ export function BacklogPreviewPanel({
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex flex-col gap-3 border-t border-dashed pt-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-muted-foreground">
-          {selectedCount} of {ideas.length} selected
-        </span>
+      <CardFooter className="flex flex-col gap-4 border-t bg-gradient-to-b from-white to-slate-50 pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-slate-700">
+            {selectedCount > 0 ? (
+              <>
+                <span className="text-lg font-bold text-violet-600">{selectedCount}</span> of {ideas.length} selected
+              </>
+            ) : (
+              <span className="text-muted-foreground">No items selected</span>
+            )}
+          </span>
+        </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button variant="secondary" disabled={ideas.length === 0 || busy} onClick={() => onRunAction('save')}>
-            {busy && busyId === null && <Loader2 size={16} className="mr-2 animate-spin" />}
+          <Button
+            variant="outline"
+            disabled={selectedCount === 0 || busy}
+            onClick={() => onRunAction('save')}
+            className="gap-2 border-slate-300 hover:border-slate-400"
+          >
+            {busy && busyId === null && <Loader2 size={16} className="animate-spin" />}
             Save to backlog
           </Button>
-          <Button disabled={ideas.length === 0 || busy} onClick={() => onRunAction('convert')}>
-            {busy && busyId === null ? <Loader2 size={16} className="mr-2 animate-spin" /> : <CheckCircle2 size={16} className="mr-2" />}
+          <Button
+            disabled={selectedCount === 0 || busy}
+            onClick={() => onRunAction('convert')}
+            size="lg"
+            className="gap-2 bg-gradient-to-r from-violet-600 to-violet-700 font-semibold text-white shadow-sm hover:from-violet-700 hover:to-violet-800 hover:shadow-md"
+          >
+            {busy && busyId === null ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
             Convert to drafts
           </Button>
         </div>

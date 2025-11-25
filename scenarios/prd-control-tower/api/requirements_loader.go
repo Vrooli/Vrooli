@@ -87,7 +87,7 @@ func parseRequirementGroups(baseDir, relPath string, visited map[string]bool) ([
 			Title:       req.Title,
 			Description: req.Description,
 			Status:      req.Status,
-			Criticality: req.Criticality,
+			Criticality: getCriticalityFromPRDRef(req.PRDRef),
 			FilePath:    filepath.ToSlash(absPath),
 			Validations: req.Validations,
 		})
