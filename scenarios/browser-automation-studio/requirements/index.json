@@ -55,7 +55,7 @@
       "prd_ref": "Functional Requirements > Must Have > Real-time screenshot display",
       "title": "Stream execution telemetry (screenshots, progress, logs) while runs are active",
       "description": "Aggregates execution runtime behaviours, including websocket telemetry, CLI observability, and automation coverage.",
-      "status": "complete",
+      "status": "in_progress",
       "children": [
         "BAS-EXEC-TELEMETRY-STREAM",
         "BAS-EXEC-TELEMETRY-AUTOMATION",
@@ -69,7 +69,7 @@
       "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
       "title": "Persist normalized execution artifacts for replay & video rendering",
       "description": "Ensures replay artifacts are persisted, queryable, and exportable for downstream renderers.",
-      "status": "complete",
+      "status": "in_progress",
       "children": [
         "BAS-REPLAY-TIMELINE-PERSISTENCE",
         "BAS-REPLAY-EXPORT-BUNDLE"

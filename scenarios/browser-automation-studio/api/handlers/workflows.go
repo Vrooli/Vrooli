@@ -198,10 +198,8 @@ func (h *Handler) ListWorkflows(w http.ResponseWriter, r *http.Request) {
 
 // GetWorkflow handles GET /api/v1/workflows/{id}
 func (h *Handler) GetWorkflow(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidWorkflowID)
+	id, ok := h.parseUUIDParam(w, r, "id", ErrInvalidWorkflowID)
+	if !ok {
 		return
 	}
 
@@ -220,10 +218,8 @@ func (h *Handler) GetWorkflow(w http.ResponseWriter, r *http.Request) {
 
 // UpdateWorkflow handles PUT /api/v1/workflows/{id}
 func (h *Handler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidWorkflowID)
+	id, ok := h.parseUUIDParam(w, r, "id", ErrInvalidWorkflowID)
+	if !ok {
 		return
 	}
 
@@ -280,10 +276,8 @@ func (h *Handler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 
 // ListWorkflowVersions handles GET /api/v1/workflows/{id}/versions
 func (h *Handler) ListWorkflowVersions(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidWorkflowID)
+	id, ok := h.parseUUIDParam(w, r, "id", ErrInvalidWorkflowID)
+	if !ok {
 		return
 	}
 
@@ -327,10 +321,8 @@ func (h *Handler) ListWorkflowVersions(w http.ResponseWriter, r *http.Request) {
 
 // GetWorkflowVersion handles GET /api/v1/workflows/{id}/versions/{version}
 func (h *Handler) GetWorkflowVersion(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidWorkflowID)
+	id, ok := h.parseUUIDParam(w, r, "id", ErrInvalidWorkflowID)
+	if !ok {
 		return
 	}
 
@@ -363,10 +355,8 @@ func (h *Handler) GetWorkflowVersion(w http.ResponseWriter, r *http.Request) {
 
 // RestoreWorkflowVersion handles POST /api/v1/workflows/{id}/versions/{version}/restore
 func (h *Handler) RestoreWorkflowVersion(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidWorkflowID)
+	id, ok := h.parseUUIDParam(w, r, "id", ErrInvalidWorkflowID)
+	if !ok {
 		return
 	}
 
@@ -417,10 +407,8 @@ func (h *Handler) RestoreWorkflowVersion(w http.ResponseWriter, r *http.Request)
 
 // ExecuteWorkflow handles POST /api/v1/workflows/{id}/execute
 func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	workflowID, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidWorkflowID)
+	workflowID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidWorkflowID)
+	if !ok {
 		return
 	}
 
@@ -478,10 +466,8 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 
 // ModifyWorkflow handles POST /api/v1/workflows/{id}/modify
 func (h *Handler) ModifyWorkflow(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	workflowID, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidWorkflowID)
+	workflowID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidWorkflowID)
+	if !ok {
 		return
 	}
 

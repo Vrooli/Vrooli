@@ -119,6 +119,7 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 			"DELETE FROM extracted_data WHERE execution_id IN (SELECT id FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%'))",
 			"DELETE FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%')",
 			"DELETE FROM workflows WHERE folder_path LIKE '/test%'",
+			"DELETE FROM workflow_folders WHERE path LIKE '/test%'",
 			"DELETE FROM projects WHERE folder_path LIKE '/test%'",
 		}
 

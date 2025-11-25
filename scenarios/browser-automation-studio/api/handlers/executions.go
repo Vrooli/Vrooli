@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
@@ -19,10 +18,8 @@ import (
 
 // GetExecutionScreenshots handles GET /api/v1/executions/{id}/screenshots
 func (h *Handler) GetExecutionScreenshots(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	executionID, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidExecutionID)
+	executionID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidExecutionID)
+	if !ok {
 		return
 	}
 
@@ -43,10 +40,8 @@ func (h *Handler) GetExecutionScreenshots(w http.ResponseWriter, r *http.Request
 
 // GetExecutionTimeline handles GET /api/v1/executions/{id}/timeline
 func (h *Handler) GetExecutionTimeline(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	executionID, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidExecutionID)
+	executionID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidExecutionID)
+	if !ok {
 		return
 	}
 
@@ -65,10 +60,8 @@ func (h *Handler) GetExecutionTimeline(w http.ResponseWriter, r *http.Request) {
 
 // PostExecutionExport handles POST /api/v1/executions/{id}/export
 func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	executionID, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidExecutionID)
+	executionID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidExecutionID)
+	if !ok {
 		return
 	}
 
@@ -210,10 +203,8 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 
 // GetExecution handles GET /api/v1/executions/{id}
 func (h *Handler) GetExecution(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidExecutionID)
+	id, ok := h.parseUUIDParam(w, r, "id", ErrInvalidExecutionID)
+	if !ok {
 		return
 	}
 
@@ -259,10 +250,8 @@ func (h *Handler) ListExecutions(w http.ResponseWriter, r *http.Request) {
 
 // StopExecution handles POST /api/v1/executions/{id}/stop
 func (h *Handler) StopExecution(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidExecutionID)
+	id, ok := h.parseUUIDParam(w, r, "id", ErrInvalidExecutionID)
+	if !ok {
 		return
 	}
 

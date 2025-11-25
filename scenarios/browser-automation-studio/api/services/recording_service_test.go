@@ -214,22 +214,22 @@ func TestRecordingServiceImportArchive(t *testing.T) {
 					t.Fatalf("unexpected storage URL: %s", artifact.StorageURL)
 				}
 			}
-	}
+		}
 
-	if !hasTimeline {
-		t.Fatalf("expected at least one timeline artifact")
-	}
-	if !hasScreenshot {
-		t.Fatalf("expected at least one screenshot artifact")
-	}
+		if !hasTimeline {
+			t.Fatalf("expected at least one timeline artifact")
+		}
+		if !hasScreenshot {
+			t.Fatalf("expected at least one screenshot artifact")
+		}
 
-	// Verify files persisted to the recordings root
-	frameGlob := filepath.Join(recordingsRoot, result.Execution.ID.String(), "frames", "*.png")
-	matches, err := filepath.Glob(frameGlob)
-	if err != nil || len(matches) == 0 {
-		t.Fatalf("expected persisted frame asset, got error: %v", err)
-	}
-})
+		// Verify files persisted to the recordings root
+		frameGlob := filepath.Join(recordingsRoot, result.Execution.ID.String(), "frames", "*.png")
+		matches, err := filepath.Glob(frameGlob)
+		if err != nil || len(matches) == 0 {
+			t.Fatalf("expected persisted frame asset, got error: %v", err)
+		}
+	})
 }
 
 func createTestRecordingArchive(t *testing.T, archivePath string) {

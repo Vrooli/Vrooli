@@ -53,8 +53,8 @@ func (s *Session) ExecuteWait(ctx context.Context, selector string, timeoutMs, w
 	result := &StepResult{}
 
 	s.log.WithFields(map[string]interface{}{
-		"selector":   selector,
-		"timeoutMs":  timeoutMs,
+		"selector":  selector,
+		"timeoutMs": timeoutMs,
 		"waitAfter": waitAfterMs,
 	}).Info("ExecuteWait starting")
 

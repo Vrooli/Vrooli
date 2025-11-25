@@ -12,7 +12,7 @@
       "prd_ref": "Functional Requirements > Must Have > Real-time screenshot display",
       "title": "Telemetry stream includes screenshots, console, and network events",
       "description": "Confirms the execution service emits complete telemetry payloads within latency targets and the UI processors consume heartbeat and assertion events correctly.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "test",
@@ -23,16 +23,16 @@
         },
         {
           "type": "test",
-          "ref": "api/browserless/runtime/session_test.go",
+          "ref": "api/browserless/cdp/session_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Validates Browserless session payloads and error handling."
+          "notes": "Validates Browserless CDP session payloads and error handling."
         },
         {
           "type": "test",
           "ref": "test/phases/test-unit.sh",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Unit phase captures Node + Go telemetry coverage with enforced thresholds."
         },
         {
@@ -53,21 +53,21 @@
           "type": "automation",
           "ref": "test/playbooks/capabilities/03-execution/01-automation/telemetry-smoke.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "E2E validation of telemetry stream with screenshots, console, and network events"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/03-execution/02-ui/execution-progress-tracking.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates real-time execution progress tracking UI with indicators and state transitions"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/03-execution/02-ui/execution-telemetry-display.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates real-time telemetry display including screenshots, console, network tabs, and heartbeat timestamps"
         }
       ]
@@ -78,20 +78,20 @@
       "prd_ref": "Functional Requirements > Must Have > Real-time screenshot display",
       "title": "Telemetry smoke automation validates live streaming",
       "description": "Runs an end-to-end workflow that asserts screenshots, highlight metadata, console, and network events are captured and export packages are generated.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/03-execution/01-automation/telemetry-smoke.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "BAS workflow validating telemetry stream (JSON export pending)."
         },
         {
           "type": "test",
           "ref": "test/phases/test-integration.sh",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Integration phase invokes the telemetry smoke automation through run_workflow_yaml."
         },
         {
@@ -109,20 +109,20 @@
       "prd_ref": "Functional Requirements > Must Have > Real-time screenshot display",
       "title": "Heartbeat stalls trigger operator alerts",
       "description": "Ensures the CLI and automation surface stalled heartbeat warnings when telemetry pauses beyond the configured threshold.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/03-execution/01-automation/heartbeat-stall.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "BAS workflow validating heartbeat stall detection once exported."
         },
         {
           "type": "test",
           "ref": "test/phases/test-integration.sh",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Integration phase records requirement state after running heartbeat automation."
         },
         {
@@ -140,20 +140,20 @@
       "prd_ref": "Functional Requirements > Must Have > Execute workflows via API and CLI",
       "title": "CLI execution watch surfaces telemetry and heartbeat state",
       "description": "Confirms the CLI reflects progress, warning, and recovery events while tailing live executions.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "manual",
           "ref": "cli/browser-automation-studio",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "CLI emits heartbeat lag/stall notices during manual verification sessions."
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/03-execution/01-automation/telemetry-smoke.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Extend smoke workflow to assert CLI output once scripted checks are in place."
         }
       ]

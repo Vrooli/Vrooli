@@ -193,15 +193,15 @@
         "sourceSelector": "@selector/nodePalette.cards.navigate",
         "targetSelector": ".react-flow__pane",
         "timeoutMs": 10000,
-        "waitForMs": 2000
+        "waitForMs": 3000
       }
     },
     {
       "id": "wait-after-drag",
       "type": "wait",
       "data": {
-        "label": "Wait for node to be added",
-        "durationMs": 1500,
+        "label": "Wait for React Flow layout to stabilize",
+        "durationMs": 3000,
         "waitType": "duration"
       }
     },
@@ -211,8 +211,8 @@
       "data": {
         "label": "Select Navigate node for configuration",
         "selector": ".react-flow__node[data-node-type=\"navigate\"]",
-        "timeoutMs": 5000,
-        "waitForMs": 1000,
+        "timeoutMs": 10000,
+        "waitForMs": 2000,
         "continueOnError": true
       }
     },
@@ -221,7 +221,7 @@
       "type": "wait",
       "data": {
         "label": "Wait for properties panel to open",
-        "durationMs": 1000,
+        "durationMs": 2000,
         "waitType": "duration"
       }
     },
@@ -246,15 +246,15 @@
         "sourceSelector": "@selector/nodePalette.cards.screenshot",
         "targetSelector": ".react-flow__pane",
         "timeoutMs": 10000,
-        "waitForMs": 2000
+        "waitForMs": 3000
       }
     },
     {
       "id": "wait-after-screenshot-drag",
       "type": "wait",
       "data": {
-        "label": "Wait for screenshot node",
-        "durationMs": 1500,
+        "label": "Wait for React Flow layout to stabilize",
+        "durationMs": 3000,
         "waitType": "duration"
       }
     },

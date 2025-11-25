@@ -5,11 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
@@ -61,39 +57,10 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate folder path exists and is accessible
-	absPath, err := filepath.Abs(req.FolderPath)
+	// Validate and prepare folder path
+	absPath, err := validateAndPrepareFolderPath(req.FolderPath, h.log)
 	if err != nil {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "folder_path", "error": "invalid path"}))
-		return
-	}
-
-	allowedRoot := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
-	if allowedRoot == "" {
-		if cwd, cwdErr := os.Getwd(); cwdErr == nil {
-			allowedRoot = cwd
-		} else {
-			h.log.WithError(cwdErr).Error("Failed to resolve VROOLI_ROOT for folder validation")
-			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "resolve_project_root"}))
-			return
-		}
-	}
-	allowedRoot, err = filepath.Abs(allowedRoot)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to normalize VROOLI_ROOT for folder validation")
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "normalize_project_root"}))
-		return
-	}
-
-	if !strings.HasPrefix(absPath, allowedRoot+string(os.PathSeparator)) && absPath != allowedRoot {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "folder_path", "error": "folder path must be inside project root"}))
-		return
-	}
-
-	// Create directory if it doesn't exist
-	if err := os.MkdirAll(absPath, 0755); err != nil {
-		h.log.WithError(err).WithField("folder_path", absPath).Error("Failed to create project directory")
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "create_directory"}))
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "folder_path", "error": err.Error()}))
 		return
 	}
 
@@ -190,10 +157,8 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 
 // GetProject handles GET /api/v1/projects/{id}
 func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidProjectID)
+	id, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
+	if !ok {
 		return
 	}
 
@@ -224,10 +189,8 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 
 // UpdateProject handles PUT /api/v1/projects/{id}
 func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidProjectID)
+	id, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
+	if !ok {
 		return
 	}
 
@@ -258,19 +221,11 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.FolderPath != "" {
 		// Validate and update folder path
-		absPath, err := filepath.Abs(req.FolderPath)
+		absPath, err := validateAndPrepareFolderPath(req.FolderPath, h.log)
 		if err != nil {
-			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "folder_path", "error": "invalid path"}))
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "folder_path", "error": err.Error()}))
 			return
 		}
-
-		// Create directory if it doesn't exist
-		if err := os.MkdirAll(absPath, 0755); err != nil {
-			h.log.WithError(err).WithField("folder_path", absPath).Error("Failed to create project directory")
-			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "create_directory"}))
-			return
-		}
-
 		project.FolderPath = absPath
 	}
 
@@ -288,10 +243,8 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 
 // DeleteProject handles DELETE /api/v1/projects/{id}
 func (h *Handler) DeleteProject(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidProjectID)
+	id, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
+	if !ok {
 		return
 	}
 
@@ -311,10 +264,8 @@ func (h *Handler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 
 // GetProjectWorkflows handles GET /api/v1/projects/{id}/workflows
 func (h *Handler) GetProjectWorkflows(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	projectID, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidProjectID)
+	projectID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
+	if !ok {
 		return
 	}
 
@@ -335,10 +286,8 @@ func (h *Handler) GetProjectWorkflows(w http.ResponseWriter, r *http.Request) {
 
 // BulkDeleteProjectWorkflows handles POST /api/v1/projects/{id}/workflows/bulk-delete
 func (h *Handler) BulkDeleteProjectWorkflows(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	projectID, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidProjectID)
+	projectID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
+	if !ok {
 		return
 	}
 
@@ -385,10 +334,8 @@ func (h *Handler) BulkDeleteProjectWorkflows(w http.ResponseWriter, r *http.Requ
 
 // ExecuteAllProjectWorkflows handles POST /api/v1/projects/{id}/execute-all
 func (h *Handler) ExecuteAllProjectWorkflows(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	projectID, err := uuid.Parse(idStr)
-	if err != nil {
-		h.respondError(w, ErrInvalidProjectID)
+	projectID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
+	if !ok {
 		return
 	}
 

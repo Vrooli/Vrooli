@@ -2,7 +2,9 @@
 set -euo pipefail
 
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-SCENARIO_NAME="${SCENARIO_NAME:-browser-automation-studio}"
+# Determine scenario name from the directory structure, not environment
+# This ensures the script always targets the correct scenario regardless of caller context
+SCENARIO_NAME="$(basename "$SCENARIO_DIR")"
 API_PORT=$(vrooli scenario port "$SCENARIO_NAME" API_PORT 2>/dev/null || true)
 if [ -z "$API_PORT" ]; then
   echo "❌ Unable to resolve API_PORT for ${SCENARIO_NAME}. Ensure the scenario is running before applying seeds." >&2

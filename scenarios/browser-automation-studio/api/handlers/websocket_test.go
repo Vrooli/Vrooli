@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -266,13 +268,21 @@ func TestHandleWebSocket_ExecutionIDParsing(t *testing.T) {
 
 func TestHandleWebSocket_ConcurrentConnections(t *testing.T) {
 	t.Run("[REQ:BAS-TELEMETRY-HEARTBEAT] handles multiple concurrent WebSocket connections", func(t *testing.T) {
+		var mu sync.Mutex
 		connectionCount := 0
 		var connections []*websocket.Conn
+		var wg sync.WaitGroup
+
+		numConnections := 3
+		wg.Add(numConnections)
 
 		mockHub := &mockWebSocketHub{
 			serveWSFn: func(conn *websocket.Conn, execID *uuid.UUID) {
+				mu.Lock()
 				connectionCount++
 				connections = append(connections, conn)
+				mu.Unlock()
+				wg.Done()
 				// Keep connection open for this test
 			},
 		}
@@ -285,7 +295,6 @@ func TestHandleWebSocket_ConcurrentConnections(t *testing.T) {
 		wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
 
 		// Create 3 concurrent connections
-		numConnections := 3
 		clients := make([]*websocket.Conn, numConnections)
 		for i := 0; i < numConnections; i++ {
 			conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
@@ -293,15 +302,34 @@ func TestHandleWebSocket_ConcurrentConnections(t *testing.T) {
 			clients[i] = conn
 		}
 
+		// Wait for all serveWSFn callbacks to complete with timeout
+		done := make(chan struct{})
+		go func() {
+			wg.Wait()
+			close(done)
+		}()
+
+		select {
+		case <-done:
+			// All connections processed successfully
+		case <-time.After(2 * time.Second):
+			t.Fatal("Timeout waiting for WebSocket connections to be processed")
+		}
+
 		// Clean up
 		for _, conn := range clients {
 			conn.Close()
 		}
+		mu.Lock()
 		for _, conn := range connections {
 			conn.Close()
 		}
+		mu.Unlock()
 
-		assert.Equal(t, numConnections, connectionCount, "Should handle all concurrent connections")
+		mu.Lock()
+		actualCount := connectionCount
+		mu.Unlock()
+		assert.Equal(t, numConnections, actualCount, "Should handle all concurrent connections")
 	})
 }
 

@@ -30,18 +30,28 @@ func TestPerExecutionSequencerConcurrent(t *testing.T) {
 	const increments = 25
 
 	var wg sync.WaitGroup
+	var failed bool
+	var failMu sync.Mutex
+
 	wg.Add(workers)
 	for i := 0; i < workers; i++ {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < increments; j++ {
 				if seq.Next(executionID) == 0 {
-					t.Fatalf("sequence should never return zero value")
+					failMu.Lock()
+					failed = true
+					failMu.Unlock()
+					return
 				}
 			}
 		}()
 	}
 	wg.Wait()
+
+	if failed {
+		t.Fatal("sequence should never return zero value")
+	}
 
 	if got := seq.Next(executionID); got != workers*increments+1 {
 		t.Fatalf("expected next sequence to be %d, got %d", workers*increments+1, got)

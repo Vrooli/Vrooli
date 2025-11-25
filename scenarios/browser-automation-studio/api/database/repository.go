@@ -78,7 +78,6 @@ func NewRepository(db *DB, log *logrus.Logger) Repository {
 	}
 }
 
-
 // Implementation methods are organized across focused files:
 // - repository_projects.go: Project CRUD and stats operations
 // - repository_workflows.go: Workflow and workflow version operations

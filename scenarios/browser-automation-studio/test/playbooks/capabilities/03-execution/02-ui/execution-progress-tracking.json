@@ -13,22 +13,11 @@
   },
   "nodes": [
     {
-      "id": "call-open-project",
-      "type": "workflowCall",
+      "id": "call-open-workflow",
+      "type": "subflow",
       "data": {
-        "label": "Open Demo project via fixture",
-        "workflowId": "@fixture/open-demo-project(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
-      }
-    },
-    {
-      "id": "find-workflow",
-      "type": "assert",
-      "data": {
-        "label": "Workflow exists",
-        "selector": "@selector/workflows.card",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Demo workflow should exist"
+        "label": "Open demo workflow in builder",
+        "workflowId": "@fixture/open-demo-workflow(projectName=@seed/projectName, projectFolder=@seed/projectFolder, workflowId=@seed/workflowId, workflowName=@seed/workflowName)"
       }
     },
     {
@@ -45,7 +34,7 @@
       "type": "click",
       "data": {
         "label": "Start workflow execution",
-        "selector": "@selector/workflowBuilder.executeButton",
+        "selector": "@selector/header.buttons.execute",
         "timeoutMs": 5000,
         "resilience": {
           "successSelector": "@selector/executions.viewer.status",
@@ -127,13 +116,7 @@
   "edges": [
     {
       "id": "e1",
-      "source": "call-open-project",
-      "target": "find-workflow",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e2",
-      "source": "find-workflow",
+      "source": "call-open-workflow",
       "target": "capture-before-execution",
       "type": "smoothstep"
     },

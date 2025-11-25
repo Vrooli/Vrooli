@@ -255,10 +255,21 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 		result, err = s.ExecuteEvaluate(ctx, script, timeoutMs)
 
 	case "keyboard":
-		keyValue := instruction.Params.KeyValue
-		if keyValue == "" {
-			return nil, fmt.Errorf("keyboard node missing key value")
+		// Determine which keyboard input format to use (priority: keys array > sequence > deprecated keyValue)
+		var keyValue string
+		if len(instruction.Params.Keys) > 0 {
+			// Preferred: Keys array (e.g., ["Escape"], ["Control", "c"])
+			keyValue = strings.Join(instruction.Params.Keys, "+")
+		} else if sequence := strings.TrimSpace(instruction.Params.Sequence); sequence != "" {
+			// Alternative: Sequence string (e.g., "Hello World")
+			keyValue = sequence
+		} else if deprecated := strings.TrimSpace(instruction.Params.KeyValue); deprecated != "" {
+			// Backward compatibility: deprecated key field
+			keyValue = deprecated
+		} else {
+			return nil, fmt.Errorf("keyboard node missing key input (must define keys[], sequence, or key)")
 		}
+
 		eventType := instruction.Params.KeyEventType
 		modifiers := instruction.Params.KeyModifiers
 		delayMs := instruction.Params.DelayMs

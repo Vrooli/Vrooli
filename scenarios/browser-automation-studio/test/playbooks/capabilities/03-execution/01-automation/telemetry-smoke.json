@@ -13,11 +13,11 @@
   },
   "nodes": [
     {
-      "id": "call-open-project",
-      "type": "workflowCall",
+      "id": "call-open-workflow",
+      "type": "subflow",
       "data": {
-        "label": "Open Demo project via fixture",
-        "workflowId": "@fixture/open-demo-project(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
+        "label": "Open demo workflow in builder",
+        "workflowId": "@fixture/open-demo-workflow(projectName=@seed/projectName, projectFolder=@seed/projectFolder, workflowId=@seed/workflowId, workflowName=@seed/workflowName)"
       }
     },
     {
@@ -25,7 +25,7 @@
       "type": "click",
       "data": {
         "label": "Execute demo workflow",
-        "selector": "@selector/workflowBuilder.executeButton",
+        "selector": "@selector/header.buttons.execute",
         "timeoutMs": 10000,
         "resilience": {
           "successSelector": "@selector/executions.viewer.status",
@@ -70,7 +70,7 @@
   "edges": [
     {
       "id": "e1",
-      "source": "call-open-project",
+      "source": "call-open-workflow",
       "target": "click-execute-workflow",
       "type": "smoothstep"
     },

@@ -410,12 +410,14 @@ func setupRepo(t *testing.T) (database.Repository, func()) {
 
 	cleanup := func() {
 		ctx := context.Background()
+		// Delete in reverse dependency order to avoid foreign key violations
 		queries := []string{
-			"DELETE FROM execution_artifacts",
-			"DELETE FROM execution_steps",
-			"DELETE FROM executions",
-			"DELETE FROM workflows",
-			"DELETE FROM projects",
+			"DELETE FROM execution_artifacts WHERE execution_id IN (SELECT id FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%'))",
+			"DELETE FROM execution_steps WHERE execution_id IN (SELECT id FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%'))",
+			"DELETE FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%')",
+			"DELETE FROM workflows WHERE folder_path LIKE '/test%'",
+			"DELETE FROM workflow_folders WHERE folder_path LIKE '/test%'",
+			"DELETE FROM projects WHERE folder_path LIKE '/test%'",
 		}
 		for _, q := range queries {
 			db.ExecContext(ctx, q)

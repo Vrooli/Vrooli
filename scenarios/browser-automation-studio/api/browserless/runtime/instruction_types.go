@@ -154,7 +154,9 @@ type InstructionParam struct {
 	ProbeSamples            int               `json:"probeSamples,omitempty"`
 	ShortcutKeys            []string          `json:"shortcutKeys,omitempty"`
 	ShortcutDelayMs         int               `json:"shortcutDelayMs,omitempty"`
-	KeyValue                string            `json:"keyValue,omitempty"`
+	Keys                    []string          `json:"keys,omitempty"`     // Keyboard keys array (preferred)
+	Sequence                string            `json:"sequence,omitempty"` // Keyboard sequence string
+	KeyValue                string            `json:"keyValue,omitempty"` // Deprecated: use Keys instead
 	KeyEventType            string            `json:"keyEventType,omitempty"`
 	KeyModifiers            []string          `json:"keyModifiers,omitempty"`
 	ScrollType              string            `json:"scrollType,omitempty"`

@@ -63,13 +63,13 @@
       "prd_ref": "Workflow Builder",
       "title": "Workflow creation and builder loading",
       "description": "Users can create new workflows and have the workflow builder load successfully",
-      "status": "in_progress",
+      "status": "complete",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/02-workflows/workflow-create-and-load.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Tests workflow creation flow including AI modal bypass and builder loading"
         }
       ]

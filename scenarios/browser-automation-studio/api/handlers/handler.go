@@ -107,9 +107,13 @@ type HealthResponse struct {
 // NewHandler creates a new handler instance
 func NewHandler(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, allowAllOrigins bool, allowedOrigins []string) *Handler {
 	// Initialize MinIO client for screenshot serving
-	storageClient, err := storage.NewMinIOClient(log)
+	var storageClient storage.StorageInterface
+	minioClient, err := storage.NewMinIOClient(log)
 	if err != nil {
 		log.WithError(err).Warn("Failed to initialize MinIO client for handlers - screenshot serving will be disabled")
+		storageClient = nil
+	} else {
+		storageClient = minioClient
 	}
 
 	recordingsRoot := paths.ResolveRecordingsRoot(log)
