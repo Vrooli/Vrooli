@@ -245,6 +245,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Function to update last_updated for profile_execution_state (uses column that actually exists)
+CREATE OR REPLACE FUNCTION update_profile_execution_state_last_updated()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.last_updated = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Trigger to automatically update updated_at for profiles
 CREATE TRIGGER trigger_auto_steer_profiles_updated_at
     BEFORE UPDATE ON auto_steer_profiles
@@ -255,4 +264,4 @@ CREATE TRIGGER trigger_auto_steer_profiles_updated_at
 CREATE TRIGGER trigger_profile_execution_state_updated
     BEFORE UPDATE ON profile_execution_state
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+    EXECUTE FUNCTION update_profile_execution_state_last_updated();

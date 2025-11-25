@@ -310,10 +310,13 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 					task.ProcessorAutoRequeue = false
 					task.Status = "completed"
 				} else {
-					log.Printf("Auto Steer: Task %s will continue - requeuing for next iteration", task.ID)
-					// Ensure task will be requeued
-					task.ProcessorAutoRequeue = true
-					task.Status = "pending"
+					if task.ProcessorAutoRequeue {
+						log.Printf("Auto Steer: Task %s will continue - requeuing for next iteration", task.ID)
+						task.Status = "pending"
+					} else {
+						log.Printf("Auto Steer: Task %s would continue, but auto-enqueue is disabled; leaving completed", task.ID)
+						task.Status = "completed"
+					}
 				}
 			}
 		}

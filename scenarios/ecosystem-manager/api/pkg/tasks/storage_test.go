@@ -224,6 +224,26 @@ func TestGetTaskByID(t *testing.T) {
 	})
 }
 
+func TestNormalizeTaskItemDoesNotForceAutoRequeue(t *testing.T) {
+	storage := NewStorage(t.TempDir())
+	item := TaskItem{
+		Title:                "Manual toggle respected",
+		Status:               "completed",
+		ProcessorAutoRequeue: false,
+	}
+
+	raw := map[string]any{
+		"title": "Manual toggle respected",
+		// Intentionally omit processor_auto_requeue to ensure we don't default it to true.
+	}
+
+	_ = storage.normalizeTaskItem(&item, "completed", raw)
+
+	if item.ProcessorAutoRequeue {
+		t.Fatalf("expected ProcessorAutoRequeue to remain false when omitted in raw data")
+	}
+}
+
 func TestNormalizeTargets(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -297,7 +317,6 @@ func TestFindActiveTargetTask(t *testing.T) {
 			t.Fatalf("mkdir: %v", err)
 		}
 	}
-
 	storage := NewStorage(tmp)
 
 	t.Run("FindsExistingActiveTask", func(t *testing.T) {
@@ -362,4 +381,37 @@ func TestFindActiveTargetTask(t *testing.T) {
 			t.Errorf("Expected nil (completed tasks are not active), got %s", found.ID)
 		}
 	})
+}
+
+func TestMoveTaskDoesNotDeadlock(t *testing.T) {
+	tmp := t.TempDir()
+	for _, status := range queueStatuses {
+		if err := os.MkdirAll(filepath.Join(tmp, status), 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+	}
+
+	storage := NewStorage(tmp)
+	task := TaskItem{ID: "deadlock-test", Type: "scenario", Status: "pending"}
+	if err := storage.SaveQueueItem(task, "pending"); err != nil {
+		t.Fatalf("SaveQueueItem: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- storage.MoveTask(task.ID, "pending", "completed")
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("MoveTask returned error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("MoveTask timed out (possible deadlock)")
+	}
+
+	if _, status, err := storage.GetTaskByID(task.ID); err != nil || status != "completed" {
+		t.Fatalf("expected task moved to completed, status=%s err=%v", status, err)
+	}
 }

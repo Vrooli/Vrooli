@@ -119,6 +119,19 @@ func (r *Recycler) Enqueue(taskID string) {
 		return
 	}
 
+	// Guard against accidental enqueue of non-recyclable tasks (e.g., finalized/blocked).
+	if r.storage != nil {
+		task, status, err := r.storage.GetTaskByID(taskID)
+		if err == nil {
+			if status != "completed" && status != "failed" {
+				return
+			}
+			if !task.ProcessorAutoRequeue {
+				return
+			}
+		}
+	}
+
 	r.mu.Lock()
 	if !r.active {
 		r.mu.Unlock()
@@ -514,6 +527,11 @@ func (r *Recycler) Stats() recyclerStats {
 func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.RecyclerSettings) error {
 	now := timeutil.NowRFC3339()
 
+	if !task.ProcessorAutoRequeue {
+		log.Printf("Recycler skipping task %s (auto-requeue disabled)", task.ID)
+		return nil
+	}
+
 	// Get metrics classification (NEW - this is the source of truth)
 	// Use Title as fallback if Target is empty (generator tasks use title as scenario name)
 	scenarioName := task.Target
@@ -571,7 +589,6 @@ func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.Recyc
 	task.CurrentPhase = ""
 	task.StartedAt = ""
 	task.CompletedAt = ""
-	task.ProcessorAutoRequeue = true
 
 	// CRITICAL: Convert Generator tasks to Improver after first completion
 	// Generator creates NEW resources/scenarios, Improver enhances EXISTING ones
@@ -592,6 +609,11 @@ func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.Recyc
 
 func (r *Recycler) processFailedTask(task *tasks.TaskItem, cfg settings.RecyclerSettings) error {
 	now := timeutil.NowRFC3339()
+
+	if !task.ProcessorAutoRequeue {
+		log.Printf("Recycler skipping task %s (auto-requeue disabled)", task.ID)
+		return nil
+	}
 
 	// Failure streak increments regardless of summarizer outcome.
 	task.ConsecutiveFailures++
@@ -621,7 +643,6 @@ func (r *Recycler) processFailedTask(task *tasks.TaskItem, cfg settings.Recycler
 	task.CurrentPhase = ""
 	task.StartedAt = ""
 	task.CompletedAt = ""
-	task.ProcessorAutoRequeue = true
 
 	if err := r.persistTask(task, "pending"); err != nil {
 		return err

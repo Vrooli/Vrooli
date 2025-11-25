@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/internal/slices"
@@ -52,6 +53,8 @@ var statusOrder = func() map[string]int {
 // 5. Atomic operations - file renames provide atomic status transitions
 type Storage struct {
 	QueueDir string
+
+	taskLocks sync.Map // taskID -> *sync.Mutex
 }
 
 // NewStorage creates a new storage instance
@@ -162,20 +165,6 @@ func (s *Storage) normalizeTaskItem(item *TaskItem, status string, raw map[strin
 		changed = true
 	}
 
-	// Default processor auto requeue to true if not explicitly set
-	if raw != nil {
-		if _, exists := raw["processor_auto_requeue"]; !exists {
-			if !item.ProcessorAutoRequeue {
-				item.ProcessorAutoRequeue = true
-				changed = true
-			}
-		}
-	} else if !item.ProcessorAutoRequeue {
-		// If raw metadata missing (e.g., crafted programmatically) default to true
-		item.ProcessorAutoRequeue = true
-		changed = true
-	}
-
 	return changed
 }
 
@@ -276,6 +265,9 @@ func (s *Storage) SaveQueueItemSkipCleanup(item TaskItem, status string) error {
 
 // saveQueueItemWithOptions is the internal implementation with cleanup control
 func (s *Storage) saveQueueItemWithOptions(item TaskItem, status string, cleanupDuplicates bool) error {
+	unlock := s.lockTask(item.ID)
+	defer unlock()
+
 	// Always enforce status to match the destination directory
 	if status != "" && item.Status != status {
 		item.Status = status
@@ -541,6 +533,9 @@ func (s *Storage) atomicWriteFile(filePath string, data []byte, perm os.FileMode
 
 // MoveQueueItem moves a task from one status to another (atomic rename)
 func (s *Storage) MoveQueueItem(itemID, fromStatus, toStatus string) error {
+	unlock := s.lockTask(itemID)
+	defer unlock()
+
 	fromPath := filepath.Join(s.QueueDir, fromStatus, fmt.Sprintf("%s.yaml", itemID))
 	toPath := filepath.Join(s.QueueDir, toStatus, fmt.Sprintf("%s.yaml", itemID))
 
@@ -550,6 +545,9 @@ func (s *Storage) MoveQueueItem(itemID, fromStatus, toStatus string) error {
 // MoveTaskTo relocates a task file to the provided status directory.
 // It always inspects the filesystem to discover the current location first.
 func (s *Storage) MoveTaskTo(taskID, toStatus string) (*TaskItem, string, error) {
+	unlock := s.lockTask(taskID)
+	defer unlock()
+
 	if toStatus == "" {
 		return nil, "", fmt.Errorf("move task %s: destination status required", taskID)
 	}
@@ -682,6 +680,9 @@ func (s *Storage) GetTaskByID(taskID string) (*TaskItem, string, error) {
 
 // DeleteTask removes a task file from the appropriate status directory
 func (s *Storage) DeleteTask(taskID string) (string, error) {
+	unlock := s.lockTask(taskID)
+	defer unlock()
+
 	for _, status := range queueStatuses {
 		filePath := filepath.Join(s.QueueDir, status, fmt.Sprintf("%s.yaml", taskID))
 		if _, err := os.Stat(filePath); err == nil {
@@ -696,4 +697,12 @@ func (s *Storage) DeleteTask(taskID string) (string, error) {
 	}
 
 	return "", fmt.Errorf("task not found: %s", taskID)
+}
+
+// lockTask provides a per-task critical section to prevent concurrent moves/writes that can create duplicates.
+func (s *Storage) lockTask(taskID string) func() {
+	val, _ := s.taskLocks.LoadOrStore(taskID, &sync.Mutex{})
+	mtx := val.(*sync.Mutex)
+	mtx.Lock()
+	return func() { mtx.Unlock() }
 }

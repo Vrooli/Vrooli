@@ -44,6 +44,9 @@ func EnsureTablesExist(db *sql.DB) error {
 	if err := ensureColumnExists(db, "profile_execution_state", "phase_started_at", "TIMESTAMP DEFAULT NOW()"); err != nil {
 		return fmt.Errorf("failed to ensure column phase_started_at exists: %w", err)
 	}
+	if err := ensureProfileExecutionStateTrigger(db); err != nil {
+		return fmt.Errorf("failed to ensure profile_execution_state trigger exists: %w", err)
+	}
 
 	log.Println("✅ Auto Steer database tables verified")
 	return nil
@@ -90,5 +93,30 @@ func ensureColumnExists(db *sql.DB, table string, column string, definition stri
 	if _, err := db.Exec(query); err != nil {
 		return fmt.Errorf("failed to ensure column %s.%s: %w", table, column, err)
 	}
+	return nil
+}
+
+// ensureProfileExecutionStateTrigger aligns the trigger with the actual column name (last_updated).
+func ensureProfileExecutionStateTrigger(db *sql.DB) error {
+	query := `
+		CREATE OR REPLACE FUNCTION update_profile_execution_state_last_updated()
+		RETURNS TRIGGER AS $$
+		BEGIN
+			NEW.last_updated = NOW();
+			RETURN NEW;
+		END;
+		$$ LANGUAGE plpgsql;
+
+		DROP TRIGGER IF EXISTS trigger_profile_execution_state_updated ON profile_execution_state;
+		CREATE TRIGGER trigger_profile_execution_state_updated
+			BEFORE UPDATE ON profile_execution_state
+			FOR EACH ROW
+			EXECUTE FUNCTION update_profile_execution_state_last_updated();
+	`
+
+	if _, err := db.Exec(query); err != nil {
+		return fmt.Errorf("failed to ensure trigger trigger_profile_execution_state_updated: %w", err)
+	}
+
 	return nil
 }

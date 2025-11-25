@@ -449,7 +449,12 @@ func (h *TaskHandlers) applyStatusTransitionLogic(task *tasks.TaskItem, taskID, 
 	if newStatus == "pending" {
 		task.ConsecutiveCompletionClaims = 0
 		task.ConsecutiveFailures = 0
-		task.ProcessorAutoRequeue = true
+		// Do not override an explicit disable. Respect the caller's setting.
+		if !task.ProcessorAutoRequeue {
+			systemlog.Debugf("Task %s pending transition: auto-requeue remains disabled", taskID)
+		} else {
+			task.ProcessorAutoRequeue = true
+		}
 		task.CooldownUntil = ""
 	}
 

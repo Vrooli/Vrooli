@@ -90,7 +90,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
         : '';
 
   // Fetch task executions
-  const { data: rawExecutions = [], isFetching: isFetchingExecutions } = useQuery({
+  const { data: rawExecutions = [], isFetching: isFetchingExecutions, refetch: refetchExecutions } = useQuery({
     queryKey: queryKeys.tasks.executions(task?.id ?? ''),
     queryFn: () => api.getExecutionHistory(task!.id),
     enabled: !!task,
@@ -275,15 +275,17 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
     autoSteerState?.phase_history?.reduce((sum, phase) => sum + toNumber(phase?.iterations), 0) ?? 0;
   const currentPhaseIteration = toNumber(autoSteerState?.current_phase_iteration);
   const derivedTotalIterations = completedPhaseIterations + currentPhaseIteration;
-  const historyIterationCount = sortedExecutions.length;
+  const historyIterationCount = autoSteerState ? sortedExecutions.length : 0;
   const latestAutoSteerIteration = toNumber(latestExecution?.auto_steer_iteration);
   const latestPhaseIteration = toNumber(latestExecution?.steer_phase_iteration);
-  const autoSteerIteration = Math.max(
-    toNumber(autoSteerState?.auto_steer_iteration),
-    derivedTotalIterations,
-    latestAutoSteerIteration,
-    historyIterationCount,
-  );
+  const autoSteerIteration = autoSteerState
+    ? Math.max(
+      toNumber(autoSteerState?.auto_steer_iteration),
+      derivedTotalIterations,
+      latestAutoSteerIteration,
+      historyIterationCount,
+    )
+    : 0;
   const phaseIteration = autoSteerState
     ? currentPhaseIteration + 1
     : latestPhaseIteration || (historyIterationCount > 0 ? 1 : 0);
@@ -480,8 +482,17 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => refetchAutoSteerState()}
-                          disabled={isAutoSteerStateLoading}
+                          onClick={async () => {
+                            if (task) {
+                              await Promise.allSettled([
+                                refetchAutoSteerState(),
+                                refetchExecutions?.(),
+                              ]);
+                            } else {
+                              await refetchAutoSteerState();
+                            }
+                          }}
+                          disabled={isAutoSteerStateLoading || isFetchingExecutions}
                         >
                           Refresh
                         </Button>

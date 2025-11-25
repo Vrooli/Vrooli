@@ -39,7 +39,16 @@ export function useAutoSteerProfile(id: string) {
 export function useAutoSteerExecutionState(taskId?: string) {
   return useQuery({
     queryKey: queryKeys.autoSteer.executionState(taskId ?? 'none'),
-    queryFn: (): Promise<AutoSteerExecutionState> => api.getAutoSteerExecutionState(taskId as string),
+    queryFn: async (): Promise<AutoSteerExecutionState | undefined> => {
+      try {
+        return await api.getAutoSteerExecutionState(taskId as string);
+      } catch (err: any) {
+        // Treat missing state as undefined instead of leaving stale data around.
+        const status = err?.status ?? err?.response?.status;
+        if (status === 404) return undefined;
+        throw err;
+      }
+    },
     enabled: !!taskId,
     staleTime: 15000,
     retry: 1,
@@ -56,6 +65,7 @@ export function useResetAutoSteerExecution() {
     mutationFn: (taskId: string) => api.resetAutoSteerExecution(taskId),
     onSuccess: (_, taskId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.executionState(taskId ?? 'none') });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.executions(taskId ?? '') });
     },
   });
 }

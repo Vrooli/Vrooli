@@ -188,3 +188,137 @@ func TestHandleProcessingErrorRetriesAndStops(t *testing.T) {
 		t.Fatalf("expected 3 requeues, got %+v", stats)
 	}
 }
+
+func TestRecyclerSkipsCompletedWhenAutoRequeueDisabled(t *testing.T) {
+	restore := withRecyclerEnabled(t)
+	defer restore()
+
+	queueDir := t.TempDir()
+	storage := tasks.NewStorage(queueDir)
+	if err := os.MkdirAll(filepath.Join(queueDir, "completed"), 0o755); err != nil {
+		t.Fatalf("mkdir completed: %v", err)
+	}
+
+	task := tasks.TaskItem{
+		ID:                   "completed-no-auto",
+		Title:                "Do not recycle me",
+		Type:                 "scenario",
+		Status:               "completed",
+		ProcessorAutoRequeue: false,
+	}
+	if err := storage.SaveQueueItem(task, "completed"); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	r := New(storage, nil)
+	r.workCh = make(chan string, 2)
+	r.pending = make(map[string]struct{})
+	r.failureAttempts = make(map[string]int)
+	r.active = true
+
+	// processOnce scans queues; it should skip this task entirely.
+	if err := r.processOnce(); err != nil {
+		t.Fatalf("processOnce: %v", err)
+	}
+
+	if stats := r.Stats(); stats.Processed != 0 {
+		t.Fatalf("expected no processing when auto-requeue disabled, got %+v", stats)
+	}
+	if len(r.pending) != 0 {
+		t.Fatalf("expected no pending enqueue, got %d", len(r.pending))
+	}
+}
+
+func TestEnqueueGuardsNonRecyclableStatuses(t *testing.T) {
+	restore := withRecyclerEnabled(t)
+	defer restore()
+
+	queueDir := t.TempDir()
+	storage := tasks.NewStorage(queueDir)
+	for _, status := range []string{"completed-finalized", "failed-blocked"} {
+		if err := os.MkdirAll(filepath.Join(queueDir, status), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", status, err)
+		}
+	}
+
+	finalized := tasks.TaskItem{
+		ID:                   "finalized-task",
+		Status:               "completed-finalized",
+		ProcessorAutoRequeue: true, // even if true, should be ignored
+	}
+	blocked := tasks.TaskItem{
+		ID:                   "blocked-task",
+		Status:               "failed-blocked",
+		ProcessorAutoRequeue: true,
+	}
+	if err := storage.SaveQueueItem(finalized, "completed-finalized"); err != nil {
+		t.Fatalf("save finalized: %v", err)
+	}
+	if err := storage.SaveQueueItem(blocked, "failed-blocked"); err != nil {
+		t.Fatalf("save blocked: %v", err)
+	}
+
+	r := New(storage, nil)
+	r.workCh = make(chan string, 2)
+	r.pending = make(map[string]struct{})
+	r.failureAttempts = make(map[string]int)
+	r.active = true
+
+	r.Enqueue(finalized.ID)
+	r.Enqueue(blocked.ID)
+
+	if len(r.pending) != 0 {
+		t.Fatalf("expected no pending entries for non-recyclable statuses, got %d", len(r.pending))
+	}
+	if got := len(r.workCh); got != 0 {
+		t.Fatalf("expected work channel empty, got %d", got)
+	}
+}
+
+func TestProcessCompletedHonorsAutoRequeueFlag(t *testing.T) {
+	restore := withRecyclerEnabled(t)
+	defer restore()
+
+	queueDir := t.TempDir()
+	storage := tasks.NewStorage(queueDir)
+	if err := os.MkdirAll(filepath.Join(queueDir, "completed"), 0o755); err != nil {
+		t.Fatalf("mkdir completed: %v", err)
+	}
+
+	task := tasks.TaskItem{
+		ID:                   "no-auto",
+		Title:                "Skip requeue",
+		Type:                 "scenario",
+		Status:               "completed",
+		ProcessorAutoRequeue: false,
+	}
+	if err := storage.SaveQueueItem(task, "completed"); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	r := New(storage, nil)
+	r.workCh = make(chan string, 1)
+	r.pending = make(map[string]struct{})
+	r.failureAttempts = make(map[string]int)
+	r.active = true
+
+	// Even if enqueued manually, the recycler should respect the flag and not schedule it.
+	r.Enqueue(task.ID)
+	select {
+	case <-r.workCh:
+		t.Fatalf("expected work queue to remain empty when auto-requeue disabled")
+	default:
+	}
+
+	// Verify task is still in completed and flag remains false.
+	stored, status, err := storage.GetTaskByID(task.ID)
+	if err != nil {
+		t.Fatalf("reload task: %v", err)
+	}
+	if status != "completed" {
+		t.Fatalf("expected status to remain completed, got %s", status)
+	}
+	if stored.ProcessorAutoRequeue {
+		t.Fatalf("expected ProcessorAutoRequeue to remain false")
+	}
+}
