@@ -71,7 +71,7 @@ type RestoreWorkflowVersionRequest struct {
 	ChangeDescription string `json:"change_description"`
 }
 
-const executionCompletionPollInterval = 250 * time.Millisecond
+const executionCompletionPollInterval = 250 * time.Millisecond // moved to workflow_helpers.go in v2
 
 type workflowVersionResponse struct {
 	Version           int            `json:"version"`
@@ -85,33 +85,7 @@ type workflowVersionResponse struct {
 	FlowDefinition    map[string]any `json:"flow_definition"`
 }
 
-func toWorkflowVersionResponse(summary *services.WorkflowVersionSummary) workflowVersionResponse {
-	if summary == nil {
-		return workflowVersionResponse{}
-	}
-	return workflowVersionResponse{
-		Version:           summary.Version,
-		WorkflowID:        summary.WorkflowID,
-		CreatedAt:         summary.CreatedAt.UTC().Format(time.RFC3339Nano),
-		CreatedBy:         summary.CreatedBy,
-		ChangeDescription: summary.ChangeDescription,
-		DefinitionHash:    summary.DefinitionHash,
-		NodeCount:         summary.NodeCount,
-		EdgeCount:         summary.EdgeCount,
-		FlowDefinition:    jsonMapToStd(summary.FlowDefinition),
-	}
-}
-
-func jsonMapToStd(m database.JSONMap) map[string]any {
-	if m == nil {
-		return nil
-	}
-	result := make(map[string]any, len(m))
-	for k, v := range m {
-		result[k] = v
-	}
-	return result
-}
+// toWorkflowVersionResponse and jsonMapToStd moved to workflow_helpers.go
 
 func (h *Handler) validateWorkflowDefinition(w http.ResponseWriter, r *http.Request, definition map[string]any, strict bool) bool {
 	if h == nil || h.workflowValidator == nil {
@@ -139,18 +113,7 @@ func (h *Handler) validateWorkflowDefinitionStrict(w http.ResponseWriter, r *htt
 	return h.validateWorkflowDefinition(w, r, definition, true)
 }
 
-func definitionFromNodesEdges(nodes, edges []any, fallback map[string]any) map[string]any {
-	if fallback != nil && len(fallback) > 0 {
-		return fallback
-	}
-	if len(nodes) == 0 && len(edges) == 0 {
-		return nil
-	}
-	return map[string]any{
-		"nodes": nodes,
-		"edges": edges,
-	}
-}
+// definitionFromNodesEdges moved to workflow_helpers.go
 
 // CreateWorkflow handles POST /api/v1/workflows/create
 func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
@@ -671,62 +634,11 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 	h.respondSuccess(w, http.StatusOK, response)
 }
 
-const workflowPayloadPreviewBytes = 512
-
-func readLimitedBody(w http.ResponseWriter, r *http.Request, maxBytes int64) ([]byte, error) {
-	reader := http.MaxBytesReader(w, r.Body, maxBytes)
-	defer reader.Close()
-	return io.ReadAll(reader)
-}
-
-func (h *Handler) logInvalidWorkflowPayload(err error, body []byte) {
-	preview := buildPayloadPreview(body)
-	entry := h.log.WithError(err).
-		WithField("payload_bytes", len(body))
-	if preview != "" {
-		entry = entry.WithField("payload_preview", preview)
-	}
-	entry.Warn("Failed to decode adhoc workflow request payload")
-}
-
-func buildPayloadPreview(body []byte) string {
-	trimmed := bytes.TrimSpace(body)
-	if len(trimmed) == 0 {
-		return ""
-	}
-	if len(trimmed) > workflowPayloadPreviewBytes {
-		trimmed = trimmed[:workflowPayloadPreviewBytes]
-		return string(trimmed) + "…"
-	}
-	return string(trimmed)
-}
-
-func (h *Handler) waitForExecutionCompletion(ctx context.Context, execution *database.Execution) (*database.Execution, error) {
-	if execution == nil {
-		return nil, errors.New("execution cannot be nil")
-	}
-	if services.IsTerminalExecutionStatus(execution.Status) {
-		return execution, nil
-	}
-
-	executionID := execution.ID
-	ticker := time.NewTicker(executionCompletionPollInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-ticker.C:
-			pollCtx, cancel := context.WithTimeout(ctx, constants.DefaultRequestTimeout)
-			latest, err := h.workflowService.GetExecution(pollCtx, executionID)
-			cancel()
-			if err != nil {
-				return nil, err
-			}
-			if services.IsTerminalExecutionStatus(latest.Status) {
-				return latest, nil
-			}
-		}
-	}
-}
+// Helper functions moved to workflow_helpers.go:
+// - readLimitedBody
+// - buildPayloadPreview
+// - logInvalidWorkflowPayload
+// - waitForExecutionCompletion
+// - toWorkflowVersionResponse
+// - jsonMapToStd
+// - definitionFromNodesEdges

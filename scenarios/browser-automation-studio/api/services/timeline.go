@@ -2,16 +2,14 @@ package services
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 )
 
 // ExecutionTimeline represents the replay-friendly view of an execution.
@@ -58,43 +56,17 @@ type TimelineFrame struct {
 	RetryConfigured      int                             `json:"retry_configured,omitempty"`
 	RetryDelayMs         int                             `json:"retry_delay_ms,omitempty"`
 	RetryBackoffFactor   float64                         `json:"retry_backoff_factor,omitempty"`
-	RetryHistory         []RetryHistoryEntry             `json:"retry_history,omitempty"`
+	RetryHistory         []typeconv.RetryHistoryEntry    `json:"retry_history,omitempty"`
 	DomSnapshotPreview   string                          `json:"dom_snapshot_preview,omitempty"`
-	DomSnapshot          *TimelineArtifact               `json:"dom_snapshot,omitempty"`
+	DomSnapshot          *typeconv.TimelineArtifact      `json:"dom_snapshot,omitempty"`
 }
 
-// RetryHistoryEntry captures the outcome of a single retry attempt for a step.
-type RetryHistoryEntry struct {
-	Attempt        int    `json:"attempt"`
-	Success        bool   `json:"success"`
-	DurationMs     int    `json:"duration_ms,omitempty"`
-	CallDurationMs int    `json:"call_duration_ms,omitempty"`
-	Error          string `json:"error,omitempty"`
-}
-
-// TimelineScreenshot describes screenshot metadata associated with a frame.
-type TimelineScreenshot struct {
-	ArtifactID   string `json:"artifact_id"`
-	URL          string `json:"url,omitempty"`
-	ThumbnailURL string `json:"thumbnail_url,omitempty"`
-	Width        int    `json:"width,omitempty"`
-	Height       int    `json:"height,omitempty"`
-	ContentType  string `json:"content_type,omitempty"`
-	SizeBytes    *int64 `json:"size_bytes,omitempty"`
-}
-
-// TimelineArtifact exposes related artifacts such as console or network logs.
-type TimelineArtifact struct {
-	ID           string         `json:"id"`
-	Type         string         `json:"type"`
-	Label        string         `json:"label,omitempty"`
-	StorageURL   string         `json:"storage_url,omitempty"`
-	ThumbnailURL string         `json:"thumbnail_url,omitempty"`
-	ContentType  string         `json:"content_type,omitempty"`
-	SizeBytes    *int64         `json:"size_bytes,omitempty"`
-	StepIndex    *int           `json:"step_index,omitempty"`
-	Payload      map[string]any `json:"payload,omitempty"`
-}
+// Type aliases for backward compatibility with existing code.
+type (
+	RetryHistoryEntry  = typeconv.RetryHistoryEntry
+	TimelineScreenshot = typeconv.TimelineScreenshot
+	TimelineArtifact   = typeconv.TimelineArtifact
+)
 
 // TimelineLog captures execution log output for replay consumers.
 type TimelineLog struct {
@@ -208,56 +180,56 @@ func (s *WorkflowService) buildTimelineFrame(
 		payload = map[string]any(timelineArtifact.Payload)
 	}
 
-	stepIndex := toInt(payload["stepIndex"])
-	nodeID := toString(payload["nodeId"])
-	stepType := toString(payload["stepType"])
-	success := toBool(payload["success"])
-	duration := toInt(payload["durationMs"])
-	progress := toInt(payload["progress"])
-	finalURL := toString(payload["finalUrl"])
-	errorMsg := toString(payload["error"])
-	consoleCount := toInt(payload["consoleLogCount"])
-	networkCount := toInt(payload["networkEventCount"])
-	zoomFactor := toFloat(payload["zoomFactor"])
+	stepIndex := typeconv.ToInt(payload["stepIndex"])
+	nodeID := typeconv.ToString(payload["nodeId"])
+	stepType := typeconv.ToString(payload["stepType"])
+	success := typeconv.ToBool(payload["success"])
+	duration := typeconv.ToInt(payload["durationMs"])
+	progress := typeconv.ToInt(payload["progress"])
+	finalURL := typeconv.ToString(payload["finalUrl"])
+	errorMsg := typeconv.ToString(payload["error"])
+	consoleCount := typeconv.ToInt(payload["consoleLogCount"])
+	networkCount := typeconv.ToInt(payload["networkEventCount"])
+	zoomFactor := typeconv.ToFloat(payload["zoomFactor"])
 	extractedPreview := payload["extractedDataPreview"]
-	cursorTrail := toPointSlice(payload["cursorTrail"])
-	assertion := toAssertionResult(payload["assertion"])
-	totalDuration := toInt(payload["totalDurationMs"])
-	retryAttempt := toInt(payload["retryAttempt"])
+	cursorTrail := typeconv.ToPointSlice(payload["cursorTrail"])
+	assertion := typeconv.ToAssertionOutcome(payload["assertion"])
+	totalDuration := typeconv.ToInt(payload["totalDurationMs"])
+	retryAttempt := typeconv.ToInt(payload["retryAttempt"])
 	if retryAttempt == 0 {
-		retryAttempt = toInt(payload["retry_attempt"])
+		retryAttempt = typeconv.ToInt(payload["retry_attempt"])
 	}
-	retryMaxAttempts := toInt(payload["retryMaxAttempts"])
+	retryMaxAttempts := typeconv.ToInt(payload["retryMaxAttempts"])
 	if retryMaxAttempts == 0 {
-		retryMaxAttempts = toInt(payload["retry_max_attempts"])
+		retryMaxAttempts = typeconv.ToInt(payload["retry_max_attempts"])
 	}
-	retryConfigured := toInt(payload["retryConfigured"])
+	retryConfigured := typeconv.ToInt(payload["retryConfigured"])
 	if retryConfigured == 0 {
-		retryConfigured = toInt(payload["retry_configured"])
+		retryConfigured = typeconv.ToInt(payload["retry_configured"])
 	}
-	retryDelayMs := toInt(payload["retryDelayMs"])
+	retryDelayMs := typeconv.ToInt(payload["retryDelayMs"])
 	if retryDelayMs == 0 {
-		retryDelayMs = toInt(payload["retry_delay_ms"])
+		retryDelayMs = typeconv.ToInt(payload["retry_delay_ms"])
 	}
-	retryBackoff := toFloat(payload["retryBackoffFactor"])
+	retryBackoff := typeconv.ToFloat(payload["retryBackoffFactor"])
 	if retryBackoff == 0 {
-		retryBackoff = toFloat(payload["retry_backoff_factor"])
+		retryBackoff = typeconv.ToFloat(payload["retry_backoff_factor"])
 	}
-	retryHistory := toRetryHistory(payload["retryHistory"])
+	retryHistory := typeconv.ToRetryHistory(payload["retryHistory"])
 	if len(retryHistory) == 0 {
-		retryHistory = toRetryHistory(payload["retry_history"])
+		retryHistory = typeconv.ToRetryHistory(payload["retry_history"])
 	}
-	domSnapshotPreview := toString(payload["domSnapshotPreview"])
+	domSnapshotPreview := typeconv.ToString(payload["domSnapshotPreview"])
 	if domSnapshotPreview == "" {
-		domSnapshotPreview = toString(payload["dom_snapshot_preview"])
+		domSnapshotPreview = typeconv.ToString(payload["dom_snapshot_preview"])
 	}
-	domSnapshotArtifactID := toString(payload["domSnapshotArtifactId"])
+	domSnapshotArtifactID := typeconv.ToString(payload["domSnapshotArtifactId"])
 	if domSnapshotArtifactID == "" {
-		domSnapshotArtifactID = toString(payload["dom_snapshot_artifact_id"])
+		domSnapshotArtifactID = typeconv.ToString(payload["dom_snapshot_artifact_id"])
 	}
 
-	startedAt := toTimePtr(payload["startedAt"])
-	completedAt := toTimePtr(payload["completedAt"])
+	startedAt := typeconv.ToTimePtr(payload["startedAt"])
+	completedAt := typeconv.ToTimePtr(payload["completedAt"])
 
 	var status string
 	if success {
@@ -266,7 +238,7 @@ func (s *WorkflowService) buildTimelineFrame(
 		status = "failed"
 	}
 
-	if stepID := toString(payload["executionStepId"]); stepID != "" {
+	if stepID := typeconv.ToString(payload["executionStepId"]); stepID != "" {
 		if parsedID, err := uuid.Parse(stepID); err == nil {
 			if step := stepsByID[parsedID]; step != nil {
 				if status == "" && step.Status != "" {
@@ -302,30 +274,30 @@ func (s *WorkflowService) buildTimelineFrame(
 		}
 	}
 
-	highlightRegions := toHighlightRegions(payload["highlightRegions"])
-	maskRegions := toMaskRegions(payload["maskRegions"])
-	focusedElement := toElementFocus(payload["focusedElement"])
-	elementBoundingBox := toBoundingBox(payload["elementBoundingBox"])
-	clickPosition := toPoint(payload["clickPosition"])
+	highlightRegions := typeconv.ToHighlightRegions(payload["highlightRegions"])
+	maskRegions := typeconv.ToMaskRegions(payload["maskRegions"])
+	focusedElement := typeconv.ToElementFocus(payload["focusedElement"])
+	elementBoundingBox := typeconv.ToBoundingBox(payload["elementBoundingBox"])
+	clickPosition := typeconv.ToPoint(payload["clickPosition"])
 
 	var screenshot *TimelineScreenshot
-	if screenshotID := toString(payload["screenshotArtifactId"]); screenshotID != "" {
+	if screenshotID := typeconv.ToString(payload["screenshotArtifactId"]); screenshotID != "" {
 		if artifact := artifacts[screenshotID]; artifact != nil {
-			screenshot = toTimelineScreenshot(artifact)
+			screenshot = typeconv.ToTimelineScreenshot(artifact)
 		}
 	}
 
 	artifactRefs := make([]TimelineArtifact, 0)
-	for _, id := range toStringSlice(payload["artifactIds"]) {
+	for _, id := range typeconv.ToStringSlice(payload["artifactIds"]) {
 		if artifact := artifacts[id]; artifact != nil {
-			artifactRefs = append(artifactRefs, toTimelineArtifact(artifact))
+			artifactRefs = append(artifactRefs, typeconv.ToTimelineArtifact(artifact))
 		}
 	}
 
 	var domSnapshot *TimelineArtifact
 	if domSnapshotArtifactID != "" {
 		if artifact := artifacts[domSnapshotArtifactID]; artifact != nil {
-			artifactCopy := toTimelineArtifact(artifact)
+			artifactCopy := typeconv.ToTimelineArtifact(artifact)
 			domSnapshot = &artifactCopy
 		}
 	}
@@ -367,385 +339,4 @@ func (s *WorkflowService) buildTimelineFrame(
 	}
 
 	return frame, nil
-}
-
-func toString(value any) string {
-	switch v := value.(type) {
-	case string:
-		return v
-	case fmt.Stringer:
-		return v.String()
-	case []byte:
-		return string(v)
-	default:
-		return ""
-	}
-}
-
-func toInt(value any) int {
-	switch v := value.(type) {
-	case int:
-		return v
-	case int32:
-		return int(v)
-	case int64:
-		return int(v)
-	case float64:
-		return int(v)
-	case json.Number:
-		if i, err := v.Int64(); err == nil {
-			return int(i)
-		}
-	case string:
-		if parsed, err := strconv.Atoi(v); err == nil {
-			return parsed
-		}
-	}
-	return 0
-}
-
-func toBool(value any) bool {
-	switch v := value.(type) {
-	case bool:
-		return v
-	case string:
-		b, err := strconv.ParseBool(v)
-		if err == nil {
-			return b
-		}
-	}
-	return false
-}
-
-func toFloat(value any) float64 {
-	switch v := value.(type) {
-	case float64:
-		return v
-	case float32:
-		return float64(v)
-	case int:
-		return float64(v)
-	case int32:
-		return float64(v)
-	case int64:
-		return float64(v)
-	case json.Number:
-		f, _ := v.Float64()
-		return f
-	case string:
-		if parsed, err := strconv.ParseFloat(v, 64); err == nil {
-			return parsed
-		}
-	}
-	return 0
-}
-
-func toTimePtr(value any) *time.Time {
-	switch v := value.(type) {
-	case time.Time:
-		return &v
-	case *time.Time:
-		return v
-	case string:
-		if v == "" {
-			return nil
-		}
-		if ts, err := time.Parse(time.RFC3339Nano, v); err == nil {
-			return &ts
-		}
-		if ts, err := time.Parse(time.RFC3339, v); err == nil {
-			return &ts
-		}
-	}
-	return nil
-}
-
-func toAssertionResult(value any) *autocontracts.AssertionOutcome {
-	switch v := value.(type) {
-	case *autocontracts.AssertionOutcome:
-		return v
-	case autocontracts.AssertionOutcome:
-		result := v
-		return &result
-	case map[string]any:
-		result := &autocontracts.AssertionOutcome{
-			Mode:          toString(v["mode"]),
-			Selector:      toString(v["selector"]),
-			Message:       toString(v["message"]),
-			Success:       toBool(v["success"]),
-			Negated:       toBool(v["negated"]),
-			CaseSensitive: toBool(v["caseSensitive"]),
-		}
-		if expected, ok := v["expected"]; ok {
-			result.Expected = expected
-		}
-		if actual, ok := v["actual"]; ok {
-			result.Actual = actual
-		}
-		return result
-	default:
-		return nil
-	}
-}
-
-func toHighlightRegions(value any) []autocontracts.HighlightRegion {
-	regions := make([]autocontracts.HighlightRegion, 0)
-	switch v := value.(type) {
-	case []autocontracts.HighlightRegion:
-		return v
-	case []map[string]any:
-		for _, item := range v {
-			if region := toHighlightRegion(item); region != nil {
-				regions = append(regions, *region)
-			}
-		}
-	case []any:
-		for _, item := range v {
-			if region := toHighlightRegion(item); region != nil {
-				regions = append(regions, *region)
-			}
-		}
-	}
-	return regions
-}
-
-func toHighlightRegion(value any) *autocontracts.HighlightRegion {
-	m, ok := value.(map[string]any)
-	if !ok {
-		return nil
-	}
-	region := autocontracts.HighlightRegion{
-		Selector: toString(m["selector"]),
-		Padding:  toInt(m["padding"]),
-		Color:    toString(m["color"]),
-	}
-	if bbox := toBoundingBox(m["boundingBox"]); bbox != nil {
-		region.BoundingBox = bbox
-	}
-	if region.Selector == "" && region.BoundingBox == nil {
-		return nil
-	}
-	return &region
-}
-
-func toMaskRegions(value any) []autocontracts.MaskRegion {
-	regions := make([]autocontracts.MaskRegion, 0)
-	switch v := value.(type) {
-	case []autocontracts.MaskRegion:
-		return v
-	case []map[string]any:
-		for _, item := range v {
-			if region := toMaskRegion(item); region != nil {
-				regions = append(regions, *region)
-			}
-		}
-	case []any:
-		for _, item := range v {
-			if region := toMaskRegion(item); region != nil {
-				regions = append(regions, *region)
-			}
-		}
-	}
-	return regions
-}
-
-func toMaskRegion(value any) *autocontracts.MaskRegion {
-	m, ok := value.(map[string]any)
-	if !ok {
-		return nil
-	}
-	region := autocontracts.MaskRegion{
-		Selector: toString(m["selector"]),
-		Opacity:  toFloat(m["opacity"]),
-	}
-	if bbox := toBoundingBox(m["boundingBox"]); bbox != nil {
-		region.BoundingBox = bbox
-	}
-	if region.Selector == "" && region.BoundingBox == nil {
-		return nil
-	}
-	return &region
-}
-
-func toElementFocus(value any) *autocontracts.ElementFocus {
-	m, ok := value.(map[string]any)
-	if !ok {
-		return nil
-	}
-	focus := autocontracts.ElementFocus{
-		Selector: toString(m["selector"]),
-	}
-	if bbox := toBoundingBox(m["boundingBox"]); bbox != nil {
-		focus.BoundingBox = bbox
-	}
-	if focus.Selector == "" && focus.BoundingBox == nil {
-		return nil
-	}
-	return &focus
-}
-
-func toBoundingBox(value any) *autocontracts.BoundingBox {
-	m, ok := value.(map[string]any)
-	if !ok {
-		return nil
-	}
-	if len(m) == 0 {
-		return nil
-	}
-	return &autocontracts.BoundingBox{
-		X:      toFloat(m["x"]),
-		Y:      toFloat(m["y"]),
-		Width:  toFloat(m["width"]),
-		Height: toFloat(m["height"]),
-	}
-}
-
-func toPoint(value any) *autocontracts.Point {
-	m, ok := value.(map[string]any)
-	if !ok {
-		return nil
-	}
-	return &autocontracts.Point{
-		X: toFloat(m["x"]),
-		Y: toFloat(m["y"]),
-	}
-}
-
-func toPointSlice(value any) []autocontracts.Point {
-	points := make([]autocontracts.Point, 0)
-	switch v := value.(type) {
-	case []autocontracts.Point:
-		return v
-	case []*autocontracts.Point:
-		for _, item := range v {
-			if item != nil {
-				points = append(points, *item)
-			}
-		}
-	case []map[string]any:
-		for _, item := range v {
-			if pt := toPoint(item); pt != nil {
-				points = append(points, *pt)
-			}
-		}
-	case []any:
-		for _, item := range v {
-			if pt := toPoint(item); pt != nil {
-				points = append(points, *pt)
-			}
-		}
-	case map[string]any:
-		if pt := toPoint(v); pt != nil {
-			points = append(points, *pt)
-		}
-	}
-	return points
-}
-
-func toStringSlice(value any) []string {
-	result := make([]string, 0)
-	switch v := value.(type) {
-	case []string:
-		return v
-	case []any:
-		for _, item := range v {
-			if str := toString(item); str != "" {
-				result = append(result, str)
-			}
-		}
-	case string:
-		if v != "" {
-			result = append(result, v)
-		}
-	}
-	return result
-}
-
-func toTimelineScreenshot(artifact *database.ExecutionArtifact) *TimelineScreenshot {
-	if artifact == nil {
-		return nil
-	}
-	shot := &TimelineScreenshot{
-		ArtifactID:   artifact.ID.String(),
-		URL:          artifact.StorageURL,
-		ThumbnailURL: artifact.ThumbnailURL,
-		ContentType:  artifact.ContentType,
-		SizeBytes:    artifact.SizeBytes,
-	}
-	if artifact.Payload != nil {
-		payload := map[string]any(artifact.Payload)
-		shot.Width = toInt(payload["width"])
-		shot.Height = toInt(payload["height"])
-	}
-	return shot
-}
-
-func toTimelineArtifact(artifact *database.ExecutionArtifact) TimelineArtifact {
-	payload := map[string]any{}
-	if artifact.Payload != nil {
-		payload = map[string]any(artifact.Payload)
-	}
-	return TimelineArtifact{
-		ID:           artifact.ID.String(),
-		Type:         artifact.ArtifactType,
-		Label:        artifact.Label,
-		StorageURL:   artifact.StorageURL,
-		ThumbnailURL: artifact.ThumbnailURL,
-		ContentType:  artifact.ContentType,
-		SizeBytes:    artifact.SizeBytes,
-		StepIndex:    artifact.StepIndex,
-		Payload:      payload,
-	}
-}
-
-func toRetryHistory(value any) []RetryHistoryEntry {
-	entries := make([]RetryHistoryEntry, 0)
-	switch v := value.(type) {
-	case []RetryHistoryEntry:
-		return v
-	case []map[string]any:
-		for _, item := range v {
-			if entry := toRetryHistoryEntry(item); entry != nil {
-				entries = append(entries, *entry)
-			}
-		}
-	case []any:
-		for _, item := range v {
-			if entry := toRetryHistoryEntry(item); entry != nil {
-				entries = append(entries, *entry)
-			}
-		}
-	}
-	return entries
-}
-
-func toRetryHistoryEntry(value any) *RetryHistoryEntry {
-	m, ok := value.(map[string]any)
-	if !ok {
-		return nil
-	}
-	entry := RetryHistoryEntry{
-		Attempt:        toInt(m["attempt"]),
-		Success:        toBool(m["success"]),
-		DurationMs:     toInt(m["durationMs"]),
-		CallDurationMs: toInt(m["callDurationMs"]),
-		Error:          toString(m["error"]),
-	}
-	if entry.DurationMs == 0 {
-		entry.DurationMs = toInt(m["duration_ms"])
-	}
-	if entry.CallDurationMs == 0 {
-		entry.CallDurationMs = toInt(m["call_duration_ms"])
-	}
-	if entry.Error == "" {
-		entry.Error = toString(m["error_message"])
-	}
-	if entry.Attempt == 0 && entry.DurationMs == 0 && entry.CallDurationMs == 0 && entry.Error == "" && entry.Success {
-		// treat empty entry as invalid unless it represents a successful attempt with no data
-		entry.Success = true
-	}
-	if entry.Attempt == 0 && entry.Error == "" && entry.DurationMs == 0 && entry.CallDurationMs == 0 {
-		return nil
-	}
-	return &entry
 }
