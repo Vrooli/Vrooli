@@ -43,6 +43,7 @@ Key invariants:
 ## Layout
 - `contracts/` — Stable payload shapes (`StepOutcome`, telemetry, capabilities, event envelopes) plus size limits and schema versions. Keep these backward-compatible; bump versions when shapes change.
 - `engine/` — `AutomationEngine` interface, env-based selection, static factory, and the `BrowserlessEngine` adapter around the existing CDP session.
+- Playwright desktop engine: local driver over HTTP; supports downloads/uploads/tracing/video flags for desktop bundles.
 - `executor/` — Orchestration (`SimpleExecutor`) that drives engines, emits heartbeats/telemetry, and enforces capability checks. `plan_builder.go` compiles workflows into the contract plan shape.
 - `recorder/` — Persists normalized outcomes/telemetry into the DB (`DBRecorder`) while owning IDs/dedupe and storage uploads.
 - `events/` — Event sinks and sequencing/backpressure helpers. `ws_sink` bridges to the websocket hub; `memory_sink` supports tests.
@@ -57,6 +58,7 @@ Key invariants:
 - The legacy Browserless client (`browserless/client.go`) has been removed. Runtime execution flows exclusively through `automation/executor` + `BrowserlessEngine` + `DBRecorder` + `WSHubSink`.
 - There is no feature-flag fallback to the legacy executor; `executeWithAutomationEngine` is the sole workflow execution path.
 - Subflows: only `subflow` nodes are supported for child execution; legacy `workflowCall` is rejected.
+- Engines: Browserless (CDP) and Playwright (local driver) are supported behind the same `AutomationEngine` interface; select via `ENGINE` / `ENGINE_OVERRIDE`.
 
 ### Flow navigation (where complex orchestration lives)
 - Planning/compilation: `executor/plan_builder.go`
@@ -70,6 +72,7 @@ Key invariants:
 - `ENGINE` sets the default engine (e.g., `browserless`).
 - `ENGINE_OVERRIDE` forces all executions to use a specific engine.
 - The automation executor is now the only execution path; `ENGINE_FEATURE_FLAG` / shadow mode are ignored for routing. Legacy browserless execution is no longer invoked from the WorkflowService.
+- Playwright driver: set `ENGINE=playwright` (or `ENGINE_OVERRIDE=playwright`) and point `PLAYWRIGHT_DRIVER_URL` at the local driver (defaults to `http://127.0.0.1:39400` for dev).
 
 ## Current Coverage
 - Covered: linear + graph execution (repeat/forEach/while loops with executor-owned `set_variable`), `${var}` interpolation, heartbeats, retries, capability preflight, DB persistence of step outcomes/console/network/assert/assertion/screenshot artifacts, websocket event emission, clean reuse mode (session reset between steps).
@@ -94,3 +97,5 @@ Key invariants:
 1) Executor parity: fill gaps for variable interpolation, retry taxonomy, reuse/clean/fresh, cancellation/timeout, cursor trails/timeline framing, DOM truncation/dedupe.
 2) Capability matrix: codify workflow feature → capability requirements (HAR, multi-tab, upload/download) and fail fast when unsupported.
 3) Artifact shaping/backpressure: add truncation/dedupe/drop-counter coverage so recorder + events stand independently.
+4) Playwright: keep expanding `playwright-driver` instruction coverage (downloads, tracing, assertions beyond text) and enable replay capture client when bundling for desktop.
+5) Desktop artifact storage: recorder currently stores trace/video/HAR paths (inlines small files) for Playwright runs, but there is no generic storage API for large non-screenshot artifacts. To fully support desktop exports/replays, add storage/upload for HAR/trace/video artifacts (MinIO/local), persist URLs in artifacts, and surface them in export/UI/CLI.

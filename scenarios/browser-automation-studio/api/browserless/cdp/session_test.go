@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -141,7 +142,7 @@ func TestResolveBrowserlessWebSocketURL_V2(t *testing.T) {
 }
 
 func TestResolveBrowserlessWebSocketURL_V1Fallback(t *testing.T) {
-	t.Parallel()
+	t.Setenv("BROWSERLESS_ALLOW_V1_FALLBACK", "1")
 
 	// Mock v1 API server (v2 endpoint missing)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -190,9 +191,9 @@ func TestResolveBrowserlessWebSocketURL_BothFail(t *testing.T) {
 		t.Fatal("Expected error when both APIs fail, got nil")
 	}
 
-	errMsg := err.Error()
-	if !containsAll(errMsg, "both v2", "v1", "endpoints failed") {
-		t.Errorf("Expected error mentioning both API versions, got: %v", err)
+	errMsg := strings.ToLower(err.Error())
+	if !strings.Contains(errMsg, "v2") || !strings.Contains(errMsg, "fallback") {
+		t.Errorf("Expected error to mention v2 requirement and fallback, got: %v", err)
 	}
 }
 

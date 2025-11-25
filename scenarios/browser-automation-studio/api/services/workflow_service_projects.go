@@ -3,6 +3,9 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -128,6 +131,10 @@ func (s *WorkflowService) CheckAutomationHealth(ctx context.Context) (bool, erro
 
 	engineName := autoengine.FromEnv().Resolve("")
 	factory := s.engineFactory
+
+	if strings.EqualFold(engineName, "playwright") && strings.TrimSpace(os.Getenv("PLAYWRIGHT_DRIVER_URL")) == "" {
+		return false, fmt.Errorf("playwright engine selected but PLAYWRIGHT_DRIVER_URL is not configured")
+	}
 
 	if factory == nil {
 		defaultFactory, err := autoengine.DefaultFactory(s.log)

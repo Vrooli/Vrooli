@@ -38,8 +38,8 @@ func NewWSHubSink(hub wsHub.HubInterface, log *logrus.Logger, limits contracts.E
 	}
 }
 
-// Publish adapts the envelope to the legacy event shape. Payload is wrapped
-// into the event payload map under "data" to avoid altering consumers.
+// Publish pushes the contract envelope into the websocket hub with ordering and
+// backpressure handled by the per-execution queue.
 func (s *WSHubSink) Publish(_ context.Context, event contracts.EventEnvelope) error {
 	if s == nil || s.hub == nil {
 		return nil

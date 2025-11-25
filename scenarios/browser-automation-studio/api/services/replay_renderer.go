@@ -20,7 +20,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/browserless"
 )
 
 // RenderedMedia represents a generated media artifact ready for download.
@@ -50,6 +49,7 @@ type ReplayRenderer struct {
 	exportPageURL     string
 	captureIntervalMs int
 	apiBaseURL        string
+	captureClient     replayCaptureClient
 }
 
 // RenderFormat enumerates supported render formats.
@@ -60,95 +60,28 @@ const (
 	RenderFormatMP4 RenderFormat = "mp4"
 	// RenderFormatGIF renders replay as animated GIF.
 	RenderFormatGIF RenderFormat = "gif"
-
-	browserlessFunctionPath         = "/chrome/function"
-	defaultCaptureInterval          = 40
-	defaultCaptureTailMs            = 320
-	defaultPresentationWidth        = 1280
-	defaultPresentationHeight       = 720
-	maxBrowserlessCaptureFrames     = 720
-	browserlessTimeoutBufferMillis  = 120000
-	perFrameBrowserlessBudgetMillis = 220
 )
 
 // NewReplayRenderer constructs a replay renderer with sane defaults.
 func NewReplayRenderer(log *logrus.Logger, recordingsRoot string) *ReplayRenderer {
-	ffmpegPath := detectFFmpegBinary()
-	client := &http.Client{Timeout: 16 * time.Minute}
-	browserlessURL, _ := browserless.ResolveURL(log, false)
-	exportPageURL := strings.TrimSpace(os.Getenv("BAS_EXPORT_PAGE_URL"))
-	if exportPageURL == "" {
-		exportPageURL = strings.TrimSpace(os.Getenv("BAS_UI_EXPORT_URL"))
-	}
-	if exportPageURL == "" {
-		baseURL := strings.TrimSpace(os.Getenv("BAS_UI_BASE_URL"))
-		if baseURL != "" {
-			trimmed := strings.TrimRight(baseURL, "/")
-			exportPageURL = trimmed + "/export/composer.html"
-		}
-	}
-	if exportPageURL == "" {
-		scheme := strings.TrimSpace(os.Getenv("UI_SCHEME"))
-		if scheme == "" {
-			scheme = "http"
-		}
-		host := strings.TrimSpace(os.Getenv("UI_HOST"))
-		if host == "" {
-			host = "127.0.0.1"
-		}
-		port := strings.TrimSpace(os.Getenv("UI_PORT"))
-		path := strings.TrimSpace(os.Getenv("BAS_EXPORT_PAGE_PATH"))
-		if path == "" {
-			path = "/export/composer.html"
-		} else if !strings.HasPrefix(path, "/") {
-			path = "/" + path
-		}
-		if port != "" {
-			exportPageURL = fmt.Sprintf("%s://%s:%s%s", scheme, host, port, path)
-		} else {
-			exportPageURL = fmt.Sprintf("%s://%s%s", scheme, host, path)
-		}
-	}
-	captureInterval := defaultCaptureInterval
-	if intervalEnv := strings.TrimSpace(os.Getenv("BAS_EXPORT_FRAME_INTERVAL_MS")); intervalEnv != "" {
-		if parsed, err := strconv.Atoi(intervalEnv); err == nil && parsed > 0 {
-			captureInterval = parsed
-		}
-	}
-	apiScheme := strings.TrimSpace(os.Getenv("API_SCHEME"))
-	if apiScheme == "" {
-		apiScheme = "http"
-	}
-	apiHost := strings.TrimSpace(os.Getenv("API_HOST"))
-	if apiHost == "" {
-		apiHost = "127.0.0.1"
-	}
-	apiPort := strings.TrimSpace(os.Getenv("API_PORT"))
-	apiBaseURL := fmt.Sprintf("%s://%s", apiScheme, apiHost)
-	if apiPort != "" {
-		apiBaseURL = fmt.Sprintf("%s://%s:%s", apiScheme, apiHost, apiPort)
-	}
-	return &ReplayRenderer{
-		log:               log,
-		recordingsRoot:    recordingsRoot,
-		ffmpegPath:        ffmpegPath,
-		httpClient:        client,
-		browserlessURL:    browserlessURL,
-		exportPageURL:     exportPageURL,
-		captureIntervalMs: captureInterval,
-		apiBaseURL:        apiBaseURL,
-	}
+	return newReplayRendererConfig(log, recordingsRoot)
 }
 
-func detectFFmpegBinary() string {
-	if custom := strings.TrimSpace(os.Getenv("FFMPEG_BIN")); custom != "" {
-		return custom
+// replayCaptureClient abstracts the capture transport so non-Browserless
+// engines can be plugged in without rewriting the renderer pipeline.
+type replayCaptureClient interface {
+	Capture(ctx context.Context, spec *ReplayMovieSpec, captureInterval int) (*browserlessCaptureResponse, error)
+}
+
+type browserlessCaptureClient struct {
+	renderer *ReplayRenderer
+}
+
+func (c *browserlessCaptureClient) Capture(ctx context.Context, spec *ReplayMovieSpec, captureInterval int) (*browserlessCaptureResponse, error) {
+	if c == nil || c.renderer == nil {
+		return nil, fmt.Errorf("capture client not configured")
 	}
-	if _, err := exec.LookPath("ffmpeg"); err == nil {
-		return "ffmpeg"
-	}
-	defaultPath := filepath.Join(os.Getenv("HOME"), ".ffmpeg", "bin", "ffmpeg")
-	return defaultPath
+	return c.renderer.captureFramesWithBrowserless(ctx, spec, captureInterval)
 }
 
 // Render creates a media artifact for the provided replay movie spec.
@@ -162,11 +95,30 @@ func (r *ReplayRenderer) Render(ctx context.Context, spec *ReplayMovieSpec, form
 	if format != RenderFormatMP4 && format != RenderFormatGIF {
 		return nil, fmt.Errorf("unsupported render format %q", format)
 	}
-	if !r.shouldUseBrowserless() {
-		return nil, errors.New("browserless export is required but not configured")
+
+	if r.captureClient == nil {
+		switch {
+		case r.shouldUseBrowserless():
+			r.captureClient = &browserlessCaptureClient{renderer: r}
+		case os.Getenv("PLAYWRIGHT_DRIVER_URL") != "":
+			r.captureClient = newPlaywrightCaptureClient(r.exportPageURL)
+		default:
+			r.captureClient = &browserlessCaptureClient{renderer: r} // preserve legacy behavior
+		}
 	}
-	if err := r.validateExportPageURL(); err != nil {
-		return nil, err
+
+	if _, ok := r.captureClient.(*browserlessCaptureClient); ok {
+		if !r.shouldUseBrowserless() {
+			return nil, errors.New("browserless export is required but not configured")
+		}
+		if err := r.validateExportPageURL(); err != nil {
+			return nil, err
+		}
+	}
+	if _, ok := r.captureClient.(*playwrightCaptureClient); ok {
+		if strings.TrimSpace(r.exportPageURL) == "" {
+			return nil, errors.New("export page url not configured; set BAS_EXPORT_PAGE_URL or BAS_UI_BASE_URL")
+		}
 	}
 
 	captureInterval := r.captureIntervalMs
@@ -184,6 +136,16 @@ func (r *ReplayRenderer) Render(ctx context.Context, spec *ReplayMovieSpec, form
 	}
 
 	return r.renderWithBrowserless(ctx, spec, format, filename, captureInterval)
+}
+
+// WithCaptureClient allows callers to override the capture transport (e.g.,
+// Playwright desktop engine) while reusing the renderer pipeline.
+func (r *ReplayRenderer) WithCaptureClient(client replayCaptureClient) *ReplayRenderer {
+	if client == nil {
+		return r
+	}
+	r.captureClient = client
+	return r
 }
 
 func (r *ReplayRenderer) shouldUseBrowserless() bool {
@@ -209,7 +171,11 @@ func (r *ReplayRenderer) validateExportPageURL() error {
 }
 
 func (r *ReplayRenderer) renderWithBrowserless(ctx context.Context, spec *ReplayMovieSpec, format RenderFormat, filename string, captureInterval int) (*RenderedMedia, error) {
-	capture, err := r.captureFramesWithBrowserless(ctx, spec, captureInterval)
+	if r.captureClient == nil {
+		r.captureClient = &browserlessCaptureClient{renderer: r}
+	}
+
+	capture, err := r.captureClient.Capture(ctx, spec, captureInterval)
 	if err != nil {
 		return nil, err
 	}

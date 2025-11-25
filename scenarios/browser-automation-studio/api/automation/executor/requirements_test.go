@@ -193,3 +193,73 @@ func TestDeriveRequirementsHonorsTracingAndViewportMetadata(t *testing.T) {
 		t.Fatalf("expected viewport minima 1400x900, got %dx%d", req.MinViewportWidth, req.MinViewportHeight)
 	}
 }
+
+func TestDeriveRequirementsIncludesTraceVideoHarStepTypes(t *testing.T) {
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		CreatedAt:   time.Now().UTC(),
+		Instructions: []contracts.CompiledInstruction{
+			{Index: 0, Type: "trace"},
+			{Index: 1, Type: "video"},
+			{Index: 2, Type: "har"},
+		},
+	}
+	req := deriveRequirements(plan)
+	if !req.NeedsTracing || !req.NeedsVideo || !req.NeedsHAR {
+		t.Fatalf("expected trace/video/har requirements, got %+v", req)
+	}
+}
+
+func TestDeriveRequirementsRecordingBooleans(t *testing.T) {
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		CreatedAt:   time.Now().UTC(),
+		Instructions: []contracts.CompiledInstruction{
+			{
+				Index: 0,
+				Type:  "navigate",
+				Params: map[string]any{
+					"recordNetwork": true,
+					"recordTrace":   "true",
+					"recordVideo":   "yes",
+				},
+			},
+		},
+	}
+
+	req := deriveRequirements(plan)
+	if !req.NeedsHAR || !req.NeedsTracing || !req.NeedsVideo {
+		t.Fatalf("expected recording flags to enforce HAR/tracing/video, got %+v", req)
+	}
+}
+
+func TestAnalyzeRequirementsReturnsReasons(t *testing.T) {
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		CreatedAt:   time.Now().UTC(),
+		Instructions: []contracts.CompiledInstruction{
+			{
+				Index: 0,
+				Type:  "networkMock",
+				Params: map[string]any{
+					"networkMockType": "abort",
+				},
+			},
+			{
+				Index: 1,
+				Type:  "downloadFile",
+			},
+		},
+	}
+
+	req, reasons := analyzeRequirements(plan)
+	if !req.NeedsHAR || !req.NeedsTracing || !req.NeedsDownloads {
+		t.Fatalf("expected requirements to include HAR/tracing/downloads, got %+v", req)
+	}
+	if len(reasons["har"]) == 0 || len(reasons["tracing"]) == 0 || len(reasons["downloads"]) == 0 {
+		t.Fatalf("expected reasons for missing capabilities, got %+v", reasons)
+	}
+}

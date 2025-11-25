@@ -967,6 +967,82 @@ func TestSimpleExecutorCapabilityErrorDownloads(t *testing.T) {
 	}
 }
 
+func TestSimpleExecutorCapabilityErrorReasonsFilteredToMissing(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	plan := contracts.ExecutionPlan{
+		SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
+		PayloadVersion: contracts.PayloadVersion,
+		ExecutionID:    execID,
+		WorkflowID:     workflowID,
+		Metadata: map[string]any{
+			"requiresDownloads": true,
+			"requiresVideo":     true,
+		},
+		Instructions: []contracts.CompiledInstruction{
+			{
+				Index:  0,
+				NodeID: "mock",
+				Type:   "network_mock",
+				Params: map[string]any{
+					"networkMockType":   "abort",
+					"networkUrlPattern": "*",
+				},
+			},
+		},
+		CreatedAt: time.Now().UTC(),
+	}
+
+	caps := &contracts.EngineCapabilities{
+		SchemaVersion:         contracts.CapabilitiesSchemaVersion,
+		Engine:                "fake",
+		MaxConcurrentSessions: 1,
+		AllowsParallelTabs:    true,
+		SupportsHAR:           false, // missing
+		SupportsVideo:         true,  // satisfied; should not appear in reasons
+		SupportsIframes:       true,
+		SupportsFileUploads:   true,
+		SupportsDownloads:     false, // missing
+		SupportsTracing:       false, // missing
+	}
+
+	req := Request{
+		Plan:              plan,
+		EngineName:        "browserless",
+		EngineFactory:     &fakeEngineFactory{session: &fakeSession{outcome: contracts.StepOutcome{Success: true}}, caps: caps},
+		Recorder:          &memoryRecorder{},
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 0,
+	}
+
+	err := NewSimpleExecutor(nil).Execute(context.Background(), req)
+	capErr, ok := err.(*CapabilityError)
+	if !ok {
+		t.Fatalf("expected CapabilityError, got %T (%v)", err, err)
+	}
+
+	if len(capErr.Missing) == 0 {
+		t.Fatalf("expected missing capabilities recorded")
+	}
+
+	// Reasons should only include missing keys (har, downloads, tracing) and
+	// omit satisfied capabilities such as video.
+	for key := range capErr.Reasons {
+		switch key {
+		case "har", "downloads", "tracing":
+		default:
+			t.Fatalf("unexpected reason key %q; expected only missing capabilities", key)
+		}
+	}
+	if _, ok := capErr.Reasons["video"]; ok {
+		t.Fatalf("video is satisfied and should not appear in reasons map")
+	}
+	if len(capErr.Reasons["har"]) == 0 || len(capErr.Reasons["downloads"]) == 0 || len(capErr.Reasons["tracing"]) == 0 {
+		t.Fatalf("expected reasons to be populated for missing capabilities, got %+v", capErr.Reasons)
+	}
+}
+
 func TestSimpleExecutorValidatesEngineCapabilities(t *testing.T) {
 	execID := uuid.New()
 	workflowID := uuid.New()

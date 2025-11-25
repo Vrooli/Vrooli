@@ -448,6 +448,8 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 
 	err = s.executeWithAutomationEngine(ctx, execution, workflow, selection, eventSink)
 
+	var capErr *autoexecutor.CapabilityError
+
 	switch {
 	case err == nil:
 		execution.Status = "completed"
@@ -512,6 +514,36 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 		}
 
 		publishLifecycle(autocontracts.EventKindExecutionFailed, map[string]any{"status": "failed", "error": execution.Error.String})
+
+	case errors.As(err, &capErr):
+		failure := applyCapabilityError(execution, capErr)
+		s.recordExecutionMarker(ctx, execution.ID, failure)
+
+		logEntry := &database.ExecutionLog{
+			ExecutionID: execution.ID,
+			Level:       "error",
+			StepName:    "capability_mismatch",
+			Message:     failure.Message,
+		}
+		if persistErr := s.repo.CreateExecutionLog(persistenceCtx, logEntry); persistErr != nil && s.log != nil {
+			s.log.WithError(persistErr).WithField("execution_id", execution.ID).Warn("Failed to persist capability mismatch log entry")
+		}
+
+		if s.log != nil {
+			s.log.WithError(err).WithFields(logrus.Fields{
+				"execution_id": execution.ID,
+				"missing":      capErr.Missing,
+				"warnings":     capErr.Warnings,
+				"engine":       capErr.Engine,
+			}).Warn("Workflow failed: engine missing required capabilities")
+		}
+
+		publishLifecycle(autocontracts.EventKindExecutionFailed, map[string]any{
+			"status":   "failed",
+			"error":    failure.Message,
+			"missing":  capErr.Missing,
+			"warnings": capErr.Warnings,
+		})
 
 	default:
 		s.log.WithError(err).Error("Workflow execution failed")
@@ -643,6 +675,49 @@ func extractString(m map[string]any, key string) string {
 		}
 	}
 	return ""
+}
+
+// applyCapabilityError marks the execution as failed due to an engine capability
+// mismatch and returns the structured failure marker for persistence.
+func applyCapabilityError(execution *database.Execution, capErr *autoexecutor.CapabilityError) autocontracts.StepFailure {
+	now := time.Now()
+	execution.Status = "failed"
+	execution.CompletedAt = &now
+	execution.Error.Valid = true
+
+	missing := strings.Join(capErr.Missing, ", ")
+	warn := strings.Join(capErr.Warnings, ", ")
+	message := fmt.Sprintf("engine %s missing required capabilities: %s", capErr.Engine, missing)
+	if warn != "" {
+		message = fmt.Sprintf("%s (warnings: %s)", message, warn)
+	}
+	if len(capErr.Reasons) > 0 {
+		// Surface a concise set of sources for UI/CLI surfaces.
+		var parts []string
+		for key, vals := range capErr.Reasons {
+			if len(vals) == 0 {
+				continue
+			}
+			parts = append(parts, fmt.Sprintf("%s via %s", key, strings.Join(vals, "; ")))
+		}
+		if len(parts) > 0 {
+			message = fmt.Sprintf("%s | sources: %s", message, strings.Join(parts, " | "))
+		}
+	}
+	execution.Error.String = message
+
+	return autocontracts.StepFailure{
+		Kind:    autocontracts.FailureKindOrchestration,
+		Code:    "capability_mismatch",
+		Message: message,
+		Source:  autocontracts.FailureSourceExecutor,
+		Details: map[string]any{
+			"missing":  capErr.Missing,
+			"warnings": capErr.Warnings,
+			"engine":   capErr.Engine,
+			"reasons":  capErr.Reasons,
+		},
+	}
 }
 
 // executeWithAutomationEngine is the sole execution path; the legacy

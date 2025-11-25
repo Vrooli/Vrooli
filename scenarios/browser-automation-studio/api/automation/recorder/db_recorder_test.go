@@ -2,6 +2,7 @@ package recorder
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -370,6 +371,66 @@ func TestDBRecorderPersistsCoreArtifactsAndTimeline(t *testing.T) {
 	}
 }
 
+func TestDBRecorderPersistsTraceVideoHarMeta(t *testing.T) {
+	now := time.Now().UTC()
+	execID := uuid.New()
+	workflowID := uuid.New()
+	tmpVideo := writeTempFile(t, "video", []byte("video-bytes"))
+	tmpTrace := writeTempFile(t, "trace", []byte("trace-bytes"))
+	tmpHAR := writeTempFile(t, "har", []byte("har-bytes"))
+
+	repo := newRecorderTestRepo()
+	rec := NewDBRecorder(repo, nil, nil)
+
+	outcome := contracts.StepOutcome{
+		ExecutionID: execID,
+		StepIndex:   0,
+		NodeID:      "n0",
+		StepType:    "navigate",
+		Success:     true,
+		StartedAt:   now,
+		CompletedAt: &now,
+		Notes: map[string]string{
+			"video_path": tmpVideo,
+			"trace_path": tmpTrace,
+			"har_path":   tmpHAR,
+		},
+	}
+	plan := contracts.ExecutionPlan{
+		ExecutionID: execID,
+		WorkflowID:  workflowID,
+		CreatedAt:   now,
+	}
+
+	if _, err := rec.RecordStepOutcome(nil, plan, outcome); err != nil {
+		t.Fatalf("record returned error: %v", err)
+	}
+
+	var types []string
+	meta := map[string]database.JSONMap{}
+	for _, art := range repo.executionArtifacts {
+		types = append(types, art.ArtifactType)
+		if art.ArtifactType == "video_meta" || art.ArtifactType == "trace_meta" || art.ArtifactType == "har_meta" {
+			meta[art.ArtifactType] = art.Payload
+		}
+	}
+	for _, typ := range []string{"video_meta", "trace_meta", "har_meta"} {
+		if !containsType(types, typ) {
+			t.Fatalf("expected artifact type %q, got %+v", typ, types)
+		}
+		payload, ok := meta[typ]
+		if !ok || payload == nil {
+			t.Fatalf("expected payload for %s", typ)
+		}
+		if path, ok := payload["path"].(string); !ok || strings.TrimSpace(path) == "" {
+			t.Fatalf("expected payload path for %s, got %+v", typ, payload)
+		}
+		if payload["inline"] != true && payload["base64"] == nil {
+			t.Fatalf("expected inline/base64 for %s when small, got %+v", typ, payload)
+		}
+	}
+}
+
 func containsType(types []string, target string) bool {
 	for _, typ := range types {
 		if typ == target {
@@ -377,6 +438,19 @@ func containsType(types []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func writeTempFile(t *testing.T, prefix string, data []byte) string {
+	t.Helper()
+	tmp, err := os.CreateTemp("", prefix)
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	if _, err := tmp.Write(data); err != nil {
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+	_ = tmp.Close()
+	return tmp.Name()
 }
 
 // recorderTestRepo is a lightweight repository stub that captures steps and artifacts.

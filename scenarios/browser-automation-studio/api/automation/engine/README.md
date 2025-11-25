@@ -8,6 +8,8 @@ What lives here:
 - Env-based selection (`ENGINE`, `ENGINE_OVERRIDE`) via `selection.go`
 - Static factory for dependency injection
 - `BrowserlessEngine`: thin adapter over CDP session; converts runtime responses → contract `StepOutcome`
+- `PlaywrightEngine`: HTTP client for the local Playwright driver (Node) used in desktop/Electron bundles; emits the same contract `StepOutcome` shape.
+  - Performs `/health` checks against the driver endpoint before reporting capabilities.
 
 Session reuse modes: `fresh` (always new), `clean` (reuse process, reset storage), `reuse` (stick to existing state).
 
@@ -33,4 +35,4 @@ sequenceDiagram
     Exec->>Sess: Close()
 ```
 
-Current engines: Browserless only. Desktop/Playwright will plug in behind the same interfaces. Selection defaults to Browserless unless overridden.***
+Current engines: Browserless and Playwright. Selection defaults to Browserless unless overridden; set `ENGINE=playwright` when running with the Playwright driver (local desktop/Electron bundles).***

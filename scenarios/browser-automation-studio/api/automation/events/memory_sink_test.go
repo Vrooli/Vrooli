@@ -98,3 +98,46 @@ func TestMemorySinkPerAttemptLimits(t *testing.T) {
 		t.Fatalf("expected drop counters on last event, got %+v", evs[1].Drops)
 	}
 }
+
+func TestMemorySinkDoesNotDropTerminalEvents(t *testing.T) {
+	limits := contracts.EventBufferLimits{PerExecution: 1, PerAttempt: 1}
+	sink := NewMemorySink(limits)
+	execID := uuid.New()
+
+	step := 0
+	attempt := 1
+	completed := contracts.EventEnvelope{
+		SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
+		PayloadVersion: contracts.PayloadVersion,
+		Kind:           contracts.EventKindStepCompleted,
+		ExecutionID:    execID,
+		StepIndex:      &step,
+		Attempt:        &attempt,
+		Sequence:       1,
+		Timestamp:      time.Now(),
+	}
+	telemetry := contracts.EventEnvelope{
+		SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
+		PayloadVersion: contracts.PayloadVersion,
+		Kind:           contracts.EventKindStepTelemetry,
+		ExecutionID:    execID,
+		StepIndex:      &step,
+		Attempt:        &attempt,
+		Sequence:       2,
+		Timestamp:      time.Now(),
+	}
+
+	_ = sink.Publish(context.Background(), completed)
+	_ = sink.Publish(context.Background(), telemetry)
+
+	events := sink.Events()
+	if len(events) != 2 {
+		t.Fatalf("expected both terminal and telemetry events to be retained, got %d", len(events))
+	}
+	if events[0].Kind != contracts.EventKindStepCompleted || events[1].Kind != contracts.EventKindStepTelemetry {
+		t.Fatalf("unexpected event kinds: %+v", events)
+	}
+	if counters := sink.DropCounters()[execID]; counters.Dropped != 0 {
+		t.Fatalf("expected no drops when only terminal event preceded, got %+v", counters)
+	}
+}

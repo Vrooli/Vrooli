@@ -7,15 +7,15 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
 
 // resolveBrowserlessWebSocketURL resolves a browserless HTTP URL to a WebSocket debugger URL.
-// Supports both browserless v1 and v2 APIs with automatic fallback.
-//
-// The function tries v2 API first (modern, preferred), then falls back to v1 API (legacy),
-// and provides actionable error messages if both fail.
+// Supports both browserless v1 and v2 APIs with optional fallback for legacy
+// installations. V2 is required by default; set BROWSERLESS_ALLOW_V1_FALLBACK=1
+// to re-enable the legacy path while migrating older deployments.
 func resolveBrowserlessWebSocketURL(ctx context.Context, rawURL string) (string, error) {
 	trimmed := strings.TrimSpace(rawURL)
 	if trimmed == "" {
@@ -38,24 +38,21 @@ func resolveBrowserlessWebSocketURL(ctx context.Context, rawURL string) (string,
 	}
 
 	// Try V2 API first (modern, preferred)
-	if wsURL, err := tryBrowserlessV2(ctx, base); err == nil {
+	if wsURL, v2Err := tryBrowserlessV2(ctx, base); v2Err == nil {
 		return rewriteAdvertisedWebSocketURL(ctx, wsURL, base)
+	} else if !allowLegacyV1Fallback() {
+		return "", fmt.Errorf(
+			"browserless v2 required (set BROWSERLESS_ALLOW_V1_FALLBACK=1 to allow v1): %w",
+			v2Err,
+		)
 	}
 
-	// Fall back to V1 API (legacy compatibility)
+	// Fall back to V1 API (legacy compatibility) when explicitly enabled.
 	if wsURL, err := tryBrowserlessV1(ctx, base); err == nil {
-		// Note: Consider adding metrics here for production monitoring
 		return rewriteAdvertisedWebSocketURL(ctx, wsURL, base)
 	}
 
-	// Both APIs failed - provide actionable error
-	return "", fmt.Errorf(
-		"failed to connect to browserless at %s: "+
-			"both v2 (/json/new) and v1 (/json/version) endpoints failed. "+
-			"Ensure browserless is running and accessible. "+
-			"Supported versions: browserless v1.x (browserless/chrome:1.60+) or v2.x (ghcr.io/browserless/chrome:latest)",
-		base.String(),
-	)
+	return "", fmt.Errorf("failed to connect to browserless at %s: v2 unavailable and v1 fallback disabled or failing", base.String())
 }
 
 // tryBrowserlessV2 attempts to create a CDP session using browserless v2 API.
@@ -241,6 +238,16 @@ func rewriteAdvertisedWebSocketURL(ctx context.Context, advertised string, fallb
 	}
 
 	return wsURL.String(), nil
+}
+
+func allowLegacyV1Fallback() bool {
+	val := strings.ToLower(strings.TrimSpace(os.Getenv("BROWSERLESS_ALLOW_V1_FALLBACK")))
+	switch val {
+	case "1", "true", "yes", "y", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func joinPath(basePath, suffix string) string {

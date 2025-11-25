@@ -240,7 +240,9 @@ testing::unit::run_all_tests() {
     local jq_available=true
 
     # Ensure previous aggregated output is cleared without touching other coverage assets
-    rm -rf "$coverage_root_dir"
+    # Only remove unit-specific artifacts (go/, node/, aggregate.json)
+    # Preserve artifacts from other phases (ui-smoke/, playwright/, etc.)
+    rm -rf "$coverage_root_dir/go" "$coverage_root_dir/node" "$coverage_root_dir/aggregate.json" 2>/dev/null || true
 
     TESTING_UNIT_REQUIREMENT_STATUS=()
     TESTING_UNIT_REQUIREMENT_EVIDENCE=()

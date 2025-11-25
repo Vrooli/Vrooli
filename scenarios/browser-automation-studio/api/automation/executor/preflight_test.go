@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -113,5 +114,42 @@ func TestDeriveRequirementsDownloadsVideoViewport(t *testing.T) {
 	}
 	if len(gap.Missing) == 0 {
 		t.Fatalf("expected missing requirements reported, got %+v", gap)
+	}
+}
+
+func TestAnalyzeRequirementsAggregatesGraphAndSubflowReasons(t *testing.T) {
+	inner := &contracts.PlanGraph{
+		Steps: []contracts.PlanStep{
+			{Index: 0, NodeID: "inner-download", Type: "download_file"},
+		},
+	}
+	graph := &contracts.PlanGraph{
+		Steps: []contracts.PlanStep{
+			{Index: 0, NodeID: "mock", Type: "network_mock"},
+			{Index: 1, NodeID: "loop", Type: "loop", Loop: inner},
+		},
+	}
+
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		Graph:       graph,
+		Metadata: map[string]any{
+			"executionViewport": map[string]any{"width": float64(1440), "height": float64(900)},
+		},
+	}
+
+	reqs, reasons := analyzeRequirements(plan)
+	if !reqs.NeedsHAR || !reqs.NeedsTracing || !reqs.NeedsDownloads {
+		t.Fatalf("expected HAR+tracing+downloads requirements from graph/subflow, got %+v", reqs)
+	}
+	if reqs.MinViewportWidth != 1440 || reqs.MinViewportHeight != 900 {
+		t.Fatalf("expected viewport minima from metadata, got %+v", reqs)
+	}
+	if len(reasons["har"]) == 0 || len(reasons["tracing"]) == 0 {
+		t.Fatalf("expected reasons to include graph nodes for HAR/tracing: %+v", reasons)
+	}
+	if len(reasons["downloads"]) == 0 || !strings.Contains(strings.ToLower(strings.Join(reasons["downloads"], " ")), "inner-download") {
+		t.Fatalf("expected subflow download reason to be captured, got %+v", reasons["downloads"])
 	}
 }

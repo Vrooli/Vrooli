@@ -40,6 +40,7 @@ type CapabilityError struct {
 	Engine    string
 	Missing   []string
 	Warnings  []string
+	Reasons   map[string][]string
 	Execution uuid.UUID
 	Workflow  uuid.UUID
 }

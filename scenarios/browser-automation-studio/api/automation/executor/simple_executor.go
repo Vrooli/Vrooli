@@ -80,7 +80,7 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 	}
 
 	reuseMode := resolveReuseMode(req)
-	requirements := deriveRequirements(req.Plan)
+	requirements, requirementReasons := analyzeRequirements(req.Plan)
 
 	// Capabilities are fetched up front to allow callers to validate or log.
 	caps := req.EngineCaps
@@ -99,6 +99,7 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 			Engine:    eng.Name(),
 			Missing:   gap.Missing,
 			Warnings:  gap.Warnings,
+			Reasons:   filterReasons(requirementReasons, gap.Missing),
 			Execution: req.Plan.ExecutionID,
 			Workflow:  req.Plan.WorkflowID,
 		}

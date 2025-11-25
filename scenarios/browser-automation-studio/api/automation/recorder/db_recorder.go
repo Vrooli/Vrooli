@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -154,6 +155,25 @@ func (r *DBRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		}
 	}
 
+	// Engine-provided metadata (video/trace/HAR paths for desktop engines).
+	if outcome.Notes != nil {
+		if path := strings.TrimSpace(outcome.Notes["video_path"]); path != "" {
+			if id := r.persistExternalFile(ctx, plan.ExecutionID, &step.ID, outcome.StepIndex, "video_meta", path); id != nil {
+				artifactIDs = append(artifactIDs, *id)
+			}
+		}
+		if path := strings.TrimSpace(outcome.Notes["trace_path"]); path != "" {
+			if id := r.persistExternalFile(ctx, plan.ExecutionID, &step.ID, outcome.StepIndex, "trace_meta", path); id != nil {
+				artifactIDs = append(artifactIDs, *id)
+			}
+		}
+		if path := strings.TrimSpace(outcome.Notes["har_path"]); path != "" {
+			if id := r.persistExternalFile(ctx, plan.ExecutionID, &step.ID, outcome.StepIndex, "har_meta", path); id != nil {
+				artifactIDs = append(artifactIDs, *id)
+			}
+		}
+	}
+
 	var timelineScreenshot string
 	var timelineScreenshotID *uuid.UUID
 
@@ -264,6 +284,46 @@ func (r *DBRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		StepID:      step.ID,
 		ArtifactIDs: artifactIDs,
 	}, nil
+}
+
+const maxEmbeddedExternalBytes = 5 * 1024 * 1024
+
+// persistExternalFile stores metadata (and optionally inline base64) for engine-provided files (trace/video/HAR).
+func (r *DBRecorder) persistExternalFile(ctx context.Context, executionID uuid.UUID, stepID *uuid.UUID, stepIndex int, artifactType, filePath string) *uuid.UUID {
+	info, err := os.Stat(filePath)
+	if err != nil {
+		if r.log != nil {
+			r.log.WithError(err).WithField("path", filePath).Debug("external file not readable")
+		}
+		return nil
+	}
+	payload := database.JSONMap{
+		"path":       filePath,
+		"size_bytes": info.Size(),
+	}
+	if info.Size() > 0 && info.Size() <= maxEmbeddedExternalBytes {
+		if data, readErr := os.ReadFile(filePath); readErr == nil {
+			payload["base64"] = base64.StdEncoding.EncodeToString(data)
+			payload["inline"] = true
+		}
+	}
+
+	artifact := &database.ExecutionArtifact{
+		ID:           uuid.New(),
+		ExecutionID:  executionID,
+		StepID:       stepID,
+		StepIndex:    &stepIndex,
+		ArtifactType: artifactType,
+		Label:        artifactType,
+		Payload:      payload,
+	}
+	if err := r.repo.CreateExecutionArtifact(ctx, artifact); err != nil {
+		if r.log != nil {
+			r.log.WithError(err).WithField("artifact_type", artifactType).Warn("failed to persist external file artifact")
+		}
+		return nil
+	}
+	return &artifact.ID
 }
 
 // RecordTelemetry persists telemetry as lightweight artifacts so replay can

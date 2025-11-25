@@ -74,6 +74,49 @@ func TestEngineCapabilitiesCheckCompatibility(t *testing.T) {
 	}
 }
 
+func TestEngineCapabilitiesViewportWarningsWhenUnknownBounds(t *testing.T) {
+	caps := EngineCapabilities{
+		SchemaVersion:         CapabilitiesSchemaVersion,
+		Engine:                "browserless",
+		MaxConcurrentSessions: 1,
+		AllowsParallelTabs:    true,
+		SupportsHAR:           true,
+		SupportsVideo:         true,
+		SupportsIframes:       true,
+		SupportsFileUploads:   true,
+		SupportsDownloads:     true,
+		SupportsTracing:       true,
+		// MaxViewportWidth/Height left at zero to simulate unknown upper bound.
+	}
+
+	req := CapabilityRequirement{
+		MinViewportWidth:  1920,
+		MinViewportHeight: 1080,
+	}
+
+	gap := caps.CheckCompatibility(req)
+	if len(gap.Missing) != 0 {
+		t.Fatalf("expected no hard missing capabilities, got %+v", gap.Missing)
+	}
+	if len(gap.Warnings) == 0 {
+		t.Fatalf("expected viewport warnings when bounds are unknown")
+	}
+	assertWarningContains := func(expected string) {
+		found := false
+		for _, warn := range gap.Warnings {
+			if strings.Contains(warn, expected) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("expected warning containing %q, got %+v", expected, gap.Warnings)
+		}
+	}
+	assertWarningContains("viewport_width>=1920")
+	assertWarningContains("viewport_height>=1080")
+}
+
 func TestEventBufferLimitsValidate(t *testing.T) {
 	if err := DefaultEventBufferLimits.Validate(); err != nil {
 		t.Fatalf("expected default limits to be valid, got %v", err)

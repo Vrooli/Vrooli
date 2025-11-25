@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -144,6 +145,40 @@ func TestRecordExecutionMarker(t *testing.T) {
 	}
 	if rec.marked[0].Kind != autocontracts.FailureKindTimeout {
 		t.Fatalf("expected timeout failure kind, got %+v", rec.marked[0])
+	}
+}
+
+func TestApplyCapabilityError(t *testing.T) {
+	exec := &database.Execution{}
+	capErr := &autoexecutor.CapabilityError{
+		Engine:   "stub",
+		Missing:  []string{"har", "downloads"},
+		Warnings: []string{"viewport_width>=2000"},
+		Reasons: map[string][]string{
+			"har":         {"step 1 (mock): network mock"},
+			"downloads":   {"step 2 (download): type download"},
+			"tracing":     {"metadata.requiresTracing"},
+			"parallel":    {},
+			"file_upload": nil,
+		},
+	}
+
+	failure := applyCapabilityError(exec, capErr)
+
+	if exec.Status != "failed" {
+		t.Fatalf("expected status failed, got %s", exec.Status)
+	}
+	if exec.CompletedAt == nil {
+		t.Fatalf("expected CompletedAt to be set")
+	}
+	if !exec.Error.Valid || !strings.Contains(exec.Error.String, "har") {
+		t.Fatalf("expected error string to mention missing capabilities, got %q", exec.Error.String)
+	}
+	if failure.Kind != autocontracts.FailureKindOrchestration || failure.Code != "capability_mismatch" {
+		t.Fatalf("unexpected failure metadata: %+v", failure)
+	}
+	if missing, ok := failure.Details["missing"].([]string); !ok || len(missing) == 0 {
+		t.Fatalf("expected missing details to be populated, got %+v", failure.Details)
 	}
 }
 
