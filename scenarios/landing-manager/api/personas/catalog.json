@@ -1,0 +1,90 @@
+{
+  "personas": [
+    {
+      "id": "minimal-design",
+      "name": "Minimal Design",
+      "description": "Clean, simple aesthetic with plenty of whitespace. Focus on clarity and essential messaging.",
+      "prompt": "Apply a minimal design aesthetic to this landing page. Use:\n- Ample whitespace and breathing room\n- Simple, clean typography (1-2 fonts maximum)\n- Muted color palette with strategic accent colors\n- Minimal decorative elements\n- Clear visual hierarchy with generous spacing\n- Simple, purposeful imagery\n- High contrast for readability\n\nPrioritize clarity over decoration. Every element should have a clear purpose.",
+      "use_cases": ["SaaS tools", "Professional services", "B2B products", "Technical audiences"],
+      "keywords": ["clean", "simple", "professional", "minimal", "whitespace"]
+    },
+    {
+      "id": "conversion-optimized",
+      "name": "Conversion Optimized",
+      "description": "Data-driven design focused on maximizing conversions. Clear CTAs, social proof, and urgency signals.",
+      "prompt": "Optimize this landing page for maximum conversion rate. Apply:\n- Bold, clear call-to-action buttons above the fold\n- Strategic placement of social proof (testimonials, logos, stats)\n- Urgency signals where appropriate (limited time, scarcity)\n- Benefit-focused headlines (\"You will get X\")\n- Risk-reduction elements (money-back guarantee, free trial)\n- Clear value proposition in first 3 seconds\n- Minimal friction in conversion path\n- A/B testing ready structure\n\nPrioritize converting visitors into customers. Remove distractions from the primary CTA.",
+      "use_cases": ["Product launches", "High-ticket offerings", "Lead generation", "E-commerce"],
+      "keywords": ["conversion", "cta", "sales", "lead-gen", "optimize"]
+    },
+    {
+      "id": "brand-storytelling",
+      "name": "Brand Storytelling",
+      "description": "Narrative-driven approach that builds emotional connection with the brand story and mission.",
+      "prompt": "Create a narrative-driven landing page that tells the brand story. Use:\n- Story arc structure (problem → journey → solution)\n- Emotional imagery and authentic photography\n- Mission/vision statements prominently featured\n- Founder story or origin narrative\n- Values-driven messaging\n- Long-form content sections\n- Video content integration\n- Community/impact focus\n\nPrioritize building emotional connection and brand affinity over immediate conversion. Help visitors understand why the brand exists.",
+      "use_cases": ["Lifestyle brands", "Social enterprises", "Mission-driven startups", "Consumer products"],
+      "keywords": ["story", "mission", "values", "emotional", "brand"]
+    },
+    {
+      "id": "technical-detailed",
+      "name": "Technical & Detailed",
+      "description": "Comprehensive technical information for informed decision-makers. Specs, features, and detailed explanations.",
+      "prompt": "Create a detailed, technical landing page for informed buyers. Include:\n- Comprehensive feature lists with specifications\n- Technical architecture diagrams or explanations\n- Integration capabilities and API documentation links\n- Security and compliance certifications\n- Performance metrics and benchmarks\n- Detailed pricing breakdowns\n- Technical FAQ section\n- White papers and case studies\n\nPrioritize providing complete information for technical evaluation. Help engineers and technical decision-makers understand the full capabilities.",
+      "use_cases": ["Developer tools", "Enterprise software", "Infrastructure products", "Technical platforms"],
+      "keywords": ["technical", "detailed", "specs", "features", "enterprise"]
+    },
+    {
+      "id": "playful-creative",
+      "name": "Playful & Creative",
+      "description": "Bold, creative design with personality. Unexpected layouts, animations, and distinctive visual style.",
+      "prompt": "Design a playful, creative landing page with strong personality. Use:\n- Unexpected layouts and asymmetric design\n- Bold, distinctive typography\n- Vibrant color schemes and gradients\n- Micro-interactions and subtle animations\n- Quirky, memorable copy\n- Unique illustrations or custom graphics\n- Non-traditional navigation patterns\n- Surprise and delight moments\n\nPrioritize standing out and being memorable. Break conventional design patterns where it serves the brand personality.",
+      "use_cases": ["Creative agencies", "Consumer apps", "Entertainment products", "Lifestyle brands"],
+      "keywords": ["creative", "playful", "bold", "unique", "personality"]
+    },
+    {
+      "id": "trust-authority",
+      "name": "Trust & Authority",
+      "description": "Establishes credibility through social proof, credentials, and authoritative positioning.",
+      "prompt": "Build a landing page that establishes trust and authority. Feature:\n- Prominent client logos and case studies\n- Industry certifications and awards\n- Expert team bios with credentials\n- Published media mentions and press coverage\n- Detailed testimonials with real names and photos\n- Security badges and compliance certifications\n- Industry statistics and research\n- \"As seen in\" media section\n\nPrioritize building credibility and trust. Help visitors feel confident in choosing this solution.",
+      "use_cases": ["Financial services", "Healthcare", "Legal services", "Enterprise sales"],
+      "keywords": ["trust", "authority", "credibility", "professional", "established"]
+    },
+    {
+      "id": "fast-action",
+      "name": "Fast Action",
+      "description": "High-energy, urgency-focused design for time-sensitive offers and quick decisions.",
+      "prompt": "Create a high-energy landing page for fast action. Use:\n- Countdown timers for limited offers\n- Bold scarcity messaging (\"Only X left\", \"Ends soon\")\n- Multiple CTAs throughout the page\n- Short, punchy copy\n- High-contrast, attention-grabbing colors\n- Minimal form fields (reduce friction)\n- Instant gratification messaging\n- Mobile-first design for on-the-go conversion\n\nPrioritize speed and urgency. Remove any barriers to immediate action.",
+      "use_cases": ["Flash sales", "Event registration", "Limited offers", "Time-sensitive campaigns"],
+      "keywords": ["urgency", "scarcity", "limited", "fast", "action"]
+    },
+    {
+      "id": "educational-explainer",
+      "name": "Educational Explainer",
+      "description": "Patient, educational approach for complex products requiring explanation and education.",
+      "prompt": "Design an educational landing page that explains a complex product. Include:\n- Progressive disclosure (start simple, add complexity)\n- Visual explainers and diagrams\n- Step-by-step how-it-works section\n- Use case examples and scenarios\n- Glossary or terminology guide\n- Interactive demos or calculators\n- FAQ section with detailed answers\n- Educational resources (guides, tutorials)\n\nPrioritize clarity and understanding. Help visitors grasp the concept before asking for commitment.",
+      "use_cases": ["Complex SaaS", "Financial products", "Healthcare solutions", "New category creation"],
+      "keywords": ["educational", "explainer", "how-it-works", "complex", "clarity"]
+    },
+    {
+      "id": "premium-luxury",
+      "name": "Premium & Luxury",
+      "description": "Elegant, high-end aesthetic for premium products. Sophisticated design and exclusive positioning.",
+      "prompt": "Create a premium, luxury-focused landing page. Use:\n- Elegant, sophisticated typography\n- High-quality, professional photography\n- Generous whitespace and refined layouts\n- Subtle animations and transitions\n- Exclusive language (\"curated\", \"bespoke\", \"elevated\")\n- Limited color palette with premium feel\n- Price presented as investment, not cost\n- Personalization and concierge messaging\n\nPrioritize conveying quality and exclusivity. Help visitors feel they're accessing something special.",
+      "use_cases": ["Luxury goods", "High-end services", "Premium SaaS", "Exclusive memberships"],
+      "keywords": ["premium", "luxury", "elegant", "exclusive", "sophisticated"]
+    },
+    {
+      "id": "community-social",
+      "name": "Community & Social",
+      "description": "Focus on community, belonging, and social connection. User-generated content and social proof.",
+      "prompt": "Build a community-focused landing page emphasizing connection. Feature:\n- User-generated content and testimonials\n- Community stats (members, posts, engagement)\n- Social feed or activity stream\n- Member spotlights and success stories\n- Discussion forums or community previews\n- Social sharing capabilities\n- \"Join the community\" messaging\n- Events and meetups calendar\n\nPrioritize building sense of belonging. Help visitors see themselves as part of the community.",
+      "use_cases": ["Social platforms", "Online communities", "Membership sites", "Creator tools"],
+      "keywords": ["community", "social", "belonging", "members", "connection"]
+    }
+  ],
+  "_metadata": {
+    "version": "1.0.0",
+    "last_updated": "2025-11-25",
+    "description": "Predefined agent personas for landing page customization. Each persona includes a detailed prompt that guides AI-based customization.",
+    "usage": "Select a persona during customization to apply its design principles and messaging approach to the landing page."
+  }
+}

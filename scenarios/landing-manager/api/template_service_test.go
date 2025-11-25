@@ -10,119 +10,161 @@ import (
 
 // [REQ:TMPL-AVAILABILITY][REQ:TMPL-METADATA]
 func TestTemplateService_ListTemplates(t *testing.T) {
-	// Create temporary templates directory
-	tmpDir := t.TempDir()
-	templatePath := filepath.Join(tmpDir, "test-template.json")
+	t.Run("REQ:TMPL-AVAILABILITY", func(t *testing.T) {
+		// Create temporary templates directory
+		tmpDir := t.TempDir()
+		templatePath := filepath.Join(tmpDir, "test-template.json")
 
-	testTemplate := Template{
-		ID:          "test-template",
-		Name:        "Test Template",
-		Description: "A test template",
-		Version:     "1.0.0",
-		Metadata: map[string]interface{}{
-			"author": "Test Author",
-		},
-	}
+		testTemplate := Template{
+			ID:          "test-template",
+			Name:        "Test Template",
+			Description: "A test template",
+			Version:     "1.0.0",
+			Metadata: map[string]interface{}{
+				"author": "Test Author",
+			},
+		}
 
-	data, err := json.Marshal(testTemplate)
-	if err != nil {
-		t.Fatalf("Failed to marshal test template: %v", err)
-	}
+		data, err := json.Marshal(testTemplate)
+		if err != nil {
+			t.Fatalf("Failed to marshal test template: %v", err)
+		}
 
-	if err := os.WriteFile(templatePath, data, 0644); err != nil {
-		t.Fatalf("Failed to write test template: %v", err)
-	}
+		if err := os.WriteFile(templatePath, data, 0644); err != nil {
+			t.Fatalf("Failed to write test template: %v", err)
+		}
 
-	ts := &TemplateService{templatesDir: tmpDir}
-	templates, err := ts.ListTemplates()
+		ts := &TemplateService{templatesDir: tmpDir}
+		templates, err := ts.ListTemplates()
 
-	if err != nil {
-		t.Errorf("ListTemplates() returned error: %v", err)
-	}
+		if err != nil {
+			t.Errorf("ListTemplates() returned error: %v", err)
+		}
 
-	if len(templates) != 1 {
-		t.Errorf("Expected 1 template, got %d", len(templates))
-	}
+		if len(templates) != 1 {
+			t.Errorf("Expected 1 template, got %d", len(templates))
+		}
 
-	if len(templates) > 0 && templates[0].ID != "test-template" {
-		t.Errorf("Expected template ID 'test-template', got '%s'", templates[0].ID)
-	}
+		if len(templates) > 0 && templates[0].ID != "test-template" {
+			t.Errorf("Expected template ID 'test-template', got '%s'", templates[0].ID)
+		}
+	})
+
+	t.Run("REQ:TMPL-METADATA", func(t *testing.T) {
+		// Verify metadata fields are populated
+		tmpDir := t.TempDir()
+		templatePath := filepath.Join(tmpDir, "test-template.json")
+
+		testTemplate := Template{
+			ID:          "test-template",
+			Name:        "Test Template",
+			Description: "A test template",
+			Version:     "1.0.0",
+			Metadata: map[string]interface{}{
+				"author": "Test Author",
+			},
+		}
+
+		data, err := json.Marshal(testTemplate)
+		if err != nil {
+			t.Fatalf("Failed to marshal test template: %v", err)
+		}
+
+		if err := os.WriteFile(templatePath, data, 0644); err != nil {
+			t.Fatalf("Failed to write test template: %v", err)
+		}
+
+		ts := &TemplateService{templatesDir: tmpDir}
+		templates, err := ts.ListTemplates()
+
+		if err != nil {
+			t.Errorf("ListTemplates() returned error: %v", err)
+		}
+
+		if len(templates) > 0 {
+			if templates[0].Metadata == nil {
+				t.Errorf("Expected metadata to be populated")
+			}
+		}
+	})
 }
 
 // [REQ:TMPL-MULTIPLE]
 func TestTemplateService_ListMultipleTemplates(t *testing.T) {
-	// Create temporary templates directory
-	tmpDir := t.TempDir()
+	t.Run("REQ:TMPL-MULTIPLE", func(t *testing.T) {
+		// Create temporary templates directory
+		tmpDir := t.TempDir()
 
-	// Create first template
-	template1 := Template{
-		ID:          "saas-landing",
-		Name:        "SaaS Landing Page",
-		Description: "SaaS product landing page",
-		Version:     "1.0.0",
-		Metadata: map[string]interface{}{
-			"author":   "Vrooli Team",
-			"category": "saas",
-		},
-	}
-	data1, _ := json.Marshal(template1)
-	if err := os.WriteFile(filepath.Join(tmpDir, "saas-landing.json"), data1, 0644); err != nil {
-		t.Fatalf("Failed to write first template: %v", err)
-	}
-
-	// Create second template
-	template2 := Template{
-		ID:          "lead-magnet",
-		Name:        "Lead Magnet",
-		Description: "Lead capture landing page",
-		Version:     "1.0.0",
-		Metadata: map[string]interface{}{
-			"author":   "Vrooli Team",
-			"category": "lead-generation",
-		},
-	}
-	data2, _ := json.Marshal(template2)
-	if err := os.WriteFile(filepath.Join(tmpDir, "lead-magnet.json"), data2, 0644); err != nil {
-		t.Fatalf("Failed to write second template: %v", err)
-	}
-
-	ts := &TemplateService{templatesDir: tmpDir}
-	templates, err := ts.ListTemplates()
-
-	if err != nil {
-		t.Errorf("ListTemplates() returned error: %v", err)
-	}
-
-	// Verify we have exactly 2 templates
-	if len(templates) != 2 {
-		t.Fatalf("Expected 2 templates, got %d", len(templates))
-	}
-
-	// Verify both template IDs are present (order not guaranteed)
-	foundIDs := make(map[string]bool)
-	for _, tmpl := range templates {
-		foundIDs[tmpl.ID] = true
-	}
-
-	if !foundIDs["saas-landing"] {
-		t.Error("Expected to find 'saas-landing' template")
-	}
-	if !foundIDs["lead-magnet"] {
-		t.Error("Expected to find 'lead-magnet' template")
-	}
-
-	// Verify template metadata is preserved
-	for _, tmpl := range templates {
-		if tmpl.Name == "" {
-			t.Errorf("Template %s is missing name", tmpl.ID)
+		// Create first template
+		template1 := Template{
+			ID:          "saas-landing",
+			Name:        "SaaS Landing Page",
+			Description: "SaaS product landing page",
+			Version:     "1.0.0",
+			Metadata: map[string]interface{}{
+				"author":   "Vrooli Team",
+				"category": "saas",
+			},
 		}
-		if tmpl.Description == "" {
-			t.Errorf("Template %s is missing description", tmpl.ID)
+		data1, _ := json.Marshal(template1)
+		if err := os.WriteFile(filepath.Join(tmpDir, "saas-landing.json"), data1, 0644); err != nil {
+			t.Fatalf("Failed to write first template: %v", err)
 		}
-		if tmpl.Version != "1.0.0" {
-			t.Errorf("Template %s has wrong version: %s", tmpl.ID, tmpl.Version)
+
+		// Create second template
+		template2 := Template{
+			ID:          "lead-magnet",
+			Name:        "Lead Magnet",
+			Description: "Lead capture landing page",
+			Version:     "1.0.0",
+			Metadata: map[string]interface{}{
+				"author":   "Vrooli Team",
+				"category": "lead-generation",
+			},
 		}
-	}
+		data2, _ := json.Marshal(template2)
+		if err := os.WriteFile(filepath.Join(tmpDir, "lead-magnet.json"), data2, 0644); err != nil {
+			t.Fatalf("Failed to write second template: %v", err)
+		}
+
+		ts := &TemplateService{templatesDir: tmpDir}
+		templates, err := ts.ListTemplates()
+
+		if err != nil {
+			t.Errorf("ListTemplates() returned error: %v", err)
+		}
+
+		// Verify we have exactly 2 templates
+		if len(templates) != 2 {
+			t.Fatalf("Expected 2 templates, got %d", len(templates))
+		}
+
+		// Verify both template IDs are present (order not guaranteed)
+		foundIDs := make(map[string]bool)
+		for _, tmpl := range templates {
+			foundIDs[tmpl.ID] = true
+		}
+
+		if !foundIDs["saas-landing"] {
+			t.Error("Expected to find 'saas-landing' template")
+		}
+		if !foundIDs["lead-magnet"] {
+			t.Error("Expected to find 'lead-magnet' template")
+		}
+
+		// Verify template metadata is preserved
+		for _, tmpl := range templates {
+			if tmpl.Name == "" {
+				t.Errorf("Template %s is missing name", tmpl.ID)
+			}
+			if tmpl.Description == "" {
+				t.Errorf("Template %s is missing description", tmpl.ID)
+			}
+			if tmpl.Version != "1.0.0" {
+				t.Errorf("Template %s has wrong version: %s", tmpl.ID, tmpl.Version)
+			}
+		}
+	})
 }
 
 // [REQ:TMPL-AVAILABILITY][REQ:TMPL-METADATA]
@@ -148,7 +190,7 @@ func TestTemplateService_GetTemplate(t *testing.T) {
 
 	ts := &TemplateService{templatesDir: tmpDir}
 
-	t.Run("existing template", func(t *testing.T) {
+	t.Run("REQ:TMPL-AVAILABILITY/existing-template", func(t *testing.T) {
 		template, err := ts.GetTemplate("test-template")
 		if err != nil {
 			t.Errorf("GetTemplate() returned error: %v", err)
@@ -161,7 +203,7 @@ func TestTemplateService_GetTemplate(t *testing.T) {
 		}
 	})
 
-	t.Run("non-existing template", func(t *testing.T) {
+	t.Run("REQ:TMPL-AVAILABILITY/non-existing-template", func(t *testing.T) {
 		template, err := ts.GetTemplate("non-existing")
 		if err == nil {
 			t.Error("GetTemplate() should return error for non-existing template")
@@ -195,7 +237,7 @@ func TestTemplateService_GenerateScenario(t *testing.T) {
 
 	ts := &TemplateService{templatesDir: tmpDir}
 
-	t.Run("valid generation", func(t *testing.T) {
+	t.Run("REQ:TMPL-GENERATION/REQ:TMPL-OUTPUT-VALIDATION/REQ:TMPL-PROVENANCE/valid-generation", func(t *testing.T) {
 		// Provide a minimal payload so scaffolding succeeds without touching the real repo
 		payload := t.TempDir()
 		minimalFiles := []string{
@@ -270,7 +312,7 @@ func TestTemplateService_GenerateScenario(t *testing.T) {
 		}
 	})
 
-	t.Run("dry-run mode", func(t *testing.T) {
+	t.Run("REQ:TMPL-DRY-RUN/dry-run-mode", func(t *testing.T) {
 		// Provide a minimal payload
 		payload := t.TempDir()
 		minimalFiles := []string{
@@ -327,7 +369,7 @@ func TestTemplateService_ListGeneratedScenarios(t *testing.T) {
 		}
 	})
 
-	t.Run("with generated scenarios", func(t *testing.T) {
+	t.Run("REQ:TMPL-GENERATION/with-generated-scenarios", func(t *testing.T) {
 		// Create a mock generated scenario
 		scenarioPath := filepath.Join(tmpDir, "test-landing")
 		if err := os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0o755); err != nil {
@@ -402,7 +444,7 @@ func TestTemplateService_ListGeneratedScenarios(t *testing.T) {
 }
 
 func TestGenerationRoot(t *testing.T) {
-	t.Run("with GEN_OUTPUT_DIR set", func(t *testing.T) {
+	t.Run("REQ:TMPL-GENERATION/with-GEN_OUTPUT_DIR-set", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("GEN_OUTPUT_DIR", tmpDir)
 
@@ -442,7 +484,7 @@ func TestTemplateService_GetPreviewLinks(t *testing.T) {
 
 	ts := &TemplateService{templatesDir: t.TempDir()}
 
-	t.Run("success - get preview links for generated scenario", func(t *testing.T) {
+	t.Run("REQ:TMPL-PREVIEW-LINKS/success-get-preview-links", func(t *testing.T) {
 		// Create a mock generated scenario with service.json
 		scenarioID := "test-preview-landing"
 		scenarioPath := filepath.Join(tmpDir, scenarioID)
@@ -619,7 +661,7 @@ func TestTemplateService_GetPersonas(t *testing.T) {
 		t.Fatalf("Failed to create templates directory: %v", err)
 	}
 
-	t.Run("List all personas", func(t *testing.T) {
+	t.Run("REQ:TMPL-AGENT-PROFILES/list-all-personas", func(t *testing.T) {
 		personas, err := ts.GetPersonas()
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
@@ -646,7 +688,7 @@ func TestTemplateService_GetPersonas(t *testing.T) {
 		}
 	})
 
-	t.Run("Get specific persona by ID", func(t *testing.T) {
+	t.Run("REQ:TMPL-AGENT-PROFILES/get-specific-persona", func(t *testing.T) {
 		persona, err := ts.GetPersona("test-persona")
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)

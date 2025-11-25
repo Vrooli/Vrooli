@@ -121,6 +121,13 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/sections/{id}", handleTemplateOnly("section update")).Methods("PATCH")
 	s.router.HandleFunc("/api/v1/sections", handleTemplateOnly("section creation")).Methods("POST")
 	s.router.HandleFunc("/api/v1/sections/{id}", handleTemplateOnly("section delete")).Methods("DELETE")
+
+	// Lifecycle management endpoints for generated scenarios
+	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/start", s.handleScenarioStart).Methods("POST")
+	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/stop", s.handleScenarioStop).Methods("POST")
+	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/restart", s.handleScenarioRestart).Methods("POST")
+	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", s.handleScenarioStatus).Methods("GET")
+	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/logs", s.handleScenarioLogs).Methods("GET")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -600,4 +607,190 @@ func main() {
 	if err := server.Start(); err != nil {
 		log.Fatalf("server stopped with error: %v", err)
 	}
+}
+
+// Lifecycle management handlers
+
+func (s *Server) handleScenarioStart(w http.ResponseWriter, r *http.Request) {
+	scenarioID := mux.Vars(r)["scenario_id"]
+	if scenarioID == "" {
+		http.Error(w, "scenario_id is required", http.StatusBadRequest)
+		return
+	}
+
+	// Execute vrooli scenario start command
+	cmd := exec.Command("vrooli", "scenario", "start", scenarioID)
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		s.log("scenario_start_failed", map[string]interface{}{
+			"scenario_id": scenarioID,
+			"error":       err.Error(),
+			"output":      string(output),
+		})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Failed to start scenario: %v", err),
+			"output":  string(output),
+		})
+		return
+	}
+
+	s.log("scenario_started", map[string]interface{}{"scenario_id": scenarioID})
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":     true,
+		"message":     "Scenario started successfully",
+		"scenario_id": scenarioID,
+		"output":      string(output),
+	})
+}
+
+func (s *Server) handleScenarioStop(w http.ResponseWriter, r *http.Request) {
+	scenarioID := mux.Vars(r)["scenario_id"]
+	if scenarioID == "" {
+		http.Error(w, "scenario_id is required", http.StatusBadRequest)
+		return
+	}
+
+	cmd := exec.Command("vrooli", "scenario", "stop", scenarioID)
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		s.log("scenario_stop_failed", map[string]interface{}{
+			"scenario_id": scenarioID,
+			"error":       err.Error(),
+			"output":      string(output),
+		})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Failed to stop scenario: %v", err),
+			"output":  string(output),
+		})
+		return
+	}
+
+	s.log("scenario_stopped", map[string]interface{}{"scenario_id": scenarioID})
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":     true,
+		"message":     "Scenario stopped successfully",
+		"scenario_id": scenarioID,
+		"output":      string(output),
+	})
+}
+
+func (s *Server) handleScenarioRestart(w http.ResponseWriter, r *http.Request) {
+	scenarioID := mux.Vars(r)["scenario_id"]
+	if scenarioID == "" {
+		http.Error(w, "scenario_id is required", http.StatusBadRequest)
+		return
+	}
+
+	cmd := exec.Command("vrooli", "scenario", "restart", scenarioID)
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		s.log("scenario_restart_failed", map[string]interface{}{
+			"scenario_id": scenarioID,
+			"error":       err.Error(),
+			"output":      string(output),
+		})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Failed to restart scenario: %v", err),
+			"output":  string(output),
+		})
+		return
+	}
+
+	s.log("scenario_restarted", map[string]interface{}{"scenario_id": scenarioID})
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":     true,
+		"message":     "Scenario restarted successfully",
+		"scenario_id": scenarioID,
+		"output":      string(output),
+	})
+}
+
+func (s *Server) handleScenarioStatus(w http.ResponseWriter, r *http.Request) {
+	scenarioID := mux.Vars(r)["scenario_id"]
+	if scenarioID == "" {
+		http.Error(w, "scenario_id is required", http.StatusBadRequest)
+		return
+	}
+
+	cmd := exec.Command("vrooli", "scenario", "status", scenarioID)
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		s.log("scenario_status_failed", map[string]interface{}{
+			"scenario_id": scenarioID,
+			"error":       err.Error(),
+		})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Failed to get scenario status: %v", err),
+		})
+		return
+	}
+
+	// Parse vrooli scenario status output
+	statusText := string(output)
+	running := strings.Contains(statusText, "🟢 RUNNING") || strings.Contains(statusText, "Status:        🟢 RUNNING")
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":     true,
+		"scenario_id": scenarioID,
+		"running":     running,
+		"status_text": statusText,
+	})
+}
+
+func (s *Server) handleScenarioLogs(w http.ResponseWriter, r *http.Request) {
+	scenarioID := mux.Vars(r)["scenario_id"]
+	if scenarioID == "" {
+		http.Error(w, "scenario_id is required", http.StatusBadRequest)
+		return
+	}
+
+	// Get tail parameter (default 50 lines)
+	tail := r.URL.Query().Get("tail")
+	if tail == "" {
+		tail = "50"
+	}
+
+	cmd := exec.Command("vrooli", "scenario", "logs", scenarioID, "--tail", tail)
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		s.log("scenario_logs_failed", map[string]interface{}{
+			"scenario_id": scenarioID,
+			"error":       err.Error(),
+		})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Failed to get scenario logs: %v", err),
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":     true,
+		"scenario_id": scenarioID,
+		"logs":        string(output),
+	})
 }

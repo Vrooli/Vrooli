@@ -45,6 +45,25 @@ export interface GeneratedScenario {
   generated_at?: string;
 }
 
+export interface Persona {
+  id: string;
+  name: string;
+  description: string;
+  prompt_template: string;
+  use_cases?: string[];
+}
+
+export interface PreviewLinks {
+  scenario_id: string;
+  ui_port?: number;
+  links: {
+    public?: string;
+    admin?: string;
+    admin_login?: string;
+    health?: string;
+  };
+}
+
 // Helper for API calls
 async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = buildApiUrl(endpoint, { baseUrl: API_BASE });
@@ -107,4 +126,66 @@ export async function customizeScenario(scenarioId: string, brief: string, asset
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+// Personas (agent profiles)
+export async function listPersonas() {
+  return apiCall<Persona[]>('/personas');
+}
+
+export async function getPersona(id: string) {
+  return apiCall<Persona>(`/personas/${id}`);
+}
+
+// Preview links
+export async function getPreviewLinks(scenarioId: string) {
+  return apiCall<PreviewLinks>(`/preview/${scenarioId}`);
+}
+
+// Lifecycle management types
+export interface LifecycleResponse {
+  success: boolean;
+  message: string;
+  scenario_id?: string;
+  output?: string;
+}
+
+export interface ScenarioStatus {
+  success: boolean;
+  scenario_id: string;
+  running: boolean;
+  status_text: string;
+}
+
+export interface ScenarioLogs {
+  success: boolean;
+  scenario_id: string;
+  logs: string;
+}
+
+// Lifecycle management
+export async function startScenario(scenarioId: string) {
+  return apiCall<LifecycleResponse>(`/lifecycle/${scenarioId}/start`, {
+    method: 'POST',
+  });
+}
+
+export async function stopScenario(scenarioId: string) {
+  return apiCall<LifecycleResponse>(`/lifecycle/${scenarioId}/stop`, {
+    method: 'POST',
+  });
+}
+
+export async function restartScenario(scenarioId: string) {
+  return apiCall<LifecycleResponse>(`/lifecycle/${scenarioId}/restart`, {
+    method: 'POST',
+  });
+}
+
+export async function getScenarioStatus(scenarioId: string) {
+  return apiCall<ScenarioStatus>(`/lifecycle/${scenarioId}/status`);
+}
+
+export async function getScenarioLogs(scenarioId: string, tail = 50) {
+  return apiCall<ScenarioLogs>(`/lifecycle/${scenarioId}/logs?tail=${tail}`);
 }

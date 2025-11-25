@@ -1,0 +1,884 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string",
+          "readiness": "boolean",
+          "dependencies": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "landing-manager status"
+      }
+    },
+    {
+      "id": "template-list",
+      "path": "/api/v1/templates",
+      "method": "GET",
+      "summary": "List available landing page templates",
+      "description": "Returns all available landing page templates with metadata",
+      "category": "templates",
+      "response": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": "string",
+            "name": "string",
+            "description": "string",
+            "version": "string",
+            "metadata": "object"
+          }
+        }
+      },
+      "examples": [
+        {
+          "name": "List templates",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/templates"
+        }
+      ],
+      "cli_mapping": {
+        "command": "landing-manager template list"
+      }
+    },
+    {
+      "id": "template-show",
+      "path": "/api/v1/templates/{id}",
+      "method": "GET",
+      "summary": "Show template details",
+      "description": "Returns detailed metadata for a specific template",
+      "category": "templates",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "type": "string",
+          "description": "Template ID (e.g., saas-landing-page)"
+        }
+      ],
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "string",
+          "name": "string",
+          "description": "string",
+          "sections": "array",
+          "metrics_hooks": "array",
+          "customization_schema": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Show template",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/templates/saas-landing-page"
+        }
+      ],
+      "cli_mapping": {
+        "command": "landing-manager template show <id>"
+      }
+    },
+    {
+      "id": "generate",
+      "path": "/api/v1/generate",
+      "method": "POST",
+      "summary": "Generate a new landing page scenario",
+      "description": "Creates a new landing page scenario from a template",
+      "category": "generation",
+      "request": {
+        "type": "object",
+        "required": ["template_id", "name", "slug"],
+        "properties": {
+          "template_id": "string",
+          "name": "string",
+          "slug": "string",
+          "options": "object"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "scenario_id": "string",
+          "path": "string",
+          "status": "string",
+          "next_steps": "array"
+        }
+      },
+      "examples": [
+        {
+          "name": "Generate landing page",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/generate -H 'Content-Type: application/json' -d '{\"template_id\":\"saas-landing-page\",\"name\":\"vrooli-pro\",\"slug\":\"vrooli-pro\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "landing-manager generate <template> --name <name> --slug <slug>"
+      }
+    },
+    {
+      "id": "customize",
+      "path": "/api/v1/customize",
+      "method": "POST",
+      "summary": "Trigger agent customization",
+      "description": "Spawns an agent to customize a landing page based on brief and assets",
+      "category": "customization",
+      "request": {
+        "type": "object",
+        "required": ["scenario_id", "brief"],
+        "properties": {
+          "scenario_id": "string",
+          "brief": "string",
+          "assets": "array",
+          "preview": "boolean"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "job_id": "string",
+          "status": "string",
+          "agent_id": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Customize landing page",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/customize -H 'Content-Type: application/json' -d '{\"scenario_id\":\"vrooli-pro\",\"brief\":\"Productivity bundle for developers\",\"preview\":true}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "landing-manager customize <scenario> --brief-file <file> [--preview]"
+      }
+    },
+    {
+      "id": "admin-login",
+      "path": "/api/v1/admin/login",
+      "method": "POST",
+      "summary": "Admin login",
+      "description": "Authenticate admin user with email and password (bcrypt verification)",
+      "category": "authentication",
+      "request": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": "string",
+          "password": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "email": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Admin login",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/admin/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@localhost\",\"password\":\"changeme\"}' -c cookies.txt"
+        }
+      ]
+    },
+    {
+      "id": "admin-logout",
+      "path": "/api/v1/admin/logout",
+      "method": "POST",
+      "summary": "Admin logout",
+      "description": "Destroy admin session",
+      "category": "authentication",
+      "response": {
+        "type": "null"
+      },
+      "examples": [
+        {
+          "name": "Admin logout",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/admin/logout -b cookies.txt"
+        }
+      ]
+    },
+    {
+      "id": "admin-session",
+      "path": "/api/v1/admin/session",
+      "method": "GET",
+      "summary": "Check admin session",
+      "description": "Verify if current session is valid and return user data",
+      "category": "authentication",
+      "response": {
+        "type": "object",
+        "properties": {
+          "email": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check session",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/admin/session -b cookies.txt"
+        }
+      ]
+    },
+    {
+      "id": "variant-select",
+      "path": "/api/v1/variants/select",
+      "method": "GET",
+      "summary": "Select A/B variant (weight-based)",
+      "description": "Returns a variant selected by weight distribution (OT-P0-016: AB-API)",
+      "category": "ab-testing",
+      "response": {
+        "type": "object",
+        "properties": {
+          "variant_id": "integer",
+          "variant_slug": "string",
+          "name": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Get variant",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/variants/select"
+        }
+      ]
+    },
+    {
+      "id": "variant-by-slug",
+      "path": "/api/v1/variants/{slug}",
+      "method": "GET",
+      "summary": "Get variant by slug",
+      "description": "Returns variant details for URL-based selection (OT-P0-014: AB-URL)",
+      "category": "ab-testing",
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "type": "string",
+          "description": "Variant slug (e.g., control, variant-a)"
+        }
+      ],
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "integer",
+          "slug": "string",
+          "name": "string",
+          "weight": "integer",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Get control variant",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/variants/control"
+        }
+      ]
+    },
+    {
+      "id": "variant-list",
+      "path": "/api/v1/variants",
+      "method": "GET",
+      "summary": "List all variants",
+      "description": "Returns all variants, optionally filtered by status (OT-P0-017: AB-CRUD)",
+      "category": "ab-testing",
+      "parameters": [
+        {
+          "name": "status",
+          "in": "query",
+          "required": false,
+          "type": "string",
+          "description": "Filter by status: active, archived, deleted"
+        }
+      ],
+      "response": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "List active variants",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/variants?status=active"
+        }
+      ]
+    },
+    {
+      "id": "variant-create",
+      "path": "/api/v1/variants",
+      "method": "POST",
+      "summary": "Create variant",
+      "description": "Create a new A/B testing variant (OT-P0-017: AB-CRUD)",
+      "category": "ab-testing",
+      "request": {
+        "type": "object",
+        "required": ["slug", "name"],
+        "properties": {
+          "slug": "string",
+          "name": "string",
+          "description": "string",
+          "weight": "integer"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "integer",
+          "slug": "string",
+          "name": "string",
+          "weight": "integer",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Create variant",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/variants -H 'Content-Type: application/json' -d '{\"slug\":\"variant-b\",\"name\":\"Variant B\",\"weight\":30}'"
+        }
+      ]
+    },
+    {
+      "id": "variant-update",
+      "path": "/api/v1/variants/{slug}",
+      "method": "PATCH",
+      "summary": "Update variant",
+      "description": "Update variant weight, name, or description (OT-P0-017: AB-CRUD)",
+      "category": "ab-testing",
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string",
+          "description": "string",
+          "weight": "integer"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "examples": [
+        {
+          "name": "Update variant weight",
+          "curl": "curl -X PATCH http://localhost:${API_PORT}/api/v1/variants/variant-a -H 'Content-Type: application/json' -d '{\"weight\":70}'"
+        }
+      ]
+    },
+    {
+      "id": "variant-archive",
+      "path": "/api/v1/variants/{slug}/archive",
+      "method": "POST",
+      "summary": "Archive variant",
+      "description": "Archive variant (keeps for analytics, excludes from selection) (OT-P0-018: AB-ARCHIVE)",
+      "category": "ab-testing",
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "response": {
+        "type": "object",
+        "properties": {
+          "message": "string",
+          "slug": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Archive variant",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/variants/variant-a/archive"
+        }
+      ]
+    },
+    {
+      "id": "variant-delete",
+      "path": "/api/v1/variants/{slug}",
+      "method": "DELETE",
+      "summary": "Delete variant",
+      "description": "Soft-delete variant (OT-P0-017: AB-CRUD)",
+      "category": "ab-testing",
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "response": {
+        "type": "object",
+        "properties": {
+          "message": "string",
+          "slug": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Delete variant",
+          "curl": "curl -X DELETE http://localhost:${API_PORT}/api/v1/variants/variant-b"
+        }
+      ]
+    },
+    {
+      "id": "metrics-track",
+      "path": "/api/v1/metrics/track",
+      "method": "POST",
+      "summary": "Track analytics event",
+      "description": "Records an analytics event with variant_id (OT-P0-019: METRIC-TAG, OT-P0-021: METRIC-EVENTS, OT-P0-022: METRIC-IDEMPOTENT)",
+      "category": "metrics",
+      "request": {
+        "type": "object",
+        "required": ["event_type", "variant_id", "session_id"],
+        "properties": {
+          "event_type": "string",
+          "variant_id": "integer",
+          "event_data": "object",
+          "session_id": "string",
+          "visitor_id": "string",
+          "event_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "message": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Track page view",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/metrics/track -H 'Content-Type: application/json' -d '{\"event_type\":\"page_view\",\"variant_id\":1,\"session_id\":\"abc123\"}'"
+        },
+        {
+          "name": "Track CTA click",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/metrics/track -H 'Content-Type: application/json' -d '{\"event_type\":\"click\",\"variant_id\":1,\"session_id\":\"abc123\",\"event_data\":{\"element_id\":\"hero-cta\",\"element_type\":\"cta\"}}'"
+        }
+      ]
+    },
+    {
+      "id": "metrics-summary",
+      "path": "/api/v1/metrics/summary",
+      "method": "GET",
+      "summary": "Get analytics summary",
+      "description": "Returns total visitors, conversion rates per variant, and top CTAs (OT-P0-023: METRIC-SUMMARY)",
+      "category": "metrics",
+      "parameters": [
+        {
+          "name": "start_date",
+          "in": "query",
+          "required": false,
+          "type": "string",
+          "description": "Start date (YYYY-MM-DD, default: 7 days ago)"
+        },
+        {
+          "name": "end_date",
+          "in": "query",
+          "required": false,
+          "type": "string",
+          "description": "End date (YYYY-MM-DD, default: today)"
+        }
+      ],
+      "response": {
+        "type": "object",
+        "properties": {
+          "total_visitors": "integer",
+          "variant_stats": "array",
+          "top_cta": "string",
+          "top_cta_ctr": "number"
+        }
+      },
+      "examples": [
+        {
+          "name": "Get summary (last 7 days)",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/metrics/summary"
+        },
+        {
+          "name": "Get summary with date range",
+          "curl": "curl 'http://localhost:${API_PORT}/api/v1/metrics/summary?start_date=2025-01-01&end_date=2025-01-31'"
+        }
+      ]
+    },
+    {
+      "id": "metrics-variant-stats",
+      "path": "/api/v1/metrics/variants",
+      "method": "GET",
+      "summary": "Get variant performance stats",
+      "description": "Returns detailed stats (views, clicks, conversions) per variant with filtering (OT-P0-020: METRIC-FILTER, OT-P0-024: METRIC-DETAIL)",
+      "category": "metrics",
+      "parameters": [
+        {
+          "name": "start_date",
+          "in": "query",
+          "required": false,
+          "type": "string",
+          "description": "Start date (YYYY-MM-DD, default: 7 days ago)"
+        },
+        {
+          "name": "end_date",
+          "in": "query",
+          "required": false,
+          "type": "string",
+          "description": "End date (YYYY-MM-DD, default: today)"
+        },
+        {
+          "name": "variant",
+          "in": "query",
+          "required": false,
+          "type": "string",
+          "description": "Filter by variant slug"
+        }
+      ],
+      "response": {
+        "type": "object",
+        "properties": {
+          "start_date": "string",
+          "end_date": "string",
+          "stats": "array"
+        }
+      },
+      "examples": [
+        {
+          "name": "Get all variant stats",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/metrics/variants"
+        },
+        {
+          "name": "Get control variant stats",
+          "curl": "curl 'http://localhost:${API_PORT}/api/v1/metrics/variants?variant=control'"
+        }
+      ]
+    },
+    {
+      "id": "checkout-create",
+      "path": "/api/v1/checkout/create",
+      "method": "POST",
+      "summary": "Create Stripe checkout session",
+      "description": "Creates a Stripe checkout session for subscription payment (OT-P0-025: STRIPE-CONFIG, OT-P0-026: STRIPE-ROUTES)",
+      "category": "payments",
+      "request": {
+        "type": "object",
+        "required": ["price_id", "customer_email"],
+        "properties": {
+          "price_id": "string",
+          "customer_email": "string",
+          "success_url": "string",
+          "cancel_url": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "string",
+          "url": "string",
+          "customer": "string",
+          "amount_total": "integer",
+          "currency": "string",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Create checkout session",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/checkout/create -H 'Content-Type: application/json' -d '{\"price_id\":\"price_123\",\"customer_email\":\"user@example.com\",\"success_url\":\"/success\",\"cancel_url\":\"/cancel\"}'"
+        }
+      ]
+    },
+    {
+      "id": "webhook-stripe",
+      "path": "/api/v1/webhooks/stripe",
+      "method": "POST",
+      "summary": "Stripe webhook handler",
+      "description": "Processes Stripe webhook events with signature verification (OT-P0-026: STRIPE-ROUTES, OT-P0-027: STRIPE-SIG)",
+      "category": "payments",
+      "request": {
+        "type": "object",
+        "description": "Stripe webhook event payload"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Process webhook (requires Stripe signature)",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/webhooks/stripe -H 'Content-Type: application/json' -H 'Stripe-Signature: t=...,v1=...' -d '{\"type\":\"checkout.session.completed\",\"data\":{}}'"
+        }
+      ]
+    },
+    {
+      "id": "subscription-verify",
+      "path": "/api/v1/subscription/verify",
+      "method": "GET",
+      "summary": "Verify subscription status",
+      "description": "Checks subscription status for a user with caching (OT-P0-028: SUB-VERIFY, OT-P0-029: SUB-CACHE)",
+      "category": "payments",
+      "parameters": [
+        {
+          "name": "user",
+          "in": "query",
+          "required": true,
+          "type": "string",
+          "description": "User identifier (email or customer ID)"
+        }
+      ],
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string",
+          "cached_at": "string",
+          "cache_age_ms": "integer",
+          "canceled_at": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Verify subscription",
+          "curl": "curl 'http://localhost:${API_PORT}/api/v1/subscription/verify?user=user@example.com'"
+        }
+      ]
+    },
+    {
+      "id": "subscription-cancel",
+      "path": "/api/v1/subscription/cancel",
+      "method": "POST",
+      "summary": "Cancel subscription",
+      "description": "Cancels an active subscription (OT-P0-030: SUB-CANCEL)",
+      "category": "payments",
+      "request": {
+        "type": "object",
+        "required": ["user_identity"],
+        "properties": {
+          "user_identity": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "subscription_id": "string",
+          "status": "string",
+          "canceled_at": "string",
+          "message": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Cancel subscription",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/subscription/cancel -H 'Content-Type: application/json' -d '{\"user_identity\":\"user@example.com\"}'"
+        }
+      ]
+    },
+    {
+      "id": "sections-list",
+      "path": "/api/v1/variants/{variant_id}/sections",
+      "method": "GET",
+      "summary": "List content sections for a variant",
+      "description": "Returns all content sections (hero, features, pricing, etc.) for a variant (OT-P0-012: CUSTOM-SPLIT)",
+      "category": "customization",
+      "parameters": [
+        {
+          "name": "variant_id",
+          "in": "path",
+          "required": true,
+          "type": "integer",
+          "description": "Variant ID"
+        }
+      ],
+      "response": {
+        "type": "object",
+        "properties": {
+          "sections": "array"
+        }
+      },
+      "examples": [
+        {
+          "name": "Get sections for variant",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/variants/1/sections"
+        }
+      ]
+    },
+    {
+      "id": "section-get",
+      "path": "/api/v1/sections/{id}",
+      "method": "GET",
+      "summary": "Get a specific content section",
+      "description": "Returns content section details (OT-P0-012: CUSTOM-SPLIT)",
+      "category": "customization",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "type": "integer",
+          "description": "Section ID"
+        }
+      ],
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "integer",
+          "variant_id": "integer",
+          "section_type": "string",
+          "content": "object",
+          "order": "integer",
+          "enabled": "boolean"
+        }
+      },
+      "examples": [
+        {
+          "name": "Get section",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/sections/1"
+        }
+      ]
+    },
+    {
+      "id": "section-update",
+      "path": "/api/v1/sections/{id}",
+      "method": "PATCH",
+      "summary": "Update content section",
+      "description": "Updates section content for live preview (OT-P0-013: CUSTOM-LIVE)",
+      "category": "customization",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "type": "integer",
+          "description": "Section ID"
+        }
+      ],
+      "request": {
+        "type": "object",
+        "required": ["content"],
+        "properties": {
+          "content": "object"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "message": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Update hero section",
+          "curl": "curl -X PATCH http://localhost:${API_PORT}/api/v1/sections/1 -H 'Content-Type: application/json' -d '{\"content\":{\"headline\":\"New Headline\",\"subheadline\":\"Updated copy\"}}'"
+        }
+      ]
+    },
+    {
+      "id": "section-create",
+      "path": "/api/v1/sections",
+      "method": "POST",
+      "summary": "Create content section",
+      "description": "Creates a new content section for a variant",
+      "category": "customization",
+      "request": {
+        "type": "object",
+        "required": ["variant_id", "section_type", "content"],
+        "properties": {
+          "variant_id": "integer",
+          "section_type": "string",
+          "content": "object",
+          "order": "integer",
+          "enabled": "boolean"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "integer",
+          "variant_id": "integer",
+          "section_type": "string",
+          "content": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Create CTA section",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/sections -H 'Content-Type: application/json' -d '{\"variant_id\":1,\"section_type\":\"cta\",\"content\":{\"headline\":\"Ready to start?\"},\"order\":5}'"
+        }
+      ]
+    },
+    {
+      "id": "section-delete",
+      "path": "/api/v1/sections/{id}",
+      "method": "DELETE",
+      "summary": "Delete content section",
+      "description": "Deletes a content section from a variant",
+      "category": "customization",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "type": "integer",
+          "description": "Section ID"
+        }
+      ],
+      "response": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "message": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Delete section",
+          "curl": "curl -X DELETE http://localhost:${API_PORT}/api/v1/sections/3"
+        }
+      ]
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health",
+      "endpoint_id": "health"
+    },
+    {
+      "name": "template list",
+      "description": "List available landing page templates",
+      "endpoint_id": "template-list"
+    },
+    {
+      "name": "template show",
+      "description": "Show detailed template metadata",
+      "endpoint_id": "template-show"
+    },
+    {
+      "name": "generate",
+      "description": "Generate a new landing page scenario from template",
+      "endpoint_id": "generate"
+    },
+    {
+      "name": "customize",
+      "description": "Trigger agent customization of a landing page",
+      "endpoint_id": "customize"
+    }
+  ]
+}

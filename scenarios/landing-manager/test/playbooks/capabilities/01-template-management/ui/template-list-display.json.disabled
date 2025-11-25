@@ -1,0 +1,170 @@
+{
+  "metadata": {
+    "description": "Validates that the factory UI displays the template catalog with at least one template (saas-landing-page)",
+    "requirements": ["TMPL-AVAILABILITY"],
+    "reset": "none"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-factory",
+      "type": "navigate",
+      "data": {
+        "label": "Navigate to landing-manager factory UI",
+        "destinationType": "scenario",
+        "scenario": "landing-manager",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 30000
+      }
+    },
+    {
+      "id": "wait-for-catalog",
+      "type": "wait",
+      "data": {
+        "label": "Wait for template catalog to load",
+        "selector": "@selector/template-catalog",
+        "timeoutMs": 15000,
+        "waitForMs": 500,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "assert-template-grid",
+      "type": "assert",
+      "data": {
+        "label": "Assert template grid exists",
+        "selector": "@selector/template-grid",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Template grid should be visible in the factory UI"
+      }
+    },
+    {
+      "id": "assert-saas-template",
+      "type": "assert",
+      "data": {
+        "label": "Assert saas-landing-page template card exists",
+        "selector": "@selector/template-card-saas-landing-page",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "saas-landing-page template should be available in the catalog"
+      }
+    },
+    {
+      "id": "assert-template-name",
+      "type": "assert",
+      "data": {
+        "label": "Assert template name is displayed",
+        "selector": "@selector/template-name-saas-landing-page",
+        "assertMode": "contains_text",
+        "expectedText": "SaaS Landing Page",
+        "timeoutMs": 5000,
+        "failureMessage": "Template name should be visible on the template card"
+      }
+    },
+    {
+      "id": "click-template",
+      "type": "click",
+      "data": {
+        "label": "Click saas-landing-page template to select it",
+        "selector": "@selector/template-card-saas-landing-page",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "assert-template-details",
+      "type": "assert",
+      "data": {
+        "label": "Assert selected template details are shown",
+        "selector": "@selector/selected-template-details",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Selected template details panel should appear after clicking a template"
+      }
+    },
+    {
+      "id": "assert-template-id",
+      "type": "assert",
+      "data": {
+        "label": "Assert template ID is displayed",
+        "selector": "@selector/selected-template-id",
+        "assertMode": "contains_text",
+        "expectedText": "ID:",
+        "timeoutMs": 5000,
+        "failureMessage": "Template ID should be visible in the details panel"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-nav-wait",
+      "source": "navigate-factory",
+      "target": "wait-for-catalog",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    },
+    {
+      "id": "edge-wait-grid",
+      "source": "wait-for-catalog",
+      "target": "assert-template-grid",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    },
+    {
+      "id": "edge-grid-saas",
+      "source": "assert-template-grid",
+      "target": "assert-saas-template",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    },
+    {
+      "id": "edge-saas-name",
+      "source": "assert-saas-template",
+      "target": "assert-template-name",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    },
+    {
+      "id": "edge-name-click",
+      "source": "assert-template-name",
+      "target": "click-template",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    },
+    {
+      "id": "edge-click-details",
+      "source": "click-template",
+      "target": "assert-template-details",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    },
+    {
+      "id": "edge-details-id",
+      "source": "assert-template-details",
+      "target": "assert-template-id",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    }
+  ]
+}

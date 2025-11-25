@@ -1,0 +1,46 @@
+{
+  "module_id": "customization-ux",
+  "title": "Customization UX",
+  "priority": "P0",
+  "description": "Live preview and form-based customization of landing page sections",
+  "requirements": [
+    {
+      "id": "CUSTOM-SPLIT",
+      "title": "Split customization layout",
+      "prd_ref": "OT-P0-012",
+      "description": "Each slide customization page shows form (one column) + live preview (other column), stacked on mobile",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/SectionEditor.test.tsx",
+          "notes": "Responsive grid layout using lg:grid-cols-2 for desktop split view and stacked layout on mobile. Form and preview panes marked with data-testid and covered by unit tests."
+        }
+      ],
+      "status": "complete",
+      "notes": "Implemented via responsive grid in SectionEditor.tsx (lg:grid-cols-2) with data-testid markers and passing unit tests."
+    },
+    {
+      "id": "CUSTOM-LIVE",
+      "title": "Live preview updates",
+      "prd_ref": "OT-P0-013",
+      "description": "Form field changes update preview within 300ms (debounced) without page reload",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/SectionEditor.test.tsx",
+          "notes": "Live preview uses 300ms debounce (useDebounce) to refresh preview without reload when form fields change; covered by unit tests."
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "CUSTOM-SPLIT"
+      ],
+      "notes": "Implemented via useDebounce hook (300ms) in SectionEditor.tsx. Form changes trigger debounced state updates that automatically refresh the live preview without page reload."
+    }
+  ],
+  "_metadata": {}
+}

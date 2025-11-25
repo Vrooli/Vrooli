@@ -12,6 +12,8 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['json-summary', 'json', 'text'],
       reportOnFailure: true,
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/test-setup.ts', 'src/consts/selectors.ts'],
       thresholds: {
         lines: 0,
         functions: 0,

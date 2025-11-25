@@ -20,5 +20,4 @@ Organize requirement modules by PRD operational targets, keeping the filesystem 
 
 ## Factory vs Template Scope
 - Factory (landing-manager) owns template registry, generation UX, and handoff only.
-- Template-owned features (admin portal, A/B testing, metrics, Stripe, customization UX) live in the template payload and are validated in generated scenarios.
-- Runtime requirement modules remain in this folder only as pointers to the template payload; see scripts/scenarios/templates/saas-landing-page/payload/requirements for the authoritative runtime set.
+- Template-owned features (admin portal, A/B testing, metrics, Stripe, customization UX) live in the template payload at `scripts/scenarios/templates/saas-landing-page/payload` and are validated in generated scenarios, not here.

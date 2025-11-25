@@ -1,0 +1,388 @@
+{
+  "id": "saas-landing-page",
+  "name": "SaaS Landing Page",
+  "description": "Modern landing page template for SaaS products with hero, features, pricing, and CTA sections. Includes A/B testing, analytics, and Stripe payments out of the box.",
+  "version": "1.0.0",
+  "metadata": {
+    "author": "Vrooli Team",
+    "category": "saas",
+    "created_at": "2025-11-21",
+    "tags": [
+      "saas",
+      "landing-page",
+      "conversion",
+      "ab-testing",
+      "stripe"
+    ],
+    "updated_at": "2025-11-21"
+  },
+  "sections": {
+    "optional": [
+      {
+        "description": "Customer logos, testimonials, and trust signals",
+        "fields": {
+          "logos": {
+            "item_schema": {
+              "company": {
+                "label": "Company Name",
+                "type": "string"
+              },
+              "logo_url": {
+                "label": "Logo URL",
+                "type": "string"
+              }
+            },
+            "label": "Customer Logos",
+            "type": "array"
+          },
+          "section_title": {
+            "label": "Section Title",
+            "max_length": 80,
+            "placeholder": "Trusted by leading teams",
+            "type": "string"
+          }
+        },
+        "id": "social-proof",
+        "name": "Social Proof Section"
+      },
+      {
+        "description": "Product demo or explainer video",
+        "fields": {
+          "caption": {
+            "label": "Caption",
+            "max_length": 150,
+            "type": "string"
+          },
+          "section_title": {
+            "label": "Section Title",
+            "max_length": 80,
+            "placeholder": "See it in action",
+            "type": "string"
+          },
+          "thumbnail_url": {
+            "label": "Thumbnail URL",
+            "placeholder": "/assets/video-thumbnail.png",
+            "type": "string"
+          },
+          "video_url": {
+            "label": "Video URL (YouTube/Vimeo)",
+            "placeholder": "https://www.youtube.com/watch?v=xxxxx",
+            "type": "string"
+          }
+        },
+        "id": "demo-video",
+        "name": "Demo Video Section"
+      }
+    ],
+    "required": [
+      {
+        "description": "Main headline, value proposition, and primary CTA",
+        "fields": {
+          "cta_text": {
+            "label": "CTA Button Text",
+            "max_length": 30,
+            "placeholder": "Start Free Trial",
+            "required": true,
+            "type": "string"
+          },
+          "cta_url": {
+            "label": "CTA URL",
+            "placeholder": "/signup",
+            "required": true,
+            "type": "string"
+          },
+          "headline": {
+            "label": "Headline",
+            "max_length": 120,
+            "placeholder": "Build and ship faster with Vrooli",
+            "required": true,
+            "type": "string"
+          },
+          "hero_image_url": {
+            "label": "Hero Image URL",
+            "placeholder": "/assets/hero.png",
+            "required": false,
+            "type": "string"
+          },
+          "subheadline": {
+            "label": "Subheadline",
+            "max_length": 200,
+            "placeholder": "The AI-powered platform that turns ideas into production apps",
+            "required": true,
+            "type": "string"
+          }
+        },
+        "id": "hero",
+        "name": "Hero Section"
+      },
+      {
+        "description": "Key product features and benefits",
+        "fields": {
+          "features": {
+            "item_schema": {
+              "description": {
+                "label": "Feature Description",
+                "max_length": 200,
+                "type": "string"
+              },
+              "icon": {
+                "label": "Icon Name (Lucide)",
+                "placeholder": "zap",
+                "type": "string"
+              },
+              "title": {
+                "label": "Feature Title",
+                "max_length": 60,
+                "type": "string"
+              }
+            },
+            "label": "Features",
+            "max_items": 6,
+            "min_items": 3,
+            "type": "array"
+          },
+          "section_title": {
+            "label": "Section Title",
+            "max_length": 80,
+            "placeholder": "Everything you need",
+            "required": true,
+            "type": "string"
+          }
+        },
+        "id": "features",
+        "name": "Features Section"
+      },
+      {
+        "description": "Pricing tiers and payment options",
+        "fields": {
+          "pricing_tiers": {
+            "item_schema": {
+              "cta_text": {
+                "label": "CTA Text",
+                "max_length": 30,
+                "type": "string"
+              },
+              "features": {
+                "label": "Included Features",
+                "type": "array"
+              },
+              "highlighted": {
+                "label": "Highlight This Tier",
+                "type": "boolean"
+              },
+              "name": {
+                "label": "Tier Name",
+                "max_length": 30,
+                "type": "string"
+              },
+              "price": {
+                "label": "Price (USD/month)",
+                "type": "number"
+              },
+              "stripe_price_id": {
+                "label": "Stripe Price ID",
+                "placeholder": "price_xxxxx",
+                "type": "string"
+              }
+            },
+            "label": "Pricing Tiers",
+            "max_items": 4,
+            "min_items": 1,
+            "type": "array"
+          },
+          "section_title": {
+            "label": "Section Title",
+            "max_length": 80,
+            "placeholder": "Simple, transparent pricing",
+            "required": true,
+            "type": "string"
+          }
+        },
+        "id": "pricing",
+        "name": "Pricing Section"
+      },
+      {
+        "description": "Bottom-of-page conversion section",
+        "fields": {
+          "cta_text": {
+            "label": "CTA Button Text",
+            "max_length": 30,
+            "placeholder": "Start Free Trial",
+            "required": true,
+            "type": "string"
+          },
+          "cta_url": {
+            "label": "CTA URL",
+            "placeholder": "/signup",
+            "required": true,
+            "type": "string"
+          },
+          "headline": {
+            "label": "Headline",
+            "max_length": 80,
+            "placeholder": "Ready to get started?",
+            "required": true,
+            "type": "string"
+          },
+          "subheadline": {
+            "label": "Subheadline",
+            "max_length": 150,
+            "placeholder": "Join thousands of teams building with Vrooli",
+            "required": false,
+            "type": "string"
+          }
+        },
+        "id": "cta",
+        "name": "Final CTA Section"
+      }
+    ]
+  },
+  "metrics_hooks": [
+    {
+      "id": "page_view",
+      "name": "Page View",
+      "description": "Track landing page loads",
+      "event_type": "pageview",
+      "required_fields": [
+        "variant_id",
+        "session_id",
+        "timestamp"
+      ]
+    },
+    {
+      "id": "scroll_depth",
+      "name": "Scroll Depth",
+      "description": "Track how far users scroll",
+      "event_type": "scroll",
+      "required_fields": [
+        "variant_id",
+        "session_id",
+        "depth_percent",
+        "timestamp"
+      ]
+    },
+    {
+      "id": "cta_click",
+      "name": "CTA Click",
+      "description": "Track CTA button clicks",
+      "event_type": "click",
+      "required_fields": [
+        "variant_id",
+        "session_id",
+        "element_id",
+        "timestamp"
+      ]
+    },
+    {
+      "id": "form_submit",
+      "name": "Form Submit",
+      "description": "Track form submissions (signup, contact, etc.)",
+      "event_type": "form_submit",
+      "required_fields": [
+        "variant_id",
+        "session_id",
+        "form_id",
+        "timestamp"
+      ]
+    },
+    {
+      "id": "conversion",
+      "name": "Conversion",
+      "description": "Track successful Stripe checkout completions",
+      "event_type": "conversion",
+      "required_fields": [
+        "variant_id",
+        "session_id",
+        "stripe_session_id",
+        "amount",
+        "timestamp"
+      ]
+    }
+  ],
+  "customization_schema": {
+    "branding": {
+      "font_family": {
+        "label": "Font Family",
+        "placeholder": "Inter, system-ui, sans-serif",
+        "type": "string"
+      },
+      "logo_url": {
+        "label": "Logo URL",
+        "placeholder": "/assets/logo.svg",
+        "type": "string"
+      },
+      "primary_color": {
+        "label": "Primary Color (hex)",
+        "placeholder": "#3b82f6",
+        "type": "string"
+      },
+      "secondary_color": {
+        "label": "Secondary Color (hex)",
+        "placeholder": "#8b5cf6",
+        "type": "string"
+      }
+    },
+    "seo": {
+      "description": {
+        "label": "Meta Description",
+        "max_length": 160,
+        "type": "string"
+      },
+      "og_image": {
+        "label": "Social Share Image URL",
+        "type": "string"
+      },
+      "title": {
+        "label": "Page Title",
+        "max_length": 60,
+        "type": "string"
+      }
+    },
+    "stripe": {
+      "publishable_key": {
+        "label": "Stripe Publishable Key",
+        "placeholder": "pk_live_xxxxx",
+        "type": "string"
+      },
+      "webhook_secret": {
+        "label": "Stripe Webhook Secret",
+        "placeholder": "whsec_xxxxx",
+        "type": "string"
+      }
+    }
+  },
+  "frontend_aesthetics": {
+    "animations": "Fade-in on scroll, hover effects on CTAs, smooth gradient shifts.",
+    "colors": "Deep blues and purples with bright accent colors. Avoid flat pastels.",
+    "components": "Rounded corners (8-16px), subtle shadows, smooth transitions. Lucide icons throughout.",
+    "layout": "Asymmetric sections with layered gradients and geometric shapes. No flat solid backgrounds.",
+    "style": "modern, bold, high-contrast",
+    "typography": "Custom font stack, not Inter/Roboto/Arial. Large headings with strong hierarchy."
+  },
+  "tech_stack": {
+    "analytics": "Custom events API (variant-tagged metrics)",
+    "backend": "Go (Gin framework) + PostgreSQL",
+    "deployment": "Vrooli lifecycle system (local or production)",
+    "frontend": "React + TypeScript + Vite + TailwindCSS + shadcn/ui + Lucide icons",
+    "payments": "Stripe Checkout + Webhooks"
+  },
+  "generated_structure": {
+    "directories": [
+      "api/",
+      "ui/src/",
+      "ui/public/",
+      "initialization/postgres/",
+      "test/",
+      "docs/"
+    ],
+    "key_files": [
+      ".vrooli/service.json",
+      "Makefile",
+      "README.md",
+      "PRD.md",
+      "api/main.go",
+      "ui/src/App.tsx",
+      "initialization/postgres/schema.sql"
+    ]
+  }
+}

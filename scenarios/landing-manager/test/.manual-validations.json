@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Manual validation tracking for requirements without automated tests",
-    "last_updated": "2025-11-22",
+    "last_updated": "2025-11-25",
     "validator": "Ecosystem Manager Improver",
     "schema_version": "1.0.0"
   },
@@ -115,13 +115,37 @@
       "evidence": "Deferred to P2 phase"
     },
     {
-      "requirement_id": "TMPL-MARKET",
+      "requirement_id": "TMPL-MARKETPLACE",
       "status": "pending",
       "validation_date": null,
-      "validator": null,
+      "validator": "Ecosystem Manager",
       "method": "pending_implementation",
-      "notes": "P2 requirement: Template marketplace feature deferred to future phase",
-      "evidence": "Deferred to P2 phase"
+      "notes": "P2 requirement: Template marketplace feature deferred to future phase. Requires business decision on trust/safety model before implementation.",
+      "evidence": "requirements/01-template-management/module.json:TMPL-MARKETPLACE",
+      "tracked": true,
+      "validation_notes": "Requires business decision on trust/safety model before implementation"
+    },
+    {
+      "requirement_id": "TMPL-MIGRATION",
+      "status": "pending",
+      "validation_date": null,
+      "validator": "Ecosystem Manager",
+      "method": "pending_implementation",
+      "notes": "P2 requirement: Template migration helper deferred to future phase. Requires versioning strategy and migration patterns before implementation.",
+      "evidence": "requirements/01-template-management/module.json:TMPL-MIGRATION",
+      "tracked": true,
+      "validation_notes": "Requires versioning strategy and migration patterns before implementation"
+    },
+    {
+      "requirement_id": "TMPL-GENERATION-ANALYTICS",
+      "status": "pending",
+      "validation_date": null,
+      "validator": "Ecosystem Manager",
+      "method": "pending_implementation",
+      "notes": "P2 requirement: Analytics on generation usage deferred to future phase. Requires analytics infrastructure and metrics definition before implementation.",
+      "evidence": "requirements/01-template-management/module.json:TMPL-GENERATION-ANALYTICS",
+      "tracked": true,
+      "validation_notes": "Requires analytics infrastructure and metrics definition before implementation"
     },
     {
       "requirement_id": "AB-SIGNIFICANCE",

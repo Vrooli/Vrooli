@@ -1,0 +1,97 @@
+{
+  "module_id": "design-branding",
+  "title": "Design & Branding",
+  "priority": "P1",
+  "description": "Distinctive aesthetics, custom typography, and video support",
+  "requirements": [
+    {
+      "id": "DESIGN-GUIDE",
+      "title": "Aesthetic guidelines in template",
+      "prd_ref": "OT-P1-005",
+      "description": "Template specification includes frontend_aesthetics block in description for design agents",
+      "validation": [
+        {
+          "type": "code",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Frontend aesthetics block implemented in api/templates/saas-landing-page.json with style, colors, typography, layout, components, and animations guidelines",
+          "ref": "api/templates/saas-landing-page.json"
+        }
+      ],
+      "status": "complete",
+      "notes": "Implemented: Comprehensive frontend_aesthetics block with guidelines for modern, bold, high-contrast design using custom typography, asymmetric layouts, and layered gradients"
+    },
+    {
+      "id": "DESIGN-FONT",
+      "title": "Custom typography",
+      "prd_ref": "OT-P1-005",
+      "description": "Default template declares custom font stack (not Inter, Roboto, Arial, or system default)",
+      "validation": [
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Space Grotesk font implemented in ui/src/styles.css:1",
+          "ref": "ui/src/styles.css"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "DESIGN-GUIDE"
+      ],
+      "notes": "Implemented: Space Grotesk custom font via Google Fonts (distinctive geometric sans-serif)"
+    },
+    {
+      "id": "DESIGN-VARS",
+      "title": "CSS theming",
+      "prd_ref": "OT-P1-005",
+      "description": "Template uses defined CSS variables for colors and spacing",
+      "validation": [
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "CSS variables defined in ui/src/styles.css for colors, spacing, radius, and shadows",
+          "ref": "ui/src/styles.css"
+        }
+      ],
+      "status": "complete",
+      "notes": "Implemented: Comprehensive CSS custom properties (--color-*, --spacing-*, --radius-*, --shadow-*) for agent customization"
+    },
+    {
+      "id": "DESIGN-BG",
+      "title": "Non-trivial backgrounds",
+      "prd_ref": "OT-P1-005",
+      "description": "Template includes at least one layered gradient/shape/texture background (not flat solid)",
+      "validation": [
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Layered mesh gradient (radial + linear) implemented in ui/src/styles.css and applied in PublicHome layout backgrounds",
+          "ref": "ui/src/styles.css"
+        }
+      ],
+      "status": "complete",
+      "notes": "Implemented: Multi-layered gradient backgrounds (.bg-mesh-gradient, .bg-gradient-elevated) using radial and linear gradients"
+    },
+    {
+      "id": "DESIGN-VIDEO",
+      "title": "Video section support",
+      "prd_ref": "OT-P1-005",
+      "description": "Template supports at least one video demo section (URL, thumbnail, caption, layout) configurable via admin",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "VideoSection component with YouTube/Vimeo embed support, thumbnail overlay, and responsive layout",
+          "ref": "ui/src/components/sections/VideoSection.test.tsx"
+        }
+      ],
+      "status": "complete",
+      "notes": "Implemented: VideoSection component supports YouTube/Vimeo URLs, custom thumbnails with play button overlay, captions, and responsive iframe embedding. Database schema updated to include 'video' section type."
+    }
+  ],
+  "_metadata": {}
+}

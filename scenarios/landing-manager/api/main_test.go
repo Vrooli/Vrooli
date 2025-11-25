@@ -266,60 +266,195 @@ func TestHandleGeneratedList(t *testing.T) {
 	}
 }
 
+// [REQ:AGENT-TRIGGER] Test agent customization trigger
 func TestHandleCustomizeCreatesIssue(t *testing.T) {
-	issueCalled := false
-	investigateCalled := false
+	t.Run("REQ:AGENT-TRIGGER", func(t *testing.T) {
+		issueCalled := false
+		investigateCalled := false
 
-	mockTracker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		if strings.HasSuffix(r.URL.Path, "/issues") {
-			issueCalled = true
-			_ = json.Unmarshal(body, &map[string]interface{}{})
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"success": true, "data": {"issue_id": "ISS-123"}}`))
-			return
+		mockTracker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, _ := io.ReadAll(r.Body)
+			if strings.HasSuffix(r.URL.Path, "/issues") {
+				issueCalled = true
+				_ = json.Unmarshal(body, &map[string]interface{}{})
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"success": true, "data": {"issue_id": "ISS-123"}}`))
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/investigate") {
+				investigateCalled = true
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"success": true, "data": {"run_id": "run-1", "status": "active", "agent_id": "unified-resolver"}}`))
+				return
+			}
+			http.NotFound(w, r)
+		}))
+		defer mockTracker.Close()
+
+		os.Setenv("APP_ISSUE_TRACKER_API_BASE", mockTracker.URL)
+		defer os.Unsetenv("APP_ISSUE_TRACKER_API_BASE")
+
+		srv := &Server{
+			router:          mux.NewRouter(),
+			templateService: NewTemplateService(),
+			httpClient:      &http.Client{Timeout: 5 * time.Second},
 		}
-		if strings.HasSuffix(r.URL.Path, "/investigate") {
-			investigateCalled = true
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"success": true, "data": {"run_id": "run-1", "status": "active", "agent_id": "unified-resolver"}}`))
-			return
+		srv.router.HandleFunc("/api/v1/customize", srv.handleCustomize).Methods("POST")
+
+		req := httptest.NewRequest("POST", "/api/v1/customize", strings.NewReader(`{"scenario_id":"demo","brief":"make it bold","assets":["logo.svg"],"preview":true}`))
+		w := httptest.NewRecorder()
+
+		srv.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusAccepted {
+			t.Fatalf("expected 202, got %d", w.Code)
 		}
-		http.NotFound(w, r)
-	}))
-	defer mockTracker.Close()
+		if !issueCalled {
+			t.Fatal("expected issue tracker create to be called")
+		}
+		if !investigateCalled {
+			t.Fatal("expected investigation to be triggered")
+		}
+		var resp map[string]interface{}
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to parse response: %v", err)
+		}
+		if resp["issue_id"] != "ISS-123" {
+			t.Fatalf("expected issue_id ISS-123, got %v", resp["issue_id"])
+		}
+	})
+}
 
-	os.Setenv("APP_ISSUE_TRACKER_API_BASE", mockTracker.URL)
-	defer os.Unsetenv("APP_ISSUE_TRACKER_API_BASE")
+// [REQ:TMPL-AGENT-PROFILES] Test persona listing endpoint
+func TestHandlePersonaList(t *testing.T) {
+	t.Run("REQ:TMPL-AGENT-PROFILES", func(t *testing.T) {
+		srv := &Server{
+			router:          mux.NewRouter(),
+			templateService: NewTemplateService(),
+		}
+		srv.setupRoutes()
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-		httpClient:      &http.Client{Timeout: 5 * time.Second},
-	}
-	srv.router.HandleFunc("/api/v1/customize", srv.handleCustomize).Methods("POST")
+		req := httptest.NewRequest("GET", "/api/v1/personas", nil)
+		w := httptest.NewRecorder()
 
-	req := httptest.NewRequest("POST", "/api/v1/customize", strings.NewReader(`{"scenario_id":"demo","brief":"make it bold","assets":["logo.svg"],"preview":true}`))
-	w := httptest.NewRecorder()
+		srv.router.ServeHTTP(w, req)
 
-	srv.router.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
 
-	if w.Code != http.StatusAccepted {
-		t.Fatalf("expected 202, got %d", w.Code)
-	}
-	if !issueCalled {
-		t.Fatal("expected issue tracker create to be called")
-	}
-	if !investigateCalled {
-		t.Fatal("expected investigation to be triggered")
-	}
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
-	if resp["issue_id"] != "ISS-123" {
-		t.Fatalf("expected issue_id ISS-123, got %v", resp["issue_id"])
-	}
+		if contentType := w.Header().Get("Content-Type"); contentType != "application/json" {
+			t.Errorf("Expected Content-Type application/json, got %s", contentType)
+		}
+
+		var personas []Persona
+		if err := json.Unmarshal(w.Body.Bytes(), &personas); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		// Should have at least one persona
+		if len(personas) == 0 {
+			t.Error("Expected at least one persona")
+		}
+	})
+}
+
+// [REQ:TMPL-AGENT-PROFILES] Test persona show endpoint
+func TestHandlePersonaShow(t *testing.T) {
+	t.Run("REQ:TMPL-AGENT-PROFILES", func(t *testing.T) {
+		srv := &Server{
+			router:          mux.NewRouter(),
+			templateService: NewTemplateService(),
+		}
+		srv.setupRoutes()
+
+		// Test valid persona
+		req := httptest.NewRequest("GET", "/api/v1/personas/minimal-design", nil)
+		w := httptest.NewRecorder()
+
+		srv.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+
+		var persona Persona
+		if err := json.Unmarshal(w.Body.Bytes(), &persona); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		if persona.ID != "minimal-design" {
+			t.Errorf("Expected persona ID minimal-design, got %s", persona.ID)
+		}
+
+		// Test invalid persona
+		req = httptest.NewRequest("GET", "/api/v1/personas/nonexistent", nil)
+		w = httptest.NewRecorder()
+
+		srv.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusNotFound {
+			t.Errorf("Expected status 404 for nonexistent persona, got %d", w.Code)
+		}
+	})
+}
+
+// [REQ:TMPL-PREVIEW-LINKS] Test preview links endpoint
+func TestHandlePreviewLinks(t *testing.T) {
+	t.Run("REQ:TMPL-PREVIEW-LINKS", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		// Set GEN_OUTPUT_DIR to tmpDir so GetPreviewLinks uses it
+		os.Setenv("GEN_OUTPUT_DIR", tmpDir)
+		defer os.Unsetenv("GEN_OUTPUT_DIR")
+
+		// Create mock generated scenario structure
+		scenarioDir := tmpDir + "/test-scenario"
+		os.MkdirAll(scenarioDir+"/.vrooli", 0755)
+
+		// Create service.json with UI_PORT
+		serviceJSON := `{
+			"name": "test-scenario",
+			"description": "Test",
+			"version": "1.0.0",
+			"ports": {
+				"UI_PORT": 12345
+			}
+		}`
+		os.WriteFile(scenarioDir+"/.vrooli/service.json", []byte(serviceJSON), 0644)
+
+		srv := &Server{
+			router:          mux.NewRouter(),
+			templateService: NewTemplateService(),
+		}
+		srv.setupRoutes()
+
+		req := httptest.NewRequest("GET", "/api/v1/preview/test-scenario", nil)
+		w := httptest.NewRecorder()
+
+		srv.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Body: %s", w.Code, w.Body.String())
+		}
+
+		var preview map[string]interface{}
+		if err := json.Unmarshal(w.Body.Bytes(), &preview); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		if preview["scenario_id"] != "test-scenario" {
+			t.Errorf("Expected scenario ID test-scenario, got %v", preview["scenario_id"])
+		}
+
+		if baseURL, ok := preview["base_url"].(string); ok {
+			if !strings.Contains(baseURL, "12345") {
+				t.Errorf("Expected base_url to contain port 12345, got %s", baseURL)
+			}
+		} else {
+			t.Error("Expected base_url in preview response")
+		}
+	})
 }
