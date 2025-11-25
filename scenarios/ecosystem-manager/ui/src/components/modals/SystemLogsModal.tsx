@@ -25,6 +25,7 @@ interface SystemLogsModalProps {
 
 type LogLevel = 'all' | 'info' | 'warning' | 'error';
 type ExecutionStatus = 'all' | 'running' | 'completed' | 'failed' | 'rate_limited';
+type NormalizedLevel = 'debug' | 'info' | 'warning' | 'error' | 'other';
 
 export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
   const [activeTab, setActiveTab] = useState<'logs' | 'executions' | 'performance'>('logs');
@@ -136,7 +137,16 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
     return mode ? `${mode}${phase}` : '—';
   };
 
-  const getLevelStyles = (level: LogEntry['level']) => {
+  const normalizeLevel = (level?: string): NormalizedLevel => {
+    const value = (level || '').toLowerCase().trim();
+    if (value === 'error' || value === 'err') return 'error';
+    if (value === 'warning' || value === 'warn') return 'warning';
+    if (value === 'info' || value === 'information') return 'info';
+    if (value === 'debug') return 'debug';
+    return 'other';
+  };
+
+  const getLevelStyles = (level: NormalizedLevel) => {
     switch (level) {
       case 'error':
         return {
@@ -158,6 +168,13 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
           accent: 'bg-blue-400/80',
           badge: 'bg-blue-500/20 text-blue-100 border-blue-500/50',
           timestamp: 'text-blue-100/80',
+        };
+      case 'debug':
+        return {
+          container: 'border-purple-400/30 bg-purple-500/10 shadow-[0_0_0_1px_rgba(168,85,247,0.2)]',
+          accent: 'bg-purple-400/70',
+          badge: 'bg-purple-500/20 text-purple-100 border-purple-500/50',
+          timestamp: 'text-purple-100/80',
         };
       default:
         return {
@@ -435,7 +452,12 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                   </div>
                 ) : (
                   logs.map((log, index) => {
-                    const levelStyles = getLevelStyles(log.level);
+                    const normalizedLevel = normalizeLevel((log as any)?.level);
+                    const levelStyles = getLevelStyles(normalizedLevel);
+                    const badgeText =
+                      typeof log.level === 'string' && log.level.trim().length > 0
+                        ? log.level
+                        : normalizedLevel;
                     return (
                       <div
                         key={`${log.timestamp}-${index}`}
@@ -451,7 +473,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                           <span
                             className={`text-xs font-semibold px-2 py-1 rounded border uppercase ${levelStyles.badge}`}
                           >
-                            {log.level}
+                            {String(badgeText).toUpperCase()}
                           </span>
                         </div>
 

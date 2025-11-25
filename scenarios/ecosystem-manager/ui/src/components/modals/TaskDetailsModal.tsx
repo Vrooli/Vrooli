@@ -34,7 +34,7 @@ import { markdownToHtml } from '@/lib/markdown';
 import { queryKeys } from '@/lib/queryKeys';
 import { ExecutionDetailCard } from '@/components/executions/ExecutionDetailCard';
 import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfileEditorModal';
-import type { Task, Priority, ExecutionHistory, UpdateTaskInput, LogEntry, SteerMode } from '@/types/api';
+import type { Task, Priority, ExecutionHistory, UpdateTaskInput, SteerMode } from '@/types/api';
 import { STEER_MODES } from '@/types/api';
 
 interface TaskDetailsModalProps {
@@ -76,14 +76,6 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   } = useAutoSteerExecutionState(task && autoSteerProfileId !== AUTO_STEER_NONE ? task.id : undefined);
   const resetAutoSteer = useResetAutoSteerExecution();
   const seekAutoSteer = useSeekAutoSteerExecution();
-
-  // Fetch task logs
-  const { data: rawLogs = [] } = useQuery({
-    queryKey: queryKeys.tasks.logs(task?.id ?? ''),
-    queryFn: () => api.getTaskLogs(task!.id),
-    enabled: !!task && activeTab === 'logs',
-  });
-  const logs: LogEntry[] = Array.isArray(rawLogs) ? rawLogs as LogEntry[] : ((rawLogs as any)?.entries ?? []) as LogEntry[];
 
   // Fetch task prompt
   const { data: promptData } = useQuery({
@@ -435,11 +427,9 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="logs">Logs</TabsTrigger>
             <TabsTrigger value="prompt">Prompt</TabsTrigger>
-            <TabsTrigger value="recycler">Recycler</TabsTrigger>
             <TabsTrigger value="executions">Executions</TabsTrigger>
           </TabsList>
 
@@ -810,30 +800,6 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
             </div>
           </TabsContent>
 
-          {/* Logs Tab */}
-          <TabsContent value="logs" className="mt-4">
-            <div className="border rounded-md p-4 max-h-96 overflow-y-auto bg-slate-900 font-mono text-xs">
-              {logs.length === 0 ? (
-                <div className="text-slate-400 text-center py-8">No logs available</div>
-              ) : (
-                logs.map((log, idx) => (
-                  <div key={idx} className="py-1">
-                    <span className="text-slate-500">{log.timestamp}</span>{' '}
-                    <span className={`font-semibold ${
-                      log.level === 'error' ? 'text-red-400' :
-                      log.level === 'warning' ? 'text-yellow-400' :
-                      log.level === 'info' ? 'text-blue-400' :
-                      'text-slate-300'
-                    }`}>
-                      [{log.level.toUpperCase()}]
-                    </span>{' '}
-                    <span className="text-slate-200">{log.message}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </TabsContent>
-
           {/* Prompt Tab */}
           <TabsContent value="prompt" className="mt-4">
             <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
@@ -851,13 +817,6 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                   <div className="text-slate-500 text-sm">No prompt available</div>
                 )}
               </div>
-            </div>
-          </TabsContent>
-
-          {/* Recycler Tab */}
-          <TabsContent value="recycler" className="mt-4">
-            <div className="text-slate-400 text-center py-8">
-              Recycler history coming soon
             </div>
           </TabsContent>
 
