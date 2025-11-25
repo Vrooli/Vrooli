@@ -54,24 +54,28 @@ export function CatalogCard({ entry, navigate, prepareDraft, preparingId }: Cata
         }
       }}
       className={cn(
-        'flex h-full flex-col justify-between border-slate-200 transition-all hover:-translate-y-0.5 hover:border-slate-400 active:translate-y-0',
+        'group flex h-full flex-col justify-between border-slate-200 transition-all duration-200',
+        'hover:-translate-y-1 hover:border-violet-300 hover:shadow-lg active:translate-y-0',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2',
         primaryPath ? 'cursor-pointer' : 'opacity-80',
       )}
     >
-      <CardHeader className="space-y-4 p-5 sm:p-6">
+      <CardHeader className="space-y-3 sm:space-y-4 p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3 sm:gap-4">
           <div className="space-y-2 min-w-0 flex-1">
-            <CardTitle className="text-lg sm:text-xl font-bold text-slate-900 break-words leading-tight">{entry.name}</CardTitle>
-            <CardDescription className="line-clamp-2 sm:line-clamp-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
+            <CardTitle className="text-base sm:text-lg font-bold text-slate-900 break-words leading-tight group-hover:text-violet-700 transition-colors duration-200">
+              {entry.name}
+            </CardTitle>
+            <CardDescription className="line-clamp-2 sm:line-clamp-3 text-sm text-slate-600 leading-relaxed">
               {entry.description || 'No description available'}
             </CardDescription>
           </div>
-          <Badge variant="secondary" className="capitalize shrink-0 text-xs font-medium px-2.5 py-1">
+          <Badge variant="secondary" className="capitalize shrink-0 text-xs font-medium px-2.5 py-1 transition-colors group-hover:bg-violet-100 group-hover:text-violet-700">
             {entry.type}
           </Badge>
         </div>
-        <Badge variant={statusMeta.badge} className="w-fit gap-1.5 capitalize text-xs sm:text-sm px-3 py-1.5 font-medium">
-          <StatusIcon size={15} className="shrink-0" />
+        <Badge variant={statusMeta.badge} className="w-fit gap-1.5 capitalize text-sm px-3 py-1.5 font-medium">
+          <StatusIcon size={14} className="shrink-0" />
           <span>{statusMeta.label}</span>
         </Badge>
       </CardHeader>
@@ -82,14 +86,15 @@ export function CatalogCard({ entry, navigate, prepareDraft, preparingId }: Cata
               <span className="text-[10px] sm:text-xs font-semibold">Requirements coverage</span>
               <span className="font-bold text-slate-900 text-sm">{completionRate}%</span>
             </div>
-            <div className="h-2.5 w-full rounded-full bg-slate-100 shadow-inner touch-none">
+            <div className="h-2.5 w-full rounded-full bg-slate-100 shadow-inner touch-none overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600 transition-all duration-500 shadow-sm"
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600 transition-all duration-500 shadow-sm group-hover:from-emerald-500 group-hover:to-emerald-700"
                 style={{ width: `${completionRate}%` }}
                 role="progressbar"
                 aria-valuenow={completionRate ?? 0}
                 aria-valuemin={0}
                 aria-valuemax={100}
+                aria-label={`${completionRate}% requirements complete`}
               />
             </div>
             <div className="grid grid-cols-3 gap-1 sm:gap-2 text-[10px] sm:text-xs text-slate-600">
@@ -132,12 +137,12 @@ export function CatalogCard({ entry, navigate, prepareDraft, preparingId }: Cata
 
         <div className="flex flex-wrap gap-2" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
           {entry.has_prd && (
-            <Button variant="ghost" size="sm" asChild className="h-10 text-xs sm:text-sm px-3 sm:px-4 hover:bg-slate-100 transition-colors">
+            <Button variant="ghost" size="sm" asChild className="min-h-[44px] text-sm px-4 hover:bg-slate-100 transition-all active:scale-95">
               <Link to={`${scenarioPath}?tab=prd`}>View PRD</Link>
             </Button>
           )}
           {entry.has_requirements && (
-            <Button variant="ghost" size="sm" asChild className="h-10 text-xs sm:text-sm px-3 sm:px-4 hover:bg-slate-100 transition-colors">
+            <Button variant="ghost" size="sm" asChild className="min-h-[44px] text-sm px-4 hover:bg-slate-100 transition-all active:scale-95">
               <Link to={`${scenarioPath}?tab=requirements`}>
                 <span className="hidden sm:inline">Requirements</span>
                 <span className="sm:hidden">Reqs</span>
@@ -153,13 +158,13 @@ export function CatalogCard({ entry, navigate, prepareDraft, preparingId }: Cata
                 prepareDraft(entry.type, entry.name)
               }}
               disabled={preparingId === draftKey}
-              className="h-10 text-xs sm:text-sm px-3 sm:px-4 hover:bg-violet-50 hover:text-violet-700 transition-colors disabled:opacity-50"
+              className="min-h-[44px] text-sm px-4 hover:bg-violet-50 hover:text-violet-700 transition-all disabled:opacity-50 active:scale-95"
               title="Create a draft from the published PRD to make changes"
             >
               {preparingId === draftKey ? (
                 <span className="flex items-center gap-2">
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-violet-200 border-t-violet-600" />
-                  Preparing…
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-violet-200 border-t-violet-600" />
+                  <span>Preparing…</span>
                 </span>
               ) : (
                 'Edit PRD'
@@ -167,12 +172,12 @@ export function CatalogCard({ entry, navigate, prepareDraft, preparingId }: Cata
             </Button>
           )}
           {entry.has_draft && (
-            <Button variant="ghost" size="sm" asChild className="h-10 text-xs sm:text-sm px-3 sm:px-4 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+            <Button variant="ghost" size="sm" asChild className="min-h-[44px] text-sm px-4 hover:bg-blue-50 hover:text-blue-700 transition-all active:scale-95">
               <Link to={draftPath}>View draft</Link>
             </Button>
           )}
           {!entry.has_prd && !entry.has_draft && (
-            <span className="text-xs text-slate-500 italic">No PRD yet</span>
+            <span className="text-xs text-slate-500 italic py-2">No PRD yet</span>
           )}
         </div>
       </CardContent>

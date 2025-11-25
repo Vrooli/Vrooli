@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   ClipboardList,
   Layers,
+  RefreshCw,
   Search,
   Sparkles,
   StickyNote,
@@ -14,7 +15,9 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Separator } from '../components/ui/separator'
+import { Skeleton, CardSkeleton } from '../components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs'
+import { HelpTooltip } from '../components/ui/help-tooltip'
 import { TopNav } from '../components/ui/top-nav'
 import { buildApiUrl } from '../utils/apiClient'
 import { usePrepareDraft } from '../utils/useDraft'
@@ -69,18 +72,31 @@ export default function Catalog() {
     fetchCatalog()
   }, [fetchCatalog])
 
-  // Keyboard shortcuts: Cmd/Ctrl+K to focus search
+  // Keyboard shortcuts: Cmd/Ctrl+K to focus search, Escape to clear
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Cmd/Ctrl+K: Focus search input
       if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
         event.preventDefault()
         searchInputRef.current?.focus()
+        searchInputRef.current?.select()
+        return
       }
-      // Escape to clear search
-      if (event.key === 'Escape' && search) {
+      // Escape: Clear search if active, otherwise blur
+      if (event.key === 'Escape') {
+        if (search) {
+          event.preventDefault()
+          setSearch('')
+        }
+        searchInputRef.current?.blur()
+        return
+      }
+      // Cmd/Ctrl+Shift+F: Clear all filters
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === 'F') {
         event.preventDefault()
         setSearch('')
-        searchInputRef.current?.blur()
+        setTypeFilter('all')
+        searchInputRef.current?.focus()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -275,8 +291,17 @@ export default function Catalog() {
 
       <header className="rounded-3xl border bg-white/90 p-4 sm:p-6 shadow-soft-lg">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-3">
-            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Product operations</span>
+          <div className="space-y-3 flex-1">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Product operations</span>
+              <div className="hidden lg:flex items-center gap-2 text-[11px] text-slate-500">
+                <kbd className="inline-flex h-5 items-center gap-1 rounded border border-slate-200 bg-slate-50 px-1.5 font-mono font-semibold">⌘K</kbd>
+                <span>to search</span>
+                <span className="text-slate-300 mx-1">·</span>
+                <kbd className="inline-flex h-5 items-center gap-1 rounded border border-slate-200 bg-slate-50 px-1.5 font-mono font-semibold">Esc</kbd>
+                <span>to clear</span>
+              </div>
+            </div>
             <div className="flex items-center gap-3 text-2xl sm:text-3xl font-semibold text-slate-900">
               <span className="rounded-2xl bg-violet-100 p-2 sm:p-3 text-violet-600">
                 <ClipboardList size={24} strokeWidth={2.5} className="sm:w-7 sm:h-7" />
@@ -364,17 +389,17 @@ export default function Catalog() {
         </details>
       )}
 
-      <section className="rounded-3xl border-2 bg-white p-6 shadow-md">
+      <section className="rounded-3xl border-2 bg-white p-4 sm:p-6 shadow-md">
         <div className="space-y-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="relative w-full max-w-2xl">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="relative w-full xl:max-w-2xl">
               <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
               <Input
                 ref={searchInputRef}
                 value={search}
                 onChange={event => setSearch(event.target.value)}
                 placeholder="Search by name or description..."
-                className="h-14 border-2 pl-12 pr-24 text-base shadow-sm transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                className="h-12 sm:h-14 border-2 pl-12 pr-20 sm:pr-24 text-sm sm:text-base shadow-sm transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                 aria-label="Search catalog"
               />
               {!search && (
@@ -387,7 +412,7 @@ export default function Catalog() {
               {search && (
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-800 active:scale-95 transition-all"
+                  className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 rounded-lg bg-slate-100 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-800 active:scale-95 transition-all"
                   onClick={() => {
                     setSearch('')
                     searchInputRef.current?.focus()
@@ -397,112 +422,177 @@ export default function Catalog() {
                   Clear
                 </button>
               )}
-              {search && (
-                <div className={cn(
-                  "mt-2 rounded-lg border px-3 py-2 flex items-center gap-2 text-sm transition-colors",
-                  filteredEntries.length > 0
-                    ? "bg-emerald-50 border-emerald-200"
-                    : "bg-amber-50 border-amber-200"
-                )}>
-                  <span className={cn(
-                    "font-semibold",
-                    filteredEntries.length > 0 ? "text-emerald-700" : "text-amber-700"
-                  )}>
-                    {filteredEntries.length}
-                  </span>
-                  <span className="text-slate-700">
-                    {filteredEntries.length === 1 ? 'result' : 'results'} found
-                  </span>
-                  {filteredEntries.length === 0 && entries.length > 0 && (
-                    <span className="text-slate-600 ml-auto">· Try adjusting your filters</span>
-                  )}
-                  {filteredEntries.length > 0 && (
-                    <span className="text-emerald-600 ml-auto">✓</span>
-                  )}
-                </div>
-              )}
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="catalog-sort" className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  Sort by
-                </label>
-                <select
-                  id="catalog-sort"
-                  value={sortMode}
-                  onChange={(event) => setSortMode(event.target.value as CatalogSort)}
-                  className="rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-                >
-                  <option value="status">Status (PRD first)</option>
-                  <option value="coverage">Requirements coverage</option>
-                  <option value="name_asc">Name A → Z</option>
-                  <option value="name_desc">Name Z → A</option>
-                </select>
-              </div>
+            <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+              <label htmlFor="catalog-sort" className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Sort by
+                <HelpTooltip
+                  content="Choose how to order catalog entries. 'Status' shows PRDs first, 'Coverage' sorts by requirement completion percentage."
+                  side="right"
+                />
+              </label>
+              <select
+                id="catalog-sort"
+                value={sortMode}
+                onChange={(event) => setSortMode(event.target.value as CatalogSort)}
+                className="h-12 sm:h-auto rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100 w-full sm:w-auto min-w-0 sm:min-w-[200px]"
+              >
+                <option value="status">Status (PRD first)</option>
+                <option value="coverage">Requirements coverage</option>
+                <option value="name_asc">Name A → Z</option>
+                <option value="name_desc">Name Z → A</option>
+              </select>
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-4">
-            <Tabs value={typeFilter} onValueChange={(value: string) => setTypeFilter(value as CatalogFilter)}>
-              <TabsList className="h-10">
-                <TabsTrigger value="all" className="px-4">All ({catalogCounts.total})</TabsTrigger>
-                <TabsTrigger value="scenario" className="px-4">Scenarios ({catalogCounts.scenarios})</TabsTrigger>
-                <TabsTrigger value="resource" className="px-4">Resources ({catalogCounts.resources})</TabsTrigger>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <Tabs value={typeFilter} onValueChange={(value: string) => setTypeFilter(value as CatalogFilter)} className="w-full sm:w-auto">
+              <TabsList className="h-10 w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
+                <TabsTrigger value="all" className="px-3 sm:px-4 text-xs sm:text-sm">All ({catalogCounts.total})</TabsTrigger>
+                <TabsTrigger value="scenario" className="px-3 sm:px-4 text-xs sm:text-sm">Scenarios ({catalogCounts.scenarios})</TabsTrigger>
+                <TabsTrigger value="resource" className="px-3 sm:px-4 text-xs sm:text-sm">Resources ({catalogCounts.resources})</TabsTrigger>
               </TabsList>
             </Tabs>
             {search && (
-              <span className="text-sm text-slate-600">
+              <span className="text-xs sm:text-sm text-slate-600 px-1">
                 Searching in: <span className="font-medium">{typeFilter === 'all' ? 'All types' : `${typeFilter}s only`}</span>
               </span>
             )}
           </div>
+
+          {/* Active filters chips */}
+          {(search || typeFilter !== 'all') && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Active filters:</span>
+              {search && (
+                <button
+                  onClick={() => {
+                    setSearch('')
+                    searchInputRef.current?.focus()
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 pl-3 pr-2 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-200 active:scale-95 transition-all group"
+                  aria-label={`Remove search filter: ${search}`}
+                >
+                  <Search size={12} className="shrink-0" />
+                  <span className="max-w-[150px] truncate">{search}</span>
+                  <span className="ml-1 text-violet-500 group-hover:text-violet-700 font-bold">×</span>
+                </button>
+              )}
+              {typeFilter !== 'all' && (
+                <button
+                  onClick={() => setTypeFilter('all')}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 pl-3 pr-2 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-200 active:scale-95 transition-all group capitalize"
+                  aria-label={`Remove type filter: ${typeFilter}`}
+                >
+                  <Layers size={12} className="shrink-0" />
+                  {typeFilter}
+                  <span className="ml-1 text-blue-500 group-hover:text-blue-700 font-bold">×</span>
+                </button>
+              )}
+              {(search || typeFilter !== 'all') && (
+                <button
+                  onClick={() => {
+                    setSearch('')
+                    setTypeFilter('all')
+                    searchInputRef.current?.focus()
+                  }}
+                  className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 ml-1"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Search results feedback */}
+          {search && (
+            <div className={cn(
+              "rounded-lg border px-3 py-2 flex items-center gap-2 text-sm transition-colors",
+              filteredEntries.length > 0
+                ? "bg-emerald-50 border-emerald-200"
+                : "bg-amber-50 border-amber-200"
+            )}>
+              <span className={cn(
+                "font-semibold",
+                filteredEntries.length > 0 ? "text-emerald-700" : "text-amber-700"
+              )}>
+                {filteredEntries.length}
+              </span>
+              <span className="text-slate-700">
+                {filteredEntries.length === 1 ? 'result' : 'results'} found
+              </span>
+              {filteredEntries.length === 0 && entries.length > 0 && (
+                <span className="text-slate-600 ml-auto hidden sm:inline">· Try adjusting your filters</span>
+              )}
+              {filteredEntries.length > 0 && (
+                <span className="text-emerald-600 ml-auto">✓</span>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
       {filteredEntries.length === 0 ? (
         <Card className="border-2 border-dashed border-slate-200 bg-gradient-to-br from-white via-slate-50/30 to-white">
-          <CardContent className="flex flex-col items-center gap-6 py-16 text-center">
+          <CardContent className="flex flex-col items-center gap-6 py-12 sm:py-16 text-center px-4 sm:px-6">
             <div className="relative">
               <div className="absolute inset-0 animate-pulse rounded-full bg-violet-100 opacity-75 blur-xl" />
-              <div className="relative rounded-full bg-gradient-to-br from-slate-100 to-slate-200 p-6 text-slate-400 shadow-inner">
-                <Layers size={56} strokeWidth={1.5} />
+              <div className="relative rounded-full bg-gradient-to-br from-slate-100 to-slate-200 p-5 sm:p-6 text-slate-400 shadow-inner">
+                <Layers size={48} strokeWidth={1.5} className="sm:w-14 sm:h-14" />
               </div>
             </div>
             <div className="space-y-3 max-w-lg">
-              <h3 className="text-xl font-bold text-slate-900">
+              <h3 className="text-lg sm:text-xl font-bold text-slate-900">
                 {entries.length === 0 ? 'No Entities Found' : 'No Matching Results'}
               </h3>
-              <p className="text-sm text-slate-600 leading-relaxed">
+              <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
                 {entries.length === 0
-                  ? 'The catalog appears empty. This may indicate a scanning issue or fresh installation. Try refreshing to scan for scenarios and resources.'
-                  : `We couldn't find any entities matching "${search}"${typeFilter !== 'all' ? ` in ${typeFilter}s` : ''}. Try adjusting your search or filters.`}
+                  ? 'The catalog appears empty. This may indicate a scanning issue or fresh installation.'
+                  : `No entities match "${search}"${typeFilter !== 'all' ? ` in ${typeFilter}s` : ''}. Try different search terms or filters.`}
               </p>
+              {entries.length === 0 && (
+                <div className="mt-6 rounded-xl border border-violet-100 bg-gradient-to-br from-violet-50/50 to-white p-4 sm:p-5 text-left space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={16} className="text-violet-600 shrink-0" />
+                    <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Troubleshooting Steps</p>
+                  </div>
+                  <ol className="space-y-2 text-xs sm:text-sm text-slate-700 pl-1">
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-violet-600 shrink-0">1.</span>
+                      <span>Verify the API is running at <code className="bg-slate-100 px-1.5 py-0.5 rounded text-[11px] font-mono">http://localhost:18600</code></span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-violet-600 shrink-0">2.</span>
+                      <span>Check that scenarios exist in the <code className="bg-slate-100 px-1.5 py-0.5 rounded text-[11px] font-mono">scenarios/</code> directory</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-violet-600 shrink-0">3.</span>
+                      <span>Click <strong>Refresh Catalog</strong> below to re-scan the filesystem</span>
+                    </li>
+                  </ol>
+                </div>
+              )}
             </div>
-            <div className="flex flex-wrap gap-3 justify-center">
+            <div className="flex flex-wrap gap-2 sm:gap-3 justify-center">
               {search && (
-                <Button variant="outline" size="lg" onClick={() => setSearch('')} className="gap-2">
+                <Button variant="outline" size="lg" onClick={() => setSearch('')} className="gap-2 min-h-[44px]">
                   <Search size={16} />
-                  Clear search
+                  <span className="text-sm">Clear search</span>
                 </Button>
               )}
               {typeFilter !== 'all' && (
-                <Button variant="outline" size="lg" onClick={() => setTypeFilter('all')} className="gap-2">
+                <Button variant="outline" size="lg" onClick={() => setTypeFilter('all')} className="gap-2 min-h-[44px]">
                   <Layers size={16} />
-                  Show all types
+                  <span className="text-sm">Show all types</span>
                 </Button>
               )}
               {entries.length === 0 && (
-                <Button variant="default" size="lg" onClick={fetchCatalog} className="gap-2 shadow-md">
-                  <AlertTriangle size={16} />
-                  Refresh Catalog
+                <Button variant="default" size="lg" onClick={fetchCatalog} className="gap-2 shadow-md min-h-[44px]">
+                  <RefreshCw size={16} />
+                  <span className="text-sm">Refresh Catalog</span>
                 </Button>
               )}
             </div>
-            {entries.length === 0 && (
-              <p className="text-xs text-slate-500 mt-4">
-                Need help? Check that the API is running and the catalog service can access the scenarios directory.
-              </p>
-            )}
           </CardContent>
         </Card>
       ) : (
@@ -524,34 +614,62 @@ export default function Catalog() {
 
 function CatalogSkeleton() {
   return (
-    <div className="space-y-6">
-      <section className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
-        <div className="space-y-4 animate-pulse">
-          <div className="h-4 w-40 rounded-full bg-slate-200" />
-          <div className="h-8 w-72 rounded-full bg-slate-200" />
-          <div className="h-4 w-full max-w-3xl rounded-full bg-slate-100" />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, idx) => (
-              <div key={`catalog-stat-${idx}`} className="h-20 rounded-2xl border border-slate-100 bg-slate-50" />
-            ))}
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* Header skeleton */}
+      <header className="rounded-3xl border bg-white/90 p-4 sm:p-6 shadow-soft-lg">
+        <div className="space-y-4">
+          <Skeleton className="h-3 w-40 animate-pulse" />
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-12 w-12 rounded-2xl animate-pulse" />
+            <Skeleton className="h-8 w-72 animate-pulse" />
+          </div>
+          <Skeleton className="h-4 w-full max-w-3xl animate-pulse" />
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
+            <Skeleton className="h-11 w-full sm:w-40 animate-pulse" />
+            <Skeleton className="h-11 w-full sm:w-40 animate-pulse" />
           </div>
         </div>
+        <Separator className="my-6" />
+        <div className="flex items-start gap-3 rounded-2xl border bg-slate-50/80 p-4">
+          <Skeleton className="h-10 w-10 rounded-full animate-pulse" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-32 animate-pulse" />
+            <Skeleton className="h-4 w-full max-w-md animate-pulse" />
+          </div>
+        </div>
+      </header>
+
+      {/* Stats skeleton */}
+      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, idx) => (
+          <Card key={`stat-${idx}`} className="bg-white/90 overflow-hidden">
+            <CardHeader className="pb-2">
+              <Skeleton className="h-4 w-32 mb-2 animate-pulse" style={{ animationDelay: `${idx * 75}ms` }} />
+              <Skeleton className="h-9 w-20 animate-pulse" style={{ animationDelay: `${idx * 75}ms` }} />
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Skeleton className="h-4 w-full animate-pulse" style={{ animationDelay: `${idx * 75}ms` }} />
+            </CardContent>
+          </Card>
+        ))}
       </section>
 
-      <section className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
-        <div className="space-y-4 animate-pulse">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="h-10 flex-1 rounded-xl bg-slate-100" />
-            <div className="h-10 w-40 rounded-xl bg-slate-100" />
+      {/* Search and filters skeleton */}
+      <section className="rounded-3xl border-2 bg-white p-4 sm:p-6 shadow-md">
+        <div className="space-y-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <Skeleton className="h-12 sm:h-14 w-full xl:max-w-2xl rounded-xl animate-pulse" />
+            <Skeleton className="h-12 sm:h-auto w-full sm:w-auto sm:min-w-[200px] rounded-lg animate-pulse" />
           </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, idx) => (
-              <div key={`catalog-filter-${idx}`} className="h-9 rounded-full bg-slate-100" />
-            ))}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Skeleton className="h-10 rounded-full animate-pulse" />
+            <Skeleton className="h-10 rounded-full animate-pulse" style={{ animationDelay: '100ms' }} />
+            <Skeleton className="h-10 rounded-full animate-pulse" style={{ animationDelay: '200ms' }} />
           </div>
+          <Skeleton className="h-5 w-48 animate-pulse" />
           <div className="grid gap-4 md:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, idx) => (
-              <div key={`catalog-card-${idx}`} className="h-40 rounded-2xl border border-slate-100 bg-slate-50" />
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <CardSkeleton key={`card-${idx}`} style={{ animationDelay: `${idx * 50}ms` }} />
             ))}
           </div>
         </div>
