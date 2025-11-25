@@ -1,0 +1,84 @@
+{
+  "workflow_id": "campaign-lifecycle",
+  "name": "Campaign Lifecycle Test",
+  "metadata": {
+    "reset": "none"
+  },
+  "description": "Test complete campaign lifecycle: create, visit files, query, delete",
+  "requirement_refs": ["VT-REQ-001", "VT-REQ-002", "VT-REQ-003"],
+  "priority": "P0",
+  "steps": [
+    {
+      "id": "create_campaign",
+      "action": "http_request",
+      "method": "POST",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns",
+      "body": {
+        "name": "test-campaign-lifecycle",
+        "from_agent": "test-automation",
+        "patterns": ["**/*.go", "**/*.ts"],
+        "description": "Test campaign for lifecycle validation"
+      },
+      "expected_status": 201,
+      "save_response": "campaign"
+    },
+    {
+      "id": "verify_campaign_created",
+      "action": "http_request",
+      "method": "GET",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}",
+      "expected_status": 200,
+      "assertions": [
+        {"field": "name", "equals": "test-campaign-lifecycle"},
+        {"field": "status", "equals": "active"}
+      ]
+    },
+    {
+      "id": "record_visits",
+      "action": "http_request",
+      "method": "POST",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/visit",
+      "body": {
+        "files": ["api/main.go", "ui/src/App.tsx"],
+        "context": "test-visit",
+        "agent": "test-automation"
+      },
+      "expected_status": 200
+    },
+    {
+      "id": "query_least_visited",
+      "action": "http_request",
+      "method": "GET",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/prioritize/least-visited?limit=10",
+      "expected_status": 200,
+      "assertions": [
+        {"field": "files", "type": "array"},
+        {"field": "files.length", "greater_than": 0}
+      ]
+    },
+    {
+      "id": "query_most_stale",
+      "action": "http_request",
+      "method": "GET",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/prioritize/most-stale?limit=10",
+      "expected_status": 200,
+      "assertions": [
+        {"field": "files", "type": "array"}
+      ]
+    },
+    {
+      "id": "delete_campaign",
+      "action": "http_request",
+      "method": "DELETE",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}",
+      "expected_status": 200
+    },
+    {
+      "id": "verify_campaign_deleted",
+      "action": "http_request",
+      "method": "GET",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}",
+      "expected_status": 404
+    }
+  ]
+}

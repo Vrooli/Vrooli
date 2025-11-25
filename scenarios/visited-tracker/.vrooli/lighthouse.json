@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../.vrooli/schemas/lighthouse.schema.json",
+  "version": "1.0.0",
+  "lighthouse": {
+    "enabled": true,
+    "url": "http://localhost:${UI_PORT}",
+    "thresholds": {
+      "performance": 80,
+      "accessibility": 90,
+      "best-practices": 85,
+      "seo": 80
+    },
+    "config": {
+      "extends": "lighthouse:default",
+      "settings": {
+        "onlyCategories": ["performance", "accessibility", "best-practices", "seo"],
+        "skipAudits": ["uses-http2"],
+        "emulatedFormFactor": "desktop"
+      }
+    },
+    "checks": [
+      {
+        "name": "home_page",
+        "url": "http://localhost:${UI_PORT}",
+        "description": "Main dashboard page performance and accessibility"
+      }
+    ]
+  }
+}

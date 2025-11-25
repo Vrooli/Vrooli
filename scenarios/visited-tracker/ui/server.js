@@ -142,6 +142,9 @@ function createApp({ apiPort } = {}) {
         serveDocsContent(req, res);
     });
 
+    // Serve iframe-bridge package for ES module imports
+    app.use('/node_modules/@vrooli/iframe-bridge', express.static(path.join(__dirname, 'node_modules/@vrooli/iframe-bridge')));
+
     app.use(express.static(STATIC_ROOT));
 
     app.get('/', (_req, res) => {

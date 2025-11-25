@@ -25,7 +25,7 @@ func setupTestLogger() func() {
     return func() { logger = originalLogger }
 }
 
-// Test staleness calculation
+// Test staleness calculation [REQ:VT-REQ-003]
 func TestCalculateStalenessScore(t *testing.T) {
     now := time.Now()
     
@@ -71,7 +71,7 @@ func TestGetFileLock(t *testing.T) {
     }
 }
 
-// Test campaign path generation
+// Test campaign path generation [REQ:VT-REQ-001]
 func TestGetCampaignPath(t *testing.T) {
     campaignID := uuid.New()
     path := getCampaignPath(campaignID)
@@ -86,7 +86,7 @@ func TestGetCampaignPath(t *testing.T) {
     }
 }
 
-// Test campaign creation and storage
+// Test campaign creation and storage [REQ:VT-REQ-001] [REQ:VT-REQ-005]
 func TestCampaignStorage(t *testing.T) {
     // Create a temporary directory for testing
     tempDir, err := ioutil.TempDir("", "visited-tracker-test")
@@ -148,40 +148,62 @@ func TestCampaignStorage(t *testing.T) {
 
 // Test CORS middleware
 func TestCorsMiddleware(t *testing.T) {
+    // Set UI_PORT for testing
+    os.Setenv("UI_PORT", "38440")
+    defer os.Unsetenv("UI_PORT")
+
     // Create a test handler
     testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         w.WriteHeader(http.StatusOK)
         w.Write([]byte("test response"))
     })
-    
+
     // Wrap with CORS middleware
     corsHandler := corsMiddleware(testHandler)
-    
-    // Test OPTIONS request
+
+    // Test OPTIONS request with allowed origin
     req := httptest.NewRequest("OPTIONS", "/test", nil)
+    req.Header.Set("Origin", "http://localhost:38440")
     w := httptest.NewRecorder()
     corsHandler.ServeHTTP(w, req)
-    
-    // Check CORS headers
-    if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-        t.Error("CORS middleware should set Access-Control-Allow-Origin to *")
+
+    // Check CORS headers for allowed origin
+    if w.Header().Get("Access-Control-Allow-Origin") != "http://localhost:38440" {
+        t.Errorf("CORS middleware should set Access-Control-Allow-Origin to http://localhost:38440, got %s", w.Header().Get("Access-Control-Allow-Origin"))
     }
-    
+
     if !strings.Contains(w.Header().Get("Access-Control-Allow-Methods"), "GET") {
         t.Error("CORS middleware should allow GET method")
     }
-    
+
     if w.Code != http.StatusOK {
         t.Errorf("OPTIONS request should return 200, got %d", w.Code)
     }
-    
-    // Test regular GET request passes through
-    req = httptest.NewRequest("GET", "/test", nil)
+
+    // Test OPTIONS request with disallowed origin
+    req = httptest.NewRequest("OPTIONS", "/test", nil)
+    req.Header.Set("Origin", "http://evil.com")
     w = httptest.NewRecorder()
     corsHandler.ServeHTTP(w, req)
-    
+
+    // Should not set CORS header for disallowed origin
+    if w.Header().Get("Access-Control-Allow-Origin") != "" {
+        t.Error("CORS middleware should not set Access-Control-Allow-Origin for disallowed origins")
+    }
+
+    // Test regular GET request passes through
+    req = httptest.NewRequest("GET", "/test", nil)
+    req.Header.Set("Origin", "http://localhost:38440")
+    w = httptest.NewRecorder()
+    corsHandler.ServeHTTP(w, req)
+
     if w.Body.String() != "test response" {
         t.Error("CORS middleware should pass through regular requests")
+    }
+
+    // Verify allowed origin is set on regular requests
+    if w.Header().Get("Access-Control-Allow-Origin") != "http://localhost:38440" {
+        t.Error("CORS middleware should set allowed origin on regular requests")
     }
 }
 
@@ -227,6 +249,7 @@ func TestStrPtr(t *testing.T) {
 }
 
 // Test updateStalenessScores function
+// [REQ:VT-REQ-003]
 func TestUpdateStalenessScores(t *testing.T) {
     now := time.Now()
     campaign := &Campaign{
@@ -262,6 +285,7 @@ func TestUpdateStalenessScores(t *testing.T) {
 }
 
 // Test initFileStorage function
+// [REQ:VT-REQ-005]
 func TestInitFileStorage(t *testing.T) {
     // Create a temporary directory for testing
     tempDir, err := ioutil.TempDir("", "visited-tracker-init-test")
@@ -300,6 +324,7 @@ func TestInitFileStorage(t *testing.T) {
 }
 
 // Test saveCampaign function
+// [REQ:VT-REQ-005]
 func TestSaveCampaign(t *testing.T) {
     // Create a temporary directory for testing
     tempDir, err := ioutil.TempDir("", "visited-tracker-save-test")
@@ -370,6 +395,7 @@ func TestSaveCampaign(t *testing.T) {
 }
 
 // Test loadCampaign function
+// [REQ:VT-REQ-005]
 func TestLoadCampaign(t *testing.T) {
     // Create a temporary directory for testing
     tempDir, err := ioutil.TempDir("", "visited-tracker-load-test")
@@ -439,6 +465,7 @@ func TestLoadCampaign(t *testing.T) {
 }
 
 // Test loadAllCampaigns function
+// [REQ:VT-REQ-001] [REQ:VT-REQ-005]
 func TestLoadAllCampaigns(t *testing.T) {
     // Create a temporary directory for testing
     tempDir, err := ioutil.TempDir("", "visited-tracker-load-all-test")
@@ -541,6 +568,7 @@ func TestLoadAllCampaigns(t *testing.T) {
     }
 }
 
+// [REQ:VT-REQ-001] [REQ:VT-REQ-005]
 func TestLoadAllCampaignsDirectoryMissing(t *testing.T) {
     teardownLogger := setupTestLogger()
     defer teardownLogger()
@@ -564,6 +592,7 @@ func TestLoadAllCampaignsDirectoryMissing(t *testing.T) {
     }
 }
 
+// [REQ:VT-REQ-001] [REQ:VT-REQ-005]
 func TestLoadAllCampaignsSkipsInvalidFiles(t *testing.T) {
     teardownLogger := setupTestLogger()
     defer teardownLogger()
@@ -619,6 +648,7 @@ func TestLoadAllCampaignsSkipsInvalidFiles(t *testing.T) {
 }
 
 // Test deleteCampaignFile function
+// [REQ:VT-REQ-001]
 func TestDeleteCampaignFile(t *testing.T) {
     // Create a temporary directory for testing
     tempDir, err := ioutil.TempDir("", "visited-tracker-delete-test")
@@ -684,6 +714,7 @@ func TestDeleteCampaignFile(t *testing.T) {
 }
 
 // Test health handler
+// [REQ:VT-REQ-006]
 func TestHealthHandler(t *testing.T) {
     // Create a temporary directory for testing
     tempDir, err := ioutil.TempDir("", "visited-tracker-health-handler-test")
@@ -763,6 +794,7 @@ func TestOptionsHandler(t *testing.T) {
 }
 
 // Test listCampaignsHandler
+// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
 func TestListCampaignsHandler(t *testing.T) {
     // Setup logger for testing
     cleanup := setupTestLogger()
@@ -884,6 +916,7 @@ func TestListCampaignsHandler(t *testing.T) {
 }
 
 // Test createCampaignHandler
+// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
 func TestCreateCampaignHandler(t *testing.T) {
     // Setup logger for testing
     cleanup := setupTestLogger()
@@ -1005,6 +1038,7 @@ func TestCreateCampaignHandler(t *testing.T) {
 }
 
 // Test getCampaignHandler
+// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
 func TestGetCampaignHandler(t *testing.T) {
     // Setup logger for testing
     cleanup := setupTestLogger()
@@ -1099,6 +1133,7 @@ func TestGetCampaignHandler(t *testing.T) {
 }
 
 // Test deleteCampaignHandler
+// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
 func TestDeleteCampaignHandler(t *testing.T) {
     // Setup logger for testing
     cleanup := setupTestLogger()
@@ -1195,6 +1230,7 @@ func TestDeleteCampaignHandler(t *testing.T) {
 }
 
 // Test visitHandler
+// [REQ:VT-REQ-002] [REQ:VT-REQ-006]
 func TestVisitHandler(t *testing.T) {
     // Setup logger for testing
     cleanup := setupTestLogger()
@@ -1325,6 +1361,7 @@ func TestVisitHandler(t *testing.T) {
 }
 
 // Test adjustVisitHandler
+// [REQ:VT-REQ-002] [REQ:VT-REQ-006]
 func TestAdjustVisitHandler(t *testing.T) {
     // Setup logger for testing
     cleanup := setupTestLogger()
@@ -1455,6 +1492,7 @@ func TestAdjustVisitHandler(t *testing.T) {
 }
 
 // Test coverageHandler
+// [REQ:VT-REQ-002] [REQ:VT-REQ-006]
 func TestCoverageHandler(t *testing.T) {
     // Setup logger for testing
     cleanup := setupTestLogger()
@@ -1560,7 +1598,7 @@ func TestCoverageHandler(t *testing.T) {
     }
 }
 
-// Test exportHandler
+// [REQ:VT-REQ-010] Test exportHandler
 func TestExportHandler(t *testing.T) {
     // Setup logger for testing
     cleanup := setupTestLogger()
@@ -1646,7 +1684,7 @@ func TestServiceName(t *testing.T) {
     }
 }
 
-// Test structureSyncHandler
+// [REQ:VT-REQ-008] Test structureSyncHandler
 func TestStructureSyncHandler(t *testing.T) {
     // Setup logger for testing
     cleanup := setupTestLogger()
@@ -1814,6 +1852,7 @@ func TestStructureSyncHandler(t *testing.T) {
 }
 
 // Test leastVisitedHandler
+// [REQ:VT-REQ-009]
 func TestLeastVisitedHandler(t *testing.T) {
     // Setup logger for testing
     cleanup := setupTestLogger()
@@ -1988,6 +2027,7 @@ func TestLeastVisitedHandler(t *testing.T) {
 }
 
 // Test mostStaleHandler
+// [REQ:VT-REQ-003] [REQ:VT-REQ-009]
 func TestMostStaleHandler(t *testing.T) {
     // Setup logger for testing
     cleanup := setupTestLogger()
@@ -2329,6 +2369,7 @@ func TestMainFunctionComponents(t *testing.T) {
 // Export Handler Tests (Lowest Coverage)
 // ============================================================================
 
+// [REQ:VT-REQ-010] Export Handler Tests (Comprehensive Coverage)
 func TestExportHandlerComprehensive(t *testing.T) {
     cleanup := setupTestLogger()
     defer cleanup()
@@ -2500,6 +2541,7 @@ func TestExportHandlerComprehensive(t *testing.T) {
 // Error Path and Edge Case Tests
 // ============================================================================
 
+// [REQ:VT-REQ-006]
 func TestHealthHandlerErrorPaths(t *testing.T) {
     cleanup := setupTestLogger()
     defer cleanup()
@@ -2533,6 +2575,7 @@ func TestHealthHandlerErrorPaths(t *testing.T) {
     }
 }
 
+// [REQ:VT-REQ-001] [REQ:VT-REQ-005]
 func TestLoadAllCampaignsErrorPaths(t *testing.T) {
     cleanup := setupTestLogger()
     defer cleanup()
@@ -2558,6 +2601,7 @@ func TestLoadAllCampaignsErrorPaths(t *testing.T) {
     }
 }
 
+// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
 func TestCreateCampaignHandlerErrorPaths(t *testing.T) {
     cleanup := setupTestLogger()
     defer cleanup()
@@ -2599,6 +2643,7 @@ func TestCreateCampaignHandlerErrorPaths(t *testing.T) {
     }
 }
 
+// [REQ:VT-REQ-002] [REQ:VT-REQ-006]
 func TestVisitHandlerErrorPaths(t *testing.T) {
     cleanup := setupTestLogger()
     defer cleanup()
@@ -2675,6 +2720,7 @@ func TestVisitHandlerErrorPaths(t *testing.T) {
     }
 }
 
+// [REQ:VT-REQ-002] [REQ:VT-REQ-006]
 func TestAdjustVisitHandlerErrorPaths(t *testing.T) {
     cleanup := setupTestLogger()
     defer cleanup()
@@ -2756,6 +2802,7 @@ func TestAdjustVisitHandlerErrorPaths(t *testing.T) {
 // Additional Coverage Improvement Tests
 // ============================================================================
 
+// [REQ:VT-REQ-008]
 func TestSyncCampaignFilesErrorPaths(t *testing.T) {
     cleanup := setupTestLogger()
     defer cleanup()
@@ -2818,6 +2865,7 @@ func TestSyncCampaignFilesErrorPaths(t *testing.T) {
     }
 }
 
+// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
 func TestGetCampaignHandlerErrorPaths(t *testing.T) {
     cleanup := setupTestLogger()
     defer cleanup()
@@ -2857,6 +2905,7 @@ func TestGetCampaignHandlerErrorPaths(t *testing.T) {
     }
 }
 
+// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
 func TestDeleteCampaignHandlerErrorPaths(t *testing.T) {
     cleanup := setupTestLogger()
     defer cleanup()
@@ -2913,6 +2962,7 @@ func TestDeleteCampaignHandlerErrorPaths(t *testing.T) {
     }
 }
 
+// [REQ:VT-REQ-002] [REQ:VT-REQ-006]
 func TestCoverageHandlerErrorPaths(t *testing.T) {
     cleanup := setupTestLogger()
     defer cleanup()
@@ -2996,6 +3046,7 @@ func TestCoverageHandlerErrorPaths(t *testing.T) {
 }
 
 // TestGetCampaignHandlerWithDeletedFiles tests getCampaignHandler with deleted files
+// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
 func TestGetCampaignHandlerWithDeletedFiles(t *testing.T) {
     cleanup := setupTestLogger()
     defer cleanup()
@@ -3084,6 +3135,7 @@ func TestGetCampaignHandlerWithDeletedFiles(t *testing.T) {
 }
 
 // TestCreateCampaignHandlerMetadataInitialization tests metadata nil handling
+// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
 func TestCreateCampaignHandlerMetadataInitialization(t *testing.T) {
     cleanup := setupTestLogger()
     defer cleanup()
@@ -3134,6 +3186,7 @@ func TestCreateCampaignHandlerMetadataInitialization(t *testing.T) {
 }
 
 // TestCreateCampaignHandlerAutoSyncTracking tests auto-sync metadata tracking
+// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
 func TestCreateCampaignHandlerAutoSyncTracking(t *testing.T) {
     cleanup := setupTestLogger()
     defer cleanup()
@@ -3184,6 +3237,7 @@ func TestCreateCampaignHandlerAutoSyncTracking(t *testing.T) {
 }
 
 // TestDeleteCampaignHandlerIdempotent tests idempotent delete behavior
+// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
 func TestDeleteCampaignHandlerIdempotent(t *testing.T) {
     cleanup := setupTestLogger()
     defer cleanup()

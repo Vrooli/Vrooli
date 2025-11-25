@@ -1,0 +1,173 @@
+{
+  "_metadata": {
+    "prd_section": "P1 - Web Interface and Advanced Features",
+    "description": "HTTP API, web interface, and advanced campaign management features"
+  },
+  "requirements": [
+    {
+      "id": "VT-REQ-006",
+      "category": "web-interface.api",
+      "operational_target_id": "OT-P1-001",
+      "prd_ref": "OT-P1-001",
+      "title": "HTTP API Endpoints",
+      "description": "Provide HTTP API endpoints for web interface and external integrations with CRUD operations for campaigns",
+      "priority": "P1",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Multiple tests validate HTTP API responses, CRUD operations, CORS, error handling [REQ:VT-REQ-006]"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E workflow validates HTTP API endpoints in complete lifecycle"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/staleness-scoring.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E workflow validates HTTP API endpoints for staleness operations"
+        }
+      ]
+    },
+    {
+      "id": "VT-REQ-007",
+      "category": "web-interface.api",
+      "operational_target_id": "OT-P1-001",
+      "prd_ref": "OT-P1-001",
+      "title": "File Prioritization API",
+      "description": "Provide sorted lists of least visited and most stale files to guide agent analysis workflows",
+      "priority": "P1",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Multiple tests validate prioritization queries with various limits and edge cases [REQ:VT-REQ-009]"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E workflow validates prioritization API (least-visited, most-stale queries)"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/staleness-scoring.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Dedicated E2E workflow validates staleness-based prioritization"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/journeys/01-new-user/happy-path.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "User journey validates prioritization in realistic workflow"
+        }
+      ]
+    },
+    {
+      "id": "VT-REQ-008",
+      "category": "web-interface.api",
+      "operational_target_id": "OT-P1-001",
+      "prd_ref": "OT-P1-001",
+      "title": "Campaign Export/Import API",
+      "description": "Export and import campaign data for backup, sharing, and migration between environments",
+      "priority": "P1",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestExportHandler validates campaign export functionality [REQ:VT-REQ-010]"
+        },
+        {
+          "type": "test",
+          "ref": "api/import_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestImportHandler validates campaign import and data preservation [REQ:VT-REQ-008]"
+        }
+      ]
+    },
+    {
+      "id": "VT-REQ-009",
+      "category": "web-interface.ui",
+      "operational_target_id": "OT-P1-002",
+      "prd_ref": "OT-P1-002",
+      "title": "Web Interface Dashboard",
+      "description": "Build web interface for manual campaign management and visualization of staleness metrics",
+      "priority": "P1",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/__tests__/server.test.js",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "19 unit tests validate UI server functionality, routing, and API integration [REQ:VT-REQ-009]"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/02-web-interface/ui/campaign-dashboard.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E UI workflow validates campaign dashboard interface"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/journeys/01-new-user/happy-path.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "User journey validates dashboard in realistic usage context"
+        }
+      ]
+    },
+    {
+      "id": "VT-REQ-010",
+      "category": "web-interface.ui",
+      "operational_target_id": "OT-P1-002",
+      "prd_ref": "OT-P1-002",
+      "title": "Campaign Detail View",
+      "description": "Provide detailed campaign view with file list, staleness visualization, and visit tracking",
+      "priority": "P1",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/__tests__/server.test.js",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests validate campaign detail page server logic [REQ:VT-REQ-010]"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests validate export handler functionality [REQ:VT-REQ-010]"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/journeys/01-new-user/happy-path.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "User journey validates campaign detail view in UI"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "workflow_id": "staleness-scoring",
+  "name": "Staleness Scoring Test",
+  "metadata": {
+    "reset": "none"
+  },
+  "description": "Verify staleness score calculation and prioritization logic",
+  "requirement_refs": ["VT-REQ-003", "VT-REQ-009"],
+  "priority": "P0",
+  "steps": [
+    {
+      "id": "create_campaign",
+      "action": "http_request",
+      "method": "POST",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns",
+      "body": {
+        "name": "staleness-test-campaign",
+        "from_agent": "test-automation",
+        "patterns": ["**/*.go"]
+      },
+      "expected_status": 201,
+      "save_response": "campaign"
+    },
+    {
+      "id": "sync_files",
+      "action": "http_request",
+      "method": "POST",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/structure/sync",
+      "body": {
+        "patterns": ["scenarios/visited-tracker/api/**/*.go"]
+      },
+      "expected_status": 200,
+      "save_response": "sync_result"
+    },
+    {
+      "id": "visit_some_files",
+      "action": "http_request",
+      "method": "POST",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/visit",
+      "body": {
+        "files": ["scenarios/visited-tracker/api/main.go"]
+      },
+      "expected_status": 200
+    },
+    {
+      "id": "get_most_stale",
+      "action": "http_request",
+      "method": "GET",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/prioritize/most-stale",
+      "expected_status": 200,
+      "save_response": "stale_files",
+      "assertions": [
+        {"field": "files", "type": "array"},
+        {"field": "files.length", "greater_than": 0},
+        {"field": "files[0].staleness_score", "greater_than": 0}
+      ]
+    },
+    {
+      "id": "verify_visited_not_most_stale",
+      "action": "assertion",
+      "check": "${stale_files.files[0].file_path}",
+      "not_equals": "scenarios/visited-tracker/api/main.go",
+      "description": "Recently visited file should not be the most stale"
+    },
+    {
+      "id": "cleanup",
+      "action": "http_request",
+      "method": "DELETE",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}",
+      "expected_status": 200
+    }
+  ]
+}

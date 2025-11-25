@@ -4,9 +4,12 @@
   "service": {
     "name": "visited-tracker",
     "displayName": "Visited Tracker",
-    "description": "Persistent file visit tracking with staleness detection for systematic code analysis",
+    "description": "Agent loop memory primitive enabling perfect cross-conversation file tracking for ecosystem-manager phases (Progress, UX, Refactor, Test)",
     "version": "1.0.0",
     "tags": [
+      "agent-loop-memory",
+      "phase-integration",
+      "ecosystem-manager",
       "file-tracking",
       "visit-tracking",
       "staleness-detection",
@@ -15,12 +18,12 @@
       "developer-tools",
       "prioritization",
       "go-api",
-      "postgres-storage",
-      "systematic-review"
+      "systematic-review",
+      "campaign-management"
     ],
     "parent": "vrooli",
     "type": "scenario",
-    "category": "general",
+    "category": "developer-tools",
     "maintainers": [
       {
         "name": "Vrooli Team",

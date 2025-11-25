@@ -4,7 +4,7 @@ Persistent file visit tracking with staleness detection for systematic code anal
 
 ## 🎯 Purpose & Vision
 
-A systematic file visit tracking tool that enables maintenance scenarios to efficiently analyze large codebases over multiple conversations without losing track of progress. Ensures no file is left behind during comprehensive code reviews, testing, and analysis workflows.
+A systematic file visit tracking tool that enables agent loops to maintain perfect memory across conversations. Designed specifically for ecosystem-manager phases (Progress, UX, Refactor, Test) to ensure comprehensive coverage without redundant work. Stores phase-specific metadata for seamless handoff between analysis modes, ensuring no file is left behind during systematic multi-file workflows.
 
 ## 🏗️ Architecture
 
@@ -41,7 +41,6 @@ Record and visualize file visit patterns with detailed statistics on coverage an
 
 ### Prerequisites
 - Go 1.19+ for API server
-- Node.js 16+ for web interface
 - Basic file system access for tracking
 
 ### Installation
@@ -53,23 +52,177 @@ vrooli scenario setup visited-tracker
 vrooli scenario start visited-tracker
 ```
 
-### Basic Usage
+### Agent Integration (Recommended)
+
+**Auto-creation shorthand** - no manual campaign management needed:
+
 ```bash
-# Create a new campaign (returns JSON with the new ID)
-visited-tracker campaigns create --name "api-analysis" --pattern "**/*.go" --from-agent "api-manager" --json
+# UX Phase: Track UI work with automatic campaign creation
+visited-tracker least-visited \
+  --location scenarios/prd-control-tower/ui \
+  --pattern "**/*.{ts,tsx}" \
+  --tag ux \
+  --limit 5
 
-# Export the campaign ID for subsequent commands
-export VISITED_TRACKER_CAMPAIGN_ID="<campaign-id>"
-
-# Get files to visit next (least visited first)
-visited-tracker least-visited --limit 5
-
-# Record visits after analyzing files
-visited-tracker visit src/main.go src/utils.go --context review
-
-# Check campaign progress
-visited-tracker status
+# Returns: 5 least-visited UI files with staleness scores
+# Campaign auto-created if none exists for (location="scenarios/prd-control-tower/ui", tag="ux")
 ```
+
+**Recording work with notes:**
+```bash
+# After analyzing orientation.tsx
+visited-tracker visit scenarios/prd-control-tower/ui/src/pages/orientation.tsx \
+  --tag ux \
+  --note "Improved Getting Started section and hero CTA. Need a Nudge component still needs work."
+
+# After completing file
+visited-tracker exclude scenarios/prd-control-tower/ui/src/pages/orientation.tsx \
+  --tag ux \
+  --reason "All major UX improvements complete"
+```
+
+**Campaign handoff:**
+```bash
+# Store handoff context for next phase
+visited-tracker campaign note \
+  --location scenarios/prd-control-tower/ui \
+  --tag ux \
+  --note "UX review complete. Focus areas for refactor: complex state management in DraftEditor, performance issues in tree rendering."
+```
+
+### Agent-Friendly Response Example
+
+```json
+{
+  "files": [
+    {
+      "path": "scenarios/prd-control-tower/ui/src/pages/orientation.tsx",
+      "staleness_score": 8.3,
+      "visit_count": 0,
+      "last_visited": null,
+      "last_modified": "2025-11-24T10:30:00Z",
+      "notes": []
+    },
+    {
+      "path": "scenarios/prd-control-tower/ui/src/components/catalog/ScenarioDetail.tsx",
+      "staleness_score": 7.1,
+      "visit_count": 1,
+      "last_visited": "2025-11-20T14:00:00Z",
+      "last_modified": "2025-11-23T09:15:00Z",
+      "notes": ["Improved navigation but nested content still needs work"]
+    }
+  ],
+  "campaign": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "location": "scenarios/prd-control-tower/ui",
+    "tag": "ux",
+    "total_files": 47,
+    "visited_files": 12,
+    "coverage_percent": 25.5
+  }
+}
+```
+
+## 📝 Phase Usage Patterns
+
+### UX Phase - Systematic UI Improvement
+
+```bash
+# Get next files to review
+visited-tracker least-visited \
+  --location scenarios/X/ui \
+  --pattern "**/*.tsx" \
+  --tag ux \
+  --limit 3
+
+# After improving each file
+visited-tracker visit src/pages/dashboard.tsx \
+  --tag ux \
+  --note "Improved heading hierarchy, added ARIA labels"
+
+# Mark exceptional files
+visited-tracker exclude src/pages/home.tsx \
+  --tag ux \
+  --reason "Already exceptional - no improvements needed"
+```
+
+### Refactor Phase - Code Quality Improvements
+
+```bash
+# Target both API and UI code
+visited-tracker least-visited \
+  --location scenarios/X \
+  --pattern "{api,ui}/**/*.{go,ts}" \
+  --tag refactor \
+  --limit 5
+
+# Track refactoring work
+visited-tracker visit api/handlers.go \
+  --tag refactor \
+  --note "Extracted validation logic to separate package. Still need error handling cleanup."
+```
+
+### Test Phase - Coverage Expansion
+
+```bash
+# Find least-tested files
+visited-tracker least-visited \
+  --location scenarios/X/api \
+  --pattern "**/*_test.go" \
+  --tag test \
+  --limit 10
+
+# Record test additions
+visited-tracker visit api/handlers_test.go \
+  --tag test \
+  --note "Added edge case tests for validation logic. Coverage now 87%."
+```
+
+### Progress Phase - Feature Implementation
+
+```bash
+# Track implementation files
+visited-tracker least-visited \
+  --location scenarios/X \
+  --pattern "**/*.{go,ts,tsx}" \
+  --tag progress \
+  --limit 8
+
+# Record progress
+visited-tracker visit api/new_feature.go \
+  --tag progress \
+  --note "Implemented core logic. Need to add error handling and tests."
+```
+
+## 🤖 Prompt Integration Guide
+
+### For Phase Instructions
+
+**Example UX Phase Prompt Addition:**
+```
+MEMORY MANAGEMENT:
+Use visited-tracker to maintain work history across conversations:
+
+1. At start of each iteration:
+   visited-tracker least-visited --location scenarios/{SCENARIO}/ui --pattern "**/*.tsx" --tag ux --limit 5
+
+2. After analyzing each file:
+   visited-tracker visit <file-path> --tag ux --note "<brief summary of work done and what remains>"
+
+3. Mark files complete when exceptional:
+   visited-tracker exclude <file-path> --tag ux --reason "All improvements complete"
+
+4. Before ending session:
+   visited-tracker campaign note --location scenarios/{SCENARIO}/ui --tag ux --note "<handoff context for next session>"
+```
+
+### Response Interpretation
+
+Agents should prioritize files with:
+- **High staleness_score (>7.0)**: Neglected files needing attention
+- **Low visit_count (0-2)**: Files not yet analyzed
+- **Recent last_modified**: Files changed since last visit
+- **Notes mentioning incomplete work**: Files with known remaining tasks
 
 ## 🧪 Testing
 
@@ -114,23 +267,40 @@ Provides a visual dashboard for managing campaigns, viewing file visit statistic
 
 ## 🔗 Integration
 
-### CLI Integration
+### CLI Integration for Agents
+
 ```bash
-# Example: Get least visited files for systematic analysis
-visited-tracker --campaign-id "$CAMPAIGN_ID" least-visited --limit 10
+# Zero-friction pattern - auto-creation with location + tag
+visited-tracker least-visited \
+  --location scenarios/X/ui \
+  --pattern "**/*.tsx" \
+  --tag ux \
+  --limit 5
 
-# Example: Record file visits after analysis
-visited-tracker --campaign-id "$CAMPAIGN_ID" visit src/*.go
+# Record work with contextual notes
+visited-tracker visit src/pages/dashboard.tsx \
+  --tag ux \
+  --note "Improved accessibility and visual hierarchy"
 
-# Example: Export campaign data for reporting
-visited-tracker --campaign-id "$CAMPAIGN_ID" export campaign-export.json --format json
+# Phase handoff with campaign notes
+visited-tracker campaign note \
+  --location scenarios/X/ui \
+  --tag ux \
+  --note "UI improvements complete. Refactor phase: focus on state management complexity"
+
+# Reset campaign for fresh analysis pass
+visited-tracker campaign reset \
+  --location scenarios/X/ui \
+  --tag ux
 ```
 
 ### Programmatic Usage
-Other scenarios can integrate with visited-tracker to manage systematic file analysis workflows:
-- **api-manager**: Track API files across all scenarios for periodic review
-- **test-genie**: Identify files that need test coverage attention
-- **security-auditor**: Ensure all files are regularly reviewed for vulnerabilities
+
+Other scenarios and ecosystem-manager phases integrate with visited-tracker for systematic file analysis:
+- **UX Phase**: Track UI file improvements with notes on component-level work
+- **Refactor Phase**: Monitor code quality improvements across API and UI
+- **Test Phase**: Ensure comprehensive test coverage across codebase
+- **Progress Phase**: Track feature implementation files and completion status
 
 ## 📊 Monitoring
 

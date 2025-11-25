@@ -143,9 +143,23 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Determine project root from VROOLI_ROOT environment variable
+	// This is safer than path traversal and works with lifecycle system
+	projectRoot := os.Getenv("VROOLI_ROOT")
+	if projectRoot == "" {
+		// Fallback: resolve from current directory (API runs from scenarios/visited-tracker/api/)
+		// nosemgrep: go.lang.security.audit.path-traversal
+		// This is a safe initialization fallback, not user input
+		if absPath, err := filepath.Abs("../../../"); err == nil {
+			projectRoot = filepath.Clean(absPath)
+		} else {
+			fmt.Fprintf(os.Stderr, "❌ Failed to determine project root directory: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
 	// Change working directory to project root for file pattern resolution
-	// API runs from scenarios/visited-tracker/api/, so go up 3 levels to project root
-	if err := os.Chdir("../../../"); err != nil {
+	if err := os.Chdir(projectRoot); err != nil {
 		fmt.Fprintf(os.Stderr, "❌ Failed to change to project root directory: %v\n", err)
 		os.Exit(1)
 	}
@@ -197,10 +211,14 @@ func main() {
 	v1.HandleFunc("/campaigns/{id}/adjust-visit", optionsHandler).Methods("OPTIONS")
 	v1.HandleFunc("/campaigns/{id}/structure/sync", structureSyncHandler).Methods("POST")
 	v1.HandleFunc("/campaigns/{id}/structure/sync", optionsHandler).Methods("OPTIONS")
+	// GET /api/v1/campaigns/{id}/prioritize/least-visited - Get least visited files for prioritization
 	v1.HandleFunc("/campaigns/{id}/prioritize/least-visited", leastVisitedHandler).Methods("GET")
+	// GET /api/v1/campaigns/{id}/prioritize/most-stale - Get most stale files for prioritization
 	v1.HandleFunc("/campaigns/{id}/prioritize/most-stale", mostStaleHandler).Methods("GET")
 	v1.HandleFunc("/campaigns/{id}/coverage", coverageHandler).Methods("GET")
 	v1.HandleFunc("/campaigns/{id}/export", exportHandler).Methods("GET")
+	v1.HandleFunc("/campaigns/import", importHandler).Methods("POST")
+	v1.HandleFunc("/campaigns/import", optionsHandler).Methods("OPTIONS")
 
 	logger.Printf("🚀 %s API v%s starting on port %s", serviceName, apiVersion, port)
 	logger.Printf("📊 Endpoints available at http://localhost:%s/api/v1", port)
@@ -213,9 +231,18 @@ func main() {
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// Get allowed origins from environment or use localhost defaults
+		allowedOrigins := getAllowedOrigins()
+		origin := r.Header.Get("Origin")
+
+		// Check if origin is allowed
+		if isOriginAllowed(origin, allowedOrigins) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -224,6 +251,36 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// getAllowedOrigins returns the list of allowed CORS origins
+func getAllowedOrigins() []string {
+	// Check environment variable first
+	if origins := os.Getenv("CORS_ALLOWED_ORIGINS"); origins != "" {
+		return strings.Split(origins, ",")
+	}
+
+	// Default to localhost origins for development
+	// In production, CORS_ALLOWED_ORIGINS should be explicitly set
+	uiPort := os.Getenv("UI_PORT")
+	if uiPort == "" {
+		uiPort = "38440" // fallback to default
+	}
+
+	return []string{
+		"http://localhost:" + uiPort,
+		"http://127.0.0.1:" + uiPort,
+	}
+}
+
+// isOriginAllowed checks if an origin is in the allowed list
+func isOriginAllowed(origin string, allowed []string) bool {
+	for _, o := range allowed {
+		if o == origin {
+			return true
+		}
+	}
+	return false
 }
 
 func initFileStorage() error {
@@ -1030,6 +1087,7 @@ func strPtr(s string) *string {
 	return &s
 }
 
+// POST /api/v1/campaigns/{id}/structure/sync
 func structureSyncHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	campaignID, err := uuid.Parse(vars["id"])
@@ -1288,6 +1346,7 @@ func coverageHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GET /api/v1/campaigns/{id}/export
 func exportHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	campaignID, err := uuid.Parse(vars["id"])
@@ -1334,7 +1393,132 @@ func exportHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(&exportCampaign)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(campaign)
+}
+
+// POST /api/v1/campaigns/import
+func importHandler(w http.ResponseWriter, r *http.Request) {
+	var importedCampaign Campaign
+
+	// Parse request body
+	if err := json.NewDecoder(r.Body).Decode(&importedCampaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Invalid campaign data: %v"}`, err), http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	if importedCampaign.Name == "" {
+		http.Error(w, `{"error": "Campaign name is required"}`, http.StatusBadRequest)
+		return
+	}
+	if len(importedCampaign.Patterns) == 0 {
+		http.Error(w, `{"error": "At least one pattern is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Check if merge mode is enabled
+	mergeParam := r.URL.Query().Get("merge")
+	merge := mergeParam == "true"
+
+	// If merging, try to find existing campaign by name
+	var existingCampaign *Campaign
+	if merge {
+		campaigns, err := loadAllCampaigns()
+		if err == nil {
+			for _, c := range campaigns {
+				if c.Name == importedCampaign.Name {
+					existingCampaign = &c
+					break
+				}
+			}
+		}
+	}
+
+	if existingCampaign != nil {
+		// Merge mode: Update existing campaign
+		existingCampaign.Patterns = importedCampaign.Patterns
+		if importedCampaign.Description != nil {
+			existingCampaign.Description = importedCampaign.Description
+		}
+		if importedCampaign.FromAgent != "" {
+			existingCampaign.FromAgent = importedCampaign.FromAgent
+		}
+
+		// Merge tracked files (add new ones, update existing ones)
+		fileMap := make(map[string]*TrackedFile)
+		for i := range existingCampaign.TrackedFiles {
+			fileMap[existingCampaign.TrackedFiles[i].FilePath] = &existingCampaign.TrackedFiles[i]
+		}
+
+		for _, importedFile := range importedCampaign.TrackedFiles {
+			if existing, exists := fileMap[importedFile.FilePath]; exists {
+				// Update visit count (take maximum)
+				if importedFile.VisitCount > existing.VisitCount {
+					existing.VisitCount = importedFile.VisitCount
+				}
+				// Update last visit time (take most recent)
+				if importedFile.LastVisited != nil && (existing.LastVisited == nil || importedFile.LastVisited.After(*existing.LastVisited)) {
+					existing.LastVisited = importedFile.LastVisited
+				}
+			} else {
+				// Add new file
+				importedFile.ID = uuid.New()
+				existingCampaign.TrackedFiles = append(existingCampaign.TrackedFiles, importedFile)
+			}
+		}
+
+		// Merge visits
+		existingCampaign.Visits = append(existingCampaign.Visits, importedCampaign.Visits...)
+
+		// Update metadata
+		existingCampaign.UpdatedAt = time.Now()
+		existingCampaign.Metadata["last_import"] = time.Now().Format(time.RFC3339)
+
+		// Save updated campaign
+		if err := saveCampaign(existingCampaign); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "Failed to save merged campaign: %v"}`, err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"message": "Campaign merged successfully",
+			"campaign": existingCampaign,
+		})
+		return
+	}
+
+	// Create new campaign from imported data
+	now := time.Now()
+	importedCampaign.ID = uuid.New()
+	importedCampaign.CreatedAt = now
+	importedCampaign.UpdatedAt = now
+	importedCampaign.Status = "active"
+
+	// Generate new IDs for tracked files
+	for i := range importedCampaign.TrackedFiles {
+		importedCampaign.TrackedFiles[i].ID = uuid.New()
+	}
+
+	// Initialize metadata if nil
+	if importedCampaign.Metadata == nil {
+		importedCampaign.Metadata = make(map[string]interface{})
+	}
+	importedCampaign.Metadata["imported_at"] = now.Format(time.RFC3339)
+
+	// Save campaign
+	if err := saveCampaign(&importedCampaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "Campaign imported successfully",
+		"campaign": importedCampaign,
+	})
 }

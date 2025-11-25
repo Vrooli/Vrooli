@@ -1,0 +1,86 @@
+{
+  "$schema": "../../../.vrooli/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Health check endpoint",
+      "category": "system"
+    },
+    {
+      "id": "list_campaigns",
+      "path": "/api/v1/campaigns",
+      "method": "GET",
+      "summary": "List all campaigns",
+      "description": "List all campaigns with their metadata and stats",
+      "category": "campaigns"
+    },
+    {
+      "id": "create_campaign",
+      "path": "/api/v1/campaigns",
+      "method": "POST",
+      "summary": "Create campaign",
+      "description": "Create a new campaign with file glob patterns",
+      "category": "campaigns"
+    },
+    {
+      "id": "get_campaign",
+      "path": "/api/v1/campaigns/{id}",
+      "method": "GET",
+      "summary": "Get campaign details",
+      "description": "Get detailed information about a specific campaign",
+      "category": "campaigns"
+    },
+    {
+      "id": "record_visit",
+      "path": "/api/v1/campaigns/{id}/visit",
+      "method": "POST",
+      "summary": "Record file visits",
+      "description": "Record file visits for a campaign to update tracking data",
+      "category": "tracking"
+    },
+    {
+      "id": "least_visited",
+      "path": "/api/v1/campaigns/{id}/prioritize/least-visited",
+      "method": "GET",
+      "summary": "Get least visited files",
+      "description": "Get files with lowest visit counts for prioritization",
+      "category": "prioritization"
+    },
+    {
+      "id": "most_stale",
+      "path": "/api/v1/campaigns/{id}/prioritize/most-stale",
+      "method": "GET",
+      "summary": "Get most stale files",
+      "description": "Get files with highest staleness scores for prioritization",
+      "category": "prioritization"
+    },
+    {
+      "id": "export_campaign",
+      "path": "/api/v1/campaigns/{id}/export",
+      "method": "GET",
+      "summary": "Export campaign data",
+      "description": "Export campaign data including tracking history for backup or sharing",
+      "category": "data-management"
+    },
+    {
+      "id": "import_campaign",
+      "path": "/api/v1/campaigns/import",
+      "method": "POST",
+      "summary": "Import campaign data",
+      "description": "Import campaign data from exported JSON (supports merge mode via ?merge=true)",
+      "category": "data-management"
+    },
+    {
+      "id": "sync_campaign",
+      "path": "/api/v1/campaigns/{id}/structure/sync",
+      "method": "POST",
+      "summary": "Synchronize campaign files",
+      "description": "Sync campaign files with filesystem using glob pattern matching",
+      "category": "file-management"
+    }
+  ]
+}

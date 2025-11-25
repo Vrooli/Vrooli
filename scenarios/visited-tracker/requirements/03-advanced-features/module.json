@@ -1,0 +1,30 @@
+{
+  "_metadata": {
+    "prd_section": "P2 - Future Expansion",
+    "description": "Advanced analytics and multi-project management features"
+  },
+  "requirements": [
+    {
+      "id": "VT-REQ-011",
+      "category": "advanced.analytics",
+      "operational_target_id": "OT-P2-001",
+      "prd_ref": "OT-P2-001",
+      "title": "Advanced Analytics Dashboard",
+      "description": "Provide trend analysis and advanced staleness metrics to identify patterns in code review workflows",
+      "priority": "P2",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "VT-REQ-014",
+      "category": "advanced.scaling",
+      "operational_target_id": "OT-P2-001",
+      "prd_ref": "OT-P2-001",
+      "title": "Multi-Project Management",
+      "description": "Manage campaigns across multiple projects and repositories for large-scale code analysis",
+      "priority": "P2",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

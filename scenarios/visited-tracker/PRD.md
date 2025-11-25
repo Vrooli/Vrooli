@@ -6,32 +6,26 @@
 > **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 
 ## 🎯 Overview
-- **Purpose**: Persistent file visit tracking with staleness detection for systematic code analysis across large codebases
-- **Primary users/verticals**: Maintenance scenarios (api-manager, test-genie), code quality scenarios, documentation scenarios, security audit scenarios, Claude Code agents performing systematic analysis
-- **Deployment surfaces**: CLI (programmatic integration), API (web interface and external integrations), UI (manual campaign management)
-- **Value promise**: Enables maintenance scenarios to efficiently track analyzed files, ensuring comprehensive coverage without redundant work, with staleness scoring to prioritize least-visited and most-modified files
+- **Purpose**: Persistent file visit tracking with staleness detection for systematic code analysis across large codebases, enabling agent loops to maintain perfect memory across conversations
+- **Primary users/verticals**: Agent loops in ecosystem-manager (Progress, UX, Refactor, Test phases), maintenance scenarios, code quality automation, Claude Code agents performing systematic multi-file work across conversations
+- **Deployment surfaces**: CLI (programmatic integration for agent loops), API (web interface and external integrations), UI (manual campaign management)
+- **Value promise**: Enables agent loops to maintain perfect memory across conversations, ensuring comprehensive coverage without redundant work, with phase-specific metadata storage for handoff between analysis modes (UX → Refactor → Test) and staleness scoring to prioritize neglected files
 
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Campaign-based file tracking | Campaign-based file tracking with patterns (*.go, *.js, etc.)
-- [ ] OT-P0-002 | Visit count tracking | Visit count tracking for each file in a campaign
-- [ ] OT-P0-003 | Staleness scoring | Staleness scoring based on visit frequency and modification time
-- [ ] OT-P0-004 | CLI interface | CLI interface for programmatic integration
-- [ ] OT-P0-005 | JSON persistence | JSON file storage for persistence and portability
+- [ ] OT-P0-001 | Campaign tracking system | Campaign-based file tracking with visit counts, staleness scoring, CLI interface, and JSON persistence
+- [ ] OT-P0-002 | Zero-friction agent integration | Auto-creation shorthand with location + tag + glob pattern for seamless agent loop usage without manual campaign management
+- [ ] OT-P0-003 | Phase metadata and handoff context | Campaign-level and file-level notes for storing phase-specific metadata, work-in-progress tracking, and cross-phase handoff information
+- [ ] OT-P0-004 | Precise campaign control | Manual prioritization and exclusion controls for fine-tuning file coverage and handling exceptional cases
+- [ ] OT-P0-005 | Clutter prevention and limits | Smart default exclusions (data/, tmp/, coverage/, dist/, build/) and configurable campaign size limits to maintain focused campaigns
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | HTTP API | HTTP API for web interface and external integrations
-- [ ] OT-P1-002 | Web interface | Web interface for manual campaign management
-- [ ] OT-P1-003 | File synchronization | File synchronization with glob pattern matching
-- [ ] OT-P1-004 | Prioritization | Least visited and most stale file prioritization
-- [ ] OT-P1-005 | Campaign export/import | Campaign export/import capabilities
+- [ ] OT-P1-001 | HTTP API endpoints | HTTP API with CRUD operations, prioritization queries, and export/import capabilities
+- [ ] OT-P1-002 | Web interface | Web interface for manual campaign management and visualization
 
 ### 🟢 P2 – Future / expansion
-- [ ] OT-P2-001 | Advanced analytics | Advanced analytics and staleness trend analysis
-- [ ] OT-P2-002 | Git history integration | Integration with git history for enhanced staleness detection
-- [ ] OT-P2-003 | Multi-project management | Multi-project campaign management
-- [ ] OT-P2-004 | Automated discovery | Automated file discovery and pattern suggestions
+- [ ] OT-P2-001 | Advanced analytics and scaling | Advanced analytics with staleness trend analysis and multi-project management
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API (file tracking and staleness calculation), React UI (campaign management dashboard), CLI (agent integration)

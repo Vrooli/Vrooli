@@ -1,0 +1,45 @@
+{
+  "workflow_id": "ui-campaign-dashboard",
+  "name": "Campaign Dashboard UI Test",
+  "metadata": {
+    "reset": "none"
+  },
+  "description": "Test campaign dashboard UI workflow",
+  "requirement_refs": ["VT-REQ-007"],
+  "priority": "P1",
+  "steps": [
+    {
+      "id": "navigate_to_home",
+      "action": "navigate",
+      "url": "http://localhost:${UI_PORT}",
+      "wait_for": "[data-testid='campaigns-list']",
+      "timeout": 5000
+    },
+    {
+      "id": "verify_page_loaded",
+      "action": "assert_visible",
+      "selector": "[data-testid='campaigns-list']",
+      "description": "Verify campaigns list is visible"
+    },
+    {
+      "id": "check_title",
+      "action": "assert_text",
+      "selector": "h1",
+      "contains": "Visited Tracker",
+      "description": "Verify page title"
+    },
+    {
+      "id": "screenshot_dashboard",
+      "action": "screenshot",
+      "path": "test/artifacts/ui/campaign-dashboard-home.png",
+      "description": "Capture dashboard screenshot"
+    },
+    {
+      "id": "check_accessibility",
+      "action": "run_lighthouse",
+      "categories": ["accessibility"],
+      "threshold": 90,
+      "description": "Verify accessibility score"
+    }
+  ]
+}

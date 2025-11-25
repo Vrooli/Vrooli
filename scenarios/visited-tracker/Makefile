@@ -5,7 +5,7 @@
 #
 # Usage:
 #   make       - Show help
-#   make start   - Start this scenario
+#   make start - Start this scenario
 #   make stop  - Stop this scenario
 #   make test  - Run scenario tests
 #   make logs  - Show scenario logs

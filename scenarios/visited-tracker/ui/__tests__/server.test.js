@@ -6,6 +6,7 @@ const { startServer, createApp } = require('../server');
 const LOOPBACK_HOST = process.env.VROOLI_LOOPBACK_HOST || '127.0.0.1';
 const LOOPBACK_ORIGIN = `http://${LOOPBACK_HOST}`;
 
+// [REQ:VT-REQ-009] Web Interface Dashboard - UI server functionality tests
 describe('Visited Tracker UI Server', () => {
     let server;
     let agent;
@@ -145,10 +146,10 @@ describe('Visited Tracker UI Server', () => {
     });
 
     test('serves static files when they exist', async () => {
-        const response = await agent.get('/package.json');
+        const response = await agent.get('/bridge-init.js');
         expect(response.status).toBe(200);
-        expect(response.headers['content-type']).toMatch(/json/);
-        expect(response.text).toContain('"name"');
+        expect(response.headers['content-type']).toMatch(/javascript|application\/javascript|text\/javascript/);
+        expect(response.text).toContain('iframe');
     });
 
     test('serves docs content for root and namespaced paths', async () => {

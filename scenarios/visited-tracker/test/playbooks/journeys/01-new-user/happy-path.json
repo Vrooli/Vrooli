@@ -1,0 +1,95 @@
+{
+  "workflow_id": "new-user-happy-path",
+  "name": "New User Happy Path",
+  "metadata": {
+    "reset": "none"
+  },
+  "description": "Complete new user journey: create campaign, track visits, view metrics",
+  "requirement_refs": ["VT-REQ-001", "VT-REQ-002", "VT-REQ-003", "VT-REQ-007"],
+  "priority": "P0",
+  "steps": [
+    {
+      "id": "create_campaign",
+      "action": "http_request",
+      "method": "POST",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns",
+      "body": {
+        "name": "my-first-campaign",
+        "from_agent": "new-user-journey",
+        "patterns": ["**/*.go"],
+        "description": "My first visit tracking campaign"
+      },
+      "expected_status": 201,
+      "save_response": "campaign"
+    },
+    {
+      "id": "sync_files",
+      "action": "http_request",
+      "method": "POST",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/structure/sync",
+      "body": {
+        "patterns": ["scenarios/visited-tracker/**/*.go"]
+      },
+      "expected_status": 200,
+      "save_response": "sync_result"
+    },
+    {
+      "id": "verify_files_discovered",
+      "action": "assertion",
+      "check": "${sync_result.added}",
+      "greater_than": 0,
+      "description": "Verify files were discovered"
+    },
+    {
+      "id": "get_least_visited",
+      "action": "http_request",
+      "method": "GET",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/prioritize/least-visited?limit=1",
+      "expected_status": 200,
+      "save_response": "least_visited"
+    },
+    {
+      "id": "record_first_visit",
+      "action": "http_request",
+      "method": "POST",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/visit",
+      "body": {
+        "files": ["${least_visited.files[0].file_path}"],
+        "context": "first-visit",
+        "agent": "new-user"
+      },
+      "expected_status": 200
+    },
+    {
+      "id": "check_campaign_coverage",
+      "action": "http_request",
+      "method": "GET",
+      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/coverage",
+      "expected_status": 200,
+      "save_response": "coverage",
+      "assertions": [
+        {"field": "visited_files", "greater_than": 0},
+        {"field": "coverage_percent", "greater_than": 0}
+      ]
+    },
+    {
+      "id": "view_in_ui",
+      "action": "navigate",
+      "url": "http://localhost:${UI_PORT}/campaign.html?id=${campaign.id}",
+      "wait_for": "[data-testid='files-list']",
+      "timeout": 5000
+    },
+    {
+      "id": "verify_ui_shows_visit",
+      "action": "assert_visible",
+      "selector": "[data-testid='file-row']",
+      "description": "Verify file list is visible in UI"
+    },
+    {
+      "id": "screenshot_campaign_view",
+      "action": "screenshot",
+      "path": "test/artifacts/ui/new-user-campaign-view.png",
+      "description": "Capture campaign view"
+    }
+  ]
+}
