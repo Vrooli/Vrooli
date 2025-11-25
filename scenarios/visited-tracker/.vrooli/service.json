@@ -58,61 +58,29 @@
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "Visited Tracker health check configuration",
-      "endpoints": {
-        "api": "/health",
-        "ui": "/health"
-      },
+      "description": "Standard API/UI health checks",
+      "startup_grace_period": 15000,
       "checks": [
         {
-          "name": "api_endpoint",
+          "name": "api",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
         },
         {
-          "name": "ui_endpoint",
+          "name": "ui",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
-          "timeout": 3000,
-          "interval": 45000
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
         }
-      ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 10000
+      ]
     },
     "setup": {
-      "description": "Initialize Visited Tracker",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/visited-tracker-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "visited-tracker",
-            "targets": [
-              "visited-tracker"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "directory",
-            "path": "data/campaigns"
-          }
-        ]
-      },
+      "description": "Build API & UI, install CLI",
       "steps": [
         {
           "name": "create-data-dir",
@@ -122,21 +90,21 @@
         {
           "name": "install-cli",
           "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
+          "description": "Install CLI into ~/.local/bin"
         },
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o visited-tracker-api .",
-          "description": "Build Go API binary"
+          "description": "Compile Go API server"
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
+          "run": "cd ui && if [ -f package.json ]; then pnpm install; else echo 'No package.json found, skipping pnpm install'; fi",
           "description": "Install UI dependencies"
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm run build",
+          "run": "cd ui && pnpm run build",
           "description": "Build production UI bundle"
         },
         {
@@ -147,30 +115,22 @@
       ]
     },
     "develop": {
-      "description": "Start visited tracker with API and UI servers",
+      "description": "Launch API and UI production server",
       "steps": [
         {
           "name": "start-api",
           "run": "cd api && ./visited-tracker-api",
-          "description": "Start Go API server in background",
           "background": true,
-          "condition": {
-            "file_exists": "api/visited-tracker-api"
-          }
+          "description": "Start Go API server"
         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
-          "description": "Start UI server in background",
           "background": true,
+          "description": "Serve production UI bundle",
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
-          "description": "Display all running service URLs"
         }
       ]
     },
@@ -185,17 +145,17 @@
       ]
     },
     "stop": {
-      "description": "Stop services",
+      "description": "Stop background processes",
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f \"visited-tracker-api\" || true; sleep 1; pkill -9 -f \"visited-tracker-api\" 2>/dev/null || true",
-          "description": "Stop API process"
+          "run": "pkill -f 'visited-tracker-api' || true",
+          "description": "Stop Go API"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/visited-tracker.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/visited-tracker.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
+          "run": "pkill -f 'scenarios/visited-tracker.*server\\.js' || true",
+          "description": "Stop UI server"
         }
       ]
     }
