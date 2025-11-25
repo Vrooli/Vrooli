@@ -104,16 +104,63 @@ This file tracks unresolved issues, technical debt, and planned improvements for
 - ✅ **Keyboard node execution bug** (2025-11-25): Fixed missing `Keys` and `Sequence` fields in `InstructionParam` struct. Keyboard nodes with `keys: ["Escape"]` or `sequence: "text"` formats now execute correctly. Resolved 3 integration test failures (16/52 passing, up from 13/52).
 
 ### Root Cause: Integration Test Failures
-**Analysis completed (2025-11-25)**: 32 out of 36 integration test failures (89%) are caused by `"unsupported step type: subflow"` errors. The `subflow` node type is defined in the workflow schema and validator (`workflow/validator/node_linters.go:202-251`, `workflow/validator/schema/workflow.schema.json:239-245`), but is **not implemented** in the compiler/executor (`automation/compiler/step_types.go` does not include `StepSubflow` in the `supportedStepTypes` map). This is a **feature gap**, not a code quality or refactoring issue. The validator README explicitly mentions "When re-enabling subflows..." indicating this is planned future work. The remaining 4 failures are intermittent issues (DOM query errors, context deadline exceeded).
+
+**Latest Analysis (2025-11-25 Session)**: Current integration test run shows 38/52 failures (73% failure rate, 14 passing). The failure patterns differ from previous analysis:
+
+**Primary Root Cause - Selector Mismatches:**
+- Test workflows reference selectors that don't exist or have wrong testid values
+- Examples identified:
+  - `header-workflow-title` selector not found in UI (likely incorrect testid)
+  - `project-card` selector not found after project creation (timing or rendering issue)
+  - DragDrop nodes missing required `source` selector (workflow configuration errors)
+
+**Secondary Issues:**
+1. **Timing Problems**: Wait steps (1-2s) insufficient for complex page transitions. UI elements not fully rendered before assertions execute.
+2. **Evaluate Node Misconception**: Task notes suggested evaluate nodes can't make tests fail, implying they should be converted to assert nodes. This is INCORRECT - evaluate nodes are properly used for data generation (unique names, coordinates) via `storeResult`. The failures occur at subsequent WAIT and ASSERT steps, not at evaluate steps.
+3. **Fixture Gaps**: Test playbooks lack proper setup scaffolding for complex scenarios.
+
+**Previous Analysis (Referenced in Entry #32)**: Earlier investigation found 32/36 failures caused by missing subflow implementation. Current failure patterns are different, suggesting either:
+- Test suite composition changed between runs
+- Subflow-dependent tests were fixed/removed
+- Different test execution path being used
+
+### Current Status (2025-11-25 Latest Session)
+**Unit Tests**: 137/137 passing (100% pass rate) - Fixed NodePalette test by updating "Call Workflow" to "Subflow"
+**Integration Tests**: 43/52 passing (83% pass rate, 9 failures)
+**Completeness Score**: 55/100 (functional_incomplete)
+**Security Audit**: 2 findings (both acceptable - test selector constants, intentional dev CORS)
+**Standards Audit**: 156 violations (mostly PRD template compliance issues)
+
+**Remaining Test Failures (9 total):**
+1. **Telemetry Tests** (2 failures: `telemetry-smoke`, `execution-progress-tracking`)
+   - **Root Cause**: Test design issue - workflows click "execute" and immediately assert on `execution-status` selector
+   - **Problem**: ExecutionViewer component isn't rendered until execution actually starts (100-500ms delay)
+   - **Solution**: Add 1-2 second wait step between "click execute" and telemetry assertions
+   - **Note**: This is NOT a code bug - the UI works correctly, tests just need to wait for async operations
+
+2. **Node Config Tests** (4 failures: `node-config-assert`, `node-config-click`, `node-config-navigate`, `node-config-wait`)
+   - **Root Cause**: Input values not persisting after typing and blur events
+   - **Possible Causes**: (a) React controlled component state timing, (b) blur event handlers not firing, (c) test assertions checking wrong input elements
+   - **Solution**: Needs investigation - check if inputs are using controlled vs uncontrolled patterns, verify blur events trigger saves
+
+3. **Error Handling** (1 failure: `invalid-selector-graceful-degradation`)
+   - Needs investigation - workflow tests graceful degradation when invalid selectors are used
+
+4. **Execution Control** (1 failure: `execution-stop-control`)
+   - Needs investigation - workflow tests stopping running executions
+
+5. **Composite Journey** (1 failure: `happy-path-new-user`)
+   - Likely cascade failure from one of the above issues
+   - Re-test after fixing individual test issues
 
 ### Follow-Up Actions
-- **Priority 1**: **Implement subflow node type support** (feature addition task) - Add `StepSubflow` constant to `automation/compiler/step_types.go`, add to `supportedStepTypes` map, implement execution logic in `automation/executor/flow_executor.go` to handle workflow nesting (by ID reference or inline definition). This will resolve 32/36 integration test failures.
-- **Priority 2**: Fix NodePalette UI test failure - "Unable to find an element with the text: Call Workflow". Node definition mismatch in UI test expectations (test looks for "Call Workflow" but palette may expose "Subflow" or different label).
-- **Priority 3**: Add multi-layer validation (API + UI + e2e) for all P0/P1 requirements (14 requirements need coverage)
+- **Priority 1**: **Fix telemetry test timing** - Add 1-2 second wait steps in `telemetry-smoke.json` and `execution-progress-tracking.json` between clicking execute and asserting on execution-status/heartbeat selectors. Current workflows assert immediately after click, but execution state transition takes 100-500ms.
+- **Priority 2**: **Investigate node config persistence** - Debug why input values aren't persisting after editing in node property panels. Check React component state management, blur event handlers, and verify tests are checking the correct input elements. May need to add explicit save button clicks or wait for auto-save completion.
+- **Priority 3**: **Add multi-layer validation** for all P0/P1 requirements (14 requirements need coverage at API + UI + e2e layers) - Current completeness score penalty is -24pts due to missing multi-layer validation
 - **Priority 4**: Expand test coverage for superficial tests (9 files with < 20 LOC or missing assertions)
-- Consolidate tests that validate multiple requirements into focused, single-requirement tests (4 test files affected)
-- Address Lighthouse performance issues (3/4 pages below 75% threshold, UI bundle 1128KB exceeds 1000KB limit)
-- Address Lighthouse accessibility issues (3/4 pages at 89% below 90% threshold)
+- **Priority 5**: Consolidate tests that validate multiple requirements into focused, single-requirement tests (4 test files affected)
+- **Priority 6**: Address Lighthouse performance issues (3/4 pages below 75% threshold, UI bundle 1128KB exceeds 1000KB limit)
+- **Priority 7**: Address Lighthouse accessibility issues (3/4 pages at 89% below 90% threshold)
 
 ## Resource Dependencies
 

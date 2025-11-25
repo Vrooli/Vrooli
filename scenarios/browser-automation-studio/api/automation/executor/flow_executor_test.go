@@ -677,6 +677,143 @@ func TestInterpolateInstructionNestedStructuresAndPaths(t *testing.T) {
 	}
 }
 
+func TestInterpolateDoubleBraceSyntax(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	plan := contracts.ExecutionPlan{
+		ExecutionID: execID,
+		WorkflowID:  workflowID,
+		Metadata: map[string]any{
+			"variables": map[string]any{
+				"initialNodeCount": "5",
+				"finalNodeCount":   "7",
+			},
+		},
+		Instructions: []contracts.CompiledInstruction{
+			{
+				Index:  0,
+				NodeID: "eval",
+				Type:   "evaluate",
+				Params: map[string]any{
+					// Test {{var}} syntax
+					"expression": "(() => { const initial = Number({{initialNodeCount}} || 0); const final = Number({{finalNodeCount}} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()",
+					// Test mixed ${} and {{}} syntax
+					"mixedSyntax": "initial=${initialNodeCount} final={{finalNodeCount}}",
+					// Test that {{}} works in nested structures
+					"nested": map[string]any{
+						"count": "{{finalNodeCount}}",
+					},
+				},
+			},
+		},
+	}
+
+	var captured contracts.CompiledInstruction
+	capture := &captureEngine{onRun: func(instr contracts.CompiledInstruction) {
+		captured = instr
+	}}
+
+	exec := NewSimpleExecutor(nil)
+	err := exec.Execute(context.Background(), Request{
+		Plan:              plan,
+		EngineName:        capture.Name(),
+		EngineFactory:     engine.NewStaticFactory(capture),
+		Recorder:          &recordingRecorder{},
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 0,
+	})
+	if err != nil {
+		t.Fatalf("executor returned error: %v", err)
+	}
+
+	// Verify {{}} syntax was interpolated
+	expr, ok := captured.Params["expression"].(string)
+	if !ok {
+		t.Fatalf("expected expression string, got %T", captured.Params["expression"])
+	}
+	// Should have replaced {{initialNodeCount}} and {{finalNodeCount}} with their values
+	expected := "(() => { const initial = Number(5 || 0); const final = Number(7 || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()"
+	if expr != expected {
+		t.Fatalf("expected {{}} interpolation:\n  got: %s\n  want: %s", expr, expected)
+	}
+
+	// Verify mixed syntax works
+	mixed, ok := captured.Params["mixedSyntax"].(string)
+	if !ok {
+		t.Fatalf("expected mixedSyntax string, got %T", captured.Params["mixedSyntax"])
+	}
+	if mixed != "initial=5 final=7" {
+		t.Fatalf("expected mixed syntax interpolation, got %s", mixed)
+	}
+
+	// Verify nested structures work
+	nested, ok := captured.Params["nested"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected nested map, got %T", captured.Params["nested"])
+	}
+	if nested["count"] != "7" {
+		t.Fatalf("expected nested count=7, got %v", nested["count"])
+	}
+}
+
+func TestInterpolateExtractedDataUnwrapping(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	// Simulate how extracted data is stored: as {"value": actualValue}
+	plan := contracts.ExecutionPlan{
+		ExecutionID: execID,
+		WorkflowID:  workflowID,
+		Metadata: map[string]any{
+			"variables": map[string]any{
+				"initialNodeCount": map[string]any{"value": 0}, // Extracted data format
+				"finalNodeCount":   map[string]any{"value": 1}, // Extracted data format
+			},
+		},
+		Instructions: []contracts.CompiledInstruction{
+			{
+				Index:  0,
+				NodeID: "eval",
+				Type:   "evaluate",
+				Params: map[string]any{
+					// Test that extracted data {"value": X} gets unwrapped to X
+					"expression": "(() => { const initial = Number({{initialNodeCount}} || 0); const final = Number({{finalNodeCount}} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()",
+				},
+			},
+		},
+	}
+
+	var captured contracts.CompiledInstruction
+	capture := &captureEngine{onRun: func(instr contracts.CompiledInstruction) {
+		captured = instr
+	}}
+
+	exec := NewSimpleExecutor(nil)
+	err := exec.Execute(context.Background(), Request{
+		Plan:              plan,
+		EngineName:        capture.Name(),
+		EngineFactory:     engine.NewStaticFactory(capture),
+		Recorder:          &recordingRecorder{},
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 0,
+	})
+	if err != nil {
+		t.Fatalf("executor returned error: %v", err)
+	}
+
+	// Verify extracted data maps were unwrapped to primitive values (not JSON)
+	expr, ok := captured.Params["expression"].(string)
+	if !ok {
+		t.Fatalf("expected expression string, got %T", captured.Params["expression"])
+	}
+	// Should have unwrapped {"value": 0} -> 0 and {"value": 1} -> 1
+	expected := "(() => { const initial = Number(0 || 0); const final = Number(1 || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()"
+	if expr != expected {
+		t.Fatalf("expected extracted data unwrapping:\n  got: %s\n  want: %s", expr, expected)
+	}
+}
+
 // flowStubEngine/flowStubSession keep flow tests deterministic without clashing with other helpers.
 type flowStubEngine struct {
 	outcomes map[int]contracts.StepOutcome

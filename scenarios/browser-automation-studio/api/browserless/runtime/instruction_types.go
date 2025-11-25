@@ -63,7 +63,9 @@ type InstructionParam struct {
 	DurationMs              int               `json:"durationMs,omitempty"`
 	MovementSteps           int               `json:"movementSteps,omitempty"`
 	DragSourceSelector      string            `json:"dragSourceSelector,omitempty"`
+	SourceSelector          string            `json:"sourceSelector,omitempty"` // Alias for DragSourceSelector
 	DragTargetSelector      string            `json:"dragTargetSelector,omitempty"`
+	TargetSelector          string            `json:"targetSelector,omitempty"` // Alias for DragTargetSelector
 	DragHoldMs              int               `json:"dragHoldMs,omitempty"`
 	DragSteps               int               `json:"dragSteps,omitempty"`
 	DragDurationMs          int               `json:"dragDurationMs,omitempty"`

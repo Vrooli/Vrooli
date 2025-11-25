@@ -692,10 +692,17 @@ testing::phase::run_workflow_validations() {
     local passed_count=0
     local failed_count=0
     local skipped_count=0
+    local first_failure_log_path=""
     declare -a failed_workflows=()
+    local workflow_log_root="${scenario_dir}/coverage/automation/logs"
+    mkdir -p "$workflow_log_root"
 
+    local fatal_resolver_error=""
     while IFS= read -r entry; do
         [ -z "$entry" ] && continue
+        if [ -n "$fatal_resolver_error" ]; then
+            break
+        fi
         index=$((index + 1))
         local rel_path
         rel_path=$(printf '%s' "$entry" | jq -r '.file // empty')
@@ -757,10 +764,19 @@ testing::phase::run_workflow_validations() {
         # Suppress individual workflow output, capture status
         local workflow_output
         workflow_output=$(mktemp)
+
+        local sanitized_rel="${rel_path#./}"
+        if [ -z "$sanitized_rel" ]; then
+            sanitized_rel="$(basename "$rel_path")"
+        fi
+        local workflow_log_path="${workflow_log_root}/${sanitized_rel%.*}.log"
+        mkdir -p "$(dirname "$workflow_log_path")"
+
         if testing::playbooks::run_workflow "${args[@]}" >"$workflow_output" 2>&1; then
             status_label=passed
             ((passed_count++)) || true
             testing::phase::add_test passed
+            rm -f "$workflow_log_path"
         else
             local rc=$?
             if [ "$allow_missing" = true ] && [ "$rc" -eq 210 ]; then
@@ -773,11 +789,36 @@ testing::phase::run_workflow_validations() {
                 ((failed_count++)) || true
                 testing::phase::add_test failed
                 overall_status=1
+                mv "$workflow_output" "$workflow_log_path"
+                if [ -z "$first_failure_log_path" ]; then
+                    first_failure_log_path="$workflow_log_path"
+                fi
+                if [ -s "$workflow_log_path" ]; then
+                    local fatal_match
+                    fatal_match=$(grep -m1 -E "metadata\\.fixture_id|Fixture .*missing metadata" "$workflow_log_path" || true)
+                    local first_error
+                    first_error=$(grep -m1 -E "RuntimeError:|Traceback|ERROR|❌|Failed to load workflow definition|metadata\\.fixture_id|Fixture .*missing metadata" "$workflow_log_path" || true)
+                    if [ -z "$first_error" ]; then
+                        first_error=$(head -n 1 "$workflow_log_path" || true)
+                    fi
+                    if [ -n "$first_error" ]; then
+                        echo "   ↳ Cause: $first_error"
+                    fi
+                    if [ -z "$fatal_resolver_error" ] && [ -n "$fatal_match" ]; then
+                        fatal_resolver_error="Fixture metadata validation failed: ${fatal_match} (see $workflow_log_path)"
+                    fi
+                fi
+                if [ -n "${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE:-}" ]; then
+                    echo "   ↳ Artifacts: ${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE}"
+                fi
 
                 # Store failed workflow info for summary
                 local workflow_name=$(basename "$rel_path" .json)
                 local artifact_path="${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE:-}"
-                failed_workflows+=("$workflow_name|$artifact_path")
+                failed_workflows+=("$workflow_name|$artifact_path|$workflow_log_path")
+
+                # Surface a quick pointer immediately for early failures
+                echo "   ↳ Log: $workflow_log_path"
             fi
         fi
 
@@ -837,6 +878,12 @@ testing::phase::run_workflow_validations() {
     echo "Integration Results: $passed_count/$playbook_count passed ($failed_count failed, $skipped_count skipped)"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
+    if [ -n "$fatal_resolver_error" ]; then
+        echo ""
+        echo "❌ Aborted remaining workflows due to resolver error:"
+        echo "   ${fatal_resolver_error}"
+    fi
+
     # Show failed workflows summary (limit to first 10)
     if [ ${#failed_workflows[@]} -gt 0 ]; then
         echo ""
@@ -844,16 +891,29 @@ testing::phase::run_workflow_validations() {
         local shown=0
         for entry in "${failed_workflows[@]}"; do
             local wf_name="${entry%%|*}"
-            local artifact_path="${entry#*|}"
+            local remainder="${entry#*|}"
+            local artifact_path="${remainder%%|*}"
+            local log_path="${remainder#*|}"
 
             # Convert relative path to absolute for better UX
+            local details=()
             if [ -n "$artifact_path" ] && [[ "$artifact_path" == Read* ]]; then
                 # Extract path from "Read coverage/..."
                 local path_part="${artifact_path#Read }"
                 if [[ "$path_part" != /* ]]; then
                     path_part="$scenario_dir/$path_part"
                 fi
-                echo "  ❌ $wf_name → $path_part"
+                details+=("artifacts: $path_part")
+            elif [ -n "$artifact_path" ]; then
+                details+=("artifacts: $artifact_path")
+            fi
+
+            if [ -n "$log_path" ]; then
+                details+=("log: $log_path")
+            fi
+
+            if [ ${#details[@]} -gt 0 ]; then
+                echo "  ❌ $wf_name → ${details[*]}"
             else
                 echo "  ❌ $wf_name"
             fi
@@ -881,6 +941,11 @@ testing::phase::run_workflow_validations() {
             fi
         fi
         rm -f "$cleanup_output"
+    fi
+
+    if [ "$passed_count" -eq 0 ] && [ "$failed_count" -gt 0 ] && [ -n "$first_failure_log_path" ]; then
+        echo ""
+        echo "ℹ️  No workflows passed; first failure log: $first_failure_log_path"
     fi
 
     return $overall_status

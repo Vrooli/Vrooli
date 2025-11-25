@@ -78,13 +78,19 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 		result, err = s.ExecuteBlur(ctx, selector, timeoutMs, waitAfterMs)
 
 	case "wait":
-		// Check if this is a time-based wait (durationMs) or element wait (selector)
-		if instruction.Params.DurationMs > 0 {
+		// Check if this is a time-based wait (durationMs/waitForMs) or element wait (selector)
+		duration := instruction.Params.DurationMs
+		if duration == 0 && instruction.Params.WaitForMs > 0 {
+			// Fall back to WaitForMs if DurationMs not set (common in workflow JSON)
+			duration = instruction.Params.WaitForMs
+		}
+
+		if duration > 0 {
 			// Time-based wait - just sleep
-			time.Sleep(time.Duration(instruction.Params.DurationMs) * time.Millisecond)
+			time.Sleep(time.Duration(duration) * time.Millisecond)
 			result = &StepResult{
 				Success:    true,
-				DurationMs: instruction.Params.DurationMs,
+				DurationMs: duration,
 			}
 		} else {
 			// Element-based wait - wait for selector to appear
@@ -194,8 +200,15 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 		result, err = s.ExecuteHover(ctx, selector, timeoutMs, waitAfterMs, steps, durationMs)
 
 	case "dragDrop":
-		source := strings.TrimSpace(instruction.Params.DragSourceSelector)
-		target := strings.TrimSpace(instruction.Params.DragTargetSelector)
+		// Support both sourceSelector (UI-friendly) and dragSourceSelector (canonical) field names
+		source := strings.TrimSpace(instruction.Params.SourceSelector)
+		if source == "" {
+			source = strings.TrimSpace(instruction.Params.DragSourceSelector)
+		}
+		target := strings.TrimSpace(instruction.Params.TargetSelector)
+		if target == "" {
+			target = strings.TrimSpace(instruction.Params.DragTargetSelector)
+		}
 		if source == "" {
 			return nil, fmt.Errorf("dragDrop node missing source selector")
 		}

@@ -135,6 +135,15 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 	}
 	e.emitEvent(ctx, req, eventKind, &instruction.Index, &attempt, payload)
 
+	// Store extracted data to flowState if storeResult is specified
+	if normalized.Success && normalized.ExtractedData != nil {
+		if storeKey := stringValue(instruction.Params, "storeResult"); storeKey != "" {
+			// Store the raw ExtractedData directly - it's not wrapped at this point
+			// (wrapping only happens when creating database artifacts in db_recorder)
+			state.set(storeKey, normalized.ExtractedData)
+		}
+	}
+
 	newSession, resetErr := e.maybeResetSession(ctx, eng, spec, session, reuseMode)
 	if resetErr != nil {
 		return normalized, session, fmt.Errorf("reset session: %w", resetErr)

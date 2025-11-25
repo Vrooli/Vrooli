@@ -287,28 +287,46 @@ func interpolateValue(v any, state *flowState) any {
 }
 
 func interpolateString(s string, state *flowState) string {
-	if !strings.Contains(s, "${") {
+	// Support both ${var} and {{var}} template syntax
+	if !strings.Contains(s, "${") && !strings.Contains(s, "{{") {
 		return s
 	}
 
 	out := s
 	for {
-		start := strings.Index(out, "${")
-		if start == -1 {
+		// Look for both ${...} and {{...}} patterns
+		dollarStart := strings.Index(out, "${")
+		braceStart := strings.Index(out, "{{")
+
+		var start int
+		var prefix string
+		var suffix string
+
+		// Pick whichever comes first (or -1 if neither exists)
+		if dollarStart != -1 && (braceStart == -1 || dollarStart < braceStart) {
+			start = dollarStart
+			prefix = "${"
+			suffix = "}"
+		} else if braceStart != -1 {
+			start = braceStart
+			prefix = "{{"
+			suffix = "}}"
+		} else {
 			break
 		}
-		end := strings.Index(out[start:], "}")
+
+		end := strings.Index(out[start+len(prefix):], suffix)
 		if end == -1 {
 			break
 		}
-		end = start + end
-		token := out[start+2 : end]
+		end = start + len(prefix) + end
+		token := out[start+len(prefix) : end]
 
 		if resolved, ok := state.resolve(token); ok {
-			out = out[:start] + stringify(resolved) + out[end+1:]
+			out = out[:start] + stringify(resolved) + out[end+len(suffix):]
 		} else {
 			// Drop unresolved token to avoid infinite loops.
-			out = out[:start] + out[end+1:]
+			out = out[:start] + out[end+len(suffix):]
 		}
 	}
 	return out
@@ -322,6 +340,19 @@ func stringify(val any) string {
 		return string(t)
 	case fmt.Stringer:
 		return t.String()
+	case map[string]any:
+		// Special handling for extracted_data artifacts: {"value": actualValue}
+		// Unwrap the value to avoid injecting JSON objects into templates
+		if len(t) == 1 {
+			if innerVal, ok := t["value"]; ok {
+				return stringify(innerVal) // Recursively stringify the inner value
+			}
+		}
+		// JSON marshal for other maps
+		if b, err := json.Marshal(t); err == nil {
+			return string(b)
+		}
+		return fmt.Sprint(t)
 	default:
 		if b, err := json.Marshal(t); err == nil {
 			return string(b)

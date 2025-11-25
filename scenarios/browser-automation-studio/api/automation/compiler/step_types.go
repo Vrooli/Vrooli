@@ -37,6 +37,7 @@ const (
 	StepGetStorage   StepType = "getStorage"
 	StepClearStorage StepType = "clearStorage"
 	StepNetworkMock  StepType = "networkMock"
+	StepSubflow      StepType = "subflow"
 )
 
 const (
@@ -90,4 +91,5 @@ var supportedStepTypes = map[StepType]struct{}{
 	StepGetStorage:   {},
 	StepClearStorage: {},
 	StepNetworkMock:  {},
+	StepSubflow:      {},
 }
