@@ -202,10 +202,22 @@ testing::artifacts::summary() {
     echo ""
     
     for phase in structure dependencies unit integration business performance; do
-        local count=$(ls -1 "$TESTING_ARTIFACTS_DIR/${phase}-"*.log 2>/dev/null | wc -l || echo 0)
-        local compressed=$(ls -1 "$TESTING_ARTIFACTS_DIR/${phase}-"*.log.gz 2>/dev/null | wc -l || echo 0)
-        
-        if [ $count -gt 0 ] || [ $compressed -gt 0 ]; then
+        # Count logs and handle empty results properly
+        local count_files=$(ls -1 "$TESTING_ARTIFACTS_DIR/${phase}-"*.log 2>/dev/null)
+        local compressed_files=$(ls -1 "$TESTING_ARTIFACTS_DIR/${phase}-"*.log.gz 2>/dev/null)
+
+        local count=0
+        local compressed=0
+
+        if [ -n "$count_files" ]; then
+            count=$(echo "$count_files" | wc -l | tr -d '[:space:]')
+        fi
+
+        if [ -n "$compressed_files" ]; then
+            compressed=$(echo "$compressed_files" | wc -l | tr -d '[:space:]')
+        fi
+
+        if [ "$count" -gt 0 ] 2>/dev/null || [ "$compressed" -gt 0 ] 2>/dev/null; then
             echo "  $phase: $count active, $compressed compressed"
         fi
     done

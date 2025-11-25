@@ -375,10 +375,6 @@ _testing_runner_analyze_failures() {
     # =========================================================================
     # CRITICAL PATH ANALYSIS
     # =========================================================================
-    echo "╔═══════════════════════════════════════════════════════════════╗"
-    echo "║  CRITICAL PATH ANALYSIS                                       ║"
-    echo "╚═══════════════════════════════════════════════════════════════╝"
-
     # Analyze errors and determine root cause
     local primary_blocker=""
     local primary_blocker_phase=""
@@ -436,64 +432,73 @@ _testing_runner_analyze_failures() {
         done
     done
 
-    if [ -n "$primary_blocker" ]; then
-        echo ""
-        echo "  🔴 PRIMARY BLOCKER: $primary_blocker"
-        echo "     Phase: $primary_blocker_phase"
-        if [ -n "$primary_blocker_details" ]; then
-            local truncated_details="${primary_blocker_details:0:100}"
-            echo "     Details: $truncated_details"
-        fi
-        if [ ${#actually_blocked[@]} -gt 0 ]; then
-            local blocked_str=$(IFS=', '; echo "${actually_blocked[*]}")
-            echo "     Impact: Blocks ${#actually_blocked[@]} phase(s): $blocked_str"
-        fi
-        echo ""
-    fi
+    # Only show CRITICAL PATH ANALYSIS section if there's content
+    if [ -n "$primary_blocker" ] || [ ${#secondary_issues[@]} -gt 0 ]; then
+        echo "╔═══════════════════════════════════════════════════════════════╗"
+        echo "║  CRITICAL PATH ANALYSIS                                       ║"
+        echo "╚═══════════════════════════════════════════════════════════════╝"
 
-    if [ ${#secondary_issues[@]} -gt 0 ]; then
-        echo "  🟡 SECONDARY ISSUES:"
-        for issue in "${secondary_issues[@]}"; do
-            echo "     • $issue"
-        done
-        echo ""
+        if [ -n "$primary_blocker" ]; then
+            echo ""
+            echo "  🔴 PRIMARY BLOCKER: $primary_blocker"
+            echo "     Phase: $primary_blocker_phase"
+            if [ -n "$primary_blocker_details" ]; then
+                local truncated_details="${primary_blocker_details:0:100}"
+                echo "     Details: $truncated_details"
+            fi
+            if [ ${#actually_blocked[@]} -gt 0 ]; then
+                local blocked_str=$(IFS=', '; echo "${actually_blocked[*]}")
+                echo "     Impact: Blocks ${#actually_blocked[@]} phase(s): $blocked_str"
+            fi
+            echo ""
+        fi
+
+        if [ ${#secondary_issues[@]} -gt 0 ]; then
+            echo "  🟡 SECONDARY ISSUES:"
+            for issue in "${secondary_issues[@]}"; do
+                echo "     • $issue"
+            done
+            echo ""
+        fi
     fi
 
     # =========================================================================
     # QUICK FIX GUIDE (RECOMMENDED ACTIONS)
     # =========================================================================
-    echo "╔═══════════════════════════════════════════════════════════════╗"
-    echo "║  QUICK FIX GUIDE                                              ║"
-    echo "╚═══════════════════════════════════════════════════════════════╝"
-    echo ""
+    # Build the fix guide content first to check if we have any actions
+    local has_quick_fixes=false
+    local quick_fix_content=""
     local action_num=1
 
     if [[ "$primary_blocker" == *"TypeScript"* ]]; then
-        echo "  ${action_num}. Fix TypeScript compilation error"
+        has_quick_fixes=true
+        quick_fix_content+="  ${action_num}. Fix TypeScript compilation error"$'\n'
         ((action_num++))
         for log in "${failed_logs[@]}"; do
             if [ -f "$log" ]; then
                 local file_line=$(grep -E "\.ts.*error TS|\.ts\([0-9]+,[0-9]+\)" "$log" 2>/dev/null | head -1 | sed 's/:.*$//' | sed 's/^[[:space:]]*//')
                 if [ -n "$file_line" ]; then
-                    echo "     Check:   $file_line"
+                    quick_fix_content+="     Check:   $file_line"$'\n'
                     break
                 fi
             fi
         done
-        echo "     Action:  Fix compilation errors in TypeScript files"
-        echo "     Rerun:   make test"
-        echo ""
+        quick_fix_content+="     Action:  Fix compilation errors in TypeScript files"$'\n'
+        quick_fix_content+="     Rerun:   make test"$'\n'
+        quick_fix_content+=""$'\n'
     elif [[ "$primary_blocker" == *"bundle"* ]] || [[ "$primary_blocker" == *"Build"* ]]; then
-        echo "  ${action_num}. Rebuild and restart scenario"
+        has_quick_fixes=true
+        quick_fix_content+="  ${action_num}. Rebuild and restart scenario"$'\n'
         ((action_num++))
-        echo "     Run:     vrooli scenario restart ${TESTING_RUNNER_SCENARIO_NAME}"
-        echo "     Effect:  Rebuilds UI and unblocks ${#actually_blocked[@]} phase(s)"
-        echo "     Rerun:   make test"
-        echo ""
+        quick_fix_content+="     Run:     vrooli scenario restart ${TESTING_RUNNER_SCENARIO_NAME}"$'\n'
+        quick_fix_content+="     Effect:  Rebuilds UI and unblocks ${#actually_blocked[@]} phase(s)"$'\n'
+        quick_fix_content+="     Rerun:   make test"$'\n'
+        quick_fix_content+=""$'\n'
     fi
 
     if [ ${#secondary_issues[@]} -gt 0 ]; then
-        echo "  ${action_num}. Address test failures"
+        has_quick_fixes=true
+        quick_fix_content+="  ${action_num}. Address test failures"$'\n'
         ((action_num++))
         for i in "${!failed_phases[@]}"; do
             local phase="${failed_phases[$i]}"
@@ -506,97 +511,109 @@ _testing_runner_analyze_failures() {
                     coverage_readme=$(find "$coverage_unit_go" -name README.md 2>/dev/null | grep -E "${phase}|executor|database" | head -1)
                 fi
                 if [ -n "$coverage_readme" ]; then
-                    echo "     Review:  $coverage_readme"
+                    quick_fix_content+="     Review:  $coverage_readme"$'\n'
                 else
-                    echo "     Review:  $log"
+                    quick_fix_content+="     Review:  $log"$'\n'
                 fi
             fi
         done
-        echo "     Run individually:"
+        quick_fix_content+="     Run individually:"$'\n'
         for phase in "${failed_phases[@]}"; do
             case "$phase" in
                 unit)
-                    echo "       • cd ${TESTING_RUNNER_SCENARIO_DIR}/api && go test -v ./... -run <TestName>"
-                    echo "       • cd ${TESTING_RUNNER_SCENARIO_DIR}/ui && pnpm test <test-file>"
+                    quick_fix_content+="       • cd ${TESTING_RUNNER_SCENARIO_DIR}/api && go test -v ./... -run <TestName>"$'\n'
+                    quick_fix_content+="       • cd ${TESTING_RUNNER_SCENARIO_DIR}/ui && pnpm test <test-file>"$'\n'
                     ;;
                 integration)
-                    echo "       • vrooli test integration ${TESTING_RUNNER_SCENARIO_NAME}"
+                    quick_fix_content+="       • vrooli test integration ${TESTING_RUNNER_SCENARIO_NAME}"$'\n'
                     ;;
                 performance)
-                    echo "       • vrooli test performance ${TESTING_RUNNER_SCENARIO_NAME}"
+                    quick_fix_content+="       • vrooli test performance ${TESTING_RUNNER_SCENARIO_NAME}"$'\n'
                     ;;
             esac
         done
+        quick_fix_content+=""$'\n'
+    fi
+
+    # Only show QUICK FIX GUIDE if we have any actions
+    if [ "$has_quick_fixes" = true ]; then
+        echo "╔═══════════════════════════════════════════════════════════════╗"
+        echo "║  QUICK FIX GUIDE                                              ║"
+        echo "╚═══════════════════════════════════════════════════════════════╝"
         echo ""
+        echo -n "$quick_fix_content"
     fi
 
     # =========================================================================
     # PHASE-SPECIFIC DEBUG GUIDES
     # =========================================================================
-    echo "╔═══════════════════════════════════════════════════════════════╗"
-    echo "║  PHASE-SPECIFIC DEBUG GUIDES                                  ║"
-    echo "╚═══════════════════════════════════════════════════════════════╝"
-    echo ""
+    # Only show debug guides if there are multiple failed phases (too verbose for single phase)
+    if [ ${#failed_phases[@]} -gt 1 ]; then
+        echo "╔═══════════════════════════════════════════════════════════════╗"
+        echo "║  PHASE-SPECIFIC DEBUG GUIDES                                  ║"
+        echo "╚═══════════════════════════════════════════════════════════════╝"
+        echo ""
 
-    for phase in "${failed_phases[@]}"; do
-        case "$phase" in
-            unit)
-                echo "━━━ UNIT PHASE ━━━"
-                echo "Common issues:"
-                echo "  • Database migrations not applied"
-                echo "  • Missing test dependencies"
-                echo "  • Stale module cache"
-                echo ""
-                echo "Quick fixes:"
-                echo "  → Check migrations:   ls ${TESTING_RUNNER_SCENARIO_DIR}/initialization/postgres/migrations/"
-                echo "  → Clear Go cache:     go clean -testcache"
-                echo "  → Reinstall modules:  cd ${TESTING_RUNNER_SCENARIO_DIR}/ui && pnpm install"
-                echo ""
-                ;;
-            integration)
-                echo "━━━ INTEGRATION PHASE ━━━"
-                echo "Common issues:"
-                echo "  • Scenario not running (API_PORT unavailable)"
-                echo "  • Stale UI bundle"
-                echo "  • Missing BAS CLI"
-                echo ""
-                echo "Quick fixes:"
-                local scenarios_root="${TESTING_RUNNER_SCENARIO_DIR}/.."
-                echo "  → Restart scenario:   vrooli scenario restart ${TESTING_RUNNER_SCENARIO_NAME}"
-                echo "  → Check scenario:     vrooli scenario status ${TESTING_RUNNER_SCENARIO_NAME}"
-                echo "  → Install BAS:        cd ${scenarios_root}/browser-automation-studio && make install-cli"
-                echo ""
-                ;;
-            performance)
-                echo "━━━ PERFORMANCE PHASE ━━━"
-                echo "Common issues:"
-                echo "  • Lighthouse audits below threshold"
-                echo "  • UI bundle too large"
-                echo "  • Slow page load times"
-                echo ""
-                echo "Quick fixes:"
-                echo "  → View reports:       open ${TESTING_RUNNER_SCENARIO_DIR}/test/artifacts/lighthouse/*.html"
-                echo "  → Analyze bundle:     cd ${TESTING_RUNNER_SCENARIO_DIR}/ui && pnpm run analyze"
-                echo "  → Check bundle size:  ls -lh ${TESTING_RUNNER_SCENARIO_DIR}/ui/dist/assets/*.js"
-                echo ""
-                ;;
-            structure)
-                echo "━━━ STRUCTURE PHASE ━━━"
-                echo "Common issues:"
-                echo "  • UI smoke test failing (API not responding)"
-                echo "  • Missing required files"
-                echo "  • Invalid JSON configuration"
-                echo ""
-                echo "Quick fixes:"
-                local app_root
-                app_root=$(cd "${TESTING_RUNNER_SCENARIO_DIR}/../.." && pwd)
-                echo "  → Check API logs:     tail -f ${app_root}/logs/${TESTING_RUNNER_SCENARIO_NAME}-api.log"
-                echo "  → Restart scenario:   vrooli scenario restart ${TESTING_RUNNER_SCENARIO_NAME}"
-                echo "  → Validate JSON:      jq . ${TESTING_RUNNER_SCENARIO_DIR}/.vrooli/service.json"
-                echo ""
-                ;;
-        esac
-    done
+        for phase in "${failed_phases[@]}"; do
+            case "$phase" in
+                unit)
+                    echo "━━━ UNIT PHASE ━━━"
+                    echo "Common issues:"
+                    echo "  • Database migrations not applied"
+                    echo "  • Missing test dependencies"
+                    echo "  • Stale module cache"
+                    echo ""
+                    echo "Quick fixes:"
+                    echo "  → Check migrations:   ls ${TESTING_RUNNER_SCENARIO_DIR}/initialization/postgres/migrations/"
+                    echo "  → Clear Go cache:     go clean -testcache"
+                    echo "  → Reinstall modules:  cd ${TESTING_RUNNER_SCENARIO_DIR}/ui && pnpm install"
+                    echo ""
+                    ;;
+                integration)
+                    echo "━━━ INTEGRATION PHASE ━━━"
+                    echo "Common issues:"
+                    echo "  • Scenario not running (API_PORT unavailable)"
+                    echo "  • Stale UI bundle"
+                    echo "  • Missing BAS CLI"
+                    echo ""
+                    echo "Quick fixes:"
+                    local scenarios_root="${TESTING_RUNNER_SCENARIO_DIR}/.."
+                    echo "  → Restart scenario:   vrooli scenario restart ${TESTING_RUNNER_SCENARIO_NAME}"
+                    echo "  → Check scenario:     vrooli scenario status ${TESTING_RUNNER_SCENARIO_NAME}"
+                    echo "  → Install BAS:        cd ${scenarios_root}/browser-automation-studio && make install-cli"
+                    echo ""
+                    ;;
+                performance)
+                    echo "━━━ PERFORMANCE PHASE ━━━"
+                    echo "Common issues:"
+                    echo "  • Lighthouse audits below threshold"
+                    echo "  • UI bundle too large"
+                    echo "  • Slow page load times"
+                    echo ""
+                    echo "Quick fixes:"
+                    echo "  → View reports:       open ${TESTING_RUNNER_SCENARIO_DIR}/test/artifacts/lighthouse/*.html"
+                    echo "  → Analyze bundle:     cd ${TESTING_RUNNER_SCENARIO_DIR}/ui && pnpm run analyze"
+                    echo "  → Check bundle size:  ls -lh ${TESTING_RUNNER_SCENARIO_DIR}/ui/dist/assets/*.js"
+                    echo ""
+                    ;;
+                structure)
+                    echo "━━━ STRUCTURE PHASE ━━━"
+                    echo "Common issues:"
+                    echo "  • UI smoke test failing (API not responding)"
+                    echo "  • Missing required files"
+                    echo "  • Invalid JSON configuration"
+                    echo ""
+                    echo "Quick fixes:"
+                    local app_root
+                    app_root=$(cd "${TESTING_RUNNER_SCENARIO_DIR}/../.." && pwd)
+                    echo "  → Check API logs:     tail -f ${app_root}/logs/${TESTING_RUNNER_SCENARIO_NAME}-api.log"
+                    echo "  → Restart scenario:   vrooli scenario restart ${TESTING_RUNNER_SCENARIO_NAME}"
+                    echo "  → Validate JSON:      jq . ${TESTING_RUNNER_SCENARIO_DIR}/.vrooli/service.json"
+                    echo ""
+                    ;;
+            esac
+        done
+    fi
 
     # =========================================================================
     # DETAILED REFERENCES
