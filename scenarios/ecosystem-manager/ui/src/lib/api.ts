@@ -207,6 +207,12 @@ const normalizeTaskTargets = (task: any): Task => {
     task.auto_steer_mode ??
     task.autoSteerMode ??
     task.AutoSteerMode;
+  const autoRequeue =
+    typeof task.auto_requeue === 'boolean'
+      ? task.auto_requeue
+      : typeof task.processor_auto_requeue === 'boolean'
+        ? task.processor_auto_requeue
+        : true;
 
   return {
     ...task,
@@ -216,7 +222,7 @@ const normalizeTaskTargets = (task: any): Task => {
     last_completed_at: lastCompletedAt,
     cooldown_until: cooldownUntil,
     // Backend uses processor_auto_requeue; UI expects auto_requeue
-    auto_requeue: task.auto_requeue ?? task.processor_auto_requeue ?? false,
+    auto_requeue: autoRequeue,
     auto_steer_mode: autoSteerMode,
   };
 };

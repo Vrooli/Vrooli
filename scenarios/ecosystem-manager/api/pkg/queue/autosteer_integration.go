@@ -163,6 +163,16 @@ func (a *AutoSteerIntegration) AdvancePhase(task *tasks.TaskItem, scenarioName s
 // ShouldContinueTask determines if a task should continue (requeue) after execution
 // Takes into account Auto Steer state and phase progression
 func (a *AutoSteerIntegration) ShouldContinueTask(task *tasks.TaskItem, scenarioName string) (bool, error) {
+	if task == nil {
+		return false, fmt.Errorf("task is nil")
+	}
+
+	// Honor explicit opt-outs even when Auto Steer is configured.
+	if !task.ProcessorAutoRequeue {
+		log.Printf("Auto Steer: Task %s has auto-enqueue disabled; skipping recycle", task.ID)
+		return false, nil
+	}
+
 	if task.AutoSteerProfileID == "" {
 		// No Auto Steer - use normal ProcessorAutoRequeue behavior
 		return task.ProcessorAutoRequeue, nil

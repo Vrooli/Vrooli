@@ -3,8 +3,7 @@
  * Displays elapsed timer (for in-progress tasks), execution count, and action buttons
  */
 
-import { Eye, Trash2, PlayCircle, CheckCircle2 } from 'lucide-react';
-import { Snowflake } from 'lucide-react';
+import { Eye, Trash2, PlayCircle, CheckCircle2, Lock, Snowflake } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { ElapsedTimer } from './ElapsedTimer';
 import type { Task } from '../../types/api';
@@ -21,6 +20,11 @@ export function TaskCardFooter({ task, onViewDetails, onDelete }: TaskCardFooter
   const executionCount = task.execution_count || 0;
   const completionCount = task.completion_count ?? 0;
   const showCooldown = (task.status === 'completed' || task.status === 'failed') && !!task.cooldown_until;
+  const showAutoRequeueDisabled =
+    task.status !== 'pending' &&
+    task.status !== 'in-progress' &&
+    task.auto_requeue === false &&
+    !showCooldown;
 
   return (
     <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border/60">
@@ -30,6 +34,7 @@ export function TaskCardFooter({ task, onViewDetails, onDelete }: TaskCardFooter
           <ElapsedTimer startTime={task.current_process.start_time} />
         )}
         {showCooldown && <CooldownCountdown until={task.cooldown_until!} />}
+        {showAutoRequeueDisabled && <AutoRequeueLocked />}
         <div
           className="flex items-center gap-1.5 text-xs text-muted-foreground"
           title="Completion count"
@@ -74,6 +79,15 @@ export function TaskCardFooter({ task, onViewDetails, onDelete }: TaskCardFooter
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+function AutoRequeueLocked() {
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-amber-600" title="Auto-enqueue disabled">
+      <Lock className="h-3.5 w-3.5" />
+      <span className="tabular-nums">Locked</span>
     </div>
   );
 }
