@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
 	"sort"
@@ -348,9 +351,6 @@ func preserveUnsetFields(updated, current *tasks.TaskItem, preserveSteerMode boo
 	}
 	if updated.Category == "" {
 		updated.Category = current.Category
-	}
-	if updated.Notes == "" {
-		updated.Notes = current.Notes
 	}
 	if updated.EffortEstimate == "" {
 		updated.EffortEstimate = current.EffortEstimate
@@ -779,6 +779,21 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	bodyBytes, _ := io.ReadAll(r.Body)
+	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	var raw map[string]any
+	if err := json.Unmarshal(bodyBytes, &raw); err != nil {
+		// Keep going with structured decode; just log for debugging
+		systemlog.Warnf("UpdateTaskHandler: could not decode raw body for presence detection: %v", err)
+	}
+	notesProvided := false
+	if raw != nil {
+		if _, ok := raw["notes"]; ok {
+			notesProvided = true
+		}
+	}
+
 	updatedTaskPtr, ok := decodeJSONBody[tasks.TaskItem](w, r)
 	if !ok {
 		return
@@ -817,6 +832,11 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 
 	// Preserve all other fields if they weren't provided in the update
 	preserveUnsetFields(&updatedTask, currentTask, !steerModeCleared)
+
+	// Notes: only preserve when not provided; allow explicit clearing
+	if !notesProvided {
+		updatedTask.Notes = currentTask.Notes
+	}
 
 	if !validateAndNormalizeSteerMode(&updatedTask, w) {
 		return

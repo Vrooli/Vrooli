@@ -1,28 +1,28 @@
-id: scenario-improver-landing-manager-20251124-184617
-title: Improve scenario landing-manager
+id: scenario-improver-chart-generator-20251124-155738
+title: Improve scenario chart-generator
 type: scenario
 operation: improver
-target: landing-manager
+target: chart-generator
 targets:
-    - landing-manager
+    - chart-generator
 category: ""
-priority: high
+priority: medium
 effort_estimate: ""
 urgency: ""
 dependencies: []
 blocks: []
 related_scenarios: []
 related_resources: []
-status: in-progress
-current_phase: executing_claude
-started_at: "2025-11-24T18:46:23-05:00"
+status: pending
+current_phase: ""
+started_at: ""
 completed_at: ""
-completion_count: 0
-last_completed_at: ""
+completion_count: 6
+last_completed_at: "2025-11-24T19:04:05-05:00"
 validation_criteria: []
 created_by: ""
-created_at: "2025-11-24T18:46:17-05:00"
-updated_at: "2025-11-24T18:46:23-05:00"
+created_at: "2025-11-24T15:57:38-05:00"
+updated_at: "2025-11-24T20:04:48-05:00"
 tags: []
 notes: ""
 results: {}

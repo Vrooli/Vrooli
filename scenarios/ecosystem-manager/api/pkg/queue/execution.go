@@ -183,6 +183,11 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 		}
 	}
 
+	// Surface latest execution output path for prompt templating (if available)
+	if latest := qp.LatestExecutionOutputPath(task.ID); latest != "" {
+		task.LatestOutputPath = latest
+	}
+
 	// Generate the full prompt for the task
 	assembly, err := qp.assembler.AssemblePromptForTask(task)
 	if err != nil {

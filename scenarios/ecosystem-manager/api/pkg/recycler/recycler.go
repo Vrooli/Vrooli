@@ -1,7 +1,6 @@
 package recycler
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/settings"
-	"github.com/ecosystem-manager/api/pkg/summarizer"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
@@ -514,23 +512,7 @@ func (r *Recycler) Stats() recyclerStats {
 }
 
 func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.RecyclerSettings) error {
-	output := extractOutput(task.Results)
 	now := timeutil.NowRFC3339()
-
-	// Get AI summary (notes only, NO classification)
-	var aiNote string
-	if strings.TrimSpace(output) != "" {
-		result, err := summarizer.GenerateNote(context.Background(), summarizer.Config{
-			Provider: cfg.ModelProvider,
-			Model:    cfg.ModelName,
-		}, summarizer.Input{Output: output})
-		if err != nil {
-			log.Printf("Recycler summarizer error for task %s: %v", task.ID, err)
-			aiNote = "Unable to generate summary"
-		} else {
-			aiNote = result.Note
-		}
-	}
 
 	// Get metrics classification (NEW - this is the source of truth)
 	// Use Title as fallback if Target is empty (generator tasks use title as scenario name)
@@ -549,9 +531,6 @@ func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.Recyc
 		}
 	}
 
-	// Build composite note with metrics prefix
-	compositeNote := buildCompositeNote(metricsResult, aiNote)
-
 	// Use structured results for recycler info
 	taskResults := tasks.FromMap(task.Results)
 	taskResults.SetRecyclerInfo(metricsResult.Classification, now)
@@ -569,7 +548,7 @@ func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.Recyc
 	}
 	task.ConsecutiveFailures = 0
 
-	task.Notes = compositeNote
+	// Recycler no longer mutates user notes; rely on agent-facing artifacts instead
 	task.UpdatedAt = now
 
 	if shouldFinalize(task.ConsecutiveCompletionClaims, cfg.CompletionThreshold) {
@@ -612,36 +591,15 @@ func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.Recyc
 }
 
 func (r *Recycler) processFailedTask(task *tasks.TaskItem, cfg settings.RecyclerSettings) error {
-	output := extractOutput(task.Results)
 	now := timeutil.NowRFC3339()
 
 	// Failure streak increments regardless of summarizer outcome.
 	task.ConsecutiveFailures++
 	task.ConsecutiveCompletionClaims = 0
 
-	// Use structured results for recycler info
+	// Use structured results for recycler info; do not mutate user notes
 	taskResults := tasks.FromMap(task.Results)
-	var classification string
-
-	if strings.TrimSpace(output) != "" {
-		result, err := summarizer.GenerateNote(context.Background(), summarizer.Config{
-			Provider: cfg.ModelProvider,
-			Model:    cfg.ModelName,
-		}, summarizer.Input{Output: output})
-		if err != nil {
-			log.Printf("Recycler summarizer error for failed task %s: %v", task.ID, err)
-			task.Notes = "Not sure current status"
-			classification = "uncertain"
-		} else {
-			task.Notes = result.Note
-			classification = result.Classification
-		}
-	} else {
-		task.Notes = "Not sure current status"
-		classification = "uncertain"
-	}
-
-	taskResults.SetRecyclerInfo(classification, now)
+	taskResults.SetRecyclerInfo("failed", now)
 	task.Results = taskResults.ToMap()
 
 	task.UpdatedAt = now

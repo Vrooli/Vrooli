@@ -112,24 +112,25 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   const latestExecution = sortedExecutions[0] ?? null;
   const selectedExecution = sortedExecutions.find(exec => exec.id === selectedExecutionId) || null;
 
-  // Initialize form when task changes
+  // Initialize form when the task identity changes (avoid clobbering in-flight edits)
   useEffect(() => {
-    if (task) {
-      const derivedTarget = (Array.isArray(task.target) && task.target.length > 0)
-        ? task.target[0]
-        : task.title;
-      setTargetName(derivedTarget || '');
-      setPriority(task.priority);
-      setNotes(task.notes || '');
-      const initialMode: SteerMode | 'none' =
-        task.auto_steer_profile_id && task.auto_steer_profile_id !== AUTO_STEER_NONE
-          ? 'none'
-          : (task.steer_mode as SteerMode) || 'none';
-      setSteerMode(initialMode);
-      setAutoSteerProfileId(task.auto_steer_profile_id || AUTO_STEER_NONE);
-      setAutoRequeue(task.auto_requeue || false);
-    }
-  }, [task]);
+    if (!task) return;
+
+    const derivedTarget = (Array.isArray(task.target) && task.target.length > 0)
+      ? task.target[0]
+      : task.title;
+    setTargetName(derivedTarget || '');
+    setPriority(task.priority);
+    setNotes(task.notes || '');
+
+    const initialMode: SteerMode | 'none' =
+      task.auto_steer_profile_id && task.auto_steer_profile_id !== AUTO_STEER_NONE
+        ? 'none'
+        : (task.steer_mode as SteerMode) || 'none';
+    setSteerMode(initialMode);
+    setAutoSteerProfileId(task.auto_steer_profile_id || AUTO_STEER_NONE);
+    setAutoRequeue(task.auto_requeue || false);
+  }, [task?.id]);
 
   useEffect(() => {
     if (task && autoSteerProfileId !== AUTO_STEER_NONE) {
@@ -301,7 +302,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
 
     const updates: UpdateTaskInput = {
       priority,
-      notes: notes.trim() || undefined,
+      notes: notes.trim(),
       steer_mode: autoSteerProfileId === AUTO_STEER_NONE && steerMode !== 'none' ? steerMode : undefined,
       auto_steer_profile_id: autoSteerProfileId === AUTO_STEER_NONE ? undefined : autoSteerProfileId,
       auto_requeue: autoRequeue,

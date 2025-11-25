@@ -431,3 +431,49 @@ func TestGetExecutionFilePath(t *testing.T) {
 
 	t.Logf("GetExecutionFilePath correctly constructed: %s", path)
 }
+
+func TestLatestExecutionOutputPathPrefersClean(t *testing.T) {
+	processor, cleanup := setupTestExecutionProcessor(t)
+	defer cleanup()
+
+	taskID := "test-task-006"
+	base := processor.taskLogsDir
+
+	newer := ExecutionHistory{
+		TaskID:          taskID,
+		ExecutionID:     "2025-10-27_130000",
+		StartTime:       time.Now(),
+		CleanOutputPath: filepath.Join(taskID, "executions", "2025-10-27_130000", "clean_output.txt"),
+		OutputPath:      filepath.Join(taskID, "executions", "2025-10-27_130000", "output.log"),
+	}
+	older := ExecutionHistory{
+		TaskID:      taskID,
+		ExecutionID: "2025-10-27_120000",
+		StartTime:   time.Now().Add(-1 * time.Hour),
+		OutputPath:  filepath.Join(taskID, "executions", "2025-10-27_120000", "output.log"),
+	}
+
+	if err := processor.saveExecutionMetadata(newer); err != nil {
+		t.Fatalf("failed to persist newer execution: %v", err)
+	}
+	if err := processor.saveExecutionMetadata(older); err != nil {
+		t.Fatalf("failed to persist older execution: %v", err)
+	}
+
+	latest := processor.LatestExecutionOutputPath(taskID)
+	expected := filepath.Join(base, newer.CleanOutputPath)
+	if latest != expected {
+		t.Fatalf("expected latest output path %q, got %q", expected, latest)
+	}
+
+	// Remove clean path to ensure fallback to output.log
+	newer.CleanOutputPath = ""
+	if err := processor.saveExecutionMetadata(newer); err != nil {
+		t.Fatalf("failed to update newer execution: %v", err)
+	}
+	latest = processor.LatestExecutionOutputPath(taskID)
+	fallback := filepath.Join(base, newer.OutputPath)
+	if latest != fallback {
+		t.Fatalf("expected fallback output path %q, got %q", fallback, latest)
+	}
+}

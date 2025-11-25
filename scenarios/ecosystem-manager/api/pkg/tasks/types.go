@@ -41,6 +41,8 @@ type TaskItem struct {
 	ProcessorAutoRequeue        bool           `json:"processor_auto_requeue" yaml:"processor_auto_requeue"`
 	SteerMode                   string         `json:"steer_mode,omitempty" yaml:"steer_mode,omitempty"`                       // Optional manual steering mode when Auto Steer profile is not set
 	AutoSteerProfileID          string         `json:"auto_steer_profile_id,omitempty" yaml:"auto_steer_profile_id,omitempty"` // Auto Steer profile to use
+	// Ephemeral prompt context (not persisted)
+	LatestOutputPath string `json:"-" yaml:"-"`
 }
 
 // OperationConfig represents configuration for each operation type

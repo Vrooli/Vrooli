@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/systemlog"
@@ -248,6 +249,31 @@ func (qp *Processor) LoadAllExecutionHistory() ([]ExecutionHistory, error) {
 
 	log.Printf("Loaded execution history from disk (%d entries)", len(allHistory))
 	return allHistory, nil
+}
+
+// LatestExecutionOutputPath returns the absolute path to the most recent execution output
+// Prefers clean_output.txt when available, otherwise output.log. Returns empty string if none found.
+func (qp *Processor) LatestExecutionOutputPath(taskID string) string {
+	history, err := qp.LoadExecutionHistory(taskID)
+	if err != nil || len(history) == 0 {
+		return ""
+	}
+
+	latest := history[0]
+	base := qp.taskLogsDir
+
+	resolve := func(rel string) string {
+		if strings.TrimSpace(rel) == "" {
+			return ""
+		}
+		return filepath.Join(base, rel)
+	}
+
+	if path := resolve(latest.CleanOutputPath); path != "" {
+		return path
+	}
+
+	return resolve(latest.OutputPath)
 }
 
 // CleanupOldExecutions removes execution history older than the specified retention period

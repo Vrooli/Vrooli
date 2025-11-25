@@ -4,6 +4,11 @@ You are executing a **scenario improvement** task for the Ecosystem Manager.
 - Work strictly inside `{{PROJECT_PATH}}/scenarios/{{TARGET}}/` (and its `.vrooli/`, `docs/`, and `requirements/` folders). If you uncover problems elsewhere, record them in your notes instead of editing unrelated paths.
 - Respect the generator’s scaffold. Follow the current steering focus, avoid regressions, and stay within the existing architecture rather than redesigning the scenario from scratch.
 
+## Before You Start (self-orientation)
+- Run `vrooli scenario status {{TARGET}}` to see failing checks and remediation hints.
+- Run `vrooli scenario completeness {{TARGET}}` (json or plain) to understand current quality/coverage and recommendations.
+- Read the latest execution output if available: `{{LATEST_OUTPUT_PATH}}` (skip if not available). Use it to understand what the last run did and any errors.
+
 ## Quick Validation Loop (repeat until green)
 1. `vrooli scenario status {{TARGET}}`
    - Shows failing checks, missing files, stale ports, and remediation hints. Use it to prioritize work and verify progress before handoff.

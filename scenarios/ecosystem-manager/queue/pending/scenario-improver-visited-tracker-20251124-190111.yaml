@@ -1,10 +1,10 @@
-id: scenario-improver-prd-control-tower-20251124-184842
-title: Improve scenario prd-control-tower
+id: scenario-improver-visited-tracker-20251124-190111
+title: Improve scenario visited-tracker
 type: scenario
 operation: improver
-target: prd-control-tower
+target: visited-tracker
 targets:
-    - prd-control-tower
+    - visited-tracker
 category: ""
 priority: high
 effort_estimate: ""
@@ -13,20 +13,20 @@ dependencies: []
 blocks: []
 related_scenarios: []
 related_resources: []
-status: in-progress
-current_phase: executing_claude
-started_at: "2025-11-24T18:48:42-05:00"
+status: pending
+current_phase: ""
+started_at: ""
 completed_at: ""
 completion_count: 0
 last_completed_at: ""
 validation_criteria: []
 created_by: ""
-created_at: "2025-11-24T18:48:42-05:00"
-updated_at: "2025-11-24T18:48:42-05:00"
+created_at: "2025-11-24T19:01:11-05:00"
+updated_at: "2025-11-24T19:01:11-05:00"
 tags: []
 notes: ""
 results: {}
 consecutive_completion_claims: 0
 consecutive_failures: 0
 processor_auto_requeue: true
-steer_mode: ux
+auto_steer_profile_id: ec725997-ceb7-4f0d-8b13-5f55ca45f336
