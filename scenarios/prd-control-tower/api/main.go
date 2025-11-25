@@ -96,6 +96,9 @@ func main() {
 	apiV1.HandleFunc("/catalog/{type}/{name}/requirements/{requirement_id}", handleUpdateRequirement).Methods("PUT")
 	apiV1.HandleFunc("/catalog/{type}/{name}/requirements/{requirement_id}", handleDeleteRequirement).Methods("DELETE")
 	apiV1.HandleFunc("/catalog/{type}/{name}/targets", handleGetOperationalTargets).Methods("GET")
+	apiV1.HandleFunc("/catalog/{type}/{name}/targets", handleCreateOperationalTarget).Methods("POST")
+	apiV1.HandleFunc("/catalog/{type}/{name}/targets/{target_id}", handleUpdateOperationalTarget).Methods("PUT")
+	apiV1.HandleFunc("/catalog/{type}/{name}/targets/{target_id}", handleDeleteOperationalTarget).Methods("DELETE")
 	apiV1.HandleFunc("/catalog/{type}/{name}/ecosystem-task", handleGetEcosystemTask).Methods("GET")
 	apiV1.HandleFunc("/catalog/{type}/{name}/ecosystem-task", handleCreateEcosystemTask).Methods("POST")
 

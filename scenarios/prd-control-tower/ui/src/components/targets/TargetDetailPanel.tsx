@@ -1,18 +1,26 @@
-import { Target, CheckCircle2, Circle, Link2, FileText } from 'lucide-react'
+import { useState } from 'react'
+import { Target, CheckCircle2, Circle, Link2, FileText, Edit, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import type { OperationalTarget } from '../../types'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Separator } from '../ui/separator'
+import { TargetEditPanel } from './TargetEditPanel'
+import { buildApiUrl } from '../../utils/apiClient'
 
 interface TargetDetailPanelProps {
   target: OperationalTarget | null
   entityType?: string
   entityName?: string
+  onTargetUpdate?: (updated: OperationalTarget) => void
+  onTargetDelete?: (id: string) => void
 }
 
-export function TargetDetailPanel({ target, entityType, entityName }: TargetDetailPanelProps) {
+export function TargetDetailPanel({ target, entityType, entityName, onTargetUpdate, onTargetDelete }: TargetDetailPanelProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const navigate = useNavigate()
 
   if (!target) {
@@ -23,6 +31,55 @@ export function TargetDetailPanel({ target, entityType, entityName }: TargetDeta
           <p className="text-muted-foreground">Select an operational target to view details</p>
         </CardContent>
       </Card>
+    )
+  }
+
+  const handleSave = (updated: OperationalTarget) => {
+    setIsEditing(false)
+    onTargetUpdate?.(updated)
+  }
+
+  const handleCancel = () => {
+    setIsEditing(false)
+  }
+
+  const handleDelete = async () => {
+    if (!entityType || !entityName) return
+
+    const confirmed = window.confirm(`Are you sure you want to delete target "${target.title}"? This action cannot be undone.`)
+    if (!confirmed) return
+
+    setIsDeleting(true)
+    try {
+      const response = await fetch(
+        buildApiUrl(`/catalog/${entityType}/${entityName}/targets/${target.id}`),
+        { method: 'DELETE' }
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Failed to delete target: ${response.statusText}`)
+      }
+
+      toast.success('Target deleted successfully')
+      onTargetDelete?.(target.id)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete target')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // Show edit panel if editing
+  if (isEditing && entityType && entityName) {
+    return (
+      <TargetEditPanel
+        target={target}
+        entityType={entityType}
+        entityName={entityName}
+        onSave={handleSave}
+        onCancel={handleCancel}
+      />
     )
   }
 
@@ -46,10 +103,30 @@ export function TargetDetailPanel({ target, entityType, entityName }: TargetDeta
               {target.criticality && <Badge variant={criticalityColor}>{target.criticality}</Badge>}
             </CardDescription>
           </div>
-          <Badge variant={target.status === 'complete' ? 'success' : 'warning'} className="gap-1">
-            {statusIcon}
-            {target.status}
-          </Badge>
+          <div className="flex flex-col gap-2">
+            <Badge variant={target.status === 'complete' ? 'success' : 'warning'} className="gap-1">
+              {statusIcon}
+              {target.status}
+            </Badge>
+            {entityType && entityName && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-1">
+                  <Edit size={14} />
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="gap-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                >
+                  <Trash2 size={14} />
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </CardHeader>
 

@@ -3,6 +3,7 @@ import { Search, Loader2, AlertTriangle, Target, Filter } from 'lucide-react'
 import { useOperationalTargets } from '../hooks/useOperationalTargets'
 import { TargetsList } from '../components/targets/TargetsList'
 import { TargetDetailPanel } from '../components/targets/TargetDetailPanel'
+import { TargetCreateDialog } from '../components/targets/TargetCreateDialog'
 import { Input } from '../components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card'
 import { Button } from '../components/ui/button'
@@ -152,25 +153,34 @@ export default function OperationalTargetsExplorer() {
       )}
 
       <div className="space-y-3">
-        <div className="relative max-w-xl">
-          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <Input
-            id="targets-search"
-            type="text"
-            className="pl-9"
-            placeholder="Search targets by title, ID, or notes..."
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          />
-          {filter && (
-            <button
-              type="button"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500"
-              onClick={() => setFilter('')}
-              aria-label="Clear search"
-            >
-              Clear
-            </button>
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 max-w-xl">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Input
+              id="targets-search"
+              type="text"
+              className="pl-9"
+              placeholder="Search targets by title, ID, or notes..."
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+            {filter && (
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500"
+                onClick={() => setFilter('')}
+                aria-label="Clear search"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {entityType && entityName && (
+            <TargetCreateDialog
+              entityType={entityType}
+              entityName={entityName}
+              onSuccess={refresh}
+            />
           )}
         </div>
 
@@ -213,7 +223,13 @@ export default function OperationalTargetsExplorer() {
           </CardContent>
         </Card>
 
-        <TargetDetailPanel target={selectedTarget} />
+        <TargetDetailPanel
+          target={selectedTarget}
+          entityType={entityType}
+          entityName={entityName}
+          onTargetUpdate={refresh}
+          onTargetDelete={refresh}
+        />
       </div>
 
       <div className="flex flex-wrap gap-4 text-sm">

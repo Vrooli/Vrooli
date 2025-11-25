@@ -16,6 +16,7 @@ import { RequirementDetailPanel } from '../components/requirements/RequirementDe
 import { RequirementCreateDialog } from '../components/requirements/RequirementCreateDialog'
 import { TargetsList } from '../components/targets/TargetsList'
 import { TargetDetailPanel } from '../components/targets/TargetDetailPanel'
+import { TargetCreateDialog } from '../components/targets/TargetCreateDialog'
 import { Input } from '../components/ui/input'
 import { Badge } from '../components/ui/badge'
 import { usePublishedPRD } from '../hooks/usePublishedPRD'
@@ -244,6 +245,14 @@ export default function ScenarioControlCenter() {
 
   const handleRequirementDelete = () => {
     refreshRequirements()
+  }
+
+  const handleTargetUpdate = () => {
+    refreshTargets()
+  }
+
+  const handleTargetDelete = () => {
+    refreshTargets()
   }
 
   const quickActions: QuickAction[] = [
@@ -662,6 +671,13 @@ export default function ScenarioControlCenter() {
                     <option value="pending">Pending</option>
                   </select>
                 </div>
+                {entityType && entityName && (
+                  <TargetCreateDialog
+                    entityType={entityType}
+                    entityName={entityName}
+                    onSuccess={refreshTargets}
+                  />
+                )}
               </div>
 
               <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
@@ -675,7 +691,13 @@ export default function ScenarioControlCenter() {
 
                 {selectedTarget && (
                   <div className="sticky top-6 h-fit">
-                    <TargetDetailPanel target={selectedTarget} entityType={entityType} entityName={entityName} />
+                    <TargetDetailPanel
+                      target={selectedTarget}
+                      entityType={entityType}
+                      entityName={entityName}
+                      onTargetUpdate={handleTargetUpdate}
+                      onTargetDelete={handleTargetDelete}
+                    />
                   </div>
                 )}
               </div>
