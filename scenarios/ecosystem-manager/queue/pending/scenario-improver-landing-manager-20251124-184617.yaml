@@ -1,0 +1,41 @@
+id: scenario-improver-landing-manager-20251124-184617
+title: Improve scenario landing-manager
+type: scenario
+operation: improver
+target: landing-manager
+targets:
+    - landing-manager
+category: ""
+priority: high
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: pending
+current_phase: completed
+started_at: "2025-11-25T14:36:59-05:00"
+completed_at: "2025-11-25T14:45:34-05:00"
+completion_count: 29
+last_completed_at: "2025-11-25T14:45:34-05:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-11-24T18:46:17-05:00"
+updated_at: "2025-11-25T14:53:04-05:00"
+tags: []
+notes: |-
+    Note that last time I checked (could be fixed now), generated apps fail to start, with an error like this:
+    """
+    {
+        "message": "Failed to start scenario: exit status 1",
+        "output": "\u001b[0;31m[ERROR]   Scenario not found: test-dry\n",
+        "success": false
+    }
+    """
+    I think this is because all of our shared scenario lifecycle logic depends on scenarios being at scenarios/<scenario_name>/. The fact that we have a staging area isn't supported. If you know of an elegant way to support this (maybe something like `vrooli scenario start <scenario_name> --path <path>) safely without breaking the default lifecycle behavior, the you hereby have permission to update the shared helper to support it. If it is already  set up, landing-manager is using it properly, it has passing test coverage, and you're overall confident it works, then don't worry about it. But afaik, this is not the case yet.
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true
+auto_steer_profile_id: ec725997-ceb7-4f0d-8b13-5f55ca45f336

@@ -231,6 +231,34 @@ func (h *AutoSteerHandlers) ResetExecution(w http.ResponseWriter, r *http.Reques
 	})
 }
 
+// SeekExecution handles POST /api/auto-steer/execution/seek
+// Allows operators to jump to a specific phase/iteration without restarting.
+func (h *AutoSteerHandlers) SeekExecution(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TaskID         string `json:"task_id"`
+		PhaseIndex     int    `json:"phase_index"`
+		PhaseIteration int    `json:"phase_iteration"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
+		return
+	}
+
+	if req.TaskID == "" {
+		writeError(w, http.StatusBadRequest, "task_id is required")
+		return
+	}
+
+	state, err := h.executionEngine.SeekExecution(req.TaskID, req.PhaseIndex, req.PhaseIteration)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to seek execution: "+err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, state)
+}
+
 // AdvancePhase handles POST /api/auto-steer/execution/advance
 func (h *AutoSteerHandlers) AdvancePhase(w http.ResponseWriter, r *http.Request) {
 	var req struct {

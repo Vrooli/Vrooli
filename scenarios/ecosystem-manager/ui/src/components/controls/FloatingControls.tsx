@@ -69,22 +69,26 @@ export function FloatingControls({ onSelectTask }: FloatingControlsProps) {
 
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
     document.body.style.userSelect = 'none';
 
     return () => {
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
       document.body.style.userSelect = '';
     };
   }, [isDragging]);
 
   const handlePointerDown = (event: ReactPointerEvent) => {
-    if (event.button !== 0) return;
+    if (event.pointerType !== 'touch' && event.button !== 0) return;
     const target = event.target as HTMLElement;
     if (target.closest('button')) return;
 
     const container = containerRef.current;
     if (!container) return;
+
+    container.setPointerCapture(event.pointerId);
 
     const rect = container.getBoundingClientRect();
     dragOffset.current = {
@@ -99,12 +103,12 @@ export function FloatingControls({ onSelectTask }: FloatingControlsProps) {
   return (
     <div
       ref={containerRef}
-      className="fixed z-30 bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg px-3 py-2 max-w-[calc(100vw-2rem)] sm:max-w-2xl cursor-grab active:cursor-grabbing"
+      className="fixed z-30 bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg px-3 py-2 max-w-[calc(100vw-2rem)] sm:max-w-2xl cursor-grab active:cursor-grabbing touch-none"
       style={{ left: position.x, top: position.y }}
       onPointerDown={handlePointerDown}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+        <div className="hidden sm:flex items-center text-muted-foreground">
           <GripVertical className="h-4 w-4" />
         </div>
 
@@ -112,7 +116,7 @@ export function FloatingControls({ onSelectTask }: FloatingControlsProps) {
           <ProcessorStatusButton />
         </div>
 
-        <div className="flex items-center gap-2 pl-3 border-l border-border/60">
+        <div className="flex items-center gap-1.5 sm:gap-2 sm:pl-3 sm:border-l sm:border-border/60">
           <FilterToggleButton />
           <ProcessMonitor onSelectTask={onSelectTask} />
         </div>

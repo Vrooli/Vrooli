@@ -71,6 +71,21 @@ export function useResetAutoSteerExecution() {
 }
 
 /**
+ * Seek Auto Steer execution cursor to a specific phase/iteration
+ */
+export function useSeekAutoSteerExecution() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ taskId, phaseIndex, phaseIteration }: { taskId: string; phaseIndex: number; phaseIteration: number }) =>
+      api.seekAutoSteerExecution(taskId, phaseIndex, phaseIteration),
+    onSuccess: (state) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.executionState(state?.task_id ?? 'none') });
+    },
+  });
+}
+
+/**
  * Create a new Auto Steer profile
  */
 export function useCreateAutoSteerProfile() {

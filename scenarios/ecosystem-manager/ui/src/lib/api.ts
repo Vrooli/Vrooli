@@ -980,6 +980,17 @@ class ApiClient {
     });
   }
 
+  async seekAutoSteerExecution(taskId: string, phaseIndex: number, phaseIteration: number): Promise<AutoSteerExecutionState> {
+    return this.fetchJSON<AutoSteerExecutionState>(`/api/auto-steer/execution/seek`, {
+      method: 'POST',
+      body: JSON.stringify({
+        task_id: taskId,
+        phase_index: phaseIndex,
+        phase_iteration: phaseIteration,
+      }),
+    });
+  }
+
   // ==================== Utilities ====================
 
   private encodePromptPath(id: string): string {

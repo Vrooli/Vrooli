@@ -57,7 +57,7 @@ export function ProcessMonitor({ onSelectTask }: ProcessMonitorProps) {
             variant="outline"
             size="sm"
             onClick={() => setIsOpen(!isOpen)}
-            className="relative px-3"
+            className="relative px-2.5 sm:px-3"
             disabled={isLoading}
             aria-label={`View running processes${processCount > 0 ? ` (${processCount})` : ''}`}
           >
@@ -67,7 +67,7 @@ export function ProcessMonitor({ onSelectTask }: ProcessMonitorProps) {
                 {processCount}
               </span>
             )}
-            <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`hidden sm:block h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </Button>
         </TooltipTrigger>
         <TooltipContent side="top">Running processes</TooltipContent>

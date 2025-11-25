@@ -406,6 +406,7 @@ func setupRoutes() http.Handler {
 	api.HandleFunc("/auto-steer/execution/evaluate", autoSteerHandlers.EvaluateIteration).Methods("POST")
 	api.HandleFunc("/auto-steer/execution/reset", autoSteerHandlers.ResetExecution).Methods("POST")
 	api.HandleFunc("/auto-steer/execution/advance", autoSteerHandlers.AdvancePhase).Methods("POST")
+	api.HandleFunc("/auto-steer/execution/seek", autoSteerHandlers.SeekExecution).Methods("POST")
 	api.HandleFunc("/auto-steer/execution/{taskId}", autoSteerHandlers.GetExecutionState).Methods("GET")
 
 	// Metrics

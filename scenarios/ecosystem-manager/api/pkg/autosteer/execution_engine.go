@@ -222,6 +222,74 @@ func (e *ExecutionEngine) EvaluateIteration(taskID string, scenarioName string) 
 	}, nil
 }
 
+// SeekExecution manually adjusts the execution cursor to a specific phase/iteration.
+func (e *ExecutionEngine) SeekExecution(taskID string, phaseIndex int, phaseIteration int) (*ProfileExecutionState, error) {
+	state, err := e.GetExecutionState(taskID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get execution state: %w", err)
+	}
+
+	if state == nil {
+		return nil, fmt.Errorf("no execution state found for task: %s", taskID)
+	}
+
+	profile, err := e.profileService.GetProfile(state.ProfileID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get profile: %w", err)
+	}
+
+	if len(profile.Phases) == 0 {
+		return nil, fmt.Errorf("profile has no phases")
+	}
+
+	if phaseIndex < 0 {
+		phaseIndex = 0
+	}
+	if phaseIndex >= len(profile.Phases) {
+		phaseIndex = len(profile.Phases) - 1
+	}
+
+	maxIterations := profile.Phases[phaseIndex].MaxIterations
+	if maxIterations < 1 {
+		maxIterations = 1
+	}
+
+	if phaseIteration < 0 {
+		phaseIteration = 0
+	}
+	if phaseIteration > maxIterations {
+		phaseIteration = maxIterations
+	}
+
+	// Derive total iteration count up to the target position
+	totalIterations := 0
+	for idx := 0; idx < phaseIndex; idx++ {
+		iter := profile.Phases[idx].MaxIterations
+		if idx < len(state.PhaseHistory) && state.PhaseHistory[idx].Iterations > 0 {
+			iter = state.PhaseHistory[idx].Iterations
+		}
+		totalIterations += iter
+	}
+	totalIterations += phaseIteration
+
+	state.CurrentPhaseIndex = phaseIndex
+	state.CurrentPhaseIteration = phaseIteration
+	state.AutoSteerIteration = totalIterations
+	state.PhaseStartMetrics = state.Metrics
+	state.PhaseStartedAt = time.Now()
+	state.LastUpdated = time.Now()
+
+	if len(state.PhaseHistory) > phaseIndex {
+		state.PhaseHistory = state.PhaseHistory[:phaseIndex]
+	}
+
+	if err := e.saveExecutionState(state); err != nil {
+		return nil, fmt.Errorf("failed to save execution state: %w", err)
+	}
+
+	return state, nil
+}
+
 // AdvancePhase advances to the next phase or completes execution
 func (e *ExecutionEngine) AdvancePhase(taskID string, scenarioName string) (*PhaseAdvanceResult, error) {
 	// Get execution state

@@ -3,7 +3,7 @@
  * Modal for viewing and editing task details with 5 tabs
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -25,14 +25,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Save, Archive, Trash2 } from 'lucide-react';
+import { Save, Archive, Trash2, RefreshCw, ChevronsUpDown } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useUpdateTask, useDeleteTask } from '@/hooks/useTaskMutations';
-import { useAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExecution } from '@/hooks/useAutoSteer';
+import { useAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExecution, useSeekAutoSteerExecution } from '@/hooks/useAutoSteer';
 import { api } from '@/lib/api';
 import { markdownToHtml } from '@/lib/markdown';
 import { queryKeys } from '@/lib/queryKeys';
 import { ExecutionDetailCard } from '@/components/executions/ExecutionDetailCard';
+import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfileEditorModal';
 import type { Task, Priority, ExecutionHistory, UpdateTaskInput, LogEntry, SteerMode } from '@/types/api';
 import { STEER_MODES } from '@/types/api';
 
@@ -52,10 +53,17 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   const [targetName, setTargetName] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [notes, setNotes] = useState('');
+  const [notesDirty, setNotesDirty] = useState(false);
   const [steerMode, setSteerMode] = useState<SteerMode | 'none'>('none');
   const [autoSteerProfileId, setAutoSteerProfileId] = useState<string>(AUTO_STEER_NONE);
   const [autoRequeue, setAutoRequeue] = useState(false);
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
+  const [autoSteerExpanded, setAutoSteerExpanded] = useState(false);
+  const [phaseDraft, setPhaseDraft] = useState(0);
+  const [iterationDraft, setIterationDraft] = useState(0);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const lastTaskIdRef = useRef<string | null>(null);
+  const lastSyncedNotesRef = useRef<string>('');
 
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
@@ -67,6 +75,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
     refetch: refetchAutoSteerState,
   } = useAutoSteerExecutionState(task && autoSteerProfileId !== AUTO_STEER_NONE ? task.id : undefined);
   const resetAutoSteer = useResetAutoSteerExecution();
+  const seekAutoSteer = useSeekAutoSteerExecution();
 
   // Fetch task logs
   const { data: rawLogs = [] } = useQuery({
@@ -111,6 +120,7 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   }, [executions]);
   const latestExecution = sortedExecutions[0] ?? null;
   const selectedExecution = sortedExecutions.find(exec => exec.id === selectedExecutionId) || null;
+  const canSeekAutoSteer = Boolean(task && autoSteerState);
 
   // Initialize form when the task identity changes (avoid clobbering in-flight edits)
   useEffect(() => {
@@ -121,7 +131,6 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
       : task.title;
     setTargetName(derivedTarget || '');
     setPriority(task.priority);
-    setNotes(task.notes || '');
 
     const initialMode: SteerMode | 'none' =
       task.auto_steer_profile_id && task.auto_steer_profile_id !== AUTO_STEER_NONE
@@ -131,6 +140,27 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
     setAutoSteerProfileId(task.auto_steer_profile_id || AUTO_STEER_NONE);
     setAutoRequeue(task.auto_requeue || false);
   }, [task?.id]);
+
+  // Keep notes in sync without clobbering in-progress edits
+  useEffect(() => {
+    if (!task) return;
+    const incomingNotes = task.notes || '';
+    const lastTaskId = lastTaskIdRef.current;
+    const isNewTask = task.id !== lastTaskId;
+
+    if (isNewTask) {
+      setNotes(incomingNotes);
+      setNotesDirty(false);
+      lastTaskIdRef.current = task.id;
+      lastSyncedNotesRef.current = incomingNotes;
+      return;
+    }
+
+    if (!notesDirty && incomingNotes !== lastSyncedNotesRef.current) {
+      setNotes(incomingNotes);
+      lastSyncedNotesRef.current = incomingNotes;
+    }
+  }, [task, notesDirty]);
 
   useEffect(() => {
     if (task && autoSteerProfileId !== AUTO_STEER_NONE) {
@@ -143,6 +173,10 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
     if (!open) {
       setActiveTab('details');
       setSelectedExecutionId(null);
+      setNotesDirty(false);
+      lastTaskIdRef.current = null;
+      lastSyncedNotesRef.current = '';
+      setAutoSteerExpanded(false);
     }
   }, [open]);
 
@@ -260,8 +294,6 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
     '';
   const assembledPromptHtml = useMemo(() => markdownToHtml(assembledPrompt), [assembledPrompt]);
 
-  if (!task) return null;
-
   const activeProfile = profiles.find(profile => profile.id === autoSteerProfileId);
   const toNumber = (val: unknown): number =>
     typeof val === 'number' ? val : Number(val ?? 0);
@@ -289,6 +321,27 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   const phaseIteration = autoSteerState
     ? currentPhaseIteration + 1
     : latestPhaseIteration || (historyIterationCount > 0 ? 1 : 0);
+  const selectedPhase = activeProfile?.phases?.[phaseDraft];
+  const selectedPhaseMaxIterations = selectedPhase?.max_iterations ?? 1;
+
+  useEffect(() => {
+    if (!autoSteerState) return;
+    const clampedPhase = Math.min(
+      Math.max(autoSteerState.current_phase_index ?? 0, 0),
+      Math.max((activeProfile?.phases?.length ?? 1) - 1, 0)
+    );
+    setPhaseDraft(clampedPhase);
+    setIterationDraft(autoSteerState.current_phase_iteration ?? 0);
+  }, [autoSteerState, activeProfile?.phases?.length]);
+
+  useEffect(() => {
+    if (!selectedPhase) return;
+    if (iterationDraft > selectedPhaseMaxIterations) {
+      setIterationDraft(selectedPhaseMaxIterations);
+    }
+  }, [selectedPhase, selectedPhaseMaxIterations, iterationDraft]);
+
+  if (!task) return null;
 
   const handleResetAutoSteer = async () => {
     if (!task) return;
@@ -319,6 +372,8 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
       updates,
     }, {
       onSuccess: () => {
+        lastSyncedNotesRef.current = updates.notes ?? notes.trim();
+        setNotesDirty(false);
         onOpenChange(false);
       },
     });
@@ -349,8 +404,9 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   const normalizedTarget = targetName.trim();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl md:max-w-6xl max-h-[90vh] overflow-y-auto">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-5xl md:max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Task Details</DialogTitle>
           <DialogDescription>
@@ -475,13 +531,38 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                 )}
 
                 {autoSteerProfileId !== AUTO_STEER_NONE && (
-                  <div className="rounded-md border border-slate-800 bg-slate-900/50 p-3 text-xs text-slate-200 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-medium text-slate-100">Auto Steer status</div>
+                  <div className="rounded-md border border-slate-800 bg-slate-900/50 p-3 text-xs text-slate-200 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <button
+                          type="button"
+                          onClick={() => activeProfile && setProfileModalOpen(true)}
+                          disabled={!activeProfile}
+                          className="text-sm font-semibold text-slate-100 hover:text-primary transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {activeProfile?.name ?? 'Auto Steer profile'}
+                        </button>
+                        <div className="text-slate-400 flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                          <span>
+                            Phase {Number.isFinite(currentPhaseNumber) && currentPhaseNumber > 0 ? currentPhaseNumber : '—'}{totalPhases ? ` / ${totalPhases}` : ''}
+                          </span>
+                          <span className="hidden sm:inline text-slate-500">•</span>
+                          <span>
+                            Iteration {Number.isFinite(phaseIteration) ? phaseIteration : '—'}{selectedPhaseMaxIterations ? ` / ${selectedPhaseMaxIterations}` : ''}
+                          </span>
+                          {currentMode && (
+                            <>
+                              <span className="hidden sm:inline text-slate-500">•</span>
+                              <span className="uppercase tracking-wide text-[11px]">{currentMode}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
                       <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant="ghost"
+                          className="p-2"
                           onClick={async () => {
                             if (task) {
                               await Promise.allSettled([
@@ -493,53 +574,122 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                             }
                           }}
                           disabled={isAutoSteerStateLoading || isFetchingExecutions}
+                          aria-label="Refresh Auto Steer status"
                         >
-                          Refresh
+                          <RefreshCw className="h-4 w-4" />
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
-                          onClick={handleResetAutoSteer}
-                          disabled={resetAutoSteer.isPending || !task}
+                          variant="ghost"
+                          className="p-2"
+                          onClick={() => setAutoSteerExpanded((v) => !v)}
+                          aria-label={autoSteerExpanded ? 'Collapse Auto Steer details' : 'Expand Auto Steer details'}
                         >
-                          Restart
+                          <ChevronsUpDown className={`h-4 w-4 transition-transform ${autoSteerExpanded ? 'rotate-180' : ''}`} />
                         </Button>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <div className="text-slate-400">Overall iterations</div>
-                        <div className="font-semibold text-slate-50">{autoSteerIteration}</div>
-                      </div>
-                      <div>
-                        <div className="text-slate-400">Phase iteration</div>
-                        <div className="font-semibold text-slate-50">
-                          {autoSteerState ? phaseIteration : '—'}
+
+                    {!autoSteerExpanded && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <div className="text-slate-400">Overall iterations</div>
+                          <div className="font-semibold text-slate-50">{autoSteerIteration}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-400">Updated</div>
+                          <div className="font-semibold text-slate-50">
+                            {autoSteerState?.last_updated
+                              ? new Date(autoSteerState.last_updated).toLocaleString()
+                              : '—'}
+                          </div>
                         </div>
                       </div>
-                      <div>
-                        <div className="text-slate-400">Phase</div>
-                        <div className="font-semibold text-slate-50">
-                          {autoSteerState
-                            ? `Phase ${currentPhaseNumber}${totalPhases ? ` of ${totalPhases}` : ''}`
-                            : 'Not started'}
+                    )}
+
+                    {autoSteerExpanded && activeProfile && (
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap gap-2">
+                          {activeProfile.phases.map((phase, idx) => {
+                            const isActive = idx === phaseDraft;
+                            return (
+                              <button
+                                key={phase.id ?? `${phase.mode}-${idx}`}
+                                type="button"
+                                className={`
+                                  px-3 py-2 rounded-md border text-left transition-all
+                                  ${isActive ? 'border-primary bg-primary/10 text-primary' : 'border-white/10 bg-slate-800/40 hover:border-primary/40'}
+                                `}
+                                onClick={() => {
+                                  setPhaseDraft(idx);
+                                  setIterationDraft(0);
+                                }}
+                              >
+                                <div className="text-[11px] uppercase text-slate-400">Phase {idx + 1}</div>
+                                <div className="text-sm font-semibold">{phase.mode.toUpperCase()}</div>
+                                <div className="text-[11px] text-slate-500">
+                                  Max iterations: {phase.max_iterations}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px] text-slate-400">
+                            <span>Phase iteration</span>
+                            <span>
+                              {iterationDraft} / {selectedPhaseMaxIterations}
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={selectedPhaseMaxIterations}
+                            value={Math.min(iterationDraft, selectedPhaseMaxIterations)}
+                            onChange={(e) => setIterationDraft(Number(e.target.value))}
+                            disabled={!canSeekAutoSteer}
+                            className="w-full accent-primary"
+                          />
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={!canSeekAutoSteer || seekAutoSteer.isPending}
+                            onClick={async () => {
+                              if (!task) return;
+                              await seekAutoSteer.mutateAsync({
+                                taskId: task.id,
+                                phaseIndex: phaseDraft,
+                                phaseIteration: Math.min(iterationDraft, selectedPhaseMaxIterations),
+                              });
+                              await Promise.allSettled([
+                                refetchAutoSteerState(),
+                                refetchExecutions?.(),
+                              ]);
+                            }}
+                          >
+                            Jump to selection
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={resetAutoSteer.isPending || !task}
+                            onClick={handleResetAutoSteer}
+                          >
+                            Reset to start
+                          </Button>
+                          {autoSteerState?.last_updated && (
+                            <span className="text-[11px] text-slate-500">
+                              Updated {new Date(autoSteerState.last_updated).toLocaleString()}
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <div>
-                        <div className="text-slate-400">Mode</div>
-                        <div className="font-semibold text-slate-50">
-                          {currentMode ? currentMode.toUpperCase() : '—'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-slate-400">Updated</div>
-                        <div className="font-semibold text-slate-50">
-                          {autoSteerState?.last_updated
-                            ? new Date(autoSteerState.last_updated).toLocaleString()
-                            : '—'}
-                        </div>
-                      </div>
-                    </div>
+                    )}
+
                     {autoSteerStateError && (
                       <div className="text-amber-400 text-[11px]">
                         No active Auto Steer state yet. It will initialize on next run.
@@ -630,7 +780,10 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                 <Textarea
                   id="detail-notes"
                   value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
+                  onChange={(e) => {
+                    setNotes(e.target.value);
+                    setNotesDirty(true);
+                  }}
                   className="min-h-[240px]"
                 />
               </div>
@@ -793,7 +946,14 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
             )}
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <AutoSteerProfileEditorModal
+        open={profileModalOpen}
+        onOpenChange={setProfileModalOpen}
+        profile={activeProfile ?? null}
+      />
+    </>
   );
 }
