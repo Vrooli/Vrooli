@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { TooltipProvider } from "./components/ui/tooltip";
 import { CampaignList } from "./components/CampaignList";
 import { CampaignDetail } from "./components/CampaignDetail";
 import { CreateCampaignDialog } from "./components/CreateCampaignDialog";
@@ -43,7 +44,7 @@ export default function App() {
   };
 
   return (
-    <>
+    <TooltipProvider>
       {currentView === "list" ? (
         <CampaignList
           onViewCampaign={handleViewCampaign}
@@ -59,6 +60,6 @@ export default function App() {
         onSubmit={handleCreateCampaign}
         isLoading={createMutation.isPending}
       />
-    </>
+    </TooltipProvider>
   );
 }

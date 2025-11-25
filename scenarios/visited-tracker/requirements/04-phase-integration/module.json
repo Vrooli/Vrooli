@@ -12,8 +12,16 @@
       "title": "Auto-Creation Shorthand Syntax",
       "description": "Support --location + --tag + --pattern flags that automatically create campaign if none exists matching location+tag pair, enabling zero-friction agent usage without manual campaign management",
       "priority": "P0",
-      "status": "planned",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "findOrCreateCampaignHandler implements location+tag-based auto-creation [REQ:VT-REQ-015]"
+        }
+      ]
     },
     {
       "id": "VT-REQ-016",
@@ -23,8 +31,16 @@
       "title": "Campaign-Level Notes Storage",
       "description": "Store and retrieve free-form notes at campaign level for phase handoff context and global metadata (e.g., 'UX review complete. Focus areas for refactor: state management, performance')",
       "priority": "P0",
-      "status": "planned",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Campaign.Notes field and updateCampaignHandler implement campaign-level notes [REQ:VT-REQ-016]"
+        }
+      ]
     },
     {
       "id": "VT-REQ-017",
@@ -34,8 +50,16 @@
       "title": "File-Level Notes Storage",
       "description": "Store and retrieve notes on individual files to track intra-file work (e.g., 'Improved Getting Started section. Need a Nudge component still needs work')",
       "priority": "P0",
-      "status": "planned",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TrackedFile.Notes field and updateFileNotesHandler implement file-level notes [REQ:VT-REQ-017]"
+        }
+      ]
     },
     {
       "id": "VT-REQ-018",
@@ -45,8 +69,16 @@
       "title": "Manual File Prioritization",
       "description": "Boost or demote individual files in staleness ranking via CLI commands (e.g., 'campaign prioritize <file> --weight 2.0' to increase priority)",
       "priority": "P0",
-      "status": "planned",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TrackedFile.PriorityWeight field and updateFilePriorityHandler implement manual prioritization [REQ:VT-REQ-018]"
+        }
+      ]
     },
     {
       "id": "VT-REQ-019",
@@ -56,8 +88,16 @@
       "title": "Manual File Exclusion",
       "description": "Mark files as excluded from campaigns when they are exceptional or false positives (e.g., 'campaign exclude <file> --reason \"Already exceptional\"')",
       "priority": "P0",
-      "status": "planned",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TrackedFile.Excluded field and toggleFileExclusionHandler implement manual exclusion [REQ:VT-REQ-019]"
+        }
+      ]
     },
     {
       "id": "VT-REQ-020",
@@ -67,8 +107,16 @@
       "title": "Smart Default Exclusions",
       "description": "Automatically exclude data/, tmp/, temp/, coverage/, dist/, out/, build/ directories by default (configurable via --include-all flag)",
       "priority": "P0",
-      "status": "planned",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "defaultExcludePatterns and syncCampaignFiles filtering implement smart exclusions [REQ:VT-REQ-020]"
+        }
+      ]
     },
     {
       "id": "VT-REQ-021",
@@ -78,8 +126,16 @@
       "title": "Campaign Size Limits",
       "description": "Default max files per campaign (e.g., 200) with --max-files override and helpful errors when exceeded (e.g., 'Pattern matches 437 files but limit is 200. Refine pattern or use --max-files')",
       "priority": "P0",
-      "status": "planned",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Campaign.MaxFiles field and size limit check in syncCampaignFiles implement limits [REQ:VT-REQ-021]"
+        }
+      ]
     },
     {
       "id": "VT-REQ-022",

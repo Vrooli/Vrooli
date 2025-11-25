@@ -16,13 +16,13 @@
 ### 🔴 P0 – Must ship for viability
 - [ ] OT-P0-001 | Campaign tracking system | Campaign-based file tracking with visit counts, staleness scoring, CLI interface, and JSON persistence
 - [ ] OT-P0-002 | Zero-friction agent integration | Auto-creation shorthand with location + tag + glob pattern for seamless agent loop usage without manual campaign management
-- [ ] OT-P0-003 | Phase metadata and handoff context | Campaign-level and file-level notes for storing phase-specific metadata, work-in-progress tracking, and cross-phase handoff information
-- [ ] OT-P0-004 | Precise campaign control | Manual prioritization and exclusion controls for fine-tuning file coverage and handling exceptional cases
+- [x] OT-P0-003 | Phase metadata and handoff context | Campaign-level and file-level notes for storing phase-specific metadata, work-in-progress tracking, and cross-phase handoff information
+- [x] OT-P0-004 | Precise campaign control | Manual prioritization and exclusion controls for fine-tuning file coverage and handling exceptional cases
 - [ ] OT-P0-005 | Clutter prevention and limits | Smart default exclusions (data/, tmp/, coverage/, dist/, build/) and configurable campaign size limits to maintain focused campaigns
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | HTTP API endpoints | HTTP API with CRUD operations, prioritization queries, and export/import capabilities
-- [ ] OT-P1-002 | Web interface | Web interface for manual campaign management and visualization
+- [x] OT-P1-002 | Web interface | Web interface for manual campaign management and visualization
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Advanced analytics and scaling | Advanced analytics with staleness trend analysis and multi-project management

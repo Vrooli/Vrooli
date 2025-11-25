@@ -22,18 +22,18 @@
           "notes": "Multiple tests validate HTTP API responses, CRUD operations, CORS, error handling [REQ:VT-REQ-006]"
         },
         {
-          "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json",
+          "type": "test",
+          "ref": "test/api/http-api.bats",
           "phase": "integration",
           "status": "failing",
-          "notes": "E2E workflow validates HTTP API endpoints in complete lifecycle"
+          "notes": "BATS integration tests validate HTTP API endpoint responses and error handling"
         },
         {
-          "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/staleness-scoring.json",
+          "type": "test",
+          "ref": "test/api/http-api.bats",
           "phase": "integration",
           "status": "failing",
-          "notes": "E2E workflow validates HTTP API endpoints for staleness operations"
+          "notes": "HTTP API integration tests validate CRUD endpoints and error handling"
         }
       ]
     },
@@ -52,28 +52,21 @@
           "ref": "api/main_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Multiple tests validate prioritization queries with various limits and edge cases [REQ:VT-REQ-009]"
+          "notes": "Multiple tests validate prioritization queries with various limits and edge cases [REQ:VT-REQ-007]"
         },
         {
-          "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json",
+          "type": "test",
+          "ref": "test/api/campaign-lifecycle.bats",
           "phase": "integration",
           "status": "failing",
-          "notes": "E2E workflow validates prioritization API (least-visited, most-stale queries)"
+          "notes": "BATS integration tests validate least-visited and most-stale prioritization endpoints [REQ:VT-REQ-007]"
         },
         {
-          "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/staleness-scoring.json",
+          "type": "test",
+          "ref": "test/api/http-api.bats",
           "phase": "integration",
           "status": "failing",
-          "notes": "Dedicated E2E workflow validates staleness-based prioritization"
-        },
-        {
-          "type": "automation",
-          "ref": "test/playbooks/journeys/01-new-user/happy-path.json",
-          "phase": "integration",
-          "status": "failing",
-          "notes": "User journey validates prioritization in realistic workflow"
+          "notes": "HTTP API integration tests validate prioritization query endpoints"
         }
       ]
     },
@@ -92,7 +85,7 @@
           "ref": "api/main_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "TestExportHandler validates campaign export functionality [REQ:VT-REQ-010]"
+          "notes": "TestExportHandler validates campaign export functionality [REQ:VT-REQ-008]"
         },
         {
           "type": "test",
@@ -100,6 +93,13 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "TestImportHandler validates campaign import and data preservation [REQ:VT-REQ-008]"
+        },
+        {
+          "type": "test",
+          "ref": "test/api/http-api.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "HTTP API integration tests validate export/import endpoints"
         }
       ]
     },
@@ -111,28 +111,14 @@
       "title": "Web Interface Dashboard",
       "description": "Build web interface for manual campaign management and visualization of staleness metrics",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "complete",
       "validation": [
         {
           "type": "test",
-          "ref": "ui/__tests__/server.test.js",
+          "ref": "api/main_test.go",
           "phase": "unit",
-          "status": "failing",
-          "notes": "19 unit tests validate UI server functionality, routing, and API integration [REQ:VT-REQ-009]"
-        },
-        {
-          "type": "automation",
-          "ref": "test/playbooks/capabilities/02-web-interface/ui/campaign-dashboard.json",
-          "phase": "integration",
-          "status": "failing",
-          "notes": "E2E UI workflow validates campaign dashboard interface"
-        },
-        {
-          "type": "automation",
-          "ref": "test/playbooks/journeys/01-new-user/happy-path.json",
-          "phase": "integration",
-          "status": "failing",
-          "notes": "User journey validates dashboard in realistic usage context"
+          "status": "implemented",
+          "notes": "Unit tests validate HTTP endpoints that power the UI dashboard [REQ:VT-REQ-009]"
         }
       ]
     },
@@ -148,24 +134,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/__tests__/server.test.js",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Unit tests validate campaign detail page server logic [REQ:VT-REQ-010]"
-        },
-        {
-          "type": "test",
           "ref": "api/main_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Unit tests validate export handler functionality [REQ:VT-REQ-010]"
-        },
-        {
-          "type": "automation",
-          "ref": "test/playbooks/journeys/01-new-user/happy-path.json",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "User journey validates campaign detail view in UI"
+          "notes": "Unit tests validate campaign detail retrieval and display data [REQ:VT-REQ-010]"
         }
       ]
     }

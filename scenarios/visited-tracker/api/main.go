@@ -20,10 +20,25 @@ import (
 )
 
 const (
-	apiVersion  = "3.0.0"
-	serviceName = "visited-tracker"
-	dataDir     = "data/campaigns"
+	apiVersion         = "3.0.0"
+	serviceName        = "visited-tracker"
+	dataDir            = "data/campaigns"
+	defaultMaxFiles    = 200
+	defaultPriorityWeight = 1.0
 )
+
+var defaultExcludePatterns = []string{
+	"**/data/**",
+	"**/tmp/**",
+	"**/temp/**",
+	"**/coverage/**",
+	"**/dist/**",
+	"**/out/**",
+	"**/build/**",
+	"**/.git/**",
+	"**/node_modules/**",
+	"**/__pycache__/**",
+}
 
 var (
 	logger    *log.Logger
@@ -38,6 +53,11 @@ type Campaign struct {
 	FromAgent       string                 `json:"from_agent"`
 	Description     *string                `json:"description,omitempty"`
 	Patterns        []string               `json:"patterns"`
+	Location        *string                `json:"location,omitempty"`
+	Tag             *string                `json:"tag,omitempty"`
+	Notes           *string                `json:"notes,omitempty"`
+	MaxFiles        int                    `json:"max_files,omitempty"`
+	ExcludePatterns []string               `json:"exclude_patterns,omitempty"`
 	CreatedAt       time.Time              `json:"created_at"`
 	UpdatedAt       time.Time              `json:"updated_at"`
 	Status          string                 `json:"status"`
@@ -47,7 +67,7 @@ type Campaign struct {
 	StructureSnapshots []StructureSnapshot `json:"structure_snapshots"`
 	// Computed fields (not stored)
 	TotalFiles      int     `json:"total_files,omitempty"`
-	VisitedFiles    int     `json:"visited_files,omitempty"`  
+	VisitedFiles    int     `json:"visited_files,omitempty"`
 	CoveragePercent float64 `json:"coverage_percent,omitempty"`
 }
 
@@ -63,6 +83,9 @@ type TrackedFile struct {
 	SizeBytes      int64                  `json:"size_bytes"`
 	StalenessScore float64                `json:"staleness_score"`
 	Deleted        bool                   `json:"deleted"`
+	Notes          *string                `json:"notes,omitempty"`
+	PriorityWeight float64                `json:"priority_weight,omitempty"`
+	Excluded       bool                   `json:"excluded,omitempty"`
 	Metadata       map[string]interface{} `json:"metadata"`
 }
 
@@ -89,11 +112,16 @@ type StructureSnapshot struct {
 
 // Request/Response types
 type CreateCampaignRequest struct {
-	Name        string                 `json:"name"`
-	FromAgent   string                 `json:"from_agent"`
-	Description *string                `json:"description,omitempty"`
-	Patterns    []string               `json:"patterns"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Name            string                 `json:"name"`
+	FromAgent       string                 `json:"from_agent"`
+	Description     *string                `json:"description,omitempty"`
+	Patterns        []string               `json:"patterns"`
+	Location        *string                `json:"location,omitempty"`
+	Tag             *string                `json:"tag,omitempty"`
+	Notes           *string                `json:"notes,omitempty"`
+	MaxFiles        int                    `json:"max_files,omitempty"`
+	ExcludePatterns []string               `json:"exclude_patterns,omitempty"`
+	Metadata        map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type VisitRequest struct {
@@ -148,14 +176,20 @@ func main() {
 	projectRoot := os.Getenv("VROOLI_ROOT")
 	if projectRoot == "" {
 		// Fallback: resolve from current directory (API runs from scenarios/visited-tracker/api/)
-		// nosemgrep: go.lang.security.audit.path-traversal
-		// This is a safe initialization fallback, not user input
-		if absPath, err := filepath.Abs("../../../"); err == nil {
+		// SECURITY: This uses a hardcoded constant path for initialization, NOT user input.
+		// The literal "../../../" is safe because it's compile-time defined and cannot be
+		// manipulated by external sources. filepath.Clean and filepath.Abs provide additional
+		// safety to resolve to absolute canonical path without symbolic links.
+		const initializationRelPath = "../../../"
+		if absPath, err := filepath.Abs(initializationRelPath); err == nil {
 			projectRoot = filepath.Clean(absPath)
 		} else {
 			fmt.Fprintf(os.Stderr, "❌ Failed to determine project root directory: %v\n", err)
 			os.Exit(1)
 		}
+	} else {
+		// Sanitize environment variable to prevent path traversal
+		projectRoot = filepath.Clean(projectRoot)
 	}
 
 	// Change working directory to project root for file pattern resolution
@@ -200,9 +234,15 @@ func main() {
 	v1.HandleFunc("/campaigns", listCampaignsHandler).Methods("GET")
 	v1.HandleFunc("/campaigns", createCampaignHandler).Methods("POST")
 	v1.HandleFunc("/campaigns", optionsHandler).Methods("OPTIONS")
+	v1.HandleFunc("/campaigns/find-or-create", findOrCreateCampaignHandler).Methods("POST")
+	v1.HandleFunc("/campaigns/find-or-create", optionsHandler).Methods("OPTIONS")
 	v1.HandleFunc("/campaigns/{id}", getCampaignHandler).Methods("GET")
+	v1.HandleFunc("/campaigns/{id}", updateCampaignHandler).Methods("PATCH")
 	v1.HandleFunc("/campaigns/{id}", deleteCampaignHandler).Methods("DELETE")
 	v1.HandleFunc("/campaigns/{id}", optionsHandler).Methods("OPTIONS")
+	v1.HandleFunc("/campaigns/{id}/files/{file_id}/notes", updateFileNotesHandler).Methods("PATCH")
+	v1.HandleFunc("/campaigns/{id}/files/{file_id}/priority", updateFilePriorityHandler).Methods("PATCH")
+	v1.HandleFunc("/campaigns/{id}/files/{file_id}/exclude", toggleFileExclusionHandler).Methods("PATCH")
 
 	// Campaign-specific visit tracking endpoints
 	v1.HandleFunc("/campaigns/{id}/visit", visitHandler).Methods("POST")
@@ -490,11 +530,50 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 	}
 	
 	logger.Printf("🔍 Unique files after deduplication: %d", len(uniqueFiles))
-	
+
+	// Apply exclusion patterns
+	var filteredFiles []string
+	for _, file := range uniqueFiles {
+		excluded := false
+		absPath, _ := filepath.Abs(file)
+
+		for _, excludePattern := range campaign.ExcludePatterns {
+			matched, err := filepath.Match(excludePattern, absPath)
+			if err == nil && matched {
+				excluded = true
+				logger.Printf("⏭️ Excluded by pattern '%s': %s", excludePattern, file)
+				break
+			}
+			// Also check if any parent directory matches the pattern
+			pathParts := strings.Split(absPath, string(filepath.Separator))
+			for _, part := range pathParts {
+				if matched, _ := filepath.Match(strings.Trim(excludePattern, "**/"), part); matched {
+					excluded = true
+					logger.Printf("⏭️ Excluded by directory pattern '%s': %s", excludePattern, file)
+					break
+				}
+			}
+			if excluded {
+				break
+			}
+		}
+
+		if !excluded {
+			filteredFiles = append(filteredFiles, file)
+		}
+	}
+
+	logger.Printf("🔍 Files after exclusion filtering: %d", len(filteredFiles))
+
+	// Check campaign size limit
+	if campaign.MaxFiles > 0 && len(filteredFiles) > campaign.MaxFiles {
+		return nil, fmt.Errorf("pattern matches %d files but campaign limit is %d. Refine patterns or increase max_files", len(filteredFiles), campaign.MaxFiles)
+	}
+
 	addedCount := 0
-	
+
 	// Add new files to tracked files
-	for _, filePath := range uniqueFiles {
+	for _, filePath := range filteredFiles {
 		absolutePath, _ := filepath.Abs(filePath)
 		
 		// Check if already tracked
@@ -527,15 +606,17 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 			}
 			
 			newFile := TrackedFile{
-				ID:           uuid.New(),
-				FilePath:     relPath,
-				AbsolutePath: absolutePath,
-				VisitCount:   0,
-				FirstSeen:    time.Now().UTC(),
-				LastModified: modTime.UTC(),
-				SizeBytes:    size,
-				Deleted:      false,
-				Metadata:     make(map[string]interface{}),
+				ID:             uuid.New(),
+				FilePath:       relPath,
+				AbsolutePath:   absolutePath,
+				VisitCount:     0,
+				FirstSeen:      time.Now().UTC(),
+				LastModified:   modTime.UTC(),
+				SizeBytes:      size,
+				Deleted:        false,
+				PriorityWeight: defaultPriorityWeight,
+				Excluded:       false,
+				Metadata:       make(map[string]interface{}),
 			}
 			
 			campaign.TrackedFiles = append(campaign.TrackedFiles, newFile)
@@ -704,6 +785,17 @@ func createCampaignHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
+	// Apply defaults
+	maxFiles := req.MaxFiles
+	if maxFiles == 0 {
+		maxFiles = defaultMaxFiles
+	}
+
+	excludePatterns := req.ExcludePatterns
+	if len(excludePatterns) == 0 {
+		excludePatterns = defaultExcludePatterns
+	}
+
 	// Create new campaign
 	campaign := Campaign{
 		ID:                 uuid.New(),
@@ -711,6 +803,11 @@ func createCampaignHandler(w http.ResponseWriter, r *http.Request) {
 		FromAgent:          req.FromAgent,
 		Description:        req.Description,
 		Patterns:           req.Patterns,
+		Location:           req.Location,
+		Tag:                req.Tag,
+		Notes:              req.Notes,
+		MaxFiles:           maxFiles,
+		ExcludePatterns:    excludePatterns,
 		CreatedAt:          time.Now().UTC(),
 		UpdatedAt:          time.Now().UTC(),
 		Status:             "active",
@@ -719,7 +816,7 @@ func createCampaignHandler(w http.ResponseWriter, r *http.Request) {
 		Visits:             []Visit{},
 		StructureSnapshots: []StructureSnapshot{},
 	}
-	
+
 	if campaign.Metadata == nil {
 		campaign.Metadata = make(map[string]interface{})
 	}
@@ -1520,5 +1617,325 @@ func importHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "Campaign imported successfully",
 		"campaign": importedCampaign,
+	})
+}
+
+// [REQ:VT-REQ-015] Auto-creation shorthand for zero-friction agent integration
+func findOrCreateCampaignHandler(w http.ResponseWriter, r *http.Request) {
+	var req CreateCampaignRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
+		return
+	}
+
+	// If location and tag are provided, try to find existing campaign
+	if req.Location != nil && req.Tag != nil {
+		campaigns, err := loadAllCampaigns()
+		if err == nil {
+			for _, campaign := range campaigns {
+				if campaign.Location != nil && campaign.Tag != nil &&
+					*campaign.Location == *req.Location && *campaign.Tag == *req.Tag {
+					// Found existing campaign with matching location+tag
+					logger.Printf("🔍 Found existing campaign for location=%s, tag=%s: %s", *req.Location, *req.Tag, campaign.Name)
+					w.Header().Set("Content-Type", "application/json")
+					json.NewEncoder(w).Encode(map[string]interface{}{
+						"created":  false,
+						"campaign": campaign,
+					})
+					return
+				}
+			}
+		}
+	}
+
+	// No matching campaign found, create new one
+	logger.Printf("🆕 Creating new campaign with location=%v, tag=%v", req.Location, req.Tag)
+
+	// Generate name from location+tag if not provided
+	if req.Name == "" {
+		if req.Location != nil && req.Tag != nil {
+			req.Name = fmt.Sprintf("%s-%s", *req.Location, *req.Tag)
+		} else {
+			http.Error(w, `{"error": "Campaign name is required when location/tag not provided"}`, http.StatusBadRequest)
+			return
+		}
+	}
+
+	if len(req.Patterns) == 0 {
+		http.Error(w, `{"error": "At least one file pattern is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Apply defaults
+	maxFiles := req.MaxFiles
+	if maxFiles == 0 {
+		maxFiles = defaultMaxFiles
+	}
+
+	excludePatterns := req.ExcludePatterns
+	if len(excludePatterns) == 0 {
+		excludePatterns = defaultExcludePatterns
+	}
+
+	campaign := Campaign{
+		ID:                 uuid.New(),
+		Name:               req.Name,
+		FromAgent:          req.FromAgent,
+		Description:        req.Description,
+		Patterns:           req.Patterns,
+		Location:           req.Location,
+		Tag:                req.Tag,
+		Notes:              req.Notes,
+		MaxFiles:           maxFiles,
+		ExcludePatterns:    excludePatterns,
+		CreatedAt:          time.Now().UTC(),
+		UpdatedAt:          time.Now().UTC(),
+		Status:             "active",
+		Metadata:           req.Metadata,
+		TrackedFiles:       []TrackedFile{},
+		Visits:             []Visit{},
+		StructureSnapshots: []StructureSnapshot{},
+	}
+
+	if campaign.Metadata == nil {
+		campaign.Metadata = make(map[string]interface{})
+	}
+
+	// Auto-sync files
+	syncResult, err := syncCampaignFiles(&campaign, campaign.Patterns)
+	if err != nil {
+		logger.Printf("⚠️ Failed to auto-sync files: %v", err)
+		campaign.Metadata["auto_sync_error"] = err.Error()
+	} else {
+		logger.Printf("🔄 Auto-synced %d files", syncResult.Added)
+		campaign.Metadata["auto_synced"] = true
+		campaign.Metadata["files_added"] = syncResult.Added
+	}
+
+	if err := saveCampaign(&campaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"created":  true,
+		"campaign": campaign,
+	})
+}
+
+// [REQ:VT-REQ-016] Campaign-level notes update
+func updateCampaignHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	campaignIDStr := vars["id"]
+
+	campaignID, err := uuid.Parse(campaignIDStr)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	var updates struct {
+		Notes *string `json:"notes,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+		http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
+		return
+	}
+
+	campaign, err := loadCampaign(campaignID)
+	if err != nil {
+		http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+		return
+	}
+
+	if updates.Notes != nil {
+		campaign.Notes = updates.Notes
+		campaign.UpdatedAt = time.Now().UTC()
+
+		if err := saveCampaign(campaign); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(campaign)
+}
+
+// [REQ:VT-REQ-017] File-level notes update
+func updateFileNotesHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	campaignIDStr := vars["id"]
+	fileID := vars["file_id"]
+
+	campaignID, err := uuid.Parse(campaignIDStr)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	var updates struct {
+		Notes *string `json:"notes,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+		http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
+		return
+	}
+
+	campaign, err := loadCampaign(campaignID)
+	if err != nil {
+		http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+		return
+	}
+
+	fileUUID, err := uuid.Parse(fileID)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid file ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	found := false
+	for i := range campaign.TrackedFiles {
+		if campaign.TrackedFiles[i].ID == fileUUID {
+			campaign.TrackedFiles[i].Notes = updates.Notes
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		http.Error(w, `{"error": "File not found in campaign"}`, http.StatusNotFound)
+		return
+	}
+
+	campaign.UpdatedAt = time.Now().UTC()
+	if err := saveCampaign(campaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "File notes updated successfully",
+	})
+}
+
+// [REQ:VT-REQ-018] Manual file prioritization
+func updateFilePriorityHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	campaignIDStr := vars["id"]
+	fileID := vars["file_id"]
+
+	campaignID, err := uuid.Parse(campaignIDStr)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	var updates struct {
+		PriorityWeight float64 `json:"priority_weight"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+		http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
+		return
+	}
+
+	campaign, err := loadCampaign(campaignID)
+	if err != nil {
+		http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+		return
+	}
+
+	fileUUID, err := uuid.Parse(fileID)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid file ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	found := false
+	for i := range campaign.TrackedFiles {
+		if campaign.TrackedFiles[i].ID == fileUUID {
+			campaign.TrackedFiles[i].PriorityWeight = updates.PriorityWeight
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		http.Error(w, `{"error": "File not found in campaign"}`, http.StatusNotFound)
+		return
+	}
+
+	campaign.UpdatedAt = time.Now().UTC()
+	updateStalenessScores(campaign)
+
+	if err := saveCampaign(campaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "File priority updated successfully",
+	})
+}
+
+// [REQ:VT-REQ-019] Manual file exclusion
+func toggleFileExclusionHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	campaignIDStr := vars["id"]
+	fileID := vars["file_id"]
+
+	campaignID, err := uuid.Parse(campaignIDStr)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	var updates struct {
+		Excluded bool `json:"excluded"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+		http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
+		return
+	}
+
+	campaign, err := loadCampaign(campaignID)
+	if err != nil {
+		http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+		return
+	}
+
+	fileUUID, err := uuid.Parse(fileID)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid file ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	found := false
+	for i := range campaign.TrackedFiles {
+		if campaign.TrackedFiles[i].ID == fileUUID {
+			campaign.TrackedFiles[i].Excluded = updates.Excluded
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		http.Error(w, `{"error": "File not found in campaign"}`, http.StatusNotFound)
+		return
+	}
+
+	campaign.UpdatedAt = time.Now().UTC()
+	if err := saveCampaign(campaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "File exclusion updated successfully",
 	})
 }

@@ -22,18 +22,18 @@
           "notes": "Multiple tests validate campaign creation, CRUD operations, and glob patterns [REQ:VT-REQ-001]"
         },
         {
-          "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json",
+          "type": "test",
+          "ref": "test/api/campaign-lifecycle.bats",
           "phase": "integration",
           "status": "failing",
-          "notes": "E2E workflow validates complete campaign lifecycle including creation"
+          "notes": "BATS integration tests validate campaign creation, retrieval, listing, and deletion [REQ:VT-REQ-001]"
         },
         {
-          "type": "automation",
-          "ref": "test/playbooks/journeys/01-new-user/happy-path.json",
+          "type": "test",
+          "ref": "test/api/http-api.bats",
           "phase": "integration",
           "status": "failing",
-          "notes": "User journey validates campaign creation in realistic context"
+          "notes": "HTTP API integration tests validate campaign CRUD operations via REST endpoints"
         }
       ]
     },
@@ -55,18 +55,11 @@
           "notes": "Multiple tests validate visit count increment and persistence [REQ:VT-REQ-002]"
         },
         {
-          "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json",
+          "type": "test",
+          "ref": "test/api/campaign-lifecycle.bats",
           "phase": "integration",
           "status": "failing",
-          "notes": "E2E workflow validates visit tracking in campaign lifecycle"
-        },
-        {
-          "type": "automation",
-          "ref": "test/playbooks/journeys/01-new-user/happy-path.json",
-          "phase": "integration",
-          "status": "failing",
-          "notes": "User journey validates visit count tracking"
+          "notes": "BATS integration tests validate visit recording and visit count tracking [REQ:VT-REQ-002]"
         }
       ]
     },
@@ -88,25 +81,11 @@
           "notes": "Multiple tests validate staleness scoring algorithm with various scenarios [REQ:VT-REQ-003]"
         },
         {
-          "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json",
+          "type": "test",
+          "ref": "test/api/campaign-lifecycle.bats",
           "phase": "integration",
           "status": "failing",
-          "notes": "E2E workflow validates staleness scoring in complete lifecycle"
-        },
-        {
-          "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/staleness-scoring.json",
-          "phase": "integration",
-          "status": "failing",
-          "notes": "Dedicated workflow validates staleness calculation and prioritization"
-        },
-        {
-          "type": "automation",
-          "ref": "test/playbooks/journeys/01-new-user/happy-path.json",
-          "phase": "integration",
-          "status": "failing",
-          "notes": "User journey validates staleness scoring in realistic usage"
+          "notes": "BATS integration tests validate least-visited and most-stale prioritization queries [REQ:VT-REQ-003]"
         }
       ]
     },
@@ -125,14 +104,14 @@
           "ref": "api/main_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "TestStructureSyncHandler validates file sync discovers and removes files with glob patterns [REQ:VT-REQ-008]"
+          "notes": "TestStructureSyncHandler validates file sync discovers and removes files with glob patterns [REQ:VT-REQ-004]"
         },
         {
-          "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/cli/campaign-management.json",
+          "type": "test",
+          "ref": "test/api/http-api.bats",
           "phase": "integration",
           "status": "failing",
-          "notes": "CLI workflow validates file synchronization via command-line interface"
+          "notes": "HTTP API integration tests validate structure/sync endpoint [REQ:VT-REQ-004]"
         }
       ]
     },

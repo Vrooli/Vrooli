@@ -161,22 +161,62 @@ export function CampaignList({ onViewCampaign, onCreateClick }: CampaignListProp
             </div>
           </div>
         ) : filteredCampaigns.length === 0 ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <Inbox className="mx-auto mb-4 h-16 w-16 text-slate-600" />
-              <h3 className="mb-2 text-xl font-semibold text-slate-50">
-                {campaigns.length === 0 ? "No Campaigns Yet" : "No Matching Campaigns"}
+          <div className="flex items-center justify-center py-12">
+            <div className="max-w-2xl text-center">
+              <Inbox className="mx-auto mb-6 h-16 w-16 text-slate-600" />
+              <h3 className="mb-3 text-2xl font-semibold text-slate-50">
+                {campaigns.length === 0 ? "Welcome to Visited Tracker" : "No Matching Campaigns"}
               </h3>
-              <p className="mb-6 text-slate-400">
-                {campaigns.length === 0
-                  ? "Create your first campaign to start tracking file visits"
-                  : "Try adjusting your search or filters"}
-              </p>
-              {campaigns.length === 0 && (
-                <Button onClick={onCreateClick}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Campaign
-                </Button>
+
+              {campaigns.length === 0 ? (
+                <>
+                  <p className="mb-6 text-slate-400 leading-relaxed">
+                    Visited Tracker helps agents maintain perfect memory across conversations by tracking file visits with staleness detection.
+                  </p>
+
+                  <div className="mb-8 rounded-xl border border-white/10 bg-white/5 p-6 text-left">
+                    <h4 className="mb-3 text-sm font-semibold text-slate-50 uppercase tracking-wide">
+                      Quick Start for Agents
+                    </h4>
+                    <div className="space-y-3 text-sm text-slate-300">
+                      <div>
+                        <div className="font-medium text-slate-200 mb-1">1. Auto-create campaigns with CLI:</div>
+                        <code className="block bg-slate-900/80 rounded px-3 py-2 font-mono text-xs text-blue-300">
+                          visited-tracker least-visited --location scenarios/X/ui --pattern "**/*.tsx" --tag ux --limit 5
+                        </code>
+                      </div>
+                      <div>
+                        <div className="font-medium text-slate-200 mb-1">2. Record work with notes:</div>
+                        <code className="block bg-slate-900/80 rounded px-3 py-2 font-mono text-xs text-blue-300">
+                          visited-tracker visit src/App.tsx --tag ux --note "Improved accessibility"
+                        </code>
+                      </div>
+                      <div>
+                        <div className="font-medium text-slate-200 mb-1">3. Get next files to work on:</div>
+                        <code className="block bg-slate-900/80 rounded px-3 py-2 font-mono text-xs text-blue-300">
+                          visited-tracker least-visited --location scenarios/X --tag refactor --limit 3
+                        </code>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 justify-center">
+                    <Button onClick={onCreateClick} size="lg">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Campaign Manually
+                    </Button>
+                  </div>
+
+                  <p className="mt-6 text-xs text-slate-500">
+                    Campaigns are typically auto-created via CLI. Manual creation is useful for testing or non-agent workflows.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="mb-6 text-slate-400">
+                    Try adjusting your search or filters
+                  </p>
+                </>
               )}
             </div>
           </div>

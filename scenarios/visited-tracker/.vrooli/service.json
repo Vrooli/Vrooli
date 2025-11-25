@@ -60,9 +60,13 @@
     "health": {
       "description": "Standard API/UI health checks",
       "startup_grace_period": 15000,
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
       "checks": [
         {
-          "name": "api",
+          "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "timeout": 10000,
@@ -70,7 +74,7 @@
           "critical": true
         },
         {
-          "name": "ui",
+          "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
@@ -81,6 +85,24 @@
     },
     "setup": {
       "description": "Build API & UI, install CLI",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": ["api/visited-tracker-api"]
+          },
+          {
+            "type": "cli",
+            "command": "visited-tracker",
+            "targets": ["visited-tracker"]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
       "steps": [
         {
           "name": "create-data-dir",
@@ -95,7 +117,7 @@
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o visited-tracker-api .",
-          "description": "Compile Go API server"
+          "description": "Build the Go API binary (visited-tracker-api) for lifecycle orchestration"
         },
         {
           "name": "install-ui-deps",
@@ -121,7 +143,10 @@
           "name": "start-api",
           "run": "cd api && ./visited-tracker-api",
           "background": true,
-          "description": "Start Go API server"
+          "description": "Start Go API server",
+          "condition": {
+            "file_exists": "api/visited-tracker-api"
+          }
         },
         {
           "name": "start-ui",
@@ -131,6 +156,11 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Visited Tracker ready\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
+          "description": "Display service URLs after startup"
         }
       ]
     },

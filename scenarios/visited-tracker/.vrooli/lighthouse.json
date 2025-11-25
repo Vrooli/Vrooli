@@ -6,7 +6,7 @@
     "url": "http://localhost:${UI_PORT}",
     "thresholds": {
       "performance": 80,
-      "accessibility": 90,
+      "accessibility": 95,
       "best-practices": 85,
       "seo": 80
     },
@@ -14,15 +14,57 @@
       "extends": "lighthouse:default",
       "settings": {
         "onlyCategories": ["performance", "accessibility", "best-practices", "seo"],
-        "skipAudits": ["uses-http2"],
-        "emulatedFormFactor": "desktop"
+        "skipAudits": ["uses-http2"]
       }
     },
     "checks": [
       {
-        "name": "home_page",
+        "name": "home_page_desktop",
         "url": "http://localhost:${UI_PORT}",
-        "description": "Main dashboard page performance and accessibility"
+        "description": "Main dashboard page - desktop viewport",
+        "config": {
+          "settings": {
+            "emulatedFormFactor": "desktop",
+            "screenEmulation": {
+              "mobile": false,
+              "width": 1920,
+              "height": 1080,
+              "deviceScaleFactor": 1
+            }
+          }
+        }
+      },
+      {
+        "name": "home_page_tablet",
+        "url": "http://localhost:${UI_PORT}",
+        "description": "Main dashboard page - tablet viewport",
+        "config": {
+          "settings": {
+            "emulatedFormFactor": "mobile",
+            "screenEmulation": {
+              "mobile": false,
+              "width": 768,
+              "height": 1024,
+              "deviceScaleFactor": 2
+            }
+          }
+        }
+      },
+      {
+        "name": "home_page_mobile",
+        "url": "http://localhost:${UI_PORT}",
+        "description": "Main dashboard page - mobile viewport",
+        "config": {
+          "settings": {
+            "emulatedFormFactor": "mobile",
+            "screenEmulation": {
+              "mobile": true,
+              "width": 375,
+              "height": 667,
+              "deviceScaleFactor": 2
+            }
+          }
+        }
       }
     ]
   }
