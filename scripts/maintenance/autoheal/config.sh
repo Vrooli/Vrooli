@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Autoheal Configuration
+# All environment variables and default values
+# =============================================================================
+
+# Ensure common paths exist for cron/systemd invocations
+PATH="${HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin:${PATH:-}"
+
+# Ensure VROOLI_ROOT is set for resource status checks
+export VROOLI_ROOT="${VROOLI_ROOT:-${HOME}/Vrooli}"
+
+# Core Settings
+GRACE_SECONDS="${VROOLI_AUTOHEAL_GRACE_SECONDS:-60}"
+LOCK_FILE="${VROOLI_AUTOHEAL_LOCK_FILE:-/tmp/vrooli-autoheal.lock}"
+LOG_FILE="${VROOLI_AUTOHEAL_LOG_FILE:-/var/log/vrooli-autoheal.log}"
+VERIFY_DELAY="${VROOLI_AUTOHEAL_VERIFY_DELAY:-30}"
+CMD_TIMEOUT="${VROOLI_AUTOHEAL_CMD_TIMEOUT:-120}"
+TIMEOUT_BIN=""
+
+# Resources & Scenarios
+RESOURCE_LIST="${VROOLI_AUTOHEAL_RESOURCES:-postgres,redis,qdrant,ollama,searxng,browserless}"
+SCENARIO_LIST="${VROOLI_AUTOHEAL_SCENARIOS:-app-monitor,system-monitor,ecosystem-manager,maintenance-orchestrator,app-issue-tracker,vrooli-orchestrator,scenario-auditor,scenario-authenticator,web-console}"
+
+# API Health
+API_PORT="${VROOLI_API_PORT:-8092}"
+API_URL="${VROOLI_AUTOHEAL_API_URL:-http://127.0.0.1:${API_PORT}/health}"
+API_TIMEOUT="${VROOLI_AUTOHEAL_API_TIMEOUT:-5}"
+API_RECOVERY="${VROOLI_AUTOHEAL_API_RECOVERY:-}"
+
+# Feature Flags - Enable/disable check categories
+ENABLE_INFRASTRUCTURE_CHECKS="${VROOLI_AUTOHEAL_INFRASTRUCTURE:-true}"
+ENABLE_SERVICE_CHECKS="${VROOLI_AUTOHEAL_SERVICES:-true}"
+ENABLE_SYSTEM_CHECKS="${VROOLI_AUTOHEAL_SYSTEM:-true}"
+
+# Infrastructure Check Settings
+CHECK_NETWORK="${VROOLI_AUTOHEAL_CHECK_NETWORK:-true}"
+CHECK_DNS="${VROOLI_AUTOHEAL_CHECK_DNS:-true}"
+CHECK_TIME_SYNC="${VROOLI_AUTOHEAL_CHECK_TIME_SYNC:-true}"
+DNS_TEST_DOMAIN="${VROOLI_AUTOHEAL_DNS_TEST:-google.com}"
+PING_TEST_IP="${VROOLI_AUTOHEAL_PING_TEST:-8.8.8.8}"
+
+# Critical Service Settings
+CHECK_CLOUDFLARED="${VROOLI_AUTOHEAL_CHECK_CLOUDFLARED:-true}"
+CLOUDFLARED_SERVICE="${VROOLI_AUTOHEAL_CLOUDFLARED_SERVICE:-cloudflared}"
+CLOUDFLARED_TUNNEL_URL="${VROOLI_AUTOHEAL_TUNNEL_URL:-}"  # Optional: Test external access
+CLOUDFLARED_TEST_PORT="${VROOLI_AUTOHEAL_CLOUDFLARED_TEST_PORT:-21774}"  # app-monitor UI
+
+CHECK_DISPLAY="${VROOLI_AUTOHEAL_CHECK_DISPLAY:-true}"
+DISPLAY_MANAGER="${VROOLI_AUTOHEAL_DISPLAY_MANAGER:-gdm}"  # gdm, lightdm, sddm
+DISPLAY_AUTO_RESTART="${VROOLI_AUTOHEAL_DISPLAY_RESTART:-false}"  # Dangerous!
+
+CHECK_SYSTEMD_RESOLVED="${VROOLI_AUTOHEAL_CHECK_RESOLVED:-true}"
+CHECK_DOCKER_DAEMON="${VROOLI_AUTOHEAL_CHECK_DOCKER_DAEMON:-true}"
+
+# System Resource Thresholds
+CHECK_DISK_SPACE="${VROOLI_AUTOHEAL_CHECK_DISK:-true}"
+DISK_THRESHOLD="${VROOLI_AUTOHEAL_DISK_THRESHOLD:-85}"  # Percentage
+DISK_PARTITIONS="${VROOLI_AUTOHEAL_DISK_PARTITIONS:-/ /home}"  # Space-separated
+
+CHECK_INODE="${VROOLI_AUTOHEAL_CHECK_INODE:-true}"
+INODE_THRESHOLD="${VROOLI_AUTOHEAL_INODE_THRESHOLD:-85}"  # Percentage
+
+CHECK_SWAP="${VROOLI_AUTOHEAL_CHECK_SWAP:-true}"
+SWAP_THRESHOLD="${VROOLI_AUTOHEAL_SWAP_THRESHOLD:-50}"  # Percentage
+
+CHECK_ZOMBIES="${VROOLI_AUTOHEAL_CHECK_ZOMBIES:-true}"
+ZOMBIE_THRESHOLD="${VROOLI_AUTOHEAL_ZOMBIE_THRESHOLD:-20}"  # Count
+ZOMBIE_AUTO_CLEANUP="${VROOLI_AUTOHEAL_ZOMBIE_CLEANUP:-true}"
+
+CHECK_PORT_EXHAUSTION="${VROOLI_AUTOHEAL_CHECK_PORTS:-true}"
+PORT_USAGE_THRESHOLD="${VROOLI_AUTOHEAL_PORT_THRESHOLD:-80}"  # Percentage
+
+CHECK_CERTIFICATES="${VROOLI_AUTOHEAL_CHECK_CERTS:-false}"  # Disabled by default
+CERT_WARNING_DAYS="${VROOLI_AUTOHEAL_CERT_WARNING_DAYS:-7}"
