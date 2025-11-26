@@ -57,6 +57,72 @@ Focus on producing a **cleaner, clearer, easier-to-extend codebase**, guided by 
 * Do **not** change user-facing copy, UX flows, or visual design except where necessary to support structural improvements.
 * Ensure all changes remain aligned with the scenario’s PRD, operational targets, and test-driven requirements.
 
+### **7. Memory Management with Visited Tracker**
+
+To ensure **systematic coverage without repetition**, use `visited-tracker` to maintain perfect memory across conversation loops:
+
+**At the start of each iteration:**
+```bash
+# Get 5 least-visited files with auto-campaign creation
+visited-tracker least-visited \
+  --location scenarios/{{TARGET}} \
+  --pattern "**/*.{ts,tsx,js,jsx,go}" \
+  --tag refactor \
+  --name "{{TARGET}} - Code Refactoring" \
+  --limit 5
+```
+
+**After analyzing each file:**
+```bash
+# Record your visit with specific notes about improvements and remaining work
+visited-tracker visit <file-path> \
+  --location scenarios/{{TARGET}} \
+  --tag refactor \
+  --note "<summary of refactorings made and what remains>"
+```
+
+**When a file is irrelevant to refactoring (config, build scripts, generated files, etc.):**
+```bash
+# Mark it excluded so it doesn't resurface - this is NOT a refactor target
+visited-tracker exclude <file-path> \
+  --location scenarios/{{TARGET}} \
+  --tag refactor \
+  --reason "Not a refactor target - config/generated/tooling/etc."
+```
+
+**When a file is fully refactored:**
+```bash
+# Mark it excluded so it doesn't resurface in future queries
+visited-tracker exclude <file-path> \
+  --location scenarios/{{TARGET}} \
+  --tag refactor \
+  --reason "All refactoring complete - clean structure, clear naming, no duplication"
+```
+
+**Before ending your session:**
+```bash
+# Add campaign note for handoff context to the next iteration
+visited-tracker campaigns note \
+  --location scenarios/{{TARGET}} \
+  --tag refactor \
+  --name "{{TARGET}} - Code Refactoring" \
+  --note "<overall progress summary, patterns observed, priority areas for next iteration>"
+```
+
+**Interpreting the response:**
+- Prioritize files with **high staleness_score (>7.0)** - neglected files needing attention
+- Focus on **low visit_count (0-2)** - files not yet analyzed
+- Review **notes from previous visits** - understand context and remaining work
+- Check **coverage_percent** - track systematic progress toward 100%
+
+**Note format guidelines:**
+- **File notes**: Be specific about what you refactored and what still needs work
+  - ✅ Good: "Extracted 3 helpers, improved naming, removed duplication. Still need to simplify nested conditionals in handleSubmit."
+  - ❌ Bad: "Made some refactoring improvements"
+- **Campaign notes**: Provide strategic context for the next agent
+  - ✅ Good: "Completed 14/38 files (37%). Focus areas: API layer has inconsistent error handling patterns, UI utils have significant duplication"
+  - ❌ Bad: "Made progress on refactoring"
+
 ### **8. Output Expectations**
 
 You may update:
@@ -72,6 +138,6 @@ You **must**:
 * keep the scenario fully functional and aligned with its PRD
 * avoid regressions and weakened safety
 * leave the code **simpler, clearer, and easier to change**
-* avoid gaming metrics or making superficial changes that don’t materially improve structure
+* avoid gaming metrics or making superficial changes that don't materially improve structure
 
 Focus this loop on delivering **practical, targeted refactors** that reduce complexity, remove duplication, and improve clarity, so future loops (and agents) can build on a stronger foundation.

@@ -11,7 +11,7 @@ import (
 // TransitionContext captures caller intent and knobs for lifecycle operations.
 type TransitionContext struct {
 	Manual        bool // true when user manually moves a task (may bypass slots)
-	ForceOverride bool // allow overriding auto-requeue lock for pending moves
+	ForceOverride bool // allow overriding auto-requeue lock or cooldown checks for pending moves
 	Now           func() time.Time
 }
 
@@ -42,12 +42,18 @@ type Lifecycle struct {
 	Store StorageAPI
 }
 
+// transitionRule expresses an allowed destination and its mutation/side effects.
+type transitionRule struct {
+	allowedFrom map[string]struct{}
+	apply       func(lc *Lifecycle, task *TaskItem, fromStatus string, req TransitionRequest, now string) (TransitionEffects, error)
+}
+
 // Lifecycle rules (authoritative):
 // - Manual movement intent wins for starting: moving to in-progress emits ForceStart even if slots are full; leaving in-progress emits TerminateProcess.
-// - Terminal buckets (completed/failed/blocked/finalized/archived) always apply cooldown on entry; manual moves into terminal disable auto-requeue (blocked/finalized always disable).
+// - Terminal buckets (completed/failed/blocked/finalized/archived) always apply cooldown on entry; auto-requeue is disabled for manual moves and hard-stop buckets.
 // - Leaving terminal buckets re-enables auto-requeue, clears cooldown, and pending moves may opportunistically start if a slot exists.
 // - Auto-requeue=false is a lock: pending moves are rejected unless leaving a terminal state or ForceOverride=true.
-// - Recycler/automation only recycle from completed/failed with auto-requeue true and expired cooldown; they signal StartIfSlotAvailable for pending.
+// - Recycler/automation only recycle from completed/failed with auto-requeue true and expired cooldown; Pending starts are signaled via StartIfSlotAvailable.
 // - Side effects are surfaced (terminate, force start, wake), never executed here; callers must act on TransitionEffects.
 //
 // The goal: a single, declarative state machine that callers delegate to, rather than re-encoding rules in handlers/processors/recycler.
@@ -79,7 +85,7 @@ func isTerminalStatus(status string) bool {
 // ApplyTransition enforces the task lifecycle rules and returns the updated task plus side effects.
 // Canonical rules:
 // 1) Manual intent wins for starting: moving to in-progress emits ForceStart (caller bypasses slots), and moving out of in-progress emits TerminateProcess.
-// 2) Terminal buckets (completed/failed/blocked/finalized/archived) always apply cooldown and lock auto-requeue off on entry.
+// 2) Terminal buckets (completed/failed/blocked/finalized/archived) always apply cooldown; auto-requeue is disabled on manual moves and hard-stop buckets.
 // 3) Leaving terminal buckets re-enables auto-requeue and clears cooldown; pending moves from terminal may be started immediately if capacity exists.
 // 4) Auto-requeue=false is a lock: pending moves are rejected unless leaving a terminal state or ForceOverride=true.
 // 5) Recycler/automation only recycles from completed/failed and must respect cooldown + auto-requeue; Pending starts are signaled via StartIfSlotAvailable.
@@ -102,7 +108,6 @@ func (lc *Lifecycle) ApplyTransition(req TransitionRequest) (*TransitionOutcome,
 	}
 
 	now := defaultNow(req.TransitionContext).Format(time.RFC3339)
-	effects := TransitionEffects{}
 
 	// No-op transition, just update timestamp.
 	if toStatus == fromStatus {
@@ -113,74 +118,137 @@ func (lc *Lifecycle) ApplyTransition(req TransitionRequest) (*TransitionOutcome,
 		return &TransitionOutcome{Task: task, From: fromStatus}, nil
 	}
 
-	switch toStatus {
-	case StatusInProgress:
-		// Leaving finished/blocked re-enables auto-requeue and clears cooldown per manual rule.
-		if isTerminalStatus(fromStatus) {
-			task.ProcessorAutoRequeue = true
-			task.CooldownUntil = ""
+	rules := lifecycleRules(lc)
+	rule, ok := rules[toStatus]
+	if !ok {
+		return nil, fmt.Errorf("unsupported transition to %s", toStatus)
+	}
+	if len(rule.allowedFrom) > 0 {
+		if _, allowed := rule.allowedFrom[fromStatus]; !allowed {
+			return nil, fmt.Errorf("cannot move %s from %s", toStatus, fromStatus)
 		}
-		task.Status = StatusInProgress
-		task.CurrentPhase = StatusInProgress
-		task.Results = nil
-		task.CompletedAt = ""
-		if task.StartedAt == "" {
-			task.StartedAt = now
-		}
-		task.UpdatedAt = now
+	}
 
-		if _, _, err := lc.Store.MoveTaskTo(req.TaskID, StatusInProgress); err != nil {
-			return nil, err
-		}
-		if err := lc.Store.SaveQueueItemSkipCleanup(*task, StatusInProgress); err != nil {
-			return nil, err
-		}
+	effects, err := rule.apply(lc, task, fromStatus, req, now)
+	if err != nil {
+		return nil, err
+	}
 
-		if req.Manual {
-			effects.ForceStart = true
-		} else {
-			effects.StartIfSlotAvailable = true
-		}
-		effects.WakeProcessorAfterSave = true
+	return &TransitionOutcome{
+		Task:    task,
+		From:    fromStatus,
+		Effects: effects,
+	}, nil
+}
 
-	case StatusPending:
-		// Enforce lock unless leaving terminal state (which re-enables auto-requeue) or explicitly overridden.
-		if !isTerminalStatus(fromStatus) && !task.ProcessorAutoRequeue && !req.ForceOverride {
-			return nil, fmt.Errorf("auto-requeue disabled; cannot move %s to pending", req.TaskID)
-		}
-		if isTerminalStatus(fromStatus) {
-			if remaining := cooldownRemaining(task); remaining > 0 && !req.ForceOverride {
-				return nil, fmt.Errorf("task %s still cooling down (%v remaining)", req.TaskID, remaining)
-			}
-			task.ProcessorAutoRequeue = true
-			task.CooldownUntil = ""
-		} else if remaining := cooldownRemaining(task); remaining > 0 && !req.ForceOverride {
-			return nil, fmt.Errorf("task %s still cooling down (%v remaining)", req.TaskID, remaining)
-		}
+func lifecycleRules(lc *Lifecycle) map[string]transitionRule {
+	return map[string]transitionRule{
+		StatusInProgress: {
+			apply: func(lc *Lifecycle, task *TaskItem, fromStatus string, req TransitionRequest, now string) (TransitionEffects, error) {
+				effects := TransitionEffects{}
 
-		if fromStatus == StatusInProgress {
-			effects.TerminateProcess = true
-		}
-		task.Status = StatusPending
-		task.CurrentPhase = ""
-		task.StartedAt = ""
-		task.CompletedAt = ""
-		task.Results = nil
-		task.ConsecutiveCompletionClaims = 0
-		task.ConsecutiveFailures = 0
-		task.UpdatedAt = now
+				// Leaving terminal buckets lifts the lock and clears cooldown.
+				if isTerminalStatus(fromStatus) {
+					task.ProcessorAutoRequeue = true
+					task.CooldownUntil = ""
+				}
 
-		if _, _, err := lc.Store.MoveTaskTo(req.TaskID, StatusPending); err != nil {
-			return nil, err
-		}
-		if err := lc.Store.SaveQueueItemSkipCleanup(*task, StatusPending); err != nil {
-			return nil, err
-		}
+				task.Status = StatusInProgress
+				task.CurrentPhase = StatusInProgress
+				task.Results = nil
+				task.CompletedAt = ""
+				if task.StartedAt == "" {
+					task.StartedAt = now
+				}
+				task.UpdatedAt = now
 
-		effects.StartIfSlotAvailable = true
-		effects.WakeProcessorAfterSave = true
+				if _, _, err := lc.Store.MoveTaskTo(req.TaskID, StatusInProgress); err != nil {
+					return effects, err
+				}
+				if err := lc.Store.SaveQueueItemSkipCleanup(*task, StatusInProgress); err != nil {
+					return effects, err
+				}
 
-	case StatusCompleted, StatusFailed, StatusFailedBlocked, StatusCompletedFinalized:
+				if req.Manual {
+					effects.ForceStart = true
+				} else {
+					effects.StartIfSlotAvailable = true
+				}
+				effects.WakeProcessorAfterSave = true
+
+				return effects, nil
+			},
+		},
+		StatusPending: {
+			apply: func(lc *Lifecycle, task *TaskItem, fromStatus string, req TransitionRequest, now string) (TransitionEffects, error) {
+				effects := TransitionEffects{}
+
+				// Enforce lock unless leaving terminal state (which re-enables auto-requeue) or explicitly overridden.
+				if !isTerminalStatus(fromStatus) && !task.ProcessorAutoRequeue && !req.ForceOverride {
+					return effects, fmt.Errorf("auto-requeue disabled; cannot move %s to pending", req.TaskID)
+				}
+				if remaining := cooldownRemaining(task); remaining > 0 && !req.ForceOverride {
+					return effects, fmt.Errorf("task %s still cooling down (%v remaining)", req.TaskID, remaining)
+				}
+				if isTerminalStatus(fromStatus) {
+					task.ProcessorAutoRequeue = true
+					task.CooldownUntil = ""
+				}
+
+				if fromStatus == StatusInProgress {
+					effects.TerminateProcess = true
+				}
+
+				task.Status = StatusPending
+				task.CurrentPhase = ""
+				task.StartedAt = ""
+				task.CompletedAt = ""
+				task.Results = nil
+				task.ConsecutiveCompletionClaims = 0
+				task.ConsecutiveFailures = 0
+				task.UpdatedAt = now
+
+				if _, _, err := lc.Store.MoveTaskTo(req.TaskID, StatusPending); err != nil {
+					return effects, err
+				}
+				if err := lc.Store.SaveQueueItemSkipCleanup(*task, StatusPending); err != nil {
+					return effects, err
+				}
+
+				effects.StartIfSlotAvailable = true
+				effects.WakeProcessorAfterSave = true
+				return effects, nil
+			},
+		},
+		StatusCompleted:          {apply: finalizeRule(StatusCompleted)},
+		StatusFailed:             {apply: finalizeRule(StatusFailed)},
+		StatusFailedBlocked:      {apply: finalizeRule(StatusFailedBlocked)},
+		StatusCompletedFinalized: {apply: finalizeRule(StatusCompletedFinalized)},
+		StatusArchived: {
+			apply: func(lc *Lifecycle, task *TaskItem, fromStatus string, req TransitionRequest, now string) (TransitionEffects, error) {
+				effects := TransitionEffects{}
+				if fromStatus == StatusInProgress {
+					effects.TerminateProcess = true
+				}
+				task.Status = StatusArchived
+				task.CurrentPhase = StatusArchived
+				task.ProcessorAutoRequeue = false
+				task.UpdatedAt = now
+				if _, _, err := lc.Store.MoveTaskTo(req.TaskID, StatusArchived); err != nil {
+					return effects, err
+				}
+				if err := lc.Store.SaveQueueItemSkipCleanup(*task, StatusArchived); err != nil {
+					return effects, err
+				}
+				return effects, nil
+			},
+		},
+	}
+}
+
+func finalizeRule(toStatus string) func(lc *Lifecycle, task *TaskItem, fromStatus string, req TransitionRequest, now string) (TransitionEffects, error) {
+	return func(lc *Lifecycle, task *TaskItem, fromStatus string, req TransitionRequest, now string) (TransitionEffects, error) {
+		effects := TransitionEffects{}
 		if fromStatus == StatusInProgress {
 			effects.TerminateProcess = true
 		}
@@ -197,7 +265,6 @@ func (lc *Lifecycle) ApplyTransition(req TransitionRequest) (*TransitionOutcome,
 		}
 		task.LastCompletedAt = task.CompletedAt
 
-		// Apply cooldown consistently for manual moves too.
 		cooldownSeconds := settings.GetSettings().CooldownSeconds
 		if cooldownSeconds > 0 {
 			task.CooldownUntil = defaultNow(req.TransitionContext).Add(time.Duration(cooldownSeconds) * time.Second).Format(time.RFC3339)
@@ -205,163 +272,107 @@ func (lc *Lifecycle) ApplyTransition(req TransitionRequest) (*TransitionOutcome,
 			task.CooldownUntil = ""
 		}
 
-		// Manual moves into finished/blocked disable auto-requeue; blocked/finalized are always locked.
+		// Moving into terminal buckets disables auto-requeue when manual intent is present,
+		// or when entering hard-stop buckets.
 		if req.Manual || toStatus == StatusFailedBlocked || toStatus == StatusCompletedFinalized {
 			task.ProcessorAutoRequeue = false
 		}
-
 		task.UpdatedAt = now
 
 		if _, _, err := lc.Store.MoveTaskTo(req.TaskID, toStatus); err != nil {
-			return nil, err
+			return effects, err
 		}
 		if err := lc.Store.SaveQueueItemSkipCleanup(*task, toStatus); err != nil {
-			return nil, err
+			return effects, err
 		}
-
-	case StatusArchived:
-		if fromStatus == StatusInProgress {
-			effects.TerminateProcess = true
-		}
-		task.Status = StatusArchived
-		task.CurrentPhase = StatusArchived
-		task.ProcessorAutoRequeue = false
-		task.UpdatedAt = now
-		if _, _, err := lc.Store.MoveTaskTo(req.TaskID, StatusArchived); err != nil {
-			return nil, err
-		}
-		if err := lc.Store.SaveQueueItemSkipCleanup(*task, StatusArchived); err != nil {
-			return nil, err
-		}
-
-	default:
-		return nil, fmt.Errorf("unsupported transition to %s", toStatus)
+		return effects, nil
 	}
-
-	return &TransitionOutcome{
-		Task:    task,
-		From:    fromStatus,
-		Effects: effects,
-	}, nil
 }
 
-// StartPending moves a pending task into in-progress and clears execution fields.
-// Caller is responsible for launching the actual execution.
+// StartPending moves a task into in-progress using the canonical rules.
+// Deprecated: prefer ApplyTransition directly to maintain single-path behavior.
 func (lc *Lifecycle) StartPending(taskID string, ctx TransitionContext) (*TaskItem, error) {
-	if lc == nil || lc.Store == nil {
-		return nil, fmt.Errorf("lifecycle store unavailable")
-	}
-
-	task, status, err := lc.Store.GetTaskByID(taskID)
+	outcome, err := lc.ApplyTransition(TransitionRequest{
+		TaskID:            taskID,
+		ToStatus:          StatusInProgress,
+		TransitionContext: ctx,
+	})
 	if err != nil {
 		return nil, err
 	}
-	if task == nil {
-		return nil, fmt.Errorf("task %s not found", taskID)
-	}
-	if status != StatusPending {
-		return nil, fmt.Errorf("task %s not pending (status=%s)", taskID, status)
-	}
-	if !task.ProcessorAutoRequeue && !ctx.ForceOverride {
-		return nil, fmt.Errorf("auto-requeue disabled; cannot start task %s", taskID)
-	}
-
-	updated, _, err := lc.Store.MoveTaskTo(taskID, StatusInProgress)
-	if err != nil {
-		return nil, err
-	}
-	if updated != nil {
-		task = updated
-	}
-
-	now := defaultNow(ctx).Format(time.RFC3339)
-	task.Status = StatusInProgress
-	task.CurrentPhase = StatusInProgress
-	task.Results = nil
-	task.CompletedAt = ""
-	if task.StartedAt == "" {
-		task.StartedAt = now
-	}
-	task.UpdatedAt = now
-
-	if err := lc.Store.SaveQueueItemSkipCleanup(*task, StatusInProgress); err != nil {
-		return nil, err
-	}
-	return task, nil
+	return outcome.Task, nil
 }
 
-// StopActive moves an in-progress task out of active, sets cancellation info, and disables auto-requeue lock only per rules above.
+// StopActive moves an in-progress task to the provided status (default pending) via canonical rules.
+// Deprecated: prefer ApplyTransition directly.
 func (lc *Lifecycle) StopActive(taskID, toStatus string, ctx TransitionContext) (*TaskItem, string, error) {
-	if lc == nil || lc.Store == nil {
-		return nil, "", fmt.Errorf("lifecycle store unavailable")
-	}
 	if toStatus == "" {
 		toStatus = StatusPending
 	}
-
-	task, status, err := lc.Store.GetTaskByID(taskID)
+	outcome, err := lc.ApplyTransition(TransitionRequest{
+		TaskID:            taskID,
+		ToStatus:          toStatus,
+		TransitionContext: ctx,
+	})
 	if err != nil {
 		return nil, "", err
 	}
-	if task == nil {
-		return nil, "", fmt.Errorf("task %s not found", taskID)
-	}
-	if status != StatusInProgress {
-		return task, status, nil
-	}
-
-	now := defaultNow(ctx).Format(time.RFC3339)
-	task.Status = toStatus
-	task.CurrentPhase = "cancelled"
-	task.Results = map[string]any{
-		"success":      false,
-		"error":        fmt.Sprintf("Task execution was cancelled (moved to %s)", toStatus),
-		"cancelled_at": now,
-	}
-	task.UpdatedAt = now
-	task.StartedAt = ""
-	task.CompletedAt = ""
-	task.CooldownUntil = ""
-	task.ConsecutiveCompletionClaims = 0
-	task.ConsecutiveFailures = 0
-	if toStatus == StatusPending && task.ProcessorAutoRequeue {
-		// Stay enabled
-	} else if toStatus == StatusPending {
-		// Respect lock
-	} else {
-		task.ProcessorAutoRequeue = false
-	}
-
-	if _, _, err := lc.Store.MoveTaskTo(taskID, toStatus); err != nil {
-		return nil, "", err
-	}
-	if err := lc.Store.SaveQueueItem(*task, toStatus); err != nil {
-		return nil, "", err
-	}
-	return task, status, nil
+	return outcome.Task, outcome.From, nil
 }
 
-// Complete marks a task as completed, applies cooldown, and disables auto-requeue when manual.
+// Complete marks a task as completed using canonical rules.
 func (lc *Lifecycle) Complete(taskID string, ctx TransitionContext) (*TaskItem, string, error) {
-	return lc.finish(taskID, StatusCompleted, ctx)
+	outcome, err := lc.ApplyTransition(TransitionRequest{
+		TaskID:            taskID,
+		ToStatus:          StatusCompleted,
+		TransitionContext: ctx,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	return outcome.Task, outcome.From, nil
 }
 
-// Fail marks a task as failed, applies cooldown, and disables auto-requeue when manual blocked.
+// Fail marks a task as failed using canonical rules.
 func (lc *Lifecycle) Fail(taskID string, ctx TransitionContext) (*TaskItem, string, error) {
-	return lc.finish(taskID, StatusFailed, ctx)
+	outcome, err := lc.ApplyTransition(TransitionRequest{
+		TaskID:            taskID,
+		ToStatus:          StatusFailed,
+		TransitionContext: ctx,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	return outcome.Task, outcome.From, nil
 }
 
-// Block marks a task as failed-blocked with cooldown and lock.
+// Block marks a task as failed-blocked using canonical rules.
 func (lc *Lifecycle) Block(taskID string, ctx TransitionContext) (*TaskItem, string, error) {
-	return lc.finish(taskID, StatusFailedBlocked, ctx)
+	outcome, err := lc.ApplyTransition(TransitionRequest{
+		TaskID:            taskID,
+		ToStatus:          StatusFailedBlocked,
+		TransitionContext: ctx,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	return outcome.Task, outcome.From, nil
 }
 
-// Finalize marks a task as completed-finalized and locks auto-requeue off.
+// Finalize marks a task as completed-finalized using canonical rules.
 func (lc *Lifecycle) Finalize(taskID string, ctx TransitionContext) (*TaskItem, string, error) {
-	return lc.finish(taskID, StatusCompletedFinalized, ctx)
+	outcome, err := lc.ApplyTransition(TransitionRequest{
+		TaskID:            taskID,
+		ToStatus:          StatusCompletedFinalized,
+		TransitionContext: ctx,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	return outcome.Task, outcome.From, nil
 }
 
-// Recycle moves a completed/failed task back to pending if allowed (auto-requeue true, cooldown expired).
+// Recycle moves a task back to pending via canonical rules.
 func (lc *Lifecycle) Recycle(taskID string, ctx TransitionContext) (*TaskItem, string, error) {
 	outcome, err := lc.ApplyTransition(TransitionRequest{
 		TaskID:            taskID,
@@ -372,55 +383,6 @@ func (lc *Lifecycle) Recycle(taskID string, ctx TransitionContext) (*TaskItem, s
 		return nil, "", err
 	}
 	return outcome.Task, outcome.From, nil
-}
-
-// finish applies terminal transitions and cooldown behavior.
-func (lc *Lifecycle) finish(taskID, toStatus string, ctx TransitionContext) (*TaskItem, string, error) {
-	if lc == nil || lc.Store == nil {
-		return nil, "", fmt.Errorf("lifecycle store unavailable")
-	}
-
-	task, status, err := lc.Store.GetTaskByID(taskID)
-	if err != nil {
-		return nil, "", err
-	}
-	if task == nil {
-		return nil, "", fmt.Errorf("task %s not found", taskID)
-	}
-
-	now := defaultNow(ctx).Format(time.RFC3339)
-	task.Status = toStatus
-	task.CurrentPhase = toStatus
-	task.CompletedAt = now
-	if task.CompletionCount <= 0 {
-		task.CompletionCount = 1
-	} else {
-		task.CompletionCount++
-	}
-	task.LastCompletedAt = now
-
-	// Apply cooldown regardless of manual/auto; manual moves also get cooldown.
-	cooldownSeconds := settings.GetSettings().CooldownSeconds
-	if cooldownSeconds > 0 {
-		task.CooldownUntil = defaultNow(ctx).Add(time.Duration(cooldownSeconds) * time.Second).Format(time.RFC3339)
-	} else {
-		task.CooldownUntil = ""
-	}
-
-	// Lock off auto-requeue when entering terminal states unless automated continuation later re-enables it explicitly.
-	if toStatus == StatusCompleted || toStatus == StatusFailed || toStatus == StatusFailedBlocked || toStatus == StatusCompletedFinalized {
-		task.ProcessorAutoRequeue = false
-	}
-
-	task.UpdatedAt = now
-
-	if _, _, err := lc.Store.MoveTaskTo(taskID, toStatus); err != nil {
-		return nil, status, err
-	}
-	if err := lc.Store.SaveQueueItemSkipCleanup(*task, toStatus); err != nil {
-		return nil, status, err
-	}
-	return task, status, nil
 }
 
 // cooldownRemaining is duplicated from recycler for now to keep lifecycle self-contained.

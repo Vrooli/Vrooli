@@ -67,6 +67,7 @@ show_help() {
     echo "Auto-Creation Options (for visit, exclude, least-visited, campaigns note/reset):"
     echo "  --location PATH              Campaign location (e.g., scenarios/X/ui)"
     echo "  --tag TAG                    Campaign tag (e.g., ux, refactor, test)"
+    echo "  --name NAME                  Campaign name (optional, defaults to location-tag)"
     echo "  --pattern GLOB               File pattern (default: **/*)"
     echo "  Note: When --location and --tag are provided, campaign is auto-created if needed"
     echo ""
@@ -149,6 +150,7 @@ find_or_create_campaign() {
     local location="$1"
     local tag="$2"
     local pattern="${3:-**/*}"
+    local name="${4:-}"
 
     if [ -z "$location" ] || [ -z "$tag" ]; then
         echo -e "${RED}Error: Both --location and --tag are required for auto-creation.${NC}" >&2
@@ -156,15 +158,29 @@ find_or_create_campaign() {
     fi
 
     local payload
-    payload=$(jq -n \
-        --arg location "$location" \
-        --arg tag "$tag" \
-        --arg pattern "$pattern" \
-        '{
-            location: $location,
-            tag: $tag,
-            patterns: [$pattern]
-        }')
+    if [ -n "$name" ]; then
+        payload=$(jq -n \
+            --arg location "$location" \
+            --arg tag "$tag" \
+            --arg pattern "$pattern" \
+            --arg name "$name" \
+            '{
+                location: $location,
+                tag: $tag,
+                patterns: [$pattern],
+                name: $name
+            }')
+    else
+        payload=$(jq -n \
+            --arg location "$location" \
+            --arg tag "$tag" \
+            --arg pattern "$pattern" \
+            '{
+                location: $location,
+                tag: $tag,
+                patterns: [$pattern]
+            }')
+    fi
 
     local response
     response=$(api_request "POST" "/api/v1/campaigns/find-or-create" "$payload") || return 1
@@ -266,6 +282,7 @@ record_visit() {
     local location=""
     local tag=""
     local pattern="**/*"
+    local name=""
     local json_output=false
 
     while [[ $# -gt 0 ]]; do
@@ -298,6 +315,10 @@ record_visit() {
                 pattern="$2"
                 shift 2
                 ;;
+            --name)
+                name="$2"
+                shift 2
+                ;;
             --json)
                 json_output=true
                 shift
@@ -311,13 +332,13 @@ record_visit() {
 
     if [[ ${#files[@]} -eq 0 ]]; then
         echo -e "${RED}Error: At least one file required${NC}" >&2
-        echo "Usage: visited-tracker visit FILE1 [FILE2...] [--note NOTE] [--tag TAG] [--location LOCATION]" >&2
+        echo "Usage: visited-tracker visit FILE1 [FILE2...] [--note NOTE] [--tag TAG] [--location LOCATION] [--name NAME]" >&2
         exit 1
     fi
 
     # Auto-create or find campaign if location + tag provided
     if [[ -n "$location" ]] && [[ -n "$tag" ]]; then
-        find_or_create_campaign "$location" "$tag" "$pattern" || exit 1
+        find_or_create_campaign "$location" "$tag" "$pattern" "$name" || exit 1
     fi
 
     # Build JSON payload with optional file_notes
@@ -453,6 +474,7 @@ exclude_file() {
     local location=""
     local tag=""
     local pattern="**/*"
+    local name=""
     local json_output=false
 
     while [[ $# -gt 0 ]]; do
@@ -473,6 +495,10 @@ exclude_file() {
                 pattern="$2"
                 shift 2
                 ;;
+            --name)
+                name="$2"
+                shift 2
+                ;;
             --json)
                 json_output=true
                 shift
@@ -486,13 +512,13 @@ exclude_file() {
 
     if [[ ${#files[@]} -eq 0 ]]; then
         echo -e "${RED}Error: At least one file required${NC}" >&2
-        echo "Usage: visited-tracker exclude FILE1 [FILE2...] [--reason REASON] [--tag TAG] [--location LOCATION]" >&2
+        echo "Usage: visited-tracker exclude FILE1 [FILE2...] [--reason REASON] [--tag TAG] [--location LOCATION] [--name NAME]" >&2
         exit 1
     fi
 
     # Auto-create or find campaign if location + tag provided
     if [[ -n "$location" ]] && [[ -n "$tag" ]]; then
-        find_or_create_campaign "$location" "$tag" "$pattern" || exit 1
+        find_or_create_campaign "$location" "$tag" "$pattern" "$name" || exit 1
     fi
 
     # Build bulk exclude payload
@@ -544,6 +570,7 @@ get_least_visited() {
     local location=""
     local tag=""
     local pattern="**/*"
+    local name=""
     local patterns=()
     local json_output=false
     local query_params=""
@@ -574,6 +601,10 @@ get_least_visited() {
                 pattern="$2"
                 shift 2
                 ;;
+            --name)
+                name="$2"
+                shift 2
+                ;;
             --patterns)
                 IFS=',' read -ra ADDR <<< "$2"
                 for i in "${ADDR[@]}"; do
@@ -593,7 +624,7 @@ get_least_visited() {
 
     # Auto-create or find campaign if location + tag provided
     if [[ -n "$location" ]] && [[ -n "$tag" ]]; then
-        find_or_create_campaign "$location" "$tag" "$pattern" || exit 1
+        find_or_create_campaign "$location" "$tag" "$pattern" "$name" || exit 1
     fi
 
     # Build query parameters
@@ -784,6 +815,7 @@ campaigns_command() {
             local location=""
             local tag=""
             local pattern="**/*"
+            local name=""
             local json_output=false
 
             while [[ $# -gt 0 ]]; do
@@ -804,6 +836,10 @@ campaigns_command() {
                         pattern="$2"
                         shift 2
                         ;;
+                    --name)
+                        name="$2"
+                        shift 2
+                        ;;
                     --json)
                         json_output=true
                         shift
@@ -822,7 +858,7 @@ campaigns_command() {
 
             # Auto-create or find campaign if location + tag provided
             if [[ -n "$location" ]] && [[ -n "$tag" ]]; then
-                find_or_create_campaign "$location" "$tag" "$pattern" || exit 1
+                find_or_create_campaign "$location" "$tag" "$pattern" "$name" || exit 1
             elif [ -z "$CAMPAIGN_ID" ]; then
                 ensure_campaign_id || exit 1
             fi
@@ -844,6 +880,7 @@ campaigns_command() {
             local location=""
             local tag=""
             local pattern="**/*"
+            local name=""
             local json_output=false
 
             while [[ $# -gt 0 ]]; do
@@ -860,6 +897,10 @@ campaigns_command() {
                         pattern="$2"
                         shift 2
                         ;;
+                    --name)
+                        name="$2"
+                        shift 2
+                        ;;
                     --json)
                         json_output=true
                         shift
@@ -873,7 +914,7 @@ campaigns_command() {
 
             # Auto-create or find campaign if location + tag provided
             if [[ -n "$location" ]] && [[ -n "$tag" ]]; then
-                find_or_create_campaign "$location" "$tag" "$pattern" || exit 1
+                find_or_create_campaign "$location" "$tag" "$pattern" "$name" || exit 1
             elif [ -z "$CAMPAIGN_ID" ]; then
                 ensure_campaign_id || exit 1
             fi

@@ -64,6 +64,7 @@ visited-tracker least-visited \
   --location scenarios/{{TARGET}}/ui \
   --pattern "**/*.{ts,tsx,js,jsx}" \
   --tag ux \
+  --name "{{TARGET}} - UX Improvement" \
   --limit 5
 ```
 
@@ -71,14 +72,25 @@ visited-tracker least-visited \
 ```bash
 # Record your visit with specific notes about improvements and remaining work
 visited-tracker visit <file-path> \
+  --location scenarios/{{TARGET}}/ui \
   --tag ux \
   --note "<summary of improvements made and what remains>"
+```
+
+**When a file is irrelevant to UX (config, build scripts, etc.):**
+```bash
+# Mark it excluded so it doesn't resurface - this is NOT a UX file
+visited-tracker exclude <file-path> \
+  --location scenarios/{{TARGET}}/ui \
+  --tag ux \
+  --reason "Not a UX file - build config/server/tooling/etc."
 ```
 
 **When a file is fully polished:**
 ```bash
 # Mark it excluded so it doesn't resurface in future queries
 visited-tracker exclude <file-path> \
+  --location scenarios/{{TARGET}}/ui \
   --tag ux \
   --reason "All UX improvements complete - professional quality achieved"
 ```
@@ -89,6 +101,7 @@ visited-tracker exclude <file-path> \
 visited-tracker campaigns note \
   --location scenarios/{{TARGET}}/ui \
   --tag ux \
+  --name "{{TARGET}} - UX Improvement" \
   --note "<overall progress summary, patterns observed, priority areas for next iteration>"
 ```
 

@@ -85,6 +85,74 @@ Focus on producing a **high-signal, trustworthy test suite** that accurately ref
 
 ---
 
+### **6. Memory Management with Visited Tracker**
+
+To ensure **systematic coverage without repetition**, use `visited-tracker` to maintain perfect memory across conversation loops:
+
+**At the start of each iteration:**
+```bash
+# Get 5 least-visited test files with auto-campaign creation
+visited-tracker least-visited \
+  --location scenarios/{{TARGET}} \
+  --pattern "**/*_test.{go,ts,tsx}" \
+  --tag test \
+  --name "{{TARGET}} - Test Suite Strengthening" \
+  --limit 5
+```
+
+**After analyzing each file:**
+```bash
+# Record your visit with specific notes about improvements and remaining work
+visited-tracker visit <file-path> \
+  --location scenarios/{{TARGET}} \
+  --tag test \
+  --note "<summary of test improvements made and what remains>"
+```
+
+**When a file is irrelevant to testing (generated mocks, snapshots, fixtures, etc.):**
+```bash
+# Mark it excluded so it doesn't resurface - this is NOT a test file
+visited-tracker exclude <file-path> \
+  --location scenarios/{{TARGET}} \
+  --tag test \
+  --reason "Not a test file - generated/snapshot/fixture/etc."
+```
+
+**When a file has comprehensive test coverage:**
+```bash
+# Mark it excluded so it doesn't resurface in future queries
+visited-tracker exclude <file-path> \
+  --location scenarios/{{TARGET}} \
+  --tag test \
+  --reason "All test improvements complete - comprehensive coverage, clear assertions, no flakiness"
+```
+
+**Before ending your session:**
+```bash
+# Add campaign note for handoff context to the next iteration
+visited-tracker campaigns note \
+  --location scenarios/{{TARGET}} \
+  --tag test \
+  --name "{{TARGET}} - Test Suite Strengthening" \
+  --note "<overall progress summary, patterns observed, priority areas for next iteration>"
+```
+
+**Interpreting the response:**
+- Prioritize files with **high staleness_score (>7.0)** - neglected files needing attention
+- Focus on **low visit_count (0-2)** - files not yet analyzed
+- Review **notes from previous visits** - understand context and remaining work
+- Check **coverage_percent** - track systematic progress toward 100%
+
+**Note format guidelines:**
+- **File notes**: Be specific about what you tested and what still needs work
+  - ✅ Good: "Added edge case tests, strengthened assertions, fixed flaky timeout. Still need to test error paths for API failures."
+  - ❌ Bad: "Made some test improvements"
+- **Campaign notes**: Provide strategic context for the next agent
+  - ✅ Good: "Completed 22/58 test files (38%). Focus areas: API integration tests lack error coverage, UI tests have weak assertions"
+  - ❌ Bad: "Made progress on tests"
+
+---
+
 ### **7. Output Expectations**
 
 You may update or add:

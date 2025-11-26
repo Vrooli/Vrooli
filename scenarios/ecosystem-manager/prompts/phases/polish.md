@@ -94,6 +94,74 @@ The goal of this phase is to make the scenario feel **reliable, intentional, and
 
 ---
 
+### **7. Memory Management with Visited Tracker**
+
+To ensure **systematic coverage without repetition**, use `visited-tracker` to maintain perfect memory across conversation loops:
+
+**At the start of each iteration:**
+```bash
+# Get 5 least-visited files with auto-campaign creation
+visited-tracker least-visited \
+  --location scenarios/{{TARGET}} \
+  --pattern "**/*.{ts,tsx,js,jsx,go}" \
+  --tag polish \
+  --name "{{TARGET}} - Code Polish" \
+  --limit 5
+```
+
+**After analyzing each file:**
+```bash
+# Record your visit with specific notes about improvements and remaining work
+visited-tracker visit <file-path> \
+  --location scenarios/{{TARGET}} \
+  --tag polish \
+  --note "<summary of polish improvements made and what remains>"
+```
+
+**When a file is irrelevant to polish (config, build scripts, generated files, etc.):**
+```bash
+# Mark it excluded so it doesn't resurface - this is NOT a polish target
+visited-tracker exclude <file-path> \
+  --location scenarios/{{TARGET}} \
+  --tag polish \
+  --reason "Not a polish target - config/generated/tooling/etc."
+```
+
+**When a file is fully polished:**
+```bash
+# Mark it excluded so it doesn't resurface in future queries
+visited-tracker exclude <file-path> \
+  --location scenarios/{{TARGET}} \
+  --tag polish \
+  --reason "All polish work complete - cohesive, refined, professional quality"
+```
+
+**Before ending your session:**
+```bash
+# Add campaign note for handoff context to the next iteration
+visited-tracker campaigns note \
+  --location scenarios/{{TARGET}} \
+  --tag polish \
+  --name "{{TARGET}} - Code Polish" \
+  --note "<overall progress summary, patterns observed, priority areas for next iteration>"
+```
+
+**Interpreting the response:**
+- Prioritize files with **high staleness_score (>7.0)** - neglected files needing attention
+- Focus on **low visit_count (0-2)** - files not yet analyzed
+- Review **notes from previous visits** - understand context and remaining work
+- Check **coverage_percent** - track systematic progress toward 100%
+
+**Note format guidelines:**
+- **File notes**: Be specific about what you polished and what still needs work
+  - ✅ Good: "Improved copy clarity, fixed spacing inconsistencies, standardized button hierarchy. Still need to refine empty states."
+  - ❌ Bad: "Made some polish improvements"
+- **Campaign notes**: Provide strategic context for the next agent
+  - ✅ Good: "Completed 18/42 files (43%). Focus areas: API error messages need consistency, UI components have mixed icon/emoji usage"
+  - ❌ Bad: "Made progress on polish"
+
+---
+
 ### **8. Output Expectations**
 
 You may update:
@@ -103,7 +171,7 @@ You may update:
 * error, loading, and empty states
 * logs and debug output (to be more meaningful and less noisy)
 * naming and small code-level details where safe
-* tests’ descriptions and small behaviors that clarify intent
+* tests' descriptions and small behaviors that clarify intent
 
 You **must**:
 

@@ -71,6 +71,72 @@ Where appropriate, introduce **debouncing**, **throttling**, or **batching** of 
   * smoother typing and interaction
   * less jank during complex operations
 
+### **7. Memory Management with Visited Tracker**
+
+To ensure **systematic coverage without repetition**, use `visited-tracker` to maintain perfect memory across conversation loops:
+
+**At the start of each iteration:**
+```bash
+# Get 5 least-visited files with auto-campaign creation
+visited-tracker least-visited \
+  --location scenarios/{{TARGET}} \
+  --pattern "**/*.{ts,tsx,js,jsx,go}" \
+  --tag performance \
+  --name "{{TARGET}} - Performance Optimization" \
+  --limit 5
+```
+
+**After analyzing each file:**
+```bash
+# Record your visit with specific notes about improvements and remaining work
+visited-tracker visit <file-path> \
+  --location scenarios/{{TARGET}} \
+  --tag performance \
+  --note "<summary of optimizations made and what remains>"
+```
+
+**When a file is irrelevant to performance (config, build scripts, types, etc.):**
+```bash
+# Mark it excluded so it doesn't resurface - this is NOT a performance-critical file
+visited-tracker exclude <file-path> \
+  --location scenarios/{{TARGET}} \
+  --tag performance \
+  --reason "Not performance-critical - config/types/tooling/etc."
+```
+
+**When a file is fully optimized:**
+```bash
+# Mark it excluded so it doesn't resurface in future queries
+visited-tracker exclude <file-path> \
+  --location scenarios/{{TARGET}} \
+  --tag performance \
+  --reason "All performance optimizations complete - no bottlenecks remain"
+```
+
+**Before ending your session:**
+```bash
+# Add campaign note for handoff context to the next iteration
+visited-tracker campaigns note \
+  --location scenarios/{{TARGET}} \
+  --tag performance \
+  --name "{{TARGET}} - Performance Optimization" \
+  --note "<overall progress summary, patterns observed, priority areas for next iteration>"
+```
+
+**Interpreting the response:**
+- Prioritize files with **high staleness_score (>7.0)** - neglected files needing attention
+- Focus on **low visit_count (0-2)** - files not yet analyzed
+- Review **notes from previous visits** - understand context and remaining work
+- Check **coverage_percent** - track systematic progress toward 100%
+
+**Note format guidelines:**
+- **File notes**: Be specific about what you optimized and what still needs work
+  - ✅ Good: "Memoized expensive calculations, debounced input handlers. Still need to optimize list rendering."
+  - ❌ Bad: "Made some performance improvements"
+- **Campaign notes**: Provide strategic context for the next agent
+  - ✅ Good: "Completed 12/35 files (34%). Focus areas: API handlers have N+1 queries, UI list components lack virtualization"
+  - ❌ Bad: "Made progress on performance"
+
 ### **8. Output Expectations**
 
 You may update:
@@ -91,4 +157,4 @@ You **must**:
 
 Focus this loop on **practical, targeted performance improvements** that make the scenario feel lighter, more responsive, and more efficient to use.
 
-**Avoid superficial “optimizations” that add complexity or risk without clearly improving real-world performance. Only make changes that genuinely reduce latency, unnecessary work, or interaction jank.**
+**Avoid superficial "optimizations" that add complexity or risk without clearly improving real-world performance. Only make changes that genuinely reduce latency, unnecessary work, or interaction jank.**

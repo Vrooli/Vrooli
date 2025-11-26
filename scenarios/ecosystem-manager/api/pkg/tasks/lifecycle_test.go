@@ -13,11 +13,13 @@ type mockStorage struct {
 func newMockStorage() *mockStorage {
 	return &mockStorage{
 		items: map[string]map[string]TaskItem{
-			StatusPending:       {},
-			StatusInProgress:    {},
-			StatusCompleted:     {},
-			StatusFailed:        {},
-			StatusFailedBlocked: {},
+			StatusPending:            {},
+			StatusInProgress:         {},
+			StatusCompleted:          {},
+			StatusFailed:             {},
+			StatusFailedBlocked:      {},
+			StatusCompletedFinalized: {},
+			StatusArchived:           {},
 		},
 	}
 }
@@ -76,20 +78,15 @@ func ensureSingleBucket(t *testing.T, store *mockStorage, taskID string) {
 	}
 }
 
-func TestStartPendingRespectsLock(t *testing.T) {
+func TestStartPendingIgnoresLockForAlreadyPending(t *testing.T) {
 	store := newMockStorage()
 	task := TaskItem{ID: "t1", Status: StatusPending, ProcessorAutoRequeue: false}
 	store.items[StatusPending][task.ID] = task
 
 	lc := Lifecycle{Store: store}
-	_, err := lc.StartPending(task.ID, TransitionContext{})
-	if err == nil {
-		t.Fatalf("expected lock to prevent start when auto-requeue is false")
-	}
-
-	started, err := lc.StartPending(task.ID, TransitionContext{ForceOverride: true})
+	started, err := lc.StartPending(task.ID, TransitionContext{})
 	if err != nil {
-		t.Fatalf("expected override to allow start, got %v", err)
+		t.Fatalf("expected pending task to start even when auto-requeue is false, got %v", err)
 	}
 	if started.Status != StatusInProgress {
 		t.Fatalf("expected in-progress, got %s", started.Status)
@@ -102,7 +99,10 @@ func TestCompleteAppliesCooldownAndDisablesAutoRequeue(t *testing.T) {
 	store.items[StatusInProgress][task.ID] = task
 
 	lc := Lifecycle{Store: store}
-	updated, _, err := lc.Complete(task.ID, TransitionContext{Now: func() time.Time { return time.Unix(0, 0) }})
+	updated, _, err := lc.Complete(task.ID, TransitionContext{
+		Manual: true,
+		Now:    func() time.Time { return time.Unix(0, 0) },
+	})
 	if err != nil {
 		t.Fatalf("complete failed: %v", err)
 	}
@@ -174,8 +174,7 @@ func TestLifecycleTransitionMatrix(t *testing.T) {
 		expectStatus  string
 		expectLock    bool
 	}{
-		{"Pending->Active respects lock", StatusPending, StatusInProgress, false, false, true, StatusPending, false},
-		{"Pending->Active override lock", StatusPending, StatusInProgress, false, true, false, StatusInProgress, false},
+		{"Pending->Active ignores lock for running", StatusPending, StatusInProgress, false, false, false, StatusInProgress, false},
 		{"Pending->Active auto true", StatusPending, StatusInProgress, true, false, false, StatusInProgress, true},
 		{"Active->Completed locks auto-requeue", StatusInProgress, StatusCompleted, true, false, false, StatusCompleted, false},
 		{"Completed->Pending re-enables auto-requeue", StatusCompleted, StatusPending, false, true, false, StatusPending, true},
@@ -341,6 +340,163 @@ func TestPendingMoveFromTerminalReEnablesAutoRequeue(t *testing.T) {
 		t.Fatalf("expected auto-requeue re-enabled when leaving terminal state")
 	}
 	ensureSingleBucket(t, store, task.ID)
+}
+
+func TestLifecycleRuleMatrix(t *testing.T) {
+	now := time.Unix(0, 0)
+	tests := []struct {
+		name          string
+		startStatus   string
+		targetStatus  string
+		autoRequeue   bool
+		cooldownUntil string
+		manual        bool
+		override      bool
+		expectErr     bool
+		expectAuto    bool
+		expectEffect  TransitionEffects
+	}{
+		{
+			name:         "Manual move pending->active ignores lock and force starts",
+			startStatus:  StatusPending,
+			targetStatus: StatusInProgress,
+			autoRequeue:  false,
+			manual:       true,
+			expectAuto:   false,
+			expectEffect: TransitionEffects{ForceStart: true, WakeProcessorAfterSave: true},
+		},
+		{
+			name:         "Pending->active automated requests opportunistic start",
+			startStatus:  StatusPending,
+			targetStatus: StatusInProgress,
+			autoRequeue:  true,
+			manual:       false,
+			expectAuto:   true,
+			expectEffect: TransitionEffects{StartIfSlotAvailable: true, WakeProcessorAfterSave: true},
+		},
+		{
+			name:         "Manual completion disables auto-requeue and terminates",
+			startStatus:  StatusInProgress,
+			targetStatus: StatusCompleted,
+			autoRequeue:  true,
+			manual:       true,
+			expectAuto:   false,
+			expectEffect: TransitionEffects{TerminateProcess: true},
+		},
+		{
+			name:         "Automated completion keeps auto-requeue enabled",
+			startStatus:  StatusInProgress,
+			targetStatus: StatusCompleted,
+			autoRequeue:  true,
+			manual:       false,
+			expectAuto:   true,
+			expectEffect: TransitionEffects{TerminateProcess: true},
+		},
+		{
+			name:         "Manual blocked disables auto-requeue",
+			startStatus:  StatusInProgress,
+			targetStatus: StatusFailedBlocked,
+			autoRequeue:  true,
+			manual:       true,
+			expectAuto:   false,
+			expectEffect: TransitionEffects{TerminateProcess: true},
+		},
+		{
+			name:         "Pending move blocked when lock set and not leaving terminal",
+			startStatus:  StatusInProgress,
+			targetStatus: StatusPending,
+			autoRequeue:  false,
+			manual:       true,
+			expectErr:    true,
+			expectAuto:   false,
+			expectEffect: TransitionEffects{},
+		},
+		{
+			name:          "Pending move from terminal respects cooldown unless override",
+			startStatus:   StatusCompleted,
+			targetStatus:  StatusPending,
+			autoRequeue:   false,
+			cooldownUntil: time.Now().Add(time.Hour).Format(time.RFC3339),
+			manual:        true,
+			expectErr:     true,
+			expectAuto:    false,
+			expectEffect:  TransitionEffects{},
+		},
+		{
+			name:          "Pending move from terminal with override clears lock and cooldown",
+			startStatus:   StatusCompleted,
+			targetStatus:  StatusPending,
+			autoRequeue:   false,
+			cooldownUntil: time.Now().Add(time.Hour).Format(time.RFC3339),
+			manual:        true,
+			override:      true,
+			expectAuto:    true,
+			expectEffect:  TransitionEffects{StartIfSlotAvailable: true, WakeProcessorAfterSave: true},
+		},
+		{
+			name:         "Leaving blocked to active re-enables auto and force starts",
+			startStatus:  StatusFailedBlocked,
+			targetStatus: StatusInProgress,
+			autoRequeue:  false,
+			manual:       true,
+			expectAuto:   true,
+			expectEffect: TransitionEffects{ForceStart: true, WakeProcessorAfterSave: true},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := newMockStorage()
+			task := TaskItem{
+				ID:                   "rule",
+				Status:               tt.startStatus,
+				ProcessorAutoRequeue: tt.autoRequeue,
+				CooldownUntil:        tt.cooldownUntil,
+			}
+			if _, exists := store.items[tt.startStatus]; !exists {
+				store.items[tt.startStatus] = map[string]TaskItem{}
+			}
+			store.items[tt.startStatus][task.ID] = task
+
+			lc := Lifecycle{Store: store}
+			outcome, err := lc.ApplyTransition(TransitionRequest{
+				TaskID:   task.ID,
+				ToStatus: tt.targetStatus,
+				TransitionContext: TransitionContext{
+					Manual:        tt.manual,
+					ForceOverride: tt.override,
+					Now:           func() time.Time { return now },
+				},
+			})
+
+			if tt.expectErr {
+				if err == nil {
+					t.Fatalf("expected error but got none")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if outcome.Task.ProcessorAutoRequeue != tt.expectAuto {
+				t.Fatalf("expected auto-requeue %v, got %v", tt.expectAuto, outcome.Task.ProcessorAutoRequeue)
+			}
+			// Check side effects flags of interest
+			if tt.expectEffect.TerminateProcess != outcome.Effects.TerminateProcess {
+				t.Fatalf("expected terminate=%v got %v", tt.expectEffect.TerminateProcess, outcome.Effects.TerminateProcess)
+			}
+			if tt.expectEffect.ForceStart != outcome.Effects.ForceStart {
+				t.Fatalf("expected forceStart=%v got %v", tt.expectEffect.ForceStart, outcome.Effects.ForceStart)
+			}
+			if tt.expectEffect.StartIfSlotAvailable != outcome.Effects.StartIfSlotAvailable {
+				t.Fatalf("expected startIfSlotAvailable=%v got %v", tt.expectEffect.StartIfSlotAvailable, outcome.Effects.StartIfSlotAvailable)
+			}
+			if tt.expectEffect.WakeProcessorAfterSave != outcome.Effects.WakeProcessorAfterSave {
+				t.Fatalf("expected wakeAfterSave=%v got %v", tt.expectEffect.WakeProcessorAfterSave, outcome.Effects.WakeProcessorAfterSave)
+			}
+			ensureSingleBucket(t, store, task.ID)
+		})
+	}
 }
 
 func TestManualCompletionDisablesAutoRequeueWhileAutomatedKeepsIt(t *testing.T) {
