@@ -157,7 +157,22 @@ _testing_playbooks__persist_failure_artifacts() {
             if [[ "$rel_readme" == "$scenario_dir/"* ]]; then
                 rel_readme="${rel_readme#$scenario_dir/}"
             fi
-            TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE="Read $rel_readme"
+
+            # Surface key artifacts so users know what to open first
+            local artifact_hints=()
+            if [ -f "${folder_export_dir}/timeline.json" ]; then
+                artifact_hints+=("timeline.json")
+            fi
+            if compgen -G "${folder_export_dir}/screenshots/*" >/dev/null 2>&1; then
+                artifact_hints+=("screenshots/")
+            fi
+
+            local hint_suffix=""
+            if [ ${#artifact_hints[@]} -gt 0 ]; then
+                hint_suffix=" (includes ${artifact_hints[*]})"
+            fi
+
+            TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE="Read $rel_readme${hint_suffix}"
         else
             # README exists but is mostly empty - treat as failed export
             TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE=""

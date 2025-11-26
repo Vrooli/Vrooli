@@ -54,6 +54,7 @@ scenario::run() {
         prior_manage_value="${TEST_MANAGE_RUNTIME}"
     fi
 
+    local selection=""
     local -a remaining_args=()
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -70,8 +71,13 @@ scenario::run() {
                 shift
                 ;;
             *)
-                remaining_args+=("$1")
-                shift
+                if [[ "$phase" == "test" && -z "$selection" && "$1" != "-"* ]]; then
+                    selection="$1"
+                    shift
+                else
+                    remaining_args+=("$1")
+                    shift
+                fi
                 ;;
         esac
     done
@@ -79,6 +85,34 @@ scenario::run() {
     if [[ "$allow_skip_missing_runtime" == "true" && "$manage_runtime" == "true" ]]; then
         log::warning "⚠️  --manage-runtime overrides --allow-skip-missing-runtime"
         allow_skip_missing_runtime=false
+    fi
+
+    if [[ "$phase" == "test" && -n "$selection" ]]; then
+        local -a valid_selections=(structure dependencies unit integration business performance all e2e)
+        local is_valid=false
+        for sel in "${valid_selections[@]}"; do
+            if [[ "$selection" == "$sel" ]]; then
+                is_valid=true
+                break
+            fi
+        done
+
+        if [[ "$is_valid" == "false" ]]; then
+            log::error "Invalid test selector: $selection"
+            log::info "Valid selections: ${valid_selections[*]}"
+            return 1
+        fi
+
+        if [[ "$selection" == "e2e" ]]; then
+            log::info "Note: 'e2e' runs the integration phase (current end-to-end coverage)."
+            selection="integration"
+        fi
+
+        if [[ "$selection" == "all" ]]; then
+            remaining_args+=("all")
+        else
+            remaining_args+=("$selection")
+        fi
     fi
     
     # For develop phase, check if already running and healthy

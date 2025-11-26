@@ -23,6 +23,15 @@ TESTING_PHASE_EXPECTED_REQUIREMENTS=()
 declare -A TESTING_PHASE_EXPECTED_CRITICALITY=()
 declare -A TESTING_PHASE_EXPECTED_VALIDATIONS=()
 
+# Integration workflow progress tracking (for partial summaries on timeout)
+declare -g TESTING_PHASE_WF_PROGRESS_TOTAL=0
+declare -g TESTING_PHASE_WF_PROGRESS_PASSED=0
+declare -g TESTING_PHASE_WF_PROGRESS_FAILED=0
+declare -g TESTING_PHASE_WF_PROGRESS_SKIPPED=0
+declare -g TESTING_PHASE_WF_PROGRESS_FIRST_FAILURE_LOG=""
+declare -g TESTING_PHASE_WF_PROGRESS_REPORTED=false
+declare -g TESTING_PHASE_WF_PROGRESS_COMPLETE=false
+
 TESTING_PHASE_INITIALIZED=false
 TESTING_PHASE_AUTO_MANAGED=false
 TESTING_PHASE_AUTO_SUMMARY=""
@@ -620,6 +629,41 @@ testing::phase::expected_validations_for() {
 #   --scenario NAME         Target scenario to test (default: browser-automation-studio)
 #   --manage-runtime MODE   Pass-through to workflow runner (auto|start|skip)
 #   --disallow-missing      Treat missing workflow files as failures instead of skips
+testing::phase::_reset_workflow_progress() {
+    TESTING_PHASE_WF_PROGRESS_TOTAL=0
+    TESTING_PHASE_WF_PROGRESS_PASSED=0
+    TESTING_PHASE_WF_PROGRESS_FAILED=0
+    TESTING_PHASE_WF_PROGRESS_SKIPPED=0
+    TESTING_PHASE_WF_PROGRESS_FIRST_FAILURE_LOG=""
+    TESTING_PHASE_WF_PROGRESS_REPORTED=false
+    TESTING_PHASE_WF_PROGRESS_COMPLETE=false
+}
+
+testing::phase::_record_workflow_progress() {
+    local status="$1"
+    case "$status" in
+        passed) ((TESTING_PHASE_WF_PROGRESS_PASSED++)) || true ;;
+        failed) ((TESTING_PHASE_WF_PROGRESS_FAILED++)) || true ;;
+        skipped) ((TESTING_PHASE_WF_PROGRESS_SKIPPED++)) || true ;;
+    esac
+}
+
+testing::phase::_report_partial_workflow_progress() {
+    # Avoid duplicate reporting or reporting when run completed normally
+    if [ "${TESTING_PHASE_WF_PROGRESS_REPORTED:-false}" = true ] || [ "${TESTING_PHASE_WF_PROGRESS_COMPLETE:-false}" = true ]; then
+        return 0
+    fi
+
+    TESTING_PHASE_WF_PROGRESS_REPORTED=true
+
+    local ran=$((TESTING_PHASE_WF_PROGRESS_PASSED + TESTING_PHASE_WF_PROGRESS_FAILED + TESTING_PHASE_WF_PROGRESS_SKIPPED))
+    echo ""
+    echo "ℹ️  Integration workflows interrupted: ran ${ran}/${TESTING_PHASE_WF_PROGRESS_TOTAL} (passed ${TESTING_PHASE_WF_PROGRESS_PASSED}, failed ${TESTING_PHASE_WF_PROGRESS_FAILED}, skipped ${TESTING_PHASE_WF_PROGRESS_SKIPPED})"
+    if [ -n "${TESTING_PHASE_WF_PROGRESS_FIRST_FAILURE_LOG:-}" ]; then
+        echo "   First failure log: ${TESTING_PHASE_WF_PROGRESS_FIRST_FAILURE_LOG}"
+    fi
+}
+
 testing::phase::run_workflow_validations() {
     local default_scenario="browser-automation-studio"
     local manage_runtime="auto"
@@ -669,10 +713,15 @@ testing::phase::run_workflow_validations() {
         return 1
     fi
 
+    testing::phase::_reset_workflow_progress
+    trap 'testing::phase::_report_partial_workflow_progress' SIGTERM SIGINT
+
     local playbook_count
     playbook_count=$(jq '.playbooks | length' "$registry_path" 2>/dev/null || echo 0)
+    TESTING_PHASE_WF_PROGRESS_TOTAL=$playbook_count
     if [ "$playbook_count" -eq 0 ]; then
         log::warning "No playbooks discovered in registry; skipping workflow validations"
+        trap - SIGTERM SIGINT
         return 0
     fi
 
@@ -775,6 +824,7 @@ testing::phase::run_workflow_validations() {
         if testing::playbooks::run_workflow "${args[@]}" >"$workflow_output" 2>&1; then
             status_label=passed
             ((passed_count++)) || true
+            testing::phase::_record_workflow_progress passed
             testing::phase::add_test passed
             rm -f "$workflow_log_path"
         else
@@ -782,16 +832,19 @@ testing::phase::run_workflow_validations() {
             if [ "$allow_missing" = true ] && [ "$rc" -eq 210 ]; then
                 status_label=skipped
                 ((skipped_count++)) || true
+                testing::phase::_record_workflow_progress skipped
                 testing::phase::add_test skipped
                 testing::phase::add_warning "Workflow ${workflow_label} missing; export pending"
             else
                 status_label=failed
                 ((failed_count++)) || true
+                testing::phase::_record_workflow_progress failed
                 testing::phase::add_test failed
                 overall_status=1
                 mv "$workflow_output" "$workflow_log_path"
                 if [ -z "$first_failure_log_path" ]; then
                     first_failure_log_path="$workflow_log_path"
+                    TESTING_PHASE_WF_PROGRESS_FIRST_FAILURE_LOG="$workflow_log_path"
                 fi
                 if [ -s "$workflow_log_path" ]; then
                     local fatal_match
@@ -801,29 +854,50 @@ testing::phase::run_workflow_validations() {
                     if [ -z "$first_error" ]; then
                         first_error=$(head -n 1 "$workflow_log_path" || true)
                     fi
-                    if [ -n "$first_error" ]; then
-                        echo "   ↳ Cause: $first_error"
-                    fi
                     if [ -z "$fatal_resolver_error" ] && [ -n "$fatal_match" ]; then
                         fatal_resolver_error="Fixture metadata validation failed: ${fatal_match} (see $workflow_log_path)"
                     fi
                 fi
-                if [ -n "${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE:-}" ]; then
-                    echo "   ↳ Artifacts: ${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE}"
+
+                # Format failure header + children for readability
+                local display_header="$rel_path"
+                if [ -z "$display_header" ]; then
+                    display_header="$workflow_log_path"
                 fi
+                if [[ "$display_header" == "$scenario_dir/"* ]]; then
+                    display_header="${display_header#$scenario_dir/}"
+                fi
+                echo "${display_header} [${index}/${playbook_count}] (${passed_count} passed, ${failed_count} failed, ${skipped_count} skipped)"
+
+                if [ -n "${first_error:-}" ]; then
+                    echo "    ↳ Cause: $first_error"
+                fi
+
+                if [ -n "${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE:-}" ]; then
+                    local artifact_note="${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE}"
+                    if [[ "$artifact_note" == Read* ]]; then
+                        local path_part="${artifact_note#Read }"
+                        if [[ "$path_part" != /* ]]; then
+                            path_part="$scenario_dir/$path_part"
+                        fi
+                        artifact_note="Artifacts: $path_part"
+                    else
+                        artifact_note="Artifacts: $artifact_note"
+                    fi
+                    echo "    ↳ ${artifact_note}"
+                fi
+
+                echo "    ↳ Log: $workflow_log_path"
 
                 # Store failed workflow info for summary
                 local workflow_name=$(basename "$rel_path" .json)
                 local artifact_path="${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE:-}"
                 failed_workflows+=("$workflow_name|$artifact_path|$workflow_log_path")
-
-                # Surface a quick pointer immediately for early failures
-                echo "   ↳ Log: $workflow_log_path"
             fi
         fi
 
         # Show progress indicator every 10 workflows or on failures
-        if [ $((index % 10)) -eq 0 ] || [ "$status_label" = "failed" ]; then
+        if [ "$status_label" != "failed" ] && [ $((index % 10)) -eq 0 ]; then
             echo "   [$index/$playbook_count] ($passed_count passed, $failed_count failed, $skipped_count skipped)"
         fi
 
@@ -834,9 +908,9 @@ testing::phase::run_workflow_validations() {
         fi
 
         local artifact_note=""
-        if [ "$status_label" = "failed" ] && [ -n "${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE:-}" ]; then
-            artifact_note="; artifacts: ${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE}"
-        fi
+            if [ "$status_label" = "failed" ] && [ -n "${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE:-}" ]; then
+                artifact_note="; artifacts: ${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE}"
+            fi
 
         local fixture_status="$status_label"
         for req_id in "${requirements[@]}"; do
@@ -882,6 +956,7 @@ testing::phase::run_workflow_validations() {
         echo ""
         echo "❌ Aborted remaining workflows due to resolver error:"
         echo "   ${fatal_resolver_error}"
+        testing::phase::_report_partial_workflow_progress
     fi
 
     # Show failed workflows summary (limit to first 10)
@@ -903,19 +978,20 @@ testing::phase::run_workflow_validations() {
                 if [[ "$path_part" != /* ]]; then
                     path_part="$scenario_dir/$path_part"
                 fi
-                details+=("artifacts: $path_part")
+                details+=("Artifacts: $path_part")
             elif [ -n "$artifact_path" ]; then
-                details+=("artifacts: $artifact_path")
+                details+=("Artifacts: $artifact_path")
             fi
 
             if [ -n "$log_path" ]; then
-                details+=("log: $log_path")
+                details+=("Log: $log_path")
             fi
 
+            echo "  ❌ $wf_name"
             if [ ${#details[@]} -gt 0 ]; then
-                echo "  ❌ $wf_name → ${details[*]}"
-            else
-                echo "  ❌ $wf_name"
+                for detail in "${details[@]}"; do
+                    echo "      ↳ $detail"
+                done
             fi
 
             ((shown++)) || true
@@ -947,6 +1023,9 @@ testing::phase::run_workflow_validations() {
         echo ""
         echo "ℹ️  No workflows passed; first failure log: $first_failure_log_path"
     fi
+
+    TESTING_PHASE_WF_PROGRESS_COMPLETE=true
+    trap - SIGTERM SIGINT
 
     return $overall_status
 }

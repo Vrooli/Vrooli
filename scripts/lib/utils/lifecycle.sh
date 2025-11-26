@@ -442,11 +442,14 @@ lifecycle::stop_scenario_processes() {
 # Simple and focused - just runs the steps
 # Arguments:
 #   $1 - Phase name (setup, develop, test, stop, etc.)
+#   $@ - Optional phase-specific arguments (forwarded to step commands)
 # Returns:
 #   0 on success, 1 on failure
 #######################################
 lifecycle::execute_phase() {
     local phase="${1:-}"
+    shift || true
+    local -a phase_args=("$@")
     [[ -z "$phase" ]] && return 1
     
     # Find service.json
@@ -552,8 +555,15 @@ lifecycle::execute_phase() {
         log::info "[$step_count/$total_steps] $name"
         [[ -n "$desc" ]] && echo "  → $desc"
 
+        local final_cmd="$cmd"
+        if [[ "$phase" == "test" && ${#phase_args[@]} -gt 0 ]]; then
+            for arg in "${phase_args[@]}"; do
+                final_cmd+=" $(printf '%q' "$arg")"
+            done
+        fi
+
         if [[ "${DRY_RUN:-false}" == "true" ]]; then
-            echo "[DRY-RUN] Would execute: $cmd"
+            echo "[DRY-RUN] Would execute: $final_cmd"
             continue
         fi
 
@@ -563,13 +573,13 @@ lifecycle::execute_phase() {
         
         # Execute command using new PID tracking system
         if [[ "$is_background" == "true" ]]; then
-            if ! lifecycle::start_tracked_process "$phase" "$name" "$cmd"; then
+            if ! lifecycle::start_tracked_process "$phase" "$name" "$final_cmd"; then
                 log::error "Background step failed: $phase.$app_name.$name"
                 return 1
             fi
         else
             # Foreground execution
-            if (cd "$(pwd)" && LIFECYCLE_PHASE="$phase" VROOLI_LIFECYCLE_MANAGED="true" bash -c "$cmd"); then
+            if (cd "$(pwd)" && LIFECYCLE_PHASE="$phase" VROOLI_LIFECYCLE_MANAGED="true" bash -c "$final_cmd"); then
                 # Command succeeded
                 true
             else
@@ -690,11 +700,14 @@ lifecycle::main() {
     
     local scenario_name="${1:-}"
     local phase="${2:-}"
+    shift 2 || true
+    local -a phase_args=("$@")
     
     if [[ -z "$scenario_name" || -z "$phase" ]]; then
-        echo "Usage: $0 <scenario_name> <phase>"
+        echo "Usage: $0 <scenario_name> <phase> [phase-args]"
         echo "  scenario_name: Name of scenario to run"
         echo "  phase: Lifecycle phase (setup, develop, test, stop)"
+        echo "  phase-args: Optional arguments forwarded to the phase command"
         exit 1
     fi
     
@@ -719,7 +732,7 @@ lifecycle::main() {
             lifecycle::develop_with_auto_setup
             ;;
         *)
-            lifecycle::execute_phase "$phase"
+            lifecycle::execute_phase "$phase" "${phase_args[@]}"
             ;;
     esac
 }
