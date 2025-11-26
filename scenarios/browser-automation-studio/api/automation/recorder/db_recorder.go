@@ -45,6 +45,10 @@ func (r *DBRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		return RecordResult{}, nil
 	}
 
+	if err := r.ensureExecutionExists(ctx, plan); err != nil {
+		return RecordResult{}, err
+	}
+
 	outcome = sanitizeOutcome(outcome)
 
 	step := &database.ExecutionStep{
@@ -429,6 +433,46 @@ type executionCreator interface {
 	CreateExecution(ctx context.Context, execution *database.Execution) error
 }
 
+// ensureExecutionExists guarantees the parent execution row exists before we
+// start inserting steps. This avoids FK violations when callers forget to
+// pre-create executions.
+func (r *DBRecorder) ensureExecutionExists(ctx context.Context, plan contracts.ExecutionPlan) error {
+	cacheKey := plan.ExecutionID.String()
+	if _, seen := r.checkedExecutions.Load(cacheKey); seen {
+		return nil
+	}
+
+	fetcher, okFetch := r.repo.(executionFetcher)
+	creator, okCreate := r.repo.(executionCreator)
+	if !okCreate {
+		return nil
+	}
+
+	if okFetch {
+		if existing, err := fetcher.GetExecution(ctx, plan.ExecutionID); err == nil && existing != nil {
+			r.checkedExecutions.Store(cacheKey, struct{}{})
+			return nil
+		}
+	}
+
+	exec := &database.Execution{
+		ID:          plan.ExecutionID,
+		WorkflowID:  plan.WorkflowID,
+		Status:      "running",
+		TriggerType: "executor",
+		StartedAt:   time.Now().UTC(),
+		Progress:    0,
+		CurrentStep: "Ensured execution context",
+	}
+
+	if err := creator.CreateExecution(ctx, exec); err != nil {
+		return fmt.Errorf("ensure execution %s: %w", plan.ExecutionID, err)
+	}
+
+	r.checkedExecutions.Store(cacheKey, struct{}{})
+	return nil
+}
+
 // recoverMissingExecution attempts to recreate the execution row when step persistence fails
 // due to a missing execution FK. This guards against out-of-order writes when the executor
 // is invoked without a pre-created execution record (e.g., from adhoc tooling).
@@ -442,7 +486,6 @@ func (r *DBRecorder) recoverMissingExecution(ctx context.Context, plan contracts
 		// Already attempted recovery for this execution.
 		return false, originalErr
 	}
-	r.checkedExecutions.Store(cacheKey, struct{}{})
 
 	fetcher, okFetch := r.repo.(executionFetcher)
 	creator, okCreate := r.repo.(executionCreator)
@@ -454,6 +497,7 @@ func (r *DBRecorder) recoverMissingExecution(ctx context.Context, plan contracts
 		existing, err := fetcher.GetExecution(ctx, plan.ExecutionID)
 		if err == nil && existing != nil {
 			// Execution already exists; bubble original error.
+			r.checkedExecutions.Store(cacheKey, struct{}{})
 			return false, originalErr
 		}
 	}
@@ -475,6 +519,7 @@ func (r *DBRecorder) recoverMissingExecution(ctx context.Context, plan contracts
 	if r.log != nil {
 		r.log.WithField("execution_id", plan.ExecutionID).Warn("Recovered missing execution before persisting step outcome")
 	}
+	r.checkedExecutions.Store(cacheKey, struct{}{})
 	return true, nil
 }
 

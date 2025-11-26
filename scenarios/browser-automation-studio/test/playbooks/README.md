@@ -20,9 +20,8 @@ Numbers in the requirements folders determine **what** each target means; this l
 1. Pick the correct capability folder + surface (e.g., `builder/toolbar`). If the folder doesn’t exist yet, create it and update this README.
 2. File naming: `feature-action.json` (kebab-case, include verb).
 3. Add metadata with `description`, `version`, and `reset` (optionally `name`). Requirement linkage now lives in `requirements/*.json` via `validation.ref` entries; do **not** set `metadata.requirement`. Use `"reset"` to tell the runner when to reseed:
-   - `"reset": "project"` (default) when the workflow mutates the seeded project
+   - `"reset": "full"` when the workflow mutates state and needs a fresh seed on the next test
    - `"reset": "none"` when the workflow is read-only and can share state with the previous test
-   - `"reset": "global"` when future flows require a full cleanup (reserved for cross-project mutations)
 4. Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts` (never hard-code CSS). Add new selector keys there when needed.
 5. Reuse fixtures by setting `"workflowId": "@fixture/<slug>(key=value)"` rather than duplicating setup steps. Parameters are optional unless the fixture declares them in metadata. Strings with spaces/punctuation must be quoted: `@fixture/open-workflow(project="Demo Browser Automations")`. Use `@store/<key>` for runtime values stored earlier in the workflow.
 6. If a fixture guarantees requirement coverage (e.g., demo workflow seeding), list those requirement IDs under `metadata.requirements`. The resolver propagates them to parent workflows via `metadata.requirementsFromFixtures` so coverage reports know which requirements the run exercised.

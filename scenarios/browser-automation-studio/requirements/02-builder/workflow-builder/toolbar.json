@@ -12,13 +12,13 @@
       "prd_ref": "Workflow Builder > Canvas Controls",
       "title": "Zoom in button increases canvas zoom level",
       "description": "Users can click the zoom in button to incrementally increase the canvas zoom level for detailed node editing",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-zoom-in.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates zoom in button functionality and canvas zoom level increase"
         }
       ]
@@ -29,13 +29,13 @@
       "prd_ref": "Workflow Builder > Canvas Controls",
       "title": "Zoom out button decreases canvas zoom level",
       "description": "Users can click the zoom out button to incrementally decrease the canvas zoom level for workflow overview",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-zoom-out.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates zoom out button functionality and canvas zoom level decrease"
         }
       ]
@@ -46,13 +46,13 @@
       "prd_ref": "Workflow Builder > Canvas Controls",
       "title": "Fit view centers and sizes canvas to show all nodes",
       "description": "Users can click fit view to automatically center and zoom the canvas to display all workflow nodes",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-fit-view.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates fit view centers canvas with all nodes visible"
         }
       ]
@@ -63,13 +63,13 @@
       "prd_ref": "Workflow Builder > History Navigation",
       "title": "Undo button reverts the last canvas change",
       "description": "Users can click undo to revert the most recent canvas modification (node add/delete/move, connection changes)",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-undo.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates undo reverts node addition, deletion, and position changes"
         }
       ]
@@ -80,13 +80,13 @@
       "prd_ref": "Workflow Builder > History Navigation",
       "title": "Redo button re-applies undone changes",
       "description": "Users can click redo to re-apply the most recently undone change",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-redo.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates redo re-applies undone changes"
         }
       ]
@@ -97,13 +97,13 @@
       "prd_ref": "Workflow Builder > Canvas Controls",
       "title": "Lock/unlock canvas prevents/allows node interaction",
       "description": "Users can toggle canvas lock to prevent accidental node movements and edits during review",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-lock-toggle.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates lock prevents node dragging and unlock re-enables interaction"
         }
       ]
@@ -114,13 +114,13 @@
       "prd_ref": "Workflow Builder > Node Operations",
       "title": "Duplicate button copies selected nodes",
       "description": "Users can select nodes and click duplicate to create copies with offset positions",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-duplicate-nodes.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates node duplication with proper positioning"
         }
       ]
@@ -131,13 +131,13 @@
       "prd_ref": "Workflow Builder > Node Operations",
       "title": "Delete button removes selected nodes",
       "description": "Users can select nodes and click the delete button to remove them (alternative to keyboard shortcut)",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-delete-nodes.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates toolbar delete button removes selected nodes"
         }
       ]

@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates Click node property configuration including selector editing",
     "version": 1,
-    "reset": "full"
+  "reset": "full"
   },
   "settings": {
     "executionViewport": {

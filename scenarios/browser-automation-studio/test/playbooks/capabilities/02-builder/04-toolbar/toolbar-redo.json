@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates redo button re-applies undone changes",
     "version": 1,
-    "reset": "full"
+  "reset": "full"
   },
   "settings": {
     "executionViewport": {

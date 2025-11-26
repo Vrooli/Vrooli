@@ -109,20 +109,20 @@
       "prd_ref": "Functional Requirements > Must Have > Real-time screenshot display",
       "title": "Heartbeat stalls trigger operator alerts",
       "description": "Ensures the CLI and automation surface stalled heartbeat warnings when telemetry pauses beyond the configured threshold.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/03-execution/01-automation/heartbeat-stall.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "BAS workflow validating heartbeat stall detection once exported."
         },
         {
           "type": "test",
           "ref": "test/phases/test-integration.sh",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Integration phase records requirement state after running heartbeat automation."
         },
         {

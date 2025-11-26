@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -760,7 +761,7 @@ func TestFolderOperations(t *testing.T) {
 		ctx := context.Background()
 
 		folder := &WorkflowFolder{
-			Path:      "/test/my-folder",
+			Path:      fmt.Sprintf("/test/my-folder-%s", uuid.NewString()),
 			Name:      "My Folder",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -794,8 +795,8 @@ func TestFolderOperations(t *testing.T) {
 		// Create multiple folders
 		for i := 0; i < 3; i++ {
 			folder := &WorkflowFolder{
-				Path:      "/test/folder-" + string(rune(i+'a')),
-				Name:      "Folder " + string(rune(i+'A')),
+				Path:      fmt.Sprintf("/test/folder-%s-%d", uuid.NewString(), i),
+				Name:      fmt.Sprintf("Folder %d", i),
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			}

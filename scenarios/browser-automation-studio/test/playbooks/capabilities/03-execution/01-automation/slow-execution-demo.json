@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Executes the slow-execution-demo fixture to validate long-running telemetry paths",
     "version": 1,
-    "reset": "full"
+  "reset": "full"
   },
   "settings": {
     "executionViewport": {

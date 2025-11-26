@@ -273,7 +273,7 @@ Other scenarios can create and manage schedules via:
 Workflow Scheduler can trigger:
 1. **Webhooks** - HTTP POST to any URL with custom payload
 2. **Workflow Targets** - Trigger HTTP webhooks or internal scenario jobs
-3. **Windmill Jobs** - Execute Windmill job endpoints
+3. **Dashboard Jobs** - Execute dashboard job endpoints
 4. **Other Scenarios** - Call any Vrooli scenario API
 
 ### Cross-Scenario Usage Patterns

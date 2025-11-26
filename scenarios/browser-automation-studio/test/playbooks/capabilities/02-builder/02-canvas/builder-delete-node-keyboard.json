@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates deleting a node using keyboard (Delete/Backspace) after selection",
     "version": 1,
-    "reset": "full"
+  "reset": "full"
   },
   "settings": {
     "executionViewport": {

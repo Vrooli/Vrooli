@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates opening and editing node properties/configuration",
     "version": 1,
-    "reset": "full"
+  "reset": "full"
   },
   "settings": {
     "executionViewport": {

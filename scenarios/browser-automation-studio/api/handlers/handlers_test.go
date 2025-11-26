@@ -153,6 +153,9 @@ type workflowServiceMock struct {
 	automationErr             error
 }
 
+// Ensure workflowServiceMock stays in sync with the WorkflowService interface
+var _ WorkflowService = (*workflowServiceMock)(nil)
+
 func (m *workflowServiceMock) CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error) {
 	return nil, errors.New("not implemented")
 }

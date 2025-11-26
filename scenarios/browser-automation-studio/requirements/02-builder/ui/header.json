@@ -12,13 +12,13 @@
       "prd_ref": "Workflow Builder > Header",
       "title": "Inline workflow title editing updates workflow name",
       "description": "Users can click the edit icon next to the workflow title to edit the name inline, with changes persisted on save",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/05-header/header-title-edit.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates inline title editing with save/cancel affordances"
         }
       ]
@@ -29,13 +29,13 @@
       "prd_ref": "Workflow Builder > Header",
       "title": "Execute button runs current workflow",
       "description": "Users can click the execute button in the header to run the current workflow and see execution feedback",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/05-header/header-execute-workflow.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates execute button triggers workflow execution with loading/success states"
         }
       ]
@@ -46,13 +46,13 @@
       "prd_ref": "Workflow Builder > Header",
       "title": "Info button displays workflow metadata popover",
       "description": "Users can click the info icon to view workflow metadata including creation date, last modified, folder path, and execution stats",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/05-header/header-info-popover.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates info popover displays correct metadata and dismisses properly"
         }
       ]
@@ -63,13 +63,13 @@
       "prd_ref": "Workflow Builder > Autosave",
       "title": "Save status indicator shows autosave state",
       "description": "The header displays real-time save status (saving, saved, error) to provide feedback on workflow persistence",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/05-header/header-save-status.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates save status transitions through saving -> saved states"
         }
       ]

@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Creates a new project and verifies navigation to project detail page",
     "version": 1,
-    "reset": "full"
+  "reset": "full"
   },
   "settings": {
     "executionViewport": {

@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates adding a node from the palette to the canvas via drag-and-drop",
     "version": 1,
-    "reset": "full"
+  "reset": "full"
   },
   "settings": {
     "executionViewport": {
