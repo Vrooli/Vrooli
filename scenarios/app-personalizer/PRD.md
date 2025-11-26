@@ -20,8 +20,8 @@ App Personalizer enables dynamic customization of generated Vrooli scenarios usi
 **Deployment Surfaces**:
 - **API**: REST endpoints for personalization orchestration
 - **CLI**: Command-line interface for local operations
-- **Workflows**: n8n integration for pipeline automation
 - **Library**: Importable Go package for other scenarios
+- **Note**: Orchestration now relies on API/CLI flows; no external workflow engine is required.
 
 ## 🎯 Operational Targets
 
@@ -37,7 +37,7 @@ App Personalizer enables dynamic customization of generated Vrooli scenarios usi
 - [ ] OT-P1-001 | Multi-deployment mode support | Implements copy, patch, and multi-tenant deployment strategies
 - [ ] OT-P1-002 | Personalization history tracking | Stores modification history in PostgreSQL; enables analytics and auditing
 - [ ] OT-P1-003 | CLI orchestration commands | Provides app-personalizer personalize, brand, list-personalizations commands
-- [ ] OT-P1-004 | n8n workflow templates | Pre-built pipelines for common personalization patterns
+- [ ] OT-P1-004 | Orchestration templates | Pre-built API/CLI pipelines for common personalization patterns
 - [ ] OT-P1-005 | MinIO artifact storage | Stores app versions, backups, and modification artifacts in object storage
 
 ### 🟢 P2 – Future / expansion
@@ -52,7 +52,7 @@ App Personalizer enables dynamic customization of generated Vrooli scenarios usi
 - **API**: Go-based REST service using Go Fiber framework
 - **Storage**: PostgreSQL for metadata; MinIO for app versions and artifacts
 - **AI Integration**: Claude Code primary; Ollama (llama3.2, codellama) fallback
-- **Orchestration**: n8n workflows for complex multi-step personalizations
+- **Orchestration**: Direct API/CLI pipelines (no external workflow engine)
 - **CLI**: Shell-based command interface wrapping API calls
 
 **Personalization Layers**:
@@ -75,7 +75,6 @@ App Personalizer enables dynamic customization of generated Vrooli scenarios usi
 ## 🤝 Dependencies & Launch Plan
 
 **Required Resources**:
-- **n8n**: Workflow orchestration for modification pipelines
 - **Ollama**: AI model inference for code modifications (llama3.2, codellama)
 - **PostgreSQL**: Metadata, history, and personalization configuration storage
 
@@ -90,7 +89,7 @@ App Personalizer enables dynamic customization of generated Vrooli scenarios usi
 **Launch Sequence**:
 1. Phase 1: Core API + digital twin integration + basic CLI
 2. Phase 2: Brand manager integration + validation framework
-3. Phase 3: n8n workflows + MinIO storage
+3. Phase 3: MinIO storage + orchestration templates (API/CLI first)
 4. Phase 4: Multi-deployment modes + history tracking
 
 **Risks**:

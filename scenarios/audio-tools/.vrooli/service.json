@@ -256,18 +256,6 @@
         "required": false,
         "purpose": "Vector database for semantic search and AI features"
       },
-      "windmill": {
-        "type": "windmill",
-        "enabled": false,
-        "required": false,
-        "purpose": "Workflow automation and business logic orchestration (not currently used)",
-        "initialization": [
-          {
-            "file": "initialization/automation/windmill/windmill-app.json",
-            "type": "app"
-          }
-        ]
-      },
       "node-red": {
         "type": "node-red",
         "enabled": false,

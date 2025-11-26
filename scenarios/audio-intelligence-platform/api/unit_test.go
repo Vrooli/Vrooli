@@ -119,7 +119,6 @@ func TestNewAudioServiceCreation(t *testing.T) {
 		mockServer.URL,
 		mockServer.URL,
 		mockServer.URL,
-		mockServer.URL,
 		"localhost:9000",
 		mockServer.URL,
 	)
@@ -133,9 +132,6 @@ func TestNewAudioServiceCreation(t *testing.T) {
 	t.Run("URLsSet", func(t *testing.T) {
 		if service.n8nBaseURL != mockServer.URL {
 			t.Errorf("n8nBaseURL not set correctly")
-		}
-		if service.windmillURL != mockServer.URL {
-			t.Errorf("windmillURL not set correctly")
 		}
 		if service.whisperURL != mockServer.URL {
 			t.Errorf("whisperURL not set correctly")

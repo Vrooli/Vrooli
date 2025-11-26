@@ -413,7 +413,6 @@ func TestNewAudioService(t *testing.T) {
 	service := NewAudioService(
 		db,
 		"http://n8n:5678",
-		"http://windmill:5681",
 		"http://whisper:8090",
 		"http://ollama:11434",
 		"minio:9000",

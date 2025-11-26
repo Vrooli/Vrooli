@@ -133,7 +133,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install",
+          "run": "cd ui && pnpm install",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -141,7 +141,7 @@
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm run build",
+          "run": "cd ui && pnpm run build",
           "description": "Build production UI bundle"
         },
         {
@@ -224,7 +224,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed-styles.sql",
-            "type": "data"
+            "type": "seed"
           }
         ]
       },

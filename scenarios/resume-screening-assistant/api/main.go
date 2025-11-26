@@ -15,7 +15,6 @@ import (
 
 type Config struct {
 	Port          string
-	WindmillURL   string
 	PostgresURL   string
 	QdrantURL     string
 }
@@ -54,7 +53,6 @@ func loadConfig() *Config {
 	
 	return &Config{
 		Port:          getEnv("API_PORT", getEnv("PORT", "")),
-		WindmillURL:   getEnv("WINDMILL_BASE_URL", "http://localhost:8000"),
 		PostgresURL:   postgresURL,
 		QdrantURL:     getEnv("QDRANT_URL", "http://localhost:6333"),
 	}
@@ -259,9 +257,8 @@ func setupRoutes(config *Config) *mux.Router {
 				"search":     "/api/search",
 			},
 			"resources": map[string]string{
-				"windmill":  config.WindmillURL,
-				"postgres":  "Connected",
-				"qdrant":    config.QdrantURL,
+				"postgres": "Connected",
+				"qdrant":   config.QdrantURL,
 			},
 		}
 
@@ -289,7 +286,6 @@ func main() {
 	
 	log.Printf("Starting Resume Screening Assistant API server...")
 	log.Printf("Port: %s", config.Port)
-	log.Printf("Windmill URL: %s", config.WindmillURL)
 	log.Printf("Qdrant URL: %s", config.QdrantURL)
 
 	router := setupRoutes(config)

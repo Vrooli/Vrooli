@@ -157,7 +157,6 @@ func TestAudioServiceStructure(t *testing.T) {
 	service := &AudioService{
 		db:            nil, // Mock DB
 		n8nBaseURL:    mockServer.URL,
-		windmillURL:   mockServer.URL,
 		whisperURL:    mockServer.URL,
 		ollamaURL:     mockServer.URL,
 		minioEndpoint: "localhost:9000",

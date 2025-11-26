@@ -1,0 +1,142 @@
+{
+  "$schema": "../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "category": "system",
+      "description": "Returns service health status, timestamp, version, and readiness"
+    },
+    {
+      "id": "api-health",
+      "path": "/api/v1/health",
+      "method": "GET",
+      "summary": "API health check",
+      "category": "system",
+      "description": "Alternative health endpoint under /api/v1 prefix"
+    },
+    {
+      "id": "health-generation",
+      "path": "/api/v1/health/generation",
+      "method": "GET",
+      "summary": "Chart generation health check",
+      "category": "system",
+      "description": "Tests actual chart generation capability with sample data"
+    },
+    {
+      "id": "generate-chart",
+      "path": "/api/v1/charts/generate",
+      "method": "POST",
+      "summary": "Generate chart",
+      "category": "charts",
+      "description": "Generates a chart from provided data with specified chart type and style"
+    },
+    {
+      "id": "get-chart",
+      "path": "/api/v1/charts/{id}",
+      "method": "GET",
+      "summary": "Get chart by ID",
+      "category": "charts",
+      "description": "Retrieves a previously generated chart by its identifier"
+    },
+    {
+      "id": "generate-composite-chart",
+      "path": "/api/v1/charts/composite",
+      "method": "POST",
+      "summary": "Generate composite chart (P1)",
+      "category": "charts",
+      "description": "Creates multi-chart layouts with grid, horizontal, and vertical arrangements"
+    },
+    {
+      "id": "generate-interactive-chart",
+      "path": "/api/v1/charts/interactive",
+      "method": "POST",
+      "summary": "Generate interactive chart (P1)",
+      "category": "charts",
+      "description": "Creates charts with animation and interactivity options for web displays"
+    },
+    {
+      "id": "get-styles",
+      "path": "/api/v1/styles",
+      "method": "GET",
+      "summary": "List available styles",
+      "category": "styles",
+      "description": "Returns all available chart styles and themes"
+    },
+    {
+      "id": "create-style",
+      "path": "/api/v1/styles",
+      "method": "POST",
+      "summary": "Create custom style",
+      "category": "styles",
+      "description": "Creates a new custom chart style"
+    },
+    {
+      "id": "get-style",
+      "path": "/api/v1/styles/{id}",
+      "method": "GET",
+      "summary": "Get style by ID",
+      "category": "styles",
+      "description": "Retrieves a specific style definition"
+    },
+    {
+      "id": "style-builder-preview",
+      "path": "/api/v1/styles/builder/preview",
+      "method": "POST",
+      "summary": "Preview style (P1)",
+      "category": "styles",
+      "description": "Generates a live preview of custom style with sample data"
+    },
+    {
+      "id": "style-builder-save",
+      "path": "/api/v1/styles/builder/save",
+      "method": "POST",
+      "summary": "Save custom style (P1)",
+      "category": "styles",
+      "description": "Saves a custom style created in the style builder"
+    },
+    {
+      "id": "get-color-palettes",
+      "path": "/api/v1/styles/builder/palettes",
+      "method": "GET",
+      "summary": "Get color palettes (P1)",
+      "category": "styles",
+      "description": "Returns available color palettes for style customization"
+    },
+    {
+      "id": "get-templates",
+      "path": "/api/v1/templates",
+      "method": "GET",
+      "summary": "List templates (P1)",
+      "category": "templates",
+      "description": "Returns industry-specific chart template presets"
+    },
+    {
+      "id": "get-template",
+      "path": "/api/v1/templates/{id}",
+      "method": "GET",
+      "summary": "Get template by ID (P1)",
+      "category": "templates",
+      "description": "Retrieves a specific template configuration"
+    },
+    {
+      "id": "transform-data",
+      "path": "/api/v1/data/transform",
+      "method": "POST",
+      "summary": "Transform data (P1)",
+      "category": "data",
+      "description": "Applies data transformations like filtering, sorting, and mapping"
+    },
+    {
+      "id": "aggregate-data",
+      "path": "/api/v1/data/aggregate",
+      "method": "POST",
+      "summary": "Aggregate data (P1)",
+      "category": "data",
+      "description": "Performs data aggregation operations like sum, average, count"
+    }
+  ]
+}

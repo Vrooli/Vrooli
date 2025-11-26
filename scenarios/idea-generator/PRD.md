@@ -71,7 +71,7 @@
 
 **Integration Strategy**:
 - Shared workflows via n8n for reusable AI patterns (ollama.json, embedding-generator.json, document-intelligence.json)
-- Resource CLIs for infrastructure management (resource-minio, resource-windmill)
+- Resource CLIs for infrastructure management (resource-minio)
 - Direct APIs only for real-time WebSocket chat and streaming document uploads
 
 **Non-Goals**:
@@ -134,4 +134,3 @@
 **Responsive Strategy**: Desktop-first optimization for creative professionals on large screens, tablet adaptation with collapsible panels and touch interactions, essential mobile features accessible on smaller devices
 
 **Brand Voice**: "Your AI-powered innovation lab" – creative and engaging while maintaining enterprise value proposition. Professional yet playful, intelligent collaboration without overwhelming complexity.
-

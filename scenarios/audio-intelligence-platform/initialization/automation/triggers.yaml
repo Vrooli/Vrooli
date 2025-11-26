@@ -26,20 +26,6 @@ triggers:
       interval: "*/5 * * * *"  # Every 5 minutes
       timezone: "UTC"
     
-  {% if "windmill" in resources.required %}
-  # Windmill app deployment
-  windmill_app:
-    platform: windmill
-    app_id: "audio-intelligence-platform-app"
-    app_file: "initialization/automation/windmill/transcription-manager-app.json"
-    activation:
-      auto_activate: {{ testing.requires_ui }}
-      activation_delay_seconds: 15
-    endpoints:
-      app: "/app/audio-intelligence-platform"
-      admin: "/admin/audio-intelligence-platform"
-  {% endif %}
-  
   {% if "node-red" in resources.required %}
   # Node-RED flows
   node_red_monitoring:
@@ -74,14 +60,6 @@ activation_sequence:
         file: "initialization/automation/n8n/transcription-pipeline.json"
         auto_activate: true
     
-  - name: deploy_windmill_apps
-    description: "Deploy Windmill UI applications"
-    condition: "windmill in required_resources and requires_ui"
-    timeout_seconds: 45
-    apps:
-      - id: "audio-intelligence-platform-app"
-        file: "initialization/automation/windmill/transcription-manager-app.json"
-        
   - name: setup_node_red_flows
     description: "Deploy Node-RED monitoring flows"
     condition: "node-red in required_resources"
@@ -98,12 +76,6 @@ activation_sequence:
       - url: "/webhook/audio-intelligence-platform-webhook"
         method: "POST"
         expected_status: 200
-      {% if "windmill" in resources.required and testing.requires_ui %}
-      - url: "/app/audio-intelligence-platform"
-        method: "GET"
-        expected_status: 200
-      {% endif %}
-
 # Health monitoring configuration
 monitoring:
   health_checks:
@@ -125,15 +97,6 @@ monitoring:
       expected_status: 405  # Method not allowed for GET is expected
       check_interval_seconds: 120
       
-    {% if "windmill" in resources.required and testing.requires_ui %}
-    - name: ui_application_health
-      type: http
-      url: "http://localhost:5681/app/audio-intelligence-platform"
-      method: "GET"
-      expected_status: 200
-      check_interval_seconds: 180
-    {% endif %}
-
 # Error handling and recovery
 error_handling:
   retry_policy:

@@ -49,8 +49,6 @@ func setupTestServer(t *testing.T) *TestServer {
 
 	server := &APIServer{
 		db:          db,
-		n8nURL:      "http://localhost:5678",
-		windmillURL: "http://localhost:8000",
 		searxngURL:  "http://localhost:8280",
 		qdrantURL:   "http://localhost:6333",
 		minioURL:    "http://localhost:9000",
@@ -212,28 +210,6 @@ func createTestReport(t *testing.T, ts *TestServer, req ReportRequest) *Report {
 	}
 
 	return report
-}
-
-// mockN8NServer creates a mock n8n server for testing
-func mockN8NServer(t *testing.T) *httptest.Server {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Mock n8n webhook response
-		if r.URL.Path == "/webhook/research-request" {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]string{
-				"status": "received",
-			})
-			return
-		}
-		if r.URL.Path == "/healthz" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-	})
-
-	return httptest.NewServer(handler)
 }
 
 // mockSearXNGServer creates a mock SearXNG server for testing

@@ -85,10 +85,10 @@ required:
     integration_pattern: Direct Ollama API
     access_method: HTTP API calls to Ollama
     
-  - resource_name: n8n
-    purpose: Orchestrate quiz generation pipeline
-    integration_pattern: Workflow automation
-    access_method: resource-n8n execute-workflow
+  - resource_name: quiz-automation
+    purpose: Internal orchestration for quiz generation, validation, and analytics
+    integration_pattern: Go automation modules coordinating Ollama, Qdrant, and FFmpeg
+    access_method: HTTP endpoints within the scenario API
     
 optional:
   - resource_name: qdrant
@@ -107,10 +107,10 @@ optional:
 integration_priorities:
   1_shared_workflows:
     - workflow: ollama.json
-      location: initialization/automation/n8n/
+      location: Internal automation module
       purpose: LLM operations for question generation
     - workflow: quiz-generator-ai.json
-      location: scenarios/quiz-generator/initialization/automation/n8n/
+      location: Internal automation module
       purpose: Quiz-specific AI pipeline for content analysis
   
   2_resource_cli:
@@ -124,8 +124,8 @@ integration_priorities:
       endpoint: Redis GET/SET for session state
 
 shared_workflow_criteria:
-  - Quiz generation workflow is specific to this scenario
-  - Leverages shared ollama.json for LLM calls
+  - Quiz generation workflow is implemented via internal modules
+  - Leverages shared ollama.json definitions for LLM calls
   - Can be reused by course-builder, study-buddy scenarios
   - Scenarios using this: quiz-generator, course-builder, certification-manager
 ```
@@ -387,7 +387,7 @@ custom_commands:
 ### Upstream Dependencies
 - **postgres**: Database for persistent storage
 - **ollama** (via shared workflow): LLM for question generation
-- **n8n**: Workflow orchestration for generation pipeline
+- **Automation modules**: Internal quiz-generation orchestrations (no external workflow engine)
 - **minio** (optional): Store uploaded documents
 
 ### Downstream Enablement
@@ -498,12 +498,12 @@ direct_execution:
   supported: true
   structure_compliance:
     - service.json with quiz-generator metadata
-    - All initialization files for postgres and n8n
+    - All initialization files for postgres and automation modules
     - Deployment scripts (startup.sh, monitor.sh)
     - Health check endpoints (/health, /ready)
     
   deployment_targets:
-    - local: Docker Compose with postgres and n8n
+    - local: Docker Compose with postgres and automation module services
     - kubernetes: Helm chart with persistent volumes
     - cloud: Serverless API with managed database
     
@@ -535,7 +535,7 @@ discovery:
   metadata:
     description: AI-powered quiz generation and assessment platform
     keywords: [quiz, assessment, education, testing, questions]
-    dependencies: [postgres, ollama, n8n]
+    dependencies: [postgres, ollama]
     enhances: [course-builder, study-buddy, certification-manager]
 ```
 
@@ -571,7 +571,7 @@ structure:
     - cli/quiz-generator
     - cli/install.sh
     - initialization/storage/postgres/schema.sql
-    - initialization/automation/n8n/quiz-generator-ai.json
+    - automation modules definitions for quiz generation
     - ui/package.json
     - ui/src/main.tsx
     - test/run-tests.sh
@@ -584,13 +584,13 @@ structure:
     - cli
     - ui
     - initialization
-    - initialization/automation/n8n
+    - initialization/automation
     - initialization/storage/postgres
     - docs
     - tests
 
 resources:
-  required: [postgres, ollama, n8n]
+  required: [postgres, ollama]
   optional: [qdrant, redis]
   health_timeout: 60
 

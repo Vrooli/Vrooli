@@ -130,6 +130,7 @@ type VisitRequest struct {
 	Agent          *string                `json:"agent,omitempty"`
 	ConversationID *string                `json:"conversation_id,omitempty"`
 	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	FileNotes      map[string]string      `json:"file_notes,omitempty"` // Map of file_path -> note
 }
 
 type FileVisit struct {
@@ -155,6 +156,12 @@ type SyncResult struct {
 type AdjustVisitRequest struct {
 	FileID string `json:"file_id"`
 	Action string `json:"action"` // "increment" or "decrement"
+}
+
+type BulkExcludeRequest struct {
+	Files    []string `json:"files"`
+	Reason   *string  `json:"reason,omitempty"`
+	Excluded bool     `json:"excluded"`
 }
 
 func main() {
@@ -240,9 +247,14 @@ func main() {
 	v1.HandleFunc("/campaigns/{id}", updateCampaignHandler).Methods("PATCH")
 	v1.HandleFunc("/campaigns/{id}", deleteCampaignHandler).Methods("DELETE")
 	v1.HandleFunc("/campaigns/{id}", optionsHandler).Methods("OPTIONS")
+	v1.HandleFunc("/campaigns/{id}/files/by-path", getFileByPathHandler).Methods("GET")
+	v1.HandleFunc("/campaigns/{id}/files/exclude", bulkExcludeFilesHandler).Methods("POST")
+	v1.HandleFunc("/campaigns/{id}/files/exclude", optionsHandler).Methods("OPTIONS")
 	v1.HandleFunc("/campaigns/{id}/files/{file_id}/notes", updateFileNotesHandler).Methods("PATCH")
 	v1.HandleFunc("/campaigns/{id}/files/{file_id}/priority", updateFilePriorityHandler).Methods("PATCH")
 	v1.HandleFunc("/campaigns/{id}/files/{file_id}/exclude", toggleFileExclusionHandler).Methods("PATCH")
+	v1.HandleFunc("/campaigns/{id}/reset", resetCampaignHandler).Methods("POST")
+	v1.HandleFunc("/campaigns/{id}/reset", optionsHandler).Methods("OPTIONS")
 
 	// Campaign-specific visit tracking endpoints
 	v1.HandleFunc("/campaigns/{id}/visit", visitHandler).Methods("POST")
@@ -1058,6 +1070,29 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 		trackedFile.LastVisited = &now
 
 		recordedCount++
+	}
+
+	// Process file notes if provided
+	if req.FileNotes != nil && len(req.FileNotes) > 0 {
+		for filePath, note := range req.FileNotes {
+			// Normalize the path for comparison
+			var absPath string
+			if filepath.IsAbs(filePath) {
+				absPath = filepath.Clean(filePath)
+			} else {
+				cwd, _ := os.Getwd()
+				absPath = filepath.Clean(filepath.Join(cwd, filePath))
+			}
+
+			// Find and update the file's notes
+			for i := range campaign.TrackedFiles {
+				file := &campaign.TrackedFiles[i]
+				if file.FilePath == filePath || file.AbsolutePath == absPath {
+					file.Notes = &note
+					break
+				}
+			}
+		}
 	}
 
 	// Update staleness scores
@@ -1937,5 +1972,185 @@ func toggleFileExclusionHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "File exclusion updated successfully",
+	})
+}
+
+// getFileByPathHandler - GET /api/v1/campaigns/{id}/files/by-path?path=...
+// Lookup a file in the campaign by its file path (relative or absolute)
+func getFileByPathHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	campaignIDStr := vars["id"]
+
+	campaignID, err := uuid.Parse(campaignIDStr)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	filePath := r.URL.Query().Get("path")
+	if filePath == "" {
+		http.Error(w, `{"error": "path query parameter is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	campaign, err := loadCampaign(campaignID)
+	if err != nil {
+		http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+		return
+	}
+
+	// Normalize the path for comparison
+	var absPath string
+	if filepath.IsAbs(filePath) {
+		absPath = filepath.Clean(filePath)
+	} else {
+		cwd, _ := os.Getwd()
+		absPath = filepath.Clean(filepath.Join(cwd, filePath))
+	}
+
+	// Search for file by path or absolute path
+	for _, file := range campaign.TrackedFiles {
+		if file.FilePath == filePath || file.AbsolutePath == absPath || file.FilePath == absPath {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(file)
+			return
+		}
+	}
+
+	http.Error(w, `{"error": "File not found in campaign"}`, http.StatusNotFound)
+}
+
+// bulkExcludeFilesHandler - POST /api/v1/campaigns/{id}/files/exclude
+// Bulk exclude files with optional reason
+func bulkExcludeFilesHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	campaignIDStr := vars["id"]
+
+	campaignID, err := uuid.Parse(campaignIDStr)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	var req BulkExcludeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
+		return
+	}
+
+	if len(req.Files) == 0 {
+		http.Error(w, `{"error": "files array cannot be empty"}`, http.StatusBadRequest)
+		return
+	}
+
+	campaign, err := loadCampaign(campaignID)
+	if err != nil {
+		http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+		return
+	}
+
+	// Normalize paths for comparison
+	cwd, _ := os.Getwd()
+	normalizedPaths := make(map[string]string) // maps original path -> absolute path
+	for _, filePath := range req.Files {
+		var absPath string
+		if filepath.IsAbs(filePath) {
+			absPath = filepath.Clean(filePath)
+		} else {
+			absPath = filepath.Clean(filepath.Join(cwd, filePath))
+		}
+		normalizedPaths[filePath] = absPath
+	}
+
+	excludedCount := 0
+	updatedFiles := make([]string, 0)
+
+	// Update files
+	for _, filePath := range req.Files {
+		absPath := normalizedPaths[filePath]
+		found := false
+
+		for i := range campaign.TrackedFiles {
+			file := &campaign.TrackedFiles[i]
+			if file.FilePath == filePath || file.AbsolutePath == absPath || file.FilePath == absPath {
+				file.Excluded = req.Excluded
+				if req.Reason != nil {
+					file.Notes = req.Reason
+				}
+				excludedCount++
+				updatedFiles = append(updatedFiles, file.FilePath)
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			logger.Printf("⚠️  File not found in campaign: %s", filePath)
+		}
+	}
+
+	campaign.UpdatedAt = time.Now().UTC()
+	if err := saveCampaign(campaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	logger.Printf("✅ Bulk excluded %d files in campaign: %s", excludedCount, campaign.Name)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"excluded_count": excludedCount,
+		"files":          updatedFiles,
+	})
+}
+
+// resetCampaignHandler - POST /api/v1/campaigns/{id}/reset
+// Reset campaign by clearing all visits and resetting visit counts
+func resetCampaignHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	campaignIDStr := vars["id"]
+
+	campaignID, err := uuid.Parse(campaignIDStr)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	campaign, err := loadCampaign(campaignID)
+	if err != nil {
+		http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+		return
+	}
+
+	// Clear all visits
+	campaign.Visits = []Visit{}
+
+	// Reset visit counts and last visited timestamps on all files
+	for i := range campaign.TrackedFiles {
+		campaign.TrackedFiles[i].VisitCount = 0
+		campaign.TrackedFiles[i].LastVisited = nil
+	}
+
+	// Update staleness scores
+	updateStalenessScores(campaign)
+
+	campaign.UpdatedAt = time.Now().UTC()
+	if err := saveCampaign(campaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	logger.Printf("🔄 Reset campaign: %s (ID: %s)", campaign.Name, campaign.ID)
+
+	// Calculate computed fields for response
+	totalFiles := len(campaign.TrackedFiles)
+	campaign.TotalFiles = totalFiles
+	campaign.VisitedFiles = 0
+	campaign.CoveragePercent = 0.0
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message":  "Campaign reset successfully",
+		"campaign": campaign,
 	})
 }

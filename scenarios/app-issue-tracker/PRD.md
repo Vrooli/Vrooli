@@ -25,23 +25,23 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [x] OT-P0-001 | Health Check Endpoint | API responds with service status on /health with version and storage info
-- [x] OT-P0-002 | Issue Creation | Create issues via API/CLI with metadata, persist to YAML files
-- [x] OT-P0-003 | Issue Listing | List and filter issues via API with status filtering
-- [x] OT-P0-004 | File-Based Storage | YAML files in data/issues/* folder structure with validation
-- [x] OT-P0-005 | Investigation Trigger | Start AI investigation via API with background execution
-- [x] OT-P0-006 | Fix Generation | Generate and apply fixes automatically via auto_resolve flag
-- [x] OT-P0-007 | CLI Operations | Complete CLI for create, list, investigate commands with API backing
+- [ ] OT-P0-001 | Health Check Endpoint | API responds with service status on /health with version and storage info
+- [ ] OT-P0-002 | Issue Creation | Create issues via API/CLI with metadata, persist to YAML files
+- [ ] OT-P0-003 | Issue Listing | List and filter issues via API with status filtering
+- [ ] OT-P0-004 | File-Based Storage | YAML files in data/issues/* folder structure with validation
+- [ ] OT-P0-005 | Investigation Trigger | Start AI investigation via API with background execution
+- [ ] OT-P0-006 | Fix Generation | Generate and apply fixes automatically via auto_resolve flag
+- [ ] OT-P0-007 | CLI Operations | Complete CLI for create, list, investigate commands with API backing
 
 ### 🟠 P1 – Should have post-launch
 
 - [ ] OT-P1-001 | Semantic Search | Vector-based similar issue detection via Qdrant integration
-- [x] OT-P1-002 | Web UI | Interactive dashboard for issue management on Vite dev server
-- [x] OT-P1-003 | Git Integration | Create PRs with fixes via POST /api/v1/issues/{id}/create-pr
-- [x] OT-P1-004 | Export Functions | Generate reports in JSON/CSV/Markdown formats
-- [x] OT-P1-005 | Security Configuration | Production-ready CORS, authentication, rate limiting via env vars
-- [x] OT-P1-006 | Performance Analytics | Real-time resolution metrics (avg_resolution_hours) from timestamps
-- [x] OT-P1-007 | Integration Testing | Comprehensive API validation suite covering health, stats, CORS, export
+- [ ] OT-P1-002 | Web UI | Interactive dashboard for issue management on Vite dev server
+- [ ] OT-P1-003 | Git Integration | Create PRs with fixes via POST /api/v1/issues/{id}/create-pr
+- [ ] OT-P1-004 | Export Functions | Generate reports in JSON/CSV/Markdown formats
+- [ ] OT-P1-005 | Security Configuration | Production-ready CORS, authentication, rate limiting via env vars
+- [ ] OT-P1-006 | Performance Analytics | Real-time resolution metrics (avg_resolution_hours) from timestamps
+- [ ] OT-P1-007 | Integration Testing | Comprehensive API validation suite covering health, stats, CORS, export
 
 ### 🟢 P2 – Future / expansion
 

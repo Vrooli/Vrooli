@@ -68,7 +68,7 @@
 - `postgres` - Candidate and job data storage (initialization/postgres/schema.sql)
 - `qdrant` - Vector embeddings for semantic matching
 - `ollama` - AI text analysis (models: llama3.2, nomic-embed-text)
-- `n8n` - Workflow automation (3 workflows: resume-processing-pipeline, job-management-workflow, semantic-search-workflow)
+- Internal automation pipeline - handles resume-processing, job-management, and semantic-search modules without external workflows
 
 **Scenario Dependencies**: None (standalone scenario)
 

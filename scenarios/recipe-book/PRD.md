@@ -615,7 +615,7 @@ structure:
     - cli/recipe-book
     - cli/install.sh
     - initialization/storage/postgres/schema.sql
-    - initialization/automation/n8n/recipe-generator.json
+    - automation module definitions (recipe generation pipelines implemented in API)
     - scenario-test.yaml
     - ui/index.html
     
@@ -623,7 +623,6 @@ structure:
     - api
     - cli
     - initialization
-    - initialization/automation/n8n
     - initialization/storage/postgres
     - ui
 

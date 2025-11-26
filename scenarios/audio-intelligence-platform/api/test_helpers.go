@@ -129,7 +129,6 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 	service := NewAudioService(
 		db,
 		mockServer.URL, // n8nURL
-		mockServer.URL, // windmillURL
 		mockServer.URL, // whisperURL
 		mockServer.URL, // ollamaURL
 		"localhost:9000", // minioEndpoint

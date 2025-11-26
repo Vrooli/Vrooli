@@ -114,7 +114,6 @@ type AIAnalysis struct {
 type AudioService struct {
 	db            *sql.DB
 	n8nBaseURL    string
-	windmillURL   string
 	whisperURL    string
 	ollamaURL     string
 	minioEndpoint string
@@ -124,11 +123,10 @@ type AudioService struct {
 }
 
 // NewAudioService creates a new audio service
-func NewAudioService(db *sql.DB, n8nURL, windmillURL, whisperURL, ollamaURL, minioEndpoint, qdrantURL string) *AudioService {
+func NewAudioService(db *sql.DB, n8nURL, whisperURL, ollamaURL, minioEndpoint, qdrantURL string) *AudioService {
 	return &AudioService{
 		db:            db,
 		n8nBaseURL:    n8nURL,
-		windmillURL:   windmillURL,
 		whisperURL:    whisperURL,
 		ollamaURL:     ollamaURL,
 		minioEndpoint: minioEndpoint,
@@ -521,7 +519,6 @@ func getResourcePort(resourceName string) string {
 		// Fallback to defaults
 		defaults := map[string]string{
 			"n8n":      "5678",
-			"windmill": "5681",
 			"postgres": "5433",
 			"whisper":  "8090",
 			"ollama":   "11434",
@@ -561,7 +558,6 @@ func main() {
 
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
-	windmillPort := getResourcePort("windmill")
 	whisperPort := getResourcePort("whisper")
 	ollamaPort := getResourcePort("ollama")
 	minioPort := getResourcePort("minio")
@@ -571,11 +567,6 @@ func main() {
 	n8nURL := os.Getenv("N8N_BASE_URL")
 	if n8nURL == "" {
 		n8nURL = fmt.Sprintf("http://localhost:%s", n8nPort)
-	}
-
-	windmillURL := os.Getenv("WINDMILL_BASE_URL")
-	if windmillURL == "" {
-		windmillURL = fmt.Sprintf("http://localhost:%s", windmillPort)
 	}
 
 	whisperURL := os.Getenv("WHISPER_BASE_URL")
@@ -680,7 +671,7 @@ func main() {
 	log.Println("🎉 Database connection pool established successfully!")
 
 	// Initialize audio service
-	audioService := NewAudioService(db, n8nURL, windmillURL, whisperURL, ollamaURL, minioEndpoint, qdrantURL)
+	audioService := NewAudioService(db, n8nURL, whisperURL, ollamaURL, minioEndpoint, qdrantURL)
 
 	// Setup routes
 	r := mux.NewRouter()
@@ -697,7 +688,6 @@ func main() {
 	// Start server
 	log.Printf("Starting Audio Intelligence Platform API on port %s", port)
 	log.Printf("  n8n URL: %s", n8nURL)
-	log.Printf("  Windmill URL: %s", windmillURL)
 	log.Printf("  Whisper URL: %s", whisperURL)
 	log.Printf("  Ollama URL: %s", ollamaURL)
 	log.Printf("  MinIO Endpoint: %s", minioEndpoint)

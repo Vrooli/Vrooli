@@ -192,8 +192,7 @@ docker inspect vrooli-browserless | jq '.[0].NetworkSettings.Networks'
 - ✅ Source quality ranking (P1 requirement met - 2025-10-02)
 
 **Needs Attention**:
-- ⚠️ Windmill UI (optional resource, not deployed)
-- ⚠️ Browserless (running but network isolated)
+  ⚠️ Browserless (running but network isolated)
 
 ### Resource Health Summary
 ```
@@ -202,7 +201,6 @@ ollama:       ✅ Healthy
 qdrant:       ✅ Healthy
 searxng:      ✅ Healthy
 browserless:  🟡 Running but not accessible
-windmill:     ⚠️  Not deployed (optional)
 ```
 
 ## Recommendations for Next Improver
@@ -237,16 +235,8 @@ windmill:     ⚠️  Not deployed (optional)
 5. **Enhanced Test Coverage** (4-6 hours)
    - Add unit tests for quality ranking
    - Add integration tests for contradiction detection
-   - Create UI automation tests (if Windmill deployed)
+  - Create UI automation tests
    - Implement performance benchmarking
-
-### Low Priority
-
-6. **Windmill UI Deployment** (2-3 hours)
-   - Deploy windmill resource
-   - Import dashboard app
-   - Configure authentication
-   - Link to API endpoints
 
 7. **P2 Features**
    - Multi-language support (requires additional models)
@@ -647,7 +637,7 @@ export RESOURCE_PORT_MINIO=9000     # optional
 **Improvements Made**:
 1. ✅ **Added HTTP Timeout Protection to All Health Checks**
    - Created shared `httpClient` with 10-second timeout for health checks
-   - Updated all 5 health check functions (windmill, searxng, qdrant, ollama, database)
+   - Updated all health check functions (searxng, qdrant, ollama, database)
    - Previously health checks used `http.Get()` with no timeout (potential for hanging)
    - Now all health checks fail fast if resource is slow/unavailable
 

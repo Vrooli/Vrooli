@@ -113,6 +113,119 @@ testing::integration::check_bundle_freshness() {
     return 0
 }
 
+# Ensure the running UI/API processes were started after the latest build artifacts.
+# This prevents running E2E against stale binaries even when dist files look fresh.
+testing::integration::check_runtime_freshness() {
+    local scenario_dir="$1"
+    local scenario_name="$2"
+    local now
+    now=$(date +%s)
+
+    _mtime() {
+        local path="$1"
+        if [ ! -f "$path" ]; then
+            echo ""
+            return
+        fi
+        stat -c %Y "$path" 2>/dev/null || stat -f %m "$path" 2>/dev/null || echo ""
+    }
+
+    _pid_listening_on_port() {
+        local port="$1"
+        # Prefer lsof
+        if command -v lsof >/dev/null 2>&1; then
+            lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null | head -1
+            return
+        fi
+        # Fallback to ss
+        if command -v ss >/dev/null 2>&1; then
+            ss -ltnp 2>/dev/null | awk -v p=":$port" '$4 ~ p {gsub("pid=","",$NF); split($NF,a,","); print a[1]; exit}'
+            return
+        fi
+        echo ""
+    }
+
+    _youngest_start_epoch() {
+        local pattern="$1"
+        local port="$2"
+        local best_start=""
+        local pid=""
+
+        # If port provided, try to resolve PID from listener
+        if [ -n "$port" ]; then
+            pid=$(_pid_listening_on_port "$port")
+        fi
+
+        # Fallback to pattern search
+        if [ -z "$pid" ]; then
+            for pid in $(pgrep -f "$pattern" 2>/dev/null || true); do
+                :
+            done
+        fi
+
+        for target_pid in $pid; do
+            local etimes
+            etimes=$(ps -o etimes= -p "$target_pid" 2>/dev/null | tr -d '[:space:]')
+            [ -z "$etimes" ] && continue
+            local start_epoch=$((now - etimes))
+            if [ -z "$best_start" ] || [ "$start_epoch" -gt "$best_start" ]; then
+                best_start="$start_epoch"
+            fi
+        done
+
+        echo "$best_start"
+    }
+
+    local api_binary="${scenario_dir}/api/browser-automation-studio-api"
+    local ui_bundle="${scenario_dir}/ui/dist/index.html"
+
+    # Resolve ports if not set
+    if [ -z "${API_PORT:-}" ] && command -v vrooli >/dev/null 2>&1; then
+        API_PORT=$(vrooli scenario port "$scenario_name" API_PORT 2>/dev/null || echo "")
+    fi
+    if [ -z "${UI_PORT:-}" ] && command -v vrooli >/dev/null 2>&1; then
+        UI_PORT=$(vrooli scenario port "$scenario_name" UI_PORT 2>/dev/null || echo "")
+    fi
+
+    local api_build_mtime ui_build_mtime
+    api_build_mtime=$(_mtime "$api_binary")
+    ui_build_mtime=$(_mtime "$ui_bundle")
+
+    # Check API freshness
+    if [ -n "$api_build_mtime" ]; then
+        local api_start_epoch
+        api_start_epoch=$(_youngest_start_epoch "browser-automation-studio-api" "${API_PORT:-}")
+        if [ -z "$api_start_epoch" ]; then
+            log::error "API process not running. Restart scenario: vrooli scenario restart ${scenario_name}"
+            testing::phase::add_error "API runtime missing; restart scenario"
+            return 1
+        fi
+        if [ "$api_build_mtime" -gt "$api_start_epoch" ]; then
+            log::error "API binary newer than running process (stale runtime). Restart scenario: vrooli scenario restart ${scenario_name}"
+            testing::phase::add_error "API runtime stale; restart scenario to load latest build"
+            return 1
+        fi
+    fi
+
+    # Check UI freshness
+    if [ -n "$ui_build_mtime" ]; then
+        local ui_start_epoch
+        ui_start_epoch=$(_youngest_start_epoch "browser-automation-studio/ui/server.js" "${UI_PORT:-}")
+        if [ -z "$ui_start_epoch" ]; then
+            log::error "UI server not running. Restart scenario: vrooli scenario restart ${scenario_name}"
+            testing::phase::add_error "UI runtime missing; restart scenario"
+            return 1
+        fi
+        if [ "$ui_build_mtime" -gt "$ui_start_epoch" ]; then
+            log::error "UI bundle newer than running server (stale runtime). Restart scenario: vrooli scenario restart ${scenario_name}"
+            testing::phase::add_error "UI runtime stale; restart scenario to load latest build"
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
 # Run Browser Automation Studio workflow validations (or other workflow-based checks)
 # NOTE: We do NOT run explicit linting before workflow execution. The BAS API validates
 # workflows during execution, so separate linting is redundant and adds unnecessary complexity.
@@ -172,6 +285,14 @@ testing::integration::validate_all() {
         return 1
     fi
 
+    # Ensure running UI/API processes are not older than the latest build artifacts
+    if ! testing::integration::check_runtime_freshness "$scenario_dir" "$scenario_name"; then
+        TESTING_PHASE_EXPECTED_REQUIREMENTS=()
+        force_end=true
+        testing::phase::auto_lifecycle_end "Integration tests blocked by stale runtime"
+        return 1
+    fi
+
     testing::integration::build_playbook_registry "$scenario_dir"
 
     # Run BAS workflow validations
@@ -204,4 +325,5 @@ testing::integration::validate_all() {
 }
 
 export -f testing::integration::check_bundle_freshness
+export -f testing::integration::check_runtime_freshness
 export -f testing::integration::validate_all

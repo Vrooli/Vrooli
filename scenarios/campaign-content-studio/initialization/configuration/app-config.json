@@ -43,10 +43,6 @@
     "show_advanced_options": false
   },
   "integrations": {
-    "windmill": {
-      "workspace": "demo",
-      "auto_deploy_apps": true
-    },
     "n8n": {
       "auto_activate_workflows": true,
       "webhook_prefix": "campaign-content-studio"

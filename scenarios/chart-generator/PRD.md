@@ -26,13 +26,13 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [x] OT-P0-001 | Core chart types: bar, line, pie, scatter, area charts with configurable data inputs
+- [ ] OT-P0-001 | Core chart types: bar, line, pie, scatter, area charts with configurable data inputs
 - [x] OT-P0-002 | JSON/CSV/direct data object ingestion with automatic data type detection
-- [x] OT-P0-003 | Default professional styling themes (light, dark, corporate, minimal)
+- [ ] OT-P0-003 | Default professional styling themes (light, dark, corporate, minimal)
 - [x] OT-P0-004 | CLI interface for programmatic chart generation by other scenarios
 - [x] OT-P0-005 | Export capabilities: PNG, SVG formats for different use cases
 - [x] OT-P0-006 | PostgreSQL integration for chart template and style persistence
-- [x] OT-P0-007 | Web UI for style management and preview with mock data
+- [ ] OT-P0-007 | Web UI for style management and preview with mock data
 
 ### 🟠 P1 – Should have post-launch
 

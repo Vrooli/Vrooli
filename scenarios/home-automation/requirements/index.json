@@ -177,8 +177,8 @@
       "id": "HOME-P1-005",
       "category": "integration.workflows",
       "prd_ref": "Operational Targets > P1 > OT-P1-005",
-      "title": "Integration with shared n8n workflows",
-      "description": "Implements integration with shared n8n workflow patterns in initialization/n8n/ for common automation orchestration.",
+      "title": "Workflow automation without shared n8n assets",
+      "description": "Implement automation orchestration without relying on removed shared n8n workflow patterns; use scenario-specific workflows or direct integrations.",
       "status": "planned",
       "validation": []
     },

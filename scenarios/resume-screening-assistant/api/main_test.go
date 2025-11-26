@@ -59,14 +59,9 @@ func TestLoadConfig(t *testing.T) {
 
 		// Unset optional values to test defaults
 		os.Unsetenv("N8N_BASE_URL")
-		os.Unsetenv("WINDMILL_BASE_URL")
 		os.Unsetenv("QDRANT_URL")
 
 		config := loadConfig()
-
-		if config.WindmillURL != "http://localhost:8000" {
-			t.Errorf("Expected default Windmill URL, got %s", config.WindmillURL)
-		}
 
 		if config.QdrantURL != "http://localhost:6333" {
 			t.Errorf("Expected default Qdrant URL, got %s", config.QdrantURL)
@@ -576,7 +571,7 @@ func TestSetupRoutes(t *testing.T) {
 			t.Fatal("Resources should be a map")
 		}
 
-		expectedResources := []string{"windmill", "postgres", "qdrant"}
+		expectedResources := []string{"postgres", "qdrant"}
 		for _, resource := range expectedResources {
 			if _, exists := resources[resource]; !exists {
 				t.Errorf("Expected resource '%s' in resources map", resource)

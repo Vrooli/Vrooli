@@ -78,11 +78,6 @@ required:
     integration_pattern: HTTP API for search queries
     access_method: Direct API calls (no CLI available)
     
-  - resource_name: windmill
-    purpose: Dashboard UI and chat interface
-    integration_pattern: Frontend application hosting
-    access_method: resource-windmill CLI for app deployment
-    
   - resource_name: postgres
     purpose: Report metadata, schedules, chat history
     integration_pattern: Direct SQL connections
@@ -191,7 +186,7 @@ endpoints:
     output_schema: |
       {
         status: string
-        services: {database, ollama, qdrant, searxng, windmill}
+        services: {database, ollama, qdrant, searxng}
         timestamp: int
       }
 

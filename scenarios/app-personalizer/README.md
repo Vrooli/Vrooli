@@ -11,8 +11,7 @@ Customize generated apps using prompts or digital twins for personalized experie
 - **Multi-Deployment Modes**: Supports copy, patch, and multi-tenant deployments
 - **Validation & Testing**: Ensures modified apps remain functional
 
-## Dependencies
-- **Required Resources**: n8n, Ollama (llama3.2, codellama), PostgreSQL
+- **Required Resources**: Ollama (llama3.2, codellama), PostgreSQL
 - **Optional Resources**: Claude Code, MinIO
 - **External Scenarios**: Leverages personal-digital-twin and brand-manager when available
 
@@ -25,7 +24,7 @@ Customize generated apps using prompts or digital twins for personalized experie
 ## Architecture
 - **API**: Go-based REST API for orchestration
 - **CLI**: Shell-based CLI for local operations
-- **Workflows**: n8n pipeline for modification orchestration
+- **Workflows**: In-API personalization pipeline without an external workflow engine
 - **Storage**: PostgreSQL for metadata, MinIO for app versions
 
 ## Usage

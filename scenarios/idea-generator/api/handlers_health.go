@@ -60,7 +60,6 @@ func (s *ApiServer) statusHandler(w http.ResponseWriter, r *http.Request) {
 		"timestamp": time.Now(),
 		"uptime":    "running",
 		"resources": map[string]string{
-			"windmill":     s.windmillURL,
 			"postgres":     "connected",
 			"qdrant":       s.qdrantURL,
 			"minio":        s.minioURL,

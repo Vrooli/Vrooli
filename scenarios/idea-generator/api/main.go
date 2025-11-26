@@ -53,7 +53,6 @@ type HealthResponse struct {
 type ApiServer struct {
 	db              *sql.DB
 	ideaProcessor   *IdeaProcessor
-	windmillURL     string
 	postgresURL     string
 	qdrantURL       string
 	minioURL        string
@@ -101,7 +100,6 @@ func NewApiServer() (*ApiServer, error) {
 
 	// Service URLs with defaults for local development
 	// These are validated and will fall back to sensible defaults if not set
-	windmillURL := getEnvOrDefault("WINDMILL_BASE_URL", "")
 	qdrantURL := getEnvOrDefault("QDRANT_URL", "http://localhost:6333")
 	minioURL := getEnvOrDefault("MINIO_URL", "")
 	redisURL := getEnvOrDefault("REDIS_URL", "")
@@ -111,7 +109,6 @@ func NewApiServer() (*ApiServer, error) {
 	return &ApiServer{
 		db:              db,
 		ideaProcessor:   ideaProcessor,
-		windmillURL:     windmillURL,
 		postgresURL:     postgresURL,
 		qdrantURL:       qdrantURL,
 		minioURL:        minioURL,
@@ -237,7 +234,6 @@ func main() {
 	log.Printf("Idea Generator API server starting on port %s", port)
 	log.Printf("Services:")
 	log.Printf("  Database: Connected")
-	log.Printf("  Windmill: %s", server.windmillURL)
 	log.Printf("  Qdrant: %s", server.qdrantURL)
 	log.Printf("  MinIO: %s", server.minioURL)
 	log.Printf("  Ollama: %s", server.ollamaURL)

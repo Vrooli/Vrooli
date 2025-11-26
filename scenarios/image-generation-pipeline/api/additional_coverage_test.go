@@ -101,18 +101,17 @@ func TestLoadConfigEdgeCases(t *testing.T) {
 	})
 
 	t.Run("AllEnvironmentDefaults", func(t *testing.T) {
-		oldVars := map[string]string{
-			"N8N_BASE_URL":      os.Getenv("N8N_BASE_URL"),
-			"WINDMILL_BASE_URL": os.Getenv("WINDMILL_BASE_URL"),
-			"COMFYUI_BASE_URL":  os.Getenv("COMFYUI_BASE_URL"),
-			"WHISPER_BASE_URL":  os.Getenv("WHISPER_BASE_URL"),
-			"MINIO_ENDPOINT":    os.Getenv("MINIO_ENDPOINT"),
-			"MINIO_ACCESS_KEY":  os.Getenv("MINIO_ACCESS_KEY"),
-			"MINIO_SECRET_KEY":  os.Getenv("MINIO_SECRET_KEY"),
-			"QDRANT_URL":        os.Getenv("QDRANT_URL"),
-			"POSTGRES_URL":      os.Getenv("POSTGRES_URL"),
-			"API_PORT":          os.Getenv("API_PORT"),
-		}
+			oldVars := map[string]string{
+				"N8N_BASE_URL":     os.Getenv("N8N_BASE_URL"),
+				"COMFYUI_BASE_URL": os.Getenv("COMFYUI_BASE_URL"),
+				"WHISPER_BASE_URL": os.Getenv("WHISPER_BASE_URL"),
+				"MINIO_ENDPOINT":   os.Getenv("MINIO_ENDPOINT"),
+				"MINIO_ACCESS_KEY": os.Getenv("MINIO_ACCESS_KEY"),
+				"MINIO_SECRET_KEY": os.Getenv("MINIO_SECRET_KEY"),
+				"QDRANT_URL":       os.Getenv("QDRANT_URL"),
+				"POSTGRES_URL":     os.Getenv("POSTGRES_URL"),
+				"API_PORT":         os.Getenv("API_PORT"),
+			}
 
 		defer func() {
 			for k, v := range oldVars {
@@ -126,7 +125,6 @@ func TestLoadConfigEdgeCases(t *testing.T) {
 
 		// Unset all optional variables
 		os.Unsetenv("N8N_BASE_URL")
-		os.Unsetenv("WINDMILL_BASE_URL")
 		os.Unsetenv("COMFYUI_BASE_URL")
 		os.Unsetenv("WHISPER_BASE_URL")
 		os.Unsetenv("MINIO_ENDPOINT")
@@ -142,9 +140,6 @@ func TestLoadConfigEdgeCases(t *testing.T) {
 		// Verify defaults
 		if config.N8NBaseURL != "http://localhost:5678" {
 			t.Errorf("Expected default N8N URL, got %s", config.N8NBaseURL)
-		}
-		if config.WindmillBaseURL != "http://localhost:8000" {
-			t.Errorf("Expected default Windmill URL, got %s", config.WindmillBaseURL)
 		}
 		if config.ComfyUIBaseURL != "http://localhost:8188" {
 			t.Errorf("Expected default ComfyUI URL, got %s", config.ComfyUIBaseURL)

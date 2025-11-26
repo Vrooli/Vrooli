@@ -77,7 +77,6 @@ type Config struct {
 	Port              string
 	PostgresURL       string
 	N8NBaseURL        string
-	WindmillBaseURL   string
 	ComfyUIBaseURL    string
 	WhisperBaseURL    string
 	MinioEndpoint     string
@@ -118,7 +117,6 @@ func loadConfig() *Config {
 		Port:              port,
 		PostgresURL:       postgresURL,
 		N8NBaseURL:        getEnv("N8N_BASE_URL", "http://localhost:5678"),
-		WindmillBaseURL:   getEnv("WINDMILL_BASE_URL", "http://localhost:8000"),
 		ComfyUIBaseURL:    getEnv("COMFYUI_BASE_URL", "http://localhost:8188"),
 		WhisperBaseURL:    getEnv("WHISPER_BASE_URL", "http://localhost:9000"),
 		MinioEndpoint:     getEnv("MINIO_ENDPOINT", "localhost:9000"),

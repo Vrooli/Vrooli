@@ -115,7 +115,6 @@ type GeneratedContent struct {
 type CampaignService struct {
 	db          *sql.DB
 	n8nBaseURL  string
-	windmillURL string
 	postgresURL string
 	qdrantURL   string
 	minioURL    string
@@ -124,11 +123,10 @@ type CampaignService struct {
 }
 
 // NewCampaignService creates a new campaign service
-func NewCampaignService(db *sql.DB, n8nURL, windmillURL, postgresURL, qdrantURL, minioURL string) *CampaignService {
+func NewCampaignService(db *sql.DB, n8nURL, postgresURL, qdrantURL, minioURL string) *CampaignService {
 	return &CampaignService{
 		db:          db,
 		n8nBaseURL:  n8nURL,
-		windmillURL: windmillURL,
 		postgresURL: postgresURL,
 		qdrantURL:   qdrantURL,
 		minioURL:    minioURL,
@@ -409,7 +407,7 @@ func Health(w http.ResponseWriter, r *http.Request) {
 
 // getResourcePort queries the port registry for a resource's port
 func getResourcePort(resourceName string) string {
-	cmd := exec.Command("bash", "-c", fmt.Sprintf(
+		cmd := exec.Command("bash", "-c", fmt.Sprintf(
 		"source ${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh && ports::get_resource_port %s",
 		resourceName,
 	))
@@ -419,7 +417,6 @@ func getResourcePort(resourceName string) string {
 		// Fallback to defaults
 		defaults := map[string]string{
 			"n8n":      "5678",
-			"windmill": "5681",
 			"postgres": "5433",
 			"qdrant":   "6333",
 			"minio":    "9000",
@@ -456,7 +453,6 @@ func main() {
 
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
-	windmillPort := getResourcePort("windmill")
 	_ = getResourcePort("postgres") // postgresPort unused, will use POSTGRES_URL instead
 	qdrantPort := getResourcePort("qdrant")
 	minioPort := getResourcePort("minio")
@@ -465,11 +461,6 @@ func main() {
 	n8nURL := os.Getenv("N8N_BASE_URL")
 	if n8nURL == "" && n8nPort != "" {
 		n8nURL = fmt.Sprintf("http://localhost:%s", n8nPort)
-	}
-
-	windmillURL := os.Getenv("WINDMILL_BASE_URL")
-	if windmillURL == "" && windmillPort != "" {
-		windmillURL = fmt.Sprintf("http://localhost:%s", windmillPort)
 	}
 
 	// Database configuration - support both POSTGRES_URL and individual components
@@ -566,7 +557,7 @@ func main() {
 	logger.Info("🎉 Database connection pool established successfully!")
 
 	// Initialize campaign service
-	service := NewCampaignService(db, n8nURL, windmillURL, postgresURL, qdrantURL, minioURL)
+	service := NewCampaignService(db, n8nURL, postgresURL, qdrantURL, minioURL)
 
 	// Setup routes
 	r := mux.NewRouter()
@@ -582,7 +573,6 @@ func main() {
 	// Start server
 	log.Printf("Starting Campaign Content Studio API on port %s", port)
 	log.Printf("  n8n URL: %s", n8nURL)
-	log.Printf("  Windmill URL: %s", windmillURL)
 	log.Printf("  Postgres URL: %s", postgresURL)
 	log.Printf("  Qdrant URL: %s", qdrantURL)
 	log.Printf("  MinIO URL: %s", minioURL)

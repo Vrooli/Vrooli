@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS workflows (
     workflow_id VARCHAR(255) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    platform VARCHAR(50) NOT NULL CHECK (platform IN ('n8n', 'windmill', 'node-red')),
+    platform VARCHAR(50) NOT NULL CHECK (platform IN ('n8n', 'node-red')),
     
     -- Workflow configuration
     definition JSONB NOT NULL,

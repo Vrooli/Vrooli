@@ -9,28 +9,37 @@
       "priority": "P0",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "status": "pending",
-      "validation": ["test", "manual"],
+      "validation": [
+        "test",
+        "manual"
+      ],
       "children": [
         {
           "id": "RSA-RESUME-EXTRACT",
           "title": "Resume text extraction via Ollama",
           "description": "Extract skills, experience, education, contact info from resume documents",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "RSA-RESUME-PARSE",
           "title": "Resume structure parsing",
           "description": "Parse extracted text into structured candidate profile fields",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "RSA-RESUME-WORKFLOW",
           "title": "N8n resume processing pipeline",
           "description": "Automated workflow orchestrating upload, extraction, parsing, and storage",
           "status": "pending",
-          "validation": ["manual"]
+          "validation": [
+            "manual"
+          ]
         }
       ]
     },
@@ -41,28 +50,36 @@
       "priority": "P0",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "status": "pending",
-      "validation": ["test"],
+      "validation": [
+        "test"
+      ],
       "children": [
         {
           "id": "RSA-EMBED-GENERATE",
           "title": "Generate candidate embeddings",
           "description": "Create vector embeddings for candidate profiles in Qdrant",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "RSA-EMBED-SEARCH",
           "title": "Vector similarity search",
           "description": "Query Qdrant for best candidate matches using job description embeddings",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "RSA-MATCH-RANK",
           "title": "Candidate ranking algorithm",
           "description": "Score and rank candidates based on semantic similarity and metadata filters",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         }
       ]
     },
@@ -73,28 +90,36 @@
       "priority": "P0",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "status": "pending",
-      "validation": ["test"],
+      "validation": [
+        "test"
+      ],
       "children": [
         {
           "id": "RSA-JOB-CREATE",
           "title": "Job posting creation",
           "description": "API endpoint to create job postings with title, description, requirements",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "RSA-JOB-UPDATE",
           "title": "Job posting updates",
           "description": "Modify existing job postings and regenerate embeddings",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "RSA-JOB-LIST",
           "title": "Job listing endpoint",
           "description": "Retrieve all active job postings with filtering",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         }
       ]
     },
@@ -105,28 +130,36 @@
       "priority": "P0",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "status": "pending",
-      "validation": ["test"],
+      "validation": [
+        "test"
+      ],
       "children": [
         {
           "id": "RSA-CANDIDATE-SCHEMA",
           "title": "PostgreSQL candidate schema",
           "description": "Database tables for candidates with skills, experience, education",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "RSA-CANDIDATE-API",
           "title": "Candidate CRUD endpoints",
           "description": "API routes for candidate create, read, update, delete operations",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "RSA-CANDIDATE-QUERY",
           "title": "Candidate search and filtering",
           "description": "Advanced filtering by skills, location, experience level",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         }
       ]
     },
@@ -137,35 +170,45 @@
       "priority": "P0",
       "prd_ref": "Operational Targets > P0 > OT-P0-007",
       "status": "pending",
-      "validation": ["manual"],
+      "validation": [
+        "manual"
+      ],
       "children": [
         {
           "id": "RSA-UI-DASHBOARD",
           "title": "Processing stats dashboard",
           "description": "Real-time display of resume processing queue and match statistics",
           "status": "pending",
-          "validation": ["manual"]
+          "validation": [
+            "manual"
+          ]
         },
         {
           "id": "RSA-UI-UPLOAD",
           "title": "Resume upload interface",
           "description": "Drag-and-drop resume upload with format validation",
           "status": "pending",
-          "validation": ["manual"]
+          "validation": [
+            "manual"
+          ]
         },
         {
           "id": "RSA-UI-SEARCH",
           "title": "Candidate search interface",
           "description": "Search candidates by job posting with match confidence scores",
           "status": "pending",
-          "validation": ["manual"]
+          "validation": [
+            "manual"
+          ]
         },
         {
           "id": "RSA-UI-THEME",
           "title": "Retro-futuristic styling",
           "description": "Neon green on dark theme with CRT effects and scan lines",
           "status": "pending",
-          "validation": ["manual"]
+          "validation": [
+            "manual"
+          ]
         }
       ]
     },
@@ -176,28 +219,36 @@
       "priority": "P0",
       "prd_ref": "Operational Targets > P0 > OT-P0-008",
       "status": "pending",
-      "validation": ["test"],
+      "validation": [
+        "test"
+      ],
       "children": [
         {
           "id": "RSA-CLI-PROCESS",
           "title": "CLI resume processing command",
           "description": "resume-screening-assistant process-resume <file> command",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "RSA-CLI-SEARCH",
           "title": "CLI candidate search command",
           "description": "resume-screening-assistant search-candidates <job-id> command",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "RSA-CLI-JOBS",
           "title": "CLI job listing command",
           "description": "resume-screening-assistant list-jobs command",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         }
       ]
     },
@@ -208,7 +259,9 @@
       "priority": "P1",
       "prd_ref": "Operational Targets > P1 > OT-P1-001",
       "status": "pending",
-      "validation": ["test"]
+      "validation": [
+        "test"
+      ]
     },
     {
       "id": "RSA-FUNC-008",
@@ -217,7 +270,9 @@
       "priority": "P1",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "status": "pending",
-      "validation": ["test"]
+      "validation": [
+        "test"
+      ]
     },
     {
       "id": "RSA-FUNC-009",
@@ -226,7 +281,9 @@
       "priority": "P1",
       "prd_ref": "Operational Targets > P1 > OT-P1-003",
       "status": "pending",
-      "validation": ["manual"]
+      "validation": [
+        "manual"
+      ]
     }
   ]
 }

@@ -89,7 +89,7 @@
           "resources": ["research-pdfs/*"]
         },
         {
-          "principal": "windmill-dashboard",
+          "principal": "research-assistant-ui",
           "actions": ["s3:GetObject"],
           "resources": ["research-pdfs/reports/*"]
         },

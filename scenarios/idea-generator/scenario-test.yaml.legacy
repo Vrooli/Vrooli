@@ -10,7 +10,6 @@ prerequisites:
     - n8n
     - qdrant
     - minio
-    - windmill
     - unstructured-io
   environment:
     POSTGRES_PASSWORD: postgres
@@ -38,9 +37,6 @@ tests:
         expected_status: 200
       - check: minio_health
         command: curl -f http://localhost:${RESOURCE_PORTS[minio]:-9000}/minio/health/live
-        expected_status: 200
-      - check: windmill_health
-        command: curl -f http://localhost:${RESOURCE_PORTS[windmill]:-5681}/api/version
         expected_status: 200
       - check: unstructured_health
         command: curl -f http://localhost:${RESOURCE_PORTS[unstructured-io]:-11450}/healthcheck
@@ -103,16 +99,6 @@ tests:
           description: Test campaign for validation
           color: "#3B82F6"
         expected_status: 201
-
-  - name: ui_availability
-    description: Verify Windmill UI is accessible
-    steps:
-      - check: windmill_ui
-        command: curl -f http://localhost:${RESOURCE_PORTS[windmill]:-5681}
-        expected_status: 200
-      - check: windmill_api
-        command: curl -f http://localhost:${RESOURCE_PORTS[windmill]:-5681}/api/version
-        expected_status: 200
 
   - name: vector_search
     description: Test vector search functionality
