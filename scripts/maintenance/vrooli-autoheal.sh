@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eo pipefail
 
 # =============================================================================
 # Vrooli Autoheal - Modular Edition
@@ -9,6 +9,21 @@ set -euo pipefail
 # Determine script directory for sourcing modules
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AUTOHEAL_DIR="${SCRIPT_DIR}/autoheal"
+
+# Trap handlers for cleanup on exit/error
+trap 'cleanup_on_exit' EXIT
+trap 'cleanup_on_error $? $LINENO' ERR
+
+cleanup_on_exit() {
+    cleanup_lock 2>/dev/null || true
+}
+
+cleanup_on_error() {
+    local exit_code=$1
+    local line_num=$2
+    log "ERROR" "Script failed at line $line_num with exit code $exit_code" 2>/dev/null || true
+    cleanup_lock 2>/dev/null || true
+}
 
 # Source all modules in dependency order
 source "${AUTOHEAL_DIR}/config.sh"
@@ -80,7 +95,7 @@ main() {
     local item
     for item in "${resources[@]}"; do
         [[ -z "$item" ]] && continue
-        check_resource "$item"
+        check_resource "$item" || true
     done
 
     # Phase 6: Scenario Checks
@@ -92,7 +107,7 @@ main() {
 
     for item in "${scenarios[@]}"; do
         [[ -z "$item" ]] && continue
-        check_scenario "$item"
+        check_scenario "$item" || true
     done
 
     log_section "✅ Autoheal Run Complete"
