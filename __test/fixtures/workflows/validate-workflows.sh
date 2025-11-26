@@ -121,20 +121,8 @@ validate_workflow_file() {
         else
             # Platform-specific validation
             case "$platform" in
-                "n8n")
-                    validate_n8n_workflow "$workflow_path" "$filename"
-                    if [[ $? -ne 0 ]]; then
-                        errors=$((errors + 1))
-                    fi
-                    ;;
                 "node-red")
                     validate_node_red_workflow "$workflow_path" "$filename"
-                    if [[ $? -ne 0 ]]; then
-                        errors=$((errors + 1))
-                    fi
-                    ;;
-                "windmill")
-                    validate_windmill_workflow "$workflow_path" "$filename"
                     if [[ $? -ne 0 ]]; then
                         errors=$((errors + 1))
                     fi
@@ -207,24 +195,6 @@ validate_node_red_workflow() {
     local has_nodes=$(jq -e 'map(select(.type)) | length > 0' "$workflow_path" 2>/dev/null)
     if [[ "$has_nodes" != "true" ]]; then
         print_error "$filename: Missing Node-RED node types"
-        return 1
-    fi
-    
-    return 0
-}
-
-# Windmill workflow validation
-validate_windmill_workflow() {
-    local workflow_path="$1"
-    local filename="$2"
-    
-    # Check for Windmill-specific structure
-    if ! jq -e '.summary' "$workflow_path" >/dev/null 2>&1; then
-        print_warning "$filename: Missing Windmill summary (recommended)"
-    fi
-    
-    if ! jq -e '.value' "$workflow_path" >/dev/null 2>&1; then
-        print_error "$filename: Missing Windmill value/steps"
         return 1
     fi
     

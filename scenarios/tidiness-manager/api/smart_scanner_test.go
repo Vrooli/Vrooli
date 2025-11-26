@@ -59,18 +59,6 @@ func TestSmartScannerBatchConfiguration(t *testing.T) {
 	}
 }
 
-// SmartScanConfig represents AI batch scanning configuration
-type SmartScanConfig struct {
-	MaxFilesPerBatch int
-	MaxConcurrent    int
-	MaxTokensPerReq  int
-}
-
-// Validate checks if configuration is valid
-func (c *SmartScanConfig) Validate() bool {
-	return c.MaxFilesPerBatch > 0 && c.MaxConcurrent > 0
-}
-
 // [REQ:TM-SS-001] Test default configuration values
 func TestSmartScannerDefaults(t *testing.T) {
 	config := GetDefaultSmartScanConfig()
@@ -84,15 +72,6 @@ func TestSmartScannerDefaults(t *testing.T) {
 
 	if config.MaxConcurrent != expectedMaxConcurrent {
 		t.Errorf("Default MaxConcurrent = %d, want %d", config.MaxConcurrent, expectedMaxConcurrent)
-	}
-}
-
-// GetDefaultSmartScanConfig returns default AI batch configuration
-func GetDefaultSmartScanConfig() SmartScanConfig {
-	return SmartScanConfig{
-		MaxFilesPerBatch: 10,
-		MaxConcurrent:    5,
-		MaxTokensPerReq:  100000,
 	}
 }
 
@@ -126,17 +105,4 @@ func TestSmartScannerBatchSizeLimits(t *testing.T) {
 	if len(batches[2]) != 5 {
 		t.Errorf("Third batch size = %d, want 5", len(batches[2]))
 	}
-}
-
-// createBatches splits files into batches
-func createBatches(files []string, batchSize int) [][]string {
-	var batches [][]string
-	for i := 0; i < len(files); i += batchSize {
-		end := i + batchSize
-		if end > len(files) {
-			end = len(files)
-		}
-		batches = append(batches, files[i:end])
-	}
-	return batches
 }

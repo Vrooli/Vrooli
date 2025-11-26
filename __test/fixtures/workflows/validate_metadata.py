@@ -16,17 +16,13 @@ def validate_workflow_file(file_path, platform):
     """Validate that workflow file is valid for its platform."""
     try:
         with open(file_path, 'r') as f:
-            if platform in ['n8n', 'node-red', 'windmill', 'huginn', 'comfyui', 'integration']:
+            if platform in ['node-red', 'huginn', 'comfyui', 'integration']:
                 # All platforms use JSON format
                 data = json.load(f)
                 
                 # Platform-specific validation
-                if platform == 'n8n':
-                    return validate_n8n_workflow(data)
-                elif platform == 'node-red':
+                if platform == 'node-red':
                     return validate_node_red_workflow(data)
-                elif platform == 'windmill':
-                    return validate_windmill_workflow(data)
                 elif platform == 'huginn':
                     return validate_huginn_workflow(data)
                 elif platform == 'comfyui':
@@ -82,14 +78,6 @@ def validate_node_red_workflow(data):
             return False, f"Node {i} missing type field"
     
     return True, "Valid Node-RED flow"
-
-def validate_windmill_workflow(data):
-    """Validate Windmill workflow structure."""
-    # Basic validation - Windmill workflows can be quite flexible
-    if not isinstance(data, dict):
-        return False, "Windmill workflow must be a JSON object"
-    
-    return True, "Valid Windmill workflow"
 
 def validate_huginn_workflow(data):
     """Validate Huginn agent structure."""

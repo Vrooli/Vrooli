@@ -59,7 +59,7 @@ declare -A MOCK_CATEGORIES=(
     ["utility"]="logs jq verification dig filesystem system"
     ["storage"]="redis postgres minio qdrant questdb"
     ["ai"]="ollama whisper claude-code comfyui"
-    ["automation"]="n8n node-red windmill huginn"
+    ["automation"]="node-red huginn"
     ["infrastructure"]="docker helm vault browserless judge0 searxng unstructured-io agent-s2"
 )
 

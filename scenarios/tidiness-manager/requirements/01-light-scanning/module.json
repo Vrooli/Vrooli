@@ -15,6 +15,12 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "api/light_scanner_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "ref": "api/main_test.go"
         }
       ],
       "notes": "Must handle scenarios without Makefile gracefully (skip or warn)",
@@ -31,6 +37,12 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "api/light_scanner_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "ref": "api/main_test.go"
         }
       ],
       "notes": "Parse typescript and Go type errors into structured format",
@@ -47,6 +59,12 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "api/parsers_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "ref": "api/main_test.go"
         }
       ],
       "notes": "Support multiple linter formats (eslint, golangci-lint)",
@@ -63,6 +81,12 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "api/parsers_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "ref": "api/main_test.go"
         }
       ],
       "notes": "Support typescript tsc and Go type errors",
@@ -110,7 +134,7 @@
           "type": "test",
           "phase": "performance",
           "status": "implemented",
-          "ref": "test/phases/test-performance.sh"
+          "ref": "api/light_scanner_test.go"
         }
       ],
       "notes": "CLI scan command wired, performance tests passing (picker-wheel completes in 0s)",
@@ -126,7 +150,7 @@
           "type": "test",
           "phase": "performance",
           "status": "implemented",
-          "ref": "test/phases/test-performance.sh"
+          "ref": "api/light_scanner_test.go"
         }
       ],
       "notes": "CLI scan command wired, performance tests passing (tidiness-manager completes in 2s)",

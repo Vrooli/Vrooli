@@ -206,9 +206,7 @@ load_resource_test_mocks() {
             load_test_mock "claude-code"
             ;;
         automation)
-            load_test_mock "n8n"
             load_test_mock "node-red"
-            load_test_mock "windmill"
             ;;
         core)
             load_test_mock "docker"

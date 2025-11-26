@@ -83,7 +83,6 @@
 
 **AI Integration**:
 - Ollama for semantic search, summarization, NLP
-- Shared n8n workflows (initialization/n8n/ollama.json)
 - Graceful degradation when AI unavailable
 
 **Performance Targets**:
@@ -109,9 +108,8 @@
 - Qdrant (vector storage, fallback to pgvector)
 
 **Resource Integration Priority**:
-1. Use shared n8n workflows (initialization/n8n/ollama.json)
-2. Use resource CLI commands (resource-postgres, resource-minio)
-3. Direct API only when necessary (streaming operations)
+1. Use resource CLI commands (resource-postgres, resource-minio)
+2. Direct API only when necessary (streaming operations)
 
 **Scenario Dependencies**: None (foundational service)
 

@@ -83,7 +83,7 @@
         "checks": [
           {
             "type": "binaries",
-            "paths": [
+            "targets": [
               "api/tidiness-manager-api"
             ]
           },
@@ -111,7 +111,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies"
         },
         {

@@ -264,7 +264,7 @@ qdrant::extract::detect_resource_category() {
         postgres|redis|qdrant|minio|neo4j|questdb|vault|postgis|mysql|mongodb)
             echo "storage"
             ;;
-        n8n|windmill|node-red|huginn|airflow|prefect)
+        n8n|node-red|huginn|airflow|prefect)
             echo "automation"
             ;;
         browserless|agent-s2|autogpt|crewai|autogen-studio)

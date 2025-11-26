@@ -69,7 +69,7 @@ cd /tmp && bash /path/to/Vrooli/__test/integration/tier2_direct_test.sh  # ✅ W
 |----------|-------|---------|
 | **Storage** | redis, postgres, minio, qdrant | ✅ Fully functional |
 | **AI/ML** | ollama, whisper, claude-code, comfyui | ✅ Fully functional |
-| **Automation** | n8n, node-red, windmill, huginn | ✅ Fully functional |
+| **Automation** | node-red, huginn | ✅ Fully functional |
 | **Infrastructure** | docker, kubernetes, helm, vault | ✅ Fully functional |
 | **Utilities** | jq, dig, logs, verification, filesystem | ✅ Fully functional |
 | **Services** | searxng, unstructured-io, browserless, judge0 | ✅ Fully functional |
@@ -121,7 +121,7 @@ source __test/mocks/test_helper.sh
 # Load mocks by category
 load_resource_test_mocks "storage"    # redis, postgres, minio, qdrant
 load_resource_test_mocks "ai"         # ollama, whisper, claude-code
-load_resource_test_mocks "automation" # n8n, node-red, windmill
+load_resource_test_mocks "automation" # n8n, node-red, huginn
 
 # Verification and error injection
 verify_mock "redis"                   # Run all standard tests

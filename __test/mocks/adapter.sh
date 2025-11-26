@@ -159,9 +159,7 @@ load_resource_mocks() {
             load_mock "claude-code"
             ;;
         automation)
-            load_mock "n8n"
             load_mock "node-red"
-            load_mock "windmill"
             ;;
         core)
             load_mock "docker"

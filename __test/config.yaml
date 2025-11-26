@@ -25,10 +25,8 @@ ports:
   vault: 8200
   
   # Automation Services
-  n8n: 5678
   node_red: 1880
   huginn: 3000
-  windmill: 8000
   
   # Agent Services
   agent_s2: 8080

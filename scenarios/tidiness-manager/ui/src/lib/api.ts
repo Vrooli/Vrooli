@@ -1,37 +1,45 @@
-import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
+import { resolveWithConfig, buildApiUrl } from "@vrooli/api-base";
 
-// Fallback to direct API URL if proxy metadata resolution fails
-// In local development, use the API port from window.__VROOLI_CONFIG__ or default to localhost
-const API_BASE = (() => {
-  try {
-    const resolved = resolveApiBase({ appendSuffix: true });
-    console.log('[tidiness-manager] resolveApiBase returned:', resolved);
+// Lazily resolve API base using @vrooli/api-base's built-in resolution
+// This handles proxy detection, /config endpoint fetching, and __VROOLI_CONFIG__ injection
+let API_BASE: string | null = null;
+let API_BASE_PROMISE: Promise<string> | null = null;
 
-    const currentPort = window.location.port;
-    const apiPort = (window as any).__VROOLI_CONFIG__?.apiPort || '16820';
+async function resolveApiBaseOnce(): Promise<string> {
+  if (API_BASE) return API_BASE;
+  if (API_BASE_PROMISE) return API_BASE_PROMISE;
 
-    // If resolution returns empty, just a path, undefined, or points to the UI port (wrong!), use direct API port
-    if (!resolved ||
-        typeof resolved !== 'string' ||
-        resolved.trim() === '' ||
-        resolved.startsWith('/') ||
-        (currentPort && resolved.includes(`:${currentPort}`))) {
-      const fallback = `http://localhost:${apiPort}/api/v1`;
-      console.log('[tidiness-manager] Using fallback API base (resolved pointed to UI port or was invalid):', fallback);
-      return fallback;
+  API_BASE_PROMISE = (async () => {
+    try {
+      // Use resolveWithConfig which:
+      // 1. Checks for __VROOLI_CONFIG__ injected global
+      // 2. Falls back to proxy metadata detection
+      // 3. Falls back to /config endpoint fetch (absolute path)
+      const resolved = await resolveWithConfig({
+        appendSuffix: true,
+        configEndpoint: '/config'  // Use absolute path
+      });
+      console.log('[tidiness-manager] resolveWithConfig returned:', resolved);
+
+      if (!resolved || typeof resolved !== 'string' || resolved.trim() === '') {
+        throw new Error('No valid API base could be resolved');
+      }
+
+      API_BASE = resolved;
+      return resolved;
+    } catch (e) {
+      console.error('[tidiness-manager] Failed to resolve API base:', e);
+      throw e;
     }
+  })();
 
-    console.log('[tidiness-manager] Using resolved API base:', resolved);
-    return resolved;
-  } catch (e) {
-    // Fallback to default localhost API
-    const fallback = 'http://localhost:16820/api/v1';
-    console.warn('[tidiness-manager] Failed to resolve API base, using fallback:', fallback, e);
-    return fallback;
-  }
-})();
+  return API_BASE_PROMISE;
+}
 
-console.log('[tidiness-manager] Final API_BASE:', API_BASE);
+// Helper to get API base (blocks until resolved)
+async function getApiBase(): Promise<string> {
+  return resolveApiBaseOnce();
+}
 
 // ============================================================================
 // Type Definitions
@@ -150,7 +158,8 @@ export interface FileStats {
 // ============================================================================
 
 export async function fetchHealth(): Promise<HealthResponse> {
-  const res = await fetch(buildApiUrl("/health", { baseUrl: API_BASE }), {
+  const apiBase = await getApiBase();
+  const res = await fetch(buildApiUrl("/health", { baseUrl: apiBase }), {
     headers: { "Content-Type": "application/json" },
     cache: "no-store"
   });
@@ -163,7 +172,8 @@ export async function fetchHealth(): Promise<HealthResponse> {
 }
 
 export async function lightScan(scenarioPath: string, timeoutSec?: number): Promise<ScanResult> {
-  const res = await fetch(buildApiUrl("/scan/light", { baseUrl: API_BASE }), {
+  const apiBase = await getApiBase();
+  const res = await fetch(buildApiUrl("/scan/light", { baseUrl: apiBase }), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ scenario_path: scenarioPath, timeout_sec: timeoutSec }),
@@ -178,7 +188,8 @@ export async function lightScan(scenarioPath: string, timeoutSec?: number): Prom
 }
 
 export async function parseLintOutput(scenario: string, tool: string, output: string): Promise<{ issues: Issue[]; count: number }> {
-  const res = await fetch(buildApiUrl("/scan/light/parse-lint", { baseUrl: API_BASE }), {
+  const apiBase = await getApiBase();
+  const res = await fetch(buildApiUrl("/scan/light/parse-lint", { baseUrl: apiBase }), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ scenario, tool, output }),
@@ -193,7 +204,8 @@ export async function parseLintOutput(scenario: string, tool: string, output: st
 }
 
 export async function parseTypeOutput(scenario: string, tool: string, output: string): Promise<{ issues: Issue[]; count: number }> {
-  const res = await fetch(buildApiUrl("/scan/light/parse-type", { baseUrl: API_BASE }), {
+  const apiBase = await getApiBase();
+  const res = await fetch(buildApiUrl("/scan/light/parse-type", { baseUrl: apiBase }), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ scenario, tool, output }),
@@ -221,7 +233,8 @@ const MOCK_SCENARIOS: ScenarioStats[] = [
 ];
 
 export async function fetchScenarioStats(): Promise<ScenarioStats[]> {
-  const res = await fetch(buildApiUrl("/agent/scenarios", { baseUrl: API_BASE }), {
+  const apiBase = await getApiBase();
+  const res = await fetch(buildApiUrl("/agent/scenarios", { baseUrl: apiBase }), {
     headers: { "Content-Type": "application/json" },
     cache: "no-store"
   });
@@ -248,21 +261,23 @@ export async function fetchScenarioStats(): Promise<ScenarioStats[]> {
 }
 
 export async function fetchScenarioDetail(scenarioName: string): Promise<{ stats: ScenarioStats; files: FileStats[] }> {
-  // TODO: Replace with real API call when backend ready
-  await new Promise(resolve => setTimeout(resolve, 200));
+  const apiBase = await getApiBase();
+  const res = await fetch(buildApiUrl(`/agent/scenarios/${encodeURIComponent(scenarioName)}`, { baseUrl: apiBase }), {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
 
-  const stats = MOCK_SCENARIOS.find(s => s.scenario === scenarioName) || MOCK_SCENARIOS[0];
+  if (!res.ok) {
+    throw new Error(`Failed to fetch scenario detail: ${res.status}`);
+  }
 
-  const files: FileStats[] = [
-    { path: "api/main.go", lines: 250, lint_issues: 3, type_issues: 0, ai_issues: 1, visit_count: 5, is_long_file: false, extension: ".go" },
-    { path: "api/handlers.go", lines: 650, lint_issues: 5, type_issues: 2, ai_issues: 3, visit_count: 8, is_long_file: true, extension: ".go", last_visited: "2025-01-19T10:00:00Z" },
-    { path: "ui/src/App.tsx", lines: 180, lint_issues: 1, type_issues: 1, ai_issues: 0, visit_count: 12, is_long_file: false, extension: ".tsx" },
-    { path: "ui/src/components/Dashboard.tsx", lines: 380, lint_issues: 2, type_issues: 3, ai_issues: 2, visit_count: 3, is_long_file: false, extension: ".tsx" },
-    { path: "api/light_scanner.go", lines: 320, lint_issues: 1, type_issues: 0, ai_issues: 1, visit_count: 2, is_long_file: false, extension: ".go" },
-    { path: "api/parsers.go", lines: 180, lint_issues: 0, type_issues: 0, ai_issues: 0, visit_count: 7, is_long_file: false, extension: ".go" },
-  ];
+  const data = await res.json();
 
-  return { stats, files };
+  // API returns: { stats: {...}, files: [{...}] }
+  return {
+    stats: data.stats,
+    files: data.files
+  };
 }
 
 export async function fetchFileIssues(scenarioName: string, filePath: string): Promise<Issue[]> {

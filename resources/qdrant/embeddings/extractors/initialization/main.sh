@@ -21,8 +21,6 @@ source "${var_LIB_UTILS_DIR}/log.sh"
 source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
 
 # Source all resource parsers
-source "${PARSERS_DIR}/n8n.sh"
-source "${PARSERS_DIR}/windmill.sh"
 source "${PARSERS_DIR}/postgres.sh"
 source "${PARSERS_DIR}/qdrant.sh"
 source "${PARSERS_DIR}/minio.sh"
@@ -85,7 +83,7 @@ qdrant::init::read_service_config() {
 #
 # Arguments:
 #   $1 - File path
-#   $2 - Type (n8n, windmill, postgres, etc.)
+#   $2 - Type (n8n, postgres, etc.)
 #   $3 - Purpose (optional)
 #   $4 - Resource name
 # Returns: JSON lines from parser
@@ -106,9 +104,6 @@ qdrant::init::dispatch_to_parser() {
     case "$type" in
         n8n)
             extractor::lib::n8n::extract_all "$file" "initialization" "$resource"
-            ;;
-        windmill)
-            extractor::lib::windmill::extract_all "$file" "initialization" "$resource"
             ;;
         postgres|postgresql|sql)
             extractor::lib::postgres::extract_all "$file" "initialization" "$resource"
@@ -170,13 +165,6 @@ qdrant::init::dispatch_to_parser() {
                     elif extractor::lib::node_red::is_flow "$file"; then
                         log::debug "Detected as Node-RED flow based on content"
                         extractor::lib::node_red::extract_all "$file" "initialization" "$resource"
-                    fi
-                    ;;
-                yaml|yml)
-                    # Check if it's a Windmill flow
-                    if extractor::lib::windmill::is_flow "$file"; then
-                        log::debug "Detected as Windmill flow based on content"
-                        extractor::lib::windmill::extract_all "$file" "initialization" "$resource"
                     fi
                     ;;
                 hcl|conf|policy)

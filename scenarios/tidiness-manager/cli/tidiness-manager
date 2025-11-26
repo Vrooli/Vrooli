@@ -58,8 +58,10 @@ detect_api_base() {
         return 0
     fi
 
-    if [[ -n "${API_PORT:-}" ]]; then
-        echo "http://${API_HOST:-localhost}:${API_PORT}/api/v1"
+    # Use scenario-specific env var to avoid conflicts with other scenarios
+    local scenario_api_port="${TIDINESS_MANAGER_API_PORT:-}"
+    if [[ -n "$scenario_api_port" ]]; then
+        echo "http://${API_HOST:-localhost}:${scenario_api_port}/api/v1"
         return 0
     fi
 
@@ -246,15 +248,44 @@ cmd_scan() {
 }
 
 cmd_issues() {
-    local scenario="${1:-.}"
-    local category="${2:-all}"
-    local severity="${3:-all}"
-    local limit="${4:-50}"
+    local scenario="tidiness-manager"
+    local category="all"
+    local severity="all"
+    local limit="50"
+
+    # Support --scenario flag for better CLI UX
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scenario)
+                scenario="$2"
+                shift 2
+                ;;
+            --category)
+                category="$2"
+                shift 2
+                ;;
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --*)
+                echo -e "${YELLOW}⚠${NC} Unknown option: $1" >&2
+                shift
+                ;;
+            *)
+                # First positional arg is scenario
+                if [[ "$scenario" == "tidiness-manager" ]]; then
+                    scenario="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
 
     echo -e "${BLUE}Fetching tidiness issues for $scenario...${NC}"
 
     # Build query parameters
-    local query="?limit=$limit"
+    local query="?scenario=$scenario&limit=$limit"
     if [[ "$category" != "all" ]]; then
         query="${query}&category=$category"
     fi
@@ -262,7 +293,7 @@ cmd_issues() {
         query="${query}&severity=$severity"
     fi
 
-    response=$(api_request GET "/issues${query}" || true)
+    response=$(api_request GET "/agent/issues${query}" || true)
     if [[ -z "$response" ]]; then
         echo -e "${RED}✗${NC} API request failed"
         return 1
@@ -278,10 +309,10 @@ cmd_issues() {
     # Display results
     echo -e "${GREEN}✓${NC} Issues retrieved"
     echo "$response" | jq -r '
-        if type == "array" then
-            "Total issues: \(length)",
+        if .issues then
+            "Total issues: \(.count)",
             "",
-            (if length > 0 then .[] | "  • [\(.category)] \(.file_path): \(.description)" else "  No issues found" end)
+            (if .count > 0 then .issues[] | "  • [\(.severity)] \(.file_path):\(.line_number // "?"): \(.title)" else "  No issues found" end)
         else
             .
         end

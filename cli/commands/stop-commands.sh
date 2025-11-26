@@ -87,8 +87,6 @@ MIGRATION FROM OLD COMMANDS:
     Note: Old commands still work but will show deprecation warnings.
 
 ADVANCED FEATURES (Coming Soon):
-    vrooli stop --only postgres,redis      # Selective stopping
-    vrooli stop --exclude windmill         # Stop everything except specified
     vrooli stop "scenario:*assistant*"     # Pattern matching
     vrooli stop --with-deps postgres       # Stop with dependencies
     vrooli stop --interactive              # Interactive selection mode

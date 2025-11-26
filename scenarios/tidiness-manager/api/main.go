@@ -68,7 +68,10 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) setupRoutes() {
+	// Add CORS middleware for all routes
 	s.router.Use(loggingMiddleware)
+	s.router.Use(corsMiddleware)
+
 	// Expose health at both root (for infrastructure) and /api/v1 (for clients)
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
@@ -78,10 +81,22 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/scan/light/parse-lint", s.handleParseLint).Methods("POST")
 	s.router.HandleFunc("/api/v1/scan/light/parse-type", s.handleParseType).Methods("POST")
 
+	// Smart scanning endpoints (TM-SS-001, TM-SS-002)
+	s.router.HandleFunc("/api/v1/scan/smart", s.handleSmartScan).Methods("POST", "OPTIONS")
+
 	// Agent API endpoints (TM-API-001 through TM-API-007)
-	s.router.HandleFunc("/api/v1/agent/issues", s.handleAgentGetIssues).Methods("GET")
-	s.router.HandleFunc("/api/v1/agent/issues", s.handleAgentStoreIssue).Methods("POST")
-	s.router.HandleFunc("/api/v1/agent/scenarios", s.handleAgentGetScenarios).Methods("GET")
+	s.router.HandleFunc("/api/v1/agent/issues", s.handleAgentGetIssues).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/agent/issues", s.handleAgentStoreIssue).Methods("POST", "OPTIONS")
+
+	// Scenario detail endpoint (OT-P0-010) - must be registered before generic list endpoint
+	s.router.HandleFunc("/api/v1/agent/scenarios/{name}", s.handleAgentGetScenarioDetail).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/agent/scenarios", s.handleAgentGetScenarios).Methods("GET", "OPTIONS")
+
+	// Auto-campaign endpoints (OT-P1-001, OT-P1-002)
+	s.router.HandleFunc("/api/v1/campaigns", s.handleCreateCampaign).Methods("POST", "OPTIONS")
+	s.router.HandleFunc("/api/v1/campaigns", s.handleListCampaigns).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/campaigns/{id}", s.handleGetCampaign).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/campaigns/{id}/action", s.handleCampaignAction).Methods("POST", "OPTIONS")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -146,6 +161,28 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// corsMiddleware adds CORS headers to allow cross-origin requests from the UI
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Allow requests from localhost origins only
+		origin := r.Header.Get("Origin")
+		if origin != "" && (strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:")) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Max-Age", "3600")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 // loggingMiddleware prints structured request logs

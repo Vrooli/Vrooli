@@ -17,18 +17,18 @@
 - [x] OT-P0-001 | Makefile-based light scanning | Execute `make lint` and `make type` for any scenario and parse outputs into structured issues
 - [x] OT-P0-002 | File metrics collection | Compute per-file line counts and flag files exceeding configurable thresholds
 - [x] OT-P0-003 | Light scan performance | Complete light scans for typical scenarios in under 60-120 seconds or surface clear timeout status
-- [ ] OT-P0-004 | AI batch scanning | Process files in batches using resource-claude-code/resource-codes with configurable limits
-- [ ] OT-P0-005 | visited-tracker integration | Create/attach to campaigns and prioritize unvisited/least-visited files for smart scans
-- [ ] OT-P0-006 | No file hammering | Prevent analyzing the same file twice within a session or beyond configurable max visits
-- [ ] OT-P0-007 | Agent API | Expose HTTP/CLI interface for other agents to request top N tidiness issues by scenario/file/folder/category
-- [ ] OT-P0-008 | Issue storage | Record AI-generated issues with scenario, file path, category, severity, agent notes, remediation steps, and campaign metadata
-- [ ] OT-P0-009 | Global dashboard | Display per-scenario counts of light issues, AI issues, long files, visit %, and campaign status
-- [ ] OT-P0-010 | Scenario detail view | Show file table with paths, line counts, issue counts, visit counts, and sortable columns
+- [x] OT-P0-004 | AI batch scanning | Process files in batches using resource-claude-code/resource-codes with configurable limits
+- [x] OT-P0-005 | visited-tracker integration | Create/attach to campaigns and prioritize unvisited/least-visited files for smart scans
+- [x] OT-P0-006 | No file hammering | Prevent analyzing the same file twice within a session or beyond configurable max visits
+- [x] OT-P0-007 | Agent API | Expose HTTP/CLI interface for other agents to request top N tidiness issues by scenario/file/folder/category
+- [x] OT-P0-008 | Issue storage | Record AI-generated issues with scenario, file path, category, severity, agent notes, remediation steps, and campaign metadata
+- [x] OT-P0-009 | Global dashboard | Display per-scenario counts of light issues, AI issues, long files, visit %, and campaign status
+- [x] OT-P0-010 | Scenario detail view | Show file table with paths, line counts, issue counts, visit counts, and sortable columns
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | Auto-tidiness campaigns | Run automatic agent scan campaigns across up to K scenarios with session limits and priority rules
-- [ ] OT-P1-002 | Campaign lifecycle | Auto-complete campaigns when all files visited or max sessions reached; support pause/resume/terminate
-- [ ] OT-P1-003 | Campaign safety | Mark campaigns as "error" on repeated failures; enforce global concurrency limit K
+- [x] OT-P1-001 | Auto-tidiness campaigns | Run automatic agent scan campaigns across up to K scenarios with session limits and priority rules
+- [x] OT-P1-002 | Campaign lifecycle | Auto-complete campaigns when all files visited or max sessions reached; support pause/resume/terminate
+- [x] OT-P1-003 | Campaign safety | Mark campaigns as "error" on repeated failures; enforce global concurrency limit K
 - [ ] OT-P1-004 | Issue management UI | Allow mark-as-resolved, mark-as-ignored, filter by status, view agent notes and suggested remediation
 - [ ] OT-P1-005 | Issue de-duplication | Group/link same logical issue from multiple sources (lint + type + AI) to reduce clutter
 - [ ] OT-P1-006 | Trigger controls | Enable one-off light scans, one-off smart scans, and campaign enable/disable from UI

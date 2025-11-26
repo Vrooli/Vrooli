@@ -13,12 +13,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "failing",
-          "ref": "test/phases/test-integration.sh"
+          "status": "not_implemented",
+          "ref": "api/issue_manager_test.go"
         }
       ],
       "notes": "Resolved issues hidden from default view but queryable",
-      "status": "in_progress"
+      "status": "pending"
     },
     {
       "id": "TM-IM-002",
@@ -29,12 +29,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "failing",
-          "ref": "test/phases/test-integration.sh"
+          "status": "not_implemented",
+          "ref": "api/issue_manager_test.go"
         }
       ],
       "notes": "Ignored issues hidden from default view but queryable",
-      "status": "in_progress"
+      "status": "pending"
     },
     {
       "id": "TM-IM-003",
@@ -45,12 +45,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "failing",
-          "ref": "test/phases/test-integration.sh"
+          "status": "not_implemented",
+          "ref": "api/issue_manager_test.go"
         }
       ],
       "notes": "Default view: open issues only",
-      "status": "in_progress"
+      "status": "pending"
     },
     {
       "id": "TM-IM-004",
@@ -61,12 +61,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "failing",
-          "ref": "test/phases/test-integration.sh"
+          "status": "not_implemented",
+          "ref": "api/issue_manager_test.go"
         }
       ],
       "notes": "Split-pane layout similar to scenario-auditor",
-      "status": "in_progress"
+      "status": "pending"
     },
     {
       "id": "TM-IM-005",
@@ -78,7 +78,7 @@
           "type": "test",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/phases/test-business.sh"
+          "ref": "api/issue_manager_test.go"
         }
       ],
       "notes": "Match by file + line number + fuzzy message similarity",
@@ -93,12 +93,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "failing",
-          "ref": "test/phases/test-integration.sh"
+          "status": "not_implemented",
+          "ref": "api/issue_manager_test.go"
         }
       ],
       "notes": "Show scan progress and refresh results on completion",
-      "status": "in_progress"
+      "status": "pending"
     },
     {
       "id": "TM-IM-007",
@@ -109,12 +109,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "failing",
-          "ref": "test/phases/test-integration.sh"
+          "status": "not_implemented",
+          "ref": "api/issue_manager_test.go"
         }
       ],
       "notes": "Warn about AI cost; show batch progress",
-      "status": "in_progress"
+      "status": "pending"
     },
     {
       "id": "TM-IM-008",
@@ -125,12 +125,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "failing",
-          "ref": "test/phases/test-integration.sh"
+          "status": "not_implemented",
+          "ref": "api/issue_manager_test.go"
         }
       ],
       "notes": "Show current campaign status and next scheduled session",
-      "status": "in_progress"
+      "status": "pending"
     }
   ]
 }

@@ -119,17 +119,8 @@ func (s *Server) handleAgentGetIssues(w http.ResponseWriter, r *http.Request) {
 		issues = append(issues, issue)
 	}
 
-	respondJSON(w, http.StatusOK, map[string]interface{}{
-		"issues": issues,
-		"count":  len(issues),
-		"query": map[string]interface{}{
-			"scenario": req.Scenario,
-			"file":     req.File,
-			"folder":   req.Folder,
-			"category": req.Category,
-			"limit":    req.Limit,
-		},
-	})
+	// Return plain array for simpler agent consumption (TM-API-001)
+	respondJSON(w, http.StatusOK, issues)
 }
 
 // handleAgentStoreIssue stores a new issue (TM-API-006, TM-DA-001, TM-DA-002, TM-DA-003)
@@ -358,6 +349,97 @@ func buildIssuesArgs(req AgentIssuesRequest) []interface{} {
 
 	args = append(args, req.Limit)
 	return args
+}
+
+// handleAgentGetScenarioDetail returns detailed stats and file list for a specific scenario (OT-P0-010, TM-UI-003, TM-UI-004)
+func (s *Server) handleAgentGetScenarioDetail(w http.ResponseWriter, r *http.Request) {
+	vars := map[string]string{}
+	// Extract {name} path parameter from request URL
+	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/agent/scenarios/"), "/")
+	if len(parts) > 0 {
+		vars["name"] = parts[0]
+	}
+
+	scenarioName := vars["name"]
+	if scenarioName == "" {
+		respondError(w, http.StatusBadRequest, "scenario name is required")
+		return
+	}
+
+	// Get aggregate stats for this scenario
+	var lightIssues, aiIssues, longFiles int
+	query := `
+		SELECT
+			COUNT(CASE WHEN category IN ('lint', 'type') THEN 1 END) as light_issues,
+			COUNT(CASE WHEN category NOT IN ('lint', 'type', 'length') THEN 1 END) as ai_issues,
+			COUNT(CASE WHEN category = 'length' THEN 1 END) as long_files
+		FROM issues
+		WHERE scenario = $1 AND status = 'open'
+	`
+	err := s.db.QueryRowContext(r.Context(), query, scenarioName).Scan(&lightIssues, &aiIssues, &longFiles)
+	if err != nil && err != sql.ErrNoRows {
+		s.log("query failed", map[string]interface{}{"error": err.Error()})
+		respondError(w, http.StatusInternalServerError, "failed to query stats")
+		return
+	}
+
+	// Get file-level metrics from database (TM-UI-003, TM-UI-004)
+	filesQuery := `
+		SELECT
+			fm.file_path,
+			fm.line_count,
+			COUNT(i.id) as issue_count
+		FROM file_metrics fm
+		LEFT JOIN issues i ON i.scenario = fm.scenario AND i.file_path = fm.file_path AND i.status = 'open'
+		WHERE fm.scenario = $1
+		GROUP BY fm.file_path, fm.line_count
+		ORDER BY issue_count DESC, fm.line_count DESC
+		LIMIT 100
+	`
+
+	rows, err := s.db.QueryContext(r.Context(), filesQuery, scenarioName)
+	if err != nil {
+		s.log("query failed", map[string]interface{}{"error": err.Error()})
+		respondError(w, http.StatusInternalServerError, "failed to query files")
+		return
+	}
+	defer rows.Close()
+
+	files := []map[string]interface{}{}
+	for rows.Next() {
+		var filePath sql.NullString
+		var lineCount, issueCount sql.NullInt64
+		if err := rows.Scan(&filePath, &lineCount, &issueCount); err != nil {
+			continue
+		}
+
+		file := map[string]interface{}{
+			"path":        "",
+			"lines":       0,
+			"totalIssues": 0,
+			"visitCount":  0,
+		}
+
+		if filePath.Valid {
+			file["path"] = filePath.String
+		}
+		if lineCount.Valid {
+			file["lines"] = int(lineCount.Int64)
+		}
+		if issueCount.Valid {
+			file["totalIssues"] = int(issueCount.Int64)
+		}
+
+		files = append(files, file)
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"scenario":    scenarioName,
+		"lightIssues": lightIssues,
+		"aiIssues":    aiIssues,
+		"longFiles":   longFiles,
+		"files":       files,
+	})
 }
 
 // getAllScenarios fetches all scenarios from the vrooli CLI with caching

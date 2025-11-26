@@ -130,7 +130,7 @@ spec:
       - content-creation-pipelines
       - conversational-interfaces
     integration_targets:
-      preferred: [n8n, windmill, minio, qdrant]
+      preferred: [n8n, minio, qdrant]
       compatible: [whisper, agent-s2, unstructured-io]
       avoid: [real-time-streaming, video-processing]
     prompt_templates:

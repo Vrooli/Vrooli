@@ -20,7 +20,7 @@ openrouter::inject() {
     openrouter::init || return 1
     
     case "$target" in
-        "n8n"|"windmill"|"huginn")
+        "n8n"|"huginn")
             # Create credentials JSON for workflow engines
             local creds_file="${var_ROOT_DIR}/data/credentials/openrouter-credentials.json"
             cat > "$creds_file" <<EOF

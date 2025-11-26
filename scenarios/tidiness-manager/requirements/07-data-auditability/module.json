@@ -13,12 +13,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "failing",
-          "ref": "test/phases/test-integration.sh"
+          "status": "not_implemented",
+          "ref": "api/audit_trail_test.go"
         }
       ],
       "notes": "Store in issues table as resource_id",
-      "status": "in_progress"
+      "status": "pending"
     },
     {
       "id": "TM-DA-002",
@@ -29,12 +29,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "failing",
-          "ref": "test/phases/test-integration.sh"
+          "status": "not_implemented",
+          "ref": "api/audit_trail_test.go"
         }
       ],
       "notes": "created_at timestamp for trend analysis",
-      "status": "in_progress"
+      "status": "pending"
     },
     {
       "id": "TM-DA-003",
@@ -45,12 +45,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "failing",
-          "ref": "test/phases/test-integration.sh"
+          "status": "not_implemented",
+          "ref": "api/audit_trail_test.go"
         }
       ],
       "notes": "campaign_id and session_id foreign keys",
-      "status": "in_progress"
+      "status": "pending"
     },
     {
       "id": "TM-DA-004",
@@ -61,12 +61,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "failing",
-          "ref": "test/phases/test-integration.sh"
+          "status": "not_implemented",
+          "ref": "api/audit_trail_test.go"
         }
       ],
       "notes": "Long file lines, max scans per file, max concurrent campaigns",
-      "status": "in_progress"
+      "status": "pending"
     },
     {
       "id": "TM-DA-005",
@@ -77,12 +77,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "failing",
-          "ref": "test/phases/test-integration.sh"
+          "status": "not_implemented",
+          "ref": "api/audit_trail_test.go"
         }
       ],
       "notes": "E.g., allow longer files in generated code scenarios",
-      "status": "in_progress"
+      "status": "pending"
     },
     {
       "id": "TM-DA-006",
@@ -93,12 +93,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "failing",
-          "ref": "test/phases/test-integration.sh"
+          "status": "not_implemented",
+          "ref": "api/audit_trail_test.go"
         }
       ],
       "notes": "Prevent accidental scan storms from agent loops",
-      "status": "in_progress"
+      "status": "pending"
     },
     {
       "id": "TM-DA-007",
@@ -109,12 +109,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "failing",
-          "ref": "test/phases/test-integration.sh"
+          "status": "not_implemented",
+          "ref": "api/audit_trail_test.go"
         }
       ],
       "notes": "GET /api/v1/scenarios/{name}/issues?force_scan=true",
-      "status": "in_progress"
+      "status": "pending"
     },
     {
       "id": "TM-DA-008",
@@ -125,12 +125,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "failing",
-          "ref": "test/phases/test-integration.sh"
+          "status": "not_implemented",
+          "ref": "api/audit_trail_test.go"
         }
       ],
       "notes": "Prevent overwhelming AI resources with concurrent scans",
-      "status": "in_progress"
+      "status": "pending"
     }
   ]
 }

@@ -20,6 +20,7 @@ export function Spinner({ className, size = "md", ...props }: SpinnerProps) {
       )}
       role="status"
       aria-label="Loading"
+      data-testid="spinner"
       {...props}
     >
       <span className="sr-only">Loading...</span>

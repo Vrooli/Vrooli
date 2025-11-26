@@ -95,7 +95,7 @@ export default function Dashboard() {
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <Card>
+        <Card data-testid="total-scenarios-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Scenarios</CardTitle>
             <Activity className="h-4 w-4 text-slate-400" />
@@ -106,7 +106,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="total-issues-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Issues</CardTitle>
             <AlertCircle className="h-4 w-4 text-yellow-500" />
@@ -117,7 +117,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="long-files-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Long Files</CardTitle>
             <FileWarning className="h-4 w-4 text-red-500" />
@@ -128,7 +128,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="active-campaigns-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Campaigns</CardTitle>
             <TrendingUp className="h-4 w-4 text-blue-500" />

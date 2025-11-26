@@ -40,8 +40,7 @@
       "type": "keyboard",
       "data": {
         "label": "Press Tab to move focus",
-        "keys": ["Tab"],
-        "waitForMs": 300
+        "key": "Tab"
       }
     },
     {
@@ -49,8 +48,7 @@
       "type": "keyboard",
       "data": {
         "label": "Press Enter to activate focused element",
-        "keys": ["Enter"],
-        "waitForMs": 1000
+        "key": "Enter"
       }
     },
     {

@@ -76,7 +76,6 @@ spec:
     optimal_combinations:
       - [redis, postgres, n8n]              # Complete data stack with caching
       - [redis, ollama, qdrant]             # AI workflows with caching layer
-      - [redis, windmill, vault]            # High-performance automation
       - [redis, judge0, minio]              # Cached execution and storage
   
   # Business intelligence
@@ -138,7 +137,7 @@ spec:
       - session-management
       - queue-based-architectures
     integration_targets:
-      preferred: [postgres, n8n, ollama, windmill]
+      preferred: [postgres, n8n, ollama]
       compatible: [qdrant, vault, minio, judge0]
       avoid: [file-storage, long-term-archival]
     workflow_templates:
