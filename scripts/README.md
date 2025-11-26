@@ -45,7 +45,7 @@ scripts/
 │
 ├── resources/         # Resource management system
 │   ├── ai/           # AI resources (Ollama, Whisper, etc.)
-│   ├── automation/   # Automation platforms (n8n, Node-RED, etc.)
+│   ├── automation/   # Automation platforms (workflow automation, Node-RED, etc.)
 │   ├── storage/      # Storage systems (PostgreSQL, Redis, etc.)
 │   └── ...
 │

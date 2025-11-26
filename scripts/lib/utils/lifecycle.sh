@@ -702,7 +702,7 @@ lifecycle::main() {
     local phase="${2:-}"
     shift 2 || true
     local -a phase_args=("$@")
-    
+
     if [[ -z "$scenario_name" || -z "$phase" ]]; then
         echo "Usage: $0 <scenario_name> <phase> [phase-args]"
         echo "  scenario_name: Name of scenario to run"
@@ -710,10 +710,15 @@ lifecycle::main() {
         echo "  phase-args: Optional arguments forwarded to the phase command"
         exit 1
     fi
-    
-    # Setup scenario context
-    local scenario_dir="${APP_ROOT}/scenarios/$scenario_name"
-    
+
+    # Setup scenario context - use custom path if provided via SCENARIO_CUSTOM_PATH
+    local scenario_dir
+    if [[ -n "${SCENARIO_CUSTOM_PATH:-}" ]]; then
+        scenario_dir="$SCENARIO_CUSTOM_PATH"
+    else
+        scenario_dir="${APP_ROOT}/scenarios/$scenario_name"
+    fi
+
     if [[ ! -d "$scenario_dir" ]]; then
         log::error "Scenario not found: $scenario_name"
         exit 1
@@ -748,8 +753,15 @@ lifecycle::main "$@"
 #######################################
 lifecycle::is_scenario_healthy() {
     local scenario_name="$1"
-    local service_json="${APP_ROOT}/scenarios/${scenario_name}/.vrooli/service.json"
-    
+
+    # Resolve service.json path - check custom path first
+    local service_json
+    if [[ -n "${SCENARIO_CUSTOM_PATH:-}" ]]; then
+        service_json="${SCENARIO_CUSTOM_PATH}/.vrooli/service.json"
+    else
+        service_json="${APP_ROOT}/scenarios/${scenario_name}/.vrooli/service.json"
+    fi
+
     # First check if it's running at all
     if ! lifecycle::is_scenario_running "$scenario_name"; then
         return 1  # Not running, so not healthy

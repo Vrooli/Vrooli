@@ -20,6 +20,7 @@
     "@types/react-router-dom": "^5.3.3",
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "@vrooli/vitest-requirement-reporter": "workspace:^",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "express": "^4.18.2",

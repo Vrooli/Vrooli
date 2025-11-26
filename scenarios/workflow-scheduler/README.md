@@ -13,7 +13,7 @@ flowchart TB
     subgraph "Client Layer"
         CLI[CLI Client<br/>workflow-scheduler<br/>(alias: scheduler-cli)]
         API_CLIENT[API Clients<br/>HTTP/REST]
-        DASHBOARD[Windmill Dashboard<br/>Visual Management]
+        DASHBOARD[Dashboard<br/>Visual Management]
     end
     
     subgraph "Coordination Layer"
@@ -31,7 +31,7 @@ flowchart TB
     
     subgraph "Target Systems"
         WEBHOOKS[HTTP Webhooks]
-        WINDMILL_JOBS[Windmill Jobs]
+        UI_JOBS[Dashboard Jobs]
     end
     
     CLI -->|REST| GO_API
@@ -42,7 +42,7 @@ flowchart TB
     WORKER -->|Query| POSTGRES
     WORKER -->|Lock| REDIS
     WORKER -->|Trigger| WEBHOOKS
-    WORKER -->|Trigger| WINDMILL_JOBS
+    WORKER -->|Trigger| UI_JOBS
     
     style GO_API fill:#e1bee7,stroke:#333,stroke-width:2px
     style WORKER fill:#fff9c4,stroke:#333,stroke-width:2px
@@ -60,12 +60,12 @@ flowchart TB
 - **Catch-Up Mode**: Automatically run missed executions after downtime
 - **Execution History**: Complete audit trail with performance metrics
 - **Health Monitoring**: Track success rates and detect failing schedules
-- **Multi-Target**: Trigger webhooks or Windmill jobs
+- **Multi-Target**: Trigger webhooks or dashboard jobs
 
 ### Management Interfaces
 - **REST API**: Complete CRUD operations for schedules
 - **CLI Tool**: Command-line management and monitoring
-- **Dashboard**: Visual schedule builder and analytics (Windmill)
+- **Dashboard**: Visual schedule builder and analytics
 - **Metrics API**: Performance statistics and health scores
 
 ## 📋 **Schedule Configuration**
@@ -298,7 +298,7 @@ fetch('http://localhost:8090/api/schedules', {
 });
 ```
 
-### Trigger Windmill Job
+### Trigger Dashboard Job
 ```javascript
 const schedule = {
   name: "Generate Analytics",
@@ -331,7 +331,7 @@ const schedule = {
 
 ## 🎨 **Dashboard Features**
 
-The Windmill dashboard provides:
+The dashboard provides:
 - **Visual Schedule Builder**: Drag-and-drop cron expression builder
 - **Execution Timeline**: Visual representation of past and future runs
 - **Performance Graphs**: Success rates, execution times, trends

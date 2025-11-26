@@ -145,7 +145,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Application initialized\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: video-tools --help'",
+          "run": "echo '🚀 Application initialized\\n  API: http://localhost:${API_PORT}\\n  CLI: video-tools --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -164,7 +164,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: video-tools --help'",
+          "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  CLI: video-tools --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -236,23 +236,11 @@
         "required": false,
         "purpose": "Vector database for semantic search and AI features"
       },
-      "windmill": {
-        "type": "windmill",
-        "enabled": true,
-        "required": true,
-        "purpose": "Workflow automation and business logic orchestration",
-        "initialization": [
-          {
-            "file": "initialization/automation/windmill/windmill-app.json",
-            "type": "app"
-          }
-        ]
-      },
       "node-red": {
         "type": "node-red",
         "enabled": false,
         "required": false,
-        "purpose": "Visual workflow automation (alternative to Windmill)"
+        "purpose": "Visual workflow automation"
       },
       "ollama": {
         "type": "ollama",

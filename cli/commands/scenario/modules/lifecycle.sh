@@ -12,13 +12,13 @@ scenario::lifecycle::start() {
         scenario_names+=("$1")
         shift
     done
-    
-    [[ ${#scenario_names[@]} -eq 0 ]] && { 
+
+    [[ ${#scenario_names[@]} -eq 0 ]] && {
         log::error "Scenario name(s) required"
         log::info "Usage: vrooli scenario start <name> [name2] [name3]..."
         return 1
     }
-    
+
     local open_after=false
     local -a passthrough_args=()
 
@@ -27,6 +27,11 @@ scenario::lifecycle::start() {
             --open)
                 open_after=true
                 shift
+                ;;
+            --path)
+                # Pass --path through to scenario::run
+                passthrough_args+=("--path" "$2")
+                shift 2
                 ;;
             *)
                 passthrough_args+=("$1")
@@ -40,7 +45,7 @@ scenario::lifecycle::start() {
     if [[ ${#scenario_names[@]} -gt 1 ]]; then
         log::info "Starting ${#scenario_names[@]} scenarios: ${scenario_names[*]}"
     fi
-    
+
     for scenario_name in "${scenario_names[@]}"; do
         if [[ ${#scenario_names[@]} -gt 1 ]]; then
             log::info "Starting scenario: $scenario_name"
@@ -64,7 +69,7 @@ scenario::lifecycle::start() {
             fi
         fi
     done
-    
+
     return $overall_result
 }
 

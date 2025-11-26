@@ -246,38 +246,6 @@
         }
       },
       "source": "declared"
-    },
-    {
-      "name": "windmill",
-      "type": "resource",
-      "tier_support": {
-        "desktop": {
-          "supported": true,
-          "fitness_score": 0.6
-        },
-        "enterprise": {
-          "supported": true,
-          "fitness_score": 0.98
-        },
-        "local": {
-          "supported": true,
-          "fitness_score": 1
-        },
-        "mobile": {
-          "supported": false,
-          "fitness_score": 0.1,
-          "reason": "Heavy operations not suitable for mobile"
-        },
-        "saas": {
-          "supported": true,
-          "fitness_score": 0.85
-        },
-        "server": {
-          "supported": true,
-          "fitness_score": 0.95
-        }
-      },
-      "source": "declared"
     }
   ],
   "aggregates": {
@@ -286,8 +254,7 @@
       "dependency_count": 8,
       "blocking_dependencies": [
         "ollama",
-        "postgres",
-        "windmill"
+        "postgres"
       ],
       "estimated_requirements": {
         "ram_mb": 0,
@@ -323,8 +290,7 @@
         "ollama",
         "postgres",
         "qdrant",
-        "redis",
-        "windmill"
+        "redis"
       ],
       "estimated_requirements": {
         "ram_mb": 0,
@@ -626,37 +592,6 @@
             "fitness_score": 0.95
           }
         }
-      },
-      {
-        "name": "windmill",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.6
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": false,
-            "fitness_score": 0.1,
-            "reason": "Heavy operations not suitable for mobile"
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.85
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
       }
     ]
   },
@@ -716,17 +651,6 @@
           "redis_password"
         ],
         "playbook_reference": "secrets-manager/playbooks/cache-credentials.md",
-        "priority": "required"
-      },
-      {
-        "dependency_name": "windmill",
-        "dependency_type": "resource",
-        "secret_type": "automation_credentials",
-        "required_secrets": [
-          "windmill_api_key",
-          "windmill_webhook_secret"
-        ],
-        "playbook_reference": "secrets-manager/playbooks/automation-platform.md",
         "priority": "required"
       }
     ],

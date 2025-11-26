@@ -68,13 +68,6 @@ while IFS= read -r resource; do
                 ((++MISSING_COUNT))
             fi
             ;;
-        n8n)
-            # Check for n8n workflows
-            if [[ ! -f "$APP_ROOT/data/.n8n-populated" ]]; then
-                echo "[DEBUG] n8n workflows not loaded" >&2
-                ((++MISSING_COUNT))
-            fi
-            ;;
         *)
             # Generic resource check
             if [[ ! -f "$APP_ROOT/data/.${resource}-populated" ]]; then

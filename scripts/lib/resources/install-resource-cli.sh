@@ -259,10 +259,9 @@ USAGE:
     $(basename "$0") --help                    # Show this help
 
 EXAMPLES:
-    $(basename "$0") automation/n8n
+    $(basename "$0") automation/ollama
     $(basename "$0") /path/to/resource/dir
     $(basename "$0") --all
-    $(basename "$0") --uninstall n8n
 
 Resources with CLIs will have their commands installed as 'resource-<name>'
 EOF

@@ -213,6 +213,9 @@ testing::structure::validate_all() {
   # Validate selector registry wiring when present
   _validate_selector_registry "$scenario_dir"
 
+  # Validate vitest reporter configuration for scenarios using vitest
+  _validate_vitest_config "$scenario_dir"
+
   # UI smoke harness (auto-skips for non-UI scenarios)
   testing::structure::run_ui_smoke "$scenario_name" "$scenario_dir"
 
@@ -590,6 +593,197 @@ _validate_selector_registry() {
     testing::phase::add_error "Selector manifest validation failed"
     testing::phase::add_test failed
   fi
+}
+
+# Private helper: Validate vitest reporter configuration
+_validate_vitest_config() {
+  local scenario_dir="$1"
+  local ui_dir="$scenario_dir/ui"
+  local package_json="$ui_dir/package.json"
+
+  # Skip if no ui directory
+  if [ ! -d "$ui_dir" ]; then
+    return 0
+  fi
+
+  # Skip if no package.json
+  if [ ! -f "$package_json" ]; then
+    return 0
+  fi
+
+  # Check if vitest is installed
+  local uses_vitest=false
+  if command -v jq >/dev/null 2>&1; then
+    local vitest_count
+    vitest_count=$(jq -r '[(.devDependencies.vitest // empty), (.dependencies.vitest // empty)] | map(select(. != null)) | length' "$package_json" 2>/dev/null || echo "0")
+    if [ "$vitest_count" -gt 0 ]; then
+      uses_vitest=true
+    fi
+  else
+    # Fallback without jq
+    if grep -q '"vitest"' "$package_json" 2>/dev/null; then
+      uses_vitest=true
+    fi
+  fi
+
+  # Skip if not using vitest
+  if [ "$uses_vitest" = false ]; then
+    return 0
+  fi
+
+  echo ""
+  echo "🧪 Validating vitest reporter configuration..."
+
+  # Find vite config file
+  local config_file=""
+  for candidate in "$ui_dir/vite.config.ts" "$ui_dir/vite.config.js" "$ui_dir/vite.config.mts" "$ui_dir/vite.config.mjs" "$ui_dir/vitest.config.ts" "$ui_dir/vitest.config.js"; do
+    if [ -f "$candidate" ]; then
+      config_file="$candidate"
+      break
+    fi
+  done
+
+  if [ -z "$config_file" ]; then
+    testing::phase::add_error "Vitest is installed but no vite.config.{ts,js,mts,mjs} found"
+    testing::phase::add_test failed
+    return 1
+  fi
+
+  local config_content
+  config_content=$(cat "$config_file")
+  local config_rel="${config_file#$scenario_dir/}"
+
+  # Check for RequirementReporter import
+  local has_import=false
+  if echo "$config_content" | grep -q "from ['\"]@vrooli/vitest-requirement-reporter['\"]"; then
+    has_import=true
+  elif echo "$config_content" | grep -q "require(['\"]@vrooli/vitest-requirement-reporter['\"])"; then
+    has_import=true
+  fi
+
+  if [ "$has_import" = false ]; then
+    testing::phase::add_error "Vitest reporter not imported in $config_rel"
+    echo "" >&2
+    echo "  📖 The @vrooli/vitest-requirement-reporter prevents HTML spam in test output" >&2
+    echo "     and provides concise failure summaries with structured artifacts." >&2
+    echo "" >&2
+    echo "  🔧 Fix:" >&2
+    echo "     1. Install the package:" >&2
+    echo "        cd $ui_dir && pnpm add @vrooli/vitest-requirement-reporter@workspace:*" >&2
+    echo "" >&2
+    echo "     2. Import in $config_rel:" >&2
+    echo "        import RequirementReporter from '@vrooli/vitest-requirement-reporter';" >&2
+    echo "" >&2
+    echo "     3. Add to reporters array (see below)" >&2
+    echo "" >&2
+    echo "  📚 Full setup guide: packages/vitest-requirement-reporter/README.md" >&2
+    echo "" >&2
+    testing::phase::add_test failed
+    return 1
+  fi
+
+  # Check for reporters array configuration
+  local has_reporter_in_array=false
+  if echo "$config_content" | grep -Pzo 'reporters:\s*\[[\s\S]*?new\s+RequirementReporter' >/dev/null 2>&1; then
+    has_reporter_in_array=true
+  fi
+
+  if [ "$has_reporter_in_array" = false ]; then
+    testing::phase::add_error "RequirementReporter not added to reporters array in $config_rel"
+    echo "" >&2
+    echo "  🔧 Fix: Add to test.reporters in $config_rel:" >&2
+    echo "" >&2
+    echo "     test: {" >&2
+    echo "       reporters: [" >&2
+    echo "         new RequirementReporter({" >&2
+    echo "           outputFile: 'coverage/vitest-requirements.json'," >&2
+    echo "           emitStdout: true,  // REQUIRED for phase integration" >&2
+    echo "           verbose: true," >&2
+    echo "           conciseMode: true,  // Prevents HTML spam" >&2
+    echo "           artifactsDir: 'coverage/unit'," >&2
+    echo "           autoClear: true," >&2
+    echo "         })," >&2
+    echo "       ]," >&2
+    echo "     }" >&2
+    echo "" >&2
+    echo "  📚 See: packages/vitest-requirement-reporter/README.md#basic-setup" >&2
+    echo "" >&2
+    testing::phase::add_test failed
+    return 1
+  fi
+
+  # Check for emitStdout: true
+  local has_emit_stdout=false
+  if echo "$config_content" | grep -Pzo 'new\s+RequirementReporter\s*\(\s*\{[\s\S]*?emitStdout:\s*true' >/dev/null 2>&1; then
+    has_emit_stdout=true
+  fi
+
+  if [ "$has_emit_stdout" = false ]; then
+    testing::phase::add_error "RequirementReporter missing 'emitStdout: true' in $config_rel"
+    echo "" >&2
+    echo "  ⚠️  emitStdout: true is REQUIRED for phase integration" >&2
+    echo "     Without it, requirement tracking won't work!" >&2
+    echo "" >&2
+    echo "  🔧 Fix: Add to RequirementReporter options in $config_rel:" >&2
+    echo "" >&2
+    echo "     new RequirementReporter({" >&2
+    echo "       outputFile: 'coverage/vitest-requirements.json'," >&2
+    echo "       emitStdout: true,  // ← Add this" >&2
+    echo "       verbose: true," >&2
+    echo "       conciseMode: true," >&2
+    echo "     })" >&2
+    echo "" >&2
+    echo "  📚 See: packages/vitest-requirement-reporter/README.md#troubleshooting" >&2
+    echo "" >&2
+    testing::phase::add_test failed
+    return 1
+  fi
+
+  # Check for conciseMode + default reporter conflict
+  local has_concise_mode=false
+  local has_default_reporter=false
+
+  if echo "$config_content" | grep -Pzo 'new\s+RequirementReporter\s*\(\s*\{[\s\S]*?conciseMode:\s*true' >/dev/null 2>&1; then
+    has_concise_mode=true
+  fi
+
+  # Check for 'default' in reporters array, excluding comments
+  # Strip single-line comments (//) and multi-line comments (/* */)
+  local config_no_comments
+  config_no_comments=$(echo "$config_content" | sed 's|//.*$||g' | sed 's|/\*.*\*/||g')
+
+  if echo "$config_no_comments" | grep -Pzo "reporters:\s*\[[\s\S]*?['\"]default['\"]" >/dev/null 2>&1; then
+    has_default_reporter=true
+  fi
+
+  if [ "$has_concise_mode" = true ] && [ "$has_default_reporter" = true ]; then
+    testing::phase::add_error "conciseMode: true used with 'default' reporter in $config_rel"
+    echo "" >&2
+    echo "  ⚠️  When using conciseMode: true, remove 'default' from reporters array" >&2
+    echo "     The default reporter causes verbose HTML spam that conciseMode prevents!" >&2
+    echo "" >&2
+    echo "  🔧 Fix: Remove 'default' from reporters in $config_rel:" >&2
+    echo "" >&2
+    echo "     // ❌ WRONG - includes 'default'" >&2
+    echo "     reporters: [" >&2
+    echo "       'default'," >&2
+    echo "       new RequirementReporter({ conciseMode: true, ... })" >&2
+    echo "     ]" >&2
+    echo "" >&2
+    echo "     // ✅ CORRECT - only custom reporter" >&2
+    echo "     reporters: [" >&2
+    echo "       new RequirementReporter({ conciseMode: true, ... })" >&2
+    echo "     ]" >&2
+    echo "" >&2
+    echo "  📚 See: packages/vitest-requirement-reporter/README.md#concise-mode-new" >&2
+    echo "" >&2
+    testing::phase::add_test failed
+    return 1
+  fi
+
+  log::success "✅ Vitest reporter configured correctly"
+  testing::phase::add_test passed
+  return 0
 }
 
 # Export functions

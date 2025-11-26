@@ -150,12 +150,6 @@ EOF
         "required": false,
         "baseUrl": "https://openrouter.ai/api/v1"
       },
-      "n8n": {
-        "enabled": true,
-        "required": true,
-        "baseUrl": "http://localhost:5678",
-        "capabilities": ["workflow", "webhook"]
-      }
     }
   },
   "lifecycle": {
@@ -420,7 +414,6 @@ EOF
     [[ "$output" == *"postgres"* ]]
     [[ "$output" == *"redis"* ]]
     [[ "$output" == *"ollama"* ]]
-    [[ "$output" == *"n8n"* ]]
 }
 
 @test "json::get_enabled_resources filters by pattern" {
@@ -448,7 +441,6 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == *"postgres"* ]]
     [[ "$output" == *"redis"* ]]
-    [[ "$output" == *"n8n"* ]]
     [[ "$output" != *"minio"* ]]  # minio is not required
 }
 
@@ -640,7 +632,6 @@ EOF
     
     [[ "$required_resources" == *"postgres"* ]]
     [[ "$required_resources" == *"redis"* ]]
-    [[ "$required_resources" == *"n8n"* ]]
 }
 
 @test "Integration: Extract UI testing config (scenario pattern)" {

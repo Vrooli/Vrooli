@@ -53,6 +53,7 @@ SUBCOMMANDS:
     completeness <name> [--format json|human] Calculate objective completeness score
 
 OPTIONS FOR START:
+    --path <path>           Use custom scenario path (for generated/staging scenarios)
     --clean-stale           Clean stale port locks before starting
     --open                  Open scenario in browser after successful start
 
@@ -67,6 +68,7 @@ EXAMPLES:
     vrooli scenario start make-it-vegan         # Start a specific scenario
     vrooli scenario start make-it-vegan --clean-stale # Start with stale lock cleanup
     vrooli scenario start app-monitor --open          # Start then open in browser
+    vrooli scenario start my-app --path /path/to/staging/my-app # Start from custom location
     vrooli scenario start picker-wheel invoice-generator # Start multiple scenarios
     vrooli scenario start-all                   # Start all scenarios
     vrooli scenario restart ecosystem-manager    # Restart a scenario

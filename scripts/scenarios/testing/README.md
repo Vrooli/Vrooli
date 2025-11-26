@@ -123,7 +123,6 @@ Resource integration testing.
 - `testing::resources::test_postgres()` - Test PostgreSQL integration
 - `testing::resources::test_redis()` - Test Redis integration
 - `testing::resources::test_ollama()` - Test Ollama integration
-- `testing::resources::test_n8n()` - Test N8n integration
 - `testing::resources::test_qdrant()` - Test Qdrant integration
 - `testing::resources::test_all()` - Test all configured resources
 

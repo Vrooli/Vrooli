@@ -188,7 +188,7 @@ scenarios/
 
 ### **Scenario Statistics**
 - **Total Scenarios**: 9 validated business applications
-- **UI-Enabled**: 6 scenarios with professional Windmill interfaces
+- **UI-Enabled**: 6 scenarios with professional UI interfaces
 - **Resource Coverage**: 15+ integrated resources (AI, automation, storage, agents)
 - **Business Value**: $10K-$25K average project potential
 
@@ -204,7 +204,7 @@ scenarios/
 | Category | Resources | Scenarios Using |
 |----------|-----------|-----------------|
 | **🧠 AI** | Ollama, Whisper, ComfyUI, Unstructured-IO | 9/11 |
-| **⚙️ Automation** | n8n, Windmill, Node-RED, Huginn | 8/11 |
+| **⚙️ Automation** | Node-RED, Huginn | 8/11 |
 | **🤖 Agents** | Agent-S2, Browserless, Claude-Code | 5/11 |
 | **💾 Storage** | PostgreSQL, MinIO, Qdrant, Redis, Vault | 7/11 |
 | **🔍 Search** | SearXNG | 2/11 |
@@ -221,9 +221,9 @@ scenario-name/
 ├── service.json               # Complete configuration (metadata, resources, deployment)
 ├── initialization/            # App startup data
 │   ├── database/              # Schema and seed data
-│   ├── workflows/             # n8n, Windmill, triggers
+│   ├── workflows/             # automation triggers
 │   ├── configuration/         # Runtime settings
-│   ├── ui/                    # Windmill applications
+│   ├── ui/                    # Scenario UI applications
 │   └── storage/               # MinIO, Qdrant setup
 ├── deployment/                # Orchestration scripts
 │   ├── startup.sh             # App initialization  
@@ -236,7 +236,7 @@ scenario-name/
 Scenarios don't contain business logic—they orchestrate external resources to create emergent capabilities:
 
 - **AI Resources**: Local models (Ollama), speech processing (Whisper), document analysis (Unstructured-IO)
-- **Automation Platforms**: Visual workflows (n8n), real-time processing (Node-RED), code execution (Windmill)
+- **Automation Platforms**: Visual workflow orchestration and real-time processing (Node-RED, Huginn)
 - **Agent Services**: Screen automation (Agent-S2), web automation (Browserless)
 - **Storage Solutions**: Databases (PostgreSQL), object storage (MinIO), vector search (Qdrant)
 
@@ -268,12 +268,11 @@ Scenarios run directly from their source location using the Vrooli framework:
 Scenario Running State:
 ├── Required Resources (started via manage.sh)
 │   ├── postgres (localhost:5432)
-│   ├── n8n (http://localhost:5678)
 │   ├── ollama (http://localhost:11434)
 │   └── ... (other resources as needed)
 ├── Data Injection (via lib/inject.sh)
 │   ├── Database schemas and seeds
-│   ├── n8n workflows
+│   ├── Automation workflow definitions
 │   └── Configuration files
 └── Application Services
     ├── Custom startup scripts
@@ -300,7 +299,6 @@ Scenarios are designed for reliable AI generation:
     "dependencies": {
       "resources": [
         {"name": "ollama", "type": "ai", "optional": false},
-        {"name": "n8n", "type": "automation", "optional": false},
         {"name": "postgres", "type": "database", "optional": false}
       ]
     },
