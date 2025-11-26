@@ -87,6 +87,7 @@ func (s *Server) setupRoutes() {
 	// Agent API endpoints (TM-API-001 through TM-API-007)
 	s.router.HandleFunc("/api/v1/agent/issues", s.handleAgentGetIssues).Methods("GET", "OPTIONS")
 	s.router.HandleFunc("/api/v1/agent/issues", s.handleAgentStoreIssue).Methods("POST", "OPTIONS")
+	s.router.HandleFunc("/api/v1/agent/issues/{id}", s.handleAgentUpdateIssue).Methods("PATCH", "OPTIONS")
 
 	// Scenario detail endpoint (OT-P0-010) - must be registered before generic list endpoint
 	s.router.HandleFunc("/api/v1/agent/scenarios/{name}", s.handleAgentGetScenarioDetail).Methods("GET", "OPTIONS")

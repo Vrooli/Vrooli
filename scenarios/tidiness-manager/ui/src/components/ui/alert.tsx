@@ -39,6 +39,7 @@ export function AlertTitle({ className, ...props }: AlertTitleProps) {
   return (
     <h5
       className={cn("mb-1 font-medium leading-none tracking-tight", className)}
+      aria-level={5}
       {...props}
     />
   );

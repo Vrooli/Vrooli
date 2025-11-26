@@ -34,6 +34,11 @@ export interface BadgeProps
 
 export function Badge({ className, variant, size, ...props }: BadgeProps) {
   return (
-    <div className={cn(badgeVariants({ variant, size }), className)} {...props} />
+    <span
+      className={cn(badgeVariants({ variant, size }), className)}
+      role="status"
+      aria-label={props["aria-label"] || `Status: ${variant || "default"}`}
+      {...props}
+    />
   );
 }

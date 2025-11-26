@@ -94,6 +94,7 @@ export interface ScanResult {
 }
 
 export interface Issue {
+  id?: number;
   scenario: string;
   file: string;
   line: number;
@@ -295,33 +296,65 @@ export async function fetchFileIssues(scenarioName: string, filePath: string): P
 }
 
 export async function fetchAllIssues(scenarioName: string, filters?: { status?: string; category?: string; severity?: string }): Promise<Issue[]> {
-  // TODO: Replace with real API call when backend ready
-  await new Promise(resolve => setTimeout(resolve, 200));
+  const apiBase = await getApiBase();
 
-  let issues: Issue[] = [
-    { scenario: scenarioName, file: "api/main.go", line: 42, column: 10, message: "Variable 'result' is never used", rule: "no-unused-vars", severity: "warning", tool: "eslint", category: "lint", status: "open", created_at: "2025-01-20T10:00:00Z" },
-    { scenario: scenarioName, file: "api/handlers.go", line: 95, column: 5, message: "Function complexity too high (15/10)", rule: "complexity", severity: "error", tool: "eslint", category: "lint", status: "open", created_at: "2025-01-20T10:00:00Z" },
-    { scenario: scenarioName, file: "ui/src/App.tsx", line: 128, column: 20, message: "Type 'string | undefined' is not assignable to type 'string'", severity: "error", tool: "tsc", category: "type", status: "resolved", created_at: "2025-01-20T10:00:00Z", resolved_at: "2025-01-20T14:00:00Z" },
-    { scenario: scenarioName, file: "api/handlers.go", line: 156, column: 8, message: "Consider extracting this logic into a separate function", severity: "warning", tool: "claude-code", category: "ai", status: "open", created_at: "2025-01-20T11:30:00Z" },
-  ];
-
-  if (filters?.status) {
-    issues = issues.filter(i => i.status === filters.status);
+  // Build query parameters
+  const params = new URLSearchParams({ scenario: scenarioName });
+  if (filters?.status && filters.status !== "all") {
+    params.append("status", filters.status);
   }
-  if (filters?.category) {
-    issues = issues.filter(i => i.category === filters.category);
+  if (filters?.category && filters.category !== "all") {
+    params.append("category", filters.category);
   }
-  if (filters?.severity) {
-    issues = issues.filter(i => i.severity === filters.severity);
+  if (filters?.severity && filters.severity !== "all") {
+    params.append("severity", filters.severity);
   }
 
-  return issues;
+  const res = await fetch(buildApiUrl(`/agent/issues?${params.toString()}`, { baseUrl: apiBase }), {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch issues: ${res.status}`);
+  }
+
+  const data = await res.json();
+
+  // Transform API response to match UI expectations
+  // API returns: [{ id, scenario, file_path, line_number, column_number, title, description, ... }]
+  // UI expects: Issue[] with { id, scenario, file, line, column, message, ... }
+  return (data || []).map((issue: any) => ({
+    id: issue.id,
+    scenario: issue.scenario,
+    file: issue.file_path,
+    line: issue.line_number || 0,
+    column: issue.column_number || 0,
+    message: issue.description || issue.title,
+    rule: issue.title,
+    severity: issue.severity === "error" ? "error" : "warning",
+    tool: issue.category, // category serves as tool identifier
+    category: issue.category === "lint" ? "lint" : issue.category === "type" ? "type" : "ai",
+    status: issue.status || "open",
+    resolution_notes: issue.resolution_notes,
+    created_at: issue.created_at,
+  }));
 }
 
-export async function updateIssueStatus(scenarioName: string, filePath: string, line: number, status: "resolved" | "ignored", notes?: string): Promise<void> {
-  // TODO: Replace with real API call when backend ready
-  await new Promise(resolve => setTimeout(resolve, 100));
-  console.log(`Updated issue at ${filePath}:${line} to ${status}`, notes);
+export async function updateIssueStatus(issueId: number, status: "open" | "resolved" | "ignored", resolutionNotes?: string): Promise<{ id: number; status: string; updated_at: string }> {
+  const apiBase = await getApiBase();
+  const res = await fetch(buildApiUrl(`/agent/issues/${issueId}`, { baseUrl: apiBase }), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status, resolution_notes: resolutionNotes || "" }),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || `Failed to update issue: ${res.status}`);
+  }
+
+  return res.json();
 }
 
 export async function fetchCampaigns(scenarioName?: string): Promise<Campaign[]> {

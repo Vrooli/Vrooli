@@ -17,9 +17,9 @@ const buttonVariants = cva(
       },
       size: {
         default: "h-10 px-4",
-        sm: "h-8 px-3 text-xs",
+        sm: "h-9 px-3 text-xs min-h-[2.25rem]", // 36px min, scales with text
         lg: "h-12 px-6 text-base",
-        icon: "h-10 w-10"
+        icon: "h-11 w-11" // 44px for better touch targets
       }
     },
     defaultVariants: {
@@ -38,5 +38,11 @@ export interface ButtonProps
 export function Button({ className, variant, size, asChild = false, ...props }: ButtonProps) {
   const Comp = asChild ? Slot : "button";
 
-  return <Comp className={cn(buttonVariants({ variant, size, className }))} {...props} />;
+  return (
+    <Comp
+      className={cn(buttonVariants({ variant, size, className }))}
+      role={asChild ? undefined : "button"}
+      {...props}
+    />
+  );
 }

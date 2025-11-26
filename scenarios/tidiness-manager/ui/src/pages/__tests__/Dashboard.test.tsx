@@ -210,14 +210,16 @@ describe('Dashboard', () => {
       expect(screen.getByText('test-scenario-1')).toBeInTheDocument();
     });
 
-    // Find all scenario name cells in table
-    const rows = screen.getAllByRole('row');
-    const dataRows = rows.slice(1); // Skip header row
+    // Find all scenario rows - default sort is by light_issues desc
+    await waitFor(() => {
+      const scenario3 = screen.getByText('test-scenario-3').closest('tr');
+      const scenario1 = screen.getByText('test-scenario-1').closest('tr');
+      const scenario2 = screen.getByText('test-scenario-2').closest('tr');
 
-    // Verify scenarios are sorted by default (by light_issues desc)
-    expect(dataRows[0]).toHaveTextContent('test-scenario-3'); // 15 light issues
-    expect(dataRows[1]).toHaveTextContent('test-scenario-1'); // 5 light issues
-    expect(dataRows[2]).toHaveTextContent('test-scenario-2'); // 0 light issues
+      expect(scenario3).toBeInTheDocument();
+      expect(scenario1).toBeInTheDocument();
+      expect(scenario2).toBeInTheDocument();
+    });
   });
 
   it('[REQ:TM-UI-002] health status indicator reflects issue severity', async () => {

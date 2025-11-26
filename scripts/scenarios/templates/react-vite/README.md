@@ -65,7 +65,7 @@ The lifecycle exports everything automatically when you run `vrooli scenario run
 | `WS_PORT` | WebSocket channel for live updates |
 | `DATABASE_URL` *or* `POSTGRES_HOST/PORT/USER/PASSWORD/DB` | PostgreSQL connection details |
 | `N8N_BASE_URL` | Base URL for workflow automation calls |
-| `WINDMILL_BASE_URL` | Base URL for the Vrooli UI shell / iframe bridge |
+| `UI_BASE_URL` | Base URL for the Vrooli UI shell / iframe bridge |
 | `API_TOKEN` | Shared secret the CLI/API uses for authentication |
 | `VITE_API_BASE_URL` | UI → API bridge (set to `http://localhost:${API_PORT}/api/v1`) |
 

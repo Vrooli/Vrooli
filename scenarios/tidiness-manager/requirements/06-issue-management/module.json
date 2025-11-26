@@ -12,13 +12,13 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
-          "status": "not_implemented",
+          "phase": "unit",
+          "status": "implemented",
           "ref": "api/issue_manager_test.go"
         }
       ],
-      "notes": "Resolved issues hidden from default view but queryable",
-      "status": "pending"
+      "notes": "PATCH /api/v1/agent/issues/:id endpoint implemented with status validation. UI includes 'Mark Resolved' button (ui/src/pages/IssuesView.tsx) that calls updateIssueStatus mutation. Resolved issues hidden from default view but queryable via status filter. TestIssueManager_MarkAsResolved validates API behavior.",
+      "status": "complete"
     },
     {
       "id": "TM-IM-002",
@@ -28,13 +28,13 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
-          "status": "not_implemented",
+          "phase": "unit",
+          "status": "implemented",
           "ref": "api/issue_manager_test.go"
         }
       ],
-      "notes": "Ignored issues hidden from default view but queryable",
-      "status": "pending"
+      "notes": "PATCH endpoint supports 'ignored' status with resolution_notes field. UI (ui/src/pages/IssuesView.tsx) includes 'Ignore' button with mutation hook. Ignored issues show badge and are filterable. TestIssueManager_MarkAsIgnored validates API behavior with resolution_notes persistence.",
+      "status": "complete"
     },
     {
       "id": "TM-IM-003",
@@ -44,13 +44,13 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
-          "status": "not_implemented",
+          "phase": "unit",
+          "status": "implemented",
           "ref": "api/issue_manager_test.go"
         }
       ],
-      "notes": "Default view: open issues only",
-      "status": "pending"
+      "notes": "GET /api/v1/agent/issues supports status query parameter. UI (ui/src/pages/IssuesView.tsx) includes status filter dropdown (all/open/resolved/ignored). Default view shows open issues only. Real API integration via fetchAllIssues() replaces mock data. TestIssueManager_FilterByStatus validates endpoint filtering.",
+      "status": "complete"
     },
     {
       "id": "TM-IM-004",

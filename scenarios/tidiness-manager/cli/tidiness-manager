@@ -384,20 +384,100 @@ cmd_campaigns() {
 
 cmd_help() {
     cat <<'EOF'
-tidiness-manager - Command-line interface for Tidiness Manager
+tidiness-manager - Code cleanliness orchestrator for scenarios
 
-Usage: tidiness-manager <command> [args]
+DESCRIPTION
+    Systematic code tidiness through progressive scanning:
+    • Light scans: Fast lint/type checks (< 2 minutes)
+    • Smart scans: AI-powered deep analysis via campaigns
+    • visited-tracker integration for comprehensive coverage
 
-Commands:
-    status                        Check API and dependency health
-    scan [path] [timeout]         Run light scan on scenario (default: current dir, 120s)
-    issues [scenario] [cat] [sev] [lim]
-                                  List tidiness issues (default: current dir, all, all, 50)
-    campaigns [list|start|pause|stop] [scenario]
-                                  Manage auto-tidiness campaigns
-    configure [key val]           View or update CLI configuration
-    version                       Show CLI version
-    help                          Show this help message
+USAGE
+    tidiness-manager <command> [options]
+
+COMMANDS
+    status
+        Check API health and dependency status
+
+    scan [--scenario-path PATH] [--timeout SEC]
+        Run light scan (lint + type checks) on scenario
+        Default: current directory, 120s timeout
+        Example:
+          tidiness-manager scan ~/Vrooli/scenarios/browser-automation-studio
+
+    issues [SCENARIO] [--category CAT] [--severity SEV] [--limit N]
+        List tidiness issues for agent consumption (JSON output)
+        Categories: all, lint, type, ai
+        Severities: all, error, warning
+        Example:
+          tidiness-manager issues browser-automation-studio --category lint --limit 20
+          tidiness-manager issues --category ai --severity error
+
+    campaigns [list|start|pause|stop] [SCENARIO]
+        Manage auto-tidiness campaigns for systematic scanning
+        • list: Show all campaigns with status
+        • start: Begin AI-powered campaign for scenario
+        • pause: Temporarily halt campaign
+        • stop: Terminate campaign
+        Example:
+          tidiness-manager campaigns list
+          tidiness-manager campaigns start my-scenario --max-sessions 10
+
+    configure [KEY] [VALUE]
+        View or update CLI configuration
+        Keys: api_base, api_token
+        Example:
+          tidiness-manager configure api_base http://localhost:16821/api/v1
+
+    version
+        Show CLI version and API endpoint
+
+    help
+        Show this help message
+
+AGENT WORKFLOW (Recommended)
+    1. Run light scan to identify quick wins:
+         tidiness-manager scan <scenario> --type light
+
+    2. Query prioritized issues for refactoring:
+         tidiness-manager issues <scenario> --category lint --limit 10
+
+    3. (Optional) Start systematic campaign:
+         tidiness-manager campaigns start <scenario> --max-sessions 10
+
+    All commands return structured JSON for easy parsing.
+    UI dashboard reflects all CLI actions automatically.
+
+ENVIRONMENT VARIABLES
+    TIDINESS_MANAGER_API_BASE    Override API base URL
+    TIDINESS_MANAGER_API_TOKEN   Set authentication token
+
+CONFIGURATION
+    Config stored in: ~/.tidiness-manager/config.json
+    Auto-created on first run with sane defaults
+    Port auto-detection via 'vrooli scenario port tidiness-manager API_PORT'
+
+EXIT CODES
+    0    Success
+    1    Error (check stderr for details)
+
+EXAMPLES
+    # Check if service is running
+    tidiness-manager status
+
+    # Scan current scenario
+    tidiness-manager scan .
+
+    # Get top 5 AI-detected issues
+    tidiness-manager issues my-scenario --category ai --limit 5
+
+    # Start systematic cleanup campaign
+    tidiness-manager campaigns start my-scenario
+
+    # Export issues for processing
+    tidiness-manager issues my-scenario --limit 100 > issues.json
+
+For more information, visit the dashboard or check the API documentation.
 EOF
 }
 

@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 // AgentIssue represents an issue in agent-friendly format
@@ -184,6 +186,69 @@ func (s *Server) handleAgentStoreIssue(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusCreated, map[string]interface{}{
 		"id":         id,
 		"created_at": createdAt,
+	})
+}
+
+// handleAgentUpdateIssue updates issue status (TM-IM-001, TM-IM-002, TM-IM-003)
+func (s *Server) handleAgentUpdateIssue(w http.ResponseWriter, r *http.Request) {
+	// Extract issue ID from URL
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+	if idStr == "" {
+		respondError(w, http.StatusBadRequest, "issue ID is required")
+		return
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid issue ID")
+		return
+	}
+
+	var update struct {
+		Status          string `json:"status"`
+		ResolutionNotes string `json:"resolution_notes"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// Validate status
+	validStatuses := map[string]bool{"open": true, "resolved": true, "ignored": true}
+	if !validStatuses[update.Status] {
+		respondError(w, http.StatusBadRequest, "status must be one of: open, resolved, ignored")
+		return
+	}
+
+	// Update the issue
+	query := `
+		UPDATE issues
+		SET status = $1, resolution_notes = $2, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $3
+		RETURNING id, status, updated_at
+	`
+
+	var returnedID int
+	var returnedStatus, updatedAt string
+	err = s.db.QueryRowContext(r.Context(), query, update.Status, update.ResolutionNotes, id).
+		Scan(&returnedID, &returnedStatus, &updatedAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			respondError(w, http.StatusNotFound, "issue not found")
+			return
+		}
+		s.log("update failed", map[string]interface{}{"error": err.Error()})
+		respondError(w, http.StatusInternalServerError, "failed to update issue")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"id":         returnedID,
+		"status":     returnedStatus,
+		"updated_at": updatedAt,
 	})
 }
 

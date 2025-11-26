@@ -13,6 +13,8 @@ export function Select({ className, ...props }: SelectProps) {
         "[&>option]:bg-slate-900 [&>option]:text-slate-100",
         className
       )}
+      aria-invalid={props["aria-invalid"] || false}
+      aria-required={props.required || false}
       {...props}
     />
   );

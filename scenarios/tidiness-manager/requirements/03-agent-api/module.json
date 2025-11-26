@@ -85,12 +85,12 @@
         },
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "business",
           "status": "implemented",
-          "ref": "test/cli/light-scanning.bats"
+          "ref": "cli/tidiness-manager.bats"
         }
       ],
-      "notes": "CLI fully functional: tidiness-manager issues --scenario <name> --limit 10 --category dead_code",
+      "notes": "CLI fully functional: tidiness-manager issues --scenario <name> --limit 10 --category dead_code. BATS tests verify CLI commands wrap HTTP API correctly with all filtering options.",
       "status": "complete"
     },
     {

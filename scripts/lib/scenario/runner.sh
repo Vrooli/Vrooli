@@ -10,32 +10,9 @@ source "${SCRIPT_DIR}/dependencies.sh"
 scenario::run() {
     local scenario_name="$1"
     shift
-    
-    local scenario_path="${var_ROOT_DIR}/scenarios/${scenario_name}"
 
-    if [[ ! -d "$scenario_path" ]]; then
-        log::error "Scenario not found: $scenario_name"
-        return 1
-    fi
-
-    if [[ ${#SCENARIO_DEPENDENCY_STACK[@]} -eq 0 ]]; then
-        scenario::dependencies::ready_reset
-    fi
-    
-    # Get the phase (default to 'develop' if not specified)
-    local phase="${1:-develop}"
-    shift || true
-
-    if scenario::dependencies::phase_requires_bootstrap "$phase"; then
-        scenario::dependencies::stack_push "$scenario_name"
-        if ! scenario::dependencies::ensure_started "$scenario_name" "$phase"; then
-            scenario::dependencies::stack_pop "$scenario_name"
-            return 1
-        fi
-        scenario::dependencies::stack_pop "$scenario_name"
-    fi
-    
-    # Check for optional flags
+    # Check for optional flags (must happen before phase parsing)
+    local custom_path=""
     local clean_stale=false
     local allow_skip_missing_runtime=false
     local manage_runtime=false
@@ -54,10 +31,18 @@ scenario::run() {
         prior_manage_value="${TEST_MANAGE_RUNTIME}"
     fi
 
+    # Get the phase (default to 'develop' if not specified)
+    local phase="${1:-develop}"
+    shift || true
+
     local selection=""
     local -a remaining_args=()
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --path)
+                custom_path="$2"
+                shift 2
+                ;;
             --clean-stale)
                 clean_stale=true
                 shift
@@ -81,6 +66,38 @@ scenario::run() {
                 ;;
         esac
     done
+
+    # Resolve scenario path (support both default and custom paths)
+    local scenario_path
+    if [[ -n "$custom_path" ]]; then
+        # Custom path provided - make it absolute
+        if [[ "$custom_path" = /* ]]; then
+            scenario_path="$custom_path"
+        else
+            scenario_path="$(cd "$(dirname "$custom_path")" 2>/dev/null && pwd)/$(basename "$custom_path")"
+        fi
+    else
+        # Default: look in standard scenarios directory
+        scenario_path="${var_ROOT_DIR}/scenarios/${scenario_name}"
+    fi
+
+    if [[ ! -d "$scenario_path" ]]; then
+        log::error "Scenario not found: $scenario_name (path: $scenario_path)"
+        return 1
+    fi
+
+    if [[ ${#SCENARIO_DEPENDENCY_STACK[@]} -eq 0 ]]; then
+        scenario::dependencies::ready_reset
+    fi
+
+    if scenario::dependencies::phase_requires_bootstrap "$phase"; then
+        scenario::dependencies::stack_push "$scenario_name"
+        if ! scenario::dependencies::ensure_started "$scenario_name" "$phase"; then
+            scenario::dependencies::stack_pop "$scenario_name"
+            return 1
+        fi
+        scenario::dependencies::stack_pop "$scenario_name"
+    fi
 
     if [[ "$allow_skip_missing_runtime" == "true" && "$manage_runtime" == "true" ]]; then
         log::warning "⚠️  --manage-runtime overrides --allow-skip-missing-runtime"
@@ -236,10 +253,20 @@ scenario::run() {
         export TEST_MANAGE_RUNTIME="true"
     fi
 
+    # Export custom path if provided, so lifecycle.sh can use it
+    if [[ -n "$custom_path" ]]; then
+        export SCENARIO_CUSTOM_PATH="$scenario_path"
+    fi
+
     # Use tee to show output on console AND write to log file
     # This preserves real-time output while capturing for later review
     "${SCRIPT_DIR}/../utils/lifecycle.sh" "$scenario_name" "$phase" "${remaining_args[@]}" 2>&1 | tee -a "$lifecycle_log"
     local run_exit="${PIPESTATUS[0]}"
+
+    # Clean up custom path export
+    if [[ -n "$custom_path" ]]; then
+        unset SCENARIO_CUSTOM_PATH
+    fi
 
     if [[ "$allow_skip_missing_runtime" == "true" ]]; then
         if [[ "$had_prior_allow_var" == "true" ]]; then

@@ -9,15 +9,8 @@
       "title": "Scan history tracking - resource used",
       "prd_ref": "OT-P1-007",
       "description": "Record which AI resource was used for each issue (resource-claude-code vs resource-codes)",
-      "validation": [
-        {
-          "type": "test",
-          "phase": "integration",
-          "status": "not_implemented",
-          "ref": "api/audit_trail_test.go"
-        }
-      ],
-      "notes": "Store in issues table as resource_id",
+      "validation": [],
+      "notes": "Store in issues table as resource_id. Not yet implemented (P1 feature).",
       "status": "pending"
     },
     {
@@ -25,15 +18,8 @@
       "title": "Scan history tracking - creation timestamp",
       "prd_ref": "OT-P1-007",
       "description": "Record when each issue was created",
-      "validation": [
-        {
-          "type": "test",
-          "phase": "integration",
-          "status": "not_implemented",
-          "ref": "api/audit_trail_test.go"
-        }
-      ],
-      "notes": "created_at timestamp for trend analysis",
+      "validation": [],
+      "notes": "created_at timestamp for trend analysis. Not yet implemented (P1 feature).",
       "status": "pending"
     },
     {
@@ -41,15 +27,8 @@
       "title": "Scan history tracking - campaign linkage",
       "prd_ref": "OT-P1-007",
       "description": "Record which campaign and session produced each issue",
-      "validation": [
-        {
-          "type": "test",
-          "phase": "integration",
-          "status": "not_implemented",
-          "ref": "api/audit_trail_test.go"
-        }
-      ],
-      "notes": "campaign_id and session_id foreign keys",
+      "validation": [],
+      "notes": "campaign_id and session_id foreign keys. Not yet implemented (P1 feature).",
       "status": "pending"
     },
     {
@@ -57,15 +36,8 @@
       "title": "Configurable thresholds - central storage",
       "prd_ref": "OT-P1-008",
       "description": "Store all thresholds in postgres config table (no hard-coding)",
-      "validation": [
-        {
-          "type": "test",
-          "phase": "integration",
-          "status": "not_implemented",
-          "ref": "api/audit_trail_test.go"
-        }
-      ],
-      "notes": "Long file lines, max scans per file, max concurrent campaigns",
+      "validation": [],
+      "notes": "Long file lines, max scans per file, max concurrent campaigns. Not yet implemented (P1 feature).",
       "status": "pending"
     },
     {
@@ -73,15 +45,8 @@
       "title": "Configurable thresholds - per-scenario override",
       "prd_ref": "OT-P1-008",
       "description": "Support per-scenario threshold overrides for special cases",
-      "validation": [
-        {
-          "type": "test",
-          "phase": "integration",
-          "status": "not_implemented",
-          "ref": "api/audit_trail_test.go"
-        }
-      ],
-      "notes": "E.g., allow longer files in generated code scenarios",
+      "validation": [],
+      "notes": "E.g., allow longer files in generated code scenarios. Not yet implemented (P1 feature).",
       "status": "pending"
     },
     {
@@ -89,15 +54,8 @@
       "title": "Read-only agent queries",
       "prd_ref": "OT-P1-009",
       "description": "Agent read calls return existing data without triggering new scans by default",
-      "validation": [
-        {
-          "type": "test",
-          "phase": "integration",
-          "status": "not_implemented",
-          "ref": "api/audit_trail_test.go"
-        }
-      ],
-      "notes": "Prevent accidental scan storms from agent loops",
+      "validation": [],
+      "notes": "Prevent accidental scan storms from agent loops. Not yet implemented (P1 feature).",
       "status": "pending"
     },
     {
@@ -105,15 +63,8 @@
       "title": "Force scan flag",
       "prd_ref": "OT-P1-009",
       "description": "Support explicit force flag to trigger new scan from agent API",
-      "validation": [
-        {
-          "type": "test",
-          "phase": "integration",
-          "status": "not_implemented",
-          "ref": "api/audit_trail_test.go"
-        }
-      ],
-      "notes": "GET /api/v1/scenarios/{name}/issues?force_scan=true",
+      "validation": [],
+      "notes": "GET /api/v1/scenarios/{name}/issues?force_scan=true. Not yet implemented (P1 feature).",
       "status": "pending"
     },
     {
@@ -121,15 +72,8 @@
       "title": "Force scan queueing",
       "prd_ref": "OT-P1-010",
       "description": "Enqueue force-scan requests in controlled queue with global concurrency limit",
-      "validation": [
-        {
-          "type": "test",
-          "phase": "integration",
-          "status": "not_implemented",
-          "ref": "api/audit_trail_test.go"
-        }
-      ],
-      "notes": "Prevent overwhelming AI resources with concurrent scans",
+      "validation": [],
+      "notes": "Prevent overwhelming AI resources with concurrent scans. Not yet implemented (P1 feature).",
       "status": "pending"
     }
   ]

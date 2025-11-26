@@ -4,7 +4,7 @@ Durable execution platform for building highly reliable distributed applications
 
 ## Overview
 
-Temporal provides infrastructure for mission-critical workflows that must never fail. Unlike visual workflow builders (n8n) or scripting platforms (Windmill), Temporal offers:
+Temporal provides infrastructure for mission-critical workflows that must never fail. Unlike visual workflow builders (n8n) or lightweight scriptable automation platforms, Temporal offers:
 - **Durable Execution**: Workflows survive crashes, restarts, and infrastructure failures
 - **Exactly-Once Semantics**: Perfect for financial transactions and data integrity
 - **Time Travel Debugging**: Complete execution history with replay capabilities
@@ -80,7 +80,7 @@ Use Temporal for:
 - ✅ Workflows that must survive any failure
 - ✅ Complex state machines with versioning
 
-Use n8n/Windmill instead for:
+Use n8n instead for:
 - ❌ Simple automations and integrations
 - ❌ Visual workflow design requirements
 - ❌ Quick prototypes and experiments

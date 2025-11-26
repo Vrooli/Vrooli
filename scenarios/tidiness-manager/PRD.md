@@ -22,8 +22,8 @@
 - [x] OT-P0-006 | No file hammering | Prevent analyzing the same file twice within a session or beyond configurable max visits
 - [x] OT-P0-007 | Agent API | Expose HTTP/CLI interface for other agents to request top N tidiness issues by scenario/file/folder/category
 - [x] OT-P0-008 | Issue storage | Record AI-generated issues with scenario, file path, category, severity, agent notes, remediation steps, and campaign metadata
-- [x] OT-P0-009 | Global dashboard | Display per-scenario counts of light issues, AI issues, long files, visit %, and campaign status
-- [x] OT-P0-010 | Scenario detail view | Show file table with paths, line counts, issue counts, visit counts, and sortable columns
+- [ ] OT-P0-009 | Global dashboard | Display per-scenario counts of light issues, AI issues, long files, visit %, and campaign status
+- [ ] OT-P0-010 | Scenario detail view | Show file table with paths, line counts, issue counts, visit counts, and sortable columns
 
 ### 🟠 P1 – Should have post-launch
 - [x] OT-P1-001 | Auto-tidiness campaigns | Run automatic agent scan campaigns across up to K scenarios with session limits and priority rules
