@@ -59,10 +59,8 @@ declare -A RESOURCE_TYPES=(
     ["ollama"]="service"
     ["whisper"]="service"
     ["unstructured-io"]="service"
-    ["n8n"]="service"
     ["comfyui"]="service"
     ["node-red"]="service"
-    ["windmill"]="service"
     ["huginn"]="service"
     ["minio"]="service"
     ["vault"]="service"
@@ -311,9 +309,6 @@ resources::get_health_endpoint() {
             ;;
         "node-red")
             echo "/flows"
-            ;;
-        "windmill")
-            echo "/api/health"
             ;;
         "huginn")
             echo "/"

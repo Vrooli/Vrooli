@@ -608,10 +608,6 @@
                                 <span class="health-label">Redis Cache</span>
                                 <span class="health-indicator indicator-healthy" id="redisHealth"></span>
                             </div>
-                            <div class="health-item">
-                                <span class="health-label">n8n Engine</span>
-                                <span class="health-indicator indicator-healthy" id="n8nHealth"></span>
-                            </div>
                         </div>
                     </div>
                 </section>
@@ -720,7 +716,6 @@
                 updateHealthIndicator('apiHealth', health.api || 'healthy');
                 updateHealthIndicator('dbHealth', health.database || 'healthy');
                 updateHealthIndicator('redisHealth', health.redis || 'healthy');
-                updateHealthIndicator('n8nHealth', health.n8n || 'healthy');
             } catch (error) {
                 updateHealthIndicator('apiHealth', 'critical');
             }

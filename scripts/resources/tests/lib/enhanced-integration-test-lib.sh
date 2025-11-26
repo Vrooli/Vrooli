@@ -521,7 +521,7 @@ enhanced_test_lib::discover_resource_fixtures() {
     if [[ -z "$resource_category" ]]; then
         case "$resource_name" in
             ollama|whisper|unstructured-io) resource_category="ai" ;;
-            n8n|comfyui|node-red|windmill|huginn) resource_category="automation" ;;
+            n8n|comfyui|node-red|huginn) resource_category="automation" ;;
             minio|vault|qdrant|questdb|postgres|redis) resource_category="storage" ;;
             judge0) resource_category="execution" ;;
             browserless|claude-code|agent-s2) resource_category="agents" ;;

@@ -25,14 +25,14 @@ source "${var_REPOSITORY_FILE}"
 # Available resources organized by category
 declare -A AVAILABLE_RESOURCES=(
     ["ai"]="ollama whisper unstructured-io"
-    ["automation"]="n8n comfyui node-red windmill huginn"
+    ["automation"]="comfyui node-red huginn"
     ["storage"]="minio vault qdrant questdb postgres redis"
     ["agents"]="browserless claude-code agent-s2"
     ["search"]="searxng"
 )
 
 # All available resources as a flat list
-ALL_RESOURCES="ollama whisper unstructured-io n8n comfyui node-red windmill huginn minio vault qdrant questdb postgres redis browserless claude-code agent-s2 searxng"
+ALL_RESOURCES="ollama whisper unstructured-io comfyui node-red huginn minio vault qdrant questdb postgres redis browserless claude-code agent-s2 searxng"
 
 #######################################
 # Parse command line arguments
@@ -498,7 +498,6 @@ resources::get_health_endpoint() {
         "huginn") echo "/" ;;
         "whisper") echo "/docs" ;;  # Whisper has docs endpoint, not health
         "node-red") echo "/flows" ;;
-        "windmill") echo "/api/version" ;;
         "minio") echo "/minio/health/live" ;;  # MinIO health endpoint
         "searxng") echo "/stats" ;;
         "claude-code") echo "/mcp/health" ;;

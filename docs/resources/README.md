@@ -361,28 +361,6 @@ curl -X POST http://localhost:4111/agents -d @agent_config.json
 ```
 📖 **Details**: [resources/automation/huginn/README.md](../../resources/huginn/README.md)
 
-## Windmill - Code-first Workflows
-**Developer-focused workflow automation with script orchestration**
-
-**Use Cases**:
-- CI/CD pipeline automation
-- Developer workflow orchestration  
-- Script and code execution
-- Infrastructure automation
-
-**When to Use**: Developer workflows, CI/CD, infrastructure automation, code-heavy tasks  
-**Alternative**: n8n for visual workflows, direct scripting for simple tasks
-
-**Quick Example**:
-```bash
-# Access Windmill interface
-open http://localhost:5681
-
-# Execute script
-curl -X POST http://localhost:5681/api/jobs/run -d '{"script": "my_script"}'
-```
-📖 **Details**: [resources/automation/windmill/README.md](../../resources/windmill/README.md)
-
 ---
 
 # 🤖 Agent Resources
@@ -684,16 +662,13 @@ A complete **voice-to-visual-to-action** workflow combining:
 ./resources/tests/run.sh --scenarios "scenario=analytics-dashboard"
 
 # Access the interfaces
-open http://localhost:5681  # Windmill professional interface
 open http://localhost:1880  # Node-RED real-time dashboard  
 ```
 
 **Revenue Potential**: $10,000-25,000 per project for accessibility and enterprise productivity solutions
 
-📖 **Detailed Guides**: 
-- [Windmill UI Development](automation/windmill/docs/UI_DEVELOPMENT.md)
+📖 **Detailed Guides**:
 - [Node-RED Dashboard Creation](automation/node-red/docs/DASHBOARD_CREATION.md)
-- [Multi-Modal Assistant Tutorial](automation/windmill/examples/multi-modal-assistant/)
 
 ## Configuration Management
 
@@ -715,7 +690,7 @@ open http://localhost:1880  # Node-RED real-time dashboard
 
 Install by logical groupings:
 - `ai-only` - All AI resources (ollama, whisper, comfyui)
-- `automation-only` - Workflow platforms (n8n, node-red, windmill, huginn)  
+- `automation-only` - Workflow platforms (n8n, node-red, huginn)  
 - `agents-only` - Interaction agents (agent-s2, browserless, claude-code)
 - `search-only` - Search and information retrieval (searxng)
 - `storage-only` - Storage solutions (minio, questdb, vault, qdrant)

@@ -48,14 +48,23 @@ All tests follow recommended patterns and best practices.
     lines.push('');
     lines.push('This scenario shows signs of test gaming rather than genuine validation.');
     lines.push('Tests appear created to inflate metrics rather than validate functionality.');
+    lines.push('');
+    lines.push('ℹ️  Gaming Prevention: These penalties detect anti-patterns where tests are created');
+    lines.push('   to satisfy completeness scores rather than provide genuine validation.');
   } else if (isHigh) {
     lines.push(`Overall Assessment: MEDIUM-HIGH severity issues found (-${penalty}pts)`);
     lines.push('');
     lines.push('This scenario has test quality issues that need attention.');
+    lines.push('');
+    lines.push('ℹ️  Gaming Prevention: These penalties encourage proper test structure and');
+    lines.push('   multi-layer validation to ensure comprehensive coverage.');
   } else {
     lines.push(`Overall Assessment: MEDIUM severity issues found (-${penalty}pts)`);
     lines.push('');
     lines.push('This scenario has a solid foundation but needs test quality improvements.');
+    lines.push('');
+    lines.push('ℹ️  Gaming Prevention: These penalties encourage best practices in test');
+    lines.push('   organization and validation diversity.');
   }
   lines.push('');
 
@@ -93,6 +102,15 @@ All tests follow recommended patterns and best practices.
       mediumSeverityIssues.forEach(issue => {
         const icon = issue.severity === 'high' ? '🔴' : '🟡';
         lines.push(`${icon} ${issue.message.split('\n')[0]}`);
+
+        // Show valid sources for invalid test location issue even in collapsed mode
+        if (issue.valid_sources && issue.valid_sources.length > 0) {
+          lines.push('   Valid test locations:');
+          issue.valid_sources.forEach(source => {
+            lines.push(`     • ${source}`);
+          });
+        }
+
         lines.push(`   Penalty: -${issue.penalty} pts`);
         lines.push('');
       });
@@ -118,6 +136,15 @@ function formatIssueDetail(issue, verbose) {
   const icon = issue.severity === 'high' ? '🔴' : '🟡';
 
   lines.push(`${icon} ${issue.message.split('\n').join('\n   ')}`);
+
+  // Show valid sources if available (for invalid test location issue)
+  if (issue.valid_sources && issue.valid_sources.length > 0) {
+    lines.push('');
+    lines.push('   Valid test locations for this scenario:');
+    issue.valid_sources.forEach(source => {
+      lines.push(`     • ${source}`);
+    });
+  }
 
   if (verbose) {
     lines.push('');

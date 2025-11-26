@@ -491,20 +491,18 @@ func TestCountHealthyDependencies(t *testing.T) {
 		deps := map[string]interface{}{
 			"db": map[string]interface{}{"status": "healthy"},
 			"n8n": map[string]interface{}{"status": "healthy"},
-			"windmill": map[string]interface{}{"status": "healthy"},
 		}
 
 		count := env.Server.countHealthyDependencies(deps)
-		if count != 3 {
-			t.Errorf("Expected 3 healthy dependencies, got %d", count)
+		if count != 2 {
+			t.Errorf("Expected 2 healthy dependencies, got %d", count)
 		}
 	})
 
 	t.Run("MixedHealth", func(t *testing.T) {
 		deps := map[string]interface{}{
 			"db": map[string]interface{}{"status": "healthy"},
-			"n8n": map[string]interface{}{"status": "unhealthy"},
-			"windmill": map[string]interface{}{"status": "not_configured"},
+			"n8n": map[string]interface{}{"status": "not_configured"},
 		}
 
 		count := env.Server.countHealthyDependencies(deps)

@@ -8,6 +8,7 @@ import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
 import App from './App';
 import './index.css';
 import { logger } from './utils/logger';
+import { ensureReadyMarker, markAppReady } from './ready';
 
 declare global {
   interface Window {
@@ -63,9 +64,19 @@ function ensureBridge() {
   bridgeInitialized = true;
 }
 
+function ReadyMarker(): null {
+  React.useEffect(() => {
+    ensureReadyMarker();
+    // Slightly defer setting the ready flag until after first paint.
+    requestAnimationFrame(() => markAppReady());
+  }, []);
+  return null;
+}
+
 function renderTree(): ReactNode {
   const content = (
     <QueryClientProvider client={queryClient}>
+      <ReadyMarker />
       <App />
       <Toaster
         position="bottom-right"

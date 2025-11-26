@@ -1,38 +1,258 @@
 {
   "scenario": "bookmark-intelligence-hub",
   "report_version": 1,
-  "generated_at": "2025-11-16T19:40:54.84527346Z",
+  "generated_at": "2025-11-23T19:34:23.614528515Z",
   "dependencies": [
     {
       "name": "browserless",
       "type": "resource",
+      "tier_support": {
+        "desktop": {
+          "supported": true,
+          "fitness_score": 0.6
+        },
+        "enterprise": {
+          "supported": true,
+          "fitness_score": 0.98
+        },
+        "local": {
+          "supported": true,
+          "fitness_score": 1
+        },
+        "mobile": {
+          "supported": false,
+          "fitness_score": 0.1,
+          "reason": "Heavy operations not suitable for mobile"
+        },
+        "saas": {
+          "supported": true,
+          "fitness_score": 0.85
+        },
+        "server": {
+          "supported": true,
+          "fitness_score": 0.95
+        }
+      },
       "source": "declared"
     },
     {
       "name": "huginn",
       "type": "resource",
+      "tier_support": {
+        "desktop": {
+          "supported": true,
+          "fitness_score": 0.6
+        },
+        "enterprise": {
+          "supported": true,
+          "fitness_score": 0.98
+        },
+        "local": {
+          "supported": true,
+          "fitness_score": 1
+        },
+        "mobile": {
+          "supported": false,
+          "fitness_score": 0.1,
+          "reason": "Heavy operations not suitable for mobile"
+        },
+        "saas": {
+          "supported": true,
+          "fitness_score": 0.85
+        },
+        "server": {
+          "supported": true,
+          "fitness_score": 0.95
+        }
+      },
       "source": "declared"
     },
     {
       "name": "ollama",
       "type": "resource",
+      "tier_support": {
+        "desktop": {
+          "supported": true,
+          "fitness_score": 0.6
+        },
+        "enterprise": {
+          "supported": true,
+          "fitness_score": 0.98
+        },
+        "local": {
+          "supported": true,
+          "fitness_score": 1
+        },
+        "mobile": {
+          "supported": false,
+          "fitness_score": 0,
+          "reason": "Resource-intensive AI not supported on mobile"
+        },
+        "saas": {
+          "supported": true,
+          "fitness_score": 0.3,
+          "notes": "Consider using managed AI API for SaaS deployment",
+          "alternatives": [
+            "openai",
+            "anthropic",
+            "openrouter"
+          ]
+        },
+        "server": {
+          "supported": true,
+          "fitness_score": 0.95
+        }
+      },
       "source": "declared"
     },
     {
       "name": "postgres",
       "type": "resource",
+      "tier_support": {
+        "desktop": {
+          "supported": true,
+          "fitness_score": 0.6
+        },
+        "enterprise": {
+          "supported": true,
+          "fitness_score": 0.98
+        },
+        "local": {
+          "supported": true,
+          "fitness_score": 1
+        },
+        "mobile": {
+          "supported": false,
+          "fitness_score": 0.2,
+          "reason": "Database should be remote for mobile deployments",
+          "alternatives": [
+            "saas-postgres",
+            "cloud-postgres"
+          ]
+        },
+        "saas": {
+          "supported": true,
+          "fitness_score": 0.95
+        },
+        "server": {
+          "supported": true,
+          "fitness_score": 0.95
+        }
+      },
       "source": "declared"
     },
     {
       "name": "qdrant",
       "type": "resource",
+      "tier_support": {
+        "desktop": {
+          "supported": true,
+          "fitness_score": 0.9
+        },
+        "enterprise": {
+          "supported": true,
+          "fitness_score": 0.98
+        },
+        "local": {
+          "supported": true,
+          "fitness_score": 1
+        },
+        "mobile": {
+          "supported": false,
+          "fitness_score": 0.2,
+          "reason": "Database should be remote for mobile deployments",
+          "alternatives": [
+            "saas-qdrant",
+            "cloud-qdrant"
+          ]
+        },
+        "saas": {
+          "supported": true,
+          "fitness_score": 0.95
+        },
+        "server": {
+          "supported": true,
+          "fitness_score": 0.95
+        }
+      },
       "source": "declared"
     }
   ],
-  "aggregates": {},
+  "aggregates": {
+    "desktop": {
+      "fitness_score": 0.6599999999999999,
+      "dependency_count": 5,
+      "blocking_dependencies": [
+        "browserless",
+        "huginn",
+        "ollama",
+        "postgres"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "enterprise": {
+      "fitness_score": 0.9800000000000001,
+      "dependency_count": 5,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "local": {
+      "fitness_score": 1,
+      "dependency_count": 5,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "mobile": {
+      "fitness_score": 0.12000000000000002,
+      "dependency_count": 5,
+      "blocking_dependencies": [
+        "browserless",
+        "huginn",
+        "ollama",
+        "postgres",
+        "qdrant"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "saas": {
+      "fitness_score": 0.78,
+      "dependency_count": 5,
+      "blocking_dependencies": [
+        "ollama"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "server": {
+      "fitness_score": 0.95,
+      "dependency_count": 5,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    }
+  },
   "bundle_manifest": {
     "scenario": "bookmark-intelligence-hub",
-    "generated_at": "2025-11-16T19:40:54.84527346Z",
+    "generated_at": "2025-11-23T19:34:23.614528515Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -68,24 +288,262 @@
     "dependencies": [
       {
         "name": "browserless",
-        "type": "resource"
+        "type": "resource",
+        "tier_support": {
+          "desktop": {
+            "supported": true,
+            "fitness_score": 0.6
+          },
+          "enterprise": {
+            "supported": true,
+            "fitness_score": 0.98
+          },
+          "local": {
+            "supported": true,
+            "fitness_score": 1
+          },
+          "mobile": {
+            "supported": false,
+            "fitness_score": 0.1,
+            "reason": "Heavy operations not suitable for mobile"
+          },
+          "saas": {
+            "supported": true,
+            "fitness_score": 0.85
+          },
+          "server": {
+            "supported": true,
+            "fitness_score": 0.95
+          }
+        }
       },
       {
         "name": "huginn",
-        "type": "resource"
+        "type": "resource",
+        "tier_support": {
+          "desktop": {
+            "supported": true,
+            "fitness_score": 0.6
+          },
+          "enterprise": {
+            "supported": true,
+            "fitness_score": 0.98
+          },
+          "local": {
+            "supported": true,
+            "fitness_score": 1
+          },
+          "mobile": {
+            "supported": false,
+            "fitness_score": 0.1,
+            "reason": "Heavy operations not suitable for mobile"
+          },
+          "saas": {
+            "supported": true,
+            "fitness_score": 0.85
+          },
+          "server": {
+            "supported": true,
+            "fitness_score": 0.95
+          }
+        }
       },
       {
         "name": "ollama",
-        "type": "resource"
+        "type": "resource",
+        "tier_support": {
+          "desktop": {
+            "supported": true,
+            "fitness_score": 0.6
+          },
+          "enterprise": {
+            "supported": true,
+            "fitness_score": 0.98
+          },
+          "local": {
+            "supported": true,
+            "fitness_score": 1
+          },
+          "mobile": {
+            "supported": false,
+            "fitness_score": 0,
+            "reason": "Resource-intensive AI not supported on mobile"
+          },
+          "saas": {
+            "supported": true,
+            "fitness_score": 0.3,
+            "notes": "Consider using managed AI API for SaaS deployment",
+            "alternatives": [
+              "openai",
+              "anthropic",
+              "openrouter"
+            ]
+          },
+          "server": {
+            "supported": true,
+            "fitness_score": 0.95
+          }
+        }
       },
       {
         "name": "postgres",
-        "type": "resource"
+        "type": "resource",
+        "tier_support": {
+          "desktop": {
+            "supported": true,
+            "fitness_score": 0.6
+          },
+          "enterprise": {
+            "supported": true,
+            "fitness_score": 0.98
+          },
+          "local": {
+            "supported": true,
+            "fitness_score": 1
+          },
+          "mobile": {
+            "supported": false,
+            "fitness_score": 0.2,
+            "reason": "Database should be remote for mobile deployments",
+            "alternatives": [
+              "saas-postgres",
+              "cloud-postgres"
+            ]
+          },
+          "saas": {
+            "supported": true,
+            "fitness_score": 0.95
+          },
+          "server": {
+            "supported": true,
+            "fitness_score": 0.95
+          }
+        }
       },
       {
         "name": "qdrant",
-        "type": "resource"
+        "type": "resource",
+        "tier_support": {
+          "desktop": {
+            "supported": true,
+            "fitness_score": 0.9
+          },
+          "enterprise": {
+            "supported": true,
+            "fitness_score": 0.98
+          },
+          "local": {
+            "supported": true,
+            "fitness_score": 1
+          },
+          "mobile": {
+            "supported": false,
+            "fitness_score": 0.2,
+            "reason": "Database should be remote for mobile deployments",
+            "alternatives": [
+              "saas-qdrant",
+              "cloud-qdrant"
+            ]
+          },
+          "saas": {
+            "supported": true,
+            "fitness_score": 0.95
+          },
+          "server": {
+            "supported": true,
+            "fitness_score": 0.95
+          }
+        }
       }
+    ]
+  },
+  "metadata_gaps": {
+    "total_gaps": 0,
+    "scenarios_missing_all": 0,
+    "gaps_by_scenario": {},
+    "missing_tiers": null,
+    "secret_requirements": [
+      {
+        "dependency_name": "browserless",
+        "dependency_type": "resource",
+        "secret_type": "browser_automation_token",
+        "required_secrets": [
+          "browserless_token"
+        ],
+        "playbook_reference": "secrets-manager/playbooks/browser-automation.md",
+        "priority": "required"
+      },
+      {
+        "dependency_name": "huginn",
+        "dependency_type": "resource",
+        "secret_type": "automation_credentials",
+        "required_secrets": [
+          "huginn_api_key",
+          "huginn_webhook_secret"
+        ],
+        "playbook_reference": "secrets-manager/playbooks/automation-platform.md",
+        "priority": "required"
+      },
+      {
+        "dependency_name": "postgres",
+        "dependency_type": "resource",
+        "secret_type": "database_credentials",
+        "required_secrets": [
+          "postgres_password",
+          "postgres_user"
+        ],
+        "playbook_reference": "secrets-manager/playbooks/database-credentials.md",
+        "priority": "required"
+      },
+      {
+        "dependency_name": "qdrant",
+        "dependency_type": "resource",
+        "secret_type": "vector_db_credentials",
+        "required_secrets": [
+          "qdrant_api_key"
+        ],
+        "playbook_reference": "secrets-manager/playbooks/vector-db.md",
+        "priority": "required"
+      }
+    ],
+    "resource_swap_suggestions": [
+      {
+        "original_resource": "ollama",
+        "alternative_resource": "openrouter",
+        "reason": "Lighter alternative for SaaS/mobile deployments",
+        "applicable_tiers": [
+          "mobile",
+          "saas"
+        ],
+        "relationship": "api_alternative",
+        "impact_description": "Reduces deployment size and resource requirements"
+      },
+      {
+        "original_resource": "ollama",
+        "alternative_resource": "anthropic",
+        "reason": "Managed AI API for production deployments",
+        "applicable_tiers": [
+          "saas",
+          "enterprise"
+        ],
+        "relationship": "api_alternative",
+        "impact_description": "Better scalability and reliability"
+      },
+      {
+        "original_resource": "postgres",
+        "alternative_resource": "supabase",
+        "reason": "Managed PostgreSQL with built-in APIs",
+        "applicable_tiers": [
+          "mobile",
+          "saas"
+        ],
+        "relationship": "managed_service",
+        "impact_description": "Eliminates database management overhead"
+      }
+    ],
+    "recommendations": [
+      "Configure 4 secret(s) for dependencies - see secrets-manager playbooks",
+      "Consider 3 resource swap(s) for deployment optimization"
     ]
   }
 }

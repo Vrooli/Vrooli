@@ -177,8 +177,6 @@ initialization/
 ├── automation/
 │   ├── n8n/                   # n8n workflow definitions
 │   │   └── main-workflow.json # Primary workflow
-│   └── windmill/              # Windmill apps
-│       └── windmill-app.json  # UI application
 ├── configuration/
 │   ├── app-config.json        # Runtime settings
 │   ├── resource-urls.json     # Service endpoints

@@ -4,7 +4,7 @@
 
 - Generates Electron apps per scenario.
 - Bundles UI production assets and Electron shell UI features (menus, notifications, file system access).
-- **Does not** bundle API servers, resources, or Vrooli CLI dependencies.
+- Bundled mode consumes a bundle manifest (from dependency-analyzer/secrets-manager), stages the payload, and launches a bundled runtime command; manifest quality determines completeness.
 - Requires a running Tier 1 Vrooli instance; the desktop app simply proxies to it.
 - Can optionally auto-bootstrap Tier 1: if `AUTO_MANAGE_TIER1` is enabled and `DEPLOYMENT_MODE` is `external-server`, the app now looks for the `vrooli` CLI, runs `vrooli setup --yes yes --skip-sudo yes`, starts `vrooli scenario start <name>` on launch, and stops it on exit.
 

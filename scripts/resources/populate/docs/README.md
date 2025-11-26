@@ -98,10 +98,6 @@ The system searches for scenarios in these locations:
 - `bucket` - Storage buckets
 - `file` - Files to upload
 
-### windmill
-- `script` - Python/TypeScript scripts
-- `app` - Windmill applications
-
 ## v2.0 Contract Compliance
 
 All resources must implement the v2.0 content interface:

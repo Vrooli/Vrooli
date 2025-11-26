@@ -31,7 +31,7 @@ A powerful visual database exploration tool with AI-powered query generation. Th
 - **Frontend**: React, Material-UI, React Flow
 - **Backend**: Go API with PostgreSQL
 - **AI**: Ollama for NLP, Qdrant for vector search
-- **Automation**: n8n workflows for resource orchestration
+- **Automation**: Go API automation routines for resource orchestration
 - **CLI**: Bash wrapper with JSON output support
 
 ## 📦 Installation
@@ -142,9 +142,10 @@ db-schema-explorer status
 - PostgreSQL (primary database)
 - Qdrant (vector search)
 - Ollama (AI models)
-- n8n (workflow automation)
 - Redis (optional, caching)
 - Browserless (optional, export)
+
+Automation routines including schema analysis and query orchestration run inside the API, so no separate workflow resource is needed.
 
 ## 📈 Future Enhancements
 - MongoDB and Redis support
@@ -168,4 +169,4 @@ Part of the Vrooli ecosystem - permanent capability that compounds intelligence.
 
 **Status**: Production Ready  
 **Maintainer**: Vrooli AI Agents  
-**Dependencies**: postgres, qdrant, ollama, n8n
+**Dependencies**: postgres, qdrant, ollama

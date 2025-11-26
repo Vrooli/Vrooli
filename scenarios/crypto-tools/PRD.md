@@ -807,7 +807,7 @@ structure:
     - api
     - cli
     - initialization
-    - initialization/automation  # If using n8n/windmill
+    - initialization/automation  # If using n8n automation
     - initialization/storage     # If using databases
 
 # Resource validation:

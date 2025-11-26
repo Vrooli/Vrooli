@@ -12,7 +12,7 @@ schema:
     - tags              # Test categories
     - testData          # Test-specific configuration
   typeProperties:
-    - platform          # Automation platform (n8n, node-red, windmill, huginn, comfyui)
+    - platform          # Automation platform (n8n, node-red, huginn, comfyui)
     - integration       # List of resources being tested
     - complexity        # basic, intermediate, advanced
     - expectedDuration  # Expected execution time in seconds
@@ -103,28 +103,6 @@ workflows:
           - uploadStatus: "success"
           - verifyStatus: "success"
           - responseTime: "< 30s"
-
-  # Windmill Workflows
-  windmill:
-    - path: windmill/windmill-secure-processing.json
-      platform: windmill
-      integration: [vault, ollama, minio]
-      complexity: advanced
-      expectedDuration: 90
-      resourceReqs:
-        cpu: high
-        memory: high
-        network: true
-      tags: [security-integration, multi-resource, vault-secured]
-      testData:
-        workflowName: "Secure Data Processing Workflow"
-        expectedOutput: "encrypted storage confirmation"
-        inputData: "sensitive test data"
-        successCriteria:
-          - vaultAccess: "success"
-          - aiProcessing: "success"
-          - secureStorage: "success"
-          - responseTime: "< 120s"
 
   # ComfyUI Workflows
   comfyui:
@@ -264,14 +242,8 @@ testSuites:
     
   storageIntegration:
     - node-red/node-red-minio-storage.json  # MinIO storage operations
-    - windmill/windmill-secure-processing.json  # Vault + MinIO secured storage
-    
-  securityIntegration:
-    - windmill/windmill-secure-processing.json  # Vault-secured workflow
-    
   advancedIntegration:
     - integration/multi-ai-pipeline.json    # Complex multi-resource pipeline
-    - windmill/windmill-secure-processing.json  # Advanced security workflow
     - huginn/huginn-content-monitoring.json  # Advanced content monitoring
     - huginn/huginn-web-automation.json     # Advanced web automation
     
@@ -302,14 +274,6 @@ platforms:
     execute_method: "POST /inject/{node-id}"
     health_check: "/"
     supported_formats: [json]
-    
-  windmill:
-    port: 5681
-    api_endpoint: "/api"
-    import_method: "POST /w/{workspace}/flows"
-    execute_method: "POST /w/{workspace}/jobs/run/f/{path}"
-    health_check: "/api/version"
-    supported_formats: [json, yaml]
     
   huginn:
     port: 4111

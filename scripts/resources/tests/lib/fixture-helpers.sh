@@ -243,9 +243,6 @@ fixture_helpers::get_workflow_fixture() {
         "huginn")
             echo "$workflow_dir/huginn/huginn-web-automation.json"
             ;;
-        "windmill")
-            echo "$workflow_dir/windmill/windmill-secure-processing.json"
-            ;;
         "integration")
             echo "$workflow_dir/integration/multi-ai-pipeline.json"
             ;;

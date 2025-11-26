@@ -296,7 +296,7 @@ find_alternative_resources() {
                 alternatives+=("openai-api" "anthropic-api")
                 ;;
             "n8n")
-                alternatives+=("windmill" "node-red" "huginn")
+                alternatives+=("node-red" "huginn")
                 ;;
             "agent-s2")
                 alternatives+=("browserless" "selenium")

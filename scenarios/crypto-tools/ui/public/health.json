@@ -58,11 +58,6 @@
     "tailwind": true
   },
   "integrations": {
-    "windmill": {
-      "configured": true,
-      "url": "http://localhost:${WINDMILL_PORT}",
-      "automation_enabled": true
-    },
     "n8n": {
       "configured": true,
       "url": "http://localhost:5678",

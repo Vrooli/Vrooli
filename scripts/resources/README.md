@@ -26,7 +26,7 @@ resource-ollama list-models
 | Category | Resources | Purpose |
 |----------|-----------|---------|
 | **AI** | ollama, whisper, unstructured-io, comfyui | Local AI inference and processing |
-| **Automation** | n8n, node-red, windmill, huginn, comfyui | Workflow orchestration |
+| **Automation** | n8n, node-red, huginn, comfyui | Workflow orchestration |
 | **Agents** | agent-s2, browserless, claude-code | Web/desktop automation |
 | **Search** | searxng | Privacy-respecting search |
 | **Storage** | postgres, redis, minio, vault, qdrant, questdb | Data persistence |

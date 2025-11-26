@@ -22,7 +22,6 @@ type Config struct {
 	Port        string
 	DatabaseURL string
 	N8NURL      string
-	WindmillURL string
 	APIToken    string
 }
 
@@ -46,7 +45,6 @@ func NewServer() (*Server, error) {
 		Port:        getEnv("API_PORT", "15001"),
 		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:password@localhost:5433/crypto_tools?sslmode=disable"),
 		N8NURL:      getEnv("N8N_BASE_URL", "http://localhost:5678"),
-		WindmillURL: getEnv("WINDMILL_BASE_URL", "http://localhost:5681"),
 		APIToken:    getEnv("API_TOKEN", "crypto-tools-api-key-2024"),
 	}
 
@@ -211,18 +209,6 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
-	// Check Windmill integration
-	windmillHealth := s.checkWindmillHealth()
-	healthResponse["dependencies"].(map[string]interface{})["windmill"] = windmillHealth
-	if windmillHealth["status"] != "healthy" {
-		if overallStatus != "unhealthy" {
-			overallStatus = "degraded"
-		}
-		if windmillHealth["error"] != nil {
-			errors = append(errors, windmillHealth["error"].(map[string]interface{}))
-		}
-	}
-	
 	// Check N8N integration
 	n8nHealth := s.checkN8NHealth()
 	healthResponse["dependencies"].(map[string]interface{})["n8n"] = n8nHealth
@@ -343,64 +329,6 @@ func (s *Server) checkDatabaseHealth() map[string]interface{} {
 				"category": "resource",
 				"retryable": false,
 			}
-		}
-	}
-	
-	return health
-}
-
-func (s *Server) checkWindmillHealth() map[string]interface{} {
-	health := map[string]interface{}{
-		"status": "healthy",
-		"checks": map[string]interface{}{},
-	}
-	
-	if s.config.WindmillURL == "" {
-		health["status"] = "not_configured"
-		health["checks"].(map[string]interface{})["automation"] = "disabled"
-		return health
-	}
-	
-	// Test Windmill connectivity
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	
-	req, err := http.NewRequestWithContext(ctx, "GET", s.config.WindmillURL+"/api/version", nil)
-	if err != nil {
-		health["status"] = "degraded"
-		health["error"] = map[string]interface{}{
-			"code": "WINDMILL_REQUEST_FAILED",
-			"message": "Failed to create request to Windmill: " + err.Error(),
-			"category": "internal",
-			"retryable": false,
-		}
-		return health
-	}
-	
-	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		health["status"] = "degraded"
-		health["error"] = map[string]interface{}{
-			"code": "WINDMILL_CONNECTION_FAILED",
-			"message": "Failed to connect to Windmill: " + err.Error(),
-			"category": "network",
-			"retryable": true,
-		}
-		return health
-	}
-	defer resp.Body.Close()
-	
-	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusUnauthorized {
-		health["checks"].(map[string]interface{})["connectivity"] = "ok"
-		health["checks"].(map[string]interface{})["automation"] = "enabled"
-	} else {
-		health["status"] = "degraded"
-		health["error"] = map[string]interface{}{
-			"code": "WINDMILL_UNHEALTHY",
-			"message": fmt.Sprintf("Windmill returned status %d", resp.StatusCode),
-			"category": "resource",
-			"retryable": true,
 		}
 	}
 	
@@ -688,7 +616,7 @@ func (s *Server) handleExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Trigger workflow execution via n8n or Windmill
+	// TODO: Trigger workflow execution via n8n
 	// This is a template - customize based on your workflow platform
 
 	executionID := uuid.New().String()

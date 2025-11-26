@@ -27,7 +27,6 @@ Date Night Planner transforms the often stressful task of planning memorable dat
 - Go 1.21+
 - Node.js 16+
 - PostgreSQL (optional - runs in degraded mode without)
-- n8n (optional - limited suggestions without)
 
 ### Installation & Running
 ```bash
@@ -64,7 +63,6 @@ date-night-planner status
 - `GET /api/v1/dates/surprise/{id}` - Retrieve surprise date (with access control)
 - `GET /health` - Service health check
 - `GET /health/database` - Database connectivity check
-- `GET /health/workflows` - n8n workflow status
 
 ### Request Examples
 ```json
@@ -103,7 +101,7 @@ POST /api/v1/dates/surprise
 - **UI**: Node.js/Express with vanilla JavaScript (pastel aesthetic)
 - **CLI**: Bash script with color output
 - **Database**: PostgreSQL with custom schema
-- **Workflows**: n8n for complex orchestration
+- **Workflows**: Orchestrated directly in Go API (n8n removed)
 - **AI**: Ollama for preference analysis
 
 ### Data Models
@@ -127,9 +125,8 @@ make test
 
 ### Common Issues
 1. **Database not connected** - Scenario runs in degraded mode, using fallback suggestions
-2. **n8n workflows inactive** - Limited AI-powered suggestions, basic functionality remains
-3. **Port conflicts** - Check `.vrooli/service.json` for port configuration
-4. **CLI not found** - Run `./cli/install.sh` to install globally
+2. **Port conflicts** - Check `.vrooli/service.json` for port configuration
+3. **CLI not found** - Run `./cli/install.sh` to install globally
 
 ### Debug Commands
 ```bash
@@ -142,7 +139,6 @@ vrooli scenario start date-night-planner
 
 # Check resource status
 vrooli resource status postgres
-vrooli resource status n8n
 ```
 
 ## Development
@@ -153,8 +149,7 @@ date-night-planner/
 ├── api/               # Go API server
 ├── cli/               # Bash CLI tool
 ├── ui/                # Node.js UI server
-├── initialization/    # Database schemas and n8n workflows
-│   ├── automation/    # n8n workflow definitions
+├── initialization/    # Database schemas
 │   └── storage/       # PostgreSQL schemas
 ├── test/              # Test suites
 └── .vrooli/          # Scenario configuration

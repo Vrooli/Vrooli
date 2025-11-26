@@ -28,10 +28,8 @@ declare -g -A RESOURCE_PORTS=(
     ["ros2"]="11501"           # ROS2 Robot Operating System middleware for distributed robotics
     
     # Automation Services (56xx range)
-    ["n8n"]="5678"             # Workflow automation
     ["comfyui"]="8188"         # AI-powered image generation workflows
     ["node-red"]="1880"        # Flow-based automation (Node-RED default port)
-    ["windmill"]="5681"        # Developer-centric workflow automation
     ["temporal"]="7233"        # Temporal workflow orchestration (frontend)
     ["temporal-grpc"]="7234"   # Temporal gRPC service
     

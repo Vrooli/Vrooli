@@ -169,11 +169,6 @@ required:
     integration_pattern: Direct Redis commands for locks and pub/sub
     access_method: Redis client library through REDIS_URL environment variable
 
-optional:
-  - resource_name: windmill
-    purpose: Optional UI dashboard for schedule management
-    fallback: Works standalone via API/CLI
-    access_method: HTTP API
 ```
 
 ### Data Models

@@ -148,7 +148,8 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
       count: unsupportedRefCount,
       total: metrics.requirements.total,
       ratio: ratio,
-      message: `${unsupportedRefCount}/${metrics.requirements.total} requirements reference unsupported test/ directories. Valid sources for this scenario:\n${validSources.map(s => `  • ${s}`).join('\n')}`,
+      valid_sources: validSources,
+      message: `${unsupportedRefCount}/${metrics.requirements.total} requirements reference unsupported test/ directories`,
       recommendation: 'Move validation refs to supported test sources listed above',
       why_it_matters: 'Requirements must be validated by actual tests (API unit tests, UI component tests, or e2e automation playbooks). Infrastructure test files like test/phases/ or CLI wrapper tests in test/cli/ are not acceptable validation sources.',
       description: 'Test files must live in recognized test locations where they can be executed as part of the test suite. Files in unsupported directories may not run during testing or may be infrastructure scripts rather than actual tests.'
@@ -178,10 +179,10 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
       penalty: penalty,
       violations: refAnalysis.violations.length,
       worst_offender: refAnalysis.violations[0],
-      message: `${refAnalysis.violations.length} test files validate ≥4 requirements each. Expected: unique tests per requirement.`,
+      message: `${refAnalysis.violations.length} test files validate ≥4 requirements each`,
       recommendation: 'Break monolithic test files into focused tests for each requirement',
-      why_it_matters: 'When a single test file validates many requirements, it becomes difficult to isolate failures, maintain test clarity, and ensure each requirement is properly validated. Focused tests provide better diagnostics and are easier to maintain.',
-      description: 'Monolithic test files that validate multiple requirements are a testing anti-pattern. Each requirement should have dedicated, focused tests that clearly validate its specific functionality.'
+      why_it_matters: 'Monolithic test files create several problems: (1) Hard to trace which requirement failed, (2) Reduces test isolation and makes debugging difficult, (3) Encourages gaming by linking many requirements to one superficial test, (4) Poor code organization and maintainability. Each requirement deserves focused validation.',
+      description: 'Gaming Prevention: This penalty detects when test files validate many requirements (≥4), which often indicates a single broad test being reused to check off multiple requirements without genuine validation. While some grouping is natural (e.g., CRUD operations), excessive sharing suggests superficial testing. The threshold of 4 requirements encourages smaller, more focused test files and better organization.'
     };
     issues.push(patterns.monolithic_test_files);
   }
@@ -264,10 +265,12 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
       penalty: penalty,
       count: diversityIssues.length,
       total: requirements.length,
+      has_api: scenarioComponents.has('API'),
+      has_ui: scenarioComponents.has('UI'),
       message: `${diversityIssues.length} critical requirements (P0/P1) lack multi-layer AUTOMATED validation`,
       recommendation: 'Add automated validations across API, UI, and e2e layers for critical requirements (manual validations don\'t count toward diversity)',
-      why_it_matters: 'Critical requirements (P0/P1) need validation at multiple layers to catch different types of bugs. API tests validate logic, UI tests validate interface, and e2e tests validate end-to-end flows. Single-layer validation misses integration issues.',
-      description: 'Validation diversity ensures critical features are tested comprehensively. Requirements should have automated tests at the API layer, UI layer, and e2e layer when applicable. Manual validations do not count toward diversity.'
+      why_it_matters: 'Multi-layer validation catches different bug types: API tests verify business logic, UI tests verify user interface behavior, and e2e tests verify complete workflows. Single-layer validation misses integration issues and edge cases. Gaming Prevention: This ensures agents don\'t just link requirements to the easiest/most basic tests.',
+      description: `Determining applicable layers: This scenario has ${scenarioComponents.has('API') ? 'API' : 'no API'} and ${scenarioComponents.has('UI') ? 'UI' : 'no UI'} components. P0/P1 requirements need 2+ AUTOMATED layers from applicable types. ${scenarioComponents.has('API') && scenarioComponents.has('UI') ? 'For full-stack scenarios: validate at API + UI, API + e2e, or all three layers.' : scenarioComponents.has('API') ? 'For API-only scenarios: validate at API + e2e layers.' : scenarioComponents.has('UI') ? 'For UI-only scenarios: validate at UI + e2e layers.' : 'Add e2e validation.'} Manual validations are excluded as they don't provide automated regression protection.`
     };
     issues.push(patterns.insufficient_validation_layers);
   }
