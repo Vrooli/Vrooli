@@ -90,11 +90,10 @@ Create or edit `requirements/projects/core.json`:
     {
       "id": "BAS-PROJECT-CREATE",
       "category": "projects.core",
-      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "prd_ref": "OT-P0-001",
       "title": "Users can create projects from dashboard",
       "description": "Validates project creation flow including dialog opening, form validation, API persistence, and navigation to project detail page.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",

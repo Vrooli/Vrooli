@@ -62,6 +62,6 @@ Until the UI exists:
 | Database | Postgres | 0.3 ⚠️ | SQLite | Embed file DB, drop multi-tenant features |
 | Vector DB | Qdrant | 0.5 ⚠️ | ChromaDB | Use lightweight embeddings, limit dataset |
 | LLM | Ollama | 0.0 ❌ | OpenRouter | Requires user API key prompt |
-| Automation | n8n | 0.2 ⚠️ | Compiled workflows | Convert to native code (future `n8n-to-code`?) |
+| Automation | Workflow automation | 0.2 ⚠️ | Compiled workflows | Convert to native code or lightweight orchestrator |
 
 This is the experience `deployment-manager` will automate. Documenting it now keeps everyone aligned.

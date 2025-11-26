@@ -94,17 +94,51 @@ function check_chrome_crashes() {
 }
 
 #######################################
+# Check for Chrome process accumulation in container
+# Returns: JSON object with process counts
+#######################################
+function check_chrome_processes() {
+    if ! is_running; then
+        echo '{"total": 0, "chrome": 0, "defunct": 0}'
+        return
+    fi
+
+    local total_count chrome_count defunct_count
+
+    # Count total processes (subtract 1 for header line)
+    total_count=$(docker top "$BROWSERLESS_CONTAINER_NAME" 2>/dev/null | wc -l)
+    total_count=$((total_count - 1))
+    [[ $total_count -lt 0 ]] && total_count=0
+
+    # Count Chrome and defunct processes
+    chrome_count=$(docker top "$BROWSERLESS_CONTAINER_NAME" 2>/dev/null | grep -E 'chrome|defunct' | wc -l)
+    [[ -z "$chrome_count" ]] && chrome_count=0
+
+    defunct_count=$(docker top "$BROWSERLESS_CONTAINER_NAME" 2>/dev/null | grep '<defunct>' | wc -l)
+    [[ -z "$defunct_count" ]] && defunct_count=0
+
+    cat <<EOF
+{
+  "total": $total_count,
+  "chrome": $chrome_count,
+  "defunct": $defunct_count
+}
+EOF
+}
+
+#######################################
 # Analyze overall health and provide diagnostics
 # Returns: JSON object with health details
 #######################################
 function get_health_diagnostics() {
-    local memory_stats chrome_crashes pressure_data
+    local memory_stats chrome_crashes pressure_data process_stats
     local warnings=()
     local status="healthy"
 
     memory_stats=$(get_memory_stats)
     chrome_crashes=$(check_chrome_crashes)
     pressure_data=$(get_metrics)
+    process_stats=$(check_chrome_processes)
 
     # Ensure chrome_crashes is a valid number
     if ! [[ "$chrome_crashes" =~ ^[0-9]+$ ]]; then
@@ -115,6 +149,11 @@ function get_health_diagnostics() {
     local mem_pct
     mem_pct=$(echo "$memory_stats" | jq -r '.usage_percent // 0' 2>/dev/null || echo "0")
 
+    # Extract process counts
+    local chrome_process_count defunct_count
+    chrome_process_count=$(echo "$process_stats" | jq -r '.chrome // 0' 2>/dev/null || echo "0")
+    defunct_count=$(echo "$process_stats" | jq -r '.defunct // 0' 2>/dev/null || echo "0")
+
     # Check for warning conditions
     if (( $(echo "$mem_pct > 80" | bc -l 2>/dev/null || echo "0") )); then
         warnings+=("High memory usage: ${mem_pct}%")
@@ -124,6 +163,22 @@ function get_health_diagnostics() {
     if [[ "$chrome_crashes" -gt 0 ]]; then
         warnings+=("$chrome_crashes Chrome crashes detected in recent logs")
         status="degraded"
+    fi
+
+    # Check for Chrome process accumulation (likely indicates process leak)
+    # Threshold: >50 Chrome processes suggests accumulation over time
+    if [[ "$chrome_process_count" -gt 50 ]]; then
+        warnings+=("Chrome process leak detected: $chrome_process_count Chrome/defunct processes accumulated")
+        status="degraded"
+    elif [[ "$chrome_process_count" -gt 20 ]]; then
+        warnings+=("High Chrome process count: $chrome_process_count processes (may indicate leak)")
+        [[ "$status" == "healthy" ]] && status="warning"
+    fi
+
+    # Check for defunct processes specifically
+    if [[ "$defunct_count" -gt 10 ]]; then
+        warnings+=("$defunct_count zombie processes detected (cleanup issues)")
+        [[ "$status" == "healthy" ]] && status="warning"
     fi
 
     # Check queue pressure if available
@@ -145,6 +200,7 @@ function get_health_diagnostics() {
   "status": "$status",
   "memory": $memory_stats,
   "chrome_crashes": $chrome_crashes,
+  "processes": $process_stats,
   "pressure": $pressure_data,
   "warnings": $warnings_json
 }
@@ -269,6 +325,28 @@ EOF
                 # Color-code memory warning
                 if (( $(echo "$mem_pct > 80" | bc -l 2>/dev/null || echo "0") )); then
                     echo "  ⚠️  High memory usage detected"
+                fi
+            fi
+
+            # Process stats
+            local total_procs chrome_procs defunct_procs
+            total_procs=$(echo "$diagnostics" | jq -r '.processes.total // 0')
+            chrome_procs=$(echo "$diagnostics" | jq -r '.processes.chrome // 0')
+            defunct_procs=$(echo "$diagnostics" | jq -r '.processes.defunct // 0')
+
+            if [[ "$total_procs" -gt 0 ]]; then
+                echo "Processes: $total_procs total, $chrome_procs Chrome/defunct"
+
+                # Warn on process accumulation
+                if [[ "$chrome_procs" -gt 50 ]]; then
+                    echo "  ⚠️  Chrome process leak detected - restart recommended"
+                    echo "  ↳ Run: docker restart vrooli-browserless"
+                elif [[ "$chrome_procs" -gt 20 ]]; then
+                    echo "  ⚠️  High Chrome process count - monitor for accumulation"
+                fi
+
+                if [[ "$defunct_procs" -gt 10 ]]; then
+                    echo "  ⚠️  Zombie processes detected ($defunct_procs defunct)"
                 fi
             fi
 

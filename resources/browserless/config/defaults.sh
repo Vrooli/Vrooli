@@ -40,11 +40,12 @@ browserless::export_config() {
         readonly BROWSERLESS_DATA_DIR
         export BROWSERLESS_DATA_DIR
     fi
-    # Pin to a known digest to avoid silent image drift (Chrome 142 latest builds
-    # have started pulling in DBus/thread requirements that crash in our env).
-    # If you need to update, bump the digest explicitly.
+    # Using v2.38.2 tag for testing process leak behavior
+    # v2.38.2 digest: sha256:7c206dfaca4781bb477c6495ff2b5477a932c07a79fd7504bab3cf149e3e4be4 (older, published 29 days ago)
+    # latest digest: sha256:96cc9039f44c8a7b277846783f18c1ec501a7f8b1b12bdfc2bc1f9c3f84a9a17 (newer, published 7 days ago)
+    # Both versions show Chrome process leak - testing to compare severity
     if [[ -z "${BROWSERLESS_IMAGE:-}" ]]; then
-        BROWSERLESS_IMAGE="ghcr.io/browserless/chrome@sha256:96cc9039f44c8a7b277846783f18c1ec501a7f8b1b12bdfc2bc1f9c3f84a9a17"
+        BROWSERLESS_IMAGE="ghcr.io/browserless/chrome:v2.38.2"
         readonly BROWSERLESS_IMAGE
         export BROWSERLESS_IMAGE
     fi
@@ -60,17 +61,6 @@ browserless::export_config() {
         BROWSERLESS_MAX_CONCURRENT_SESSIONS="${BROWSERLESS_MAX_BROWSERS}"
         readonly BROWSERLESS_MAX_CONCURRENT_SESSIONS
         export BROWSERLESS_MAX_CONCURRENT_SESSIONS
-    fi
-    if [[ -z "${BROWSERLESS_PREBOOT_CHROME:-}" ]]; then
-        # Preboot off by default; avoid spawning Chrome until needed
-        BROWSERLESS_PREBOOT_CHROME="false"
-        readonly BROWSERLESS_PREBOOT_CHROME
-        export BROWSERLESS_PREBOOT_CHROME
-    fi
-    if [[ -z "${BROWSERLESS_KEEP_ALIVE:-}" ]]; then
-        BROWSERLESS_KEEP_ALIVE="true"
-        readonly BROWSERLESS_KEEP_ALIVE
-        export BROWSERLESS_KEEP_ALIVE
     fi
     if [[ -z "${BROWSERLESS_MAX_QUEUE_LENGTH:-}" ]]; then
         BROWSERLESS_MAX_QUEUE_LENGTH="${MAX_QUEUE_LENGTH:-10}"
@@ -91,13 +81,6 @@ browserless::export_config() {
         BROWSERLESS_WORKER_TIMEOUT=120000
         readonly BROWSERLESS_WORKER_TIMEOUT
         export BROWSERLESS_WORKER_TIMEOUT
-    fi
-    if [[ -z "${BROWSERLESS_CHROME_REFRESH_MS:-}" ]]; then
-        # Refresh browsers more frequently (10m) to prevent memory accumulation
-        # Shorter refresh prevents long-running instances from consuming excessive memory
-        BROWSERLESS_CHROME_REFRESH_MS=600000
-        readonly BROWSERLESS_CHROME_REFRESH_MS
-        export BROWSERLESS_CHROME_REFRESH_MS
     fi
     if [[ -z "${BROWSERLESS_SOCKET_CLOSE_TIMEOUT:-}" ]]; then
         BROWSERLESS_SOCKET_CLOSE_TIMEOUT=5000

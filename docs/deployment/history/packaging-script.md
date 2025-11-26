@@ -61,7 +61,7 @@ kubectl apply -f ~/deployments/customer/k8s/scenarios/
 3. **Minimal Infrastructure**: Only the infrastructure components required by your resource set
 
 **Example**: If deploying a "Research Assistant" for a consulting firm, you only deploy:
-- Ollama (for AI), PostgreSQL (for data), Qdrant (for search), Windmill (for UI)
+- Ollama (for AI), PostgreSQL (for data), Qdrant (for search), custom UI layers
 - Not the entire 30+ resource ecosystem
 
 This approach provides:

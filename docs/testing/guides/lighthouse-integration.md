@@ -154,7 +154,7 @@ Create `requirements/performance/lighthouse.json`:
       "title": "Home page loads with >85% performance score",
       "description": "Home page must achieve Lighthouse performance score of 0.85+ on desktop",
       "status": "in_progress",
-      "criticality": "P0",
+      "prd_ref": "OT-P0-001",
       "validation": [
         {
           "type": "lighthouse",
@@ -173,7 +173,7 @@ Create `requirements/performance/lighthouse.json`:
       "title": "All pages meet WCAG 2.1 AA standards",
       "description": "Lighthouse accessibility score of 0.90+ across all tested pages",
       "status": "in_progress",
-      "criticality": "P0",
+      "prd_ref": "OT-P0-002",
       "validation": [
         {
           "type": "lighthouse",

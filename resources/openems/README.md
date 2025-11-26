@@ -13,7 +13,7 @@ Open-source platform for managing distributed energy resources, microgrids, and 
 - ✅ Health monitoring and lifecycle management
 
 **P1 Requirements: 100% Complete**
-- ✅ n8n workflow automation integration
+- ✅ Workflow automation integration
 - ✅ Apache Superset dashboard templates
 - ✅ Eclipse Ditto digital twin models
 - ✅ Energy forecast models (solar/battery/consumption)
@@ -135,21 +135,12 @@ Monitor energy flows, system efficiency, and grid interactions through the web U
 
 ## 🔗 P1 Integrations
 
-### n8n Workflow Automation
-Create and deploy energy automation workflows:
-```bash
-# Create workflow templates
-vrooli resource openems n8n create-workflows
-
-# Test connectivity
-vrooli resource openems n8n test
-```
-
-Available workflows:
-- Energy automation with battery management
-- Solar optimization based on generation patterns
-- Peak shaving for demand response
-- SCADA/Modbus data ingestion
+### Workflow Automation
+Deploy energy automation flows using a workflow orchestrator (Node-RED, Huginn, or custom). Import or define automated sequences that:
+- Manage battery dispatch signals  
+- Optimize solar generation scheduling  
+- Execute peak shaving strategies for demand response  
+- Ingest SCADA/Modbus telemetry for analytics
 
 ### Apache Superset Dashboards
 Visualize energy data with pre-built dashboards:

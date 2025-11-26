@@ -47,11 +47,10 @@ Create or edit `requirements/index.json` (or modular file like `requirements/pro
     {
       "id": "MY-PROJECT-CREATE",
       "category": "projects.core",
-      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "prd_ref": "OT-P0-001",
       "title": "Users can create projects from the dashboard",
       "description": "Validates end-to-end project creation including API, database, and UI",
       "status": "planned",
-      "criticality": "P0",
       "validation": []
     }
   ]
@@ -60,9 +59,8 @@ Create or edit `requirements/index.json` (or modular file like `requirements/pro
 
 **Key Fields**:
 - `id`: Unique ID matching pattern `[A-Z][A-Z0-9]+-[A-Z0-9-]+`
-- `prd_ref`: Links to PRD section (bidirectional traceability)
+- `prd_ref`: Operational target reference (e.g., `OT-P0-001`) - criticality derived from this
 - `status`: `planned` (will auto-update to `in_progress` when first test runs)
-- `criticality`: `P0` (critical), `P1` (important), `P2` (nice-to-have)
 - `validation`: Empty initially (auto-populated by sync)
 
 > 📁 **Folder layout**: keep requirement modules under numbered operational-target folders (e.g., `01-foundation/`, `02-builder/`, …) and document the mapping in `requirements/README.md`. This mirrors PRD operational targets and avoids duplicate compatibility shims; temporary alias directories are not allowed.
@@ -202,7 +200,6 @@ cat coverage/phase-results/unit.json
     {
       "id": "MY-PROJECT-CREATE",
       "status": "passed",
-      "criticality": "P0",
       "evidence": "Vitest ✓ (3 tests, 145ms); Go ✓ (2 tests, 89ms)"
     }
   ]
@@ -217,8 +214,8 @@ cat requirements/index.json
 ```json
 {
   "id": "MY-PROJECT-CREATE",
+  "prd_ref": "OT-P0-001",
   "status": "in_progress",  // Auto-updated from "planned"!
-  "criticality": "P0",
   "validation": [
     {
       "type": "test",
@@ -262,7 +259,6 @@ node scripts/requirements/report.js --scenario my-scenario --format markdown
       "id": "MY-PROJECT-CREATE",
       "title": "Users can create projects from the dashboard",
       "status": "in_progress",
-      "criticality": "P0",
       "liveStatus": "passed",  // All tests passing!
       "coverage": {
         "unit": "passed",
@@ -351,7 +347,7 @@ requirements/
       "id": "MY-FUNC-001",
       "title": "Complete project management system",
       "status": "in_progress",
-      "criticality": "P0",
+      "prd_ref": "OT-P0-001",
       "children": [
         "MY-PROJECT-CREATE",
         "MY-PROJECT-DELETE",

@@ -7,7 +7,7 @@ set -euo pipefail
 # Configuration - only set if not already defined by defaults.sh
 [[ -z "${BROWSERLESS_PORT:-}" ]] && export BROWSERLESS_PORT="4110"
 [[ -z "${BROWSERLESS_CONTAINER_NAME:-}" ]] && export BROWSERLESS_CONTAINER_NAME="vrooli-browserless"
-[[ -z "${BROWSERLESS_IMAGE:-}" ]] && export BROWSERLESS_IMAGE="ghcr.io/browserless/chrome@sha256:96cc9039f44c8a7b277846783f18c1ec501a7f8b1b12bdfc2bc1f9c3f84a9a17"
+[[ -z "${BROWSERLESS_IMAGE:-}" ]] && export BROWSERLESS_IMAGE="ghcr.io/browserless/chrome:v2.38.2"
 [[ -z "${BROWSERLESS_DATA_DIR:-}" ]] && export BROWSERLESS_DATA_DIR="$HOME/.vrooli/browserless"
 [[ -z "${BROWSERLESS_MAX_BROWSERS:-}" ]] && export BROWSERLESS_MAX_BROWSERS="1"
 # Align concurrent session cap with MAX_BROWSERS default unless explicitly overridden

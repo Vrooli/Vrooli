@@ -5,9 +5,8 @@ This document describes the P1 (Should Have) requirements that have been fully i
 
 ## 🔗 P1 Feature Summary
 
-### 1. n8n Workflow Automation Integration
+### 1. Workflow Automation Integration
 **Status**: ✅ Complete  
-**Files**: `lib/n8n_integration.sh`
 
 Provides visual workflow automation for energy management with pre-built templates:
 - **Energy Automation**: Battery SOC monitoring and automatic charging
@@ -15,17 +14,10 @@ Provides visual workflow automation for energy management with pre-built templat
 - **Peak Shaving**: Demand response during grid peaks
 - **SCADA/Modbus Ingestion**: Industrial protocol data collection
 
-#### Usage
-```bash
-# Create all workflow templates
-vrooli resource openems n8n create-workflows
-
-# Test n8n connectivity
-vrooli resource openems n8n test
-
-# Deploy specific workflow
-vrooli resource openems n8n deploy /tmp/solar-optimization-workflow.json
-```
+#### Deployment
+1. Use your chosen workflow automation platform (Node-RED, Huginn, or custom orchestrator) to import the JSON workflow definitions under `automation/energy`.
+2. Validate connectivity by triggering the workflows and confirming telemetry updates in OpenEMS.
+3. Monitor logs or dashboards for automation execution status and error handling.
 
 ### 2. Apache Superset Dashboard Integration
 **Status**: ✅ Complete  
@@ -105,7 +97,7 @@ vrooli resource openems forecast store /tmp/integrated_forecast.json
 
 ```
 OpenEMS Core
-    ├── n8n Workflows
+    ├── Workflow Automation
     │   ├── HTTP Requests → OpenEMS REST API
     │   ├── Webhooks ← External triggers
     │   └── Scheduled → Cron-based automation
@@ -131,7 +123,7 @@ OpenEMS Core
 ### Prerequisites
 1. OpenEMS running: `vrooli resource openems manage start`
 2. (Optional) Dependencies:
-   - n8n: `vrooli resource n8n manage start`
+   - Workflow automation platform: ensure your automation orchestrator is running
    - Superset: `vrooli resource apache-superset manage start`
    - Ditto: `vrooli resource eclipse-ditto manage start`
    - QuestDB: `vrooli resource questdb manage start`
@@ -139,7 +131,6 @@ OpenEMS Core
 ### Basic Workflow
 ```bash
 # 1. Create all P1 integration assets
-vrooli resource openems n8n create-workflows
 vrooli resource openems superset create-dashboards
 vrooli resource openems ditto create-twins
 vrooli resource openems forecast create-models
@@ -175,9 +166,8 @@ vrooli resource openems test phases/test-p1-integrations.sh
 
 ### Environment Variables
 ```bash
-# n8n Integration
-export N8N_PORT=5678
-export N8N_URL=http://localhost:5678
+# Workflow automation platform (if used for orchestration)
+export WORKFLOW_AUTOMATION_URL=http://localhost:5678
 
 # Superset Integration  
 export SUPERSET_PORT=8088
@@ -200,7 +190,6 @@ All integrations connect through OpenEMS REST API:
 
 ## 📚 Further Documentation
 
-- [n8n Workflows Documentation](https://docs.n8n.io/)
 - [Apache Superset User Guide](https://superset.apache.org/docs/)
 - [Eclipse Ditto Documentation](https://www.eclipse.org/ditto/intro-overview.html)
 - [OpenEMS Documentation](https://openems.io/docs/)
@@ -233,7 +222,7 @@ For issues, check:
 ## ✅ Completion Status
 
 All P1 requirements have been successfully implemented and tested:
-- [x] n8n Workflow Integration - 4 workflow templates
+- [x] Workflow Automation Integration - 4 workflow templates
 - [x] Apache Superset Dashboards - 4 dashboard templates  
 - [x] Eclipse Ditto Digital Twins - 4 twin models + co-sim
 - [x] Energy Forecast Models - 3 forecast types + integrated

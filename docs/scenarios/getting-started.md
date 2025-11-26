@@ -92,7 +92,7 @@ test_scenario
 ```
 
 ### 4. **ui/** - The User Interface (Optional)
-- **deploy-ui.sh**: Windmill UI deployment script
+- **deploy-ui.sh**: UI deployment script
 - **config.json**: UI configuration  
 - **scripts/**: TypeScript backend services
 
@@ -189,9 +189,6 @@ test_customer_portal() {
     # Test database operations
     test_postgres_connection || return 1
     
-    # Test n8n workflow
-    test_n8n_workflow_execution || return 1
-    
     log_success "Customer portal integration validated"
 }
 
@@ -233,12 +230,6 @@ test_postgres_connection() {
     psql -h localhost -U postgres -d vrooli -c "SELECT 1;" > /dev/null 2>&1
 }
 
-# Test n8n workflow
-test_n8n_workflow_execution() {
-    curl -s -X POST http://localhost:5678/webhook/test \
-        -H "Content-Type: application/json" \
-        -d '{"test": "data"}' | grep -q "success"
-}
 ```
 
 ### Debugging Failed Tests

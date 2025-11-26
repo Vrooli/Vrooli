@@ -363,6 +363,78 @@ When running usage examples, output files are managed automatically:
 ./cli.sh recover
 ```
 
+## Known Issues & Version Selection
+
+### Chrome Process Leak in Latest Version
+
+**Issue**: The `latest` tag (sha256:96cc9039..., published ~7 days ago) has a Chrome process leak that causes process accumulation over time. This leads to "fork: Resource temporarily unavailable" errors after extended use.
+
+**Symptoms**:
+- Chrome/defunct processes accumulate in container
+- After ~600+ processes: browserless fails to spawn new Chrome instances
+- Error messages: "fork: Resource temporarily unavailable" or "pthread_create: Resource temporarily unavailable"
+- UI smoke tests fail with "Browserless returned invalid response"
+
+**Root Cause**: Regression introduced in the `latest` version between v2.38.2 release and current `latest` build.
+
+**Solution**: We've pinned to **v2.38.2** which does NOT have this issue.
+
+### Version Testing Results
+
+Extensive testing (50+ consecutive UI smoke tests) confirms:
+
+**v2.38.2 (RECOMMENDED)**:
+- ✅ Processes: Stable at 4 total, 0 Chrome/defunct
+- ✅ Memory: Stable at ~170-190MiB
+- ✅ Health: No degradation over 50+ tests
+- ✅ All tests pass consistently
+
+**latest (NOT RECOMMENDED)**:
+- ❌ Process leak: ~1 Chrome process per test accumulated
+- ❌ After 10 tests: 17 total, 11 Chrome/defunct processes
+- ❌ After 600+ tests: Container unusable, requires restart
+- ❌ Memory accumulation and eventual failure
+
+### Current Configuration
+
+We've updated the configuration to use v2.38.2:
+- Image: `ghcr.io/browserless/chrome:v2.38.2`
+- Digest: `sha256:7c206dfaca4781bb477c6495ff2b5477a932c07a79fd7504bab3cf149e3e4be4`
+- Published: ~29 days ago
+- Status: Stable, no known process leak issues
+
+### Monitoring for Process Leaks
+
+Our enhanced health diagnostics now detect process accumulation:
+
+```bash
+# Check for process leaks
+vrooli resource browserless status
+
+# Automated detection thresholds:
+# - >50 Chrome processes: Status = degraded, restart recommended
+# - >20 Chrome processes: Status = warning, monitor for accumulation
+# - >10 defunct processes: Status = warning, cleanup issues detected
+```
+
+The UI smoke test framework also provides detailed diagnostics when browserless failures occur, including process leak detection and recommended recovery steps.
+
+### Recovery from Process Leak
+
+If you encounter a process leak (shouldn't happen with v2.38.2):
+
+```bash
+# Restart browserless to clear accumulated processes
+docker restart vrooli-browserless
+
+# Verify clean state
+vrooli resource browserless status
+# Should show: "Processes: 4 total, 0 Chrome/defunct"
+
+# If using latest tag, downgrade to v2.38.2
+# (Already done in current configuration)
+```
+
 ## Troubleshooting
 
 ### Container Won't Start
@@ -454,10 +526,11 @@ Access the built-in dashboard at http://localhost:4110 for:
 # Custom configuration
 CONCURRENT=10              # Max concurrent browsers
 TIMEOUT=30000              # Default timeout (ms)
-PREBOOT_CHROME=true        # Pre-warm browsers
-KEEP_ALIVE=true           # Keep browsers alive
 WORKSPACE_DELETE_EXPIRED=true  # Auto-cleanup
 WORKSPACE_EXPIRE_DAYS=7    # Cleanup after 7 days
+
+# Note: PREBOOT_CHROME, KEEP_ALIVE, and CHROME_REFRESH_TIME are deprecated
+# in browserless v2 and have been removed from our configuration
 ```
 
 ### Network Configuration

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Test P1 Integration Features for OpenEMS
-# Validates n8n, Superset, Ditto, and Forecast integrations
+# Validates workflow automation, Superset, Ditto, and Forecast integrations
 
 set -euo pipefail
 
@@ -44,13 +44,6 @@ echo "    OpenEMS P1 Integration Tests        "
 echo "========================================="
 echo ""
 
-# Test n8n Integration
-echo -e "\n${YELLOW}=== n8n Workflow Integration ===${NC}"
-run_test "n8n workflow creation" \
-    "${RESOURCE_DIR}/cli.sh n8n create-workflows"
-run_test "n8n workflow templates exist" \
-    "test -f /tmp/openems-workflow.json && test -f /tmp/solar-optimization-workflow.json"
-
 # Test Superset Integration  
 echo -e "\n${YELLOW}=== Apache Superset Integration ===${NC}"
 run_test "Superset dashboard creation" \
@@ -86,8 +79,6 @@ run_test "Integrated forecast" \
 
 # Test CLI Commands
 echo -e "\n${YELLOW}=== CLI Command Integration ===${NC}"
-run_test "n8n command in help" \
-    "${RESOURCE_DIR}/cli.sh help | grep -q 'n8n'"
 run_test "superset command in help" \
     "${RESOURCE_DIR}/cli.sh help | grep -q 'superset'"
 run_test "ditto command in help" \

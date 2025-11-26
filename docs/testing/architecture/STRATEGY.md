@@ -390,9 +390,9 @@ For resources that can't be immediately updated:
 
 ```bash
 # Generate compatibility wrapper
-./tools/generate-compatibility-wrapper.sh --resource n8n --version 0.9
+./tools/generate-compatibility-wrapper.sh --resource <resource> --version <version>
 
-# This creates: n8n/lib/compat-v0.9.sh
+# This creates: <resource>/lib/compat-v<version>.sh
 ```
 
 ### Migration Checklist
@@ -425,7 +425,6 @@ Failed resources:
 Detailed Results:
 [+] ollama - All validations passed
 [!] huginn - Layer 1 failed: Missing 'logs' action
-[+] n8n - All validations passed
 ...
 ```
 

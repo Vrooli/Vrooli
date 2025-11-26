@@ -62,9 +62,9 @@
 
 ## P1 Integration Considerations
 
-### n8n Integration
-**Issue**: n8n must be running to deploy workflows
-**Solution**: Workflow templates are created locally in /tmp/ and can be imported manually through n8n UI when service is available
+### Workflow Automation Integration
+**Issue**: The automation platform must be running to deploy workflow templates
+**Solution**: Workflow templates are created locally in /tmp/ and can be imported manually when the platform is available
 
 ### Apache Superset Integration  
 **Issue**: QuestDB connection must be configured manually

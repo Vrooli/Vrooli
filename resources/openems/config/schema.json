@@ -107,7 +107,7 @@
             }
           }
         },
-        "n8n": {
+        "workflow_automation": {
           "type": "object",
           "properties": {
             "enabled": {

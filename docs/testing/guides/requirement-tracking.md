@@ -106,7 +106,7 @@ requirements/
       "id": "BAS-FUNC-001",
       "title": "Visual workflow builder",
       "status": "in_progress",
-      "criticality": "P0",
+      "prd_ref": "OT-P0-001",
       "children": [
         "BAS-PROJECT-DIALOG-OPEN",
         "BAS-PROJECT-CREATE-SUCCESS",
@@ -129,11 +129,10 @@ requirements/
     {
       "id": "BAS-PROJECT-DIALOG-OPEN",
       "category": "projects.ui",
-      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "prd_ref": "OT-P0-001",
       "title": "New project dialog opens from primary entry points",
       "description": "Verifies the modal opens via button, keyboard, and menu",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -162,7 +161,7 @@ requirements/
 | `id` | string | Unique identifier matching pattern `[A-Z][A-Z0-9]+-[A-Z0-9-]+` |
 | `title` | string | Short description (1-2 sentences) |
 | `status` | enum | `pending`, `planned`, `in_progress`, `complete`, `not_implemented` |
-| `criticality` | enum | `P0` (critical), `P1` (important), `P2` (nice-to-have) |
+| `prd_ref` | string | Operational target reference (e.g., `OT-P0-001`) - criticality derived from this |
 
 **ID Pattern Examples:**
 - ✅ `BAS-WORKFLOW-PERSIST-CRUD`
@@ -176,7 +175,6 @@ requirements/
 | Field | Type | Description |
 |-------|------|-------------|
 | `category` | string | Hierarchical grouping (e.g., `projects.ui`, `execution.telemetry`) |
-| `prd_ref` | string | Reference to PRD section this requirement traces to |
 | `description` | string | Detailed explanation of what this requirement validates |
 | `children` | array | Child requirement IDs for parent/child hierarchies |
 | `depends_on` | array | Requirement IDs this one depends on |
@@ -397,13 +395,11 @@ graph TB
     {
       "id": "BAS-WORKFLOW-PERSIST-CRUD",
       "status": "passed",
-      "criticality": "P0",
       "evidence": "Node test ✓ PASS REQ:BAS-WORKFLOW-PERSIST-CRUD (7 tests, 9ms)"
     },
     {
       "id": "BAS-PROJECT-CREATE-SUCCESS",
       "status": "passed",
-      "criticality": "P0",
       "evidence": "Node test ✓ PASS REQ:BAS-PROJECT-CREATE-SUCCESS (10 tests, 567ms)"
     }
   ]
@@ -543,7 +539,6 @@ node scripts/requirements/report.js --scenario <name> --include-pending
     {
       "id": "BAS-FUNC-001",
       "status": "in_progress",
-      "criticality": "P0",
       "title": "Persist visual workflows",
       "liveStatus": "failed",
       "children": ["BAS-PROJECT-DIALOG-OPEN", "..."]
@@ -690,7 +685,7 @@ node scripts/requirements/report.js --scenario <name> --fail-on-critical-gap
 {
   "id": "BAS-FUNC-001",
   "title": "Visual workflow builder (PRD)",
-  "criticality": "P0",
+  "prd_ref": "OT-P0-001",
   "children": [
     "BAS-PROJECT-DIALOG-OPEN",
     "BAS-PROJECT-CREATE-SUCCESS",
@@ -739,11 +734,10 @@ node scripts/requirements/report.js --scenario <name> --fail-on-critical-gap
 {
   "id": "MY-API-001",
   "category": "api.handlers",
-  "prd_ref": "API Requirements > POST /projects",
+  "prd_ref": "OT-P0-001",
   "title": "Create project endpoint persists to database",
   "description": "Validates the POST handler creates projects with unique names and returns 201",
   "status": "complete",
-  "criticality": "P0",
   "validation": [
     {
       "type": "test",
@@ -762,11 +756,10 @@ node scripts/requirements/report.js --scenario <name> --fail-on-critical-gap
 {
   "id": "MY-UI-001",
   "category": "ui.projects",
-  "prd_ref": "UI Requirements > Project Creation",
+  "prd_ref": "OT-P0-001",
   "title": "Users can create projects from dashboard",
   "description": "End-to-end project creation workflow including UI, API, and database persistence",
   "status": "complete",
-  "criticality": "P0",
   "validation": [
     {
       "type": "test",
@@ -800,11 +793,10 @@ node scripts/requirements/report.js --scenario <name> --fail-on-critical-gap
 {
   "id": "MY-FUNC-001",
   "category": "foundation",
-  "prd_ref": "Operational Targets > P0 > OT-P0-001",
+  "prd_ref": "OT-P0-001",
   "title": "Complete project management system",
   "description": "Aggregates all project-related requirements from PRD section",
   "status": "in_progress",
-  "criticality": "P0",
   "children": [
     "MY-PROJECT-CREATE",
     "MY-PROJECT-EDIT",

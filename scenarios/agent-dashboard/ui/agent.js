@@ -600,7 +600,7 @@ function getCommonDependencies(agentType) {
         });
     }
     
-    if (agentType === 'n8n' || agentType === 'windmill') {
+    if (agentType === 'n8n') {
         deps.push({
             name: 'Webhook',
             type: 'Integration',
