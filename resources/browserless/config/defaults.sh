@@ -48,7 +48,7 @@ browserless::export_config() {
 
     # Browser configuration (only set if not already defined)
     if [[ -z "${BROWSERLESS_MAX_BROWSERS:-}" ]]; then
-        BROWSERLESS_MAX_BROWSERS="${MAX_BROWSERS:-6}"
+        BROWSERLESS_MAX_BROWSERS="${MAX_BROWSERS:-8}"
         readonly BROWSERLESS_MAX_BROWSERS
         export BROWSERLESS_MAX_BROWSERS
     fi
@@ -88,8 +88,9 @@ browserless::export_config() {
         export BROWSERLESS_WORKER_TIMEOUT
     fi
     if [[ -z "${BROWSERLESS_CHROME_REFRESH_MS:-}" ]]; then
-        # Keep prebooted browsers alive longer (30m) to avoid cold starts mid-test
-        BROWSERLESS_CHROME_REFRESH_MS=1800000
+        # Refresh browsers more frequently (10m) to prevent memory accumulation
+        # Shorter refresh prevents long-running instances from consuming excessive memory
+        BROWSERLESS_CHROME_REFRESH_MS=600000
         readonly BROWSERLESS_CHROME_REFRESH_MS
         export BROWSERLESS_CHROME_REFRESH_MS
     fi
@@ -104,7 +105,10 @@ browserless::export_config() {
         export BROWSERLESS_ENABLE_PREWARM
     fi
     if [[ -z "${BROWSERLESS_PREWARM_COUNT:-}" ]]; then
-        BROWSERLESS_PREWARM_COUNT="${BROWSERLESS_MAX_BROWSERS:-6}"
+        # Reduced from max browsers (8) to 3 to minimize baseline memory pressure
+        # Prewarm provides instant availability but consumes ~500MB per instance
+        # This prevents memory exhaustion while maintaining responsive startup
+        BROWSERLESS_PREWARM_COUNT="3"
         readonly BROWSERLESS_PREWARM_COUNT
         export BROWSERLESS_PREWARM_COUNT
     fi
@@ -177,12 +181,14 @@ browserless::export_config() {
         export BROWSERLESS_DOCKER_SHM_SIZE
     fi
     if [[ -z "${BROWSERLESS_DOCKER_MEMORY:-}" ]]; then
-        BROWSERLESS_DOCKER_MEMORY="2g"
+        # Increased from 4g to 6g to handle concurrent test execution
+        # With 8 max browsers at ~500MB each, 6g provides headroom for Chrome overhead
+        BROWSERLESS_DOCKER_MEMORY="6g"
         readonly BROWSERLESS_DOCKER_MEMORY
         export BROWSERLESS_DOCKER_MEMORY
     fi
     if [[ -z "${BROWSERLESS_DOCKER_CPUS:-}" ]]; then
-        BROWSERLESS_DOCKER_CPUS="2"
+        BROWSERLESS_DOCKER_CPUS="4"
         readonly BROWSERLESS_DOCKER_CPUS
         export BROWSERLESS_DOCKER_CPUS
     fi

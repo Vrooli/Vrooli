@@ -653,30 +653,6 @@ embeddings_process_initialization() {
         fi
     fi
     
-    # Fallback to direct workflow processing
-    if [[ $count -eq 0 ]] && [[ -d "${APP_ROOT}/initialization/n8n" ]]; then
-        log::debug "Using fallback workflow processing"
-        
-        # Process n8n workflows
-        for workflow_file in "${APP_ROOT}/initialization/n8n"/*.json; do
-            if [[ -f "$workflow_file" ]]; then
-                local name=$(jq -r '.name // "Unnamed"' "$workflow_file" 2>/dev/null || echo "Unnamed")
-                local content="N8n workflow: $name - $(jq -r '.description // "No description"' "$workflow_file" 2>/dev/null || echo "")"
-                
-                # Create metadata
-                local metadata=$(jq -n \
-                    --arg name "$name" \
-                    --arg file "$workflow_file" \
-                    '{name: $name, file: $file}')
-                
-                # Process through embedding service
-                if qdrant::embedding::process_item "$content" "workflow" "$collection" "$app_id" "$metadata"; then
-                    ((count++))
-                fi
-            fi
-        done
-    fi
-    
     echo "$count"
 }
 

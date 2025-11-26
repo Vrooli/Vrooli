@@ -15,6 +15,92 @@ source "${SHELL_DIR}/runtime.sh"
 readonly TESTING_UI_SMOKE_EXIT_BROWSERLESS_OFFLINE=50
 readonly TESTING_UI_SMOKE_EXIT_BUNDLE_STALE=60
 
+#######################################
+# Diagnose browserless failure and return contextual error message
+# Returns: JSON with diagnostic information
+#######################################
+testing::ui_smoke::_diagnose_browserless_failure() {
+    local browserless_json="$1"
+
+    # Source browserless status functions
+    local browserless_status_lib="${APP_ROOT}/resources/browserless/lib/status.sh"
+    if [[ ! -f "$browserless_status_lib" ]]; then
+        echo '{"diagnosis": "unknown", "message": "Browserless returned invalid response", "recommendation": "Check browserless logs with: docker logs vrooli-browserless"}'
+        return
+    fi
+
+    # Source required dependencies for status functions
+    source "${APP_ROOT}/resources/browserless/config/defaults.sh"
+    browserless::export_config
+    source "$browserless_status_lib"
+
+    # Get diagnostics
+    local diagnostics
+    if ! diagnostics=$(get_health_diagnostics 2>/dev/null); then
+        echo '{"diagnosis": "unknown", "message": "Browserless returned invalid response", "recommendation": "Check browserless health with: vrooli resource browserless status"}'
+        return
+    fi
+
+    # Check for specific failure modes
+    local mem_pct chrome_crashes status
+    mem_pct=$(echo "$diagnostics" | jq -r '.memory.usage_percent // 0' 2>/dev/null || echo "0")
+    chrome_crashes=$(echo "$diagnostics" | jq -r '.chrome_crashes // 0' 2>/dev/null || echo "0")
+    status=$(echo "$diagnostics" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
+
+    local diagnosis="unknown"
+    local message="Browserless returned invalid response"
+    local recommendation="Check browserless logs with: docker logs vrooli-browserless"
+    local is_browserless_issue="false"
+
+    # High memory pressure (>80%)
+    if (( $(echo "$mem_pct > 80" | bc -l 2>/dev/null || echo "0") )); then
+        diagnosis="memory_exhaustion"
+        message="Browserless memory exhaustion (${mem_pct}% used) - Chrome instances likely crashed"
+        recommendation="Restart browserless: docker restart vrooli-browserless
+  ↳ Then verify: vrooli resource browserless status
+  ↳ If issue persists, the scenario may have memory-intensive UI operations"
+        is_browserless_issue="true"
+
+    # Chrome crashes detected
+    elif [[ "$chrome_crashes" -gt 0 ]]; then
+        diagnosis="chrome_crashes"
+        message="Browserless instability detected - $chrome_crashes Chrome crash(es) in recent logs"
+        recommendation="Restart browserless: docker restart vrooli-browserless
+  ↳ Then verify: vrooli resource browserless status
+  ↳ Then rerun: vrooli scenario ui-smoke ${2:-scenario}"
+        is_browserless_issue="true"
+
+    # Degraded but no specific cause identified
+    elif [[ "$status" != "healthy" ]]; then
+        diagnosis="degraded"
+        message="Browserless health degraded - check diagnostics"
+        recommendation="Check health: vrooli resource browserless status
+  ↳ Review logs: docker logs vrooli-browserless --tail 50
+  ↳ Consider restart: docker restart vrooli-browserless"
+        is_browserless_issue="maybe"
+
+    # Unknown failure - could be scenario issue
+    else
+        diagnosis="unknown"
+        message="Browserless returned invalid response (status appears healthy)"
+        recommendation="This may be a scenario UI issue rather than browserless
+  ↳ Check scenario logs: vrooli scenario logs ${2:-scenario}
+  ↳ Verify UI serves correctly: curl http://localhost:\$UI_PORT
+  ↳ Check browserless: vrooli resource browserless status"
+        is_browserless_issue="false"
+    fi
+
+    cat <<EOF
+{
+  "diagnosis": "$diagnosis",
+  "message": "$message",
+  "recommendation": "$recommendation",
+  "is_browserless_issue": "$is_browserless_issue",
+  "diagnostics": $diagnostics
+}
+EOF
+}
+
 # Run the Browserless-backed UI smoke check
 # Options:
 #   --scenario <name>
@@ -271,11 +357,27 @@ testing::ui_smoke::run() {
         if [[ "$runtime_managed" = true ]]; then
             testing::runtime::cleanup || true
         fi
+
+        # Diagnose the failure - is it browserless or the scenario?
+        local diagnosis_json error_message
+        diagnosis_json=$(testing::ui_smoke::_diagnose_browserless_failure "$browserless_json" "$scenario_name")
+        error_message=$(echo "$diagnosis_json" | jq -r '.message // "Browserless returned invalid response"')
+        local recommendation
+        recommendation=$(echo "$diagnosis_json" | jq -r '.recommendation // ""')
+
+        # Combine message and recommendation for better guidance
+        local full_message="$error_message"
+        if [[ -n "$recommendation" ]]; then
+            full_message="${error_message}
+
+${recommendation}"
+        fi
+
         local invalid_json
         invalid_json=$(testing::ui_smoke::_build_summary_json \
             --scenario "$scenario_name" \
             --status "failed" \
-            --message "Browserless returned invalid response" \
+            --message "$full_message" \
             --scenario-dir "$scenario_dir" \
             --browserless "$browserless_json")
         testing::ui_smoke::_persist_summary "$invalid_json" "$scenario_dir" "$scenario_name"

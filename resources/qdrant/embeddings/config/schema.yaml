@@ -9,12 +9,11 @@ default_dimensions: 1024
 
 # Knowledge source definitions
 knowledge_sources:
-  # N8n workflows
+  # Initialization workflows
   workflows:
-    description: "N8n workflow definitions and automation logic"
+    description: "Workflow definitions and automation logic"
     patterns:
       - "**/initialization/**/*.json"
-      - "**/initialization/n8n/*.json"
       - "**/initialization/automation/**/*.json"
     extractor: workflows
     collection_suffix: workflows
