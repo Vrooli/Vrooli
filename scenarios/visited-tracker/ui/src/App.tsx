@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, useNavigate, useParams, useLocation } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { ToastProvider, useToast } from "./components/ui/toast";
@@ -9,14 +10,11 @@ import { KeyboardShortcutsDialog } from "./components/KeyboardShortcutsDialog";
 import { createCampaign } from "./lib/api";
 import type { CreateCampaignRequest } from "./lib/api";
 
-type View = "list" | "detail";
-
-function AppContent() {
-  const [currentView, setCurrentView] = useState<View>("list");
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+function CampaignListPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
-
+  const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
@@ -25,8 +23,7 @@ function AppContent() {
     onSuccess: (campaign) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       setCreateDialogOpen(false);
-      setSelectedCampaignId(campaign.id);
-      setCurrentView("detail");
+      navigate(`/campaign/${campaign.id}`);
       showToast(`Campaign "${campaign.name}" created successfully`, "success");
     },
     onError: (error) => {
@@ -38,7 +35,7 @@ function AppContent() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // ? to show help modal
-      if (e.key === '?' && currentView === "list") {
+      if (e.key === '?' && location.pathname === '/') {
         const target = e.target as HTMLElement;
         if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
           e.preventDefault();
@@ -49,16 +46,10 @@ function AppContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentView]);
+  }, [location]);
 
   const handleViewCampaign = (id: string) => {
-    setSelectedCampaignId(id);
-    setCurrentView("detail");
-  };
-
-  const handleBackToList = () => {
-    setCurrentView("list");
-    setSelectedCampaignId(null);
+    navigate(`/campaign/${id}`);
   };
 
   const handleCreateCampaign = (data: CreateCampaignRequest) => {
@@ -66,16 +57,12 @@ function AppContent() {
   };
 
   return (
-    <TooltipProvider>
-      {currentView === "list" ? (
-        <CampaignList
-          onViewCampaign={handleViewCampaign}
-          onCreateClick={() => setCreateDialogOpen(true)}
-          onHelpClick={() => setHelpDialogOpen(true)}
-        />
-      ) : selectedCampaignId ? (
-        <CampaignDetail campaignId={selectedCampaignId} onBack={handleBackToList} />
-      ) : null}
+    <>
+      <CampaignList
+        onViewCampaign={handleViewCampaign}
+        onCreateClick={() => setCreateDialogOpen(true)}
+        onHelpClick={() => setHelpDialogOpen(true)}
+      />
 
       <CreateCampaignDialog
         open={createDialogOpen}
@@ -88,14 +75,42 @@ function AppContent() {
         open={helpDialogOpen}
         onOpenChange={setHelpDialogOpen}
       />
+    </>
+  );
+}
+
+function CampaignDetailPage() {
+  const { campaignId } = useParams<{ campaignId: string }>();
+  const navigate = useNavigate();
+
+  const handleBackToList = () => {
+    navigate('/');
+  };
+
+  if (!campaignId) {
+    return null;
+  }
+
+  return <CampaignDetail campaignId={campaignId} onBack={handleBackToList} />;
+}
+
+function AppContent() {
+  return (
+    <TooltipProvider>
+      <Routes>
+        <Route path="/" element={<CampaignListPage />} />
+        <Route path="/campaign/:campaignId" element={<CampaignDetailPage />} />
+      </Routes>
     </TooltipProvider>
   );
 }
 
 export default function App() {
   return (
-    <ToastProvider>
-      <AppContent />
-    </ToastProvider>
+    <BrowserRouter>
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
+    </BrowserRouter>
   );
 }

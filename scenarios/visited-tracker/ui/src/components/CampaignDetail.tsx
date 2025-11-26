@@ -293,16 +293,16 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
                       className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3 hover:bg-orange-500/10 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <FilePathWithCopy path={file.path} className="flex-1 min-w-0" />
+                        <FilePathWithCopy path={file.file_path} className="flex-1 min-w-0" />
                         <div className="flex items-center gap-3 text-xs text-slate-500 whitespace-nowrap">
                           <span className="font-semibold text-orange-400">
                             {file.visit_count}x
                           </span>
                         </div>
                       </div>
-                      {file.notes && file.notes.length > 0 && (
+                      {file.notes && (
                         <div className="mt-2 text-xs text-slate-500 line-clamp-2">
-                          Last note: {file.notes[file.notes.length - 1]}
+                          Note: {file.notes}
                         </div>
                       )}
                     </div>
@@ -336,16 +336,16 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
                       className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 hover:bg-red-500/10 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <FilePathWithCopy path={file.path} className="flex-1 min-w-0" />
+                        <FilePathWithCopy path={file.file_path} className="flex-1 min-w-0" />
                         <div className="flex items-center gap-3 text-xs text-slate-500 whitespace-nowrap">
                           <span className="font-semibold text-red-400">
-                            {file.staleness_score.toFixed(1)}
+                            {file.staleness_score?.toFixed(1) ?? 'N/A'}
                           </span>
                         </div>
                       </div>
-                      {file.notes && file.notes.length > 0 && (
+                      {file.notes && (
                         <div className="mt-2 text-xs text-slate-500 line-clamp-2">
-                          Last note: {file.notes[file.notes.length - 1]}
+                          Note: {file.notes}
                         </div>
                       )}
                     </div>
@@ -387,28 +387,36 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5" />
-              Recent Visits
+              Recently Visited Files
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {campaign.visits && campaign.visits.length > 0 ? (
+            {campaign.tracked_files && campaign.tracked_files.filter(f => f.last_visited && !f.deleted).length > 0 ? (
               <div className="space-y-2">
-                {campaign.visits.slice(0, 20).map((visit, i) => (
+                {campaign.tracked_files
+                  .filter(f => f.last_visited && !f.deleted)
+                  .sort((a, b) => {
+                    const aTime = a.last_visited ? new Date(a.last_visited).getTime() : 0;
+                    const bTime = b.last_visited ? new Date(b.last_visited).getTime() : 0;
+                    return bTime - aTime;
+                  })
+                  .slice(0, 20)
+                  .map((file, i) => (
                   <div
                     key={i}
                     className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] p-3 hover:bg-white/[0.05] gap-2"
                   >
-                    <FilePathWithCopy path={visit.path} className="flex-1 min-w-0" />
+                    <FilePathWithCopy path={file.file_path} className="flex-1 min-w-0" />
                     <div className="flex items-center gap-4 text-xs text-slate-500 flex-wrap">
-                      <span>Visits: {visit.visit_count}</span>
-                      <span>Score: {visit.staleness_score.toFixed(1)}</span>
-                      {visit.last_visited && (
-                        <span>{formatRelativeTime(visit.last_visited)}</span>
+                      <span>Visits: {file.visit_count}</span>
+                      <span>Score: {file.staleness_score?.toFixed(1) ?? 'N/A'}</span>
+                      {file.last_visited && (
+                        <span>{formatRelativeTime(file.last_visited)}</span>
                       )}
                     </div>
-                    {visit.notes && visit.notes.length > 0 && (
+                    {file.notes && (
                       <div className="text-xs text-slate-500 line-clamp-1 sm:max-w-xs">
-                        {visit.notes[visit.notes.length - 1]}
+                        {file.notes}
                       </div>
                     )}
                   </div>

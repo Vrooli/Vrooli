@@ -22,18 +22,33 @@ export interface Campaign {
   updated_at: string;
 }
 
-export interface Visit {
-  path: string;
-  visited_at: string;
-  staleness_score: number;
+export interface TrackedFile {
+  id: string;
+  file_path: string;
+  absolute_path: string;
   visit_count: number;
+  first_seen: string;
   last_visited?: string;
   last_modified: string;
-  notes: string[];
+  staleness_score: number;
+  deleted: boolean;
+  notes?: string;
+  priority_weight?: number;
+  excluded?: boolean;
+}
+
+export interface Visit {
+  id: string;
+  file_id: string;
+  timestamp: string;
+  context?: string;
+  agent?: string;
+  conversation_id?: string;
 }
 
 export interface CampaignDetail extends Campaign {
   visits: Visit[];
+  tracked_files: TrackedFile[];
 }
 
 export interface CreateCampaignRequest {
@@ -132,8 +147,8 @@ export async function recordVisit(campaignId: string, data: RecordVisitRequest):
   }
 }
 
-export async function fetchLeastVisited(campaignId: string, limit: number = 10): Promise<{ files: Visit[] }> {
-  const url = buildApiUrl(`/campaigns/${campaignId}/least-visited?limit=${limit}`, { baseUrl: API_BASE });
+export async function fetchLeastVisited(campaignId: string, limit: number = 10): Promise<{ files: TrackedFile[] }> {
+  const url = buildApiUrl(`/campaigns/${campaignId}/prioritize/least-visited?limit=${limit}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     cache: "no-store"
@@ -146,8 +161,8 @@ export async function fetchLeastVisited(campaignId: string, limit: number = 10):
   return res.json();
 }
 
-export async function fetchMostStale(campaignId: string, limit: number = 10): Promise<{ files: Visit[] }> {
-  const url = buildApiUrl(`/campaigns/${campaignId}/most-stale?limit=${limit}`, { baseUrl: API_BASE });
+export async function fetchMostStale(campaignId: string, limit: number = 10): Promise<{ files: TrackedFile[] }> {
+  const url = buildApiUrl(`/campaigns/${campaignId}/prioritize/most-stale?limit=${limit}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     cache: "no-store"
