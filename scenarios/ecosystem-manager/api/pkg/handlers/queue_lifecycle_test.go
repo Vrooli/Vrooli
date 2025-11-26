@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ecosystem-manager/api/pkg/settings"
+	"github.com/ecosystem-manager/api/pkg/tasks"
 )
 
 func TestQueueHandlersStartStop(t *testing.T) {
@@ -99,5 +100,63 @@ func TestTerminateProcessHandlerNotFound(t *testing.T) {
 
 	if resp.Code != http.StatusNotFound {
 		t.Fatalf("terminate handler status = %d, want %d", resp.Code, http.StatusNotFound)
+	}
+}
+
+func TestTerminateProcessHandlerRespectsAutoRequeueLock(t *testing.T) {
+	settings.ResetSettings()
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	_, queueHandlers, _, _, _ := createTestHandlers(t, tempDir)
+
+	task := tasks.TaskItem{
+		ID:                   "locked-task",
+		Status:               tasks.StatusInProgress,
+		ProcessorAutoRequeue: false, // lock pending moves
+	}
+	mustSaveTask(t, queueHandlers.storage, tasks.StatusInProgress, task)
+
+	body, _ := json.Marshal(map[string]string{"task_id": task.ID})
+	req := httptest.NewRequest(http.MethodPost, "/queue/processes/terminate", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	queueHandlers.TerminateProcessHandler(resp, req)
+
+	if resp.Code != http.StatusConflict {
+		t.Fatalf("terminate handler status = %d, want %d (auto-requeue lock respected)", resp.Code, http.StatusConflict)
+	}
+}
+
+func TestTerminateProcessHandlerAllowsPendingWhenAutoRequeueEnabled(t *testing.T) {
+	settings.ResetSettings()
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	_, queueHandlers, _, _, _ := createTestHandlers(t, tempDir)
+
+	task := tasks.TaskItem{
+		ID:                   "unlocked-task",
+		Status:               tasks.StatusInProgress,
+		ProcessorAutoRequeue: true,
+	}
+	mustSaveTask(t, queueHandlers.storage, tasks.StatusInProgress, task)
+
+	body, _ := json.Marshal(map[string]string{"task_id": task.ID})
+	req := httptest.NewRequest(http.MethodPost, "/queue/processes/terminate", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	queueHandlers.TerminateProcessHandler(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("terminate handler status = %d, want %d", resp.Code, http.StatusOK)
+	}
+
+	updated, status, err := queueHandlers.storage.GetTaskByID(task.ID)
+	if err != nil {
+		t.Fatalf("load task after terminate: %v", err)
+	}
+	if status != tasks.StatusPending || updated.Status != tasks.StatusPending {
+		t.Fatalf("expected task moved to pending, got status %s", status)
 	}
 }

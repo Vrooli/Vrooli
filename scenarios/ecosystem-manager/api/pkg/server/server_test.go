@@ -51,8 +51,17 @@ func setupTestServer(t *testing.T) (http.Handler, string, func()) {
 	broadcast := make(chan any, 1)
 	processor := queue.NewProcessor(storage, assembler, broadcast, recyclerSvc)
 
-	taskHandlers := handlers.NewTaskHandlers(storage, assembler, processor, wsManager, nil)
-	queueHandlers := handlers.NewQueueHandlers(processor, wsManager, storage)
+	coord := &tasks.Coordinator{
+		LC:          &tasks.Lifecycle{Store: storage},
+		Store:       storage,
+		Runtime:     processor,
+		Broadcaster: wsManager,
+	}
+	processor.SetCoordinator(coord)
+	recyclerSvc.SetCoordinator(coord)
+
+	taskHandlers := handlers.NewTaskHandlers(storage, assembler, processor, wsManager, nil, coord)
+	queueHandlers := handlers.NewQueueHandlers(processor, wsManager, storage, coord)
 	discoveryHandlers := handlers.NewDiscoveryHandlers(assembler)
 	healthHandlers := handlers.NewHealthHandlers(processor, recyclerSvc, queueDir, nil, "test-version")
 	settingsHandlers := handlers.NewSettingsHandlers(processor, wsManager, recyclerSvc)

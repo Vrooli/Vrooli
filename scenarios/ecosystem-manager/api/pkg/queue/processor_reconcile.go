@@ -4,8 +4,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
+	"github.com/ecosystem-manager/api/pkg/tasks"
 )
 
 // initialInProgressReconcile reconciles stale in-progress tasks left from previous runs
@@ -34,6 +34,8 @@ func (qp *Processor) reconcileInProgressTasks(externalActive, internalRunning ma
 		log.Printf("Error checking in-progress tasks: %v", err)
 		return moved
 	}
+
+	lc := tasks.Lifecycle{Store: qp.storage}
 
 	for _, task := range inProgressTasks {
 		// Defensive: Skip tasks with invalid IDs (protects against storage corruption)
@@ -156,29 +158,29 @@ func (qp *Processor) reconcileInProgressTasks(externalActive, internalRunning ma
 			log.Printf("Warning: failed to stop agent %s during reconciliation: %v", agentTag, err)
 		}
 		systemlog.Warnf("Detected orphan in-progress task %s; relocating to pending", task.ID)
-		if _, _, err := qp.storage.MoveTaskTo(task.ID, "pending"); err != nil {
+
+		outcome, err := lc.ApplyTransition(tasks.TransitionRequest{
+			TaskID:   task.ID,
+			ToStatus: tasks.StatusPending,
+			TransitionContext: tasks.TransitionContext{
+				Manual:        true,
+				ForceOverride: true, // reconcile should not be blocked by auto-requeue locks
+				Now:           time.Now,
+			},
+		})
+		if err != nil {
 			log.Printf("Failed to move orphan task %s back to pending: %v", task.ID, err)
 			systemlog.Errorf("Failed to move orphan task %s back to pending: %v", task.ID, err)
 			continue
 		}
 
-		task.Status = "pending"
-		task.CurrentPhase = ""
-		task.StartedAt = ""
-		task.CompletedAt = ""
-		task.Results = nil
-		task.UpdatedAt = timeutil.NowRFC3339()
-		// Use SkipCleanup since MoveTaskTo already cleaned up duplicates
-		if err := qp.storage.SaveQueueItemSkipCleanup(task, "pending"); err != nil {
-			log.Printf("Failed to persist orphan task %s after move: %v", task.ID, err)
-		} else {
-			qp.broadcastUpdate("task_status_changed", map[string]any{
-				"task_id":    task.ID,
-				"old_status": "in-progress",
-				"new_status": "pending",
-				"task":       task,
-			})
-		}
+		task = *outcome.Task
+		qp.broadcastUpdate("task_status_changed", map[string]any{
+			"task_id":    task.ID,
+			"old_status": outcome.From,
+			"new_status": tasks.StatusPending,
+			"task":       task,
+		})
 
 		// Clear any cached logs for this run since it will be retried
 		qp.ResetTaskLogs(task.ID)

@@ -37,6 +37,7 @@ const (
 type Recycler struct {
 	storage   *tasks.Storage
 	wsManager *websocket.Manager
+	lifecycle *tasks.Lifecycle
 
 	mu              sync.Mutex
 	stopCh          chan struct{}
@@ -47,6 +48,8 @@ type Recycler struct {
 	cooldownTimers  map[string]struct{}
 	active          bool
 	sweepOnly       bool
+	useLifecycle    bool
+	coordinator     *tasks.Coordinator
 
 	processCompleted func(*tasks.TaskItem, settings.RecyclerSettings) error
 	processFailed    func(*tasks.TaskItem, settings.RecyclerSettings) error
@@ -60,8 +63,20 @@ type Recycler struct {
 // New creates a recycler instance.
 func New(storage *tasks.Storage, wsManager *websocket.Manager) *Recycler {
 	return &Recycler{
-		storage:   storage,
-		wsManager: wsManager,
+		storage:      storage,
+		wsManager:    wsManager,
+		lifecycle:    &tasks.Lifecycle{Store: storage},
+		useLifecycle: true,
+	}
+}
+
+// SetCoordinator wires a centralized transition coordinator for lifecycle enforcement and side effects.
+func (r *Recycler) SetCoordinator(coord *tasks.Coordinator) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.coordinator = coord
+	if coord != nil && coord.LC != nil {
+		r.lifecycle = coord.LC
 	}
 }
 
@@ -70,6 +85,21 @@ func (r *Recycler) SetWakeFunc(fn func()) {
 	r.mu.Lock()
 	r.wake = fn
 	r.mu.Unlock()
+}
+
+// wakeProcessor notifies the processor via direct callback and runtime (if coordinator wired).
+func (r *Recycler) wakeProcessor(taskID string) {
+	r.mu.Lock()
+	wake := r.wake
+	coord := r.coordinator
+	r.mu.Unlock()
+
+	if coord != nil && coord.Runtime != nil {
+		coord.Runtime.Wake()
+	}
+	if wake != nil {
+		wake()
+	}
 }
 
 // Start launches the background loop if not already running.
@@ -246,30 +276,7 @@ func (r *Recycler) processOnce() error {
 				continue
 			}
 
-			task, status, err := r.storage.GetTaskByID(candidate.ID)
-			if err != nil {
-				log.Printf("Recycler could not load task %s: %v", candidate.ID, err)
-				continue
-			}
-			if status != bucket {
-				continue
-			}
-			if remaining := cooldownRemaining(task); remaining > 0 {
-				r.scheduleAfterCooldown(task.ID, remaining)
-				continue
-			}
-
-			// Process the task and continue to next one (don't return early)
-			// This allows recycler to process multiple tasks per interval instead of just one
-			if bucket == "completed" {
-				if err := r.processCompletedTask(task, cfg); err != nil {
-					log.Printf("Recycler failed to process completed task %s: %v", candidate.ID, err)
-				}
-			} else {
-				if err := r.processFailedTask(task, cfg); err != nil {
-					log.Printf("Recycler failed to process failed task %s: %v", candidate.ID, err)
-				}
-			}
+			r.handleWork(candidate.ID)
 		}
 	}
 
@@ -326,6 +333,45 @@ func (r *Recycler) handleWork(taskID string) {
 	}
 
 	atomic.AddUint64(&r.stats.Processed, 1)
+
+	// Use lifecycle/coordinator to perform the recycle move when using default processors; allow tests to override processor funcs.
+	if r.useLifecycle && r.coordinator != nil {
+		outcomeTask, _, err := r.coordinator.ApplyTransition(tasks.TransitionRequest{
+			TaskID:   taskID,
+			ToStatus: tasks.StatusPending,
+			TransitionContext: tasks.TransitionContext{
+				Manual: false,
+			},
+		}, tasks.ApplyOptions{
+			BroadcastEvent: "task_recycled",
+			ForceResave:    true,
+		})
+		if err != nil {
+			r.handleProcessingError(taskID, err)
+			return
+		}
+		task = outcomeTask
+		r.resetFailures(taskID)
+		r.wakeProcessor(taskID)
+		return
+	} else if r.useLifecycle && r.lifecycle != nil {
+		outcome, err := r.lifecycle.ApplyTransition(tasks.TransitionRequest{
+			TaskID:   taskID,
+			ToStatus: tasks.StatusPending,
+			TransitionContext: tasks.TransitionContext{
+				Manual: false,
+			},
+		})
+		if err != nil {
+			r.handleProcessingError(taskID, err)
+			return
+		}
+		task = outcome.Task
+		r.broadcast(task, "task_recycled")
+		r.resetFailures(taskID)
+		r.wakeProcessor(taskID)
+		return
+	}
 
 	if status == "completed" {
 		if err := r.processCompleted(task, cfg); err != nil {
@@ -672,6 +718,9 @@ func (r *Recycler) persistTask(task *tasks.TaskItem, targetStatus string) error 
 }
 
 func (r *Recycler) broadcast(task *tasks.TaskItem, event string) {
+	if r == nil || r.wsManager == nil || task == nil {
+		return
+	}
 	r.wsManager.BroadcastUpdate(event, map[string]any{
 		"task_id": task.ID,
 		"task":    task,

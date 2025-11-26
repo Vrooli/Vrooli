@@ -365,6 +365,9 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 
 		// Only broadcast after successful finalization
 		qp.broadcastUpdate("task_completed", task)
+		if qp.recycler != nil && task.ProcessorAutoRequeue {
+			qp.recycler.Enqueue(task.ID)
+		}
 
 		// Finalization succeeded, safe to unregister and cleanup
 		// Agent should have exited naturally, but cleanup() handles already-terminated processes safely

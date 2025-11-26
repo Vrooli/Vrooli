@@ -15,7 +15,6 @@ import (
 	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
-	"github.com/ecosystem-manager/api/pkg/settings"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
@@ -35,9 +34,11 @@ const (
 type TaskHandlers struct {
 	storage           *tasks.Storage
 	assembler         *prompts.Assembler
-	processor         *queue.Processor
+	processor         ProcessorAPI
 	wsManager         *websocket.Manager
 	autoSteerProfiles *autosteer.ProfileService
+	coordinator       *tasks.Coordinator
+	lifecycle         *tasks.Lifecycle
 }
 
 // taskWithRuntime decorates a task with live execution metadata without mutating persisted files.
@@ -255,13 +256,28 @@ func operationDisplayName(operation string) string {
 }
 
 // NewTaskHandlers creates a new task handlers instance
-func NewTaskHandlers(storage *tasks.Storage, assembler *prompts.Assembler, processor *queue.Processor, wsManager *websocket.Manager, autoSteerProfiles *autosteer.ProfileService) *TaskHandlers {
+func NewTaskHandlers(storage *tasks.Storage, assembler *prompts.Assembler, processor ProcessorAPI, wsManager *websocket.Manager, autoSteerProfiles *autosteer.ProfileService, coordinator *tasks.Coordinator) *TaskHandlers {
+	lc := &tasks.Lifecycle{Store: storage}
+	if coordinator != nil && coordinator.LC != nil {
+		lc = coordinator.LC
+	}
+	coord := coordinator
+	if coord == nil {
+		coord = &tasks.Coordinator{
+			LC:          lc,
+			Store:       storage,
+			Runtime:     processor,
+			Broadcaster: wsManager,
+		}
+	}
 	return &TaskHandlers{
 		storage:           storage,
 		assembler:         assembler,
 		processor:         processor,
 		wsManager:         wsManager,
 		autoSteerProfiles: autoSteerProfiles,
+		coordinator:       coord,
+		lifecycle:         lc,
 	}
 }
 
@@ -365,117 +381,26 @@ func preserveUnsetFields(updated, current *tasks.TaskItem, preserveSteerMode boo
 	}
 }
 
-// isBackwardsTransition checks if a status change represents a backwards transition
-// (moving from a terminal state back to an active state for re-execution)
-func isBackwardsTransition(fromStatus, toStatus string) bool {
-	terminalStatuses := map[string]bool{"completed": true, "failed": true}
-	activeStatuses := map[string]bool{"pending": true, "in-progress": true}
-	return terminalStatuses[fromStatus] && activeStatuses[toStatus]
-}
-
-// clearTaskExecutionData resets task fields for fresh execution after a backwards transition
-func clearTaskExecutionData(task *tasks.TaskItem, taskID, fromStatus, toStatus string) {
-	systemlog.Infof("Task %s moved backwards from %s to %s - clearing execution data", taskID, fromStatus, toStatus)
-	task.Results = nil
-	task.StartedAt = ""
-	task.CompletedAt = ""
-	task.CurrentPhase = ""
-	task.CooldownUntil = ""
-}
-
-// applyStatusTransitionLogic handles status change logic including timestamps, completion counts,
-// backwards transitions, and process termination. Returns the updated timestamp string.
-func (h *TaskHandlers) applyStatusTransitionLogic(task *tasks.TaskItem, taskID, currentStatus, newStatus string) (string, error) {
-	now := timeutil.NowRFC3339()
-
-	// Handle backwards status transitions (completed/failed -> pending/in-progress)
-	backwards := isBackwardsTransition(currentStatus, newStatus)
-	if backwards {
-		clearTaskExecutionData(task, taskID, currentStatus, newStatus)
-	} else {
-		// Normal transitions - preserve existing data if not explicitly cleared
-		// (Frontend can clear by sending empty values in the update)
+// applyUserEditableFields copies non-status user-editable fields from src into dst.
+func applyUserEditableFields(dst *tasks.TaskItem, src tasks.TaskItem, notesProvided bool) {
+	dst.Title = src.Title
+	dst.Priority = src.Priority
+	dst.Category = src.Category
+	dst.EffortEstimate = src.EffortEstimate
+	dst.Urgency = src.Urgency
+	dst.Dependencies = src.Dependencies
+	dst.Blocks = src.Blocks
+	dst.RelatedScenarios = src.RelatedScenarios
+	dst.RelatedResources = src.RelatedResources
+	dst.ValidationCriteria = src.ValidationCriteria
+	dst.Target = src.Target
+	dst.Targets = src.Targets
+	dst.Tags = src.Tags
+	dst.SteerMode = src.SteerMode
+	dst.AutoSteerProfileID = src.AutoSteerProfileID
+	if notesProvided {
+		dst.Notes = src.Notes
 	}
-
-	// Set status-specific timestamps and state
-	if newStatus == "in-progress" {
-		task.StartedAt = now
-	}
-
-	if newStatus == "completed" {
-		if task.CompletionCount <= 0 || backwards {
-			task.CompletionCount = 1
-		} else {
-			task.CompletionCount++
-		}
-		if task.CompletedAt == "" {
-			task.CompletedAt = now
-		}
-		task.LastCompletedAt = task.CompletedAt
-	}
-
-	if newStatus == "failed" && task.CompletedAt == "" {
-		task.CompletedAt = now
-	}
-
-	if newStatus == "completed" || newStatus == "failed" {
-		if task.ProcessorAutoRequeue {
-			cooldownSeconds := settings.GetSettings().CooldownSeconds
-			if cooldownSeconds > 0 {
-				task.CooldownUntil = time.Now().Add(time.Duration(cooldownSeconds) * time.Second).Format(time.RFC3339)
-			} else {
-				task.CooldownUntil = ""
-			}
-		} else {
-			task.CooldownUntil = ""
-		}
-	}
-
-	if newStatus == "archived" {
-		if strings.TrimSpace(task.CurrentPhase) == "" {
-			task.CurrentPhase = "archived"
-		}
-		task.ProcessorAutoRequeue = false
-	}
-
-	if newStatus == "pending" {
-		task.ConsecutiveCompletionClaims = 0
-		task.ConsecutiveFailures = 0
-		// Do not override an explicit disable. Respect the caller's setting.
-		if !task.ProcessorAutoRequeue {
-			systemlog.Debugf("Task %s pending transition: auto-requeue remains disabled", taskID)
-		} else {
-			task.ProcessorAutoRequeue = true
-		}
-		task.CooldownUntil = ""
-	}
-
-	if newStatus == "completed-finalized" {
-		task.ProcessorAutoRequeue = false
-	}
-
-	if newStatus == "failed-blocked" {
-		task.ProcessorAutoRequeue = false
-	}
-
-	// CRITICAL: If task is moved OUT of in-progress, terminate any running process
-	if currentStatus == "in-progress" && newStatus != "in-progress" {
-		if err := h.processor.TerminateRunningProcess(taskID); err != nil {
-			systemlog.Warnf("Failed to terminate process for task %s: %v", taskID, err)
-		} else {
-			systemlog.Infof("Successfully terminated process for task %s (moved from in-progress to %s)", taskID, newStatus)
-			// Update task to reflect cancellation
-			cancelTime := timeutil.NowRFC3339()
-			task.Results = map[string]any{
-				"success":      false,
-				"error":        fmt.Sprintf("Task execution was cancelled (moved to %s)", newStatus),
-				"cancelled_at": cancelTime,
-			}
-			task.CurrentPhase = "cancelled"
-		}
-	}
-
-	return now, nil
 }
 
 func parseTaskSortParam(raw string) taskSort {
@@ -852,6 +777,15 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		updatedTask.Status = currentStatus
 	}
 
+	// Auto-requeue lock: do not allow moving into pending while auto-requeue is disabled.
+	if newStatus == "pending" && newStatus != currentStatus && !updatedTask.ProcessorAutoRequeue {
+		// Only exception: leaving a terminal state will re-enable auto-requeue inside lifecycle.
+		if currentStatus != "completed" && currentStatus != "failed" && currentStatus != "failed-blocked" && currentStatus != "completed-finalized" && currentStatus != "archived" {
+			writeError(w, "Auto-requeue is disabled; enable it before moving task to pending", http.StatusConflict)
+			return
+		}
+	}
+
 	if updatedTask.Operation == "improver" && len(updatedTask.Targets) == 1 {
 		existing, status, lookupErr := h.storage.FindActiveTargetTask(updatedTask.Type, updatedTask.Operation, updatedTask.Targets[0])
 		if lookupErr != nil {
@@ -865,96 +799,37 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// Handle status transitions using consolidated logic
-	backwards := isBackwardsTransition(currentStatus, newStatus)
+	// Route transitions through coordinator for consistency and centralized side effects.
+	ctx := tasks.TransitionContext{Manual: true}
 
-	// Debug logging
-	systemlog.Debugf("Task %s status transition: '%s' -> '%s' (backwards: %v)",
-		taskID, currentStatus, newStatus, backwards)
-	systemlog.Debugf("Task %s incoming data - has results: %v, status: '%s'",
-		taskID, updatedTask.Results != nil, updatedTask.Status)
-
-	// Preserve existing data if not explicitly provided by frontend
-	if !backwards {
-		if updatedTask.StartedAt == "" {
-			updatedTask.StartedAt = currentTask.StartedAt
-		}
-		if updatedTask.CompletedAt == "" {
-			updatedTask.CompletedAt = currentTask.CompletedAt
-		}
-		if updatedTask.LastCompletedAt == "" {
-			updatedTask.LastCompletedAt = currentTask.LastCompletedAt
-		}
-		// IMPORTANT: Don't preserve results if moving to active state
-		if updatedTask.Results == nil && currentTask.Results != nil {
-			if newStatus == "pending" || newStatus == "in-progress" {
-				systemlog.Debugf("Task %s: Not preserving results when moving to %s", taskID, newStatus)
-			} else {
-				updatedTask.Results = currentTask.Results
-			}
-		}
+	updated, outcome, err := h.coordinator.ApplyTransition(tasks.TransitionRequest{
+		TaskID:            taskID,
+		ToStatus:          newStatus,
+		TransitionContext: ctx,
+	}, tasks.ApplyOptions{
+		Mutate: func(t *tasks.TaskItem) {
+			applyUserEditableFields(t, updatedTask, notesProvided)
+			t.Title = deriveTaskTitle("", t.Operation, t.Type, t.Target)
+		},
+		BroadcastEvent: "task_updated",
+		ForceResave:    true,
+	})
+	if err != nil {
+		writeError(w, fmt.Sprintf("Failed to apply status transition: %v", err), http.StatusInternalServerError)
+		return
 	}
 
-	// Apply status transition logic
-	if newStatus != currentStatus {
-		updatedTask.CompletionCount = currentTask.CompletionCount // Preserve for increment logic
-		now, err := h.applyStatusTransitionLogic(&updatedTask, taskID, currentStatus, newStatus)
-		if err != nil {
-			writeError(w, fmt.Sprintf("Failed to apply status transition: %v", err), http.StatusInternalServerError)
-			return
-		}
-		updatedTask.UpdatedAt = now
-	} else {
-		// Just update timestamp
-		updatedTask.UpdatedAt = timeutil.NowRFC3339()
+	// Defensive: ensure outcome not nil
+	if outcome == nil || updated == nil {
+		writeError(w, "Failed to apply status transition", http.StatusInternalServerError)
+		return
 	}
-
-	// If the Auto Steer profile changed, clear any existing Auto Steer execution state and reset iteration counter.
-	autoSteerChanged := strings.TrimSpace(updatedTask.AutoSteerProfileID) != strings.TrimSpace(currentTask.AutoSteerProfileID)
-	if autoSteerChanged && h.processor != nil {
-		if integration := h.processor.AutoSteerIntegration(); integration != nil {
-			if engine := integration.ExecutionEngine(); engine != nil {
-				if err := engine.DeleteExecutionState(taskID); err != nil {
-					systemlog.Warnf("Failed to reset Auto Steer state for task %s after profile change: %v", taskID, err)
-				} else {
-					systemlog.Infof("Reset Auto Steer state for task %s due to profile change", taskID)
-				}
-			}
-		}
-	}
-
-	updatedTask.Title = deriveTaskTitle("", updatedTask.Operation, updatedTask.Type, updatedTask.Target)
-
-	// Save updated task
-	if newStatus != currentStatus {
-		// Move the task file to the new status directory
-		if err := h.storage.MoveTask(taskID, currentStatus, newStatus); err != nil {
-			systemlog.Errorf("Failed to move task %s from %s to %s via MoveTask: %v", taskID, currentStatus, newStatus, err)
-			writeError(w, fmt.Sprintf("Failed to move task: %v", err), http.StatusInternalServerError)
-			return
-		}
-		// CRITICAL: Save the updated task with all field changes to the new location
-		// Do NOT reload from disk as that would discard all the field updates we just applied
-		if err := h.storage.SaveQueueItem(updatedTask, newStatus); err != nil {
-			systemlog.Errorf("Failed to save updated task %s after move to %s: %v", taskID, newStatus, err)
-			writeError(w, fmt.Sprintf("Error saving updated task: %v", err), http.StatusInternalServerError)
-			return
-		}
-	} else {
-		if err := h.storage.SaveQueueItem(updatedTask, currentStatus); err != nil {
-			writeError(w, fmt.Sprintf("Error saving updated task: %v", err), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// Broadcast the update via WebSocket
-	h.wsManager.BroadcastUpdate("task_updated", updatedTask)
 
 	systemlog.Infof("Task %s updated successfully", taskID)
 
 	writeJSON(w, map[string]any{
 		"success": true,
-		"task":    updatedTask,
+		"task":    updated,
 	}, http.StatusOK)
 }
 
@@ -1008,45 +883,38 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Update task fields
-	if update.Status != "" && update.Status != currentStatus {
-		task.Status = update.Status
+	targetStatus := update.Status
+	if targetStatus == "" {
+		targetStatus = currentStatus
+	}
 
-		// Apply consolidated status transition logic
-		now, err := h.applyStatusTransitionLogic(task, task.ID, currentStatus, update.Status)
-		if err != nil {
-			writeError(w, fmt.Sprintf("Failed to apply status transition: %v", err), http.StatusInternalServerError)
-			return
-		}
-		task.UpdatedAt = now
-
-		// Move task to new status if needed
-		if update.Status != currentStatus {
-			if err := h.storage.MoveTask(taskID, currentStatus, update.Status); err != nil {
-				writeError(w, fmt.Sprintf("Failed to move task: %v", err), http.StatusInternalServerError)
-				return
+	updated, outcome, err := h.coordinator.ApplyTransition(tasks.TransitionRequest{
+		TaskID:   taskID,
+		ToStatus: targetStatus,
+		TransitionContext: tasks.TransitionContext{
+			Manual: true,
+		},
+	}, tasks.ApplyOptions{
+		Mutate: func(t *tasks.TaskItem) {
+			if update.CurrentPhase != "" {
+				t.CurrentPhase = update.CurrentPhase
 			}
-		}
+			if targetStatus == tasks.StatusPending && currentStatus != tasks.StatusPending {
+				t.Results = nil
+				t.CurrentPhase = ""
+			}
+		},
+		BroadcastEvent: "task_status_updated",
+		ForceResave:    true,
+	})
+	if err != nil {
+		writeError(w, fmt.Sprintf("Failed to apply status transition: %v", err), http.StatusInternalServerError)
+		return
 	}
-
-	if update.CurrentPhase != "" {
-		task.CurrentPhase = update.CurrentPhase
-	}
-
-	task.UpdatedAt = timeutil.NowRFC3339()
-
-	// Save updated task
-	if err := h.storage.SaveQueueItem(*task, task.Status); err != nil {
-		writeError(w, fmt.Sprintf("Failed to save task: %v", err), http.StatusInternalServerError)
+	if outcome == nil || updated == nil {
+		writeError(w, "Failed to apply status transition", http.StatusInternalServerError)
 		return
 	}
 
-	// Broadcast the update via WebSocket
-	h.wsManager.BroadcastUpdate("task_status_updated", *task)
-
-	if h.processor != nil && (task.Status == "pending" || currentStatus == "in-progress") {
-		h.processor.Wake()
-	}
-
-	writeJSON(w, *task, http.StatusOK)
+	writeJSON(w, *updated, http.StatusOK)
 }

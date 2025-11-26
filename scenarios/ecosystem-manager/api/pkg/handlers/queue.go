@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -18,14 +19,16 @@ type QueueHandlers struct {
 	processor *queue.Processor
 	wsManager *websocket.Manager
 	storage   *tasks.Storage
+	coord     *tasks.Coordinator
 }
 
 // NewQueueHandlers creates a new queue handlers instance
-func NewQueueHandlers(processor *queue.Processor, wsManager *websocket.Manager, storage *tasks.Storage) *QueueHandlers {
+func NewQueueHandlers(processor *queue.Processor, wsManager *websocket.Manager, storage *tasks.Storage, coord *tasks.Coordinator) *QueueHandlers {
 	return &QueueHandlers{
 		processor: processor,
 		wsManager: wsManager,
 		storage:   storage,
+		coord:     coord,
 	}
 }
 
@@ -166,46 +169,78 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	err := h.processor.TerminateRunningProcess(request.TaskID)
-	if err != nil {
-		writeError(w, err.Error(), http.StatusNotFound)
+	task, _, err := h.storage.GetTaskByID(request.TaskID)
+	if err != nil || task == nil {
+		writeError(w, "Task not found", http.StatusNotFound)
 		return
 	}
 
-	// Find the task and move it back to pending with cleared state
-	task, currentStatus, err := h.storage.GetTaskByID(request.TaskID)
-	if err == nil && task != nil && currentStatus == "in-progress" {
-		// Clear execution state and move to pending
-		task.Status = "pending"
-		task.CurrentPhase = ""
-		task.StartedAt = ""
-		task.Results = nil
+	if err := h.processor.TerminateRunningProcess(request.TaskID); err != nil {
+		systemlog.Warnf("TerminateRunningProcess: %v (continuing lifecycle move)", err)
+	}
 
-		// Move task from in-progress to pending
-		if err := h.storage.MoveTask(request.TaskID, "in-progress", "pending"); err != nil {
-			log.Printf("Warning: Failed to move cancelled task %s to pending: %v", request.TaskID, err)
-		} else {
-			// Save the updated task with cleared state
-			if err := h.storage.SaveQueueItem(*task, "pending"); err != nil {
-				log.Printf("Warning: Failed to update cancelled task %s state: %v", request.TaskID, err)
-			}
-			// Reset any cached logs so future runs start clean
-			h.processor.ResetTaskLogs(request.TaskID)
-
-			// Broadcast task status change for UI update
+	var outcome *tasks.TransitionOutcome
+	if h.coord != nil {
+		var err error
+		task, outcome, err = h.coord.ApplyTransition(tasks.TransitionRequest{
+			TaskID:   request.TaskID,
+			ToStatus: tasks.StatusPending,
+			TransitionContext: tasks.TransitionContext{
+				Manual: true,
+			},
+		}, tasks.ApplyOptions{
+			BroadcastEvent: "task_status_changed",
+			ForceResave:    true,
+		})
+		if err != nil {
+			writeError(w, fmt.Sprintf("Failed to move task to pending: %v", err), http.StatusConflict)
+			return
+		}
+	} else {
+		// Fallback to direct lifecycle if coordinator unavailable (should not happen in normal flow).
+		lc := tasks.Lifecycle{Store: h.storage}
+		var err error
+		outcome, err = lc.ApplyTransition(tasks.TransitionRequest{
+			TaskID:   request.TaskID,
+			ToStatus: tasks.StatusPending,
+			TransitionContext: tasks.TransitionContext{
+				Manual:        true,
+				ForceOverride: true,
+			},
+		})
+		if err != nil {
+			writeError(w, fmt.Sprintf("Failed to move task to pending: %v", err), http.StatusConflict)
+			return
+		}
+		task = outcome.Task
+		if h.wsManager != nil {
 			h.wsManager.BroadcastUpdate("task_status_changed", map[string]any{
 				"task_id":    request.TaskID,
-				"old_status": "in-progress",
-				"new_status": "pending",
+				"old_status": outcome.From,
+				"new_status": tasks.StatusPending,
 				"task":       task,
 			})
-
-			log.Printf("Cancelled task %s moved back to pending", request.TaskID)
-
-			if h.processor != nil {
+		}
+		if h.processor != nil && outcome != nil {
+			if outcome.Effects.TerminateProcess {
+				if err := h.processor.TerminateRunningProcess(request.TaskID); err != nil {
+					systemlog.Warnf("Failed to terminate process for task %s after lifecycle transition: %v", request.TaskID, err)
+				}
+			}
+			h.processor.ResetTaskLogs(request.TaskID)
+			if outcome.Effects.StartIfSlotAvailable {
+				if err := h.processor.StartTaskIfSlotAvailable(request.TaskID); err != nil {
+					systemlog.Warnf("Failed to opportunistically restart task %s after termination: %v", request.TaskID, err)
+				}
+			}
+			if outcome.Effects.WakeProcessorAfterSave {
 				h.processor.Wake()
 			}
 		}
+	}
+
+	if h.processor != nil {
+		h.processor.ResetTaskLogs(request.TaskID)
 	}
 
 	// Broadcast termination event

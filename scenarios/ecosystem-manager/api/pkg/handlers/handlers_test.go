@@ -115,8 +115,16 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 	wsManager := websocket.NewManager()
 	testRecycler := &recycler.Recycler{}
 
-	taskHandlers := NewTaskHandlers(storage, assembler, processor, wsManager, nil)
-	queueHandlers := NewQueueHandlers(processor, wsManager, storage)
+	coord := &tasks.Coordinator{
+		LC:          &tasks.Lifecycle{Store: storage},
+		Store:       storage,
+		Runtime:     processor,
+		Broadcaster: wsManager,
+	}
+	testRecycler.SetCoordinator(coord)
+
+	taskHandlers := NewTaskHandlers(storage, assembler, processor, wsManager, nil, coord)
+	queueHandlers := NewQueueHandlers(processor, wsManager, storage, coord)
 	healthHandlers := NewHealthHandlers(processor, nil, queueDir, nil, "test-version")
 	discoveryHandlers := NewDiscoveryHandlers(assembler)
 	settingsHandlers := NewSettingsHandlers(processor, wsManager, testRecycler)
@@ -145,6 +153,64 @@ func mustSaveTask(t *testing.T, storage *tasks.Storage, status string, task task
 		t.Fatalf("Failed to save task %s: %v", task.ID, err)
 	}
 	return task
+}
+
+type fakeProcessor struct {
+	terminateCalled        int
+	forceStartCalled       int
+	startIfSlotCalled      int
+	wakeCalled             int
+	lastForceStartID       string
+	lastTerminateID        string
+	lastStartIfSlotID      string
+	lastForceStartOverflow bool
+}
+
+func (f *fakeProcessor) TerminateRunningProcess(taskID string) error {
+	f.terminateCalled++
+	f.lastTerminateID = taskID
+	return nil
+}
+
+func (f *fakeProcessor) ForceStartTask(taskID string, allowOverflow bool) error {
+	f.forceStartCalled++
+	f.lastForceStartID = taskID
+	f.lastForceStartOverflow = allowOverflow
+	return nil
+}
+
+func (f *fakeProcessor) StartTaskIfSlotAvailable(taskID string) error {
+	f.startIfSlotCalled++
+	f.lastStartIfSlotID = taskID
+	return nil
+}
+
+func (f *fakeProcessor) Wake() {
+	f.wakeCalled++
+}
+
+func (f *fakeProcessor) GetRunningProcessesInfo() []queue.ProcessInfo {
+	return nil
+}
+
+func (f *fakeProcessor) AutoSteerIntegration() *queue.AutoSteerIntegration {
+	return nil
+}
+
+func (f *fakeProcessor) GetTaskLogs(taskID string, afterSeq int64) ([]queue.LogEntry, int64, bool, string, bool, int) {
+	return nil, 0, false, "", false, 0
+}
+
+func (f *fakeProcessor) LoadExecutionHistory(taskID string) ([]queue.ExecutionHistory, error) {
+	return nil, nil
+}
+
+func (f *fakeProcessor) LoadAllExecutionHistory() ([]queue.ExecutionHistory, error) {
+	return nil, nil
+}
+
+func (f *fakeProcessor) GetExecutionFilePath(taskID, executionID, filename string) string {
+	return ""
 }
 
 // TestHealthCheckHandler tests the health check endpoint
@@ -643,7 +709,16 @@ func TestTaskHandlers_UpdateTaskStatus_BackwardsTransition(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
-	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+	queueDir := filepath.Join(tempDir, "queue")
+	promptsDir := filepath.Join(tempDir, "prompts")
+	storage := tasks.NewStorage(queueDir)
+	assembler, err := prompts.NewAssembler(promptsDir, tempDir)
+	if err != nil {
+		t.Fatalf("Failed to create assembler: %v", err)
+	}
+	fp := &fakeProcessor{}
+	wsManager := websocket.NewManager()
+	taskHandlers := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil)
 
 	completed := mustSaveTask(t, taskHandlers.storage, "completed", tasks.TaskItem{
 		ID:        "status-task",
@@ -714,5 +789,111 @@ func TestTaskHandlers_DeleteTask(t *testing.T) {
 
 	if _, _, err := taskHandlers.storage.GetTaskByID(task.ID); err == nil {
 		t.Fatalf("expected task %s to be deleted", task.ID)
+	}
+}
+
+func TestUpdateTaskHandler_ActiveToPendingTriggersProcessStopsAndWake(t *testing.T) {
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	queueDir := filepath.Join(tempDir, "queue")
+	promptsDir := filepath.Join(tempDir, "prompts")
+	storage := tasks.NewStorage(queueDir)
+	assembler, err := prompts.NewAssembler(promptsDir, tempDir)
+	if err != nil {
+		t.Fatalf("assembler: %v", err)
+	}
+	fp := &fakeProcessor{}
+	wsManager := websocket.NewManager()
+	handler := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil)
+
+	task := mustSaveTask(t, storage, "in-progress", tasks.TaskItem{
+		ID:                   "active-task",
+		Type:                 "resource",
+		Operation:            "generator",
+		ProcessorAutoRequeue: true,
+		Status:               "in-progress",
+	})
+
+	body := map[string]any{
+		"status":                 "pending",
+		"processor_auto_requeue": true,
+	}
+	bodyBytes, _ := json.Marshal(body)
+	req := httptest.NewRequest("PUT", "/api/tasks/active-task", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": task.ID})
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.UpdateTaskHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	if fp.terminateCalled != 1 {
+		t.Fatalf("expected terminate called once, got %d", fp.terminateCalled)
+	}
+	if fp.lastTerminateID != task.ID {
+		t.Fatalf("terminate called with wrong id: %s", fp.lastTerminateID)
+	}
+	if fp.startIfSlotCalled != 1 {
+		t.Fatalf("expected start-if-slot called once, got %d", fp.startIfSlotCalled)
+	}
+	if fp.wakeCalled == 0 {
+		t.Fatalf("expected wake called")
+	}
+	if fp.forceStartCalled != 0 {
+		t.Fatalf("expected no force start for pending move, got %d", fp.forceStartCalled)
+	}
+}
+
+func TestUpdateTaskHandler_PendingToActiveTriggersForceStart(t *testing.T) {
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	queueDir := filepath.Join(tempDir, "queue")
+	promptsDir := filepath.Join(tempDir, "prompts")
+	storage := tasks.NewStorage(queueDir)
+	assembler, err := prompts.NewAssembler(promptsDir, tempDir)
+	if err != nil {
+		t.Fatalf("assembler: %v", err)
+	}
+	fp := &fakeProcessor{}
+	wsManager := websocket.NewManager()
+	handler := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil)
+
+	task := mustSaveTask(t, storage, "pending", tasks.TaskItem{
+		ID:                   "pending-task",
+		Type:                 "resource",
+		Operation:            "generator",
+		ProcessorAutoRequeue: true,
+		Status:               "pending",
+	})
+
+	body := map[string]any{"status": "in-progress"}
+	bodyBytes, _ := json.Marshal(body)
+	req := httptest.NewRequest("PUT", "/api/tasks/pending-task", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": task.ID})
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.UpdateTaskHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	if fp.forceStartCalled != 1 {
+		t.Fatalf("expected force start called once, got %d", fp.forceStartCalled)
+	}
+	if fp.lastForceStartID != task.ID {
+		t.Fatalf("force start called with wrong id: %s", fp.lastForceStartID)
+	}
+	if fp.wakeCalled == 0 {
+		t.Fatalf("expected wake called")
+	}
+	if fp.terminateCalled != 0 {
+		t.Fatalf("expected no terminate for pending->active, got %d", fp.terminateCalled)
 	}
 }

@@ -7,11 +7,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/internal/paths"
-	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/recycler"
 	"github.com/ecosystem-manager/api/pkg/settings"
@@ -99,9 +99,19 @@ type Processor struct {
 	// Recycler to trigger recycling on task completion/failure
 	recycler *recycler.Recycler
 
+	// Centralized task coordinator for lifecycle + side effects orchestration.
+	coord *tasks.Coordinator
+
 	// Lifecycle control for background workers
 	ctx    context.Context
 	cancel context.CancelFunc
+}
+
+// slotSnapshot captures concurrency accounting for scheduling decisions.
+type slotSnapshot struct {
+	Slots     int
+	Running   int
+	Available int
 }
 
 // NewProcessor creates a new queue processor
@@ -140,6 +150,77 @@ func NewProcessor(storage *tasks.Storage, assembler *prompts.Assembler, broadcas
 	go processor.timeoutEnforcementWatchdog()
 
 	return processor
+}
+
+// SetCoordinator injects a central coordinator for lifecycle-aware transitions.
+func (qp *Processor) SetCoordinator(coord *tasks.Coordinator) {
+	qp.coord = coord
+}
+
+// startTaskExecution moves a task into in-progress (if needed) and launches execution.
+func (qp *Processor) startTaskExecution(task *tasks.TaskItem, currentStatus string, externalActive map[string]struct{}, ctx tasks.TransitionContext) error {
+	if task == nil {
+		return fmt.Errorf("task is nil")
+	}
+
+	previousStatus := currentStatus
+
+	// Use coordinator when available to enforce a single rule path; skip runtime effects to avoid recursion.
+	if qp.coord != nil && currentStatus != tasks.StatusInProgress {
+		updated, outcome, err := qp.coord.ApplyTransition(tasks.TransitionRequest{
+			TaskID:            task.ID,
+			ToStatus:          tasks.StatusInProgress,
+			TransitionContext: ctx,
+		}, tasks.ApplyOptions{
+			BroadcastEvent:     "task_status_changed",
+			SkipRuntimeEffects: true,
+			ForceResave:        true,
+		})
+		if err != nil {
+			return fmt.Errorf("start pending task %s: %w", task.ID, err)
+		}
+		if updated != nil {
+			task = updated
+		}
+		if outcome != nil {
+			previousStatus = outcome.From
+		}
+	} else if currentStatus != "in-progress" {
+		lc := tasks.Lifecycle{Store: qp.storage}
+		var err error
+		task, err = lc.StartPending(task.ID, ctx)
+		if err != nil {
+			return fmt.Errorf("start pending task %s: %w", task.ID, err)
+		}
+		previousStatus = "pending"
+	}
+
+	agentIdentifier := makeAgentTag(task.ID)
+	if externalActive != nil {
+		if _, active := externalActive[task.ID]; active {
+			log.Printf("Detected lingering Claude agent for task %s; attempting cleanup before restart", task.ID)
+			if err := qp.stopClaudeAgent(agentIdentifier, 0); err != nil {
+				log.Printf("Warning: failed to stop lingering agent %s: %v", agentIdentifier, err)
+			}
+			delete(externalActive, task.ID)
+		}
+	}
+
+	// Reserve execution slot immediately so reconciliation won't recycle the task
+	qp.reserveExecution(task.ID, agentIdentifier, time.Now())
+
+	if qp.coord == nil {
+		qp.broadcastUpdate("task_status_changed", map[string]any{
+			"task_id":    task.ID,
+			"old_status": previousStatus,
+			"new_status": "in-progress",
+			"task":       task,
+		})
+	}
+
+	// Process the task asynchronously
+	go qp.executeTask(*task)
+	return nil
 }
 
 // SetAutoSteerIntegration sets the Auto Steer integration for the processor
@@ -211,6 +292,82 @@ func (qp *Processor) Resume() {
 	// ResumeWithReset returns a summary struct, not an error
 	// Intentionally ignoring the summary as this is a simple resume call
 	_ = qp.ResumeWithReset()
+}
+
+// ForceStartTask starts a specific task immediately, bypassing slot limits when allowOverflow is true.
+// This is used for manual moves to Active where user intent trumps concurrency guardrails.
+func (qp *Processor) ForceStartTask(taskID string, allowOverflow bool) error {
+	if qp == nil {
+		return fmt.Errorf("processor unavailable")
+	}
+	if taskID == "" {
+		return fmt.Errorf("task id required")
+	}
+
+	// Prevent duplicate launches
+	if qp.IsTaskRunning(taskID) {
+		return nil
+	}
+
+	task, status, err := qp.storage.GetTaskByID(taskID)
+	if err != nil {
+		return fmt.Errorf("load task %s: %w", taskID, err)
+	}
+	if task == nil {
+		return fmt.Errorf("task %s not found", taskID)
+	}
+
+	// Respect lock: tasks explicitly blocked from auto-requeue should not be force-started unless already in-progress.
+	if status == "pending" && !task.ProcessorAutoRequeue && !allowOverflow {
+		return fmt.Errorf("task %s auto-requeue disabled; cannot start", taskID)
+	}
+
+	externalActive := qp.getExternalActiveTaskIDs()
+	return qp.startTaskExecution(task, status, externalActive, tasks.TransitionContext{
+		Manual:        true,
+		ForceOverride: allowOverflow,
+	})
+}
+
+// StartTaskIfSlotAvailable starts a pending task immediately when capacity is available.
+// It respects auto-requeue locks and will not overflow the configured slot count.
+func (qp *Processor) StartTaskIfSlotAvailable(taskID string) error {
+	if qp == nil {
+		return fmt.Errorf("processor unavailable")
+	}
+	if taskID == "" {
+		return fmt.Errorf("task id required")
+	}
+
+	qp.mu.Lock()
+	isRunning := qp.isRunning
+	qp.mu.Unlock()
+	if !isRunning {
+		return nil
+	}
+
+	internal := qp.getInternalRunningTaskIDs()
+	external := qp.getExternalActiveTaskIDs()
+	snap := qp.computeSlotSnapshot(internal, external)
+	if snap.Available <= 0 {
+		return nil
+	}
+
+	task, status, err := qp.storage.GetTaskByID(taskID)
+	if err != nil {
+		return fmt.Errorf("load task %s: %w", taskID, err)
+	}
+	if task == nil || status != "pending" {
+		return nil
+	}
+	if qp.IsTaskRunning(taskID) {
+		return nil
+	}
+
+	return qp.startTaskExecution(task, status, external, tasks.TransitionContext{
+		Manual:        true,
+		ForceOverride: false,
+	})
 }
 
 // Wake requests the processor to immediately attempt to fill available slots.
@@ -303,12 +460,7 @@ func (qp *Processor) ProcessQueue() {
 		log.Printf("Warning: duplicate task cleanup failed: %v", err)
 	}
 
-	executingCount := len(internalRunning)
-	for taskID := range externalActive {
-		if _, tracked := internalRunning[taskID]; !tracked {
-			executingCount++
-		}
-	}
+	snap := qp.computeSlotSnapshot(internalRunning, externalActive)
 
 	// Get pending tasks (re-fetch if we moved any orphans)
 	pendingTasks, err := qp.storage.GetQueueItems("pending")
@@ -321,12 +473,8 @@ func (qp *Processor) ProcessQueue() {
 		return // No tasks to process
 	}
 
-	// Limit concurrent tasks based on settings
-	currentSettings := settings.GetSettings()
-	maxConcurrent := currentSettings.Slots
-	availableSlots := maxConcurrent - executingCount
-	if availableSlots <= 0 {
-		log.Printf("Queue processor: %d tasks already executing, %d available slots", executingCount, availableSlots)
+	if snap.Available <= 0 {
+		log.Printf("Queue processor: %d tasks already executing, %d available slots", snap.Running, snap.Available)
 		return
 	}
 
@@ -338,7 +486,7 @@ func (qp *Processor) ProcessQueue() {
 		"low":      1,
 	}
 
-	for availableSlots > 0 {
+	for availableSlots := snap.Available; availableSlots > 0; availableSlots-- {
 		// Find highest priority task from all ready tasks
 		var selectedTask *tasks.TaskItem
 		var selectedIdx int
@@ -363,54 +511,13 @@ func (qp *Processor) ProcessQueue() {
 		log.Printf("Processing task: %s - %s (from pending)", selectedTask.ID, selectedTask.Title)
 		systemlog.Debugf("Queue selecting %s from pending (priority %s)", selectedTask.ID, selectedTask.Priority)
 
-		movedTask, previousStatus, err := qp.storage.MoveTaskTo(selectedTask.ID, "in-progress")
-		if err != nil {
-			log.Printf("Failed to move task %s to in-progress: %v", selectedTask.ID, err)
-			systemlog.Errorf("Failed to move task %s to in-progress: %v", selectedTask.ID, err)
+		if err := qp.startTaskExecution(selectedTask, "pending", externalActive, tasks.TransitionContext{Manual: false, ForceOverride: false}); err != nil {
+			log.Printf("Failed to start task %s: %v", selectedTask.ID, err)
+			systemlog.Errorf("Failed to start task %s: %v", selectedTask.ID, err)
 			return
 		}
-		if movedTask != nil {
-			selectedTask = movedTask
-		}
 
-		selectedTask.Status = "in-progress"
-		selectedTask.CurrentPhase = "in-progress"
-		selectedTask.Results = nil
-		selectedTask.CompletedAt = ""
-		if selectedTask.StartedAt == "" {
-			selectedTask.StartedAt = timeutil.NowRFC3339()
-		}
-		selectedTask.UpdatedAt = timeutil.NowRFC3339()
-
-		// Use SkipCleanup since MoveTaskTo already cleaned up duplicates
-		if err := qp.storage.SaveQueueItemSkipCleanup(*selectedTask, "in-progress"); err != nil {
-			log.Printf("Failed to persist in-progress task %s: %v", selectedTask.ID, err)
-		}
-
-		agentIdentifier := makeAgentTag(selectedTask.ID)
-		if _, active := externalActive[selectedTask.ID]; active {
-			log.Printf("Detected lingering Claude agent for task %s; attempting cleanup before restart", selectedTask.ID)
-			if err := qp.stopClaudeAgent(agentIdentifier, 0); err != nil {
-				log.Printf("Warning: failed to stop lingering agent %s: %v", agentIdentifier, err)
-			}
-			delete(externalActive, selectedTask.ID)
-		}
-
-		// Reserve execution slot immediately so reconciliation won't recycle the task
-		qp.reserveExecution(selectedTask.ID, agentIdentifier, time.Now())
-
-		qp.broadcastUpdate("task_status_changed", map[string]any{
-			"task_id":    selectedTask.ID,
-			"old_status": previousStatus,
-			"new_status": "in-progress",
-			"task":       selectedTask,
-		})
-
-		// Process the task asynchronously
-		go qp.executeTask(*selectedTask)
-
-		executingCount++
-		availableSlots--
+		snap.Running++
 
 		// Remove the selected task from the local slice to avoid reselection in the same pass
 		pendingTasks = append(pendingTasks[:selectedIdx], pendingTasks[selectedIdx+1:]...)
@@ -421,34 +528,73 @@ func (qp *Processor) ProcessQueue() {
 }
 
 func (qp *Processor) finalizeTaskStatus(task *tasks.TaskItem, toStatus string) error {
-	movedTask, fromStatus, err := qp.storage.MoveTaskTo(task.ID, toStatus)
-	if err != nil {
-		log.Printf("Failed to finalize task %s into %s: %v", task.ID, toStatus, err)
-		systemlog.Errorf("Failed to finalize task %s into %s: %v", task.ID, toStatus, err)
-		return fmt.Errorf("move to %s: %w", toStatus, err)
+	// Persist latest task payload to its current bucket so ApplyTransition sees updated fields (results, metadata).
+	currentStatus := task.Status
+	if strings.TrimSpace(currentStatus) == "" {
+		if status, err := qp.storage.CurrentStatus(task.ID); err == nil {
+			currentStatus = status
+		}
+	}
+	if currentStatus == "" {
+		currentStatus = toStatus
+	}
+	if err := qp.storage.SaveQueueItemSkipCleanup(*task, currentStatus); err != nil {
+		log.Printf("Failed to persist task %s before finalize: %v", task.ID, err)
 	}
 
-	if movedTask != nil && fromStatus == toStatus {
-		systemlog.Debugf("Task %s already present in %s during finalize", task.ID, toStatus)
+	// Prefer coordinator for consistency and side effects; skip runtime to avoid recursion from inside processor.
+	if qp.coord != nil {
+		outcomeTask, outcome, err := qp.coord.ApplyTransition(tasks.TransitionRequest{
+			TaskID:   task.ID,
+			ToStatus: toStatus,
+			TransitionContext: tasks.TransitionContext{
+				Manual: false,
+			},
+		}, tasks.ApplyOptions{
+			BroadcastEvent:     "task_status_changed",
+			SkipRuntimeEffects: true,
+			ForceResave:        true,
+		})
+		if err != nil {
+			log.Printf("Failed to finalize task %s into %s: %v", task.ID, toStatus, err)
+			systemlog.Errorf("Failed to finalize task %s into %s: %v", task.ID, toStatus, err)
+			return err
+		}
+		if outcomeTask != nil {
+			task = outcomeTask
+		}
+		if outcome != nil {
+			fromStatus := outcome.From
+			systemlog.Debugf("Task %s finalized: %s -> %s", task.ID, fromStatus, toStatus)
+		}
+	} else {
+		lc := tasks.Lifecycle{Store: qp.storage}
+		outcome, err := lc.ApplyTransition(tasks.TransitionRequest{
+			TaskID:   task.ID,
+			ToStatus: toStatus,
+			TransitionContext: tasks.TransitionContext{
+				Manual: false,
+			},
+		})
+		if err != nil {
+			log.Printf("Failed to finalize task %s into %s: %v", task.ID, toStatus, err)
+			systemlog.Errorf("Failed to finalize task %s into %s: %v", task.ID, toStatus, err)
+			return err
+		}
+
+		if outcome.Task != nil {
+			task = outcome.Task
+		}
+
+		fromStatus := outcome.From
+		systemlog.Debugf("Task %s finalized: %s -> %s", task.ID, fromStatus, toStatus)
+		qp.broadcastUpdate("task_status_changed", map[string]any{
+			"task_id":    task.ID,
+			"old_status": fromStatus,
+			"new_status": toStatus,
+			"task":       task,
+		})
 	}
-
-	task.Status = toStatus
-	task.UpdatedAt = timeutil.NowRFC3339()
-
-	// Use SkipCleanup since MoveTaskTo already cleaned up duplicates
-	if err := qp.storage.SaveQueueItemSkipCleanup(*task, toStatus); err != nil {
-		log.Printf("ERROR: Unable to persist task %s in %s: %v", task.ID, toStatus, err)
-		systemlog.Errorf("Unable to persist task %s in %s: %v", task.ID, toStatus, err)
-		return fmt.Errorf("save after move: %w", err)
-	}
-
-	systemlog.Debugf("Task %s finalized: %s -> %s", task.ID, fromStatus, toStatus)
-	qp.broadcastUpdate("task_status_changed", map[string]any{
-		"task_id":    task.ID,
-		"old_status": fromStatus,
-		"new_status": toStatus,
-		"task":       task,
-	})
 
 	if status, err := qp.storage.CurrentStatus(task.ID); err == nil {
 		systemlog.Debugf("Task %s post-finalize location: %s", task.ID, status)
@@ -552,6 +698,32 @@ func (qp *Processor) enforceTimeouts() {
 
 	for _, task := range timedOutTasks {
 		qp.forceTerminateTimedOutTask(task.taskID, task.agentTag, task.pid)
+	}
+}
+
+// computeSlotSnapshot centralizes slot accounting for scheduler and manual starts.
+func (qp *Processor) computeSlotSnapshot(internalRunning, externalActive map[string]struct{}) slotSnapshot {
+	running := len(internalRunning)
+	for taskID := range externalActive {
+		if _, tracked := internalRunning[taskID]; tracked {
+			continue
+		}
+		running++
+	}
+
+	slots := settings.GetSettings().Slots
+	if slots <= 0 {
+		slots = 1
+	}
+	available := slots - running
+	if available < 0 {
+		available = 0
+	}
+
+	return slotSnapshot{
+		Slots:     slots,
+		Running:   running,
+		Available: available,
 	}
 }
 

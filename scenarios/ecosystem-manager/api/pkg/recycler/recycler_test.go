@@ -155,6 +155,7 @@ func TestHandleProcessingErrorRetriesAndStops(t *testing.T) {
 	r.workCh = make(chan string, 8)
 	r.pending = make(map[string]struct{})
 	r.failureAttempts = make(map[string]int)
+	r.useLifecycle = false
 	r.processCompleted = func(*tasks.TaskItem, settings.RecyclerSettings) error {
 		atomic.AddInt32(&attempts, 1)
 		return fmt.Errorf("boom")

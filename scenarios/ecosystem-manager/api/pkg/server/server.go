@@ -329,9 +329,20 @@ func (a *Application) initializeComponents() error {
 	autoSteerIntegration := queue.NewAutoSteerIntegration(a.autoSteerExecutionEngine)
 	a.processor.SetAutoSteerIntegration(autoSteerIntegration)
 
+	// Centralized coordinator for lifecycle + side effects.
+	lifecycle := &tasks.Lifecycle{Store: a.storage}
+	coord := &tasks.Coordinator{
+		LC:          lifecycle,
+		Store:       a.storage,
+		Runtime:     a.processor,
+		Broadcaster: a.wsManager,
+	}
+	a.processor.SetCoordinator(coord)
+	a.taskRecycler.SetCoordinator(coord)
+
 	// Initialize handlers
-	a.taskHandlers = handlers.NewTaskHandlers(a.storage, a.assembler, a.processor, a.wsManager, a.autoSteerProfileService)
-	a.queueHandlers = handlers.NewQueueHandlers(a.processor, a.wsManager, a.storage)
+	a.taskHandlers = handlers.NewTaskHandlers(a.storage, a.assembler, a.processor, a.wsManager, a.autoSteerProfileService, coord)
+	a.queueHandlers = handlers.NewQueueHandlers(a.processor, a.wsManager, a.storage, coord)
 	a.discoveryHandlers = handlers.NewDiscoveryHandlers(a.assembler)
 	a.healthHandlers = handlers.NewHealthHandlers(a.processor, a.taskRecycler, queueDir, a.db, apiVersion)
 	a.settingsHandlers = handlers.NewSettingsHandlers(a.processor, a.wsManager, a.taskRecycler)
