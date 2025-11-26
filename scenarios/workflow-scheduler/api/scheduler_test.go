@@ -619,30 +619,6 @@ func TestSchedulerExecuteHTTPTarget(t *testing.T) {
 	})
 }
 
-func TestSchedulerExecuteN8nWorkflow(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	testDB := setupTestDatabase(t)
-	defer testDB.Cleanup()
-
-	scheduler := NewScheduler(testDB.DB)
-
-	t.Run("MissingN8nURL", func(t *testing.T) {
-		schedule := &Schedule{
-			TargetWorkflowID: "test-workflow",
-		}
-
-		_, _, err := scheduler.executeN8nWorkflow(schedule)
-		if err == nil {
-			t.Error("Expected error when N8N_BASE_URL not configured")
-		}
-		if err.Error() != "N8N_BASE_URL not configured" {
-			t.Errorf("Expected 'N8N_BASE_URL not configured' error, got '%v'", err)
-		}
-	})
-}
-
 func TestUpdateNextExecutionTime(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()

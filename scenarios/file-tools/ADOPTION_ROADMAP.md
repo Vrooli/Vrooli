@@ -244,7 +244,7 @@ curl -X POST http://localhost:${FILE_TOOLS_PORT}/api/v1/files/split \
 - [ ] Identify additional integration candidates
 - [ ] Implement P2 features based on adoption feedback
 - [ ] Performance testing with 100K+ file datasets
-- [ ] Create shared workflow templates (n8n/windmill)
+- [ ] Create shared workflow templates (n8n)
 
 ---
 

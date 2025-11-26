@@ -87,18 +87,13 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: browserless-testing.json
-      location: initialization/n8n/
-      purpose: Automated extension testing across browsers
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-browserless screenshot
       purpose: Validate extension UI and functionality
     - command: scenario-to-extension generate
       purpose: Create extension from scenario specification
   
-  3_direct_api:
+  2_direct_api:
     - justification: Extension APIs require direct browser integration
       endpoint: Chrome Extension API, Firefox WebExtensions API
 ```
@@ -589,7 +584,7 @@ tests:
 - README.md - Extension generation overview and quick start
 - docs/templates.md - Template system documentation
 - docs/browser-apis.md - Browser extension API patterns
-- docs/deployment.md - Extension deployment and distribution guide
+- docs/deployment/README.md - Deployment hub and distribution tiers
 
 ### Related PRDs
 - web-scraper-manager.PRD.md - Primary consumer of extension capabilities

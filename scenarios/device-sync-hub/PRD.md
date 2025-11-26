@@ -93,18 +93,13 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: auth-validator.json
-      location: initialization/n8n/
-      purpose: Token validation for API endpoints
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-postgres create-table
       purpose: Database schema initialization
     - command: scenario-authenticator token validate
       purpose: CLI-based token validation
   
-  3_direct_api:
+  2_direct_api:
     - justification: Real-time WebSocket connections require direct API access
       endpoint: /api/v1/sync/websocket
     - justification: File upload/download requires streaming support
@@ -438,7 +433,6 @@ structure:
     - cli
     - ui
     - initialization
-    - initialization/n8n
     - initialization/postgres
     - test
     - data

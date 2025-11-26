@@ -77,12 +77,12 @@ required:
   - resource_name: n8n
     purpose: Orchestrate AI game generation workflows
     integration_pattern: Workflow triggers and execution
-    access_method: Should use shared ollama.json workflow
+    access_method: Scenario-specific workflows
     
   - resource_name: ollama
     purpose: AI model for game code generation
-    integration_pattern: Via n8n workflow (should use shared)
-    access_method: initialization/n8n/ollama.json
+    integration_pattern: Direct API calls
+    access_method: Ollama HTTP API
     
 optional:
   - resource_name: qdrant
@@ -94,20 +94,13 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: ollama.json
-      location: initialization/n8n/
-      purpose: Reliable Ollama model invocation
-      current_status: NOT IMPLEMENTED - using direct calls
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-ollama generate
       purpose: Fallback for direct AI generation
   
-  3_direct_api:
+  2_direct_api:
     - justification: Currently using direct n8n workflow calls
       endpoint: n8n webhook/workflow execution
-      should_migrate_to: shared ollama.json workflow
 
 shared_workflow_criteria:
   - ollama.json is already available and proven
@@ -429,9 +422,9 @@ tests:
 - Trade-offs: More development time for better user experience
 
 ### Known Limitations
-- **n8n webhook reliability**: Currently unreliable, needs Browserless workaround
-  - Workaround: Use browserless for n8n execute-workflow
-  - Future fix: Migrate to shared ollama.json workflow
+- **n8n webhook reliability**: Currently unreliable; browserless adapter fallback removed
+  - Impact: No browser-based workaround available after n8n adapter deprecation
+  - Future fix: Migrate to shared ollama.json workflow or alternative orchestration
   
 - **No multiplayer support**: Single-player games only
   - Workaround: Games can be shared as code

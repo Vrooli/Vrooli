@@ -96,27 +96,22 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: ollama.json
-      location: initialization/automation/n8n/
-      purpose: Natural language query parsing and understanding
-
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-postgres exec
       purpose: Database schema initialization and migrations
     - command: resource-browserless screenshot
       purpose: UI testing and validation
 
-  3_direct_api:
+  2_direct_api:
     - justification: PostgreSQL requires connection pooling and transaction management
       endpoint: postgres://localhost:5433
     - justification: SearXNG integration requires custom query formatting
       endpoint: http://localhost:8888/search
 
 shared_workflow_criteria:
-  - Ollama workflow is reusable across all scenarios requiring NLP
-  - Rate-limiter workflow manages API throttling for OpenStreetMap
-  - Both workflows documented in initialization/automation/n8n/
+  - Ollama orchestration handled via API/CLI (shared n8n assets removed)
+  - Rate limiting managed via in-service middleware instead of n8n templates
+  - Reusability documented in API/CLI examples
   - Used by: local-info-scout, travel-map-filler, personal-relationship-manager
 ```
 

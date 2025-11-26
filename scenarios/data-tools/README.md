@@ -34,17 +34,16 @@ Eliminates the need for custom data processing implementations by providing a un
 └─────────────────┘     └─────────────────┘
                                 │
                 ┌───────────────┼───────────────┐
-                ▼               ▼               ▼
-        ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-        │  PostgreSQL │  │    Redis    │  │   Windmill  │
-        │  (Storage)  │  │  (Cache)    │  │  (Workflows)│
-        └─────────────┘  └─────────────┘  └─────────────┘
+                ▼               ▼
+        ┌─────────────┐  ┌─────────────┐
+        │  PostgreSQL │  │    Redis    │
+        │  (Storage)  │  │  (Cache)    │
+        └─────────────┘  └─────────────┘
 ```
 
 ### Required Resources
 - **PostgreSQL**: Dataset metadata, transformation history, query cache
 - **Redis**: Query result caching, session state, streaming buffers
-- **Windmill**: Workflow automation for data pipelines
 
 ### Optional Resources
 - **MinIO**: Object storage for datasets > 100MB

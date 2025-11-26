@@ -32,7 +32,7 @@ Palette Gen adds intelligent, accessible color palette generation capability to 
 - [x] **Export Formats**: Export to CSS, JSON, and SCSS formats
 - [x] **CLI Tool**: Generate palettes via command line interface
 - [x] **UI Interface**: Web interface for visual palette generation and preview
-- [ ] **N8N Integration**: Workflow-based palette generation via n8n (bypassed with standalone implementation)
+- [ ] **Automation Pipelines**: API/CLI orchestration for palette generation (n8n path removed)
 
 **Should Have (P1)**
 - [x] **Accessibility Checking**: WCAG compliance validation for color combinations
@@ -84,12 +84,9 @@ optional:
     purpose: Caching frequently requested palettes
     fallback: Generate palettes on every request (no caching)
     access_method: go-redis/v9 client library
-
-  - resource_name: n8n
-    purpose: Workflow-based automation (future enhancement)
-    fallback: Standalone palette generation algorithms
-    access_method: Workflow HTTP webhooks
 ```
+
+**Update**: Shared n8n workflows were removed; automation runs via API/CLI orchestration.
 
 ### Resource Integration Standards
 ```yaml
@@ -350,7 +347,7 @@ installation:
 **What capabilities must exist before this can function?**
 - **Ollama (optional)**: Provides AI-powered contextual understanding for palette suggestions; graceful fallback to template-based generation
 - **Redis (optional)**: Enables performance caching; degrades gracefully to uncached generation
-- **n8n (planned)**: Future workflow automation for complex palette generation pipelines
+- **Automation Orchestration**: API/CLI driven; shared n8n workflows removed
 
 ### Downstream Enablement
 **What future capabilities does this unlock?**
@@ -435,7 +432,7 @@ style_profile:
 ### Market Differentiation
 - **AI-Powered**: Contextual understanding via Ollama (competitors use static algorithms)
 - **Accessibility-First**: Built-in WCAG compliance checking (most tools lack this)
-- **Workflow Automation**: n8n integration for complex workflows (unique capability)
+- **Workflow Automation**: API/CLI orchestration for complex workflows (n8n removed)
 - **Local-First**: Complete functionality without cloud dependencies
 - **Open Ecosystem**: Other Vrooli scenarios can build on this capability
 
@@ -458,7 +455,7 @@ Each scenario using Palette Gen adds design capability without reimplementing co
 - Redis caching
 
 ### Phase 3: Integration (In Progress)
-- n8n workflow templates
+- Automation templates (API/CLI orchestration)
 - Cross-scenario APIs stabilized
 - Brand Manager integration
 - App Personalizer integration
@@ -478,8 +475,7 @@ Each scenario using Palette Gen adds design capability without reimplementing co
 1. Build Go API binary
 2. Install UI dependencies
 3. Install CLI to ~/.local/bin/
-4. Populate n8n workflows (if enabled)
-5. Generate code embeddings for AI assistance
+4. Generate code embeddings for AI assistance
 ```
 
 ### Develop Phase
@@ -549,7 +545,6 @@ Each scenario using Palette Gen adds design capability without reimplementing co
 - [x] Health endpoints return proper JSON ✓
 - [x] Redis connection gracefully degrades ✓
 - [x] Ollama integration has fallback ✓
-- [ ] n8n workflows deployed and functional
 - [ ] Other scenarios successfully call APIs
 
 ### User Acceptance

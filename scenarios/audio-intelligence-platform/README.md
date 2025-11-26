@@ -18,10 +18,6 @@ A comprehensive audio processing and intelligence system that handles transcript
 - **qdrant**: Vector database for semantic search
 - **n8n**: Workflow automation engine
 
-### Shared Workflows Used
-- `initialization/n8n/ollama.json`: For AI generation and embeddings
-- `initialization/n8n/embedding-generator.json`: For generating embeddings
-
 ## Integration Points
 ### Cross-Scenario Usage
 - **stream-of-consciousness-analyzer**: Can process voice notes and recordings

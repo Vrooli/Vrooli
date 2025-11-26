@@ -78,8 +78,8 @@ required:
     
   - resource_name: ollama
     purpose: Natural language to SQL translation and query explanation
-    integration_pattern: Shared n8n workflow
-    access_method: initialization/n8n/ollama.json workflow
+    integration_pattern: Direct Ollama API
+    access_method: HTTP API calls to Ollama
     
 optional:
   - resource_name: redis
@@ -96,15 +96,7 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: ollama.json
-      location: initialization/n8n/
-      purpose: Natural language to SQL translation
-    - workflow: embedding-generator.json
-      location: initialization/n8n/
-      purpose: Generate embeddings for query similarity
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-postgres list-databases
       purpose: Discover available databases
     - command: resource-postgres execute-query

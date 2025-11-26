@@ -107,17 +107,6 @@
       ]
     },
     {
-      "id": "AP-P1-004",
-      "title": "n8n workflow templates",
-      "description": "Pre-built pipelines for common personalization patterns",
-      "priority": "P1",
-      "status": "pending",
-      "prd_ref": "Operational Targets > P1 > OT-P1-004",
-      "validation_methods": [
-        "manual"
-      ]
-    },
-    {
       "id": "AP-P1-005",
       "title": "MinIO artifact storage",
       "description": "Stores app versions, backups, and modification artifacts in object storage",

@@ -237,14 +237,7 @@
 
 ## Configuration Issues
 
-### 7. Windmill Resource Not Available
-**Severity**: LOW
-**Description**: Windmill resource referenced but not running
-**Impact**: Cannot use workflow automation features
-**Status**: Resource not started
-**Next Steps**: Either start windmill or remove dependency
-
-### 8. MinIO Integration - Authentication Issue
+### 7. MinIO Integration - Authentication Issue
 **Severity**: LOW
 **Description**: MinIO authentication fails due to incorrect credentials
 **Impact**: Falls back to filesystem storage which works correctly

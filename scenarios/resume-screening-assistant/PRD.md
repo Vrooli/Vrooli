@@ -115,7 +115,6 @@
 ## 📎 Appendix
 
 ### Reference Implementation
-- N8n workflow templates: `initialization/n8n/*.json`
 - Database schema: `initialization/postgres/schema.sql`
 - Qdrant collection config: `initialization/qdrant/collections.json`
 - Assessment templates: `initialization/storage/assessment-templates.json`

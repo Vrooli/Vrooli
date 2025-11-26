@@ -77,11 +77,6 @@ required:
     integration_pattern: MinIO client API for object operations
     access_method: MinIO Go client library
     
-  - resource_name: n8n
-    purpose: Backup orchestration and scheduling workflows
-    integration_pattern: Shared workflows for automation
-    access_method: N8n workflow API and webhooks
-    
 optional:
   - resource_name: redis
     purpose: Caching backup status and job queues
@@ -89,22 +84,13 @@ optional:
     access_method: Redis Go client library
 ```
 
+**Update**: Shared n8n workflows were removed; orchestration is now via resource CLIs and direct APIs.
+
 ### Resource Integration Standards
 ```yaml
 # Priority order for resource access (MUST follow this hierarchy):
 integration_priorities:
-  1_shared_workflows:     # FIRST: Use existing shared n8n workflows
-    - workflow: postgres-utils.json
-      location: initialization/automation/n8n/
-      purpose: PostgreSQL backup and restore operations
-    - workflow: file-system-ops.json
-      location: initialization/automation/n8n/
-      purpose: File system backup operations
-    - workflow: storage-manager.json
-      location: initialization/automation/n8n/
-      purpose: MinIO backup storage management
-  
-  2_resource_cli:        # SECOND: Use resource CLI commands
+  1_resource_cli:        # FIRST: Use resource CLI commands
     - command: resource-postgres backup
       purpose: Create PostgreSQL database dumps
     - command: resource-minio upload
@@ -117,7 +103,7 @@ integration_priorities:
 # Shared workflow guidelines:
 shared_workflow_criteria:
   - Must be truly reusable across multiple scenarios
-  - Place in initialization/automation/n8n/ if generic
+  - Place in shared automation library (non-n8n) if generic
   - Document reusability in workflow description
   - List all scenarios that will use this workflow: [disaster-recovery, maintenance-orchestrator, scenario-migrator]
 ```
@@ -557,7 +543,7 @@ discovery:
   metadata:
     description: Comprehensive backup management for all Vrooli data
     keywords: [backup, restore, disaster-recovery, data-protection, maintenance]
-    dependencies: [postgres, minio, n8n]
+    dependencies: [postgres, minio]
     enhances: [all scenarios - provides data protection]
 ```
 
@@ -677,7 +663,7 @@ The `.vrooli/service.json` `test` lifecycle references the same entry point so C
 ### External Resources
 - PostgreSQL Backup Documentation: https://www.postgresql.org/docs/current/backup.html
 - MinIO Client Reference: https://docs.min.io/docs/minio-client-complete-guide.html
-- N8n Workflow API: https://docs.n8n.io/api/
+- Automation Orchestration: Rely on resource CLIs and direct APIs (n8n workflows removed)
 
 ---
 

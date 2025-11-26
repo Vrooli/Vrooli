@@ -116,15 +116,7 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: statistical-analysis.json
-      location: initialization/n8n/
-      purpose: Standardized statistical analysis and reporting workflows
-    - workflow: optimization-solver.json
-      location: initialization/n8n/
-      purpose: Mathematical optimization and constraint solving
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-postgres execute
       purpose: Store and query mathematical data with precision
     - command: resource-redis cache
@@ -132,7 +124,7 @@ integration_priorities:
     - command: resource-minio upload/download
       purpose: Handle large mathematical datasets and visualizations
   
-  3_direct_api:
+  2_direct_api:
     - justification: GPU operations require direct hardware access
       endpoint: CUDA/OpenCL APIs for matrix operations
     - justification: Symbolic math needs specialized libraries
@@ -819,7 +811,7 @@ tests:
 - Removed UI component references (scenario is API/CLI only) - COMPLETED 2025-10-03
 - Updated API to use API_PORT environment variable - COMPLETED 2025-10-03
 - Fixed service.json echo statements for proper variable expansion - COMPLETED 2025-10-03
-- Disabled Windmill resource (no workflow integration) - COMPLETED 2025-10-03
+- Disabled unused workflow resource (no integration) - COMPLETED 2025-10-03
 - Rewrote CLI test suite with actual math-tools commands - COMPLETED 2025-10-03
 - Scenario now starts cleanly without errors or warnings - COMPLETED 2025-10-03
 

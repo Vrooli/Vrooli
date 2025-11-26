@@ -36,7 +36,7 @@
 
 ### 🟠 P1 – Should have post-launch
 
-- [ ] OT-P1-001 | QR art generation | Artistic QR codes with custom designs via n8n workflows
+- [ ] OT-P1-001 | QR art generation | Artistic QR codes with custom designs via API/CLI orchestration (n8n workflows removed)
 - [ ] OT-P1-002 | QR puzzle generator | Interactive QR puzzles for engagement
 - [ ] OT-P1-003 | Redis caching | Cache generated QR codes to avoid regeneration
 - [ ] OT-P1-004 | Export formats | Multiple output formats (PNG, SVG, PDF, JPEG)
@@ -69,7 +69,7 @@
 **Required Resources**: None - standalone scenario with optional resources
 
 **Optional Resources**:
-- **n8n**: Advanced workflow automation for art generation and puzzle creation (P1/P2)
+- **Automation**: Advanced orchestration handled via API/CLI pipelines (n8n removed)
 - **Redis**: Caching layer to avoid regenerating identical QR codes (P1)
 
 **Scenario Dependencies**: None - foundational capability that other scenarios can consume

@@ -121,7 +121,7 @@ GET    /api/schedules/{id}/metrics      - Performance metrics
     - Real-time statistics: Total Schedules, Running Now, Success Rate, Next Run
     - Schedule list with search and status filtering capabilities
     - Quick actions sidebar: Trigger Schedule, View History, Performance Metrics, Cron Presets, Notifications
-    - System Health monitor: API Server, Database, Redis Cache, n8n Engine (all green)
+    - System Health monitor: API Server, Database, Redis Cache (all green)
     - UI successfully loads and displays all 11 schedules from database
     - API connectivity verified: Health check responds in <10ms, /api/schedules working
   - **All Tests Passing**: Comprehensive validation completed
@@ -170,10 +170,10 @@ required:
     access_method: Redis client library through REDIS_URL environment variable
 
 optional:
-  - resource_name: n8n
-    purpose: Enhanced workflow capabilities and visual debugging
-    fallback: Works standalone, n8n provides additional trigger capabilities
-    access_method: REST API webhooks to n8n workflow endpoints
+  - resource_name: windmill
+    purpose: Optional UI dashboard for schedule management
+    fallback: Works standalone via API/CLI
+    access_method: HTTP API
 ```
 
 ### Data Models
@@ -277,7 +277,7 @@ Other scenarios can create and manage schedules via:
 ### Outbound Integrations
 Workflow Scheduler can trigger:
 1. **Webhooks** - HTTP POST to any URL with custom payload
-2. **N8n Workflows** - Trigger n8n webhook workflows
+2. **Workflow Targets** - Trigger HTTP webhooks or internal scenario jobs
 3. **Windmill Jobs** - Execute Windmill job endpoints
 4. **Other Scenarios** - Call any Vrooli scenario API
 

@@ -30,13 +30,6 @@
 
 **Status**: Non-critical, can be addressed incrementally
 
-### 5. n8n Workflow Integration (NOT CRITICAL)
-**Issue**: n8n workflows fail to populate during setup
-- Workflows don't affect core functionality
-- API has full local implementation as fallback
-
-**Status**: Working without n8n, optional enhancement
-
 ## Recent Improvements (2025-10-03)
 
 ### Completed

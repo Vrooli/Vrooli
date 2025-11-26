@@ -69,8 +69,8 @@ required:
     
   - resource_name: ollama
     purpose: Execute agent configurations against injection tests safely
-    integration_pattern: Shared workflow for reliable model access
-    access_method: initialization/n8n/ollama.json workflow
+    integration_pattern: Direct API for reliable model access
+    access_method: HTTP API calls to Ollama
     
 optional:
   - resource_name: qdrant
@@ -83,26 +83,15 @@ optional:
 ```yaml
 # Priority order for resource access (MUST follow this hierarchy):
 integration_priorities:
-  1_shared_workflows:     # FIRST: Use existing shared n8n workflows
-    - workflow: ollama.json
-      location: initialization/n8n/
-      purpose: Reliable LLM inference for agent testing
-  
-  2_resource_cli:        # SECOND: Use resource CLI commands
+  1_resource_cli:        # FIRST: Use resource CLI commands
     - command: resource-postgres [action]
       purpose: Database management and health checks
     - command: resource-qdrant [action] 
       purpose: Vector database operations
   
-  3_direct_api:          # LAST: Direct API only when necessary
+  2_direct_api:          # NEXT: Direct API only when necessary
     - justification: High-performance database transactions required
       endpoint: PostgreSQL direct connection for test execution
-
-# Shared workflow guidelines:
-shared_workflow_criteria:
-  - Uses existing ollama.json for all LLM interactions
-  - Creates new safety-sandbox workflow for secure test execution
-  - Documents safety constraints for reuse by security-focused scenarios
 ```
 
 ### Data Models
@@ -330,7 +319,6 @@ custom_commands:
 **What capabilities must exist before this can function?**
 - **Ollama Resource**: Required for running different models safely in testing
 - **PostgreSQL Resource**: Essential for storing injection library and test results  
-- **Shared Ollama Workflow**: Depends on initialization/n8n/ollama.json for reliable model access
 
 ### Downstream Enablement
 **What future capabilities does this unlock?**
@@ -443,7 +431,7 @@ direct_execution:
   supported: true
   structure_compliance:
     - service.json with complete metadata
-    - All required initialization files (postgres schema, n8n workflows)
+    - All required initialization files (postgres schema)
     - Deployment scripts (startup.sh, monitor.sh)
     - Health check endpoints
     
@@ -514,7 +502,6 @@ structure:
     - cli/prompt-injection-arena
     - cli/install.sh
     - initialization/postgres/schema.sql
-    - initialization/n8n/security-sandbox.json
     - scenario-test.yaml
     
   required_dirs:
@@ -522,7 +509,6 @@ structure:
     - cli  
     - initialization
     - initialization/postgres
-    - initialization/n8n
     - ui
 
 # Resource validation:
@@ -590,12 +576,11 @@ tests:
         - count: 3
         
   # Security sandbox test:
-  - name: "Security sandbox workflow is active"
-    type: n8n
-    workflow: security-sandbox
+  - name: "Security sandbox orchestration is active"
+    type: api
+    endpoint: /healthz
     expect:
-      active: true
-      node_count: [expected_nodes]
+      status: ready
 ```
 
 ### Performance Validation
@@ -608,7 +593,7 @@ tests:
 - [x] Discoverable via Vrooli resource registry
 - [x] All API endpoints documented and functional
 - [x] All CLI commands executable with --help documentation
-- [x] Security sandbox workflow properly registered in n8n
+- [x] Security sandbox orchestration validated via API health checks
 - [x] Events published/consumed correctly for security notifications
 
 ### Security Validation

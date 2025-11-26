@@ -12,7 +12,7 @@ Make It Vegan is an intelligent food analysis tool that helps users identify whe
 
 ## Dependencies & Integration
 Leverages Vrooli's ecosystem:
-- **Ollama**: For ingredient analysis via shared workflow (`initialization/n8n/ollama.json`)
+- **Ollama**: For ingredient analysis via direct API calls
 - **N8n Workflows**: Orchestrates ingredient checking and recipe generation
 - **PostgreSQL**: Stores ingredient database and user preferences
 - **Redis**: Caches common queries for instant responses
@@ -73,7 +73,6 @@ make-it-vegan brands --category "ice cream"
 - `UI_PORT` - Web UI port (auto-assigned: 35000-39999)
 
 ### Optional Variables (Graceful Degradation)
-- `N8N_BASE_URL` - n8n workflow engine URL (optional, falls back to local logic)
 - `REDIS_URL` - Redis cache connection (optional, no caching without it)
 - `POSTGRES_URL` - PostgreSQL database (optional, uses in-memory fallback)
 

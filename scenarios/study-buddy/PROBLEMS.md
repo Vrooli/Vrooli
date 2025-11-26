@@ -11,10 +11,9 @@
 - **Fix Required**: Update population script to properly apply schema
 
 ### 2. N8N Workflows Not Loaded ⚠️
-**Problem**: N8N workflows fail to load during resource population
-- **Impact**: AI features partially working (fallback to mock data)
-- **Evidence**: Population logs show 10 workflow failures
-- **Files Affected**: All workflows in `/initialization/n8n/`
+**Problem**: Shared N8N workflows have been removed
+- **Impact**: AI features rely on API fallbacks or require scenario-specific workflows
+- **Evidence**: Shared workflow directory no longer present
 - **Workaround**: API has fallback implementations for critical features
 
 ## Moderate Issues (P1)

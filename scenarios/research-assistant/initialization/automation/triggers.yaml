@@ -2,30 +2,6 @@
 # This file defines how and when workflows should be activated
 
 triggers:
-  # Main application workflow
-  main_workflow:
-    platform: n8n
-    workflow_id: "research-assistant-main"
-    workflow_file: "n8n/main-workflow.json"
-    activation:
-      auto_activate: true
-      activation_delay_seconds: 5
-    endpoints:
-      webhook: "/webhook/research-assistant-webhook"
-      status: "/api/v1/workflows/research-assistant-main"
-    
-  # Health check workflow
-  health_check:
-    platform: n8n
-    workflow_id: "research-assistant-health"
-    activation:
-      auto_activate: true
-      activation_delay_seconds: 10
-    schedule:
-      enabled: true
-      interval: "*/5 * * * *"  # Every 5 minutes
-      timezone: "UTC"
-    
   {% if "windmill" in resources.required %}
   # Windmill app deployment
   windmill_app:
@@ -65,15 +41,6 @@ activation_sequence:
     condition: "postgres in required_resources"
     timeout_seconds: 15
     
-  - name: activate_n8n_workflows
-    description: "Import and activate n8n workflows"
-    condition: "n8n in required_resources"
-    timeout_seconds: 30
-    workflows:
-      - id: "research-assistant-main"
-        file: "n8n/main-workflow.json"
-        auto_activate: true
-    
   - name: deploy_windmill_apps
     description: "Deploy Windmill UI applications"
     condition: "windmill in required_resources and requires_ui"
@@ -107,23 +74,11 @@ activation_sequence:
 # Health monitoring configuration
 monitoring:
   health_checks:
-    - name: main_workflow_health
-      platform: n8n
-      workflow_id: "research-assistant-main"
-      check_interval_seconds: 300
-      
     - name: database_health
       condition: "postgres in required_resources"
       type: database
       connection_string: "postgresql://postgres:postgres@localhost:5433/{{ scenario.id | replace('-', '_') }}"
       check_interval_seconds: 60
-      
-    - name: webhook_endpoint_health
-      type: http
-      url: "http://localhost:5678/webhook/research-assistant-webhook"
-      method: "GET"
-      expected_status: 405  # Method not allowed for GET is expected
-      check_interval_seconds: 120
       
     {% if "windmill" in resources.required and testing.requires_ui %}
     - name: ui_application_health

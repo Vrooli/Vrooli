@@ -154,7 +154,7 @@ func TestHealthHandler(t *testing.T) {
 		}
 
 		// Validate expected services
-		expectedServices := []string{"n8n", "windmill", "vault", "minio", "unstructured", "postgres"}
+		expectedServices := []string{"windmill", "vault", "minio", "unstructured", "postgres"}
 		for _, service := range expectedServices {
 			if _, exists := response.Services[service]; !exists {
 				t.Errorf("Expected service '%s' in response", service)
@@ -446,9 +446,9 @@ func TestHTTPMethodHandling(t *testing.T) {
 	defer cleanup()
 
 	testCases := []struct {
-		name     string
-		path     string
-		handler  http.HandlerFunc
+		name        string
+		path        string
+		handler     http.HandlerFunc
 		validMethod string
 	}{
 		{"Health", "/health", healthHandler, "GET"},
@@ -501,12 +501,12 @@ func TestEdgeCases(t *testing.T) {
 	t.Run("EmptyEnvironmentVariables", func(t *testing.T) {
 		// Temporarily clear all env vars
 		envVars := map[string]string{
-			"N8N_BASE_URL":       os.Getenv("N8N_BASE_URL"),
-			"WINDMILL_BASE_URL":  os.Getenv("WINDMILL_BASE_URL"),
-			"VAULT_URL":          os.Getenv("VAULT_URL"),
-			"MINIO_URL":          os.Getenv("MINIO_URL"),
-			"UNSTRUCTURED_URL":   os.Getenv("UNSTRUCTURED_URL"),
-			"QDRANT_URL":         os.Getenv("QDRANT_URL"),
+			"N8N_BASE_URL":      os.Getenv("N8N_BASE_URL"),
+			"WINDMILL_BASE_URL": os.Getenv("WINDMILL_BASE_URL"),
+			"VAULT_URL":         os.Getenv("VAULT_URL"),
+			"MINIO_URL":         os.Getenv("MINIO_URL"),
+			"UNSTRUCTURED_URL":  os.Getenv("UNSTRUCTURED_URL"),
+			"QDRANT_URL":        os.Getenv("QDRANT_URL"),
 		}
 
 		for key := range envVars {

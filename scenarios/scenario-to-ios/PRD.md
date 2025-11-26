@@ -95,8 +95,8 @@ This scenario provides universal iOS app generation for any Vrooli scenario, ena
 required:
   - resource_name: n8n
     purpose: Orchestrate build pipeline and workflow management
-    integration_pattern: Shared workflows for build automation
-    access_method: initialization/n8n/ios-builder.json
+    integration_pattern: Scenario-specific workflows for build automation
+    access_method: resource-n8n execute-workflow
     
   - resource_name: browserless
     purpose: Validate iOS web views and UI testing
@@ -123,15 +123,7 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: ios-builder.json
-      location: initialization/n8n/
-      purpose: Orchestrates the entire iOS build pipeline
-    - workflow: app-store-deploy.json
-      location: initialization/n8n/
-      purpose: Automates TestFlight and App Store submission
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-minio upload
       purpose: Store generated IPAs and dSYMs
     - command: resource-redis get/set
@@ -139,7 +131,7 @@ integration_priorities:
     - command: resource-postgres query
       purpose: Track build history
   
-  3_direct_api:
+  2_direct_api:
     - justification: Only for Xcode/Swift operations
       endpoint: Local filesystem and build tools
     - justification: App Store Connect API

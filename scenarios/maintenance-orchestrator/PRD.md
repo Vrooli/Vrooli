@@ -367,12 +367,7 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: maintenance-state-manager.json
-      location: initialization/n8n/
-      purpose: Manages state changes and notifications
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-n8n execute-workflow
       purpose: Trigger maintenance workflows
     - command: resource-postgres query (if available)

@@ -28,7 +28,7 @@ SEO Optimizer provides automated search engine optimization analysis and recomme
 ### 🔴 P0 – Must ship for viability
 
 - [ ] OT-P0-001 | SEO audit of any webpage with scoring and recommendations | Perform comprehensive SEO analysis including title, meta tags, content quality, and technical factors with actionable recommendations
-- [ ] OT-P0-002 | Integration with shared Ollama workflow for AI analysis | Use initialization/n8n/ollama.json for AI-powered SEO insights and content recommendations
+- [ ] OT-P0-002 | AI-powered analysis with Ollama | Use Ollama to generate SEO insights and content recommendations
 - [ ] OT-P0-003 | Persistent storage of audit results in PostgreSQL | Store audit history, scores, and recommendations for tracking improvements over time
 
 ### 🟠 P1 – Should have post-launch

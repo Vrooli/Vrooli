@@ -820,7 +820,7 @@ tests:
 
 #### Validation Evidence (October 12 - Session 3)
 **Health Check** (2025-10-12):
-- All 5 dependencies healthy (postgres, ollama, n8n, qdrant, unstructured-io)
+- All core dependencies healthy (postgres, ollama, qdrant, unstructured-io)
 - API response time: 4ms (target: <500ms) ✅
 - Scenario running on port 15769
 - Average confidence score: 89% across all processed items
@@ -886,7 +886,7 @@ tests:
 
 #### Validation Evidence
 **Health Check** (2025-10-03):
-- All 5 dependencies healthy (postgres, ollama, n8n, qdrant, unstructured-io)
+- All 4 dependencies healthy (postgres, ollama, qdrant, unstructured-io)
 - API response time: 6ms (target: <500ms) ✅
 - 4 active schemas, 7 templates available
 - Average confidence score: 73% across all processed items
@@ -902,7 +902,7 @@ tests:
 - Port detection improved for multi-scenario environments
 
 #### Remaining Limitations
-- N8n workflows not yet fully configured (placeholder files exist)
+- Shared workflow orchestration now relies on direct API/CLI automation (n8n assets removed)
 - Full unstructured-io integration pending for PDFs/images (text works)
 - Batch processing capability not yet implemented
 - Legacy test format should migrate to phased testing architecture

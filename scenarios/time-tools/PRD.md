@@ -116,15 +116,7 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: meeting-scheduler.json
-      location: initialization/n8n/
-      purpose: Standardized multi-party meeting scheduling workflows
-    - workflow: deadline-tracker.json
-      location: initialization/n8n/
-      purpose: Automated deadline monitoring and alerting
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-postgres execute
       purpose: Store and query temporal data with timezone awareness
     - command: resource-redis cache
@@ -132,7 +124,7 @@ integration_priorities:
     - command: resource-minio upload/download
       purpose: Handle calendar files and schedule exports
   
-  3_direct_api:
+  2_direct_api:
     - justification: Calendar APIs require OAuth and real-time sync
       endpoint: Google Calendar API for live calendar integration
     - justification: Time services need direct NTP access

@@ -82,8 +82,8 @@ required:
     
   - resource_name: ollama
     purpose: Generate questions from content using LLM
-    integration_pattern: Shared n8n workflow
-    access_method: initialization/n8n/quiz-generator-ai.json workflow
+    integration_pattern: Direct Ollama API
+    access_method: HTTP API calls to Ollama
     
   - resource_name: n8n
     purpose: Orchestrate quiz generation pipeline

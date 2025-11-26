@@ -78,7 +78,7 @@ INSERT INTO workflows (
     'Extract and structure text content from documents',
     'extraction',
     ARRAY['extraction', 'text', 'parsing'],
-    'n8n',
+    'internal',
     '{
         "nodes": [
             {
@@ -117,7 +117,7 @@ INSERT INTO workflows (
     'Generate concise summaries of document content',
     'analysis',
     ARRAY['summary', 'analysis', 'ai'],
-    'n8n',
+    'internal',
     '{
         "nodes": [
             {
@@ -161,7 +161,7 @@ INSERT INTO workflows (
     'Detect and redact personally identifiable information',
     'compliance',
     ARRAY['compliance', 'pii', 'redaction', 'privacy'],
-    'n8n',
+    'internal',
     '{
         "nodes": [
             {
@@ -212,7 +212,7 @@ INSERT INTO workflows (
     'Convert documents between different formats',
     'conversion',
     ARRAY['conversion', 'format', 'transform'],
-    'n8n',
+    'internal',
     '{
         "nodes": [
             {
@@ -251,7 +251,7 @@ INSERT INTO workflows (
     'Extract structured data like tables, forms, and key-value pairs',
     'extraction',
     ARRAY['extraction', 'structured', 'tables', 'forms'],
-    'n8n',
+    'internal',
     '{
         "nodes": [
             {
@@ -299,7 +299,7 @@ INSERT INTO workflows (
     'Translate documents to different languages',
     'translation',
     ARRAY['translation', 'language', 'ai'],
-    'n8n',
+    'internal',
     '{
         "nodes": [
             {
@@ -343,7 +343,7 @@ INSERT INTO workflows (
     'Extract text from images and scanned documents',
     'extraction',
     ARRAY['ocr', 'images', 'scanning', 'extraction'],
-    'n8n',
+    'internal',
     '{
         "nodes": [
             {
@@ -391,7 +391,7 @@ INSERT INTO workflows (
     'Check documents for compliance with various standards',
     'compliance',
     ARRAY['compliance', 'validation', 'audit', 'security'],
-    'n8n',
+    'internal',
     '{
         "nodes": [
             {

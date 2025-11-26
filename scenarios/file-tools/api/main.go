@@ -34,7 +34,6 @@ type Config struct {
 	Port        string
 	DatabaseURL string
 	N8NURL      string
-	WindmillURL string
 	APIToken    string
 }
 
@@ -99,7 +98,6 @@ func NewServer() (*Server, error) {
 		Port:        getEnv("API_PORT", "8080"),
 		DatabaseURL: getEnv("DATABASE_URL", getEnv("POSTGRES_URL", "postgres://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/vrooli?sslmode=disable")),
 		N8NURL:      getEnv("N8N_BASE_URL", "http://localhost:5678"),
-		WindmillURL: getEnv("WINDMILL_BASE_URL", "http://localhost:5681"),
 		APIToken:    getEnv("API_TOKEN", "API_TOKEN_PLACEHOLDER"),
 	}
 
@@ -395,7 +393,7 @@ func (s *Server) handleExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Trigger workflow execution via n8n or Windmill
+	// TODO: Trigger workflow execution via n8n or another orchestration platform
 	// This is a template - customize based on your workflow platform
 
 	executionID := uuid.New().String()

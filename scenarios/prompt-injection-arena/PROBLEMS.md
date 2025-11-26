@@ -252,12 +252,12 @@
 
 ### 2. Ollama Integration
 - **File**: api/ollama.go exists but usage unclear
-- **Issue**: Direct Ollama calls instead of using n8n workflow as specified in PRD
-- **Impact**: May not respect safety sandbox constraints
+- **Issue**: Direct Ollama calls need clearer safety controls now that shared workflows are removed
+- **Impact**: Safety sandboxing must be enforced in code/tests
 
 ### 3. Missing Security Sandbox Validation
-- **Required**: initialization/n8n/security-sandbox.json workflow
-- **Status**: File exists but no validation that it's active or properly configured
+- **Required**: Security sandbox behavior without shared workflows
+- **Status**: Needs validation that isolation is enforced in-service
 - **Impact**: Tests may not run in proper isolation
 
 ## Performance Issues

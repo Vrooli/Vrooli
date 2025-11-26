@@ -8,7 +8,7 @@
 ## 🎯 Overview
 - **Purpose**: AI companion for morning walks that transforms unstructured thoughts into actionable insights, helping brainstorm ideas, understand Vrooli's current state, and collaboratively plan the day ahead through natural voice interaction
 - **Primary users/verticals**: Vrooli developers, knowledge workers, daily planners, reflective thinkers who prefer voice-first interaction during walks or commutes
-- **Deployment surfaces**: CLI (conversation management and task export), API (conversation handling and context gathering), UI (mobile-optimized conversation interface with voice input), n8n workflows (task extraction, insight generation, and planning orchestration)
+- **Deployment surfaces**: CLI (conversation management and task export), API (conversation handling and context gathering), UI (mobile-optimized conversation interface with voice input)
 - **Value promise**: Transform daily walks into productive brainstorming sessions with automatic task extraction, context-aware responses using conversation history, and seamless integration with task-planner and other Vrooli scenarios
 
 ## 🎯 Operational Targets
@@ -36,13 +36,13 @@
 - [ ] OT-P2-005 | Personalized reflection prompts | Learn user patterns and suggest targeted reflection questions
 
 ## 🧱 Tech Direction Snapshot
-- Preferred stacks / frameworks: Go API (conversation handling and context gathering), React UI (mobile-first with nature-inspired design), n8n workflows (task extraction, insight generation, daily planning, and orchestration)
+- Preferred stacks / frameworks: Go API (conversation handling and context gathering), React UI (mobile-first with nature-inspired design)
 - Data + storage expectations: PostgreSQL (conversations, insights, tasks, and plans), Redis (current conversation state and real-time audio streaming), Qdrant (conversation embeddings for context retrieval), Ollama (llama3.2 for AI responses)
-- Integration strategy: n8n shared workflows for AI capabilities (ollama, chain-of-thought-orchestrator, embedding-generator, universal-rag-pipeline), direct scenario integration with task-planner and stream-of-consciousness-analyzer
+- Integration strategy: Direct API/CLI orchestration for AI capabilities (ollama, chain-of-thought-orchestrator, embedding-generator, universal-rag-pipeline), plus scenario integration with task-planner and stream-of-consciousness-analyzer
 - Non-goals / guardrails: Not a general-purpose voice assistant (focused on walks and planning), not a replacement for task management tools (complements task-planner), no complex UI interactions (keep it simple for outdoor use)
 
 ## 🤝 Dependencies & Launch Plan
-- Required resources: ollama (llama3.2 for conversation), postgres (data storage), qdrant (embeddings), n8n (workflow orchestration), redis (session state), chain-of-thought-orchestrator (reasoning), embedding-generator (vectors), universal-rag-pipeline (context retrieval)
+- Required resources: ollama (llama3.2 for conversation), postgres (data storage), qdrant (embeddings), redis (session state), chain-of-thought-orchestrator (reasoning), embedding-generator (vectors), universal-rag-pipeline (context retrieval)
 - Scenario dependencies: task-planner (task export), stream-of-consciousness-analyzer (insight analysis), mind-maps (visualization - P2), idea-generator (idea development - P2)
 - Operational risks: Voice transcription accuracy in outdoor environments, Ollama availability for real-time responses, mobile network connectivity during walks, conversation context window limits
 - Launch sequencing: Phase 1 - Deploy basic voice conversation with task extraction (2 weeks), Phase 2 - Add task-planner integration and daily planning (1 week), Phase 3 - Implement breakthrough detection and advanced integrations (ongoing)
@@ -64,12 +64,12 @@
 
 ### Voice Interaction Pattern
 ```
-User: (walking, voice input) "I've been thinking about how we could improve the n8n workflows..."
+User: (walking, voice input) "I've been thinking about how we could improve the automation workflows..."
 System: (audio response) "That's an interesting direction. What specific workflow challenges are you encountering?"
 User: "The error handling feels brittle, and we don't have good retry logic..."
-System: (audio) "I hear two themes - reliability and resilience. Should I create a task for improving n8n error handling?"
+System: (audio) "I hear two themes - reliability and resilience. Should I create a task for improving automation error handling?"
 User: "Yes, make it high priority"
-System: (audio + visual confirmation) "✓ Task created: Improve n8n error handling and retry logic - High Priority"
+System: (audio + visual confirmation) "✓ Task created: Improve automation error handling and retry logic - High Priority"
 ```
 
 ### Reference Documentation

@@ -31,7 +31,7 @@ Intelligent, multi-source research orchestration with automated analysis, synthe
   - [x] Vector storage for semantic search in Qdrant
   - [x] PDF report generation via Unstructured-IO
   - [x] Dashboard interface through Windmill
-  - [x] Scheduled report automation via n8n
+  - [x] Scheduled report automation via in-API background jobs
   - [x] Chat interface with RAG capabilities
   
 - **Should Have (P1)**
@@ -70,18 +70,13 @@ Intelligent, multi-source research orchestration with automated analysis, synthe
 required:
   - resource_name: ollama
     purpose: AI analysis and embedding generation
-    integration_pattern: Shared n8n workflow
-    access_method: ollama.json and embedding-generator.json workflows
+    integration_pattern: Direct API calls from Go services
+    access_method: HTTP API
     
   - resource_name: searxng
     purpose: Privacy-respecting meta-search across 70+ engines
     integration_pattern: HTTP API for search queries
     access_method: Direct API calls (no CLI available)
-    
-  - resource_name: n8n
-    purpose: Research pipeline orchestration and scheduling
-    integration_pattern: Workflow triggers and webhook APIs
-    access_method: resource-n8n CLI for workflow management
     
   - resource_name: windmill
     purpose: Dashboard UI and chat interface
@@ -124,32 +119,14 @@ optional:
 ```yaml
 # Priority order for resource access:
 integration_priorities:
-  1_shared_workflows:
-    - workflow: ollama.json
-      location: initialization/automation/n8n/
-      purpose: Standardized text generation across all scenarios
-      reused_by: [product-manager, study-buddy, idea-generator]
-      
-    - workflow: embedding-generator.json
-      location: initialization/automation/n8n/
-      purpose: Consistent vector embedding generation
-      reused_by: [stream-of-consciousness-analyzer, notes]
-      
-    - workflow: research-orchestrator.json
-      location: initialization/automation/n8n/
-      purpose: Core research pipeline (scenario-specific)
-      
-  2_resource_cli:
-    - command: resource-n8n list-workflows
-      purpose: Verify workflow deployment
-      
+  1_resource_cli:
     - command: resource-postgres backup
       purpose: Scheduled database backups
       
     - command: resource-minio create-bucket research-reports
       purpose: Initialize storage buckets
       
-  3_direct_api:
+  2_direct_api:
     - justification: SearXNG has no CLI, search requires direct API
       endpoint: http://localhost:9200/search
       
@@ -214,7 +191,7 @@ endpoints:
     output_schema: |
       {
         status: string
-        services: {database, n8n, ollama, qdrant, searxng, windmill}
+        services: {database, ollama, qdrant, searxng, windmill}
         timestamp: int
       }
 
@@ -499,7 +476,6 @@ installation:
 ### Upstream Dependencies
 **What capabilities must exist before this can function?**
 - **Ollama**: Must have qwen2.5:32b and nomic-embed-text models loaded
-- **n8n Shared Workflows**: ollama.json and embedding-generator.json must be available
 - **Resource Connectivity**: All 9 required resources must be healthy and accessible
 
 ### Downstream Enablement
@@ -750,7 +726,7 @@ The runner writes phase summaries to `coverage/phase-results/*.json`, enabling r
 - [x] Discoverable via resource registry
 - [x] All 5 API endpoints functional with OpenAPI docs - Verified: /api/reports, /api/dashboard/stats working
 - [x] All 6 CLI commands work with --help documentation - Verified: status command working with dynamic port detection
-- [ ] Shared workflows (ollama.json, embedding-generator.json) registered - n8n workflows failed to populate
+- [ ] In-API orchestration validated (external workflow import removed)
 - [ ] Events published to Redis event bus - Redis not configured
 
 ### Capability Verification
@@ -807,7 +783,7 @@ The runner writes phase summaries to `coverage/phase-results/*.json`, enabling r
   - Standard: 15 sources, 7 engines, 2 analysis rounds, 5min timeout
   - Deep: 30 sources, 15 engines, 3 analysis rounds, 10min timeout
 - Created `/api/depth-configs` endpoint to expose configurations
-- Enhanced workflow trigger payload to include depth_config for n8n workflows
+- Enhanced workflow trigger payload handled directly in API
 - Verified: `curl http://localhost:16814/api/depth-configs` returns full config
 
 **Report Template System (P1)**: ✅ FULLY IMPLEMENTED 2025-10-02
@@ -847,7 +823,7 @@ The runner writes phase summaries to `coverage/phase-results/*.json`, enabling r
 - Reports table structure validated and functional
 
 **Known Limitations**:
-- n8n workflows require manual import (resource-n8n content inject)
+- External workflow import no longer required (in-API orchestration)
 - Windmill resource unavailable (optional feature)
 - Test framework has missing handlers for http/integration tests
 - Some P1 features not fully implemented (contradiction detection, report templates)
@@ -898,7 +874,7 @@ The runner writes phase summaries to `coverage/phase-results/*.json`, enabling r
 ### External Resources
 - [SearXNG Documentation](https://docs.searxng.org/)
 - [Qdrant Vector Database Guide](https://qdrant.tech/documentation/)
-- [n8n Workflow Automation](https://docs.n8n.io/)
+- In-API automation (no external workflow engine)
 
 ---
 
@@ -973,7 +949,7 @@ The runner writes phase summaries to `coverage/phase-results/*.json`, enabling r
 - ✅ Health check latency: 8-15ms consistently (was 6000ms+)
 - ✅ API response time: <50ms for all endpoints
 - ✅ UI status checks: No timeout warnings
-- ✅ All 5 critical services healthy: postgres, n8n, ollama, qdrant, searxng
+- ✅ All critical services healthy: postgres, ollama, qdrant, searxng
 
 **Testing Performed**:
 - ✅ CLI BATS tests: 12 tests (100% pass)
@@ -1004,7 +980,7 @@ The runner writes phase summaries to `coverage/phase-results/*.json`, enabling r
 **Testing Performed**:
 - ✅ Go unit tests: 19 test functions covering core functionality (100% pass)
 - ✅ CLI BATS tests: 12 tests covering all scenario commands (100% pass)
-- ✅ API health check: All 5 critical services healthy (postgres, n8n, ollama, qdrant, searxng)
+- ✅ API health check: All critical services healthy (postgres, ollama, qdrant, searxng)
 - ✅ HTTP endpoint validation: 4 endpoint tests added and passing
 - ✅ Scenario auditor: Security clean (0 vulnerabilities), standards violations 62 (low-priority polish)
 - ✅ Manual validation: All P1 features tested and functional
@@ -1047,7 +1023,7 @@ The runner writes phase summaries to `coverage/phase-results/*.json`, enabling r
 - ✅ **NEW**: Added HTTP timeout protection to all health check functions (10s timeout)
 - ✅ **NEW**: Implemented graceful shutdown handler with 30s grace period
 - ✅ **NEW**: Configured HTTP server timeouts (ReadTimeout: 15s, WriteTimeout: 120s, IdleTimeout: 120s)
-- ✅ **NEW**: Added timeout to n8n workflow trigger HTTP client (30s)
+- ✅ **NEW**: Added timeout to internal workflow trigger HTTP client (30s)
 - ✅ Validated all existing tests still passing (unit + CLI + phased)
 - ✅ Verified API health checks with proper timeout handling
 - ✅ Confirmed clean shutdown behavior
@@ -1091,7 +1067,7 @@ The runner writes phase summaries to `coverage/phase-results/*.json`, enabling r
 - ✅ Unit test suite - 10 test functions, 40+ assertions, 100% pass rate
 - ✅ All 8 API endpoints tested and functional
 - ✅ UI accessible and rendering correctly with professional SaaS interface (port 38842)
-- ✅ All 5 critical resources healthy (postgres, n8n, ollama, qdrant, searxng)
+- ✅ All critical resources healthy (postgres, ollama, qdrant, searxng)
 - ✅ Source quality ranking validated (domain authority, recency, content depth)
   - Unit tests: Domain authority (6 cases), recency scoring (6 cases), content depth (4 cases)
   - Integration tests: Source quality calculation (3 cases), result enhancement, sorting
@@ -1105,7 +1081,7 @@ The runner writes phase summaries to `coverage/phase-results/*.json`, enabling r
 
 **Known Limitations** (documented, not blockers):
 - Browserless integration blocked by infrastructure (network isolation) - see PROBLEMS.md
-- n8n workflows are templates requiring processing before import (manual workaround available)
+- External workflows removed; API handles orchestration directly
 - Test framework declarative handlers (http/integration/database) not implemented in framework (affects 16 tests)
 - UI npm vulnerabilities (2 high severity in transitive dependencies - lodash.set via package "2")
   - Low production risk: server-side rendering only, transitive dependency

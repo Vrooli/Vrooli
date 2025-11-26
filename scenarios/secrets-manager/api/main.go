@@ -2447,6 +2447,57 @@ func deploymentSecretsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(manifest)
 }
 
+// deploymentSecretsGetHandler exposes a simple GET form for bundle consumers (scenario-to-*, deployment-manager).
+// Example: GET /api/v1/deployment/secrets/picker-wheel?tier=tier-2-desktop&resources=postgres,redis&include_optional=false
+func deploymentSecretsGetHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	scenario := strings.TrimSpace(vars["scenario"])
+	if scenario == "" {
+		http.Error(w, "scenario is required", http.StatusBadRequest)
+		return
+	}
+
+	query := r.URL.Query()
+	tier := strings.TrimSpace(query.Get("tier"))
+	if tier == "" {
+		tier = "tier-2-desktop"
+	}
+	includeOptional := false
+	if raw := query.Get("include_optional"); raw != "" {
+		val, err := strconv.ParseBool(raw)
+		if err != nil {
+			http.Error(w, "include_optional must be a boolean", http.StatusBadRequest)
+			return
+		}
+		includeOptional = val
+	}
+	resources := []string{}
+	if rawResources := query.Get("resources"); rawResources != "" {
+		for _, r := range strings.Split(rawResources, ",") {
+			r = strings.TrimSpace(r)
+			if r != "" {
+				resources = append(resources, r)
+			}
+		}
+	}
+
+	req := DeploymentManifestRequest{
+		Scenario:        scenario,
+		Tier:            tier,
+		Resources:       resources,
+		IncludeOptional: includeOptional,
+	}
+
+	manifest, err := generateDeploymentManifest(r.Context(), req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to generate manifest: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(manifest)
+}
+
 func resourceDetailHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	resource := vars["resource"]
@@ -4633,6 +4684,7 @@ func main() {
 
 	// Deployment routes (experimental/planned features)
 	api.HandleFunc("/deployment/secrets", deploymentSecretsHandler).Methods("POST")
+	api.HandleFunc("/deployment/secrets/{scenario}", deploymentSecretsGetHandler).Methods("GET")
 
 	// CORS headers
 	corsHeaders := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})

@@ -12,21 +12,18 @@ An intelligent research assistant that helps users gather, analyze, and synthesi
 - **Report Templates**: Five professional templates (general, academic, market, technical, quick-brief)
 - **Intelligent Analysis**: Uses Ollama AI models (qwen2.5:32b, llama3.2:3b) to analyze and synthesize research findings
 - **RAG Support**: Implements retrieval-augmented generation for contextual responses
-- **Scheduled Reports**: Can generate periodic research summaries via n8n automation
+- **Scheduled Reports**: Periodic research summaries via in-API background tasks
 - **Knowledge Storage**: Stores research data in Qdrant for semantic search
 - **Privacy-First**: All data processing happens locally, no external API keys required
 - **Professional UI**: Dashboard interface with dark mode support and real-time metrics
 
 ## Dependencies
-- **Resources**: ollama, qdrant, postgres, minio, n8n, searxng
-- **Shared Workflows**: 
-  - `ollama.json` - For AI text generation
-  - `embedding-generator.json` - For generating text embeddings
-  
+- **Resources**: ollama, qdrant, postgres, minio, searxng
+
 ## Architecture
 - **API**: Go-based REST API for research operations
 - **CLI**: Command-line interface for local research tasks
-- **Workflows**: N8n orchestration for complex research pipelines
+- **Workflows**: Orchestrated directly inside the Go API (no external engine)
 - **Storage**: PostgreSQL for metadata, Qdrant for vectors, MinIO for documents
 
 ## Use Cases
@@ -88,7 +85,6 @@ export POSTGRES_PASSWORD=<secure-password>
 export POSTGRES_DB=vrooli
 
 # Required resource ports (recommended for production)
-export RESOURCE_PORT_N8N=5678
 export RESOURCE_PORT_SEARXNG=8280
 export RESOURCE_PORT_QDRANT=6333
 export RESOURCE_PORT_OLLAMA=11434
@@ -121,7 +117,7 @@ Professional, clean interface with focus on information density and readability.
 - ✅ Advanced search filters (language, date ranges, file types, etc.)
 - ✅ CLI with auto-detection (no manual configuration needed)
 - ✅ Professional SaaS UI (port 38842)
-- ✅ All critical resources healthy (postgres, n8n, ollama, qdrant, searxng)
+- ✅ All critical resources healthy (postgres, ollama, qdrant, searxng)
 - ✅ Test infrastructure upgraded from "Minimal" to "Basic" (10 test functions, 40+ assertions)
 - ✅ **NEW**: Structured JSON logging for better observability (2025-10-05)
 
@@ -135,7 +131,7 @@ Professional, clean interface with focus on information density and readability.
 **Known Limitations** (non-blocking):
 - ⚠️ Test coverage 35% (below 50% threshold but all critical paths tested)
 - ⚠️ Browserless integration blocked by infrastructure (network isolation)
-- ⚠️ n8n workflows require template processing before import
+- ⚠️ In-API orchestration still basic; extend as needed
 - ⚠️ Test framework declarative tests (framework limitation, phased tests working)
 - ⚠️ UI npm vulnerabilities (transitive dependencies, low production risk)
 

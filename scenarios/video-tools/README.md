@@ -265,7 +265,7 @@ http.Post(fmt.Sprintf("http://localhost:18125/api/v1/video/%s/convert", videoID)
 
 ### **Workflow Integration**
 ```yaml
-# n8n/Windmill workflow
+# n8n workflow
 - name: Process Video
   type: http
   url: http://localhost:18125/api/v1/video/{{videoId}}/edit

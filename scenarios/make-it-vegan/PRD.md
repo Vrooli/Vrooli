@@ -57,11 +57,11 @@ New scenarios enabled by this capability:
 - **API Layer**: Go-based REST API for high performance
 - **Storage**: PostgreSQL for ingredient database, Redis for caching
 - **AI Integration**: Ollama for natural language understanding
-- **Workflow Engine**: n8n for orchestrating complex analysis
+- **Workflow Engine**: Direct API orchestration (n8n workflows removed)
 - **UI Framework**: Node.js server with vanilla JavaScript frontend
 
 #### Dependencies
-- **Resources**: ollama, n8n, postgresql, redis
+- **Resources**: ollama, postgresql, redis
 - **Go Packages**: gorilla/mux, rs/cors
 - **Node Packages**: express, cors
 
@@ -97,13 +97,13 @@ New scenarios enabled by this capability:
 #### Initial Creation (2024-01-XX)
 - Basic structure established
 - API endpoints created
-- n8n workflows integrated
+- Initial automation orchestration stubs created (n8n workflows removed)
 - CLI commands implemented
 
 #### Improvement Phase 1 (2025-09-24)
 - **Progress**: 85% P0 requirements completed
 - Added comprehensive local vegan database with 40+ ingredients
-- Implemented fallback logic when n8n is unavailable
+- Implemented graceful degradation when external automation is unavailable
 - Fixed ingredient matching logic with vegan exceptions (e.g., soy milk, almond butter)
 - Added contextual alternative suggestions with ratings
 - Implemented recipe veganization with automatic substitutions
@@ -186,7 +186,7 @@ New scenarios enabled by this capability:
 - **Critical Fixes** (2 P0 violations resolved):
   - ✅ API health endpoint: Converted from plain text "OK" to full JSON schema compliance
     - Added required fields: status, service, timestamp, readiness
-    - Added dependencies tracking: redis connection status, n8n availability
+    - Added dependencies tracking: redis connection status
     - Follows /home/matthalloran8/Vrooli/cli/commands/scenario/schemas/health-api.schema.json
   - ✅ UI health endpoint: Added missing api_connectivity field with full schema compliance
     - Added connectivity check with actual API health endpoint test
@@ -195,7 +195,7 @@ New scenarios enabled by this capability:
 - **Technical Improvements**:
   - ✅ Exported CacheClient.Enable field for health check access
   - ✅ Updated all test files to use capitalized Enable field
-  - ✅ Health checks now report actual dependency status (redis, n8n)
+  - ✅ Health checks now report actual dependency status (redis)
   - ✅ UI health shows "degraded" status when API unreachable (graceful degradation)
 - **Validation Results**:
   - Security: 0 vulnerabilities (unchanged) ✅
@@ -399,19 +399,13 @@ New scenarios enabled by this capability:
 **Required Resources:**
 - **ollama**: AI-powered ingredient analysis and natural language understanding
   - Purpose: Contextual understanding of ingredient lists and recipe conversion
-  - Access: Shared workflow at initialization/n8n/ollama.json
+  - Access: Direct API calls to Ollama
   - Fallback: Local vegan database with 40+ common ingredients
-
-**Optional Resources:**
-- **n8n**: Workflow orchestration for complex multi-step analysis
-  - Purpose: Coordinate ingredient checking, substitution, and recipe conversion
-  - Access: Scenario-specific workflows in initialization/n8n/
-  - Fallback: Direct API logic without workflow orchestration
-
 - **postgresql**: Persistent storage for ingredient database and user preferences
   - Purpose: Store comprehensive vegan food database
   - Fallback: In-memory database for current session
 
+**Optional Resources:**
 - **redis**: Performance caching for frequently checked ingredients
   - Purpose: Sub-100ms response times for common queries
   - Fallback: No caching, direct database/logic queries
@@ -514,8 +508,7 @@ All endpoints return JSON with standard format:
 1. Build Go API binary
 2. Install CLI to ~/.local/bin
 3. Install UI dependencies
-4. Populate n8n workflows (if available)
-5. Verify health endpoints
+4. Verify health endpoints
 
 ### Develop Phase
 1. Start API server on dynamic port
@@ -545,7 +538,6 @@ All endpoints return JSON with standard format:
 - [ ] Ingredient accuracy > 95% for common foods
 
 ### Integration Validation
-- [ ] Works with and without n8n available
 - [ ] Works with and without Redis available
 - [ ] Graceful degradation when resources unavailable
 - [ ] API responses follow standard contract

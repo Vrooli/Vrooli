@@ -24,7 +24,6 @@ INSERT INTO {{ scenario_id }}.app_metadata (
 INSERT INTO {{ scenario_id }}.app_config (config_key, config_value, config_type, description) VALUES 
     -- Feature flags
     ('feature_ai_processing', 'true'::jsonb, 'feature_flag', 'Enable AI processing capabilities'),
-    ('feature_analytics_dashboard', '{{ "true" if "windmill" in resources.required else "false" }}'::jsonb, 'feature_flag', 'Enable analytics dashboard UI'),
     ('feature_workflow_automation', '{{ "true" if "n8n" in resources.required else "false" }}'::jsonb, 'feature_flag', 'Enable workflow automation'),
     ('feature_file_storage', '{{ "true" if "minio" in resources.required else "false" }}'::jsonb, 'feature_flag', 'Enable file storage capabilities'),
     ('feature_vector_search', '{{ "true" if "qdrant" in resources.required else "false" }}'::jsonb, 'feature_flag', 'Enable vector search functionality'),

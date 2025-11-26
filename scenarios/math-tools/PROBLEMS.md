@@ -38,10 +38,6 @@
 **Problem**: Echo statements using single quotes prevented shell variable expansion in displayed URLs.
 **Solution**: Rewrote echo commands using double quotes and separate echo statements per line.
 
-### 5. Windmill Workflow - Missing Configuration File
-**Problem**: service.json referenced non-existent windmill-app.json, causing validation warnings.
-**Solution**: Disabled Windmill resource since no workflow integration is implemented.
-
 ### 6. CLI Test Suite - Placeholder Values
 **Problem**: CLI tests referenced ./cli.sh and placeholder CLI names that don't exist.
 **Solution**: Rewrote test suite to use actual math-tools CLI with realistic tests for implemented commands.

@@ -11,7 +11,6 @@ import (
 )
 
 var (
-	n8nURL  string
 	veganDB *VeganDatabase
 	cache   *CacheClient
 	logger  *slog.Logger
@@ -23,10 +22,6 @@ func init() {
 		Level: slog.LevelInfo,
 	}))
 	slog.SetDefault(logger)
-
-	// NOTE: N8N_BASE_URL is optional - graceful degradation when not provided
-	// The scenario uses local vegan database as fallback when n8n is unavailable
-	n8nURL = os.Getenv("N8N_BASE_URL")
 
 	// Initialize the vegan database
 	veganDB = InitVeganDatabase()

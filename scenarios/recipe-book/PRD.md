@@ -88,7 +88,7 @@ optional:
   - resource_name: ollama
     purpose: AI recipe generation and modification
     fallback: Manual recipe entry only
-    access_method: Shared workflow initialization/n8n/ollama.json
+    access_method: Direct Ollama API calls
     
   - resource_name: minio
     purpose: Store recipe photos
@@ -104,15 +104,7 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: ollama.json
-      location: initialization/automation/n8n/
-      purpose: AI recipe generation and modification
-    - workflow: embedding-generator.json
-      location: initialization/automation/n8n/
-      purpose: Generate embeddings for semantic search
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-qdrant upsert
       purpose: Store recipe embeddings
     - command: resource-qdrant search
@@ -120,14 +112,9 @@ integration_priorities:
     - command: resource-minio upload
       purpose: Store recipe photos
   
-  3_direct_api:
+  2_direct_api:
     - justification: Database operations require direct connection
       endpoint: postgres connection via database/sql
-
-shared_workflow_criteria:
-  - ollama.json already exists and handles LLM calls
-  - embedding-generator.json will be shared across scenarios
-  - Both are truly reusable for any text processing need
 ```
 
 ### Data Models

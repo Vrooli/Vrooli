@@ -56,7 +56,6 @@ type Config struct {
 	RedisURL    string
 	MinioURL    string
 	QdrantURL   string
-	WindmillURL string
 }
 
 type ScrapingAgent struct {
@@ -295,7 +294,6 @@ func loadConfig() Config {
 		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
 		MinioURL:    getEnv("MINIO_URL", "http://localhost:9000"),
 		QdrantURL:   getEnv("QDRANT_URL", "http://localhost:6333"),
-		WindmillURL: getEnv("WINDMILL_BASE_URL", "http://localhost:8000"),
 	}
 }
 

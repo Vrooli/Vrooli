@@ -11,8 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
 	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 var db *sql.DB
@@ -28,13 +28,13 @@ type HealthResponse struct {
 
 // Date suggestion types
 type DateSuggestionRequest struct {
-	CoupleID         string  `json:"couple_id"`
-	DateType         string  `json:"date_type,omitempty"`
-	BudgetMax        float64 `json:"budget_max,omitempty"`
-	PreferredDate    string  `json:"preferred_date,omitempty"`
+	CoupleID          string  `json:"couple_id"`
+	DateType          string  `json:"date_type,omitempty"`
+	BudgetMax         float64 `json:"budget_max,omitempty"`
+	PreferredDate     string  `json:"preferred_date,omitempty"`
 	WeatherPreference string  `json:"weather_preference,omitempty"`
-	SurpriseMode     bool    `json:"surprise_mode,omitempty"`
-	PlannerID        string  `json:"planner_id,omitempty"` // Who is planning the surprise
+	SurpriseMode      bool    `json:"surprise_mode,omitempty"`
+	PlannerID         string  `json:"planner_id,omitempty"` // Who is planning the surprise
 }
 
 type Activity struct {
@@ -45,41 +45,41 @@ type Activity struct {
 }
 
 type DateSuggestion struct {
-	Title            string     `json:"title"`
-	Description      string     `json:"description"`
-	Activities       []Activity `json:"activities"`
-	EstimatedCost    float64    `json:"estimated_cost"`
-	EstimatedDuration string    `json:"estimated_duration"`
-	ConfidenceScore  float64    `json:"confidence_score"`
-	WeatherBackup    *Activity  `json:"weather_backup,omitempty"`
+	Title             string     `json:"title"`
+	Description       string     `json:"description"`
+	Activities        []Activity `json:"activities"`
+	EstimatedCost     float64    `json:"estimated_cost"`
+	EstimatedDuration string     `json:"estimated_duration"`
+	ConfidenceScore   float64    `json:"confidence_score"`
+	WeatherBackup     *Activity  `json:"weather_backup,omitempty"`
 }
 
 type DateSuggestionResponse struct {
-	Suggestions          []DateSuggestion `json:"suggestions"`
-	PersonalizationFactors []string        `json:"personalization_factors"`
+	Suggestions            []DateSuggestion `json:"suggestions"`
+	PersonalizationFactors []string         `json:"personalization_factors"`
 }
 
 // Date plan types
 type DatePlanRequest struct {
-	CoupleID          string          `json:"couple_id"`
+	CoupleID           string          `json:"couple_id"`
 	SelectedSuggestion DateSuggestion  `json:"selected_suggestion"`
-	PlannedDate       string          `json:"planned_date"`
-	Customizations    json.RawMessage `json:"customizations,omitempty"`
+	PlannedDate        string          `json:"planned_date"`
+	Customizations     json.RawMessage `json:"customizations,omitempty"`
 }
 
 type DatePlan struct {
-	ID               string    `json:"id"`
-	CoupleID         string    `json:"couple_id"`
-	Title            string    `json:"title"`
-	Description      string    `json:"description"`
-	PlannedDate      time.Time `json:"planned_date"`
-	Activities       []Activity `json:"activities"`
-	EstimatedCost    float64   `json:"estimated_cost"`
-	EstimatedDuration string   `json:"estimated_duration"`
-	Status           string    `json:"status"`
-	IsSurprise       bool      `json:"is_surprise,omitempty"`
-	PlannedBy        string    `json:"planned_by,omitempty"`
-	RevealDate       *time.Time `json:"reveal_date,omitempty"`
+	ID                string     `json:"id"`
+	CoupleID          string     `json:"couple_id"`
+	Title             string     `json:"title"`
+	Description       string     `json:"description"`
+	PlannedDate       time.Time  `json:"planned_date"`
+	Activities        []Activity `json:"activities"`
+	EstimatedCost     float64    `json:"estimated_cost"`
+	EstimatedDuration string     `json:"estimated_duration"`
+	Status            string     `json:"status"`
+	IsSurprise        bool       `json:"is_surprise,omitempty"`
+	PlannedBy         string     `json:"planned_by,omitempty"`
+	RevealDate        *time.Time `json:"reveal_date,omitempty"`
 }
 
 type DatePlanResponse struct {
@@ -164,39 +164,6 @@ func databaseHealthHandler(w http.ResponseWriter, r *http.Request) {
 	response := HealthResponse{
 		Status:    status,
 		Service:   "date-night-planner-database",
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-		Checks:    checks,
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
-func workflowHealthHandler(w http.ResponseWriter, r *http.Request) {
-	checks := make(map[string]bool)
-	checks["n8n_available"] = false
-	checks["workflows_active"] = false
-
-	// Check n8n availability
-	n8nPort := os.Getenv("N8N_PORT")
-	if n8nPort == "" {
-		n8nPort = "5678"
-	}
-
-	resp, err := http.Get(fmt.Sprintf("http://localhost:%s/rest/workflows", n8nPort))
-	if err == nil {
-		defer resp.Body.Close()
-		checks["n8n_available"] = resp.StatusCode < 500
-		checks["workflows_active"] = resp.StatusCode == 200
-	}
-
-	status := "healthy"
-	if !checks["n8n_available"] {
-		status = "degraded"
-	}
-
-	response := HealthResponse{
-		Status:    status,
-		Service:   "date-night-planner-workflows",
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Checks:    checks,
 	}
@@ -314,7 +281,7 @@ func suggestDatesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := DateSuggestionResponse{
-		Suggestions:          suggestions,
+		Suggestions:            suggestions,
 		PersonalizationFactors: preferences,
 	}
 
@@ -325,13 +292,13 @@ func suggestDatesHandler(w http.ResponseWriter, r *http.Request) {
 // surpriseDateHandler creates a surprise date plan
 func surpriseDateHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		CoupleID         string    `json:"couple_id"`
-		PlannedBy        string    `json:"planned_by"`
-		DateSuggestion   DateSuggestion `json:"date_suggestion"`
-		PlannedDate      string    `json:"planned_date"`
-		RevealTime       string    `json:"reveal_time,omitempty"` // When to reveal the surprise
+		CoupleID       string         `json:"couple_id"`
+		PlannedBy      string         `json:"planned_by"`
+		DateSuggestion DateSuggestion `json:"date_suggestion"`
+		PlannedDate    string         `json:"planned_date"`
+		RevealTime     string         `json:"reveal_time,omitempty"` // When to reveal the surprise
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -357,18 +324,18 @@ func surpriseDateHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Create surprise date plan
 	datePlan := DatePlan{
-		ID:               generateUUID(),
-		CoupleID:         req.CoupleID,
-		Title:            "🎉 Surprise Date: " + req.DateSuggestion.Title,
-		Description:      req.DateSuggestion.Description + " (Planned as a surprise!)",
-		PlannedDate:      plannedDate,
-		Activities:       req.DateSuggestion.Activities,
-		EstimatedCost:    req.DateSuggestion.EstimatedCost,
+		ID:                generateUUID(),
+		CoupleID:          req.CoupleID,
+		Title:             "🎉 Surprise Date: " + req.DateSuggestion.Title,
+		Description:       req.DateSuggestion.Description + " (Planned as a surprise!)",
+		PlannedDate:       plannedDate,
+		Activities:        req.DateSuggestion.Activities,
+		EstimatedCost:     req.DateSuggestion.EstimatedCost,
 		EstimatedDuration: req.DateSuggestion.EstimatedDuration,
-		Status:           "planned",
-		IsSurprise:       true,
-		PlannedBy:        req.PlannedBy,
-		RevealDate:       revealDate,
+		Status:            "planned",
+		IsSurprise:        true,
+		PlannedBy:         req.PlannedBy,
+		RevealDate:        revealDate,
 	}
 
 	// Save to database with surprise flag
@@ -389,12 +356,12 @@ func surpriseDateHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Return response with surprise details hidden
 	response := map[string]interface{}{
-		"surprise_id": datePlan.ID,
-		"status": "planned",
+		"surprise_id":  datePlan.ID,
+		"status":       "planned",
 		"planned_date": datePlan.PlannedDate,
-		"planner_id": req.PlannedBy,
-		"reveal_time": revealDate,
-		"message": "Surprise date successfully planned! Details will be revealed at the specified time.",
+		"planner_id":   req.PlannedBy,
+		"reveal_time":  revealDate,
+		"message":      "Surprise date successfully planned! Details will be revealed at the specified time.",
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -406,7 +373,7 @@ func surpriseDateHandler(w http.ResponseWriter, r *http.Request) {
 func getSurpriseHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	surpriseID := vars["id"]
-	
+
 	// Get requester ID from query params
 	requesterID := r.URL.Query().Get("requester_id")
 	if requesterID == "" {
@@ -417,32 +384,32 @@ func getSurpriseHandler(w http.ResponseWriter, r *http.Request) {
 	// In a real implementation, this would check the database
 	// For now, return a sample surprise date
 	datePlan := DatePlan{
-		ID:               surpriseID,
-		CoupleID:         "couple-123",
-		Title:            "🎉 Surprise Date: Romantic Evening",
-		Description:      "A special surprise date planned with love",
-		PlannedDate:      time.Now().Add(48 * time.Hour),
+		ID:          surpriseID,
+		CoupleID:    "couple-123",
+		Title:       "🎉 Surprise Date: Romantic Evening",
+		Description: "A special surprise date planned with love",
+		PlannedDate: time.Now().Add(48 * time.Hour),
 		Activities: []Activity{
 			{Type: "surprise", Name: "Secret Activity 1", Duration: "1 hour"},
 			{Type: "surprise", Name: "Secret Activity 2", Duration: "2 hours"},
 		},
-		EstimatedCost:    150,
+		EstimatedCost:     150,
 		EstimatedDuration: "4 hours",
-		Status:           "planned",
-		IsSurprise:       true,
-		PlannedBy:        "partner-1",
+		Status:            "planned",
+		IsSurprise:        true,
+		PlannedBy:         "partner-1",
 	}
 
 	// Check if requester is allowed to see details
 	canViewDetails := requesterID == datePlan.PlannedBy
-	
+
 	// If it's not time to reveal yet or requester isn't the planner, hide details
 	if !canViewDetails {
 		response := map[string]interface{}{
-			"surprise_id": surpriseID,
-			"status": "planned",
+			"surprise_id":  surpriseID,
+			"status":       "planned",
 			"planned_date": datePlan.PlannedDate,
-			"message": "This is a surprise! Details will be revealed soon.",
+			"message":      "This is a surprise! Details will be revealed soon.",
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
@@ -474,15 +441,15 @@ func planDateHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Create date plan
 	datePlan := DatePlan{
-		ID:               generateUUID(),
-		CoupleID:         req.CoupleID,
-		Title:            req.SelectedSuggestion.Title,
-		Description:      req.SelectedSuggestion.Description,
-		PlannedDate:      plannedDate,
-		Activities:       req.SelectedSuggestion.Activities,
-		EstimatedCost:    req.SelectedSuggestion.EstimatedCost,
+		ID:                generateUUID(),
+		CoupleID:          req.CoupleID,
+		Title:             req.SelectedSuggestion.Title,
+		Description:       req.SelectedSuggestion.Description,
+		PlannedDate:       plannedDate,
+		Activities:        req.SelectedSuggestion.Activities,
+		EstimatedCost:     req.SelectedSuggestion.EstimatedCost,
 		EstimatedDuration: req.SelectedSuggestion.EstimatedDuration,
-		Status:           "planned",
+		Status:            "planned",
 	}
 
 	// Save to database
@@ -514,16 +481,16 @@ func planDateHandler(w http.ResponseWriter, r *http.Request) {
 // generateDynamicSuggestions creates contextual suggestions based on request parameters
 func generateDynamicSuggestions(req DateSuggestionRequest) []DateSuggestion {
 	suggestions := []DateSuggestion{}
-	
+
 	// Base suggestions by date type
 	switch req.DateType {
 	case "adventure":
 		suggestions = append(suggestions, DateSuggestion{
-			Title:            "Outdoor Adventure Experience",
-			Description:      "Exciting outdoor activities like hiking, zip-lining, or rock climbing",
-			EstimatedCost:    120,
+			Title:             "Outdoor Adventure Experience",
+			Description:       "Exciting outdoor activities like hiking, zip-lining, or rock climbing",
+			EstimatedCost:     120,
 			EstimatedDuration: "4 hours",
-			ConfidenceScore:  0.80,
+			ConfidenceScore:   0.80,
 			Activities: []Activity{
 				{Type: "adventure", Name: "Hiking Trail", Duration: "2 hours"},
 				{Type: "adventure", Name: "Picnic Lunch", Duration: "1 hour"},
@@ -532,11 +499,11 @@ func generateDynamicSuggestions(req DateSuggestionRequest) []DateSuggestion {
 		})
 		if req.BudgetMax > 150 {
 			suggestions = append(suggestions, DateSuggestion{
-				Title:            "Hot Air Balloon Ride",
-				Description:      "Romantic aerial adventure with breathtaking views",
-				EstimatedCost:    200,
+				Title:             "Hot Air Balloon Ride",
+				Description:       "Romantic aerial adventure with breathtaking views",
+				EstimatedCost:     200,
 				EstimatedDuration: "3 hours",
-				ConfidenceScore:  0.85,
+				ConfidenceScore:   0.85,
 				Activities: []Activity{
 					{Type: "adventure", Name: "Balloon Ride", Duration: "1.5 hours"},
 					{Type: "dining", Name: "Champagne Toast", Duration: "30 minutes"},
@@ -544,62 +511,62 @@ func generateDynamicSuggestions(req DateSuggestionRequest) []DateSuggestion {
 				},
 			})
 		}
-		
+
 	case "cultural":
 		suggestions = append(suggestions, DateSuggestion{
-			Title:            "Museum & Art Gallery Tour",
-			Description:      "Explore local culture through art and history",
-			EstimatedCost:    40,
+			Title:             "Museum & Art Gallery Tour",
+			Description:       "Explore local culture through art and history",
+			EstimatedCost:     40,
 			EstimatedDuration: "3 hours",
-			ConfidenceScore:  0.75,
+			ConfidenceScore:   0.75,
 			Activities: []Activity{
 				{Type: "cultural", Name: "Museum Visit", Duration: "2 hours"},
 				{Type: "dining", Name: "Café Break", Duration: "1 hour"},
 			},
 		})
 		suggestions = append(suggestions, DateSuggestion{
-			Title:            "Theater & Fine Dining",
-			Description:      "Evening of culture with a play or musical followed by dinner",
-			EstimatedCost:    150,
+			Title:             "Theater & Fine Dining",
+			Description:       "Evening of culture with a play or musical followed by dinner",
+			EstimatedCost:     150,
 			EstimatedDuration: "4 hours",
-			ConfidenceScore:  0.82,
+			ConfidenceScore:   0.82,
 			Activities: []Activity{
 				{Type: "cultural", Name: "Theater Show", Duration: "2.5 hours"},
 				{Type: "dining", Name: "Late Dinner", Duration: "1.5 hours"},
 			},
 		})
-		
+
 	case "casual":
 		suggestions = append(suggestions, DateSuggestion{
-			Title:            "Coffee Shop & Bookstore Browse",
-			Description:      "Relaxed afternoon with coffee and book shopping",
-			EstimatedCost:    30,
+			Title:             "Coffee Shop & Bookstore Browse",
+			Description:       "Relaxed afternoon with coffee and book shopping",
+			EstimatedCost:     30,
 			EstimatedDuration: "2 hours",
-			ConfidenceScore:  0.70,
+			ConfidenceScore:   0.70,
 			Activities: []Activity{
 				{Type: "casual", Name: "Coffee Date", Duration: "1 hour"},
 				{Type: "casual", Name: "Bookstore Browse", Duration: "1 hour"},
 			},
 		})
 		suggestions = append(suggestions, DateSuggestion{
-			Title:            "Farmers Market & Cooking Together",
-			Description:      "Shop for fresh ingredients and cook a meal together",
-			EstimatedCost:    50,
+			Title:             "Farmers Market & Cooking Together",
+			Description:       "Shop for fresh ingredients and cook a meal together",
+			EstimatedCost:     50,
 			EstimatedDuration: "3 hours",
-			ConfidenceScore:  0.78,
+			ConfidenceScore:   0.78,
 			Activities: []Activity{
 				{Type: "casual", Name: "Market Shopping", Duration: "1 hour"},
 				{Type: "experience", Name: "Cooking Together", Duration: "2 hours"},
 			},
 		})
-		
+
 	default: // romantic or unspecified
 		suggestions = append(suggestions, DateSuggestion{
-			Title:            "Sunset Picnic in the Park",
-			Description:      "Romantic outdoor dining with sunset views",
-			EstimatedCost:    40,
+			Title:             "Sunset Picnic in the Park",
+			Description:       "Romantic outdoor dining with sunset views",
+			EstimatedCost:     40,
 			EstimatedDuration: "2.5 hours",
-			ConfidenceScore:  0.77,
+			ConfidenceScore:   0.77,
 			Activities: []Activity{
 				{Type: "romantic", Name: "Picnic Setup", Duration: "30 minutes"},
 				{Type: "dining", Name: "Outdoor Dining", Duration: "1.5 hours"},
@@ -610,11 +577,11 @@ func generateDynamicSuggestions(req DateSuggestionRequest) []DateSuggestion {
 			},
 		})
 		suggestions = append(suggestions, DateSuggestion{
-			Title:            "Wine Tasting & Vineyard Tour",
-			Description:      "Explore local wineries with tastings and tours",
-			EstimatedCost:    90,
+			Title:             "Wine Tasting & Vineyard Tour",
+			Description:       "Explore local wineries with tastings and tours",
+			EstimatedCost:     90,
 			EstimatedDuration: "3 hours",
-			ConfidenceScore:  0.80,
+			ConfidenceScore:   0.80,
 			Activities: []Activity{
 				{Type: "experience", Name: "Vineyard Tour", Duration: "1 hour"},
 				{Type: "experience", Name: "Wine Tasting", Duration: "1.5 hours"},
@@ -622,26 +589,26 @@ func generateDynamicSuggestions(req DateSuggestionRequest) []DateSuggestion {
 			},
 		})
 		suggestions = append(suggestions, DateSuggestion{
-			Title:            "Candlelit Dinner & Dancing",
-			Description:      "Classic romantic evening with fine dining and dancing",
-			EstimatedCost:    120,
+			Title:             "Candlelit Dinner & Dancing",
+			Description:       "Classic romantic evening with fine dining and dancing",
+			EstimatedCost:     120,
 			EstimatedDuration: "4 hours",
-			ConfidenceScore:  0.85,
+			ConfidenceScore:   0.85,
 			Activities: []Activity{
 				{Type: "dining", Name: "Fine Dining", Duration: "2 hours"},
 				{Type: "romantic", Name: "Dancing", Duration: "2 hours"},
 			},
 		})
 	}
-	
+
 	// Add weather-aware suggestion if preference specified
 	if req.WeatherPreference == "indoor" {
 		suggestions = append(suggestions, DateSuggestion{
-			Title:            "Spa Day & Relaxation",
-			Description:      "Indoor pampering with couples massage and relaxation",
-			EstimatedCost:    180,
+			Title:             "Spa Day & Relaxation",
+			Description:       "Indoor pampering with couples massage and relaxation",
+			EstimatedCost:     180,
 			EstimatedDuration: "4 hours",
-			ConfidenceScore:  0.82,
+			ConfidenceScore:   0.82,
 			Activities: []Activity{
 				{Type: "relaxation", Name: "Couples Massage", Duration: "1.5 hours"},
 				{Type: "relaxation", Name: "Spa Amenities", Duration: "1.5 hours"},
@@ -650,11 +617,11 @@ func generateDynamicSuggestions(req DateSuggestionRequest) []DateSuggestion {
 		})
 	} else if req.WeatherPreference == "outdoor" {
 		suggestions = append(suggestions, DateSuggestion{
-			Title:            "Beach Day & Sunset Dinner",
-			Description:      "Full day at the beach with activities and waterfront dining",
-			EstimatedCost:    100,
+			Title:             "Beach Day & Sunset Dinner",
+			Description:       "Full day at the beach with activities and waterfront dining",
+			EstimatedCost:     100,
 			EstimatedDuration: "6 hours",
-			ConfidenceScore:  0.83,
+			ConfidenceScore:   0.83,
 			Activities: []Activity{
 				{Type: "outdoor", Name: "Beach Activities", Duration: "3 hours"},
 				{Type: "dining", Name: "Beachside Lunch", Duration: "1 hour"},
@@ -665,7 +632,7 @@ func generateDynamicSuggestions(req DateSuggestionRequest) []DateSuggestion {
 			},
 		})
 	}
-	
+
 	// Filter by budget if specified
 	if req.BudgetMax > 0 {
 		filteredSuggestions := []DateSuggestion{}
@@ -678,26 +645,26 @@ func generateDynamicSuggestions(req DateSuggestionRequest) []DateSuggestion {
 			suggestions = filteredSuggestions
 		}
 	}
-	
+
 	// Limit to top 5 suggestions
 	if len(suggestions) > 5 {
 		suggestions = suggestions[:5]
 	}
-	
+
 	// If still no suggestions, provide a default
 	if len(suggestions) == 0 {
 		suggestions = append(suggestions, DateSuggestion{
-			Title:            "Romantic Dinner Date",
-			Description:      "Enjoy an intimate dinner at a cozy restaurant",
-			EstimatedCost:    80,
+			Title:             "Romantic Dinner Date",
+			Description:       "Enjoy an intimate dinner at a cozy restaurant",
+			EstimatedCost:     80,
 			EstimatedDuration: "2 hours",
-			ConfidenceScore:  0.75,
+			ConfidenceScore:   0.75,
 			Activities: []Activity{
 				{Type: "dining", Name: "Restaurant", Duration: "2 hours"},
 			},
 		})
 	}
-	
+
 	return suggestions
 }
 
@@ -779,7 +746,6 @@ func main() {
 	// Health endpoints
 	router.HandleFunc("/health", enableCORS(healthHandler)).Methods("GET", "OPTIONS")
 	router.HandleFunc("/health/database", enableCORS(databaseHealthHandler)).Methods("GET", "OPTIONS")
-	router.HandleFunc("/health/workflows", enableCORS(workflowHealthHandler)).Methods("GET", "OPTIONS")
 
 	// API endpoints
 	router.HandleFunc("/api/v1/dates/suggest", enableCORS(suggestDatesHandler)).Methods("POST", "OPTIONS")

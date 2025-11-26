@@ -107,7 +107,7 @@ optional:
   - resource_name: ollama
     purpose: AI-powered video analysis, content description, and scene understanding
     fallback: Disable AI analysis features, use basic metadata only
-    access_method: initialization/n8n/ollama.json workflow
+    access_method: Direct Ollama API calls
     
   - resource_name: whisper
     purpose: High-quality speech-to-text transcription from video audio
@@ -123,15 +123,7 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: video-processing-pipeline.json
-      location: initialization/n8n/
-      purpose: Standardized video editing and conversion workflows
-    - workflow: ai-video-analyzer.json
-      location: initialization/n8n/
-      purpose: AI-powered content analysis and metadata extraction
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-minio upload/download
       purpose: Handle large video file storage and retrieval
     - command: resource-redis queue
@@ -1347,4 +1339,3 @@ No code changes required. All apparent violations are either false positives or 
 2. Allow environment variable fallback patterns in development tools
 3. Accept multiple documentation formats in Makefiles (not just one specific format)
 4. Distinguish between test configuration patterns and production hardcoding
-

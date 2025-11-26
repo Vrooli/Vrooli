@@ -1,18 +1,115 @@
 {
   "scenario": "web-console",
   "report_version": 1,
-  "generated_at": "2025-11-16T19:40:58.780091722Z",
+  "generated_at": "2025-11-23T19:34:24.447280285Z",
   "dependencies": [
     {
       "name": "ollama",
       "type": "resource",
+      "tier_support": {
+        "desktop": {
+          "supported": true,
+          "fitness_score": 0.6
+        },
+        "enterprise": {
+          "supported": true,
+          "fitness_score": 0.98
+        },
+        "local": {
+          "supported": true,
+          "fitness_score": 1
+        },
+        "mobile": {
+          "supported": false,
+          "fitness_score": 0,
+          "reason": "Resource-intensive AI not supported on mobile"
+        },
+        "saas": {
+          "supported": true,
+          "fitness_score": 0.3,
+          "notes": "Consider using managed AI API for SaaS deployment",
+          "alternatives": [
+            "openai",
+            "anthropic",
+            "openrouter"
+          ]
+        },
+        "server": {
+          "supported": true,
+          "fitness_score": 0.95
+        }
+      },
       "source": "declared"
     }
   ],
-  "aggregates": {},
+  "aggregates": {
+    "desktop": {
+      "fitness_score": 0.6,
+      "dependency_count": 1,
+      "blocking_dependencies": [
+        "ollama"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "enterprise": {
+      "fitness_score": 0.98,
+      "dependency_count": 1,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "local": {
+      "fitness_score": 1,
+      "dependency_count": 1,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "mobile": {
+      "fitness_score": 0,
+      "dependency_count": 1,
+      "blocking_dependencies": [
+        "ollama"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "saas": {
+      "fitness_score": 0.3,
+      "dependency_count": 1,
+      "blocking_dependencies": [
+        "ollama"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "server": {
+      "fitness_score": 0.95,
+      "dependency_count": 1,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    }
+  },
   "bundle_manifest": {
     "scenario": "web-console",
-    "generated_at": "2025-11-16T19:40:58.780091722Z",
+    "generated_at": "2025-11-23T19:34:24.447280285Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -48,8 +145,74 @@
     "dependencies": [
       {
         "name": "ollama",
-        "type": "resource"
+        "type": "resource",
+        "tier_support": {
+          "desktop": {
+            "supported": true,
+            "fitness_score": 0.6
+          },
+          "enterprise": {
+            "supported": true,
+            "fitness_score": 0.98
+          },
+          "local": {
+            "supported": true,
+            "fitness_score": 1
+          },
+          "mobile": {
+            "supported": false,
+            "fitness_score": 0,
+            "reason": "Resource-intensive AI not supported on mobile"
+          },
+          "saas": {
+            "supported": true,
+            "fitness_score": 0.3,
+            "notes": "Consider using managed AI API for SaaS deployment",
+            "alternatives": [
+              "openai",
+              "anthropic",
+              "openrouter"
+            ]
+          },
+          "server": {
+            "supported": true,
+            "fitness_score": 0.95
+          }
+        }
       }
+    ]
+  },
+  "metadata_gaps": {
+    "total_gaps": 0,
+    "scenarios_missing_all": 0,
+    "gaps_by_scenario": {},
+    "missing_tiers": null,
+    "resource_swap_suggestions": [
+      {
+        "original_resource": "ollama",
+        "alternative_resource": "openrouter",
+        "reason": "Lighter alternative for SaaS/mobile deployments",
+        "applicable_tiers": [
+          "mobile",
+          "saas"
+        ],
+        "relationship": "api_alternative",
+        "impact_description": "Reduces deployment size and resource requirements"
+      },
+      {
+        "original_resource": "ollama",
+        "alternative_resource": "anthropic",
+        "reason": "Managed AI API for production deployments",
+        "applicable_tiers": [
+          "saas",
+          "enterprise"
+        ],
+        "relationship": "api_alternative",
+        "impact_description": "Better scalability and reliability"
+      }
+    ],
+    "recommendations": [
+      "Consider 2 resource swap(s) for deployment optimization"
     ]
   }
 }

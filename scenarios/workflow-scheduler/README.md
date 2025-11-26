@@ -21,7 +21,7 @@ flowchart TB
     end
     
     subgraph "Scheduling Engine"
-        N8N[n8n Workflows<br/>Execution Engine<br/>Every Minute]
+        WORKER[Scheduler Workers<br/>Execution Engine<br/>Every Minute]
         REDIS[Redis<br/>Execution Locks<br/>Pub/Sub]
     end
     
@@ -31,7 +31,6 @@ flowchart TB
     
     subgraph "Target Systems"
         WEBHOOKS[HTTP Webhooks]
-        WORKFLOWS[n8n Workflows]
         WINDMILL_JOBS[Windmill Jobs]
     end
     
@@ -40,14 +39,13 @@ flowchart TB
     DASHBOARD -->|REST| GO_API
     GO_API <-->|CRUD| POSTGRES
     GO_API <-->|Locks| REDIS
-    N8N -->|Query| POSTGRES
-    N8N -->|Lock| REDIS
-    N8N -->|Trigger| WEBHOOKS
-    N8N -->|Trigger| WORKFLOWS
-    N8N -->|Trigger| WINDMILL_JOBS
+    WORKER -->|Query| POSTGRES
+    WORKER -->|Lock| REDIS
+    WORKER -->|Trigger| WEBHOOKS
+    WORKER -->|Trigger| WINDMILL_JOBS
     
     style GO_API fill:#e1bee7,stroke:#333,stroke-width:2px
-    style N8N fill:#fff9c4,stroke:#333,stroke-width:2px
+    style WORKER fill:#fff9c4,stroke:#333,stroke-width:2px
     style POSTGRES fill:#c5e1a5,stroke:#333,stroke-width:2px
     style REDIS fill:#ffccbc,stroke:#333,stroke-width:2px
 ```
@@ -62,7 +60,7 @@ flowchart TB
 - **Catch-Up Mode**: Automatically run missed executions after downtime
 - **Execution History**: Complete audit trail with performance metrics
 - **Health Monitoring**: Track success rates and detect failing schedules
-- **Multi-Target**: Trigger webhooks, n8n workflows, or Windmill jobs
+- **Multi-Target**: Trigger webhooks or Windmill jobs
 
 ### Management Interfaces
 - **REST API**: Complete CRUD operations for schedules
@@ -129,7 +127,6 @@ vrooli scenario develop workflow-scheduler
 # Services will be available at:
 # - API: http://localhost:8090
 # - Dashboard: http://localhost:5681
-# - n8n Engine: http://localhost:5678
 ```
 
 ## 🔧 **CLI Usage**
@@ -141,7 +138,7 @@ vrooli scenario develop workflow-scheduler
 scheduler-cli create \
   --name "Hourly Backup" \
   --cron "0 * * * *" \
-  --url "http://localhost:5678/webhook/backup"
+  --url "http://localhost:3000/api/backup"
 
 # List all schedules
 scheduler-cli list
@@ -281,13 +278,13 @@ scheduler-cli create \
 
 ## 🔄 **Integration Examples**
 
-### Trigger n8n Workflow
+### Trigger HTTP Webhook
 ```javascript
 const schedule = {
   name: "Process Queue",
   cron_expression: "*/5 * * * *",
   target_type: "webhook",
-  target_url: "http://localhost:5678/webhook/process-queue",
+  target_url: "http://localhost:3000/api/process-queue",
   target_payload: {
     queue_name: "documents",
     batch_size: 10
@@ -356,7 +353,7 @@ The Windmill dashboard provides:
 1. Check if schedule is enabled: `scheduler-cli show SCHEDULE_ID`
 2. Verify cron expression: `scheduler-cli validate "0 9 * * *"`
 3. Check execution history: `scheduler-cli history SCHEDULE_ID`
-4. Review n8n workflow logs: `docker logs vrooli-n8n`
+4. Review scheduler logs: `vrooli scenario logs workflow-scheduler`
 
 ### Missed Executions
 - Enable catch-up mode: `catch_up_missed: true`
@@ -402,7 +399,6 @@ The Windmill dashboard provides:
 
 - [API Documentation](./API_DOCUMENTATION.md)
 - [Implementation Plan](./IMPLEMENTATION_PLAN.md)
-- [n8n Workflow Guide](./initialization/automation/n8n/README.md)
 - [Database Schema](./initialization/storage/postgres/schema.sql)
 
 ---

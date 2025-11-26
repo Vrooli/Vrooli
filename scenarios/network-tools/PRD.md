@@ -117,15 +117,7 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: api-testing-pipeline.json
-      location: initialization/n8n/
-      purpose: Standardized API testing and validation workflows
-    - workflow: network-monitoring.json
-      location: initialization/n8n/
-      purpose: Automated network health monitoring and alerting
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-postgres execute
       purpose: Store and query network data with SQL analytics
     - command: resource-redis cache
@@ -133,7 +125,7 @@ integration_priorities:
     - command: resource-minio upload/download
       purpose: Handle large network data files and logs
   
-  3_direct_api:
+  2_direct_api:
     - justification: Raw socket operations require direct network access
       endpoint: TCP/UDP socket API for low-level networking
     - justification: Packet capture needs kernel-level access

@@ -955,7 +955,7 @@ curl -X POST http://localhost:${FILE_TOOLS_PORT}/api/v1/files/checksum \
 1. Update data-backup-manager to call file-tools compression API
 2. Enhance smart-file-photo-manager with file-tools duplicate detection
 3. Document integration patterns in each scenario's README
-4. Create shared workflow templates in n8n/windmill for common operations
+4. Create shared workflow templates in n8n for common operations
 
 ## 📈 Progress History
 

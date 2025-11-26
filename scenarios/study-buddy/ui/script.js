@@ -1,6 +1,5 @@
 // Study Buddy Interactive JavaScript
 const API_URL = 'http://localhost:8500/api';
-const N8N_URL = 'http://localhost:5678/webhook';
 
 // Global state
 let currentSubject = 'math';
@@ -146,26 +145,9 @@ function switchMode(mode) {
 }
 
 async function startStudySession() {
-    try {
-        const response = await fetch(`${N8N_URL}/study-session/start`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                user_id: getUserId(),
-                subject_id: currentSubject,
-                session_type: currentMode
-            })
-        });
-        const data = await response.json();
-        sessionId = data.session_id;
-        
-        // Show study tips if available
-        if (data.study_tips) {
-            console.log('Study tips:', data.study_tips);
-        }
-    } catch (error) {
-        console.error('Error starting study session:', error);
-    }
+    // Lightweight local session tracking
+    sessionId = `session-${Date.now()}`;
+    showNotification('Study session started');
 }
 
 async function loadFlashcards() {
@@ -284,29 +266,17 @@ async function generateFlashcards() {
     const content = prompt('Enter text to generate flashcards from:');
     if (!content) return;
     
-    try {
-        const response = await fetch(`${N8N_URL}/flashcards/generate`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                user_id: getUserId(),
-                subject_id: currentSubject,
-                content: content,
-                count: 5,
-                difficulty: 'medium'
-            })
-        });
-        
-        const data = await response.json();
-        if (data.flashcards) {
-            flashcards = data.flashcards;
-            currentCardIndex = 0;
-            displayFlashcard();
-            showNotification('Generated ' + data.flashcards.length + ' new flashcards!');
-        }
-    } catch (error) {
-        console.error('Error generating flashcards:', error);
-    }
+    // Simple local flashcard generation from content sentences
+    const sentences = content.split('.').map(s => s.trim()).filter(Boolean);
+    flashcards = sentences.slice(0, 5).map((sentence, idx) => ({
+        front: sentence,
+        back: `Answer for: ${sentence}`,
+        id: Date.now() + idx,
+    }));
+
+    currentCardIndex = 0;
+    displayFlashcard();
+    showNotification('Generated ' + flashcards.length + ' new flashcards!');
 }
 
 function saveNote() {
@@ -507,25 +477,6 @@ async function startPomodoroSession(sessionType = 'study') {
         
         // Update UI to show Pomodoro state
         updatePomodoroUI();
-        
-        // Try to call n8n workflow if available (non-blocking)
-        fetch(`${N8N_URL}/timer/pomodoro`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id: getUserId(),
-                subject_id: currentSubject,
-                action: 'start',
-                session_type: sessionType,
-                current_topic: currentMode,
-                difficulty_level: 5,
-                energy_level: pomodoroState.energyLevel,
-                previous_sessions_today: pomodoroState.sessionsCompleted
-            })
-        }).catch(error => {
-            console.log('N8n workflow not available, using local timer');
-        });
-        
     } catch (error) {
         console.error('Failed to start Pomodoro session:', error);
         // Still start local timer even if n8n fails
@@ -557,41 +508,17 @@ async function completePomodoroSession() {
     // Play completion sound
     playSound('complete');
     
-    try {
-        const response = await fetch(`${N8N_URL}/timer/pomodoro`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id: 'default-user',
-                subject_id: currentSubject,
-                action: 'complete',
-                session_type: pomodoroState.sessionType
-            })
-        });
-        
-        const data = await response.json();
-        
-        // Update sessions completed
-        if (pomodoroState.sessionType === 'study') {
-            pomodoroState.sessionsCompleted++;
-        }
-        
-        // Auto-start next session if enabled
-        if (data.next_session && data.next_session.auto_start) {
-            setTimeout(() => {
-                startPomodoroSession(data.next_session.type);
-            }, 3000);
-        } else {
-            // Show break suggestion
-            showBreakSuggestion(data.next_session);
-        }
-        
-        pomodoroState.active = false;
-        updatePomodoroUI();
-        
-    } catch (error) {
-        console.error('Failed to complete Pomodoro session:', error);
+    // Update sessions completed
+    if (pomodoroState.sessionType === 'study') {
+        pomodoroState.sessionsCompleted++;
     }
+
+    // Suggest next session locally
+    const nextSession = pomodoroState.sessionsCompleted % 4 === 0 ? { type: 'long_break', auto_start: false } : { type: 'short_break', auto_start: false };
+    showBreakSuggestion(nextSession);
+
+    pomodoroState.active = false;
+    updatePomodoroUI();
 }
 
 function pausePomodoroSession() {
@@ -765,45 +692,25 @@ async function handleSpacedRepetition(quality) {
     
     if (!currentCard) return;
     
-    try {
-        const response = await fetch(`${N8N_URL}/flashcards/spaced-repetition`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                flashcard_id: currentCard.id,
-                user_id: getUserId(),
-                quality: sm2Quality,
-                ease_factor: currentCard.ease_factor || 2.5,
-                interval: currentCard.interval || 1,
-                repetitions: currentCard.repetitions || 0,
-                last_reviewed: currentCard.last_reviewed || new Date().toISOString()
-            })
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            
-            // Update the flashcard with new spaced repetition values
-            Object.assign(currentCard, data.updated_values);
-            
-            // Show learning insight if available
-            if (data.learning_insight) {
-                showLearningInsight(data.learning_insight);
-            }
-            
-            // Update progress display
-            updateSpacedRepetitionStats(data.statistics);
-            
-            // Save updated flashcards to localStorage
-            localStorage.setItem(`flashcards_${currentSubject}`, JSON.stringify(flashcards));
-        }
-    } catch (error) {
-        console.log('Spaced repetition tracking offline, saving locally');
-        // Fallback: Save locally if n8n is not available
-        currentCard.last_reviewed = new Date().toISOString();
-        currentCard.review_count = (currentCard.review_count || 0) + 1;
-        localStorage.setItem(`flashcards_${currentSubject}`, JSON.stringify(flashcards));
-    }
+    // Local spaced repetition update
+    const ease = currentCard.ease_factor || 2.5;
+    const interval = currentCard.interval || 1;
+    const repetitions = (currentCard.repetitions || 0) + 1;
+    const nextInterval = Math.max(1, Math.round(interval * (ease + sm2Quality/5)));
+
+    Object.assign(currentCard, {
+        ease_factor: ease,
+        interval: nextInterval,
+        repetitions: repetitions,
+        last_reviewed: new Date().toISOString()
+    });
+
+    updateSpacedRepetitionStats({
+        total_reviews: repetitions,
+        next_interval_days: nextInterval
+    });
+
+    localStorage.setItem(`flashcards_${currentSubject}`, JSON.stringify(flashcards));
 }
 
 function showLearningInsight(insight) {

@@ -284,17 +284,6 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 	// Check cache connectivity (redis dependency)
 	redisConnected := cache != nil && cache.Enable
 
-	// Check N8N connectivity if configured
-	// NOTE: N8N_BASE_URL is optional - graceful degradation when not provided
-	n8nStatus := map[string]interface{}{
-		"connected": false,
-	}
-	if n8nURL != "" {
-		// N8N is optional, so we just report if it's configured
-		n8nStatus["connected"] = true
-		n8nStatus["url"] = n8nURL
-	}
-
 	status := "healthy"
 	readiness := true
 
@@ -303,12 +292,6 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 	dependencies := map[string]interface{}{
 		"redis": map[string]interface{}{
 			"connected": redisConnected,
-		},
-		"external_services": []map[string]interface{}{
-			{
-				"name":      "n8n",
-				"connected": n8nStatus["connected"],
-			},
 		},
 	}
 

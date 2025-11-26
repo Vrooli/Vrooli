@@ -110,7 +110,6 @@ cmd_status() {
         echo -e "\n${WHITE}Service Endpoints:${NC}"
         echo -e "  ${CYAN}API:${NC} ${API_URL}"
         echo -e "  ${CYAN}Dashboard:${NC} http://localhost:8000"
-        echo -e "  ${CYAN}n8n Workflows:${NC} http://localhost:5678"
         echo -e "  ${CYAN}SearXNG:${NC} http://localhost:8080"
     else
         error "API is not responding"

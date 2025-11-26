@@ -12,9 +12,9 @@ import (
 )
 
 type HealthResponse struct {
-	Status    string    `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-	Version   string    `json:"version"`
+	Status    string            `json:"status"`
+	Timestamp time.Time         `json:"timestamp"`
+	Version   string            `json:"version"`
 	Services  map[string]string `json:"services"`
 }
 
@@ -26,11 +26,11 @@ type Document struct {
 }
 
 type ProcessingJob struct {
-	ID          string    `json:"id"`
-	JobName     string    `json:"jobName"`
-	Status      string    `json:"status"`
-	Created     time.Time `json:"created"`
-	Documents   []string  `json:"documents"`
+	ID        string    `json:"id"`
+	JobName   string    `json:"jobName"`
+	Status    string    `json:"status"`
+	Created   time.Time `json:"created"`
+	Documents []string  `json:"documents"`
 }
 
 type Workflow struct {
@@ -90,12 +90,11 @@ func getEnv(key, defaultValue string) string {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	services := map[string]string{
-		"n8n":              getServiceStatus(os.Getenv("N8N_BASE_URL")),
-		"windmill":         getServiceStatus(os.Getenv("WINDMILL_BASE_URL")),
-		"vault":            getServiceStatus(os.Getenv("VAULT_URL")),
-		"minio":            getServiceStatus(os.Getenv("MINIO_URL")),
-		"unstructured":     getServiceStatus(os.Getenv("UNSTRUCTURED_URL")),
-		"postgres":         "healthy", // Assume healthy if we got this far
+		"windmill":     getServiceStatus(os.Getenv("WINDMILL_BASE_URL")),
+		"vault":        getServiceStatus(os.Getenv("VAULT_URL")),
+		"minio":        getServiceStatus(os.Getenv("MINIO_URL")),
+		"unstructured": getServiceStatus(os.Getenv("UNSTRUCTURED_URL")),
+		"postgres":     "healthy", // Assume healthy if we got this far
 	}
 
 	if os.Getenv("QDRANT_URL") != "" {

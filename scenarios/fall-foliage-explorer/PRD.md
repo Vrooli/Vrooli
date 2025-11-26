@@ -28,7 +28,7 @@
 - [x] OT-P0-001 | Health Check Endpoint | API responds to /health with status 200
 - [x] OT-P0-002 | Database Connection | API connects to PostgreSQL and performs CRUD operations
 - [x] OT-P0-003 | Foliage Data API | Retrieve current foliage status for regions via REST endpoints
-- [x] OT-P0-004 | Weather Integration | Fetch and store weather data for predictions using n8n workflows
+- [x] OT-P0-004 | Weather Integration | Fetch and store weather data for predictions via direct API/CLI flows (n8n workflows removed)
 - [x] OT-P0-005 | Basic Prediction Engine | Generate foliage peak predictions using Ollama AI with fallback logic
 - [x] OT-P0-006 | Interactive Map UI | Display regions with foliage status overlays using Leaflet.js
 - [x] OT-P0-007 | Lifecycle Management | setup/develop/test/stop commands work properly
@@ -58,7 +58,7 @@
 
 **AI Integration**: Direct Ollama API calls for foliage peak predictions (llama3.2:latest model) with fallback to latitude-based typical peak weeks
 
-**Integration Strategy**: Shared n8n workflows for weather data collection; direct Ollama API calls per shared-workflows protocol
+**Integration Strategy**: Direct API/CLI flows for weather data collection; Ollama API calls per shared-workflows protocol
 
 **Non-Goals**:
 - Real-time satellite imagery processing (use pre-processed regional data)
@@ -71,7 +71,7 @@
 - PostgreSQL (port 5433) – historical data and user content storage
 - Redis – response caching and session management
 - Ollama – AI-powered foliage peak predictions
-- n8n – automated weather data workflows
+- Automation handled via direct API calls and scheduled jobs (n8n workflows removed)
 
 **Optional Resources**:
 - Browserless – weather data scraping fallback
