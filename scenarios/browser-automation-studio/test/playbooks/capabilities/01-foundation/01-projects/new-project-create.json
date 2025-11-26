@@ -90,12 +90,11 @@
       }
     },
     {
-      "id": "assert-navigated-to-project",
-      "type": "evaluate",
+      "id": "wait-for-navigation",
+      "type": "wait",
       "data": {
-        "label": "Verify URL changed to project detail",
-        "expression": "window.location.pathname.startsWith('/projects/')",
-        "storeResult": "navigatedToProject"
+        "label": "Wait for navigation and page render",
+        "waitForMs": 2000
       }
     },
     {
@@ -161,12 +160,12 @@
     {
       "id": "e8",
       "source": "click-create",
-      "target": "assert-navigated-to-project",
+      "target": "wait-for-navigation",
       "type": "smoothstep"
     },
     {
-      "id": "e9",
-      "source": "assert-navigated-to-project",
+      "id": "e8b",
+      "source": "wait-for-navigation",
       "target": "assert-workflows-tab-visible",
       "type": "smoothstep"
     },

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -89,7 +90,8 @@ func tryBrowserlessV2(ctx context.Context, base *url.URL) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		return "", fmt.Errorf("v2 endpoint returned HTTP %d", resp.StatusCode)
+		body := readBodySnippet(resp.Body, 2048)
+		return "", fmt.Errorf("v2 endpoint returned HTTP %d: %s", resp.StatusCode, body)
 	}
 
 	// Parse response
@@ -177,7 +179,8 @@ func fetchWebSocketDebuggerURL(ctx context.Context, versionURL string) (string, 
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		return "", fmt.Errorf("version endpoint returned HTTP %d", resp.StatusCode)
+		body := readBodySnippet(resp.Body, 2048)
+		return "", fmt.Errorf("version endpoint returned HTTP %d: %s", resp.StatusCode, body)
 	}
 
 	var versionResp struct {
@@ -238,6 +241,17 @@ func rewriteAdvertisedWebSocketURL(ctx context.Context, advertised string, fallb
 	}
 
 	return wsURL.String(), nil
+}
+
+func readBodySnippet(r io.Reader, limit int) string {
+	if r == nil || limit <= 0 {
+		return ""
+	}
+	data, err := io.ReadAll(io.LimitReader(r, int64(limit)))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }
 
 func allowLegacyV1Fallback() bool {

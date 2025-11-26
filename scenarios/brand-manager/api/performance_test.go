@@ -47,7 +47,7 @@ func BenchmarkListBrands(b *testing.B) {
 	}
 	defer db.Close()
 
-	service := NewBrandManagerService(db, "", "", "", "", "")
+	service := NewBrandManagerService(db, "", "", "", "")
 
 	req := HTTPTestRequest{
 		Method: "GET",
@@ -78,7 +78,7 @@ func BenchmarkGetBrandByID(b *testing.B) {
 	}
 	defer db.Close()
 
-	service := NewBrandManagerService(db, "", "", "", "", "")
+	service := NewBrandManagerService(db, "", "", "", "")
 	brandID := uuid.New() // Use a random ID for benchmark
 
 	req := HTTPTestRequest{

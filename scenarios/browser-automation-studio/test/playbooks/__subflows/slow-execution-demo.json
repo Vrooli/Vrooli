@@ -1,0 +1,174 @@
+{
+  "metadata": {
+    "description": "Slow-executing test workflow for telemetry validation (5-10 second duration)",
+    "fixture_id": "slow-execution-demo",
+    "version": 1,
+    "reset": "none"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "nav-1",
+      "type": "navigate",
+      "data": {
+        "label": "Navigate to example.com",
+        "url": "https://example.com",
+        "timeoutMs": 10000
+      }
+    },
+    {
+      "id": "wait-1",
+      "type": "wait",
+      "data": {
+        "label": "Wait 2 seconds",
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "screenshot-1",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture first screenshot",
+        "fullPage": false
+      }
+    },
+    {
+      "id": "assert-1",
+      "type": "assert",
+      "data": {
+        "label": "Assert page title exists",
+        "selector": "h1",
+        "assertMode": "exists",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "nav-2",
+      "type": "navigate",
+      "data": {
+        "label": "Navigate to example.org",
+        "url": "https://example.org",
+        "timeoutMs": 10000
+      }
+    },
+    {
+      "id": "wait-2",
+      "type": "wait",
+      "data": {
+        "label": "Wait 2 seconds",
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "screenshot-2",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture second screenshot",
+        "fullPage": false
+      }
+    },
+    {
+      "id": "assert-2",
+      "type": "assert",
+      "data": {
+        "label": "Assert second page title exists",
+        "selector": "h1",
+        "assertMode": "exists",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "nav-3",
+      "type": "navigate",
+      "data": {
+        "label": "Navigate to example.net",
+        "url": "https://example.net",
+        "timeoutMs": 10000
+      }
+    },
+    {
+      "id": "wait-3",
+      "type": "wait",
+      "data": {
+        "label": "Wait 2 seconds",
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "screenshot-3",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture final screenshot",
+        "fullPage": false
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "nav-1",
+      "target": "wait-1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-1",
+      "target": "screenshot-1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "screenshot-1",
+      "target": "assert-1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "assert-1",
+      "target": "nav-2",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "nav-2",
+      "target": "wait-2",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-2",
+      "target": "screenshot-2",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "screenshot-2",
+      "target": "assert-2",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "assert-2",
+      "target": "nav-3",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "nav-3",
+      "target": "wait-3",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "wait-3",
+      "target": "screenshot-3",
+      "type": "smoothstep"
+    }
+  ]
+}

@@ -116,30 +116,21 @@ optional:
   - resource_name: ollama
     purpose: AI workflow generation and debugging
     fallback: Disable AI features if unavailable
-    access_method: Shared workflow - initialization/n8n/ollama.json
+    access_method: Direct Ollama API calls
 ```
 
 ### Resource Integration Standards
 ```yaml
 # Priority order for resource access (MUST follow this hierarchy):
 integration_priorities:
-  1_shared_workflows:     # FIRST: Use existing shared n8n workflows
-    - workflow: ollama.json
-      location: initialization/n8n/
-      purpose: AI-powered workflow generation and debugging
-  
-  2_resource_cli:        # SECOND: Use resource CLI commands
+  1_resource_cli:        # FIRST: Use resource CLI commands
     - command: resource-browserless screenshot [url]
       purpose: Capture webpage screenshots
-    - command: resource-browserless for n8n execute-workflow [id]
-      purpose: Execute n8n workflows via browser
   
-  3_direct_api:          # LAST: Direct API only when necessary
+  2_direct_api:          # LAST: Direct API only when necessary
     - justification: Real-time WebSocket streaming requires direct connection
       endpoint: WebSocket connection for live updates
 
-# Shared workflow guidelines:
-shared_workflow_criteria:
   - Browser automation patterns will be packaged as reusable n8n workflows
   - Place in initialization/automation/n8n/ for scenario-specific workflows
   - Common patterns (login, form fill, data extraction) become shared workflows

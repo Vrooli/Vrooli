@@ -95,7 +95,7 @@ function Header({
     (state) => state.restoreWorkflowVersion,
   );
   const restoringVersion = useWorkflowStore((state) => state.restoringVersion);
-  const { openViewer } = useExecutionStore();
+  const startExecution = useExecutionStore((state) => state.startExecution);
   const { isConnected, error } = useProjectStore();
   const [showAIEditModal, setShowAIEditModal] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -106,6 +106,7 @@ function Header({
   const [showWorkflowInfo, setShowWorkflowInfo] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showSaveErrorDetails, setShowSaveErrorDetails] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false);
 
   const { floatingStyles: workflowInfoStyles } = usePopoverPosition(
     infoButtonRef,
@@ -491,12 +492,31 @@ function Header({
     </div>
   );
 
-  const handleExecute = () => {
+  const handleExecute = async () => {
     if (!currentWorkflow) {
       toast.error("No workflow to execute");
       return;
     }
-    openViewer(currentWorkflow.id);
+    if (isExecuting) {
+      return;
+    }
+
+    try {
+      setIsExecuting(true);
+      await startExecution(currentWorkflow.id, async () => {
+        if (!isDirty) {
+          return;
+        }
+        await saveWorkflow({
+          source: "execute",
+          changeDescription: "Autosave before execution",
+        });
+      });
+    } catch (error) {
+      toast.error("Failed to start execution");
+    } finally {
+      setIsExecuting(false);
+    }
   };
 
   const handleDebug = () => {
@@ -838,15 +858,16 @@ function Header({
             </button>
 
             <button
-              onClick={handleExecute}
-              className="bg-flow-accent hover:bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-0 sm:gap-2 transition-colors"
+              onClick={() => void handleExecute()}
+              disabled={isExecuting}
+              className="bg-flow-accent hover:bg-blue-600 disabled:bg-flow-accent/60 disabled:cursor-not-allowed text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-0 sm:gap-2 transition-colors"
               title="Execute Workflow"
               aria-label="Execute Workflow"
               data-testid={selectors.header.buttons.execute}
             >
-              <Play size={16} />
+              {isExecuting ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
               <span className="hidden text-sm font-medium sm:inline">
-                Execute
+                {isExecuting ? "Executing..." : "Execute"}
               </span>
             </button>
           </div>

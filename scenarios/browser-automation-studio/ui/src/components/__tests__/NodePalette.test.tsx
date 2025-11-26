@@ -37,7 +37,7 @@ describe(
       expect(screen.getByText('Assert')).toBeInTheDocument();
       expect(screen.getByText('Focus')).toBeInTheDocument();
       expect(screen.getByText('Blur')).toBeInTheDocument();
-      expect(screen.getByText('Call Workflow')).toBeInTheDocument();
+      expect(screen.getByText('Subflow')).toBeInTheDocument();
       expect(screen.getByText('Drag & Drop')).toBeInTheDocument();
       expect(screen.getByText('Upload File')).toBeInTheDocument();
       expect(screen.getByText('Rotate')).toBeInTheDocument();

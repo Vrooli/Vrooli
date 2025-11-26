@@ -20,7 +20,6 @@ func TestGetResourcePortFallbacks(t *testing.T) {
 		shouldBePort bool
 	}{
 		{"N8n", "n8n", true},
-		{"Windmill", "windmill", true},
 		{"Postgres", "postgres", true},
 		{"ComfyUI", "comfyui", true},
 		{"Minio", "minio", true},

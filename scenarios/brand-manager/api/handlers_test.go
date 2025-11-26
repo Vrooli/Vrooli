@@ -22,7 +22,7 @@ func TestCreateBrandHandler(t *testing.T) {
 	defer db.Close()
 
 	t.Run("MissingBrandName", func(t *testing.T) {
-		service := NewBrandManagerService(db, "http://n8n:5678", "", "", "", "")
+		service := NewBrandManagerService(db, "http://n8n:5678", "", "", "")
 
 		req := HTTPTestRequest{
 			Method: "POST",
@@ -45,7 +45,7 @@ func TestCreateBrandHandler(t *testing.T) {
 	})
 
 	t.Run("MissingIndustry", func(t *testing.T) {
-		service := NewBrandManagerService(db, "http://n8n:5678", "", "", "", "")
+		service := NewBrandManagerService(db, "http://n8n:5678", "", "", "")
 
 		req := HTTPTestRequest{
 			Method: "POST",
@@ -68,7 +68,7 @@ func TestCreateBrandHandler(t *testing.T) {
 	})
 
 	t.Run("InvalidJSON", func(t *testing.T) {
-		service := NewBrandManagerService(db, "http://n8n:5678", "", "", "", "")
+		service := NewBrandManagerService(db, "http://n8n:5678", "", "", "")
 
 		// Create request with invalid JSON manually
 		reqBody := bytes.NewBuffer([]byte(`{"invalid": json}`))
@@ -90,7 +90,7 @@ func TestCreateBrandHandler(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		service := NewBrandManagerService(db, mockServer.URL, "", "", "", "")
+		service := NewBrandManagerService(db, mockServer.URL, "", "", "")
 
 		req := HTTPTestRequest{
 			Method: "POST",
@@ -120,7 +120,7 @@ func TestCreateBrandHandler(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		service := NewBrandManagerService(db, mockServer.URL, "", "", "", "")
+		service := NewBrandManagerService(db, mockServer.URL, "", "", "")
 
 		req := HTTPTestRequest{
 			Method: "POST",
@@ -150,7 +150,7 @@ func TestCreateBrandHandler(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		service := NewBrandManagerService(db, mockServer.URL, "", "", "", "")
+		service := NewBrandManagerService(db, mockServer.URL, "", "", "")
 
 		req := HTTPTestRequest{
 			Method: "POST",
@@ -182,7 +182,7 @@ func TestCreateBrandHandler(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		service := NewBrandManagerService(db, mockServer.URL, "", "", "", "")
+		service := NewBrandManagerService(db, mockServer.URL, "", "", "")
 
 		req := HTTPTestRequest{
 			Method: "POST",
@@ -220,7 +220,7 @@ func TestCreateIntegrationHandler(t *testing.T) {
 	defer db.Close()
 
 	t.Run("MissingBrandID", func(t *testing.T) {
-		service := NewBrandManagerService(db, "http://n8n:5678", "", "", "", "")
+		service := NewBrandManagerService(db, "http://n8n:5678", "", "", "")
 
 		req := HTTPTestRequest{
 			Method: "POST",
@@ -243,7 +243,7 @@ func TestCreateIntegrationHandler(t *testing.T) {
 	})
 
 	t.Run("MissingTargetAppPath", func(t *testing.T) {
-		service := NewBrandManagerService(db, "http://n8n:5678", "", "", "", "")
+		service := NewBrandManagerService(db, "http://n8n:5678", "", "", "")
 
 		req := HTTPTestRequest{
 			Method: "POST",
@@ -266,7 +266,7 @@ func TestCreateIntegrationHandler(t *testing.T) {
 	})
 
 	t.Run("InvalidJSON", func(t *testing.T) {
-		service := NewBrandManagerService(db, "http://n8n:5678", "", "", "", "")
+		service := NewBrandManagerService(db, "http://n8n:5678", "", "", "")
 
 		reqBody := bytes.NewBuffer([]byte(`{"invalid": json}`))
 		httpReq, _ := http.NewRequest("POST", "/api/integrations", reqBody)
@@ -286,7 +286,7 @@ func TestCreateIntegrationHandler(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		service := NewBrandManagerService(db, mockServer.URL, "", "", "", "")
+		service := NewBrandManagerService(db, mockServer.URL, "", "", "")
 
 		req := HTTPTestRequest{
 			Method: "POST",
@@ -315,7 +315,7 @@ func TestCreateIntegrationHandler(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		service := NewBrandManagerService(db, mockServer.URL, "", "", "", "")
+		service := NewBrandManagerService(db, mockServer.URL, "", "", "")
 
 		req := HTTPTestRequest{
 			Method: "POST",
@@ -349,7 +349,7 @@ func TestCreateIntegrationHandler(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		service := NewBrandManagerService(db, mockServer.URL, "", "", "", "")
+		service := NewBrandManagerService(db, mockServer.URL, "", "", "")
 
 		req := HTTPTestRequest{
 			Method: "POST",
@@ -379,7 +379,7 @@ func TestCreateIntegrationHandler(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		service := NewBrandManagerService(db, mockServer.URL, "", "", "", "")
+		service := NewBrandManagerService(db, mockServer.URL, "", "", "")
 
 		req := HTTPTestRequest{
 			Method: "POST",
@@ -411,7 +411,7 @@ func TestServiceInitialization(t *testing.T) {
 	defer cleanup()
 
 	t.Run("EmptyURLs", func(t *testing.T) {
-		service := NewBrandManagerService(nil, "", "", "", "", "")
+		service := NewBrandManagerService(nil, "", "", "", "")
 
 		if service.n8nBaseURL != "" {
 			t.Errorf("Expected empty n8nBaseURL, got %s", service.n8nBaseURL)
@@ -427,7 +427,7 @@ func TestServiceInitialization(t *testing.T) {
 	})
 
 	t.Run("HTTPClientTimeout", func(t *testing.T) {
-		service := NewBrandManagerService(nil, "", "", "", "", "")
+		service := NewBrandManagerService(nil, "", "", "", "")
 
 		if service.httpClient.Timeout != httpTimeout {
 			t.Errorf("Expected timeout %v, got %v", httpTimeout, service.httpClient.Timeout)
@@ -448,7 +448,7 @@ func TestN8nConnectionFailure(t *testing.T) {
 
 	t.Run("InvalidURL", func(t *testing.T) {
 		// Use invalid URL that will cause connection failure
-		service := NewBrandManagerService(db, "http://invalid-url-that-does-not-exist-xyz:99999", "", "", "", "")
+		service := NewBrandManagerService(db, "http://invalid-url-that-does-not-exist-xyz:99999", "", "", "")
 
 		req := HTTPTestRequest{
 			Method: "POST",

@@ -15,7 +15,6 @@ get_resource_port() {
             postgres) echo "5432" ;;
             minio) echo "9000" ;;
             n8n) echo "5678" ;;
-            windmill) echo "8000" ;;
             ollama) echo "11434" ;;
             comfyui) echo "8188" ;;
             vault) echo "8200" ;;

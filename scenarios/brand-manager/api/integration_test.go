@@ -22,7 +22,7 @@ func TestListBrandsWithMock(t *testing.T) {
 	}
 	defer db.Close()
 
-	service := NewBrandManagerService(db, "", "", "", "", "")
+	service := NewBrandManagerService(db, "", "", "", "")
 
 	t.Run("Success", func(t *testing.T) {
 		brandID := uuid.New()
@@ -124,7 +124,7 @@ func TestGetBrandByIDWithMock(t *testing.T) {
 	}
 	defer db.Close()
 
-	service := NewBrandManagerService(db, "", "", "", "", "")
+	service := NewBrandManagerService(db, "", "", "", "")
 
 	t.Run("Success", func(t *testing.T) {
 		brandID := uuid.New()
@@ -237,7 +237,7 @@ func TestGetBrandStatusWithMock(t *testing.T) {
 	}
 	defer db.Close()
 
-	service := NewBrandManagerService(db, "", "", "", "", "")
+	service := NewBrandManagerService(db, "", "", "", "")
 
 	t.Run("BrandCompleted", func(t *testing.T) {
 		brandID := uuid.New()
@@ -355,7 +355,7 @@ func TestListIntegrationsWithMock(t *testing.T) {
 	}
 	defer db.Close()
 
-	service := NewBrandManagerService(db, "", "", "", "", "")
+	service := NewBrandManagerService(db, "", "", "", "")
 
 	t.Run("Success", func(t *testing.T) {
 		integrationID := uuid.New()
@@ -429,7 +429,6 @@ func TestGetServiceURLsWithMock(t *testing.T) {
 	service := NewBrandManagerService(
 		db,
 		"http://n8n:5678",
-		"http://windmill:8000",
 		"http://comfyui:8188",
 		"minio:9000",
 		"http://vault:8200",

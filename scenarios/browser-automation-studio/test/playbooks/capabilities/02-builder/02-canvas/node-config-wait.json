@@ -88,6 +88,7 @@
         "label": "Change wait type to 'element'",
         "selector": ".react-flow__node.selected select /*dup-1*/",
         "value": "element",
+        "optionValue": "element",
         "timeoutMs": 5000
       }
     },
@@ -140,6 +141,7 @@
         "label": "Switch back to time mode",
         "selector": ".react-flow__node.selected select /*dup-2*/",
         "value": "time",
+        "optionValue": "time",
         "timeoutMs": 5000
       }
     },

@@ -3083,13 +3083,15 @@ function ActiveExecutionViewer({
 
   const getStatusIcon = () => {
     const statusTestId = `execution-status-${execution.status}`;
+    // Add both general and specific status selectors for test flexibility
+    const testIds = `${selectors.executions.viewer.status} ${statusTestId}`;
     switch (execution.status) {
       case "running":
         return (
           <Loader
             size={16}
             className="animate-spin text-blue-400"
-            data-testid={statusTestId}
+            data-testid={testIds}
           />
         );
       case "completed":
@@ -3097,7 +3099,7 @@ function ActiveExecutionViewer({
           <CheckCircle
             size={16}
             className="text-green-400"
-            data-testid={statusTestId}
+            data-testid={testIds}
           />
         );
       case "failed":
@@ -3105,7 +3107,7 @@ function ActiveExecutionViewer({
           <XCircle
             size={16}
             className="text-red-400"
-            data-testid={statusTestId}
+            data-testid={testIds}
           />
         );
       case "cancelled":
@@ -3113,7 +3115,7 @@ function ActiveExecutionViewer({
           <AlertTriangle
             size={16}
             className="text-yellow-400"
-            data-testid={statusTestId}
+            data-testid={testIds}
           />
         );
       default:
@@ -3121,7 +3123,7 @@ function ActiveExecutionViewer({
           <Clock
             size={16}
             className="text-gray-400"
-            data-testid={statusTestId}
+            data-testid={testIds}
           />
         );
     }
@@ -4640,7 +4642,7 @@ function EmptyExecutionViewer({
   );
 
   return (
-    <div className="h-full flex flex-col bg-flow-node min-h-0">
+    <div data-testid={selectors.executions.viewer.root} className="h-full flex flex-col bg-flow-node min-h-0">
       <div className="flex items-center justify-between p-3 border-b border-gray-800">
         <div className="flex items-center gap-3">
           <PlayCircle size={20} className="text-flow-accent" />

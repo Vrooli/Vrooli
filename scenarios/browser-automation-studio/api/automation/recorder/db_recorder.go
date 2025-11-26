@@ -3,15 +3,18 @@ package recorder
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"crypto/sha256"
 	"encoding/hex"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
@@ -25,6 +28,9 @@ type DBRecorder struct {
 	repo    ExecutionRepository
 	storage storage.StorageInterface
 	log     *logrus.Logger
+
+	// best-effort recovery cache to avoid re-checking the same execution ID repeatedly
+	checkedExecutions sync.Map
 }
 
 // NewDBRecorder constructs a Recorder backed by the database + optional storage.
@@ -63,7 +69,18 @@ func (r *DBRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		}
 	}
 	if err := r.repo.CreateExecutionStep(ctx, step); err != nil {
-		return RecordResult{}, err
+		recovered, recErr := r.recoverMissingExecution(ctx, plan, err)
+		if recErr != nil {
+			return RecordResult{}, recErr
+		}
+		if recovered {
+			// Retry once after recreating the execution row.
+			if retryErr := r.repo.CreateExecutionStep(ctx, step); retryErr != nil {
+				return RecordResult{}, retryErr
+			}
+		} else {
+			return RecordResult{}, err
+		}
 	}
 
 	artifactIDs := make([]uuid.UUID, 0, 3)
@@ -400,6 +417,70 @@ func deriveStepLabel(outcome contracts.StepOutcome) string {
 		return fmt.Sprintf("step-%d", outcome.StepIndex)
 	}
 	return "step"
+}
+
+// executionFetcher optionally exposed by repositories that can surface execution rows.
+type executionFetcher interface {
+	GetExecution(ctx context.Context, id uuid.UUID) (*database.Execution, error)
+}
+
+// executionCreator optionally exposed by repositories that can create execution rows.
+type executionCreator interface {
+	CreateExecution(ctx context.Context, execution *database.Execution) error
+}
+
+// recoverMissingExecution attempts to recreate the execution row when step persistence fails
+// due to a missing execution FK. This guards against out-of-order writes when the executor
+// is invoked without a pre-created execution record (e.g., from adhoc tooling).
+func (r *DBRecorder) recoverMissingExecution(ctx context.Context, plan contracts.ExecutionPlan, originalErr error) (bool, error) {
+	if !isForeignKeyViolation(originalErr) {
+		return false, originalErr
+	}
+
+	cacheKey := plan.ExecutionID.String()
+	if _, seen := r.checkedExecutions.Load(cacheKey); seen {
+		// Already attempted recovery for this execution.
+		return false, originalErr
+	}
+	r.checkedExecutions.Store(cacheKey, struct{}{})
+
+	fetcher, okFetch := r.repo.(executionFetcher)
+	creator, okCreate := r.repo.(executionCreator)
+	if !okCreate {
+		return false, originalErr
+	}
+
+	if okFetch {
+		existing, err := fetcher.GetExecution(ctx, plan.ExecutionID)
+		if err == nil && existing != nil {
+			// Execution already exists; bubble original error.
+			return false, originalErr
+		}
+	}
+
+	exec := &database.Execution{
+		ID:          plan.ExecutionID,
+		WorkflowID:  plan.WorkflowID,
+		Status:      "running",
+		TriggerType: "recovered",
+		StartedAt:   time.Now().UTC(),
+		Progress:    0,
+		CurrentStep: "Recovered execution context",
+	}
+
+	if err := creator.CreateExecution(ctx, exec); err != nil {
+		return false, fmt.Errorf("recover execution %s: %w", plan.ExecutionID, err)
+	}
+
+	if r.log != nil {
+		r.log.WithField("execution_id", plan.ExecutionID).Warn("Recovered missing execution before persisting step outcome")
+	}
+	return true, nil
+}
+
+func isForeignKeyViolation(err error) bool {
+	var pqErr *pq.Error
+	return errors.As(err, &pqErr) && pqErr.Code == "23503"
 }
 
 func sanitizeOutcome(out contracts.StepOutcome) contracts.StepOutcome {

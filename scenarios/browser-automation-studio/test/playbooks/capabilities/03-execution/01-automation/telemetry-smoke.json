@@ -26,11 +26,16 @@
       "data": {
         "label": "Execute demo workflow",
         "selector": "@selector/header.buttons.execute",
-        "timeoutMs": 10000,
-        "resilience": {
-          "successSelector": "@selector/executions.viewer.status",
-          "successTimeoutMs": 15000
-        }
+        "timeoutMs": 10000
+      }
+    },
+    {
+      "id": "wait-for-execution-start",
+      "type": "wait",
+      "data": {
+        "label": "Wait for execution viewer to render",
+        "selector": "@selector/executions.viewer.root",
+        "timeoutMs": 5000
       }
     },
     {
@@ -75,8 +80,14 @@
       "type": "smoothstep"
     },
     {
-      "id": "e5",
+      "id": "e2",
       "source": "click-execute-workflow",
+      "target": "wait-for-execution-start",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "wait-for-execution-start",
       "target": "assert-execution-progress",
       "type": "smoothstep"
     },

@@ -35,11 +35,16 @@
       "data": {
         "label": "Start workflow execution",
         "selector": "@selector/header.buttons.execute",
-        "timeoutMs": 5000,
-        "resilience": {
-          "successSelector": "@selector/executions.viewer.status",
-          "successTimeoutMs": 20000
-        }
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-for-execution-start",
+      "type": "wait",
+      "data": {
+        "label": "Wait for execution viewer to render",
+        "selector": "@selector/executions.viewer.root",
+        "timeoutMs": 5000
       }
     },
     {
@@ -127,8 +132,14 @@
       "type": "smoothstep"
     },
     {
-      "id": "e4",
+      "id": "e3b",
       "source": "start-execution",
+      "target": "wait-for-execution-start",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-for-execution-start",
       "target": "verify-execution-started",
       "type": "smoothstep"
     },

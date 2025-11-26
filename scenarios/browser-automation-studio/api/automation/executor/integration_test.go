@@ -11,71 +11,41 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/events"
 	"github.com/vrooli/browser-automation-studio/automation/recorder"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/testutil/testdb"
 )
 
 var (
-	pgContainer testcontainers.Container
-	testDBURL   string
+	testDBHandle *testdb.Handle
 )
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
 
-	// Allow callers to supply their own database (e.g., CI) to avoid containers.
-	if url := os.Getenv("TEST_DATABASE_URL"); url != "" {
-		testDBURL = url
-		os.Exit(m.Run())
-	}
-
-	container, err := postgres.RunContainer(ctx,
-		testcontainers.WithImage("postgres:15-alpine"),
-		postgres.WithDatabase("bas_test"),
-		postgres.WithUsername("test"),
-		postgres.WithPassword("test"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(60*time.Second),
-		),
-	)
+	handle, err := testdb.Start(ctx)
 	if err != nil {
 		fmt.Printf("skipping automation executor integration tests: %v\n", err)
 		os.Exit(0)
 	}
-
-	pgContainer = container
-
-	url, err := container.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		fmt.Printf("failed to get postgres connection string: %v\n", err)
-		_ = container.Terminate(ctx)
-		os.Exit(1)
-	}
-	testDBURL = url
+	testDBHandle = handle
 
 	code := m.Run()
 
-	if pgContainer != nil {
-		_ = pgContainer.Terminate(ctx)
-	}
+	handle.Terminate(ctx)
 
 	os.Exit(code)
 }
 
 func TestSimpleExecutorPersistsArtifactsAndEvents(t *testing.T) {
-	if testDBURL == "" {
+	if testDBHandle == nil {
 		t.Skip("test database not initialized")
 	}
 
-	repo, cleanup := setupRepo(t)
+	repo, db, cleanup := setupRepo(t)
 	defer cleanup()
 
 	executionID := uuid.New()
@@ -84,7 +54,7 @@ func TestSimpleExecutorPersistsArtifactsAndEvents(t *testing.T) {
 	log := logrus.New()
 	log.SetOutput(io.Discard)
 
-	createWorkflowFixture(t, repo, workflowID, executionID)
+	createWorkflowFixture(t, repo, db, workflowID, executionID)
 
 	plan := contracts.ExecutionPlan{
 		SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
@@ -127,11 +97,11 @@ func TestSimpleExecutorPersistsArtifactsAndEvents(t *testing.T) {
 }
 
 func TestSimpleExecutorProducesLegacyCompatibleArtifacts(t *testing.T) {
-	if testDBURL == "" {
+	if testDBHandle == nil {
 		t.Skip("test database not initialized")
 	}
 
-	repo, cleanup := setupRepo(t)
+	repo, db, cleanup := setupRepo(t)
 	defer cleanup()
 
 	executionID := uuid.New()
@@ -140,7 +110,7 @@ func TestSimpleExecutorProducesLegacyCompatibleArtifacts(t *testing.T) {
 	log := logrus.New()
 	log.SetOutput(io.Discard)
 
-	createWorkflowFixture(t, repo, workflowID, executionID)
+	createWorkflowFixture(t, repo, db, workflowID, executionID)
 
 	now := time.Now().UTC()
 	plan := contracts.ExecutionPlan{
@@ -387,43 +357,32 @@ func TestSimpleExecutorLinearGoldenEvents(t *testing.T) {
 	}
 }
 
-func setupRepo(t *testing.T) (database.Repository, func()) {
+func setupRepo(t *testing.T) (database.Repository, *database.DB, func()) {
 	t.Helper()
+
+	log := logrus.New()
+	log.SetOutput(io.Discard)
 
 	oldURL := os.Getenv("DATABASE_URL")
 	oldSkip := os.Getenv("BAS_SKIP_DEMO_SEED")
 
-	if err := os.Setenv("DATABASE_URL", testDBURL); err != nil {
-		t.Fatalf("set DATABASE_URL: %v", err)
-	}
+	_ = os.Setenv("DATABASE_URL", testDBHandle.DSN)
 	_ = os.Setenv("BAS_SKIP_DEMO_SEED", "true")
-
-	log := logrus.New()
-	log.SetOutput(io.Discard)
 
 	db, err := database.NewConnection(log)
 	if err != nil {
 		t.Fatalf("failed to connect to test db: %v", err)
 	}
 
+	if err := truncateAll(db); err != nil {
+		t.Fatalf("truncate test tables: %v", err)
+	}
+
 	repo := database.NewRepository(db, log)
 
 	cleanup := func() {
-		ctx := context.Background()
-		// Delete in reverse dependency order to avoid foreign key violations
-		queries := []string{
-			"DELETE FROM execution_artifacts WHERE execution_id IN (SELECT id FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%'))",
-			"DELETE FROM execution_steps WHERE execution_id IN (SELECT id FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%'))",
-			"DELETE FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%')",
-			"DELETE FROM workflows WHERE folder_path LIKE '/test%'",
-			"DELETE FROM workflow_folders WHERE folder_path LIKE '/test%'",
-			"DELETE FROM projects WHERE folder_path LIKE '/test%'",
-		}
-		for _, q := range queries {
-			db.ExecContext(ctx, q)
-		}
+		_ = truncateAll(db)
 		_ = db.Close()
-
 		if oldURL != "" {
 			_ = os.Setenv("DATABASE_URL", oldURL)
 		} else {
@@ -436,10 +395,31 @@ func setupRepo(t *testing.T) (database.Repository, func()) {
 		}
 	}
 
-	return repo, cleanup
+	return repo, db, cleanup
 }
 
-func createWorkflowFixture(t *testing.T, repo database.Repository, workflowID, executionID uuid.UUID) {
+func truncateAll(db *database.DB) error {
+	queries := []string{
+		"TRUNCATE execution_artifacts CASCADE",
+		"TRUNCATE execution_steps CASCADE",
+		"TRUNCATE execution_logs CASCADE",
+		"TRUNCATE screenshots CASCADE",
+		"TRUNCATE extracted_data CASCADE",
+		"TRUNCATE executions CASCADE",
+		"TRUNCATE workflow_versions CASCADE",
+		"TRUNCATE workflows CASCADE",
+		"TRUNCATE workflow_folders CASCADE",
+		"TRUNCATE projects CASCADE",
+	}
+	for _, q := range queries {
+		if _, err := db.Exec(q); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func createWorkflowFixture(t *testing.T, repo database.Repository, db *database.DB, workflowID, executionID uuid.UUID) {
 	t.Helper()
 	ctx := context.Background()
 
@@ -482,6 +462,14 @@ func createWorkflowFixture(t *testing.T, repo database.Repository, workflowID, e
 	}
 	if err := repo.CreateExecution(ctx, execution); err != nil {
 		t.Fatalf("create execution: %v", err)
+	}
+
+	if _, err := db.ExecContext(ctx, `
+		INSERT INTO executions (id, workflow_id, workflow_version, status, trigger_type, started_at)
+		VALUES ($1, $2, $3, 'running', 'manual', NOW())
+		ON CONFLICT (id) DO NOTHING
+	`, executionID, workflowID, workflow.Version); err != nil {
+		t.Fatalf("ensure execution exists: %v", err)
 	}
 }
 

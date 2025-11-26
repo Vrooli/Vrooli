@@ -88,6 +88,7 @@
         "label": "Change mode to text_contains",
         "selector": ".react-flow__node.selected select /*dup-1*/",
         "value": "text_contains",
+        "optionValue": "text_contains",
         "timeoutMs": 5000
       }
     },
@@ -151,6 +152,7 @@
         "label": "Change mode to attribute_equals",
         "selector": ".react-flow__node.selected select /*dup-2*/",
         "value": "attribute_equals",
+        "optionValue": "attribute_equals",
         "timeoutMs": 5000
       }
     },

@@ -99,59 +99,66 @@ func NewSession(ctx context.Context, browserlessURL string, viewportWidth, viewp
 		viewportHeight = 1080
 	}
 
-	s := &Session{
-		browserlessURL: browserlessURL,
-		viewportWidth:  viewportWidth,
-		viewportHeight: viewportHeight,
-		telemetry:      &Telemetry{},
-		log:            log,
-		targetContexts: make(map[target.ID]context.Context),
-		targetCancels:  make(map[target.ID]context.CancelFunc),
-		tabs:           make(map[target.ID]*tabRecord),
+	var lastErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		s := &Session{
+			browserlessURL: browserlessURL,
+			viewportWidth:  viewportWidth,
+			viewportHeight: viewportHeight,
+			telemetry:      &Telemetry{},
+			log:            log,
+			targetContexts: make(map[target.ID]context.Context),
+			targetCancels:  make(map[target.ID]context.CancelFunc),
+			tabs:           make(map[target.ID]*tabRecord),
+		}
+		s.operationCond = sync.NewCond(&s.ctxMu)
+
+		wsURL, err := resolveBrowserlessWebSocketURL(ctx, browserlessURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve browserless websocket URL: %w", err)
+		}
+		s.wsURL = wsURL
+
+		if log != nil {
+			log.Infof("Connecting to browserless CDP at: %s (attempt %d)", wsURL, attempt)
+		}
+
+		allocCtx, cancelAllocator := chromedp.NewRemoteAllocator(context.Background(), wsURL, chromedp.NoModifyURL)
+		s.allocCtx = allocCtx
+
+		logf := func(string, ...interface{}) {}
+		if log != nil {
+			logf = log.Debugf
+		}
+		s.logFunc = logf
+		browserCtx, browserCancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(logf))
+		s.ctx = browserCtx
+
+		if err := s.initialize(); err != nil {
+			browserCancel()
+			cancelAllocator()
+			lastErr = fmt.Errorf("attempt %d: failed to initialize CDP session: %w", attempt, err)
+			time.Sleep(time.Duration(attempt) * 200 * time.Millisecond)
+			continue
+		}
+
+		if err := s.captureInitialTarget(browserCtx, browserCancel); err != nil {
+			browserCancel()
+			cancelAllocator()
+			lastErr = fmt.Errorf("attempt %d: %w", attempt, err)
+			time.Sleep(time.Duration(attempt) * 200 * time.Millisecond)
+			continue
+		}
+
+		s.cancel = func() {
+			s.closeAllTargets()
+			cancelAllocator()
+		}
+
+		return s, nil
 	}
-	s.operationCond = sync.NewCond(&s.ctxMu)
 
-	wsURL, err := resolveBrowserlessWebSocketURL(ctx, browserlessURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve browserless websocket URL: %w", err)
-	}
-	s.wsURL = wsURL
-
-	if log != nil {
-		log.Infof("Connecting to browserless CDP at: %s", wsURL)
-	}
-
-	// Use context.Background() for allocator to prevent premature cancellation
-	// The passed ctx is only used for WebSocket URL resolution above
-	allocCtx, cancelAllocator := chromedp.NewRemoteAllocator(context.Background(), wsURL, chromedp.NoModifyURL)
-	s.allocCtx = allocCtx
-
-	logf := func(string, ...interface{}) {}
-	if log != nil {
-		logf = log.Debugf
-	}
-	s.logFunc = logf
-	browserCtx, browserCancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(logf))
-	s.ctx = browserCtx
-
-	if err := s.initialize(); err != nil {
-		browserCancel()
-		cancelAllocator()
-		return nil, fmt.Errorf("failed to initialize CDP session: %w", err)
-	}
-
-	if err := s.captureInitialTarget(browserCtx, browserCancel); err != nil {
-		browserCancel()
-		cancelAllocator()
-		return nil, err
-	}
-
-	s.cancel = func() {
-		s.closeAllTargets()
-		cancelAllocator()
-	}
-
-	return s, nil
+	return nil, fmt.Errorf("failed to initialize CDP session after retries: %w", lastErr)
 }
 
 // initialize sets up the browser context and telemetry listeners

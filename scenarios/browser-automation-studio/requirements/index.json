@@ -81,7 +81,7 @@
       "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "AI-generated workflows validated against the execution plan",
       "description": "Validates that AI prompts produce executable workflows with deterministic smoke coverage.",
-      "status": "complete",
+      "status": "in_progress",
       "children": [
         "BAS-AI-GENERATION-SMOKE",
         "BAS-AI-GENERATION-VALIDATION"

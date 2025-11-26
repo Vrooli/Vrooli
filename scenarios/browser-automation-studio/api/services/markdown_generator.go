@@ -19,10 +19,13 @@ func GenerateTimelineMarkdown(timeline *ExecutionTimeline, workflowName string) 
 
 	sb.WriteString(fmt.Sprintf("**Status**: %s %s  \n", emoji, strings.Title(status)))
 
-	// Duration calculation
+	// Duration calculation (clamp to zero to avoid negative values when timestamps drift)
 	if timeline.CompletedAt != nil {
-		duration := timeline.CompletedAt.Sub(timeline.StartedAt)
-		sb.WriteString(fmt.Sprintf("**Duration**: %.1fs  \n", duration.Seconds()))
+		duration := timeline.CompletedAt.Sub(timeline.StartedAt).Seconds()
+		if duration < 0 {
+			duration = 0
+		}
+		sb.WriteString(fmt.Sprintf("**Duration**: %.1fs  \n", duration))
 	}
 
 	// Step completion
@@ -127,6 +130,10 @@ func GenerateTimelineMarkdown(timeline *ExecutionTimeline, workflowName string) 
 				sb.WriteString(fmt.Sprintf("- Review screenshot from failed step in `screenshots/`\n"))
 			}
 		}
+
+		// Point to debugging docs to guide remediation
+		sb.WriteString("- See `docs/testing/guides/ui-automation-with-bas.md#debugging` for common fixes\n")
+		sb.WriteString("- Validate selectors and waits against `test/playbooks` definitions if selector errors persist\n")
 
 		sb.WriteString("\n")
 	}

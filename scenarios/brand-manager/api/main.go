@@ -118,7 +118,6 @@ type IntegrationRequest struct {
 type BrandManagerService struct {
 	db            *sql.DB
 	n8nBaseURL    string
-	windmillURL   string
 	comfyUIURL    string
 	minioEndpoint string
 	vaultAddr     string
@@ -127,11 +126,10 @@ type BrandManagerService struct {
 }
 
 // NewBrandManagerService creates a new brand manager service
-func NewBrandManagerService(db *sql.DB, n8nURL, windmillURL, comfyUIURL, minioEndpoint, vaultAddr string) *BrandManagerService {
+func NewBrandManagerService(db *sql.DB, n8nURL, comfyUIURL, minioEndpoint, vaultAddr string) *BrandManagerService {
 	return &BrandManagerService{
 		db:            db,
 		n8nBaseURL:    n8nURL,
-		windmillURL:   windmillURL,
 		comfyUIURL:    comfyUIURL,
 		minioEndpoint: minioEndpoint,
 		vaultAddr:     vaultAddr,
@@ -477,15 +475,10 @@ func (bm *BrandManagerService) CreateIntegration(w http.ResponseWriter, r *http.
 func (bm *BrandManagerService) GetServiceURLs(w http.ResponseWriter, r *http.Request) {
 	urls := map[string]interface{}{
 		"services": map[string]string{
-			"n8n":      bm.n8nBaseURL,
-			"windmill": bm.windmillURL,
-			"comfyui":  bm.comfyUIURL,
-			"minio":    fmt.Sprintf("http://%s", bm.minioEndpoint),
-			"vault":    bm.vaultAddr,
-		},
-		"dashboards": map[string]string{
-			"brand_manager":       fmt.Sprintf("%s/apps/f/brand-manager/dashboard", bm.windmillURL),
-			"integration_monitor": fmt.Sprintf("%s/apps/f/brand-manager/integration-dashboard", bm.windmillURL),
+			"n8n":     bm.n8nBaseURL,
+			"comfyui": bm.comfyUIURL,
+			"minio":   fmt.Sprintf("http://%s", bm.minioEndpoint),
+			"vault":   bm.vaultAddr,
 		},
 	}
 
@@ -505,7 +498,6 @@ func getResourcePort(resourceName string) string {
 		// Fallback to defaults
 		defaults := map[string]string{
 			"n8n":      "5678",
-			"windmill": "8000",
 			"postgres": "5432",
 			"comfyui":  "8188",
 			"minio":    "9000",
@@ -544,7 +536,6 @@ func main() {
 
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
-	windmillPort := getResourcePort("windmill")
 	_ = getResourcePort("postgres") // postgres port retrieved but connection uses URL from env
 	comfyUIPort := getResourcePort("comfyui")
 	minioPort := getResourcePort("minio")
@@ -553,11 +544,6 @@ func main() {
 	n8nURL := os.Getenv("N8N_BASE_URL")
 	if n8nURL == "" {
 		n8nURL = fmt.Sprintf("http://localhost:%s", n8nPort)
-	}
-
-	windmillURL := os.Getenv("WINDMILL_BASE_URL")
-	if windmillURL == "" {
-		windmillURL = fmt.Sprintf("http://localhost:%s", windmillPort)
 	}
 
 	comfyUIURL := os.Getenv("COMFYUI_BASE_URL")
@@ -657,7 +643,7 @@ func main() {
 	log.Println("🎉 Database connection pool established successfully!")
 
 	// Initialize brand manager service
-	brandManager := NewBrandManagerService(db, n8nURL, windmillURL, comfyUIURL, minioEndpoint, vaultAddr)
+	brandManager := NewBrandManagerService(db, n8nURL, comfyUIURL, minioEndpoint, vaultAddr)
 
 	// Setup routes
 	r := mux.NewRouter()
@@ -675,7 +661,6 @@ func main() {
 	// Start server
 	log.Printf("Starting Brand Manager API on port %s", port)
 	log.Printf("  n8n URL: %s", n8nURL)
-	log.Printf("  Windmill URL: %s", windmillURL)
 	log.Printf("  ComfyUI URL: %s", comfyUIURL)
 	log.Printf("  MinIO Endpoint: %s", minioEndpoint)
 	log.Printf("  Vault URL: %s", vaultAddr)

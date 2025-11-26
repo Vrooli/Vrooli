@@ -8,7 +8,7 @@
   "phases": {
     "integration": {
       "timeout": "540s",
-      "browser_session_strategy": "fresh"
+      "browser_session_strategy": "clean"
     }
   },
   "structure": {
