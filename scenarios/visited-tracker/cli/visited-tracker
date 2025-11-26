@@ -143,7 +143,7 @@ ensure_campaign_id() {
     return 0
 }
 
-# Find or create campaign by location + tag
+# Find or create campaign using API endpoint
 # Returns campaign ID in CAMPAIGN_ID variable
 find_or_create_campaign() {
     local location="$1"
@@ -155,90 +155,38 @@ find_or_create_campaign() {
         return 1
     fi
 
-    # List all campaigns and search for matching location + tag
-    local campaigns_json
-    campaigns_json=$(api_request "GET" "/api/v1/campaigns" "" true) || return 1
-
-    # Search for campaign with matching location and tag
-    local found_id
-    found_id=$(echo "$campaigns_json" | jq -r --arg loc "$location" --arg t "$tag" '
-        .campaigns[]?
-        | select(.location == $loc and .tag == $t)
-        | .id' | head -1)
-
-    if [ -n "$found_id" ]; then
-        CAMPAIGN_ID="$found_id"
-        export VISITED_TRACKER_CAMPAIGN_ID="$CAMPAIGN_ID"
-        return 0
-    fi
-
-    # Campaign not found - create it
-    local campaign_name="${tag}-$(basename "$location")"
     local payload
     payload=$(jq -n \
-        --arg name "$campaign_name" \
-        --arg from_agent "cli-auto" \
         --arg location "$location" \
         --arg tag "$tag" \
         --arg pattern "$pattern" \
         '{
-            name: $name,
-            from_agent: $from_agent,
             location: $location,
             tag: $tag,
             patterns: [$pattern]
         }')
 
     local response
-    response=$(api_request "POST" "/api/v1/campaigns" "$payload") || return 1
+    response=$(api_request "POST" "/api/v1/campaigns/find-or-create" "$payload") || return 1
 
-    local new_id
-    new_id=$(echo "$response" | jq -r '.id // empty')
-    if [ -z "$new_id" ]; then
-        echo -e "${RED}Error: Failed to create campaign.${NC}" >&2
+    local campaign_id
+    campaign_id=$(echo "$response" | jq -r '.campaign.id // empty')
+    if [ -z "$campaign_id" ]; then
+        echo -e "${RED}Error: Failed to get campaign ID from response.${NC}" >&2
         return 1
     fi
 
-    CAMPAIGN_ID="$new_id"
+    CAMPAIGN_ID="$campaign_id"
     export VISITED_TRACKER_CAMPAIGN_ID="$CAMPAIGN_ID"
-    echo -e "${GREEN}✓ Auto-created campaign:${NC} $campaign_name (ID: $new_id)" >&2
-    return 0
-}
 
-# Find file in campaign by path and return file_id
-# Usage: find_file_in_campaign CAMPAIGN_ID FILE_PATH
-find_file_in_campaign() {
-    local camp_id="$1"
-    local file_path="$2"
-
-    # Get absolute path for comparison
-    local abs_path
-    if [[ "$file_path" = /* ]]; then
-        abs_path="$file_path"
-    else
-        abs_path="$(cd "$(dirname "$file_path")" 2>/dev/null && pwd)/$(basename "$file_path")"
-        if [ -z "$abs_path" ] || [ "$abs_path" = "/$(basename "$file_path")" ]; then
-            # File doesn't exist yet, construct path from cwd
-            abs_path="$(pwd)/$file_path"
-        fi
+    local was_created
+    was_created=$(echo "$response" | jq -r '.created // false')
+    if [ "$was_created" = "true" ]; then
+        local campaign_name
+        campaign_name=$(echo "$response" | jq -r '.campaign.name')
+        echo -e "${GREEN}✓ Auto-created campaign:${NC} $campaign_name (ID: $campaign_id)" >&2
     fi
 
-    # Get campaign and search for file
-    local campaign_json
-    campaign_json=$(api_request "GET" "/api/v1/campaigns/$camp_id" "" true) || return 1
-
-    # Try to find file by absolute path or relative path
-    local file_id
-    file_id=$(echo "$campaign_json" | jq -r --arg path "$file_path" --arg abs "$abs_path" '
-        .tracked_files[]?
-        | select(.file_path == $path or .absolute_path == $abs)
-        | .id' | head -1)
-
-    if [ -z "$file_id" ]; then
-        return 1
-    fi
-
-    echo "$file_id"
     return 0
 }
 
@@ -372,37 +320,45 @@ record_visit() {
         find_or_create_campaign "$location" "$tag" "$pattern" || exit 1
     fi
 
-    # Build JSON payload
+    # Build JSON payload with optional file_notes
     local files_json
     files_json=$(printf '%s\n' "${files[@]}" | jq -R . | jq -s .)
 
     local payload
-    payload=$(jq -n \
-        --argjson files "$files_json" \
-        --arg context "$context" \
-        --arg agent "$agent" \
-        --arg conversation_id "$conversation" \
-        '{
-            files: $files,
-            context: (if $context == "" then null else $context end),
-            agent: (if $agent == "" then null else $agent end),
-            conversation_id: (if $conversation_id == "" then null else $conversation_id end)
-        }')
+    if [[ -n "$note" ]]; then
+        # Build file_notes map with same note for all files
+        local file_notes_json
+        file_notes_json=$(printf '%s\n' "${files[@]}" | jq -R . | jq -s 'map({key: ., value: "'"$note"'"}) | from_entries')
+
+        payload=$(jq -n \
+            --argjson files "$files_json" \
+            --argjson file_notes "$file_notes_json" \
+            --arg context "$context" \
+            --arg agent "$agent" \
+            --arg conversation_id "$conversation" \
+            '{
+                files: $files,
+                file_notes: $file_notes,
+                context: (if $context == "" then null else $context end),
+                agent: (if $agent == "" then null else $agent end),
+                conversation_id: (if $conversation_id == "" then null else $conversation_id end)
+            }')
+    else
+        payload=$(jq -n \
+            --argjson files "$files_json" \
+            --arg context "$context" \
+            --arg agent "$agent" \
+            --arg conversation_id "$conversation" \
+            '{
+                files: $files,
+                context: (if $context == "" then null else $context end),
+                agent: (if $agent == "" then null else $agent end),
+                conversation_id: (if $conversation_id == "" then null else $conversation_id end)
+            }')
+    fi
 
     local response
     response=$(api_request "POST" "$(campaign_endpoint "/visit")" "$payload")
-
-    # If note provided, update file notes for each file
-    if [[ -n "$note" ]]; then
-        for file in "${files[@]}"; do
-            local file_id
-            if file_id=$(find_file_in_campaign "$CAMPAIGN_ID" "$file" 2>/dev/null); then
-                local note_payload
-                note_payload=$(jq -n --arg notes "$note" '{notes: $notes}')
-                api_request "PATCH" "/api/v1/campaigns/${CAMPAIGN_ID}/files/${file_id}/notes" "$note_payload" true >/dev/null || true
-            fi
-        done
-    fi
 
     if [[ "$json_output" == "true" ]]; then
         echo "$response" | format_json
@@ -539,39 +495,45 @@ exclude_file() {
         find_or_create_campaign "$location" "$tag" "$pattern" || exit 1
     fi
 
-    local excluded_count=0
-    for file in "${files[@]}"; do
-        local file_id
-        if file_id=$(find_file_in_campaign "$CAMPAIGN_ID" "$file" 2>/dev/null); then
-            # Mark file as excluded
-            local exclude_payload
-            exclude_payload=$(jq -n '{excluded: true}')
-            api_request "PATCH" "/api/v1/campaigns/${CAMPAIGN_ID}/files/${file_id}/exclude" "$exclude_payload" true >/dev/null
+    # Build bulk exclude payload
+    local files_json
+    files_json=$(printf '%s\n' "${files[@]}" | jq -R . | jq -s .)
 
-            # Add reason as note if provided
-            if [[ -n "$reason" ]]; then
-                local note_payload
-                note_payload=$(jq -n --arg notes "$reason" '{notes: $notes}')
-                api_request "PATCH" "/api/v1/campaigns/${CAMPAIGN_ID}/files/${file_id}/notes" "$note_payload" true >/dev/null || true
-            fi
+    local payload
+    if [[ -n "$reason" ]]; then
+        payload=$(jq -n \
+            --argjson files "$files_json" \
+            --arg reason "$reason" \
+            '{
+                files: $files,
+                reason: $reason,
+                excluded: true
+            }')
+    else
+        payload=$(jq -n \
+            --argjson files "$files_json" \
+            '{
+                files: $files,
+                excluded: true
+            }')
+    fi
 
-            ((excluded_count++))
-        else
-            echo -e "${YELLOW}⚠ File not found in campaign:${NC} $file" >&2
-        fi
-    done
+    local response
+    response=$(api_request "POST" "/api/v1/campaigns/${CAMPAIGN_ID}/files/exclude" "$payload")
 
     if [[ "$json_output" == "true" ]]; then
-        jq -n --argjson count "$excluded_count" --argjson files "$(printf '%s\n' "${files[@]}" | jq -R . | jq -s .)" \
-            '{excluded: $count, files: $files}'
+        echo "$response" | format_json
     else
+        local excluded_count
+        excluded_count=$(echo "$response" | jq -r '.excluded_count // 0')
+
         echo -e "${GREEN}✓ Excluded $excluded_count file(s)${NC}"
         if [[ -n "$reason" ]]; then
             echo -e "${BLUE}Reason:${NC} $reason"
         fi
-        for file in "${files[@]}"; do
-            echo "  $file"
-        done
+
+        # Show files from response
+        echo "$response" | jq -r '(.files // [])[] | "  \(.)"'
     fi
 }
 
@@ -916,54 +878,18 @@ campaigns_command() {
                 ensure_campaign_id || exit 1
             fi
 
-            # Get campaign details for recreation
-            local campaign_json
-            campaign_json=$(api_request "GET" "/api/v1/campaigns/${CAMPAIGN_ID}")
-            local name
-            name=$(echo "$campaign_json" | jq -r '.name')
-            local from_agent
-            from_agent=$(echo "$campaign_json" | jq -r '.from_agent // "cli"')
-            local patterns_json
-            patterns_json=$(echo "$campaign_json" | jq -c '.patterns')
-            local camp_location
-            camp_location=$(echo "$campaign_json" | jq -r '.location // empty')
-            local camp_tag
-            camp_tag=$(echo "$campaign_json" | jq -r '.tag // empty')
-
-            # Delete old campaign
-            api_request "DELETE" "/api/v1/campaigns/${CAMPAIGN_ID}" >/dev/null
-
-            # Create fresh campaign
-            local payload
-            if [ -n "$camp_location" ] && [ -n "$camp_tag" ]; then
-                payload=$(jq -n \
-                    --arg name "$name" \
-                    --arg from_agent "$from_agent" \
-                    --arg loc "$camp_location" \
-                    --arg t "$camp_tag" \
-                    --argjson patterns "$patterns_json" \
-                    '{name: $name, from_agent: $from_agent, location: $loc, tag: $t, patterns: $patterns}')
-            else
-                payload=$(jq -n \
-                    --arg name "$name" \
-                    --arg from_agent "$from_agent" \
-                    --argjson patterns "$patterns_json" \
-                    '{name: $name, from_agent: $from_agent, patterns: $patterns}')
-            fi
-
+            # Use reset endpoint
             local response
-            response=$(api_request "POST" "/api/v1/campaigns" "$payload")
-            local new_id
-            new_id=$(echo "$response" | jq -r '.id')
-
-            CAMPAIGN_ID="$new_id"
-            export VISITED_TRACKER_CAMPAIGN_ID="$CAMPAIGN_ID"
+            response=$(api_request "POST" "/api/v1/campaigns/${CAMPAIGN_ID}/reset" "")
 
             if [ "$json_output" = true ]; then
                 echo "$response" | format_json
             else
-                echo -e "${GREEN}✓ Campaign reset:${NC} $name"
-                echo "New ID: $new_id"
+                local campaign_name
+                campaign_name=$(echo "$response" | jq -r '.campaign.name // "Campaign"')
+
+                echo -e "${GREEN}✓ Campaign reset:${NC} $campaign_name"
+                echo "Campaign ID: ${CAMPAIGN_ID}"
                 echo "All visit tracking has been cleared"
             fi
             ;;
