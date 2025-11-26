@@ -295,9 +295,6 @@ find_alternative_resources() {
             "ollama")
                 alternatives+=("openai-api" "anthropic-api")
                 ;;
-            "n8n")
-                alternatives+=("node-red" "huginn")
-                ;;
             "agent-s2")
                 alternatives+=("browserless" "selenium")
                 ;;

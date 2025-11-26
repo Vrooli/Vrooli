@@ -99,10 +99,6 @@ optional:
     fallback: Manual CLI operations
     access_method: Workflow triggers
     
-  - resource_name: windmill
-    purpose: Alternative workflow automation
-    fallback: Manual CLI operations
-    access_method: Script execution
 ```
 
 ### Integration Standards

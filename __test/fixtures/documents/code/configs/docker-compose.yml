@@ -24,7 +24,6 @@ services:
       LOG_LEVEL: debug
       ENABLE_CORS: true
       OLLAMA_BASE_URL: http://ollama:11434
-      N8N_BASE_URL: http://n8n:5678
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
@@ -155,36 +154,6 @@ services:
       - vrooli-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Automation Services
-  n8n:
-    image: n8nio/n8n:latest
-    ports:
-      - "5678:5678"
-    environment:
-      N8N_BASIC_AUTH_ACTIVE: false
-      N8N_HOST: 0.0.0.0
-      N8N_PORT: 5678
-      N8N_PROTOCOL: http
-      NODE_ENV: development
-      WEBHOOK_URL: http://localhost:5678
-      GENERIC_TIMEZONE: UTC
-      N8N_LOG_LEVEL: debug
-      N8N_USER_FOLDER: /home/node/.n8n
-      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-n8n-dev-encryption-key}
-    volumes:
-      - n8n_data:/home/node/.n8n
-      - ./workflows/n8n:/home/node/.n8n/workflows
-    restart: unless-stopped
-    networks:
-      - vrooli-network
-    depends_on:
-      - postgres
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5678/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -344,8 +313,6 @@ volumes:
   ollama_data:
     driver: local
   whisper_models:
-    driver: local
-  n8n_data:
     driver: local
   node_red_data:
     driver: local

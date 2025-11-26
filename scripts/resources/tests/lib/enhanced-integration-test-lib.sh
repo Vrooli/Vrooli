@@ -370,7 +370,7 @@ enhanced_test_lib::test_automation_execution_capability() {
     # Test fixture workflow if available
     if [[ "$FIXTURES_AVAILABLE" == "true" ]]; then
         local workflow_fixture
-        if workflow_fixture=$(fixture_get_path "workflows" "n8n/n8n-workflow.json" 2>/dev/null); then
+        if workflow_fixture=$(fixture_get_path "workflows" "node-red/node-red-workflow.json" 2>/dev/null); then
             # This would require complex workflow execution testing
             # For now, just validate that execution endpoints exist
             local exec_endpoints=("/api/executions" "/executions" "/v1/executions")
@@ -521,7 +521,7 @@ enhanced_test_lib::discover_resource_fixtures() {
     if [[ -z "$resource_category" ]]; then
         case "$resource_name" in
             ollama|whisper|unstructured-io) resource_category="ai" ;;
-            n8n|comfyui|node-red|huginn) resource_category="automation" ;;
+            comfyui|node-red|huginn) resource_category="automation" ;;
             minio|vault|qdrant|questdb|postgres|redis) resource_category="storage" ;;
             judge0) resource_category="execution" ;;
             browserless|claude-code|agent-s2) resource_category="agents" ;;

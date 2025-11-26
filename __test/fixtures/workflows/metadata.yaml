@@ -12,7 +12,7 @@ schema:
     - tags              # Test categories
     - testData          # Test-specific configuration
   typeProperties:
-    - platform          # Automation platform (n8n, node-red, huginn, comfyui)
+    - platform          # Automation platform (node-red, huginn, comfyui)
     - integration       # List of resources being tested
     - complexity        # basic, intermediate, advanced
     - expectedDuration  # Expected execution time in seconds
@@ -20,48 +20,6 @@ schema:
 
 # Workflow entries organized by platform
 workflows:
-  # N8N Workflows
-  n8n:
-    - path: n8n/n8n-workflow.json
-      platform: n8n
-      integration: [ollama]
-      complexity: basic
-      expectedDuration: 15
-      resourceReqs:
-        cpu: low
-        memory: low
-        network: true
-      tags: [smoke-test, ai-integration, basic-integration]
-      testData:
-        name: "Integration Test Workflow"
-        expectedOutput: "response from Ollama"
-        model: "llama3.1:8b"
-        prompt: "Hello from integration test"
-        successCriteria:
-          - status: "success"
-          - responseTime: "< 30s"
-          - outputNotEmpty: true
-    
-    - path: n8n/n8n-whisper-transcription.json
-      platform: n8n
-      integration: [whisper]
-      complexity: basic
-      expectedDuration: 45
-      resourceReqs:
-        cpu: medium
-        memory: medium
-        network: true
-      tags: [audio-processing, transcription, whisper-integration]
-      testData:
-        name: "Whisper Transcription Test"
-        expectedOutput: "transcription text"
-        model: "base"
-        inputFile: "test_audio.mp3"
-        successCriteria:
-          - status: "success"
-          - responseTime: "< 60s"
-          - textNotEmpty: true
-
   # Node-RED Workflows  
   node_red:
     - path: node-red/node-red-workflow.json
@@ -219,25 +177,20 @@ workflows:
 # Test suite mappings - which workflows to use for specific test types
 testSuites:
   smokeTests:
-    - n8n/n8n-workflow.json         # Basic N8N functionality
     - node-red/node-red-workflow.json    # Basic Node-RED functionality
     - comfyui/comfyui-text-to-image.json  # Basic ComfyUI functionality
   
   aiIntegration:
-    - n8n/n8n-workflow.json         # N8N + Ollama
     - node-red/node-red-workflow.json    # Node-RED + Ollama
-    - n8n/n8n-whisper-transcription.json  # N8N + Whisper
     - integration/multi-ai-pipeline.json  # Multi-AI pipeline
     - comfyui/comfyui-ollama-guided.json  # ComfyUI + Ollama
     - huginn/huginn-content-monitoring.json  # Huginn + Ollama + SearXNG
     - huginn/huginn-web-automation.json   # Huginn + Ollama + Agent S2
   
   basicIntegration:
-    - n8n/n8n-workflow.json         # N8N basic connectivity
     - node-red/node-red-workflow.json    # Node-RED basic connectivity
   
   performanceTest:
-    - n8n/n8n-workflow.json         # N8N performance baseline
     - node-red/node-red-workflow.json    # Node-RED performance baseline
     
   storageIntegration:
@@ -259,14 +212,6 @@ testSuites:
 
 # Platform-specific configuration
 platforms:
-  n8n:
-    port: 5678
-    api_endpoint: "/api/v1"
-    import_method: "POST /workflows/import"
-    execute_method: "POST /workflows/{id}/execute"
-    health_check: "/healthz"
-    supported_formats: [json]
-    
   node-red:
     port: 1880
     api_endpoint: "/flows"

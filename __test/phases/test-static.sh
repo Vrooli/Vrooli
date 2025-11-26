@@ -58,7 +58,6 @@ SCOPING EXAMPLES:
   ./test-static.sh --resource=ollama           # Analyze only ollama resource files
   ./test-static.sh --scenario=app-generator    # Analyze only app-generator scenario
   ./test-static.sh --path=scenarios/core       # Analyze only specific directory
-  ./test-static.sh typescript --resource=n8n   # TypeScript analysis for n8n only
 
 COMBINED EXAMPLES:
   ./test-static.sh                             # Run all static analysis

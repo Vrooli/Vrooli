@@ -2,14 +2,15 @@
   "compilerOptions": {
     "target": "ES2019",
     "module": "ES2020",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
     "declaration": true,
     "outDir": "dist",
     "rootDir": "src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "allowImportingTsExtensions": false
   },
   "include": ["src/**/*.ts"],
   "exclude": ["dist"]

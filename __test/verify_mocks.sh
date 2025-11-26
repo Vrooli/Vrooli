@@ -55,7 +55,7 @@ NC='\033[0m' # No Color
 
 # Mock categories
 declare -A MOCK_CATEGORIES=(
-    ["core"]="redis postgres docker n8n ollama minio"
+    ["core"]="redis postgres docker node-red ollama minio"
     ["utility"]="logs jq verification dig filesystem system"
     ["storage"]="redis postgres minio qdrant questdb"
     ["ai"]="ollama whisper claude-code comfyui"
@@ -261,8 +261,8 @@ main() {
     
     # Quick mode: test only subset
     if [[ "$QUICK_MODE" == "true" ]]; then
-        log_info "Quick mode: Testing subset only (redis, postgres, n8n, docker)"
-        mocks_to_test=("redis" "postgres" "n8n" "docker")
+        log_info "Quick mode: Testing subset only (redis, postgres, node-red, docker)"
+        mocks_to_test=("redis" "postgres" "node-red" "docker")
     fi
     
     # Test individual mocks

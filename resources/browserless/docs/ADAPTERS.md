@@ -246,7 +246,6 @@ Planned adapters for the ecosystem:
 - **jenkins** - CI/CD pipeline management
 - **gitlab** - Repository and CI/CD operations
 - **comfyui** - Image generation workflow management
-- **windmill** - Workflow automation platform
 - **nocodb** - Database UI operations
 
 ## Contributing

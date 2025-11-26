@@ -220,7 +220,6 @@ func TestWorkflowCRUD(t *testing.T) {
        {
          "id": "BAS-WORKFLOW-PERSIST-CRUD",
          "status": "passed",
-         "criticality": "P0",
          "evidence": "Node test ✓ PASS REQ:BAS-WORKFLOW-PERSIST-CRUD (7 tests, 9ms); Go: api/services/workflow_service_test.go:TestWorkflowCRUD"
        }
      ]
@@ -344,7 +343,6 @@ func TestWorkflowCRUD(t *testing.T) {
     {
       "id": "BAS-WORKFLOW-PERSIST-CRUD",
       "status": "complete",
-      "criticality": "P0",
       "liveStatus": "passed",
       "validationCount": 3,
       "evidence": ["unit phase passed", "integration phase passed"]

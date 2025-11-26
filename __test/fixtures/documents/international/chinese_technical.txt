@@ -27,7 +27,7 @@
 系统能够自动发现网络环境中可用的AI服务，包括：
 • Ollama本地大语言模型服务
 • Whisper语音识别服务  
-• n8n工作流自动化平台
+• Node-RED流程自动化平台
 • Agent-S2智能代理服务
 • MinIO对象存储服务
 
@@ -60,9 +60,9 @@ resources:
       enabled: true
       base_url: "http://localhost:8090"
   automation:
-    n8n:
+    node-red:
       enabled: true
-      base_url: "http://localhost:5678"
+      base_url: "http://localhost:1880"
 ```
 
 性能指标

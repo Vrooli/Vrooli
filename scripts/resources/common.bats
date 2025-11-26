@@ -36,9 +36,9 @@ teardown() {
     [ "$output" = "4110" ]
 }
 
-@test "resources::get_default_port returns correct port for n8n" {
-    output=$(bash -c "source '$RESOURCES_DIR/common.sh' && resources::get_default_port 'n8n'")
-    [ "$output" = "5678" ]
+@test "resources::get_default_port returns correct port for node-red" {
+    output=$(bash -c "source '$RESOURCES_DIR/common.sh' && resources::get_default_port 'node-red'")
+    [ "$output" = "1880" ]
 }
 
 @test "resources::get_default_port returns 8080 fallback for unknown resource" {
@@ -120,12 +120,12 @@ teardown() {
         source '$RESOURCES_DIR/common.sh'
         echo \"OLLAMA:\${DEFAULT_PORTS[ollama]}\"
         echo \"BROWSERLESS:\${DEFAULT_PORTS[browserless]}\"
-        echo \"N8N:\${DEFAULT_PORTS[n8n]}\"
+        echo \"NODE_RED:\${DEFAULT_PORTS[node-red]}\"
     ")
     
     [[ "$output" =~ "OLLAMA:11434" ]]
     [[ "$output" =~ "BROWSERLESS:4110" ]]
-    [[ "$output" =~ "N8N:5678" ]]
+    [[ "$output" =~ "NODE_RED:1880" ]]
 }
 
 @test "resources::validate_port rejects conflicting ports" {

@@ -52,11 +52,10 @@ scenario-name/
 ├── deployment/            # ALWAYS: Deployment scripts
 ├── initialization/        # OPTIONAL: Startup data
 │   ├── database/          # Database schemas
-│   ├── workflows/         # n8n, Windmill workflows
+│   ├── workflows/         # Node-RED workflows
 │   ├── ui/                # UI configurations
 │   └── configuration/     # Runtime settings
 └── ui/                    # OPTIONAL: UI components
-    └── windmill-app.json   # Windmill UI definition
 ```
 
 ### 3. **Business-First Design**
@@ -391,7 +390,7 @@ scenario:
   
 resources:
   ai_stack: ["ollama", "whisper", "comfyui"]      # AI capabilities
-  automation: ["n8n", "windmill"]                # Workflow orchestration  
+  automation: ["n8n", "node-red"]                # Workflow orchestration  
   data_stack: ["postgres", "qdrant", "minio"]    # Data management
   interface: ["agent-s2"]                        # User interaction
 

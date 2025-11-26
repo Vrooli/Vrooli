@@ -10,7 +10,6 @@ vrooli resource status
 
 # Install specific resources via CLI
 vrooli resource install ollama
-vrooli resource install n8n
 vrooli resource install agent-s2
 
 # Check resource status
@@ -26,7 +25,7 @@ resource-ollama list-models
 | Category | Resources | Purpose |
 |----------|-----------|---------|
 | **AI** | ollama, whisper, unstructured-io, comfyui | Local AI inference and processing |
-| **Automation** | n8n, node-red, huginn, comfyui | Workflow orchestration |
+| **Automation** | node-red, huginn, comfyui | Workflow orchestration |
 | **Agents** | agent-s2, browserless, claude-code | Web/desktop automation |
 | **Search** | searxng | Privacy-respecting search |
 | **Storage** | postgres, redis, minio, vault, qdrant, questdb | Data persistence |
@@ -79,7 +78,7 @@ resource-name/
 ./scripts/resources/index.sh --action start --resources ollama
 
 # View logs (resource-specific helper)
-./scripts/resources/index.sh --action logs --resources n8n
+./scripts/resources/index.sh --action logs --resources <resource-name>
 
 # Check health across all resources
 ./index.sh --action discover

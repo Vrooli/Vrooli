@@ -64,7 +64,6 @@ RESOURCE COMMANDS:
     vrooli resource <name> <command> [options]
     
     Example:
-    vrooli resource n8n inject workflow.json
     vrooli resource ollama status
     vrooli resource postgres backup
 
@@ -81,10 +80,7 @@ EXAMPLES:
     vrooli resource install ollama         # Install Ollama
     vrooli resource start postgres         # Start PostgreSQL
     vrooli resource start-all               # Start all enabled resources
-    vrooli resource stop n8n               # Stop n8n resource
     vrooli resource stop-all               # Stop all running resources
-    vrooli resource n8n inject file.json   # Use n8n CLI directly
-    vrooli resource n8n list-workflows     # n8n-specific command
 
 For more information: https://docs.vrooli.com/cli/resources
 EOF
@@ -825,7 +821,6 @@ resource_start() {
         echo ""
         echo "Examples:"
         echo "  vrooli resource start postgres     # Start PostgreSQL"
-        echo "  vrooli resource start n8n          # Start n8n"
         return 0
     fi
     
@@ -982,7 +977,6 @@ resource_stop() {
         echo ""
         echo "Examples:"
         echo "  vrooli resource stop postgres     # Stop PostgreSQL"
-        echo "  vrooli resource stop n8n          # Stop n8n"
         return 0
     fi
     

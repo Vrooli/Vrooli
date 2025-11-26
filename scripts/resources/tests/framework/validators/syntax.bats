@@ -18,7 +18,7 @@ setup() {
     mkdir -p "${TEST_TEMP_DIR}/contracts/v1.0"
     mkdir -p "${TEST_TEMP_DIR}/cache"
     mkdir -p "${TEST_TEMP_DIR}/resources/ai/ollama"
-    mkdir -p "${TEST_TEMP_DIR}/resources/automation/n8n"
+    mkdir -p "${TEST_TEMP_DIR}/resources/automation/node-red"
     
     # Create mock manage.sh scripts
     create_mock_manage_script() {
@@ -52,7 +52,7 @@ EOF
     }
     
     create_mock_manage_script "${TEST_TEMP_DIR}/resources/ai/ollama/manage.sh"
-    create_mock_manage_script "${TEST_TEMP_DIR}/resources/automation/n8n/manage.sh"
+    create_mock_manage_script "${TEST_TEMP_DIR}/resources/automation/node-red/manage.sh"
     
     # Create mock contract files
     cat > "${TEST_TEMP_DIR}/contracts/v1.0/core.yaml" <<'EOF'
@@ -383,7 +383,7 @@ setup_mock_cache_manager() {
     
     local resource_paths=(
         "${TEST_TEMP_DIR}/resources/ai/ollama"
-        "${TEST_TEMP_DIR}/resources/automation/n8n"
+        "${TEST_TEMP_DIR}/resources/automation/node-red"
     )
     
     run syntax::validate_resources_batch "${resource_paths[@]}"

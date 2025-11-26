@@ -88,7 +88,7 @@ Options:
 
 Examples:
     $0                              # Scan all resource scripts
-    $0 --path automation/n8n        # Scan specific directory
+    $0 --path automation/node-red   # Scan specific directory
     $0 --fix                        # Scan and fix issues automatically
 
 Exit Codes:

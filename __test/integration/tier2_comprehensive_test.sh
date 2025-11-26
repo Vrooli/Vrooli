@@ -66,14 +66,10 @@ test_ai_pipeline() {
 
 # === Automation Workflow Tests ===
 test_automation_workflow() {
-    load_test_mock "n8n"
     load_test_mock "node-red"
-    load_test_mock "windmill"
     
     # Test workflow creation using v2.0 CLI patterns
-    resource-n8n content add --name "test-workflow" --type workflow >/dev/null 2>&1
     resource-node-red content execute --operation deploy >/dev/null 2>&1
-    resource-windmill content add --name "test-script" --data "print('hello')" >/dev/null 2>&1
     
     return 0
 }

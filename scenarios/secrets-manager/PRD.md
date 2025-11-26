@@ -42,3 +42,91 @@
 - Dark chrome / neon accents consistent with security tooling, WCAG AA contrast, and lucide iconography from the shared react-vite template.
 - Dashboard flows prioritize quick-status tiles, detailed tables for vault coverage and vulnerabilities, and inline badges for severity.
 - Animations stay subtle (no flashing) to support long-running operator sessions; all colors have semantic text fallbacks for accessibility.
+
+## 🎯 Capability Definition
+Secrets Manager provides centralized secret intelligence across the Vrooli platform. It discovers and inventories all secrets required by scenarios and resources, validates them against Vault storage, performs security scanning for vulnerabilities, and generates deployment-ready manifests. This capability transforms secret management from manual and error-prone to automated and auditable.
+
+## 📊 Success Metrics
+- Secret coverage: % of required secrets present in Vault
+- Vulnerability detection: Count and severity distribution of security findings
+- Deployment readiness: % of scenarios with complete tier-appropriate secret strategies
+- API response time: Health/compliance endpoints respond < 500ms
+- CLI usability: Commands complete successfully without manual API URL configuration
+
+## 🏗️ Technical Architecture
+- **API Layer**: Go service exposing REST endpoints for vault status, vulnerabilities, compliance, and deployment manifests
+- **Data Layer**: Postgres for secret requirements, validation history, and scan results
+- **Integration Layer**: `resource-vault` CLI for Vault operations with graceful fallback
+- **UI Layer**: React + Vite SPA consuming API via standard fetch patterns
+- **CLI Layer**: Thin command wrappers that proxy API endpoints without business logic duplication
+
+## 🖥️ CLI Interface Contract
+```bash
+secrets-manager status              # Health + quick stats
+secrets-manager vault list          # All secrets with validation status
+secrets-manager vault validate      # Re-run validation checks
+secrets-manager scan scenarios      # Security scan across scenarios
+secrets-manager compliance          # Aggregate compliance report
+```
+All commands accept `--api-url` and `--format json|table` for automation.
+
+## 🔄 Integration Requirements
+- **Vault Integration**: Depends on `resource-vault` CLI for secret operations
+- **Postgres Integration**: Requires schema and seed data during setup
+- **Deployment Manager**: Exposes `/deployment/secrets` endpoint for manifest requests
+- **Scenario-to-* Tools**: Provides tier-specific secret bundles via API
+- **CI/CD**: JSON output mode enables automated compliance checks
+
+## 🎨 Style and Branding Requirements
+- Color scheme: Dark charcoal background (#1a1a1a) with cyan accents (#00bcd4) for actions
+- Typography: Monospace for code/secrets, sans-serif (Inter) for prose
+- Icons: Lucide icon set for consistency with other Vrooli scenarios
+- Status indicators: Red/yellow/green with text labels (not color-only)
+- Contrast: All text meets WCAG AA minimum 4.5:1 ratio
+
+## 💰 Value Proposition
+- **Platform Engineers**: Eliminate "missing secret" deployment failures through continuous validation
+- **Security Teams**: Automated vulnerability scanning replaces manual code review
+- **DevOps/CI**: JSON-first CLI enables gating deployments on compliance thresholds
+- **Business**: Reduces incident response costs and accelerates scenario delivery timelines
+- **ROI**: Estimated 10-15 hours saved per quarter per engineer from reduced secret-related debugging
+
+## 🧬 Evolution Path
+- **v1.0**: Core vault validation + security scanning + basic dashboard
+- **v1.1**: Historical trending + compliance deltas over time
+- **v2.0**: Auto-remediation suggestions via claude-code integration
+- **v2.1**: Policy gating hooks for deployment-manager + scenario-to-* tools
+- **v3.0**: Secret rotation automation + proactive expiration alerts
+
+## 🔄 Scenario Lifecycle Integration
+- **Setup Phase**: Builds API binary, installs UI dependencies, applies Postgres schema/seed
+- **Develop Phase**: Starts API + UI servers on lifecycle-managed ports
+- **Test Phase**: Executes phased tests (structure → unit → integration) with requirement tagging
+- **Stop Phase**: Gracefully terminates API/UI processes via lifecycle manager
+
+## 🚨 Risk Mitigation
+- **Stale Manifests**: Scheduled scans + validation on scenario/resource file changes
+- **Scan Performance**: Timeout limits + file count caps prevent runaway scans
+- **Vault Unavailability**: Graceful fallback to local manifest parsing when Vault CLI fails
+- **Schema Drift**: Migration tracking + idempotent seed scripts ensure reproducibility
+- **Sensitive Data Exposure**: Health endpoints never return secret values, only metadata
+
+## ✅ Validation Criteria
+- Health endpoints return compliant responses per lifecycle schema
+- All P0 operational targets have passing requirement tests
+- Security scan completes across all scenarios without crashes
+- CLI commands work without manual API URL configuration
+- UI dashboard loads and displays real-time vault status
+
+## 📝 Implementation Notes
+- Prefer `resource-vault` CLI over direct Vault API calls for consistency
+- Use structured logging (not log.Println) for production observability
+- Tag all tests with `[REQ:ID]` for automated requirement tracking
+- Keep CLI commands thin; move business logic to API layer
+- Production UI uses built bundles, not dev server
+
+## 🔗 References
+- Vault CLI: `/resources/vault/README.md`
+- Lifecycle System: `/docs/scenarios/LIFECYCLE.md`
+- Requirement Tracking: `/docs/testing/guides/requirement-tracking.md`
+- Template: `/scripts/scenarios/templates/react-vite/`

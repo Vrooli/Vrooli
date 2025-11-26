@@ -154,7 +154,7 @@ func TestHealthHandler(t *testing.T) {
 		}
 
 		// Validate expected services
-		expectedServices := []string{"windmill", "vault", "minio", "unstructured", "postgres"}
+			expectedServices := []string{"vault", "minio", "unstructured", "postgres"}
 		for _, service := range expectedServices {
 			if _, exists := response.Services[service]; !exists {
 				t.Errorf("Expected service '%s' in response", service)

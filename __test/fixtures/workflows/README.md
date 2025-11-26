@@ -10,9 +10,7 @@ workflows/
 ├── metadata.yaml                # Workflow metadata and test expectations
 ├── test_helpers.sh              # Helper functions for workflow testing
 ├── validate_metadata.py         # Metadata validation script
-├── n8n/                        # N8N workflow fixtures
 ├── node-red/                   # Node-RED flow fixtures
-├── windmill/                   # Windmill workflow fixtures
 ├── huginn/                     # Huginn agent fixtures
 ├── comfyui/                    # ComfyUI workflow fixtures
 └── integration/                # Multi-platform integration workflows
@@ -141,15 +139,15 @@ Vault Secrets → Encrypted Processing → Validated Output → Audit Log
 
 ### In BATS Tests
 ```bash
-@test "n8n ollama integration" {
-    local workflow="$FIXTURES_DIR/workflows/n8n/n8n-ollama-basic.json"
+@test "node-red ollama integration" {
+    local workflow="$FIXTURES_DIR/workflows/node-red/node-red-workflow.json"
     
-    # Import workflow to n8n
-    run import_n8n_workflow "$workflow"
+    # Import workflow to Node-RED
+    run import_node_red_workflow "$workflow"
     assert_success
     
     # Execute workflow
-    run execute_n8n_workflow "Integration Test Workflow"
+    run execute_node_red_workflow "$workflow"
     assert_success
     assert_output --partial "Hello from integration test"
 }
@@ -172,7 +170,7 @@ source "$FIXTURES_DIR/workflows/test_helpers.sh"
 ### Multi-Platform Testing
 ```bash
 @test "cross-platform ollama integration" {
-    for platform in n8n node-red windmill; do
+    for platform in node-red; do
         local workflow=$(get_workflow_for_integration "$platform" "ollama")
         if [[ -n "$workflow" ]]; then
             run test_platform_integration "$platform" "$workflow"
@@ -186,7 +184,7 @@ source "$FIXTURES_DIR/workflows/test_helpers.sh"
 
 Each workflow fixture includes metadata describing:
 
-- **Platform**: Target automation platform (n8n, node-red, etc.)
+- **Platform**: Target automation platform (node-red, huginn, comfyui, etc.)
 - **Integration**: Resources being tested
 - **Complexity**: Basic, intermediate, or advanced
 - **Expected Duration**: Typical execution time
@@ -209,7 +207,7 @@ validate_all_workflows
 ### Integration Testing
 ```bash
 # Test specific integration
-test_workflow_integration "n8n" "ollama"
+test_workflow_integration "node-red" "ollama"
 
 # Test all integrations for a platform
 test_platform_integrations "node-red"
@@ -232,8 +230,7 @@ Each workflow includes:
 ### 1. Choose Platform Directory
 Place workflow in appropriate platform subdirectory:
 ```
-workflows/n8n/n8n-new-integration.json
-workflows/node-red/node-red-new-feature.json
+workflows/node-red/node-red-new-integration.json
 ```
 
 ### 2. Follow Naming Convention
@@ -245,8 +242,8 @@ Use descriptive names indicating platform and integration:
 ### 3. Update Metadata
 Add entry to `workflows.yaml`:
 ```yaml
-- path: n8n/n8n-new-integration.json
-  platform: n8n
+- path: node-red/node-red-new-integration.json
+  platform: node-red
   integration: [resource1, resource2]
   complexity: basic
   expectedDuration: 30

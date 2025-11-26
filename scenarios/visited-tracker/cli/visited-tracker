@@ -51,25 +51,35 @@ show_help() {
     echo "  --campaign-id ID           Campaign ID to target (overrides VISITED_TRACKER_CAMPAIGN_ID)"
     echo ""
     echo "Commands:"
-    echo -e "  ${GREEN}visit${NC} FILE1 [FILE2...]       Record file visit(s) with optional context"
-    echo -e "  ${GREEN}sync${NC}                         Sync file structure and detect changes"
+    echo -e "  ${GREEN}visit${NC} FILE1 [FILE2...]       Record file visit(s) with optional notes"
+    echo -e "  ${GREEN}exclude${NC} FILE1 [FILE2...]     Mark files as complete/excluded"
     echo -e "  ${GREEN}least-visited${NC}                Get prioritized list of least visited files"
     echo -e "  ${GREEN}most-stale${NC}                   Get files with highest staleness scores"
+    echo -e "  ${GREEN}sync${NC}                         Sync file structure and detect changes"
     echo -e "  ${GREEN}coverage${NC}                     Show visit coverage statistics"
-    echo -e "  ${GREEN}campaigns${NC}                    Manage campaigns (list, create, delete)"
+    echo -e "  ${GREEN}campaigns${NC} [subcommand]       Manage campaigns (list, create, delete, note, reset)"
     echo -e "  ${GREEN}import${NC} FILE                  Import visited data from file"
     echo -e "  ${GREEN}export${NC} FILE                  Export visited data to file"
     echo -e "  ${GREEN}status${NC}                       Show tracking status and coverage summary"
     echo -e "  ${GREEN}help${NC}                         Show this help message"
     echo -e "  ${GREEN}version${NC}                      Show version information"
     echo ""
-    echo "Visit Context Values:"
-    echo "  security, performance, bug, docs, general"
+    echo "Auto-Creation Options (for visit, exclude, least-visited, campaigns note/reset):"
+    echo "  --location PATH              Campaign location (e.g., scenarios/X/ui)"
+    echo "  --tag TAG                    Campaign tag (e.g., ux, refactor, test)"
+    echo "  --pattern GLOB               File pattern (default: **/*)"
+    echo "  Note: When --location and --tag are provided, campaign is auto-created if needed"
     echo ""
-    echo "Options:"
+    echo "Visit Options:"
+    echo "  --note TEXT                  Add note to visited file(s)"
     echo "  --context CONTEXT            Visit context (security/performance/bug/docs)"
     echo "  --agent AGENT                AI model or agent name"
     echo "  --conversation ID            Conversation ID for grouping visits"
+    echo ""
+    echo "Exclude Options:"
+    echo "  --reason TEXT                Reason for exclusion (stored as file note)"
+    echo ""
+    echo "Query Options:"
     echo "  --limit N                    Number of files to return"
     echo "  --threshold N                Minimum staleness score"
     echo "  --patterns PATTERN           Glob patterns for filtering"
@@ -79,11 +89,17 @@ show_help() {
     echo "  --json                       Output raw JSON"
     echo ""
     echo "Examples:"
-    echo "  visited-tracker visit 'src/**/*.js' --context security"
-    echo "  visited-tracker least-visited --limit 10 --context security"
-    echo "  visited-tracker most-stale --threshold 5.0"
+    echo ""
+    echo "  # Auto-creation pattern - zero-friction agent workflow"
+    echo "  visited-tracker least-visited --location scenarios/X/ui --tag ux --pattern '**/*.tsx' --limit 5"
+    echo "  visited-tracker visit ui/src/App.tsx --tag ux --location scenarios/X/ui --note 'Improved accessibility'"
+    echo "  visited-tracker exclude ui/src/App.tsx --tag ux --location scenarios/X/ui --reason 'All UX work complete'"
+    echo "  visited-tracker campaigns note --location scenarios/X/ui --tag ux --note 'Handoff: focus on state mgmt'"
+    echo ""
+    echo "  # Traditional workflow with explicit campaign ID"
+    echo "  visited-tracker campaigns create --name my-review --pattern '**/*.js'"
+    echo "  visited-tracker visit src/main.js --note 'Refactored validation logic'"
     echo "  visited-tracker coverage --group-by directory"
-    echo "  visited-tracker sync --patterns '**/*.js' --remove-deleted"
 }
 
 show_version() {
@@ -124,6 +140,105 @@ ensure_campaign_id() {
 
     CAMPAIGN_ID="$first_campaign"
     export VISITED_TRACKER_CAMPAIGN_ID="$CAMPAIGN_ID"
+    return 0
+}
+
+# Find or create campaign by location + tag
+# Returns campaign ID in CAMPAIGN_ID variable
+find_or_create_campaign() {
+    local location="$1"
+    local tag="$2"
+    local pattern="${3:-**/*}"
+
+    if [ -z "$location" ] || [ -z "$tag" ]; then
+        echo -e "${RED}Error: Both --location and --tag are required for auto-creation.${NC}" >&2
+        return 1
+    fi
+
+    # List all campaigns and search for matching location + tag
+    local campaigns_json
+    campaigns_json=$(api_request "GET" "/api/v1/campaigns" "" true) || return 1
+
+    # Search for campaign with matching location and tag
+    local found_id
+    found_id=$(echo "$campaigns_json" | jq -r --arg loc "$location" --arg t "$tag" '
+        .campaigns[]?
+        | select(.location == $loc and .tag == $t)
+        | .id' | head -1)
+
+    if [ -n "$found_id" ]; then
+        CAMPAIGN_ID="$found_id"
+        export VISITED_TRACKER_CAMPAIGN_ID="$CAMPAIGN_ID"
+        return 0
+    fi
+
+    # Campaign not found - create it
+    local campaign_name="${tag}-$(basename "$location")"
+    local payload
+    payload=$(jq -n \
+        --arg name "$campaign_name" \
+        --arg from_agent "cli-auto" \
+        --arg location "$location" \
+        --arg tag "$tag" \
+        --arg pattern "$pattern" \
+        '{
+            name: $name,
+            from_agent: $from_agent,
+            location: $location,
+            tag: $tag,
+            patterns: [$pattern]
+        }')
+
+    local response
+    response=$(api_request "POST" "/api/v1/campaigns" "$payload") || return 1
+
+    local new_id
+    new_id=$(echo "$response" | jq -r '.id // empty')
+    if [ -z "$new_id" ]; then
+        echo -e "${RED}Error: Failed to create campaign.${NC}" >&2
+        return 1
+    fi
+
+    CAMPAIGN_ID="$new_id"
+    export VISITED_TRACKER_CAMPAIGN_ID="$CAMPAIGN_ID"
+    echo -e "${GREEN}✓ Auto-created campaign:${NC} $campaign_name (ID: $new_id)" >&2
+    return 0
+}
+
+# Find file in campaign by path and return file_id
+# Usage: find_file_in_campaign CAMPAIGN_ID FILE_PATH
+find_file_in_campaign() {
+    local camp_id="$1"
+    local file_path="$2"
+
+    # Get absolute path for comparison
+    local abs_path
+    if [[ "$file_path" = /* ]]; then
+        abs_path="$file_path"
+    else
+        abs_path="$(cd "$(dirname "$file_path")" 2>/dev/null && pwd)/$(basename "$file_path")"
+        if [ -z "$abs_path" ] || [ "$abs_path" = "/$(basename "$file_path")" ]; then
+            # File doesn't exist yet, construct path from cwd
+            abs_path="$(pwd)/$file_path"
+        fi
+    fi
+
+    # Get campaign and search for file
+    local campaign_json
+    campaign_json=$(api_request "GET" "/api/v1/campaigns/$camp_id" "" true) || return 1
+
+    # Try to find file by absolute path or relative path
+    local file_id
+    file_id=$(echo "$campaign_json" | jq -r --arg path "$file_path" --arg abs "$abs_path" '
+        .tracked_files[]?
+        | select(.file_path == $path or .absolute_path == $abs)
+        | .id' | head -1)
+
+    if [ -z "$file_id" ]; then
+        return 1
+    fi
+
+    echo "$file_id"
     return 0
 }
 
@@ -199,8 +314,12 @@ record_visit() {
     local context=""
     local agent=""
     local conversation=""
+    local note=""
+    local location=""
+    local tag=""
+    local pattern="**/*"
     local json_output=false
-    
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             --context)
@@ -215,6 +334,22 @@ record_visit() {
                 conversation="$2"
                 shift 2
                 ;;
+            --note)
+                note="$2"
+                shift 2
+                ;;
+            --location)
+                location="$2"
+                shift 2
+                ;;
+            --tag)
+                tag="$2"
+                shift 2
+                ;;
+            --pattern)
+                pattern="$2"
+                shift 2
+                ;;
             --json)
                 json_output=true
                 shift
@@ -225,17 +360,22 @@ record_visit() {
                 ;;
         esac
     done
-    
+
     if [[ ${#files[@]} -eq 0 ]]; then
         echo -e "${RED}Error: At least one file required${NC}" >&2
-        echo "Usage: visited-tracker visit FILE1 [FILE2...] [--context CONTEXT]" >&2
+        echo "Usage: visited-tracker visit FILE1 [FILE2...] [--note NOTE] [--tag TAG] [--location LOCATION]" >&2
         exit 1
     fi
-    
+
+    # Auto-create or find campaign if location + tag provided
+    if [[ -n "$location" ]] && [[ -n "$tag" ]]; then
+        find_or_create_campaign "$location" "$tag" "$pattern" || exit 1
+    fi
+
     # Build JSON payload
     local files_json
     files_json=$(printf '%s\n' "${files[@]}" | jq -R . | jq -s .)
-    
+
     local payload
     payload=$(jq -n \
         --argjson files "$files_json" \
@@ -248,19 +388,35 @@ record_visit() {
             agent: (if $agent == "" then null else $agent end),
             conversation_id: (if $conversation_id == "" then null else $conversation_id end)
         }')
-    
+
     local response
     response=$(api_request "POST" "$(campaign_endpoint "/visit")" "$payload")
-    
+
+    # If note provided, update file notes for each file
+    if [[ -n "$note" ]]; then
+        for file in "${files[@]}"; do
+            local file_id
+            if file_id=$(find_file_in_campaign "$CAMPAIGN_ID" "$file" 2>/dev/null); then
+                local note_payload
+                note_payload=$(jq -n --arg notes "$note" '{notes: $notes}')
+                api_request "PATCH" "/api/v1/campaigns/${CAMPAIGN_ID}/files/${file_id}/notes" "$note_payload" true >/dev/null || true
+            fi
+        done
+    fi
+
     if [[ "$json_output" == "true" ]]; then
         echo "$response" | format_json
     else
         local recorded
         recorded=$(echo "$response" | jq -r '.recorded')
-        
+
         echo -e "${GREEN}✓ Visit recorded successfully${NC}"
         echo "Files recorded: $recorded"
-        
+
+        if [[ -n "$note" ]]; then
+            echo -e "${BLUE}Note:${NC} $note"
+        fi
+
         # Show visit counts for each file
         echo "$response" | jq -r '
             (.files // [])
@@ -335,14 +491,101 @@ sync_structure() {
     fi
 }
 
+exclude_file() {
+    local files=()
+    local reason=""
+    local location=""
+    local tag=""
+    local pattern="**/*"
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --reason)
+                reason="$2"
+                shift 2
+                ;;
+            --location)
+                location="$2"
+                shift 2
+                ;;
+            --tag)
+                tag="$2"
+                shift 2
+                ;;
+            --pattern)
+                pattern="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                files+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    if [[ ${#files[@]} -eq 0 ]]; then
+        echo -e "${RED}Error: At least one file required${NC}" >&2
+        echo "Usage: visited-tracker exclude FILE1 [FILE2...] [--reason REASON] [--tag TAG] [--location LOCATION]" >&2
+        exit 1
+    fi
+
+    # Auto-create or find campaign if location + tag provided
+    if [[ -n "$location" ]] && [[ -n "$tag" ]]; then
+        find_or_create_campaign "$location" "$tag" "$pattern" || exit 1
+    fi
+
+    local excluded_count=0
+    for file in "${files[@]}"; do
+        local file_id
+        if file_id=$(find_file_in_campaign "$CAMPAIGN_ID" "$file" 2>/dev/null); then
+            # Mark file as excluded
+            local exclude_payload
+            exclude_payload=$(jq -n '{excluded: true}')
+            api_request "PATCH" "/api/v1/campaigns/${CAMPAIGN_ID}/files/${file_id}/exclude" "$exclude_payload" true >/dev/null
+
+            # Add reason as note if provided
+            if [[ -n "$reason" ]]; then
+                local note_payload
+                note_payload=$(jq -n --arg notes "$reason" '{notes: $notes}')
+                api_request "PATCH" "/api/v1/campaigns/${CAMPAIGN_ID}/files/${file_id}/notes" "$note_payload" true >/dev/null || true
+            fi
+
+            ((excluded_count++))
+        else
+            echo -e "${YELLOW}⚠ File not found in campaign:${NC} $file" >&2
+        fi
+    done
+
+    if [[ "$json_output" == "true" ]]; then
+        jq -n --argjson count "$excluded_count" --argjson files "$(printf '%s\n' "${files[@]}" | jq -R . | jq -s .)" \
+            '{excluded: $count, files: $files}'
+    else
+        echo -e "${GREEN}✓ Excluded $excluded_count file(s)${NC}"
+        if [[ -n "$reason" ]]; then
+            echo -e "${BLUE}Reason:${NC} $reason"
+        fi
+        for file in "${files[@]}"; do
+            echo "  $file"
+        done
+    fi
+}
+
 get_least_visited() {
     local limit=""
     local context=""
     local include_unvisited=true
+    local location=""
+    local tag=""
+    local pattern="**/*"
     local patterns=()
     local json_output=false
     local query_params=""
-    
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             --limit)
@@ -356,6 +599,18 @@ get_least_visited() {
             --no-unvisited)
                 include_unvisited=false
                 shift
+                ;;
+            --location)
+                location="$2"
+                shift 2
+                ;;
+            --tag)
+                tag="$2"
+                shift 2
+                ;;
+            --pattern)
+                pattern="$2"
+                shift 2
                 ;;
             --patterns)
                 IFS=',' read -ra ADDR <<< "$2"
@@ -373,7 +628,12 @@ get_least_visited() {
                 ;;
         esac
     done
-    
+
+    # Auto-create or find campaign if location + tag provided
+    if [[ -n "$location" ]] && [[ -n "$tag" ]]; then
+        find_or_create_campaign "$location" "$tag" "$pattern" || exit 1
+    fi
+
     # Build query parameters
     if [[ -n "$limit" ]]; then
         if ! [[ "$limit" =~ ^[0-9]+$ ]]; then
@@ -382,7 +642,7 @@ get_least_visited() {
         fi
         query_params="?limit=$limit"
     fi
-    
+
     if [[ -n "$context" ]]; then
         if [[ -z "$query_params" ]]; then
             query_params="?context=$context"
@@ -390,7 +650,7 @@ get_least_visited() {
             query_params="${query_params}&context=$context"
         fi
     fi
-    
+
     if [[ "$include_unvisited" == "false" ]]; then
         if [[ -z "$query_params" ]]; then
             query_params="?include_unvisited=false"
@@ -398,10 +658,10 @@ get_least_visited() {
             query_params="${query_params}&include_unvisited=false"
         fi
     fi
-    
+
     local response
     response=$(api_request "GET" "$(campaign_endpoint "/prioritize/least-visited")${query_params}")
-    
+
     if [[ "$json_output" == "true" ]]; then
         echo "$response" | format_json
     else
@@ -557,6 +817,156 @@ campaigns_command() {
             response=$(api_request "GET" "/api/v1/campaigns")
             echo "$response" | format_json
             ;;
+        note)
+            local note=""
+            local location=""
+            local tag=""
+            local pattern="**/*"
+            local json_output=false
+
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --note)
+                        note="$2"
+                        shift 2
+                        ;;
+                    --location)
+                        location="$2"
+                        shift 2
+                        ;;
+                    --tag)
+                        tag="$2"
+                        shift 2
+                        ;;
+                    --pattern)
+                        pattern="$2"
+                        shift 2
+                        ;;
+                    --json)
+                        json_output=true
+                        shift
+                        ;;
+                    *)
+                        echo -e "${RED}Error: Unknown option '$1' for campaigns note.${NC}" >&2
+                        return 1
+                        ;;
+                esac
+            done
+
+            if [ -z "$note" ]; then
+                echo -e "${RED}Error: --note is required for campaigns note.${NC}" >&2
+                return 1
+            fi
+
+            # Auto-create or find campaign if location + tag provided
+            if [[ -n "$location" ]] && [[ -n "$tag" ]]; then
+                find_or_create_campaign "$location" "$tag" "$pattern" || exit 1
+            elif [ -z "$CAMPAIGN_ID" ]; then
+                ensure_campaign_id || exit 1
+            fi
+
+            # Update campaign notes
+            local payload
+            payload=$(jq -n --arg notes "$note" '{notes: $notes}')
+            local response
+            response=$(api_request "PATCH" "/api/v1/campaigns/${CAMPAIGN_ID}" "$payload")
+
+            if [ "$json_output" = true ]; then
+                echo "$response" | format_json
+            else
+                echo -e "${GREEN}✓ Campaign note updated${NC}"
+                echo -e "${BLUE}Note:${NC} $note"
+            fi
+            ;;
+        reset)
+            local location=""
+            local tag=""
+            local pattern="**/*"
+            local json_output=false
+
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --location)
+                        location="$2"
+                        shift 2
+                        ;;
+                    --tag)
+                        tag="$2"
+                        shift 2
+                        ;;
+                    --pattern)
+                        pattern="$2"
+                        shift 2
+                        ;;
+                    --json)
+                        json_output=true
+                        shift
+                        ;;
+                    *)
+                        echo -e "${RED}Error: Unknown option '$1' for campaigns reset.${NC}" >&2
+                        return 1
+                        ;;
+                esac
+            done
+
+            # Auto-create or find campaign if location + tag provided
+            if [[ -n "$location" ]] && [[ -n "$tag" ]]; then
+                find_or_create_campaign "$location" "$tag" "$pattern" || exit 1
+            elif [ -z "$CAMPAIGN_ID" ]; then
+                ensure_campaign_id || exit 1
+            fi
+
+            # Get campaign details for recreation
+            local campaign_json
+            campaign_json=$(api_request "GET" "/api/v1/campaigns/${CAMPAIGN_ID}")
+            local name
+            name=$(echo "$campaign_json" | jq -r '.name')
+            local from_agent
+            from_agent=$(echo "$campaign_json" | jq -r '.from_agent // "cli"')
+            local patterns_json
+            patterns_json=$(echo "$campaign_json" | jq -c '.patterns')
+            local camp_location
+            camp_location=$(echo "$campaign_json" | jq -r '.location // empty')
+            local camp_tag
+            camp_tag=$(echo "$campaign_json" | jq -r '.tag // empty')
+
+            # Delete old campaign
+            api_request "DELETE" "/api/v1/campaigns/${CAMPAIGN_ID}" >/dev/null
+
+            # Create fresh campaign
+            local payload
+            if [ -n "$camp_location" ] && [ -n "$camp_tag" ]; then
+                payload=$(jq -n \
+                    --arg name "$name" \
+                    --arg from_agent "$from_agent" \
+                    --arg loc "$camp_location" \
+                    --arg t "$camp_tag" \
+                    --argjson patterns "$patterns_json" \
+                    '{name: $name, from_agent: $from_agent, location: $loc, tag: $t, patterns: $patterns}')
+            else
+                payload=$(jq -n \
+                    --arg name "$name" \
+                    --arg from_agent "$from_agent" \
+                    --argjson patterns "$patterns_json" \
+                    '{name: $name, from_agent: $from_agent, patterns: $patterns}')
+            fi
+
+            local response
+            response=$(api_request "POST" "/api/v1/campaigns" "$payload")
+            local new_id
+            new_id=$(echo "$response" | jq -r '.id')
+
+            CAMPAIGN_ID="$new_id"
+            export VISITED_TRACKER_CAMPAIGN_ID="$CAMPAIGN_ID"
+
+            if [ "$json_output" = true ]; then
+                echo "$response" | format_json
+            else
+                echo -e "${GREEN}✓ Campaign reset:${NC} $name"
+                echo "New ID: $new_id"
+                echo "All visit tracking has been cleared"
+            fi
+            ;;
         create)
             local name=""
             local from_agent="cli"
@@ -697,7 +1107,7 @@ campaigns_command() {
             ;;
         *)
             echo -e "${RED}Error: Unknown campaigns subcommand '$subcommand'.${NC}" >&2
-            echo "Available subcommands: list, create, delete" >&2
+            echo "Available subcommands: list, create, delete, note, reset" >&2
             return 1
             ;;
     esac
@@ -870,6 +1280,9 @@ case "$COMMAND" in
     visit)
         record_visit "$@"
         ;;
+    exclude)
+        exclude_file "$@"
+        ;;
     sync)
         sync_structure "$@"
         ;;
@@ -882,7 +1295,7 @@ case "$COMMAND" in
     coverage)
         get_coverage "$@"
         ;;
-    campaigns)
+    campaigns|campaign)
         campaigns_command "$@"
         ;;
     import)

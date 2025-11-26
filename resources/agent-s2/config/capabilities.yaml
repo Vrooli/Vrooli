@@ -80,7 +80,6 @@ spec:
       - research-assistant
     optimal_combinations:
       - [agent-s2, ollama, whisper]    # Natural language automation
-      - [agent-s2, comfyui, windmill]  # Visual workflow automation
       - [agent-s2, n8n, minio]         # Automated data collection
       - [agent-s2, browserless]        # Complementary web automation
   
@@ -145,7 +144,7 @@ spec:
       - web-interaction-automation
       - screen-based-data-extraction
     integration_targets:
-      preferred: [ollama, whisper, comfyui, windmill]
+      preferred: [ollama, whisper, comfyui]
       compatible: [n8n, minio, browserless]
       avoid: [headless-only-workflows, api-only-integration]
     task_templates:

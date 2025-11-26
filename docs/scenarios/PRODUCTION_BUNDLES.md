@@ -113,14 +113,14 @@ Change the `start-ui` step to serve the built bundle:
 }
 ```
 
-### Step 3: Add Express Dependency
+### Step 3: Add @vrooli/api-base Dependency
 
-Add `express` to `ui/package.json`:
+Add `@vrooli/api-base` to `ui/package.json`:
 
 ```json
 {
   "dependencies": {
-    "express": "^4.21.2",
+    "@vrooli/api-base": "workspace:*",
     ...other dependencies
   }
 }
@@ -128,42 +128,33 @@ Add `express` to `ui/package.json`:
 
 ### Step 4: Create Production Server
 
-Create `ui/server.js` (or `ui/server.cjs` if `package.json` has `"type": "module"`):
+Create `ui/server.js` using the standard `@vrooli/api-base/server` utility:
 
 ```javascript
-const express = require('express');
-const path = require('path');
+import { startScenarioServer } from '@vrooli/api-base/server'
 
-const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT || 3000;
-const API_PORT = process.env.API_PORT;
-
-// Serve static files from dist directory
-app.use(express.static(path.join(__dirname, 'dist')));
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({ status: 'healthy', service: 'my-app-ui' });
-});
-
-// Catch all route - serve index.html for SPA routing
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
-
-app.listen(PORT, () => {
-    console.log(`My App UI running on http://localhost:${PORT}`);
-    if (API_PORT) {
-        console.log(`API available at http://localhost:${API_PORT}`);
-    }
-});
+startScenarioServer({
+  uiPort: process.env.UI_PORT,
+  apiPort: process.env.API_PORT,
+  distDir: './dist',
+  serviceName: 'my-app',
+  corsOrigins: '*',
+})
 ```
 
-**Note:** If your `package.json` has `"type": "module"`, rename the file to `server.cjs` and update the service.json accordingly.
+**Why use `@vrooli/api-base/server`?**
+- **Standard Implementation**: All scenarios use the same server with consistent behavior
+- **Built-in Features**: Health checks, CORS, proxy support, SPA routing, static file serving
+- **Maintained**: Updates and bug fixes automatically propagate to all scenarios
+- **Testing Support**: Consistent server means consistent test expectations
 
-### Step 5: Ensure Build Step Exists
+**Note:** The `startScenarioServer` function is ESM-only. If your `package.json` has `"type": "commonjs"` (or no type field), either:
+1. Add `"type": "module"` to package.json (recommended), or
+2. Rename the file to `server.cjs` and use CommonJS `require()` syntax (not recommended - @vrooli/api-base may not support this)
 
-Verify your setup phase includes a `build-ui` step:
+### Step 5: Ensure Build Step Uses VITE_API_BASE_URL
+
+Verify your setup phase includes a `build-ui` step with the correct environment variable:
 
 ```json
 {
@@ -171,18 +162,23 @@ Verify your setup phase includes a `build-ui` step:
     "steps": [
       {
         "name": "install-ui-deps",
-        "run": "cd ui && npm install",
-        "description": "Install React UI dependencies"
+        "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; else echo 'ui/ not present yet'; fi",
+        "description": "Install UI dependencies"
       },
       {
         "name": "build-ui",
-        "run": "cd ui && npm run build",
-        "description": "Build React UI for production"
+        "run": "if [ -f ui/package.json ]; then if [ -z \"${API_PORT:-}\" ]; then echo 'API_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" pnpm run build; else echo 'ui/ not present yet'; fi",
+        "description": "Build production UI (requires lifecycle-assigned API_PORT)"
       }
     ]
   }
 }
 ```
+
+**Important:**
+- The `VITE_API_BASE_URL` environment variable must be set during build time for Vite to embed the correct API URL
+- The `${API_PORT}` comes from the lifecycle system's port allocation
+- The conditional checks ensure graceful handling when UI hasn't been generated yet
 
 ### Step 6: Fix Binary Paths (If Applicable)
 
@@ -236,21 +232,33 @@ vrooli scenario start my-app
 
 ## Common Issues
 
-### Issue: "Cannot find module 'express'"
-**Cause:** Express not installed in ui/package.json
-**Fix:** Add `"express": "^4.21.2"` to dependencies and run setup
+### Issue: "Cannot find module '@vrooli/api-base/server'"
+**Cause:** @vrooli/api-base not installed in ui/package.json
+**Fix:** Add `"@vrooli/api-base": "workspace:*"` to dependencies and run `pnpm install` from ui/
 
 ### Issue: "ReferenceError: require is not defined in ES module scope"
-**Cause:** package.json has `"type": "module"` but server uses CommonJS
-**Fix:** Rename `server.js` to `server.cjs` and update service.json
+**Cause:** package.json has `"type": "module"` but server.js uses CommonJS syntax
+**Fix:** Update server.js to use ESM `import` syntax (see Step 4)
+
+### Issue: "SyntaxError: Cannot use import statement outside a module"
+**Cause:** package.json is missing `"type": "module"` but server.js uses ESM syntax
+**Fix:** Add `"type": "module"` to ui/package.json
 
 ### Issue: Binary check always reports "Missing"
 **Cause:** Binary target path doesn't include subdirectory
 **Fix:** Change `"my-app-api"` to `"api/my-app-api"` in condition checks
 
 ### Issue: UI bundle check not triggering rebuild
-**Cause:** UI bundle check not registered in setup.sh
-**Fix:** Ensure `ui-bundle` case exists in `/scripts/lib/utils/setup.sh` (should already be there)
+**Cause:** UI bundle check not configured in setup.condition
+**Fix:** Add ui-bundle check to setup.condition.checks (see Step 1)
+
+### Issue: "VITE_API_BASE_URL is undefined in production build"
+**Cause:** Environment variable not passed during build step
+**Fix:** Ensure build-ui step includes `VITE_API_BASE_URL="http://localhost:${API_PORT}/api/v1"` (see Step 5)
+
+### Issue: Dev server still starting instead of production server
+**Cause:** Old dev server step still present in develop phase
+**Fix:** Remove any steps running `npm run dev`, `vite`, etc. (see Step 2)
 
 ## Architecture Details
 
@@ -274,10 +282,12 @@ Dev servers bypass the filesystem-based staleness detection:
 
 ## Examples in Codebase
 
-Well-configured scenarios using production bundles:
-- `app-monitor`: Full proxy support with production bundles
-- `feature-request-voting`: Clean production bundle setup
-- `system-monitor`: Recently converted, serves as good reference
+Well-configured scenarios using production bundles with `@vrooli/api-base/server`:
+- `prd-control-tower`: `/scenarios/prd-control-tower/.vrooli/service.json` and `ui/server.js`
+- `landing-manager`: `/scenarios/landing-manager/.vrooli/service.json` and `ui/server.cjs`
+- `deployment-manager`: `/scenarios/deployment-manager/.vrooli/service.json` and `ui/server.cjs`
+- `tidiness-manager`: `/scenarios/tidiness-manager/.vrooli/service.json` and `ui/server.js`
+- Template: `/scripts/scenarios/templates/react-vite/` - reference implementation for new scenarios
 
 ## Related Documentation
 

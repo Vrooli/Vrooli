@@ -29,7 +29,7 @@ The `fix-interface-compliance.sh` tool automatically detects and fixes common in
 ./fix-interface-compliance.sh --resource whisper --apply
 
 # Comprehensive fixing with all features
-./fix-interface-compliance.sh --resource n8n --apply --verbose
+./fix-interface-compliance.sh --resource node-red --apply --verbose
 ```
 
 ### **Integrated Validation & Fixing**
@@ -88,15 +88,15 @@ The `fix-interface-compliance.sh` tool automatically detects and fixes common in
 
 ### **Apply Fixes with Backup**
 ```bash
-./fix-interface-compliance.sh --resource n8n --apply
+./fix-interface-compliance.sh --resource node-red --apply
 
 # Output:
-# [INFO] Applying 3 fix(es) to n8n...
-# [SUCCESS] ✅ Backup created: .../n8n/manage.sh.backup.20250805_213045
-# [SUCCESS] ✅ Fixed permissions for: .../n8n/manage.sh
-# [SUCCESS] ✅ Fixed action patterns in: .../n8n/manage.sh  
-# [SUCCESS] ✅ Applied function stub fixes to .../n8n/manage.sh
-# [SUCCESS] ✅ Successfully applied all 3 fix(es) to n8n
+# [INFO] Applying 3 fix(es) to node-red...
+# [SUCCESS] ✅ Backup created: .../node-red/manage.sh.backup.20250805_213045
+# [SUCCESS] ✅ Fixed permissions for: .../node-red/manage.sh
+# [SUCCESS] ✅ Fixed action patterns in: .../node-red/manage.sh  
+# [SUCCESS] ✅ Applied function stub fixes to .../node-red/manage.sh
+# [SUCCESS] ✅ Successfully applied all 3 fix(es) to node-red
 ```
 
 ### **Selective Fixing**
@@ -125,7 +125,7 @@ Required for **ALL** resources:
 
 ### **Category-Specific Contracts**
 - **AI Resources** (`ai.yaml`) - ollama, whisper, unstructured-io, comfyui
-- **Automation** (`automation.yaml`) - n8n, node-red, huginn  
+- **Automation** (`automation.yaml`) - node-red, huginn  
 - **Storage** (`storage.yaml`) - postgres, redis, vault, qdrant, minio
 - **Agents** (`agents.yaml`) - browserless, claude-code, agent-s2
 - **Search** (`search.yaml`) - searxng
@@ -321,7 +321,7 @@ chmod +x scripts/resources/tools/fix-interface-compliance.sh
 
 ### **Recently Implemented**
 - ✅ **Batch processing**: Fix multiple resources at once (implemented)
-  - `--batch --resources "whisper,n8n,comfyui"`
+  - `--batch --resources "whisper,node-red,comfyui"`
   - `--batch --category automation`
   - `--batch --all`
 

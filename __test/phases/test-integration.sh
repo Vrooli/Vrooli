@@ -49,7 +49,6 @@ SCOPING EXAMPLES:
   ./test-integration.sh --resource=ollama         # Test only ollama resource mocks
   ./test-integration.sh --scenario=app-generator  # Test only app-generator integration
   ./test-integration.sh --path=scenarios          # Test only scenarios
-  ./test-integration.sh --resource=n8n --verbose  # Detailed testing for n8n only
 
 COMBINED EXAMPLES:
   ./test-integration.sh                           # Test all integration components

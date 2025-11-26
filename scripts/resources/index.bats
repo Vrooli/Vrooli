@@ -47,8 +47,8 @@ teardown() {
 }
 
 @test "index::parse_arguments parses custom resources" {
-    output=$(bash -c "source '$RESOURCES_DIR/index.sh' && resources::parse_arguments --resources ollama,n8n && echo \"\$RESOURCES_INPUT\"")
-    [[ "$output" == "ollama,n8n" ]]
+    output=$(bash -c "source '$RESOURCES_DIR/index.sh' && resources::parse_arguments --resources ollama,node-red && echo \"\$RESOURCES_INPUT\"")
+    [[ "$output" == "ollama,node-red" ]]
 }
 
 # ============================================================================
@@ -58,7 +58,7 @@ teardown() {
 @test "index::resolve_list handles 'all' keyword" {
     output=$(bash -c "source '$RESOURCES_DIR/index.sh' && export RESOURCES_INPUT='all' && resources::resolve_list")
     [[ "$output" =~ "ollama" ]]
-    [[ "$output" =~ "n8n" ]]
+    [[ "$output" =~ "node-red" ]]
     [[ "$output" =~ "browserless" ]]
 }
 
@@ -66,7 +66,7 @@ teardown() {
     output=$(bash -c "source '$RESOURCES_DIR/index.sh' && export RESOURCES_INPUT='ai-only' && resources::resolve_list")
     [[ "$output" =~ "ollama" ]]
     [[ "$output" =~ "whisper" ]]
-    [[ ! "$output" =~ "n8n" ]]
+    [[ ! "$output" =~ "node-red" ]]
 }
 
 @test "index::resolve_list handles 'none' keyword" {
@@ -75,9 +75,9 @@ teardown() {
 }
 
 @test "index::resolve_list handles comma-separated list" {
-    output=$(bash -c "source '$RESOURCES_DIR/index.sh' && export RESOURCES_INPUT='ollama,n8n' && resources::resolve_list")
+    output=$(bash -c "source '$RESOURCES_DIR/index.sh' && export RESOURCES_INPUT='ollama,node-red' && resources::resolve_list")
     [[ "$output" =~ "ollama" ]]
-    [[ "$output" =~ "n8n" ]]
+    [[ "$output" =~ "node-red" ]]
     [[ ! "$output" =~ "browserless" ]]
 }
 
@@ -95,8 +95,8 @@ teardown() {
     [[ "$output" == "ai" ]]
 }
 
-@test "index::get_category returns correct category for n8n" {
-    output=$(bash -c "source '$RESOURCES_DIR/index.sh' && resources::get_category 'n8n'")
+@test "index::get_category returns correct category for node-red" {
+    output=$(bash -c "source '$RESOURCES_DIR/index.sh' && resources::get_category 'node-red'")
     [[ "$output" == "automation" ]]
 }
 
@@ -119,9 +119,9 @@ teardown() {
     [[ "$output" =~ "/ai/ollama/manage.sh" ]]
 }
 
-@test "index::get_script_path returns correct path for n8n" {
-    output=$(bash -c "source '$RESOURCES_DIR/index.sh' && resources::get_script_path 'n8n'")
-    [[ "$output" =~ "/automation/n8n/manage.sh" ]]
+@test "index::get_script_path returns correct path for node-red" {
+    output=$(bash -c "source '$RESOURCES_DIR/index.sh' && resources::get_script_path 'node-red'")
+    [[ "$output" =~ "/automation/node-red/manage.sh" ]]
 }
 
 # ============================================================================

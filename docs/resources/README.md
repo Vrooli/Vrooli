@@ -56,7 +56,7 @@ Our scenario system demonstrates real-world resource combinations and generates 
 ### Popular Resource Combinations
 - **Document Processing**: Unstructured-IO + Ollama + Qdrant + Vault
   → [Secure Document Processing](../scenarios/secure-document-processing/) ($20k-40k projects)
-- **Content Creation**: ComfyUI + Ollama + Windmill 
+- **Content Creation**: ComfyUI + Ollama
   → [Campaign Content Studio](../scenarios/campaign-content-studio/) ($8k-20k projects)
 - **App Monitoring**: PostgreSQL + Redis + n8n + Node-RED
   → [App Monitor](../scenarios/app-monitor/) ($10k-20k projects)
@@ -305,7 +305,7 @@ curl -X POST http://localhost:5679/api/prompt -H "Content-Type: application/json
 - Complex data pipelines
 
 **When to Use**: Business processes, scheduled workflows, external API integration  
-**Alternative**: Node-RED for real-time/IoT, Windmill for code-first approach
+**Alternative**: Node-RED for real-time/IoT
 
 **Quick Example**:
 ```bash
@@ -618,25 +618,14 @@ redis-cli -h localhost -p 6380 PUBLISH mychannel "Hello World"
 - **AI processing**: Ollama + Whisper + ComfyUI + MinIO
 - **Domain-specific AI**: Ollama Modelfiles + Qdrant + MinIO (custom chatbots, specialized assistants)
 - **Information gathering**: SearXNG + Huginn + Agent-S2 + MinIO
-- **Development workflows**: Claude Code + Windmill + version control
-- **Interactive AI interfaces**: Windmill + Ollama + Agent-S2 + ComfyUI + Whisper
+- **Development workflows**: Claude Code + version control
+- **Interactive AI interfaces**: Ollama + Agent-S2 + ComfyUI + Whisper
 
 ## 🎨 UI Development Patterns
 
 **Automated interface generation for AI workflows**
 
-Both **Windmill** and **Node-RED** provide powerful capabilities for creating interactive user interfaces that orchestrate multi-resource AI workflows. Rather than building static UIs, these platforms enable **automated UI generation** based on your AI service combinations.
-
-### **Windmill: Professional AI Applications**
-```typescript
-// Multi-modal AI assistant interface
-- File upload (drag-and-drop audio, images)
-- Real-time processing dashboard  
-- AI service orchestration (Whisper → Ollama → ComfyUI)
-- Professional export and sharing capabilities
-```
-
-**When to Use**: Complex workflows, file processing, business applications, accessibility tools
+Node-RED provides powerful capabilities for creating interactive user interfaces that orchestrate multi-resource AI workflows. Rather than building static UIs, this platform enables **automated UI generation** based on your AI service combinations.
 
 ### **Node-RED: Real-time AI Dashboards**  
 ```javascript

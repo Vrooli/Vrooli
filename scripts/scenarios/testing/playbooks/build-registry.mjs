@@ -139,6 +139,8 @@ function ensureDirExists(dir, label) {
     playbooks: []
   };
 
+  const allowedResetValues = new Set(['none', 'full']);
+
   for (const entry of playbookFiles) {
     const relPath = normalizePlaybookPath(scenarioRoot, entry.path);
     const data = readJSON(entry.path);
@@ -147,6 +149,13 @@ function ensureDirExists(dir, label) {
     const requirementSet = validationsByFile.get(relPath) || new Set();
     const requirementIds = Array.from(requirementSet.values()).sort();
     const resetRequirement = typeof metadata.reset === 'string' ? metadata.reset : 'none';
+
+    if (!allowedResetValues.has(resetRequirement)) {
+      console.error(
+        `[playbook-registry] Invalid metadata.reset "${resetRequirement}" in ${relPath} (allowed: none, full)`
+      );
+      process.exit(1);
+    }
 
     registry.playbooks.push({
       file: relPath,

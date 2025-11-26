@@ -121,7 +121,7 @@ source __test/mocks/test_helper.sh
 # Load mocks by category
 load_resource_test_mocks "storage"    # redis, postgres, minio, qdrant
 load_resource_test_mocks "ai"         # ollama, whisper, claude-code
-load_resource_test_mocks "automation" # n8n, node-red, huginn
+load_resource_test_mocks "automation" # node-red, huginn
 
 # Verification and error injection
 verify_mock "redis"                   # Run all standard tests
@@ -158,7 +158,7 @@ clear_test_errors "redis"             # Clear all errors
 
 #### verify_tier2.sh ✅
 **Status**: All 6 core mocks passing
-- Connection tests for redis, postgres, n8n, docker, ollama, minio
+- Connection tests for redis, postgres, node-red, docker, ollama, minio
 - Integration test (Redis SET/GET + PostgreSQL query)
 - Statistics and health metrics
 

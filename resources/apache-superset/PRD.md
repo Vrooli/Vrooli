@@ -78,8 +78,6 @@ Apache Superset provides modern data exploration and dashboarding at scale, conn
 ## P2 Requirements (Nice to Have) ☐
 
 ### Workflow Integration
-- [ ] **n8n Webhook Triggers**: Alert thresholds trigger automation workflows
-- [ ] **Windmill Integration**: Execute Windmill scripts from dashboard actions
 - [ ] **Bi-directional Sync**: Write-back capabilities for data correction
 - [ ] **Custom Visualizations**: Extend with D3.js custom chart types
 

@@ -32,7 +32,7 @@
 - تحليل المستندات والنصوص
 
 منصات الأتمتة:
-- n8n لأتمتة سير العمل المرئي
+- Node-RED لأتمتة تدفقات العمل
 - Node-RED للبرمجة التدفقية في الوقت الفعلي
 - Windmill للسير العمل المبني على الأكواد
 
@@ -61,9 +61,9 @@
       }
     },
     "automation": {
-      "n8n": {
-        "enabled": true,  
-        "baseUrl": "http://localhost:5678"
+      "node-red": {
+        "enabled": true,
+        "baseUrl": "http://localhost:1880"
       }
     }
   }

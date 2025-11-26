@@ -36,7 +36,7 @@ vrooli_config_get_port() {
     case "$service" in
         redis) echo "6379" ;;
         postgres) echo "5432" ;;
-        n8n) echo "5678" ;;
+        node-red) echo "1880" ;;
         docker) echo "2375" ;;
         *) echo "8080" ;;
     esac

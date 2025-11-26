@@ -87,13 +87,6 @@ resources:
       
   # Automation Services  
   automation:
-    n8n:
-      enabled: true
-      base_url: "http://localhost:5678"
-      api_key: "${N8N_API_KEY}"
-      workflows_path: "/data/n8n/workflows"
-      max_execution_time: 300000
-      
     node_red:
       enabled: true
       base_url: "http://localhost:1880"

@@ -8,10 +8,11 @@ A comprehensive, modular testing framework for Vrooli scenarios that provides bo
 scripts/scenarios/testing/
 ├── shell/                    # Sourceable shell libraries
 │   ├── core.sh              # Scenario detection, configuration
-│   ├── connectivity.sh      # API/UI connectivity testing
-│   ├── resources.sh         # Resource integration testing
-│   ├── cli.sh               # CLI testing utilities
-│   └── orchestration.sh     # Comprehensive test suite execution
+│   ├── runner.sh            # Low-level phase execution engine
+│   ├── suite.sh             # High-level test orchestrator
+│   ├── phase-helpers.sh     # Phase lifecycle management
+│   ├── config-helpers.sh    # JSON configuration parsing utilities
+│   └── requirements-sync.sh # Requirements registry synchronization
 ├── unit/                     # Language-specific unit test runners
 │   ├── run-all.sh           # Universal test runner
 │   ├── go.sh                # Go test runner
@@ -43,9 +44,7 @@ source "${APP_ROOT}/scripts/scenarios/testing/shell/orchestration.sh"
 # Run comprehensive tests
 testing::orchestration::run_comprehensive_tests
 
-# Or use individual modules
-source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
-testing::connectivity::test_api "my-scenario"
+# Or use individual modules (see phase-specific scripts in shell/)
 ```
 
 ### Using Unit Test Runners
@@ -80,15 +79,42 @@ Core utilities for all testing scenarios.
 - `testing::core::is_scenario_running()` - Check if scenario is active
 - `testing::core::wait_for_scenario()` - Wait for scenario readiness
 
-### connectivity.sh
-API and UI endpoint testing.
+### runner.sh
+Low-level phase execution engine.
 
 **Functions:**
-- `testing::connectivity::get_api_url()` - Get scenario API URL
-- `testing::connectivity::get_ui_url()` - Get scenario UI URL
-- `testing::connectivity::test_api()` - Test API connectivity
-- `testing::connectivity::test_ui()` - Test UI connectivity
-- `testing::connectivity::test_all()` - Test all endpoints
+- `testing::runner::register_phase()` - Register test phases for execution
+- `testing::runner::execute()` - Execute all registered phases in order
+
+### suite.sh
+High-level test suite orchestrator with automatic phase discovery.
+
+**Functions:**
+- `testing::suite::run()` - Main entry point for running complete test suites
+
+### phase-helpers.sh
+Phase lifecycle management utilities.
+
+**Functions:**
+- `testing::phase::init()` - Initialize phase environment
+- `testing::phase::add_test()` - Record test result
+- `testing::phase::add_error()` - Record error
+- `testing::phase::add_requirement()` - Record requirement coverage
+
+### config-helpers.sh
+JSON configuration parsing utilities.
+
+**Functions:**
+- `config::get_boolean()` - Parse boolean values with defaults
+- `config::get_string()` - Parse string values with defaults
+- `config::get_number()` - Parse numeric values with defaults
+- `config::get_array()` - Extract arrays from JSON
+
+### requirements-sync.sh
+Requirements registry synchronization.
+
+**Functions:**
+- `testing::requirements::sync()` - Sync test results with requirements registry
 
 ### resources.sh
 Resource integration testing.
@@ -178,27 +204,30 @@ See [templates/README.md](templates/README.md) for detailed usage instructions.
 #!/bin/bash
 # test/phases/test-integration.sh
 
-source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
+# Use phase helpers for lifecycle management
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Get dynamic API URL
-API_URL=$(testing::connectivity::get_api_url)
+testing::phase::auto_lifecycle_start \
+    --phase-name "integration" \
+    --default-target-time "300s"
 
-# Test connectivity
-if testing::connectivity::test_api; then
-    echo "✅ API is healthy"
-fi
+# Your test logic here
+testing::phase::add_test passed
+
+testing::phase::auto_lifecycle_end "Integration tests completed"
 ```
 
 ### Example 2: Comprehensive Testing
 
 ```bash
 #!/bin/bash
-# test/run-comprehensive.sh
+# test/run-tests.sh
 
-source "${APP_ROOT}/scripts/scenarios/testing/shell/orchestration.sh"
+# Use suite orchestrator for complete test runs
+source "${APP_ROOT}/scripts/scenarios/testing/shell/suite.sh"
 
-# Run everything with custom thresholds
-testing::orchestration::run_comprehensive_tests "my-scenario" 85 75
+# Automatically discovers phases and runs with requirements sync
+testing::suite::run
 ```
 
 ### Example 3: Resource Testing
@@ -216,27 +245,28 @@ testing::resources::test_redis "my-scenario"
 
 ## 🔄 Migration Guide
 
-### From Old Abstraction Layer
+### From Old Test Scripts
 
 ```bash
-# Old way
-source "$APP_ROOT/scripts/scenarios/testing/abstraction/portable-helpers.sh"
-testing::abstraction::test_api_connectivity
+# Old way - Manual test management
+cd api && go test ./...
+cd ui && pnpm test
 
-# New way
-source "$APP_ROOT/scripts/scenarios/testing/shell/connectivity.sh"
-testing::connectivity::test_api
+# New way - Use phased testing framework
+source "$APP_ROOT/scripts/scenarios/testing/shell/suite.sh"
+testing::suite::run
 ```
 
-### From Hardcoded Ports
+### From Hardcoded Configuration
 
 ```bash
-# Old way
-API_URL="http://localhost:17695"
+# Old way - Hardcoded values
+TIMEOUT=120
+COVERAGE_THRESHOLD=80
 
-# New way
-source "$APP_ROOT/scripts/scenarios/testing/shell/connectivity.sh"
-API_URL=$(testing::connectivity::get_api_url)
+# New way - Use .vrooli/testing.json
+# Configuration is automatically loaded by suite.sh
+# See docs/testing/guides/requirement-tracking-quick-start.md
 ```
 
 ## 🔒 Safety First
@@ -262,16 +292,23 @@ scripts/scenarios/testing/lint-tests.sh scenarios/my-scenario/
 
 ## ✅ Best Practices
 
-### 1. Use Modules Selectively
+### 1. Use Appropriate Level of Abstraction
 
-Only source the modules you need:
+Choose the right tool for your needs:
 
 ```bash
-# Just need connectivity testing?
-source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
+# For complete test suites with automatic discovery
+source "${APP_ROOT}/scripts/scenarios/testing/shell/suite.sh"
+testing::suite::run
 
-# Need everything?
-source "${APP_ROOT}/scripts/scenarios/testing/shell/orchestration.sh"
+# For custom phase execution order
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
+testing::runner::register_phase "my-custom-phase" "test/my-phase.sh"
+testing::runner::execute
+
+# For individual phase scripts
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+testing::phase::auto_lifecycle_start --phase-name "my-phase"
 ```
 
 ### 2. Leverage Auto-Detection

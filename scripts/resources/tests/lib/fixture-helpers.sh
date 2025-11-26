@@ -212,28 +212,18 @@ fixture_helpers::get_image_fixture() {
 
 # Get a workflow fixture for testing
 fixture_helpers::get_workflow_fixture() {
-    local platform="${1:-n8n}"
-    local type="${2:-default}"
+    local platform="${1:-node-red}"
     local workflow_dir="$(fixture_helpers::get_workflow_fixture_path)"
     
     case "$platform" in
-        "n8n")
-            case "$type" in
-                "whisper")
-                    echo "$workflow_dir/n8n/n8n-whisper-transcription.json"
-                    ;;
-                *)
-                    echo "$workflow_dir/n8n/n8n-workflow.json"
-                    ;;
-            esac
-            ;;
         "comfyui")
+            local type="${2:-default}"
             case "$type" in
                 "ollama")
-                    echo "$workflow_dir/comfyui/comfyui-ollama-guided.json"
+                    echo "$workflow_dir/comfyui/comfy-ollama-guided.json"
                     ;;
                 *)
-                    echo "$workflow_dir/comfyui/comfyui-text-to-image.json"
+                    echo "$workflow_dir/comfyui/comfy-text-to-image.json"
                     ;;
             esac
             ;;
@@ -247,7 +237,7 @@ fixture_helpers::get_workflow_fixture() {
             echo "$workflow_dir/integration/multi-ai-pipeline.json"
             ;;
         *)
-            echo "$workflow_dir/n8n/n8n-workflow.json"
+            echo "$workflow_dir/node-red/node-red-workflow.json"
             ;;
     esac
 }

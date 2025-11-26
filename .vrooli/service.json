@@ -424,11 +424,6 @@
       "musicgen": {
         "enabled": true
       },
-      "n8n": {
-        "enabled": true,
-        "required": true,
-        "description": "Workflow automation platform"
-      },
       "neo4j": {
         "enabled": true,
         "required": false,
@@ -688,14 +683,6 @@
       },
       "wikijs": {
         "enabled": true
-      },
-      "windmill": {
-        "enabled": true,
-        "required": true,
-        "healthCheck": {
-          "intervalMs": 60000,
-          "timeoutMs": 5000
-        }
       },
       "wireguard": {
         "enabled": true

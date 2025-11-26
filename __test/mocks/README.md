@@ -95,43 +95,33 @@ test_postgres_health      # Test health status
 test_postgres_basic       # Test CRUD operations
 ```
 
-### N8n Mock
+### Node-RED Mock
 
 ```bash
 # Source the mock
-source __test/mocks/tier2/n8n.sh
+source __test/mocks/tier2/node-red.sh
 
-# Import workflow
-cat > workflow.json << 'EOF'
-{
-    "name": "My Workflow",
-    "nodes": [{"type": "start"}, {"type": "webhook"}]
-}
-EOF
-n8n import:workflow --input=workflow.json
-# Output: Imported workflow as ID: wf_1
+# Start the mock service (prints URL info)
+node-red start
 
-# Activate workflow
-n8n update:workflow --id=wf_1 --active=true
+# Manage nodes using the admin helper
+node-red admin list
+node-red admin install node-red-contrib-test
+node-red admin disable node-red-contrib-dashboard
 
-# Execute workflow
-n8n execute --id=wf_1
-# Output: Execution ID: exec_1, Status: success
+# Use the curl wrapper to hit mock endpoints
+curl http://localhost:1880/flows
+curl -X POST http://localhost:1880/flows -d '{"flows":[]}'
 
-# List workflows
-n8n list:workflows
-
-# Export workflow
-n8n export:workflow --id=wf_1 --output=exported.json
-
-# Webhook simulation
-exec_id=$(n8n_mock_simulate_webhook "webhook_123" '{"data":"test"}')
-echo "Webhook triggered execution: $exec_id"
+# Control mock state and injection helpers
+nodered_mock_create_flow "Test Flow"
+nodered_mock_reset
+nodered_mock_dump_state
 
 # Convention-based tests
-test_n8n_connection  # Test connectivity
-test_n8n_health      # Test health status
-test_n8n_basic       # Test workflow operations
+test_nodered_connection  # Test connectivity
+test_nodered_health      # Test health status
+test_nodered_basic       # Test Node-RED workflow operations
 ```
 
 ## Creating New Mocks
@@ -213,19 +203,28 @@ Test multiple mocks together without BATS:
 # Source all required mocks
 source __test/mocks/tier2/redis.sh
 source __test/mocks/tier2/postgres.sh
-source __test/mocks/tier2/n8n.sh
+source __test/mocks/tier2/node-red.sh
 
 # Reset state
 redis_mock_reset
 postgres_mock_reset
-n8n_mock_reset
+nodered_mock_reset
 
-# Run integrated test scenario
+# Seed example data
 psql -c "CREATE TABLE events (id INT, data TEXT)"
 redis-cli SET "event:latest" "pending"
-n8n execute --id=wf_1
 psql -c "INSERT INTO events VALUES (1, 'processed')"
 redis-cli SET "event:latest" "complete"
+
+# Deploy a flow and use HTTP API helpers
+node-red admin install node-red-contrib-test >/dev/null 2>&1
+nodered_flow=$(nodered_mock_create_flow "Event Flow")
+curl -s http://localhost:1880/flows >/dev/null 2>&1
+
+# Run integrated validation helpers
+test_nodered_connection
+test_nodered_health
+test_nodered_basic
 
 # Verify results
 db_result=$(psql -c "SELECT COUNT(*) FROM events")
@@ -258,7 +257,7 @@ echo "Cache status: $cache_result"
 |---------|------|-------|-----------|----------|
 | Redis | 2 | 489 | 65% | 80% |
 | PostgreSQL | 2 | 525 | 50% | 80% |
-| N8n | 2 | 575 | N/A | 80% |
+| Node-RED | 2 | 575 | N/A | 80% |
 | **Total** | - | **1,589** | **~50%** | **80%** |
 
 *Legacy mocks: ~3,000+ lines with 100% coverage but high complexity*
@@ -271,12 +270,12 @@ Enable debug output for any mock:
 # Enable debug for specific service
 REDIS_DEBUG=1 redis-cli SET key value
 POSTGRES_DEBUG=1 psql -c "SELECT 1"
-N8N_DEBUG=1 n8n execute --id=wf_1
+NODERED_DEBUG=1 node-red admin list
 
 # Dump current state
 redis_mock_dump_state
 postgres_mock_dump_state
-n8n_mock_dump_state
+nodered_mock_dump_state
 ```
 
 ## Migration Status

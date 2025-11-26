@@ -304,9 +304,6 @@ resources::get_health_endpoint() {
         "agent-s2")
             echo "/health"
             ;;
-        "n8n")
-            echo "/healthz"
-            ;;
         "node-red")
             echo "/flows"
             ;;
@@ -387,13 +384,6 @@ resources::validate_service_identity() {
             # Check for Browserless-specific endpoints
             if curl -s "$base_url/pressure" 2>/dev/null | grep -q "running\|queued"; then
                 echo "✅ Validated as Browserless"
-                return 0
-            fi
-            ;;
-        "n8n")
-            # Check for n8n specific endpoints
-            if curl -s "$base_url/healthz" 2>/dev/null | grep -qi "ok\|healthy"; then
-                echo "✅ Validated as n8n"
                 return 0
             fi
             ;;
@@ -557,7 +547,7 @@ resources::validate_port() {
         local category=""
         case "$resource" in
             ollama|whisper) category="AI" ;;
-            n8n|node-red|comfyui) category="automation" ;;
+            node-red|comfyui) category="automation" ;;
             minio) category="storage" ;;
             browserless|claude-code|huginn) category="agents" ;;
         esac

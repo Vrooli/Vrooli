@@ -44,7 +44,6 @@ setup() {
         ["unstructured-io"]="8000"
         ["node-red"]="1880"
         ["huginn"]="3000"
-        ["windmill"]="8000"
         ["judge0"]="2358"
         ["searxng"]="8080"
         ["qdrant"]="6333"

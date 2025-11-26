@@ -72,9 +72,7 @@ __test/
 - `judge0.sh` - Code execution
 
 ### Automation Platforms
-- `n8n.sh` - Workflow automation
 - `node-red.sh` - Flow-based programming
-- `windmill.sh` - Developer platform
 - `huginn.sh` - Event automation
 
 ### Infrastructure

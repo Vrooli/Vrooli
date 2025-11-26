@@ -133,7 +133,6 @@ resources::usage() {
     echo "  $0 --action install --resources ai-only               # Install all AI resources"
     echo "  $0 --action install --resources search-only           # Install all search resources"
     echo "  $0 --action install --resources all                   # Install all resources"
-    echo "  $0 --action status --resources ollama,n8n             # Check status of specific resources"
     echo "  $0 --action list                                      # List available resources"
     echo "  $0 --action discover                                  # Discover running resources"
     echo "  $0 --action discover --auto-configure yes             # Discover and configure resources"
@@ -494,7 +493,6 @@ resources::get_health_endpoint() {
         "browserless") echo "/pressure" ;;
         "ollama") echo "/api/tags" ;;
         "comfyui") echo "/" ;;  # ComfyUI root endpoint works better than system_stats
-        "n8n") echo "/healthz" ;;
         "huginn") echo "/" ;;
         "whisper") echo "/docs" ;;  # Whisper has docs endpoint, not health
         "node-red") echo "/flows" ;;
@@ -681,9 +679,6 @@ resources::discover_running() {
                     case "$resource" in
                         "ollama")
                             additional_config='{"models":{"defaultModel":"llama3.1:8b","supportsFunctionCalling":true},"api":{"version":"v1","modelsEndpoint":"/api/tags","chatEndpoint":"/api/chat","generateEndpoint":"/api/generate"}}'
-                            ;;
-                        "n8n")
-                            additional_config='{"api":{"version":"v1","workflowsEndpoint":"/api/v1/workflows","executionsEndpoint":"/api/v1/executions","credentialsEndpoint":"/api/v1/credentials"}}'
                             ;;
                     esac
                     

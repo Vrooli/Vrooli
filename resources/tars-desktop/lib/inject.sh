@@ -30,7 +30,7 @@ tars_desktop::inject() {
     fi
     
     case "$target" in
-        n8n|node-red|windmill|huginn)
+        n8n|node-red|huginn)
             # Inject automation workflow
             tars_desktop::inject_automation "$target" "$data" "$verbose"
             ;;

@@ -283,7 +283,7 @@ populate::status() {
     # Check which resources are running
     log::info "Checking resource availability..."
     
-    local resources="n8n postgres redis qdrant"
+    local resources="postgres redis qdrant"
     for resource in $resources; do
         if command -v "resource-$resource" >/dev/null 2>&1; then
             if "resource-$resource" status >/dev/null 2>&1; then

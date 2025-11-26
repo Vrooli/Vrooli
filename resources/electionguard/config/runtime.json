@@ -1,7 +1,7 @@
 {
   "startup_order": 600,
   "dependencies": ["python", "vault"],
-  "optional_dependencies": ["postgres", "questdb", "n8n", "windmill"],
+  "optional_dependencies": ["postgres", "questdb", "n8n"],
   "startup_timeout": 60,
   "startup_time_estimate": "10-30s",
   "recovery_attempts": 3,

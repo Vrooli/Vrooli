@@ -270,7 +270,7 @@ Get comprehensive health status of all resources.
         "lastCheck": "2025-07-29T14:29:30Z"
       },
       {
-        "id": "n8n",
+        "id": "node-red",
         "type": "automation",
         "status": "unhealthy",
         "error": "Connection timeout",
@@ -417,7 +417,7 @@ Get available automation workflows.
         "id": "doc_processing_pipeline",
         "name": "Document Processing Pipeline",
         "description": "Extract, analyze, and index documents using AI",
-        "type": "n8n",
+        "type": "node-red",
         "status": "active",
         "triggers": ["file_upload", "webhook", "schedule"],
         "resources": ["unstructured-io", "ollama", "minio"],
@@ -461,7 +461,7 @@ All API endpoints return consistent error responses:
     "message": "Resource with ID 'invalid_id' not found",
     "details": {
       "resourceId": "invalid_id",
-      "availableResources": ["ollama", "n8n", "whisper"]
+      "availableResources": ["ollama", "node-red", "whisper"]
     }
   },
   "timestamp": "2025-07-29T14:30:00Z",

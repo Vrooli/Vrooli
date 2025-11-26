@@ -86,14 +86,6 @@ test_docker_functionality() {
     docker images >/dev/null
 }
 
-test_n8n_functionality() {
-    source "${MOCK_DIR}/n8n.sh"
-    
-    # Use correct n8n command format
-    n8n import:workflow "test-wf" >/dev/null
-    n8n list:workflows >/dev/null
-}
-
 # === Cross-Mock Integration ===
 test_redis_postgres_integration() {
     source "${MOCK_DIR}/redis.sh"
@@ -164,8 +156,6 @@ echo ""
 run_test "Redis Functionality" test_redis_functionality
 run_test "PostgreSQL Functionality" test_postgres_functionality  
 run_test "Docker Functionality" test_docker_functionality
-run_test "N8n Functionality" test_n8n_functionality
-
 echo ""
 echo "New mock tests:"
 run_test "Logs Functionality" test_new_logs_functionality

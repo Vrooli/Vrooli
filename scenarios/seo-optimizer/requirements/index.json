@@ -26,8 +26,8 @@
       "id": "SEO-AI-INTEGRATION",
       "category": "seo.workflow",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
-      "title": "AI-powered SEO insights via shared Ollama workflow",
-      "description": "Integration with initialization/n8n/ollama.json workflow to provide AI-generated content recommendations, semantic analysis, and advanced optimization suggestions.",
+      "title": "AI-powered SEO insights via Ollama",
+      "description": "Use Ollama to provide AI-generated content recommendations, semantic analysis, and advanced optimization suggestions without relying on shared n8n workflows.",
       "status": "pending",
       "validation": [
         {

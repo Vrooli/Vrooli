@@ -187,29 +187,29 @@ schema:
   typeProperties: [platform, integration, complexity, expectedDuration, resourceReqs]
 
 workflows:
-  n8n:
-    - path: n8n/basic-workflow.json
-      platform: n8n
+  node_red:
+    - path: node-red/node-red-workflow.json
+      platform: node-red
       integration: [ollama]
       complexity: basic
-      expectedDuration: 15
+      expectedDuration: 12
       resourceReqs:
         cpu: low
         memory: low
         network: true
       tags: [smoke-test, ai-integration]
       testData:
-        model: "llama3.1:8b"
+        flowName: "Ollama Integration Flow"
         expectedOutput: "AI response"
 
 testSuites:
   smokeTests:
-    - n8n/basic-workflow.json
+    - node-red/node-red-workflow.json
 
 platforms:
-  n8n:
-    port: 5678
-    health_check: "/healthz"
+  node-red:
+    port: 1880
+    health_check: "/"
 ```
 
 ## 🚨 Common Validation Errors

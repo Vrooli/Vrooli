@@ -57,7 +57,7 @@ Automated accessibility compliance testing, remediation, and monitoring that ens
 - Optional Redis for caching audit results
 
 **Integration Strategy**:
-- Shared N8n workflows for audit orchestration
+- Shared automation processes orchestrated by the API/CLI
 - Resource CLI commands for Browserless, Ollama, PostgreSQL
 - Direct axe-core library integration for scanning
 
@@ -70,9 +70,10 @@ Automated accessibility compliance testing, remediation, and monitoring that ens
 
 **Required Resources**:
 - postgres: Store audit history and compliance reports
-- n8n: Orchestrate scheduled audits and remediation workflows
 - browserless: Visual regression testing and DOM analysis
 - ollama: Intelligent fix suggestions for complex issues
+
+Audit sequencing and remediation orchestration are handled inside the API, so no separate workflow resource is needed.
 
 **Optional Resources**:
 - redis: Cache audit results for performance

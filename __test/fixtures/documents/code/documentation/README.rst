@@ -22,7 +22,7 @@ Overview
 The Vrooli Resource SDK provides a unified interface for interacting with various AI and automation services, including:
 
 * **AI Services**: Local LLMs (Ollama), speech recognition (Whisper), document processing
-* **Automation Platforms**: n8n workflows, Node-RED flows, Huginn agents
+* **Automation Platforms**: Node-RED flows, Huginn agents
 * **Agent Services**: Browser automation (Browserless), screen interaction (Agent-S2)
 * **Storage Solutions**: MinIO object storage, Redis caching, PostgreSQL databases
 * **Search Services**: SearXNG privacy-respecting search aggregation
@@ -360,15 +360,6 @@ Speech-to-text transcription service.
 Automation Resources
 --------------------
 
-n8n
-~~~
-
-Visual workflow automation platform.
-
-**Capabilities:**
-- ``execute_workflow``: Run n8n workflow
-- ``get_workflow_status``: Check workflow execution status
-
 Node-RED
 ~~~~~~~~
 
@@ -496,7 +487,7 @@ Acknowledgments
 Special thanks to the open-source projects that make Vrooli possible:
 
 - `Ollama`_ for local LLM inference
-- `n8n`_ for workflow automation
+- `Node-RED`_ for workflow automation
 - `FastAPI`_ for the web framework
 - `Pydantic`_ for data validation
 
@@ -508,6 +499,6 @@ Special thanks to the open-source projects that make Vrooli possible:
 .. _flake8: https://flake8.pycqa.org/
 .. _mypy: https://mypy.readthedocs.io/
 .. _Ollama: https://ollama.ai/
-.. _n8n: https://n8n.io/
+.. _Node-RED: https://nodered.org/
 .. _FastAPI: https://fastapi.tiangolo.com/
 .. _Pydantic: https://pydantic-docs.helpmanual.io/

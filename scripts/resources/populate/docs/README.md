@@ -50,7 +50,7 @@ Scenarios define what content to populate into which resources:
   "name": "my-application",
   "description": "Complete application setup",
   "resources": {
-    "n8n": {
+    "node-red": {
       "content": [
         {
           "type": "workflow",
@@ -81,9 +81,8 @@ The system searches for scenarios in these locations:
 
 ## Content Types by Resource
 
-### n8n
-- `workflow` - Automation workflows
-- `credential` - API credentials
+### node-red
+- `workflow` - Automation workflows backed by Node-RED flows
 
 ### postgres
 - `schema` - Database schemas
@@ -137,7 +136,7 @@ Total: ~650 lines (vs 1000+ in old system)
 
 ### Resource Not Found
 ```
-Resource CLI not found: n8n
+Resource CLI not found: node-red
 ```
 **Solution:** Install the resource CLI or ensure it's in PATH.
 
@@ -165,8 +164,8 @@ Invalid JSON format
 ```json
 {
   "name": "hello-world",
-  "resources": {
-    "n8n": {
+    "resources": {
+    "node-red": {
       "content": [
         {
           "type": "workflow",
@@ -190,11 +189,10 @@ Invalid JSON format
         {"type": "seed", "file": "initial-data.sql"}
       ]
     },
-    "n8n": {
+    "node-red": {
       "content": [
         {"type": "workflow", "file": "onboarding.json"},
-        {"type": "workflow", "file": "billing.json"},
-        {"type": "credential", "file": "stripe-api.json"}
+        {"type": "workflow", "file": "billing.json"}
       ]
     },
     "qdrant": {

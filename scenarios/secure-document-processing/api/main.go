@@ -90,7 +90,6 @@ func getEnv(key, defaultValue string) string {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	services := map[string]string{
-		"windmill":     getServiceStatus(os.Getenv("WINDMILL_BASE_URL")),
 		"vault":        getServiceStatus(os.Getenv("VAULT_URL")),
 		"minio":        getServiceStatus(os.Getenv("MINIO_URL")),
 		"unstructured": getServiceStatus(os.Getenv("UNSTRUCTURED_URL")),

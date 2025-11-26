@@ -1,7 +1,7 @@
 {
   "name": "Multi-AI Processing Pipeline",
   "description": "Cross-platform workflow demonstrating integration between multiple AI resources",
-  "platforms": ["n8n", "node-red"],
+  "platforms": ["node-red"],
   "workflow": {
     "steps": [
       {

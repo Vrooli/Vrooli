@@ -284,8 +284,6 @@ EXAMPLES:
   # Get production config for postgres
   vrooli resource config postgres production
   
-  # List available examples for n8n
-  vrooli resource config n8n list
   
   # Validate service.json
   vrooli resource validate ./service.json

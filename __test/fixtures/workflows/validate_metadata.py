@@ -39,29 +39,6 @@ def validate_workflow_file(file_path, platform):
     except Exception as e:
         return False, f"Error reading file: {e}"
 
-def validate_n8n_workflow(data):
-    """Validate N8N workflow structure."""
-    required_fields = ['name', 'nodes']
-    
-    for field in required_fields:
-        if field not in data:
-            return False, f"Missing required field: {field}"
-    
-    if not isinstance(data['nodes'], list):
-        return False, "nodes must be a list"
-    
-    if len(data['nodes']) == 0:
-        return False, "workflow must have at least one node"
-    
-    # Check for required node fields
-    for i, node in enumerate(data['nodes']):
-        if 'name' not in node:
-            return False, f"Node {i} missing name field"
-        if 'type' not in node:
-            return False, f"Node {i} missing type field"
-    
-    return True, "Valid N8N workflow"
-
 def validate_node_red_workflow(data):
     """Validate Node-RED flow structure."""
     if not isinstance(data, list):

@@ -43,9 +43,14 @@ const healthUrl = buildApiUrl('/health', { baseUrl: API_BASE })
 
 // Make requests
 const response = await fetch(healthUrl)
+
+// The browser requests: http://localhost:36221/api/v1/health
+// The UI server proxies to: http://localhost:19750/api/v1/health (your API)
 ```
 
 ### Server-Side (Node.js/Express)
+
+> ⚠️ **Important:** Your server file must use ESM imports (not CommonJS `require()`). Ensure your `package.json` includes `"type": "module"`.
 
 ```javascript
 import { createScenarioServer } from '@vrooli/api-base/server'
@@ -95,6 +100,46 @@ After editing `@vrooli/api-base`, run the refresh helper so scenarios rebuild wi
 ```
 
 The script rebuilds this package, finds every targeted scenario that actually depends on `@vrooli/api-base`, runs `vrooli scenario setup`, and automatically restarts only the scenarios that were already running (unless you pass `--no-restart`). Stopped scenarios stay stopped after setup.
+
+## API Server Requirements
+
+Your API server (the backend that the UI proxies to) should expose all client-facing endpoints under `/api/v1/*`:
+
+**Go Example:**
+```go
+// ✅ Correct - all endpoints under /api/v1
+router.HandleFunc("/api/v1/health", handleHealth)
+router.HandleFunc("/api/v1/users", handleUsers)
+router.HandleFunc("/api/v1/data", handleData)
+
+// ❌ Wrong - mixing root and /api/v1
+router.HandleFunc("/health", handleHealth)        // Root level
+router.HandleFunc("/api/v1/users", handleUsers)   // Versioned
+```
+
+**Node/Express Example:**
+```javascript
+// ✅ Correct - all endpoints under /api/v1
+app.get('/api/v1/health', handleHealth)
+app.get('/api/v1/users', handleUsers)
+app.get('/api/v1/data', handleData)
+
+// ❌ Wrong - mixing root and /api/v1
+app.get('/health', handleHealth)        // Root level
+app.get('/api/v1/users', handleUsers)   // Versioned
+```
+
+**Exception:** If your infrastructure needs direct API health checks (bypassing the UI proxy), you can expose `/health` at *both* root and `/api/v1`:
+
+```go
+// Health at both locations
+router.HandleFunc("/health", handleHealth)        // For direct infrastructure checks
+router.HandleFunc("/api/v1/health", handleHealth) // For client requests (proxied)
+```
+
+This ensures:
+- Clients using `resolveApiBase({ appendSuffix: true })` can reach `/api/v1/health`
+- Infrastructure tools can check API health directly at `http://API_HOST:API_PORT/health`
 
 ## The Vrooli Pattern
 
@@ -214,6 +259,67 @@ const app = createScenarioServer({
 
 app.listen(process.env.UI_PORT)
 ```
+
+**API Server (`api/main.go`):**
+
+```go
+package main
+
+import (
+    "github.com/gorilla/mux"
+    "net/http"
+)
+
+func main() {
+    router := mux.NewRouter()
+
+    // All endpoints under /api/v1
+    router.HandleFunc("/api/v1/health", handleHealth).Methods("GET")
+    router.HandleFunc("/api/v1/data", handleData).Methods("GET")
+
+    http.ListenAndServe(":"+os.Getenv("API_PORT"), router)
+}
+```
+
+**Or API Server (`api/server.js`):**
+
+```javascript
+import express from 'express'
+
+const app = express()
+
+// All endpoints under /api/v1
+app.get('/api/v1/health', handleHealth)
+app.get('/api/v1/data', handleData)
+
+app.listen(process.env.API_PORT)
+```
+
+**Package Configuration (`ui/package.json`):**
+
+```json
+{
+  "name": "my-scenario-ui",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "preview": "node server.js"
+  },
+  "dependencies": {
+    "@vrooli/api-base": "workspace:*",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "express": "^4.18.2",
+    "vite": "^5.0.8"
+  }
+}
+```
+
+> **Note:** The `"type": "module"` field is required for ESM imports in `server.js`.
 
 **That's it!** This works in all three deployment contexts automatically.
 
@@ -487,6 +593,21 @@ import type {
 
 ## Troubleshooting
 
+### ERR_PACKAGE_PATH_NOT_EXPORTED
+
+```
+Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath './server' is not defined by "exports"
+```
+
+**Cause:** You're using CommonJS `require()` instead of ESM `import`, or your server file is named `.cjs`.
+
+**Fix:**
+1. Ensure your `package.json` has `"type": "module"`
+2. Rename `server.cjs` to `server.js`
+3. Change `const { createScenarioServer } = require('@vrooli/api-base/server')` to `import { createScenarioServer } from '@vrooli/api-base/server'`
+4. Update your `.vrooli/service.json` develop step: `"run": "cd ui && node server.js"`
+5. Update your `.vrooli/service.json` stop step: `"run": "pkill -f 'node server.js' || true"`
+
 ### CORS Errors on Localhost
 
 ```
@@ -513,12 +634,26 @@ The library automatically uses `window.location.origin` on localhost, which rout
 
 ### API Requests Return 404
 
-**Cause:** Server not proxying `/api/*` requests, or UI not built.
+**Cause 1:** Server not proxying `/api/*` requests, or UI not built.
 
 **Check:**
 1. Are you using `createScenarioServer`? (You should be)
 2. Is `ui/dist/` populated? Run `npm run build` in ui directory
 3. Is server.js running? Check logs with `vrooli scenario logs <name> --step start-ui`
+
+**Cause 2:** Your API has `/health` at root level instead of `/api/v1/health`.
+
+**Check:**
+```bash
+curl http://localhost:${API_PORT}/health        # ✅ Works
+curl http://localhost:${API_PORT}/api/v1/health # ❌ 404
+```
+
+**Fix:** Move your health endpoint under `/api/v1`:
+- Go: `router.HandleFunc("/api/v1/health", handleHealth)`
+- Express: `app.get('/api/v1/health', handleHealth)`
+
+Or expose it at both locations if infrastructure checks need direct access (see [API Server Requirements](#api-server-requirements)).
 
 ### Production Bundle Not Updating
 
@@ -534,6 +669,39 @@ vrooli scenario start <name>
 ```
 
 ## Migration Guide
+
+### Migration Checklist
+
+When migrating an existing scenario to `@vrooli/api-base`, follow these steps:
+
+**Server Migration:**
+- [ ] Rename `server.cjs` to `server.js` (if applicable)
+- [ ] Add `"type": "module"` to `ui/package.json`
+- [ ] Change `require()` statements to `import` statements in `server.js`
+- [ ] Replace custom server code with `createScenarioServer()` or `startScenarioServer()`
+- [ ] Update `.vrooli/service.json` develop step: `"run": "cd ui && node server.js"`
+- [ ] Update `.vrooli/service.json` stop step: `"run": "pkill -f 'node server.js' || true"`
+
+**Client Migration:**
+- [ ] Replace custom `buildApiUrl()` with `import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'`
+- [ ] Remove `explicitUrl`, `defaultPort`, or other custom API resolution logic
+- [ ] Use simple pattern: `const API_BASE = resolveApiBase({ appendSuffix: true })`
+
+**Vite Config Migration:**
+- [ ] Simplify `vite.config.ts` to minimal config with `base: './'`
+- [ ] Remove `VITE_API_BASE_URL` validation and environment loading
+- [ ] Remove port checking and env-based config (api-base handles this)
+
+**Build Process Migration:**
+- [ ] Remove `VITE_API_BASE_URL` from build commands in `.vrooli/service.json`
+- [ ] Change build step from `VITE_API_BASE_URL="..." pnpm run build` to just `pnpm run build`
+
+**API Server Migration:**
+- [ ] Audit API endpoints - ensure all client-facing endpoints are under `/api/v1/*`
+- [ ] Move `/health` to `/api/v1/health` (or expose at both locations - see [API Server Requirements](#api-server-requirements))
+- [ ] Test proxied endpoints: `curl http://localhost:${UI_PORT}/api/v1/health`
+
+After migration, test all three deployment contexts: localhost, direct tunnel, and app-monitor proxy.
 
 ### From Custom server.js
 
@@ -593,6 +761,88 @@ import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 
 const API_BASE = resolveApiBase({ appendSuffix: true })
 // That's it! Works everywhere automatically
+```
+
+### From Complex Vite Config
+
+**Before (with environment validation and port checking):**
+
+```typescript
+import { defineConfig, loadEnv } from "vite";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd());
+
+  // Allow test mode to skip port validation
+  if (mode === 'test') {
+    return {
+      plugins: [react()],
+      base: './',
+      test: { /* ... */ }
+    };
+  }
+
+  const uiPort = process.env.UI_PORT;
+  if (!uiPort) {
+    throw new Error("UI_PORT environment variable is required");
+  }
+
+  const rawApiBase = env.VITE_API_BASE_URL || process.env.VITE_API_BASE_URL;
+  if (!rawApiBase) {
+    throw new Error("VITE_API_BASE_URL must be defined");
+  }
+
+  return {
+    plugins: [react()],
+    base: './',
+    server: {
+      host: true,
+      port: Number(uiPort)
+    },
+    test: { /* ... */ }
+  };
+});
+```
+
+**After (simple and clean):**
+
+```typescript
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  base: './',  // Required for tunnel/proxy contexts
+  plugins: [react()],
+  test: { /* ... */ }
+});
+```
+
+**Why You Can Remove VITE_API_BASE_URL:**
+
+The `@vrooli/api-base` library uses `window.location.origin` automatically in production bundles, so the API base URL is determined at runtime, not build time. This means:
+- No need to pass `VITE_API_BASE_URL` during build
+- No need for environment-specific builds
+- Same bundle works in all deployment contexts (localhost, tunnel, proxy)
+
+**Build Command Simplification:**
+
+```bash
+# Before
+VITE_API_BASE_URL="http://localhost:${API_PORT}/api/v1" pnpm run build
+
+# After
+pnpm run build
+```
+
+Update your `.vrooli/service.json` build step accordingly:
+
+```json
+{
+  "name": "build-ui",
+  "run": "cd ui && pnpm run build",
+  "description": "Build production UI bundle"
+}
 ```
 
 ### From Custom Config Fetching

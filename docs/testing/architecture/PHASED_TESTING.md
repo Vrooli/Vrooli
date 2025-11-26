@@ -144,6 +144,12 @@ graph TD
 **Purpose**: Execute unit tests for all code components
 **Location**: `test/phases/test-unit.sh`
 
+**⚠️ Important**: Phase scripts are **orchestrators** that run tests, NOT test sources themselves. For requirement validation:
+- ❌ **Don't reference**: `test/phases/test-unit.sh` (orchestration script)
+- ✅ **Do reference**: Actual test files (`api/**/*_test.go`, `ui/src/**/*.test.tsx`)
+
+See [Validation Best Practices](../guides/validation-best-practices.md#valid-vs-invalid-validation-sources) for details.
+
 - **Go**: Uses `testing` package with coverage analysis
   - Coverage thresholds: 80% warning, 70% error
   - Comprehensive handler testing with `httptest`
@@ -223,13 +229,19 @@ For Go tests, no configuration needed - the parser automatically extracts `[REQ:
 See [@vrooli/vitest-requirement-reporter](../../../packages/vitest-requirement-reporter/README.md) for complete details.
 
 ### Phase 4: Integration (120 seconds)
-**Purpose**: Test component interactions and external integrations  
+**Purpose**: Test component interactions and external integrations
 **Location**: `test/phases/test-integration.sh`
+
+**⚠️ Important**: This phase script orchestrates integration tests but should NOT be used as a requirement validation ref. For integration requirement validation:
+- ❌ **Don't reference**: `test/phases/test-integration.sh` (orchestration script)
+- ❌ **Don't reference**: `test/cli/*.bats` (CLI wrapper tests, not business logic validation)
+- ✅ **Do reference**: E2E automation workflows (`test/playbooks/**/*.json`)
+- ✅ **Do reference**: API integration tests if they exist (`api/**/*_test.go` with integration tags)
 
 - **Dynamic port discovery** using `vrooli scenario port` command
 - API endpoint testing (health, core endpoints)
 - UI accessibility validation
-- CLI integration testing with BATS
+- CLI integration testing with BATS (for CLI validation, not requirement validation)
 - Database connectivity verification
 - Resource integration testing
 - **Browser Automation Studio workflows** - Declarative UI testing (see [UI Automation with BAS](../guides/ui-automation-with-bas.md))
@@ -626,6 +638,96 @@ For comprehensive safety guidelines, see [Safety Guidelines](../safety/GUIDELINE
 - Use `REQ:<ID>` markers in Go/Vitest test names to have the unit runners automatically register requirement outcomes.
 - Execute YAML-defined automations through `testing::phase::run_workflow_yaml --file automation/...` to keep requirement evidence aligned with phase results.
 - Run `vrooli scenario requirements report <name> --fail-on-critical-gap` to generate Markdown/JSON/trace reports and enforce critical requirement completion in CI pipelines.
+
+## Test Directory Structure & Validation Sources
+
+**Critical Distinction**: Phase orchestration scripts vs. test source files.
+
+### Directory Roles
+
+```
+test/
+├── phases/           ❌ ORCHESTRATION - Run tests, don't contain them
+│   ├── test-unit.sh         # Runs Go tests, Vitest tests
+│   ├── test-integration.sh  # Runs API tests, BAS workflows
+│   └── test-business.sh     # Runs business logic tests
+│
+├── cli/              ❌ CLI WRAPPER TESTS - Test CLI, not business logic
+│   └── *.bats               # BATS tests for CLI commands
+│
+├── unit/             ❌ TEST INFRASTRUCTURE - Language-specific runners
+│   └── run-unit-tests.sh    # Orchestrates language-specific test suites
+│
+└── playbooks/        ✅ E2E TEST SOURCES - Actual test content
+    └── **/*.json            # BAS automation workflows
+```
+
+### For Requirement Validation
+
+When referencing tests in `requirements/**/*.json`, use **actual test sources**, not orchestration:
+
+**❌ Don't reference**:
+- `test/phases/test-unit.sh` - Orchestration script with zero traceability
+- `test/phases/test-integration.sh` - Orchestration script with zero traceability
+- `test/cli/*.bats` - CLI wrapper tests (tests CLI layer, not business logic)
+- `test/unit/run-unit-tests.sh` - Test runner infrastructure
+
+**✅ Do reference**:
+- `api/**/*_test.go` - Go unit tests (actual test sources)
+- `ui/src/**/*.test.tsx` - Vitest/Jest tests (actual test sources)
+- `test/playbooks/**/*.json` - BAS e2e workflows (actual test sources)
+
+### Why test/phases/ is Rejected
+
+Phase scripts **orchestrate** test execution but don't contain test logic:
+
+```bash
+# test/phases/test-unit.sh
+go test ./api/...  # ← Runs tests, doesn't contain them
+npm test           # ← Runs tests, doesn't contain them
+
+# Referencing this provides ZERO traceability to:
+# - Which specific test validates the requirement?
+# - What does the test actually verify?
+# - How can I find/fix the test if it fails?
+```
+
+**Solution**: Reference the actual test files being executed:
+- `api/handlers/projects_test.go:TestProjectCreate`
+- `ui/src/components/ProjectModal.test.tsx`
+
+### Why test/cli/ is Rejected
+
+CLI tests validate the **CLI wrapper**, not underlying business logic:
+
+```bash
+# test/cli/profile-operations.bats
+@test "vrooli profile create accepts --name flag" {
+  run vrooli profile create --name test
+  [ "$status" -eq 0 ]
+}
+
+# Problem: Tests CLI interface, not:
+# - API validation logic
+# - Database persistence
+# - Error handling
+```
+
+**The CLI should be a thin wrapper** over the API. Use:
+- API tests for business logic validation
+- E2E automation for full workflow validation
+- CLI tests only for CLI-specific concerns (flag parsing, help text)
+
+### Validation Diversity Requirements
+
+Critical requirements (P0/P1) must have **≥2 AUTOMATED layers**:
+- Full-stack: API + UI OR API + E2E OR UI + E2E
+- API-only: API + E2E
+- UI-only: UI + E2E
+
+**Manual validations don't count** toward diversity (they're temporary measures).
+
+See [Validation Best Practices](../guides/validation-best-practices.md) for complete guidelines.
 
 ## Future Enhancements
 

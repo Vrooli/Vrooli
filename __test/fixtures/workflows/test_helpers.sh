@@ -164,14 +164,8 @@ execute_workflow() {
     local timeout="${3:-60}"  # Default 60 second timeout
     
     case "$platform" in
-        "n8n")
-            execute_n8n_workflow "$workflow_path" "$timeout"
-            ;;
         "node-red")
             execute_node_red_workflow "$workflow_path" "$timeout"
-            ;;
-        "windmill")
-            execute_windmill_workflow "$workflow_path" "$timeout"
             ;;
         "huginn")
             execute_huginn_workflow "$workflow_path" "$timeout"
@@ -184,35 +178,6 @@ execute_workflow() {
             return 1
             ;;
     esac
-}
-
-# N8N workflow execution
-execute_n8n_workflow() {
-    local workflow_path="$1"
-    local timeout="${2:-60}"
-    local port=$(get_platform_config "n8n" "port")
-    
-    # Import workflow
-    local import_response=$(curl -s -X POST \
-        -H "Content-Type: application/json" \
-        -d @"$WORKFLOW_DIR/$workflow_path" \
-        "http://localhost:$port/api/v1/workflows/import")
-    
-    if [[ $? -ne 0 ]]; then
-        echo "ERROR: Failed to import N8N workflow" >&2
-        return 1
-    fi
-    
-    # Extract workflow ID from response
-    local workflow_id=$(echo "$import_response" | jq -r '.id // empty')
-    if [[ -z "$workflow_id" ]]; then
-        echo "ERROR: Could not extract workflow ID from import response" >&2
-        return 1
-    fi
-    
-    # Execute workflow
-    timeout "$timeout" curl -s -X POST \
-        "http://localhost:$port/api/v1/workflows/$workflow_id/execute"
 }
 
 # Node-RED flow execution
@@ -243,16 +208,6 @@ execute_node_red_workflow() {
     fi
 }
 
-# Windmill workflow execution
-execute_windmill_workflow() {
-    local workflow_path="$1"
-    local timeout="${2:-60}"
-    local port=$(get_platform_config "windmill" "port")
-    
-    echo "WARNING: Windmill execution not yet implemented" >&2
-    return 1
-}
-
 # Huginn agent execution
 execute_huginn_workflow() {
     local workflow_path="$1"
@@ -279,9 +234,6 @@ import_workflow() {
     local workflow_path="$2"
     
     case "$platform" in
-        "n8n")
-            import_n8n_workflow "$workflow_path"
-            ;;
         "node-red")
             import_node_red_workflow "$workflow_path"
             ;;
@@ -290,17 +242,6 @@ import_workflow() {
             return 1
             ;;
     esac
-}
-
-# Import N8N workflow
-import_n8n_workflow() {
-    local workflow_path="$1"
-    local port=$(get_platform_config "n8n" "port")
-    
-    curl -s -X POST \
-        -H "Content-Type: application/json" \
-        -d @"$WORKFLOW_DIR/$workflow_path" \
-        "http://localhost:$port/api/v1/workflows/import"
 }
 
 # Import Node-RED flow
@@ -388,18 +329,6 @@ validate_test_suite() {
 #     done < <(get_workflows_by_tag "basic-integration")
 # }
 #
-# @test "n8n platform workflows" {
-#     source "$FIXTURES_DIR/workflows/test_helpers.sh"
-#     
-#     if ! is_platform_available "n8n"; then
-#         skip "N8N not available"
-#     fi
-#     
-#     while IFS= read -r workflow_path; do
-#         run execute_workflow "n8n" "$workflow_path"
-#         assert_success
-#     done < <(get_workflows_by_platform "n8n")
-# }
 #
 # @test "smoke test suite" {
 #     source "$FIXTURES_DIR/workflows/test_helpers.sh"

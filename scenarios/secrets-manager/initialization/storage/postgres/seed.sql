@@ -111,13 +111,6 @@ INSERT INTO resource_secrets (resource_name, secret_key, secret_type, required, 
 ('browserless', 'CONNECTION_TIMEOUT', 'env_var', false, 'Browser connection timeout in ms', '^[0-9]+$', 'https://docs.browserless.io/')
 ON CONFLICT (resource_name, secret_key) DO NOTHING;
 
--- Windmill resource secrets
-INSERT INTO resource_secrets (resource_name, secret_key, secret_type, required, description, validation_pattern, documentation_url) VALUES
-('windmill', 'WM_TOKEN', 'token', false, 'Windmill API authentication token', '^[a-zA-Z0-9_.-]+$', 'https://www.windmill.dev/docs/'),
-('windmill', 'DATABASE_URL', 'credential', false, 'Windmill database connection URL', '^postgresql://.*', 'https://www.windmill.dev/docs/'),
-('windmill', 'WINDMILL_BASE_URL', 'env_var', false, 'Windmill instance base URL', '^https?://[a-zA-Z0-9.-]+(:[0-9]+)?', 'https://www.windmill.dev/docs/')
-ON CONFLICT (resource_name, secret_key) DO NOTHING;
-
 -- Huginn resource secrets
 INSERT INTO resource_secrets (resource_name, secret_key, secret_type, required, description, validation_pattern, documentation_url) VALUES
 ('huginn', 'DATABASE_URL', 'credential', true, 'Huginn database connection URL', '^(mysql2|postgresql)://.*', 'https://github.com/huginn/huginn'),
@@ -144,7 +137,7 @@ ON CONFLICT (resource_name, secret_key) DO NOTHING;
 INSERT INTO secret_scans (scan_type, resources_scanned, secrets_discovered, scan_duration_ms, scan_status, scan_metadata) 
 VALUES (
     'seed', 
-    ARRAY['postgres', 'vault', 'redis', 'n8n', 'ollama', 'minio', 'qdrant', 'browserless', 'windmill', 'huginn', 'searxng', 'judge0'],
+    ARRAY['postgres', 'vault', 'redis', 'n8n', 'ollama', 'minio', 'qdrant', 'browserless', 'huginn', 'searxng', 'judge0'],
     (SELECT COUNT(*) FROM resource_secrets),
     0,
     'completed',

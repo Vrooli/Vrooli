@@ -78,7 +78,7 @@ test_dry_run() {
   "name": "test-scenario",
   "description": "Test scenario for integration tests",
   "resources": {
-    "n8n": {
+    "node-red": {
       "content": [
         {
           "type": "workflow",

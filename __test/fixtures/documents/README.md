@@ -161,7 +161,7 @@ curl -X POST http://localhost:11434/api/generate \
   -d '{"model": "llama3.2-vision:11b", "prompt": "Analyze this document", "images": ["office/pdf/scanned_document.pdf"]}'
 ```
 
-### With Automation (n8n/Node-RED)
+### With Automation (Node-RED)
 - Import workflows from `/workflows/` directory
 - Configure file input nodes to process document batches
 - Set up error handling for problematic files

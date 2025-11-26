@@ -65,7 +65,7 @@
       "category": "toolkit",
       "price": 129.99,
       "currency": "USD", 
-      "description": "Complete automation toolkit with n8n, Node-RED, and custom workflow capabilities",
+      "description": "Complete automation toolkit with Node-RED and custom workflow capabilities",
       "features": [
         "Visual workflow design",
         "300+ integrations",

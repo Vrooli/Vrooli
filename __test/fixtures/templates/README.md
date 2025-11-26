@@ -55,7 +55,7 @@ cp fixtures/templates/integration.bats fixtures/tests/workflows/ai-storage.bats
 - Cross-service validation
 
 **Remember to change:**
-- `SERVICES=("ollama" "postgres" "n8n")` → your services
+- `SERVICES=("ollama" "postgres" "node-red")` → your services
 - Update integration scenarios
 
 ## Writing Good Tests

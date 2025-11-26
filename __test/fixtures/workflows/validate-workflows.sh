@@ -161,25 +161,6 @@ validate_workflow_file() {
     return 0
 }
 
-# N8N workflow validation
-validate_n8n_workflow() {
-    local workflow_path="$1"
-    local filename="$2"
-    
-    # Check for required N8N structure
-    if ! jq -e '.connections' "$workflow_path" >/dev/null 2>&1; then
-        print_error "$filename: Missing N8N connections"
-        return 1
-    fi
-    
-    if ! jq -e '.nodes' "$workflow_path" >/dev/null 2>&1; then
-        print_error "$filename: Missing N8N nodes"
-        return 1
-    fi
-    
-    return 0
-}
-
 # Node-RED workflow validation
 validate_node_red_workflow() {
     local workflow_path="$1"

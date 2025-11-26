@@ -137,12 +137,6 @@ validate::content_item() {
     
     # Validate based on resource type
     case "$resource" in
-        n8n)
-            if [[ "$type" != "workflow" ]] && [[ "$type" != "credential" ]]; then
-                log::error "      Item $index: Invalid type '$type' for n8n (expected: workflow, credential)"
-                is_valid=false
-            fi
-            ;;
         postgres)
             if [[ "$type" != "schema" ]] && [[ "$type" != "migration" ]] && [[ "$type" != "seed" ]]; then
                 log::error "      Item $index: Invalid type '$type' for postgres (expected: schema, migration, seed)"

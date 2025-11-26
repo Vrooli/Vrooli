@@ -63,11 +63,6 @@
     </ai_services>
 
     <automation_services>
-      <n8n enabled="true">
-        <base_url>http://localhost:5678</base_url>
-        <api_key>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9</api_key>
-        <workflows_path>/data/n8n/workflows</workflows_path>
-      </n8n>
       <node_red enabled="true">
         <base_url>http://localhost:1880</base_url>
         <admin_url>http://localhost:1880/admin</admin_url>

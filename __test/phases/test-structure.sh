@@ -51,7 +51,6 @@ SCOPING EXAMPLES:
   ./test-structure.sh --resource=ollama           # Test only ollama resource structure
   ./test-structure.sh --scenario=app-generator    # Test only app-generator scenario
   ./test-structure.sh --path=scenarios/core       # Test only specific directory
-  ./test-structure.sh --resource=n8n --verbose    # Detailed testing for n8n only
 
 COMBINED EXAMPLES:
   ./test-structure.sh                             # Test all structure components
