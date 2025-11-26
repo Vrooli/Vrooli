@@ -9,7 +9,8 @@ set -euo pipefail
 [[ -z "${BROWSERLESS_CONTAINER_NAME:-}" ]] && export BROWSERLESS_CONTAINER_NAME="vrooli-browserless"
 [[ -z "${BROWSERLESS_IMAGE:-}" ]] && export BROWSERLESS_IMAGE="ghcr.io/browserless/chrome:latest"
 [[ -z "${BROWSERLESS_DATA_DIR:-}" ]] && export BROWSERLESS_DATA_DIR="$HOME/.vrooli/browserless"
-[[ -z "${BROWSERLESS_MAX_CONCURRENT_SESSIONS:-}" ]] && export BROWSERLESS_MAX_CONCURRENT_SESSIONS="10"
+# Align concurrent session cap with MAX_BROWSERS default unless explicitly overridden
+[[ -z "${BROWSERLESS_MAX_CONCURRENT_SESSIONS:-}" ]] && export BROWSERLESS_MAX_CONCURRENT_SESSIONS="${BROWSERLESS_MAX_BROWSERS:-5}"
 [[ -z "${BROWSERLESS_TOKEN:-}" ]] && export BROWSERLESS_TOKEN=""
 [[ -z "${BROWSERLESS_WORKSPACE_DIR:-}" ]] && export BROWSERLESS_WORKSPACE_DIR="${BROWSERLESS_DATA_DIR}/workspace"
 [[ -z "${BROWSERLESS_BASE_URL:-}" ]] && export BROWSERLESS_BASE_URL="http://localhost:${BROWSERLESS_PORT}"

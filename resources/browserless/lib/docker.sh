@@ -28,7 +28,13 @@ browserless::docker::create_container() {
     # Prepare environment variables array
     local env_vars=(
         "CONCURRENT=${max_browsers}"
+        "MAX_CONCURRENT_SESSIONS=${max_browsers}"
+        "MAX_QUEUE_LENGTH=${BROWSERLESS_MAX_QUEUE_LENGTH:-10}"
         "TIMEOUT=${timeout}"
+        "CONNECTION_TIMEOUT=${BROWSERLESS_CONNECTION_TIMEOUT:-15000}"
+        "WORKER_TIMEOUT=${BROWSERLESS_WORKER_TIMEOUT:-90000}"
+        "CHROME_REFRESH_TIME=${BROWSERLESS_CHROME_REFRESH_MS:-600000}"
+        "SOCKET_CLOSE_TIMEOUT=${BROWSERLESS_SOCKET_CLOSE_TIMEOUT:-5000}"
         "ENABLE_DEBUGGER=false"
         "PREBOOT_CHROME=false"
         "KEEP_ALIVE=false"
@@ -38,7 +44,6 @@ browserless::docker::create_container() {
         "WORKSPACE_EXPIRE_DAYS=7"
         "EXIT_ON_HEALTH_FAILURE=true"
         "HEALTH_CHECK_INTERVAL=10000"
-        "MAX_QUEUE_LENGTH=10"
     )
     
     # Browserless-specific Docker options for browser isolation
@@ -46,6 +51,9 @@ browserless::docker::create_container() {
         "--shm-size=${BROWSERLESS_DOCKER_SHM_SIZE:-2gb}"
         "--cap-add=${BROWSERLESS_DOCKER_CAPS:-SYS_ADMIN}"
         "--security-opt" "seccomp=${BROWSERLESS_DOCKER_SECCOMP:-unconfined}"
+        "--memory=${BROWSERLESS_DOCKER_MEMORY:-2g}"
+        "--cpus=${BROWSERLESS_DOCKER_CPUS:-2}"
+        "--pids-limit=${BROWSERLESS_DOCKER_PIDS_LIMIT:-512}"
     )
     
     # Port mappings and volumes - conditionally configure for host networking

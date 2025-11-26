@@ -48,14 +48,54 @@ browserless::export_config() {
 
     # Browser configuration (only set if not already defined)
     if [[ -z "${BROWSERLESS_MAX_BROWSERS:-}" ]]; then
-        BROWSERLESS_MAX_BROWSERS="${MAX_BROWSERS:-5}"
+        BROWSERLESS_MAX_BROWSERS="${MAX_BROWSERS:-6}"
         readonly BROWSERLESS_MAX_BROWSERS
         export BROWSERLESS_MAX_BROWSERS
+    fi
+    if [[ -z "${BROWSERLESS_MAX_CONCURRENT_SESSIONS:-}" ]]; then
+        BROWSERLESS_MAX_CONCURRENT_SESSIONS="${BROWSERLESS_MAX_BROWSERS}"
+        readonly BROWSERLESS_MAX_CONCURRENT_SESSIONS
+        export BROWSERLESS_MAX_CONCURRENT_SESSIONS
+    fi
+    if [[ -z "${BROWSERLESS_PREBOOT_CHROME:-}" ]]; then
+        BROWSERLESS_PREBOOT_CHROME="true"
+        readonly BROWSERLESS_PREBOOT_CHROME
+        export BROWSERLESS_PREBOOT_CHROME
+    fi
+    if [[ -z "${BROWSERLESS_KEEP_ALIVE:-}" ]]; then
+        BROWSERLESS_KEEP_ALIVE="true"
+        readonly BROWSERLESS_KEEP_ALIVE
+        export BROWSERLESS_KEEP_ALIVE
+    fi
+    if [[ -z "${BROWSERLESS_MAX_QUEUE_LENGTH:-}" ]]; then
+        BROWSERLESS_MAX_QUEUE_LENGTH="${MAX_QUEUE_LENGTH:-10}"
+        readonly BROWSERLESS_MAX_QUEUE_LENGTH
+        export BROWSERLESS_MAX_QUEUE_LENGTH
+    fi
+    if [[ -z "${BROWSERLESS_CONNECTION_TIMEOUT:-}" ]]; then
+        BROWSERLESS_CONNECTION_TIMEOUT=15000
+        readonly BROWSERLESS_CONNECTION_TIMEOUT
+        export BROWSERLESS_CONNECTION_TIMEOUT
     fi
     if [[ -z "${BROWSERLESS_TIMEOUT:-}" ]]; then
         BROWSERLESS_TIMEOUT="${TIMEOUT:-30000}"
         readonly BROWSERLESS_TIMEOUT
         export BROWSERLESS_TIMEOUT
+    fi
+    if [[ -z "${BROWSERLESS_WORKER_TIMEOUT:-}" ]]; then
+        BROWSERLESS_WORKER_TIMEOUT=90000
+        readonly BROWSERLESS_WORKER_TIMEOUT
+        export BROWSERLESS_WORKER_TIMEOUT
+    fi
+    if [[ -z "${BROWSERLESS_CHROME_REFRESH_MS:-}" ]]; then
+        BROWSERLESS_CHROME_REFRESH_MS=600000
+        readonly BROWSERLESS_CHROME_REFRESH_MS
+        export BROWSERLESS_CHROME_REFRESH_MS
+    fi
+    if [[ -z "${BROWSERLESS_SOCKET_CLOSE_TIMEOUT:-}" ]]; then
+        BROWSERLESS_SOCKET_CLOSE_TIMEOUT=5000
+        readonly BROWSERLESS_SOCKET_CLOSE_TIMEOUT
+        export BROWSERLESS_SOCKET_CLOSE_TIMEOUT
     fi
     if [[ -z "${BROWSERLESS_HEADLESS:-}" ]]; then
         BROWSERLESS_HEADLESS="${HEADLESS:-yes}"
@@ -114,6 +154,21 @@ browserless::export_config() {
         BROWSERLESS_DOCKER_SHM_SIZE="2gb"
         readonly BROWSERLESS_DOCKER_SHM_SIZE
         export BROWSERLESS_DOCKER_SHM_SIZE
+    fi
+    if [[ -z "${BROWSERLESS_DOCKER_MEMORY:-}" ]]; then
+        BROWSERLESS_DOCKER_MEMORY="2g"
+        readonly BROWSERLESS_DOCKER_MEMORY
+        export BROWSERLESS_DOCKER_MEMORY
+    fi
+    if [[ -z "${BROWSERLESS_DOCKER_CPUS:-}" ]]; then
+        BROWSERLESS_DOCKER_CPUS="2"
+        readonly BROWSERLESS_DOCKER_CPUS
+        export BROWSERLESS_DOCKER_CPUS
+    fi
+    if [[ -z "${BROWSERLESS_DOCKER_PIDS_LIMIT:-}" ]]; then
+        BROWSERLESS_DOCKER_PIDS_LIMIT="8192"
+        readonly BROWSERLESS_DOCKER_PIDS_LIMIT
+        export BROWSERLESS_DOCKER_PIDS_LIMIT
     fi
     if [[ -z "${BROWSERLESS_DOCKER_CAPS:-}" ]]; then
         BROWSERLESS_DOCKER_CAPS="SYS_ADMIN"
