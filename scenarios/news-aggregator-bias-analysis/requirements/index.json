@@ -1,0 +1,253 @@
+{
+  "_metadata": {
+    "description": "News Aggregator & Bias Analysis requirement registry - Operational targets mapped to PRD specifications",
+    "last_validated_at": "2025-11-18T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-11-18T00:00:00.000Z"
+  },
+  "meta": {
+    "scenario": "news-aggregator-bias-analysis",
+    "version": "1.0.0",
+    "generated": "2025-11-18",
+    "owners": [
+      {
+        "platform": "news-aggregator-bias-analysis",
+        "contact": "support@vrooli.com"
+      }
+    ]
+  },
+  "imports": [],
+  "requirements": [
+    {
+      "id": "NABA-P0-001",
+      "category": "foundation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "RSS feed aggregation",
+      "description": "Ingest and parse multiple RSS feeds continuously from configured sources",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/phases/test-integration.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Feed ingestion and parsing validated in integration tests"
+        }
+      ]
+    },
+    {
+      "id": "NABA-P0-002",
+      "category": "foundation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Article storage and retrieval",
+      "description": "Store articles with metadata in PostgreSQL, expose via RESTful API endpoints",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Article CRUD operations covered in unit tests with 70-80% coverage"
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-business.sh",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "End-to-end CRUD workflow validation"
+        }
+      ]
+    },
+    {
+      "id": "NABA-P0-003",
+      "category": "ai",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "AI bias detection",
+      "description": "Analyze article text for political/emotional bias using Ollama integration",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/analysis_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Bias analysis logic validated with mock Ollama responses"
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-integration.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Ollama integration tested with live model"
+        }
+      ]
+    },
+    {
+      "id": "NABA-P0-004",
+      "category": "ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Bias visualization UI",
+      "description": "Display bias scores and analysis results in web interface with color-coded indicators",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/BiasVisualization.js",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "UI components render bias scores; validated via browser testing"
+        }
+      ]
+    },
+    {
+      "id": "NABA-P0-005",
+      "category": "foundation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Source management",
+      "description": "CRUD operations for managing news sources and RSS feeds",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/sources_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Source management handlers covered in unit tests"
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-business.sh",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Source CRUD workflow validated end-to-end"
+        }
+      ]
+    },
+    {
+      "id": "NABA-P0-006",
+      "category": "caching",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Real-time updates",
+      "description": "Cache and serve trending topics via Redis for performance",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/phases/test-integration.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Redis connectivity and caching validated"
+        }
+      ]
+    },
+    {
+      "id": "NABA-P0-007",
+      "category": "infrastructure",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "Health monitoring",
+      "description": "API/UI health endpoints for lifecycle management and operational monitoring",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/phases/test-integration.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Health endpoints validated in integration tests"
+        }
+      ]
+    },
+    {
+      "id": "NABA-P1-001",
+      "category": "ai",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Fact-checking integration",
+      "description": "Cross-reference article claims against fact-check databases",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "NABA-P1-002",
+      "category": "analysis",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Perspective aggregation",
+      "description": "Group articles by topic and show coverage differences across sources",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "NABA-P1-003",
+      "category": "analysis",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Historical trend analysis",
+      "description": "Track bias patterns over time per news source",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "NABA-P1-004",
+      "category": "ui",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "User preferences",
+      "description": "Save custom feeds, bias sensitivity settings, and topic filters",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "NABA-P1-005",
+      "category": "export",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Export functionality",
+      "description": "Generate reports of bias analysis for articles and topics in various formats",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "NABA-P1-006",
+      "category": "search",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Vector search",
+      "description": "Semantic article similarity using Qdrant embeddings for improved discovery",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "NABA-P2-001",
+      "category": "automation",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "Automated alerts",
+      "description": "n8n workflows for bias spike notifications and trend monitoring",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "NABA-P2-002",
+      "category": "analysis",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "Cross-publication analysis",
+      "description": "Compare how different news outlets cover the same events",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "NABA-P2-003",
+      "category": "analysis",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "Citation tracking",
+      "description": "Trace source attribution chains to identify primary and secondary sources",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "NABA-P2-004",
+      "category": "ui",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "title": "Browser extension",
+      "description": "Real-time bias scoring for any article viewed in browser",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

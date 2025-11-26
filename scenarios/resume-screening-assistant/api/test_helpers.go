@@ -43,7 +43,6 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 	// Set required environment variables for testing
 	os.Setenv("POSTGRES_URL", "postgres://test:test@localhost:5432/test_db")
 	os.Setenv("API_PORT", "9999")
-	os.Setenv("N8N_BASE_URL", "http://localhost:5678")
 	os.Setenv("WINDMILL_BASE_URL", "http://localhost:8000")
 	os.Setenv("QDRANT_URL", "http://localhost:6333")
 
@@ -55,7 +54,6 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 			// Cleanup environment variables
 			os.Unsetenv("POSTGRES_URL")
 			os.Unsetenv("API_PORT")
-			os.Unsetenv("N8N_BASE_URL")
 			os.Unsetenv("WINDMILL_BASE_URL")
 			os.Unsetenv("QDRANT_URL")
 		},

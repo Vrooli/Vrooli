@@ -4,7 +4,7 @@ import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
 const API_BASE = resolveApiBase({ appendSuffix: true });
 
 export async function fetchHealth() {
-  const url = buildApiUrl("/health", { baseUrl: API_BASE });
+  const url = buildApiUrl("/api/v1/health", { baseUrl: API_BASE });
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     cache: "no-store"

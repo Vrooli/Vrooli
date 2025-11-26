@@ -154,8 +154,8 @@
       "children": [
         {
           "id": "CCM-SCHED-001",
-          "title": "n8n workflow orchestration",
-          "description": "Schedule and execute monitoring workflows via n8n",
+          "title": "workflow orchestration",
+          "description": "Schedule and execute monitoring workflows via internal scheduler",
           "validation": [
             "test"
           ],

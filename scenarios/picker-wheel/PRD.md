@@ -384,7 +384,6 @@ registry_entry:
 - API docs in README.md
 - CLI help: `picker-wheel --help`
 - PostgreSQL schema: `initialization/postgres/schema.sql`
-- N8n workflows: `initialization/n8n/*.json`
 
 ## Progress History
 - **2025-09-24**: Initial PRD created, scenario assessment complete (0% → 0%)

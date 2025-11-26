@@ -65,9 +65,28 @@ func NewServer() (*Server, error) {
 
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
-	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
+
+	// Health endpoints
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
+
+	// Component endpoints
+	s.router.HandleFunc("/api/v1/components", s.handleGetComponents).Methods("GET")
+	s.router.HandleFunc("/api/v1/components", s.handleCreateComponent).Methods("POST")
+	s.router.HandleFunc("/api/v1/components/search", s.handleSearchComponents).Methods("GET")
+	s.router.HandleFunc("/api/v1/components/{id}", s.handleGetComponent).Methods("GET")
+	s.router.HandleFunc("/api/v1/components/{id}", s.handleUpdateComponent).Methods("PUT")
+	s.router.HandleFunc("/api/v1/components/{id}/content", s.handleGetComponentContent).Methods("GET")
+	s.router.HandleFunc("/api/v1/components/{id}/content", s.handleUpdateComponentContent).Methods("PUT")
+	s.router.HandleFunc("/api/v1/components/{id}/versions", s.handleGetComponentVersions).Methods("GET")
+
+	// Adoption endpoints
+	s.router.HandleFunc("/api/v1/adoptions", s.handleGetAdoptions).Methods("GET")
+	s.router.HandleFunc("/api/v1/adoptions", s.handleCreateAdoption).Methods("POST")
+
+	// AI endpoints
+	s.router.HandleFunc("/api/v1/ai/chat", s.handleAIChat).Methods("POST")
+	s.router.HandleFunc("/api/v1/ai/refactor", s.handleAIRefactor).Methods("POST")
 }
 
 // Start launches the HTTP server with graceful shutdown

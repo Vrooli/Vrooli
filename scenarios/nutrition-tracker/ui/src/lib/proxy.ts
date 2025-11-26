@@ -1,13 +1,10 @@
 export interface EndpointBases {
   apiBase: string;
-  n8nBase: string;
 }
 
 const LOOPBACK_HOST = '127.0.0.1';
 const API_PORT = 8081;
-const N8N_PORT = 5678;
 const API_SUFFIX = '/api';
-const N8N_SUFFIX = '/webhook';
 const LOCAL_HOST_PATTERN = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)/i;
 
 interface ProxyEntry {
@@ -38,10 +35,9 @@ declare global {
 
 export function resolveEndpointBases(): EndpointBases {
   const loopbackApiBase = buildLoopbackBase(API_PORT, API_SUFFIX);
-  const loopbackN8nBase = buildLoopbackBase(N8N_PORT, N8N_SUFFIX);
 
   if (typeof window === 'undefined') {
-    return { apiBase: loopbackApiBase, n8nBase: loopbackN8nBase };
+    return { apiBase: loopbackApiBase };
   }
 
   const apiProxyBase =
@@ -59,44 +55,17 @@ export function resolveEndpointBases(): EndpointBases {
       'api'
     ) ?? undefined;
 
-  const n8nProxyBase =
-    resolveProxyEntry(
-      [
-        'n8n',
-        'automation',
-        'workflows',
-        'workflow',
-        'webhook',
-        'hooks',
-        'nutrition-tracker-n8n'
-      ],
-      'n8n'
-    ) ?? undefined;
-
-  const uiProxyBase =
-    resolveProxyEntry(
-      ['ui', 'ui_port', 'ui-port', 'frontend', 'app', 'primary', 'default'],
-      'ui'
-    ) ?? undefined;
-
   const locationBase = resolveUiBaseFromLocation();
 
   const apiBaseSource = apiProxyBase ?? locationBase;
   const apiBase = apiBaseSource ? joinUrl(apiBaseSource, API_SUFFIX) : loopbackApiBase;
 
-  const n8nBaseSource = n8nProxyBase ?? uiProxyBase ?? locationBase;
-  const n8nSuffix = n8nProxyBase ? N8N_SUFFIX : API_SUFFIX;
-  const n8nBase = n8nBaseSource ? joinUrl(n8nBaseSource, n8nSuffix) : loopbackN8nBase;
-
   const isRemoteHost = isRemoteHostname(window.location?.hostname);
   if (!apiProxyBase && !locationBase && isRemoteHost) {
     console.warn('[NutritionTracker] Falling back to loopback API base; proxy metadata unavailable.');
   }
-  if (!n8nProxyBase && !uiProxyBase && !locationBase && isRemoteHost) {
-    console.warn('[NutritionTracker] Falling back to loopback automation base; proxy metadata unavailable.');
-  }
 
-  return { apiBase, n8nBase };
+  return { apiBase };
 }
 
 function resolveUiBaseFromLocation(): string | undefined {

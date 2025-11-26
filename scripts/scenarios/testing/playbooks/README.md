@@ -6,9 +6,12 @@ This directory contains the generic workflow runner that allows **any scenario**
 
 The `workflow-runner.sh` script provides a universal interface for running BAS workflows from any scenario's test suite. It handles:
 - Workflow execution via browser-automation-studio API
+- Runtime workflow validation (schema, structure, selectors)
 - Scenario runtime management (auto-start/stop)
 - Result tracking and requirement evidence recording
 - Both file-based and database-persisted workflow execution
+
+**Note:** Workflow validation happens at runtime during execution, not as a separate linting step. This ensures validation uses the same code path as actual execution and avoids timing issues with seed data.
 
 ## Files
 
@@ -59,17 +62,19 @@ testing::playbooks::run_workflow \
 - `--timeout SECONDS` - Max wait for scenario readiness (default: 120)
 - `--allow-missing` - Return exit code 210 when workflow file missing (for optional tests)
 
-> BAS integration tests now prime `test/playbooks/__seeds/apply.sh` before workflow linting so the `seed-state.json` artifact (and its dynamic project/workflow names) stay consistent between lint and execution. Remove `test/artifacts/runtime/seed-state.json` or run `__seeds/cleanup.sh` if you need to regenerate identifiers manually.
+> **Seed Data**: BAS integration tests apply `test/playbooks/__seeds/apply.sh` before workflow execution to generate the `seed-state.json` artifact with dynamic project/workflow IDs. Fixtures using `@seed/` tokens are resolved against this state. Remove `test/artifacts/runtime/seed-state.json` or run `__seeds/cleanup.sh` if you need to regenerate identifiers manually.
 
 ## How It Works
 
 ### Execution Flow
 
-1. **Workflow Discovery**: Phase helper discovers playbooks from scenario's requirements metadata
-2. **Runtime Management**: Automatically starts target scenario if not running (when `--manage-runtime auto`)
-3. **Workflow Execution**: Imports workflow JSON and executes via BAS API
-4. **Result Recording**: Records pass/fail status and requirement evidence
-5. **Cleanup**: Optionally deletes test workflows and stops scenario
+1. **Workflow Discovery**: Phase helper discovers playbooks from scenario's requirements metadata or playbook registry
+2. **Seed Application**: Applies test seed data (`__seeds/apply.sh`) if present, once at phase start
+3. **Runtime Management**: Automatically starts target scenario if not running (when `--manage-runtime auto`)
+4. **Workflow Resolution**: Inlines fixture references and resolves `@seed/` tokens from seed-state.json
+5. **Workflow Execution**: Imports resolved workflow JSON and executes via BAS API (validation happens here)
+6. **Result Recording**: Records pass/fail status and requirement evidence
+7. **Cleanup**: Optionally deletes test workflows and stops scenario
 
 ### Architecture
 
@@ -148,7 +153,7 @@ mkdir -p scenarios/my-scenario/test/playbooks/ui
       "category": "ui",
       "title": "Homepage renders successfully",
       "status": "in_progress",
-      "criticality": "P0",
+      "prd_ref": "OT-P0-001",
       "validation": [
         {
           "type": "automation",

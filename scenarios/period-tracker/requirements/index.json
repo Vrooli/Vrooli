@@ -12,7 +12,6 @@
       "title": "Secure multi-tenant period cycle tracking with encrypted local storage",
       "description": "Implements AES-256 encrypted storage in PostgreSQL with multi-tenant isolation for household privacy",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -37,7 +36,6 @@
       "title": "Basic symptom logging (flow, pain, mood, physical symptoms)",
       "description": "Provides API endpoints and UI for logging daily symptoms with validation and storage",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -62,7 +60,6 @@
       "title": "Cycle prediction algorithm with pattern recognition",
       "description": "Statistical prediction algorithm using historical cycle data to forecast next period dates",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -87,7 +84,6 @@
       "title": "Calendar integration for period predictions and blocking",
       "description": "Publishes period prediction events for calendar scenario consumption and blocking",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -112,7 +108,6 @@
       "title": "Privacy-first architecture with no external data sharing",
       "description": "Ensures all data stays local, no external API calls, audit logging for data access",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -137,7 +132,6 @@
       "title": "Simple, intuitive UI optimized for daily use",
       "description": "Mobile-first responsive UI with quick entry flows and clear data visualization",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -162,7 +156,6 @@
       "title": "AI-powered pattern recognition using local Ollama models",
       "description": "Integrates with local Ollama for natural language insights from cycle patterns",
       "status": "planned",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -180,7 +173,6 @@
       "title": "Symptom correlation insights",
       "description": "Detects and surfaces correlations between symptoms and cycle phases",
       "status": "planned",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -198,7 +190,6 @@
       "title": "Medication and supplement reminder system",
       "description": "Scheduled notifications for medications and supplements based on cycle phase",
       "status": "planned",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -216,7 +207,6 @@
       "title": "Export functionality for medical appointments",
       "description": "Generates PDF/CSV summaries of cycle history for healthcare provider visits",
       "status": "planned",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -234,7 +224,6 @@
       "title": "Partner dashboard with consensual, discrete sharing",
       "description": "Opt-in sharing interface for partners/family with granular privacy controls",
       "status": "planned",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -252,7 +241,6 @@
       "title": "Historical trend analysis and reporting",
       "description": "Visualizations and reports showing cycle trends over time",
       "status": "planned",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -270,7 +258,6 @@
       "title": "Photo tracking for skin/symptom changes",
       "description": "Encrypted photo storage for visual symptom tracking over time",
       "status": "planned",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -288,7 +275,6 @@
       "title": "Integration with fitness/mood tracking scenarios",
       "description": "Cross-scenario event consumption for holistic health correlations",
       "status": "planned",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -306,7 +292,6 @@
       "title": "Custom reminder scheduling",
       "description": "User-defined reminder schedules beyond medication tracking",
       "status": "planned",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -324,7 +309,6 @@
       "title": "Advanced fertility window calculations",
       "description": "Enhanced prediction algorithms for fertility tracking",
       "status": "planned",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -342,7 +326,6 @@
       "title": "Research contribution opt-in with anonymization",
       "description": "Anonymized data export for women's health research with explicit consent",
       "status": "planned",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",

@@ -51,10 +51,10 @@
 **Solution**: API gracefully handles missing database with in-memory storage.
 **Status**: ⚠️ Works but should be addressed for production
 
-### 5. N8n Workflows Not Imported
-**Issue**: N8n workflow files exist but aren't actively imported.
-**Solution**: Workflow files present in initialization/n8n/ for when n8n is available.
-**Status**: ⚠️ Ready but requires n8n resource
+### 5. N8n Workflows Removed
+**Issue**: Prior shared n8n workflow files have been removed.
+**Solution**: Integrate automation directly in the service or provide scenario-specific workflows if needed.
+**Status**: ⚠️ Action needed for automation coverage
 
 ## Recommendations
 
@@ -65,7 +65,7 @@
 
 ### Medium Priority
 4. **Database Persistence**: Start PostgreSQL resource for proper data persistence
-5. **Workflow Automation**: Import n8n workflows when resource is available
+5. **Workflow Automation**: Implement automation without shared n8n workflows or provide scenario-specific imports
 6. **Performance Monitoring**: Add metrics collection for spin response times
 
 ### Low Priority

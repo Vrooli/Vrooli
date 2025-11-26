@@ -105,7 +105,7 @@ optional:
   - resource_name: ollama
     purpose: Natural language query processing and data insights generation
     fallback: Disable NL query features, use SQL-only interface
-    access_method: initialization/n8n/ollama.json workflow
+    access_method: Direct Ollama API calls
     
   - resource_name: kafka
     purpose: Streaming data ingestion and real-time processing pipelines
@@ -116,15 +116,7 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: data-processing-pipeline.json
-      location: initialization/n8n/
-      purpose: Standardized ETL workflows for common data sources
-    - workflow: streaming-processor.json
-      location: initialization/n8n/
-      purpose: Real-time data processing and transformation
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-postgres execute
       purpose: Execute SQL queries and manage database connections
     - command: resource-minio upload/download
@@ -132,17 +124,11 @@ integration_priorities:
     - command: resource-redis cache
       purpose: Cache frequently accessed data and query results
   
-  3_direct_api:
+  2_direct_api:
     - justification: Streaming data requires direct socket connections
       endpoint: Kafka streaming API for real-time data ingestion
     - justification: Vector operations need optimized access
       endpoint: Qdrant vector API for similarity searches
-
-shared_workflow_criteria:
-  - ETL patterns will be genericized for cross-scenario reuse
-  - Data validation rules stored as reusable components
-  - Transformation templates available for common business operations
-  - All workflows support both batch and streaming modes
 ```
 
 ### Data Models

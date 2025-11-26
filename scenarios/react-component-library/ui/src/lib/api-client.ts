@@ -1,13 +1,15 @@
 // API client with React Query hooks for react-component-library
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
 import type { Component, AdoptionRecord, ComponentVersion } from "../types";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:16871";
+const API_BASE = resolveApiBase({ appendSuffix: true });
 
 // Generic fetch wrapper
 async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${endpoint}`, {
+  const url = buildApiUrl(endpoint, { baseUrl: API_BASE });
+  const response = await fetch(url, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -162,7 +164,7 @@ export function useHealth() {
   return useQuery({
     queryKey: ["health"],
     queryFn: () =>
-      fetchAPI<{ status: string; service: string; timestamp: string }>("/health"),
+      fetchAPI<{ status: string; service: string; timestamp: string }>("/api/v1/health"),
     refetchInterval: 30000,
   });
 }

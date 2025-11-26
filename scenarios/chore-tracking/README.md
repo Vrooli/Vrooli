@@ -10,7 +10,6 @@ ChoreQuest transforms household chores into a fun, gamified experience with poin
 - **Habit Building**: Track streaks, set reminders, and visualize progress over time
 
 ## 🔗 Dependencies & Integration
-- **Shared Workflows**: Uses `initialization/n8n/ollama.json` for AI-powered scheduling
 - **Storage**: PostgreSQL for user data, Redis for real-time leaderboards
 - **Resources**: N8n for automation workflows
 

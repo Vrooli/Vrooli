@@ -1,0 +1,242 @@
+{
+  "requirements": [
+    {
+      "id": "MVW-REQ-001",
+      "title": "Voice-First Conversation Interface",
+      "description": "Handle voice input/output for hands-free brainstorming during walks with real-time transcription using Web Speech API or similar",
+      "priority": "P0",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "validation_method": "Voice input captures user speech, transcribes accurately, and plays back AI responses as audio",
+      "tags": [
+        "ui",
+        "voice",
+        "accessibility",
+        "core"
+      ]
+    },
+    {
+      "id": "MVW-REQ-002",
+      "title": "Context-Aware AI Responses",
+      "description": "Generate responses using Ollama (llama3.2) with embeddings from past conversations retrieved via universal-rag-pipeline from Qdrant",
+      "priority": "P0",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "validation_method": "AI responses reference relevant past conversations and maintain conversation coherence",
+      "tags": [
+        "ai",
+        "ollama",
+        "rag",
+        "core"
+      ]
+    },
+    {
+      "id": "MVW-REQ-003",
+      "title": "Automatic Task Extraction",
+      "description": "Parse conversations using n8n workflow to identify actionable tasks with priority estimation based on conversation context",
+      "priority": "P0",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "validation_method": "Tasks extracted from conversations include title, description, priority, and context",
+      "tags": [
+        "extraction",
+        "n8n",
+        "tasks",
+        "core"
+      ]
+    },
+    {
+      "id": "MVW-REQ-004",
+      "title": "Conversation Storage and Retrieval",
+      "description": "Store conversations in PostgreSQL with metadata and generate searchable embeddings in Qdrant for future context retrieval",
+      "priority": "P0",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "validation_method": "Conversations persisted in database and retrievable via search with relevant results",
+      "tags": [
+        "storage",
+        "postgres",
+        "qdrant",
+        "core"
+      ]
+    },
+    {
+      "id": "MVW-REQ-005",
+      "title": "Mobile-Optimized UI",
+      "description": "Clean, calming interface with nature-inspired colors, large touch targets, high contrast for outdoor visibility, optimized for mobile use",
+      "priority": "P0",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "validation_method": "UI renders well on mobile devices, readable in sunlight, easy to interact with while walking",
+      "tags": [
+        "ui",
+        "mobile",
+        "accessibility",
+        "core"
+      ]
+    },
+    {
+      "id": "MVW-REQ-006",
+      "title": "CLI Conversation Management",
+      "description": "Provide CLI commands to start conversations, review insights, search conversation history, and export tasks",
+      "priority": "P0",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "validation_method": "CLI commands execute successfully and provide expected output for all operations",
+      "tags": [
+        "cli",
+        "core",
+        "integration"
+      ]
+    },
+    {
+      "id": "MVW-REQ-007",
+      "title": "Task-Planner Integration",
+      "description": "Automatically export extracted tasks to task-planner scenario with proper formatting, metadata, and priority mapping",
+      "priority": "P1",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "validation_method": "Exported tasks appear in task-planner with correct data and formatting",
+      "tags": [
+        "integration",
+        "task-planner",
+        "export"
+      ]
+    },
+    {
+      "id": "MVW-REQ-008",
+      "title": "Insight Breakthrough Detection",
+      "description": "Identify and highlight significant insights or breakthrough ideas using pattern matching and novelty detection",
+      "priority": "P1",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "validation_method": "Breakthrough insights flagged with visual indicators and stored separately",
+      "tags": [
+        "ai",
+        "insights",
+        "detection"
+      ]
+    },
+    {
+      "id": "MVW-REQ-009",
+      "title": "Daily Planning Workflow",
+      "description": "Generate daily plans with priority-based task organization from conversation content using n8n workflow",
+      "priority": "P1",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "validation_method": "Daily plans generated with prioritized tasks and clear action items",
+      "tags": [
+        "planning",
+        "n8n",
+        "workflow"
+      ]
+    },
+    {
+      "id": "MVW-REQ-010",
+      "title": "Vrooli Context Gathering",
+      "description": "Pull current state of scenarios, resources, and active tasks from Vrooli system to inform AI conversation responses",
+      "priority": "P1",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "validation_method": "AI responses reference accurate current state of Vrooli scenarios and resources",
+      "tags": [
+        "context",
+        "integration",
+        "api"
+      ]
+    },
+    {
+      "id": "MVW-REQ-011",
+      "title": "Stream-of-Consciousness Integration",
+      "description": "Feed conversations to stream-of-consciousness-analyzer scenario for deeper pattern analysis and insight generation",
+      "priority": "P1",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "validation_method": "Conversations successfully sent to analyzer with results available for review",
+      "tags": [
+        "integration",
+        "analysis",
+        "stream-of-consciousness"
+      ]
+    },
+    {
+      "id": "MVW-REQ-012",
+      "title": "Multi-Day Conversation Threading",
+      "description": "Track and reference conversation themes across multiple days to build long-term context and insights",
+      "priority": "P2",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "validation_method": "TBD",
+      "tags": [
+        "threading",
+        "context",
+        "future"
+      ]
+    },
+    {
+      "id": "MVW-REQ-013",
+      "title": "Mind-Map Visualization",
+      "description": "Generate visual mind maps from conversation insights and connections using mind-maps scenario",
+      "priority": "P2",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "validation_method": "TBD",
+      "tags": [
+        "visualization",
+        "mind-maps",
+        "future"
+      ]
+    },
+    {
+      "id": "MVW-REQ-014",
+      "title": "Idea-Generator Integration",
+      "description": "Push novel ideas identified in conversations to idea-generator scenario for further development",
+      "priority": "P2",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "validation_method": "TBD",
+      "tags": [
+        "integration",
+        "idea-generator",
+        "future"
+      ]
+    },
+    {
+      "id": "MVW-REQ-015",
+      "title": "Offline Voice Processing",
+      "description": "Enable voice capture and processing without network connectivity for use in areas with poor signal",
+      "priority": "P2",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "validation_method": "TBD",
+      "tags": [
+        "offline",
+        "voice",
+        "future"
+      ]
+    },
+    {
+      "id": "MVW-REQ-016",
+      "title": "Personalized Reflection Prompts",
+      "description": "Learn user patterns and conversation topics to suggest targeted reflection questions that drive deeper thinking",
+      "priority": "P2",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "validation_method": "TBD",
+      "tags": [
+        "personalization",
+        "ai",
+        "future"
+      ]
+    }
+  ],
+  "metadata": {
+    "scenario": "morning-vision-walk",
+    "version": "1.0.0",
+    "last_updated": "2025-11-18",
+    "total_requirements": 16,
+    "validated_count": 0,
+    "pending_count": 0,
+    "planned_count": 16
+  }
+}

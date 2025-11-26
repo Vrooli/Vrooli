@@ -17,15 +17,13 @@ Tracks changes in competitor websites, GitHub repositories, and public data sour
 
 ## Dependencies
 ### Resources
-- **n8n**: Workflow orchestration for monitoring and alerts
 - **PostgreSQL**: Stores competitor data and change history
 - **Ollama**: AI analysis of detected changes
 - **Browserless**: Alternative web scraping when Huginn is unavailable
 - **Agent-S2**: Fallback for complex scraping scenarios
 
-### Shared Workflows
-- `initialization/n8n/ollama.json`: For AI-powered change analysis
-- `initialization/n8n/rate-limiter.json`: Prevents overwhelming target sites
+### Workflow Logic
+- Internal scheduler and API handlers manage scans, analysis, and alerting (no external workflow engine required)
 
 ## UI Style
 Professional business intelligence dashboard with:
@@ -52,11 +50,11 @@ competitor-monitor alerts [--since date]
 - `GET /api/analysis/{id}` - Get change analysis
 
 ## Workflow Architecture
-1. **scheduled-scanner.json**: Periodically checks all monitored sources
-2. **website-monitor.json**: Detects changes in web content
-3. **github-monitor.json**: Tracks repository changes
-4. **change-analyzer.json**: AI-powered analysis of detected changes
-5. **alert-manager.json**: Sends notifications for high-impact changes
+1. **Scheduler**: Periodically checks all monitored sources
+2. **Website monitor**: Detects changes in web content
+3. **GitHub monitor**: Tracks repository changes
+4. **Change analyzer**: AI-powered analysis of detected changes
+5. **Alert manager**: Sends notifications for high-impact changes
 
 ## Testing
 - Validate with mock competitor data

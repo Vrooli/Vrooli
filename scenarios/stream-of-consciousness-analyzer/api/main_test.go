@@ -17,7 +17,6 @@ func TestMain(m *testing.M) {
 	// Set required environment variables for lifecycle check
 	os.Setenv("VROOLI_LIFECYCLE_MANAGED", "true")
 	os.Setenv("API_PORT", "18888")
-	os.Setenv("N8N_BASE_URL", "http://localhost:5678")
 
 	// Run tests
 	code := m.Run()

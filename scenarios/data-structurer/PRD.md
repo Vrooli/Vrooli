@@ -72,8 +72,8 @@ required:
     
   - resource_name: ollama
     purpose: Content interpretation and schema mapping intelligence
-    integration_pattern: Shared workflow (ollama.json)
-    access_method: initialization/n8n/ollama.json workflow
+    integration_pattern: Direct Ollama API
+    access_method: HTTP API calls to Ollama
     
   - resource_name: unstructured-io
     purpose: Extract raw content from PDFs, images, documents
@@ -90,19 +90,14 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: ollama.json
-      location: initialization/n8n/
-      purpose: Reliable Ollama inference for schema mapping and data interpretation
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-unstructured-io process --input [file] --output json
       purpose: Extract raw content from any document format
     - command: resource-postgres exec --query [sql]
       purpose: Dynamic table creation and data storage operations
   
-  3_direct_api:
-    - justification: N/A - All resources accessible via CLI or shared workflows
+  2_direct_api:
+    - justification: Resource APIs used directly where required
 ```
 
 ### Data Models
@@ -303,7 +298,6 @@ custom_commands:
 - **PostgreSQL Resource**: Database storage for schemas and structured data
 - **Ollama Resource**: AI inference for content interpretation and schema mapping
 - **Unstructured-io Resource**: Document content extraction from various formats
-- **Shared Ollama Workflow**: Reliable AI inference pattern via initialization/n8n/ollama.json
 
 ### Downstream Enablement
 **What future capabilities does this unlock?**
@@ -473,7 +467,6 @@ structure:
     - cli/data-structurer
     - cli/install.sh
     - initialization/storage/postgres/schema.sql
-    - initialization/n8n/data-processing.json
     - scenario-test.yaml
     
   required_dirs:

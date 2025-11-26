@@ -8,7 +8,7 @@
 ## 🎯 Overview
 - **Purpose**: Real-time competitive intelligence platform that autonomously tracks changes in competitor websites, GitHub repositories, and public data sources, providing AI-powered analysis and strategic alerts for high-impact changes
 - **Primary users/verticals**: Product managers, business strategists, competitive intelligence teams, market analysts, executive leadership
-- **Deployment surfaces**: CLI (manual scanning and competitor management), API (programmatic access to change data and analysis), UI (professional BI dashboard with timeline views and alerts), n8n workflows (automated scheduled scanning and notifications)
+- **Deployment surfaces**: CLI (manual scanning and competitor management), API (programmatic access to change data and analysis), UI (professional BI dashboard with timeline views and alerts)
 - **Value promise**: Provides early warning system for competitor moves with intelligent change categorization, enabling proactive strategic responses and data-driven competitive positioning decisions
 
 ## 🎯 Operational Targets
@@ -18,7 +18,7 @@
 - [ ] OT-P0-002 | Change detection and storage | Detect content differences and persist complete change history in PostgreSQL
 - [ ] OT-P0-003 | AI-powered analysis | Categorize changes and assess business impact using Ollama-powered analysis
 - [ ] OT-P0-004 | Alert system | Deliver configurable alerts for high-impact changes via notifications and UI indicators
-- [ ] OT-P0-005 | Scheduled scanning | Automated periodic checks with configurable intervals via n8n workflows
+- [ ] OT-P0-005 | Scheduled scanning | Automated periodic checks via internal scheduler
 - [ ] OT-P0-006 | Business intelligence dashboard | Professional dark-themed UI with timeline views, data tables, and real-time notification panel
 
 ### 🟠 P1 – Should have post-launch
@@ -36,13 +36,13 @@
 - [ ] OT-P2-005 | Market intelligence APIs | Expose competitive intelligence to product-manager-agent and roi-fit-analysis scenarios
 
 ## 🧱 Tech Direction Snapshot
-- Preferred stacks / frameworks: Go API (change detection and analysis orchestration), React UI (professional BI dashboard with dark theme), n8n workflows (scheduled scanning and alert management)
+- Preferred stacks / frameworks: Go API (change detection and analysis orchestration), React UI (professional BI dashboard with dark theme)
 - Data + storage expectations: PostgreSQL (competitor profiles, monitoring targets, change history, and alert configurations), Redis (content caching and real-time monitoring state), Qdrant (semantic search for change patterns and similarity analysis)
-- Integration strategy: n8n workflows for orchestration (website-monitor, github-monitor, change-analyzer, alert-manager, scheduled-scanner), shared workflows (ollama for AI analysis, web-scraper for content extraction, notification-dispatcher for alerts), CLI for manual operations and testing
+- Integration strategy: API-driven orchestration with internal scheduler; shared services (ollama for AI analysis, web-scraper for content extraction, notification-dispatcher for alerts); CLI for manual operations and testing
 - Non-goals / guardrails: Not a full web scraping platform (focus on competitive intelligence), not a general-purpose monitoring tool (focus on strategic business changes), avoid overwhelming target sites with requests (use rate-limiter workflow)
 
 ## 🤝 Dependencies & Launch Plan
-- Required resources: postgres (competitor and change storage), n8n (workflow orchestration), ollama (AI-powered change analysis), qdrant (pattern recognition and semantic search), browserless (web scraping fallback), agent-s2 (complex scraping scenarios)
+- Required resources: postgres (competitor and change storage), ollama (AI-powered change analysis), qdrant (pattern recognition and semantic search), browserless (web scraping fallback), agent-s2 (complex scraping scenarios)
 - Scenario dependencies: None (standalone capability that other scenarios can leverage)
 - Operational risks: Target site rate limiting or blocking could affect monitoring reliability; AI analysis quality depends on Ollama model capabilities; false positives in change detection could cause alert fatigue
 - Launch sequencing: Phase 1 - Deploy with manual scanning and validation (2 weeks testing), Phase 2 - Enable automated scheduled scanning with conservative intervals (1 month monitoring), Phase 3 - Add alert rules and integrate with downstream scenarios (ongoing expansion)

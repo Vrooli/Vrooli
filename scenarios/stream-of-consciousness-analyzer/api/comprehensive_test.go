@@ -100,7 +100,7 @@ func TestCampaignLifecycle(t *testing.T) {
 	})
 
 	t.Run("VerifyNotesCreated", func(t *testing.T) {
-		// Give processing time (in real scenario, n8n would process)
+		// Give processing time for background processing
 		time.Sleep(100 * time.Millisecond)
 
 		// Create some organized notes manually for testing

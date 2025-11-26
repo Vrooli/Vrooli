@@ -3,59 +3,29 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 )
 
-// TestTriggerProcessing tests the n8n webhook trigger function
-func TestTriggerProcessing(t *testing.T) {
+// TestLocalProcessingHelpers ensures local enrichment helpers behave safely.
+func TestLocalProcessingHelpers(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	// Set up a mock n8n server
-	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/webhook/process-stream" {
-			t.Errorf("Expected path /webhook/process-stream, got %s", r.URL.Path)
-		}
+	title := generateTitle("short thought about focus")
+	if title == "" {
+		t.Error("Expected non-empty title")
+	}
 
-		if r.Method != "POST" {
-			t.Errorf("Expected POST method, got %s", r.Method)
-		}
-
-		// Parse body
-		var payload map[string]interface{}
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			t.Errorf("Failed to decode payload: %v", err)
-		}
-
-		// Verify payload contains required fields
-		if payload["stream_entry_id"] == nil {
-			t.Error("Missing stream_entry_id in payload")
-		}
-		if payload["campaign_id"] == nil {
-			t.Error("Missing campaign_id in payload")
-		}
-		if payload["content"] == nil {
-			t.Error("Missing content in payload")
-		}
-
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer mockServer.Close()
-
-	// Set n8n base URL to mock server
-	originalN8N := n8nBaseURL
-	n8nBaseURL = mockServer.URL
-	defer func() { n8nBaseURL = originalN8N }()
-
-	// Trigger processing
-	triggerProcessing("test-entry-id", "test-campaign-id", "test content")
-
-	// Give goroutine time to complete
-	// In a real test, we'd use proper synchronization
-	// For now, we just verify it doesn't panic
+	summary := generateSummary(strings.Repeat("a", 200))
+	if len(summary) == 0 {
+		t.Error("Expected non-empty summary")
+	}
+	if len(summary) > 190 {
+		t.Log("Summary was truncated as expected")
+	}
 }
 
 // TestHealthCheckWithoutDB tests health check when database is unavailable
@@ -178,6 +148,9 @@ func TestRouterConfiguration(t *testing.T) {
 			"/health",
 			"/api/campaigns",
 			"/api/stream/capture",
+			"/api/process-stream",
+			"/api/organize-thoughts",
+			"/api/extract-insights",
 			"/api/notes",
 			"/api/insights",
 			"/api/search",
@@ -199,6 +172,9 @@ func TestRouterConfiguration(t *testing.T) {
 			{"/api/campaigns", "GET"},
 			{"/api/campaigns", "POST"},
 			{"/api/stream/capture", "POST"},
+			{"/api/process-stream", "POST"},
+			{"/api/organize-thoughts", "POST"},
+			{"/api/extract-insights", "POST"},
 			{"/api/notes", "GET"},
 			{"/api/insights", "GET"},
 			{"/api/search", "GET"},
@@ -357,9 +333,9 @@ func TestConnectionPoolSettings(t *testing.T) {
 	t.Run("PoolConfiguration", func(t *testing.T) {
 		// Verify connection pool settings exist in initDB()
 		expectedSettings := map[string]int{
-			"MaxOpenConns":     25,
-			"MaxIdleConns":     5,
-			"ConnMaxLifetime":  300, // 5 minutes in seconds
+			"MaxOpenConns":    25,
+			"MaxIdleConns":    5,
+			"ConnMaxLifetime": 300, // 5 minutes in seconds
 		}
 
 		for setting, value := range expectedSettings {

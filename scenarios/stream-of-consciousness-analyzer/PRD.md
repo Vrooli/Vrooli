@@ -77,11 +77,6 @@ required:
     integration_pattern: REST API for similarity queries
     access_method: Direct API (vector operations)
     
-  - resource_name: n8n
-    purpose: Orchestrate AI processing workflows
-    integration_pattern: Webhook triggers for thought processing
-    access_method: Shared workflows via resource-n8n CLI
-    
   - resource_name: ollama
     purpose: AI analysis for structure extraction and insights
     integration_pattern: Shared workflow for LLM inference
@@ -97,27 +92,7 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: ollama.json
-      location: initialization/automation/n8n/
-      purpose: LLM inference for thought analysis
-      reused_by: [mind-maps, research-assistant, idea-generator]
-      
-    - workflow: embedding-generator.json
-      location: initialization/automation/n8n/
-      purpose: Create vector embeddings for thoughts
-      reused_by: [mind-maps, notes, research-assistant]
-      
-    - workflow: structured-data-extractor.json
-      location: initialization/automation/n8n/
-      purpose: Extract structured data from unstructured thoughts
-      reused_by: [document-manager, notes]
-      
-    - workflow: process-stream.json
-      location: initialization/automation/n8n/
-      purpose: Main thought processing pipeline (scenario-specific)
-      
-  2_resource_cli:
+  1_resource_cli:
     - command: mind-maps create --campaign "Thought Patterns" --from-stream
       purpose: Visualize processed thoughts as mind maps
       

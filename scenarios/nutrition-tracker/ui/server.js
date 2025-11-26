@@ -31,25 +31,23 @@ app.get('/health', (_req, res) => {
   });
 });
 
-// API endpoint to proxy requests to n8n workflows
-app.post('/api/:workflow', async (req, res) => {
-  const { workflow } = req.params;
-  const n8nUrl = process.env.N8N_URL || 'http://localhost:5678';
+// Optional API proxy to backend service if provided
+app.all('/api/*', async (req, res, next) => {
+  const apiUrl = process.env.API_URL;
+  if (!apiUrl) return next();
 
   try {
-    const response = await fetch(`${n8nUrl}/webhook/${workflow}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(req.body)
+    const target = `${apiUrl}${req.originalUrl.replace(/^\\/api/, '')}`;
+    const response = await fetch(target, {
+      method: req.method,
+      headers: { 'Content-Type': 'application/json' },
+      body: ['GET', 'HEAD'].includes(req.method.toUpperCase()) ? undefined : JSON.stringify(req.body)
     });
-
     const data = await response.json();
-    res.json(data);
+    res.status(response.status).json(data);
   } catch (error) {
-    console.error(`Error calling workflow ${workflow}:`, error);
-    res.status(500).json({ error: 'Failed to process request' });
+    console.error('API proxy error:', error);
+    res.status(502).json({ error: 'Failed to reach API' });
   }
 });
 

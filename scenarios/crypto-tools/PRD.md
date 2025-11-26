@@ -116,15 +116,7 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: certificate-management.json
-      location: initialization/n8n/
-      purpose: Automated certificate lifecycle management
-    - workflow: key-rotation-policy.json
-      location: initialization/n8n/
-      purpose: Automated key rotation and policy enforcement
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-postgres execute
       purpose: Store and query cryptographic metadata securely
     - command: resource-minio upload/download
@@ -132,7 +124,7 @@ integration_priorities:
     - command: resource-redis cache
       purpose: Cache cryptographic materials with expiration
   
-  3_direct_api:
+  2_direct_api:
     - justification: HSM operations require direct hardware access
       endpoint: PKCS#11 API for hardware security modules
     - justification: Blockchain operations need direct node connections

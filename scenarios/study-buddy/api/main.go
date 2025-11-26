@@ -1205,7 +1205,6 @@ func generateStudyPlan(c *gin.Context) {
 }
 
 func triggerEmbeddingGeneration(materialId, content string) {
-	// This would call the N8N webhook to generate embeddings
-	// Implementation would depend on N8N setup
+	// Placeholder for in-process embedding generation
 	log.Printf("Triggering embedding generation for material %s", materialId)
 }

@@ -153,14 +153,14 @@ rules:
 
   - id: shared-workflow-in-scenario
     name: "Shared Workflow in Wrong Location"
-    description: "Truly shared workflows belong in initialization/n8n/ not in scenarios"
+    description: "Shared n8n workflows have been deprecated; keep automation scoped to the owning scenario"
     category: needs-approval
     risk_level: moderate
     vrooli_specific: true
     pattern:
       type: ai
       prompt: "Detect n8n workflows in scenario directories that are generic enough to be shared across multiple scenarios"
-    message: "This workflow appears reusable. Move to initialization/n8n/ for sharing"
+    message: "Shared n8n workflows are removed; keep automation scenario-specific or replace with direct integrations"
 
   - id: insecure-secret-handling
     name: "Insecure Secret Handling"

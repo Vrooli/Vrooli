@@ -291,7 +291,7 @@ scenario::lifecycle::test() {
     local scenario_name="${1:-}"
     [[ -z "$scenario_name" ]] && { 
         log::error "Scenario name required"
-        log::info "Usage: vrooli scenario test <name> [--allow-skip-missing-runtime] [--manage-runtime]"
+        log::info "Usage: vrooli scenario test <name> [phase|all|e2e] [--allow-skip-missing-runtime] [--manage-runtime]"
         return 1
     }
     shift

@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -82,8 +83,8 @@ func getEnv(key, defaultValue string) string {
 }
 
 func main() {
-    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
 🚀 Instead, use:
    vrooli scenario start nutrition-tracker
@@ -91,8 +92,8 @@ func main() {
 💡 The lifecycle system provides environment variables, port allocation,
    and dependency management automatically. Direct execution is not supported.
 `)
-        os.Exit(1)
-    }
+		os.Exit(1)
+	}
 	// Initialize database connection using orchestrator-provided environment variables
 	// The orchestrator provides POSTGRES_URL directly, or individual components
 	var connStr string
@@ -205,6 +206,7 @@ func main() {
 	router.HandleFunc("/api/foods", createFood).Methods("POST")
 
 	router.HandleFunc("/api/nutrition", getNutritionSummary).Methods("GET")
+	router.HandleFunc("/api/nutrition/analyze", analyzeNutrition).Methods("POST")
 	router.HandleFunc("/api/goals", getGoals).Methods("GET")
 	router.HandleFunc("/api/goals", updateGoals).Methods("POST", "PUT")
 
@@ -668,8 +670,6 @@ func updateGoals(w http.ResponseWriter, r *http.Request) {
 }
 
 func getMealSuggestions(w http.ResponseWriter, r *http.Request) {
-	// This would normally call the n8n meal-suggester workflow
-	// For now, return mock suggestions
 	suggestions := []map[string]interface{}{
 		{
 			"meal_name":             "Grilled Chicken Salad",
@@ -701,4 +701,45 @@ func getMealSuggestions(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"suggestions": suggestions,
 	})
+}
+
+// analyzeNutrition provides a lightweight macro estimate for a described meal.
+func analyzeNutrition(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		FoodDescription string `json:"food_description"`
+		MealType        string `json:"meal_type"`
+		UserID          string `json:"user_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	desc := strings.TrimSpace(payload.FoodDescription)
+	if desc == "" {
+		http.Error(w, "food_description is required", http.StatusBadRequest)
+		return
+	}
+
+	// Naive estimation based on word count and keywords (placeholder until full model is added)
+	words := strings.Fields(desc)
+	baseCalories := 250 + len(words)*10
+	protein := 15 + len(words)/2
+	carbs := 30 + len(words)/3
+	fat := 10 + len(words)/4
+
+	response := map[string]interface{}{
+		"status":          "success",
+		"total_calories":  baseCalories,
+		"protein_grams":   protein,
+		"carbs_grams":     carbs,
+		"fat_grams":       fat,
+		"meal_type":       payload.MealType,
+		"user_id":         payload.UserID,
+		"analysis_source": "local-analyzer",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }

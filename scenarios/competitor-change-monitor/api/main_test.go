@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -511,20 +512,13 @@ func TestTriggerScanHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	t.Run("Success_WithN8N", func(t *testing.T) {
-		// Setup mock N8N server
-		mockN8N := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":  "success",
-				"message": "Scan triggered",
-			})
-		}))
-		defer mockN8N.Close()
-
-		// Set N8N URL
-		os.Setenv("N8N_BASE_URL", mockN8N.URL)
-		defer os.Unsetenv("N8N_BASE_URL")
+	t.Run("Success_LocalScan", func(t *testing.T) {
+		env := setupTestDB(t)
+		if env == nil {
+			t.Skip("DB not available")
+		}
+		defer env.Cleanup()
+		db = env.DB
 
 		req := HTTPTestRequest{
 			Method: "POST",
@@ -533,21 +527,20 @@ func TestTriggerScanHandler(t *testing.T) {
 
 		w := testHandlerWithRequest(t, triggerScanHandler, req)
 
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Errorf("Expected status 200 or 500, got %d", w.Code)
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+
+		body := assertJSONResponse(t, w, http.StatusOK)
+		if body["status"] != "completed" {
+			t.Errorf("Expected completed status, got %v", body["status"])
 		}
 	})
 
-	t.Run("Error_N8NUnavailable", func(t *testing.T) {
-		// Set invalid N8N URL
-		os.Setenv("N8N_BASE_URL", "http://invalid-n8n-url")
-		defer os.Unsetenv("N8N_BASE_URL")
-
-		req := HTTPTestRequest{
-			Method: "POST",
-			Path:   "/api/scan",
-		}
-
+	t.Run("Error_NoDB", func(t *testing.T) {
+		// Ensure db is nil to simulate missing initialization
+		db = nil
+		req := HTTPTestRequest{Method: "POST", Path: "/api/scan"}
 		w := testHandlerWithRequest(t, triggerScanHandler, req)
 		assertErrorResponse(t, w, http.StatusInternalServerError)
 	})
@@ -604,7 +597,7 @@ func TestDatabaseConnection(t *testing.T) {
 		// Actual connection is tested in setupTestDB
 
 		if os.Getenv("POSTGRES_URL") == "" &&
-		   (os.Getenv("POSTGRES_HOST") == "" || os.Getenv("POSTGRES_PORT") == "") {
+			(os.Getenv("POSTGRES_HOST") == "" || os.Getenv("POSTGRES_PORT") == "") {
 			t.Skip("Skipping: database configuration not available")
 		}
 	})

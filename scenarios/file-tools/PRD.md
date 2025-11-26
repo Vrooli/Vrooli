@@ -116,15 +116,7 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: file-organization.json
-      location: initialization/n8n/
-      purpose: Automated file organization and categorization workflows
-    - workflow: backup-manager.json
-      location: initialization/n8n/
-      purpose: Intelligent backup and archival workflows
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-postgres execute
       purpose: Store and query file metadata with advanced indexing
     - command: resource-minio upload/download
@@ -132,7 +124,7 @@ integration_priorities:
     - command: resource-redis cache
       purpose: Cache file operations and search results
   
-  3_direct_api:
+  2_direct_api:
     - justification: Direct file system access required for file operations
       endpoint: File system APIs for atomic operations
     - justification: Hardware acceleration needs direct access

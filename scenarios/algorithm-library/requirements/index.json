@@ -185,10 +185,10 @@
       "validation": [
         {
           "type": "manual",
-          "ref": "initialization/n8n/algorithm-executor.json",
+          "ref": "n/a",
           "phase": "integration",
           "status": "implemented",
-          "notes": "n8n workflow created with fallback to local execution"
+          "notes": "Shared n8n workflow removed; integration requires direct n8n setup"
         }
       ]
     }

@@ -673,7 +673,7 @@ func validateAlgorithmHandler(w http.ResponseWriter, r *http.Request) {
 		// Wrap user code with test harness that calls the function with test input
 		wrappedCode := WrapCodeWithTestHarness(req.Language, req.Code, algorithmName, inputJSON)
 
-		// Execute using n8n workflow with fallback to local execution
+		// Execute locally with language-specific executor
 		execResult, execErr := ExecuteWithFallback(req.Language, wrappedCode, "", 5*time.Second)
 
 		if execErr != nil && strings.Contains(execErr.Error(), "unsupported language") {
@@ -898,4 +898,5 @@ func algorithmValidateBatchHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
+
 // Test change for rebuild detection

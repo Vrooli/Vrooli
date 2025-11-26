@@ -199,18 +199,7 @@ function App() {
       const remainingCarbs = Math.max(0, goals.carbs - totals.carbs);
       const remainingFat = Math.max(0, goals.fat - totals.fat);
 
-      const response = await fetch(`${endpoints.n8nBase}/meal-suggester`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: userId,
-          meal_type: inferNextMealType(),
-          remaining_calories: remainingCalories,
-          remaining_protein: remainingProtein,
-          remaining_carbs: remainingCarbs,
-          remaining_fat: remainingFat
-        })
-      });
+      const response = await fetch(`${endpoints.apiBase}/suggestions`);
 
       if (!response.ok) {
         throw new Error(`Status ${response.status}`);
@@ -229,7 +218,7 @@ function App() {
     } finally {
       setIsSuggestionsLoading(false);
     }
-  }, [endpoints.n8nBase, goals.calories, goals.carbs, goals.fat, goals.protein, toast, totals.calories, totals.carbs, totals.fat, totals.protein, userId]);
+  }, [endpoints.apiBase, goals.calories, goals.carbs, goals.fat, goals.protein, toast, totals.calories, totals.carbs, totals.fat, totals.protein, userId]);
 
   useEffect(() => {
     if (isLoading) {
@@ -251,7 +240,7 @@ function App() {
 
     setIsAnalyzing(true);
     try {
-      const response = await fetch(`${endpoints.n8nBase}/nutrition-analyzer`, {
+      const response = await fetch(`${endpoints.apiBase}/nutrition/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

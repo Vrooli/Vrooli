@@ -260,9 +260,6 @@ func TestConfigurationIntegration(t *testing.T) {
 		if env.Config.PostgresURL == "" {
 			t.Error("PostgresURL should be populated")
 		}
-		if env.Config.N8NBaseURL == "" {
-			t.Error("N8NBaseURL should be populated")
-		}
 		if env.Config.WindmillURL == "" {
 			t.Error("WindmillURL should be populated")
 		}
@@ -281,14 +278,11 @@ func TestConfigurationIntegration(t *testing.T) {
 			t.Fatal("Resources should be a map")
 		}
 
-		if _, exists := resources["n8n"]; !exists {
-			t.Error("Should expose n8n resource")
+		if _, exists := resources["postgres"]; !exists {
+			t.Error("Should expose postgres resource")
 		}
 		if _, exists := resources["windmill"]; !exists {
 			t.Error("Should expose windmill resource")
-		}
-		if _, exists := resources["postgres"]; !exists {
-			t.Error("Should expose postgres resource")
 		}
 		if _, exists := resources["qdrant"]; !exists {
 			t.Error("Should expose qdrant resource")

@@ -15,7 +15,6 @@ import (
 
 type Config struct {
 	Port          string
-	N8NBaseURL    string
 	WindmillURL   string
 	PostgresURL   string
 	QdrantURL     string
@@ -55,7 +54,6 @@ func loadConfig() *Config {
 	
 	return &Config{
 		Port:          getEnv("API_PORT", getEnv("PORT", "")),
-		N8NBaseURL:    getEnv("N8N_BASE_URL", "http://localhost:5678"),
 		WindmillURL:   getEnv("WINDMILL_BASE_URL", "http://localhost:8000"),
 		PostgresURL:   postgresURL,
 		QdrantURL:     getEnv("QDRANT_URL", "http://localhost:6333"),
@@ -82,7 +80,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func jobsHandler(w http.ResponseWriter, r *http.Request) {
-	// In a real implementation, this would query the database or call n8n
+	// In a real implementation, this would query the database or call a workflow engine
 	// For now, return mock data to demonstrate the endpoint
 	mockJobs := []interface{}{
 		map[string]interface{}{
@@ -261,7 +259,6 @@ func setupRoutes(config *Config) *mux.Router {
 				"search":     "/api/search",
 			},
 			"resources": map[string]string{
-				"n8n":       config.N8NBaseURL,
 				"windmill":  config.WindmillURL,
 				"postgres":  "Connected",
 				"qdrant":    config.QdrantURL,
@@ -292,7 +289,6 @@ func main() {
 	
 	log.Printf("Starting Resume Screening Assistant API server...")
 	log.Printf("Port: %s", config.Port)
-	log.Printf("n8n URL: %s", config.N8NBaseURL)
 	log.Printf("Windmill URL: %s", config.WindmillURL)
 	log.Printf("Qdrant URL: %s", config.QdrantURL)
 

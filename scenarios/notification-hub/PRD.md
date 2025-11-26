@@ -210,11 +210,6 @@ notification := NotificationRequest{
 response, err := notificationClient.Send(notification)
 ```
 
-### n8n Workflow Usage
-- Shared workflows in `initialization/n8n/notification-send.json`
-- Scenarios trigger notifications via webhook or HTTP request
-- Automatic retry and status tracking
-
 ## 🚀 Deployment Strategy
 
 ### Development Phase

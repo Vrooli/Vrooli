@@ -4,6 +4,7 @@ const cors = require('cors');
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;
+const API_URL = process.env.API_URL || 'http://localhost:8080';
 
 // Middleware
 app.use(cors());
@@ -26,9 +27,8 @@ app.post('/api/process-stream', async (req, res) => {
     try {
         const { text, campaign } = req.body;
         
-        // Call n8n workflow for processing stream of consciousness
-        const workflowUrl = process.env.N8N_URL || 'http://localhost:5678';
-        const response = await fetch(`${workflowUrl}/webhook/process-stream`, {
+        // Call API for processing stream of consciousness
+        const response = await fetch(`${API_URL}/api/process-stream`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text, campaign })
@@ -46,9 +46,8 @@ app.post('/api/organize-thoughts', async (req, res) => {
     try {
         const { thoughts, campaign } = req.body;
         
-        // Call n8n workflow for organizing thoughts
-        const workflowUrl = process.env.N8N_URL || 'http://localhost:5678';
-        const response = await fetch(`${workflowUrl}/webhook/organize-thoughts`, {
+        // Call API for organizing thoughts
+        const response = await fetch(`${API_URL}/api/organize-thoughts`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ thoughts, campaign })
@@ -113,9 +112,8 @@ app.post('/api/extract-insights', async (req, res) => {
     try {
         const { noteIds } = req.body;
         
-        // Call n8n workflow for extracting insights
-        const workflowUrl = process.env.N8N_URL || 'http://localhost:5678';
-        const response = await fetch(`${workflowUrl}/webhook/extract-insights`, {
+        // Call API for extracting insights
+        const response = await fetch(`${API_URL}/api/extract-insights`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ noteIds })
@@ -137,5 +135,5 @@ app.get('/', (req, res) => {
 // Start server
 app.listen(PORT, () => {
     console.log(`Stream of Consciousness Analyzer running on http://localhost:${PORT}`);
-    console.log(`Connected to n8n at: ${process.env.N8N_URL || 'http://localhost:5678'}`);
+    console.log(`API target: ${API_URL}`);
 });

@@ -40,7 +40,7 @@ SUBCOMMANDS:
     restart <name> [options] Restart a scenario (stop then start)
     stop <name>             Stop a running scenario
     stop-all                Stop all running scenarios
-    test <name>             Run scenario's test lifecycle event
+    test <name> [phase|all|e2e] Run scenario's test lifecycle event
     list [--json]           List available scenarios (use --include-ports for live port data)
     logs <name> [options]   View logs for a scenario
     status [name] [--json]  Show scenario status (includes test infrastructure validation)

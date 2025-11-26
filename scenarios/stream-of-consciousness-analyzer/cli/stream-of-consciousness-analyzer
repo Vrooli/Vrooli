@@ -201,8 +201,9 @@ export_notes() {
 
 process_stream() {
     echo "🔄 Processing pending stream entries..."
-    # Trigger processing via API or n8n webhook
-    response=$(curl -s -X POST "$API_URL/api/stream/process")
+    # Trigger processing via API
+    payload='{"text":"Process pending stream entries","campaign":""}'
+    response=$(curl -s -X POST "$API_URL/api/process-stream" -H "Content-Type: application/json" -d "$payload")
     
     if [ "$JSON_OUTPUT" = true ]; then
         echo "$response"
