@@ -22,12 +22,9 @@ last_completed_at: "2025-11-25T16:00:38-05:00"
 validation_criteria: []
 created_by: ""
 created_at: "2025-11-24T19:01:11-05:00"
-updated_at: "2025-11-25T16:10:37-05:00"
+updated_at: "2025-11-26T11:46:37-05:00"
 tags: []
-notes: |-
-    The targets/requirements may mention git integration support, but we actually don't want that. If you see it, you have permission to remove it.
-
-    Make sure you focus on the experience an agent would have using this scenario. It should be easy for agents to use, without needing to read any docs or understand the internals of visited-tracker. Remember that the CLI is meant to be a thin wrapper over the API.
+notes: Already works great. Could just use some UX improvements/polish
 results: {}
 consecutive_completion_claims: 0
 consecutive_failures: 0

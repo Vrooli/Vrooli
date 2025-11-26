@@ -42,9 +42,10 @@ testing::ui_smoke::_diagnose_browserless_failure() {
     fi
 
     # Check for specific failure modes
-    local mem_pct chrome_crashes status
+    local mem_pct chrome_crashes chrome_process_count status
     mem_pct=$(echo "$diagnostics" | jq -r '.memory.usage_percent // 0' 2>/dev/null || echo "0")
     chrome_crashes=$(echo "$diagnostics" | jq -r '.chrome_crashes // 0' 2>/dev/null || echo "0")
+    chrome_process_count=$(echo "$diagnostics" | jq -r '.processes.chrome // 0' 2>/dev/null || echo "0")
     status=$(echo "$diagnostics" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
 
     local diagnosis="unknown"
@@ -52,8 +53,18 @@ testing::ui_smoke::_diagnose_browserless_failure() {
     local recommendation="Check browserless logs with: docker logs vrooli-browserless"
     local is_browserless_issue="false"
 
+    # Chrome process leak (most likely cause of current failures) - PRIORITY #1
+    if [[ "$chrome_process_count" -gt 50 ]]; then
+        diagnosis="process_leak"
+        message="Chrome process leak detected ($chrome_process_count processes accumulated) - browserless cannot spawn new Chrome instances"
+        recommendation="Restart browserless to clear accumulated processes: docker restart vrooli-browserless
+  ↳ Then verify: vrooli resource browserless status
+  ↳ Then rerun: vrooli scenario ui-smoke ${2:-scenario}
+  ↳ Note: This is a known issue with browserless v2 - Chrome processes accumulate over time"
+        is_browserless_issue="true"
+
     # High memory pressure (>80%)
-    if (( $(echo "$mem_pct > 80" | bc -l 2>/dev/null || echo "0") )); then
+    elif (( $(echo "$mem_pct > 80" | bc -l 2>/dev/null || echo "0") )); then
         diagnosis="memory_exhaustion"
         message="Browserless memory exhaustion (${mem_pct}% used) - Chrome instances likely crashed"
         recommendation="Restart browserless: docker restart vrooli-browserless

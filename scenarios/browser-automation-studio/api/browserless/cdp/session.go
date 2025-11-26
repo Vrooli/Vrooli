@@ -13,6 +13,10 @@ package cdp
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,33 +32,34 @@ import (
 
 // Session manages a persistent CDP connection to browserless
 type Session struct {
-	browserlessURL     string
-	wsURL              string
-	allocCtx           context.Context
-	ctx                context.Context
-	cancel             context.CancelFunc
-	logFunc            func(string, ...interface{})
-	viewportWidth      int
-	viewportHeight     int
-	telemetry          *Telemetry
-	log                *logrus.Entry
-	mu                 sync.Mutex
-	ctxMu              sync.RWMutex
-	targetContexts     map[target.ID]context.Context
-	targetCancels      map[target.ID]context.CancelFunc
-	currentTargetID    target.ID
-	activeOperations   int        // Count of active operations using current context
-	operationCond      *sync.Cond // Condition variable for waiting on operations to complete
-	tabs               map[target.ID]*tabRecord
-	tabOrder           []target.ID
-	tabMu              sync.RWMutex
-	pointerX           float64
-	pointerY           float64
-	pointerInitialized bool
-	frameMu            sync.RWMutex
-	frameStack         []*frameScope
-	networkMockMu      sync.RWMutex
-	networkMocks       []*networkMockRule
+	browserlessURL      string
+	browserlessTargetID string
+	wsURL               string
+	allocCtx            context.Context
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	logFunc             func(string, ...interface{})
+	viewportWidth       int
+	viewportHeight      int
+	telemetry           *Telemetry
+	log                 *logrus.Entry
+	mu                  sync.Mutex
+	ctxMu               sync.RWMutex
+	targetContexts      map[target.ID]context.Context
+	targetCancels       map[target.ID]context.CancelFunc
+	currentTargetID     target.ID
+	activeOperations    int        // Count of active operations using current context
+	operationCond       *sync.Cond // Condition variable for waiting on operations to complete
+	tabs                map[target.ID]*tabRecord
+	tabOrder            []target.ID
+	tabMu               sync.RWMutex
+	pointerX            float64
+	pointerY            float64
+	pointerInitialized  bool
+	frameMu             sync.RWMutex
+	frameStack          []*frameScope
+	networkMockMu       sync.RWMutex
+	networkMocks        []*networkMockRule
 }
 
 // Telemetry collects console logs and network events
@@ -118,6 +123,7 @@ func NewSession(ctx context.Context, browserlessURL string, viewportWidth, viewp
 			return nil, fmt.Errorf("failed to resolve browserless websocket URL: %w", err)
 		}
 		s.wsURL = wsURL
+		s.browserlessTargetID = extractTargetID(wsURL)
 
 		if log != nil {
 			log.Infof("Connecting to browserless CDP at: %s (attempt %d)", wsURL, attempt)
@@ -634,10 +640,97 @@ func (s *Session) CleanBrowserState() error {
 	return nil
 }
 
+func extractTargetID(wsURL string) string {
+	parsed, err := url.Parse(wsURL)
+	if err != nil {
+		return ""
+	}
+	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+	if len(parts) < 2 {
+		return ""
+	}
+	targetID := parts[len(parts)-1]
+	parent := parts[len(parts)-2]
+	if parent == "page" || parent == "browser" {
+		return targetID
+	}
+	return ""
+}
+
+func buildBrowserlessCloseURL(rawBase, targetID string) (string, error) {
+	if targetID == "" {
+		return "", fmt.Errorf("target id is required")
+	}
+	if rawBase == "" {
+		return "", fmt.Errorf("browserless URL is required")
+	}
+
+	normalized := strings.TrimSpace(rawBase)
+	if !strings.Contains(normalized, "://") {
+		normalized = "http://" + normalized
+	}
+
+	parsed, err := url.Parse(normalized)
+	if err != nil {
+		return "", err
+	}
+	switch parsed.Scheme {
+	case "ws":
+		parsed.Scheme = "http"
+	case "wss":
+		parsed.Scheme = "https"
+	case "", "http", "https":
+	default:
+		return "", fmt.Errorf("unsupported browserless scheme: %s", parsed.Scheme)
+	}
+
+	parsed.Path = joinPath(parsed.Path, "/json/close/"+targetID)
+	return parsed.String(), nil
+}
+
+func (s *Session) closeRemoteTarget() {
+	if s.browserlessTargetID == "" {
+		return
+	}
+	closeURL, err := buildBrowserlessCloseURL(s.browserlessURL, s.browserlessTargetID)
+	if err != nil {
+		if s.log != nil {
+			s.log.WithError(err).Debug("skip browserless close: invalid close URL")
+		}
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, closeURL, nil)
+	if err != nil {
+		if s.log != nil {
+			s.log.WithError(err).Debug("skip browserless close: request build failed")
+		}
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		if s.log != nil {
+			s.log.WithError(err).Debug("browserless close request failed")
+		}
+		return
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+}
+
 // Close terminates the CDP session
 func (s *Session) Close() error {
-	s.log.Info("Closing CDP session")
-	s.cancel()
+	if s.log != nil {
+		s.log.Info("Closing CDP session")
+	}
+	s.closeRemoteTarget()
+	if s.cancel != nil {
+		s.cancel()
+	}
 	return nil
 }
 
