@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"bytes"
+	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -87,5 +90,51 @@ func TestWriteJSON(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDecodeJSONBodyRejectsUnknownFields(t *testing.T) {
+	defer func() { maxBodyBytes = defaultMaxBodyBytes }()
+
+	req := httptest.NewRequest("POST", "/", strings.NewReader(`{"state":"active","extra":true}`))
+	rr := httptest.NewRecorder()
+
+	type payload struct {
+		State string `json:"state"`
+	}
+
+	if _, ok := decodeJSONBody[payload](rr, req); ok {
+		t.Fatalf("expected decode to fail due to unknown field")
+	}
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "Unknown field") {
+		t.Fatalf("expected unknown field error, got: %s", rr.Body.String())
+	}
+}
+
+func TestDecodeJSONBodyRespectsMaxBytes(t *testing.T) {
+	defer func() { maxBodyBytes = defaultMaxBodyBytes }()
+	maxBodyBytes = 10
+
+	req := httptest.NewRequest("POST", "/", bytes.NewBufferString(`{"state":"active","pad":"xxxxxxxx"}`))
+	rr := httptest.NewRecorder()
+
+	type payload struct {
+		State string `json:"state"`
+		Pad   string `json:"pad"`
+	}
+
+	if _, ok := decodeJSONBody[payload](rr, req); ok {
+		t.Fatalf("expected decode to fail due to size limit")
+	}
+
+	if rr.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("expected status %d, got %d", http.StatusRequestEntityTooLarge, rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "too large") {
+		t.Fatalf("expected size limit error, got: %s", rr.Body.String())
 	}
 }

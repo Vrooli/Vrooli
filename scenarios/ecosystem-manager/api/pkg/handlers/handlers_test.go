@@ -92,6 +92,9 @@ global_config:
 func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHandlers, *HealthHandlers, *DiscoveryHandlers, *SettingsHandlers) {
 	t.Helper()
 
+	resetTimings := queue.SetTimingScaleForTests(0.01)
+	t.Cleanup(resetTimings)
+
 	queueDir := filepath.Join(tempDir, "queue")
 	promptsDir := filepath.Join(tempDir, "prompts")
 
@@ -103,6 +106,7 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 
 	broadcast := make(chan any, 10)
 	processor := queue.NewProcessor(storage, assembler, broadcast, nil)
+	t.Cleanup(processor.Stop)
 	wsManager := websocket.NewManager()
 	testRecycler := &recycler.Recycler{}
 

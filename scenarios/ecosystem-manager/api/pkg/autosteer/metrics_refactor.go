@@ -1,6 +1,8 @@
 package autosteer
 
 import (
+	"context"
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -18,6 +20,8 @@ type RefactorMetricsCollector struct {
 	projectRoot        string
 	tidinessManagerURL string
 }
+
+const refactorCommandTimeout = 2 * time.Minute
 
 // NewRefactorMetricsCollector creates a new refactor metrics collector
 func NewRefactorMetricsCollector(projectRoot string, tidinessManagerURL string) *RefactorMetricsCollector {
@@ -133,13 +137,13 @@ func (c *RefactorMetricsCollector) runGoLinter(scenarioName string) int {
 	}
 
 	// Run golangci-lint
-	cmd := exec.Command("golangci-lint", "run", "--out-format", "json")
-	cmd.Dir = apiPath
-
-	output, err := cmd.CombinedOutput()
+	output, err := runRefactorCommand(apiPath, "golangci-lint", "run", "--out-format", "json")
 	if err != nil {
 		// golangci-lint returns non-zero if issues found
 		// Continue parsing output
+		if err == context.DeadlineExceeded {
+			return 0
+		}
 	}
 
 	var result struct {
@@ -170,13 +174,13 @@ func (c *RefactorMetricsCollector) runESLint(scenarioName string) int {
 	}
 
 	// Run ESLint
-	cmd := exec.Command(eslintPath, "src", "--format", "json")
-	cmd.Dir = uiPath
-
-	output, err := cmd.CombinedOutput()
+	output, err := runRefactorCommand(uiPath, eslintPath, "src", "--format", "json")
 	if err != nil {
 		// ESLint returns non-zero if issues found
 		// Continue parsing output
+		if err == context.DeadlineExceeded {
+			return 0
+		}
 	}
 
 	var results []struct {
@@ -230,10 +234,7 @@ func (c *RefactorMetricsCollector) calculateGoComplexity(scenarioName string) fl
 	}
 
 	// Run gocyclo with average flag
-	cmd := exec.Command("gocyclo", "-avg", ".")
-	cmd.Dir = apiPath
-
-	output, err := cmd.CombinedOutput()
+	output, err := runRefactorCommand(apiPath, "gocyclo", "-avg", ".")
 	if err != nil {
 		return c.estimateGoComplexity(apiPath)
 	}
@@ -365,10 +366,7 @@ func (c *RefactorMetricsCollector) calculateDuplication(scenarioName string) flo
 func (c *RefactorMetricsCollector) runJSCPD(scenarioName string, jscpdPath string) float64 {
 	uiPath := filepath.Join(c.projectRoot, "scenarios", scenarioName, "ui")
 
-	cmd := exec.Command(jscpdPath, "src", "--format", "json", "--output", ".jscpd-report")
-	cmd.Dir = uiPath
-
-	if err := cmd.Run(); err != nil {
+	if _, err := runRefactorCommand(uiPath, jscpdPath, "src", "--format", "json", "--output", ".jscpd-report"); err != nil {
 		return c.estimateDuplication(uiPath)
 	}
 
@@ -396,9 +394,73 @@ func (c *RefactorMetricsCollector) runJSCPD(scenarioName string, jscpdPath strin
 
 // estimateDuplication provides a rough duplication estimate
 func (c *RefactorMetricsCollector) estimateDuplication(scenarioPath string) float64 {
-	// Simple hash-based duplication detection
-	// This is a placeholder - real implementation would use AST-based comparison
-	return -1
+	// Simple hash-based duplication detection by file content
+	totalBytes := int64(0)
+	duplicateBytes := int64(0)
+	hashSizes := make(map[string]int64)
+
+	_ = filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+
+		ext := strings.ToLower(filepath.Ext(path))
+		validExts := map[string]bool{
+			".go": true, ".ts": true, ".tsx": true, ".js": true, ".jsx": true,
+			".json": true, ".md": true, ".txt": true,
+		}
+		if !validExts[ext] {
+			return nil
+		}
+
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil
+		}
+
+		size := int64(len(data))
+		totalBytes += size
+
+		hash := sha1.Sum(data)
+		key := fmt.Sprintf("%x", hash[:])
+
+		if prevSize, exists := hashSizes[key]; exists {
+			// Count the smaller of the two occurrences as duplicated bytes
+			if size < prevSize {
+				duplicateBytes += size
+			} else {
+				duplicateBytes += prevSize
+			}
+			// Track the largest occurrence size for future duplicates
+			if size > prevSize {
+				hashSizes[key] = size
+			}
+		} else {
+			hashSizes[key] = size
+		}
+
+		return nil
+	})
+
+	if totalBytes == 0 {
+		return 0
+	}
+
+	return (float64(duplicateBytes) / float64(totalBytes)) * 100
+}
+
+func runRefactorCommand(dir string, name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), refactorCommandTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = dir
+
+	output, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return output, context.DeadlineExceeded
+	}
+	return output, err
 }
 
 // countTechDebt counts technical debt items (TODOs, FIXMEs, HACK comments)

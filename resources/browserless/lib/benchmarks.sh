@@ -37,7 +37,7 @@ benchmark::init() {
     
     # Check browserless is running
     if ! is_running; then
-        log::error "Browserless is not running. Start it first."
+        log::error "Browserless is not running. Start it first." >&2
         return 1
     fi
 }
@@ -58,8 +58,8 @@ benchmark::measure() {
     
     local start_time=$(date +%s%3N)
     
-    # Execute function with timeout
-    if timeout "$BENCHMARK_TIMEOUT" "$function" "$@" >/dev/null 2>&1; then
+    # Execute function with timeout in a subshell so exported functions resolve
+    if timeout "$BENCHMARK_TIMEOUT" bash -lc "$function \"\$@\"" _ "$@" >/dev/null 2>&1; then
         local end_time=$(date +%s%3N)
         local duration=$((end_time - start_time))
         echo "$duration"
@@ -82,19 +82,19 @@ benchmark::run_suite() {
     local function="${2:?Function required}"
     shift 2
     
-    log::info "Benchmarking: $operation"
+    log::info "Benchmarking: $operation" >&2
     
     local times=()
     local errors=0
     
     # Warmup runs
-    log::debug "Warming up ($BENCHMARK_WARMUP iterations)..."
+    log::debug "Warming up ($BENCHMARK_WARMUP iterations)..." >&2
     for ((i=1; i<=BENCHMARK_WARMUP; i++)); do
         benchmark::measure "$operation" "$function" "$@" >/dev/null
     done
     
     # Actual benchmark runs
-    log::debug "Running benchmark ($BENCHMARK_ITERATIONS iterations)..."
+    log::debug "Running benchmark ($BENCHMARK_ITERATIONS iterations)..." >&2
     for ((i=1; i<=BENCHMARK_ITERATIONS; i++)); do
         local time
         time=$(benchmark::measure "$operation" "$function" "$@")
@@ -112,7 +112,7 @@ benchmark::run_suite() {
     
     # Calculate statistics
     if [[ ${#times[@]} -eq 0 ]]; then
-        log::error "All benchmark runs failed"
+        log::error "All benchmark runs failed" >&2
         return 1
     fi
     
@@ -168,7 +168,7 @@ EOF
 # Benchmark navigation operations
 #######################################
 benchmark::navigation() {
-    log::header "🚀 Navigation Benchmarks"
+    log::header "🚀 Navigation Benchmarks" >&2
     
     local results=()
     
@@ -203,7 +203,7 @@ benchmark::navigation() {
 # Benchmark screenshot operations
 #######################################
 benchmark::screenshots() {
-    log::header "📸 Screenshot Benchmarks"
+    log::header "📸 Screenshot Benchmarks" >&2
     
     local results=()
     local temp_file="/tmp/benchmark_screenshot.png"
@@ -238,7 +238,7 @@ benchmark::screenshots() {
 # Benchmark extraction operations
 #######################################
 benchmark::extraction() {
-    log::header "📊 Extraction Benchmarks"
+    log::header "📊 Extraction Benchmarks" >&2
     
     local results=()
     
@@ -273,47 +273,10 @@ benchmark::extraction() {
 }
 
 #######################################
-# Benchmark workflow operations
-#######################################
-benchmark::workflows() {
-    log::header "🔄 Workflow Benchmarks"
-    
-    local results=()
-    
-    # Simple workflow navigation
-    local result
-    result=$(benchmark::run_suite "workflow_navigation" workflow::navigate "https://example.com")
-    results+=("$result")
-    
-    # Text extraction workflow
-    result=$(benchmark::run_suite "workflow_extract_text" workflow::extract_text "h1")
-    results+=("$result")
-    
-    # Screenshot workflow
-    local temp_file="/tmp/workflow_screenshot.png"
-    result=$(benchmark::run_suite "workflow_screenshot" workflow::screenshot "$temp_file")
-    rm -f "$temp_file"
-    results+=("$result")
-    
-    # Output results
-    echo "["
-    local first=true
-    for r in "${results[@]}"; do
-        if [[ "$first" == "true" ]]; then
-            first=false
-        else
-            echo ","
-        fi
-        echo "$r"
-    done
-    echo "]"
-}
-
-#######################################
 # Run all benchmarks
 #######################################
 benchmark::run_all() {
-    log::header "🏁 Running All Benchmarks"
+    log::header "🏁 Running All Benchmarks" >&2
     
     benchmark::init || return 1
     
@@ -330,14 +293,11 @@ benchmark::run_all() {
         echo ','
         echo '  "extraction": '
         benchmark::extraction | sed 's/^/    /'
-        echo ','
-        echo '  "workflows": '
-        benchmark::workflows | sed 's/^/    /'
         echo ""
         echo "}"
     } > "$output_file"
     
-    log::success "Benchmarks saved to: $output_file"
+    log::success "Benchmarks saved to: $output_file" >&2
     
     # Show summary
     benchmark::show_summary "$output_file"
@@ -352,11 +312,11 @@ benchmark::show_summary() {
     local file="${1:?File path required}"
     
     if [[ ! -f "$file" ]]; then
-        log::error "Benchmark file not found: $file"
+        log::error "Benchmark file not found: $file" >&2
         return 1
     fi
     
-    log::header "📈 Benchmark Summary"
+    log::header "📈 Benchmark Summary" >&2
     
     # Parse and display key metrics
     echo "Navigation Performance:"
@@ -414,7 +374,6 @@ export -f benchmark::run_suite
 export -f benchmark::navigation
 export -f benchmark::screenshots
 export -f benchmark::extraction
-export -f benchmark::workflows
 export -f benchmark::run_all
 export -f benchmark::show_summary
 export -f benchmark::compare

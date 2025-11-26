@@ -17,4 +17,4 @@ export {
   type BridgeInspectResultPayload,
   type LogCaptureOptions,
   type NetworkCaptureOptions,
-} from './iframeBridgeChild';
+} from './iframeBridgeChild.js';

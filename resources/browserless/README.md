@@ -44,25 +44,6 @@ High-performance headless Chrome automation service for web scraping, screenshot
 - 🛡️ **Security Isolation** - Sandboxed Chrome instances with security profiles
 - 🔌 **Resource Adapters** - Provide UI automation fallbacks for other resources (NEW!)
 
-## Workflow Metadata (NEW!)
-
-The workflow interpreter now enforces descriptive metadata on every YAML definition:
-
-- Declare metadata inside the `workflow:` block (`name`, `description`, `version`, `tags`).
-- At runtime, the interpreter persists this metadata to `~/.vrooli/browserless/debug/<workflow>/YYYYMMDD_HHMMSS/metadata.json` alongside execution artifacts.
-- Missing names automatically fall back to the filename, and a `name_inferred` flag is recorded in the metadata file.
-- Downstream tools (scenarios, adapters, analytics) can parse this JSON to display friendly names, descriptions, and tags without re-reading the original YAML.
-
-**New CLI shortcuts**
-
-```bash
-# Inspect a single workflow definition
-resource-browserless workflow describe resources/browserless/examples/core/01-navigation.yaml
-
-# List every example workflow with metadata (JSON output)
-resource-browserless workflow catalog --json
-```
-
 ## When to Use
 
 ### Use Browserless When You Need:
@@ -71,7 +52,7 @@ resource-browserless workflow catalog --json
 - **Visual Testing** - Screenshot comparison and visual regression testing
 - **PDF Generation** - High-quality PDF conversion with browser rendering
 - **Complex Scraping** - Sites with dynamic content or anti-bot measures
-- **Conditional Workflows** - Intelligent automation with branching logic (NEW!)
+- **As a Backend for BAS** - Headless Chrome/CDP backend for Browser Automation Studio executions
 
 ### Alternatives to Consider:
 - **Simple HTTP Requests**: Use curl/wget for static content
@@ -85,7 +66,6 @@ Browserless now provides **UI automation adapters** for other resources, enablin
 
 ### Available Adapters
 
-- **n8n** - Execute workflows, manage credentials, import/export via browser
 - **vault** - Manage secrets and policies through UI automation (preview)
 
 ### Using Adapters
@@ -93,9 +73,6 @@ Browserless now provides **UI automation adapters** for other resources, enablin
 The new "for" pattern allows browserless to act as an adapter:
 
 ```bash
-# Execute n8n workflow when API is down
-resource-browserless for n8n execute-workflow my-workflow-id
-
 # Add Vault secrets via UI
 resource-browserless for vault add-secret secret/myapp key=value
 
@@ -164,7 +141,6 @@ resource-browserless benchmark
 resource-browserless benchmark navigation
 resource-browserless benchmark screenshots
 resource-browserless benchmark extraction
-resource-browserless benchmark workflows
 
 # Show benchmark summary
 resource-browserless benchmark summary
@@ -178,7 +154,6 @@ resource-browserless benchmark compare file1.json file2.json
 - **Navigation**: Page load times for simple and complex pages
 - **Screenshots**: Time to capture regular and full-page screenshots  
 - **Extraction**: Text, attribute, and element detection performance
-- **Workflows**: End-to-end workflow execution times
 
 Benchmarks track min, max, average, median, and 95th percentile metrics.
 
@@ -191,80 +166,7 @@ Benchmarks track min, max, average, median, and 95th percentile metrics.
 
 See [docs/ADAPTERS.md](docs/ADAPTERS.md) for complete documentation.
 
-## Conditional Workflows (NEW!)
-
-Browserless workflows now support sophisticated conditional branching for intelligent automation:
-
-### Condition Types
-- **URL Matching** - Branch based on current URL patterns
-- **Element Visibility** - Check if elements are present/visible
-- **Text Content** - Match element text with exact/contains/regex
-- **Error Detection** - Automatic error message detection
-- **Input States** - Check checkbox/radio button states
-- **JavaScript** - Custom JavaScript conditions
-
-### Example: Auto-Login Detection
-```yaml
-steps:
-  - action: "navigate"
-    url: "https://app.example.com/dashboard"
-    
-  - action: "condition"
-    condition_type: "url"
-    url_pattern: "/login"
-    then_steps:
-      # Automatically handle login
-      - action: "fill"
-        selector: "#username"
-        text: "${params.username}"
-      - action: "fill"
-        selector: "#password"
-        text: "${params.password}"
-      - action: "click"
-        selector: "button[type='submit']"
-    else_steps:
-      - action: "log"
-        message: "Already authenticated"
-```
-
-### Example: Error Recovery
-```yaml
-steps:
-  - action: "condition"
-    condition_type: "has_errors"
-    error_patterns: "error,failed,invalid"
-    then_steps:
-      - action: "screenshot"
-        path: "error-state.png"
-      - action: "wait"
-        duration: 2000
-      - action: "jump"
-        label: "retry_action"
-```
-
-### Documentation
-See [Conditional Branching Guide](docs/CONDITIONAL_BRANCHING.md) for:
-- Complete condition type reference
-- Advanced branching patterns
-- Login detection examples
-- Error recovery strategies
-- Performance considerations
-
 ## Integration Examples
-
-### With n8n Automation
-```javascript
-// n8n HTTP Request node configuration
-{
-  "method": "POST",
-  "url": "http://vrooli-browserless:4110/screenshot",
-  "body": {
-    "url": "https://example.com",
-    "fullPage": true,
-    "type": "png"
-  }
-}
-```
 
 ### With Ollama AI
 ```bash
@@ -601,7 +503,7 @@ mkdir -p /data/browserless
 - **[Installation Guide](docs/INSTALLATION.md)** - Prerequisites, setup options, verification
 - **[Configuration](docs/CONFIGURATION.md)** - Settings, environment variables, customization
 - **[API Reference](docs/API.md)** - Endpoints, parameters, request/response examples
-- **[Usage Guide](docs/USAGE.md)** - Common tasks, workflows, integration patterns
+- **[Usage Guide](docs/USAGE.md)** - Common tasks and integration patterns
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues, solutions, debugging
 - **[Advanced Topics](docs/ADVANCED.md)** - Architecture, scaling, security, performance
 

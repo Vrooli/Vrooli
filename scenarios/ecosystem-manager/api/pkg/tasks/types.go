@@ -6,6 +6,52 @@ import (
 	"strings"
 )
 
+var ValidTaskTypes = []string{"resource", "scenario"}
+
+var ValidTaskOperations = []string{"generator", "improver"}
+
+const (
+	StatusPending            = "pending"
+	StatusInProgress         = "in-progress"
+	StatusCompleted          = "completed"
+	StatusFailed             = "failed"
+	StatusCompletedFinalized = "completed-finalized"
+	StatusFailedBlocked      = "failed-blocked"
+	StatusArchived           = "archived"
+)
+
+var QueueStatuses = []string{
+	StatusPending,
+	StatusInProgress,
+	StatusCompleted,
+	StatusFailed,
+	StatusCompletedFinalized,
+	StatusFailedBlocked,
+	StatusArchived,
+}
+
+// IsValidTaskType reports whether the provided type is supported.
+func IsValidTaskType(taskType string) bool {
+	taskType = strings.TrimSpace(strings.ToLower(taskType))
+	for _, candidate := range ValidTaskTypes {
+		if candidate == taskType {
+			return true
+		}
+	}
+	return false
+}
+
+// IsValidTaskOperation reports whether the provided operation is supported.
+func IsValidTaskOperation(operation string) bool {
+	operation = strings.TrimSpace(strings.ToLower(operation))
+	for _, candidate := range ValidTaskOperations {
+		if candidate == operation {
+			return true
+		}
+	}
+	return false
+}
+
 // TaskItem represents a unified task in the ecosystem
 type TaskItem struct {
 	ID                          string         `json:"id" yaml:"id"`

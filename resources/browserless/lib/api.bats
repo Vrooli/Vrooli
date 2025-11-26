@@ -42,7 +42,6 @@ setup() {
         ["agent-s2"]="4113"
         ["browserless"]="3000"
         ["unstructured-io"]="8000"
-        ["n8n"]="5678"
         ["node-red"]="1880"
         ["huginn"]="3000"
         ["windmill"]="8000"

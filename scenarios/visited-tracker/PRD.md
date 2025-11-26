@@ -19,6 +19,7 @@
 - [x] OT-P0-003 | Phase metadata and handoff context | Campaign-level and file-level notes for storing phase-specific metadata, work-in-progress tracking, and cross-phase handoff information
 - [x] OT-P0-004 | Precise campaign control | Manual prioritization and exclusion controls for fine-tuning file coverage and handling exceptional cases
 - [ ] OT-P0-005 | Clutter prevention and limits | Smart default exclusions (data/, tmp/, coverage/, dist/, build/) and configurable campaign size limits to maintain focused campaigns
+- [ ] OT-P0-006 | Smart campaign sync | Should gracefully handle new, renamed, and removed files in campaign target pattern, auto-syncing on campaign read (cached 30 seconds) and write commands to ensure campaign matches actual ground-truth files
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | HTTP API endpoints | HTTP API with CRUD operations, prioritization queries, and export/import capabilities

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -8,6 +9,7 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/ecosystem-manager/api/pkg/queue"
 	"github.com/ecosystem-manager/api/pkg/recycler"
@@ -27,6 +29,8 @@ type modelOption struct {
 	Label    string `json:"label"`
 	Provider string `json:"provider"`
 }
+
+const settingsCommandTimeout = 10 * time.Second
 
 // NewSettingsHandlers creates a new settings handlers instance
 func NewSettingsHandlers(processor *queue.Processor, wsManager *websocket.Manager, recycler *recycler.Recycler) *SettingsHandlers {
@@ -219,8 +223,7 @@ func (h *SettingsHandlers) ResetSettingsHandler(w http.ResponseWriter, r *http.R
 }
 
 func listOllamaModels() ([]modelOption, error) {
-	cmd := exec.Command("resource-ollama", "content", "list")
-	output, err := cmd.CombinedOutput()
+	output, err := runSettingsCommand("resource-ollama", "content", "list")
 	if err != nil {
 		return defaultOllamaModels(), fmt.Errorf("resource-ollama content list failed: %w (output: %s)", err, strings.TrimSpace(string(output)))
 	}
@@ -259,8 +262,7 @@ func listOllamaModels() ([]modelOption, error) {
 }
 
 func listOpenRouterModels() ([]modelOption, error) {
-	cmd := exec.Command("resource-openrouter", "content", "models", "--limit", "200", "--json")
-	output, err := cmd.CombinedOutput()
+	output, err := runSettingsCommand("resource-openrouter", "content", "models", "--limit", "200", "--json")
 	if err != nil {
 		return nil, fmt.Errorf("resource-openrouter content models failed: %w (output: %s)", err, strings.TrimSpace(string(output)))
 	}
@@ -318,4 +320,17 @@ func defaultOllamaModels() []modelOption {
 		{ID: "llama3.1:8b", Label: "llama3.1:8b", Provider: "ollama"},
 		{ID: "llama3.2:3b", Label: "llama3.2:3b", Provider: "ollama"},
 	}
+}
+
+func runSettingsCommand(name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), settingsCommandTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, name, args...)
+	output, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return output, context.DeadlineExceeded
+	}
+
+	return output, err
 }

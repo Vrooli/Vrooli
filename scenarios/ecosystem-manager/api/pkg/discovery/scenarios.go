@@ -1,11 +1,10 @@
 package discovery
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -14,11 +13,17 @@ import (
 
 // DiscoverScenarios gets all available scenarios from vrooli CLI
 func DiscoverScenarios() ([]tasks.ScenarioInfo, error) {
+	return discoverScenarios(execRunner)
+}
+
+func discoverScenarios(runner commandRunner) ([]tasks.ScenarioInfo, error) {
 	var scenarios []tasks.ScenarioInfo
 
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+	defer cancel()
+
 	// Get all scenarios from vrooli CLI (now includes unregistered scenarios)
-	cmd := exec.Command("vrooli", "scenario", "list", "--json")
-	output, err := cmd.Output()
+	output, err := runner.Run(ctx, "vrooli", "scenario", "list", "--json")
 	if err != nil {
 		log.Printf("Error: Failed to get vrooli scenarios: %v", err)
 		return scenarios, err
@@ -55,30 +60,6 @@ func DiscoverScenarios() ([]tasks.ScenarioInfo, error) {
 
 	log.Printf("Discovered %d scenarios from vrooli CLI", len(scenarios))
 	return scenarios, nil
-}
-
-// CheckResourceHealth checks if a resource is healthy
-// Note: Health checking is now handled by vrooli CLI's resource status command
-// This function is kept for backward compatibility and always returns true
-func CheckResourceHealth(resourceName, resourceDir string) bool {
-	// Health checks are now delegated to vrooli CLI
-	// Use: vrooli resource status <resource-name>
-	return true
-}
-
-// CheckScenarioHealth checks if a scenario is healthy
-func CheckScenarioHealth(scenarioName, scenarioDir string) bool {
-	// Check if scenario has basic structure
-	requiredFiles := []string{"PRD.md", "README.md"}
-
-	for _, file := range requiredFiles {
-		filePath := filepath.Join(scenarioDir, file)
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			return false
-		}
-	}
-
-	return true
 }
 
 // GetScenarioPRDStatus parses a PRD.md file to get completion status

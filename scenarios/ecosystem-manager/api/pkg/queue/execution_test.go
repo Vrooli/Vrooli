@@ -16,6 +16,10 @@ import (
 
 // setupExecutionTestProcessor creates a test processor with minimal dependencies
 func setupExecutionTestProcessor(t *testing.T) (*Processor, *tasks.Storage, string) {
+	t.Helper()
+	resetTimings := SetTimingScaleForTests(0.01)
+	t.Cleanup(resetTimings)
+
 	tmpDir := t.TempDir()
 	queueDir := filepath.Join(tmpDir, "queue")
 	for _, dir := range []string{"pending", "in-progress", "completed", "failed"} {
@@ -45,6 +49,7 @@ func setupExecutionTestProcessor(t *testing.T) (*Processor, *tasks.Storage, stri
 
 	broadcast := make(chan any, 100)
 	processor := NewProcessor(storage, assembler, broadcast, nil)
+	t.Cleanup(processor.Stop)
 
 	return processor, storage, tmpDir
 }

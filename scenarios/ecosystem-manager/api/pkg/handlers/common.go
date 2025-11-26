@@ -2,10 +2,18 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"strings"
 )
+
+const defaultMaxBodyBytes int64 = 1 << 20 // 1MB hard cap to prevent oversized payloads
+
+// maxBodyBytes is kept mutable for tests; production uses defaultMaxBodyBytes.
+var maxBodyBytes int64 = defaultMaxBodyBytes
 
 // writeJSON writes a JSON response with proper headers and error handling.
 // This helper ensures consistent Content-Type headers and proper error handling
@@ -34,10 +42,42 @@ func writeError(w http.ResponseWriter, message string, statusCode int) {
 // Returns (pointer to decoded value, true) on success or (nil, false) on error.
 // The error response is automatically written to w, so callers should return immediately on false.
 func decodeJSONBody[T any](w http.ResponseWriter, r *http.Request) (*T, bool) {
-	defer r.Body.Close()
+	defer r.Body.Close() // Best-effort close; MaxBytesReader will also close on overflow.
+
+	limitedReader := http.MaxBytesReader(w, r.Body, maxBodyBytes)
+	decoder := json.NewDecoder(limitedReader)
+	decoder.DisallowUnknownFields()
+
 	var result T
-	if err := json.NewDecoder(r.Body).Decode(&result); err != nil {
-		writeError(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
+	if err := decoder.Decode(&result); err != nil {
+		status := http.StatusBadRequest
+		message := fmt.Sprintf("Invalid JSON: %v", err)
+
+		var syntaxErr *json.SyntaxError
+		var typeErr *json.UnmarshalTypeError
+		var maxBytesErr *http.MaxBytesError
+
+		switch {
+		case errors.Is(err, io.EOF):
+			message = "Request body must not be empty"
+		case errors.As(err, &syntaxErr):
+			message = fmt.Sprintf("Invalid JSON at character %d", syntaxErr.Offset)
+		case errors.As(err, &typeErr):
+			message = fmt.Sprintf("Incorrect JSON type for field %q", typeErr.Field)
+		case strings.HasPrefix(err.Error(), "json: unknown field "):
+			message = fmt.Sprintf("Unknown field %s", strings.TrimPrefix(err.Error(), "json: unknown field "))
+		case errors.As(err, &maxBytesErr):
+			status = http.StatusRequestEntityTooLarge
+			message = fmt.Sprintf("Request body too large (limit %d bytes)", maxBytesErr.Limit)
+		}
+
+		writeError(w, message, status)
+		return nil, false
+	}
+
+	// Disallow trailing garbage after the first JSON object.
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		writeError(w, "Request body must contain a single JSON object", http.StatusBadRequest)
 		return nil, false
 	}
 	return &result, true

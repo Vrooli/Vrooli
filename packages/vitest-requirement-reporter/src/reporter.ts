@@ -657,7 +657,10 @@ export default class RequirementReporter implements Reporter {
         const projectFailures = this.failures.filter(f => f.projectName === project);
         projectFailures.forEach(failure => {
           const sanitizedName = this.sanitizeTestName(failure.testPath);
-          const artifactPath = join(this.options.artifactsDir, project, sanitizedName, 'README.md');
+          // Construct absolute path: if running from ui/, go up one level to scenario root
+          const cwd = process.cwd();
+          const scenarioRoot = cwd.endsWith('/ui') ? dirname(cwd) : cwd;
+          const artifactPath = join(scenarioRoot, this.options.artifactsDir, project, sanitizedName, 'README.md');
           // Show clean test name in console (without file path)
           const cleanTestName = this.extractTestName(failure.testPath);
           console.log(`   ↳ ${cleanTestName}`);

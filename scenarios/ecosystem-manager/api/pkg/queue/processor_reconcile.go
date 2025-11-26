@@ -11,7 +11,11 @@ import (
 // initialInProgressReconcile reconciles stale in-progress tasks left from previous runs
 func (qp *Processor) initialInProgressReconcile() {
 	// Allow the system to finish startup before running reconciliation
-	time.Sleep(InitialReconcileDelay)
+	select {
+	case <-time.After(scaleDuration(InitialReconcileDelay)):
+	case <-qp.ctx.Done():
+		return
+	}
 
 	external := qp.getExternalActiveTaskIDs()
 	internal := qp.getInternalRunningTaskIDs()

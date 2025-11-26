@@ -73,22 +73,23 @@ browserless::export_config() {
         export BROWSERLESS_MAX_QUEUE_LENGTH
     fi
     if [[ -z "${BROWSERLESS_CONNECTION_TIMEOUT:-}" ]]; then
-        BROWSERLESS_CONNECTION_TIMEOUT=15000
+        BROWSERLESS_CONNECTION_TIMEOUT=20000
         readonly BROWSERLESS_CONNECTION_TIMEOUT
         export BROWSERLESS_CONNECTION_TIMEOUT
     fi
     if [[ -z "${BROWSERLESS_TIMEOUT:-}" ]]; then
-        BROWSERLESS_TIMEOUT="${TIMEOUT:-30000}"
+        BROWSERLESS_TIMEOUT="${TIMEOUT:-60000}"
         readonly BROWSERLESS_TIMEOUT
         export BROWSERLESS_TIMEOUT
     fi
     if [[ -z "${BROWSERLESS_WORKER_TIMEOUT:-}" ]]; then
-        BROWSERLESS_WORKER_TIMEOUT=90000
+        BROWSERLESS_WORKER_TIMEOUT=120000
         readonly BROWSERLESS_WORKER_TIMEOUT
         export BROWSERLESS_WORKER_TIMEOUT
     fi
     if [[ -z "${BROWSERLESS_CHROME_REFRESH_MS:-}" ]]; then
-        BROWSERLESS_CHROME_REFRESH_MS=600000
+        # Keep prebooted browsers alive longer (30m) to avoid cold starts mid-test
+        BROWSERLESS_CHROME_REFRESH_MS=1800000
         readonly BROWSERLESS_CHROME_REFRESH_MS
         export BROWSERLESS_CHROME_REFRESH_MS
     fi
@@ -97,10 +98,30 @@ browserless::export_config() {
         readonly BROWSERLESS_SOCKET_CLOSE_TIMEOUT
         export BROWSERLESS_SOCKET_CLOSE_TIMEOUT
     fi
+    if [[ -z "${BROWSERLESS_ENABLE_PREWARM:-}" ]]; then
+        BROWSERLESS_ENABLE_PREWARM="true"
+        readonly BROWSERLESS_ENABLE_PREWARM
+        export BROWSERLESS_ENABLE_PREWARM
+    fi
+    if [[ -z "${BROWSERLESS_PREWARM_COUNT:-}" ]]; then
+        BROWSERLESS_PREWARM_COUNT="${BROWSERLESS_MAX_BROWSERS:-6}"
+        readonly BROWSERLESS_PREWARM_COUNT
+        export BROWSERLESS_PREWARM_COUNT
+    fi
     if [[ -z "${BROWSERLESS_HEADLESS:-}" ]]; then
         BROWSERLESS_HEADLESS="${HEADLESS:-yes}"
         readonly BROWSERLESS_HEADLESS
         export BROWSERLESS_HEADLESS
+    fi
+    if [[ -z "${BROWSERLESS_BENCHMARK_ITERATIONS:-}" ]]; then
+        BROWSERLESS_BENCHMARK_ITERATIONS=3
+        readonly BROWSERLESS_BENCHMARK_ITERATIONS
+        export BROWSERLESS_BENCHMARK_ITERATIONS
+    fi
+    if [[ -z "${BROWSERLESS_BENCHMARK_TIMEOUT:-}" ]]; then
+        BROWSERLESS_BENCHMARK_TIMEOUT=45
+        readonly BROWSERLESS_BENCHMARK_TIMEOUT
+        export BROWSERLESS_BENCHMARK_TIMEOUT
     fi
 
     # Network configuration (only set if not already defined)

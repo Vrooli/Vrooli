@@ -11,7 +11,7 @@ Welcome to the Browserless resource documentation. This directory contains detai
 - **[Configuration Guide](./CONFIGURATION.md)** - Environment variables, settings, and customization options
 
 ### Usage and Reference
-- **[Usage Guide](./USAGE.md)** - Common workflows, examples, and best practices
+- **[Usage Guide](./USAGE.md)** - Common tasks, examples, and best practices
 - **[API Reference](./API.md)** - Complete endpoint documentation with examples
 
 ### Problem Solving
@@ -75,4 +75,4 @@ When updating documentation:
 - Test all code examples before committing
 
 ---
-**Main README:** [Browserless Resource](../README.md) | **Examples:** [See examples directory](../examples/)
+**Main README:** [Browserless Resource](../README.md)

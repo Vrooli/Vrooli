@@ -11,11 +11,6 @@ browserless/
 ├── adapters/
 │   ├── common.sh        # Adapter framework utilities
 │   ├── registry.sh      # Adapter discovery and registration
-│   ├── n8n/            # N8N workflow automation adapter
-│   │   ├── api.sh      # Main adapter interface
-│   │   ├── workflows.sh # Workflow execution logic
-│   │   ├── credentials.sh # Credential management
-│   │   └── manifest.json # Adapter metadata
 │   └── vault/          # HashiCorp Vault adapter
 │       ├── api.sh      # Main adapter interface
 │       └── manifest.json # Adapter metadata
@@ -32,18 +27,6 @@ resource-browserless for <target-resource> <command> [options]
 ```
 
 ### Examples
-
-#### N8N Adapter
-```bash
-# Execute a workflow when n8n API is down
-resource-browserless for n8n execute-workflow my-workflow-id
-
-# List workflows via UI scraping
-resource-browserless for n8n list-workflows
-
-# Add credentials through the UI
-resource-browserless for n8n add-credentials httpHeaderAuth
-```
 
 #### Vault Adapter
 ```bash
@@ -188,7 +171,7 @@ Bypass rate limits, authentication issues, or API outages.
 ### 1. **Session Management**
 Use persistent sessions to maintain authentication state:
 ```bash
-resource-browserless for n8n execute-workflow my-workflow \
+resource-browserless for vault add-secret secret/myapp username=admin \
   --session "my-persistent-session"
 ```
 
@@ -204,16 +187,16 @@ fi
 ### 3. **Timeout Configuration**
 Set appropriate timeouts for long-running operations:
 ```bash
-export N8N_TIMEOUT=120000  # 2 minutes
-resource-browserless for n8n execute-workflow long-workflow
+export VAULT_UI_TIMEOUT=120000  # 2 minutes
+resource-browserless for vault add-secret secret/myapp username=admin
 ```
 
 ### 4. **Credential Security**
 Use environment variables for sensitive data:
 ```bash
-export N8N_EMAIL="user@example.com"
-export N8N_PASSWORD="secure-password"
-resource-browserless for n8n execute-workflow secure-workflow
+export VAULT_USER="user@example.com"
+export VAULT_PASSWORD="secure-password"
+resource-browserless for vault add-secret secret/myapp username=admin password="$VAULT_PASSWORD"
 ```
 
 ## Backward Compatibility
@@ -222,10 +205,10 @@ Legacy commands are maintained but will show deprecation warnings:
 
 ```bash
 # Old syntax (deprecated)
-resource-browserless execute-workflow my-workflow
+resource-browserless for vault add-secret secret/myapp username=admin
 
 # New syntax (recommended)
-resource-browserless for n8n execute-workflow my-workflow
+resource-browserless for vault add-secret secret/myapp username=admin
 ```
 
 ## Troubleshooting
@@ -251,12 +234,8 @@ resource-browserless status
 ### Authentication Issues
 ```bash
 # Set credentials
-export N8N_EMAIL="your-email"
-export N8N_PASSWORD="your-password"
-
-# Use persistent session
-resource-browserless for n8n execute-workflow workflow-id \
-  --session "auth-session"
+export VAULT_USER="your-email"
+export VAULT_PASSWORD="your-password"
 ```
 
 ## Future Adapters

@@ -1,9 +1,9 @@
 package discovery
 
 import (
+	"context"
 	"encoding/json"
 	"log"
-	"os/exec"
 	"sort"
 	"strings"
 
@@ -12,16 +12,20 @@ import (
 
 // DiscoverResources gets all available resources from vrooli CLI
 func DiscoverResources() ([]tasks.ResourceInfo, error) {
+	return discoverResources(execRunner)
+}
+
+func discoverResources(runner commandRunner) ([]tasks.ResourceInfo, error) {
 	var resources []tasks.ResourceInfo
 
-	// Get all resources from vrooli CLI (now includes unregistered resources)
-	cmd := exec.Command("vrooli", "resource", "list", "--json", "--verbose")
-	output, err := cmd.Output()
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+	defer cancel()
+
+	output, err := runner.Run(ctx, "vrooli", "resource", "list", "--json", "--verbose")
 	if err != nil {
 		log.Printf("Warning: Failed to run 'vrooli resource list --json --verbose': %v", err)
 		// Try without verbose flag as fallback
-		cmd = exec.Command("vrooli", "resource", "list", "--json")
-		output, err = cmd.Output()
+		output, err = runner.Run(ctx, "vrooli", "resource", "list", "--json")
 		if err != nil {
 			log.Printf("Error: Failed to get vrooli resources: %v", err)
 			return resources, err

@@ -13,6 +13,8 @@ import (
 func setupTestProcessor(t *testing.T) (*Processor, string, func()) {
 	t.Helper()
 	t.Setenv("QUEUE_SKIP_PROCESS_SCAN", "1")
+	resetTimings := SetTimingScaleForTests(0.01)
+	t.Cleanup(resetTimings)
 
 	tempDir := t.TempDir()
 	queueDir := filepath.Join(tempDir, "queue")

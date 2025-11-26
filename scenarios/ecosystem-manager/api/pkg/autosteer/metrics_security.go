@@ -1,18 +1,22 @@
 package autosteer
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // SecurityMetricsCollector handles collection of security metrics
 type SecurityMetricsCollector struct {
 	projectRoot string
 }
+
+const securityCommandTimeout = 2 * time.Minute
 
 // NewSecurityMetricsCollector creates a new security metrics collector
 func NewSecurityMetricsCollector(projectRoot string) *SecurityMetricsCollector {
@@ -51,14 +55,11 @@ func (c *SecurityMetricsCollector) getNPMVulnerabilities(scenarioName string) in
 	}
 
 	// Run npm audit
-	cmd := exec.Command("npm", "audit", "--json")
-	cmd.Dir = uiPath
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		// npm audit returns non-zero if vulnerabilities found
-		// Continue parsing output
+	output, err := runSecurityCommand(uiPath, "npm", "audit", "--json")
+	if err == context.DeadlineExceeded {
+		return 0
 	}
+	// npm audit returns non-zero if vulnerabilities found; still parse output
 
 	var audit struct {
 		Metadata struct {
@@ -100,13 +101,11 @@ func (c *SecurityMetricsCollector) getGoVulnerabilities(scenarioName string) int
 	}
 
 	// Run govulncheck
-	cmd := exec.Command("govulncheck", "-json", "./...")
-	cmd.Dir = apiPath
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		// govulncheck returns non-zero if vulnerabilities found
+	output, err := runSecurityCommand(apiPath, "govulncheck", "-json", "./...")
+	if err == context.DeadlineExceeded {
+		return 0
 	}
+	// govulncheck returns non-zero if vulnerabilities found; keep parsing when available
 
 	// Count vulnerabilities from output
 	count := 0
@@ -304,6 +303,23 @@ func (c *SecurityMetricsCollector) assessAuthImplementation(scenarioName string)
 	}
 
 	return score
+}
+
+func runSecurityCommand(dir string, name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), securityCommandTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, name, args...)
+	if dir != "" {
+		cmd.Dir = dir
+	}
+
+	output, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return output, context.DeadlineExceeded
+	}
+
+	return output, err
 }
 
 // hasAuthMiddleware checks for authentication middleware

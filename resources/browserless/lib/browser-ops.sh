@@ -150,18 +150,24 @@ browser::navigate() {
     log::debug "Navigating to: $url"
     
     # Use ES6 export default format for browserless v2
+    local ready_selector="${BROWSERLESS_READY_SELECTOR:-[data-app-ready=\"true\"]}"
     local wrapped_code="export default async ({ page, context }) => {
         try {
             await page.setViewport({ width: 1920, height: 1080 });
             
             await page.goto('${url}', { 
                 waitUntil: '${wait_until}',
-                timeout: 30000 
+                timeout: ${BROWSERLESS_TIMEOUT:-60000} 
             });
             
-            // Give the page extra time to fully render (Puppeteer API)
-            await page.waitForFunction(() => document.readyState === 'complete', { timeout: 5000 }).catch(() => {});
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Prefer explicit app-ready marker; fall back to DOM ready
+            try {
+                await page.waitForSelector('${ready_selector}', { timeout: 2000 });
+            } catch (e) {
+                await page.waitForFunction(() => document.readyState === 'complete', { timeout: 3000 }).catch(() => {});
+            }
+            // Small grace period to stabilize layout (avoid long fixed sleeps)
+            await new Promise(resolve => setTimeout(resolve, 200));
             
             return { 
                 success: true, 

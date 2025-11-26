@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/autosteer"
-	"github.com/ecosystem-manager/api/pkg/internal/slices"
 	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
@@ -21,12 +20,6 @@ import (
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
 	"github.com/gorilla/mux"
-)
-
-// Validation constants for task types and operations
-var (
-	validTaskTypes      = []string{"resource", "scenario"}
-	validTaskOperations = []string{"generator", "improver"}
 )
 
 type taskSort string
@@ -289,12 +282,12 @@ func (h *TaskHandlers) getTaskFromRequest(r *http.Request, w http.ResponseWriter
 // validateTaskTypeAndOperation validates task type and operation fields.
 // Returns true if valid, writes error response and returns false if invalid.
 func (h *TaskHandlers) validateTaskTypeAndOperation(task *tasks.TaskItem, w http.ResponseWriter) bool {
-	if !slices.Contains(validTaskTypes, task.Type) {
-		writeError(w, fmt.Sprintf("Invalid type: %s. Must be one of: %v", task.Type, validTaskTypes), http.StatusBadRequest)
+	if !tasks.IsValidTaskType(task.Type) {
+		writeError(w, fmt.Sprintf("Invalid type: %s. Must be one of: %v", task.Type, tasks.ValidTaskTypes), http.StatusBadRequest)
 		return false
 	}
-	if !slices.Contains(validTaskOperations, task.Operation) {
-		writeError(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", task.Operation, validTaskOperations), http.StatusBadRequest)
+	if !tasks.IsValidTaskOperation(task.Operation) {
+		writeError(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", task.Operation, tasks.ValidTaskOperations), http.StatusBadRequest)
 		return false
 	}
 	return true
@@ -821,8 +814,8 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Validate operation if it was changed
-	if !slices.Contains(validTaskOperations, updatedTask.Operation) {
-		writeError(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", updatedTask.Operation, validTaskOperations), http.StatusBadRequest)
+	if !tasks.IsValidTaskOperation(updatedTask.Operation) {
+		writeError(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", updatedTask.Operation, tasks.ValidTaskOperations), http.StatusBadRequest)
 		return
 	}
 

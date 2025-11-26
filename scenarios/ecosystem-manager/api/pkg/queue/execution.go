@@ -455,7 +455,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 				if result.MaxTurnsExceeded {
 					context = "MAX_TURNS finalization failure"
 					// Give agent extra time to fully exit after MAX_TURNS before cleanup
-					time.Sleep(500 * time.Millisecond)
+					time.Sleep(scaleDuration(MaxTurnsCleanupDelay))
 				}
 				qp.cleanupAgentAfterFinalizationFailure(task.ID, cleanup, context)
 				return
@@ -486,7 +486,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 			if result.MaxTurnsExceeded {
 				agentTag := makeAgentTag(task.ID)
 				// Give agent extra time to fully exit after MAX_TURNS
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(scaleDuration(MaxTurnsCleanupDelay))
 				// Double-check agent was removed - MAX_TURNS often leaves zombies
 				_ = qp.ensureAgentRemoved(agentTag, 0, "MAX_TURNS success cleanup")
 			}

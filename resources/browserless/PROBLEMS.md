@@ -92,7 +92,6 @@ This document tracks active issues and unresolved problems with the Browserless 
 ## Testing Notes
 
 - All core functionality tests pass consistently
-- Integration with n8n adapter system works but could be more robust
 - Performance benchmarks meet targets but could be optimized further
 - Auto-scaling works but needs real-world load testing
 

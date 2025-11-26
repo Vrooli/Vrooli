@@ -490,10 +490,6 @@ browserless::test_all_apis() {
     fi
 }
 
-# N8N Integration - moved to adapter pattern
-# Use: resource-browserless for n8n <command>
-# Located in: ../adapters/n8n/
-
 #######################################
 # Capture console logs from any URL
 # Arguments:

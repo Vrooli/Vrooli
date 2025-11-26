@@ -47,7 +47,7 @@
   - Validated: 2025-01-11 - Returns CPU, memory, utilization, response time metrics
   
 - [x] **Resource Adapters**: UI automation fallbacks for other resources
-  - Acceptance: Can automate n8n and vault through browser when APIs fail
+  - Acceptance: Can automate vault through browser when APIs fail
   - Status: COMPLETE - Adapter system with scenario navigation capability
   - Validated: 2025-01-12 - Can navigate to scenarios via port lookup
 
@@ -165,7 +165,7 @@
 
 ### Phase 4: Advanced Features
 - Add visual regression testing
-- Implement adapter system for n8n/vault
+- Implement adapter system for vault
 - Create comprehensive examples
 
 ## Known Issues (Mostly Resolved)

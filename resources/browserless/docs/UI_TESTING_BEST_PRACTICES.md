@@ -12,7 +12,7 @@ This document outlines best practices for designing UIs that can be reliably and
 6. [Navigation](#navigation)
 7. [Accessibility](#accessibility)
 8. [Performance](#performance)
-9. [Workflow Examples](#workflow-examples)
+9. [Building Workflows with BAS](#building-workflows-with-bas)
 
 ## Element Identification
 
@@ -200,17 +200,32 @@ input:focus {
 <!-- Lazy load non-critical content -->
 <img loading="lazy" src="image.jpg" alt="Description" />
 
-<!-- Indicate when content is ready -->
-<div id="app" data-ready="false">
-  <!-- App content -->
-</div>
-<script>
-  // Signal when app is ready
-  window.addEventListener('app-ready', () => {
-    document.getElementById('app').dataset.ready = 'true';
-  });
-</script>
 ```
+
+### App Ready Signal (Critical for Automation Speed)
+- Expose a simple, global marker when the UI is truly usable (hydrated + critical data loaded). Recommended:
+  - Set `document.documentElement.dataset.appReady = "true"` in your app bootstrap after initial render/hydration and first-screen data load.
+  - Keep it dependency-less; this works across all scenarios.
+- Automation can wait on `[data-app-ready="true"]`; fall back to DOM ready if absent.
+- React example:
+  ```tsx
+  // ready.ts
+  export const markAppReady = () => {
+    try { document.documentElement.dataset.appReady = "true"; } catch (_) {}
+  };
+
+  // main.tsx
+  import { createRoot } from "react-dom/client";
+  import { App } from "./App";
+  import { markAppReady } from "./ready";
+
+  (async () => {
+    // await bootstrap data if needed
+    const root = createRoot(document.getElementById("root")!);
+    root.render(<App />);
+    markAppReady(); // set after hydration + critical data
+  })();
+  ```
 
 ### Debounce User Input
 ```javascript
@@ -224,104 +239,12 @@ searchInput.addEventListener('input', (e) => {
 });
 ```
 
-## Workflow Examples
+## Building Workflows with BAS
 
-### Basic Login Workflow
-```yaml
-workflow:
-  name: test-login
-  steps:
-    - name: navigate-to-login
-      action: navigate
-      url: http://localhost:3000/login
-      
-    - name: wait-for-form
-      action: wait_for_element
-      selector: "[data-testid='login-form']"
-      
-    - name: enter-credentials
-      action: fill
-      selector: "[data-testid='username-input']"
-      text: testuser@example.com
-      
-    - name: enter-password
-      action: fill
-      selector: "[data-testid='password-input']"
-      text: ${PASSWORD}
-      
-    - name: submit-form
-      action: click
-      selector: "[data-testid='login-submit']"
-      
-    - name: wait-for-dashboard
-      action: wait_for_url_change
-      pattern: /dashboard
-      
-    - name: verify-login
-      action: element_contains_text
-      selector: "[data-testid='user-name']"
-      text: testuser
-```
-
-### Scenario Testing Workflow
-```yaml
-workflow:
-  name: test-scenario-ui
-  steps:
-    - name: navigate-to-scenario
-      action: navigate_to_scenario
-      scenario: my-app
-      port_type: UI_PORT
-      
-    - name: wait-for-app
-      action: wait_for_element
-      selector: "[data-ready='true']"
-      timeout: 30
-      
-    - name: extract-page-title
-      action: extract_text
-      selector: "h1"
-      variable: page_title
-      
-    - name: screenshot-full-page
-      action: screenshot_full_page
-      path: ./screenshots/full-page.png
-      
-    - name: test-interaction
-      action: click
-      selector: "[data-testid='action-button']"
-      
-    - name: extract-result
-      action: extract_attribute
-      selector: "[data-testid='result']"
-      attribute: data-value
-      output: ./results/test-output.txt
-```
-
-### Advanced Extraction Workflow
-```yaml
-workflow:
-  name: extract-data
-  steps:
-    - name: navigate
-      action: navigate
-      url: http://localhost:3000/data
-      
-    - name: extract-table-data
-      action: extract_html
-      selector: "table#data-table"
-      output: ./extracted/table.html
-      
-    - name: extract-form-values
-      action: extract_input_value
-      selector: "input[name='search']"
-      variable: search_term
-      
-    - name: screenshot-specific-element
-      action: screenshot_element
-      selector: "[data-testid='chart']"
-      path: ./screenshots/chart.png
-```
+Browserless now serves as the CDP backend while workflow authoring/runs live in Browser Automation Studio. Use these BAS docs to design and execute UI tests:
+- `scenarios/browser-automation-studio/README.md` for scenario setup and CLI/API usage
+- `scenarios/browser-automation-studio/docs/nodes/` for node-level capabilities when composing flows
+- `scenarios/browser-automation-studio/docs/PROGRESS.md` for current feature coverage and gaps
 
 ## Testing Checklist
 
@@ -337,13 +260,7 @@ workflow:
 - [ ] Content loads without continuous polling
 
 ### Workflow Testing
-- [ ] Test workflow runs successfully end-to-end
-- [ ] All selectors are stable and unique
-- [ ] Wait conditions are appropriate
-- [ ] Error scenarios are handled
-- [ ] Screenshots capture intended content
-- [ ] Extracted data is accurate
-- [ ] Performance is acceptable (< 30s for typical flow)
+- Execute and validate flows via Browser Automation Studio; use the BAS CLI or UI replay tooling to confirm selectors, waits, and artifacts.
 
 ## Common Pitfalls to Avoid
 
@@ -358,7 +275,8 @@ workflow:
 
 ## Resources
 
-- [Browserless Workflow Documentation](./workflow-examples.md)
+- `scenarios/browser-automation-studio/README.md` (BAS setup, CLI/API usage)
+- `scenarios/browser-automation-studio/docs/nodes/` (workflow node catalog)
 - [CSS Selector Best Practices](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Selectors)
 - [ARIA Guidelines](https://www.w3.org/WAI/ARIA/apg/)
 - [Web Content Accessibility Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)

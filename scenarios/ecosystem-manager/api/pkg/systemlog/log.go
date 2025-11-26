@@ -45,13 +45,17 @@ var (
 	recentMu      sync.RWMutex
 )
 
+// Init initializes logging using the current working directory as the base.
+// Prefer InitWithBaseDir when the scenario root is known to ensure deterministic log placement.
 func Init() {
+	InitWithBaseDir("")
+}
+
+// InitWithBaseDir initializes logging using the provided base directory (scenario root).
+// Logs will be written to <baseDir>/logs.
+func InitWithBaseDir(baseDir string) {
 	initOnce.Do(func() {
-		cwd, err := os.Getwd()
-		if err != nil {
-			cwd = "."
-		}
-		logDir = filepath.Join(filepath.Dir(cwd), "logs")
+		logDir = resolveLogDir(baseDir)
 		if err := os.MkdirAll(logDir, 0755); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to create log dir: %v\n", err)
 			return
@@ -66,6 +70,18 @@ func Init() {
 		logWriter = bufio.NewWriterSize(f, 64*1024) // 64KB write buffer
 		recentEntries = make([]Entry, 0, maxRecentEntries)
 	})
+}
+
+func resolveLogDir(baseDir string) string {
+	if baseDir != "" {
+		return filepath.Join(baseDir, "logs")
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		cwd = "."
+	}
+	return filepath.Join(cwd, "logs")
 }
 
 func write(level Level, msg string) {

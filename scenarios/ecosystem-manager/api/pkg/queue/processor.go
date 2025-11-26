@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -97,10 +98,15 @@ type Processor struct {
 
 	// Recycler to trigger recycling on task completion/failure
 	recycler *recycler.Recycler
+
+	// Lifecycle control for background workers
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // NewProcessor creates a new queue processor
 func NewProcessor(storage *tasks.Storage, assembler *prompts.Assembler, broadcast chan<- any, recycler *recycler.Recycler) *Processor {
+	ctx, cancel := context.WithCancel(context.Background())
 	processor := &Processor{
 		stopChannel: make(chan bool),
 		wakeCh:      make(chan struct{}, 1),
@@ -110,6 +116,8 @@ func NewProcessor(storage *tasks.Storage, assembler *prompts.Assembler, broadcas
 		broadcast:   broadcast,
 		taskLogs:    make(map[string]*TaskLogBuffer),
 		recycler:    recycler,
+		ctx:         ctx,
+		cancel:      cancel,
 	}
 
 	processor.vrooliRoot = paths.DetectVrooliRoot()
@@ -185,6 +193,11 @@ func (qp *Processor) Stop() {
 	}
 }
 
+// Shutdown stops background workers and should be called during full application teardown.
+func (qp *Processor) Shutdown() {
+	qp.cancel()
+}
+
 // Pause temporarily pauses queue processing (maintenance mode)
 func (qp *Processor) Pause() {
 	qp.mu.Lock()
@@ -214,7 +227,7 @@ func (qp *Processor) Wake() {
 // processLoop is the main queue processing loop
 func (qp *Processor) processLoop() {
 	// Safety backstop to recover from any missed wake signals
-	safetyTicker := time.NewTicker(30 * time.Second)
+	safetyTicker := time.NewTicker(scaleDuration(ProcessLoopSafetyInterval))
 	defer safetyTicker.Stop()
 
 	for {
@@ -488,11 +501,16 @@ func (qp *Processor) cleanupOldPromptFiles() {
 // This provides defense-in-depth backup enforcement if context.WithTimeout fails
 // or if cleanup/finalization failures leave tasks stuck in executions map
 func (qp *Processor) timeoutEnforcementWatchdog() {
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(scaleDuration(TimeoutWatchdogInterval))
 	defer ticker.Stop()
 
-	for range ticker.C {
-		qp.enforceTimeouts()
+	for {
+		select {
+		case <-ticker.C:
+			qp.enforceTimeouts()
+		case <-qp.ctx.Done():
+			return
+		}
 	}
 }
 

@@ -15,13 +15,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var activeTaskStatuses = []string{"pending", "in-progress"}
-
-var queueStatuses = []string{"pending", "in-progress", "completed", "failed", "completed-finalized", "failed-blocked", "archived"}
+var activeTaskStatuses = []string{StatusPending, StatusInProgress}
+var queueStatuses = QueueStatuses
 
 // IsValidStatus checks if a status string is a valid queue status
 func IsValidStatus(status string) bool {
-	for _, valid := range queueStatuses {
+	for _, valid := range QueueStatuses {
 		if valid == status {
 			return true
 		}
@@ -31,14 +30,14 @@ func IsValidStatus(status string) bool {
 
 // GetValidStatuses returns a copy of all valid queue statuses
 func GetValidStatuses() []string {
-	result := make([]string, len(queueStatuses))
-	copy(result, queueStatuses)
+	result := make([]string, len(QueueStatuses))
+	copy(result, QueueStatuses)
 	return result
 }
 
 var statusOrder = func() map[string]int {
-	order := make(map[string]int, len(queueStatuses))
-	for idx, status := range queueStatuses {
+	order := make(map[string]int, len(QueueStatuses))
+	for idx, status := range QueueStatuses {
 		order[status] = idx
 	}
 	return order

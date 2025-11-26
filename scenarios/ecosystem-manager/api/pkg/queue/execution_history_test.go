@@ -14,6 +14,8 @@ import (
 // setupTestExecutionProcessor creates a test processor with temporary directories for execution history tests
 func setupTestExecutionProcessor(t *testing.T) (*Processor, func()) {
 	t.Helper()
+	resetTimings := SetTimingScaleForTests(0.01)
+	t.Cleanup(resetTimings)
 
 	// Create temporary directory for test
 	tmpDir, err := os.MkdirTemp("", "execution-history-test-*")
@@ -33,6 +35,7 @@ func setupTestExecutionProcessor(t *testing.T) (*Processor, func()) {
 	processor := NewProcessor(storage, assembler, broadcast, nil)
 
 	cleanup := func() {
+		processor.Stop()
 		os.RemoveAll(tmpDir)
 		close(broadcast)
 	}

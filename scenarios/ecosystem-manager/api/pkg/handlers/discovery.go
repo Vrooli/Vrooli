@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -75,16 +75,18 @@ func NewDiscoveryHandlers(assembler *prompts.Assembler) *DiscoveryHandlers {
 	}
 }
 
-// GetResourcesHandler returns discovered resources
-func (h *DiscoveryHandlers) GetResourcesHandler(w http.ResponseWriter, r *http.Request) {
-	// Check cache first
-	if cached, hit := h.cache.getResources(); hit {
-		w.Header().Set("X-Cache", "HIT")
-		writeJSON(w, cached, http.StatusOK)
-		return
+func shouldRefresh(r *http.Request) bool {
+	q := r.URL.Query().Get("refresh")
+	return q == "1" || strings.EqualFold(q, "true")
+}
+
+func (h *DiscoveryHandlers) loadResources(refresh bool) ([]tasks.ResourceInfo, bool) {
+	if !refresh {
+		if cached, hit := h.cache.getResources(); hit {
+			return cached, true
+		}
 	}
 
-	// Cache miss - perform expensive discovery
 	resources, err := discovery.DiscoverResources()
 	if err != nil {
 		log.Printf("Failed to discover resources: %v", err)
@@ -92,23 +94,17 @@ func (h *DiscoveryHandlers) GetResourcesHandler(w http.ResponseWriter, r *http.R
 		resources = []tasks.ResourceInfo{}
 	}
 
-	// Update cache
 	h.cache.setResources(resources)
-
-	w.Header().Set("X-Cache", "MISS")
-	writeJSON(w, resources, http.StatusOK)
+	return resources, false
 }
 
-// GetScenariosHandler returns discovered scenarios
-func (h *DiscoveryHandlers) GetScenariosHandler(w http.ResponseWriter, r *http.Request) {
-	// Check cache first
-	if cached, hit := h.cache.getScenarios(); hit {
-		w.Header().Set("X-Cache", "HIT")
-		writeJSON(w, cached, http.StatusOK)
-		return
+func (h *DiscoveryHandlers) loadScenarios(refresh bool) ([]tasks.ScenarioInfo, bool) {
+	if !refresh {
+		if cached, hit := h.cache.getScenarios(); hit {
+			return cached, true
+		}
 	}
 
-	// Cache miss - perform expensive discovery
 	scenarios, err := discovery.DiscoverScenarios()
 	if err != nil {
 		log.Printf("Failed to discover scenarios: %v", err)
@@ -116,10 +112,29 @@ func (h *DiscoveryHandlers) GetScenariosHandler(w http.ResponseWriter, r *http.R
 		scenarios = []tasks.ScenarioInfo{}
 	}
 
-	// Update cache
 	h.cache.setScenarios(scenarios)
+	return scenarios, false
+}
 
-	w.Header().Set("X-Cache", "MISS")
+// GetResourcesHandler returns discovered resources
+func (h *DiscoveryHandlers) GetResourcesHandler(w http.ResponseWriter, r *http.Request) {
+	resources, cacheHit := h.loadResources(shouldRefresh(r))
+	if cacheHit {
+		w.Header().Set("X-Cache", "HIT")
+	} else {
+		w.Header().Set("X-Cache", "MISS")
+	}
+	writeJSON(w, resources, http.StatusOK)
+}
+
+// GetScenariosHandler returns discovered scenarios
+func (h *DiscoveryHandlers) GetScenariosHandler(w http.ResponseWriter, r *http.Request) {
+	scenarios, cacheHit := h.loadScenarios(shouldRefresh(r))
+	if cacheHit {
+		w.Header().Set("X-Cache", "HIT")
+	} else {
+		w.Header().Set("X-Cache", "MISS")
+	}
 	writeJSON(w, scenarios, http.StatusOK)
 }
 
@@ -173,12 +188,8 @@ func (h *DiscoveryHandlers) GetResourceStatusHandler(w http.ResponseWriter, r *h
 		return
 	}
 
-	// Find the resource
-	resources, err := discovery.DiscoverResources()
-	if err != nil {
-		writeError(w, fmt.Sprintf("Failed to discover resources: %v", err), http.StatusInternalServerError)
-		return
-	}
+	resources, cacheHit := h.loadResources(shouldRefresh(r))
+	w.Header().Set("X-Cache", map[bool]string{true: "HIT", false: "MISS"}[cacheHit])
 
 	for _, resource := range resources {
 		if resource.Name == resourceName {
@@ -200,12 +211,8 @@ func (h *DiscoveryHandlers) GetScenarioStatusHandler(w http.ResponseWriter, r *h
 		return
 	}
 
-	// Find the scenario
-	scenarios, err := discovery.DiscoverScenarios()
-	if err != nil {
-		writeError(w, fmt.Sprintf("Failed to discover scenarios: %v", err), http.StatusInternalServerError)
-		return
-	}
+	scenarios, cacheHit := h.loadScenarios(shouldRefresh(r))
+	w.Header().Set("X-Cache", map[bool]string{true: "HIT", false: "MISS"}[cacheHit])
 
 	for _, scenario := range scenarios {
 		if scenario.Name == scenarioName {

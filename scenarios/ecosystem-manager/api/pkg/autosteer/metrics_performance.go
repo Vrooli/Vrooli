@@ -1,17 +1,21 @@
 package autosteer
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 )
 
 // PerformanceMetricsCollector handles collection of performance metrics
 type PerformanceMetricsCollector struct {
 	projectRoot string
 }
+
+const performanceCommandTimeout = 2 * time.Minute
 
 // NewPerformanceMetricsCollector creates a new performance metrics collector
 func NewPerformanceMetricsCollector(projectRoot string) *PerformanceMetricsCollector {
@@ -80,14 +84,8 @@ func (c *PerformanceMetricsCollector) buildUI(scenarioName string) error {
 	}
 
 	// Run npm build
-	cmd := exec.Command("npm", "run", "build")
-	cmd.Dir = uiPath
-
-	// Suppress output
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-
-	return cmd.Run()
+	_, err := runPerformanceCommand(uiPath, "npm", "run", "build")
+	return err
 }
 
 // RunLighthouse runs Lighthouse CI against a running application
@@ -111,7 +109,10 @@ func (c *PerformanceMetricsCollector) RunLighthouse(url string) (*PerformanceMet
 		"--upload.target=temporary-public-storage")
 	cmd.Dir = tmpDir
 
-	output, err := cmd.CombinedOutput()
+	output, err := runPerformanceCommandWithOutput(tmpDir, "lhci", "autorun",
+		"--collect.url="+url,
+		"--collect.numberOfRuns=1",
+		"--upload.target=temporary-public-storage")
 	if err != nil {
 		return nil, fmt.Errorf("lighthouse failed: %w, output: %s", err, string(output))
 	}
@@ -189,13 +190,12 @@ func (c *PerformanceMetricsCollector) parseLighthouseResults(resultsDir string) 
 // RunSimplifiedPerformanceTest runs a simplified performance test without full Lighthouse
 func (c *PerformanceMetricsCollector) RunSimplifiedPerformanceTest(url string) (*PerformanceMetrics, error) {
 	// Use curl with timing to get basic performance metrics
-	cmd := exec.Command("curl", "-w",
+	output, err := runPerformanceCommandWithOutput("",
+		"curl", "-w",
 		`{"time_namelookup":%{time_namelookup},"time_connect":%{time_connect},"time_starttransfer":%{time_starttransfer},"time_total":%{time_total}}`,
 		"-o", "/dev/null",
 		"-s",
 		url)
-
-	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("curl failed: %w", err)
 	}
@@ -256,6 +256,27 @@ func (c *PerformanceMetricsCollector) EstimatePerformanceScore(metrics *Performa
 	}
 
 	return score
+}
+
+func runPerformanceCommand(dir string, name string, args ...string) ([]byte, error) {
+	return runPerformanceCommandWithOutput(dir, name, args...)
+}
+
+func runPerformanceCommandWithOutput(dir string, name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), performanceCommandTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, name, args...)
+	if dir != "" {
+		cmd.Dir = dir
+	}
+
+	output, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return output, context.DeadlineExceeded
+	}
+
+	return output, err
 }
 
 // GetResourceTiming gets resource timing metrics from browser

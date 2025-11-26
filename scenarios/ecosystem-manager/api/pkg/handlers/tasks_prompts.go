@@ -66,6 +66,7 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 		prompt = string(cachedPrompt)
 		fromCache = true
 		systemlog.Debugf("Using cached prompt from %s", promptPath)
+		_ = os.Remove(promptPath) // best effort cleanup to avoid tmp accumulation
 	}
 
 	assembly.Prompt = prompt

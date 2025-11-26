@@ -65,6 +65,7 @@ cd /home/matthalloran8/Vrooli/scenarios/ecosystem-manager/cli && ./install.sh
 - **Dashboard**: http://localhost:30500  
 - **API**: http://localhost:30500/api
 - **Health**: http://localhost:30500/health
+- **CORS**: set `CORS_ALLOWED_ORIGINS` (comma-separated) to restrict origins; defaults to `*` for local dev.
 
 ## 📊 **Trello-like Interface**
 
@@ -125,11 +126,61 @@ PUT /api/tasks/{id}/status
 GET /api/tasks/{id}/prompt
 ```
 
+### **Queue Control**
+```bash
+POST /api/queue/start            # Resume processing (still gated by Settings active toggle)
+POST /api/queue/stop             # Pause processing
+POST /api/queue/processes/terminate
+POST /api/queue/reset-rate-limit
+GET  /api/queue/status
+```
+
+### **Settings & Logs**
+```bash
+GET  /api/settings               # Current settings
+PUT  /api/settings               # Update settings
+POST /api/settings/reset         # Reset defaults
+GET  /api/settings/recycler/models
+GET  /api/logs                   # Structured historical logs for UI
+```
+
+### **Auto Steer**
+```bash
+# Profiles
+POST /api/auto-steer/profiles
+GET  /api/auto-steer/profiles
+GET  /api/auto-steer/profiles/{id}
+PUT  /api/auto-steer/profiles/{id}
+DELETE /api/auto-steer/profiles/{id}
+
+# Execution
+POST /api/auto-steer/execution/start
+POST /api/auto-steer/execution/evaluate
+POST /api/auto-steer/execution/reset
+POST /api/auto-steer/execution/advance
+POST /api/auto-steer/execution/seek
+GET  /api/auto-steer/execution/{taskId}
+
+# Analytics / metrics / history
+GET  /api/auto-steer/metrics/{taskId}
+GET  /api/auto-steer/history
+GET  /api/auto-steer/history/{executionId}
+POST /api/auto-steer/history/{executionId}/feedback
+GET  /api/auto-steer/analytics/{profileId}
+```
+
 ### **Configuration**
 ```bash
 # List available operation types
 GET /api/operations
 ```
+
+## 📁 Task Queue Storage Contract (API)
+- Tasks are persisted as YAML under `scenarios/ecosystem-manager/queue/<status>/`; the directory name is the single source of truth for status (valid values follow `pkg/tasks.QueueStatuses`).
+- Status transitions are atomic file moves between status folders; handlers do not mutate files in place for transitions.
+- On API startup the storage layer re-syncs status from folder names, normalizes `targets`/`target`, and removes duplicate task IDs to keep the queue consistent for other scenarios.
+- Writers should set core fields (`id`, `title`, `type`, `operation`, `status`, `targets`/`target`) and let the API fill derived fields; avoid inventing new status folders.
+- External edits are supported, but prefer moving files between canonical directories to change state rather than editing the status field inside the YAML.
 
 ## 🖥️ **CLI Interface**
 

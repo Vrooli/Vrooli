@@ -10,15 +10,6 @@ import (
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
 
-var statuses = []string{
-	"pending",
-	"in-progress",
-	"completed",
-	"completed-finalized",
-	"failed",
-	"failed-blocked",
-}
-
 func main() {
 	queueDirFlag := flag.String("queue-dir", "", "Path to the ecosystem-manager queue directory")
 	flag.Parse()
@@ -31,7 +22,7 @@ func main() {
 	storage := tasks.NewStorage(queueDir)
 
 	var total, updated int
-	for _, status := range statuses {
+	for _, status := range tasks.GetValidStatuses() {
 		items, err := storage.GetQueueItems(status)
 		if err != nil {
 			log.Printf("Warning: failed to read %s tasks: %v", status, err)

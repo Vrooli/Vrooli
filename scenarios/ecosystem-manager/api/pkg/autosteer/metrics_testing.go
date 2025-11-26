@@ -1,6 +1,7 @@
 package autosteer
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -8,12 +9,15 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // TestMetricsCollector handles collection of testing metrics
 type TestMetricsCollector struct {
 	projectRoot string
 }
+
+const defaultCommandTimeout = 2 * time.Minute
 
 // NewTestMetricsCollector creates a new test metrics collector
 func NewTestMetricsCollector(projectRoot string) *TestMetricsCollector {
@@ -63,10 +67,16 @@ func (c *TestMetricsCollector) getGoTestCoverage(scenarioName string) float64 {
 	}
 
 	// Run go test with coverage
-	cmd := exec.Command("go", "test", "./...", "-cover", "-coverprofile=coverage.out")
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCommandTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "go", "test", "./...", "-cover", "-coverprofile=coverage.out")
 	cmd.Dir = apiPath
 
 	output, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return 0
+	}
 	if err != nil {
 		// Tests may fail, but we can still get coverage
 	}
@@ -106,10 +116,13 @@ func (c *TestMetricsCollector) parseGoCoverageOutput(output string) float64 {
 
 // parseGoCoverageFile parses a Go coverage profile file
 func (c *TestMetricsCollector) parseGoCoverageFile(coverageFile string) float64 {
-	cmd := exec.Command("go", "tool", "cover", "-func="+coverageFile)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCommandTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "go", "tool", "cover", "-func="+coverageFile)
 
 	output, err := cmd.CombinedOutput()
-	if err != nil {
+	if ctx.Err() == context.DeadlineExceeded || err != nil {
 		return 0
 	}
 
@@ -159,11 +172,14 @@ func (c *TestMetricsCollector) runTypeScriptTests(scenarioName string) float64 {
 	}
 
 	// Run npm test with coverage (assuming vitest or jest)
-	cmd := exec.Command("npm", "run", "test:coverage")
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCommandTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "npm", "run", "test:coverage")
 	cmd.Dir = uiPath
 
 	// Run with timeout
-	if err := cmd.Run(); err != nil {
+	if err := cmd.Run(); err != nil || ctx.Err() == context.DeadlineExceeded {
 		// Tests may fail, but coverage might still be generated
 	}
 
