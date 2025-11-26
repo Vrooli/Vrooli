@@ -127,6 +127,29 @@ EOF
 }
 
 #######################################
+# Attempt to clean up leaked Chrome processes inside the container
+# Kills Chrome/Chromium processes and removes stale user-data dirs
+# Safe to call repeatedly; only runs when container is up
+#######################################
+function browserless::cleanup_process_leak() {
+    local reason="${1:-process leak detected}"
+
+    if ! is_running; then
+        return 0
+    fi
+
+    echo "🔧 Attempting Chrome leak cleanup (${reason})..."
+    docker exec "$BROWSERLESS_CONTAINER_NAME" sh -c "
+        pids=\$(ps -eo pid,cmd | grep -E 'chrome|chromium' | grep -v grep | awk '{print \$1}');
+        if [ -n \"\$pids\" ]; then
+            echo \"Killing \$(echo \$pids | wc -w) chrome processes\";
+            kill -9 \$pids 2>/dev/null || true;
+        fi
+        rm -rf /tmp/browserless-data-dirs/* >/dev/null 2>&1 || true
+    " >/dev/null 2>&1 || true
+}
+
+#######################################
 # Analyze overall health and provide diagnostics
 # Returns: JSON object with health details
 #######################################
@@ -319,6 +342,11 @@ EOF
             mem_limit=$(echo "$diagnostics" | jq -r '.memory.limit // "N/A"')
             mem_pct=$(echo "$diagnostics" | jq -r '.memory.usage_percent // 0')
 
+            local auto_clean="${BROWSERLESS_AUTOCLEAN_ON_LEAK:-true}"
+            local leak_threshold="${BROWSERLESS_PROCESS_CLEAN_THRESHOLD:-80}"
+            local mem_clean_threshold="${BROWSERLESS_MEM_CLEAN_THRESHOLD:-90}"
+            local cleanup_triggered="false"
+
             if [[ "$mem_used" != "N/A" ]]; then
                 echo "Memory: $mem_used / $mem_limit (${mem_pct}%)"
 
@@ -347,6 +375,19 @@ EOF
 
                 if [[ "$defunct_procs" -gt 10 ]]; then
                     echo "  ⚠️  Zombie processes detected ($defunct_procs defunct)"
+                fi
+            fi
+
+            # Auto-clean leaked Chrome processes when thresholds are exceeded
+            if [[ "$auto_clean" == "true" ]]; then
+                if [[ "$chrome_procs" -gt "$leak_threshold" ]]; then
+                    browserless::cleanup_process_leak "chrome_procs=${chrome_procs}>${leak_threshold}"
+                    echo "  🧹 Triggered Chrome leak cleanup (processes=${chrome_procs}>${leak_threshold})"
+                    cleanup_triggered="true"
+                elif (( $(echo "$mem_pct > $mem_clean_threshold" | bc -l 2>/dev/null || echo "0") )); then
+                    browserless::cleanup_process_leak "memory=${mem_pct}%>${mem_clean_threshold}%"
+                    echo "  🧹 Triggered Chrome leak cleanup (memory ${mem_pct}% > ${mem_clean_threshold}%)"
+                    cleanup_triggered="true"
                 fi
             fi
 

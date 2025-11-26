@@ -298,6 +298,7 @@ scenario::status::format_display_individual() {
         echo ""
         echo "Allocated Ports:"
         echo "$ports" | jq -r 'to_entries[] | "  \(.key): \(.value)"' 2>/dev/null
+        echo "Note: Scenario ports are typically dynamic; run: vrooli scenario port $scenario_name <port_name> before each API call to ensure you have the latest port."
     fi
     
     # Show port status if available

@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Save, Archive, Trash2, RefreshCw, ChevronsUpDown } from 'lucide-react';
+import { Save, Archive, Trash2, RefreshCw, ChevronsUpDown, AlertCircle, Database, Calendar, Loader2, ExternalLink, RotateCcw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useUpdateTask, useDeleteTask } from '@/hooks/useTaskMutations';
 import { useAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExecution, useSeekAutoSteerExecution } from '@/hooks/useAutoSteer';
@@ -34,7 +34,7 @@ import { markdownToHtml } from '@/lib/markdown';
 import { queryKeys } from '@/lib/queryKeys';
 import { ExecutionDetailCard } from '@/components/executions/ExecutionDetailCard';
 import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfileEditorModal';
-import type { Task, Priority, ExecutionHistory, UpdateTaskInput, SteerMode } from '@/types/api';
+import type { Task, Priority, ExecutionHistory, UpdateTaskInput, SteerMode, Campaign } from '@/types/api';
 import { STEER_MODES } from '@/types/api';
 
 interface TaskDetailsModalProps {
@@ -45,6 +45,193 @@ interface TaskDetailsModalProps {
 
 const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low'];
 const AUTO_STEER_NONE = 'none';
+
+// Campaigns Tab Component
+function CampaignsTab({ task }: { task: Task }) {
+  const targetPath = Array.isArray(task?.target) && task.target.length > 0 ? task.target[0] : '';
+
+  const { data: rawCampaigns, isLoading, error, refetch } = useQuery({
+    queryKey: ['campaigns', targetPath],
+    queryFn: () => targetPath ? api.getCampaignsForTarget(targetPath) : Promise.resolve([]),
+    enabled: !!targetPath,
+    staleTime: 30000,
+  });
+
+  // Ensure campaigns is always an array
+  const campaigns = Array.isArray(rawCampaigns) ? rawCampaigns : [];
+
+  const handleDelete = async (campaignId: string) => {
+    if (!confirm('Delete this campaign? All visit history will be lost.')) return;
+
+    try {
+      await api.deleteCampaign(campaignId);
+      refetch();
+    } catch (err) {
+      alert(`Failed to delete campaign: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleReset = async (campaignId: string) => {
+    if (!confirm('Reset this campaign? All visit counts and history will be cleared, but the campaign structure will remain.')) return;
+
+    try {
+      await api.resetCampaign(campaignId);
+      refetch();
+    } catch (err) {
+      alert(`Failed to reset campaign: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  if (!targetPath) {
+    return (
+      <div className="text-center py-12 text-slate-400">
+        <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
+        <p className="text-sm">No target path configured for this task.</p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12 text-slate-400">
+        <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin" />
+        <p className="text-sm">Loading campaigns...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12 text-slate-400">
+        <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
+        <p className="text-sm mb-4">Failed to load campaigns</p>
+        <Button size="sm" variant="outline" onClick={() => refetch()}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  const handleOpenVisitedTracker = async () => {
+    try {
+      const { url } = await api.getVisitedTrackerUIPort();
+      window.open(url, '_blank');
+    } catch (err) {
+      alert('Failed to open visited-tracker. Make sure the scenario is running.');
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Explanation Header */}
+      <div className="rounded-md border border-blue-500/30 bg-blue-500/10 p-4 text-sm text-slate-200">
+        <div className="flex items-start gap-3">
+          <Database className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <h4 className="font-semibold text-slate-100 mb-1">What are campaigns?</h4>
+            <p className="text-slate-300">
+              Campaigns track which files the AI has visited during improvement loops, ensuring systematic coverage without repetition.
+              They store visit counts, staleness scores, and notes to help agents prioritize work across multiple sessions.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleOpenVisitedTracker}
+            className="flex-shrink-0"
+          >
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Open Tracker
+          </Button>
+        </div>
+      </div>
+
+      {campaigns.length === 0 ? (
+        <div className="text-center py-8 text-slate-400">
+          <Database className="h-12 w-12 mx-auto mb-3 opacity-30" />
+          <p className="text-sm">No campaigns found for this target.</p>
+          <p className="text-xs mt-2 text-slate-500">
+            Campaigns are created automatically when agents use visited-tracker CLI during improvement loops.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {campaigns.map((campaign) => (
+            <div
+              key={campaign.id}
+              className="rounded-md border border-white/10 bg-slate-900/70 p-4 space-y-3"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-slate-100 truncate">{campaign.name}</h4>
+                  {campaign.description && (
+                    <p className="text-xs text-slate-400 mt-1">{campaign.description}</p>
+                  )}
+                  {campaign.tag && (
+                    <span className="inline-block mt-2 px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-300">
+                      {campaign.tag}
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleReset(campaign.id)}
+                    className="text-amber-400 hover:text-amber-300 border-amber-400/30 hover:border-amber-400/50"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-1.5" />
+                    Reset
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleDelete(campaign.id)}
+                    className="text-red-400 hover:text-red-300 border-red-400/30 hover:border-red-400/50"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1.5" />
+                    Delete
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 text-xs">
+                <div>
+                  <div className="text-slate-500">Coverage</div>
+                  <div className="font-semibold text-slate-100">
+                    {typeof campaign.coverage_percent === 'number'
+                      ? `${campaign.coverage_percent.toFixed(1)}%`
+                      : '0.0%'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-slate-500">Files Tracked</div>
+                  <div className="font-semibold text-slate-100">
+                    {campaign.total_files ?? 0}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-slate-500">Visited</div>
+                  <div className="font-semibold text-slate-100">
+                    {campaign.visited_files ?? 0}
+                  </div>
+                </div>
+              </div>
+
+              {campaign.created_at && (
+                <div className="flex items-center gap-2 text-xs text-slate-500 pt-2 border-t border-white/5">
+                  <Calendar className="h-3 w-3" />
+                  <span>Created {new Date(campaign.created_at).toLocaleString()}</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalProps) {
   const [activeTab, setActiveTab] = useState('details');
@@ -427,10 +614,11 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="prompt">Prompt</TabsTrigger>
             <TabsTrigger value="executions">Executions</TabsTrigger>
+            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
           </TabsList>
 
           {/* Details Tab */}
@@ -883,6 +1071,11 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                 />
               </div>
             )}
+          </TabsContent>
+
+          {/* Campaigns Tab */}
+          <TabsContent value="campaigns" className="mt-4">
+            <CampaignsTab task={task} />
           </TabsContent>
         </Tabs>
 

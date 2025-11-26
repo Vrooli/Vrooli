@@ -31,6 +31,7 @@ import type {
   HealthResponse,
   AutoSteerExecutionState,
   ActiveTarget,
+  Campaign,
 } from '../types/api';
 
 // Default settings fallback (matches legacy API defaults)
@@ -1006,6 +1007,33 @@ class ApiClient {
     return this.fetchJSON<void>(`/api/maintenance/state`, {
       method: 'POST',
       body: JSON.stringify({ active }),
+    });
+  }
+
+  // ==================== Visited Tracker Integration ====================
+
+  async getVisitedTrackerUIPort(): Promise<{ port: string; url: string }> {
+    return this.fetchJSON<{ port: string; url: string }>(`/api/visited-tracker/ui-port`);
+  }
+
+  async getCampaignsForTarget(target: string): Promise<Campaign[]> {
+    const params = new URLSearchParams({ target });
+    return this.fetchJSON<Campaign[]>(`/api/visited-tracker/campaigns/by-target?${params.toString()}`);
+  }
+
+  async getCampaign(campaignId: string): Promise<Campaign> {
+    return this.fetchJSON<Campaign>(`/api/visited-tracker/campaigns/${campaignId}`);
+  }
+
+  async deleteCampaign(campaignId: string): Promise<void> {
+    return this.fetchJSON<void>(`/api/visited-tracker/campaigns/${campaignId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async resetCampaign(campaignId: string): Promise<void> {
+    return this.fetchJSON<void>(`/api/visited-tracker/campaigns/${campaignId}/reset`, {
+      method: 'POST',
     });
   }
 

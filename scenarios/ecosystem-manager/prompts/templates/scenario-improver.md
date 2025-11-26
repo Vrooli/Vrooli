@@ -75,4 +75,7 @@ Use this structure for your final response; ecosystem-manager relies on it to tr
 **Current Phase**: {{CURRENT_PHASE}}
 
 ### Notes
+
+*Notes are shared across multiple chat sessions, so any issues mentioned in notes may already be resolved. Investigate before addressing them.*
+
 {{NOTES}}

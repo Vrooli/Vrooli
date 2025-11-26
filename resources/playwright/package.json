@@ -1,0 +1,16 @@
+{
+  "name": "vrooli-playwright-driver",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "driver/server.js",
+  "scripts": {
+    "postinstall": "bash scripts/install-browsers.sh || true"
+  },
+  "dependencies": {
+    "playwright-core": "1.45.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
