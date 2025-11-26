@@ -55,7 +55,9 @@ describe('[REQ:AGENT-TRIGGER] Agent Trigger - UI Layer', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Agent customization/i)).toBeInTheDocument();
+      // May appear multiple times (heading + tooltips)
+      const agentElements = screen.getAllByText(/Agent customization/i);
+      expect(agentElements.length).toBeGreaterThan(0);
     });
   });
 
@@ -108,7 +110,9 @@ describe('[REQ:AGENT-TRIGGER] Agent Trigger - UI Layer', () => {
 
     await waitFor(() => {
       // Agent section should be present
-      expect(screen.getByText(/Agent customization/i)).toBeInTheDocument();
+      // May appear multiple times (heading + tooltips)
+      const agentElements = screen.getAllByText(/Agent customization/i);
+      expect(agentElements.length).toBeGreaterThan(0);
 
       // Generated scenario should be available for selection
       expect(screen.getByText('Test Landing')).toBeInTheDocument();
@@ -123,7 +127,9 @@ describe('[REQ:AGENT-TRIGGER] Agent Trigger - UI Layer', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Agent customization/i)).toBeInTheDocument();
+      // May appear multiple times (heading + tooltips)
+      const agentElements = screen.getAllByText(/Agent customization/i);
+      expect(agentElements.length).toBeGreaterThan(0);
     });
 
     // Form should accept brief (which can include asset references)

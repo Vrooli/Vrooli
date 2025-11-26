@@ -4,6 +4,15 @@ import FactoryHome from './pages/FactoryHome';
 export default function App() {
   return (
     <BrowserRouter>
+      {/* [REQ:A11Y-SKIP] Skip to main content link for keyboard navigation */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-6 focus:py-3 focus:bg-emerald-600 focus:text-white focus:rounded-lg focus:shadow-2xl focus:font-semibold focus:text-base"
+        tabIndex={0}
+      >
+        Skip to main content
+      </a>
+
       <Routes>
         {/* Factory home (default entrypoint) */}
         <Route path="/" element={<FactoryHome />} />

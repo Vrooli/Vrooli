@@ -189,3 +189,16 @@ export async function getScenarioStatus(scenarioId: string) {
 export async function getScenarioLogs(scenarioId: string, tail = 50) {
   return apiCall<ScenarioLogs>(`/lifecycle/${scenarioId}/logs?tail=${tail}`);
 }
+
+export interface PromoteResponse {
+  success: boolean;
+  message: string;
+  scenario_id: string;
+  production_path?: string;
+}
+
+export async function promoteScenario(scenarioId: string) {
+  return apiCall<PromoteResponse>(`/lifecycle/${scenarioId}/promote`, {
+    method: 'POST',
+  });
+}

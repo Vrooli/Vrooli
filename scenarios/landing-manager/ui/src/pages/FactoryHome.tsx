@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle, Loader2, RefreshCcw, Rocket, AlertCircle, ExternalLink, HelpCircle, Sparkles, FileText, Zap, Play, Square, RotateCw, FileOutput, Monitor, Copy, Check } from 'lucide-react';
+import { CheckCircle, Loader2, RefreshCcw, Rocket, AlertCircle, ExternalLink, HelpCircle, Sparkles, FileText, Zap, Play, Square, RotateCw, FileOutput, Monitor, Copy, Check, Globe, Settings, Calendar, X, Keyboard } from 'lucide-react';
 import {
   generateScenario,
   getTemplate,
@@ -12,6 +12,7 @@ import {
   getScenarioStatus,
   getScenarioLogs,
   getPreviewLinks,
+  promoteScenario,
   type GenerationResult,
   type Template,
   type GeneratedScenario,
@@ -56,6 +57,25 @@ function Tooltip({ children, content }: { children: React.ReactNode; content: st
   );
 }
 
+// Skeleton loader for template cards
+function TemplateCardSkeleton() {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/5 p-4 sm:p-5 animate-pulse" aria-hidden="true">
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="flex-1 space-y-2">
+          <div className="h-3 w-16 bg-slate-700/50 rounded"></div>
+          <div className="h-5 w-40 bg-slate-700/50 rounded"></div>
+        </div>
+        <div className="h-5 w-10 bg-slate-700/50 rounded-full"></div>
+      </div>
+      <div className="space-y-2 mt-2">
+        <div className="h-3 w-full bg-slate-700/50 rounded"></div>
+        <div className="h-3 w-3/4 bg-slate-700/50 rounded"></div>
+      </div>
+    </div>
+  );
+}
+
 export default function FactoryHome() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -84,6 +104,11 @@ export default function FactoryHome() {
   const [scenarioLogs, setScenarioLogs] = useState<Record<string, string>>({});
   const [previewLinks, setPreviewLinks] = useState<Record<string, PreviewLinks>>({});
   const [copiedSlug, setCopiedSlug] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [slugError, setSlugError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [promoteDialogScenario, setPromoteDialogScenario] = useState<string | null>(null);
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
 
   const selectedTemplate = useMemo(
     () => templates?.find((t) => t?.id === selectedId) ?? templates?.[0] ?? null,
@@ -133,6 +158,16 @@ export default function FactoryHome() {
 
   const handleNameChange = (value: string) => {
     setName(value);
+    // Validate name
+    if (value.trim().length === 0) {
+      setNameError('Name is required');
+    } else if (value.trim().length < 3) {
+      setNameError('Name must be at least 3 characters');
+    } else if (value.trim().length > 100) {
+      setNameError('Name must be less than 100 characters');
+    } else {
+      setNameError(null);
+    }
     const nextSlug = slugify(value);
     setSlug((prev) => {
       const prevAuto = slugify(name);
@@ -141,6 +176,23 @@ export default function FactoryHome() {
       }
       return prev;
     });
+  };
+
+  const handleSlugChange = (value: string) => {
+    const cleaned = slugify(value);
+    setSlug(cleaned);
+    // Validate slug
+    if (cleaned.length === 0) {
+      setSlugError('Slug is required');
+    } else if (cleaned.length < 3) {
+      setSlugError('Slug must be at least 3 characters');
+    } else if (cleaned.length > 60) {
+      setSlugError('Slug must be less than 60 characters');
+    } else if (!/^[a-z][a-z0-9-]*[a-z0-9]$/.test(cleaned)) {
+      setSlugError('Slug must start with a letter and end with a letter or number');
+    } else {
+      setSlugError(null);
+    }
   };
 
   const handleGenerate = async (dryRun: boolean) => {
@@ -164,6 +216,11 @@ export default function FactoryHome() {
       if (!dryRun) {
         const scenarios = await listGeneratedScenarios();
         setGenerated(scenarios);
+        setSuccessMessage(`✅ Successfully generated "${name}" scenario!`);
+        setTimeout(() => setSuccessMessage(null), 5000);
+      } else {
+        setSuccessMessage(`📋 Dry-run plan generated for "${name}"`);
+        setTimeout(() => setSuccessMessage(null), 3000);
       }
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : 'Generation failed');
@@ -252,6 +309,47 @@ export default function FactoryHome() {
     }
   };
 
+  const handlePromoteScenario = async (scenarioId: string) => {
+    // Show confirmation dialog
+    setPromoteDialogScenario(scenarioId);
+  };
+
+  const confirmPromote = async () => {
+    if (!promoteDialogScenario) return;
+
+    const scenarioId = promoteDialogScenario;
+    setPromoteDialogScenario(null);
+
+    try {
+      setScenarioStatuses((prev) => ({ ...prev, [scenarioId]: { running: prev[scenarioId]?.running ?? false, loading: true } }));
+      const result = await promoteScenario(scenarioId);
+
+      if (result.success) {
+        // Remove from generated list since it's now in production
+        setGenerated((prev) => prev.filter(s => s.scenario_id !== scenarioId));
+        // Clear status and links
+        setScenarioStatuses((prev) => {
+          const newStatuses = { ...prev };
+          delete newStatuses[scenarioId];
+          return newStatuses;
+        });
+        setPreviewLinks((prev) => {
+          const newLinks = { ...prev };
+          delete newLinks[scenarioId];
+          return newLinks;
+        });
+        setSuccessMessage(`Successfully promoted "${scenarioId}" to production at ${result.production_path}`);
+      } else {
+        setGenerateError(`Failed to promote: ${result.message}`);
+        setScenarioStatuses((prev) => ({ ...prev, [scenarioId]: { running: false, loading: false } }));
+      }
+    } catch (err) {
+      console.error('Failed to promote scenario:', err);
+      setGenerateError(`Failed to promote: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setScenarioStatuses((prev) => ({ ...prev, [scenarioId]: { running: false, loading: false } }));
+    }
+  };
+
   const handleToggleLogs = async (scenarioId: string) => {
     const show = !showLogs[scenarioId];
     setShowLogs((prev) => ({ ...prev, [scenarioId]: show }));
@@ -296,10 +394,68 @@ export default function FactoryHome() {
     }
   }, [generated]);
 
+  // Keyboard shortcuts for power users
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl+Enter to generate (when form is valid)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !generating && selectedTemplate && name.trim() && slug.trim() && !nameError && !slugError) {
+        e.preventDefault();
+        handleGenerate(false);
+      }
+      // Cmd/Ctrl+Shift+Enter for dry-run
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'Enter' && !generating && selectedTemplate && name.trim() && slug.trim() && !nameError && !slugError) {
+        e.preventDefault();
+        handleGenerate(true);
+      }
+      // Cmd/Ctrl+R to refresh templates
+      if ((e.metaKey || e.ctrlKey) && e.key === 'r' && !loadingTemplates) {
+        e.preventDefault();
+        (async () => {
+          try {
+            setLoadingTemplates(true);
+            setTemplatesError(null);
+            const tpl = await listTemplates();
+            setTemplates(tpl);
+            setSelectedId((id) => id ?? tpl[0]?.id ?? null);
+          } catch (err) {
+            setTemplatesError(err instanceof Error ? err.message : 'Failed to refresh templates');
+          } finally {
+            setLoadingTemplates(false);
+          }
+        })();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [generating, selectedTemplate, name, slug, nameError, slugError, loadingTemplates]);
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 space-y-8 sm:space-y-10 lg:space-y-12">
-        <header className="space-y-4 sm:space-y-6">
+    <div className="min-h-screen bg-slate-950 text-slate-50 smooth-scroll">
+      {/* Success toast notification */}
+      {successMessage && (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="fixed top-4 right-4 z-50 max-w-md rounded-xl border border-emerald-500/40 bg-emerald-500/10 backdrop-blur-sm px-4 py-3 text-sm text-emerald-100 shadow-2xl shadow-emerald-500/20 animate-slide-up"
+        >
+          <div className="flex items-start gap-3">
+            <CheckCircle className="h-5 w-5 text-emerald-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="flex-1">{successMessage}</p>
+            <button
+              onClick={() => setSuccessMessage(null)}
+              className="text-emerald-300 hover:text-emerald-200 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded"
+              aria-label="Dismiss notification"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-8 sm:py-12 lg:py-16 xl:py-20 space-y-8 sm:space-y-10 lg:space-y-12 xl:space-y-14 safe-area-inset">
+        <header className="space-y-4 sm:space-y-6 animate-fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <p className="inline-flex items-center rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300 border border-emerald-500/30">
               <Sparkles className="h-3 w-3 mr-1.5" aria-hidden="true" />
@@ -309,93 +465,126 @@ export default function FactoryHome() {
               <HelpCircle className="h-5 w-5 text-slate-400 hover:text-slate-300 transition-colors" aria-label="About Landing Manager" />
             </Tooltip>
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-            Generate landing-page scenarios in minutes
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight">
+            Landing Page Factory
           </h1>
-          <p className="text-base sm:text-lg text-slate-300 max-w-3xl leading-relaxed">
-            Select a template, customize it, and generate a complete landing page scenario with analytics, A/B testing, and payment processing built-in.
-            <span className="block mt-2 text-sm text-slate-400">
-              Note: This is the factory interface. Generated scenarios run independently with their own landing pages and admin portals.
-            </span>
+          <p className="text-base sm:text-lg xl:text-xl text-slate-300 max-w-3xl leading-relaxed">
+            Create production-ready SaaS landing pages in under 60 seconds. Each generated scenario includes a complete stack: React UI, Go API, PostgreSQL schema, Stripe integration, A/B testing, and analytics dashboard.
           </p>
+          <div className="inline-flex items-center gap-3 p-3 rounded-xl border border-blue-500/30 bg-gradient-to-r from-blue-500/10 to-purple-500/10">
+            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
+              <Zap className="h-5 w-5 text-blue-300" aria-hidden="true" />
+            </div>
+            <p className="text-sm text-blue-100 font-medium">
+              New scenarios are created in <code className="px-1.5 py-0.5 rounded bg-slate-900/60 text-emerald-300 font-mono text-xs">generated/</code> staging folder for safe testing
+            </p>
+          </div>
 
           {/* Quick start guide for first-time users */}
-          <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 sm:p-6 space-y-3" role="region" aria-label="Quick start guide">
-            <div className="flex items-start gap-3">
-              <Zap className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" aria-hidden="true" />
-              <div className="flex-1 space-y-2">
-                <h2 className="text-lg font-semibold text-blue-100">Quick Start</h2>
-                <ol className="text-sm text-blue-100/90 space-y-2 list-decimal list-inside">
-                  <li>Browse the <strong>Template Catalog</strong> below and select a template</li>
-                  <li>Enter your project name and slug in the <strong>Generate</strong> section</li>
-                  <li>Click <strong>"Dry-run"</strong> to preview or <strong>"Generate now"</strong> to create your scenario (appears in <code className="px-1 py-0.5 rounded bg-slate-900/60 text-emerald-300 font-mono text-[10px]">generated/</code> staging folder)</li>
-                  <li>Use the <strong>Start/Stop buttons</strong> in the Generated Scenarios section to test your landing page</li>
-                  <li><strong>Customize</strong> with AI assistance if needed, then move to production when ready</li>
-                </ol>
-                <p className="text-xs text-blue-200/80 italic mt-3 pl-5">
-                  💡 Everything can be managed through this UI - no terminal required!
-                </p>
+          <div className="rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 p-5 sm:p-6" role="region" aria-label="Quick start guide">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+                <Rocket className="h-5 w-5 text-emerald-300" aria-hidden="true" />
+              </div>
+              <div className="flex-1 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <h2 className="text-lg font-bold text-emerald-100">Get Started in 3 Steps</h2>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold bg-emerald-500/30 border border-emerald-500/50 text-emerald-200 rounded-full">
+                    <Monitor className="h-3 w-3" aria-hidden="true" />
+                    <span>100% UI · No Terminal Required</span>
+                  </span>
+                </div>
+                <div className="grid gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-sm font-bold text-emerald-300">1</div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-emerald-100 mb-1">Select a Template</p>
+                      <p className="text-xs text-emerald-200/80">Browse templates below and click to select one (already done if you see a green checkmark)</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-sm font-bold text-emerald-300">2</div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-emerald-100 mb-1">Generate Your Landing Page</p>
+                      <p className="text-xs text-emerald-200/80">Enter a name, click "Generate Now" — your scenario appears instantly in the staging area</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-sm font-bold text-emerald-300">3</div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-emerald-100 mb-1">Launch & Test</p>
+                      <p className="text-xs text-emerald-200/80">Click "Start" on your scenario → get instant access links to live landing page + admin dashboard</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 pt-3 border-t border-emerald-500/20">
+                  <Sparkles className="h-4 w-4 text-blue-300 mt-0.5 flex-shrink-0" aria-hidden="true" />
+                  <p className="text-xs text-blue-200 font-medium">
+                    <strong>Iterate risk-free:</strong> All new scenarios start in a staging folder. Test, refine, and customize before moving to production.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </header>
 
         {/* Stats overview cards */}
-        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" role="region" aria-label="Overview statistics">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 space-y-3" role="article">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3" role="region" aria-label="Overview statistics">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 xl:p-7 space-y-3" role="article">
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium text-slate-400">Templates Available</div>
               <Tooltip content="Pre-built templates with different landing page configurations. Each includes a full stack: React UI, Go API, PostgreSQL schema, and Stripe integration.">
                 <HelpCircle className="h-4 w-4 text-slate-500 hover:text-slate-400 transition-colors" />
               </Tooltip>
             </div>
-            <div className="flex items-center gap-2 text-2xl font-bold" aria-live="polite">
+            <div className="flex items-center gap-2 text-2xl xl:text-3xl font-bold" aria-live="polite">
               {loadingTemplates ? (
-                <Loader2 className="h-5 w-5 animate-spin text-emerald-300" aria-label="Loading templates" />
+                <Loader2 className="h-5 w-5 xl:h-6 xl:w-6 animate-spin text-emerald-300" aria-label="Loading templates" />
               ) : (
-                <CheckCircle className="h-5 w-5 text-emerald-300" aria-label="Templates loaded successfully" />
+                <CheckCircle className="h-5 w-5 xl:h-6 xl:w-6 text-emerald-300" aria-label="Templates loaded successfully" />
               )}
               <span>{templates.length}</span>
             </div>
-            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+            <p className="text-xs sm:text-sm xl:text-base text-slate-400 leading-relaxed">
               Browse templates below to see features, sections, and customization options
             </p>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 space-y-3" role="article">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 xl:p-7 space-y-3" role="article">
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium text-slate-400">Generation Methods</div>
               <Tooltip content="Create scenarios via the UI form below or using CLI commands. Both support dry-run mode for planning before generation.">
                 <HelpCircle className="h-4 w-4 text-slate-500 hover:text-slate-400 transition-colors" />
               </Tooltip>
             </div>
-            <div className="flex items-center gap-2 text-2xl font-bold">
-              <FileText className="h-5 w-5 text-blue-400" aria-hidden="true" />
+            <div className="flex items-center gap-2 text-2xl xl:text-3xl font-bold">
+              <FileText className="h-5 w-5 xl:h-6 xl:w-6 text-blue-400" aria-hidden="true" />
               <span>CLI + UI</span>
             </div>
             <div className="space-y-2">
-              <p className="text-xs sm:text-sm text-slate-400">
+              <p className="text-xs sm:text-sm xl:text-base text-slate-400">
                 Use buttons below or CLI:
               </p>
-              <code className="hidden sm:block text-[10px] lg:text-xs rounded-lg bg-slate-900 px-2 py-1.5 border border-white/10 overflow-x-auto whitespace-nowrap">
+              <code className="hidden sm:block text-[10px] lg:text-xs xl:text-sm rounded-lg bg-slate-900 px-2 py-1.5 xl:px-3 xl:py-2 border border-white/10 overflow-x-auto whitespace-nowrap">
                 landing-manager generate {selectedTemplate?.id || 'template-id'} --name "..." --slug "..."
               </code>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-6 space-y-3 sm:col-span-2 lg:col-span-1" role="alert" aria-live="polite">
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-6 xl:p-7 space-y-3 sm:col-span-2 lg:col-span-1" role="alert" aria-live="polite">
             <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-amber-400 flex-shrink-0" aria-hidden="true" />
-              <div className="text-sm font-medium text-amber-200">Important Note</div>
+              <AlertCircle className="h-4 w-4 xl:h-5 xl:w-5 text-amber-400 flex-shrink-0" aria-hidden="true" />
+              <div className="text-sm xl:text-base font-medium text-amber-200">Important Note</div>
             </div>
-            <p className="text-sm sm:text-base font-semibold text-amber-100">Runtime lives in generated scenarios</p>
-            <p className="text-xs sm:text-sm text-amber-100/90 leading-relaxed">
+            <p className="text-sm sm:text-base xl:text-lg font-semibold text-amber-100">Runtime lives in generated scenarios</p>
+            <p className="text-xs sm:text-sm xl:text-base text-amber-100/90 leading-relaxed">
               This factory creates scenarios. The admin portal, analytics, A/B testing, and Stripe integration run inside each generated scenario, not here.
             </p>
           </div>
         </div>
 
-        <section className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 space-y-4 sm:space-y-6" data-testid="template-catalog" aria-labelledby="template-catalog-heading">
+        <section className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 space-y-4 sm:space-y-6 relative overflow-hidden" data-testid="template-catalog" aria-labelledby="template-catalog-heading">
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent"></div>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-2">
               <h2 id="template-catalog-heading" className="text-xl sm:text-2xl font-semibold">Template Catalog</h2>
@@ -405,7 +594,7 @@ export default function FactoryHome() {
             </div>
             <button
               data-testid="refresh-templates-button"
-              className="inline-flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+              className="group touch-target inline-flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-all duration-250 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={async () => {
                 try {
                   setLoadingTemplates(true);
@@ -422,7 +611,7 @@ export default function FactoryHome() {
               disabled={loadingTemplates}
               aria-label="Refresh template list"
             >
-              <RefreshCcw className={`h-4 w-4 ${loadingTemplates ? 'animate-spin' : ''}`} aria-hidden="true" />
+              <RefreshCcw className={`h-4 w-4 transition-transform duration-300 ${loadingTemplates ? 'animate-spin' : 'group-hover:rotate-180'}`} aria-hidden="true" />
               <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
@@ -434,12 +623,12 @@ export default function FactoryHome() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4" data-testid="template-grid" role="list" aria-label="Available templates">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4" data-testid="template-grid" role="list" aria-label="Available templates">
             {loadingTemplates && (
-              <div className="col-span-full flex flex-col items-center justify-center py-12 text-slate-400 space-y-2" data-testid="templates-loading">
-                <Loader2 className="h-6 w-6 animate-spin text-emerald-300" aria-label="Loading templates" />
-                <p className="text-sm">Loading templates...</p>
-              </div>
+              <>
+                <TemplateCardSkeleton />
+                <TemplateCardSkeleton />
+              </>
             )}
             {!loadingTemplates && templates.length === 0 && !templatesError && (
               <div className="col-span-full rounded-xl border border-white/10 bg-slate-900/40 p-8 sm:p-12 text-center space-y-4" role="status">
@@ -479,10 +668,10 @@ export default function FactoryHome() {
                   role="listitem"
                   data-testid={`template-card-${tpl.id}`}
                   onClick={() => setSelectedId(tpl.id)}
-                  className={`rounded-xl border p-4 sm:p-5 text-left transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950 ${
+                  className={`rounded-xl border p-4 sm:p-5 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950 ${
                     selectedTemplate?.id === tpl.id
-                      ? 'border-emerald-400/60 bg-emerald-500/5 shadow-lg shadow-emerald-500/10'
-                      : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
+                      ? 'border-emerald-400/60 bg-emerald-500/5 shadow-lg shadow-emerald-500/10 scale-[1.02]'
+                      : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10 hover:scale-[1.01]'
                   }`}
                   aria-current={selectedTemplate?.id === tpl.id ? 'true' : 'false'}
                   aria-label={`Select ${tpl.name} template, version ${tpl.version}${selectedTemplate?.id === tpl.id ? ' (currently selected)' : ''}`}
@@ -533,7 +722,7 @@ export default function FactoryHome() {
                   <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Metrics Hooks</div>
                   <div className="text-sm text-slate-200 space-y-1">
                     {selectedTemplate.metrics_hooks?.length
-                      ? selectedTemplate.metrics_hooks.map((hook, idx) => <div key={idx}>• {hook.name || hook.id}</div>)
+                      ? selectedTemplate.metrics_hooks.map((hook, idx) => <div key={idx}>• {(hook as { name?: string; id?: string }).name || (hook as { name?: string; id?: string }).id || 'hook'}</div>)
                       : 'page_view, scroll_depth, click, form_submit, conversion'}
                   </div>
                 </div>
@@ -550,7 +739,8 @@ export default function FactoryHome() {
           )}
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 space-y-4 sm:space-y-6" data-testid="generation-form" aria-labelledby="generation-form-heading">
+        <section className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 space-y-4 sm:space-y-6 relative overflow-hidden" data-testid="generation-form" aria-labelledby="generation-form-heading">
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent"></div>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-2">
               <h2 id="generation-form-heading" className="text-xl sm:text-2xl font-semibold">Generate Scenario</h2>
@@ -559,9 +749,9 @@ export default function FactoryHome() {
               </Tooltip>
             </div>
             {generating && (
-              <div className="inline-flex items-center gap-2 text-sm text-emerald-300" aria-live="polite">
+              <div className="inline-flex items-center gap-2 text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-1.5" aria-live="polite">
                 <Loader2 className="h-4 w-4 animate-spin" data-testid="generation-loading" aria-label="Generating" />
-                <span className="hidden sm:inline">Generating...</span>
+                <span className="hidden sm:inline font-medium">Generating scenario...</span>
               </div>
             )}
           </div>
@@ -587,18 +777,29 @@ export default function FactoryHome() {
                 type="text"
                 value={name}
                 onChange={(e) => handleNameChange(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-colors"
+                className={`w-full rounded-lg border px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 bg-slate-900 focus:ring-2 outline-none transition-colors ${
+                  nameError ? 'border-red-500/50 focus:border-red-400 focus:ring-red-500/20' : 'border-white/10 focus:border-emerald-400 focus:ring-emerald-500/20'
+                }`}
                 placeholder="My Awesome Product"
                 required
                 aria-required="true"
-                aria-invalid={!name.trim() && generateError ? 'true' : 'false'}
-                aria-describedby={name ? 'name-helper' : undefined}
+                aria-invalid={nameError ? 'true' : 'false'}
+                aria-describedby={nameError ? 'name-error' : name ? 'name-helper' : undefined}
               />
-              {name && (
+              {nameError && name.trim().length > 0 && (
+                <p id="name-error" className="mt-1.5 text-xs text-red-400 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" aria-hidden="true" />
+                  {nameError}
+                </p>
+              )}
+              {!nameError && name && (
                 <p id="name-helper" className="mt-1.5 text-xs text-slate-400">
                   Slug will be: <code className="px-1 py-0.5 rounded bg-slate-800">{slug || slugify(name)}</code>
                 </p>
               )}
+              <p className="mt-1.5 text-xs text-slate-500 text-right">
+                {name.length}/100 characters
+              </p>
             </div>
             <div>
               <label htmlFor="generation-slug-input" className="block text-sm font-medium text-slate-300 mb-2">
@@ -612,48 +813,102 @@ export default function FactoryHome() {
                 data-testid="generation-slug-input"
                 type="text"
                 value={slug}
-                onChange={(e) => setSlug(slugify(e.target.value))}
-                className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 font-mono focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-colors"
+                onChange={(e) => handleSlugChange(e.target.value)}
+                className={`w-full rounded-lg border px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 font-mono bg-slate-900 focus:ring-2 outline-none transition-colors ${
+                  slugError ? 'border-red-500/50 focus:border-red-400 focus:ring-red-500/20' : 'border-white/10 focus:border-emerald-400 focus:ring-emerald-500/20'
+                }`}
                 placeholder="my-awesome-product"
                 pattern="[a-z0-9-]+"
                 required
                 aria-required="true"
-                aria-invalid={!slug.trim() && generateError ? 'true' : 'false'}
-                aria-describedby="slug-helper"
+                aria-invalid={slugError ? 'true' : 'false'}
+                aria-describedby={slugError ? 'slug-error' : 'slug-helper'}
               />
-              <p id="slug-helper" className="mt-1.5 text-xs text-slate-400">
-                Folder: <code className="px-1 py-0.5 rounded bg-slate-800">generated/{slug || 'your-slug'}/</code>
+              {slugError && slug.trim().length > 0 && (
+                <p id="slug-error" className="mt-1.5 text-xs text-red-400 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" aria-hidden="true" />
+                  {slugError}
+                </p>
+              )}
+              {!slugError && (
+                <p id="slug-helper" className="mt-1.5 text-xs text-slate-400">
+                  Folder: <code className="px-1 py-0.5 rounded bg-slate-800">generated/{slug || 'your-slug'}/</code>
+                </p>
+              )}
+              <p className="mt-1.5 text-xs text-slate-500 text-right">
+                {slug.length}/60 characters
               </p>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              data-testid="dry-run-button"
-              onClick={() => handleGenerate(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium hover:border-emerald-300 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
-              disabled={generating || !selectedTemplate || !name.trim() || !slug.trim()}
-              aria-label="Preview generation plan without creating files"
-            >
-              {generating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <RefreshCcw className="h-4 w-4" aria-hidden="true" />}
-              <span>Dry-run (preview only)</span>
-            </button>
-            <button
-              data-testid="generate-button"
-              onClick={() => handleGenerate(false)}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold hover:border-emerald-300 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
-              disabled={generating || !selectedTemplate || !name.trim() || !slug.trim()}
-              aria-label="Generate scenario and create files"
-            >
-              {generating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Rocket className="h-4 w-4" aria-hidden="true" />}
-              <span>Generate Now</span>
-            </button>
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                data-testid="dry-run-button"
+                onClick={() => handleGenerate(true)}
+                className="group touch-target inline-flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium hover:border-emerald-300 hover:bg-white/10 transition-all duration-250 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+                disabled={generating || !selectedTemplate || !name.trim() || !slug.trim() || !!nameError || !!slugError}
+                aria-label="Preview generation plan without creating files. Keyboard shortcut: Cmd+Shift+Enter"
+                title={nameError || slugError || (!name.trim() ? 'Please enter a name' : !slug.trim() ? 'Please enter a slug' : !selectedTemplate ? 'Please select a template' : 'Cmd/Ctrl+Shift+Enter')}
+              >
+                {generating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <RefreshCcw className="h-4 w-4 group-hover:rotate-180 transition-transform duration-300" aria-hidden="true" />}
+                <span>Dry-run (preview only)</span>
+              </button>
+              <button
+                data-testid="generate-button"
+                onClick={() => handleGenerate(false)}
+                className="group touch-target inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold hover:border-emerald-300 hover:bg-emerald-500/20 transition-all duration-250 hover:scale-105 active:scale-95 hover:shadow-lg hover:shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+                disabled={generating || !selectedTemplate || !name.trim() || !slug.trim() || !!nameError || !!slugError}
+                aria-label="Generate scenario and create files. Keyboard shortcut: Cmd+Enter"
+                title={nameError || slugError || (!name.trim() ? 'Please enter a name' : !slug.trim() ? 'Please enter a slug' : !selectedTemplate ? 'Please select a template' : 'Cmd/Ctrl+Enter')}
+              >
+                {generating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Rocket className="h-4 w-4 group-hover:translate-y-[-2px] transition-transform" aria-hidden="true" />}
+                <span>Generate Now</span>
+              </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-500 flex items-center gap-1.5">
+                <Zap className="h-3 w-3" aria-hidden="true" />
+                <span className="hidden sm:inline">Shortcuts: <kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono text-[10px]">⌘/Ctrl+Enter</kbd> to generate, <kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono text-[10px]">⌘/Ctrl+Shift+Enter</kbd> for dry-run</span>
+                <span className="sm:hidden">Keyboard shortcuts available</span>
+              </p>
+              <button
+                onClick={() => setShowKeyboardHelp(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-300 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                aria-label="View all keyboard shortcuts"
+              >
+                <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="hidden sm:inline">Keyboard Help</span>
+                <span className="sm:hidden">?</span>
+              </button>
+            </div>
           </div>
 
           {generateError && (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-200 text-sm flex items-start gap-3">
-              <AlertCircle className="h-4 w-4 mt-0.5" />
-              <div>{generateError}</div>
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm flex items-start gap-3" role="alert">
+              <AlertCircle className="h-4 w-4 mt-0.5 text-red-400 flex-shrink-0" aria-hidden="true" />
+              <div className="flex-1 space-y-2">
+                <p className="text-red-200 font-medium">{generateError}</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setGenerateError(null)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 rounded-md text-red-200 transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                  {!selectedTemplate && (
+                    <button
+                      onClick={() => {
+                        const catalogElement = document.querySelector('[data-testid="template-catalog"]');
+                        catalogElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 rounded-md text-emerald-200 transition-colors"
+                    >
+                      Select Template
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -744,7 +999,8 @@ export default function FactoryHome() {
           )}
         </section>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 space-y-4 sm:space-y-6" data-testid="agent-customization-form" aria-labelledby="agent-customization-heading">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 space-y-4 sm:space-y-6 relative overflow-hidden" data-testid="agent-customization-form" aria-labelledby="agent-customization-heading">
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
@@ -856,9 +1112,14 @@ export default function FactoryHome() {
               aria-invalid={!customizeBrief.trim() && customizeError ? 'true' : 'false'}
               aria-describedby="customize-brief-helper"
             />
-            <p id="customize-brief-helper" className="mt-1.5 text-xs text-slate-400">
-              Be specific about goals, audience, tone, and desired outcomes
-            </p>
+            <div className="flex items-center justify-between mt-1.5">
+              <p id="customize-brief-helper" className="text-xs text-slate-400">
+                Be specific about goals, audience, tone, and desired outcomes
+              </p>
+              <p className="text-xs text-slate-500">
+                {customizeBrief.length} characters
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -888,9 +1149,17 @@ export default function FactoryHome() {
           </div>
 
           {customizeError && (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-200 text-sm flex items-start gap-3">
-              <AlertCircle className="h-4 w-4 mt-0.5" />
-              <div>{customizeError}</div>
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm flex items-start gap-3" role="alert">
+              <AlertCircle className="h-4 w-4 mt-0.5 text-red-400 flex-shrink-0" aria-hidden="true" />
+              <div className="flex-1 space-y-2">
+                <p className="text-red-200 font-medium">{customizeError}</p>
+                <button
+                  onClick={() => setCustomizeError(null)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 rounded-md text-red-200 transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
             </div>
           )}
 
@@ -916,7 +1185,8 @@ export default function FactoryHome() {
           )}
         </div>
 
-        <section className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 space-y-4 sm:space-y-6" data-testid="generated-scenarios" aria-labelledby="generated-scenarios-heading">
+        <section className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 space-y-4 sm:space-y-6 relative overflow-hidden" data-testid="generated-scenarios" aria-labelledby="generated-scenarios-heading">
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent"></div>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
               <div className="flex-1">
@@ -954,37 +1224,35 @@ export default function FactoryHome() {
             </div>
 
             {/* Staging Area Workflow Explanation */}
-            <div className="rounded-xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-purple-500/10 p-4 sm:p-5 space-y-3" role="region" aria-label="Staging workflow explanation">
+            <div className="rounded-xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-blue-500/10 p-4 sm:p-5" role="region" aria-label="Staging workflow explanation">
               <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
-                  <Monitor className="h-4 w-4 text-blue-300" aria-hidden="true" />
+                <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center">
+                  <FileOutput className="h-5 w-5 text-purple-300" aria-hidden="true" />
                 </div>
-                <div className="flex-1 space-y-2">
-                  <h3 className="text-sm font-semibold text-blue-100">How the Staging Workflow Works</h3>
-                  <div className="text-xs sm:text-sm text-blue-200/90 space-y-2">
-                    <div className="flex items-start gap-2">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-500/20 border border-blue-500/40 text-[10px] font-bold text-blue-200 flex-shrink-0 mt-0.5">1</span>
-                      <p className="flex-1"><strong className="text-blue-100">Generate:</strong> New scenarios appear in <code className="px-1.5 py-0.5 rounded bg-slate-900/60 text-emerald-300 font-mono text-[10px]">generated/</code> folder (staging area)</p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-500/20 border border-blue-500/40 text-[10px] font-bold text-blue-200 flex-shrink-0 mt-0.5">2</span>
-                      <p className="flex-1"><strong className="text-blue-100">Test & Iterate:</strong> Use Start/Stop buttons below to launch and preview. Access the live landing page and admin dashboard to validate everything works</p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-500/20 border border-blue-500/40 text-[10px] font-bold text-blue-200 flex-shrink-0 mt-0.5">3</span>
-                      <p className="flex-1"><strong className="text-blue-100">Customize (Optional):</strong> Use Agent Customization above to refine design, content, or branding via AI assistance</p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-500/20 border border-blue-500/40 text-[10px] font-bold text-blue-200 flex-shrink-0 mt-0.5">4</span>
-                      <p className="flex-1"><strong className="text-blue-100">Move to Production:</strong> When ready, manually move the folder from <code className="px-1.5 py-0.5 rounded bg-slate-900/60 font-mono text-[10px]">generated/&lt;slug&gt;/</code> to <code className="px-1.5 py-0.5 rounded bg-slate-900/60 font-mono text-[10px]">scenarios/&lt;slug&gt;/</code> for permanent deployment</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2 pt-2 border-t border-blue-500/20">
-                    <AlertCircle className="h-3.5 w-3.5 text-blue-300 mt-0.5 flex-shrink-0" aria-hidden="true" />
-                    <p className="text-xs text-blue-200/80 italic">
-                      <strong>Why staging?</strong> The <code className="px-1 py-0.5 rounded bg-slate-900/60 font-mono text-[10px]">generated/</code> folder lets you experiment risk-free. Test, iterate, and customize without affecting production scenarios.
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <h3 className="text-base font-bold text-purple-100 mb-1">Staging Workflow</h3>
+                    <p className="text-xs text-purple-200/80">
+                      Your safe testing zone. All scenarios below live in <code className="px-1.5 py-0.5 rounded bg-slate-900/60 text-emerald-300 font-mono">generated/</code> where you can experiment without affecting production.
                     </p>
                   </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-purple-500/20 border border-purple-500/40 text-purple-200 rounded-lg">
+                      <Zap className="h-3 w-3" aria-hidden="true" />
+                      Test safely
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-purple-500/20 border border-purple-500/40 text-purple-200 rounded-lg">
+                      <RotateCw className="h-3 w-3" aria-hidden="true" />
+                      Iterate freely
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-purple-500/20 border border-purple-500/40 text-purple-200 rounded-lg">
+                      <CheckCircle className="h-3 w-3" aria-hidden="true" />
+                      Move when ready
+                    </span>
+                  </div>
+                  <p className="text-xs text-purple-200/70 leading-relaxed">
+                    When satisfied with your landing page, move it from <code className="px-1 py-0.5 rounded bg-slate-900/60 font-mono text-[10px]">generated/&lt;slug&gt;/</code> to <code className="px-1 py-0.5 rounded bg-slate-900/60 font-mono text-[10px]">scenarios/&lt;slug&gt;/</code> for permanent deployment.
+                  </p>
                 </div>
               </div>
             </div>
@@ -1005,34 +1273,47 @@ export default function FactoryHome() {
           )}
 
           {!loadingGenerated && generated.length === 0 && !generatedError && (
-            <div className="rounded-xl border border-white/10 bg-slate-900/40 p-8 sm:p-12 text-center space-y-5" role="status">
+            <div className="rounded-2xl border-2 border-dashed border-slate-700 bg-gradient-to-br from-slate-900/60 to-slate-800/40 p-8 sm:p-12 text-center space-y-6" role="status">
               <div className="flex justify-center">
                 <div className="relative">
-                  <Rocket className="h-16 w-16 text-slate-600" aria-hidden="true" />
-                  <Sparkles className="absolute -top-2 -right-2 h-7 w-7 text-emerald-400 animate-pulse" aria-hidden="true" />
+                  <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-2xl"></div>
+                  <Rocket className="relative h-20 w-20 text-emerald-400" aria-hidden="true" />
+                  <Sparkles className="absolute -top-1 -right-1 h-8 w-8 text-yellow-400 animate-pulse" aria-hidden="true" />
                 </div>
               </div>
               <div className="space-y-3">
-                <h3 className="text-xl font-semibold text-slate-200">Create Your First Landing Page</h3>
-                <p className="text-sm text-slate-400 max-w-lg mx-auto leading-relaxed">
-                  Generate a complete landing page scenario in under 60 seconds. Includes analytics, A/B testing, and Stripe integration out of the box.
+                <h3 className="text-2xl font-bold text-slate-100">Ready to Launch Your First Landing Page?</h3>
+                <p className="text-base text-slate-300 max-w-md mx-auto leading-relaxed">
+                  Create a complete, production-ready landing page in under 60 seconds. Just pick a name and click Generate.
                 </p>
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded-full">
+                    <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                    React + TypeScript + Vite
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-500/20 border border-blue-500/40 text-blue-300 rounded-full">
+                    <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                    Go API + PostgreSQL
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-purple-500/20 border border-purple-500/40 text-purple-300 rounded-full">
+                    <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                    Stripe + A/B Testing
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-                <button
-                  onClick={() => {
-                    const formElement = document.querySelector('[data-testid="generation-form"]');
-                    formElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    const nameInput = document.getElementById('generation-name-input') as HTMLInputElement;
-                    nameInput?.focus();
-                  }}
-                  className="inline-flex items-center gap-2 px-6 py-3 text-base font-semibold bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border-2 border-emerald-500/50 text-emerald-300 rounded-lg hover:from-emerald-500/30 hover:to-blue-500/30 hover:border-emerald-400/70 transition-all shadow-lg shadow-emerald-500/20 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  aria-label="Scroll to generation form"
-                >
-                  <Rocket className="h-5 w-5" aria-hidden="true" />
-                  Get Started
-                </button>
-              </div>
+              <button
+                onClick={() => {
+                  const formElement = document.querySelector('[data-testid="generation-form"]');
+                  formElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  const nameInput = document.getElementById('generation-name-input') as HTMLInputElement;
+                  nameInput?.focus();
+                }}
+                className="inline-flex items-center gap-2 px-8 py-4 text-base font-bold bg-gradient-to-r from-emerald-500/30 to-blue-500/30 border-2 border-emerald-500/60 text-emerald-200 rounded-xl hover:from-emerald-500/40 hover:to-blue-500/40 hover:border-emerald-400/80 hover:scale-105 transition-all shadow-xl shadow-emerald-500/25 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+                aria-label="Scroll to generation form and start creating"
+              >
+                <Rocket className="h-5 w-5" aria-hidden="true" />
+                Create My First Landing Page
+              </button>
             </div>
           )}
 
@@ -1062,6 +1343,7 @@ export default function FactoryHome() {
                           <button
                             onClick={() => {
                               setCustomizeSlug(scenario.scenario_id);
+                              navigator.clipboard.writeText(scenario.scenario_id);
                               setCopiedSlug(true);
                               setTimeout(() => setCopiedSlug(false), 2000);
                               // Scroll to agent customization form
@@ -1069,11 +1351,11 @@ export default function FactoryHome() {
                               agentForm?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                             }}
                             className="inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded border border-slate-500/30 bg-slate-500/10 text-slate-400 hover:text-slate-300 hover:bg-slate-500/20 transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                            title="Use for agent customization"
-                            aria-label={`Select ${scenario.scenario_id} for agent customization`}
+                            title="Copy slug and select for agent customization"
+                            aria-label={`Copy slug and select ${scenario.scenario_id} for agent customization`}
                           >
                             {copiedSlug ? <Check className="h-2.5 w-2.5" aria-hidden="true" /> : <Copy className="h-2.5 w-2.5" aria-hidden="true" />}
-                            <span className="hidden sm:inline">{copiedSlug ? 'Selected' : 'Customize'}</span>
+                            <span className="hidden sm:inline">{copiedSlug ? 'Copied!' : 'Copy'}</span>
                           </button>
                         </div>
                         <p className="text-xs text-slate-400 mt-1">
@@ -1124,7 +1406,8 @@ export default function FactoryHome() {
                         )}
                         {scenario.generated_at && (
                           <span className="flex items-center gap-1">
-                            <span aria-label="Generated on">📅</span>
+                            <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span className="sr-only">Generated on</span>
                             {new Date(scenario.generated_at).toLocaleString()}
                           </span>
                         )}
@@ -1164,15 +1447,28 @@ export default function FactoryHome() {
                             <span className="hidden sm:inline">Restart</span>
                           </button>
                         </div>
-                        <button
-                          onClick={() => handleToggleLogs(scenario.scenario_id)}
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-slate-500/30 bg-slate-500/10 text-slate-300 hover:bg-slate-500/20 hover:border-slate-400 transition-all focus:outline-none focus:ring-2 focus:ring-slate-500"
-                          aria-label={showLogs[scenario.scenario_id] ? 'Hide logs' : 'Show logs'}
-                          title={showLogs[scenario.scenario_id] ? 'Hide scenario logs' : 'View scenario logs'}
-                        >
-                          <FileOutput className="h-3.5 w-3.5" aria-hidden="true" />
-                          <span>{showLogs[scenario.scenario_id] ? 'Hide' : 'Show'} Logs</span>
-                        </button>
+                        <div className="flex gap-2 flex-1 sm:flex-none">
+                          <button
+                            onClick={() => handleToggleLogs(scenario.scenario_id)}
+                            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-slate-500/30 bg-slate-500/10 text-slate-300 hover:bg-slate-500/20 hover:border-slate-400 transition-all focus:outline-none focus:ring-2 focus:ring-slate-500"
+                            aria-label={showLogs[scenario.scenario_id] ? 'Hide logs' : 'Show logs'}
+                            title={showLogs[scenario.scenario_id] ? 'Hide scenario logs' : 'View scenario logs'}
+                          >
+                            <FileOutput className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span>{showLogs[scenario.scenario_id] ? 'Hide' : 'Show'} Logs</span>
+                          </button>
+                          {!status.running && !status.loading && (
+                            <button
+                              onClick={() => handlePromoteScenario(scenario.scenario_id)}
+                              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border-2 border-purple-500/60 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-200 hover:from-purple-500/30 hover:to-pink-500/30 hover:border-purple-400 transition-all shadow-lg shadow-purple-500/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              aria-label="Promote to production"
+                              title="Move this scenario from staging (generated/) to production (scenarios/)"
+                            >
+                              <Rocket className="h-3.5 w-3.5" aria-hidden="true" />
+                              <span>Promote to Production</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Logs Display */}
@@ -1187,21 +1483,30 @@ export default function FactoryHome() {
 
                       {/* Access Links - shown when running */}
                       {status.running && links && (
-                        <div className="rounded-lg border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 p-4 space-y-3">
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 bg-emerald-400 rounded-full animate-pulse" aria-hidden="true" />
-                            <div className="text-xs font-semibold text-emerald-300 uppercase tracking-wide">Live & Accessible</div>
+                        <div className="rounded-xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/15 to-blue-500/15 p-4 space-y-3 shadow-lg shadow-emerald-500/10">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="h-2.5 w-2.5 bg-emerald-400 rounded-full animate-pulse" aria-hidden="true" />
+                              <div className="text-sm font-bold text-emerald-200 uppercase tracking-wide flex items-center gap-1.5">
+                                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                                Live & Ready
+                              </div>
+                            </div>
+                            <span className="text-xs text-emerald-300/70 font-medium">Click to open</span>
                           </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                             {links.links.public && (
                               <a
                                 href={links.links.public}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="group flex items-center justify-between gap-2 text-xs font-medium text-slate-100 bg-emerald-900/30 hover:bg-emerald-900/40 border border-emerald-500/30 hover:border-emerald-400/50 rounded-lg px-3 py-2.5 transition-all shadow-sm hover:shadow-md hover:shadow-emerald-500/10"
+                                className="group flex items-center justify-between gap-2 text-sm font-semibold text-emerald-100 bg-emerald-900/40 hover:bg-emerald-900/60 border-2 border-emerald-500/40 hover:border-emerald-400/60 rounded-lg px-4 py-3 transition-all shadow-md hover:shadow-lg hover:shadow-emerald-500/20 hover:scale-102"
                               >
-                                <span className="truncate">Public Landing Page</span>
-                                <ExternalLink className="h-3.5 w-3.5 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" aria-hidden="true" />
+                                <span className="truncate flex items-center gap-2">
+                                  <Globe className="h-4 w-4" aria-hidden="true" />
+                                  Public Landing
+                                </span>
+                                <ExternalLink className="h-4 w-4 flex-shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" aria-hidden="true" />
                               </a>
                             )}
                             {links.links.admin && (
@@ -1209,36 +1514,38 @@ export default function FactoryHome() {
                                 href={links.links.admin}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="group flex items-center justify-between gap-2 text-xs font-medium text-slate-100 bg-blue-900/30 hover:bg-blue-900/40 border border-blue-500/30 hover:border-blue-400/50 rounded-lg px-3 py-2.5 transition-all shadow-sm hover:shadow-md hover:shadow-blue-500/10"
+                                className="group flex items-center justify-between gap-2 text-sm font-semibold text-blue-100 bg-blue-900/40 hover:bg-blue-900/60 border-2 border-blue-500/40 hover:border-blue-400/60 rounded-lg px-4 py-3 transition-all shadow-md hover:shadow-lg hover:shadow-blue-500/20 hover:scale-102"
                               >
-                                <span className="truncate">Admin Dashboard</span>
-                                <ExternalLink className="h-3.5 w-3.5 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" aria-hidden="true" />
+                                <span className="truncate flex items-center gap-2">
+                                  <Settings className="h-4 w-4" aria-hidden="true" />
+                                  Admin Dashboard
+                                </span>
+                                <ExternalLink className="h-4 w-4 flex-shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" aria-hidden="true" />
                               </a>
                             )}
                           </div>
+                          <p className="text-xs text-center text-emerald-200/70 pt-1">
+                            Your landing page is fully operational. Make changes, then click Restart to see updates.
+                          </p>
                         </div>
                       )}
 
                       {/* Staging Info - shown when not running */}
                       {!status.running && (
-                        <div className="space-y-2">
-                          <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
-                            <div className="flex items-start gap-2">
-                              <Zap className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" aria-hidden="true" />
-                              <div className="flex-1">
-                                <p className="text-xs text-blue-200 font-medium mb-1">Ready to Launch</p>
-                                <p className="text-xs text-blue-300/90 leading-relaxed">
-                                  Click <strong className="text-blue-100">Start</strong> to launch your landing page. You'll instantly get access links to the live site and admin dashboard.
-                                </p>
-                              </div>
+                        <div className="rounded-xl border border-blue-500/30 bg-gradient-to-br from-blue-500/10 to-slate-800/20 p-4 space-y-3">
+                          <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
+                              <Zap className="h-4 w-4 text-blue-300" aria-hidden="true" />
                             </div>
-                          </div>
-                          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
-                            <div className="flex items-start gap-2">
-                              <AlertCircle className="h-3.5 w-3.5 text-amber-400 mt-0.5 flex-shrink-0" aria-hidden="true" />
-                              <div className="flex-1">
-                                <p className="text-xs text-amber-200/90 leading-relaxed">
-                                  <strong className="text-amber-100">Staging Area:</strong> This scenario lives in <code className="px-1 py-0.5 rounded bg-slate-900/60 text-emerald-300 font-mono text-[10px]">{scenario.path}</code>. When satisfied, move it to <code className="px-1 py-0.5 rounded bg-slate-900/60 font-mono text-[10px]">scenarios/{scenario.scenario_id}/</code> for production use.
+                            <div className="flex-1 space-y-2">
+                              <p className="text-sm text-blue-100 font-semibold">Ready to Launch</p>
+                              <p className="text-xs text-blue-200/80 leading-relaxed">
+                                Click <strong className="text-blue-100 bg-blue-500/20 px-1.5 py-0.5 rounded">Start</strong> above to launch. You'll instantly see access links to your live landing page and admin dashboard.
+                              </p>
+                              <div className="pt-2 border-t border-blue-500/20">
+                                <p className="text-xs text-blue-300/70 leading-relaxed flex items-start gap-1.5">
+                                  <Zap className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-blue-300" aria-hidden="true" />
+                                  <span><strong className="text-blue-200">Testing zone:</strong> Lives in <code className="px-1 py-0.5 rounded bg-slate-900/60 text-emerald-300 font-mono text-[10px]">{scenario.path}</code></span>
                                 </p>
                               </div>
                             </div>
@@ -1252,7 +1559,153 @@ export default function FactoryHome() {
             </div>
           )}
         </section>
-      </div>
+
+        {/* Promotion Confirmation Dialog */}
+        {promoteDialogScenario && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+            onClick={() => setPromoteDialogScenario(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="promote-dialog-title"
+          >
+            <div
+              className="relative w-full max-w-md rounded-2xl border-2 border-purple-500/40 bg-gradient-to-br from-slate-900 via-slate-900 to-purple-900/30 p-6 shadow-2xl shadow-purple-500/20"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setPromoteDialogScenario(null)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 rounded"
+                aria-label="Close dialog"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-purple-500/20 border-2 border-purple-500/40 flex items-center justify-center">
+                    <Rocket className="h-6 w-6 text-purple-300" aria-hidden="true" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 id="promote-dialog-title" className="text-xl font-bold text-purple-100 mb-1">
+                      Promote to Production?
+                    </h3>
+                    <p className="text-sm text-purple-200/80">
+                      Move <code className="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 font-mono text-xs">{promoteDialogScenario}</code> to production
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5 text-amber-400" aria-hidden="true" />
+                    <div className="text-xs text-amber-100 space-y-1">
+                      <p className="font-semibold">This action will:</p>
+                      <ul className="list-disc list-inside space-y-0.5 text-amber-200/90">
+                        <li>Stop the scenario if running</li>
+                        <li>Move from <code className="px-1 py-0.5 rounded bg-slate-900/60 font-mono text-[10px]">generated/</code> to <code className="px-1 py-0.5 rounded bg-slate-900/60 font-mono text-[10px]">scenarios/</code></li>
+                        <li>Remove from staging list</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => setPromoteDialogScenario(null)}
+                    className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border border-slate-500/30 bg-slate-500/10 text-slate-300 hover:bg-slate-500/20 hover:border-slate-400 transition-all focus:outline-none focus:ring-2 focus:ring-slate-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmPromote}
+                    className="flex-1 px-4 py-2.5 text-sm font-bold rounded-lg border-2 border-purple-500/60 bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-purple-100 hover:from-purple-500/40 hover:to-pink-500/40 hover:border-purple-400 transition-all shadow-lg shadow-purple-500/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    Promote to Production
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* [REQ:A11Y-FOOTER] Footer with back-to-top link */}
+        <footer className="border-t border-white/10 pt-8 mt-12">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-400">
+            <p>Landing Manager Factory · Vrooli</p>
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs hover:text-slate-300 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded"
+              aria-label="Scroll to top"
+            >
+              <span>Back to top</span>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
+            </button>
+          </div>
+        </footer>
+      </main>
+
+      {/* Keyboard Shortcuts Help Dialog */}
+      {showKeyboardHelp && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4"
+          onClick={() => setShowKeyboardHelp(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="keyboard-shortcuts-title"
+        >
+          <div
+            className="bg-slate-900 border border-white/10 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h2 id="keyboard-shortcuts-title" className="text-xl font-bold text-slate-100">Keyboard Shortcuts</h2>
+              <button
+                onClick={() => setShowKeyboardHelp(false)}
+                className="text-slate-400 hover:text-slate-200 transition-colors p-1 rounded-lg hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                aria-label="Close dialog"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between py-2 border-b border-white/10">
+                <span className="text-slate-300">Generate scenario</span>
+                <kbd className="px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 font-mono text-xs text-slate-200">⌘/Ctrl + Enter</kbd>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-white/10">
+                <span className="text-slate-300">Dry-run preview</span>
+                <kbd className="px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 font-mono text-xs text-slate-200">⌘/Ctrl + Shift + Enter</kbd>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-white/10">
+                <span className="text-slate-300">Refresh templates</span>
+                <kbd className="px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 font-mono text-xs text-slate-200">⌘/Ctrl + R</kbd>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-slate-300">Skip to main content</span>
+                <kbd className="px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 font-mono text-xs text-slate-200">Tab</kbd>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-white/10">
+              <p className="text-xs text-slate-400 flex items-start gap-2">
+                <Zap className="h-4 w-4 flex-shrink-0 mt-0.5 text-emerald-400" aria-hidden="true" />
+                <span>All keyboard shortcuts work when the generation form is visible and not disabled.</span>
+              </p>
+            </div>
+
+            <button
+              onClick={() => setShowKeyboardHelp(false)}
+              className="w-full px-4 py-2.5 text-sm font-medium rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-400 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

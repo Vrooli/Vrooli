@@ -255,10 +255,44 @@ cmd_generate() {
     echo "$response" | jq '.' 2>/dev/null || echo "$response"
 }
 
+cmd_preview() {
+    local scenario_id="${1:-}"
+    if [[ -z "$scenario_id" ]]; then
+        echo -e "${RED}✗${NC} Scenario ID required"
+        echo "Usage: $CLI_NAME preview <scenario-id>"
+        return 1
+    fi
+
+    echo -e "${BLUE}Fetching preview links for: $scenario_id${NC}"
+    response=$(api_request GET "/preview/${scenario_id}" || true)
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} Failed to get preview links for scenario: $scenario_id"
+        return 1
+    fi
+
+    echo "$response" | jq -r '
+        "Preview Links for \(.scenario_id):",
+        "  Path: \(.path)",
+        "  Base URL: \(.base_url)",
+        "",
+        "Links:",
+        "  Public Landing: \(.links.public_landing)",
+        "  Admin Portal: \(.links.admin_portal)",
+        "  Admin Login: \(.links.admin_login)",
+        "  Health Check: \(.links.health)",
+        "",
+        "Instructions:",
+        (.instructions[] | "  • \(.)"),
+        "",
+        "Notes: \(.notes)"
+    ' 2>/dev/null || echo "$response"
+}
+
 cmd_customize() {
     local scenario_id=""
     local brief_file=""
     local preview=false
+    local persona_id=""
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -269,6 +303,10 @@ cmd_customize() {
             --preview)
                 preview=true
                 shift
+                ;;
+            --persona)
+                persona_id="$2"
+                shift 2
                 ;;
             *)
                 if [[ -z "$scenario_id" ]]; then
@@ -284,7 +322,7 @@ cmd_customize() {
 
     if [[ -z "$scenario_id" || -z "$brief_file" ]]; then
         echo -e "${RED}✗${NC} Missing required arguments"
-        echo "Usage: $CLI_NAME customize <scenario-id> --brief-file <file> [--preview]"
+        echo "Usage: $CLI_NAME customize <scenario-id> --brief-file <file> [--preview] [--persona <id>]"
         return 1
     fi
 
@@ -297,12 +335,25 @@ cmd_customize() {
     brief=$(<"$brief_file")
 
     echo -e "${BLUE}Triggering agent customization...${NC}"
+    if [[ -n "$persona_id" ]]; then
+        echo -e "${BLUE}Using persona: $persona_id${NC}"
+    fi
+
     local payload
-    payload=$(jq -n \
-        --arg sid "$scenario_id" \
-        --arg b "$brief" \
-        --argjson p "$preview" \
-        '{scenario_id: $sid, brief: $b, preview: $p}')
+    if [[ -n "$persona_id" ]]; then
+        payload=$(jq -n \
+            --arg sid "$scenario_id" \
+            --arg b "$brief" \
+            --argjson p "$preview" \
+            --arg pid "$persona_id" \
+            '{scenario_id: $sid, brief: $b, preview: $p, persona_id: $pid}')
+    else
+        payload=$(jq -n \
+            --arg sid "$scenario_id" \
+            --arg b "$brief" \
+            --argjson p "$preview" \
+            '{scenario_id: $sid, brief: $b, preview: $p}')
+    fi
 
     response=$(curl -s -X POST \
         -H 'Content-Type: application/json' \
@@ -314,6 +365,44 @@ cmd_customize() {
         return 1
     fi
 
+    echo "$response" | jq '.' 2>/dev/null || echo "$response"
+}
+
+cmd_personas_list() {
+    echo -e "${BLUE}Fetching agent personas...${NC}"
+    response=$(curl -s "${API_BASE}/personas" || true)
+
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} Failed to fetch personas"
+        return 1
+    fi
+
+    echo -e "\n${GREEN}Available Agent Personas:${NC}\n"
+    echo "$response" | jq -r '.[] | "  \(.id)
+    Name: \(.name)
+    Description: \(.description)
+    Use Cases: \(.use_cases | join(", "))
+    Keywords: \(.keywords | join(", "))
+    "' 2>/dev/null || echo "$response"
+}
+
+cmd_personas_show() {
+    local persona_id="$1"
+    if [[ -z "$persona_id" ]]; then
+        echo -e "${RED}✗${NC} Missing persona ID"
+        echo "Usage: $CLI_NAME personas show <id>"
+        return 1
+    fi
+
+    echo -e "${BLUE}Fetching persona: $persona_id${NC}"
+    response=$(curl -s "${API_BASE}/personas/${persona_id}" || true)
+
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} Failed to fetch persona"
+        return 1
+    fi
+
+    echo -e "\n${GREEN}Persona Details:${NC}\n"
     echo "$response" | jq '.' 2>/dev/null || echo "$response"
 }
 
@@ -338,7 +427,10 @@ Commands:
     template show <id>                  Show detailed template metadata
     generate <template> --name <name> --slug <slug> [--dry-run]
                                         Generate a new landing page scenario (use --dry-run for plan only)
-    customize <scenario> --brief-file <file> [--preview]
+    preview <scenario-id>               Get preview links for a generated scenario
+    personas list                       List available agent personas for customization
+    personas show <id>                  Show detailed persona prompt and guidance
+    customize <scenario> --brief-file <file> [--preview] [--persona <id>]
                                         Trigger agent customization of a landing page
     configure                           View or update CLI configuration
     version                             Show CLI version
@@ -368,7 +460,7 @@ main() {
         API_BASE="${env_api_base%/}"
     fi
 
-    if [[ "$command" == "status" || "$command" == "template" || "$command" == "generate" || "$command" == "customize" ]]; then
+    if [[ "$command" == "status" || "$command" == "template" || "$command" == "generate" || "$command" == "preview" || "$command" == "customize" || "$command" == "personas" ]]; then
         if [[ -z "$API_BASE" ]]; then
             if ! API_BASE=$(resolve_api_base "$CONFIG_API_BASE"); then
                 echo -e "${RED}✗${NC} Unable to determine API base URL. Ensure the scenario is running via 'vrooli scenario run $SCENARIO_ID' or configure it with '$CLI_NAME configure api_base <url>'."
@@ -398,8 +490,28 @@ main() {
                     ;;
             esac
             ;;
+        personas)
+            local subcommand="${1:-}"
+            shift || true
+            case "$subcommand" in
+                list)
+                    cmd_personas_list
+                    ;;
+                show)
+                    cmd_personas_show "$@"
+                    ;;
+                *)
+                    echo -e "${RED}✗${NC} Unknown personas subcommand: $subcommand"
+                    echo "Valid subcommands: list, show"
+                    exit 1
+                    ;;
+            esac
+            ;;
         generate)
             cmd_generate "$@"
+            ;;
+        preview)
+            cmd_preview "$@"
             ;;
         customize)
             cmd_customize "$@"

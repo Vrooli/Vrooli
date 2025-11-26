@@ -64,7 +64,7 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/template_service_test.go"
+          "ref": "api/generation_core_test.go"
         },
         {
           "type": "test",
@@ -91,19 +91,13 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/template_service_test.go"
+          "ref": "api/generation_output_validation_test.go"
         },
         {
           "type": "test",
           "phase": "unit",
           "status": "implemented",
           "ref": "ui/src/pages/GenerationOutputValidation.test.tsx"
-        },
-        {
-          "type": "test",
-          "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/pages/FactoryHome.test.tsx"
         }
       ],
       "status": "complete",
@@ -123,19 +117,13 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/template_service_test.go"
+          "ref": "api/generation_provenance_test.go"
         },
         {
           "type": "test",
           "phase": "unit",
           "status": "implemented",
           "ref": "ui/src/pages/TemplateProvenance.test.tsx"
-        },
-        {
-          "type": "test",
-          "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/pages/FactoryHome.test.tsx"
         }
       ],
       "status": "complete",
@@ -162,12 +150,6 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "ui/src/pages/AgentTrigger.test.tsx"
-        },
-        {
-          "type": "test",
-          "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/pages/FactoryHome.test.tsx"
         }
       ],
       "status": "complete",
@@ -207,7 +189,7 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/template_service_test.go"
+          "ref": "api/preview_links_test.go"
         },
         {
           "type": "test",
@@ -230,13 +212,7 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/template_service_test.go"
-        },
-        {
-          "type": "test",
-          "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/pages/FactoryHome.test.tsx"
+          "ref": "api/generation_dry_run_test.go"
         }
       ],
       "status": "complete",
@@ -253,7 +229,7 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/main_test.go"
+          "ref": "api/personas_test.go"
         },
         {
           "type": "test",
@@ -274,19 +250,33 @@
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
+          "phase": "integration",
           "status": "implemented",
-          "ref": "api/main.go"
-        },
-        {
-          "type": "test",
-          "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/pages/FactoryHome.tsx"
+          "ref": "api/integration_test.go"
         }
       ],
       "status": "complete",
-      "notes": "Multi-layer validation: API endpoints (Go) and UI integration (React). API provides lifecycle management endpoints: /api/v1/lifecycle/{scenario_id}/{start,stop,restart,status,logs}. UI displays generated scenarios with live status indicators, start/stop/restart buttons, logs viewer, and direct access links to running scenarios (public landing + admin portal). Eliminates need for terminal commands - users can manage entire lifecycle from factory UI. Generated scenarios in generated/ folder serve as staging area."
+      "notes": "Multi-layer validation: Integration tests (api/integration_test.go::TestIntegration_LifecycleEndpoints), UI unit tests (React). API provides lifecycle management endpoints: /api/v1/lifecycle/{scenario_id}/{start,stop,restart,status,logs}. UI displays generated scenarios with live status indicators, start/stop/restart buttons, logs viewer, and direct access links to running scenarios (public landing + admin portal). Eliminates need for terminal commands - users can manage entire lifecycle from factory UI. Generated scenarios in generated/ folder serve as staging area."
+    },
+    {
+      "id": "TMPL-PROMOTION",
+      "title": "UI-based scenario promotion",
+      "operational_target_id": "OT-P1-001",
+      "prd_ref": "OT-P1-001",
+      "description": "Enable promoting scenarios from staging (generated/) to production (scenarios/) through the UI without requiring terminal/file operations",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/integration_test.go"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "TMPL-LIFECYCLE"
+      ],
+      "notes": "Multi-layer validation: Integration tests (api/integration_test.go::TestIntegration_PromoteWorkflow), UI unit tests (React). Completes the UI-first workflow: generate → test in staging → promote to production. API endpoint: POST /api/v1/lifecycle/{scenario_id}/promote moves generated/<slug>/ to scenarios/<slug>/, updates references, and handles conflicts. UI provides 'Promote to Production' button on running scenarios with confirmation dialog. CLI command: landing-manager promote <scenario-id>."
     },
     {
       "id": "TMPL-MARKETPLACE",

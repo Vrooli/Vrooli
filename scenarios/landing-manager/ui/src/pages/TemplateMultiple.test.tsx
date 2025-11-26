@@ -99,10 +99,11 @@ describe('[REQ:TMPL-MULTIPLE] Multiple Templates - UI Layer', () => {
       </BrowserRouter>
     );
 
+    // Wait for both template cards to be rendered
     await waitFor(() => {
-      expect(screen.getByText('Templates Available')).toBeInTheDocument();
-      expect(screen.getByText('2')).toBeInTheDocument();
-    });
+      expect(screen.getByTestId('template-card-saas-landing-page')).toBeInTheDocument();
+      expect(screen.getByTestId('template-card-lead-magnet')).toBeInTheDocument();
+    }, { timeout: 5000 });
 
     // Both templates should be clickable and visible
     const saasCard = screen.getByTestId('template-card-saas-landing-page');

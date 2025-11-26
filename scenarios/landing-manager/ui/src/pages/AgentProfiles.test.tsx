@@ -73,7 +73,10 @@ describe('[REQ:TMPL-AGENT-PROFILES] Agent Profiles - UI Layer', () => {
     );
 
     await waitFor(() => {
-      const heading = screen.getByText(/Agent Customization/i);
+      // May appear multiple times (heading + tooltips), so get all and check first
+      const headings = screen.getAllByText(/Agent Customization/i);
+      expect(headings.length).toBeGreaterThan(0);
+      const heading = headings[0];
       expect(heading).toBeInTheDocument();
     });
   });

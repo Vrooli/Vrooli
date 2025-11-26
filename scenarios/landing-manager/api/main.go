@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -128,6 +129,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/restart", s.handleScenarioRestart).Methods("POST")
 	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", s.handleScenarioStatus).Methods("GET")
 	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/logs", s.handleScenarioLogs).Methods("GET")
+	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/promote", s.handleScenarioPromote).Methods("POST")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -611,6 +613,14 @@ func main() {
 
 // Lifecycle management handlers
 
+// isScenarioNotFound checks if a command error indicates a missing scenario
+func isScenarioNotFound(output string) bool {
+	return strings.Contains(output, "not found") ||
+		strings.Contains(output, "does not exist") ||
+		strings.Contains(output, "No such scenario") ||
+		strings.Contains(output, "No lifecycle log found")
+}
+
 func (s *Server) handleScenarioStart(w http.ResponseWriter, r *http.Request) {
 	scenarioID := mux.Vars(r)["scenario_id"]
 	if scenarioID == "" {
@@ -618,22 +628,59 @@ func (s *Server) handleScenarioStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Execute vrooli scenario start command
-	cmd := exec.Command("vrooli", "scenario", "start", scenarioID)
+	// Resolve scenario path (check staging area first, then production)
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	}
+
+	// Try generated/staging area first
+	stagingPath := filepath.Join(vrooliRoot, "scenarios", "landing-manager", "generated", scenarioID)
+	productionPath := filepath.Join(vrooliRoot, "scenarios", scenarioID)
+
+	var cmd *exec.Cmd
+	if _, err := os.Stat(stagingPath); err == nil {
+		// Scenario is in staging area - use --path parameter
+		cmd = exec.Command("vrooli", "scenario", "start", scenarioID, "--path", stagingPath)
+	} else if _, err := os.Stat(productionPath); err == nil {
+		// Scenario is in production location - use standard start
+		cmd = exec.Command("vrooli", "scenario", "start", scenarioID)
+	} else {
+		// Scenario not found anywhere
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Scenario '%s' not found in staging (%s) or production (%s)", scenarioID, stagingPath, productionPath),
+		})
+		return
+	}
+
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
+		outputStr := string(output)
+		if isScenarioNotFound(outputStr) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"message": fmt.Sprintf("Scenario '%s' not found", scenarioID),
+			})
+			return
+		}
+
 		s.log("scenario_start_failed", map[string]interface{}{
 			"scenario_id": scenarioID,
 			"error":       err.Error(),
-			"output":      string(output),
+			"output":      outputStr,
 		})
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"message": fmt.Sprintf("Failed to start scenario: %v", err),
-			"output":  string(output),
+			"output":  outputStr,
 		})
 		return
 	}
@@ -655,21 +702,58 @@ func (s *Server) handleScenarioStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cmd := exec.Command("vrooli", "scenario", "stop", scenarioID)
+	// Resolve scenario path (check staging area first, then production)
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	}
+
+	// Try generated/staging area first
+	stagingPath := filepath.Join(vrooliRoot, "scenarios", "landing-manager", "generated", scenarioID)
+	productionPath := filepath.Join(vrooliRoot, "scenarios", scenarioID)
+
+	var cmd *exec.Cmd
+	if _, err := os.Stat(stagingPath); err == nil {
+		// Scenario is in staging area - use --path parameter
+		cmd = exec.Command("vrooli", "scenario", "stop", scenarioID, "--path", stagingPath)
+	} else if _, err := os.Stat(productionPath); err == nil {
+		// Scenario is in production location - use standard stop
+		cmd = exec.Command("vrooli", "scenario", "stop", scenarioID)
+	} else {
+		// Scenario directory not found, but stop is idempotent - try standard stop anyway
+		// The CLI will handle non-running scenarios gracefully
+		cmd = exec.Command("vrooli", "scenario", "stop", scenarioID)
+	}
+
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
+		outputStr := string(output)
+		// Check if this is a "scenario not found" or "utilities not found" error
+		// Stop is idempotent - these errors mean the scenario can't be running anyway
+		if isScenarioNotFound(outputStr) || strings.Contains(outputStr, "Cannot find Vrooli utilities") {
+			// Stop is idempotent - return success even if scenario doesn't exist
+			// This allows for safe cleanup operations
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"message": fmt.Sprintf("Scenario '%s' already stopped or not found", scenarioID),
+				"output":  outputStr,
+			})
+			return
+		}
+
 		s.log("scenario_stop_failed", map[string]interface{}{
 			"scenario_id": scenarioID,
 			"error":       err.Error(),
-			"output":      string(output),
+			"output":      outputStr,
 		})
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"message": fmt.Sprintf("Failed to stop scenario: %v", err),
-			"output":  string(output),
+			"output":  outputStr,
 		})
 		return
 	}
@@ -691,21 +775,58 @@ func (s *Server) handleScenarioRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cmd := exec.Command("vrooli", "scenario", "restart", scenarioID)
+	// Resolve scenario path (check staging area first)
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	}
+
+	stagingPath := filepath.Join(vrooliRoot, "scenarios", "landing-manager", "generated", scenarioID)
+	productionPath := filepath.Join(vrooliRoot, "scenarios", scenarioID)
+
+	var cmd *exec.Cmd
+	if _, err := os.Stat(stagingPath); err == nil {
+		// Scenario is in staging area - use --path parameter
+		cmd = exec.Command("vrooli", "scenario", "restart", scenarioID, "--path", stagingPath)
+	} else if _, err := os.Stat(productionPath); err == nil {
+		// Scenario is in production location
+		cmd = exec.Command("vrooli", "scenario", "restart", scenarioID)
+	} else {
+		// Scenario not found anywhere
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Scenario '%s' not found in staging or production", scenarioID),
+		})
+		return
+	}
+
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
+		outputStr := string(output)
+		if isScenarioNotFound(outputStr) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"message": fmt.Sprintf("Scenario '%s' not found", scenarioID),
+			})
+			return
+		}
+
 		s.log("scenario_restart_failed", map[string]interface{}{
 			"scenario_id": scenarioID,
 			"error":       err.Error(),
-			"output":      string(output),
+			"output":      outputStr,
 		})
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"message": fmt.Sprintf("Failed to restart scenario: %v", err),
-			"output":  string(output),
+			"output":  outputStr,
 		})
 		return
 	}
@@ -727,10 +848,90 @@ func (s *Server) handleScenarioStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cmd := exec.Command("vrooli", "scenario", "status", scenarioID)
+	// Resolve scenario path (check staging area first, then production)
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	}
+
+	// Try generated/staging area first
+	stagingPath := filepath.Join(vrooliRoot, "scenarios", "landing-manager", "generated", scenarioID)
+	productionPath := filepath.Join(vrooliRoot, "scenarios", scenarioID)
+
+	// Check if scenario is in staging area
+	if _, err := os.Stat(stagingPath); err == nil {
+		// Scenario is in staging area - check process metadata directory directly
+		// since vrooli scenario status command uses the API (which doesn't know about staging)
+		processDir := filepath.Join(os.Getenv("HOME"), ".vrooli", "processes", "scenarios", scenarioID)
+		running := false
+		statusText := fmt.Sprintf("Scenario '%s' is in staging area (generated/)", scenarioID)
+
+		// Check if any processes are running for this scenario
+		if entries, err := os.ReadDir(processDir); err == nil && len(entries) > 0 {
+			// Count active processes by checking PIDs
+			activeCount := 0
+			for _, entry := range entries {
+				if !entry.IsDir() && filepath.Ext(entry.Name()) == ".pid" {
+					pidFile := filepath.Join(processDir, entry.Name())
+					if pidBytes, err := os.ReadFile(pidFile); err == nil {
+						pidStr := strings.TrimSpace(string(pidBytes))
+						// Check if process is still running
+						checkCmd := exec.Command("kill", "-0", pidStr)
+						if checkCmd.Run() == nil {
+							activeCount++
+						}
+					}
+				}
+			}
+			if activeCount > 0 {
+				running = true
+				statusText = fmt.Sprintf("Scenario '%s' is running in staging area (%d active process(es))", scenarioID, activeCount)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":     true,
+			"scenario_id": scenarioID,
+			"running":     running,
+			"status_text": statusText,
+			"location":    "staging",
+		})
+		return
+	}
+
+	// Not in staging, check production
+	var cmd *exec.Cmd
+	if _, err := os.Stat(productionPath); err == nil {
+		// Scenario is in production location - use standard status
+		cmd = exec.Command("vrooli", "scenario", "status", scenarioID)
+	} else {
+		// Scenario not found anywhere
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Scenario '%s' not found", scenarioID),
+		})
+		return
+	}
+
 	output, err := cmd.CombinedOutput()
+	statusText := string(output)
 
 	if err != nil {
+		// Check if scenario doesn't exist (exit status 1 with "not found" message)
+		if isScenarioNotFound(statusText) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"message": fmt.Sprintf("Scenario '%s' not found", scenarioID),
+			})
+			return
+		}
+
+		// Other errors (permissions, CLI issues, etc.)
 		s.log("scenario_status_failed", map[string]interface{}{
 			"scenario_id": scenarioID,
 			"error":       err.Error(),
@@ -745,7 +946,6 @@ func (s *Server) handleScenarioStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse vrooli scenario status output
-	statusText := string(output)
 	running := strings.Contains(statusText, "🟢 RUNNING") || strings.Contains(statusText, "Status:        🟢 RUNNING")
 
 	w.Header().Set("Content-Type", "application/json")
@@ -754,6 +954,7 @@ func (s *Server) handleScenarioStatus(w http.ResponseWriter, r *http.Request) {
 		"scenario_id": scenarioID,
 		"running":     running,
 		"status_text": statusText,
+		"location":    "production",
 	})
 }
 
@@ -770,10 +971,48 @@ func (s *Server) handleScenarioLogs(w http.ResponseWriter, r *http.Request) {
 		tail = "50"
 	}
 
-	cmd := exec.Command("vrooli", "scenario", "logs", scenarioID, "--tail", tail)
+	// Resolve scenario path (check staging area first, then production)
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	}
+
+	// Try generated/staging area first
+	stagingPath := filepath.Join(vrooliRoot, "scenarios", "landing-manager", "generated", scenarioID)
+	productionPath := filepath.Join(vrooliRoot, "scenarios", scenarioID)
+
+	var cmd *exec.Cmd
+	if _, err := os.Stat(stagingPath); err == nil {
+		// Scenario is in staging area - use --path parameter
+		cmd = exec.Command("vrooli", "scenario", "logs", scenarioID, "--path", stagingPath, "--tail", tail)
+	} else if _, err := os.Stat(productionPath); err == nil {
+		// Scenario is in production location - use standard logs
+		cmd = exec.Command("vrooli", "scenario", "logs", scenarioID, "--tail", tail)
+	} else {
+		// Scenario not found anywhere
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Scenario '%s' not found", scenarioID),
+		})
+		return
+	}
+
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
+		outputStr := string(output)
+		if isScenarioNotFound(outputStr) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"message": fmt.Sprintf("Scenario '%s' not found", scenarioID),
+			})
+			return
+		}
+
 		s.log("scenario_logs_failed", map[string]interface{}{
 			"scenario_id": scenarioID,
 			"error":       err.Error(),
@@ -792,5 +1031,92 @@ func (s *Server) handleScenarioLogs(w http.ResponseWriter, r *http.Request) {
 		"success":     true,
 		"scenario_id": scenarioID,
 		"logs":        string(output),
+	})
+}
+
+func (s *Server) handleScenarioPromote(w http.ResponseWriter, r *http.Request) {
+	scenarioID := mux.Vars(r)["scenario_id"]
+	if scenarioID == "" {
+		http.Error(w, "scenario_id is required", http.StatusBadRequest)
+		return
+	}
+
+	// Verify scenario exists in generated/ folder
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	}
+
+	generatedPath := filepath.Join(vrooliRoot, "scenarios", "generated", scenarioID)
+	productionPath := filepath.Join(vrooliRoot, "scenarios", scenarioID)
+
+	// Check if scenario exists in generated/
+	if _, err := os.Stat(generatedPath); os.IsNotExist(err) {
+		s.log("promote_failed_not_found", map[string]interface{}{
+			"scenario_id": scenarioID,
+			"path":        generatedPath,
+		})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Scenario '%s' not found in staging area (generated/)", scenarioID),
+		})
+		return
+	}
+
+	// Check if production path already exists
+	if _, err := os.Stat(productionPath); err == nil {
+		s.log("promote_failed_conflict", map[string]interface{}{
+			"scenario_id": scenarioID,
+			"path":        productionPath,
+		})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Scenario '%s' already exists in production. Delete or rename it first.", scenarioID),
+		})
+		return
+	}
+
+	// Stop the scenario before moving
+	stopCmd := exec.Command("vrooli", "scenario", "stop", scenarioID)
+	if output, err := stopCmd.CombinedOutput(); err != nil {
+		s.log("promote_stop_warning", map[string]interface{}{
+			"scenario_id": scenarioID,
+			"output":      string(output),
+			"error":       err.Error(),
+		})
+		// Continue anyway - scenario might not have been running
+	}
+
+	// Move the scenario directory
+	if err := os.Rename(generatedPath, productionPath); err != nil {
+		s.log("promote_failed_move", map[string]interface{}{
+			"scenario_id": scenarioID,
+			"error":       err.Error(),
+		})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Failed to move scenario to production: %v", err),
+		})
+		return
+	}
+
+	s.log("scenario_promoted", map[string]interface{}{
+		"scenario_id": scenarioID,
+		"from":        generatedPath,
+		"to":          productionPath,
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":        true,
+		"message":        "Scenario promoted to production successfully",
+		"scenario_id":    scenarioID,
+		"production_path": productionPath,
 	})
 }

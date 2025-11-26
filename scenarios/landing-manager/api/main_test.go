@@ -69,28 +69,48 @@ func TestRequireEnv(t *testing.T) {
 }
 
 func TestHandleTemplateList(t *testing.T) {
-	// Create a temporary templates directory with test data
-	tmpDir := t.TempDir()
+	t.Run("success path", func(t *testing.T) {
+		// Create a temporary templates directory with test data
+		tmpDir := t.TempDir()
 
-	// Create test server with mock template service
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: &TemplateService{templatesDir: tmpDir},
-	}
-	srv.setupRoutes()
+		// Create test server with mock template service
+		srv := &Server{
+			router:          mux.NewRouter(),
+			templateService: &TemplateService{templatesDir: tmpDir},
+		}
+		srv.setupRoutes()
 
-	req := httptest.NewRequest("GET", "/api/v1/templates", nil)
-	w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/templates", nil)
+		w := httptest.NewRecorder()
 
-	srv.router.ServeHTTP(w, req)
+		srv.router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", w.Code)
-	}
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
 
-	if contentType := w.Header().Get("Content-Type"); contentType != "application/json" {
-		t.Errorf("Expected Content-Type application/json, got %s", contentType)
-	}
+		if contentType := w.Header().Get("Content-Type"); contentType != "application/json" {
+			t.Errorf("Expected Content-Type application/json, got %s", contentType)
+		}
+	})
+
+	t.Run("error when directory not readable", func(t *testing.T) {
+		// Use an invalid path to trigger error
+		srv := &Server{
+			router:          mux.NewRouter(),
+			templateService: &TemplateService{templatesDir: "/nonexistent/path/that/does/not/exist"},
+		}
+		srv.setupRoutes()
+
+		req := httptest.NewRequest("GET", "/api/v1/templates", nil)
+		w := httptest.NewRecorder()
+
+		srv.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("Expected status 500, got %d", w.Code)
+		}
+	})
 }
 
 func TestHandleTemplateShow(t *testing.T) {
@@ -229,41 +249,74 @@ func TestHandleGenerate(t *testing.T) {
 }
 
 func TestHandleGeneratedList(t *testing.T) {
-	tmpDir := t.TempDir()
+	t.Run("success with generated scenarios", func(t *testing.T) {
+		tmpDir := t.TempDir()
 
-	// Set generation output directory
-	os.Setenv("GEN_OUTPUT_DIR", tmpDir)
-	defer os.Unsetenv("GEN_OUTPUT_DIR")
+		// Set generation output directory
+		os.Setenv("GEN_OUTPUT_DIR", tmpDir)
+		defer os.Unsetenv("GEN_OUTPUT_DIR")
 
-	// Create test generated scenario
-	scenarioDir := tmpDir + "/test-scenario"
-	os.MkdirAll(scenarioDir+"/.vrooli", 0755)
-	serviceJSON := `{"name": "Test Scenario", "slug": "test-scenario"}`
-	os.WriteFile(scenarioDir+"/.vrooli/service.json", []byte(serviceJSON), 0644)
+		// Create test generated scenario
+		scenarioDir := tmpDir + "/test-scenario"
+		os.MkdirAll(scenarioDir+"/.vrooli", 0755)
+		serviceJSON := `{"name": "Test Scenario", "slug": "test-scenario"}`
+		os.WriteFile(scenarioDir+"/.vrooli/service.json", []byte(serviceJSON), 0644)
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: &TemplateService{},
-	}
-	srv.router.HandleFunc("/api/v1/generated", srv.handleGeneratedList).Methods("GET")
+		srv := &Server{
+			router:          mux.NewRouter(),
+			templateService: &TemplateService{},
+		}
+		srv.router.HandleFunc("/api/v1/generated", srv.handleGeneratedList).Methods("GET")
 
-	req := httptest.NewRequest("GET", "/api/v1/generated", nil)
-	w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/generated", nil)
+		w := httptest.NewRecorder()
 
-	srv.router.ServeHTTP(w, req)
+		srv.router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", w.Code)
-	}
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
 
-	var scenarios []GeneratedScenario
-	if err := json.Unmarshal(w.Body.Bytes(), &scenarios); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
+		var scenarios []GeneratedScenario
+		if err := json.Unmarshal(w.Body.Bytes(), &scenarios); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
 
-	if len(scenarios) != 1 {
-		t.Errorf("Expected 1 scenario, got %d", len(scenarios))
-	}
+		if len(scenarios) != 1 {
+			t.Errorf("Expected 1 scenario, got %d", len(scenarios))
+		}
+	})
+
+	t.Run("returns empty list when output directory does not exist", func(t *testing.T) {
+		// Set nonexistent output directory
+		os.Setenv("GEN_OUTPUT_DIR", "/nonexistent/path/that/does/not/exist")
+		defer os.Unsetenv("GEN_OUTPUT_DIR")
+
+		srv := &Server{
+			router:          mux.NewRouter(),
+			templateService: &TemplateService{},
+		}
+		srv.router.HandleFunc("/api/v1/generated", srv.handleGeneratedList).Methods("GET")
+
+		req := httptest.NewRequest("GET", "/api/v1/generated", nil)
+		w := httptest.NewRecorder()
+
+		srv.router.ServeHTTP(w, req)
+
+		// Should return 200 with empty list when directory doesn't exist
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+
+		var scenarios []GeneratedScenario
+		if err := json.Unmarshal(w.Body.Bytes(), &scenarios); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		if len(scenarios) != 0 {
+			t.Errorf("Expected 0 scenarios for nonexistent directory, got %d", len(scenarios))
+		}
+	})
 }
 
 // [REQ:AGENT-TRIGGER] Test agent customization trigger
@@ -323,6 +376,113 @@ func TestHandleCustomizeCreatesIssue(t *testing.T) {
 		}
 		if resp["issue_id"] != "ISS-123" {
 			t.Fatalf("expected issue_id ISS-123, got %v", resp["issue_id"])
+		}
+	})
+
+	t.Run("invalid request body", func(t *testing.T) {
+		srv := &Server{
+			router:          mux.NewRouter(),
+			templateService: NewTemplateService(),
+			httpClient:      &http.Client{Timeout: 5 * time.Second},
+		}
+		srv.router.HandleFunc("/api/v1/customize", srv.handleCustomize).Methods("POST")
+
+		req := httptest.NewRequest("POST", "/api/v1/customize", strings.NewReader(`{invalid json`))
+		w := httptest.NewRecorder()
+
+		srv.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("issue tracker unavailable", func(t *testing.T) {
+		// Unset issue tracker base URL to trigger error
+		os.Unsetenv("APP_ISSUE_TRACKER_API_BASE")
+
+		srv := &Server{
+			router:          mux.NewRouter(),
+			templateService: NewTemplateService(),
+			httpClient:      &http.Client{Timeout: 5 * time.Second},
+		}
+		srv.router.HandleFunc("/api/v1/customize", srv.handleCustomize).Methods("POST")
+
+		req := httptest.NewRequest("POST", "/api/v1/customize", strings.NewReader(`{"scenario_id":"demo","brief":"make it bold"}`))
+		w := httptest.NewRecorder()
+
+		srv.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadGateway {
+			t.Errorf("Expected status 502, got %d", w.Code)
+		}
+	})
+
+	t.Run("issue tracker create fails", func(t *testing.T) {
+		mockTracker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasSuffix(r.URL.Path, "/issues") {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			http.NotFound(w, r)
+		}))
+		defer mockTracker.Close()
+
+		os.Setenv("APP_ISSUE_TRACKER_API_BASE", mockTracker.URL)
+		defer os.Unsetenv("APP_ISSUE_TRACKER_API_BASE")
+
+		srv := &Server{
+			router:          mux.NewRouter(),
+			templateService: NewTemplateService(),
+			httpClient:      &http.Client{Timeout: 5 * time.Second},
+		}
+		srv.router.HandleFunc("/api/v1/customize", srv.handleCustomize).Methods("POST")
+
+		req := httptest.NewRequest("POST", "/api/v1/customize", strings.NewReader(`{"scenario_id":"demo","brief":"make it bold"}`))
+		w := httptest.NewRecorder()
+
+		srv.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadGateway {
+			t.Errorf("Expected status 502, got %d", w.Code)
+		}
+	})
+
+	t.Run("with persona_id included", func(t *testing.T) {
+		mockTracker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasSuffix(r.URL.Path, "/issues") {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"success": true, "data": {"issue_id": "ISS-456"}}`))
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/investigate") {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"success": true, "data": {"run_id": "run-2"}}`))
+				return
+			}
+			http.NotFound(w, r)
+		}))
+		defer mockTracker.Close()
+
+		os.Setenv("APP_ISSUE_TRACKER_API_BASE", mockTracker.URL)
+		defer os.Unsetenv("APP_ISSUE_TRACKER_API_BASE")
+
+		srv := &Server{
+			router:          mux.NewRouter(),
+			templateService: NewTemplateService(),
+			httpClient:      &http.Client{Timeout: 5 * time.Second},
+		}
+		srv.router.HandleFunc("/api/v1/customize", srv.handleCustomize).Methods("POST")
+
+		req := httptest.NewRequest("POST", "/api/v1/customize", strings.NewReader(`{"scenario_id":"demo","brief":"make it bold","persona_id":"minimal-design"}`))
+		w := httptest.NewRecorder()
+
+		srv.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusAccepted {
+			t.Errorf("Expected status 202, got %d: %s", w.Code, w.Body.String())
 		}
 	})
 }

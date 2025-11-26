@@ -34,7 +34,7 @@
 - [x] **OT-P0-003: Agent Integration & Customization** — Trigger agent-based customization with structured briefs and predefined personas
 
 ### 🟠 P1 – Should have post-launch
-- [x] **OT-P1-001: Generation Workflow Enhancements** — Add preview links, dry-run planning, generation diagnostics, and UI-based lifecycle management (start/stop/logs/access generated scenarios without terminal)
+- [x] **OT-P1-001: Generation Workflow Enhancements** — Add preview links, dry-run planning, generation diagnostics, UI-based lifecycle management (start/stop/logs/access generated scenarios without terminal), and UI-based promotion from staging to production
 
 ### 🟢 P2 – Future / expansion
 - [ ] **OT-P2-001: Ecosystem Expansion** — Template marketplace, migration tooling, and factory-level analytics

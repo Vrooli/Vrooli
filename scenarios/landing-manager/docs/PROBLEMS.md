@@ -56,13 +56,46 @@
   3. Adding defensive null-safety in FactoryHome.tsx (templates?.find, templates?.[0] ?? null)
 - **Status**: Closed - robust test foundation established with 100% pass rate.
 
-### 🟡 Requirements Structure Misalignment (KNOWN, ACCEPTED)
-- **What**: Completeness penalty (-19pts) due to test quality issues:
-  1. Monolithic test files: 3 test files validate ≥4 requirements each (FactoryHome.test.tsx validates 4)
-  2. CLI tests in test/cli/ flagged as "unsupported directory" (expected: test/playbooks/)
-  3. Manual validations at 24% (target: <10%)
-  4. 6 critical requirements (P0/P1) lack multi-layer AUTOMATED validation (integration tests failing)
-- **Impact**: Completeness score 12/100 (early_stage) vs potential ~31/100 (foundation_laid) without penalty
-- **Root Cause**: Test quality issues prevent gaming-prevention system from accepting validation. Integration test failures block multi-layer coverage.
-- **Decision**: Accepted for now - focus on fixing integration tests and P0 feature completion over structural refactoring
-- **Next**: Fix BAS integration test failures first (see above), then consider breaking up monolithic test files or restructuring requirements/
+### 🟡 UI Smoke Test 404s on Lifecycle Endpoints (KNOWN, EXPECTED)
+- **What**: UI smoke test reports network failures for lifecycle status endpoints (e.g., HTTP 404 → `/api/v1/lifecycle/test-dry/status`)
+- **Root Cause**: FactoryHome.tsx loads all scenarios from `generated/` folder and attempts to fetch their status. Scenarios created during testing (e.g., test-dry) exist in the filesystem but aren't properly registered in Vrooli's lifecycle system because they're in the staging area (`generated/`) rather than `scenarios/`.
+- **Impact**: Structure phase fails due to smoke test treating 404s as errors, even though this is expected behavior
+- **Status**: This is a known limitation of the staging-area workflow. The shared lifecycle scripts (`vrooli scenario start`) only work with scenarios in `scenarios/<name>/`, not `generated/<name>/`. The task notes mention this needs a safe extension like `vrooli scenario start <name> --path <path>` to support staging areas.
+- **Decision**: Accepted for now - this is a broader architectural issue requiring changes to shared lifecycle helpers, which is outside landing-manager's boundaries
+- **Workaround**: Clean up test artifacts in `generated/` before running smoke tests, or make the UI gracefully handle 404s from lifecycle endpoints
+- **Next**: Either (1) extend shared lifecycle helpers to support custom paths safely, or (2) make smoke test ignore expected 404s, or (3) make UI error handling more resilient
+
+### 🟡 Requirements Structure Misalignment (KNOWN, PARTIALLY ADDRESSED)
+- **What**: Completeness penalty (-13pts) due to test quality issues:
+  1. Monolithic test files: 2 test files validate ≥4 requirements each (api/template_service_test.go, ui FactoryHome.test.tsx)
+  2. 3 requirements reference unsupported test/ directories (CLI tests in test/cli/)
+  3. 3 critical requirements (P0/P1) lack multi-layer AUTOMATED validation
+- **Impact**: Completeness score 58/100 (functional_incomplete) vs potential ~71/100 (functional_complete) without penalty
+- **Root Cause**: Test quality issues prevent gaming-prevention system from accepting validation
+- **Progress**: Requirements completion improved from 67% to 80% (10/15 → 12/15). Unit test coverage at 68.7% (target 90%). All tests passing with zero flaky tests.
+- **Next**: Split monolithic test files, update unsupported test/ refs to valid locations, add missing test layers to critical requirements
+
+## Security Audit False Positive - Path Traversal (template_service.go:499-500)
+
+**Status**: Known false positive  
+**Severity**: None (secure by design)  
+**Date**: 2025-11-26
+
+scenario-auditor flags lines 499-500 in `api/template_service.go` as HIGH severity path traversal vulnerabilities:
+
+```go
+if strings.HasPrefix(strValue, "file:../../../packages/") {
+    packageName := strings.TrimPrefix(strValue, "file:../../../packages/")
+```
+
+**Why this is a false positive:**
+
+1. **Constant prefix validation**: Code only processes strings matching exact prefix `"file:../../../packages/"`, not arbitrary user input
+2. **Path cleaning**: `filepath.Clean(packageName)` normalizes the extracted path (line 502)
+3. **Escape validation**: Explicitly checks `strings.Contains(packageName, "..")` and skips if true (lines 504-506)
+4. **Directory boundary validation**: Verifies `filepath.Clean(absolutePath)` stays within `filepath.Clean(packagesDir)` (lines 509-511)
+5. **Context**: This code runs during scenario generation to fix workspace dependencies by converting relative paths to absolute paths
+
+**Pattern matcher limitation**: The static analysis tool flags the string prefix check itself, not understanding the multi-layer validation that follows.
+
+**Recommendation**: Accept as false positive. The code implements defense-in-depth path validation and is secure by design. No changes needed unless more sophisticated pattern matching becomes available.

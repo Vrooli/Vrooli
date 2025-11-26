@@ -88,7 +88,7 @@ describe('[REQ:TMPL-AVAILABILITY] Template Availability - UI Layer', () => {
     });
   });
 
-  it('should display loading state while fetching templates', () => {
+  it('should display loading state while fetching templates', async () => {
     vi.mocked(api.listTemplates).mockImplementation(
       () => new Promise(() => {}) // Never resolves
     );
@@ -99,7 +99,9 @@ describe('[REQ:TMPL-AVAILABILITY] Template Availability - UI Layer', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText(/Loading templates/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Loading templates/i)).toBeInTheDocument();
+    });
   });
 
   it('should handle template loading errors with user-friendly message', async () => {

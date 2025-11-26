@@ -334,6 +334,12 @@ func copyTemplatePayload(scenarioRoot, outputDir string) error {
 		return fmt.Errorf("failed to write landing App.tsx: %w", err)
 	}
 
+	// Fix workspace dependencies to point to absolute paths
+	// This allows generated scenarios to run from generated/ folder via --path flag
+	if err := fixWorkspaceDependencies(outputDir); err != nil {
+		return fmt.Errorf("failed to fix workspace dependencies: %w", err)
+	}
+
 	// Write a minimal README for the generated scenario
 	readme := `# Generated Landing Scenario
 
@@ -450,6 +456,76 @@ export default function App() {
 }
 `
 	return os.WriteFile(path, []byte(content), 0o644)
+}
+
+// fixWorkspaceDependencies rewrites package.json to use absolute paths for workspace dependencies.
+// This allows generated scenarios in staging (generated/) to reference shared packages.
+// If package.json doesn't exist, this is a no-op (scaffolds may not have UI).
+func fixWorkspaceDependencies(outputDir string) error {
+	packagePath := filepath.Join(outputDir, "ui", "package.json")
+
+	// Skip if package.json doesn't exist (e.g., API-only scenarios or minimal scaffolds)
+	if _, err := os.Stat(packagePath); os.IsNotExist(err) {
+		return nil
+	}
+
+	data, err := os.ReadFile(packagePath)
+	if err != nil {
+		return fmt.Errorf("failed to read package.json: %w", err)
+	}
+
+	var pkg map[string]interface{}
+	if err := json.Unmarshal(data, &pkg); err != nil {
+		return fmt.Errorf("failed to parse package.json: %w", err)
+	}
+
+	// Determine absolute path to workspace packages directory
+	// outputDir is like /path/to/Vrooli/scenarios/landing-manager/generated/test-dry
+	// packages dir is /path/to/Vrooli/packages
+	execPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to resolve executable path: %w", err)
+	}
+	execDir := filepath.Dir(execPath)                      // /path/to/Vrooli/scenarios/landing-manager/api
+	scenarioRoot := filepath.Dir(execDir)                  // /path/to/Vrooli/scenarios/landing-manager
+	vrooliRoot := filepath.Dir(filepath.Dir(scenarioRoot)) // /path/to/Vrooli
+	packagesDir := filepath.Join(vrooliRoot, "packages")
+
+	// Fix dependencies section
+	if deps, ok := pkg["dependencies"].(map[string]interface{}); ok {
+		for name, value := range deps {
+			if strValue, ok := value.(string); ok {
+				// Replace relative file: references with absolute paths
+				if strings.HasPrefix(strValue, "file:../../../packages/") {
+					packageName := strings.TrimPrefix(strValue, "file:../../../packages/")
+					// Security: Clean the path to prevent traversal attacks
+					packageName = filepath.Clean(packageName)
+					// Ensure the cleaned path doesn't escape the packages directory
+					if strings.Contains(packageName, "..") {
+						continue // Skip malicious paths
+					}
+					absolutePath := filepath.Join(packagesDir, packageName)
+					// Verify the resolved path is within the packages directory
+					if !strings.HasPrefix(filepath.Clean(absolutePath), filepath.Clean(packagesDir)) {
+						continue // Skip paths that escape packages directory
+					}
+					deps[name] = "file:" + absolutePath
+				}
+			}
+		}
+	}
+
+	// Write updated package.json
+	updatedData, err := json.MarshalIndent(pkg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal updated package.json: %w", err)
+	}
+
+	if err := os.WriteFile(packagePath, updatedData, 0o644); err != nil {
+		return fmt.Errorf("failed to write updated package.json: %w", err)
+	}
+
+	return nil
 }
 
 // rewriteServiceConfig adjusts service metadata for the generated scenario.

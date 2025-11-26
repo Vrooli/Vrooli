@@ -2,10 +2,19 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import { act } from 'react';
 import FactoryHome from './FactoryHome';
 import * as api from '../lib/api';
 
 vi.mock('../lib/api');
+
+// Helper to wait for all pending async state updates
+async function waitForAsyncUpdates() {
+  await act(async () => {
+    // Wait for multiple microtask cycles to ensure all effects have settled
+    await new Promise(resolve => setTimeout(resolve, 50));
+  });
+}
 
 const mockTemplate = {
   id: 'saas-landing-page',
@@ -55,6 +64,9 @@ describe('[REQ:TMPL-OUTPUT-VALIDATION] Generation Output Validation - UI Layer',
       expect(screen.getByText('Demo Landing')).toBeInTheDocument();
       expect(screen.getAllByText(/Stopped|Running/i).length).toBeGreaterThan(0);
     });
+    // Ensure all pending state updates are processed
+    await waitForAsyncUpdates();
+  
   });
 
   it('should show generated scenario path for manual verification', async () => {
@@ -72,6 +84,9 @@ describe('[REQ:TMPL-OUTPUT-VALIDATION] Generation Output Validation - UI Layer',
     // Verify scenario metadata is displayed (template ID shown directly without "Template:" prefix, may appear multiple times)
     const templateRefs = screen.getAllByText(/saas-landing-page/i);
     expect(templateRefs.length).toBeGreaterThan(0);
+    // Ensure all pending state updates are processed
+    await waitForAsyncUpdates();
+  
   });
 
   it('should indicate scenario includes template runtime components', async () => {
@@ -87,6 +102,9 @@ describe('[REQ:TMPL-OUTPUT-VALIDATION] Generation Output Validation - UI Layer',
 
     // Status (Running/Stopped) implies all required components are present
     expect(screen.getAllByText(/Stopped|Running/i).length).toBeGreaterThan(0);
+    // Ensure all pending state updates are processed
+    await waitForAsyncUpdates();
+  
   });
 
   it('should display template version used for generation', async () => {
@@ -100,6 +118,9 @@ describe('[REQ:TMPL-OUTPUT-VALIDATION] Generation Output Validation - UI Layer',
       const versionElements = screen.getAllByText(/v1\.0\.0/i);
       expect(versionElements.length).toBeGreaterThan(0);
     });
+    // Ensure all pending state updates are processed
+    await waitForAsyncUpdates();
+  
   });
 
   it('should show generated scenario status for verification', async () => {
@@ -112,6 +133,9 @@ describe('[REQ:TMPL-OUTPUT-VALIDATION] Generation Output Validation - UI Layer',
     await waitFor(() => {
       expect(screen.getAllByText(/Stopped|Running/i).length).toBeGreaterThan(0);
     });
+    // Ensure all pending state updates are processed
+    await waitForAsyncUpdates();
+  
   });
 
   it('should handle scenarios with different statuses', async () => {
@@ -158,6 +182,9 @@ describe('[REQ:TMPL-OUTPUT-VALIDATION] Generation Output Validation - UI Layer',
     // Scenarios should be visible (status text is now "Stopped" or "Running" from lifecycle API)
     expect(screen.getByText('Ready Scenario')).toBeInTheDocument();
     expect(screen.getByText('Pending Scenario')).toBeInTheDocument();
+    // Ensure all pending state updates are processed
+    await waitForAsyncUpdates();
+  
   });
 
   it('should display generation timestamp for audit trail', async () => {
@@ -174,5 +201,8 @@ describe('[REQ:TMPL-OUTPUT-VALIDATION] Generation Output Validation - UI Layer',
     // Timestamp should be formatted and displayed
     // Exact format may vary, but verify scenario details are shown
     expect(api.listGeneratedScenarios).toHaveBeenCalledTimes(1);
+    // Ensure all pending state updates are processed
+    await waitForAsyncUpdates();
+  
   });
 });

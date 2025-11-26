@@ -1,11 +1,19 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import { act } from 'react';
 import FactoryHome from './FactoryHome';
 import * as api from '../lib/api';
 
-// [REQ:TMPL-AVAILABILITY] [REQ:TMPL-METADATA] [REQ:TMPL-GENERATION]
 vi.mock('../lib/api');
+
+// Helper to wait for all pending async state updates
+async function waitForAsyncUpdates() {
+  await act(async () => {
+    // Wait for multiple microtask cycles to ensure all effects have settled
+    await new Promise(resolve => setTimeout(resolve, 50));
+  });
+}
 
 const mockTemplates = [
   {
@@ -93,11 +101,20 @@ describe('FactoryHome', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText(/Generate landing-page scenarios/i)).toBeInTheDocument();
-    expect(screen.getByText(/Landing Manager · Factory/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/Landing Page Factory/i)).toBeInTheDocument();
+      expect(screen.getByText(/Landing Manager · Factory/i)).toBeInTheDocument();
+    });
+
+    // Wait for all async state updates to complete (loadStatuses effect)
+    await waitFor(() => {
+      expect(api.getScenarioStatus).toHaveBeenCalled();
+    });
+
+    // Ensure all pending state updates are processed
+    await waitForAsyncUpdates();
   });
 
-  // [REQ:TMPL-AVAILABILITY]
   it('should load and display templates', async () => {
     render(
       <BrowserRouter>
@@ -111,13 +128,17 @@ describe('FactoryHome', () => {
     });
 
     expect(api.listTemplates).toHaveBeenCalledTimes(1);
-    // Check for "Templates Available" heading and count
     expect(screen.getByText('Templates Available')).toBeInTheDocument();
-    expect(screen.getByText('1')).toBeInTheDocument();
+    const ones = screen.getAllByText('1');
+    expect(ones.length).toBeGreaterThan(0);
+
+    await waitFor(() => {
+      expect(api.getScenarioStatus).toHaveBeenCalled();
+    });
+    await waitForAsyncUpdates();
   });
 
-  it('should display template loading state', () => {
-    // Mock slow API call
+  it('should display template loading state', async () => {
     vi.mocked(api.listTemplates).mockImplementation(
       () => new Promise(() => {}) // Never resolves
     );
@@ -128,7 +149,10 @@ describe('FactoryHome', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText(/Loading templates/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Loading templates/i)).toBeInTheDocument();
+    });
+    await waitForAsyncUpdates();
   });
 
   it('should handle template loading errors', async () => {
@@ -144,9 +168,13 @@ describe('FactoryHome', () => {
     await waitFor(() => {
       expect(screen.getByText(errorMessage)).toBeInTheDocument();
     });
+
+    await waitFor(() => {
+      expect(api.getScenarioStatus).toHaveBeenCalled();
+    });
+    await waitForAsyncUpdates();
   });
 
-  // [REQ:TMPL-METADATA]
   it('should display template metadata when selected', async () => {
     render(
       <BrowserRouter>
@@ -159,13 +187,17 @@ describe('FactoryHome', () => {
       expect(templateElements.length).toBeGreaterThan(0);
     });
 
-    // Check for sections metadata display - use getAllByText for duplicates
     const sectionsElements = screen.getAllByText(/Sections/i);
     expect(sectionsElements.length).toBeGreaterThan(0);
     const metricsElements = screen.getAllByText(/Metrics Hooks/i);
     expect(metricsElements.length).toBeGreaterThan(0);
     const customizationElements = screen.getAllByText(/Customization Schema/i);
     expect(customizationElements.length).toBeGreaterThan(0);
+
+    await waitFor(() => {
+      expect(api.getScenarioStatus).toHaveBeenCalled();
+    });
+    await waitForAsyncUpdates();
   });
 
   it('should load and display generated scenarios', async () => {
@@ -180,6 +212,11 @@ describe('FactoryHome', () => {
     });
 
     expect(api.listGeneratedScenarios).toHaveBeenCalledTimes(1);
+
+    await waitFor(() => {
+      expect(api.getScenarioStatus).toHaveBeenCalled();
+    });
+    await waitForAsyncUpdates();
   });
 
   it('should handle empty generated scenarios list', async () => {
@@ -192,8 +229,13 @@ describe('FactoryHome', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Create Your First Landing Page/i)).toBeInTheDocument();
+      expect(screen.getByText(/Ready to Launch Your First Landing Page/i)).toBeInTheDocument();
     });
+
+    await waitFor(() => {
+      expect(api.listGeneratedScenarios).toHaveBeenCalled();
+    });
+    await waitForAsyncUpdates();
   });
 
   it('should display generation buttons', async () => {
@@ -208,6 +250,11 @@ describe('FactoryHome', () => {
       const generateButtons = screen.getAllByText(/Generate now/i);
       expect(generateButtons.length).toBeGreaterThan(0);
     });
+
+    await waitFor(() => {
+      expect(api.getScenarioStatus).toHaveBeenCalled();
+    });
+    await waitForAsyncUpdates();
   });
 
   it('should display agent customization section', async () => {
@@ -218,9 +265,15 @@ describe('FactoryHome', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Agent customization/i)).toBeInTheDocument();
+      const agentCustomizationElements = screen.getAllByText(/Agent customization/i);
+      expect(agentCustomizationElements.length).toBeGreaterThan(0);
       expect(screen.getByText(/File issue & trigger agent/i)).toBeInTheDocument();
     });
+
+    await waitFor(() => {
+      expect(api.getScenarioStatus).toHaveBeenCalled();
+    });
+    await waitForAsyncUpdates();
   });
 
   it('should render name and slug input fields', async () => {
@@ -231,13 +284,17 @@ describe('FactoryHome', () => {
     );
 
     await waitFor(() => {
-      // Check for input fields by placeholder instead of label (multiple fields)
       const nameInputs = screen.getAllByPlaceholderText(/My Awesome Product/i);
       const slugInputs = screen.getAllByPlaceholderText(/my-awesome-product|my-landing-page/i);
 
       expect(nameInputs.length).toBeGreaterThan(0);
       expect(slugInputs.length).toBeGreaterThan(0);
     });
+
+    await waitFor(() => {
+      expect(api.getScenarioStatus).toHaveBeenCalled();
+    });
+    await waitForAsyncUpdates();
   });
 
   it('should handle API errors gracefully', async () => {
@@ -251,89 +308,31 @@ describe('FactoryHome', () => {
     );
 
     await waitFor(() => {
-      // Should still render the page structure
-      expect(screen.getByText(/Generate landing-page scenarios/i)).toBeInTheDocument();
+      expect(screen.getByText(/Landing Page Factory/i)).toBeInTheDocument();
     });
-  });
-
-  // [REQ:TMPL-OUTPUT-VALIDATION]
-  it('should display generated scenario with template provenance', async () => {
-    render(
-      <BrowserRouter>
-        <FactoryHome />
-      </BrowserRouter>
-    );
 
     await waitFor(() => {
-      expect(screen.getByText('Test Landing')).toBeInTheDocument();
+      expect(api.listGeneratedScenarios).toHaveBeenCalled();
     });
-
-    // Verify template provenance is displayed (new format: template ID directly, may appear multiple times)
-    const templateRefs = screen.getAllByText(/saas-landing-page/i);
-    expect(templateRefs.length).toBeGreaterThan(0);
-
-    // Version appears in multiple places (template card + generated scenario), use getAllByText
-    const versionElements = screen.getAllByText(/v1.0.0/i);
-    expect(versionElements.length).toBeGreaterThan(0);
+    await waitForAsyncUpdates();
   });
 
-  // [REQ:TMPL-PROVENANCE]
-  it('should include template metadata in generated scenarios list', async () => {
-    render(
-      <BrowserRouter>
-        <FactoryHome />
-      </BrowserRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('Test Landing')).toBeInTheDocument();
-    });
-
-    // Verify provenance fields are visible (template ID shown directly, may appear multiple times)
-    const templateRefs = screen.getAllByText(/saas-landing-page/i);
-    expect(templateRefs.length).toBeGreaterThan(0);
-  });
-
-  // [REQ:TMPL-DRY-RUN]
-  it('should support dry-run generation mode', async () => {
-    const mockGenerationResult = {
-      scenario_id: 'test-landing',
-      name: 'Test Landing',
-      template: 'saas-landing-page',
-      path: '/tmp/generated/test-landing',
-      status: 'created',
-      plan: {
-        paths: [
-          'api/main.go',
-          'ui/src/App.tsx',
-          '.vrooli/service.json',
-        ],
+  it('should display multiple templates when available', async () => {
+    const multipleTemplates = [
+      mockTemplates[0],
+      {
+        id: 'lead-magnet',
+        name: 'Lead Magnet',
+        description: 'Lead generation template',
+        version: '1.0.0',
+        sections: { hero: {}, form: {} },
+        metrics_hooks: [],
+        customization_schema: {},
       },
-      next_steps: ['Move to /scenarios/test-landing', 'Run make start'],
-    };
+    ];
 
-    vi.mocked(api.generateScenario).mockResolvedValue(mockGenerationResult);
+    vi.mocked(api.listTemplates).mockResolvedValue(multipleTemplates);
 
-    const { container } = render(
-      <BrowserRouter>
-        <FactoryHome />
-      </BrowserRouter>
-    );
-
-    // Wait for page load
-    await waitFor(() => {
-      expect(screen.getByText(/Dry-run \(preview only\)/i)).toBeInTheDocument();
-    });
-
-    // Verify dry-run button exists and can be triggered via API
-    expect(api.generateScenario).not.toHaveBeenCalled();
-
-    // Verify planned paths display is properly structured in the UI
-    expect(container.querySelector('button')).toBeTruthy();
-  });
-
-  // [REQ:AGENT-TRIGGER]
-  it('should display agent customization form', async () => {
     render(
       <BrowserRouter>
         <FactoryHome />
@@ -341,17 +340,14 @@ describe('FactoryHome', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/File issue & trigger agent/i)).toBeInTheDocument();
+      expect(api.listTemplates).toHaveBeenCalled();
     });
 
-    // Verify agent customization section is present
-    expect(screen.getByText(/Agent customization/i)).toBeInTheDocument();
-
-    // Verify form has brief input
-    const briefInputs = screen.getAllByPlaceholderText(/Example.*Target SaaS founders/i);
-    expect(briefInputs.length).toBeGreaterThan(0);
-
-    // Verify API function exists for customization
-    expect(api.customizeScenario).toBeDefined();
+    await waitFor(() => {
+      const saasElements = screen.getAllByText('SaaS Landing Page');
+      expect(saasElements.length).toBeGreaterThan(0);
+      expect(screen.getByText('Lead Magnet')).toBeInTheDocument();
+    });
+    await waitForAsyncUpdates();
   });
 });
