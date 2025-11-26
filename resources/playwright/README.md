@@ -5,9 +5,13 @@ Lightweight, non-Docker Playwright driver for Vrooli scenarios. It runs the Node
 ## Layout
 - `driver/server.js` — HTTP API (`/session/start|run|reset|close`, `/health`), optional Chromium path override via `PLAYWRIGHT_CHROMIUM_PATH`.
 - `cli.sh` — start/stop/status helpers (PID-file based, no `pkill`).
+- `manage.sh` — resource manager entrypoint (`install|start|stop|status|health`).
 - `package.json` — pins `playwright-core`; add `@playwright/browser-chromium` if you are not reusing an existing Chromium.
 - `scripts/install-browsers.sh` — optional helper to download the Playwright Chromium build.
 - `config/default.env` — default port/host settings.
+- `config/schema.json` — resource configuration schema.
+- `config/runtime.json` — lifecycle/runtime hints.
+- `config/messages.sh` — status messages for lifecycle tooling.
 
 ## Env vars
 - `PLAYWRIGHT_DRIVER_PORT` (default `39400`; set `0` to pick a free port)
@@ -20,12 +24,19 @@ Lightweight, non-Docker Playwright driver for Vrooli scenarios. It runs the Node
 cd resources/playwright
 pnpm install   # or npm/yarn; installs playwright-core
 ./scripts/install-browsers.sh  # optional: downloads Chromium
-./cli.sh start
+./manage.sh start
 curl http://127.0.0.1:39400/health
-./cli.sh stop
+./manage.sh stop
 ```
 
 ## Desktop/Electron notes
 - Bundle `driver/server.js` and Playwright binaries with your Electron app.
 - Start the driver from Electron’s main process, capture the chosen port (when `PORT=0`), set `PLAYWRIGHT_DRIVER_URL`, and launch the bundled API with `ENGINE=playwright`.
 - To avoid bundling an extra Chromium, align Playwright with the Electron Chromium version and set `PLAYWRIGHT_CHROMIUM_PATH` to Electron’s binary.
+- Prefer pinning Electron and Playwright to compatible versions so you can reuse Electron’s Chromium and avoid the additional ~80–120 MB from `@playwright/browser-chromium`.
+
+## Commands
+- `resource-playwright install|start|stop|restart|status|health|logs|info` (symlinked to `resources/playwright/manage.sh`)
+- `status --json` returns a compact JSON object with `status`, `running`, `healthy`, `host`, `port`, and `pid`.
+- `info` prints `config/runtime.json` (useful for deployment tooling).
+- `resources/playwright/manage.sh` and `resources/playwright/cli.sh` both support the same verbs.
