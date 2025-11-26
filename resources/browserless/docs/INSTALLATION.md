@@ -186,7 +186,7 @@ Browserless is automatically configured in `~/.vrooli/service.json`. See [Config
 ## Next Steps
 
 - Review [Configuration Guide](./CONFIGURATION.md) for advanced settings
-- Check [Usage Guide](./USAGE.md) for common workflows
+- Check [Usage Guide](./USAGE.md) for common tasks
 - See [API Reference](./API.md) for endpoint documentation
 
 ---

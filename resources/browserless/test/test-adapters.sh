@@ -93,16 +93,6 @@ test_adapter_discovery() {
 }
 
 #######################################
-# Test backward compatibility
-#######################################
-test_backward_compatibility() {
-    source "${BROWSERLESS_DIR}/cli.sh"
-    
-    # Check if legacy command still exists
-    declare -f browserless_execute_workflow_legacy >/dev/null
-}
-
-#######################################
 # Main test execution
 #######################################
 main() {
@@ -114,7 +104,6 @@ main() {
     run_test "Vault Adapter Loading" test_vault_adapter
     run_test "CLI Integration" test_cli_integration
     run_test "Adapter Discovery" test_adapter_discovery
-    run_test "Backward Compatibility" test_backward_compatibility
     
     echo
     echo "─────────────────────────────────"

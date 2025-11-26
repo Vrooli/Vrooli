@@ -222,21 +222,14 @@ ai_generation_hints:
 
 testing_configuration:
   test_files:
-    - "test/integration-test.sh"
-    - "examples/screenshot-test.js"
-    - "examples/pdf-test.js"
-    - "examples/scrape-test.js"
+    - "test/run-tests.sh"
   
   coverage_areas:
     - api_endpoints: 95%
     - error_handling: 90%
     - performance: 85%
     - security: 80%
-  
-  fixture_data:
-    - "examples/fixtures/test-sites.json"
-    - "examples/fixtures/selectors.json"
-    - "examples/fixtures/javascript-snippets.js"
+  fixture_data: []
 
 operational_metrics:
   sla_targets:

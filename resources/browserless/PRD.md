@@ -62,10 +62,10 @@
   - Status: COMPLETE - browser::execute_js and evaluate functions working
   - Validated: 2025-01-12 - Can execute arbitrary JavaScript safely
 
-- [x] **Conditional Workflows**: Intelligent branching based on page state
+- [ ] **Conditional Workflows**: Intelligent branching based on page state
   - Acceptance: Workflows can branch based on URL, element state, text content, errors
-  - Status: COMPLETE - Full conditional branching system implemented
-  - Validated: 2025-01-12 - URL matching, element visibility, text matching, error detection all working
+  - Status: REMOVED - Browserless no longer ships its own workflow DSL; author flows via Browser Automation Studio
+  - Validated: N/A (use BAS executor for branching and loops)
 
 ## Technical Specifications
 

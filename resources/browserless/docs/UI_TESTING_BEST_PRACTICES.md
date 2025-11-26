@@ -1,7 +1,7 @@
 # UI Testing Best Practices for Browserless Automation
 
 ## Overview
-This document outlines best practices for designing UIs that can be reliably and comprehensively tested using Browserless workflows. Following these guidelines ensures your scenarios and applications are testable and maintainable.
+This document outlines best practices for designing UIs that can be reliably and comprehensively tested using Browserless as the browser backend. Author and run automation flows through Browser Automation Studio (BAS); follow these guidelines so BAS+Browserless runs remain stable.
 
 ## Table of Contents
 1. [Element Identification](#element-identification)

@@ -329,10 +329,6 @@ benchmark::show_summary() {
     echo ""
     echo "Extraction Performance:"
     jq -r '.extraction[] | "  \(.operation): avg=\(.statistics.avg)ms, p95=\(.statistics.p95)ms"' "$file"
-    
-    echo ""
-    echo "Workflow Performance:"
-    jq -r '.workflows[] | "  \(.operation): avg=\(.statistics.avg)ms, p95=\(.statistics.p95)ms"' "$file"
 }
 
 #######################################

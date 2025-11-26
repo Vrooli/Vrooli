@@ -161,7 +161,7 @@ Switch between expensive APIs and browser automation based on usage patterns.
 Access UI-only features that aren't exposed through APIs.
 
 ### 4. **Debugging**
-Visual debugging of workflows through browser automation.
+Visual debugging of automation flows through browser automation.
 
 ### 5. **Emergency Access**
 Bypass rate limits, authentication issues, or API outages.
