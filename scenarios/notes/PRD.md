@@ -37,7 +37,7 @@ Future scenarios enabled by SmartNotes:
 - [x] **Cross-Scenario API**: Other scenarios can store/retrieve notes via API ✅ 2025-01-24
 
 ### P1 Requirements (Should Have)
-- [ ] **AI Processing**: Automatic summarization, tagging, and linking via n8n workflows
+- [ ] **AI Processing**: Automatic summarization, tagging, and linking via internal automation modules
 - [ ] **Smart Suggestions**: Context-aware writing assistance using Ollama
 - [ ] **Daily Summaries**: AI-generated overview of daily notes
 - [ ] **Template System**: Pre-built note structures for common use cases
@@ -59,8 +59,9 @@ Future scenarios enabled by SmartNotes:
 **Required:**
 - **PostgreSQL**: Primary storage for notes, folders, tags, metadata (Direct SQL connection)
 - **Qdrant**: Vector database for semantic search (Direct API + Ollama embeddings)
-- **Ollama**: AI embeddings via nomic-embed-text model (Shared workflow: embedding-generator.json)
-- **n8n**: Workflow automation for AI processing (Shared workflows in service.json)
+- **Ollama**: AI embeddings via nomic-embed-text model (Orchestrated by the scenario's automation modules)
+
+Automation orchestration is implemented inside the SmartNotes API, so no external workflow engine is required.
 
 **Optional:**
 - **Redis**: Cache for performance optimization and real-time collaboration features
@@ -120,21 +121,23 @@ primary_entities:
 - `notes templates` - List templates
 - `notes summary` - Get daily summary
 
-### n8n Workflows
-- `note-processor.json` - Main note processing pipeline
-- `smart-tagging.json` - Automatic tag generation
-- `note-search.json` - Enhanced search with context
-- `daily-summary.json` - Generate daily summaries
-- `smart-suggestions.json` - Real-time writing suggestions
-- `intelligent-note-analyzer.json` - Deep note analysis
-- `intelligent-note-linker.json` - Discover note relationships
-- `note-to-mindmap.json` - Generate visual mindmaps
+### Automation Modules
+- AI text generation and analysis pipeline (replaces `note-processor`)
+- Smart tagging helpers (replaces `smart-tagging`)
+- Semantic search orchestration (replaces `note-search`)
+- Daily summary builder (replaces `daily-summary`)
+- Real-time suggestion composer (replaces `smart-suggestions`)
+- Deep note analyzer (replaces `intelligent-note-analyzer`)
+- Relationship linker (replaces `intelligent-note-linker`)
+- Mindmap export generator (replaces `note-to-mindmap`)
+
+These automation modules execute inside the SmartNotes API, so no external workflow engine is required.
 
 ## Success Metrics
 
 ### Completion Targets
 - **P0 Completion**: 100% ✅ - All core features operational
-- **P1 Completion**: 0% - AI features pending n8n workflow setup
+- **P1 Completion**: 0% - AI features pending automation module completion
 - **P2 Completion**: 0% - Nice-to-have features not started
 
 ### Quality Metrics
@@ -251,13 +254,13 @@ This scenario has completed comprehensive security and standards validation:
 See AUDIT_ANALYSIS.md for detailed violation-by-violation analysis.
 
 ### Known Limitations
-- n8n workflows not yet imported (affects P1 AI features)
+- Automation modules not yet fully activated (affects P1 AI features)
 - Semantic search indexing happens asynchronously (slight delay)
 - Template system basic (no advanced customization)
 - No revision history tracking yet
 
 ### Next Steps for Future Improvements
-1. Import and configure n8n workflows for AI processing
+1. Implement and verify automation modules for AI processing
 2. Add Ollama integration for smart suggestions
 3. Implement daily AI summaries
 4. Add real-time collaboration with Redis
@@ -292,7 +295,7 @@ notes summary                 # Get daily summary
 Other scenarios can integrate with SmartNotes via:
 1. **API Endpoints**: RESTful HTTP API for CRUD operations
 2. **CLI Commands**: Shell-based interface for quick operations
-3. **Shared Workflows**: n8n workflows for AI-enhanced operations
+3. **Automation Modules**: Internal orchestrations for AI-enhanced operations exposed via API
 
 ### Integration Patterns
 ```yaml
@@ -306,8 +309,10 @@ cli_integration:
   - notes search "query": Find relevant context
 
 workflow_integration:
-  - note-processor.json: AI-enhanced note processing
-  - semantic-search.json: Vector-based search
+  - module: note-processor
+    purpose: AI-enhanced note processing
+  - module: semantic-search
+    purpose: Vector-based search
 ```
 
 ## 🎨 Style and Branding Requirements
@@ -354,7 +359,7 @@ workflow_integration:
 - ✅ Cross-scenario API access
 
 ### Phase 2 (Next - P1 Implementation)
-- AI-powered summarization via n8n workflows
+- AI-powered summarization via automation modules
 - Smart tagging and auto-linking
 - Daily AI-generated summaries
 - Template system expansion
@@ -401,7 +406,7 @@ vrooli scenario test notes
 ```
 
 ### Lifecycle Hooks
-- **Pre-setup**: Check resource dependencies (postgres, qdrant, ollama, n8n)
+- **Pre-setup**: Check resource dependencies (postgres, qdrant, ollama)
 - **Post-setup**: Populate sample notes if database empty
 - **Health checks**: API /health endpoint every 30s
 - **Graceful shutdown**: Save pending changes, close DB connections
@@ -414,7 +419,7 @@ vrooli scenario test notes
 | Qdrant vector DB unavailable | High - No semantic search | Fallback to PostgreSQL full-text search |
 | PostgreSQL connection lost | Critical - No data access | Exponential backoff retry with 10 attempts |
 | Ollama embedding slow | Medium - Async indexing lag | Queue embeddings, process in background |
-| n8n workflows fail | Low - P1 features affected | Graceful degradation, log errors |
+| Automation pipeline issues | Low - P1 features affected | Graceful degradation, log errors |
 
 ### Data Risks
 | Risk | Impact | Mitigation |
@@ -450,7 +455,7 @@ vrooli scenario test notes
 - [ ] PostgreSQL schema creates successfully on first setup
 - [ ] Qdrant collections initialize with correct vector dimensions
 - [ ] Ollama embeddings generate without errors
-- [ ] n8n workflows import successfully (when implemented)
+- [ ] Automation modules deploy successfully (when implemented)
 - [ ] Other scenarios can call API endpoints and receive valid responses
 
 ### Security Validation
@@ -492,7 +497,6 @@ vrooli scenario test notes
 ### External Documentation
 - [Qdrant Vector Database](https://qdrant.tech/documentation/)
 - [Ollama Embeddings API](https://ollama.ai/library/nomic-embed-text)
-- [n8n Workflow Automation](https://docs.n8n.io/)
 - [PostgreSQL Full-Text Search](https://www.postgresql.org/docs/current/textsearch.html)
 
 ### Internal References
@@ -506,10 +510,10 @@ vrooli scenario test notes
 - **meeting-summarizer**: Stores meeting notes and links to related discussions
 - **personal-knowledge-graph**: Builds on SmartNotes to create relationship maps
 
-### Shared Workflows
-- `initialization/automation/n8n/ollama.json` - AI text generation
-- `initialization/automation/n8n/embedding-generator.json` - Vector embeddings
-- `initialization/automation/n8n/semantic-search.json` - Vector similarity search
+### Automation Modules
+- Note processor (AI text generation and context enrichment)
+- Embedding generator (vector creation for search)
+- Semantic search orchestrator (vector similarity and relevance tuning)
 
 ## Change History
 - 2025-10-27 Session 14: Comprehensive validation and production readiness confirmation

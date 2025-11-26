@@ -68,13 +68,6 @@ while IFS= read -r resource; do
                 ((++MISSING_COUNT))
             fi
             ;;
-        windmill)
-            # Check for Windmill workspace
-            if [[ ! -f "$APP_ROOT/data/.windmill-populated" ]]; then
-                echo "[DEBUG] Windmill workspace not created" >&2
-                ((++MISSING_COUNT))
-            fi
-            ;;
         n8n)
             # Check for n8n workflows
             if [[ ! -f "$APP_ROOT/data/.n8n-populated" ]]; then

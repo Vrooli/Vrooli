@@ -40,7 +40,7 @@ describe('CampaignCard', () => {
     // Check that file counts are displayed
     expect(screen.getByText('Files')).toBeInTheDocument();
     expect(screen.getByText('Visited')).toBeInTheDocument();
-    expect(screen.getByText('Coverage')).toBeInTheDocument();
+    expect(screen.getByText('Cover')).toBeInTheDocument(); // Abbreviated from iteration 5
   });
 
   it('should show patterns', () => {

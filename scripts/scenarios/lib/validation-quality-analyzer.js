@@ -141,6 +141,21 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
 
     const severity = ratio > (penaltyConfig2.severity_threshold || 0.5) ? 'high' : 'medium';
 
+    // Collect invalid paths and affected requirements
+    const invalidPaths = new Map();
+    requirements.forEach(req => {
+      (req.validation || []).forEach(v => {
+        const ref = (v.ref || '').toLowerCase();
+        if (ref.startsWith('test/') &&
+            !(ref.startsWith('test/playbooks/') && (ref.endsWith('.json') || ref.endsWith('.yaml')))) {
+          if (!invalidPaths.has(v.ref)) {
+            invalidPaths.set(v.ref, []);
+          }
+          invalidPaths.get(v.ref).push(req.id);
+        }
+      });
+    });
+
     patterns.invalid_test_location = {
       severity,
       detected: true,
@@ -149,6 +164,7 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
       total: metrics.requirements.total,
       ratio: ratio,
       valid_sources: validSources,
+      invalid_paths: Array.from(invalidPaths.entries()).map(([path, reqIds]) => ({ path, requirement_ids: reqIds })),
       message: `${unsupportedRefCount}/${metrics.requirements.total} requirements reference unsupported test/ directories`,
       recommendation: 'Move validation refs to supported test sources listed above',
       why_it_matters: 'Requirements must be validated by actual tests (API unit tests, UI component tests, or e2e automation playbooks). Infrastructure test files like test/phases/ or CLI wrapper tests in test/cli/ are not acceptable validation sources.',
@@ -259,6 +275,27 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
     );
     totalPenalty += penalty;
 
+    // Collect detailed info for first 5 affected requirements
+    const affectedRequirements = diversityIssues.slice(0, 5).map(req => {
+      const layerAnalysis = layerDetector.detectValidationLayers(req, scenarioRoot);
+      const criticality = layerDetector.deriveRequirementCriticality(req);
+
+      // Determine what layers are needed based on requirement type
+      const neededLayers = [];
+      if (scenarioComponents.has('API')) neededLayers.push('API');
+      if (scenarioComponents.has('UI') && (req.category || '').includes('ui')) neededLayers.push('UI');
+      if (scenarioComponents.has('UI') && (req.category || '').includes('interface')) neededLayers.push('UI');
+      if (neededLayers.length < 2) neededLayers.push('E2E');
+
+      return {
+        id: req.id,
+        title: req.title || 'Untitled',
+        priority: criticality,
+        current_layers: Array.from(layerAnalysis.automated),
+        needed_layers: neededLayers.slice(0, 2) // Show first 2 needed
+      };
+    });
+
     patterns.insufficient_validation_layers = {
       severity: penaltyConfig5.severity,
       detected: true,
@@ -267,6 +304,7 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
       total: requirements.length,
       has_api: scenarioComponents.has('API'),
       has_ui: scenarioComponents.has('UI'),
+      affected_requirements: affectedRequirements,
       message: `${diversityIssues.length} critical requirements (P0/P1) lack multi-layer AUTOMATED validation`,
       recommendation: 'Add automated validations across API, UI, and e2e layers for critical requirements (manual validations don\'t count toward diversity)',
       why_it_matters: 'Multi-layer validation catches different bug types: API tests verify business logic, UI tests verify user interface behavior, and e2e tests verify complete workflows. Single-layer validation misses integration issues and edge cases. Gaming Prevention: This ensures agents don\'t just link requirements to the easiest/most basic tests.',

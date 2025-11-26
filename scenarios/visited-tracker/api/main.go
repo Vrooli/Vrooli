@@ -20,10 +20,10 @@ import (
 )
 
 const (
-	apiVersion         = "3.0.0"
-	serviceName        = "visited-tracker"
-	dataDir            = "data/campaigns"
-	defaultMaxFiles    = 200
+	apiVersion            = "3.0.0"
+	serviceName           = "visited-tracker"
+	dataDir               = "data/campaigns"
+	defaultMaxFiles       = 200
 	defaultPriorityWeight = 1.0
 )
 
@@ -48,23 +48,23 @@ var (
 
 // Models with JSON file storage support
 type Campaign struct {
-	ID              uuid.UUID              `json:"id"`
-	Name            string                 `json:"name"`
-	FromAgent       string                 `json:"from_agent"`
-	Description     *string                `json:"description,omitempty"`
-	Patterns        []string               `json:"patterns"`
-	Location        *string                `json:"location,omitempty"`
-	Tag             *string                `json:"tag,omitempty"`
-	Notes           *string                `json:"notes,omitempty"`
-	MaxFiles        int                    `json:"max_files,omitempty"`
-	ExcludePatterns []string               `json:"exclude_patterns,omitempty"`
-	CreatedAt       time.Time              `json:"created_at"`
-	UpdatedAt       time.Time              `json:"updated_at"`
-	Status          string                 `json:"status"`
-	Metadata        map[string]interface{} `json:"metadata"`
-	TrackedFiles    []TrackedFile          `json:"tracked_files"`
-	Visits          []Visit                `json:"visits"`
-	StructureSnapshots []StructureSnapshot `json:"structure_snapshots"`
+	ID                 uuid.UUID              `json:"id"`
+	Name               string                 `json:"name"`
+	FromAgent          string                 `json:"from_agent"`
+	Description        *string                `json:"description,omitempty"`
+	Patterns           []string               `json:"patterns"`
+	Location           *string                `json:"location,omitempty"`
+	Tag                *string                `json:"tag,omitempty"`
+	Notes              *string                `json:"notes,omitempty"`
+	MaxFiles           int                    `json:"max_files,omitempty"`
+	ExcludePatterns    []string               `json:"exclude_patterns,omitempty"`
+	CreatedAt          time.Time              `json:"created_at"`
+	UpdatedAt          time.Time              `json:"updated_at"`
+	Status             string                 `json:"status"`
+	Metadata           map[string]interface{} `json:"metadata"`
+	TrackedFiles       []TrackedFile          `json:"tracked_files"`
+	Visits             []Visit                `json:"visits"`
+	StructureSnapshots []StructureSnapshot    `json:"structure_snapshots"`
 	// Computed fields (not stored)
 	TotalFiles      int     `json:"total_files,omitempty"`
 	VisitedFiles    int     `json:"visited_files,omitempty"`
@@ -145,11 +145,11 @@ type StructureSyncRequest struct {
 }
 
 type SyncResult struct {
-	Added      int                    `json:"added"`
-	Moved      int                    `json:"moved"`
-	Removed    int                    `json:"removed"`
-	SnapshotID uuid.UUID              `json:"snapshot_id"`
-	Total      int                    `json:"total"`
+	Added      int       `json:"added"`
+	Moved      int       `json:"moved"`
+	Removed    int       `json:"removed"`
+	SnapshotID uuid.UUID `json:"snapshot_id"`
+	Total      int       `json:"total"`
 }
 
 type AdjustVisitRequest struct {
@@ -220,7 +220,7 @@ func main() {
 
 	// Setup router
 	r := mux.NewRouter()
-	
+
 	// Apply CORS middleware first
 	r.Use(corsMiddleware)
 
@@ -329,7 +329,7 @@ func initFileStorage() error {
 	if err := os.MkdirAll(dataPath, 0755); err != nil {
 		return fmt.Errorf("failed to create data directory: %w", err)
 	}
-	
+
 	logger.Printf("✅ JSON file storage initialized at: %s", dataPath)
 	return nil
 }
@@ -338,11 +338,11 @@ func initFileStorage() error {
 func getFileLock(filename string) *sync.RWMutex {
 	locksLock.Lock()
 	defer locksLock.Unlock()
-	
+
 	if lock, exists := fileLocks[filename]; exists {
 		return lock
 	}
-	
+
 	lock := &sync.RWMutex{}
 	fileLocks[filename] = lock
 	return lock
@@ -356,30 +356,30 @@ func getCampaignPath(campaignID uuid.UUID) string {
 func saveCampaign(campaign *Campaign) error {
 	campaign.UpdatedAt = time.Now().UTC()
 	filePath := getCampaignPath(campaign.ID)
-	
+
 	lock := getFileLock(filePath)
 	lock.Lock()
 	defer lock.Unlock()
-	
+
 	data, err := json.MarshalIndent(campaign, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal campaign: %w", err)
 	}
-	
+
 	if err := os.WriteFile(filePath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write campaign file: %w", err)
 	}
-	
+
 	return nil
 }
 
 func loadCampaign(campaignID uuid.UUID) (*Campaign, error) {
 	filePath := getCampaignPath(campaignID)
-	
+
 	lock := getFileLock(filePath)
 	lock.RLock()
 	defer lock.RUnlock()
-	
+
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -387,65 +387,65 @@ func loadCampaign(campaignID uuid.UUID) (*Campaign, error) {
 		}
 		return nil, fmt.Errorf("failed to read campaign file: %w", err)
 	}
-	
+
 	var campaign Campaign
 	if err := json.Unmarshal(data, &campaign); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal campaign: %w", err)
 	}
-	
+
 	return &campaign, nil
 }
 
 func loadAllCampaigns() ([]Campaign, error) {
 	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	
+
 	var campaigns []Campaign
-	
+
 	// Check if the directory exists first
 	if _, err := os.Stat(dataPath); os.IsNotExist(err) {
 		// Directory doesn't exist, return empty slice without error
 		return campaigns, nil
 	}
-	
+
 	err := filepath.WalkDir(dataPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		
+
 		if d.IsDir() || !strings.HasSuffix(d.Name(), ".json") {
 			return nil
 		}
-		
+
 		data, err := os.ReadFile(path)
 		if err != nil {
 			logger.Printf("⚠️ Failed to read campaign file %s: %v", path, err)
 			return nil // Continue with other files
 		}
-		
+
 		var campaign Campaign
 		if err := json.Unmarshal(data, &campaign); err != nil {
 			logger.Printf("⚠️ Failed to unmarshal campaign file %s: %v", path, err)
 			return nil // Continue with other files
 		}
-		
+
 		campaigns = append(campaigns, campaign)
 		return nil
 	})
-	
+
 	return campaigns, err
 }
 
 func deleteCampaignFile(campaignID uuid.UUID) error {
 	filePath := getCampaignPath(campaignID)
-	
+
 	lock := getFileLock(filePath)
 	lock.Lock()
 	defer lock.Unlock()
-	
+
 	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to delete campaign file: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -456,19 +456,19 @@ func calculateStalenessScore(file *TrackedFile) float64 {
 		daysSinceModified := time.Since(file.LastModified).Hours() / 24.0
 		return math.Min(100.0, daysSinceModified*2.0)
 	}
-	
+
 	daysSinceVisit := time.Since(*file.LastVisited).Hours() / 24.0
 	daysSinceModified := math.Abs(file.LastVisited.Sub(file.LastModified).Hours() / 24.0)
-	
+
 	// Estimate modifications (simplified: assume 1 mod per week if modified after visit)
 	modificationsEstimate := 0.0
 	if file.LastModified.After(*file.LastVisited) {
 		modificationsEstimate = math.Max(1.0, math.Floor(daysSinceModified/7.0))
 	}
-	
+
 	// Calculate staleness: (modifications × days_since_visit) / (visit_count + 1)
 	staleness := (modificationsEstimate * daysSinceVisit) / float64(file.VisitCount+1)
-	
+
 	return math.Min(100.0, staleness)
 }
 
@@ -484,15 +484,15 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 	if len(patterns) == 0 {
 		return nil, fmt.Errorf("no patterns specified")
 	}
-	
+
 	// Log the current working directory and patterns for debugging
 	cwd, _ := os.Getwd()
 	logger.Printf("🔍 Syncing files for campaign '%s' from directory: %s", campaign.Name, cwd)
 	logger.Printf("🔍 Using patterns: %v", patterns)
-	
+
 	// Find files matching patterns
 	var foundFiles []string
-	
+
 	for _, pattern := range patterns {
 		logger.Printf("🔍 Processing pattern: %s", pattern)
 		matches, err := filepath.Glob(pattern)
@@ -500,9 +500,9 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 			logger.Printf("⚠️ Pattern glob failed for %s: %v", pattern, err)
 			continue
 		}
-		
+
 		logger.Printf("🔍 Pattern '%s' found %d matches: %v", pattern, len(matches), matches)
-		
+
 		for _, match := range matches {
 			// Skip directories
 			if info, err := os.Stat(match); err == nil && !info.IsDir() {
@@ -515,9 +515,9 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 			}
 		}
 	}
-	
+
 	logger.Printf("🔍 Total files found before deduplication: %d", len(foundFiles))
-	
+
 	// Deduplicate
 	fileSet := make(map[string]bool)
 	var uniqueFiles []string
@@ -528,7 +528,7 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 			uniqueFiles = append(uniqueFiles, file)
 		}
 	}
-	
+
 	logger.Printf("🔍 Unique files after deduplication: %d", len(uniqueFiles))
 
 	// Apply exclusion patterns
@@ -575,7 +575,7 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 	// Add new files to tracked files
 	for _, filePath := range filteredFiles {
 		absolutePath, _ := filepath.Abs(filePath)
-		
+
 		// Check if already tracked
 		found := false
 		for _, tracked := range campaign.TrackedFiles {
@@ -584,7 +584,7 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 				break
 			}
 		}
-		
+
 		if !found {
 			// Get file info
 			fileInfo, err := os.Stat(absolutePath)
@@ -597,14 +597,14 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 				modTime = time.Now()
 				logger.Printf("⚠️ Could not get file info for %s: %v", absolutePath, err)
 			}
-			
+
 			// Calculate relative path from project root
 			relPath, err := filepath.Rel(cwd, absolutePath)
 			if err != nil {
 				relPath = filePath
 				logger.Printf("⚠️ Could not calculate relative path for %s: %v", absolutePath, err)
 			}
-			
+
 			newFile := TrackedFile{
 				ID:             uuid.New(),
 				FilePath:       relPath,
@@ -618,7 +618,7 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 				Excluded:       false,
 				Metadata:       make(map[string]interface{}),
 			}
-			
+
 			campaign.TrackedFiles = append(campaign.TrackedFiles, newFile)
 			addedCount++
 			logger.Printf("➕ Added tracked file: %s (rel: %s)", absolutePath, relPath)
@@ -626,9 +626,9 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 			logger.Printf("⏭️ File already tracked: %s", absolutePath)
 		}
 	}
-	
+
 	logger.Printf("📊 Sync results: %d files added, %d total tracked files", addedCount, len(campaign.TrackedFiles))
-	
+
 	// Create structure snapshot
 	snapshot := StructureSnapshot{
 		ID:           uuid.New(),
@@ -639,12 +639,12 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 		MovedFiles:   make(map[string]string),
 		SnapshotData: make(map[string]interface{}),
 	}
-	
+
 	campaign.StructureSnapshots = append(campaign.StructureSnapshots, snapshot)
-	
+
 	// Update staleness scores
 	updateStalenessScores(campaign)
-	
+
 	return &SyncResult{
 		Added:      addedCount,
 		Moved:      0,
@@ -657,12 +657,12 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 // Handlers
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	// Check file storage health
 	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
 	storageHealthy := true
 	var storageError map[string]interface{}
-	
+
 	// Test if we can read the data directory
 	if _, err := os.Stat(dataPath); err != nil {
 		storageHealthy = false
@@ -673,13 +673,13 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 			"retryable": true,
 		}
 	}
-	
+
 	// Overall service status
 	status := "healthy"
 	if !storageHealthy {
 		status = "degraded"
 	}
-	
+
 	healthResponse := map[string]interface{}{
 		"status":    status,
 		"service":   serviceName,
@@ -697,14 +697,14 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 			"uptime_seconds": time.Since(time.Now().Add(-time.Minute)).Seconds(), // Simplified uptime
 		},
 	}
-	
+
 	// Add storage error if present
 	if storageError != nil {
 		healthResponse["dependencies"].(map[string]interface{})["storage"].(map[string]interface{})["error"] = storageError
 	} else {
 		healthResponse["dependencies"].(map[string]interface{})["storage"].(map[string]interface{})["error"] = nil
 	}
-	
+
 	json.NewEncoder(w).Encode(healthResponse)
 }
 
@@ -720,12 +720,12 @@ func listCampaignsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaigns: %v"}`, err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Calculate computed fields for each campaign
 	for i := range campaigns {
 		campaign := &campaigns[i]
 		updateStalenessScores(campaign)
-		
+
 		totalFiles := len(campaign.TrackedFiles)
 		visitedFiles := 0
 		for _, file := range campaign.TrackedFiles {
@@ -733,19 +733,19 @@ func listCampaignsHandler(w http.ResponseWriter, r *http.Request) {
 				visitedFiles++
 			}
 		}
-		
+
 		campaign.TotalFiles = totalFiles
 		campaign.VisitedFiles = visitedFiles
 		if totalFiles > 0 {
 			campaign.CoveragePercent = float64(visitedFiles) / float64(totalFiles) * 100.0
 		}
 	}
-	
+
 	// Sort by created_at desc
 	sort.Slice(campaigns, func(i, j int) bool {
 		return campaigns[i].CreatedAt.After(campaigns[j].CreatedAt)
 	})
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"campaigns": campaigns,
@@ -759,32 +759,32 @@ func createCampaignHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	// Validation
 	if req.Name == "" {
 		http.Error(w, `{"error": "Campaign name is required"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	if len(req.Patterns) == 0 {
 		http.Error(w, `{"error": "At least one file pattern is required"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	// Check for duplicate names
 	campaigns, err := loadAllCampaigns()
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": "Failed to check for duplicate names: %v"}`, err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	for _, campaign := range campaigns {
 		if campaign.Name == req.Name {
 			http.Error(w, `{"error": "Campaign name already exists"}`, http.StatusConflict)
 			return
 		}
 	}
-	
+
 	// Apply defaults
 	maxFiles := req.MaxFiles
 	if maxFiles == 0 {
@@ -820,7 +820,7 @@ func createCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	if campaign.Metadata == nil {
 		campaign.Metadata = make(map[string]interface{})
 	}
-	
+
 	// Auto-sync files using campaign patterns
 	logger.Printf("🚀 Starting auto-sync for new campaign: %s", campaign.Name)
 	syncResult, err := syncCampaignFiles(&campaign, campaign.Patterns)
@@ -837,15 +837,15 @@ func createCampaignHandler(w http.ResponseWriter, r *http.Request) {
 		campaign.Metadata["auto_sync_attempted"] = true
 		campaign.Metadata["auto_sync_success"] = true
 	}
-	
+
 	// Save to file (includes any synced files)
 	if err := saveCampaign(&campaign); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	logger.Printf("✅ Created campaign: %s (ID: %s)", campaign.Name, campaign.ID)
-	
+
 	// Calculate computed fields for response
 	updateStalenessScores(&campaign)
 	totalFiles := len(campaign.TrackedFiles)
@@ -855,13 +855,13 @@ func createCampaignHandler(w http.ResponseWriter, r *http.Request) {
 			visitedFiles++
 		}
 	}
-	
+
 	campaign.TotalFiles = totalFiles
 	campaign.VisitedFiles = visitedFiles
 	if totalFiles > 0 {
 		campaign.CoveragePercent = float64(visitedFiles) / float64(totalFiles) * 100.0
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(campaign)
@@ -874,7 +874,7 @@ func getCampaignHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	campaign, err := loadCampaign(campaignID)
 	if err != nil {
 		if err.Error() == "campaign not found" {
@@ -884,10 +884,10 @@ func getCampaignHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Update computed fields
 	updateStalenessScores(campaign)
-	
+
 	totalFiles := len(campaign.TrackedFiles)
 	visitedFiles := 0
 	for _, file := range campaign.TrackedFiles {
@@ -895,13 +895,13 @@ func getCampaignHandler(w http.ResponseWriter, r *http.Request) {
 			visitedFiles++
 		}
 	}
-	
+
 	campaign.TotalFiles = totalFiles
 	campaign.VisitedFiles = visitedFiles
 	if totalFiles > 0 {
 		campaign.CoveragePercent = float64(visitedFiles) / float64(totalFiles) * 100.0
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(campaign)
 }
@@ -913,14 +913,14 @@ func deleteCampaignHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	// Check if campaign exists (for logging purposes)
 	campaign, err := loadCampaign(campaignID)
 	var campaignName string
 	if err == nil {
 		campaignName = campaign.Name
 	}
-	
+
 	// Delete the campaign file (idempotent operation)
 	if err := deleteCampaignFile(campaignID); err != nil {
 		// Only return error if it's not a "file not found" error
@@ -929,13 +929,13 @@ func deleteCampaignHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	
+
 	if campaignName != "" {
 		logger.Printf("🗑️ Deleted campaign: %s (ID: %s)", campaignName, campaignID)
 	} else {
 		logger.Printf("🗑️ Attempted to delete non-existent campaign (ID: %s) - idempotent operation", campaignID)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"deleted": true,
@@ -950,13 +950,13 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	var req VisitRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	// Load campaign
 	campaign, err := loadCampaign(campaignID)
 	if err != nil {
@@ -967,7 +967,7 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Parse files from request
 	var filePaths []string
 	switch files := req.Files.(type) {
@@ -983,14 +983,14 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error": "Invalid files format"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	if len(filePaths) == 0 {
 		http.Error(w, `{"error": "No files specified"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	recordedCount := 0
-	
+
 	// Record visits for each file
 	for _, filePath := range filePaths {
 		// Get absolute path
@@ -1001,7 +1001,7 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 			cwd, _ := os.Getwd()
 			absolutePath = filepath.Join(cwd, filePath)
 		}
-		
+
 		// Find or create tracked file
 		var trackedFile *TrackedFile
 		for i := range campaign.TrackedFiles {
@@ -1010,7 +1010,7 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
-		
+
 		if trackedFile == nil {
 			// Create new tracked file
 			fileInfo, err := os.Stat(absolutePath)
@@ -1022,7 +1022,7 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 			} else {
 				modTime = time.Now()
 			}
-			
+
 			newFile := TrackedFile{
 				ID:           uuid.New(),
 				FilePath:     filePath,
@@ -1034,11 +1034,11 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 				Deleted:      false,
 				Metadata:     make(map[string]interface{}),
 			}
-			
+
 			campaign.TrackedFiles = append(campaign.TrackedFiles, newFile)
 			trackedFile = &campaign.TrackedFiles[len(campaign.TrackedFiles)-1]
 		}
-		
+
 		// Record the visit
 		now := time.Now().UTC()
 		visit := Visit{
@@ -1050,27 +1050,27 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 			ConversationID: req.ConversationID,
 			Findings:       req.Metadata,
 		}
-		
+
 		campaign.Visits = append(campaign.Visits, visit)
-		
+
 		// Update tracked file stats
 		trackedFile.VisitCount++
 		trackedFile.LastVisited = &now
-		
+
 		recordedCount++
 	}
-	
+
 	// Update staleness scores
 	updateStalenessScores(campaign)
-	
+
 	// Save campaign
 	if err := saveCampaign(campaign); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": "Failed to save visits: %v"}`, err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	logger.Printf("📝 Recorded %d visits for campaign: %s", recordedCount, campaign.Name)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"recorded": recordedCount,
@@ -1085,24 +1085,24 @@ func adjustVisitHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	var req AdjustVisitRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	fileID, err := uuid.Parse(req.FileID)
 	if err != nil {
 		http.Error(w, `{"error": "Invalid file ID"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	if req.Action != "increment" && req.Action != "decrement" {
 		http.Error(w, `{"error": "Action must be 'increment' or 'decrement'"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	// Load campaign
 	campaign, err := loadCampaign(campaignID)
 	if err != nil {
@@ -1113,7 +1113,7 @@ func adjustVisitHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Find the file
 	var trackedFile *TrackedFile
 	for i := range campaign.TrackedFiles {
@@ -1122,16 +1122,16 @@ func adjustVisitHandler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	
+
 	if trackedFile == nil {
 		http.Error(w, `{"error": "File not found in campaign"}`, http.StatusNotFound)
 		return
 	}
-	
+
 	// Perform the action
 	now := time.Now().UTC()
 	var actionSymbol string
-	
+
 	if req.Action == "increment" {
 		trackedFile.VisitCount++
 		trackedFile.LastVisited = &now
@@ -1146,7 +1146,7 @@ func adjustVisitHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		actionSymbol = "➖"
 	}
-	
+
 	// Record a manual visit entry
 	visit := Visit{
 		ID:             uuid.New(),
@@ -1157,20 +1157,20 @@ func adjustVisitHandler(w http.ResponseWriter, r *http.Request) {
 		ConversationID: nil,
 		Findings:       map[string]interface{}{"type": fmt.Sprintf("manual-%s", req.Action)},
 	}
-	
+
 	campaign.Visits = append(campaign.Visits, visit)
-	
+
 	// Update staleness scores
 	updateStalenessScores(campaign)
-	
+
 	// Save campaign
 	if err := saveCampaign(campaign); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": "Failed to save visit adjustment: %v"}`, err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	logger.Printf("%s %sed visit count for file %s in campaign: %s", actionSymbol, req.Action, trackedFile.FilePath, campaign.Name)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"file_id":     fileID,
@@ -1192,13 +1192,13 @@ func structureSyncHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	var req StructureSyncRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	// Load campaign
 	campaign, err := loadCampaign(campaignID)
 	if err != nil {
@@ -1209,33 +1209,33 @@ func structureSyncHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Use campaign patterns if none provided
 	patterns := req.Patterns
 	if len(patterns) == 0 {
 		patterns = campaign.Patterns
 	}
-	
+
 	if len(patterns) == 0 {
 		http.Error(w, `{"error": "No patterns specified"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	// Use shared sync function
 	syncResult, err := syncCampaignFiles(campaign, patterns)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": "Sync failed: %v"}`, err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Save campaign
 	if err := saveCampaign(campaign); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": "Failed to save sync results: %v"}`, err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	logger.Printf("🔄 Synced %d files for campaign: %s", syncResult.Added, campaign.Name)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(syncResult)
 }
@@ -1356,17 +1356,17 @@ func mostStaleHandler(w http.ResponseWriter, r *http.Request) {
 			files = append(files, file)
 		}
 	}
-	
+
 	// Sort by staleness score (descending)
 	sort.Slice(files, func(i, j int) bool {
 		return files[i].StalenessScore > files[j].StalenessScore
 	})
-	
+
 	// Limit results
 	if len(files) > limit {
 		files = files[:limit]
 	}
-	
+
 	// Calculate critical count (staleness > 50)
 	criticalCount := 0
 	for _, file := range campaign.TrackedFiles {
@@ -1374,7 +1374,7 @@ func mostStaleHandler(w http.ResponseWriter, r *http.Request) {
 			criticalCount++
 		}
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"files":          files,
@@ -1389,7 +1389,7 @@ func coverageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	// Load campaign
 	campaign, err := loadCampaign(campaignID)
 	if err != nil {
@@ -1400,46 +1400,46 @@ func coverageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Update staleness scores
 	updateStalenessScores(campaign)
-	
+
 	// Calculate coverage stats
 	totalFiles := 0
 	visitedFiles := 0
 	totalVisits := 0
 	totalStaleness := 0.0
-	
+
 	for _, file := range campaign.TrackedFiles {
 		if !file.Deleted {
 			totalFiles++
 			totalVisits += file.VisitCount
 			totalStaleness += file.StalenessScore
-			
+
 			if file.VisitCount > 0 {
 				visitedFiles++
 			}
 		}
 	}
-	
+
 	var averageVisits float64
 	var averageStaleness float64
 	var coveragePercentage float64
-	
+
 	if totalFiles > 0 {
 		averageVisits = float64(totalVisits) / float64(totalFiles)
 		averageStaleness = totalStaleness / float64(totalFiles)
 		coveragePercentage = float64(visitedFiles) / float64(totalFiles) * 100.0
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"total_files":        totalFiles,
-		"visited_files":      visitedFiles,
-		"unvisited_files":    totalFiles - visitedFiles,
+		"total_files":         totalFiles,
+		"visited_files":       visitedFiles,
+		"unvisited_files":     totalFiles - visitedFiles,
 		"coverage_percentage": math.Round(coveragePercentage*100) / 100,
-		"average_visits":     math.Round(averageVisits*100) / 100,
-		"average_staleness":  math.Round(averageStaleness*100) / 100,
+		"average_visits":      math.Round(averageVisits*100) / 100,
+		"average_staleness":   math.Round(averageStaleness*100) / 100,
 	})
 }
 
@@ -1451,7 +1451,7 @@ func exportHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
 		return
 	}
-	
+
 	// Load campaign
 	campaign, err := loadCampaign(campaignID)
 	if err != nil {
@@ -1462,16 +1462,16 @@ func exportHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Update staleness scores
 	updateStalenessScores(campaign)
-	
+
 	// Check for patterns filter
 	patternsParam := r.URL.Query().Get("patterns")
 	if patternsParam != "" {
 		patterns := strings.Split(patternsParam, ",")
 		filteredFiles := []TrackedFile{}
-		
+
 		for _, file := range campaign.TrackedFiles {
 			for _, pattern := range patterns {
 				pattern = strings.TrimSpace(pattern)
@@ -1481,11 +1481,11 @@ func exportHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		
+
 		// Create a copy of the campaign with filtered files
 		exportCampaign := *campaign
 		exportCampaign.TrackedFiles = filteredFiles
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(&exportCampaign)
 		return
@@ -1582,7 +1582,7 @@ func importHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"message": "Campaign merged successfully",
+			"message":  "Campaign merged successfully",
 			"campaign": existingCampaign,
 		})
 		return
@@ -1615,7 +1615,7 @@ func importHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"message": "Campaign imported successfully",
+		"message":  "Campaign imported successfully",
 		"campaign": importedCampaign,
 	})
 }

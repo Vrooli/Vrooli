@@ -269,13 +269,11 @@ Scenario Running State:
 ├── Required Resources (started via manage.sh)
 │   ├── postgres (localhost:5432)
 │   ├── n8n (http://localhost:5678)
-│   ├── windmill (http://localhost:8000)
 │   ├── ollama (http://localhost:11434)
 │   └── ... (other resources as needed)
 ├── Data Injection (via lib/inject.sh)
 │   ├── Database schemas and seeds
 │   ├── n8n workflows
-│   ├── Windmill applications
 │   └── Configuration files
 └── Application Services
     ├── Custom startup scripts

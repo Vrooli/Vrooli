@@ -77,8 +77,8 @@ required:
     
   - resource_name: ollama
     purpose: Text embedding generation and chat responses
-    integration_pattern: Shared workflow for consistency
-    access_method: ollama.json shared workflow
+    integration_pattern: Direct API for consistency
+    access_method: HTTP API calls to Ollama
 
 optional:
   - resource_name: minio
@@ -90,24 +90,13 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: universal-rag-pipeline.json
-      location: initialization/n8n/
-      purpose: Book content processing with position-aware chunking
-    - workflow: ollama.json
-      location: initialization/n8n/
-      purpose: Embedding generation and chat responses
-    - workflow: embedding-generator.json
-      location: initialization/n8n/
-      purpose: Fallback embedding generation
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-qdrant collection create no-spoilers-books
       purpose: Initialize vector database collections
     - command: resource-ollama generate
       purpose: Direct chat responses when workflows unavailable
   
-  3_direct_api:
+  2_direct_api:
     - justification: Complex position-based vector queries require direct Qdrant API
       endpoint: /collections/no-spoilers-books/points/search
 ```

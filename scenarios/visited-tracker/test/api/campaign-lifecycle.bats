@@ -3,9 +3,10 @@
 # Tests [REQ:VT-REQ-001] [REQ:VT-REQ-002] [REQ:VT-REQ-003]
 
 setup() {
-    # Get API port from lifecycle system
+    # Get API port from lifecycle system or service.json
+    # Note: Port is allocated via .vrooli/service.json (17694)
     if [ -z "${API_PORT:-}" ]; then
-        export API_PORT=$(vrooli scenario port visited-tracker API_PORT 2>/dev/null || echo "17693")
+        export API_PORT="17694"
     fi
 
     # Track campaign ID for cleanup
@@ -22,22 +23,34 @@ teardown() {
 # [REQ:VT-REQ-001] Campaign creation with patterns
 @test "[API] Create campaign with glob patterns" {
     local response
-    response=$(curl -s -X POST "http://localhost:${API_PORT}/api/v1/campaigns" \
+    response=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:${API_PORT}/api/v1/campaigns" \
         -H "Content-Type: application/json" \
         -d '{"name":"test-integration-campaign","from_agent":"integration-test","patterns":["**/*.go","**/*.ts"],"description":"Integration test campaign"}')
 
+    # Extract HTTP status code and body
+    local http_code=$(echo "$response" | tail -n1)
+    local body=$(echo "$response" | sed '$d')
+
+    # Debug: print if not 200
+    if [ "$http_code" != "200" ]; then
+        echo "HTTP Status: $http_code" >&2
+        echo "Response Body: $body" >&2
+    fi
+
+    [ "$http_code" = "200" ] || [ "$http_code" = "201" ]
+
     # Verify campaign ID returned
-    TEST_CAMPAIGN_ID=$(echo "$response" | jq -r '.id // empty')
+    TEST_CAMPAIGN_ID=$(echo "$body" | jq -r '.id // empty')
     [ -n "$TEST_CAMPAIGN_ID" ]
 
     # Verify campaign name
     local name
-    name=$(echo "$response" | jq -r '.name')
+    name=$(echo "$body" | jq -r '.name')
     [ "$name" = "test-integration-campaign" ]
 
     # Verify patterns stored correctly
     local pattern_count
-    pattern_count=$(echo "$response" | jq -r '.patterns | length')
+    pattern_count=$(echo "$body" | jq -r '.patterns | length')
     [ "$pattern_count" -eq 2 ]
 }
 
@@ -45,11 +58,15 @@ teardown() {
 @test "[API] Retrieve campaign by ID" {
     # Create campaign first
     local create_response
-    create_response=$(curl -s -X POST "http://localhost:${API_PORT}/api/v1/campaigns" \
+    create_response=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:${API_PORT}/api/v1/campaigns" \
         -H "Content-Type: application/json" \
         -d '{"name":"test-retrieve","patterns":["*.go"]}')
 
-    TEST_CAMPAIGN_ID=$(echo "$create_response" | jq -r '.id')
+    local http_code=$(echo "$create_response" | tail -n1)
+    local body=$(echo "$create_response" | sed '$d')
+    [ "$http_code" = "200" ] || [ "$http_code" = "201" ]
+
+    TEST_CAMPAIGN_ID=$(echo "$body" | jq -r '.id')
 
     # Retrieve campaign
     local get_response
@@ -65,11 +82,15 @@ teardown() {
 @test "[API] List campaigns returns array" {
     # Create test campaign
     local create_response
-    create_response=$(curl -s -X POST "http://localhost:${API_PORT}/api/v1/campaigns" \
+    create_response=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:${API_PORT}/api/v1/campaigns" \
         -H "Content-Type: application/json" \
         -d '{"name":"test-list","patterns":["*.js"]}')
 
-    TEST_CAMPAIGN_ID=$(echo "$create_response" | jq -r '.id')
+    local http_code=$(echo "$create_response" | tail -n1)
+    local body=$(echo "$create_response" | sed '$d')
+    [ "$http_code" = "200" ] || [ "$http_code" = "201" ]
+
+    TEST_CAMPAIGN_ID=$(echo "$body" | jq -r '.id')
 
     # List campaigns
     local list_response
@@ -90,11 +111,15 @@ teardown() {
 @test "[API] Record visit increases visit count" {
     # Create campaign
     local create_response
-    create_response=$(curl -s -X POST "http://localhost:${API_PORT}/api/v1/campaigns" \
+    create_response=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:${API_PORT}/api/v1/campaigns" \
         -H "Content-Type: application/json" \
         -d '{"name":"test-visits","patterns":["**/*.go"]}')
 
-    TEST_CAMPAIGN_ID=$(echo "$create_response" | jq -r '.id')
+    local http_code=$(echo "$create_response" | tail -n1)
+    local body=$(echo "$create_response" | sed '$d')
+    [ "$http_code" = "200" ] || [ "$http_code" = "201" ]
+
+    TEST_CAMPAIGN_ID=$(echo "$body" | jq -r '.id')
 
     # Record first visit
     curl -s -X POST "http://localhost:${API_PORT}/api/v1/campaigns/${TEST_CAMPAIGN_ID}/visit" \
@@ -114,11 +139,15 @@ teardown() {
 @test "[API] Query least visited files" {
     # Create campaign
     local create_response
-    create_response=$(curl -s -X POST "http://localhost:${API_PORT}/api/v1/campaigns" \
+    create_response=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:${API_PORT}/api/v1/campaigns" \
         -H "Content-Type: application/json" \
         -d '{"name":"test-prioritize","patterns":["**/*.go"]}')
 
-    TEST_CAMPAIGN_ID=$(echo "$create_response" | jq -r '.id')
+    local http_code=$(echo "$create_response" | tail -n1)
+    local body=$(echo "$create_response" | sed '$d')
+    [ "$http_code" = "200" ] || [ "$http_code" = "201" ]
+
+    TEST_CAMPAIGN_ID=$(echo "$body" | jq -r '.id')
 
     # Record some visits to create differentiation
     curl -s -X POST "http://localhost:${API_PORT}/api/v1/campaigns/${TEST_CAMPAIGN_ID}/visit" \
@@ -139,11 +168,15 @@ teardown() {
 @test "[API] Query most stale files" {
     # Create campaign
     local create_response
-    create_response=$(curl -s -X POST "http://localhost:${API_PORT}/api/v1/campaigns" \
+    create_response=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:${API_PORT}/api/v1/campaigns" \
         -H "Content-Type: application/json" \
         -d '{"name":"test-stale","patterns":["**/*.go"]}')
 
-    TEST_CAMPAIGN_ID=$(echo "$create_response" | jq -r '.id')
+    local http_code=$(echo "$create_response" | tail -n1)
+    local body=$(echo "$create_response" | sed '$d')
+    [ "$http_code" = "200" ] || [ "$http_code" = "201" ]
+
+    TEST_CAMPAIGN_ID=$(echo "$body" | jq -r '.id')
 
     # Query most stale
     local stale_response
@@ -159,12 +192,16 @@ teardown() {
 @test "[API] Delete campaign removes it permanently" {
     # Create campaign
     local create_response
-    create_response=$(curl -s -X POST "http://localhost:${API_PORT}/api/v1/campaigns" \
+    create_response=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:${API_PORT}/api/v1/campaigns" \
         -H "Content-Type: application/json" \
         -d '{"name":"test-delete","patterns":["*.ts"]}')
 
+    local http_code=$(echo "$create_response" | tail -n1)
+    local body=$(echo "$create_response" | sed '$d')
+    [ "$http_code" = "200" ] || [ "$http_code" = "201" ]
+
     local campaign_id
-    campaign_id=$(echo "$create_response" | jq -r '.id')
+    campaign_id=$(echo "$body" | jq -r '.id')
 
     # Delete campaign
     local delete_status

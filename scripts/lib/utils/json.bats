@@ -87,7 +87,7 @@ create_test_configs() {
       "timeout": "30m",
       "ui": {
         "required": true,
-        "type": "windmill"
+        "type": "node-red"
       }
     }
   }
@@ -155,11 +155,6 @@ EOF
         "required": true,
         "baseUrl": "http://localhost:5678",
         "capabilities": ["workflow", "webhook"]
-      },
-      "windmill": {
-        "enabled": false,
-        "required": false,
-        "baseUrl": "http://localhost:5681"
       }
     }
   },
@@ -195,7 +190,7 @@ EOF
       "timeout": "45m",
       "ui": {
         "required": true,
-        "type": "windmill",
+        "type": "node-red",
         "url": "http://localhost:3000"
       },
       "performance": {
@@ -400,7 +395,7 @@ EOF
 @test "json::get_value handles complex nested paths" {
     run json::get_value '.deployment.testing.ui.type' '' "$TEST_DIR/complex.json"
     [ "$status" -eq 0 ]
-    [[ "$output" == "windmill" ]]
+    [[ "$output" == "node-red" ]]
 }
 
 @test "json::path_exists returns true for existing paths" {
@@ -524,7 +519,7 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == *"enabled"* ]]
     [[ "$output" == *"45m"* ]]
-    [[ "$output" == *"windmill"* ]]
+    [[ "$output" == *"node-red"* ]]
 }
 
 ################################################################################
@@ -657,7 +652,7 @@ EOF
     timeout=$(json::get_deployment_config 'testing.timeout' '30m')
     
     [[ "$requires_ui" == "true" ]]
-    [[ "$ui_type" == "windmill" ]]
+    [[ "$ui_type" == "node-red" ]]
     [[ "$timeout" == "45m" ]]
 }
 

@@ -14,7 +14,7 @@
 - Travel bloggers needing visual content for their stories
 - Travel agencies looking to understand client travel patterns
 
-**Deployment Surfaces**: CLI, API, UI, n8n workflows
+**Deployment Surfaces**: CLI, API, UI
 
 ## 🎯 Operational Targets
 
@@ -36,7 +36,7 @@
 - [ ] OT-P1-005 | Heat map overlay | Visual density layer showing travel concentration areas
 - [ ] OT-P1-006 | Photo attachments | Support for uploading and viewing travel photos
 - [ ] OT-P1-007 | Data export | Export travel data as JSON/CSV and generate shareable statistics summaries
-- [ ] OT-P1-008 | n8n automation | Workflow integration for data processing and embedding generation
+- [ ] OT-P1-008 | Embedded automation pipeline | API handles embedding, achievement, and persistence orchestration without a dedicated workflow engine
 
 ### 🟢 P2 – Future / expansion
 
@@ -59,7 +59,7 @@
 - Redis for caching map data and frequent queries
 
 **Integration Strategy**:
-- n8n workflows for automation, embedding generation, and data processing pipelines
+- Direct API automation for embeddings, achievements, and storage coordination
 - Ollama for AI-powered insights (post-launch)
 - External geocoding service for location resolution
 
@@ -73,7 +73,6 @@
 **Required Local Resources**:
 - PostgreSQL (primary data store)
 - Qdrant (vector search)
-- n8n (workflow automation)
 - Redis (caching layer)
 
 **Scenario Dependencies**: None (standalone scenario)
@@ -86,7 +85,7 @@
 **Launch Sequencing**:
 1. Deploy PostgreSQL schema and seed data
 2. Start API backend with health checks
-3. Configure n8n workflows for embedding pipeline
+3. Verify the embedded automation pipeline handles embeddings and achievements
 4. Launch UI with basic map and CRUD forms
 5. Post-launch: add achievements, analytics, semantic search
 
@@ -119,4 +118,3 @@
 **Reference Links**:
 - Leaflet.js documentation: https://leafletjs.com/
 - Qdrant vector search: https://qdrant.tech/
-- n8n workflow automation: https://n8n.io/

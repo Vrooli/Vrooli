@@ -16,10 +16,17 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/main_test.go",
+          "ref": "api/campaign_handlers_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Multiple tests validate campaign creation, CRUD operations, and glob patterns [REQ:VT-REQ-001]"
+          "notes": "Tests validate campaign CRUD operations: TestCreateCampaignHandler, TestGetCampaignHandler, TestUpdateCampaignHandler, TestDeleteCampaignHandler, TestListCampaignsHandler, TestFindOrCreateCampaignHandler [REQ:VT-REQ-001]"
+        },
+        {
+          "type": "test",
+          "ref": "api/campaign_storage_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests validate campaign storage and persistence: TestCampaignStorage, TestSaveCampaign, TestLoadCampaign, TestLoadAllCampaigns, TestDeleteCampaignFile [REQ:VT-REQ-001]"
         },
         {
           "type": "test",
@@ -49,10 +56,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/main_test.go",
+          "ref": "api/visit_tracking_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Multiple tests validate visit count increment and persistence [REQ:VT-REQ-002]"
+          "notes": "Tests validate visit tracking: TestVisitHandler, TestAdjustVisitHandler, TestVisitHandlerErrorPaths, TestAdjustVisitHandlerErrorPaths [REQ:VT-REQ-002]"
         },
         {
           "type": "test",
@@ -75,10 +82,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/main_test.go",
+          "ref": "api/staleness_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Multiple tests validate staleness scoring algorithm with various scenarios [REQ:VT-REQ-003]"
+          "notes": "Tests validate staleness algorithm and prioritization: TestCalculateStalenessScore, TestUpdateStalenessScores, TestLeastVisitedHandler, TestMostStaleHandler [REQ:VT-REQ-003]"
         },
         {
           "type": "test",
@@ -101,10 +108,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/main_test.go",
+          "ref": "api/file_sync_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "TestStructureSyncHandler validates file sync discovers and removes files with glob patterns [REQ:VT-REQ-004]"
+          "notes": "Tests validate file sync: TestStructureSyncHandler, TestSyncCampaignFilesErrorPaths [REQ:VT-REQ-004]"
         },
         {
           "type": "test",
@@ -127,10 +134,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/main_test.go",
+          "ref": "api/campaign_storage_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Multiple tests validate JSON persistence and loading [REQ:VT-REQ-005]"
+          "notes": "Tests validate JSON persistence: TestInitFileStorage, TestSaveCampaign, TestLoadCampaign, TestLoadAllCampaigns [REQ:VT-REQ-005]"
         },
         {
           "type": "automation",

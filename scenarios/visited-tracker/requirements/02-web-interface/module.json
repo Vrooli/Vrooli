@@ -16,10 +16,17 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/main_test.go",
+          "ref": "api/campaign_handlers_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Multiple tests validate HTTP API responses, CRUD operations, CORS, error handling [REQ:VT-REQ-006]"
+          "notes": "Tests validate HTTP API CRUD operations: TestCreateCampaignHandler, TestGetCampaignHandler, TestUpdateCampaignHandler, TestDeleteCampaignHandler, TestListCampaignsHandler [REQ:VT-REQ-006]"
+        },
+        {
+          "type": "test",
+          "ref": "api/http_server_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests validate HTTP server functionality: TestCorsMiddleware, TestHealthHandler, TestOptionsHandler [REQ:VT-REQ-006]"
         },
         {
           "type": "test",
@@ -49,10 +56,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/main_test.go",
+          "ref": "api/staleness_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Multiple tests validate prioritization queries with various limits and edge cases [REQ:VT-REQ-007]"
+          "notes": "Tests validate prioritization queries: TestLeastVisitedHandler, TestMostStaleHandler [REQ:VT-REQ-007]"
         },
         {
           "type": "test",
@@ -85,7 +92,7 @@
           "ref": "api/main_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "TestExportHandler validates campaign export functionality [REQ:VT-REQ-008]"
+          "notes": "Tests validate export functionality: TestExportHandler, TestExportHandlerComprehensive [REQ:VT-REQ-008]"
         },
         {
           "type": "test",
@@ -115,10 +122,17 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/campaign_handlers_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests validate HTTP endpoints that power the UI dashboard: TestListCampaignsHandler, TestGetCampaignHandler [REQ:VT-REQ-009]"
+        },
+        {
+          "type": "test",
           "ref": "api/main_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Unit tests validate HTTP endpoints that power the UI dashboard [REQ:VT-REQ-009]"
+          "notes": "Tests validate coverage metrics for dashboard: TestCoverageHandler, TestCoverageHandlerErrorPaths [REQ:VT-REQ-009]"
         }
       ]
     },

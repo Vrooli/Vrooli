@@ -76,11 +76,11 @@ required:
     integration_pattern: Direct SQL via Go driver
     access_method: SQL queries through db connection
     
-  - resource_name: n8n
-    purpose: Download orchestration and workflow automation
-    integration_pattern: Webhook triggers and workflow execution
-    access_method: HTTP API and webhook endpoints
-    
+  - resource_name: download-orchestrator
+    purpose: Internal orchestration for downloads, format conversion, and metadata enrichment
+    integration_pattern: Go-based automation routines that coordinate yt-dlp, FFmpeg, and database updates
+    access_method: HTTP/CLI commands handled directly by the scenario API
+
   - resource_name: whisper
     purpose: Audio-to-text transcription processing
     integration_pattern: HTTP API for transcription jobs
@@ -107,10 +107,10 @@ optional:
 ```yaml
 # Priority order for resource access (MUST follow this hierarchy):
 integration_priorities:
-  1_shared_workflows:     # FIRST: Use existing shared n8n workflows
-    - workflow: NOT APPLICABLE - Video processing is scenario-specific
-      location: N/A
-      purpose: N/A
+  1_shared_workflows:     # FIRST: Use existing automation helpers
+    - workflow: Video processing automation lives inside the scenario API (no shared workflow engine)
+      location: Internal module
+      purpose: Download orchestration
   
   2_resource_cli:        # SECOND: Use resource CLI commands
     - command: resource-whisper transcribe [audio_file]
@@ -121,8 +121,8 @@ integration_priorities:
   3_direct_api:          # THIRD: Direct API when CLI insufficient
     - justification: Whisper HTTP API provides better error handling and progress tracking than CLI
       endpoint: http://localhost:8090/transcribe
-    - justification: N8N webhook integration requires direct HTTP calls
-      endpoint: Various n8n webhook URLs
+    - justification: Internal download orchestrator exposes HTTP endpoints for yt-dlp/FFmpeg jobs
+      endpoint: /api/download/processing
 
 # Shared workflow guidelines:
 shared_workflow_criteria:
@@ -541,12 +541,12 @@ direct_execution:
   supported: true
   structure_compliance:
     - .vrooli/service.json with complete metadata and resource dependencies
-    - All required initialization files (postgres schema, n8n workflows)
+    - All required initialization files (postgres schema, automation configuration)
     - Deployment scripts with health checks for Whisper and FFmpeg
     - API health check endpoints including resource connectivity
     
   deployment_targets:
-    - local: Docker Compose with Whisper, FFmpeg, PostgreSQL, N8N
+    - local: Docker Compose with Whisper, FFmpeg, PostgreSQL
     - kubernetes: Helm chart with persistent storage for media files
     - cloud: AWS/GCP template with S3/Cloud Storage for media files
     
@@ -575,7 +575,7 @@ discovery:
   metadata:
     description: "Download, process and transcribe video/audio content from any platform"
     keywords: [video, audio, transcription, download, youtube, whisper, media-processing]
-    dependencies: [postgres, whisper, ffmpeg, n8n]
+    dependencies: [postgres, whisper, ffmpeg]
     enhances: [research-assistant, meeting-intelligence, content-analysis, accessibility-tools]
 ```
 

@@ -11,6 +11,31 @@ const SECTION_SEPARATOR = '='.repeat(68);
 const SUBSECTION_SEPARATOR = '━'.repeat(68);
 
 /**
+ * Format understanding primer section
+ * @returns {string} Formatted primer
+ */
+function formatUnderstandingPrimer() {
+  const lines = [];
+
+  lines.push(SECTION_SEPARATOR);
+  lines.push('📋 UNDERSTANDING THIS REPORT');
+  lines.push(SECTION_SEPARATOR);
+  lines.push('');
+  lines.push('This completeness score measures how well your scenario is validated and');
+  lines.push('implemented, not just whether basic features exist.');
+  lines.push('');
+  lines.push('Validation penalties exist to prevent "gaming" behaviors observed in practice:');
+  lines.push('  • Linking all requirements to the same few passing tests');
+  lines.push('  • Using superficial tests that don\'t truly validate requirements');
+  lines.push('  • Claiming comprehensive coverage without multi-layer validation');
+  lines.push('');
+  lines.push('These rules encourage proper test architecture and genuine verification.');
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+/**
  * Format validation issues section (prioritized at top of output)
  * @param {object} validationQualityAnalysis - Validation quality analysis
  * @param {object} options - Formatting options
@@ -29,6 +54,10 @@ All tests follow recommended patterns and best practices.
   }
 
   const lines = [];
+
+  // Add understanding primer when there are issues
+  lines.push(formatUnderstandingPrimer());
+
   const severity = validationQualityAnalysis.overall_severity.toUpperCase();
   const penalty = validationQualityAnalysis.total_penalty;
 
@@ -137,20 +166,71 @@ function formatIssueDetail(issue, verbose) {
 
   lines.push(`${icon} ${issue.message.split('\n').join('\n   ')}`);
 
+  // Show invalid paths if available (for invalid test location issue)
+  if (issue.invalid_paths && issue.invalid_paths.length > 0) {
+    lines.push('');
+    lines.push('   Invalid paths found:');
+    issue.invalid_paths.slice(0, 5).forEach(({path, requirement_ids}) => {
+      lines.push(`     • ${path} (referenced by ${requirement_ids.length} requirements)`);
+    });
+    if (issue.invalid_paths.length > 5) {
+      lines.push(`     ... and ${issue.invalid_paths.length - 5} more`);
+    }
+    lines.push('');
+    lines.push('   Affected requirements:');
+    const allReqIds = new Set();
+    issue.invalid_paths.forEach(({requirement_ids}) => {
+      requirement_ids.forEach(id => allReqIds.add(id));
+    });
+    const reqArray = Array.from(allReqIds);
+    lines.push(`     ${reqArray.slice(0, 6).join(', ')}${reqArray.length > 6 ? `, ... (${reqArray.length - 6} more)` : ''}`);
+  }
+
   // Show valid sources if available (for invalid test location issue)
   if (issue.valid_sources && issue.valid_sources.length > 0) {
     lines.push('');
-    lines.push('   Valid test locations for this scenario:');
+    lines.push('   Valid test locations:');
     issue.valid_sources.forEach(source => {
       lines.push(`     • ${source}`);
     });
+    if (issue.invalid_paths && issue.invalid_paths.length > 0) {
+      lines.push('');
+      lines.push('   Fix: Move BATS files to test/playbooks/ or create proper unit tests');
+    }
   }
 
-  if (verbose) {
+  // Show affected requirements for multi-layer validation issue
+  if (issue.affected_requirements && issue.affected_requirements.length > 0) {
     lines.push('');
-    lines.push(`   Why this matters:`);
-    lines.push(`   ${issue.why_it_matters}`);
+    lines.push('   Affected requirements (first 5, see --verbose for all):');
+    issue.affected_requirements.forEach(req => {
+      const currentLayers = req.current_layers.length > 0 ? req.current_layers.join(', ') : 'none';
+      const neededLayers = req.needed_layers.join(' + ');
+      lines.push(`     • ${req.id} (${req.title})`);
+      lines.push(`       has: ${currentLayers} → needs: ${neededLayers}`);
+    });
+    if (issue.count > 5) {
+      lines.push(`     ... and ${issue.count - 5} more critical requirements`);
+    }
   }
+
+  // Show monolithic test file details
+  if (issue.worst_offender) {
+    lines.push('');
+    lines.push('   Affected files:');
+    lines.push(`     • ${issue.worst_offender.test_ref} (validates ${issue.worst_offender.count} requirements)`);
+    if (issue.violations > 1) {
+      lines.push(`     ... and ${issue.violations - 1} more test files`);
+    }
+  }
+
+  // Always show "Why this matters"
+  lines.push('');
+  lines.push(`   Why this matters:`);
+  const whyLines = (issue.why_it_matters || '').split('\n');
+  whyLines.forEach(line => {
+    lines.push(`     ${line}`);
+  });
 
   lines.push('');
   lines.push(`   Next Steps:`);
@@ -196,26 +276,48 @@ function generateContextualRecommendations(issue) {
       recommendations.push('Study browser-automation-studio scenario for proper test structure');
     }
   } else if (issue.message.includes('multi-layer')) {
-    recommendations.push('For each P0/P1 requirement:');
-    recommendations.push('  1. Identify which layers apply (API/UI/e2e)');
-    recommendations.push('  2. Add automated tests in valid locations for each layer');
-    recommendations.push('  3. Update requirement validation refs to include all layers');
-
-    if (issue.count > 0) {
+    recommendations.push('Layer examples by feature type:');
+    recommendations.push('  • Backend features: API unit tests + CLI/integration tests');
+    recommendations.push('  • UI features: UI component tests + API tests + E2E playbooks');
+    recommendations.push('  • CLI commands: API logic tests + CLI BATS tests');
+    recommendations.push('  • Full workflows: API + UI + E2E');
+    recommendations.push('');
+    recommendations.push('What counts as "automated":');
+    recommendations.push('  Any test NOT marked type: "manual" in validation refs');
+    recommendations.push('');
+    recommendations.push('Next steps:');
+    if (issue.affected_requirements && issue.affected_requirements.length > 0) {
+      recommendations.push('  1. Review the affected requirements listed above');
+      recommendations.push('  2. For each requirement, add missing test layers:');
+      issue.affected_requirements.slice(0, 3).forEach(req => {
+        const missing = req.needed_layers.filter(l => !req.current_layers.includes(l));
+        if (missing.length > 0) {
+          recommendations.push(`     - ${req.id}: Add ${missing.join(' + ')} tests`);
+        }
+      });
+      if (issue.affected_requirements.length > 3) {
+        recommendations.push(`     ... and ${issue.count - 3} more requirements`);
+      }
+      recommendations.push('  3. Update validation refs in requirements/*.json files');
+    } else {
+      recommendations.push('  1. Identify which layers apply to each requirement (API/UI/e2e)');
+      recommendations.push('  2. Add automated tests in valid locations for each layer');
+      recommendations.push('  3. Update requirement validation refs to include all layers');
       recommendations.push('');
       recommendations.push(`Affected requirements: ${issue.count} total`);
       recommendations.push('Prioritize P0 requirements first for highest impact');
     }
   } else if (issue.message.includes('monolithic test files')) {
-    recommendations.push('Create focused tests that validate single requirements');
-    recommendations.push('Use appropriate test locations (API/UI/e2e, not CLI wrappers)');
-
-    if (issue.worst_offender) {
-      recommendations.push('');
-      recommendations.push(`Worst offender: ${issue.worst_offender.test_ref}`);
-      recommendations.push(`  → Validates ${issue.worst_offender.count} requirements`);
-      recommendations.push('  → Split into focused tests in proper locations');
-    }
+    recommendations.push('Why it matters:');
+    recommendations.push('  Linking many requirements to one test encourages:');
+    recommendations.push('  • Superficial validation (test may not truly check all claimed requirements)');
+    recommendations.push('  • Poor maintainability (one file doing too much)');
+    recommendations.push('  • "Gaming" the score by linking requirements to passing tests');
+    recommendations.push('');
+    recommendations.push('Next steps:');
+    recommendations.push('  1. Break up test files that validate ≥4 requirements each');
+    recommendations.push('  2. Create focused test files that thoroughly validate 1-3 related requirements');
+    recommendations.push('  3. Ensure each requirement link represents genuine, comprehensive validation');
   } else if (issue.message.includes('operational targets') && issue.message.includes('1:1')) {
     recommendations.push('Review requirements and group related ones under shared targets');
     recommendations.push('Update operational_target_id in requirements/*/module.json');
@@ -246,6 +348,41 @@ function generateContextualRecommendations(issue) {
 }
 
 /**
+ * Extract a clean issue type name from the issue message
+ * @param {string} message - Issue message
+ * @returns {string} Clean issue type name
+ */
+function extractIssueTypeName(message) {
+  if (message.includes('monolithic test files')) {
+    const match = message.match(/^(\d+) test files/);
+    return match ? `Monolithic test files (${match[1]} violations)` : 'Monolithic test files';
+  }
+  if (message.includes('multi-layer')) {
+    const match = message.match(/^(\d+) critical requirements/);
+    return match ? `Missing multi-layer validation (${match[1]} reqs)` : 'Missing multi-layer validation';
+  }
+  if (message.includes('unsupported test/')) {
+    const match = message.match(/^(\d+)\/(\d+) requirements/);
+    return match ? `Invalid test paths (${match[1]} reqs)` : 'Invalid test paths';
+  }
+  if (message.includes('operational targets')) {
+    return '1:1 target mapping';
+  }
+  if (message.includes('1:1 test-to-requirement')) {
+    return 'Suspicious 1:1 test ratio';
+  }
+  if (message.includes('superficial')) {
+    const match = message.match(/^(\d+) test file/);
+    return match ? `Superficial tests (${match[1]} files)` : 'Superficial tests';
+  }
+  if (message.includes('manual')) {
+    return 'Missing automation';
+  }
+  // Fallback: use first part of message
+  return message.split('\n')[0].substring(0, 50);
+}
+
+/**
  * Format score summary section
  * @param {number} totalScore - Final score
  * @param {object} breakdown - Score breakdown
@@ -266,6 +403,14 @@ function formatScoreSummary(totalScore, breakdown, classification, validationQua
   if (validationQualityAnalysis.has_issues) {
     const severity = validationQualityAnalysis.overall_severity === 'high' ? '⚠️  SEVERE' : '';
     lines.push(`  Validation Penalty: -${breakdown.validation_penalty}pts ${severity}`);
+    lines.push('');
+    lines.push('  Penalty breakdown:');
+
+    // Show breakdown by issue type
+    validationQualityAnalysis.issues.forEach(issue => {
+      const issueType = extractIssueTypeName(issue.message);
+      lines.push(`    • ${issueType}: -${issue.penalty} pts`);
+    });
   }
 
   lines.push('');

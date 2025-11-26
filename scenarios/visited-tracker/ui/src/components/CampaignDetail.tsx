@@ -1,10 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Clock, FileText, TrendingUp, RefreshCw, AlertCircle, CheckCircle, Target } from "lucide-react";
+import { useEffect } from "react";
+import { ArrowLeft, Clock, FileText, TrendingUp, RefreshCw, AlertCircle, CheckCircle, Target, Terminal } from "lucide-react";
 import { fetchCampaign, fetchLeastVisited, fetchMostStale } from "../lib/api";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { HelpButton } from "./HelpButton";
+import { FilePathWithCopy } from "./FilePathWithCopy";
+import { CliCommand } from "./CliCommand";
 
 interface CampaignDetailProps {
   campaignId: string;
@@ -29,6 +32,27 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
     enabled: !!campaign
   });
 
+  // Keyboard shortcuts for better UX
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Esc to go back
+      if (e.key === 'Escape') {
+        onBack();
+      }
+      // R to refresh (when not in an input)
+      if (e.key === 'r' && !e.metaKey && !e.ctrlKey) {
+        const target = e.target as HTMLElement;
+        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+          refetch();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onBack, refetch]);
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
   };
@@ -50,19 +74,23 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <div className="text-center">
-          <p className="text-red-400">Failed to load campaign</p>
-          <p className="mt-2 text-sm text-slate-500">{(error as Error).message}</p>
-          <div className="mt-4 flex gap-3 justify-center">
+        <div className="text-center max-w-md">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
+            <AlertCircle className="h-8 w-8 text-red-400" />
+          </div>
+          <h2 className="mb-2 text-xl font-semibold text-slate-50">Failed to Load Campaign</h2>
+          <p className="mb-6 text-sm text-slate-400">{(error as Error).message}</p>
+          <div className="flex gap-3 justify-center">
             <Button variant="outline" onClick={onBack}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
+              Back to List
             </Button>
             <Button onClick={() => refetch()}>
               <RefreshCw className="mr-2 h-4 w-4" />
-              Retry
+              Try Again
             </Button>
           </div>
+          <p className="mt-4 text-xs text-slate-600">Press Esc to go back</p>
         </div>
       </div>
     );
@@ -71,9 +99,13 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
   if (isLoading || !campaign) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <div className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-slate-700 border-t-slate-50" />
-          <p className="text-slate-400">Loading campaign...</p>
+        <div className="text-center" role="status" aria-live="polite" aria-busy="true">
+          <div
+            className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-slate-700 border-t-slate-50"
+            aria-hidden="true"
+          />
+          <p className="text-slate-300">Loading campaign...</p>
+          <span className="sr-only">Please wait while the campaign details are loading</span>
         </div>
       </div>
     );
@@ -84,112 +116,172 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
   const mostStale = mostStaleData?.files || [];
 
   return (
-    <div className="min-h-screen bg-slate-950 p-6">
+    <div className="min-h-screen bg-slate-950 p-3 sm:p-4 md:p-6 lg:p-8">
+      <a href="#main-content" className="skip-to-content">
+        Skip to main content
+      </a>
       <div className="mx-auto max-w-6xl">
         {/* Header */}
-        <div className="mb-6 flex flex-wrap items-center gap-4">
-          <Button variant="outline" onClick={onBack}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
+        <header className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 sm:gap-3 md:gap-4">
+          <Button variant="outline" onClick={onBack} aria-label="Go back to campaign list" className="w-full sm:w-auto shrink-0">
+            <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
             Back
           </Button>
-          <div className="flex-1 min-w-[200px]">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-50">{campaign.name}</h1>
-              <Badge variant={campaign.status}>{campaign.status}</Badge>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-slate-50 break-words">{campaign.name}</h1>
+              <Badge variant={campaign.status} aria-label={`Campaign status: ${campaign.status}`} className="shrink-0">{campaign.status}</Badge>
             </div>
             {campaign.description && (
-              <p className="mt-2 text-slate-400">{campaign.description}</p>
+              <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm md:text-base text-slate-400">{campaign.description}</p>
             )}
           </div>
-          <Button onClick={() => refetch()}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
+          <Button onClick={() => refetch()} aria-label="Refresh campaign data" className="w-full sm:w-auto shrink-0">
+            <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
+            <span className="hidden xs:inline">Refresh</span>
+            <span className="xs:hidden">↻</span>
           </Button>
+        </header>
+
+        {/* Keyboard shortcuts hint */}
+        <div className="mb-3 sm:mb-4 text-[10px] sm:text-xs text-slate-400" role="note" aria-label="Keyboard shortcuts available">
+          <kbd className="px-1 sm:px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px] sm:text-xs">Esc</kbd> to go back, <kbd className="px-1 sm:px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px] sm:text-xs">R</kbd> to refresh
         </div>
 
         {/* Stats Grid */}
-        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Total Files
+        <main id="main-content">
+        <section className="mb-6 sm:mb-8 grid grid-cols-2 gap-2.5 sm:gap-3 md:gap-4 lg:grid-cols-4" role="region" aria-label="Campaign statistics">
+          <Card className="hover:bg-white/[0.02] transition-colors">
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardTitle className="text-xs sm:text-sm font-medium text-slate-400 flex items-center gap-1.5 sm:gap-2">
+                <FileText className="h-3 w-3 sm:h-4 sm:w-4" aria-hidden="true" />
+                <span className="hidden xs:inline">Total Files</span>
+                <span className="xs:hidden">Files</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-slate-50">{campaign.total_files || 0}</div>
+              <div className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-50" aria-label={`${campaign.total_files || 0} total files`}>{campaign.total_files || 0}</div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                <CheckCircle className="h-4 w-4" />
-                Visited Files
+          <Card className="hover:bg-white/[0.02] transition-colors">
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardTitle className="text-xs sm:text-sm font-medium text-slate-400 flex items-center gap-1.5 sm:gap-2">
+                <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" aria-hidden="true" />
+                <span className="hidden xs:inline">Visited</span>
+                <span className="xs:hidden">Done</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-400">{campaign.visited_files || 0}</div>
+              <div className="text-xl sm:text-2xl md:text-3xl font-bold text-green-400" aria-label={`${campaign.visited_files || 0} visited files`}>{campaign.visited_files || 0}</div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                <Target className="h-4 w-4" />
+          <Card className="hover:bg-white/[0.02] transition-colors">
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardTitle className="text-xs sm:text-sm font-medium text-slate-400 flex items-center gap-1.5 sm:gap-2">
+                <Target className="h-3 w-3 sm:h-4 sm:w-4" aria-hidden="true" />
                 Coverage
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-400">{coveragePercent}%</div>
+              <div className="text-xl sm:text-2xl md:text-3xl font-bold text-blue-400" aria-label={`${coveragePercent}% coverage`}>{coveragePercent}%</div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-slate-400">Agent</CardTitle>
+          <Card className="hover:bg-white/[0.02] transition-colors col-span-2 lg:col-span-1">
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardTitle className="text-xs sm:text-sm font-medium text-slate-400">Agent</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-lg font-semibold text-slate-50">{campaign.from_agent}</div>
+              <div className="text-base sm:text-lg font-semibold text-slate-50 truncate" title={campaign.from_agent} aria-label={`Created by agent: ${campaign.from_agent}`}>{campaign.from_agent}</div>
             </CardContent>
           </Card>
-        </div>
+        </section>
 
         {/* Coverage Progress */}
-        <Card className="mb-8">
+        <Card className="mb-6 sm:mb-8">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base">
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
               Coverage Progress
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-4 w-full overflow-hidden rounded-full bg-slate-800">
+            <div
+              className="h-3 sm:h-4 w-full overflow-hidden rounded-full bg-slate-800"
+              role="progressbar"
+              aria-valuenow={coveragePercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`Coverage progress: ${coveragePercent}%`}
+            >
               <div
                 className="h-full rounded-full bg-gradient-to-r from-green-500 to-blue-500 transition-all duration-500"
                 style={{ width: `${coveragePercent}%` }}
               />
             </div>
-            <div className="mt-2 flex justify-between text-sm text-slate-400">
+            <div className="mt-1.5 sm:mt-2 flex justify-between text-xs sm:text-sm text-slate-300">
               <span>
                 {campaign.visited_files} of {campaign.total_files} files visited
               </span>
-              <span>{coveragePercent}%</span>
+              <span className="font-semibold">{coveragePercent}%</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* CLI Integration - Agent Quick Start */}
+        <Card className="mb-6 sm:mb-8 border-blue-500/20 bg-blue-500/5">
+          <CardHeader>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base">
+                <Terminal className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400 shrink-0" aria-hidden="true" />
+                <span>CLI Commands (for agents)</span>
+              </CardTitle>
+              <HelpButton content="Copy these commands to interact with this campaign via CLI. All commands use the campaign ID automatically when working with this campaign's files." />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3 sm:space-y-4">
+            <div>
+              <div className="text-xs sm:text-sm font-semibold text-slate-200 mb-2">Get next files to work on:</div>
+              <CliCommand command={`visited-tracker least-visited --campaign-id ${campaign.id} --limit 5`} />
+            </div>
+
+            <div>
+              <div className="text-xs sm:text-sm font-semibold text-slate-200 mb-2">Record file visit with context:</div>
+              <CliCommand command={`visited-tracker visit PATH --campaign-id ${campaign.id} --note "Your work description"`} />
+            </div>
+
+            <div>
+              <div className="text-xs sm:text-sm font-semibold text-slate-200 mb-2">Check most stale files:</div>
+              <CliCommand command={`visited-tracker most-stale --campaign-id ${campaign.id} --limit 5`} />
+            </div>
+
+            <div>
+              <div className="text-xs sm:text-sm font-semibold text-slate-200 mb-2">View coverage stats:</div>
+              <CliCommand command={`visited-tracker coverage --campaign-id ${campaign.id} --json`} />
+            </div>
+
+            <div className="pt-2 sm:pt-3 border-t border-white/10">
+              <div className="text-[10px] sm:text-xs text-slate-400 leading-relaxed">
+                <strong className="text-slate-300">Pro tip:</strong> Set <code className="px-1.5 py-0.5 rounded bg-slate-800 text-blue-300 text-[10px] sm:text-xs">export VISITED_TRACKER_CAMPAIGN_ID={campaign.id}</code> in your shell to omit <code className="px-1 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">--campaign-id</code> from all commands.
+              </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Actionable Files Section */}
-        <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="mb-6 sm:mb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Least Visited Files */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-orange-400" />
-                  Least Visited Files
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base">
+                  <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-400 shrink-0" aria-hidden="true" />
+                  <span className="hidden sm:inline">Least Visited Files</span>
+                  <span className="sm:hidden">Least Visited</span>
                 </CardTitle>
-                <HelpButton content="Files that have been visited the fewest times. These are good candidates for your next review iteration." />
+                <HelpButton content="Files that have been visited the fewest times. These are good candidates for your next review iteration. Hover over paths to copy them." />
               </div>
             </CardHeader>
             <CardContent>
@@ -201,27 +293,23 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
                       className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3 hover:bg-orange-500/10 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-mono text-sm text-slate-300 truncate" title={file.path}>
-                            {file.path}
-                          </div>
-                          {file.notes && file.notes.length > 0 && (
-                            <div className="mt-1 text-xs text-slate-500 line-clamp-1">
-                              {file.notes[file.notes.length - 1]}
-                            </div>
-                          )}
-                        </div>
+                        <FilePathWithCopy path={file.path} className="flex-1 min-w-0" />
                         <div className="flex items-center gap-3 text-xs text-slate-500 whitespace-nowrap">
                           <span className="font-semibold text-orange-400">
                             {file.visit_count}x
                           </span>
                         </div>
                       </div>
+                      {file.notes && file.notes.length > 0 && (
+                        <div className="mt-2 text-xs text-slate-500 line-clamp-2">
+                          Last note: {file.notes[file.notes.length - 1]}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="py-8 text-center text-slate-500">
+                <div className="py-8 text-center text-slate-400" role="status">
                   No files tracked yet
                 </div>
               )}
@@ -236,7 +324,7 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
                   <Clock className="h-5 w-5 text-red-400" />
                   Most Stale Files
                 </CardTitle>
-                <HelpButton content="Files with the highest staleness scores based on time since last visit and modification recency. Prioritize these for review." />
+                <HelpButton content="Files with the highest staleness scores based on time since last visit and modification recency. Prioritize these for review. Hover over paths to copy them." />
               </div>
             </CardHeader>
             <CardContent>
@@ -248,27 +336,23 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
                       className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 hover:bg-red-500/10 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-mono text-sm text-slate-300 truncate" title={file.path}>
-                            {file.path}
-                          </div>
-                          {file.notes && file.notes.length > 0 && (
-                            <div className="mt-1 text-xs text-slate-500 line-clamp-1">
-                              {file.notes[file.notes.length - 1]}
-                            </div>
-                          )}
-                        </div>
+                        <FilePathWithCopy path={file.path} className="flex-1 min-w-0" />
                         <div className="flex items-center gap-3 text-xs text-slate-500 whitespace-nowrap">
                           <span className="font-semibold text-red-400">
                             {file.staleness_score.toFixed(1)}
                           </span>
                         </div>
                       </div>
+                      {file.notes && file.notes.length > 0 && (
+                        <div className="mt-2 text-xs text-slate-500 line-clamp-2">
+                          Last note: {file.notes[file.notes.length - 1]}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="py-8 text-center text-slate-500">
+                <div className="py-8 text-center text-slate-400" role="status">
                   No stale files found
                 </div>
               )}
@@ -314,28 +398,24 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
                     key={i}
                     className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] p-3 hover:bg-white/[0.05] gap-2"
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-mono text-sm text-slate-300 truncate" title={visit.path}>
-                        {visit.path}
-                      </div>
-                      {visit.notes && visit.notes.length > 0 && (
-                        <div className="mt-1 text-xs text-slate-500 line-clamp-2">
-                          {visit.notes[visit.notes.length - 1]}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-slate-500">
+                    <FilePathWithCopy path={visit.path} className="flex-1 min-w-0" />
+                    <div className="flex items-center gap-4 text-xs text-slate-500 flex-wrap">
                       <span>Visits: {visit.visit_count}</span>
                       <span>Score: {visit.staleness_score.toFixed(1)}</span>
                       {visit.last_visited && (
                         <span>{formatRelativeTime(visit.last_visited)}</span>
                       )}
                     </div>
+                    {visit.notes && visit.notes.length > 0 && (
+                      <div className="text-xs text-slate-500 line-clamp-1 sm:max-w-xs">
+                        {visit.notes[visit.notes.length - 1]}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="py-8 text-center text-slate-500">
+              <div className="py-8 text-center text-slate-400" role="status">
                 No visits recorded yet
               </div>
             )}
@@ -343,10 +423,11 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
         </Card>
 
         {/* Metadata */}
-        <div className="mt-6 text-xs text-slate-600 space-y-1">
+        <footer className="mt-6 text-xs text-slate-400 space-y-1" role="contentinfo">
           <div>Created: {formatDate(campaign.created_at)}</div>
           <div>Updated: {formatDate(campaign.updated_at)}</div>
-        </div>
+        </footer>
+        </main>
       </div>
     </div>
   );

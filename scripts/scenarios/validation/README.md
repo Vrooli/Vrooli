@@ -163,7 +163,7 @@ structure:
 
 # Resource requirements
 resources:
-  required: [ollama, windmill, postgres]    # Must be available
+  required: [ollama, n8n, postgres]    # Must be available
   optional: [whisper, comfyui]              # Can fail gracefully
   health_timeout: 30
 
@@ -185,7 +185,7 @@ tests:
         service: ollama
         action: health_check
       - id: step2
-        service: windmill
+        service: n8n
         action: health_check
 
   - name: "Custom Business Logic"

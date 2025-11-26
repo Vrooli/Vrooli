@@ -3,9 +3,10 @@
 # Tests [REQ:VT-REQ-006] [REQ:VT-REQ-009]
 
 setup() {
-    # Get API port from lifecycle system
+    # Get API port from lifecycle system or service.json
+    # Note: Port is allocated via .vrooli/service.json (17694)
     if [ -z "${API_PORT:-}" ]; then
-        export API_PORT=$(vrooli scenario port visited-tracker API_PORT 2>/dev/null || echo "17693")
+        export API_PORT="17694"
     fi
 
     export TEST_CAMPAIGN_ID=""

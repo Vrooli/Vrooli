@@ -1,5 +1,3 @@
-// +build testing
-
 package main
 
 import (
@@ -178,10 +176,10 @@ func setupTestCampaignWithFiles(t *testing.T, name string, files map[string]stri
 
 // HTTPTestRequest represents an HTTP test request
 type HTTPTestRequest struct {
-	Method     string
-	Path       string
-	Body       interface{}
-	URLVars    map[string]string
+	Method      string
+	Path        string
+	Body        interface{}
+	URLVars     map[string]string
 	QueryParams map[string]string
 	Headers     map[string]string
 }

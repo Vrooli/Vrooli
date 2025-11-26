@@ -338,11 +338,6 @@ validate_scenario_structure() {
     if [[ -d "$scenario_dir/ui" ]]; then
         print_check "ui/"
         print_pass
-        # Check for Windmill apps
-        if [[ -d "$scenario_dir/ui/windmill" ]]; then
-            print_check "ui/windmill/"
-            print_pass
-        fi
     fi
     
     # Parse and check additional required files from config

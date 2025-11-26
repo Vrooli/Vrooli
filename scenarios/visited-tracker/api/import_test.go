@@ -54,8 +54,8 @@ func TestImportHandler(t *testing.T) {
 				LastVisited: &now,
 			},
 			{
-				FilePath:    "test2.js",
-				VisitCount:  3,
+				FilePath:   "test2.js",
+				VisitCount: 3,
 			},
 		},
 		Visits: []Visit{},
@@ -150,13 +150,13 @@ func TestImportHandler(t *testing.T) {
 	t.Run("ImportMergeMode", func(t *testing.T) {
 		// Create existing campaign
 		existingCampaign := Campaign{
-			ID:          uuid.New(),
-			Name:        "test-merge-campaign",
-			FromAgent:   "test-agent",
-			Patterns:    []string{"*.go"},
-			Status:      "active",
-			CreatedAt:   now,
-			UpdatedAt:   now,
+			ID:        uuid.New(),
+			Name:      "test-merge-campaign",
+			FromAgent: "test-agent",
+			Patterns:  []string{"*.go"},
+			Status:    "active",
+			CreatedAt: now,
+			UpdatedAt: now,
 			TrackedFiles: []TrackedFile{
 				{
 					ID:          uuid.New(),
