@@ -206,7 +206,7 @@ task = PythonOperator(
 
 ### Similar Resources Analyzed
 - **Temporal**: 30% overlap - focuses on durable execution and saga patterns, while Airflow specializes in DAG-based data pipelines
-- **Windmill**: 25% overlap - code-first workflows vs Airflow's DAG-centric approach with scheduling focus
+- **Code-first automation tools**: 25% overlap - code-first workflows vs Airflow's DAG-centric approach with scheduling focus
 - **N8n**: 20% overlap - visual workflow builder vs Airflow's code-defined production pipelines
 
 ### Why This Isn't a Duplicate
@@ -219,7 +219,7 @@ Apache Airflow provides unique value through:
 
 ### Integration vs. Creation Decision
 Creating this resource is necessary because:
-- Temporal/Windmill lack data-specific operators and scheduling sophistication
+- Temporal and other code-first automation tools lack data-specific operators and scheduling sophistication
 - Airflow's DAG model is fundamentally different from event-driven architectures
 - Production data teams expect Airflow as the standard orchestration tool
 - Native integrations with data ecosystem (Spark, dbt, Snowflake, etc.)

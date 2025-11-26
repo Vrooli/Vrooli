@@ -24,7 +24,7 @@
 - [ ] **Visualization Pipeline**: Render field data through Superset or Blender
 - [ ] **Co-design Workflows**: Connect with OpenEMS, Elmer-FEM for coupled EM/thermal studies
 - [ ] **Batch Templates**: Capture provenance for parametric sweeps
-- [ ] **Windmill Integration**: Enable automation of simulation workflows
+- [ ] **Automation Integration**: Enable automation of simulation workflows
 
 ### P2 Requirements (Nice to Have)
 - [ ] **GPU Acceleration**: CUDA/OpenCL profiles for large-scale simulations

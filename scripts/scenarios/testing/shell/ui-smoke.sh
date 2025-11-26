@@ -90,15 +90,19 @@ testing::ui_smoke::_diagnose_browserless_failure() {
         is_browserless_issue="false"
     fi
 
-    cat <<EOF
-{
-  "diagnosis": "$diagnosis",
-  "message": "$message",
-  "recommendation": "$recommendation",
-  "is_browserless_issue": "$is_browserless_issue",
-  "diagnostics": $diagnostics
-}
-EOF
+    jq -n \
+        --arg diagnosis "$diagnosis" \
+        --arg message "$message" \
+        --arg recommendation "$recommendation" \
+        --arg is_browserless_issue "$is_browserless_issue" \
+        --argjson diagnostics "$diagnostics" \
+        '{
+            diagnosis: $diagnosis,
+            message: $message,
+            recommendation: $recommendation,
+            is_browserless_issue: $is_browserless_issue,
+            diagnostics: $diagnostics
+        }'
 }
 
 # Run the Browserless-backed UI smoke check

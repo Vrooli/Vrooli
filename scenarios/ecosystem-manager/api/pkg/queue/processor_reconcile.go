@@ -82,9 +82,22 @@ func (qp *Processor) reconcileInProgressTasks(externalActive, internalRunning ma
 		}
 
 		// Case 2: Task is tracked internally but agent is NOT active
-		// This means finalization failed - the task finished but we couldn't persist the status
-		// Unregister it from execution tracking and fall through to reconciliation
+		// This usually means finalization failed - the task finished but we couldn't persist the status.
+		// However, guard against false positives by checking the live PID first.
 		if taskIsTracked && !agentIsActive {
+			exec, _ := qp.getExecution(task.ID)
+			if exec != nil {
+				if pid := exec.pid(); pid > 0 && qp.isProcessAlive(pid) {
+					// Execution is still alive; treat as active and skip reconciliation.
+					log.Printf("Task %s tracked with live process (pid=%d) despite inactive registry - skipping reconciliation", task.ID, pid)
+					continue
+				}
+				// Optional grace: if the run started very recently, avoid racing startup.
+				if time.Since(exec.started) < 2*time.Minute {
+					log.Printf("Task %s started %s ago; deferring reconciliation to avoid racing startup", task.ID, time.Since(exec.started).Round(time.Second))
+					continue
+				}
+			}
 			log.Printf("⚠️  WARNING: Task %s tracked as running but agent is inactive - finalization failure detected", task.ID)
 			systemlog.Warnf("Detected finalization failure for task %s - cleaning up execution registry", task.ID)
 			qp.unregisterExecution(task.ID)

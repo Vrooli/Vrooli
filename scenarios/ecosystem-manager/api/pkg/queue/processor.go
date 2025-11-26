@@ -298,6 +298,11 @@ func (qp *Processor) ProcessQueue() {
 		log.Printf("Reconciliation moved %d orphaned tasks back to pending", len(movedTasks))
 	}
 
+	// Backstop: clean up any duplicate task files left by manual moves or race conditions.
+	if err := qp.storage.CleanupDuplicates(); err != nil {
+		log.Printf("Warning: duplicate task cleanup failed: %v", err)
+	}
+
 	executingCount := len(internalRunning)
 	for taskID := range externalActive {
 		if _, tracked := internalRunning[taskID]; !tracked {

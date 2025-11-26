@@ -2,13 +2,17 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,6 +35,8 @@ type Config struct {
 	Port           string
 	AllowedOrigins []string
 }
+
+const apiVersion = "2.0.0"
 
 type Application struct {
 	// Core components
@@ -327,7 +333,7 @@ func (a *Application) initializeComponents() error {
 	a.taskHandlers = handlers.NewTaskHandlers(a.storage, a.assembler, a.processor, a.wsManager, a.autoSteerProfileService)
 	a.queueHandlers = handlers.NewQueueHandlers(a.processor, a.wsManager, a.storage)
 	a.discoveryHandlers = handlers.NewDiscoveryHandlers(a.assembler)
-	a.healthHandlers = handlers.NewHealthHandlers(a.processor, a.taskRecycler)
+	a.healthHandlers = handlers.NewHealthHandlers(a.processor, a.taskRecycler, queueDir, a.db, apiVersion)
 	a.settingsHandlers = handlers.NewSettingsHandlers(a.processor, a.wsManager, a.taskRecycler)
 	a.promptsHandlers = handlers.NewPromptsHandlers(a.assembler)
 	a.autoSteerHandlers = autosteer.NewAutoSteerHandlers(a.autoSteerProfileService, a.autoSteerExecutionEngine, a.autoSteerHistoryService)
@@ -349,95 +355,12 @@ func (a *Application) setupRoutes() http.Handler {
 	// Task management routes
 	api := router.PathPrefix("/api").Subrouter()
 
-	// Task CRUD operations
-	api.HandleFunc("/tasks", a.taskHandlers.GetTasksHandler).Methods("GET")
-	api.HandleFunc("/tasks", a.taskHandlers.CreateTaskHandler).Methods("POST")
-	api.HandleFunc("/tasks/active-targets", a.taskHandlers.GetActiveTargetsHandler).Methods("GET")
-	api.HandleFunc("/tasks/{id}", a.taskHandlers.GetTaskHandler).Methods("GET")
-	api.HandleFunc("/tasks/{id}", a.taskHandlers.UpdateTaskHandler).Methods("PUT")
-	api.HandleFunc("/tasks/{id}", a.taskHandlers.DeleteTaskHandler).Methods("DELETE")
-	api.HandleFunc("/tasks/{id}/status", a.taskHandlers.UpdateTaskStatusHandler).Methods("PUT")
-	api.HandleFunc("/tasks/{id}/logs", a.taskHandlers.GetTaskLogsHandler).Methods("GET")
-	api.HandleFunc("/tasks/{id}/executions", a.taskHandlers.GetExecutionHistoryHandler).Methods("GET")
-	api.HandleFunc("/tasks/{id}/executions/{execution_id}/prompt", a.taskHandlers.GetExecutionPromptHandler).Methods("GET")
-	api.HandleFunc("/tasks/{id}/executions/{execution_id}/output", a.taskHandlers.GetExecutionOutputHandler).Methods("GET")
-	api.HandleFunc("/tasks/{id}/executions/{execution_id}/metadata", a.taskHandlers.GetExecutionMetadataHandler).Methods("GET")
-
-	// Global execution history (all tasks)
-	api.HandleFunc("/executions", a.taskHandlers.GetAllExecutionHistoryHandler).Methods("GET")
-
-	// Task prompt operations
-	api.HandleFunc("/tasks/{id}/prompt", a.taskHandlers.GetTaskPromptHandler).Methods("GET")
-	api.HandleFunc("/tasks/{id}/prompt/assembled", a.taskHandlers.GetAssembledPromptHandler).Methods("GET")
-
-	// Prompt viewer (no task ID required)
-	api.HandleFunc("/prompt-viewer", a.taskHandlers.PromptViewerHandler).Methods("POST")
-	api.HandleFunc("/prompts", a.promptsHandlers.ListPromptFilesHandler).Methods("GET")
-	api.HandleFunc("/prompts/{path:.*}", a.promptsHandlers.GetPromptFileHandler).Methods("GET")
-	api.HandleFunc("/prompts/{path:.*}", a.promptsHandlers.UpdatePromptFileHandler).Methods("PUT")
-
-	// Queue management routes
-	api.HandleFunc("/queue/status", a.queueHandlers.GetQueueStatusHandler).Methods("GET")
-	api.HandleFunc("/queue/resume-diagnostics", a.queueHandlers.GetResumeDiagnosticsHandler).Methods("GET")
-	api.HandleFunc("/queue/trigger", a.queueHandlers.TriggerQueueProcessingHandler).Methods("POST")
-	api.HandleFunc("/queue/reset-rate-limit", a.queueHandlers.ResetRateLimitHandler).Methods("POST")
-	// System logs
-	api.HandleFunc("/logs", handlers.LogsHandler).Methods("GET")
-
-	// Process management (match original path)
-	api.HandleFunc("/processes/running", a.queueHandlers.GetRunningProcessesHandler).Methods("GET")
-
-	// Maintenance (match original path)
-	api.HandleFunc("/maintenance/state", a.queueHandlers.SetMaintenanceStateHandler).Methods("POST")
-
-	// Queue control endpoints (these are new/different from original)
-	api.HandleFunc("/queue/stop", a.queueHandlers.StopQueueProcessorHandler).Methods("POST")
-	api.HandleFunc("/queue/start", a.queueHandlers.StartQueueProcessorHandler).Methods("POST")
-	api.HandleFunc("/queue/processes/terminate", a.queueHandlers.TerminateProcessHandler).Methods("POST")
-
-	// Settings routes
-	api.HandleFunc("/settings", a.settingsHandlers.GetSettingsHandler).Methods("GET")
-	api.HandleFunc("/settings", a.settingsHandlers.UpdateSettingsHandler).Methods("PUT")
-	api.HandleFunc("/settings/reset", a.settingsHandlers.ResetSettingsHandler).Methods("POST")
-	api.HandleFunc("/settings/recycler/models", a.settingsHandlers.GetRecyclerModelsHandler).Methods("GET")
-
-	// Discovery routes
-	api.HandleFunc("/resources", a.discoveryHandlers.GetResourcesHandler).Methods("GET")
-	api.HandleFunc("/scenarios", a.discoveryHandlers.GetScenariosHandler).Methods("GET")
-	api.HandleFunc("/resources/{name}/status", a.discoveryHandlers.GetResourceStatusHandler).Methods("GET")
-	api.HandleFunc("/scenarios/{name}/status", a.discoveryHandlers.GetScenarioStatusHandler).Methods("GET")
-	api.HandleFunc("/operations", a.discoveryHandlers.GetOperationsHandler).Methods("GET")
-	api.HandleFunc("/categories", a.discoveryHandlers.GetCategoriesHandler).Methods("GET")
-
-	// Auto Steer routes
-	// Profile management
-	api.HandleFunc("/auto-steer/profiles", a.autoSteerHandlers.CreateProfile).Methods("POST")
-	api.HandleFunc("/auto-steer/profiles", a.autoSteerHandlers.ListProfiles).Methods("GET")
-	api.HandleFunc("/auto-steer/profiles/{id}", a.autoSteerHandlers.GetProfile).Methods("GET")
-	api.HandleFunc("/auto-steer/profiles/{id}", a.autoSteerHandlers.UpdateProfile).Methods("PUT")
-	api.HandleFunc("/auto-steer/profiles/{id}", a.autoSteerHandlers.DeleteProfile).Methods("DELETE")
-
-	// Profile templates
-	api.HandleFunc("/auto-steer/templates", a.autoSteerHandlers.GetTemplates).Methods("GET")
-
-	// Execution management
-	api.HandleFunc("/auto-steer/execution/start", a.autoSteerHandlers.StartExecution).Methods("POST")
-	api.HandleFunc("/auto-steer/execution/evaluate", a.autoSteerHandlers.EvaluateIteration).Methods("POST")
-	api.HandleFunc("/auto-steer/execution/reset", a.autoSteerHandlers.ResetExecution).Methods("POST")
-	api.HandleFunc("/auto-steer/execution/advance", a.autoSteerHandlers.AdvancePhase).Methods("POST")
-	api.HandleFunc("/auto-steer/execution/seek", a.autoSteerHandlers.SeekExecution).Methods("POST")
-	api.HandleFunc("/auto-steer/execution/{taskId}", a.autoSteerHandlers.GetExecutionState).Methods("GET")
-
-	// Metrics
-	api.HandleFunc("/auto-steer/metrics/{taskId}", a.autoSteerHandlers.GetMetrics).Methods("GET")
-
-	// Historical performance
-	api.HandleFunc("/auto-steer/history", a.autoSteerHandlers.GetHistory).Methods("GET")
-	api.HandleFunc("/auto-steer/history/{executionId}", a.autoSteerHandlers.GetExecution).Methods("GET")
-	api.HandleFunc("/auto-steer/history/{executionId}/feedback", a.autoSteerHandlers.SubmitFeedback).Methods("POST")
-
-	// Analytics
-	api.HandleFunc("/auto-steer/analytics/{profileId}", a.autoSteerHandlers.GetProfileAnalytics).Methods("GET")
+	a.registerTaskRoutes(api)
+	a.registerPromptRoutes(api)
+	a.registerQueueRoutes(api)
+	a.registerSettingsRoutes(api)
+	a.registerDiscoveryRoutes(api)
+	a.registerAutoSteerRoutes(api)
 
 	origins := a.allowedOrigins
 	if len(origins) == 0 {
@@ -454,8 +377,11 @@ func (a *Application) setupRoutes() http.Handler {
 	// Add request logging
 	loggedHandler := gorillaHandlers.LoggingHandler(os.Stdout, corsHandler)
 
+	// Apply standard middlewares
+	handler := requestIDMiddleware(recoveryMiddleware(loggedHandler))
+
 	log.Println("✅ HTTP routes configured")
-	return loggedHandler
+	return handler
 }
 
 func (a *Application) shutdown() {
@@ -473,5 +399,130 @@ func (a *Application) shutdown() {
 			}
 		}
 		systemlog.Close()
+	})
+}
+
+func (a *Application) registerTaskRoutes(api *mux.Router) {
+	api.HandleFunc("/tasks", a.taskHandlers.GetTasksHandler).Methods("GET")
+	api.HandleFunc("/tasks", a.taskHandlers.CreateTaskHandler).Methods("POST")
+	api.HandleFunc("/tasks/active-targets", a.taskHandlers.GetActiveTargetsHandler).Methods("GET")
+	api.HandleFunc("/tasks/{id}", a.taskHandlers.GetTaskHandler).Methods("GET")
+	api.HandleFunc("/tasks/{id}", a.taskHandlers.UpdateTaskHandler).Methods("PUT")
+	api.HandleFunc("/tasks/{id}", a.taskHandlers.DeleteTaskHandler).Methods("DELETE")
+	api.HandleFunc("/tasks/{id}/status", a.taskHandlers.UpdateTaskStatusHandler).Methods("PUT")
+	api.HandleFunc("/tasks/{id}/logs", a.taskHandlers.GetTaskLogsHandler).Methods("GET")
+	api.HandleFunc("/tasks/{id}/executions", a.taskHandlers.GetExecutionHistoryHandler).Methods("GET")
+	api.HandleFunc("/tasks/{id}/executions/{execution_id}/prompt", a.taskHandlers.GetExecutionPromptHandler).Methods("GET")
+	api.HandleFunc("/tasks/{id}/executions/{execution_id}/output", a.taskHandlers.GetExecutionOutputHandler).Methods("GET")
+	api.HandleFunc("/tasks/{id}/executions/{execution_id}/metadata", a.taskHandlers.GetExecutionMetadataHandler).Methods("GET")
+	api.HandleFunc("/executions", a.taskHandlers.GetAllExecutionHistoryHandler).Methods("GET")
+}
+
+func (a *Application) registerPromptRoutes(api *mux.Router) {
+	api.HandleFunc("/tasks/{id}/prompt", a.taskHandlers.GetTaskPromptHandler).Methods("GET")
+	api.HandleFunc("/tasks/{id}/prompt/assembled", a.taskHandlers.GetAssembledPromptHandler).Methods("GET")
+	api.HandleFunc("/prompt-viewer", a.taskHandlers.PromptViewerHandler).Methods("POST")
+	api.HandleFunc("/prompts", a.promptsHandlers.ListPromptFilesHandler).Methods("GET")
+	api.HandleFunc("/prompts/{path:.*}", a.promptsHandlers.GetPromptFileHandler).Methods("GET")
+	api.HandleFunc("/prompts/{path:.*}", a.promptsHandlers.UpdatePromptFileHandler).Methods("PUT")
+}
+
+func (a *Application) registerQueueRoutes(api *mux.Router) {
+	api.HandleFunc("/queue/status", a.queueHandlers.GetQueueStatusHandler).Methods("GET")
+	api.HandleFunc("/queue/resume-diagnostics", a.queueHandlers.GetResumeDiagnosticsHandler).Methods("GET")
+	api.HandleFunc("/queue/trigger", a.queueHandlers.TriggerQueueProcessingHandler).Methods("POST")
+	api.HandleFunc("/queue/reset-rate-limit", a.queueHandlers.ResetRateLimitHandler).Methods("POST")
+	api.HandleFunc("/logs", handlers.LogsHandler).Methods("GET")
+	api.HandleFunc("/processes/running", a.queueHandlers.GetRunningProcessesHandler).Methods("GET")
+	api.HandleFunc("/maintenance/state", a.queueHandlers.SetMaintenanceStateHandler).Methods("POST")
+	api.HandleFunc("/queue/stop", a.queueHandlers.StopQueueProcessorHandler).Methods("POST")
+	api.HandleFunc("/queue/start", a.queueHandlers.StartQueueProcessorHandler).Methods("POST")
+	api.HandleFunc("/queue/processes/terminate", a.queueHandlers.TerminateProcessHandler).Methods("POST")
+}
+
+func (a *Application) registerSettingsRoutes(api *mux.Router) {
+	api.HandleFunc("/settings", a.settingsHandlers.GetSettingsHandler).Methods("GET")
+	api.HandleFunc("/settings", a.settingsHandlers.UpdateSettingsHandler).Methods("PUT")
+	api.HandleFunc("/settings/reset", a.settingsHandlers.ResetSettingsHandler).Methods("POST")
+	api.HandleFunc("/settings/recycler/models", a.settingsHandlers.GetRecyclerModelsHandler).Methods("GET")
+}
+
+func (a *Application) registerDiscoveryRoutes(api *mux.Router) {
+	api.HandleFunc("/resources", a.discoveryHandlers.GetResourcesHandler).Methods("GET")
+	api.HandleFunc("/scenarios", a.discoveryHandlers.GetScenariosHandler).Methods("GET")
+	api.HandleFunc("/resources/{name}/status", a.discoveryHandlers.GetResourceStatusHandler).Methods("GET")
+	api.HandleFunc("/scenarios/{name}/status", a.discoveryHandlers.GetScenarioStatusHandler).Methods("GET")
+	api.HandleFunc("/operations", a.discoveryHandlers.GetOperationsHandler).Methods("GET")
+	api.HandleFunc("/categories", a.discoveryHandlers.GetCategoriesHandler).Methods("GET")
+}
+
+func (a *Application) registerAutoSteerRoutes(api *mux.Router) {
+	api.HandleFunc("/auto-steer/profiles", a.autoSteerHandlers.CreateProfile).Methods("POST")
+	api.HandleFunc("/auto-steer/profiles", a.autoSteerHandlers.ListProfiles).Methods("GET")
+	api.HandleFunc("/auto-steer/profiles/{id}", a.autoSteerHandlers.GetProfile).Methods("GET")
+	api.HandleFunc("/auto-steer/profiles/{id}", a.autoSteerHandlers.UpdateProfile).Methods("PUT")
+	api.HandleFunc("/auto-steer/profiles/{id}", a.autoSteerHandlers.DeleteProfile).Methods("DELETE")
+
+	api.HandleFunc("/auto-steer/templates", a.autoSteerHandlers.GetTemplates).Methods("GET")
+
+	api.HandleFunc("/auto-steer/execution/start", a.autoSteerHandlers.StartExecution).Methods("POST")
+	api.HandleFunc("/auto-steer/execution/evaluate", a.autoSteerHandlers.EvaluateIteration).Methods("POST")
+	api.HandleFunc("/auto-steer/execution/reset", a.autoSteerHandlers.ResetExecution).Methods("POST")
+	api.HandleFunc("/auto-steer/execution/advance", a.autoSteerHandlers.AdvancePhase).Methods("POST")
+	api.HandleFunc("/auto-steer/execution/seek", a.autoSteerHandlers.SeekExecution).Methods("POST")
+	api.HandleFunc("/auto-steer/execution/{taskId}", a.autoSteerHandlers.GetExecutionState).Methods("GET")
+
+	api.HandleFunc("/auto-steer/metrics/{taskId}", a.autoSteerHandlers.GetMetrics).Methods("GET")
+
+	api.HandleFunc("/auto-steer/history", a.autoSteerHandlers.GetHistory).Methods("GET")
+	api.HandleFunc("/auto-steer/history/{executionId}", a.autoSteerHandlers.GetExecution).Methods("GET")
+	api.HandleFunc("/auto-steer/history/{executionId}/feedback", a.autoSteerHandlers.SubmitFeedback).Methods("POST")
+
+	api.HandleFunc("/auto-steer/analytics/{profileId}", a.autoSteerHandlers.GetProfileAnalytics).Methods("GET")
+}
+
+type requestIDContextKey struct{}
+
+func requestIDFromContext(ctx context.Context) string {
+	if v, ok := ctx.Value(requestIDContextKey{}).(string); ok {
+		return v
+	}
+	return ""
+}
+
+func requestIDMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqID := r.Header.Get("X-Request-ID")
+		if strings.TrimSpace(reqID) == "" {
+			reqID = generateRequestID()
+		}
+
+		ctx := context.WithValue(r.Context(), requestIDContextKey{}, reqID)
+		w.Header().Set("X-Request-ID", reqID)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func generateRequestID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return fmt.Sprintf("req-%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(b[:])
+}
+
+func recoveryMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				stack := debug.Stack()
+				log.Printf("panic recovered: %v\n%s", rec, stack)
+				systemlog.Errorf("panic recovered: %v", rec)
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+			}
+		}()
+
+		next.ServeHTTP(w, r)
 	})
 }

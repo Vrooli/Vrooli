@@ -16,8 +16,8 @@ You are executing a **scenario improvement** task for the Ecosystem Manager.
    - Shows objective quality score (0-100) with breakdown of quality, coverage, quantity, and UI metrics. Review recommendations to identify gaps (missing tests, template UI, low routing complexity, etc.). Re-run after changes to verify improvements. Target 80+ for production readiness.
 3. `scenario-auditor audit {{TARGET}} --timeout 240`
    - Capture the JSON (or summary) and explain any remaining security/standards violations.
-4. Scenario test runner (document the exact command).
-   - Tests must pass after your change, or you must clearly explain why they remain failing. Phase scripts automatically sync requirement coverage when tests run.
+4. `vrooli scenario test {{TARGET}} {all|structure|dependencies|unit|integration|e2e|business|performance}`
+   - Tests must pass after your change, or you must clearly explain why they remain failing. Phase scripts automatically sync requirement coverage when full test suite run.
 5. `vrooli scenario ui-smoke {{TARGET}}`
    - Ensures the production UI bundle loads, the iframe bridge is ready, and Browserless captures artifacts (screenshot, console, network).
 

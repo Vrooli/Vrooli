@@ -75,7 +75,7 @@ Declares child requirement files to import.
   "id": "BAS-WORKFLOW-PERSIST-CRUD",
   "title": "Workflows persist nodes, edges, and metadata",
   "status": "complete",
-  "criticality": "P0"
+  "prd_ref": "OT-P0-001"
 }
 ```
 
@@ -84,7 +84,7 @@ Declares child requirement files to import.
 | `id` | string | `[A-Z][A-Z0-9]+-[A-Z0-9-]+` | Unique requirement identifier |
 | `title` | string | min 1 char | Short description (1-2 sentences) |
 | `status` | enum | See [Status Values](#status-values) | Implementation progress |
-| `criticality` | enum | `P0`, `P1`, `P2` | Priority level |
+| `prd_ref` | string | - | Reference to PRD (see [PRD Reference Format](#prd-reference-format)) |
 
 #### ID Pattern Examples
 
@@ -109,13 +109,27 @@ Declares child requirement files to import.
 | `complete` | Fully implemented | All validations passing (auto-updated by sync) |
 | `not_implemented` | Deprioritized | Requirement deferred or cancelled |
 
-#### Criticality Levels
+#### PRD Reference Format
 
-| Level | Meaning | Example Use Cases |
-|-------|---------|-------------------|
-| `P0` | Critical (Must Have) | Core functionality, blocking bugs, security |
-| `P1` | Important (Should Have) | Secondary features, non-blocking bugs |
-| `P2` | Nice-to-Have (Could Have) | Polish, edge cases, minor optimizations |
+The `prd_ref` field can use two formats:
+
+**1. Operational Target Format** (Recommended for new scenarios):
+```
+"prd_ref": "OT-P0-001"
+```
+- Pattern: `OT-P[012]-NNN` where P0/P1/P2 indicates priority
+- Criticality is automatically derived: `OT-P0-*` → P0, `OT-P1-*` → P1, `OT-P2-*` → P2
+- Links directly to operational targets in PRD
+
+**2. Freeform PRD Section** (Legacy format):
+```
+"prd_ref": "Functional Requirements > Must Have > Visual workflow builder"
+```
+- Any descriptive text pointing to PRD section
+- Criticality must be manually managed (not auto-derived)
+- More flexible but less structured
+
+**Note**: The `criticality` field is no longer stored in requirement files. For operational target format, it is computed from `prd_ref` when requirements are loaded.
 
 ### Optional Fields
 
@@ -124,10 +138,9 @@ Declares child requirement files to import.
   "id": "BAS-WORKFLOW-PERSIST-CRUD",
   "title": "Workflows persist nodes, edges, and metadata",
   "status": "complete",
-  "criticality": "P0",
+  "prd_ref": "OT-P0-001",
 
   "category": "workflow.builder",
-  "prd_ref": "Operational Targets > P0 > OT-P0-001",
   "description": "Validates compiler, database, and API layers so workflows round-trip",
   "tags": ["storage", "persistence", "crud"],
   "children": ["BAS-PROJECT-CREATE", "BAS-WORKFLOW-SAVE"],
@@ -137,10 +150,11 @@ Declares child requirement files to import.
 }
 ```
 
+**Note**: Criticality (P0) is derived from `prd_ref` (OT-P0-001).
+
 | Field | Type | Description |
 |-------|------|-------------|
 | `category` | string | Hierarchical grouping (e.g., `workflow.builder`, `projects.ui`) |
-| `prd_ref` | string | Reference to PRD section this requirement traces to |
 | `description` | string | Detailed explanation of what this requirement validates |
 | `tags` | array of strings | Custom tags for filtering and categorization |
 | `children` | array of strings | Child requirement IDs for hierarchical aggregation |
@@ -298,6 +312,8 @@ Each requirement can have multiple validation entries proving it's implemented c
 
 **Purpose**: Explicitly documented exceptions (e.g., quarterly penetration tests that cannot be automated yet). Manual entries should be rare, short-lived, and backed by artifacts **logged via** `vrooli scenario requirements manual-log` so auto-sync can track `validated_at`, `validated_by`, and `expires_at` metadata.
 
+**Important**: Manual validations are **excluded from validation diversity requirements**. They serve as temporary measures before automated tests are implemented and do not count toward the multi-layer validation requirement for critical (P0/P1) requirements. See [Validation Diversity Requirements](#validation-diversity-requirements) for details.
+
 ```json
 {
   "type": "manual",
@@ -315,6 +331,280 @@ Each requirement can have multiple validation entries proving it's implemented c
 - `report.js --mode sync` consumes the manifest and updates `_sync_metadata.manual` fields. `vrooli scenario status` surfaces any expired or missing manual records.
 - Treat manual entries as temporary bridges. Prefer replacing them with Browser Automation Studio workflows or other automated validations—see [UI Automation with BAS](../guides/ui-automation-with-bas.md) for UI/component coverage patterns.
 
+## Validation Reference Patterns & Quality Requirements
+
+### Allowed Test Source Directories
+
+The `ref` field for validations must point to **actual test sources**, not test orchestration infrastructure.
+
+#### Directory Structure: Valid vs Invalid Sources
+
+```
+scenario/
+├── test/
+│   ├── phases/          ❌ Orchestration scripts (NOT test sources)
+│   │   ├── test-unit.sh        # Runs tests, doesn't contain them
+│   │   └── test-integration.sh # Runs tests, doesn't contain them
+│   ├── cli/             ❌ CLI wrapper tests (NOT for requirement validation)
+│   │   └── *.bats              # Tests CLI thin wrapper, not business logic
+│   ├── unit/            ❌ Test runner infrastructure
+│   ├── integration/     ❌ Test runner infrastructure
+│   └── playbooks/       ✅ E2E automation (actual test sources)
+│       └── **/*.json           # BAS playbook workflows
+│
+├── api/
+│   ├── **/*_test.go     ✅ API unit tests (actual test sources)
+│   └── **/tests/**      ✅ API test directories (actual test sources)
+│
+└── ui/src/
+    └── **/*.test.tsx    ✅ UI unit tests (actual test sources)
+```
+
+#### Rationale for Restrictions
+
+| Directory | Why Rejected | What to Use Instead |
+|-----------|--------------|---------------------|
+| `test/phases/` | Orchestration scripts that **run** tests, not test sources themselves. Zero traceability to actual test code. | Reference the actual test files being orchestrated (API tests, UI tests, playbooks) |
+| `test/cli/` | CLI wrapper tests validate the CLI layer, not the underlying business logic. The CLI should be a thin wrapper over the API. | Reference API tests (`api/**/*_test.go`) and e2e automation (`test/playbooks/`) |
+| `test/unit/`, `test/integration/` | Test runner scripts or language-specific harnesses, not test sources. | Reference actual test files (Go tests in `api/`, Vitest tests in `ui/src/`) |
+
+#### Allowed Validation Ref Patterns
+
+```json
+// ✅ ALLOWED - API unit tests (Go)
+{"type": "test", "ref": "api/handlers/projects_test.go"}
+{"type": "test", "ref": "api/services/workflow_service_test.go"}
+{"type": "test", "ref": "api/database/repository_test.go"}
+
+// ✅ ALLOWED - UI unit tests (Vitest/Jest)
+{"type": "test", "ref": "ui/src/components/ProjectModal.test.tsx"}
+{"type": "test", "ref": "ui/src/stores/workflowStore.test.ts"}
+
+// ✅ ALLOWED - E2E automation (BAS playbooks)
+{"type": "automation", "ref": "test/playbooks/capabilities/projects/create-project.json"}
+{"type": "automation", "ref": "test/playbooks/capabilities/workflows/execute-workflow.json"}
+
+// ❌ REJECTED - Orchestration scripts (no traceability)
+{"type": "test", "ref": "test/phases/test-unit.sh"}
+{"type": "test", "ref": "test/phases/test-integration.sh"}
+
+// ❌ REJECTED - CLI wrapper tests (wrong layer)
+{"type": "test", "ref": "test/cli/profile-operations.bats"}
+
+// ❌ REJECTED - Test infrastructure
+{"type": "test", "ref": "test/unit/run-unit-tests.sh"}
+{"type": "test", "ref": "test/integration/setup.sh"}
+```
+
+### Test File Quality Requirements
+
+Validation refs must point to **meaningful** test files, not superficial placeholders created to satisfy requirements.
+
+#### Quality Indicators (Automated Detection)
+
+Test files are analyzed for quality using these heuristics:
+
+| Indicator | Threshold | Why It Matters |
+|-----------|-----------|----------------|
+| **Lines of Code** | ≥20 LOC (non-comment) | Shows actual test logic, not just imports |
+| **Assertions** | ≥1 assertion | Tests must verify behavior, not just call functions |
+| **Test Functions** | ≥1 test case | File must contain at least one actual test |
+| **Multiple Test Functions** | ≥3 test cases | Comprehensive coverage, not just happy path |
+| **Assertion Density** | ≥0.1 (1 per 10 LOC) | Good balance of setup and verification |
+
+**Quality Score**: Files must score ≥4/5 indicators to count toward validation diversity.
+
+#### Examples: Good vs Bad Test Quality
+
+❌ **Bad - Superficial Test File** (quality score: 1/5):
+```go
+// api/placeholder_test.go (5 lines, no assertions, no logic)
+package api
+
+import "testing"
+
+// Empty file, just exists to satisfy requirement
+```
+
+✅ **Good - Meaningful Test File** (quality score: 5/5):
+```go
+// api/dependency_analyzer_test.go (150+ lines, multiple test cases, edge cases)
+package api
+
+import (
+    "testing"
+    "github.com/stretchr/testify/assert"
+)
+
+func TestDependencyAnalyzer_RecursiveResolution(t *testing.T) {
+    // Setup: Create test dependency graph
+    analyzer := NewAnalyzer()
+
+    // Test Case 1: Linear dependencies (A → B → C)
+    result := analyzer.Resolve("A")
+    assert.Equal(t, 3, len(result), "Should resolve 3 dependencies")
+
+    // Test Case 2: Circular dependency detection
+    err := analyzer.Resolve("CircularA")
+    assert.Error(t, err, "Should detect circular dependencies")
+
+    // Test Case 3: Missing dependency handling
+    result = analyzer.Resolve("NonExistent")
+    assert.Empty(t, result, "Should handle missing dependencies gracefully")
+
+    // Test Case 4: Performance (≤5s for depth 10)
+    start := time.Now()
+    analyzer.Resolve("DeepTree")
+    assert.Less(t, time.Since(start), 5*time.Second, "Should resolve quickly")
+}
+
+func TestDependencyAnalyzer_ConflictDetection(t *testing.T) {
+    // ... 4 more test cases covering conflict scenarios ...
+}
+
+// ... 8 more test functions ...
+```
+
+**For Playbooks**: Similar quality checks apply:
+- Must have ≥1 node/step with actions
+- File size ≥100 bytes (not empty placeholder)
+- Valid JSON structure with executable steps
+
+### Validation Diversity Requirements
+
+**Critical requirements (P0/P1) must be validated across ≥2 AUTOMATED test layers** to ensure comprehensive coverage. The specific layers required depend on scenario components.
+
+#### Component-Aware Diversity
+
+Diversity requirements adapt based on which components your scenario has:
+
+```bash
+# Detect scenario components
+vrooli scenario info <name>  # Shows: API, UI, or both
+
+# Component detection
+- API component: api/ directory with .go files exists
+- UI component: ui/ directory with package.json exists
+```
+
+#### Diversity Requirements by Component Type
+
+##### Full-Stack Scenarios (API + UI components)
+
+**Applicable layers**: API, UI, E2E
+
+**P0/P1 requirements** must have ≥2 layers from:
+- ✅ API unit tests + UI unit tests
+- ✅ API unit tests + E2E automation
+- ✅ UI unit tests + E2E automation
+- ❌ API unit tests only (insufficient)
+- ❌ UI unit tests + manual validation (manual doesn't count)
+
+**Example**:
+```json
+{
+  "id": "APP-WORKFLOW-CRUD",
+  "prd_ref": "OT-P0-001",  // ← P0 criticality
+  "status": "complete",
+  "validation": [
+    {"type": "test", "ref": "api/workflow_service_test.go", "phase": "unit"},     // ← API layer
+    {"type": "test", "ref": "ui/src/stores/workflowStore.test.ts", "phase": "unit"}, // ← UI layer
+    {"type": "automation", "ref": "test/playbooks/workflows/crud.json"}           // ← E2E layer (bonus)
+  ]
+  // ✅ Passes: 3 automated layers (API + UI + E2E)
+}
+```
+
+##### API-Only Scenarios (No UI component)
+
+**Applicable layers**: API, E2E
+
+**P0/P1 requirements** must have ≥2 layers from:
+- ✅ API unit tests + E2E automation
+- ❌ API unit tests only (insufficient)
+- ❌ API unit tests + manual validation (manual doesn't count)
+- ⚠️ UI unit tests ignored (no UI component exists)
+
+**Example**:
+```json
+{
+  "id": "API-DEPENDENCY-ANALYSIS",
+  "prd_ref": "OT-P0-002",  // ← P0 criticality
+  "status": "complete",
+  "validation": [
+    {"type": "test", "ref": "api/analyzer_test.go", "phase": "unit"},         // ← API layer
+    {"type": "automation", "ref": "test/playbooks/analyze-deps.json"}         // ← E2E layer
+  ]
+  // ✅ Passes: 2 automated layers (API + E2E) for API-only scenario
+}
+```
+
+##### UI-Only Scenarios (No API component)
+
+**Applicable layers**: UI, E2E
+
+**P0/P1 requirements** must have ≥2 layers from:
+- ✅ UI unit tests + E2E automation
+- ❌ UI unit tests only (insufficient)
+- ❌ UI unit tests + manual validation (manual doesn't count)
+- ⚠️ API unit tests ignored (no API component exists)
+
+#### Why Manual Validations Don't Count
+
+Manual validations are **excluded from diversity requirements** because:
+1. They are temporary measures before automation
+2. They don't provide continuous validation
+3. They can be gamed (mark as "manually verified" without real testing)
+4. The goal is **automated** multi-layer coverage
+
+**Manual validations are acceptable for**:
+- Pending/in_progress requirements (temporary bridge)
+- Requirements with existing automated tests (supplementary evidence)
+
+**Manual validations are problematic when**:
+- Complete requirements have ONLY manual validation (no automated tests)
+- >10% of all validations are manual (suggests automation deficit)
+
+#### P2 Requirements
+
+**P2 requirements** (lower priority) only require ≥1 automated layer:
+- ✅ API unit test alone is acceptable
+- ✅ UI unit test alone is acceptable
+- ✅ E2E automation alone is acceptable
+
+**Example**:
+```json
+{
+  "id": "APP-OPTIONAL-FEATURE",
+  "prd_ref": "OT-P2-005",  // ← P2 criticality
+  "status": "complete",
+  "validation": [
+    {"type": "test", "ref": "api/optional_test.go", "phase": "unit"}  // ← 1 layer sufficient for P2
+  ]
+  // ✅ Passes: P2 only needs 1 automated layer
+}
+```
+
+### Checking Your Validation Setup
+
+```bash
+# View completeness score with gaming pattern warnings
+vrooli scenario completeness <scenario-name>
+
+# Common warnings:
+# 🔴 "X requirements lack multi-layer AUTOMATED validation"
+#    → Add tests across API, UI, and e2e layers for P0/P1 requirements
+#
+# 🔴 "X requirements reference unsupported test/ directories"
+#    → Move refs from test/cli/ or test/phases/ to actual test sources
+#
+# 🟡 "X test files validate ≥4 requirements each"
+#    → Break monolithic test files into focused tests per requirement
+#
+# 🟡 "X test files appear superficial"
+#    → Add assertions, edge cases, and meaningful test logic
+```
+
 ## Complete Examples
 
 ### Minimal Requirement
@@ -324,7 +614,7 @@ Each requirement can have multiple validation entries proving it's implemented c
   "id": "APP-BASIC-001",
   "title": "Application starts successfully",
   "status": "complete",
-  "criticality": "P0",
+  "prd_ref": "OT-P0-001",
   "validation": [
     {
       "type": "test",
@@ -342,16 +632,15 @@ Each requirement can have multiple validation entries proving it's implemented c
 {
   "id": "BAS-WORKFLOW-PERSIST-CRUD",
   "category": "workflow.builder",
-  "prd_ref": "Operational Targets > P0 > OT-P0-001",
+  "prd_ref": "OT-P0-001",
   "title": "Workflows persist nodes, edges, and metadata",
   "description": "Validates compiler, database, and API layers so workflows round-trip with folder hierarchy and normalized metadata required for execution planning.",
   "status": "complete",
-  "criticality": "P0",
   "tags": ["crud", "persistence", "workflows"],
   "validation": [
     {
       "type": "test",
-      "ref": "api/browserless/compiler/compiler_test.go",
+      "ref": "api/automation/compiler/compiler_test.go",
       "phase": "unit",
       "status": "implemented",
       "notes": "Ensures ordering, cycle detection, and unsupported node handling"
@@ -388,11 +677,10 @@ Each requirement can have multiple validation entries proving it's implemented c
 {
   "id": "BAS-FUNC-001",
   "category": "foundation",
-  "prd_ref": "Operational Targets > P0 > OT-P0-001",
+  "prd_ref": "OT-P0-001",
   "title": "Persist visual workflows with nodes/edges and folder hierarchy",
   "description": "Tracks the complete experience for creating and managing projects and workflows. Child implementation requirements cover dialog affordances, validation, and persistence.",
   "status": "in_progress",
-  "criticality": "P0",
   "children": [
     "BAS-PROJECT-DIALOG-OPEN",
     "BAS-PROJECT-DIALOG-CLOSE",
@@ -439,7 +727,7 @@ Each requirement can have multiple validation entries proving it's implemented c
       "id": "BAS-FUNC-001",
       "title": "Visual workflow builder",
       "status": "in_progress",
-      "criticality": "P0",
+      "prd_ref": "OT-P0-001",
       "children": [
         "BAS-PROJECT-DIALOG-OPEN",
         "BAS-WORKFLOW-PERSIST-CRUD"
@@ -573,11 +861,11 @@ The JSON schema enforces these constraints:
 
 1. **ID Pattern**: Must match `[A-Z][A-Z0-9]+-[A-Z0-9-]+`
 2. **Status Enum**: Must be one of the defined status values
-3. **Criticality Enum**: Must be `P0`, `P1`, or `P2`
+3. **PRD Ref**: Required (any string format allowed)
 4. **Validation Type**: Must be `test`, `automation`, `manual`, or `lighthouse`
 5. **Phase Name**: Must be valid phase name
 6. **Imports Pattern**: Must be `*.json` files
-7. **Required Fields**: `id`, `title`, `status`, `criticality` on requirements; `type`, `phase`, `status` on validations
+7. **Required Fields**: `id`, `title`, `status`, `prd_ref` on requirements; `type`, `phase`, `status` on validations
 
 **Validate your registry:**
 ```bash

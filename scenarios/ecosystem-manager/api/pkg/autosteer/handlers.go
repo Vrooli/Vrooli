@@ -14,6 +14,35 @@ type ErrorResponse struct {
 	Code    int    `json:"code"`
 }
 
+// ProfileServiceAPI defines the profile operations used by HTTP handlers.
+type ProfileServiceAPI interface {
+	CreateProfile(profile *AutoSteerProfile) error
+	ListProfiles(tags []string) ([]*AutoSteerProfile, error)
+	GetProfile(id string) (*AutoSteerProfile, error)
+	UpdateProfile(id string, updates *AutoSteerProfile) error
+	DeleteProfile(id string) error
+	GetTemplates() []*AutoSteerProfile
+}
+
+// ExecutionEngineAPI defines execution control operations used by HTTP handlers.
+type ExecutionEngineAPI interface {
+	StartExecution(taskID, profileID, scenarioName string) (*ProfileExecutionState, error)
+	EvaluateIteration(taskID, scenarioName string) (*IterationEvaluation, error)
+	DeleteExecutionState(taskID string) error
+	SeekExecution(taskID string, phaseIndex, phaseIteration int) (*ProfileExecutionState, error)
+	AdvancePhase(taskID, scenarioName string) (*PhaseAdvanceResult, error)
+	GetExecutionState(taskID string) (*ProfileExecutionState, error)
+	GetCurrentMode(taskID string) (SteerMode, error)
+}
+
+// HistoryServiceAPI defines history operations used by HTTP handlers.
+type HistoryServiceAPI interface {
+	GetHistory(filters HistoryFilters) ([]ProfilePerformance, error)
+	GetExecution(executionID string) (*ProfilePerformance, error)
+	SubmitFeedback(executionID string, rating int, comments string) error
+	GetProfileAnalytics(profileID string) (*ProfileAnalytics, error)
+}
+
 // writeError writes a structured JSON error response
 func writeError(w http.ResponseWriter, statusCode int, message string) {
 	w.Header().Set("Content-Type", "application/json")
@@ -34,16 +63,16 @@ func writeJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 
 // AutoSteerHandlers handles HTTP requests for Auto Steer functionality
 type AutoSteerHandlers struct {
-	profileService  *ProfileService
-	executionEngine *ExecutionEngine
-	historyService  *HistoryService
+	profileService  ProfileServiceAPI
+	executionEngine ExecutionEngineAPI
+	historyService  HistoryServiceAPI
 }
 
 // NewAutoSteerHandlers creates new Auto Steer handlers
 func NewAutoSteerHandlers(
-	profileService *ProfileService,
-	executionEngine *ExecutionEngine,
-	historyService *HistoryService,
+	profileService ProfileServiceAPI,
+	executionEngine ExecutionEngineAPI,
+	historyService HistoryServiceAPI,
 ) *AutoSteerHandlers {
 	return &AutoSteerHandlers{
 		profileService:  profileService,
@@ -76,7 +105,7 @@ func (h *AutoSteerHandlers) ListProfiles(w http.ResponseWriter, r *http.Request)
 
 	profiles, err := h.profileService.ListProfiles(tags)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "Failed to list profiles: "+err.Error())
 		return
 	}
 
@@ -91,7 +120,7 @@ func (h *AutoSteerHandlers) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 	profile, err := h.profileService.GetProfile(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
 
@@ -106,18 +135,18 @@ func (h *AutoSteerHandlers) UpdateProfile(w http.ResponseWriter, r *http.Request
 
 	var updates AutoSteerProfile
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
 		return
 	}
 
 	if err := h.profileService.UpdateProfile(id, &updates); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "Failed to update profile: "+err.Error())
 		return
 	}
 
 	profile, err := h.profileService.GetProfile(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "Failed to load updated profile: "+err.Error())
 		return
 	}
 
@@ -131,7 +160,7 @@ func (h *AutoSteerHandlers) DeleteProfile(w http.ResponseWriter, r *http.Request
 	id := vars["id"]
 
 	if err := h.profileService.DeleteProfile(id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "Failed to delete profile: "+err.Error())
 		return
 	}
 
@@ -292,12 +321,12 @@ func (h *AutoSteerHandlers) GetExecutionState(w http.ResponseWriter, r *http.Req
 
 	state, err := h.executionEngine.GetExecutionState(taskID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "Failed to load execution state: "+err.Error())
 		return
 	}
 
 	if state == nil {
-		http.Error(w, "No execution state found", http.StatusNotFound)
+		writeError(w, http.StatusNotFound, "No execution state found")
 		return
 	}
 
@@ -312,12 +341,12 @@ func (h *AutoSteerHandlers) GetMetrics(w http.ResponseWriter, r *http.Request) {
 
 	state, err := h.executionEngine.GetExecutionState(taskID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "Failed to load execution state: "+err.Error())
 		return
 	}
 
 	if state == nil {
-		http.Error(w, "No execution state found", http.StatusNotFound)
+		writeError(w, http.StatusNotFound, "No execution state found")
 		return
 	}
 
@@ -338,7 +367,7 @@ func (h *AutoSteerHandlers) GetHistory(w http.ResponseWriter, r *http.Request) {
 
 	history, err := h.historyService.GetHistory(filters)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "Failed to load history: "+err.Error())
 		return
 	}
 
@@ -353,7 +382,7 @@ func (h *AutoSteerHandlers) GetExecution(w http.ResponseWriter, r *http.Request)
 
 	execution, err := h.historyService.GetExecution(executionID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
 
@@ -372,17 +401,17 @@ func (h *AutoSteerHandlers) SubmitFeedback(w http.ResponseWriter, r *http.Reques
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&feedback); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
 		return
 	}
 
 	if feedback.Rating < 1 || feedback.Rating > 5 {
-		http.Error(w, "Rating must be between 1 and 5", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "Rating must be between 1 and 5")
 		return
 	}
 
 	if err := h.historyService.SubmitFeedback(executionID, feedback.Rating, feedback.Comments); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "Failed to submit feedback: "+err.Error())
 		return
 	}
 
@@ -396,7 +425,7 @@ func (h *AutoSteerHandlers) GetProfileAnalytics(w http.ResponseWriter, r *http.R
 
 	analytics, err := h.historyService.GetProfileAnalytics(profileID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "Failed to load profile analytics: "+err.Error())
 		return
 	}
 

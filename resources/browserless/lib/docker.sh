@@ -39,6 +39,7 @@ browserless::docker::create_container() {
         "PREBOOT_CHROME=false"
         "KEEP_ALIVE=false"
         "PRE_REQUEST_HEALTH_CHECK=false"
+        "DEFAULT_LAUNCH_ARGS=${BROWSERLESS_DEFAULT_LAUNCH_ARGS:-"--no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-dev-tools --disable-features=TranslateUI"}"
         "FUNCTION_ENABLE_INCOGNITO_MODE=true"
         "WORKSPACE_DELETE_EXPIRED=true"
         "WORKSPACE_EXPIRE_DAYS=7"

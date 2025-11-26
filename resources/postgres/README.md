@@ -876,9 +876,9 @@ resource-postgres credentials --instance client-project --format node-red
 # Use internal hostname and port 5432
 ```
 
-### Windmill Integration
+### Automation Scripts Integration
 ```bash
-# Windmill scripts can access databases using internal hostnames
+# Automation scripts can access databases using internal hostnames
 # Connection URL: postgresql://vrooli:password@vrooli-postgres-client:5432/vrooli_client
 ```
 

@@ -52,8 +52,8 @@ setup() {
     # Test basic configuration
     [ "$BROWSERLESS_PORT" = "9999" ]  # Custom port should override default
     [ "$BROWSERLESS_BASE_URL" = "http://localhost:9999" ]
-    [ "$BROWSERLESS_CONTAINER_NAME" = "browserless" ]
-    [ "$BROWSERLESS_IMAGE" = "ghcr.io/browserless/chrome:latest" ]
+    [ "$BROWSERLESS_CONTAINER_NAME" = "vrooli-browserless" ]
+    [ "$BROWSERLESS_IMAGE" = "ghcr.io/browserless/chrome@sha256:96cc9039f44c8a7b277846783f18c1ec501a7f8b1b12bdfc2bc1f9c3f84a9a17" ]
     
     # Test browser configuration
     [ "$BROWSERLESS_MAX_BROWSERS" = "3" ]

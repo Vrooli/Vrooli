@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"bytes"
+	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +18,9 @@ import (
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
 	"github.com/gorilla/mux"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // Test helpers
@@ -112,7 +117,7 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 
 	taskHandlers := NewTaskHandlers(storage, assembler, processor, wsManager, nil)
 	queueHandlers := NewQueueHandlers(processor, wsManager, storage)
-	healthHandlers := NewHealthHandlers(processor, nil)
+	healthHandlers := NewHealthHandlers(processor, nil, queueDir, nil, "test-version")
 	discoveryHandlers := NewDiscoveryHandlers(assembler)
 	settingsHandlers := NewSettingsHandlers(processor, wsManager, testRecycler)
 
@@ -171,7 +176,81 @@ func TestHealthCheckHandler(t *testing.T) {
 		if response["status"] == nil {
 			t.Error("Expected status field")
 		}
+
+		if response["version"] != "test-version" {
+			t.Errorf("expected version to propagate, got %v", response["version"])
+		}
 	})
+}
+
+func TestHealthCheckHandler_WithDatabaseConnected(t *testing.T) {
+	ctx := context.Background()
+
+	tempDir := t.TempDir()
+	queueDir := filepath.Join(tempDir, "queue")
+	for _, status := range []string{"pending", "in-progress"} {
+		if err := os.MkdirAll(filepath.Join(queueDir, status), 0o755); err != nil {
+			t.Fatalf("failed to create queue dir: %v", err)
+		}
+	}
+
+	pgContainer, err := postgres.RunContainer(ctx,
+		testcontainers.WithImage("postgres:15-alpine"),
+		postgres.WithDatabase("testdb"),
+		postgres.WithUsername("testuser"),
+		postgres.WithPassword("testpass"),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
+				WithStartupTimeout(60*time.Second),
+		),
+	)
+	if err != nil {
+		t.Skipf("skipping DB health test; postgres container unavailable: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = pgContainer.Terminate(ctx)
+	})
+
+	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		t.Fatalf("failed to get connection string: %v", err)
+	}
+
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		t.Fatalf("failed to open db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	if err := db.PingContext(ctx); err != nil {
+		t.Fatalf("failed to ping db: %v", err)
+	}
+
+	h := NewHealthHandlers(nil, nil, queueDir, db, "db-version")
+
+	req := httptest.NewRequest("GET", "/health", nil)
+	rr := httptest.NewRecorder()
+
+	h.HealthCheckHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.NewDecoder(bytes.NewReader(rr.Body.Bytes())).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	deps := resp["dependencies"].(map[string]any)
+	dbDep := deps["database"].(map[string]any)
+	if connected, _ := dbDep["connected"].(bool); !connected {
+		t.Fatalf("expected database connected=true, got %v", dbDep)
+	}
+	if errVal := dbDep["error"]; errVal != nil {
+		t.Fatalf("expected nil database error, got %v", errVal)
+	}
 }
 
 // TestTaskHandlers_GetTasks tests the get tasks endpoint
@@ -311,7 +390,6 @@ func TestTaskHandlers_CreateTask_MultiTarget(t *testing.T) {
 		"type":      "resource",
 		"operation": "generator",
 		"targets":   []string{"alpha", "beta"},
-		"title":     "Generate resources",
 	}
 
 	bodyBytes, _ := json.Marshal(body)
@@ -335,6 +413,12 @@ func TestTaskHandlers_CreateTask_MultiTarget(t *testing.T) {
 
 	if len(resp.Created) != 2 {
 		t.Fatalf("expected 2 created tasks, got %d", len(resp.Created))
+	}
+
+	expectedAlpha := deriveTaskTitle("", "generator", "resource", "alpha")
+	expectedBeta := deriveTaskTitle("", "generator", "resource", "beta")
+	if resp.Created[0].Title != expectedAlpha || resp.Created[1].Title != expectedBeta {
+		t.Fatalf("expected derived titles %q and %q, got %q and %q", expectedAlpha, expectedBeta, resp.Created[0].Title, resp.Created[1].Title)
 	}
 }
 

@@ -22,7 +22,7 @@
 - [x] **QuestDB Integration**: Push time-series simulation data for real-time monitoring (API implemented)
 - [x] **Qdrant Storage**: Index simulation patterns for knowledge base reuse (indexing functions ready)
 - [x] **Visualization Pipeline**: Render results in Superset dashboards or Blender (prepare endpoints implemented)
-- [x] **Co-simulation Workflows**: Link with OpenEMS, SimPy, Windmill for digital twins (cosim/link endpoint functional)
+- [x] **Co-simulation Workflows**: Link with OpenEMS and SimPy for digital twins (cosim/link endpoint functional)
 - [x] **Parameter Sweeps**: Batch experimentation with metadata capture (enhanced with storage integration)
 - [ ] **Documentation**: Co-simulation patterns and workflow templates
 

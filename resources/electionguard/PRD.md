@@ -36,7 +36,7 @@ ElectionGuard provides end-to-end verifiable voting and cryptographic election i
 
 - **Should Have (P1)**
   - [x] Expose APIs to export tally data to Postgres/QuestDB for analytics ✅ 2025-09-16
-  - [ ] Automation workflows (n8n/Windmill) for precinct simulation
+  - [ ] Automation workflows (n8n) for precinct simulation
   - [ ] Guardian health monitoring commands
   - [ ] Audit discrepancy detection
   - [ ] Verifiable receipt publishing system

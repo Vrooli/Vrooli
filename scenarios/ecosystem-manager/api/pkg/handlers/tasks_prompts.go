@@ -112,7 +112,6 @@ type promptPreviewRequest struct {
 	Display            string          `json:"display,omitempty"`
 	Type               string          `json:"type,omitempty"`
 	Operation          string          `json:"operation,omitempty"`
-	Title              string          `json:"title,omitempty"`
 	Category           string          `json:"category,omitempty"`
 	Priority           string          `json:"priority,omitempty"`
 	Notes              string          `json:"notes,omitempty"`
@@ -136,9 +135,6 @@ func (r promptPreviewRequest) buildTask(defaultID string) tasks.TaskItem {
 	}
 	if r.Operation != "" {
 		task.Operation = r.Operation
-	}
-	if r.Title != "" {
-		task.Title = r.Title
 	}
 	if r.Category != "" {
 		task.Category = r.Category
@@ -174,9 +170,6 @@ func (r promptPreviewRequest) buildTask(defaultID string) tasks.TaskItem {
 	if task.Operation == "" {
 		task.Operation = "generator"
 	}
-	if task.Title == "" {
-		task.Title = "Prompt Viewer Test"
-	}
 	if task.Category == "" {
 		task.Category = "test"
 	}
@@ -195,6 +188,9 @@ func (r promptPreviewRequest) buildTask(defaultID string) tasks.TaskItem {
 	if task.AutoSteerProfileID == "" {
 		task.AutoSteerProfileID = r.AutoSteerProfileID
 	}
+
+	// Always derive title from the canonical task fields.
+	task.Title = deriveTaskTitle("", task.Operation, task.Type, task.Target)
 
 	return task
 }

@@ -403,7 +403,8 @@ Lighthouse results automatically sync to requirements system via phase results.
 {
   "id": "BAS-PERF-DASHBOARD-LOAD",
   "title": "Dashboard loads with acceptable performance",
-  "criticality": "P0",
+  "status": "complete",
+  "prd_ref": "OT-P0-001",
   "validation": [
     {
       "type": "lighthouse",

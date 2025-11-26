@@ -68,6 +68,7 @@ function start_browserless() {
         "-e" "WORKSPACE_EXPIRE_DAYS=7"
         "-e" "EXIT_ON_HEALTH_FAILURE=true"
         "-e" "HEALTH_CHECK_INTERVAL=10000"
+        "-e" "DEFAULT_LAUNCH_ARGS=${BROWSERLESS_DEFAULT_LAUNCH_ARGS:-"--no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-dev-tools --disable-features=TranslateUI"}"
     )
     
     # Configure networking - use host networking for localhost access

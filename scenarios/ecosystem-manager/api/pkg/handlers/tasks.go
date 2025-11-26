@@ -122,7 +122,6 @@ func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask t
 	created := make([]tasks.TaskItem, 0, len(baseTask.Targets))
 	skipped := make([]map[string]string, 0)
 	errors := make([]map[string]string, 0)
-	baseTitle := ""
 
 	for _, target := range baseTask.Targets {
 		existing, status, lookupErr := h.storage.FindActiveTargetTask(baseTask.Type, baseTask.Operation, target)
@@ -146,7 +145,7 @@ func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask t
 		newTask.ID = generateTaskID(baseTask.Type, baseTask.Operation, target)
 		newTask.Target = target
 		newTask.Targets = []string{target}
-		newTask.Title = deriveTaskTitle(baseTitle, baseTask.Operation, baseTask.Type, target)
+		newTask.Title = deriveTaskTitle("", baseTask.Operation, baseTask.Type, target)
 		newTask.Status = "pending"
 		newTask.Results = nil
 		timestamp := timeutil.NowRFC3339()

@@ -60,7 +60,7 @@ test('build-registry emits depth-first order, reset, and requirements', () => {
   writeJSON(scenarioDir, 'test/playbooks/capabilities/01-foundation/alpha.json', {
     metadata: {
       description: 'Alpha flow',
-      reset: 'project',
+      reset: 'full',
     },
     nodes: [],
     edges: [],
@@ -85,7 +85,7 @@ test('build-registry emits depth-first order, reset, and requirements', () => {
 
   assert.ok(alpha.order.startsWith('01.'), 'alpha should be first in traversal');
   assert.deepEqual(alpha.requirements, ['BAS-TEST-001']);
-  assert.equal(alpha.reset, 'project');
+  assert.equal(alpha.reset, 'full');
 
   assert.ok(beta.order > alpha.order, 'beta should execute after alpha');
   assert.deepEqual(beta.requirements, ['BAS-TEST-002']);

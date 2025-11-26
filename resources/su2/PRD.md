@@ -18,7 +18,7 @@
 
 ### P1 Requirements (Should Have)
 - [x] **Data Integration**: Automation scripts pushing SU2 outputs to QuestDB/Qdrant for analytics
-- [x] **Workflow Documentation**: Connections to Blender, OpenRocket, and Windmill for geometry updates
+- [x] **Workflow Documentation**: Connections to Blender and OpenRocket for geometry updates
 - [x] **Batch Optimization**: Multi-point adjoint-based optimization templates with metadata capture
 - [x] **Visualization Pipeline**: Integration with OpenMCT or Superset dashboards
 

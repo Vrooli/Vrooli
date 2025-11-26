@@ -57,7 +57,6 @@ Vrooli is a resource orchestration platform for generating complete business app
 
 ### Core Resources
 - **AI**: Ollama (local LLM), Whisper (speech-to-text), ComfyUI (image generation)
-- **Automation**: N8n (visual workflows), Node-RED (real-time flows), Windmill (code-first)
 - **Storage**: PostgreSQL (relational), Redis (cache), Qdrant (vector), MinIO (object)
 - **Agents**: Agent-S2 (screen automation), Browserless (web automation)
 - **Search**: SearXNG (privacy-respecting metasearch)
@@ -154,7 +153,7 @@ resource-ollama logs                   # View resource logs
 
 **Adding New Capabilities:**
 - Need AI? Enable Ollama or OpenRouter resources
-- Need automation? Enable N8n or Windmill resources  
+- Need automation? Enable the N8n resource  
 - Need storage? PostgreSQL, Redis, and Qdrant are available
 - Scenarios automatically leverage available resources
 
@@ -406,7 +405,7 @@ See [ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md) for comprehensive archi
 
 **How Tasks Work in Vrooli**: Tasks are executed through scenarios that orchestrate resources:
 
-- **Automation Scenarios**: Use N8n, Windmill, or Node-RED resources for workflow automation
+- **Automation Scenarios**: Use N8n or Node-RED resources for workflow automation
 - **AI Task Scenarios**: Leverage Ollama and other AI resources for intelligent task processing  
 - **Business Process Scenarios**: Combine multiple resources to handle complex business workflows
 - **Meta-Scenarios**: Self-improving scenarios that enhance Vrooli itself (Scenario Generator, System Monitor)

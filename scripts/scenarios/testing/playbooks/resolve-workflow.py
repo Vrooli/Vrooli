@@ -24,7 +24,8 @@ NUMBER_PATTERN = re.compile(r"^-?\d+(?:\.\d+)?$")
 BOOLEAN_TRUE = {"true", "1", "yes", "on"}
 BOOLEAN_FALSE = {"false", "0", "no", "off"}
 SEED_STATE_RELATIVE_PATH = Path("test") / "artifacts" / "runtime" / "seed-state.json"
-RESET_LEVELS = {"none": 0, "full": 1, "restart": 2}
+# Only two reset levels are valid for BAS playbooks: shared state ("none") or full reseed ("full")
+RESET_LEVELS = {"none": 0, "full": 1}
 DEFAULT_RESET_LEVEL = "none"
 
 

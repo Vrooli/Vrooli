@@ -40,15 +40,19 @@ browserless::export_config() {
         readonly BROWSERLESS_DATA_DIR
         export BROWSERLESS_DATA_DIR
     fi
+    # Pin to a known digest to avoid silent image drift (Chrome 142 latest builds
+    # have started pulling in DBus/thread requirements that crash in our env).
+    # If you need to update, bump the digest explicitly.
     if [[ -z "${BROWSERLESS_IMAGE:-}" ]]; then
-        BROWSERLESS_IMAGE="ghcr.io/browserless/chrome:latest"
+        BROWSERLESS_IMAGE="ghcr.io/browserless/chrome@sha256:96cc9039f44c8a7b277846783f18c1ec501a7f8b1b12bdfc2bc1f9c3f84a9a17"
         readonly BROWSERLESS_IMAGE
         export BROWSERLESS_IMAGE
     fi
 
     # Browser configuration (only set if not already defined)
     if [[ -z "${BROWSERLESS_MAX_BROWSERS:-}" ]]; then
-        BROWSERLESS_MAX_BROWSERS="${MAX_BROWSERS:-8}"
+        # Keep default concurrency low for CI/local to reduce Chrome launch pressure
+        BROWSERLESS_MAX_BROWSERS="${MAX_BROWSERS:-1}"
         readonly BROWSERLESS_MAX_BROWSERS
         export BROWSERLESS_MAX_BROWSERS
     fi
@@ -58,7 +62,8 @@ browserless::export_config() {
         export BROWSERLESS_MAX_CONCURRENT_SESSIONS
     fi
     if [[ -z "${BROWSERLESS_PREBOOT_CHROME:-}" ]]; then
-        BROWSERLESS_PREBOOT_CHROME="true"
+        # Preboot off by default; avoid spawning Chrome until needed
+        BROWSERLESS_PREBOOT_CHROME="false"
         readonly BROWSERLESS_PREBOOT_CHROME
         export BROWSERLESS_PREBOOT_CHROME
     fi
@@ -100,17 +105,21 @@ browserless::export_config() {
         export BROWSERLESS_SOCKET_CLOSE_TIMEOUT
     fi
     if [[ -z "${BROWSERLESS_ENABLE_PREWARM:-}" ]]; then
-        BROWSERLESS_ENABLE_PREWARM="true"
+        # Disable prewarm to lower idle resource usage; enable explicitly if needed
+        BROWSERLESS_ENABLE_PREWARM="false"
         readonly BROWSERLESS_ENABLE_PREWARM
         export BROWSERLESS_ENABLE_PREWARM
     fi
     if [[ -z "${BROWSERLESS_PREWARM_COUNT:-}" ]]; then
-        # Reduced from max browsers (8) to 3 to minimize baseline memory pressure
-        # Prewarm provides instant availability but consumes ~500MB per instance
-        # This prevents memory exhaustion while maintaining responsive startup
-        BROWSERLESS_PREWARM_COUNT="3"
+        BROWSERLESS_PREWARM_COUNT="0"
         readonly BROWSERLESS_PREWARM_COUNT
         export BROWSERLESS_PREWARM_COUNT
+    fi
+    if [[ -z "${BROWSERLESS_DEFAULT_LAUNCH_ARGS:-}" ]]; then
+        # Harden Chrome startup in headless Docker (DBus-less, lower resource churn)
+        BROWSERLESS_DEFAULT_LAUNCH_ARGS="--no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-dev-tools --disable-features=TranslateUI --disable-extensions --disable-background-networking --no-first-run --mute-audio"
+        readonly BROWSERLESS_DEFAULT_LAUNCH_ARGS
+        export BROWSERLESS_DEFAULT_LAUNCH_ARGS
     fi
     if [[ -z "${BROWSERLESS_HEADLESS:-}" ]]; then
         BROWSERLESS_HEADLESS="${HEADLESS:-yes}"

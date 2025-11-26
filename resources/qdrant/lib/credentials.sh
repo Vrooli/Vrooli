@@ -37,7 +37,7 @@ qdrant::credentials::generate() {
             connection_json=$(jq -n \
                 --arg id "api" \
                 --arg name "Qdrant REST API" \
-                --arg n8n_credential_type "httpHeaderAuth" \
+                --arg credential_type "httpHeaderAuth" \
                 --arg host "localhost" \
                 --arg port "${QDRANT_PORT:-6333}" \
                 --arg path "/collections" \
@@ -48,7 +48,7 @@ qdrant::credentials::generate() {
                 '{
                     id: $id,
                     name: $name,
-                    n8n_credential_type: $n8n_credential_type,
+                    credential_type: $credential_type,
                     connection: {
                         host: $host,
                         port: ($port | tonumber),
@@ -70,7 +70,7 @@ qdrant::credentials::generate() {
             connection_json=$(jq -n \
                 --arg id "api" \
                 --arg name "Qdrant REST API" \
-                --arg n8n_credential_type "httpRequest" \
+                --arg credential_type "httpRequest" \
                 --arg host "localhost" \
                 --arg port "${QDRANT_PORT:-6333}" \
                 --arg path "/collections" \
@@ -79,7 +79,7 @@ qdrant::credentials::generate() {
                 '{
                     id: $id,
                     name: $name,
-                    n8n_credential_type: $n8n_credential_type,
+                    credential_type: $credential_type,
                     connection: {
                         host: $host,
                         port: ($port | tonumber),

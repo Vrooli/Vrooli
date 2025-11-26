@@ -415,7 +415,7 @@ if [[ "$1" == "--help" || "$1" == "-h" ]]; then
     echo "Supported platforms:"
     echo "  - N8N (connections, nodes)"
     echo "  - Node-RED (flow arrays)"
-    echo "  - Windmill (value, summary)"
+    echo "  - Automation (value, summary)"
     echo "  - Huginn (scenario, agents, links)"
     echo "  - ComfyUI (numbered nodes, class_type)"
     echo ""

@@ -558,6 +558,10 @@ func (s *Storage) MoveTaskTo(taskID, toStatus string) (*TaskItem, string, error)
 
 	if currentStatus == toStatus {
 		systemlog.Debugf("MoveTaskTo noop: task=%s already in %s", taskID, toStatus)
+		// Even when noop, ensure no stale copies linger in other queues.
+		if err := s.cleanupDuplicateTaskFiles(taskID, toStatus); err != nil {
+			return task, currentStatus, fmt.Errorf("move task %s: cleanup duplicates during noop move to %s: %w", taskID, toStatus, err)
+		}
 		return task, currentStatus, nil
 	}
 

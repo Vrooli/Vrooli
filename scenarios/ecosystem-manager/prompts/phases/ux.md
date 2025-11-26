@@ -49,11 +49,64 @@ Focus on producing a **professional, polished, friction-free user experience**, 
 
 ### **6. Maintain Scenario Constraints**
 
-* Do **not** change the scenario’s core workflows, APIs, or business logic.
+* Do **not** change the scenario's core workflows, APIs, or business logic.
 * Do **not** introduce new features unrelated to UX improvement.
-* Ensure all changes remain within the scenario’s architectural goals, PRD, and test-driven requirements.
+* Ensure all changes remain within the scenario's architectural goals, PRD, and test-driven requirements.
 
-### **7. Output Expectations**
+### **7. Memory Management with Visited Tracker**
+
+To ensure **systematic coverage without repetition**, use `visited-tracker` to maintain perfect memory across conversation loops:
+
+**At the start of each iteration:**
+```bash
+# Get 5 least-visited UI files with auto-campaign creation
+visited-tracker least-visited \
+  --location scenarios/{{TARGET}}/ui \
+  --pattern "**/*.{ts,tsx,js,jsx}" \
+  --tag ux \
+  --limit 5
+```
+
+**After analyzing each file:**
+```bash
+# Record your visit with specific notes about improvements and remaining work
+visited-tracker visit <file-path> \
+  --tag ux \
+  --note "<summary of improvements made and what remains>"
+```
+
+**When a file is fully polished:**
+```bash
+# Mark it excluded so it doesn't resurface in future queries
+visited-tracker exclude <file-path> \
+  --tag ux \
+  --reason "All UX improvements complete - professional quality achieved"
+```
+
+**Before ending your session:**
+```bash
+# Add campaign note for handoff context to the next iteration
+visited-tracker campaigns note \
+  --location scenarios/{{TARGET}}/ui \
+  --tag ux \
+  --note "<overall progress summary, patterns observed, priority areas for next iteration>"
+```
+
+**Interpreting the response:**
+- Prioritize files with **high staleness_score (>7.0)** - neglected files needing attention
+- Focus on **low visit_count (0-2)** - files not yet analyzed
+- Review **notes from previous visits** - understand context and remaining work
+- Check **coverage_percent** - track systematic progress toward 100%
+
+**Note format guidelines:**
+- **File notes**: Be specific about what you improved and what still needs work
+  - ✅ Good: "Improved empty state clarity, added tooltips to complex controls. Still need to enhance mobile responsiveness."
+  - ❌ Bad: "Made some UX improvements"
+- **Campaign notes**: Provide strategic context for the next agent
+  - ✅ Good: "Completed 15/47 components (32%). Focus areas: Dashboard has complex state management causing UX issues, Settings page needs mobile optimization"
+  - ❌ Bad: "Made progress on UX"
+
+### **8. Output Expectations**
 
 You may update:
 

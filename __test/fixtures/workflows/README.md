@@ -40,7 +40,7 @@ Flow-based programming for IoT and automation.
 - **Strengths**: Real-time processing, IoT integration, lightweight
 - **Test Focus**: Event-driven flows, sensor data, messaging
 
-### Windmill Workflows
+### Automation Workflows
 Developer-centric workflow platform with code-first approach.
 - **Port**: 5681
 - **Strengths**: Script-based, versioning, enterprise features

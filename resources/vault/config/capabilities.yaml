@@ -75,8 +75,6 @@ spec:
       - research-assistant
       - document-manager
     optimal_combinations:
-      - [vault, n8n, postgres]              # Secure workflow automation
-      - [vault, windmill, minio]            # Enterprise automation platform
       - [vault, claude-code, agent-s2]      # Secure development workflows
       - [vault, ollama, qdrant]             # Secure AI processing pipeline
   
@@ -139,7 +137,7 @@ spec:
       - compliance-and-auditing
       - multi-tenant-isolation
     integration_targets:
-      preferred: [n8n, windmill, postgres, claude-code]
+      preferred: [n8n, postgres, claude-code]
       compatible: [ollama, minio, agent-s2, qdrant]
       avoid: [public-data-storage, non-sensitive-operations]
     workflow_templates:

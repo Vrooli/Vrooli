@@ -163,7 +163,7 @@ source "$APP_ROOT/scripts/scenarios/testing/shell/phase-helpers.sh"
 #### Functions
 
 ##### `testing::phase::init()`
-Initialises phase context, loads the scenario requirements registry (`docs/requirements.json` or `requirements/`), and prepares cleanup hooks.
+Initialises phase context, loads the scenario requirements registry from `requirements/`, and prepares cleanup hooks.
 
 ##### `testing::phase::add_requirement()`
 Associates requirement IDs with pass/fail/skipped outcomes and supporting evidence.

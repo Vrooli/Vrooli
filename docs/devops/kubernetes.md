@@ -105,7 +105,7 @@ scenarios/my-scenario/
 ├── README.md                    # Business documentation (optional)
 ├── initialization/              # Startup data and workflows
 │   ├── database/               # Database schemas and seed data
-│   ├── workflows/              # N8n/Windmill automation definitions
+│   ├── workflows/              # N8n automation definitions
 │   └── configuration/          # Runtime settings
 └── deployment/                 # Production orchestration
     ├── startup.sh              # Scenario initialization
@@ -360,7 +360,7 @@ kubectl get vaultsecret my-scenario-secrets
 - **Model Storage**: Shared volumes for AI model artifacts
 
 ### Automation-Heavy Scenarios
-- **Workflow Orchestration**: N8n and Windmill shared infrastructure
+- **Workflow Orchestration**: N8n shared infrastructure
 - **Event Processing**: Node-RED and Redis pub/sub capabilities
 - **External Integration**: Network policies for third-party API access
 
