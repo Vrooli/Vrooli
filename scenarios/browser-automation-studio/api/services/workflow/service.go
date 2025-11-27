@@ -15,7 +15,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/ai"
 	"github.com/vrooli/browser-automation-studio/services/export"
-	"github.com/vrooli/browser-automation-studio/services/logutil"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
@@ -24,6 +23,9 @@ const (
 	workflowJSONEndMarker   = "</WORKFLOW_JSON>"
 	projectSyncCooldown     = 30 * time.Second
 )
+
+// Type alias for ReplayMovieSpec from export package
+type ReplayMovieSpec = export.ReplayMovieSpec
 
 var ErrWorkflowVersionConflict = errors.New("workflow version conflict")
 var ErrWorkflowVersionNotFound = errors.New("workflow version not found")
@@ -121,7 +123,7 @@ func NewWorkflowServiceWithDeps(repo database.Repository, wsHub *wsHub.Hub, log 
 		repo:             repo,
 		wsHub:            wsHub,
 		log:              log,
-		aiClient:         NewOpenRouterClient(log),
+		aiClient:         ai.NewOpenRouterClient(log),
 		executor:         opts.Executor,
 		engineFactory:    opts.EngineFactory,
 		artifactRecorder: opts.ArtifactRecorder,
@@ -169,8 +171,8 @@ func workflowDefinitionStats(def database.JSONMap) (nodeCount, edgeCount int) {
 	if def == nil {
 		return 0, 0
 	}
-	nodes := toInterfaceSlice(def["nodes"])
-	edges := toInterfaceSlice(def["edges"])
+	nodes := ToInterfaceSlice(def["nodes"])
+	edges := ToInterfaceSlice(def["edges"])
 	return len(nodes), len(edges)
 }
 
@@ -282,7 +284,7 @@ func sanitizeWorkflowDefinition(def database.JSONMap) database.JSONMap {
 	if def == nil {
 		return nil
 	}
-	nodes := toInterfaceSlice(def["nodes"])
+	nodes := ToInterfaceSlice(def["nodes"])
 	modified := false
 	for i, rawNode := range nodes {
 		if sanitized, changed := sanitizeWorkflowNode(rawNode); changed {

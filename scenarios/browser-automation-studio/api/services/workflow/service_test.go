@@ -106,7 +106,7 @@ func TestNormalizeFlowDefinitionStripsPreviewScreenshots(t *testing.T) {
 		t.Fatalf("expected normalization to succeed, got %v", err)
 	}
 
-	nodes := toInterfaceSlice(normalized["nodes"])
+	nodes := ToInterfaceSlice(normalized["nodes"])
 	if len(nodes) != 1 {
 		t.Fatalf("expected one node, got %d", len(nodes))
 	}
@@ -164,7 +164,7 @@ func TestSanitizeWorkflowDefinitionHandlesJSONMapData(t *testing.T) {
 	}
 
 	sanitized := sanitizeWorkflowDefinition(definition)
-	nodes := toInterfaceSlice(sanitized["nodes"])
+	nodes := ToInterfaceSlice(sanitized["nodes"])
 	if len(nodes) != 1 {
 		t.Fatalf("expected one node after sanitization, got %d", len(nodes))
 	}

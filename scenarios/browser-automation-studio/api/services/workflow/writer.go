@@ -15,8 +15,8 @@ import (
 
 func (s *WorkflowService) writeWorkflowFile(project *database.Project, workflow *database.Workflow, nodes, edges []any, preferredPath string) (string, string, error) {
 	workflow.FlowDefinition = sanitizeWorkflowDefinition(workflow.FlowDefinition)
-	nodes = toInterfaceSlice(workflow.FlowDefinition["nodes"])
-	edges = toInterfaceSlice(workflow.FlowDefinition["edges"])
+	nodes = ToInterfaceSlice(workflow.FlowDefinition["nodes"])
+	edges = ToInterfaceSlice(workflow.FlowDefinition["edges"])
 	desiredAbs, desiredRel := s.desiredWorkflowFilePath(project, workflow)
 	targetAbs := desiredAbs
 	targetRel := desiredRel

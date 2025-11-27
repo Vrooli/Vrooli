@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/services/export"
 )
 
 // DescribeExecutionExport returns the current replay export status for an execution.
@@ -88,7 +89,7 @@ func (s *WorkflowService) DescribeExecutionExport(ctx context.Context, execution
 		return preview, nil
 	}
 
-	exportPackage, err := BuildReplayMovieSpec(execution, workflow, timeline)
+	exportPackage, err := export.BuildReplayMovieSpec(execution, workflow, timeline)
 	if err != nil {
 		return nil, err
 	}

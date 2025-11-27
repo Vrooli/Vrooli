@@ -1,7 +1,7 @@
 //go:build !short
 // +build !short
 
-package main
+package testutil
 
 import (
 	"bytes"

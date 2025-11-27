@@ -23,12 +23,19 @@ last_completed_at: "2025-11-26T14:55:19-05:00"
 validation_criteria: []
 created_by: ""
 created_at: "2025-11-25T01:21:24-05:00"
-updated_at: "2025-11-26T14:55:19-05:00"
+updated_at: "2025-11-27T01:18:39-05:00"
 tags: []
 notes: |-
-    Not sure current UI status, but this is going to be an app we sell as a desktop app. that means we need to ensure there's a proper homepage, tutorial, settings (e.g. setting default replay options), etc. We need to ensure the user experience is onboarding is exceptional.
+    IMPORTANT: browser-automation-studio has two CRUCIAL roles in the Vrooli ecosystem:
+    1) It will be the first monetized app
+    2) It is the e2e test harness for all other scenarios
 
-    Also, make sure there is plenty of testing around the Replay feature. This feature is prone to breaking.
+    Because of this, it is EXTREMELY important that you get this scenario working properly to satisfy both of these criteria. This means:
+    - Ensuring the playwright execution engine is fully functional
+    - Ensuring that playwright (with scenario-to-desktop) can be bundled into a desktop app (playwright-core executing the Chromium bundled with the Electron app to minimize total app size). scenario-to-desktop itself isn't fully working yet, but you have my official permission to modify that scenario too as needed, as well as the resources/playwright resource
+    - Ensuring that our e2e testing (technically called the "integration" phase, but that's a bit of a misnomer) runs browser-automation-studio (typically abbreviated to BAS) workflows correctly, does the seeding (apply.sh and cleanup.sh) properly and in a scenario-agnostic way (so that we can apply this e2e testing setup everywhere), handles fixtures properly, is organized well, etc. You have permission to edit the workflow runner scripts. Ideally we'd have as much of the functionality as possible built directly into the browser-automation-studio API instead of relying on bash scripts (which won't be portable for the desktop app), but we're making progress.
+
+    Think hard.
 results: {}
 consecutive_completion_claims: 0
 consecutive_failures: 0

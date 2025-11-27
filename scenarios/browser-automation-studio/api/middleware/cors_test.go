@@ -1,4 +1,4 @@
-package main
+package middleware
 
 import (
 	"net/http"
@@ -9,14 +9,14 @@ import (
 )
 
 func TestCORSMiddlewareAllowsAppMonitorByDefault(t *testing.T) {
-	resetCorsConfigForTesting()
+	ResetCorsConfigForTesting()
 	t.Setenv("CORS_ALLOWED_ORIGINS", "")
 	t.Setenv("ALLOWED_ORIGINS", "")
 	t.Setenv("CORS_ALLOWED_ORIGIN", "")
 	t.Setenv("UI_PORT", "36221")
 
 	log := logrus.New()
-	middleware := corsMiddleware(log)
+	middleware := CorsMiddleware(log)
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/projects/test", nil)
@@ -54,7 +54,7 @@ func TestCORSMiddlewareRejectsUnauthorizedOrigin(t *testing.T) {
 	t.Setenv("CORS_ALLOWED_ORIGIN", "")
 
 	log := logrus.New()
-	middleware := corsMiddleware(log)
+	middleware := CorsMiddleware(log)
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects", nil)
@@ -80,7 +80,7 @@ func TestCORSMiddlewareWildcardAllowsAll(t *testing.T) {
 	t.Setenv("CORS_ALLOWED_ORIGINS", "*")
 
 	log := logrus.New()
-	middleware := corsMiddleware(log)
+	middleware := CorsMiddleware(log)
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects", nil)

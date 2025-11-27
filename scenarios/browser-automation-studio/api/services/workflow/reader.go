@@ -120,8 +120,8 @@ func (s *WorkflowService) readWorkflowFile(ctx context.Context, project *databas
 		return nil, fmt.Errorf("workflow file %s has invalid flow definition: %w", rel, normErr)
 	}
 
-	nodes := toInterfaceSlice(normalized["nodes"])
-	edges := toInterfaceSlice(normalized["edges"])
+	nodes := ToInterfaceSlice(normalized["nodes"])
+	edges := ToInterfaceSlice(normalized["edges"])
 
 	workflow := &database.Workflow{
 		ID:                    workflowID,

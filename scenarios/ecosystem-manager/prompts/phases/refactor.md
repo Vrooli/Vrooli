@@ -57,20 +57,41 @@ Focus on producing a **cleaner, clearer, easier-to-extend codebase**, guided by 
 * Do **not** change user-facing copy, UX flows, or visual design except where necessary to support structural improvements.
 * Ensure all changes remain aligned with the scenario’s PRD, operational targets, and test-driven requirements.
 
-### **7. Memory Management with Visited Tracker**
+### **7. Memory Management with Tidiness Manager**
 
-To ensure **systematic coverage without repetition**, use `visited-tracker` to maintain perfect memory across conversation loops:
+To ensure **systematic coverage without repetition**, use `tidiness-manager` to get intelligent refactor recommendations combining visited-tracker data with code quality metrics.
 
 **At the start of each iteration:**
 ```bash
-# Get 5 least-visited files with auto-campaign creation
-visited-tracker least-visited \
-  --location scenarios/{{TARGET}} \
-  --pattern "**/*.{ts,tsx,js,jsx,go}" \
-  --tag refactor \
-  --name "{{TARGET}} - Code Refactoring" \
-  --limit 5
+# Get 5 top-priority files (auto-scans if needed, <500ms if cached)
+# Priority score combines: staleness + length + complexity + tech debt + missing tests
+tidiness-manager recommend-refactors {{TARGET}} \
+  --limit 5 \
+  --sort-by priority \
+  --min-lines 50
+
+# For scripting (returns just file paths, one per line):
+tidiness-manager recommend-refactors {{TARGET}} \
+  --limit 5 \
+  --format paths
+
+# Alternative sort options for specific improvement targets:
+# --sort-by complexity  # For reducing cyclomatic complexity
+# --sort-by length      # For breaking down long files
+# --sort-by staleness   # For unvisited/stale files (equivalent to visited-tracker)
+# --sort-by duplication # For removing code duplication
 ```
+
+**Output formats:**
+- `--format detailed` (default): Human-readable with all metrics
+- `--format paths`: Just file paths, one per line (easy for shell loops)
+- `--format json`: Raw JSON for programmatic processing
+
+**Output includes enriched data:**
+- File path, language, and line count
+- Visit count and staleness score (from visited-tracker integration)
+- Code quality metrics: TODO/FIXME/HACK counts, complexity, test coverage
+- Composite refactor priority score
 
 **After analyzing each file:**
 ```bash
@@ -98,6 +119,8 @@ visited-tracker exclude <file-path> \
   --tag refactor \
   --reason "All refactoring complete - clean structure, clear naming, no duplication"
 ```
+
+**Note:** tidiness-manager uses visited-tracker under the hood, so excluded files won't appear in recommendations.
 
 **Before ending your session:**
 ```bash

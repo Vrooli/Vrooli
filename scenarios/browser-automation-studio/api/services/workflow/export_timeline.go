@@ -4,10 +4,8 @@ import (
 	"context"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
-	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/export"

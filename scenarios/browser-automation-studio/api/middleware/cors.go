@@ -1,4 +1,4 @@
-package main
+package middleware
 
 import (
 	"fmt"
@@ -10,33 +10,33 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type corsConfig struct {
-	allowedOrigins []string
-	allowAll       bool
+type CorsConfig struct {
+	AllowedOrigins []string
+	AllowAll       bool
 }
 
 var (
-	corsConfigCache     corsConfig
+	corsConfigCache     CorsConfig
 	corsConfigCacheOnce sync.Once
 	wildcardWarningOnce sync.Once
 )
 
-func getCachedCorsConfig() corsConfig {
+func GetCachedCorsConfig() CorsConfig {
 	corsConfigCacheOnce.Do(func() {
 		corsConfigCache = resolveAllowedOrigins()
 	})
 	return corsConfigCache
 }
 
-// resetCorsConfigForTesting resets the CORS config cache for testing purposes
+// ResetCorsConfigForTesting resets the CORS config cache for testing purposes
 // This function should ONLY be called from tests
-func resetCorsConfigForTesting() {
+func ResetCorsConfigForTesting() {
 	corsConfigCacheOnce = sync.Once{}
 	wildcardWarningOnce = sync.Once{}
-	corsConfigCache = corsConfig{}
+	corsConfigCache = CorsConfig{}
 }
 
-func resolveAllowedOrigins() corsConfig {
+func resolveAllowedOrigins() CorsConfig {
 	envSources := []string{
 		os.Getenv("CORS_ALLOWED_ORIGINS"),
 		os.Getenv("ALLOWED_ORIGINS"),
@@ -52,7 +52,7 @@ func resolveAllowedOrigins() corsConfig {
 	}
 
 	if strings.TrimSpace(raw) == "*" {
-		return corsConfig{allowAll: true}
+		return CorsConfig{AllowAll: true}
 	}
 
 	if raw != "" {
@@ -70,7 +70,7 @@ func resolveAllowedOrigins() corsConfig {
 			}
 			origins = append(origins, trimmed)
 		}
-		return corsConfig{allowedOrigins: origins, allowAll: allowAll}
+		return CorsConfig{AllowedOrigins: origins, AllowAll: allowAll}
 	}
 
 	// Default safe origins include lifecycle-managed UI and App Monitor proxy
@@ -85,34 +85,34 @@ func resolveAllowedOrigins() corsConfig {
 		defaults = append(defaults, "http://localhost:3000", "http://127.0.0.1:3000")
 	}
 
-	return corsConfig{allowedOrigins: defaults}
+	return CorsConfig{AllowedOrigins: defaults}
 }
 
-func corsMiddleware(log *logrus.Logger) func(http.Handler) http.Handler {
+func CorsMiddleware(log *logrus.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			cfg := getCachedCorsConfig()
+			cfg := GetCachedCorsConfig()
 			origin := strings.TrimSpace(r.Header.Get("Origin"))
 
 			// Always vary on origin unless wildcard is enabled for transparency
-			if !cfg.allowAll {
+			if !cfg.AllowAll {
 				w.Header().Add("Vary", "Origin")
 			}
 
-			if cfg.allowAll {
+			if cfg.AllowAll {
 				wildcardWarningOnce.Do(func() {
 					log.Warn("Using wildcard CORS (CORS_ALLOWED_ORIGINS=*) - not recommended for production")
 				})
 				w.Header().Set("Access-Control-Allow-Origin", "*")
 			} else if origin == "" {
 				// Requests without Origin header (non-browser clients) are allowed without CORS headers
-			} else if isOriginAllowed(origin, cfg.allowedOrigins) {
+			} else if isOriginAllowed(origin, cfg.AllowedOrigins) {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
 			} else {
 				log.WithFields(logrus.Fields{
 					"origin":          origin,
-					"allowed_origins": strings.Join(cfg.allowedOrigins, ","),
+					"allowed_origins": strings.Join(cfg.AllowedOrigins, ","),
 				}).Warn("Rejected CORS request from unauthorized origin")
 				http.Error(w, "Origin not allowed", http.StatusForbidden)
 				return

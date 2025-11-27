@@ -8,22 +8,22 @@ import (
 
 // DetailedFileMetrics contains comprehensive per-file metrics for refactor prioritization
 type DetailedFileMetrics struct {
-	FilePath         string  `json:"file_path"`
-	Language         string  `json:"language"`
-	FileExtension    string  `json:"file_extension"`
-	LineCount        int     `json:"line_count"`
-	TodoCount        int     `json:"todo_count"`
-	FixmeCount       int     `json:"fixme_count"`
-	HackCount        int     `json:"hack_count"`
-	ImportCount      int     `json:"import_count"`
-	FunctionCount    int     `json:"function_count"`
-	CodeLines        int     `json:"code_lines"`
-	CommentLines     int     `json:"comment_lines"`
-	CommentRatio     float64 `json:"comment_to_code_ratio"`
-	HasTestFile      bool    `json:"has_test_file"`
-	ComplexityAvg    *float64 `json:"complexity_avg,omitempty"`
-	ComplexityMax    *int    `json:"complexity_max,omitempty"`
-	DuplicationPct   *float64 `json:"duplication_pct,omitempty"`
+	FilePath       string   `json:"file_path"`
+	Language       string   `json:"language"`
+	FileExtension  string   `json:"file_extension"`
+	LineCount      int      `json:"line_count"`
+	TodoCount      int      `json:"todo_count"`
+	FixmeCount     int      `json:"fixme_count"`
+	HackCount      int      `json:"hack_count"`
+	ImportCount    int      `json:"import_count"`
+	FunctionCount  int      `json:"function_count"`
+	CodeLines      int      `json:"code_lines"`
+	CommentLines   int      `json:"comment_lines"`
+	CommentRatio   float64  `json:"comment_to_code_ratio"`
+	HasTestFile    bool     `json:"has_test_file"`
+	ComplexityAvg  *float64 `json:"complexity_avg,omitempty"`
+	ComplexityMax  *int     `json:"complexity_max,omitempty"`
+	DuplicationPct *float64 `json:"duplication_pct,omitempty"`
 }
 
 // CollectDetailedFileMetrics analyzes files and returns detailed per-file metrics

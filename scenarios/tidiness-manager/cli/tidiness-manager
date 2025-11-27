@@ -389,7 +389,7 @@ cmd_recommend_refactors() {
     local min_lines="0"
     local max_visits="0"
     local format="detailed"
-    local auto_scan="false"
+    local auto_scan="true"  # Auto-scan by default for seamless operation
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -420,6 +420,10 @@ cmd_recommend_refactors() {
                 ;;
             --auto-scan)
                 auto_scan="true"
+                shift
+                ;;
+            --no-auto-scan)
+                auto_scan="false"
                 shift
                 ;;
             *)
@@ -523,16 +527,18 @@ COMMANDS
     recommend-refactors SCENARIO [OPTIONS]
         Get refactor recommendations combining visited-tracker data with code metrics
 
+        NOTE: Automatically scans if metrics don't exist (like visited-tracker auto-creating campaigns)
+
         Options:
           --limit N           Number of files to return (default: 5)
           --sort-by CRITERIA  Sort by: priority (default), staleness, complexity, length, duplication
           --min-lines N       Filter files with minimum line count
           --max-visits N      Exclude files visited more than N times
           --format FORMAT     Output format: detailed (default), paths, json
-          --auto-scan         Trigger light scan if no metrics exist for scenario
+          --no-auto-scan      Disable automatic scanning (fail if metrics missing)
 
         Examples:
-          # Get top 5 files by composite priority (recommended)
+          # Get top 5 files by composite priority (just works, auto-scans if needed)
           tidiness-manager recommend-refactors tidiness-manager --limit 5
 
           # Get longest files
@@ -540,9 +546,6 @@ COMMANDS
 
           # Get paths only for scripting (easy parsing)
           tidiness-manager recommend-refactors tidiness-manager --format paths --limit 10
-
-          # Auto-scan if needed, then return recommendations
-          tidiness-manager recommend-refactors my-scenario --auto-scan --limit 5
 
     issues [SCENARIO] [--category CAT] [--severity SEV] [--limit N]
         List tidiness issues for agent consumption (JSON output)

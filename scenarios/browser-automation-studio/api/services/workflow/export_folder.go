@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/storage"
 )
 
@@ -64,27 +65,27 @@ func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.U
 		workflowName = "Unnamed Workflow"
 	}
 
-	readmeContent := GenerateTimelineMarkdown(timeline, workflowName)
+	readmeContent := export.GenerateTimelineMarkdown(timeline, workflowName)
 	if err := os.WriteFile(filepath.Join(outputDir, "README.md"), []byte(readmeContent), 0644); err != nil {
 		return fmt.Errorf("failed to write README.md: %w", err)
 	}
 
-	summaryContent := GenerateExecutionSummaryMarkdown(timeline)
+	summaryContent := export.GenerateExecutionSummaryMarkdown(timeline)
 	if err := os.WriteFile(filepath.Join(outputDir, "execution-summary.md"), []byte(summaryContent), 0644); err != nil {
 		return fmt.Errorf("failed to write execution-summary.md: %w", err)
 	}
 
-	consoleContent := GenerateConsoleLogsMarkdown(timeline)
+	consoleContent := export.GenerateConsoleLogsMarkdown(timeline)
 	if err := os.WriteFile(filepath.Join(outputDir, "console-logs.md"), []byte(consoleContent), 0644); err != nil {
 		return fmt.Errorf("failed to write console-logs.md: %w", err)
 	}
 
-	networkContent := GenerateNetworkActivityMarkdown(timeline)
+	networkContent := export.GenerateNetworkActivityMarkdown(timeline)
 	if err := os.WriteFile(filepath.Join(outputDir, "network-activity.md"), []byte(networkContent), 0644); err != nil {
 		return fmt.Errorf("failed to write network-activity.md: %w", err)
 	}
 
-	assertionsContent := GenerateAssertionsMarkdown(timeline)
+	assertionsContent := export.GenerateAssertionsMarkdown(timeline)
 	if err := os.WriteFile(filepath.Join(outputDir, "assertions.md"), []byte(assertionsContent), 0644); err != nil {
 		return fmt.Errorf("failed to write assertions.md: %w", err)
 	}

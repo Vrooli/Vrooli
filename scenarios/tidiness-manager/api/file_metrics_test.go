@@ -642,10 +642,10 @@ func TestCollectFileMetrics_LineEndings(t *testing.T) {
 		content  string
 		expected int
 	}{
-		{"unix_lf", "line1\nline2\nline3\n", 3},           // Unix LF - counts newlines
+		{"unix_lf", "line1\nline2\nline3\n", 3},            // Unix LF - counts newlines
 		{"windows_crlf", "line1\r\nline2\r\nline3\r\n", 3}, // Windows CRLF - counts \n
-		{"mac_cr", "line1\rline2\rline3\r", 1},            // Old Mac CR - no \n so counts as 1
-		{"mixed", "line1\nline2\r\nline3\r", 3},           // Mixed endings - counts \n
+		{"mac_cr", "line1\rline2\rline3\r", 1},             // Old Mac CR - no \n so counts as 1
+		{"mixed", "line1\nline2\r\nline3\r", 3},            // Mixed endings - counts \n
 	}
 
 	for _, tc := range testCases {

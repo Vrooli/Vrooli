@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"time"
@@ -12,32 +14,32 @@ import (
 
 // RefactorRecommendation combines visited-tracker data with detailed file metrics
 type RefactorRecommendation struct {
-	FilePath         string     `json:"file_path"`
-	Language         string     `json:"language"`
-	FileExtension    string     `json:"file_extension"`
+	FilePath      string `json:"file_path"`
+	Language      string `json:"language"`
+	FileExtension string `json:"file_extension"`
 
 	// visited-tracker data
-	VisitCount       int        `json:"visit_count"`
-	LastVisited      *time.Time `json:"last_visited,omitempty"`
-	StalenessScore   float64    `json:"staleness_score"`
+	VisitCount     int        `json:"visit_count"`
+	LastVisited    *time.Time `json:"last_visited,omitempty"`
+	StalenessScore float64    `json:"staleness_score"`
 
 	// Code quality metrics
-	LineCount        int        `json:"line_count"`
-	TodoCount        int        `json:"todo_count"`
-	FixmeCount       int        `json:"fixme_count"`
-	HackCount        int        `json:"hack_count"`
-	ImportCount      int        `json:"import_count"`
-	FunctionCount    int        `json:"function_count"`
-	CodeLines        int        `json:"code_lines"`
-	CommentLines     int        `json:"comment_lines"`
-	CommentRatio     float64    `json:"comment_to_code_ratio"`
-	HasTestFile      bool       `json:"has_test_file"`
-	ComplexityAvg    *float64   `json:"complexity_avg,omitempty"`
-	ComplexityMax    *int       `json:"complexity_max,omitempty"`
-	DuplicationPct   *float64   `json:"duplication_pct,omitempty"`
+	LineCount      int      `json:"line_count"`
+	TodoCount      int      `json:"todo_count"`
+	FixmeCount     int      `json:"fixme_count"`
+	HackCount      int      `json:"hack_count"`
+	ImportCount    int      `json:"import_count"`
+	FunctionCount  int      `json:"function_count"`
+	CodeLines      int      `json:"code_lines"`
+	CommentLines   int      `json:"comment_lines"`
+	CommentRatio   float64  `json:"comment_to_code_ratio"`
+	HasTestFile    bool     `json:"has_test_file"`
+	ComplexityAvg  *float64 `json:"complexity_avg,omitempty"`
+	ComplexityMax  *int     `json:"complexity_max,omitempty"`
+	DuplicationPct *float64 `json:"duplication_pct,omitempty"`
 
 	// Computed priority
-	RefactorPriority float64    `json:"refactor_priority"`
+	RefactorPriority float64 `json:"refactor_priority"`
 }
 
 // RefactorRecommender provides refactor recommendations combining visited-tracker + file metrics
@@ -86,21 +88,21 @@ func (rr *RefactorRecommender) GetRecommendations(ctx context.Context, scenario 
 
 	for _, metrics := range fileMetrics {
 		rec := RefactorRecommendation{
-			FilePath:      metrics.FilePath,
-			Language:      metrics.Language,
-			FileExtension: metrics.FileExtension,
-			LineCount:     metrics.LineCount,
-			TodoCount:     metrics.TodoCount,
-			FixmeCount:    metrics.FixmeCount,
-			HackCount:     metrics.HackCount,
-			ImportCount:   metrics.ImportCount,
-			FunctionCount: metrics.FunctionCount,
-			CodeLines:     metrics.CodeLines,
-			CommentLines:  metrics.CommentLines,
-			CommentRatio:  metrics.CommentRatio,
-			HasTestFile:   metrics.HasTestFile,
-			ComplexityAvg: metrics.ComplexityAvg,
-			ComplexityMax: metrics.ComplexityMax,
+			FilePath:       metrics.FilePath,
+			Language:       metrics.Language,
+			FileExtension:  metrics.FileExtension,
+			LineCount:      metrics.LineCount,
+			TodoCount:      metrics.TodoCount,
+			FixmeCount:     metrics.FixmeCount,
+			HackCount:      metrics.HackCount,
+			ImportCount:    metrics.ImportCount,
+			FunctionCount:  metrics.FunctionCount,
+			CodeLines:      metrics.CodeLines,
+			CommentLines:   metrics.CommentLines,
+			CommentRatio:   metrics.CommentRatio,
+			HasTestFile:    metrics.HasTestFile,
+			ComplexityAvg:  metrics.ComplexityAvg,
+			ComplexityMax:  metrics.ComplexityMax,
 			DuplicationPct: metrics.DuplicationPct,
 		}
 
@@ -292,6 +294,53 @@ func (rr *RefactorRecommender) sortRecommendations(recs []RefactorRecommendation
 	}
 }
 
+// hasMetricsForScenario checks if we have any file metrics for the given scenario
+func (s *Server) hasMetricsForScenario(ctx context.Context, scenario string) (bool, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM file_metrics WHERE scenario = $1`
+	err := s.db.QueryRowContext(ctx, query, scenario).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// autoTriggerLightScan triggers a light scan for the scenario
+func (s *Server) autoTriggerLightScan(ctx context.Context, scenario string) error {
+	// Determine scenario path
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	}
+	scenarioPath := filepath.Join(vrooliRoot, "scenarios", scenario)
+
+	// Check if path exists
+	if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
+		return fmt.Errorf("scenario path does not exist: %s", scenarioPath)
+	}
+
+	// Create scanner and run light scan
+	scanner := NewLightScanner(scenarioPath, 120*time.Second)
+	result, err := scanner.Scan(ctx)
+	if err != nil {
+		return fmt.Errorf("light scan failed: %w", err)
+	}
+
+	// Persist file metrics
+	filePaths := make([]string, len(result.FileMetrics))
+	for i, fm := range result.FileMetrics {
+		filePaths[i] = fm.Path
+	}
+
+	detailedMetrics, err := CollectDetailedFileMetrics(scenarioPath, filePaths)
+	if err != nil {
+		// Fallback to basic metrics
+		return s.persistFileMetrics(ctx, scenario, result.FileMetrics)
+	}
+
+	return s.persistDetailedFileMetrics(ctx, scenario, detailedMetrics)
+}
+
 // HTTP handler for refactor recommendations endpoint
 func (s *Server) handleRefactorRecommendations(w http.ResponseWriter, r *http.Request) {
 	scenario := r.URL.Query().Get("scenario")
@@ -323,6 +372,32 @@ func (s *Server) handleRefactorRecommendations(w http.ResponseWriter, r *http.Re
 	if mv := r.URL.Query().Get("max_visits"); mv != "" {
 		if v, err := strconv.Atoi(mv); err == nil && v > 0 {
 			maxVisits = v
+		}
+	}
+
+	autoScan := r.URL.Query().Get("auto_scan") == "true"
+
+	// If auto_scan is enabled, check if we have metrics for this scenario
+	if autoScan {
+		hasMetrics, err := s.hasMetricsForScenario(r.Context(), scenario)
+		if err != nil {
+			s.log("failed to check metrics existence", map[string]interface{}{
+				"error":    err.Error(),
+				"scenario": scenario,
+			})
+			// Don't fail - proceed without auto-scan
+		} else if !hasMetrics {
+			// Trigger light scan automatically
+			s.log("auto-scan triggered for scenario with no metrics", map[string]interface{}{
+				"scenario": scenario,
+			})
+			if err := s.autoTriggerLightScan(r.Context(), scenario); err != nil {
+				s.log("auto-scan failed", map[string]interface{}{
+					"error":    err.Error(),
+					"scenario": scenario,
+				})
+				// Continue anyway - may return empty results but shouldn't fail
+			}
 		}
 	}
 

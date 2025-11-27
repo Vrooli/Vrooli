@@ -18,27 +18,27 @@ type CodeMetrics struct {
 	MaxImportsInFile    int     `json:"max_imports_in_file"`
 	MaxFunctionsInFile  int     `json:"max_functions_in_file"`
 	// Comment density metrics
-	TotalCodeLines      int     `json:"total_code_lines"`
-	TotalCommentLines   int     `json:"total_comment_lines"`
-	CommentToCodeRatio  float64 `json:"comment_to_code_ratio"`
+	TotalCodeLines     int     `json:"total_code_lines"`
+	TotalCommentLines  int     `json:"total_comment_lines"`
+	CommentToCodeRatio float64 `json:"comment_to_code_ratio"`
 	// Test coverage indicators
-	FilesWithTests      int     `json:"files_with_tests"`
-	FilesWithoutTests   int     `json:"files_without_tests"`
-	TestCoverageRatio   float64 `json:"test_coverage_ratio"` // FilesWithTests / TotalFiles
+	FilesWithTests    int     `json:"files_with_tests"`
+	FilesWithoutTests int     `json:"files_without_tests"`
+	TestCoverageRatio float64 `json:"test_coverage_ratio"` // FilesWithTests / TotalFiles
 }
 
 // FileCodeMetrics contains metrics for a single file
 type FileCodeMetrics struct {
-	FilePath         string  `json:"file_path"`
-	TodoCount        int     `json:"todo_count"`
-	FixmeCount       int     `json:"fixme_count"`
-	HackCount        int     `json:"hack_count"`
-	ImportCount      int     `json:"import_count"`
-	FunctionCount    int     `json:"function_count"`
-	CodeLines        int     `json:"code_lines"`
-	CommentLines     int     `json:"comment_lines"`
+	FilePath           string  `json:"file_path"`
+	TodoCount          int     `json:"todo_count"`
+	FixmeCount         int     `json:"fixme_count"`
+	HackCount          int     `json:"hack_count"`
+	ImportCount        int     `json:"import_count"`
+	FunctionCount      int     `json:"function_count"`
+	CodeLines          int     `json:"code_lines"`
+	CommentLines       int     `json:"comment_lines"`
 	CommentToCodeRatio float64 `json:"comment_to_code_ratio"`
-	HasTestFile      bool    `json:"has_test_file"`
+	HasTestFile        bool    `json:"has_test_file"`
 }
 
 // CodeMetricsAnalyzer computes language-agnostic code metrics

@@ -81,8 +81,8 @@ func (s *WorkflowService) CreateWorkflowWithProject(ctx context.Context, project
 		return nil, err
 	}
 
-	nodes := toInterfaceSlice(workflow.FlowDefinition["nodes"])
-	edges := toInterfaceSlice(workflow.FlowDefinition["edges"])
+	nodes := ToInterfaceSlice(workflow.FlowDefinition["nodes"])
+	edges := ToInterfaceSlice(workflow.FlowDefinition["edges"])
 	absPath, relPath, err := s.writeWorkflowFile(project, workflow, nodes, edges, "")
 	if err != nil {
 		return nil, err
@@ -338,8 +338,8 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, workflowID uuid.UU
 		return nil, err
 	}
 
-	nodes := toInterfaceSlice(current.FlowDefinition["nodes"])
-	edges := toInterfaceSlice(current.FlowDefinition["edges"])
+	nodes := ToInterfaceSlice(current.FlowDefinition["nodes"])
+	edges := ToInterfaceSlice(current.FlowDefinition["edges"])
 
 	cacheEntry, hasEntry := s.lookupWorkflowPath(current.ID)
 	preferredPath := ""

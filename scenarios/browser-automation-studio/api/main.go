@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers"
+	"github.com/vrooli/browser-automation-studio/middleware"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
@@ -102,10 +103,10 @@ func main() {
 	go hub.Run()
 
 	// Resolve allowed origins before constructing handlers
-	corsCfg := resolveAllowedOrigins()
+	corsCfg := middleware.GetCachedCorsConfig()
 
 	// Initialize handlers
-	handler := handlers.NewHandler(repo, hub, log, corsCfg.allowAll, corsCfg.allowedOrigins)
+	handler := handlers.NewHandler(repo, hub, log, corsCfg.AllowAll, corsCfg.AllowedOrigins)
 
 	// Get port configuration - required from lifecycle system
 	port := os.Getenv("API_PORT")
@@ -117,12 +118,12 @@ func main() {
 	r := chi.NewRouter()
 
 	// Middleware
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.Timeout(globalRequestTimeout))
+	r.Use(chimiddleware.Logger)
+	r.Use(chimiddleware.Recoverer)
+	r.Use(chimiddleware.Timeout(globalRequestTimeout))
 
 	// CORS middleware - secure by default, configurable via environment
-	r.Use(corsMiddleware(log))
+	r.Use(middleware.CorsMiddleware(log))
 
 	// Routes
 	r.Get("/health", handler.Health)

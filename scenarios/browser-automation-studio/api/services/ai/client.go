@@ -111,3 +111,11 @@ func (c *OpenRouterClient) ExecutePrompt(ctx context.Context, prompt string) (st
 	c.log.WithFields(fields).Debug("OpenRouter prompt executed successfully")
 	return response, nil
 }
+
+// Model returns the configured AI model name.
+func (c *OpenRouterClient) Model() string {
+	if c == nil {
+		return ""
+	}
+	return c.model
+}

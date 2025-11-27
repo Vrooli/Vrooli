@@ -14,15 +14,15 @@ import (
 
 // ComplexityResult contains cyclomatic complexity analysis results
 type ComplexityResult struct {
-	AverageComplexity   float64        `json:"average_complexity"`
-	MaxComplexity       int            `json:"max_complexity"`
-	HighComplexityFiles []ComplexFile  `json:"high_complexity_files"`
-	HighComplexityCount int            `json:"high_complexity_count"`
-	Threshold           int            `json:"threshold"` // Functions above this are flagged
-	TotalFunctions      int            `json:"total_functions"`
-	Skipped             bool           `json:"skipped"`
-	SkipReason          string         `json:"skip_reason,omitempty"`
-	Tool                string         `json:"tool,omitempty"`
+	AverageComplexity   float64       `json:"average_complexity"`
+	MaxComplexity       int           `json:"max_complexity"`
+	HighComplexityFiles []ComplexFile `json:"high_complexity_files"`
+	HighComplexityCount int           `json:"high_complexity_count"`
+	Threshold           int           `json:"threshold"` // Functions above this are flagged
+	TotalFunctions      int           `json:"total_functions"`
+	Skipped             bool          `json:"skipped"`
+	SkipReason          string        `json:"skip_reason,omitempty"`
+	Tool                string        `json:"tool,omitempty"`
 }
 
 // ComplexFile represents a function with high cyclomatic complexity

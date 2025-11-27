@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -22,6 +23,27 @@ type ParseRequest struct {
 	Scenario string `json:"scenario"`
 	Tool     string `json:"tool"`
 	Output   string `json:"output"`
+}
+
+// hasRecentScan checks if we have scanned this scenario recently
+func (s *Server) hasRecentScan(ctx context.Context, scenario string, within time.Duration) (bool, error) {
+	var lastUpdate time.Time
+	query := `
+		SELECT MAX(updated_at)
+		FROM file_metrics
+		WHERE scenario = $1
+	`
+	err := s.db.QueryRowContext(ctx, query, scenario).Scan(&lastUpdate)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	// Check if last update was within the specified duration
+	age := time.Since(lastUpdate)
+	return age <= within, nil
 }
 
 // handleLightScan performs a complete light scan on a scenario
@@ -51,9 +73,22 @@ func (s *Server) handleLightScan(w http.ResponseWriter, r *http.Request) {
 
 	scanner := NewLightScanner(absPath, timeout)
 
-	// Use incremental mode if requested
+	// Auto-enable incremental mode if:
+	// 1. Not explicitly set to false AND
+	// 2. We have a recent scan (within 24 hours)
+	incremental := req.Incremental
+	if !incremental {
+		hasRecent, _ := s.hasRecentScan(r.Context(), filepath.Base(absPath), 24*time.Hour)
+		if hasRecent {
+			incremental = true
+			s.log("auto-enabled incremental scan", map[string]interface{}{
+				"scenario": filepath.Base(absPath),
+			})
+		}
+	}
+
 	scanOpts := ScanOptions{
-		Incremental: req.Incremental,
+		Incremental: incremental,
 		DB:          s.db,
 	}
 

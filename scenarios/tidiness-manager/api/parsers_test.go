@@ -648,44 +648,44 @@ ui/components/Button.tsx(8,3): warning TS6133: 'props' is declared but never use
 // [REQ:TM-LS-003,TM-LS-004] Test that all Issue struct fields are properly populated
 func TestParseOutput_CompleteIssueFields(t *testing.T) {
 	testCases := []struct {
-		name     string
+		name      string
 		parseFunc func(string, string, string) []Issue
-		scenario string
-		tool     string
-		output   string
-		expected Issue
+		scenario  string
+		tool      string
+		output    string
+		expected  Issue
 	}{
 		{
-			name: "lint issue complete fields",
+			name:      "lint issue complete fields",
 			parseFunc: ParseLintOutput,
-			scenario: "test-scenario",
-			tool: "eslint",
-			output: "src/App.tsx:10:5: Unexpected console [no-console]",
+			scenario:  "test-scenario",
+			tool:      "eslint",
+			output:    "src/App.tsx:10:5: Unexpected console [no-console]",
 			expected: Issue{
 				Scenario: "test-scenario",
-				Tool: "eslint",
+				Tool:     "eslint",
 				Category: "lint",
-				File: "src/App.tsx",
-				Line: 10,
-				Column: 5,
-				Rule: "no-console",
+				File:     "src/App.tsx",
+				Line:     10,
+				Column:   5,
+				Rule:     "no-console",
 				Severity: "", // May not be set for basic lint output
 			},
 		},
 		{
-			name: "type issue complete fields",
+			name:      "type issue complete fields",
 			parseFunc: ParseTypeOutput,
-			scenario: "my-scenario",
-			tool: "tsc",
-			output: "src/App.tsx(10,5): error TS2304: Cannot find name 'foo'",
+			scenario:  "my-scenario",
+			tool:      "tsc",
+			output:    "src/App.tsx(10,5): error TS2304: Cannot find name 'foo'",
 			expected: Issue{
 				Scenario: "my-scenario",
-				Tool: "tsc",
+				Tool:     "tsc",
 				Category: "type",
-				File: "src/App.tsx",
-				Line: 10,
-				Column: 5,
-				Rule: "TS2304",
+				File:     "src/App.tsx",
+				Line:     10,
+				Column:   5,
+				Rule:     "TS2304",
 				Severity: "error",
 			},
 		},

@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/services/logutil"
 )
 
 // generateWorkflowFromPrompt generates a workflow definition via OpenRouter.
@@ -58,7 +59,7 @@ User prompt:
 		return nil, fmt.Errorf("openrouter execution error: %w", err)
 	}
 	s.log.WithFields(logrus.Fields{
-		"model":            s.aiClient.model,
+		"model":            s.aiClient.Model(),
 		"duration_ms":      time.Since(start).Milliseconds(),
 		"response_preview": logutil.TruncateForLog(response, 400),
 	}).Info("AI workflow generated via OpenRouter")
@@ -83,7 +84,7 @@ User prompt:
 		return nil, err
 	}
 
-	if len(toInterfaceSlice(definition["nodes"])) == 0 {
+	if len(ToInterfaceSlice(definition["nodes"])) == 0 {
 		return nil, &AIWorkflowError{Reason: "AI workflow generation did not return any steps. Specify real URLs, selectors, and actions, then try again."}
 	}
 
@@ -307,7 +308,7 @@ User requested modifications:
 		return nil, fmt.Errorf("openrouter execution error: %w", err)
 	}
 	s.log.WithFields(logrus.Fields{
-		"model":       s.aiClient.model,
+		"model":       s.aiClient.Model(),
 		"duration_ms": time.Since(start).Milliseconds(),
 		"workflow_id": workflowID,
 	}).Info("AI workflow modification generated via OpenRouter")
@@ -329,7 +330,7 @@ User requested modifications:
 		return nil, err
 	}
 
-	if len(toInterfaceSlice(definition["nodes"])) == 0 {
+	if len(ToInterfaceSlice(definition["nodes"])) == 0 {
 		return nil, &AIWorkflowError{Reason: "AI workflow generation did not return any steps. Specify real URLs, selectors, and actions, then try again."}
 	}
 

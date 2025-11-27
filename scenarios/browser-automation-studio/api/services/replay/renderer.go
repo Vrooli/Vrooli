@@ -27,6 +27,9 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/export"
 )
 
+// Type alias for ReplayMovieSpec from export package
+type ReplayMovieSpec = export.ReplayMovieSpec
+
 // RenderedMedia represents a generated media artifact ready for download.
 type RenderedMedia struct {
 	Path        string

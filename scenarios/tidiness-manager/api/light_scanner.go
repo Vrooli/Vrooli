@@ -32,28 +32,28 @@ func NewLightScanner(scenarioPath string, timeout time.Duration) *LightScanner {
 
 // ScanResult contains all outputs from a light scan
 type ScanResult struct {
-	Scenario        string                     `json:"scenario"`
-	StartedAt       time.Time                  `json:"started_at"`
-	CompletedAt     time.Time                  `json:"completed_at"`
-	Duration        time.Duration              `json:"duration_ms"`
-	LintOutput      *CommandRun                `json:"lint_output,omitempty"`
-	TypeOutput      *CommandRun                `json:"type_output,omitempty"`
-	FileMetrics     []FileMetric               `json:"file_metrics"`
-	LongFiles       []LongFile                 `json:"long_files"`
-	TotalFiles      int                        `json:"total_files"`
-	TotalLines      int                        `json:"total_lines"`
-	HasMakefile     bool                       `json:"has_makefile"`
+	Scenario        string                        `json:"scenario"`
+	StartedAt       time.Time                     `json:"started_at"`
+	CompletedAt     time.Time                     `json:"completed_at"`
+	Duration        time.Duration                 `json:"duration_ms"`
+	LintOutput      *CommandRun                   `json:"lint_output,omitempty"`
+	TypeOutput      *CommandRun                   `json:"type_output,omitempty"`
+	FileMetrics     []FileMetric                  `json:"file_metrics"`
+	LongFiles       []LongFile                    `json:"long_files"`
+	TotalFiles      int                           `json:"total_files"`
+	TotalLines      int                           `json:"total_lines"`
+	HasMakefile     bool                          `json:"has_makefile"`
 	LanguageMetrics map[Language]*LanguageMetrics `json:"language_metrics,omitempty"`
 }
 
 // LanguageMetrics contains comprehensive metrics for a detected language
 type LanguageMetrics struct {
-	Language         Language          `json:"language"`
-	FileCount        int               `json:"file_count"`
-	TotalLines       int               `json:"total_lines"`
-	CodeMetrics      *CodeMetrics      `json:"code_metrics,omitempty"`
-	Complexity       *ComplexityResult `json:"complexity,omitempty"`
-	Duplicates       *DuplicateResult  `json:"duplicates,omitempty"`
+	Language    Language          `json:"language"`
+	FileCount   int               `json:"file_count"`
+	TotalLines  int               `json:"total_lines"`
+	CodeMetrics *CodeMetrics      `json:"code_metrics,omitempty"`
+	Complexity  *ComplexityResult `json:"complexity,omitempty"`
+	Duplicates  *DuplicateResult  `json:"duplicates,omitempty"`
 }
 
 // CommandRun captures execution details
@@ -84,8 +84,8 @@ type LongFile struct {
 
 // ScanOptions configures scan behavior
 type ScanOptions struct {
-	Incremental bool        // Only scan files modified since last scan
-	DB          *sql.DB     // Database connection for incremental mode
+	Incremental bool    // Only scan files modified since last scan
+	DB          *sql.DB // Database connection for incremental mode
 }
 
 // Scan runs the complete light scan pipeline

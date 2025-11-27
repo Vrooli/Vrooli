@@ -54,13 +54,13 @@ func (ld *LanguageDetector) DetectLanguages() (map[Language]*LanguageInfo, error
 
 	// Extension to language mapping
 	extMap := map[string]Language{
-		".go":   LanguageGo,
-		".ts":   LanguageTypeScript,
-		".tsx":  LanguageTypeScript,
-		".js":   LanguageJavaScript,
-		".jsx":  LanguageJavaScript,
-		".py":   LanguagePython,
-		".rs":   LanguageRust,
+		".go":  LanguageGo,
+		".ts":  LanguageTypeScript,
+		".tsx": LanguageTypeScript,
+		".js":  LanguageJavaScript,
+		".jsx": LanguageJavaScript,
+		".py":  LanguagePython,
+		".rs":  LanguageRust,
 	}
 
 	for _, scanDir := range scanDirs {
