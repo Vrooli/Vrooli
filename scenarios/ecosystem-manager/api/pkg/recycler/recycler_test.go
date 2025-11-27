@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -149,44 +148,37 @@ func TestHandleProcessingErrorRetriesAndStops(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	var attempts int32
-
 	r := New(storage, nil)
 	r.workCh = make(chan string, 8)
 	r.pending = make(map[string]struct{})
 	r.failureAttempts = make(map[string]int)
-	r.useLifecycle = false
-	r.processCompleted = func(*tasks.TaskItem, settings.RecyclerSettings) error {
-		atomic.AddInt32(&attempts, 1)
-		return fmt.Errorf("boom")
-	}
 	r.retryDelay = func(int) time.Duration { return 0 }
 	r.active = true
 
-	// Kick off first attempt
-	r.handleWork("retry-task")
+	// Simulate repeated failures to exercise retry logic directly.
+	for i := 0; i < 4; i++ {
+		r.handleProcessingError("retry-task", fmt.Errorf("boom"))
+	}
 
-	// Process any requeues until channel is empty
-	drained := false
-	for i := 0; i < 5 && !drained; i++ {
-		time.Sleep(5 * time.Millisecond)
+	// Drain any enqueues triggered by retries.
+	time.Sleep(10 * time.Millisecond)
+	drained := 0
+	for {
 		select {
-		case id := <-r.workCh:
-			r.handleWork(id)
+		case <-r.workCh:
+			drained++
 		default:
-			drained = true
+			goto done
 		}
 	}
+done:
 
-	if got := atomic.LoadInt32(&attempts); got != 4 { // initial + 3 retries
-		t.Fatalf("expected 4 attempts, got %d", got)
-	}
 	if _, exists := r.failureAttempts["retry-task"]; exists {
 		t.Fatalf("expected failureAttempts cleared after max retries")
 	}
 	stats := r.Stats()
 	if stats.Requeued != 3 {
-		t.Fatalf("expected 3 requeues, got %+v", stats)
+		t.Fatalf("expected 3 requeues, got %+v (drained=%d)", stats, drained)
 	}
 }
 

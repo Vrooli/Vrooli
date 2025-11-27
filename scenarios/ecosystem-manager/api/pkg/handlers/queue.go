@@ -32,6 +32,42 @@ func NewQueueHandlers(processor *queue.Processor, wsManager *websocket.Manager, 
 	}
 }
 
+// applyTransitionEffects executes lifecycle side effects when coordinator is unavailable in handlers.
+func (h *QueueHandlers) applyTransitionEffects(outcome *tasks.TransitionOutcome, task *tasks.TaskItem, taskID string) {
+	if outcome == nil {
+		return
+	}
+	if h.wsManager != nil && task != nil {
+		h.wsManager.BroadcastUpdate("task_status_changed", map[string]any{
+			"task_id":    taskID,
+			"old_status": outcome.From,
+			"new_status": task.Status,
+			"task":       task,
+		})
+	}
+	if h.processor == nil {
+		return
+	}
+	if outcome.Effects.TerminateProcess {
+		if err := h.processor.TerminateRunningProcess(taskID); err != nil {
+			systemlog.Warnf("Failed to terminate process for task %s after lifecycle transition: %v", taskID, err)
+		}
+	}
+	if outcome.Effects.StartIfSlotAvailable {
+		if err := h.processor.StartTaskIfSlotAvailable(taskID); err != nil {
+			systemlog.Warnf("Failed to opportunistically restart task %s after transition: %v", taskID, err)
+		}
+	}
+	if outcome.Effects.ForceStart {
+		if err := h.processor.ForceStartTask(taskID, true); err != nil {
+			systemlog.Warnf("Failed to force-start task %s after transition: %v", taskID, err)
+		}
+	}
+	if outcome.Effects.WakeProcessorAfterSave {
+		h.processor.Wake()
+	}
+}
+
 // GetQueueStatusHandler returns the current queue status
 func (h *QueueHandlers) GetQueueStatusHandler(w http.ResponseWriter, r *http.Request) {
 	status := h.processor.GetQueueStatus()
@@ -175,10 +211,6 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if err := h.processor.TerminateRunningProcess(request.TaskID); err != nil {
-		systemlog.Warnf("TerminateRunningProcess: %v (continuing lifecycle move)", err)
-	}
-
 	var outcome *tasks.TransitionOutcome
 	if h.coord != nil {
 		var err error
@@ -186,7 +218,7 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 			TaskID:   request.TaskID,
 			ToStatus: tasks.StatusPending,
 			TransitionContext: tasks.TransitionContext{
-				Manual: true,
+				Intent: tasks.IntentManual,
 			},
 		}, tasks.ApplyOptions{
 			BroadcastEvent: "task_status_changed",
@@ -204,8 +236,7 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 			TaskID:   request.TaskID,
 			ToStatus: tasks.StatusPending,
 			TransitionContext: tasks.TransitionContext{
-				Manual:        true,
-				ForceOverride: true,
+				Intent: tasks.IntentReconcile,
 			},
 		})
 		if err != nil {
@@ -213,30 +244,7 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 			return
 		}
 		task = outcome.Task
-		if h.wsManager != nil {
-			h.wsManager.BroadcastUpdate("task_status_changed", map[string]any{
-				"task_id":    request.TaskID,
-				"old_status": outcome.From,
-				"new_status": tasks.StatusPending,
-				"task":       task,
-			})
-		}
-		if h.processor != nil && outcome != nil {
-			if outcome.Effects.TerminateProcess {
-				if err := h.processor.TerminateRunningProcess(request.TaskID); err != nil {
-					systemlog.Warnf("Failed to terminate process for task %s after lifecycle transition: %v", request.TaskID, err)
-				}
-			}
-			h.processor.ResetTaskLogs(request.TaskID)
-			if outcome.Effects.StartIfSlotAvailable {
-				if err := h.processor.StartTaskIfSlotAvailable(request.TaskID); err != nil {
-					systemlog.Warnf("Failed to opportunistically restart task %s after termination: %v", request.TaskID, err)
-				}
-			}
-			if outcome.Effects.WakeProcessorAfterSave {
-				h.processor.Wake()
-			}
-		}
+		h.applyTransitionEffects(outcome, task, request.TaskID)
 	}
 
 	if h.processor != nil {

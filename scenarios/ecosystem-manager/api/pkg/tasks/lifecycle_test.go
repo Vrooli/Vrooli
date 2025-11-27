@@ -100,7 +100,7 @@ func TestCompleteAppliesCooldownAndDisablesAutoRequeue(t *testing.T) {
 
 	lc := Lifecycle{Store: store}
 	updated, _, err := lc.Complete(task.ID, TransitionContext{
-		Manual: true,
+		Intent: IntentManual,
 		Now:    func() time.Time { return time.Unix(0, 0) },
 	})
 	if err != nil {
@@ -161,7 +161,14 @@ func TestRecycleRespectsCooldownAndLock(t *testing.T) {
 func TestLifecycleTransitionMatrix(t *testing.T) {
 	now := time.Unix(0, 0)
 	makeCtx := func(manual, override bool) TransitionContext {
-		return TransitionContext{Manual: manual, ForceOverride: override, Now: func() time.Time { return now }}
+		intent := IntentAuto
+		if manual {
+			intent = IntentManual
+		}
+		if override {
+			intent = IntentReconcile
+		}
+		return TransitionContext{Intent: intent, Now: func() time.Time { return now }}
 	}
 
 	tests := []struct {
@@ -242,7 +249,7 @@ func TestApplyTransitionSideEffects(t *testing.T) {
 		TaskID:   task.ID,
 		ToStatus: StatusPending,
 		TransitionContext: TransitionContext{
-			Manual: true,
+			Intent: IntentManual,
 		},
 	})
 	if err != nil {
@@ -266,7 +273,7 @@ func TestApplyTransitionSideEffects(t *testing.T) {
 		TaskID:   task.ID,
 		ToStatus: StatusInProgress,
 		TransitionContext: TransitionContext{
-			Manual: true,
+			Intent: IntentManual,
 		},
 	})
 	if err != nil {
@@ -284,7 +291,7 @@ func TestApplyTransitionSideEffects(t *testing.T) {
 		TaskID:   task.ID,
 		ToStatus: StatusInProgress,
 		TransitionContext: TransitionContext{
-			Manual: false,
+			Intent: IntentAuto,
 		},
 	})
 	if err != nil {
@@ -308,7 +315,7 @@ func TestPendingMoveBlockedWhenAutoRequeueLocked(t *testing.T) {
 		TaskID:   task.ID,
 		ToStatus: StatusPending,
 		TransitionContext: TransitionContext{
-			Manual: true,
+			Intent: IntentManual,
 		},
 	})
 	if err == nil {
@@ -327,7 +334,7 @@ func TestPendingMoveFromTerminalReEnablesAutoRequeue(t *testing.T) {
 		TaskID:   task.ID,
 		ToStatus: StatusPending,
 		TransitionContext: TransitionContext{
-			Manual: false,
+			Intent: IntentAuto,
 		},
 	})
 	if err != nil {
@@ -459,13 +466,19 @@ func TestLifecycleRuleMatrix(t *testing.T) {
 			store.items[tt.startStatus][task.ID] = task
 
 			lc := Lifecycle{Store: store}
+			intent := IntentAuto
+			if tt.manual {
+				intent = IntentManual
+			}
+			if tt.override {
+				intent = IntentReconcile
+			}
 			outcome, err := lc.ApplyTransition(TransitionRequest{
 				TaskID:   task.ID,
 				ToStatus: tt.targetStatus,
 				TransitionContext: TransitionContext{
-					Manual:        tt.manual,
-					ForceOverride: tt.override,
-					Now:           func() time.Time { return now },
+					Intent: intent,
+					Now:    func() time.Time { return now },
 				},
 			})
 
@@ -509,7 +522,7 @@ func TestManualCompletionDisablesAutoRequeueWhileAutomatedKeepsIt(t *testing.T) 
 		TaskID:   task.ID,
 		ToStatus: StatusCompleted,
 		TransitionContext: TransitionContext{
-			Manual: true,
+			Intent: IntentManual,
 		},
 	})
 	if err != nil {
@@ -529,7 +542,7 @@ func TestManualCompletionDisablesAutoRequeueWhileAutomatedKeepsIt(t *testing.T) 
 		TaskID:   task.ID,
 		ToStatus: StatusCompleted,
 		TransitionContext: TransitionContext{
-			Manual: false,
+			Intent: IntentAuto,
 		},
 	})
 	if err != nil {

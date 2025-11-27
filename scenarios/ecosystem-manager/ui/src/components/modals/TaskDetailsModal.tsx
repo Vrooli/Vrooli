@@ -34,6 +34,7 @@ import { markdownToHtml } from '@/lib/markdown';
 import { queryKeys } from '@/lib/queryKeys';
 import { ExecutionDetailCard } from '@/components/executions/ExecutionDetailCard';
 import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfileEditorModal';
+import { InsightsTab } from '@/components/insights/InsightsTab';
 import type { Task, Priority, ExecutionHistory, UpdateTaskInput, SteerMode, Campaign } from '@/types/api';
 import { STEER_MODES } from '@/types/api';
 
@@ -614,10 +615,11 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="prompt">Prompt</TabsTrigger>
             <TabsTrigger value="executions">Executions</TabsTrigger>
+            <TabsTrigger value="insights">Insights</TabsTrigger>
             <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
           </TabsList>
 
@@ -1071,6 +1073,11 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                 />
               </div>
             )}
+          </TabsContent>
+
+          {/* Insights Tab */}
+          <TabsContent value="insights" className="mt-4">
+            <InsightsTab task={task} />
           </TabsContent>
 
           {/* Campaigns Tab */}

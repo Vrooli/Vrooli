@@ -32,6 +32,10 @@ import type {
   AutoSteerExecutionState,
   ActiveTarget,
   Campaign,
+  InsightReport,
+  SystemInsightReport,
+  GenerateInsightOptions,
+  ApplySuggestionResult,
 } from '../types/api';
 
 // Default settings fallback (matches legacy API defaults)
@@ -1035,6 +1039,71 @@ class ApiClient {
     return this.fetchJSON<void>(`/api/visited-tracker/campaigns/${campaignId}/reset`, {
       method: 'POST',
     });
+  }
+
+  // ==================== Insights ====================
+
+  async getTaskInsights(taskId: string): Promise<InsightReport[]> {
+    const response = await this.fetchJSON<{ insights: InsightReport[]; count: number }>(
+      `/api/tasks/${taskId}/insights`
+    );
+    return response.insights || [];
+  }
+
+  async getInsightReport(taskId: string, reportId: string): Promise<InsightReport> {
+    return this.fetchJSON<InsightReport>(`/api/tasks/${taskId}/insights/${reportId}`);
+  }
+
+  async generateInsightReport(
+    taskId: string,
+    options: GenerateInsightOptions = {}
+  ): Promise<void> {
+    const params = new URLSearchParams();
+    if (options.limit) params.append('limit', options.limit.toString());
+    if (options.status_filter) params.append('status_filter', options.status_filter);
+    if (options.include_files) params.append('include_files', options.include_files.join(','));
+
+    const queryString = params.toString();
+    const url = `/api/tasks/${taskId}/insights/generate${queryString ? '?' + queryString : ''}`;
+
+    return this.fetchJSON<void>(url, {
+      method: 'POST',
+    });
+  }
+
+  async applySuggestion(
+    taskId: string,
+    reportId: string,
+    suggestionId: string
+  ): Promise<ApplySuggestionResult> {
+    return this.fetchJSON<ApplySuggestionResult>(
+      `/api/tasks/${taskId}/insights/${reportId}/suggestions/${suggestionId}/apply`,
+      {
+        method: 'POST',
+      }
+    );
+  }
+
+  async getSystemInsights(sinceDays: number = 7): Promise<any> {
+    const params = new URLSearchParams();
+    params.append('since_days', sinceDays.toString());
+
+    return this.fetchJSON<any>(
+      `/api/insights/system?${params.toString()}`
+    );
+  }
+
+  async generateSystemInsights(sinceDays: number = 7): Promise<SystemInsightReport> {
+    const params = new URLSearchParams();
+    params.append('since_days', sinceDays.toString());
+
+    const response = await this.fetchJSON<{ report: SystemInsightReport }>(
+      `/api/insights/system/generate?${params.toString()}`,
+      {
+        method: 'POST',
+      }
+    );
+    return response.report;
   }
 
   // ==================== Aliases for consistency ====================

@@ -304,11 +304,11 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 				// Continue with normal requeue behavior on error
 			} else {
 				if !shouldContinue {
-					log.Printf("Auto Steer: Task %s completed all phases - will not requeue", task.ID)
-					systemlog.Infof("Auto Steer: Task %s fully complete", task.ID)
-					// Override status to prevent requeue
+					log.Printf("Auto Steer: Task %s completed all phases - moving to finalized", task.ID)
+					systemlog.Infof("Auto Steer: Task %s fully complete - finalized", task.ID)
+					// Use completed-finalized to prevent profile reset on manual moves
 					task.ProcessorAutoRequeue = false
-					task.Status = "completed"
+					task.Status = tasks.StatusCompletedFinalized
 				} else {
 					if task.ProcessorAutoRequeue {
 						log.Printf("Auto Steer: Task %s will continue - requeuing for next iteration", task.ID)

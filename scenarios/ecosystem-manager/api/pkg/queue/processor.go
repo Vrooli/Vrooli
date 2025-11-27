@@ -324,7 +324,7 @@ func (qp *Processor) ForceStartTask(taskID string, allowOverflow bool) error {
 
 	externalActive := qp.getExternalActiveTaskIDs()
 	return qp.startTaskExecution(task, status, externalActive, tasks.TransitionContext{
-		Manual:        true,
+		Intent:        tasks.IntentManual,
 		ForceOverride: allowOverflow,
 	})
 }
@@ -365,8 +365,7 @@ func (qp *Processor) StartTaskIfSlotAvailable(taskID string) error {
 	}
 
 	return qp.startTaskExecution(task, status, external, tasks.TransitionContext{
-		Manual:        true,
-		ForceOverride: false,
+		Intent: tasks.IntentAuto,
 	})
 }
 
@@ -511,7 +510,7 @@ func (qp *Processor) ProcessQueue() {
 		log.Printf("Processing task: %s - %s (from pending)", selectedTask.ID, selectedTask.Title)
 		systemlog.Debugf("Queue selecting %s from pending (priority %s)", selectedTask.ID, selectedTask.Priority)
 
-		if err := qp.startTaskExecution(selectedTask, "pending", externalActive, tasks.TransitionContext{Manual: false, ForceOverride: false}); err != nil {
+		if err := qp.startTaskExecution(selectedTask, "pending", externalActive, tasks.TransitionContext{Intent: tasks.IntentAuto}); err != nil {
 			log.Printf("Failed to start task %s: %v", selectedTask.ID, err)
 			systemlog.Errorf("Failed to start task %s: %v", selectedTask.ID, err)
 			return
@@ -548,7 +547,7 @@ func (qp *Processor) finalizeTaskStatus(task *tasks.TaskItem, toStatus string) e
 			TaskID:   task.ID,
 			ToStatus: toStatus,
 			TransitionContext: tasks.TransitionContext{
-				Manual: false,
+				Intent: tasks.IntentAuto,
 			},
 		}, tasks.ApplyOptions{
 			BroadcastEvent:     "task_status_changed",
@@ -573,7 +572,7 @@ func (qp *Processor) finalizeTaskStatus(task *tasks.TaskItem, toStatus string) e
 			TaskID:   task.ID,
 			ToStatus: toStatus,
 			TransitionContext: tasks.TransitionContext{
-				Manual: false,
+				Intent: tasks.IntentAuto,
 			},
 		})
 		if err != nil {

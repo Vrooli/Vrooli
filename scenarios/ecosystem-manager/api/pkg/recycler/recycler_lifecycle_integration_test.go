@@ -13,10 +13,10 @@ import (
 
 // stubRuntime implements tasks.RuntimeCoordinator to observe wake/start calls without launching real work.
 type stubRuntime struct {
-	terminations     atomic.Int32
-	forceStarts      atomic.Int32
-	startIfSlots     atomic.Int32
-	wakes            atomic.Int32
+	terminations atomic.Int32
+	forceStarts  atomic.Int32
+	startIfSlots atomic.Int32
+	wakes        atomic.Int32
 }
 
 func (s *stubRuntime) TerminateRunningProcess(string) error { s.terminations.Add(1); return nil }
@@ -79,7 +79,7 @@ func TestRecyclerSkipsManualTerminalWithCooldown(t *testing.T) {
 		TaskID:   task.ID,
 		ToStatus: tasks.StatusCompleted,
 		TransitionContext: tasks.TransitionContext{
-			Manual: true,
+			Intent: tasks.IntentManual,
 			Now:    func() time.Time { return time.Unix(0, 0) },
 		},
 	})
@@ -188,5 +188,87 @@ func TestRecyclerRespectsCooldownThenRecycles(t *testing.T) {
 	}
 	if rt.wakes.Load() == 0 {
 		t.Fatalf("expected wake invoked after recycle, got %d", rt.wakes.Load())
+	}
+}
+
+// Manual terminal move locks auto-requeue; after a reconcile/pending move and automated completion,
+// recycler should be allowed to recycle again and wake the processor.
+func TestRecyclerUnlocksAfterManualRecovery(t *testing.T) {
+	restore := ensureSettings(t, func(s settings.Settings) settings.Settings {
+		s.Recycler.EnabledFor = "both"
+		s.CooldownSeconds = 0
+		return s
+	})
+	defer restore()
+
+	storage := buildTestStorage(t)
+	task := tasks.TaskItem{
+		ID:                   "recycle-after-recovery",
+		Status:               tasks.StatusInProgress,
+		ProcessorAutoRequeue: true,
+	}
+	if err := storage.SaveQueueItem(task, tasks.StatusInProgress); err != nil {
+		t.Fatalf("save in-progress: %v", err)
+	}
+
+	lc := tasks.Lifecycle{Store: storage}
+	rt := &stubRuntime{}
+	coord := &tasks.Coordinator{LC: &lc, Store: storage, Runtime: rt}
+
+	r := New(storage, nil)
+	r.SetCoordinator(coord)
+	r.workCh = make(chan string, 4)
+	r.pending = make(map[string]struct{})
+	r.failureAttempts = make(map[string]int)
+	r.active = true
+
+	// Manual completion should lock auto-requeue.
+	if _, err := lc.ApplyTransition(tasks.TransitionRequest{
+		TaskID:   task.ID,
+		ToStatus: tasks.StatusCompleted,
+		TransitionContext: tasks.TransitionContext{
+			Intent: tasks.IntentManual,
+		},
+	}); err != nil {
+		t.Fatalf("manual completion: %v", err)
+	}
+
+	r.handleWork(task.ID)
+	if rt.wakes.Load() != 0 {
+		t.Fatalf("expected no wake for locked manual completion, got %d", rt.wakes.Load())
+	}
+	if status, _ := storage.CurrentStatus(task.ID); status != tasks.StatusCompleted {
+		t.Fatalf("expected still completed when locked, got %s", status)
+	}
+
+	// Move back to pending via reconcile to clear lock/cooldown.
+	if _, err := lc.ApplyTransition(tasks.TransitionRequest{
+		TaskID:   task.ID,
+		ToStatus: tasks.StatusPending,
+		TransitionContext: tasks.TransitionContext{
+			Intent: tasks.IntentReconcile,
+		},
+	}); err != nil {
+		t.Fatalf("reconcile to pending: %v", err)
+	}
+
+	// Automated completion keeps auto-requeue enabled.
+	if _, err := lc.ApplyTransition(tasks.TransitionRequest{
+		TaskID:   task.ID,
+		ToStatus: tasks.StatusCompleted,
+		TransitionContext: tasks.TransitionContext{
+			Intent: tasks.IntentAuto,
+		},
+	}); err != nil {
+		t.Fatalf("auto completion: %v", err)
+	}
+
+	r.handleWork(task.ID)
+
+	if status, _ := storage.CurrentStatus(task.ID); status != tasks.StatusPending {
+		t.Fatalf("expected task recycled to pending, got %s", status)
+	}
+	if rt.wakes.Load() == 0 {
+		t.Fatalf("expected wake after successful recycle")
 	}
 }

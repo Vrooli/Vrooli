@@ -48,12 +48,9 @@ type Recycler struct {
 	cooldownTimers  map[string]struct{}
 	active          bool
 	sweepOnly       bool
-	useLifecycle    bool
 	coordinator     *tasks.Coordinator
 
-	processCompleted func(*tasks.TaskItem, settings.RecyclerSettings) error
-	processFailed    func(*tasks.TaskItem, settings.RecyclerSettings) error
-	retryDelay       func(int) time.Duration
+	retryDelay func(int) time.Duration
 
 	stats recyclerStats
 
@@ -63,10 +60,9 @@ type Recycler struct {
 // New creates a recycler instance.
 func New(storage *tasks.Storage, wsManager *websocket.Manager) *Recycler {
 	return &Recycler{
-		storage:      storage,
-		wsManager:    wsManager,
-		lifecycle:    &tasks.Lifecycle{Store: storage},
-		useLifecycle: true,
+		storage:   storage,
+		wsManager: wsManager,
+		lifecycle: &tasks.Lifecycle{Store: storage},
 	}
 }
 
@@ -116,8 +112,6 @@ func (r *Recycler) Start() {
 	r.pending = make(map[string]struct{})
 	r.failureAttempts = make(map[string]int)
 	r.cooldownTimers = make(map[string]struct{})
-	r.processCompleted = r.processCompletedTask
-	r.processFailed = r.processFailedTask
 	r.active = true
 
 	// Seed initial work if enabled; ignore errors to avoid blocking startup
@@ -285,13 +279,6 @@ func (r *Recycler) processOnce() error {
 
 // handleWork revalidates and processes a single task ID from the work queue.
 func (r *Recycler) handleWork(taskID string) {
-	if r.processCompleted == nil {
-		r.processCompleted = r.processCompletedTask
-	}
-	if r.processFailed == nil {
-		r.processFailed = r.processFailedTask
-	}
-
 	cfg := settings.GetRecyclerSettings()
 	if !r.isEnabled(cfg.EnabledFor) {
 		r.removePending(taskID)
@@ -334,13 +321,13 @@ func (r *Recycler) handleWork(taskID string) {
 
 	atomic.AddUint64(&r.stats.Processed, 1)
 
-	// Use lifecycle/coordinator to perform the recycle move when using default processors; allow tests to override processor funcs.
-	if r.useLifecycle && r.coordinator != nil {
+	// Use lifecycle/coordinator to perform the recycle move.
+	if r.coordinator != nil {
 		outcomeTask, _, err := r.coordinator.ApplyTransition(tasks.TransitionRequest{
 			TaskID:   taskID,
 			ToStatus: tasks.StatusPending,
 			TransitionContext: tasks.TransitionContext{
-				Manual: false,
+				Intent: tasks.IntentRecycler,
 			},
 		}, tasks.ApplyOptions{
 			BroadcastEvent: "task_recycled",
@@ -354,12 +341,12 @@ func (r *Recycler) handleWork(taskID string) {
 		r.resetFailures(taskID)
 		r.wakeProcessor(taskID)
 		return
-	} else if r.useLifecycle && r.lifecycle != nil {
+	} else if r.lifecycle != nil {
 		outcome, err := r.lifecycle.ApplyTransition(tasks.TransitionRequest{
 			TaskID:   taskID,
 			ToStatus: tasks.StatusPending,
 			TransitionContext: tasks.TransitionContext{
-				Manual: false,
+				Intent: tasks.IntentRecycler,
 			},
 		})
 		if err != nil {
@@ -373,20 +360,8 @@ func (r *Recycler) handleWork(taskID string) {
 		return
 	}
 
-	if status == "completed" {
-		if err := r.processCompleted(task, cfg); err != nil {
-			r.handleProcessingError(taskID, err)
-		} else {
-			r.resetFailures(taskID)
-		}
-		return
-	}
-
-	if err := r.processFailed(task, cfg); err != nil {
-		r.handleProcessingError(taskID, err)
-	} else {
-		r.resetFailures(taskID)
-	}
+	// If we reach here, lifecycle/coordinator are unavailable; drop quietly.
+	r.resetFailures(taskID)
 }
 
 // seedFromQueues enqueues existing eligible tasks on startup or enable.

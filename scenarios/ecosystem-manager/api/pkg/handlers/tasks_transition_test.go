@@ -29,7 +29,7 @@ func TestManualTransitionFromTerminalToPendingEnablesAutoRequeue(t *testing.T) {
 		TaskID:   task.ID,
 		ToStatus: tasks.StatusPending,
 		TransitionContext: tasks.TransitionContext{
-			Manual: true,
+			Intent: tasks.IntentManual,
 		},
 	})
 	if err != nil {
@@ -69,7 +69,7 @@ func TestManualCompletionLocksAutoRequeueAndCooldown(t *testing.T) {
 		TaskID:   task.ID,
 		ToStatus: tasks.StatusCompleted,
 		TransitionContext: tasks.TransitionContext{
-			Manual: true,
+			Intent: tasks.IntentManual,
 		},
 	})
 	if err != nil {
@@ -92,7 +92,7 @@ func TestManualCompletionLocksAutoRequeueAndCooldown(t *testing.T) {
 		TaskID:   task.ID,
 		ToStatus: tasks.StatusInProgress,
 		TransitionContext: tasks.TransitionContext{
-			Manual: true,
+			Intent: tasks.IntentManual,
 		},
 	})
 	if err != nil {

@@ -1,6 +1,10 @@
 package handlers
 
-import "github.com/ecosystem-manager/api/pkg/queue"
+import (
+	"time"
+
+	"github.com/ecosystem-manager/api/pkg/queue"
+)
 
 // ProcessorAPI captures the processor surface TaskHandlers require.
 type ProcessorAPI interface {
@@ -14,4 +18,13 @@ type ProcessorAPI interface {
 	LoadExecutionHistory(taskID string) ([]queue.ExecutionHistory, error)
 	LoadAllExecutionHistory() ([]queue.ExecutionHistory, error)
 	GetExecutionFilePath(taskID, executionID, filename string) string
+
+	// Insight-related methods
+	LoadInsightReports(taskID string) ([]queue.InsightReport, error)
+	LoadInsightReport(taskID, reportID string) (*queue.InsightReport, error)
+	SaveInsightReport(report queue.InsightReport) error
+	UpdateSuggestionStatus(taskID, reportID, suggestionID, status string) error
+	LoadAllInsightReports(sinceTime time.Time) ([]queue.InsightReport, error)
+	GenerateInsightReportForTask(taskID string, limit int, statusFilter string) (*queue.InsightReport, error)
+	GenerateSystemInsightReport(sinceTime time.Time) (*queue.SystemInsightReport, error)
 }

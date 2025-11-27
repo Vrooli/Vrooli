@@ -213,6 +213,34 @@ func (f *fakeProcessor) GetExecutionFilePath(taskID, executionID, filename strin
 	return ""
 }
 
+func (f *fakeProcessor) LoadInsightReports(taskID string) ([]queue.InsightReport, error) {
+	return nil, nil
+}
+
+func (f *fakeProcessor) LoadInsightReport(taskID, reportID string) (*queue.InsightReport, error) {
+	return nil, nil
+}
+
+func (f *fakeProcessor) SaveInsightReport(report queue.InsightReport) error {
+	return nil
+}
+
+func (f *fakeProcessor) UpdateSuggestionStatus(taskID, reportID, suggestionID, status string) error {
+	return nil
+}
+
+func (f *fakeProcessor) LoadAllInsightReports(sinceTime time.Time) ([]queue.InsightReport, error) {
+	return nil, nil
+}
+
+func (f *fakeProcessor) GenerateInsightReportForTask(taskID string, limit int, statusFilter string) (*queue.InsightReport, error) {
+	return nil, nil
+}
+
+func (f *fakeProcessor) GenerateSystemInsightReport(sinceTime time.Time) (*queue.SystemInsightReport, error) {
+	return nil, nil
+}
+
 // TestHealthCheckHandler tests the health check endpoint
 func TestHealthCheckHandler(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)

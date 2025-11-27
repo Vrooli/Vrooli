@@ -105,6 +105,15 @@ export const queryKeys = {
       [...queryKeys.autoSteer.all, 'history', 'detail', executionId] as const,
   },
 
+  // Insights
+  insights: {
+    all: ['insights'] as const,
+    task: (taskId: string) => [...queryKeys.insights.all, 'task', taskId] as const,
+    taskReport: (taskId: string, reportId: string) =>
+      [...queryKeys.insights.task(taskId), 'report', reportId] as const,
+    system: (sinceDays?: number) => [...queryKeys.insights.all, 'system', sinceDays ?? 7] as const,
+  },
+
   // Health
   health: ['health'] as const,
 };

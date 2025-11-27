@@ -570,3 +570,121 @@ export interface StructureSnapshot {
   moved_files: Record<string, string>;
   snapshot_data?: Record<string, unknown>;
 }
+
+// ==================== Insights Types ====================
+
+export type PatternType = 'failure_mode' | 'timeout' | 'rate_limit' | 'stuck_state';
+export type PatternSeverity = 'critical' | 'high' | 'medium' | 'low';
+export type SuggestionType = 'prompt' | 'timeout' | 'code' | 'autosteer_profile';
+export type SuggestionPriority = 'critical' | 'high' | 'medium' | 'low';
+export type SuggestionStatus = 'pending' | 'applied' | 'rejected' | 'superseded';
+export type ConfidenceLevel = 'high' | 'medium' | 'low';
+
+export interface AnalysisWindow {
+  start_time: string;
+  end_time: string;
+  limit: number;
+  status_filter?: string;
+}
+
+export interface Pattern {
+  id: string;
+  type: PatternType;
+  frequency: number;
+  severity: PatternSeverity;
+  description: string;
+  examples: string[];
+  evidence: string[];
+}
+
+export interface ProposedChange {
+  file: string;
+  type: 'edit' | 'create' | 'config_update';
+  description: string;
+  before?: string;
+  after?: string;
+  content?: string;
+  config_path?: string;
+  config_value?: unknown;
+}
+
+export interface ImpactEstimate {
+  success_rate_improvement: string;
+  time_reduction?: string;
+  confidence: ConfidenceLevel;
+  rationale: string;
+}
+
+export interface Suggestion {
+  id: string;
+  pattern_id: string;
+  type: SuggestionType;
+  priority: SuggestionPriority;
+  title: string;
+  description: string;
+  changes: ProposedChange[];
+  impact: ImpactEstimate;
+  status: SuggestionStatus;
+  applied_at?: string;
+}
+
+export interface ExecutionStatistics {
+  total_executions: number;
+  success_count: number;
+  failure_count: number;
+  timeout_count: number;
+  rate_limit_count: number;
+  success_rate: number;
+  avg_duration: string;
+  median_duration: string;
+  most_common_exit_reason: string;
+}
+
+export interface InsightReport {
+  id: string;
+  task_id: string;
+  generated_at: string;
+  analysis_window: AnalysisWindow;
+  execution_count: number;
+  patterns: Pattern[];
+  suggestions: Suggestion[];
+  statistics: ExecutionStatistics;
+  generated_by: string;
+}
+
+export interface CrossTaskPattern extends Pattern {
+  affected_tasks: string[];
+  task_types: string[];
+}
+
+export interface TaskTypeStats {
+  count: number;
+  success_rate: number;
+  avg_duration: string;
+  top_pattern: string;
+}
+
+export interface SystemInsightReport {
+  id: string;
+  generated_at: string;
+  time_window: AnalysisWindow;
+  task_count: number;
+  total_executions: number;
+  cross_task_patterns: CrossTaskPattern[];
+  system_suggestions: Suggestion[];
+  by_task_type: Record<string, TaskTypeStats>;
+  by_operation: Record<string, TaskTypeStats>;
+}
+
+export interface GenerateInsightOptions {
+  limit?: number;
+  status_filter?: string;
+  include_files?: string[];
+}
+
+export interface ApplySuggestionResult {
+  success: boolean;
+  message: string;
+  files_changed?: string[];
+  backup_path?: string;
+}

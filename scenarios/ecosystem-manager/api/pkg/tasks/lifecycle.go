@@ -8,11 +8,45 @@ import (
 	"github.com/ecosystem-manager/api/pkg/settings"
 )
 
+// TransitionIntent encodes who/what is initiating a move so rules are consistent.
+type TransitionIntent string
+
+const (
+	IntentAuto      TransitionIntent = "auto"      // scheduler/processor
+	IntentManual    TransitionIntent = "manual"    // user-initiated move
+	IntentRecycler  TransitionIntent = "recycler"  // background recycler
+	IntentReconcile TransitionIntent = "reconcile" // safety recovery that can override locks/cooldowns
+)
+
 // TransitionContext captures caller intent and knobs for lifecycle operations.
+// Deprecated fields Manual/ForceOverride remain for compatibility but callers should set Intent.
 type TransitionContext struct {
-	Manual        bool // true when user manually moves a task (may bypass slots)
-	ForceOverride bool // allow overriding auto-requeue lock or cooldown checks for pending moves
+	Intent        TransitionIntent
+	Manual        bool // deprecated: use IntentManual instead
+	ForceOverride bool // deprecated: use IntentReconcile when override is needed
 	Now           func() time.Time
+}
+
+func (ctx TransitionContext) intent() TransitionIntent {
+	if ctx.Intent != "" {
+		return ctx.Intent
+	}
+	if ctx.Manual {
+		return IntentManual
+	}
+	return IntentAuto
+}
+
+func (ctx TransitionContext) isManual() bool {
+	return ctx.intent() == IntentManual
+}
+
+func (ctx TransitionContext) allowsLockOverride() bool {
+	return ctx.intent() == IntentReconcile || ctx.ForceOverride
+}
+
+func (ctx TransitionContext) allowsCooldownOverride() bool {
+	return ctx.allowsLockOverride()
 }
 
 // TransitionRequest captures a desired status change.
@@ -52,7 +86,7 @@ type transitionRule struct {
 // - Manual movement intent wins for starting: moving to in-progress emits ForceStart even if slots are full; leaving in-progress emits TerminateProcess.
 // - Terminal buckets (completed/failed/blocked/finalized/archived) always apply cooldown on entry; auto-requeue is disabled for manual moves and hard-stop buckets.
 // - Leaving terminal buckets re-enables auto-requeue, clears cooldown, and pending moves may opportunistically start if a slot exists.
-// - Auto-requeue=false is a lock: pending moves are rejected unless leaving a terminal state or ForceOverride=true.
+// - Auto-requeue=false is a lock: pending moves are rejected unless leaving a terminal state or using a reconcile intent (lock override).
 // - Recycler/automation only recycle from completed/failed with auto-requeue true and expired cooldown; Pending starts are signaled via StartIfSlotAvailable.
 // - Side effects are surfaced (terminate, force start, wake), never executed here; callers must act on TransitionEffects.
 //
@@ -87,7 +121,7 @@ func isTerminalStatus(status string) bool {
 // 1) Manual intent wins for starting: moving to in-progress emits ForceStart (caller bypasses slots), and moving out of in-progress emits TerminateProcess.
 // 2) Terminal buckets (completed/failed/blocked/finalized/archived) always apply cooldown; auto-requeue is disabled on manual moves and hard-stop buckets.
 // 3) Leaving terminal buckets re-enables auto-requeue and clears cooldown; pending moves from terminal may be started immediately if capacity exists.
-// 4) Auto-requeue=false is a lock: pending moves are rejected unless leaving a terminal state or ForceOverride=true.
+// 4) Auto-requeue=false is a lock: pending moves are rejected unless leaving a terminal state or using a reconcile intent.
 // 5) Recycler/automation only recycles from completed/failed and must respect cooldown + auto-requeue; Pending starts are signaled via StartIfSlotAvailable.
 // 6) Side effects are surfaced, never executed here: callers must terminate running processes, force-start, or wake processors per the returned flags.
 func (lc *Lifecycle) ApplyTransition(req TransitionRequest) (*TransitionOutcome, error) {
@@ -169,7 +203,7 @@ func lifecycleRules(lc *Lifecycle) map[string]transitionRule {
 					return effects, err
 				}
 
-				if req.Manual {
+				if req.isManual() {
 					effects.ForceStart = true
 				} else {
 					effects.StartIfSlotAvailable = true
@@ -184,10 +218,10 @@ func lifecycleRules(lc *Lifecycle) map[string]transitionRule {
 				effects := TransitionEffects{}
 
 				// Enforce lock unless leaving terminal state (which re-enables auto-requeue) or explicitly overridden.
-				if !isTerminalStatus(fromStatus) && !task.ProcessorAutoRequeue && !req.ForceOverride {
+				if !isTerminalStatus(fromStatus) && !task.ProcessorAutoRequeue && !req.allowsLockOverride() {
 					return effects, fmt.Errorf("auto-requeue disabled; cannot move %s to pending", req.TaskID)
 				}
-				if remaining := cooldownRemaining(task); remaining > 0 && !req.ForceOverride {
+				if remaining := cooldownRemaining(task); remaining > 0 && !req.allowsCooldownOverride() {
 					return effects, fmt.Errorf("task %s still cooling down (%v remaining)", req.TaskID, remaining)
 				}
 				if isTerminalStatus(fromStatus) {
@@ -274,7 +308,7 @@ func finalizeRule(toStatus string) func(lc *Lifecycle, task *TaskItem, fromStatu
 
 		// Moving into terminal buckets disables auto-requeue when manual intent is present,
 		// or when entering hard-stop buckets.
-		if req.Manual || toStatus == StatusFailedBlocked || toStatus == StatusCompletedFinalized {
+		if req.isManual() || toStatus == StatusFailedBlocked || toStatus == StatusCompletedFinalized {
 			task.ProcessorAutoRequeue = false
 		}
 		task.UpdatedAt = now

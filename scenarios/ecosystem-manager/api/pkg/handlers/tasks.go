@@ -777,15 +777,6 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		updatedTask.Status = currentStatus
 	}
 
-	// Auto-requeue lock: do not allow moving into pending while auto-requeue is disabled.
-	if newStatus == "pending" && newStatus != currentStatus && !updatedTask.ProcessorAutoRequeue {
-		// Only exception: leaving a terminal state will re-enable auto-requeue inside lifecycle.
-		if currentStatus != "completed" && currentStatus != "failed" && currentStatus != "failed-blocked" && currentStatus != "completed-finalized" && currentStatus != "archived" {
-			writeError(w, "Auto-requeue is disabled; enable it before moving task to pending", http.StatusConflict)
-			return
-		}
-	}
-
 	if updatedTask.Operation == "improver" && len(updatedTask.Targets) == 1 {
 		existing, status, lookupErr := h.storage.FindActiveTargetTask(updatedTask.Type, updatedTask.Operation, updatedTask.Targets[0])
 		if lookupErr != nil {
@@ -800,7 +791,7 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Route transitions through coordinator for consistency and centralized side effects.
-	ctx := tasks.TransitionContext{Manual: true}
+	ctx := tasks.TransitionContext{Intent: tasks.IntentManual}
 
 	updated, outcome, err := h.coordinator.ApplyTransition(tasks.TransitionRequest{
 		TaskID:            taskID,
@@ -838,9 +829,9 @@ func (h *TaskHandlers) DeleteTaskHandler(w http.ResponseWriter, r *http.Request)
 	vars := mux.Vars(r)
 	taskID := vars["id"]
 
-	// Check if task is running and terminate if necessary
-	if err := h.processor.TerminateRunningProcess(taskID); err == nil {
-		systemlog.Infof("Terminated running process for deleted task %s", taskID)
+	// If possible, rely on coordinator runtime to stop any running process before deletion.
+	if h.coordinator != nil && h.processor != nil {
+		_ = h.processor.TerminateRunningProcess(taskID)
 	}
 
 	// Delete the task file
@@ -892,7 +883,7 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 		TaskID:   taskID,
 		ToStatus: targetStatus,
 		TransitionContext: tasks.TransitionContext{
-			Manual: true,
+			Intent: tasks.IntentManual,
 		},
 	}, tasks.ApplyOptions{
 		Mutate: func(t *tasks.TaskItem) {

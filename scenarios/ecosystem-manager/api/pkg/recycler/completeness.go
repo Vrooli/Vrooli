@@ -11,13 +11,13 @@ import (
 
 // CompletenessResult represents the output from the completeness scoring system
 type CompletenessResult struct {
-	Scenario         string              `json:"scenario"`
-	Category         string              `json:"category"`
-	Score            int                 `json:"score"`
-	Classification   string              `json:"classification"`
-	Breakdown        CompletenessDetails `json:"breakdown"`
-	Warnings         []Warning           `json:"warnings"`
-	Recommendations  []string            `json:"recommendations"`
+	Scenario        string              `json:"scenario"`
+	Category        string              `json:"category"`
+	Score           int                 `json:"score"`
+	Classification  string              `json:"classification"`
+	Breakdown       CompletenessDetails `json:"breakdown"`
+	Warnings        []Warning           `json:"warnings"`
+	Recommendations []string            `json:"recommendations"`
 }
 
 // CompletenessDetails provides structured breakdown of the score
@@ -30,8 +30,8 @@ type CompletenessDetails struct {
 
 // QualityMetrics tracks pass rates
 type QualityMetrics struct {
-	Score              int      `json:"score"`
-	Max                int      `json:"max"`
+	Score               int      `json:"score"`
+	Max                 int      `json:"max"`
 	RequirementPassRate PassRate `json:"requirement_pass_rate"`
 	TargetPassRate      PassRate `json:"target_pass_rate"`
 	TestPassRate        PassRate `json:"test_pass_rate"`
@@ -47,10 +47,10 @@ type PassRate struct {
 
 // CoverageMetrics tracks test coverage and depth
 type CoverageMetrics struct {
-	Score             int                  `json:"score"`
-	Max               int                  `json:"max"`
-	TestCoverageRatio TestCoverageRatio    `json:"test_coverage_ratio"`
-	DepthScore        DepthScore           `json:"depth_score"`
+	Score             int               `json:"score"`
+	Max               int               `json:"max"`
+	TestCoverageRatio TestCoverageRatio `json:"test_coverage_ratio"`
+	DepthScore        DepthScore        `json:"depth_score"`
 }
 
 // TestCoverageRatio represents test-to-requirement ratio

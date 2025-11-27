@@ -54,13 +54,15 @@ type Application struct {
 	autoSteerMetricsCollector *autosteer.MetricsCollector
 
 	// Handlers
-	taskHandlers      *handlers.TaskHandlers
-	queueHandlers     *handlers.QueueHandlers
-	discoveryHandlers *handlers.DiscoveryHandlers
-	healthHandlers    *handlers.HealthHandlers
-	settingsHandlers  *handlers.SettingsHandlers
-	promptsHandlers   *handlers.PromptsHandlers
-	autoSteerHandlers *autosteer.AutoSteerHandlers
+	taskHandlers           *handlers.TaskHandlers
+	queueHandlers          *handlers.QueueHandlers
+	discoveryHandlers      *handlers.DiscoveryHandlers
+	healthHandlers         *handlers.HealthHandlers
+	settingsHandlers       *handlers.SettingsHandlers
+	promptsHandlers        *handlers.PromptsHandlers
+	insightHandlers        *handlers.InsightHandlers
+	autoSteerHandlers      *autosteer.AutoSteerHandlers
+	visitedTrackerHandlers *handlers.VisitedTrackerHandlers
 
 	// Paths
 	scenarioRoot string
@@ -347,6 +349,8 @@ func (a *Application) initializeComponents() error {
 	a.healthHandlers = handlers.NewHealthHandlers(a.processor, a.taskRecycler, queueDir, a.db, apiVersion)
 	a.settingsHandlers = handlers.NewSettingsHandlers(a.processor, a.wsManager, a.taskRecycler)
 	a.promptsHandlers = handlers.NewPromptsHandlers(a.assembler)
+	a.insightHandlers = handlers.NewInsightHandlers(a.processor, filepath.Dir(a.scenarioRoot))
+	a.visitedTrackerHandlers = handlers.NewVisitedTrackerHandlers(a.projectRoot)
 	a.autoSteerHandlers = autosteer.NewAutoSteerHandlers(a.autoSteerProfileService, a.autoSteerExecutionEngine, a.autoSteerHistoryService)
 	log.Println("✅ HTTP handlers initialized")
 
@@ -371,7 +375,9 @@ func (a *Application) setupRoutes() http.Handler {
 	a.registerQueueRoutes(api)
 	a.registerSettingsRoutes(api)
 	a.registerDiscoveryRoutes(api)
+	a.registerInsightRoutes(api)
 	a.registerAutoSteerRoutes(api)
+	a.registerVisitedTrackerRoutes(api)
 
 	origins := a.allowedOrigins
 	if len(origins) == 0 {
@@ -423,6 +429,7 @@ func (a *Application) registerTaskRoutes(api *mux.Router) {
 	api.HandleFunc("/tasks/{id}/status", a.taskHandlers.UpdateTaskStatusHandler).Methods("PUT")
 	api.HandleFunc("/tasks/{id}/logs", a.taskHandlers.GetTaskLogsHandler).Methods("GET")
 	api.HandleFunc("/tasks/{id}/executions", a.taskHandlers.GetExecutionHistoryHandler).Methods("GET")
+	api.HandleFunc("/tasks/{id}/executions/bulk-analysis", a.taskHandlers.GetExecutionBulkAnalysisHandler).Methods("GET")
 	api.HandleFunc("/tasks/{id}/executions/{execution_id}/prompt", a.taskHandlers.GetExecutionPromptHandler).Methods("GET")
 	api.HandleFunc("/tasks/{id}/executions/{execution_id}/output", a.taskHandlers.GetExecutionOutputHandler).Methods("GET")
 	api.HandleFunc("/tasks/{id}/executions/{execution_id}/metadata", a.taskHandlers.GetExecutionMetadataHandler).Methods("GET")
@@ -467,6 +474,19 @@ func (a *Application) registerDiscoveryRoutes(api *mux.Router) {
 	api.HandleFunc("/categories", a.discoveryHandlers.GetCategoriesHandler).Methods("GET")
 }
 
+func (a *Application) registerInsightRoutes(api *mux.Router) {
+	// Task-level insight routes
+	api.HandleFunc("/tasks/{id}/insights", a.insightHandlers.GetTaskInsightsHandler).Methods("GET")
+	api.HandleFunc("/tasks/{id}/insights/generate", a.insightHandlers.GenerateInsightReportHandler).Methods("POST")
+	api.HandleFunc("/tasks/{id}/insights/{report_id}", a.insightHandlers.GetInsightReportHandler).Methods("GET")
+	api.HandleFunc("/tasks/{id}/insights/{report_id}/suggestions/{suggestion_id}/status", a.insightHandlers.UpdateSuggestionStatusHandler).Methods("POST")
+	api.HandleFunc("/tasks/{id}/insights/{report_id}/suggestions/{suggestion_id}/apply", a.insightHandlers.ApplySuggestionHandler).Methods("POST")
+
+	// System-level insight routes
+	api.HandleFunc("/insights/system", a.insightHandlers.GetSystemInsightsHandler).Methods("GET")
+	api.HandleFunc("/insights/system/generate", a.insightHandlers.GenerateSystemInsightsHandler).Methods("POST")
+}
+
 func (a *Application) registerAutoSteerRoutes(api *mux.Router) {
 	api.HandleFunc("/auto-steer/profiles", a.autoSteerHandlers.CreateProfile).Methods("POST")
 	api.HandleFunc("/auto-steer/profiles", a.autoSteerHandlers.ListProfiles).Methods("GET")
@@ -490,6 +510,16 @@ func (a *Application) registerAutoSteerRoutes(api *mux.Router) {
 	api.HandleFunc("/auto-steer/history/{executionId}/feedback", a.autoSteerHandlers.SubmitFeedback).Methods("POST")
 
 	api.HandleFunc("/auto-steer/analytics/{profileId}", a.autoSteerHandlers.GetProfileAnalytics).Methods("GET")
+}
+
+func (a *Application) registerVisitedTrackerRoutes(api *mux.Router) {
+	// Proxy endpoints to visited-tracker scenario
+	api.HandleFunc("/visited-tracker/ui-port", a.visitedTrackerHandlers.GetVisitedTrackerUIPortHandler).Methods("GET")
+	api.HandleFunc("/visited-tracker/campaigns", a.visitedTrackerHandlers.ListCampaignsHandler).Methods("GET")
+	api.HandleFunc("/visited-tracker/campaigns/by-target", a.visitedTrackerHandlers.GetCampaignsForTargetHandler).Methods("GET")
+	api.HandleFunc("/visited-tracker/campaigns/{id}", a.visitedTrackerHandlers.GetCampaignHandler).Methods("GET")
+	api.HandleFunc("/visited-tracker/campaigns/{id}", a.visitedTrackerHandlers.DeleteCampaignHandler).Methods("DELETE")
+	api.HandleFunc("/visited-tracker/campaigns/{id}/reset", a.visitedTrackerHandlers.ResetCampaignHandler).Methods("POST")
 }
 
 type requestIDContextKey struct{}

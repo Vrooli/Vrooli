@@ -163,9 +163,8 @@ func (qp *Processor) reconcileInProgressTasks(externalActive, internalRunning ma
 			TaskID:   task.ID,
 			ToStatus: tasks.StatusPending,
 			TransitionContext: tasks.TransitionContext{
-				Manual:        true,
-				ForceOverride: true, // reconcile should not be blocked by auto-requeue locks
-				Now:           time.Now,
+				Intent: tasks.IntentReconcile, // reconcile should not be blocked by auto-requeue locks
+				Now:    time.Now,
 			},
 		})
 		if err != nil {

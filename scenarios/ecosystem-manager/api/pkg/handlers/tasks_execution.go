@@ -224,3 +224,165 @@ func stripLogPrefixes(content string) string {
 	}
 	return strings.TrimSpace(strings.Join(lines, "\n"))
 }
+
+// GetExecutionBulkAnalysisHandler retrieves execution data with file contents for analysis
+func (h *TaskHandlers) GetExecutionBulkAnalysisHandler(w http.ResponseWriter, r *http.Request) {
+	task, _, ok := h.getTaskFromRequest(r, w)
+	if !ok {
+		return
+	}
+
+	// Parse query parameters
+	limit := parseIntParam(r, "limit", 10)
+	statusFilter := r.URL.Query().Get("status") // e.g., "failed,timeout,completed"
+	includeFields := parseIncludeParam(r)       // e.g., "output,prompt,last_message"
+
+	// Load execution history for task
+	history, err := h.processor.LoadExecutionHistory(task.ID)
+	if err != nil {
+		log.Printf("ERROR: Failed to load execution history for bulk analysis (task %s): %v", task.ID, err)
+		systemlog.Errorf("Failed to load execution history for bulk analysis (task %s): %v", task.ID, err)
+		writeError(w, fmt.Sprintf("Failed to load execution history: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Filter and limit
+	filtered := filterExecutions(history, statusFilter, limit)
+
+	// Load file contents for each execution
+	results := make([]map[string]any, 0, len(filtered))
+	for _, exec := range filtered {
+		data := map[string]any{
+			"metadata": exec,
+		}
+
+		// Load requested files
+		files := loadExecutionFiles(h.processor, exec, includeFields)
+		for key, content := range files {
+			data[key] = content
+		}
+
+		results = append(results, data)
+	}
+
+	writeJSON(w, map[string]any{
+		"task_id":         task.ID,
+		"executions":      results,
+		"count":           len(results),
+		"total_available": len(history),
+		"filters": map[string]any{
+			"limit":  limit,
+			"status": statusFilter,
+		},
+	}, http.StatusOK)
+}
+
+// Helper functions
+
+// parseIntParam parses an integer query parameter with a default value
+func parseIntParam(r *http.Request, key string, defaultVal int) int {
+	if val := r.URL.Query().Get(key); val != "" {
+		if parsed, err := strconv.Atoi(val); err == nil {
+			return parsed
+		}
+	}
+	return defaultVal
+}
+
+// parseIncludeParam parses the "include" query parameter into a slice
+func parseIncludeParam(r *http.Request) []string {
+	include := r.URL.Query().Get("include")
+	if include == "" {
+		return []string{"output", "last_message"} // Default includes
+	}
+
+	fields := strings.Split(include, ",")
+	result := make([]string, 0, len(fields))
+	for _, field := range fields {
+		trimmed := strings.TrimSpace(field)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
+
+// filterExecutions filters execution history by status and applies limit
+func filterExecutions(history []queue.ExecutionHistory, statusFilter string, limit int) []queue.ExecutionHistory {
+	// If no status filter, just apply limit
+	if statusFilter == "" {
+		if limit > 0 && len(history) > limit {
+			return history[:limit]
+		}
+		return history
+	}
+
+	// Build status filter map
+	statuses := make(map[string]bool)
+	for _, s := range strings.Split(statusFilter, ",") {
+		trimmed := strings.TrimSpace(s)
+		if trimmed != "" {
+			statuses[trimmed] = true
+		}
+	}
+
+	// Filter by status and apply limit
+	filtered := make([]queue.ExecutionHistory, 0, limit)
+	for _, exec := range history {
+		if statuses[exec.ExitReason] {
+			filtered = append(filtered, exec)
+			if limit > 0 && len(filtered) >= limit {
+				break
+			}
+		}
+	}
+
+	return filtered
+}
+
+// loadExecutionFiles loads requested file contents for an execution
+func loadExecutionFiles(processor ProcessorAPI, exec queue.ExecutionHistory, include []string) map[string]string {
+	files := make(map[string]string)
+
+	for _, field := range include {
+		switch field {
+		case "output":
+			// Prefer clean output if available
+			if exec.CleanOutputPath != "" {
+				if content, err := os.ReadFile(processor.GetExecutionFilePath(exec.TaskID, exec.ExecutionID, "clean_output.txt")); err == nil {
+					files["output"] = string(content)
+					continue
+				}
+			}
+			// Fall back to sanitized regular output
+			if exec.OutputPath != "" {
+				if content, err := os.ReadFile(processor.GetExecutionFilePath(exec.TaskID, exec.ExecutionID, "output.log")); err == nil {
+					files["output"] = stripLogPrefixes(string(content))
+				}
+			}
+
+		case "prompt":
+			if exec.PromptPath != "" {
+				if content, err := os.ReadFile(processor.GetExecutionFilePath(exec.TaskID, exec.ExecutionID, "prompt.txt")); err == nil {
+					files["prompt"] = string(content)
+				}
+			}
+
+		case "last_message":
+			if exec.LastMessagePath != "" {
+				if content, err := os.ReadFile(processor.GetExecutionFilePath(exec.TaskID, exec.ExecutionID, "last-agent-message.txt")); err == nil {
+					files["last_message"] = string(content)
+				}
+			}
+
+		case "transcript":
+			if exec.TranscriptPath != "" {
+				if content, err := os.ReadFile(processor.GetExecutionFilePath(exec.TaskID, exec.ExecutionID, "transcript.jsonl")); err == nil {
+					files["transcript"] = string(content)
+				}
+			}
+		}
+	}
+
+	return files
+}
