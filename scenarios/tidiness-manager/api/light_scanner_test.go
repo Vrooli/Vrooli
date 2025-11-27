@@ -301,11 +301,11 @@ lint:
 func TestLightScanner_ContextCancellation(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create Makefile with slow target
+	// Create Makefile with slow target (reduced from 30s to 2s for faster test execution)
 	makefileContent := `
 .PHONY: lint
 lint:
-	@sleep 30
+	@sleep 2
 	@echo "Done"
 `
 	err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644)
@@ -313,14 +313,14 @@ lint:
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 60*time.Second)
+	scanner := NewLightScanner(tmpDir, 10*time.Second)
 
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// Cancel after 500ms
+	// Cancel after 100ms
 	go func() {
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		cancel()
 	}()
 

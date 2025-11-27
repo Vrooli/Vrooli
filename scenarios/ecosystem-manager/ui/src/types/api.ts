@@ -141,7 +141,6 @@ export interface Settings {
 export interface ProcessorSettings {
   concurrent_slots: number;
   cooldown_seconds: number;
-  max_tasks?: number;
   active: boolean;
 }
 

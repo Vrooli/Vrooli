@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -1306,5 +1307,265 @@ func TestBuildIssuesArgs(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// [REQ:TM-API-006] Test handleAgentStoreIssue - successful issue storage
+func TestHandleAgentStoreIssue_Success(t *testing.T) {
+	srv := setupTestServer(t)
+	if srv == nil {
+		return
+	}
+	defer srv.db.Close()
+
+	lineNum := 42
+	colNum := 10
+	campaignID := 1
+	issuePayload := map[string]interface{}{
+		"scenario":          "test-scenario",
+		"file_path":         "src/main.go",
+		"category":          "code_quality",
+		"severity":          "warning",
+		"title":             "Unused variable",
+		"description":       "Variable 'x' is declared but never used",
+		"line_number":       lineNum,
+		"column_number":     colNum,
+		"agent_notes":       "Found during static analysis",
+		"remediation_steps": "Remove unused variable",
+		"campaign_id":       campaignID,
+		"session_id":        "session-123",
+		"resource_used":     "claude-code",
+	}
+
+	payload, _ := json.Marshal(issuePayload)
+	req := httptest.NewRequest("POST", "/api/v1/agent/issues", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	srv.handleAgentStoreIssue(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Errorf("Expected status 201, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if _, ok := response["id"]; !ok {
+		t.Error("Response should include issue ID")
+	}
+	if _, ok := response["created_at"]; !ok {
+		t.Error("Response should include created_at timestamp")
+	}
+}
+
+// [REQ:TM-API-006] Test handleAgentStoreIssue - validation errors
+func TestHandleAgentStoreIssue_ValidationErrors(t *testing.T) {
+	srv := setupTestServer(t)
+	if srv == nil {
+		return
+	}
+	defer srv.db.Close()
+
+	tests := []struct {
+		name    string
+		payload map[string]interface{}
+		wantErr string
+	}{
+		{
+			name: "missing scenario",
+			payload: map[string]interface{}{
+				"file_path": "src/main.go",
+				"category":  "code_quality",
+				"severity":  "warning",
+			},
+			wantErr: "scenario, file_path, category, and severity are required",
+		},
+		{
+			name: "missing file_path",
+			payload: map[string]interface{}{
+				"scenario": "test-scenario",
+				"category": "code_quality",
+				"severity": "warning",
+			},
+			wantErr: "scenario, file_path, category, and severity are required",
+		},
+		{
+			name: "missing category",
+			payload: map[string]interface{}{
+				"scenario":  "test-scenario",
+				"file_path": "src/main.go",
+				"severity":  "warning",
+			},
+			wantErr: "scenario, file_path, category, and severity are required",
+		},
+		{
+			name: "missing severity",
+			payload: map[string]interface{}{
+				"scenario":  "test-scenario",
+				"file_path": "src/main.go",
+				"category":  "code_quality",
+			},
+			wantErr: "scenario, file_path, category, and severity are required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			payload, _ := json.Marshal(tt.payload)
+			req := httptest.NewRequest("POST", "/api/v1/agent/issues", bytes.NewReader(payload))
+			req.Header.Set("Content-Type", "application/json")
+			rr := httptest.NewRecorder()
+
+			srv.handleAgentStoreIssue(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Errorf("Expected status 400, got %d", rr.Code)
+			}
+
+			var response map[string]interface{}
+			if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+				t.Fatalf("Failed to parse response: %v", err)
+			}
+
+			if !strings.Contains(response["error"].(string), tt.wantErr) {
+				t.Errorf("Expected error to contain %q, got %q", tt.wantErr, response["error"])
+			}
+		})
+	}
+}
+
+// [REQ:TM-API-006] Test handleAgentStoreIssue - malformed JSON
+func TestHandleAgentStoreIssue_MalformedJSON(t *testing.T) {
+	srv := setupTestServer(t)
+	if srv == nil {
+		return
+	}
+	defer srv.db.Close()
+
+	req := httptest.NewRequest("POST", "/api/v1/agent/issues", strings.NewReader("invalid json"))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	srv.handleAgentStoreIssue(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", rr.Code)
+	}
+}
+
+// [REQ:TM-API-001] Test handleAgentGetScenarios - list all scenarios
+func TestHandleAgentGetScenarios(t *testing.T) {
+	srv := setupTestServer(t)
+	if srv == nil {
+		return
+	}
+	defer srv.db.Close()
+
+	// Insert test scenarios with issues
+	_, err := srv.db.Exec(`
+		INSERT INTO issues (scenario, file_path, category, severity, status, title)
+		VALUES
+			('scenario-a', 'file1.go', 'lint', 'error', 'open', 'Issue 1'),
+			('scenario-a', 'file2.go', 'lint', 'warning', 'open', 'Issue 2'),
+			('scenario-b', 'file3.go', 'type', 'error', 'resolved', 'Issue 3')
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert test data: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/v1/agent/scenarios", nil)
+	rr := httptest.NewRecorder()
+
+	srv.handleAgentGetScenarios(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	scenarios, ok := response["scenarios"].([]interface{})
+	if !ok {
+		t.Fatal("Response should include scenarios array")
+	}
+
+	if len(scenarios) < 2 {
+		t.Errorf("Expected at least 2 scenarios, got %d", len(scenarios))
+	}
+}
+
+// [REQ:TM-API-001] Test handleAgentGetScenarioDetail - get specific scenario
+func TestHandleAgentGetScenarioDetail(t *testing.T) {
+	srv := setupTestServer(t)
+	if srv == nil {
+		return
+	}
+	defer srv.db.Close()
+
+	// Insert test data
+	_, err := srv.db.Exec(`
+		INSERT INTO issues (scenario, file_path, category, severity, status, title)
+		VALUES ('test-scenario', 'file1.go', 'lint', 'error', 'open', 'Test Issue')
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert test data: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/v1/agent/scenarios/test-scenario", nil)
+	req = mux.SetURLVars(req, map[string]string{"scenario": "test-scenario"})
+	rr := httptest.NewRecorder()
+
+	srv.handleAgentGetScenarioDetail(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if response["scenario"] != "test-scenario" {
+		t.Errorf("Expected scenario 'test-scenario', got %v", response["scenario"])
+	}
+
+	// Check for expected fields
+	if _, ok := response["lightIssues"]; !ok {
+		t.Error("Response should include lightIssues count")
+	}
+	if _, ok := response["aiIssues"]; !ok {
+		t.Error("Response should include aiIssues count")
+	}
+	if _, ok := response["longFiles"]; !ok {
+		t.Error("Response should include longFiles count")
+	}
+	if _, ok := response["files"]; !ok {
+		t.Error("Response should include files array")
+	}
+}
+
+// [REQ:TM-API-001] Test handleAgentGetScenarioDetail - missing scenario parameter
+func TestHandleAgentGetScenarioDetail_MissingScenario(t *testing.T) {
+	srv := setupTestServer(t)
+	if srv == nil {
+		return
+	}
+	defer srv.db.Close()
+
+	req := httptest.NewRequest("GET", "/api/v1/agent/scenarios/", nil)
+	req = mux.SetURLVars(req, map[string]string{"scenario": ""})
+	rr := httptest.NewRecorder()
+
+	srv.handleAgentGetScenarioDetail(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", rr.Code)
 	}
 }

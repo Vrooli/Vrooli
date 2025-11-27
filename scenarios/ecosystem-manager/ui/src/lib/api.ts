@@ -43,7 +43,6 @@ const DEFAULT_SETTINGS: Settings = {
   processor: {
     concurrent_slots: 1,
     cooldown_seconds: 30,
-    max_tasks: 0,
     active: false,
   },
   agent: {
@@ -81,13 +80,6 @@ type ApiSettingsPayload = {
   task_timeout?: number;
   idle_timeout_cap?: number;
   condensed_mode?: boolean;
-  condensedMode?: boolean;
-  max_tasks?: number;
-  display?: {
-    theme?: string;
-    condensed_mode?: boolean;
-    condensedMode?: boolean;
-  };
   recycler?: {
     enabled_for?: string;
     interval_seconds?: number;
@@ -98,7 +90,6 @@ type ApiSettingsPayload = {
     completion_threshold?: number;
     failure_threshold?: number;
   };
-  settings?: ApiSettingsPayload;
 };
 
 const isTheme = (value: unknown): value is Settings['display']['theme'] =>
@@ -110,16 +101,12 @@ const isEnabledFor = (value: unknown): value is Settings['recycler']['enabled_fo
 const isModelProvider = (value: unknown): value is Settings['recycler']['model_provider'] =>
   value === 'ollama' || value === 'openrouter';
 
-function mapApiSettingsToUi(raw: ApiSettingsPayload | Settings): Settings {
-  const source = (raw as ApiSettingsPayload)?.settings ?? raw ?? {};
+function mapApiSettingsToUi(raw: ApiSettingsPayload | Settings | { settings?: ApiSettingsPayload }): Settings {
+  // Handle nested response from GET /api/settings (has "settings" wrapper)
+  const source = (raw as any)?.settings ?? raw ?? {};
   const recycler = (source as ApiSettingsPayload)?.recycler ?? {};
-  const display = (source as ApiSettingsPayload)?.display ?? {};
-  const theme = (source as ApiSettingsPayload)?.theme ?? display?.theme;
-  const condensed =
-    (source as ApiSettingsPayload)?.condensed_mode ??
-    (source as ApiSettingsPayload)?.condensedMode ??
-    display?.condensed_mode ??
-    (display as any)?.condensedMode;
+  const theme = (source as ApiSettingsPayload)?.theme;
+  const condensed = (source as ApiSettingsPayload)?.condensed_mode;
   const cooldown =
     (source as ApiSettingsPayload)?.cooldown_seconds ??
     (source as ApiSettingsPayload)?.refresh_interval ??
@@ -130,7 +117,6 @@ function mapApiSettingsToUi(raw: ApiSettingsPayload | Settings): Settings {
       concurrent_slots:
         (source as ApiSettingsPayload)?.slots ?? DEFAULT_SETTINGS.processor.concurrent_slots,
       cooldown_seconds: cooldown,
-      max_tasks: (source as ApiSettingsPayload)?.max_tasks ?? DEFAULT_SETTINGS.processor.max_tasks,
       active: (source as ApiSettingsPayload)?.active ?? DEFAULT_SETTINGS.processor.active,
     },
     agent: {
@@ -408,61 +394,30 @@ function normalizeRunningProcess(raw: any): RunningProcess {
 };
 
 function mapUiSettingsToApi(settings: Settings): ApiSettingsPayload {
-  const processor = {
+  return {
+    // Flat structure matching backend Settings struct
+    theme: settings.display.theme,
+    condensed_mode: settings.display.condensed_mode,
     slots: settings.processor.concurrent_slots,
     cooldown_seconds: settings.processor.cooldown_seconds,
     refresh_interval: settings.processor.cooldown_seconds, // legacy compatibility
     active: settings.processor.active,
-    max_tasks: settings.processor.max_tasks ?? 0,
-  };
-
-  const agent = {
     max_turns: settings.agent.max_turns,
     allowed_tools: settings.agent.allowed_tools,
     skip_permissions: settings.agent.skip_permissions,
     task_timeout: settings.agent.task_timeout_minutes,
     idle_timeout_cap: settings.agent.idle_timeout_cap_minutes,
-  };
-
-  const display = {
-    theme: settings.display.theme,
-    condensed_mode: settings.display.condensed_mode,
-    condensedMode: settings.display.condensed_mode,
-  };
-
-  const recycler = {
-    enabled_for: settings.recycler.enabled_for,
-    interval_seconds: settings.recycler.recycle_interval,
-    max_retries: settings.recycler.max_retries,
-    retry_delay_seconds: settings.recycler.retry_delay_seconds,
-    model_provider: settings.recycler.model_provider,
-    model_name: settings.recycler.model_name,
-    completion_threshold: settings.recycler.completion_threshold,
-    failure_threshold: settings.recycler.failure_threshold,
-  };
-
-  const payload: ApiSettingsPayload = {
-    // Flat shape
-    theme: display.theme,
-    ...processor,
-    ...agent,
-    condensed_mode: display.condensed_mode,
-    condensedMode: display.condensedMode,
-    display,
-    recycler,
-    // Legacy nested shape under "settings"
-    settings: {
-      ...processor,
-      ...agent,
-      theme: display.theme,
-      condensed_mode: display.condensed_mode,
-      condensedMode: display.condensedMode,
-      display,
-      recycler,
+    recycler: {
+      enabled_for: settings.recycler.enabled_for,
+      interval_seconds: settings.recycler.recycle_interval,
+      max_retries: settings.recycler.max_retries,
+      retry_delay_seconds: settings.recycler.retry_delay_seconds,
+      model_provider: settings.recycler.model_provider,
+      model_name: settings.recycler.model_name,
+      completion_threshold: settings.recycler.completion_threshold,
+      failure_threshold: settings.recycler.failure_threshold,
     },
   };
-
-  return payload;
 }
 
 // API base resolution (async, uses /config endpoint)
