@@ -37,6 +37,11 @@ type PromptFile struct {
 	ModifiedAt string `json:"modified_at,omitempty"`
 }
 
+// PhaseInfo represents a phase name for the UI.
+type PhaseInfo struct {
+	Name string `json:"name"`
+}
+
 // NewPromptsHandlers creates a new prompts handler set.
 func NewPromptsHandlers(assembler *prompts.Assembler) *PromptsHandlers {
 	return &PromptsHandlers{assembler: assembler}
@@ -50,6 +55,36 @@ func (h *PromptsHandlers) ListPromptFilesHandler(w http.ResponseWriter, r *http.
 		return
 	}
 	writeJSON(w, files, http.StatusOK)
+}
+
+// ListPhaseNamesHandler returns available phase names from prompts/phases/*.md files.
+func (h *PromptsHandlers) ListPhaseNamesHandler(w http.ResponseWriter, r *http.Request) {
+	phasesDir := filepath.Join(h.assembler.PromptsDir, "phases")
+	var phases []PhaseInfo
+
+	err := filepath.WalkDir(phasesDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if !strings.HasSuffix(d.Name(), ".md") {
+			return nil
+		}
+
+		// Extract phase name from filename (remove .md extension)
+		name := strings.TrimSuffix(d.Name(), ".md")
+		phases = append(phases, PhaseInfo{Name: name})
+		return nil
+	})
+
+	if err != nil {
+		writeError(w, fmt.Sprintf("Failed to list phase names: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, phases, http.StatusOK)
 }
 
 // GetPromptFileHandler returns the content of a prompt file.
@@ -72,6 +107,71 @@ func (h *PromptsHandlers) GetPromptFileHandler(w http.ResponseWriter, r *http.Re
 		Size:       info.Size(),
 		ModifiedAt: info.ModTime().UTC().Format(time.RFC3339),
 	}, http.StatusOK)
+}
+
+// CreatePromptFileHandler creates a new prompt file.
+func (h *PromptsHandlers) CreatePromptFileHandler(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeJSONBody[struct {
+		Path    string `json:"path"`
+		Content string `json:"content"`
+	}](w, r)
+	if !ok {
+		return
+	}
+
+	if strings.TrimSpace(payload.Path) == "" {
+		writeError(w, "Path is required", http.StatusBadRequest)
+		return
+	}
+
+	if strings.TrimSpace(payload.Content) == "" {
+		writeError(w, "Content must not be empty", http.StatusBadRequest)
+		return
+	}
+
+	clean := filepath.Clean(payload.Path)
+	if !strings.HasSuffix(clean, ".md") {
+		writeError(w, "Only markdown prompt files can be created", http.StatusBadRequest)
+		return
+	}
+
+	fullPath := filepath.Join(h.assembler.PromptsDir, clean)
+	if !strings.HasPrefix(fullPath, h.assembler.PromptsDir) {
+		writeError(w, "Invalid prompt path", http.StatusBadRequest)
+		return
+	}
+
+	// Check if file already exists
+	if _, err := os.Stat(fullPath); err == nil {
+		writeError(w, "Prompt file already exists", http.StatusConflict)
+		return
+	}
+
+	// Ensure parent directory exists
+	parentDir := filepath.Dir(fullPath)
+	if err := os.MkdirAll(parentDir, 0o755); err != nil {
+		writeError(w, fmt.Sprintf("Failed to create directory: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	if err := writeFile(fullPath, payload.Content); err != nil {
+		writeError(w, fmt.Sprintf("Failed to create prompt file: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	content, info, err := readFileWithInfo(fullPath)
+	if err != nil {
+		writeError(w, fmt.Sprintf("Failed to read created prompt: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, PromptFile{
+		ID:         filepath.ToSlash(clean),
+		Path:       filepath.ToSlash(clean),
+		Content:    content,
+		Size:       info.Size(),
+		ModifiedAt: info.ModTime().UTC().Format(time.RFC3339),
+	}, http.StatusCreated)
 }
 
 // UpdatePromptFileHandler overwrites a prompt file with new content.

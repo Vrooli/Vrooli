@@ -441,6 +441,8 @@ func (a *Application) registerPromptRoutes(api *mux.Router) {
 	api.HandleFunc("/tasks/{id}/prompt/assembled", a.taskHandlers.GetAssembledPromptHandler).Methods("GET")
 	api.HandleFunc("/prompt-viewer", a.taskHandlers.PromptViewerHandler).Methods("POST")
 	api.HandleFunc("/prompts", a.promptsHandlers.ListPromptFilesHandler).Methods("GET")
+	api.HandleFunc("/prompts", a.promptsHandlers.CreatePromptFileHandler).Methods("POST")
+	api.HandleFunc("/prompts/phases/names", a.promptsHandlers.ListPhaseNamesHandler).Methods("GET")
 	api.HandleFunc("/prompts/{path:.*}", a.promptsHandlers.GetPromptFileHandler).Methods("GET")
 	api.HandleFunc("/prompts/{path:.*}", a.promptsHandlers.UpdatePromptFileHandler).Methods("PUT")
 }
