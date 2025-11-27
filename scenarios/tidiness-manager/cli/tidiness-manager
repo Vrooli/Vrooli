@@ -388,6 +388,8 @@ cmd_recommend_refactors() {
     local sort_by="priority"
     local min_lines="0"
     local max_visits="0"
+    local format="detailed"
+    local auto_scan="false"
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -412,6 +414,14 @@ cmd_recommend_refactors() {
                 max_visits="$2"
                 shift 2
                 ;;
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --auto-scan)
+                auto_scan="true"
+                shift
+                ;;
             *)
                 # First positional arg is scenario
                 if [[ -z "$scenario" ]]; then
@@ -423,12 +433,14 @@ cmd_recommend_refactors() {
     done
 
     if [[ -z "$scenario" ]]; then
-        echo -e "${RED}✗${NC} Scenario name required"
-        echo "Usage: tidiness-manager recommend-refactors <scenario> [options]"
+        echo -e "${RED}✗${NC} Scenario name required" >&2
+        echo "Usage: tidiness-manager recommend-refactors <scenario> [options]" >&2
         return 1
     fi
 
-    echo -e "${BLUE}Getting refactor recommendations for $scenario...${NC}"
+    if [[ "$auto_scan" != "true" ]]; then
+        echo -e "${BLUE}Getting refactor recommendations for $scenario...${NC}" >&2
+    fi
 
     local query_params="scenario=$scenario&limit=$limit&sort_by=$sort_by"
     if [[ "$min_lines" != "0" ]]; then
@@ -437,35 +449,52 @@ cmd_recommend_refactors() {
     if [[ "$max_visits" != "0" ]]; then
         query_params="$query_params&max_visits=$max_visits"
     fi
+    if [[ "$auto_scan" == "true" ]]; then
+        query_params="$query_params&auto_scan=true"
+    fi
 
     response=$(api_request GET "/agent/refactor-recommendations?$query_params" || true)
     if [[ -z "$response" ]]; then
-        echo -e "${RED}✗${NC} API request failed"
+        echo -e "${RED}✗${NC} API request failed" >&2
         return 1
     fi
 
     error=$(echo "$response" | jq -r '.error // empty' 2>/dev/null || true)
     if [[ -n "$error" ]]; then
-        echo -e "${RED}✗${NC} Failed to get recommendations: $error"
+        echo -e "${RED}✗${NC} Failed to get recommendations: $error" >&2
         return 1
     fi
 
-    echo -e "${GREEN}✓${NC} Recommendations retrieved (sorted by: $sort_by)"
-    echo "$response" | jq -r '
-        if .recommendations then
-            "Found \(.count) files for refactoring:",
-            "",
-            (.recommendations[] | "  📝 \(.file_path)",
-             "     Language: \(.language) | Lines: \(.line_count) | Visit count: \(.visit_count)",
-             "     Priority: \(.refactor_priority | floor) | Staleness: \(.staleness_score | floor)",
-             (if .complexity_max then "     Max complexity: \(.complexity_max)" else "" end),
-             (if .todo_count > 0 then "     Tech debt: \(.todo_count) TODOs, \(.fixme_count) FIXMEs, \(.hack_count) HACKs" else "" end),
-             (if .has_test_file == false then "     ⚠️  No test file found" else "" end),
-             "")
-        else
-            .
-        end
-    ' 2>/dev/null || echo "$response"
+    # Handle different output formats
+    case "$format" in
+        paths)
+            # Output just file paths, one per line (for easy parsing)
+            echo "$response" | jq -r '.recommendations[]?.file_path // empty' 2>/dev/null
+            ;;
+        json)
+            # Output raw JSON
+            echo "$response"
+            ;;
+        detailed|*)
+            # Default: Human-readable detailed output
+            echo -e "${GREEN}✓${NC} Recommendations retrieved (sorted by: $sort_by)" >&2
+            echo "$response" | jq -r '
+                if .recommendations then
+                    "Found \(.count) files for refactoring:",
+                    "",
+                    (.recommendations[] | "  📝 \(.file_path)",
+                     "     Language: \(.language) | Lines: \(.line_count) | Visit count: \(.visit_count)",
+                     "     Priority: \(.refactor_priority | floor) | Staleness: \(.staleness_score | floor)",
+                     (if .complexity_max then "     Max complexity: \(.complexity_max)" else "" end),
+                     (if .todo_count > 0 then "     Tech debt: \(.todo_count) TODOs, \(.fixme_count) FIXMEs, \(.hack_count) HACKs" else "" end),
+                     (if .has_test_file == false then "     ⚠️  No test file found" else "" end),
+                     "")
+                else
+                    .
+                end
+            ' 2>/dev/null || echo "$response"
+            ;;
+    esac
 }
 
 cmd_help() {
@@ -491,11 +520,29 @@ COMMANDS
         Example:
           tidiness-manager scan ~/Vrooli/scenarios/browser-automation-studio
 
-    recommend-refactors SCENARIO [--limit N] [--sort-by CRITERIA] [--min-lines N] [--max-visits N]
+    recommend-refactors SCENARIO [OPTIONS]
         Get refactor recommendations combining visited-tracker data with code metrics
-        Sort by: priority (default), staleness, complexity, length, duplication
-        Example:
-          tidiness-manager recommend-refactors tidiness-manager --limit 5 --sort-by complexity
+
+        Options:
+          --limit N           Number of files to return (default: 5)
+          --sort-by CRITERIA  Sort by: priority (default), staleness, complexity, length, duplication
+          --min-lines N       Filter files with minimum line count
+          --max-visits N      Exclude files visited more than N times
+          --format FORMAT     Output format: detailed (default), paths, json
+          --auto-scan         Trigger light scan if no metrics exist for scenario
+
+        Examples:
+          # Get top 5 files by composite priority (recommended)
+          tidiness-manager recommend-refactors tidiness-manager --limit 5
+
+          # Get longest files
+          tidiness-manager recommend-refactors tidiness-manager --sort-by length
+
+          # Get paths only for scripting (easy parsing)
+          tidiness-manager recommend-refactors tidiness-manager --format paths --limit 10
+
+          # Auto-scan if needed, then return recommendations
+          tidiness-manager recommend-refactors my-scenario --auto-scan --limit 5
 
     issues [SCENARIO] [--category CAT] [--severity SEV] [--limit N]
         List tidiness issues for agent consumption (JSON output)

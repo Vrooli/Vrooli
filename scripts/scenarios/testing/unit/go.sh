@@ -745,8 +745,8 @@ testing::unit::run_go_tests() {
     # Parse JSON output and create structured reports
     _testing_go__parse_test_json "$json_output" "$coverage_root"
 
-    # Collect requirement tags from output
-    testing::unit::_go_collect_requirement_tags "$full_output"
+    # Collect requirement tags from output and source files
+    testing::unit::_go_collect_requirement_tags "$full_output" "."
 
     local enforce_requirements="${TESTING_REQUIREMENTS_ENFORCE:-${VROOLI_REQUIREMENTS_ENFORCE:-0}}"
     if [ "$enforce_requirements" = "1" ] && [ ${#TESTING_GO_REQUIREMENT_STATUS[@]} -eq 0 ]; then
@@ -875,11 +875,70 @@ testing::unit::_go_store_requirement_result() {
     fi
 }
 
+testing::unit::_go_extract_source_requirements() {
+    local test_dir="$1"
+    local -n req_map_ref="$2"
+
+    if [ ! -d "$test_dir" ]; then
+        return
+    fi
+
+    # Find all test files and extract REQ tags from comments
+    # Use grep and sed for maximum portability (avoid AWK extensions)
+    # Use process substitution to avoid subshell issues with associative arrays
+    while IFS='||' read -r test_name tags; do
+        if [ -n "$test_name" ] && [ -n "$tags" ]; then
+            req_map_ref["$test_name"]="$tags"
+        fi
+    done < <(
+        find "$test_dir" -name "*_test.go" -type f 2>/dev/null | while read -r test_file; do
+            local current_req_tags=""
+
+            while IFS= read -r line; do
+                # Check if line contains REQ tags in comment
+                if echo "$line" | grep -q '//.*\[REQ:'; then
+                    # Extract ALL REQ tags from line (handles multiple [REQ:ID] blocks)
+                    # Use grep -o to find all matches, then extract IDs
+                    current_req_tags=$(echo "$line" | grep -o '\[REQ:[A-Za-z0-9_,-]*\]' | sed 's/\[REQ:\(.*\)\]/\1/' | paste -sd,)
+                    continue
+                fi
+
+                # Check if line is a test function declaration
+                if echo "$line" | grep -q '^func Test[A-Za-z0-9_]*(.*)'; then
+                    if [ -n "$current_req_tags" ]; then
+                        # Extract test function name
+                        local test_name
+                        test_name=$(echo "$line" | sed -n 's/^func \(Test[A-Za-z0-9_]*\)(.*/\1/p')
+
+                        if [ -n "$test_name" ]; then
+                            echo "${test_name}||${current_req_tags}"
+                        fi
+                    fi
+                    # Reset for next test
+                    current_req_tags=""
+                    continue
+                fi
+
+                # Reset req_tags if we hit a non-comment, non-test line
+                if ! echo "$line" | grep -q '^[[:space:]]*//\|^func'; then
+                    current_req_tags=""
+                fi
+            done < "$test_file"
+        done
+    )
+}
+
 testing::unit::_go_collect_requirement_tags() {
     local output_path="$1"
+    local test_dir="${2:-.}"
+
     if [ -z "$output_path" ] || [ ! -f "$output_path" ]; then
         return
     fi
+
+    # Build source-based REQ map from test file comments
+    declare -A source_req_map
+    testing::unit::_go_extract_source_requirements "$test_dir" source_req_map
 
     while IFS= read -r line; do
         [[ "$line" =~ ---\ (PASS|FAIL|SKIP):\ (.*)$ ]] || continue
@@ -899,16 +958,39 @@ testing::unit::_go_collect_requirement_tags() {
         # Trim trailing timing information
         test_name="${test_name%% (*}"
 
+        # Extract REQ tags from test name (existing logic - supports TestREQ_ID_Name pattern)
         local tokens
         tokens=$(printf '%s\n' "$test_name" | grep -o 'REQ:[A-Za-z0-9_-]\+' || true)
-        if [ -z "$tokens" ]; then
-            continue
+
+        # Also check source file comments map
+        local source_tags="${source_req_map[$test_name]:-}"
+
+        # Combine tags from both sources
+        local all_req_ids=()
+
+        # Add tags from test name
+        if [ -n "$tokens" ]; then
+            for token in $tokens; do
+                local req_id="${token#REQ:}"
+                all_req_ids+=("$req_id")
+            done
         fi
 
-        local token
-        for token in $tokens; do
-            local requirement_id="${token#REQ:}"
-            testing::unit::_go_store_requirement_result "$requirement_id" "$normalized_status" "Go test ${test_name}"
+        # Add tags from source comments (comma-separated)
+        if [ -n "$source_tags" ]; then
+            IFS=',' read -ra tag_array <<< "$source_tags"
+            for tag in "${tag_array[@]}"; do
+                # Trim whitespace
+                tag=$(echo "$tag" | xargs)
+                if [ -n "$tag" ]; then
+                    all_req_ids+=("$tag")
+                fi
+            done
+        fi
+
+        # Record all found requirement IDs
+        for req_id in "${all_req_ids[@]}"; do
+            testing::unit::_go_store_requirement_result "$req_id" "$normalized_status" "Go test ${test_name}"
         done
     done < "$output_path"
 }
