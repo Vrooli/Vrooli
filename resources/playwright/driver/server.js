@@ -16,6 +16,7 @@ try {
 const PORT = Number(process.env.PLAYWRIGHT_DRIVER_PORT || 39400);
 const HOST = process.env.PLAYWRIGHT_DRIVER_HOST || '127.0.0.1';
 const EXEC_PATH = process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined;
+const PORT_FILE = process.env.PLAYWRIGHT_PORT_FILE || '';
 
 /** @type {Map<string, {browser: any, context: any, page: any, tracing?: boolean, video?: boolean, harPath?: string, tracePath?: string}>} */
 const sessions = new Map();
@@ -506,4 +507,11 @@ server.listen(PORT, HOST, () => {
   const address = server.address();
   // stdout JSON so Electron or scripts can parse the chosen port when PORT=0
   console.log(JSON.stringify({ status: 'listening', host: address.address, port: address.port }));
+  if (PORT_FILE) {
+    try {
+      require('fs').writeFileSync(PORT_FILE, String(address.port), { encoding: 'utf8' });
+    } catch (err) {
+      // non-fatal
+    }
+  }
 });
