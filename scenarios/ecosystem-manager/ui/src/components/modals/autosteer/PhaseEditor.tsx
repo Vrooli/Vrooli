@@ -3,7 +3,7 @@
  * Edit a single phase in an Auto Steer profile
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Trash2, CodeIcon, ArrowUp, ArrowDown, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ import type { AutoSteerPhase, SteerMode } from '@/types/api';
 import { ConditionBuilderModal } from './ConditionBuilderModal';
 import { Slider } from '@/components/ui/slider';
 import { AVAILABLE_METRICS } from './ConditionNode';
+import { usePhaseNames } from '@/hooks/usePromptFiles';
 
 interface PhaseEditorProps {
   phase: AutoSteerPhase;
@@ -32,17 +33,6 @@ interface PhaseEditorProps {
   isLast: boolean;
 }
 
-const PHASE_MODES = [
-  { value: 'progress', label: 'Progress' },
-  { value: 'ux', label: 'UX' },
-  { value: 'refactor', label: 'Refactor' },
-  { value: 'test', label: 'Test' },
-  { value: 'explore', label: 'Explore' },
-  { value: 'polish', label: 'Polish' },
-  { value: 'performance', label: 'Performance' },
-  { value: 'security', label: 'Security' },
-];
-
 const MODE_DESCRIPTIONS: Record<string, string> = {
   progress: 'Structured, step-by-step execution focused on momentum.',
   ux: 'UI/UX polish and usability-first execution.',
@@ -54,7 +44,12 @@ const MODE_DESCRIPTIONS: Record<string, string> = {
   security: 'Harden surfaces, permissions, and guardrails.',
 };
 
-const MODE_LABELS = Object.fromEntries(PHASE_MODES.map((m) => [m.value, m.label]));
+function toTitleCase(str: string): string {
+  return str
+    .split(/[-_]/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
 
 export function PhaseEditor({
   phase,
@@ -68,6 +63,14 @@ export function PhaseEditor({
   isLast,
 }: PhaseEditorProps) {
   const [isConditionBuilderOpen, setIsConditionBuilderOpen] = useState(false);
+  const { data: phaseNames = [], isLoading: phasesLoading } = usePhaseNames();
+
+  const phaseModes = useMemo(() => {
+    return phaseNames.map(p => ({
+      value: p.name,
+      label: toTitleCase(p.name),
+    }));
+  }, [phaseNames]);
 
   const updateField = (field: keyof AutoSteerPhase, value: any) => {
     onChange({ ...phase, [field]: value });
@@ -83,8 +86,8 @@ export function PhaseEditor({
     summarizeCondition(condition)
   );
 
-  const modeLabel = MODE_LABELS[phase.mode] || 'Select a mode';
-  const modeDescription = MODE_DESCRIPTIONS[phase.mode] || 'Choose a focus for this phase.';
+  const modeLabel = phaseModes.find(m => m.value === phase.mode)?.label || toTitleCase(phase.mode) || 'Select a mode';
+  const modeDescription = MODE_DESCRIPTIONS[phase.mode] || `Phase: ${modeLabel}`;
 
   return (
     <div className="p-4 border border-slate-700 rounded-lg bg-slate-800/50 space-y-4 shadow-sm">
@@ -162,12 +165,12 @@ export function PhaseEditor({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label>Mode *</Label>
-          <Select value={phase.mode} onValueChange={(value) => updateField('mode', value as SteerMode)}>
+          <Select value={phase.mode} onValueChange={(value) => updateField('mode', value as SteerMode)} disabled={phasesLoading}>
             <SelectTrigger>
-              <SelectValue />
+              <SelectValue placeholder={phasesLoading ? 'Loading phases...' : 'Select a phase'} />
             </SelectTrigger>
             <SelectContent>
-              {PHASE_MODES.map((mode) => (
+              {phaseModes.map((mode) => (
                 <SelectItem key={mode.value} value={mode.value}>
                   {mode.label}
                 </SelectItem>

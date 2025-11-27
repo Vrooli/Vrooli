@@ -29,8 +29,8 @@ import { useCreateTask } from '@/hooks/useTaskMutations';
 import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { useActiveTargets } from '@/hooks/useActiveTargets';
 import { useDiscoveryStore, refreshDiscovery } from '@/stores/discoveryStore';
+import { usePhaseNames } from '@/hooks/usePromptFiles';
 import type { TaskType, OperationType, Priority, CreateTaskInput, SteerMode } from '@/types/api';
-import { STEER_MODES } from '@/types/api';
 
 interface CreateTaskModalProps {
   open: boolean;
@@ -53,6 +53,7 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
 
   const createTask = useCreateTask();
   const { data: profiles = [] } = useAutoSteerProfiles();
+  const { data: phaseNames = [], isLoading: phasesLoading } = usePhaseNames();
   const { resources, scenarios, loading: discoveryLoading } = useDiscoveryStore(state => ({
     resources: state.resources,
     scenarios: state.scenarios,
@@ -319,16 +320,16 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
                     setAutoSteerProfileId(AUTO_STEER_NONE);
                   }
                 }}
-                disabled={autoSteerProfileId !== AUTO_STEER_NONE}
+                disabled={autoSteerProfileId !== AUTO_STEER_NONE || phasesLoading}
               >
                 <SelectTrigger id="steer-mode">
-                  <SelectValue placeholder="None (defaults to Progress)" />
+                  <SelectValue placeholder={phasesLoading ? 'Loading phases...' : 'None (defaults to Progress)'} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None (use Progress)</SelectItem>
-                  {STEER_MODES.map(mode => (
-                    <SelectItem key={mode} value={mode}>
-                      {mode.toUpperCase()}
+                  {phaseNames.map(phase => (
+                    <SelectItem key={phase.name} value={phase.name}>
+                      {phase.name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                     </SelectItem>
                   ))}
                 </SelectContent>

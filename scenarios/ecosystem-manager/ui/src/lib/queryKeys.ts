@@ -69,6 +69,7 @@ export const queryKeys = {
     all: ['prompts'] as const,
     list: () => [...queryKeys.prompts.all, 'list'] as const,
     file: (id: string) => [...queryKeys.prompts.all, 'file', id] as const,
+    phaseNames: () => [...queryKeys.prompts.all, 'phase-names'] as const,
   },
 
   // Logs

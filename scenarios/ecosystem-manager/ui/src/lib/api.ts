@@ -25,6 +25,7 @@ import type {
   PromptPreviewResult,
   PromptFileInfo,
   PromptFile,
+  PhaseInfo,
   AutoSteerProfile,
   AutoSteerTemplate,
   ProfilePerformance,
@@ -868,6 +869,17 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify({ content }),
     });
+  }
+
+  async createPromptFile(path: string, content: string): Promise<PromptFile> {
+    return this.fetchJSON<PromptFile>(`/api/prompts`, {
+      method: 'POST',
+      body: JSON.stringify({ path, content }),
+    });
+  }
+
+  async listPhaseNames(): Promise<PhaseInfo[]> {
+    return this.fetchJSON<PhaseInfo[]>(`/api/prompts/phases/names`);
   }
 
   // ==================== Auto Steer ====================

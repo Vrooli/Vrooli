@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FileText, RefreshCw, Save, FolderOpen, Eye, Copy } from 'lucide-react';
+import { FileText, RefreshCw, Save, FolderOpen, Eye, Copy, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -10,7 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { usePromptFile, usePromptFiles, useSavePromptFile } from '@/hooks/usePromptFiles';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { usePromptFile, usePromptFiles, useSavePromptFile, useCreatePromptFile } from '@/hooks/usePromptFiles';
 import { markdownToHtml } from '@/lib/markdown';
 import type { PromptFileInfo } from '@/types/api';
 
@@ -60,7 +69,11 @@ export function PromptLibraryPanel() {
   const [selectedId, setSelectedId] = useState<string>();
   const { data: file, isFetching: fileLoading, refetch } = usePromptFile(selectedId);
   const savePrompt = useSavePromptFile();
+  const createPrompt = useCreatePromptFile();
   const [draft, setDraft] = useState('');
+  const [isNewPromptDialogOpen, setIsNewPromptDialogOpen] = useState(false);
+  const [newPromptName, setNewPromptName] = useState('');
+  const [newPromptContent, setNewPromptContent] = useState('# New Phase Prompt\n\nDescribe the focus and goals of this phase here.');
 
   const groupedSections: GroupedPrompts[] = useMemo(() => {
     const groups: Record<string, PromptFileInfo[]> = {
@@ -117,15 +130,46 @@ export function PromptLibraryPanel() {
     }
   };
 
+  const handleCreateNewPrompt = () => {
+    if (!newPromptName.trim()) {
+      alert('Please enter a name for the new phase prompt');
+      return;
+    }
+
+    const fileName = newPromptName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const path = `phases/${fileName}.md`;
+
+    createPrompt.mutate(
+      { path, content: newPromptContent },
+      {
+        onSuccess: (data) => {
+          setIsNewPromptDialogOpen(false);
+          setNewPromptName('');
+          setNewPromptContent('# New Phase Prompt\n\nDescribe the focus and goals of this phase here.');
+          setSelectedId(data.id);
+        },
+        onError: (error: any) => {
+          alert(`Failed to create prompt: ${error.message || 'Unknown error'}`);
+        },
+      }
+    );
+  };
+
   const modifiedLabel = currentInfo?.modified_at
     ? new Date(currentInfo.modified_at).toLocaleString()
     : '—';
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 text-sm text-slate-400">
-        <FileText className="h-4 w-4" />
-        <span>Browse, edit, and preview raw prompt files</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-slate-400">
+          <FileText className="h-4 w-4" />
+          <span>Browse, edit, and preview raw prompt files</span>
+        </div>
+        <Button size="sm" onClick={() => setIsNewPromptDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          New Phase Prompt
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
@@ -261,6 +305,63 @@ export function PromptLibraryPanel() {
           </div>
         </div>
       </div>
+
+      {/* New Phase Prompt Dialog */}
+      <Dialog open={isNewPromptDialogOpen} onOpenChange={setIsNewPromptDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create New Phase Prompt</DialogTitle>
+            <DialogDescription>
+              Create a new auto steer phase prompt. This will be saved to the phases/ directory.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="prompt-name">Phase Name *</Label>
+              <Input
+                id="prompt-name"
+                value={newPromptName}
+                onChange={(e) => setNewPromptName(e.target.value)}
+                placeholder="e.g., Documentation, Code Review, etc."
+              />
+              <p className="text-xs text-slate-400">
+                This will be converted to a filename (e.g., "code-review.md")
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="prompt-content">Initial Content *</Label>
+              <Textarea
+                id="prompt-content"
+                value={newPromptContent}
+                onChange={(e) => setNewPromptContent(e.target.value)}
+                className="font-mono text-sm min-h-[200px]"
+                placeholder="Enter the phase prompt content in markdown..."
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsNewPromptDialogOpen(false);
+                setNewPromptName('');
+                setNewPromptContent('# New Phase Prompt\n\nDescribe the focus and goals of this phase here.');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateNewPrompt}
+              disabled={!newPromptName.trim() || !newPromptContent.trim() || createPrompt.isPending}
+            >
+              {createPrompt.isPending ? 'Creating...' : 'Create Phase Prompt'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -25,26 +25,8 @@ export type OperationType = 'generator' | 'improver';
 
 export type Priority = 'critical' | 'high' | 'medium' | 'low';
 
-export type SteerMode =
-  | 'progress'
-  | 'ux'
-  | 'refactor'
-  | 'test'
-  | 'explore'
-  | 'polish'
-  | 'performance'
-  | 'security';
-
-export const STEER_MODES: SteerMode[] = [
-  'progress',
-  'ux',
-  'refactor',
-  'test',
-  'explore',
-  'polish',
-  'performance',
-  'security',
-];
+// SteerMode is now dynamic - any phase name from prompts/phases/*.md files
+export type SteerMode = string;
 
 export interface Task {
   id: string;
@@ -492,6 +474,10 @@ export interface PromptFile {
   content: string;
   size: number;
   modified_at?: string;
+}
+
+export interface PhaseInfo {
+  name: string;
 }
 
 // ==================== API Response Wrappers ====================

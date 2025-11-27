@@ -29,6 +29,7 @@ import { Save, Archive, Trash2, RefreshCw, ChevronsUpDown, AlertCircle, Database
 import { useQuery } from '@tanstack/react-query';
 import { useUpdateTask, useDeleteTask } from '@/hooks/useTaskMutations';
 import { useAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExecution, useSeekAutoSteerExecution } from '@/hooks/useAutoSteer';
+import { usePhaseNames } from '@/hooks/usePromptFiles';
 import { api } from '@/lib/api';
 import { markdownToHtml } from '@/lib/markdown';
 import { queryKeys } from '@/lib/queryKeys';
@@ -36,7 +37,6 @@ import { ExecutionDetailCard } from '@/components/executions/ExecutionDetailCard
 import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfileEditorModal';
 import { InsightsTab } from '@/components/insights/InsightsTab';
 import type { Task, Priority, ExecutionHistory, UpdateTaskInput, SteerMode, Campaign } from '@/types/api';
-import { STEER_MODES } from '@/types/api';
 
 interface TaskDetailsModalProps {
   task: Task | null;
@@ -257,6 +257,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
   const { data: profiles = [] } = useAutoSteerProfiles();
+  const { data: phaseNames = [], isLoading: phasesLoading } = usePhaseNames();
   const {
     data: autoSteerState,
     isFetching: isAutoSteerStateLoading,
@@ -699,13 +700,13 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                   disabled={autoSteerProfileId !== AUTO_STEER_NONE}
                 >
                   <SelectTrigger id="detail-steer-mode">
-                    <SelectValue placeholder="None (use Progress)" />
+                    <SelectValue placeholder={phasesLoading ? 'Loading phases...' : 'None (use Progress)'} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None (use Progress)</SelectItem>
-                    {STEER_MODES.map(mode => (
-                      <SelectItem key={mode} value={mode}>
-                        {mode.toUpperCase()}
+                    {phaseNames.map(phase => (
+                      <SelectItem key={phase.name} value={phase.name}>
+                        {phase.name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                       </SelectItem>
                     ))}
                   </SelectContent>

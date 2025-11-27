@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
-import type { PromptFileInfo, PromptFile } from '@/types/api';
+import type { PromptFileInfo, PromptFile, PhaseInfo } from '@/types/api';
 
 export function usePromptFiles() {
   return useQuery<PromptFileInfo[]>({
@@ -26,5 +26,25 @@ export function useSavePromptFile() {
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.prompts.file(data.id), data);
     },
+  });
+}
+
+export function useCreatePromptFile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ path, content }: { path: string; content: string }) => api.createPromptFile(path, content),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.prompts.list() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.prompts.phaseNames() });
+      queryClient.setQueryData(queryKeys.prompts.file(data.id), data);
+    },
+  });
+}
+
+export function usePhaseNames() {
+  return useQuery<PhaseInfo[]>({
+    queryKey: queryKeys.prompts.phaseNames(),
+    queryFn: () => api.listPhaseNames(),
   });
 }
