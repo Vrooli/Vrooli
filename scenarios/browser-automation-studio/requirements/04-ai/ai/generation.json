@@ -43,7 +43,7 @@
       "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "Generated workflows pass deterministic validation",
       "description": "Ensures AI-generated workflows satisfy compilation constraints, have valid node references, and produce consistent execution plans.",
-      "status": "in_progress",
+      "status": "complete",
       "validation": [
         {
           "type": "test",
@@ -56,7 +56,7 @@
           "type": "automation",
           "ref": "test/playbooks/capabilities/04-ai/01-automation/generated-smoke.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow validates AI-generated workflow compilation, node references, and execution plan consistency."
         },
         {

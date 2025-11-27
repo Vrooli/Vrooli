@@ -3,13 +3,13 @@
 _Last reviewed: 2025-11-08_
 
 ## Context Snapshot
-- The automation stack (`api/automation/{executor,engine,recorder,events}`) orchestrates `navigate`, `wait`, `click`, `type`, `extract`, `screenshot`, and loop/branching nodes against Browserless through `BrowserlessEngine`. Outcomes are normalized into contracts payloads, persisted via `DBRecorder`, and streamed via `WSHubSink`, capturing console + network telemetry, element bounding boxes, click coordinates, and highlight/mask/zoom metadata.
+- The automation stack (`api/automation/{executor,engine,recorder,events}`) orchestrates `navigate`, `wait`, `click`, `type`, `extract`, `screenshot`, and loop/branching nodes against Playwright through `PlaywrightEngine`. Outcomes are normalized into contracts payloads, persisted via `DBRecorder`, and streamed via `WSHubSink`, capturing console + network telemetry, element bounding boxes, click coordinates, and highlight/mask/zoom metadata.
 - React Flow payloads store nodes and edges; the compiler normalises the DAG and preserves branching metadata for runtime evaluation, but loop constructs and richer compile-time validation are still pending.
 - The WebSocket hub (`api/websocket/hub.go`) streams structured `execution.*`, `step.*`, and `step.heartbeat` events consumed by the UI replay panel and CLI watcher. Cursor overlays for the UI remain roadmap work, but the CLI now emits heartbeat health states and can trigger replay exports directly.
 - Artifact persistence includes MinIO-backed screenshots, per-step telemetry bundles, cursor trails, replay-ready `timeline_frame` payloads, and JSON replay export packages. DOM snapshots and automated video rendering remain future milestones.
 
 ## Objectives
-1. Execute arbitrarily complex workflows (branching, loops, conditions) against Browserless with first-class actions (navigate, click, type, evaluate, extract, assertions).
+1. Execute arbitrarily complex workflows (branching, loops, conditions) against Playwright with first-class actions (navigate, click, type, evaluate, extract, assertions).
 2. Capture rich telemetry (console, network, DOM snapshots, pointer coordinates, viewport) while the run is in-flight and stream it to all subscribers in real time.
 3. Persist artifacts in a normalized schema that can power validation, analytics, and replay rendering (UI + automated video exports).
 4. Offer a stable event contract for both Web UI and CLI consumers, using a single native WebSocket transport built on the existing gorilla hub.
@@ -20,7 +20,7 @@ _Last reviewed: 2025-11-08_
 WorkflowService.ExecuteWorkflow ---> Workflow Graph Compiler ---> Execution Plan
            |                                                      |
            v                                                      v
-   ExecutionRegistry (Postgres) <---- Session Manager ----> Browserless Function API
+   ExecutionRegistry (Postgres) <---- Session Manager ----> Playwright Driver API
            |                                                      |
            v                                                      v
  WebSocket Hub <---- Telemetry Streamer ---- per-step events ----> Artifact Store (Postgres + MinIO)
@@ -51,22 +51,22 @@ Responsibilities:
   }
   ```
 - Support reusable sub-workflows by inlining referenced plans (with guard rails to prevent recursion loops).
-- Provide static analysis helpers (`Validate(plan ExecutionPlan) error`) so the API can reject malformed workflows without touching Browserless.
+- Provide static analysis helpers (`Validate(plan ExecutionPlan) error`) so the API can reject malformed workflows without touching the browser automation engine.
 
-### 2. Browserless Session Manager
-**Location:** `api/browserless/runtime`
+### 2. Playwright Session Manager
+**Location:** `api/automation/engine`
 
 Responsibilities:
-- Manage a long-lived Browserless session per execution (`/chrome/function` + context reuse) to reduce cold starts and retain state between steps.
+- Manage a long-lived Playwright session per execution (browser context reuse) to reduce cold starts and retain state between steps.
 - Attach instrumentation before navigation:
   - `page.on('console', ...)` → streamed as console events.
   - `page.on('request')`, `page.on('response')`, `page.on('requestfailed')` → network events.
   - `page.on('pageerror')`, `browser.on('disconnected')` → error telemetry.
-- Expose high-level primitives such as `Navigate`, `Click`, `Type`, `WaitFor`, `Screenshot`, `Evaluate`, `CollectElements` implemented via embedded JS modules shipped with the scenario (leveraging `resource-browserless/lib/workflow` helpers where possible).
-- Provide cancellation support (`context.CancelFunc`) so `StopExecution` can gracefully terminate the Browserless job and emit a terminal artifact.
+- Expose high-level primitives such as `Navigate`, `Click`, `Type`, `WaitFor`, `Screenshot`, `Evaluate`, `CollectElements` implemented via the Playwright driver (Node.js server).
+- Provide cancellation support (`context.CancelFunc`) so `StopExecution` can gracefully terminate the browser session and emit a terminal artifact.
 
 ### 3. Step Executors
-**Location:** `api/browserless/runtime/steps`
+**Location:** `api/automation/executor`
 
 Each `StepType` maps to an executor implementing:
 ```go
@@ -141,13 +141,13 @@ executions/<execution-id>/steps/<step-index>/
 ```
 
 Screenshot customization pipeline:
-- Baseline overlay injection now lives in `browserless/runtime/script.go`; extract reusable helpers into `resources/browserless/lib/workflow/highlight.js` so highlight/mask logic can be shared with future cursor/animation tooling.
+- Baseline overlay injection now lives in the Playwright driver (`api/automation/playwright-driver/server.js`); highlight/mask logic is implemented directly in the browser context.
 - Step executor composes options from node params (`focus_selector`, `highlight_selectors`, `mask_selectors`, `zoom_factor`), renders overlays in the browser context, captures PNG, and returns overlay metadata for replays.
 
 ### 6. Error Handling & Cancellation
-- Wrap each step in a retry policy (configurable per node) for transient Browserless/network hiccups.
+- Wrap each step in a retry policy (configurable per node) for transient browser/network hiccups.
 - On failure, emit `step.failed` + `execution.failed`, persist a rescue artifact bundle (last screenshot, console transcript, network summary), and mark `execution_steps.status = failed`.
-- Honour `StopExecution`: trigger context cancellation, wait for Browserless to settle, emit `execution.cancelled`, and persist partial progress.
+- Honour `StopExecution`: trigger context cancellation, wait for browser to settle, emit `execution.cancelled`, and persist partial progress.
 
 ### 7. CLI & UI Integration Notes
 - **UI:** Replace `socket.io-client` usage with native `WebSocket`, subscribe to new event types, update stores to build filmstrip + log timeline from streamed payloads.
@@ -156,9 +156,9 @@ Screenshot customization pipeline:
 
 ## Implementation Phases
 
-1. **Foundation (P0)**
+1. **Foundation (P0)** ✅ COMPLETED
    - Introduce `ExecutionPlan` compiler with validation; support sequential flows + deterministic ordering.
-   - Refactor `browserless.Client` into session manager + step executors; migrate navigate/wait/screenshot to new architecture.
+   - Refactor to use `PlaywrightEngine` with session manager + step executors; migrate navigate/wait/screenshot to new architecture.
    - Emit new WebSocket events (`execution.started`, `step.started`, `step.completed`, `step.screenshot`, `execution.completed`, `execution.failed`).
    - Persist `execution_steps` + `execution_artifacts` tables with migrations; update repository interfaces.
 
@@ -283,7 +283,7 @@ Screenshot customization pipeline:
 ### Runtime Semantics
 1. Resolve iteration source:
    - `times`: iterate `0..maxIterations-1` (optionally parameterised by expression).
-   - `forEach`: evaluate `CollectionExpr` inside Browserless; collection items become iteration context (`ctx.loop.item`).
+   - `forEach`: evaluate `CollectionExpr` inside the browser; collection items become iteration context (`ctx.loop.item`).
    - `while` / `doWhile`: run `Condition` JS between iterations. Condition scripts execute in a sandbox with whitelisted globals (`page`, `frame`, `iteration`, `contextData`).
 2. For each iteration:
    - Emit `step.loop_iteration_started` with iteration index, max, and optional item preview (first 256 chars of stringified item).
@@ -317,8 +317,9 @@ Screenshot customization pipeline:
 Adopting hierarchical plans preserves our acyclic compiler guarantees, keeps telemetry consistent, and unlocks richer validation/testing (AI agents can assert iteration counts). This structure also dovetails with the replay/video export roadmap—loop context feeds directly into captions and motion design.
 
 ## Next Actions
-- Break down `browserless.Client` refactor into incremental PRs (compiler, runtime/session manager, executors, telemetry).
-- Draft database migration for `execution_steps`/`execution_artifacts` (postgreSQL) and update repository interface (`api/database`).
-- Prototype native WebSocket client in UI to validate the event contract before removing socket.io.
-- Coordinate with `resource-browserless` maintainers to source reusable JS helpers for highlighting/annotations.
+- ✅ COMPLETED: Migrated to `PlaywrightEngine` with full automation stack refactor
+- ✅ COMPLETED: Database migrations for `execution_steps`/`execution_artifacts` tables
+- ✅ COMPLETED: Native WebSocket client in UI
+- Continue expanding Playwright driver instruction coverage (downloads, tracing, advanced assertions)
+- Add HAR/trace/video artifact storage for desktop exports
 - Update `docs/action-plan.md` as milestones land.

@@ -76,8 +76,8 @@ func TestAnalyzeElements_RequestValidation(t *testing.T) {
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] normalizes URL without protocol", func(t *testing.T) {
-		if os.Getenv("BROWSERLESS_URL") == "" && os.Getenv("BROWSERLESS_PORT") == "" {
-			t.Skip("Skipping browserless integration test - BROWSERLESS_URL/PORT not set")
+		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
+			t.Skip("Skipping integration test - PLAYWRIGHT_DRIVER_URL not set")
 		}
 
 		reqBody := ElementAnalysisRequest{URL: "example.com"}
@@ -87,8 +87,8 @@ func TestAnalyzeElements_RequestValidation(t *testing.T) {
 
 		handler.AnalyzeElements(w, req)
 
-		// Will fail at browserless step in unit test, but should accept the request
-		// and normalize URL to https://example.com - expect either 200 (success) or 500 (browserless error)
+		// Will fail at driver step in unit test, but should accept the request
+		// and normalize URL to https://example.com - expect either 200 (success) or 500 (driver error)
 		assert.Contains(t, []int{http.StatusOK, http.StatusInternalServerError}, w.Code,
 			"Should accept request with normalized URL")
 	})
@@ -128,8 +128,8 @@ func TestGetElementAtCoordinate_RequestValidation(t *testing.T) {
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] accepts zero coordinates", func(t *testing.T) {
-		if os.Getenv("BROWSERLESS_URL") == "" && os.Getenv("BROWSERLESS_PORT") == "" {
-			t.Skip("Skipping browserless integration test - BROWSERLESS_URL/PORT not set")
+		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
+			t.Skip("Skipping integration test - PLAYWRIGHT_DRIVER_URL not set")
 		}
 
 		reqBody := ElementAtCoordinateRequest{
@@ -143,14 +143,14 @@ func TestGetElementAtCoordinate_RequestValidation(t *testing.T) {
 
 		handler.GetElementAtCoordinate(w, req)
 
-		// Will fail at browserless in unit test, but should accept the request
+		// Will fail at driver in unit test, but should accept the request
 		assert.Contains(t, []int{http.StatusOK, http.StatusInternalServerError}, w.Code,
 			"Should accept valid request")
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] accepts negative coordinates", func(t *testing.T) {
-		if os.Getenv("BROWSERLESS_URL") == "" && os.Getenv("BROWSERLESS_PORT") == "" {
-			t.Skip("Skipping browserless integration test - BROWSERLESS_URL/PORT not set")
+		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
+			t.Skip("Skipping integration test - PLAYWRIGHT_DRIVER_URL not set")
 		}
 
 		// Negative coordinates might be valid in some viewport scenarios
@@ -165,14 +165,14 @@ func TestGetElementAtCoordinate_RequestValidation(t *testing.T) {
 
 		handler.GetElementAtCoordinate(w, req)
 
-		// Will fail at browserless, but request validation should pass
+		// Will fail at driver, but request validation should pass
 		assert.Contains(t, []int{http.StatusOK, http.StatusInternalServerError}, w.Code,
 			"Should accept valid request")
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] normalizes URL without protocol", func(t *testing.T) {
-		if os.Getenv("BROWSERLESS_URL") == "" && os.Getenv("BROWSERLESS_PORT") == "" {
-			t.Skip("Skipping browserless integration test - BROWSERLESS_URL/PORT not set")
+		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
+			t.Skip("Skipping integration test - PLAYWRIGHT_DRIVER_URL not set")
 		}
 
 		reqBody := ElementAtCoordinateRequest{
@@ -192,7 +192,7 @@ func TestGetElementAtCoordinate_RequestValidation(t *testing.T) {
 	})
 }
 
-func TestGetElementAtCoordinate_BrowserlessIntegration(t *testing.T) {
+func TestGetElementAtCoordinate_DriverIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
@@ -201,11 +201,11 @@ func TestGetElementAtCoordinate_BrowserlessIntegration(t *testing.T) {
 	log.SetOutput(os.Stderr)
 	handler := NewElementAnalysisHandler(log)
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles browserless connection failure", func(t *testing.T) {
-		// Set invalid browserless URL
-		originalURL := os.Getenv("BROWSERLESS_URL")
-		os.Setenv("BROWSERLESS_URL", "http://invalid-browserless:9999")
-		defer os.Setenv("BROWSERLESS_URL", originalURL)
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles driver connection failure", func(t *testing.T) {
+		// Set invalid driver URL
+		originalURL := os.Getenv("PLAYWRIGHT_DRIVER_URL")
+		os.Setenv("PLAYWRIGHT_DRIVER_URL", "http://invalid-driver:9999")
+		defer os.Setenv("PLAYWRIGHT_DRIVER_URL", originalURL)
 
 		ctx := context.Background()
 
@@ -215,10 +215,10 @@ func TestGetElementAtCoordinate_BrowserlessIntegration(t *testing.T) {
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles navigation failure", func(t *testing.T) {
-		// Check if browserless is available
-		browserlessURL := os.Getenv("BROWSERLESS_URL")
-		if browserlessURL == "" {
-			browserlessURL = "http://127.0.0.1:4110"
+		// Check if Playwright driver is available
+		driverURL := os.Getenv("PLAYWRIGHT_DRIVER_URL")
+		if driverURL == "" {
+			driverURL = "http://127.0.0.1:39400"
 		}
 
 		ctx := context.Background()
@@ -226,9 +226,9 @@ func TestGetElementAtCoordinate_BrowserlessIntegration(t *testing.T) {
 		// Use an invalid URL that will fail navigation
 		_, err := handler.getElementAtCoordinate(ctx, "https://this-domain-does-not-exist-12345.com", 100, 200)
 
-		if err != nil && (err.Error() == "browserless URL not configured" ||
-			err.Error() == "failed to navigate to URL: Post \"http://127.0.0.1:4110/runtime/execute\": dial tcp 127.0.0.1:4110: connect: connection refused") {
-			t.Skip("Browserless not available")
+		if err != nil && (err.Error() == "PLAYWRIGHT_DRIVER_URL required for replay rendering" ||
+			err.Error() == "failed to navigate to URL: Post \"http://127.0.0.1:39400/session/start\": dial tcp 127.0.0.1:39400: connect: connection refused") {
+			t.Skip("Playwright driver not available")
 		}
 
 		assert.Error(t, err)

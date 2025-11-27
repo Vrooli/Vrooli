@@ -59,6 +59,18 @@
             "height"
           ],
           "additionalProperties": true
+        },
+        "entrySelector": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entrySelectorTimeoutMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "entryTimeoutMs": {
+          "type": "number",
+          "minimum": 0
         }
       },
       "additionalProperties": true

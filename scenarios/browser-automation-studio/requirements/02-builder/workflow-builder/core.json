@@ -12,55 +12,55 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "Workflows persist nodes, edges, and metadata",
       "description": "Validates compiler, database, and API layers so workflows round-trip with folder hierarchy and normalized metadata required for execution planning.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "test",
           "ref": "api/automation/compiler/compiler_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Ensures ordering, cycle detection, and unsupported node handling."
         },
         {
           "type": "test",
           "ref": "api/browserless/cdp/session_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Exercises Browserless CDP session payloads without external dependencies."
         },
         {
           "type": "test",
           "ref": "api/database/repository_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Confirms workflow persistence and retrieval with folder hierarchy metadata."
         },
         {
           "type": "test",
           "ref": "test/phases/test-unit.sh",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Unit phase aggregates Go + Node coverage with thresholds enforced."
         },
         {
           "type": "test",
           "ref": "ui/src/stores/projectStore.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/stores/workflowStore.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/components/__tests__/WorkflowBuilder.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         }
       ]

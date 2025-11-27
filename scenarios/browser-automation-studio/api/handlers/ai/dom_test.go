@@ -32,8 +32,8 @@ func TestExtractDOMTree_URLNormalization(t *testing.T) {
 	handler := NewDOMHandler(log)
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] adds https:// to bare domain", func(t *testing.T) {
-		if os.Getenv("BROWSERLESS_URL") == "" && os.Getenv("BROWSERLESS_PORT") == "" {
-			t.Skip("Skipping browserless integration test - BROWSERLESS_URL/PORT not set")
+		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
+			t.Skip("Skipping integration test - PLAYWRIGHT_DRIVER_URL not set")
 		}
 
 		ctx := context.Background()
@@ -93,17 +93,17 @@ func TestExtractDOMTree_Integration(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	// Check if browserless is available
+	// Check if Playwright driver is available
 	// We need to set proper env vars for this test
-	originalURL := os.Getenv("BROWSERLESS_URL")
+	originalURL := os.Getenv("PLAYWRIGHT_DRIVER_URL")
 	defer func() {
-		os.Setenv("BROWSERLESS_URL", originalURL)
+		os.Setenv("PLAYWRIGHT_DRIVER_URL", originalURL)
 	}()
 
-	// Try to detect browserless
-	browserlessURL := os.Getenv("BROWSERLESS_URL")
-	if browserlessURL == "" {
-		browserlessURL = "http://127.0.0.1:4110"
+	// Try to detect Playwright driver
+	driverURL := os.Getenv("PLAYWRIGHT_DRIVER_URL")
+	if driverURL == "" {
+		driverURL = "http://127.0.0.1:39400"
 	}
 
 	log := logrus.New()
@@ -117,8 +117,8 @@ func TestExtractDOMTree_Integration(t *testing.T) {
 		domTree, err := handler.ExtractDOMTree(ctx, "https://example.com")
 
 		if err != nil {
-			// Browserless not available, skip this test
-			t.Skipf("Browserless not available at %s: %v", browserlessURL, err)
+			// Playwright driver not available, skip this test
+			t.Skipf("Playwright driver not available at %s: %v", driverURL, err)
 			return
 		}
 
@@ -157,7 +157,7 @@ func TestExtractDOMTree_Integration(t *testing.T) {
 		domTree, err := handler.ExtractDOMTree(ctx, "https://www.wikipedia.org")
 
 		if err != nil {
-			t.Skipf("Browserless not available: %v", err)
+			t.Skipf("Playwright driver not available: %v", err)
 			return
 		}
 

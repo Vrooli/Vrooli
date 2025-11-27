@@ -158,8 +158,17 @@
       "description": "Start browser automation studio with production UI bundle",
       "steps": [
         {
+          "name": "start-playwright-driver",
+          "run": "if [ -n \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then exit 0; fi; ../../resources/playwright/cli.sh start",
+          "description": "Start local Playwright driver if no driver URL is configured",
+          "background": true,
+          "condition": {
+            "file_exists": "../../resources/playwright/cli.sh"
+          }
+        },
+        {
           "name": "start-api",
-          "run": "cd api && ./browser-automation-studio-api",
+          "run": "if [ -z \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then export PLAYWRIGHT_DRIVER_URL=\"http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT:-39400}\"; fi; cd api && ./browser-automation-studio-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -196,6 +205,11 @@
       "description": "Stop all browser automation studio services",
       "steps": [
         {
+          "name": "stop-playwright-driver",
+          "run": "if [ -f /tmp/vrooli-playwright-driver.pid ]; then ../../resources/playwright/cli.sh stop; fi",
+          "description": "Stop local Playwright driver if started"
+        },
+        {
           "name": "stop-api",
           "run": "pkill -f \"browser-automation-studio-api\" || true; sleep 1; pkill -9 -f \"browser-automation-studio-api\" 2>/dev/null || true",
           "description": "Stop API process"
@@ -217,8 +231,8 @@
         "description": "Workflow definitions and execution history storage",
         "schema": "browser_automation_studio"
       },
-      "browserless": {
-        "type": "browserless",
+      "playwright-driver": {
+        "type": "playwright",
         "enabled": true,
         "required": true,
         "description": "Core browser automation engine for workflow execution"
@@ -481,6 +495,40 @@
           ],
           "packaging_hints": [
             "Requires Puppeteer-compatible fonts + sandbox syscalls"
+          ]
+        },
+        "playwright-driver": {
+          "resource_type": "browser-automation",
+          "footprint": {
+            "ram_mb": 768,
+            "disk_mb": 512,
+            "cpu_cores": 1,
+            "network": "optional",
+            "source": "estimated",
+            "confidence": "low"
+          },
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.75,
+              "notes": "Non-Docker Node driver on localhost"
+            },
+            "tier-2-desktop": {
+              "supported": true,
+              "fitness_score": 0.9,
+              "notes": "Packaged driver spawned by Electron; reuse bundled Chromium via PLAYWRIGHT_CHROMIUM_PATH when possible"
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "browserless",
+              "relationship": "fallback",
+              "notes": "Use when remote pool is available"
+            }
+          ],
+          "packaging_hints": [
+            "Bundle driver/server.js with desktop app",
+            "If not reusing Electron Chromium, include @playwright/browser-chromium per platform"
           ]
         },
         "minio": {

@@ -29,7 +29,7 @@ func (f *StaticFactory) Resolve(_ context.Context, name string) (AutomationEngin
 		return nil, fmt.Errorf("engine factory not configured")
 	}
 	if name == "" {
-		name = "browserless"
+		name = "playwright"
 	}
 	eng, ok := f.engines[strings.ToLower(name)]
 	if !ok {

@@ -17,7 +17,7 @@ Guarantees:
 ```mermaid
 flowchart TB
     Plan["ExecutionPlan\n(CompiledInstructions)"]
-    Engine["AutomationEngine\n(BrowserlessEngine)"]
+    Engine["AutomationEngine\n(PlaywrightEngine)"]
     Executor["SimpleExecutor"]
     Outcome["StepOutcome\n(schema_version, payload_version,\nsize limits applied)"]
     Recorder["DBRecorder"]

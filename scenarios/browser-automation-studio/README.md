@@ -6,6 +6,11 @@ Visual browser automation workflow builder with AI-powered generation and debugg
 
 Browser Automation Studio transforms browser automation from code-based scripts to visual, self-healing workflows. It provides a drag-and-drop interface for creating browser automation workflows, real-time execution monitoring with screenshots, and AI assistance for both generation and debugging.
 
+### Engine selection (Browserless vs Playwright)
+- Default: Browserless (`ENGINE=browserless` or unset).
+- Playwright: set `ENGINE=playwright` (or `ENGINE_OVERRIDE=playwright`). If `PLAYWRIGHT_DRIVER_URL` is unset, the lifecycle starts the local Playwright driver from `resources/playwright` and exports `PLAYWRIGHT_DRIVER_URL=http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT:-39400}` automatically. Stop hooks clean it up.
+- Desktop/Electron: bundle `resources/playwright/driver/server.js`, spawn it from Electron main (allowing `PORT=0` for a free port), capture the port, and launch the bundled API with `ENGINE=playwright` and `PLAYWRIGHT_DRIVER_URL=<captured>`. To avoid bundling another Chromium (~80–120 MB), align Playwright with the Electron Chromium version and set `PLAYWRIGHT_CHROMIUM_PATH` to that binary.
+
 ## ⚠️ Current Implementation Status (2025-11-14)
 - The automation executor/engine stack (`api/automation/{executor,engine,recorder,events}`) now drives Browserless via the `BrowserlessEngine`, emitting normalized `StepOutcome` payloads through `WSHubSink` and persisting through `DBRecorder`. It covers `navigate`, `wait`, `click`, `type`, `extract`, `loop`, and `screenshot` nodes with console/network telemetry, bounding boxes, click coordinates, cursor trails, extracted payloads, and focus/highlight/mask/zoom metadata recorded in `execution_steps` and `execution_artifacts` (timeline frames included). Success/failure/else branching, runtime loop execution (for-each, repeat, while), and per-node retry/backoff policies record attempt history alongside screenshots and telemetry.
 - Assertion nodes now evaluate selector existence/text/attributes directly in Browserless, emitting structured assertion artifacts, timeline metadata, and CLI/UI logs that short-circuit executions on failure.
@@ -150,6 +155,19 @@ On first run (or whenever the database is empty) the API seeds a ready-to-run wo
 
   The `execute` command prints the execution ID so you can feed it directly into `execution watch`, `execution export`, or `execution render` to pull telemetry and marketing-ready assets.
 - **Playbook sanity check:** `testing::playbooks::bas::run_workflow --file test/playbooks/projects/demo-sanity.json` boots the scenario and verifies the demo project/workflow are exposed via the API—handy for CI keep-alive jobs or local smoke checks.
+
+## Using the Playwright engine (optional)
+
+Browserless remains the default engine. To run with Playwright instead:
+
+1) Start the Playwright driver resource (non-Docker): `resource-playwright start` (installs node deps first time; uses the vendored Chromium or `PLAYWRIGHT_CHROMIUM_PATH` if set).
+2) Export engine env vars: `eval "$(resource-playwright env)"` (sets `ENGINE=playwright` and `PLAYWRIGHT_DRIVER_URL` for the current shell).
+3) Start the scenario normally: `vrooli scenario start browser-automation-studio` (or `make start`/`vrooli develop`); the API will resolve the Playwright engine via those envs.
+4) Stop the driver when done: `resource-playwright stop`.
+
+Notes:
+- The driver must be running and reachable for health checks to pass when `ENGINE=playwright`.
+- For desktop/Electron bundles, start the driver from Electron main (PORT=0), read the chosen port, and inject `PLAYWRIGHT_DRIVER_URL`/`ENGINE=playwright` into the bundled API before launching the UI.
 
 ## 🏗️ Architecture
 

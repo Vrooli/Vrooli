@@ -14,7 +14,7 @@ flowchart LR
     end
     subgraph Engine["automation/engine"]
         SEL["selection.go\nENV: ENGINE/ENGINE_OVERRIDE"]
-        ENG["AutomationEngine (BrowserlessEngine today)\nStartSession/Run/Reset/Close"]
+        ENG["AutomationEngine (PlaywrightEngine)\nStartSession/Run/Reset/Close"]
     end
     subgraph Recorder["automation/recorder"]
         REC["DBRecorder\nstep rows, artifacts, screenshots, DOM\ntruncation/dedupe"]
@@ -55,10 +55,10 @@ Key invariants:
   - [events/README.md](events/README.md)
 
 ### Legacy isolation
-- The legacy Browserless client (`browserless/client.go`) has been removed. Runtime execution flows exclusively through `automation/executor` + `BrowserlessEngine` + `DBRecorder` + `WSHubSink`.
+- The legacy Browserless client (`browserless/client.go`) has been removed. Runtime execution flows exclusively through `automation/executor` + `PlaywrightEngine` + `DBRecorder` + `WSHubSink`.
 - There is no feature-flag fallback to the legacy executor; `executeWithAutomationEngine` is the sole workflow execution path.
 - Subflows: only `subflow` nodes are supported for child execution; legacy `workflowCall` is rejected.
-- Engines: Browserless (CDP) and Playwright (local driver) are supported behind the same `AutomationEngine` interface; select via `ENGINE` / `ENGINE_OVERRIDE`.
+- Engines: Playwright (local driver) is the only supported engine behind the `AutomationEngine` interface; select via `ENGINE` / `ENGINE_OVERRIDE` (defaults to `playwright`).
 
 ### Flow navigation (where complex orchestration lives)
 - Planning/compilation: `executor/plan_builder.go`
@@ -69,10 +69,10 @@ Key invariants:
 - Future variable interpolation/cancellation/session policy should also land in `executor/` alongside these files so flow logic stays discoverable.
 
 ## Feature Flags / Selection
-- `ENGINE` sets the default engine (e.g., `browserless`).
+- `ENGINE` sets the default engine (defaults to `playwright`).
 - `ENGINE_OVERRIDE` forces all executions to use a specific engine.
-- The automation executor is now the only execution path; `ENGINE_FEATURE_FLAG` / shadow mode are ignored for routing. Legacy browserless execution is no longer invoked from the WorkflowService.
-- Playwright driver: set `ENGINE=playwright` (or `ENGINE_OVERRIDE=playwright`) and point `PLAYWRIGHT_DRIVER_URL` at the local driver (defaults to `http://127.0.0.1:39400` for dev).
+- The automation executor is now the only execution path; `ENGINE_FEATURE_FLAG` / shadow mode are ignored for routing.
+- Playwright driver: set `PLAYWRIGHT_DRIVER_URL` to point at the local driver (defaults to `http://127.0.0.1:39400` for dev).
 
 ## Current Coverage
 - Covered: linear + graph execution (repeat/forEach/while loops with executor-owned `set_variable`), `${var}` interpolation, heartbeats, retries, capability preflight, DB persistence of step outcomes/console/network/assert/assertion/screenshot artifacts, websocket event emission, clean reuse mode (session reset between steps).
