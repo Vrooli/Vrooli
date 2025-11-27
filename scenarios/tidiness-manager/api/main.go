@@ -30,6 +30,7 @@ type Server struct {
 	config            *Config
 	db                *sql.DB
 	router            *mux.Router
+	campaignMgr       *CampaignManager
 	scenarioCache     []string
 	scenarioCacheTime time.Time
 	scenarioCacheTTL  time.Duration
@@ -60,6 +61,7 @@ func NewServer() (*Server, error) {
 		config:           cfg,
 		db:               db,
 		router:           mux.NewRouter(),
+		campaignMgr:      NewCampaignManager(),
 		scenarioCacheTTL: 5 * time.Minute, // Cache scenario list for 5 minutes
 	}
 
@@ -92,6 +94,9 @@ func (s *Server) setupRoutes() {
 	// Scenario detail endpoint (OT-P0-010) - must be registered before generic list endpoint
 	s.router.HandleFunc("/api/v1/agent/scenarios/{name}", s.handleAgentGetScenarioDetail).Methods("GET", "OPTIONS")
 	s.router.HandleFunc("/api/v1/agent/scenarios", s.handleAgentGetScenarios).Methods("GET", "OPTIONS")
+
+	// Refactor recommendations endpoint - combines visited-tracker + file metrics
+	s.router.HandleFunc("/api/v1/agent/refactor-recommendations", s.handleRefactorRecommendations).Methods("GET", "OPTIONS")
 
 	// Auto-campaign endpoints (OT-P1-001, OT-P1-002)
 	s.router.HandleFunc("/api/v1/campaigns", s.handleCreateCampaign).Methods("POST", "OPTIONS")

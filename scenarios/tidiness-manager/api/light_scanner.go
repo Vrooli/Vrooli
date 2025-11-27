@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"os/exec"
@@ -81,8 +82,19 @@ type LongFile struct {
 	Threshold int    `json:"threshold"`
 }
 
+// ScanOptions configures scan behavior
+type ScanOptions struct {
+	Incremental bool        // Only scan files modified since last scan
+	DB          *sql.DB     // Database connection for incremental mode
+}
+
 // Scan runs the complete light scan pipeline
 func (ls *LightScanner) Scan(ctx context.Context) (*ScanResult, error) {
+	return ls.ScanWithOptions(ctx, ScanOptions{Incremental: false, DB: nil})
+}
+
+// ScanWithOptions runs the light scan with custom options
+func (ls *LightScanner) ScanWithOptions(ctx context.Context, opts ScanOptions) (*ScanResult, error) {
 	startTime := time.Now()
 
 	result := &ScanResult{
@@ -108,8 +120,16 @@ func (ls *LightScanner) Scan(ctx context.Context) (*ScanResult, error) {
 		result.TypeOutput = typeResult
 	}
 
-	// Collect file metrics
-	metrics, err := ls.collectFileMetrics()
+	// Collect file metrics (with incremental support)
+	var metrics []FileMetric
+	var err error
+
+	if opts.Incremental && opts.DB != nil {
+		metrics, err = ls.collectFileMetricsIncremental(ctx, opts.DB)
+	} else {
+		metrics, err = ls.collectFileMetrics()
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to collect file metrics: %w", err)
 	}
@@ -325,4 +345,109 @@ func countLines(path string) (int, error) {
 	}
 
 	return count, scanner.Err()
+}
+
+// collectFileMetricsIncremental only scans files modified since last scan
+func (ls *LightScanner) collectFileMetricsIncremental(ctx context.Context, db *sql.DB) ([]FileMetric, error) {
+	// Get previously scanned files and their last scan times
+	scenario := filepath.Base(ls.scenarioPath)
+	query := `
+		SELECT file_path, updated_at
+		FROM file_metrics
+		WHERE scenario = $1
+	`
+
+	rows, err := db.QueryContext(ctx, query, scenario)
+	if err != nil {
+		// If query fails, fall back to full scan
+		return ls.collectFileMetrics()
+	}
+	defer rows.Close()
+
+	previousScans := make(map[string]time.Time)
+	for rows.Next() {
+		var filePath string
+		var updatedAt time.Time
+		if err := rows.Scan(&filePath, &updatedAt); err != nil {
+			continue
+		}
+		previousScans[filePath] = updatedAt
+	}
+
+	// Scan all source directories
+	sourceDirs := []string{
+		filepath.Join(ls.scenarioPath, "api"),
+		filepath.Join(ls.scenarioPath, "ui", "src"),
+		filepath.Join(ls.scenarioPath, "cli"),
+	}
+
+	extensions := map[string]bool{
+		".go":  true,
+		".ts":  true,
+		".tsx": true,
+		".js":  true,
+		".jsx": true,
+	}
+
+	var changedFiles []FileMetric
+	unchangedCount := 0
+
+	for _, dir := range sourceDirs {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			continue
+		}
+
+		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+
+			if info.IsDir() {
+				if info.Name() == "node_modules" || strings.HasPrefix(info.Name(), ".") {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+
+			ext := filepath.Ext(path)
+			if !extensions[ext] {
+				return nil
+			}
+
+			relPath, _ := filepath.Rel(ls.scenarioPath, path)
+
+			// Check if file needs rescanning
+			lastScan, exists := previousScans[relPath]
+			if exists && !info.ModTime().After(lastScan) {
+				// File unchanged since last scan - skip it
+				unchangedCount++
+				return nil
+			}
+
+			// File is new or modified - scan it
+			lines, err := countLines(path)
+			if err != nil {
+				return nil
+			}
+
+			changedFiles = append(changedFiles, FileMetric{
+				Path:      relPath,
+				Lines:     lines,
+				Extension: ext,
+			})
+
+			return nil
+		})
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	fmt.Printf("Incremental scan: %d files changed, %d files unchanged (skipped)\n",
+		len(changedFiles), unchangedCount)
+
+	// Note: Caller needs to merge changed files with cached metrics from DB
+	// For now, we just return changed files - full merge happens in persistence layer
+	return changedFiles, nil
 }

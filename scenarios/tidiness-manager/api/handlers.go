@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 )
@@ -13,6 +14,7 @@ import (
 type LightScanRequest struct {
 	ScenarioPath string `json:"scenario_path"`
 	TimeoutSec   int    `json:"timeout_sec,omitempty"`
+	Incremental  bool   `json:"incremental,omitempty"` // Only scan modified files
 }
 
 // ParseRequest defines request for parsing lint/type output
@@ -48,23 +50,57 @@ func (s *Server) handleLightScan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	scanner := NewLightScanner(absPath, timeout)
-	result, err := scanner.Scan(r.Context())
+
+	// Use incremental mode if requested
+	scanOpts := ScanOptions{
+		Incremental: req.Incremental,
+		DB:          s.db,
+	}
+
+	result, err := scanner.ScanWithOptions(r.Context(), scanOpts)
 	if err != nil {
 		s.log("light scan failed", map[string]interface{}{
-			"error":    err.Error(),
-			"scenario": absPath,
+			"error":       err.Error(),
+			"scenario":    absPath,
+			"incremental": req.Incremental,
 		})
 		respondError(w, http.StatusInternalServerError, "scan failed: "+err.Error())
 		return
 	}
 
-	// Persist file metrics to database (TM-FM-001, TM-FM-002)
-	if err := s.persistFileMetrics(r.Context(), result.Scenario, result.FileMetrics); err != nil {
-		s.log("failed to persist file metrics", map[string]interface{}{
+	// Collect and persist detailed file metrics to database (TM-FM-001, TM-FM-002)
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	}
+	scenarioPath := filepath.Join(vrooliRoot, "scenarios", result.Scenario)
+
+	// Extract all file paths from scan results
+	filePaths := make([]string, len(result.FileMetrics))
+	for i, fm := range result.FileMetrics {
+		filePaths[i] = fm.Path
+	}
+
+	detailedMetrics, err := CollectDetailedFileMetrics(scenarioPath, filePaths)
+	if err != nil {
+		s.log("failed to collect detailed metrics", map[string]interface{}{
 			"error":    err.Error(),
 			"scenario": result.Scenario,
 		})
-		// Continue even if persistence fails - return scan results
+		// Fallback to basic metrics
+		if err := s.persistFileMetrics(r.Context(), result.Scenario, result.FileMetrics); err != nil {
+			s.log("failed to persist basic file metrics", map[string]interface{}{
+				"error":    err.Error(),
+				"scenario": result.Scenario,
+			})
+		}
+	} else {
+		if err := s.persistDetailedFileMetrics(r.Context(), result.Scenario, detailedMetrics); err != nil {
+			s.log("failed to persist detailed file metrics", map[string]interface{}{
+				"error":    err.Error(),
+				"scenario": result.Scenario,
+			})
+		}
 	}
 
 	respondJSON(w, http.StatusOK, result)

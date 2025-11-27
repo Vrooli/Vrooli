@@ -382,6 +382,92 @@ cmd_campaigns() {
     esac
 }
 
+cmd_recommend_refactors() {
+    local scenario=""
+    local limit="5"
+    local sort_by="priority"
+    local min_lines="0"
+    local max_visits="0"
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scenario)
+                scenario="$2"
+                shift 2
+                ;;
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --sort-by)
+                sort_by="$2"
+                shift 2
+                ;;
+            --min-lines)
+                min_lines="$2"
+                shift 2
+                ;;
+            --max-visits)
+                max_visits="$2"
+                shift 2
+                ;;
+            *)
+                # First positional arg is scenario
+                if [[ -z "$scenario" ]]; then
+                    scenario="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$scenario" ]]; then
+        echo -e "${RED}✗${NC} Scenario name required"
+        echo "Usage: tidiness-manager recommend-refactors <scenario> [options]"
+        return 1
+    fi
+
+    echo -e "${BLUE}Getting refactor recommendations for $scenario...${NC}"
+
+    local query_params="scenario=$scenario&limit=$limit&sort_by=$sort_by"
+    if [[ "$min_lines" != "0" ]]; then
+        query_params="$query_params&min_lines=$min_lines"
+    fi
+    if [[ "$max_visits" != "0" ]]; then
+        query_params="$query_params&max_visits=$max_visits"
+    fi
+
+    response=$(api_request GET "/agent/refactor-recommendations?$query_params" || true)
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} API request failed"
+        return 1
+    fi
+
+    error=$(echo "$response" | jq -r '.error // empty' 2>/dev/null || true)
+    if [[ -n "$error" ]]; then
+        echo -e "${RED}✗${NC} Failed to get recommendations: $error"
+        return 1
+    fi
+
+    echo -e "${GREEN}✓${NC} Recommendations retrieved (sorted by: $sort_by)"
+    echo "$response" | jq -r '
+        if .recommendations then
+            "Found \(.count) files for refactoring:",
+            "",
+            (.recommendations[] | "  📝 \(.file_path)",
+             "     Language: \(.language) | Lines: \(.line_count) | Visit count: \(.visit_count)",
+             "     Priority: \(.refactor_priority | floor) | Staleness: \(.staleness_score | floor)",
+             (if .complexity_max then "     Max complexity: \(.complexity_max)" else "" end),
+             (if .todo_count > 0 then "     Tech debt: \(.todo_count) TODOs, \(.fixme_count) FIXMEs, \(.hack_count) HACKs" else "" end),
+             (if .has_test_file == false then "     ⚠️  No test file found" else "" end),
+             "")
+        else
+            .
+        end
+    ' 2>/dev/null || echo "$response"
+}
+
 cmd_help() {
     cat <<'EOF'
 tidiness-manager - Code cleanliness orchestrator for scenarios
@@ -404,6 +490,12 @@ COMMANDS
         Default: current directory, 120s timeout
         Example:
           tidiness-manager scan ~/Vrooli/scenarios/browser-automation-studio
+
+    recommend-refactors SCENARIO [--limit N] [--sort-by CRITERIA] [--min-lines N] [--max-visits N]
+        Get refactor recommendations combining visited-tracker data with code metrics
+        Sort by: priority (default), staleness, complexity, length, duplication
+        Example:
+          tidiness-manager recommend-refactors tidiness-manager --limit 5 --sort-by complexity
 
     issues [SCENARIO] [--category CAT] [--severity SEV] [--limit N]
         List tidiness issues for agent consumption (JSON output)
@@ -503,7 +595,7 @@ main() {
         API_BASE="${env_api_base%/}"
     fi
 
-    if [[ "$command" == "status" || "$command" == "scan" || "$command" == "issues" || "$command" == "campaigns" ]]; then
+    if [[ "$command" == "status" || "$command" == "scan" || "$command" == "issues" || "$command" == "campaigns" || "$command" == "recommend-refactors" ]]; then
         if [[ -z "$API_BASE" ]]; then
             if ! API_BASE=$(resolve_api_base "$CONFIG_API_BASE"); then
                 echo -e "${RED}✗${NC} Unable to determine API base URL. Ensure the scenario is running via 'vrooli scenario run $SCENARIO_ID' or configure it with '$CLI_NAME configure api_base <url>'."
@@ -518,6 +610,9 @@ main() {
             ;;
         scan)
             cmd_scan "$@"
+            ;;
+        recommend-refactors)
+            cmd_recommend_refactors "$@"
             ;;
         issues)
             cmd_issues "$@"

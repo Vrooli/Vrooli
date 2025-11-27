@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -985,5 +986,325 @@ func TestAgentGetIssues_ConcurrentRequests(t *testing.T) {
 		if status != http.StatusOK {
 			t.Errorf("Request %d failed with status %d", i, status)
 		}
+	}
+}
+
+// Unit tests for helper functions (don't require database)
+
+// Test parseAgentIssuesRequest with various inputs
+func TestParseAgentIssuesRequest(t *testing.T) {
+	tests := []struct {
+		name      string
+		url       string
+		wantReq   AgentIssuesRequest
+		wantError bool
+	}{
+		{
+			name: "basic scenario query",
+			url:  "/api/v1/agent/issues?scenario=test-scenario",
+			wantReq: AgentIssuesRequest{
+				Scenario: "test-scenario",
+				Limit:    10,
+			},
+			wantError: false,
+		},
+		{
+			name: "with limit parameter",
+			url:  "/api/v1/agent/issues?scenario=test&limit=5",
+			wantReq: AgentIssuesRequest{
+				Scenario: "test",
+				Limit:    5,
+			},
+			wantError: false,
+		},
+		{
+			name: "with file filter",
+			url:  "/api/v1/agent/issues?scenario=test&file=api/main.go&limit=20",
+			wantReq: AgentIssuesRequest{
+				Scenario: "test",
+				File:     "api/main.go",
+				Limit:    20,
+			},
+			wantError: false,
+		},
+		{
+			name: "with folder filter",
+			url:  "/api/v1/agent/issues?scenario=test&folder=api/",
+			wantReq: AgentIssuesRequest{
+				Scenario: "test",
+				Folder:   "api/",
+				Limit:    10,
+			},
+			wantError: false,
+		},
+		{
+			name: "with category filter",
+			url:  "/api/v1/agent/issues?scenario=test&category=dead_code",
+			wantReq: AgentIssuesRequest{
+				Scenario: "test",
+				Category: "dead_code",
+				Limit:    10,
+			},
+			wantError: false,
+		},
+		{
+			name: "with force flag",
+			url:  "/api/v1/agent/issues?scenario=test&force=true",
+			wantReq: AgentIssuesRequest{
+				Scenario: "test",
+				Force:    true,
+				Limit:    10,
+			},
+			wantError: false,
+		},
+		{
+			name: "with all filters",
+			url:  "/api/v1/agent/issues?scenario=test&file=api/main.go&category=length&limit=15",
+			wantReq: AgentIssuesRequest{
+				Scenario: "test",
+				File:     "api/main.go",
+				Category: "length",
+				Limit:    15,
+			},
+			wantError: false,
+		},
+		{
+			name:      "invalid limit - not a number",
+			url:       "/api/v1/agent/issues?scenario=test&limit=abc",
+			wantError: true,
+		},
+		{
+			name:      "invalid limit - negative",
+			url:       "/api/v1/agent/issues?scenario=test&limit=-5",
+			wantError: true,
+		},
+		{
+			name: "zero limit defaults to 10",
+			url:  "/api/v1/agent/issues?scenario=test&limit=0",
+			wantReq: AgentIssuesRequest{
+				Scenario: "test",
+				Limit:    10,
+			},
+			wantError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := http.NewRequest("GET", tt.url, nil)
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
+
+			parsed := parseAgentIssuesRequest(req)
+
+			if tt.wantError {
+				if parsed.Error == nil {
+					t.Error("Expected error but got nil")
+				}
+			} else {
+				if parsed.Error != nil {
+					t.Errorf("Unexpected error: %v", parsed.Error)
+				}
+				if parsed.Request.Scenario != tt.wantReq.Scenario {
+					t.Errorf("Scenario = %v, want %v", parsed.Request.Scenario, tt.wantReq.Scenario)
+				}
+				if parsed.Request.File != tt.wantReq.File {
+					t.Errorf("File = %v, want %v", parsed.Request.File, tt.wantReq.File)
+				}
+				if parsed.Request.Folder != tt.wantReq.Folder {
+					t.Errorf("Folder = %v, want %v", parsed.Request.Folder, tt.wantReq.Folder)
+				}
+				if parsed.Request.Category != tt.wantReq.Category {
+					t.Errorf("Category = %v, want %v", parsed.Request.Category, tt.wantReq.Category)
+				}
+				if parsed.Request.Limit != tt.wantReq.Limit {
+					t.Errorf("Limit = %v, want %v", parsed.Request.Limit, tt.wantReq.Limit)
+				}
+				if parsed.Request.Force != tt.wantReq.Force {
+					t.Errorf("Force = %v, want %v", parsed.Request.Force, tt.wantReq.Force)
+				}
+			}
+		})
+	}
+}
+
+// Test buildIssuesQuery generates correct SQL
+func TestBuildIssuesQuery(t *testing.T) {
+	tests := []struct {
+		name        string
+		req         AgentIssuesRequest
+		wantContain []string
+	}{
+		{
+			name: "basic query",
+			req: AgentIssuesRequest{
+				Scenario: "test",
+				Limit:    10,
+			},
+			wantContain: []string{
+				"SELECT",
+				"FROM issues",
+				"WHERE scenario = $1",
+				"status = 'open'",
+				"ORDER BY",
+				"CASE severity",
+				"LIMIT $2",
+			},
+		},
+		{
+			name: "with file filter",
+			req: AgentIssuesRequest{
+				Scenario: "test",
+				File:     "api/main.go",
+				Limit:    10,
+			},
+			wantContain: []string{
+				"file_path = $2",
+				"LIMIT $3",
+			},
+		},
+		{
+			name: "with folder filter",
+			req: AgentIssuesRequest{
+				Scenario: "test",
+				Folder:   "api/",
+				Limit:    10,
+			},
+			wantContain: []string{
+				"file_path LIKE $2",
+				"LIMIT $3",
+			},
+		},
+		{
+			name: "with category only",
+			req: AgentIssuesRequest{
+				Scenario: "test",
+				Category: "dead_code",
+				Limit:    10,
+			},
+			wantContain: []string{
+				"category = $2",
+				"LIMIT $3",
+			},
+		},
+		{
+			name: "with file and category",
+			req: AgentIssuesRequest{
+				Scenario: "test",
+				File:     "api/main.go",
+				Category: "length",
+				Limit:    10,
+			},
+			wantContain: []string{
+				"file_path = $2",
+				"category = $3",
+				"LIMIT $4",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			query := buildIssuesQuery(tt.req)
+
+			for _, want := range tt.wantContain {
+				if !strings.Contains(query, want) {
+					t.Errorf("Query does not contain expected substring: %q\nGot query: %s", want, query)
+				}
+			}
+		})
+	}
+}
+
+// Test buildIssuesArgs generates correct argument list
+func TestBuildIssuesArgs(t *testing.T) {
+	tests := []struct {
+		name     string
+		req      AgentIssuesRequest
+		wantLen  int
+		wantArgs []interface{}
+	}{
+		{
+			name: "basic query",
+			req: AgentIssuesRequest{
+				Scenario: "test",
+				Limit:    10,
+			},
+			wantLen:  2,
+			wantArgs: []interface{}{"test", 10},
+		},
+		{
+			name: "with file filter",
+			req: AgentIssuesRequest{
+				Scenario: "test",
+				File:     "api/main.go",
+				Limit:    10,
+			},
+			wantLen:  3,
+			wantArgs: []interface{}{"test", "api/main.go", 10},
+		},
+		{
+			name: "with folder filter",
+			req: AgentIssuesRequest{
+				Scenario: "test",
+				Folder:   "api/",
+				Limit:    10,
+			},
+			wantLen:  3,
+			wantArgs: []interface{}{"test", "api/%", 10},
+		},
+		{
+			name: "with category only",
+			req: AgentIssuesRequest{
+				Scenario: "test",
+				Category: "dead_code",
+				Limit:    5,
+			},
+			wantLen:  3,
+			wantArgs: []interface{}{"test", "dead_code", 5},
+		},
+		{
+			name: "with file and category",
+			req: AgentIssuesRequest{
+				Scenario: "test",
+				File:     "api/main.go",
+				Category: "length",
+				Limit:    15,
+			},
+			wantLen:  4,
+			wantArgs: []interface{}{"test", "api/main.go", "length", 15},
+		},
+		{
+			name: "with folder and category",
+			req: AgentIssuesRequest{
+				Scenario: "test",
+				Folder:   "api/",
+				Category: "complexity",
+				Limit:    20,
+			},
+			wantLen:  4,
+			wantArgs: []interface{}{"test", "api/%", "complexity", 20},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := buildIssuesArgs(tt.req)
+
+			if len(args) != tt.wantLen {
+				t.Errorf("Args length = %v, want %v", len(args), tt.wantLen)
+			}
+
+			for i, wantArg := range tt.wantArgs {
+				if i >= len(args) {
+					t.Errorf("Missing arg at index %d", i)
+					continue
+				}
+				if args[i] != wantArg {
+					t.Errorf("Arg[%d] = %v, want %v", i, args[i], wantArg)
+				}
+			}
+		})
 	}
 }
