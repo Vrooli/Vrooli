@@ -3,13 +3,18 @@ package export
 import (
 	"strings"
 
-	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/services/ai"
+	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/logutil"
+	"github.com/vrooli/browser-automation-studio/services/recording"
+	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
 )
 
 // Apply applies client-provided overrides to a movie spec, applying presets first,
 // then explicit overrides, and finally synchronizing cursor-related fields across
 // the spec's Cursor, Decor, and CursorMotion structures.
-func Apply(spec *services.ReplayMovieSpec, overrides *Overrides) {
+func Apply(spec *export.ReplayMovieSpec, overrides *Overrides) {
 	if spec == nil || overrides == nil {
 		return
 	}
@@ -39,7 +44,7 @@ func Apply(spec *services.ReplayMovieSpec, overrides *Overrides) {
 
 // applyDecorOverrides applies theme and cursor preset names to the Decor field.
 // The Decor field stores the original preset names for provenance tracking.
-func applyDecorOverrides(spec *services.ReplayMovieSpec, overrides *Overrides) {
+func applyDecorOverrides(spec *export.ReplayMovieSpec, overrides *Overrides) {
 	if spec == nil || overrides == nil {
 		return
 	}
@@ -86,7 +91,7 @@ func applyDecorOverrides(spec *services.ReplayMovieSpec, overrides *Overrides) {
 
 // syncCursorFields synchronizes cursor-related values across Cursor, Decor, and CursorMotion
 // to ensure consistency throughout the movie spec.
-func syncCursorFields(spec *services.ReplayMovieSpec) {
+func syncCursorFields(spec *export.ReplayMovieSpec) {
 	if spec == nil {
 		return
 	}

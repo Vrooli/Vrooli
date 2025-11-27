@@ -13,14 +13,19 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/services/ai"
+	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/logutil"
+	"github.com/vrooli/browser-automation-studio/services/recording"
+	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
 )
 
 type replayRendererStub struct {
 	t            *testing.T
 	tempFile     string
 	lastCtx      context.Context
-	receivedSpec *services.ReplayMovieSpec
+	receivedSpec *export.ReplayMovieSpec
 	format       services.RenderFormat
 	filename     string
 	invokedAt    time.Time
@@ -33,7 +38,7 @@ func newReplayRendererStub(t *testing.T) *replayRendererStub {
 	return &replayRendererStub{t: t}
 }
 
-func (s *replayRendererStub) Render(ctx context.Context, spec *services.ReplayMovieSpec, format services.RenderFormat, filename string) (*services.RenderedMedia, error) {
+func (s *replayRendererStub) Render(ctx context.Context, spec *export.ReplayMovieSpec, format services.RenderFormat, filename string) (*services.RenderedMedia, error) {
 	s.t.Helper()
 	file, err := os.CreateTemp("", "bas-replay-*.mp4")
 	if err != nil {
@@ -69,7 +74,7 @@ func TestPostExecutionExport_AllowsClientMovieSpec(t *testing.T) {
 	execID := uuid.New()
 	wfID := uuid.New()
 
-	baseSpec := &services.ReplayMovieSpec{
+	baseSpec := &export.ReplayMovieSpec{
 		Version:     "2025-11-07",
 		GeneratedAt: time.Now().Add(-time.Minute),
 		Execution: services.ExportExecutionMetadata{
@@ -97,7 +102,7 @@ func TestPostExecutionExport_AllowsClientMovieSpec(t *testing.T) {
 		}},
 	}
 
-	incoming := &services.ReplayMovieSpec{
+	incoming := &export.ReplayMovieSpec{
 		Theme: services.ExportTheme{},
 		Cursor: services.ExportCursorSpec{
 			Style: "halo",
@@ -118,11 +123,11 @@ func TestPostExecutionExport_AllowsClientMovieSpec(t *testing.T) {
 
 	h := &Handler{
 		workflowService: &workflowServiceMock{
-			describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*services.ExecutionExportPreview, error) {
+			describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionExportPreview, error) {
 				if id != execID {
 					t.Fatalf("unexpected execution id %s", id)
 				}
-				return &services.ExecutionExportPreview{
+				return &workflow.ExecutionExportPreview{
 					ExecutionID: execID,
 					Status:      "ready",
 					Message:     "ok",
@@ -151,7 +156,7 @@ func TestPostExecutionExport_AllowsClientMovieSpec(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", resp.Code)
 	}
 
-	var preview services.ExecutionExportPreview
+	var preview workflow.ExecutionExportPreview
 	if err := json.Unmarshal(resp.Body.Bytes(), &preview); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -175,21 +180,21 @@ func TestPostExecutionExport_AllowsClientMovieSpec(t *testing.T) {
 
 func TestPostExecutionExport_RejectsMismatchedSpec(t *testing.T) {
 	execID := uuid.New()
-	baseSpec := &services.ReplayMovieSpec{
+	baseSpec := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{ExecutionID: execID},
 		Frames:    []services.ExportFrame{{Index: 0, DurationMs: 1000}},
 	}
 
 	h := &Handler{
 		workflowService: &workflowServiceMock{
-			describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*services.ExecutionExportPreview, error) {
-				return &services.ExecutionExportPreview{ExecutionID: execID, Status: "ready", Package: baseSpec}, nil
+			describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionExportPreview, error) {
+				return &workflow.ExecutionExportPreview{ExecutionID: execID, Status: "ready", Package: baseSpec}, nil
 			},
 		},
 		log: logrus.New(),
 	}
 
-	incoming := &services.ReplayMovieSpec{
+	incoming := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{ExecutionID: uuid.New()},
 		Frames:    []services.ExportFrame{{Index: 0, DurationMs: 1000}},
 	}
@@ -213,8 +218,8 @@ func TestPostExecutionExport_ReturnsPreviewWhenNotReady(t *testing.T) {
 	execID := uuid.New()
 	h := &Handler{
 		workflowService: &workflowServiceMock{
-			describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*services.ExecutionExportPreview, error) {
-				return &services.ExecutionExportPreview{
+			describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionExportPreview, error) {
+				return &workflow.ExecutionExportPreview{
 					ExecutionID: execID,
 					Status:      "pending",
 					Message:     "Replay export pending – timeline frames not captured yet",
@@ -238,7 +243,7 @@ func TestPostExecutionExport_ReturnsPreviewWhenNotReady(t *testing.T) {
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", resp.Code)
 	}
-	var preview services.ExecutionExportPreview
+	var preview workflow.ExecutionExportPreview
 	if err := json.Unmarshal(resp.Body.Bytes(), &preview); err != nil {
 		t.Fatalf("failed to decode preview: %v", err)
 	}
@@ -254,8 +259,8 @@ func TestPostExecutionExport_RejectsMediaRequestWhenUnavailable(t *testing.T) {
 	execID := uuid.New()
 	h := &Handler{
 		workflowService: &workflowServiceMock{
-			describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*services.ExecutionExportPreview, error) {
-				return &services.ExecutionExportPreview{
+			describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionExportPreview, error) {
+				return &workflow.ExecutionExportPreview{
 					ExecutionID: execID,
 					Status:      "unavailable",
 					Message:     "Replay export unavailable – execution failed before capturing any steps",
@@ -290,7 +295,7 @@ func TestPostExecutionExport_UsesEstimatedTimeout(t *testing.T) {
 	now := time.Now()
 	completed := now
 
-	baseSpec := &services.ReplayMovieSpec{
+	baseSpec := &export.ReplayMovieSpec{
 		Version:     "2025-11-07",
 		GeneratedAt: now.Add(-time.Second),
 		Execution: services.ExportExecutionMetadata{
@@ -389,8 +394,8 @@ func TestPostExecutionExport_UsesEstimatedTimeout(t *testing.T) {
 
 	h := &Handler{
 		workflowService: &workflowServiceMock{
-			describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*services.ExecutionExportPreview, error) {
-				return &services.ExecutionExportPreview{
+			describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionExportPreview, error) {
+				return &workflow.ExecutionExportPreview{
 					ExecutionID: execID,
 					Status:      "ready",
 					Package:     baseSpec,

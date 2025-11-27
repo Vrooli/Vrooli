@@ -16,7 +16,12 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers/ai"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
-	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/services/ai"
+	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/logutil"
+	"github.com/vrooli/browser-automation-studio/services/recording"
+	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
@@ -26,16 +31,16 @@ type WorkflowService interface {
 	CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error)
 	ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error)
 	GetWorkflow(ctx context.Context, id uuid.UUID) (*database.Workflow, error)
-	UpdateWorkflow(ctx context.Context, workflowID uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error)
-	ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*services.WorkflowVersionSummary, error)
-	GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*services.WorkflowVersionSummary, error)
+	UpdateWorkflow(ctx context.Context, workflowID uuid.UUID, input workflow.WorkflowUpdateInput) (*database.Workflow, error)
+	ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*workflow.WorkflowVersionSummary, error)
+	GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*workflow.WorkflowVersionSummary, error)
 	RestoreWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int, changeDescription string) (*database.Workflow, error)
 	ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error)
 	ExecuteAdhocWorkflow(ctx context.Context, flowDefinition map[string]any, parameters map[string]any, name string) (*database.Execution, error)
 	ModifyWorkflow(ctx context.Context, workflowID uuid.UUID, prompt string, currentFlow map[string]any) (*database.Workflow, error)
 	GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*database.Screenshot, error)
-	GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*services.ExecutionTimeline, error)
-	DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*services.ExecutionExportPreview, error)
+	GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*export.ExecutionTimeline, error)
+	DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionExportPreview, error)
 	ExportToFolder(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error
 	GetExecution(ctx context.Context, executionID uuid.UUID) (*database.Execution, error)
 	ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error)
@@ -56,7 +61,7 @@ type WorkflowService interface {
 
 // Handler contains all HTTP handlers
 type replayRenderer interface {
-	Render(ctx context.Context, spec *services.ReplayMovieSpec, format services.RenderFormat, filename string) (*services.RenderedMedia, error)
+	Render(ctx context.Context, spec *export.ReplayMovieSpec, format services.RenderFormat, filename string) (*services.RenderedMedia, error)
 }
 
 // Handler contains all HTTP handlers
@@ -66,7 +71,7 @@ type Handler struct {
 	repo              database.Repository
 	wsHub             wsHub.HubInterface
 	storage           storage.StorageInterface
-	recordingService  services.RecordingServiceInterface
+	recordingService  recording.RecordingServiceInterface
 	recordingsRoot    string
 	replayRenderer    replayRenderer
 	log               *logrus.Logger
@@ -117,7 +122,7 @@ func NewHandler(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, 
 	}
 
 	recordingsRoot := paths.ResolveRecordingsRoot(log)
-	recordingService := services.NewRecordingService(repo, storageClient, wsHub, log, recordingsRoot)
+	recordingService := recording.NewRecordingService(repo, storageClient, wsHub, log, recordingsRoot)
 	// Wire automation stack (feature-flag protected inside service).
 	autoExecutor := autoexecutor.NewSimpleExecutor(nil)
 	autoEngineFactory, engErr := autoengine.DefaultFactory(log)
@@ -126,12 +131,12 @@ func NewHandler(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, 
 	}
 	autoRecorder := autorecorder.NewDBRecorder(repo, storageClient, log)
 
-	workflowSvc := services.NewWorkflowServiceWithDeps(repo, wsHub, log, services.WorkflowServiceOptions{
+	workflowSvc := workflow.NewWorkflowServiceWithDeps(repo, wsHub, log, workflow.WorkflowServiceOptions{
 		Executor:         autoExecutor,
 		EngineFactory:    autoEngineFactory,
 		ArtifactRecorder: autoRecorder,
 	})
-	replayRenderer := services.NewReplayRenderer(log, recordingsRoot)
+	replayRenderer := replay.NewReplayRenderer(log, recordingsRoot)
 
 	allowedCopy := append([]string(nil), allowedOrigins...)
 

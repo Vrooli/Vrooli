@@ -17,7 +17,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/services/ai"
+	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/logutil"
+	"github.com/vrooli/browser-automation-studio/services/recording"
+	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
 )
 
 // Mock recording service for testing
@@ -32,7 +37,7 @@ func (m *mockRecordingService) ImportArchive(ctx context.Context, archivePath st
 	return nil, errors.New("not implemented")
 }
 
-func setupRecordingTestHandler(t *testing.T, recordingService services.RecordingServiceInterface) *Handler {
+func setupRecordingTestHandler(t *testing.T, recordingService recording.RecordingServiceInterface) *Handler {
 	t.Helper()
 
 	log := logrus.New()

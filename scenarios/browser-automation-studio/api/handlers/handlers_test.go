@@ -15,7 +15,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/services/ai"
+	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/logutil"
+	"github.com/vrooli/browser-automation-studio/services/recording"
+	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
@@ -144,10 +149,10 @@ func (m *mockRepository) ListFolders(ctx context.Context) ([]*database.WorkflowF
 var _ database.Repository = (*mockRepository)(nil)
 
 type workflowServiceMock struct {
-	listWorkflowVersionsFn    func(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*services.WorkflowVersionSummary, error)
-	getWorkflowVersionFn      func(ctx context.Context, workflowID uuid.UUID, version int) (*services.WorkflowVersionSummary, error)
+	listWorkflowVersionsFn    func(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*workflow.WorkflowVersionSummary, error)
+	getWorkflowVersionFn      func(ctx context.Context, workflowID uuid.UUID, version int) (*workflow.WorkflowVersionSummary, error)
 	restoreWorkflowVersionFn  func(ctx context.Context, workflowID uuid.UUID, version int, changeDescription string) (*database.Workflow, error)
-	describeExecutionExportFn func(ctx context.Context, executionID uuid.UUID) (*services.ExecutionExportPreview, error)
+	describeExecutionExportFn func(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionExportPreview, error)
 	executeAdhocWorkflowFn    func(ctx context.Context, flowDefinition map[string]any, parameters map[string]any, name string) (*database.Execution, error)
 	automationHealthy         bool
 	automationErr             error
@@ -168,18 +173,18 @@ func (m *workflowServiceMock) GetWorkflow(ctx context.Context, id uuid.UUID) (*d
 	return nil, errors.New("not implemented")
 }
 
-func (m *workflowServiceMock) UpdateWorkflow(ctx context.Context, workflowID uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error) {
+func (m *workflowServiceMock) UpdateWorkflow(ctx context.Context, workflowID uuid.UUID, input workflow.WorkflowUpdateInput) (*database.Workflow, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (m *workflowServiceMock) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*services.WorkflowVersionSummary, error) {
+func (m *workflowServiceMock) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*workflow.WorkflowVersionSummary, error) {
 	if m.listWorkflowVersionsFn != nil {
 		return m.listWorkflowVersionsFn(ctx, workflowID, limit, offset)
 	}
 	return nil, errors.New("not implemented")
 }
 
-func (m *workflowServiceMock) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*services.WorkflowVersionSummary, error) {
+func (m *workflowServiceMock) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*workflow.WorkflowVersionSummary, error) {
 	if m.getWorkflowVersionFn != nil {
 		return m.getWorkflowVersionFn(ctx, workflowID, version)
 	}
@@ -212,11 +217,11 @@ func (m *workflowServiceMock) GetExecutionScreenshots(ctx context.Context, execu
 	return nil, errors.New("not implemented")
 }
 
-func (m *workflowServiceMock) GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*services.ExecutionTimeline, error) {
+func (m *workflowServiceMock) GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*export.ExecutionTimeline, error) {
 	return nil, nil
 }
 
-func (m *workflowServiceMock) DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*services.ExecutionExportPreview, error) {
+func (m *workflowServiceMock) DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionExportPreview, error) {
 	if m.describeExecutionExportFn != nil {
 		return m.describeExecutionExportFn(ctx, executionID)
 	}
@@ -416,11 +421,11 @@ func TestListWorkflowVersionsHandlerSuccess(t *testing.T) {
 	logger.SetOutput(io.Discard)
 	handler := &Handler{
 		workflowService: &workflowServiceMock{
-			listWorkflowVersionsFn: func(_ context.Context, workflowID uuid.UUID, limit, offset int) ([]*services.WorkflowVersionSummary, error) {
+			listWorkflowVersionsFn: func(_ context.Context, workflowID uuid.UUID, limit, offset int) ([]*workflow.WorkflowVersionSummary, error) {
 				if limit != 50 || offset != 0 {
 					t.Fatalf("unexpected pagination: limit=%d offset=%d", limit, offset)
 				}
-				return []*services.WorkflowVersionSummary{
+				return []*workflow.WorkflowVersionSummary{
 					{
 						Version:           3,
 						WorkflowID:        workflowID,
@@ -464,7 +469,7 @@ func TestListWorkflowVersionsHandlerNotFound(t *testing.T) {
 	logger.SetOutput(io.Discard)
 	handler := &Handler{
 		workflowService: &workflowServiceMock{
-			listWorkflowVersionsFn: func(context.Context, uuid.UUID, int, int) ([]*services.WorkflowVersionSummary, error) {
+			listWorkflowVersionsFn: func(context.Context, uuid.UUID, int, int) ([]*workflow.WorkflowVersionSummary, error) {
 				return nil, database.ErrNotFound
 			},
 		},
@@ -489,8 +494,8 @@ func TestGetWorkflowVersionHandlerSuccess(t *testing.T) {
 	logger.SetOutput(io.Discard)
 	handler := &Handler{
 		workflowService: &workflowServiceMock{
-			getWorkflowVersionFn: func(context.Context, uuid.UUID, int) (*services.WorkflowVersionSummary, error) {
-				return &services.WorkflowVersionSummary{
+			getWorkflowVersionFn: func(context.Context, uuid.UUID, int) (*workflow.WorkflowVersionSummary, error) {
+				return &workflow.WorkflowVersionSummary{
 					Version:    2,
 					WorkflowID: workflowID,
 					CreatedAt:  created,
@@ -528,8 +533,8 @@ func TestRestoreWorkflowVersionConflict(t *testing.T) {
 	logger.SetOutput(io.Discard)
 	handler := &Handler{
 		workflowService: &workflowServiceMock{
-			getWorkflowVersionFn: func(context.Context, uuid.UUID, int) (*services.WorkflowVersionSummary, error) {
-				return &services.WorkflowVersionSummary{Version: 3}, nil
+			getWorkflowVersionFn: func(context.Context, uuid.UUID, int) (*workflow.WorkflowVersionSummary, error) {
+				return &workflow.WorkflowVersionSummary{Version: 3}, nil
 			},
 			restoreWorkflowVersionFn: func(context.Context, uuid.UUID, int, string) (*database.Workflow, error) {
 				return nil, services.ErrWorkflowVersionConflict

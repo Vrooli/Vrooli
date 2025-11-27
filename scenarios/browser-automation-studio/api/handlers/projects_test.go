@@ -15,7 +15,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/services/ai"
+	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/logutil"
+	"github.com/vrooli/browser-automation-studio/services/recording"
+	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
 )
 
@@ -150,13 +155,13 @@ func (m *mockWorkflowServiceForProjects) GetWorkflow(ctx context.Context, id uui
 func (m *mockWorkflowServiceForProjects) ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error) {
 	return nil, nil
 }
-func (m *mockWorkflowServiceForProjects) UpdateWorkflow(ctx context.Context, workflowID uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error) {
+func (m *mockWorkflowServiceForProjects) UpdateWorkflow(ctx context.Context, workflowID uuid.UUID, input workflow.WorkflowUpdateInput) (*database.Workflow, error) {
 	return nil, nil
 }
-func (m *mockWorkflowServiceForProjects) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*services.WorkflowVersionSummary, error) {
+func (m *mockWorkflowServiceForProjects) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*workflow.WorkflowVersionSummary, error) {
 	return nil, nil
 }
-func (m *mockWorkflowServiceForProjects) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*services.WorkflowVersionSummary, error) {
+func (m *mockWorkflowServiceForProjects) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*workflow.WorkflowVersionSummary, error) {
 	return nil, nil
 }
 func (m *mockWorkflowServiceForProjects) RestoreWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int, changeDescription string) (*database.Workflow, error) {
@@ -174,10 +179,10 @@ func (m *mockWorkflowServiceForProjects) ModifyWorkflow(ctx context.Context, wor
 func (m *mockWorkflowServiceForProjects) GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*database.Screenshot, error) {
 	return nil, nil
 }
-func (m *mockWorkflowServiceForProjects) GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*services.ExecutionTimeline, error) {
+func (m *mockWorkflowServiceForProjects) GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*export.ExecutionTimeline, error) {
 	return nil, nil
 }
-func (m *mockWorkflowServiceForProjects) DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*services.ExecutionExportPreview, error) {
+func (m *mockWorkflowServiceForProjects) DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionExportPreview, error) {
 	return nil, nil
 }
 func (m *mockWorkflowServiceForProjects) GetExecution(ctx context.Context, executionID uuid.UUID) (*database.Execution, error) {

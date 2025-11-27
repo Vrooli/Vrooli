@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
-	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/services/export"
 )
 
 type generator struct {
@@ -313,7 +313,7 @@ func isUUIDType(t reflect.Type) bool {
 
 func main() {
 	overrides := map[reflect.Type]string{
-		reflect.TypeOf(services.ReplayMovieSpec{}):         "ReplayMovieSpec",
+		reflect.TypeOf(export.ReplayMovieSpec{}):           "ReplayMovieSpec",
 		reflect.TypeOf(services.ExportSummary{}):           "ReplayMovieSummary",
 		reflect.TypeOf(services.ExportExecutionMetadata{}): "ReplayMovieExecutionMetadata",
 		reflect.TypeOf(services.ExportAsset{}):             "ReplayMovieAsset",
@@ -327,22 +327,22 @@ func main() {
 		reflect.TypeOf(services.ExportNormalizedPoint{}):   "ReplayMovieNormalizedPoint",
 		reflect.TypeOf(services.ExportNormalizedRect{}):    "ReplayMovieNormalizedRect",
 		reflect.TypeOf(services.ExportResilience{}):        "ReplayMovieResilience",
-		reflect.TypeOf(services.ExportFrame{}):             "ReplayMovieFrame",
+		reflect.TypeOf(export.ExportFrame{}):               "ReplayMovieFrame",
 		reflect.TypeOf(services.RetryHistoryEntry{}):       "ReplayMovieRetryHistoryEntry",
-		reflect.TypeOf(contracts.HighlightRegion{}):  "ReplayMovieRegion",
-		reflect.TypeOf(contracts.MaskRegion{}):       "ReplayMovieRegion",
-		reflect.TypeOf(contracts.ElementFocus{}):     "ReplayMovieFocusedElement",
-		reflect.TypeOf(contracts.BoundingBox{}):      "ReplayMovieRegionBounds",
-		reflect.TypeOf(contracts.Point{}):            "ReplayMovieCursorTrailPoint",
-		reflect.TypeOf(contracts.AssertionOutcome{}): "ReplayMovieAssertion",
+		reflect.TypeOf(contracts.HighlightRegion{}):        "ReplayMovieRegion",
+		reflect.TypeOf(contracts.MaskRegion{}):             "ReplayMovieRegion",
+		reflect.TypeOf(contracts.ElementFocus{}):           "ReplayMovieFocusedElement",
+		reflect.TypeOf(contracts.BoundingBox{}):            "ReplayMovieRegionBounds",
+		reflect.TypeOf(contracts.Point{}):                  "ReplayMovieCursorTrailPoint",
+		reflect.TypeOf(contracts.AssertionOutcome{}):       "ReplayMovieAssertion",
 		reflect.TypeOf(services.ExportPlayback{}):          "ReplayMoviePlayback",
 		reflect.TypeOf(services.ExportPresentation{}):      "ReplayMoviePresentation",
-		reflect.TypeOf(services.ExportFrameRect{}):         "ReplayMovieFrameRect",
+		reflect.TypeOf(export.ExportFrameRect{}):           "ReplayMovieFrameRect",
 		reflect.TypeOf(services.ExportCursorMotion{}):      "ReplayMovieCursorMotion",
 	}
 
 	gen := newGenerator(overrides)
-	gen.registerRoot(reflect.TypeOf(services.ReplayMovieSpec{}), "ReplayMovieSpec")
+	gen.registerRoot(reflect.TypeOf(export.ReplayMovieSpec{}), "ReplayMovieSpec")
 
 	content, err := gen.render()
 	if err != nil {

@@ -15,7 +15,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/services/ai"
+	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/logutil"
+	"github.com/vrooli/browser-automation-studio/services/recording"
+	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
 )
 
@@ -28,7 +33,7 @@ type mockWorkflowServiceForWorkflows struct {
 	executeWorkflowFn        func(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error)
 	getExecutionFn           func(ctx context.Context, executionID uuid.UUID) (*database.Execution, error)
 	listWorkflowsFn          func(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error)
-	updateWorkflowFn         func(ctx context.Context, workflowID uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error)
+	updateWorkflowFn         func(ctx context.Context, workflowID uuid.UUID, input workflow.WorkflowUpdateInput) (*database.Workflow, error)
 	modifyWorkflowFn         func(ctx context.Context, workflowID uuid.UUID, prompt string, currentFlow map[string]any) (*database.Workflow, error)
 }
 
@@ -128,7 +133,7 @@ func (m *mockWorkflowServiceForWorkflows) ListWorkflows(ctx context.Context, fol
 		{ID: uuid.New(), Name: "Workflow 2", FolderPath: folderPath},
 	}, nil
 }
-func (m *mockWorkflowServiceForWorkflows) UpdateWorkflow(ctx context.Context, workflowID uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error) {
+func (m *mockWorkflowServiceForWorkflows) UpdateWorkflow(ctx context.Context, workflowID uuid.UUID, input workflow.WorkflowUpdateInput) (*database.Workflow, error) {
 	if m.updateWorkflowFn != nil {
 		return m.updateWorkflowFn(ctx, workflowID, input)
 	}
@@ -140,10 +145,10 @@ func (m *mockWorkflowServiceForWorkflows) UpdateWorkflow(ctx context.Context, wo
 		Tags:        input.Tags,
 	}, nil
 }
-func (m *mockWorkflowServiceForWorkflows) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*services.WorkflowVersionSummary, error) {
+func (m *mockWorkflowServiceForWorkflows) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*workflow.WorkflowVersionSummary, error) {
 	return nil, nil
 }
-func (m *mockWorkflowServiceForWorkflows) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*services.WorkflowVersionSummary, error) {
+func (m *mockWorkflowServiceForWorkflows) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*workflow.WorkflowVersionSummary, error) {
 	return nil, nil
 }
 func (m *mockWorkflowServiceForWorkflows) RestoreWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int, changeDescription string) (*database.Workflow, error) {
@@ -168,10 +173,10 @@ func (m *mockWorkflowServiceForWorkflows) ModifyWorkflow(ctx context.Context, wo
 func (m *mockWorkflowServiceForWorkflows) GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*database.Screenshot, error) {
 	return nil, nil
 }
-func (m *mockWorkflowServiceForWorkflows) GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*services.ExecutionTimeline, error) {
+func (m *mockWorkflowServiceForWorkflows) GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*export.ExecutionTimeline, error) {
 	return nil, nil
 }
-func (m *mockWorkflowServiceForWorkflows) DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*services.ExecutionExportPreview, error) {
+func (m *mockWorkflowServiceForWorkflows) DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionExportPreview, error) {
 	return nil, nil
 }
 func (m *mockWorkflowServiceForWorkflows) GetExecution(ctx context.Context, executionID uuid.UUID) (*database.Execution, error) {
@@ -329,7 +334,7 @@ func TestCreateWorkflow(t *testing.T) {
 	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles AI generation errors", func(t *testing.T) {
 		service := &mockWorkflowServiceForWorkflows{
 			createWorkflowFn: func(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error) {
-				return nil, &services.AIWorkflowError{
+				return nil, &workflow.AIWorkflowError{
 					Reason: "Invalid prompt: too vague",
 				}
 			},
@@ -683,7 +688,7 @@ func TestUpdateWorkflow(t *testing.T) {
 	t.Run("[REQ:BAS-WORKFLOW-PERSIST-VERSION] updates workflow with valid changes", func(t *testing.T) {
 		workflowID := uuid.New()
 		service := &mockWorkflowServiceForWorkflows{
-			updateWorkflowFn: func(ctx context.Context, id uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error) {
+			updateWorkflowFn: func(ctx context.Context, id uuid.UUID, input workflow.WorkflowUpdateInput) (*database.Workflow, error) {
 				if id != workflowID {
 					t.Errorf("expected workflow ID %s, got %s", workflowID, id)
 				}
@@ -759,7 +764,7 @@ func TestUpdateWorkflow(t *testing.T) {
 	t.Run("[REQ:BAS-WORKFLOW-PERSIST-VERSION] handles version conflict", func(t *testing.T) {
 		workflowID := uuid.New()
 		service := &mockWorkflowServiceForWorkflows{
-			updateWorkflowFn: func(ctx context.Context, id uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error) {
+			updateWorkflowFn: func(ctx context.Context, id uuid.UUID, input workflow.WorkflowUpdateInput) (*database.Workflow, error) {
 				return nil, services.ErrWorkflowVersionConflict
 			},
 		}
@@ -804,7 +809,7 @@ func TestUpdateWorkflow(t *testing.T) {
 	t.Run("[REQ:BAS-WORKFLOW-PERSIST-VERSION] handles invalid workflow definition", func(t *testing.T) {
 		workflowID := uuid.New()
 		service := &mockWorkflowServiceForWorkflows{
-			updateWorkflowFn: func(ctx context.Context, id uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error) {
+			updateWorkflowFn: func(ctx context.Context, id uuid.UUID, input workflow.WorkflowUpdateInput) (*database.Workflow, error) {
 				return nil, errors.New("invalid workflow definition: missing required fields")
 			},
 		}

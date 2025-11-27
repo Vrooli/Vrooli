@@ -9,20 +9,25 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/services/ai"
+	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/logutil"
+	"github.com/vrooli/browser-automation-studio/services/recording"
+	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
 )
 
 var ErrMovieSpecUnavailable = errors.New("movie spec unavailable")
 
 // BuildSpec constructs a validated ReplayMovieSpec for export by merging client-provided
 // and server-generated specs, validating execution ID matching, and filling in defaults.
-func BuildSpec(baseline, incoming *services.ReplayMovieSpec, executionID uuid.UUID) (*services.ReplayMovieSpec, error) {
+func BuildSpec(baseline, incoming *export.ReplayMovieSpec, executionID uuid.UUID) (*export.ReplayMovieSpec, error) {
 	if incoming == nil && baseline == nil {
 		return nil, ErrMovieSpecUnavailable
 	}
 
 	var (
-		spec *services.ReplayMovieSpec
+		spec *export.ReplayMovieSpec
 		err  error
 	)
 
@@ -47,7 +52,7 @@ func BuildSpec(baseline, incoming *services.ReplayMovieSpec, executionID uuid.UU
 }
 
 // Clone creates a deep copy of a ReplayMovieSpec via JSON marshaling.
-func Clone(spec *services.ReplayMovieSpec) (*services.ReplayMovieSpec, error) {
+func Clone(spec *export.ReplayMovieSpec) (*export.ReplayMovieSpec, error) {
 	if spec == nil {
 		return nil, nil
 	}
@@ -55,7 +60,7 @@ func Clone(spec *services.ReplayMovieSpec) (*services.ReplayMovieSpec, error) {
 	if err != nil {
 		return nil, err
 	}
-	var cloned services.ReplayMovieSpec
+	var cloned export.ReplayMovieSpec
 	if err := json.Unmarshal(encoded, &cloned); err != nil {
 		return nil, err
 	}
@@ -64,7 +69,7 @@ func Clone(spec *services.ReplayMovieSpec) (*services.ReplayMovieSpec, error) {
 
 // Harmonize validates and fills in missing fields in spec using values from baseline.
 // It ensures the execution ID matches and applies sensible defaults for all required fields.
-func Harmonize(spec, baseline *services.ReplayMovieSpec, executionID uuid.UUID) error {
+func Harmonize(spec, baseline *export.ReplayMovieSpec, executionID uuid.UUID) error {
 	if spec == nil {
 		return ErrMovieSpecUnavailable
 	}
@@ -148,7 +153,7 @@ func Harmonize(spec, baseline *services.ReplayMovieSpec, executionID uuid.UUID) 
 }
 
 // ensureTheme fills in missing theme fields from baseline or applies defaults.
-func ensureTheme(spec, baseline *services.ReplayMovieSpec) {
+func ensureTheme(spec, baseline *export.ReplayMovieSpec) {
 	if baseline != nil {
 		if len(spec.Theme.BackgroundGradient) == 0 {
 			spec.Theme.BackgroundGradient = baseline.Theme.BackgroundGradient
@@ -203,7 +208,7 @@ func ensureTheme(spec, baseline *services.ReplayMovieSpec) {
 }
 
 // ensureDecor fills in missing decor preset names from baseline or applies defaults.
-func ensureDecor(spec, baseline *services.ReplayMovieSpec) {
+func ensureDecor(spec, baseline *export.ReplayMovieSpec) {
 	if baseline != nil {
 		if spec.Decor.ChromeTheme == "" {
 			spec.Decor.ChromeTheme = baseline.Decor.ChromeTheme
@@ -248,7 +253,7 @@ func ensureDecor(spec, baseline *services.ReplayMovieSpec) {
 }
 
 // ensureCursor fills in missing cursor configuration from baseline or applies defaults.
-func ensureCursor(spec, baseline *services.ReplayMovieSpec) {
+func ensureCursor(spec, baseline *export.ReplayMovieSpec) {
 	if baseline != nil {
 		if spec.Cursor.Style == "" {
 			spec.Cursor = baseline.Cursor
@@ -356,7 +361,7 @@ func ensureCursor(spec, baseline *services.ReplayMovieSpec) {
 }
 
 // ensurePresentation fills in canvas and viewport dimensions from baseline or applies defaults.
-func ensurePresentation(spec, baseline *services.ReplayMovieSpec) {
+func ensurePresentation(spec, baseline *export.ReplayMovieSpec) {
 	if baseline != nil {
 		if spec.Presentation.Canvas.Width == 0 {
 			spec.Presentation.Canvas = baseline.Presentation.Canvas
@@ -405,7 +410,7 @@ func ensurePresentation(spec, baseline *services.ReplayMovieSpec) {
 }
 
 // ensureSummaryAndPlayback computes or fills in summary statistics and playback settings.
-func ensureSummaryAndPlayback(spec, baseline *services.ReplayMovieSpec) {
+func ensureSummaryAndPlayback(spec, baseline *export.ReplayMovieSpec) {
 	// Determine frame interval fallback
 	fallbackInterval := spec.Playback.FrameIntervalMs
 	if fallbackInterval <= 0 && baseline != nil && baseline.Playback.FrameIntervalMs > 0 {

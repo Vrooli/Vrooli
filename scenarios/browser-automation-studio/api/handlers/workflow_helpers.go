@@ -10,7 +10,12 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/services/ai"
+	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/logutil"
+	"github.com/vrooli/browser-automation-studio/services/recording"
+	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
 )
 
 const (
@@ -19,7 +24,7 @@ const (
 
 // toWorkflowVersionResponse converts a WorkflowVersionSummary from the service layer
 // into an HTTP response-ready structure with properly formatted timestamps.
-func toWorkflowVersionResponse(summary *services.WorkflowVersionSummary) workflowVersionResponse {
+func toWorkflowVersionResponse(summary *workflow.WorkflowVersionSummary) workflowVersionResponse {
 	if summary == nil {
 		return workflowVersionResponse{}
 	}

@@ -5,7 +5,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/services/ai"
+	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/logutil"
+	"github.com/vrooli/browser-automation-studio/services/recording"
+	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
 )
 
 func TestBuildSpec_NilSpecs(t *testing.T) {
@@ -20,7 +25,7 @@ func TestBuildSpec_IncomingSpecPreferred(t *testing.T) {
 	executionID := uuid.New()
 	workflowID := uuid.New()
 
-	baseline := &services.ReplayMovieSpec{
+	baseline := &export.ReplayMovieSpec{
 		Version: "2025-11-07",
 		Execution: services.ExportExecutionMetadata{
 			ExecutionID:  executionID,
@@ -34,7 +39,7 @@ func TestBuildSpec_IncomingSpecPreferred(t *testing.T) {
 		},
 	}
 
-	incoming := &services.ReplayMovieSpec{
+	incoming := &export.ReplayMovieSpec{
 		Version: "2025-11-07",
 		Execution: services.ExportExecutionMetadata{
 			ExecutionID:  executionID,
@@ -66,7 +71,7 @@ func TestBuildSpec_BaselineUsedWhenNoIncoming(t *testing.T) {
 	executionID := uuid.New()
 	workflowID := uuid.New()
 
-	baseline := &services.ReplayMovieSpec{
+	baseline := &export.ReplayMovieSpec{
 		Version: "2025-11-07",
 		Execution: services.ExportExecutionMetadata{
 			ExecutionID:  executionID,
@@ -105,7 +110,7 @@ func TestClone_NilSpec(t *testing.T) {
 }
 
 func TestClone_DeepCopy(t *testing.T) {
-	original := &services.ReplayMovieSpec{
+	original := &export.ReplayMovieSpec{
 		Version: "2025-11-07",
 		Execution: services.ExportExecutionMetadata{
 			ExecutionID:  uuid.New(),
@@ -145,7 +150,7 @@ func TestHarmonize_ExecutionIDMismatch(t *testing.T) {
 	executionID := uuid.New()
 	differentID := uuid.New()
 
-	spec := &services.ReplayMovieSpec{
+	spec := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{
 			ExecutionID: differentID,
 		},
@@ -163,7 +168,7 @@ func TestHarmonize_WorkflowIDMismatch(t *testing.T) {
 	workflowID1 := uuid.New()
 	workflowID2 := uuid.New()
 
-	spec := &services.ReplayMovieSpec{
+	spec := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{
 			ExecutionID: executionID,
 			WorkflowID:  workflowID1,
@@ -171,7 +176,7 @@ func TestHarmonize_WorkflowIDMismatch(t *testing.T) {
 		Frames: []services.ExportFrame{{NodeID: "step1"}},
 	}
 
-	baseline := &services.ReplayMovieSpec{
+	baseline := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{
 			WorkflowID: workflowID2,
 		},
@@ -186,7 +191,7 @@ func TestHarmonize_WorkflowIDMismatch(t *testing.T) {
 func TestHarmonize_FillsExecutionID(t *testing.T) {
 	executionID := uuid.New()
 
-	spec := &services.ReplayMovieSpec{
+	spec := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{},
 		Frames:    []services.ExportFrame{{NodeID: "step1"}},
 	}
@@ -207,14 +212,14 @@ func TestHarmonize_FillsMetadataFromBaseline(t *testing.T) {
 	completedAt := time.Now().UTC()
 	startedAt := time.Now().UTC().Add(-time.Hour)
 
-	spec := &services.ReplayMovieSpec{
+	spec := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{
 			ExecutionID: executionID,
 		},
 		Frames: []services.ExportFrame{{NodeID: "step1"}},
 	}
 
-	baseline := &services.ReplayMovieSpec{
+	baseline := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{
 			WorkflowID:   workflowID,
 			WorkflowName: "Test Workflow",
@@ -254,7 +259,7 @@ func TestHarmonize_PreservesExistingMetadata(t *testing.T) {
 	executionID := uuid.New()
 	workflowID := uuid.New()
 
-	spec := &services.ReplayMovieSpec{
+	spec := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{
 			ExecutionID:  executionID,
 			WorkflowID:   workflowID,
@@ -265,7 +270,7 @@ func TestHarmonize_PreservesExistingMetadata(t *testing.T) {
 		Frames: []services.ExportFrame{{NodeID: "step1"}},
 	}
 
-	baseline := &services.ReplayMovieSpec{
+	baseline := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{
 			WorkflowID:   workflowID,
 			WorkflowName: "Baseline Name",
@@ -294,7 +299,7 @@ func TestHarmonize_PreservesExistingMetadata(t *testing.T) {
 func TestHarmonize_FillsVersionAndGeneratedAt(t *testing.T) {
 	executionID := uuid.New()
 
-	spec := &services.ReplayMovieSpec{
+	spec := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{
 			ExecutionID: executionID,
 		},
@@ -318,7 +323,7 @@ func TestHarmonize_FillsVersionAndGeneratedAt(t *testing.T) {
 func TestHarmonize_MissingFramesError(t *testing.T) {
 	executionID := uuid.New()
 
-	spec := &services.ReplayMovieSpec{
+	spec := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{
 			ExecutionID: executionID,
 		},
@@ -334,14 +339,14 @@ func TestHarmonize_MissingFramesError(t *testing.T) {
 func TestHarmonize_CopiesFramesFromBaseline(t *testing.T) {
 	executionID := uuid.New()
 
-	spec := &services.ReplayMovieSpec{
+	spec := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{
 			ExecutionID: executionID,
 		},
 		Frames: []services.ExportFrame{},
 	}
 
-	baseline := &services.ReplayMovieSpec{
+	baseline := &export.ReplayMovieSpec{
 		Frames: []services.ExportFrame{
 			{NodeID: "step1"},
 			{NodeID: "step2"},
@@ -364,7 +369,7 @@ func TestHarmonize_CopiesFramesFromBaseline(t *testing.T) {
 func TestHarmonize_CopiesAssetsFromBaseline(t *testing.T) {
 	executionID := uuid.New()
 
-	spec := &services.ReplayMovieSpec{
+	spec := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{
 			ExecutionID: executionID,
 		},
@@ -372,7 +377,7 @@ func TestHarmonize_CopiesAssetsFromBaseline(t *testing.T) {
 		Assets: []services.ExportAsset{},
 	}
 
-	baseline := &services.ReplayMovieSpec{
+	baseline := &export.ReplayMovieSpec{
 		Assets: []services.ExportAsset{
 			{ID: "screenshot1.png", Source: "assets/screenshot1.png"},
 			{ID: "screenshot2.png", Source: "assets/screenshot2.png"},
@@ -392,7 +397,7 @@ func TestHarmonize_CopiesAssetsFromBaseline(t *testing.T) {
 func TestHarmonize_SyncsTotalDurationWithSummary(t *testing.T) {
 	executionID := uuid.New()
 
-	spec := &services.ReplayMovieSpec{
+	spec := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{
 			ExecutionID:   executionID,
 			TotalDuration: 0,
@@ -416,7 +421,7 @@ func TestHarmonize_SyncsTotalDurationWithSummary(t *testing.T) {
 func TestHarmonize_PreservesTotalDuration(t *testing.T) {
 	executionID := uuid.New()
 
-	spec := &services.ReplayMovieSpec{
+	spec := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{
 			ExecutionID:   executionID,
 			TotalDuration: 3000,
@@ -441,7 +446,7 @@ func TestHarmonize_PreservesTotalDuration(t *testing.T) {
 func TestHarmonize_EnsuresNestedStructures(t *testing.T) {
 	executionID := uuid.New()
 
-	spec := &services.ReplayMovieSpec{
+	spec := &export.ReplayMovieSpec{
 		Execution: services.ExportExecutionMetadata{
 			ExecutionID: executionID,
 		},

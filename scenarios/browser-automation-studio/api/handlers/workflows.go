@@ -16,7 +16,12 @@ import (
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/httpjson"
-	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/services/ai"
+	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/logutil"
+	"github.com/vrooli/browser-automation-studio/services/recording"
+	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
 	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
 )
 
@@ -154,7 +159,7 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 	workflow, err := h.workflowService.CreateWorkflowWithProject(ctx, req.ProjectID, req.Name, req.FolderPath, req.FlowDefinition, req.AIPrompt)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to create workflow")
-		var aiErr *services.AIWorkflowError
+		var aiErr *workflow.AIWorkflowError
 		switch {
 		case errors.Is(err, services.ErrWorkflowNameConflict):
 			details := map[string]string{"name": req.Name}
@@ -238,7 +243,7 @@ func (h *Handler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	updateInput := services.WorkflowUpdateInput{
+	updateInput := workflow.WorkflowUpdateInput{
 		Name:              req.Name,
 		Description:       req.Description,
 		FolderPath:        req.FolderPath,

@@ -3,7 +3,12 @@ package export
 import (
 	"testing"
 
-	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/services/ai"
+	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/logutil"
+	"github.com/vrooli/browser-automation-studio/services/recording"
+	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
 )
 
 func TestBuildThemeFromPreset(t *testing.T) {
@@ -16,7 +21,7 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("nil preset", func(t *testing.T) {
-		baseline := &services.ReplayMovieSpec{
+		baseline := &export.ReplayMovieSpec{
 			Theme: services.ExportTheme{},
 		}
 		result := BuildThemeFromPreset(baseline, nil)
@@ -26,7 +31,7 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("aurora chrome theme", func(t *testing.T) {
-		baseline := &services.ReplayMovieSpec{
+		baseline := &export.ReplayMovieSpec{
 			Theme: services.ExportTheme{
 				BrowserChrome: services.ExportBrowserChrome{},
 			},
@@ -52,7 +57,7 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("minimal chrome theme", func(t *testing.T) {
-		baseline := &services.ReplayMovieSpec{
+		baseline := &export.ReplayMovieSpec{
 			Theme: services.ExportTheme{
 				BrowserChrome: services.ExportBrowserChrome{},
 			},
@@ -73,7 +78,7 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("background theme applied", func(t *testing.T) {
-		baseline := &services.ReplayMovieSpec{
+		baseline := &export.ReplayMovieSpec{
 			Theme: services.ExportTheme{},
 		}
 		preset := &ThemePreset{BackgroundTheme: "midnight"}
@@ -91,7 +96,7 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("workflow name used as title", func(t *testing.T) {
-		baseline := &services.ReplayMovieSpec{
+		baseline := &export.ReplayMovieSpec{
 			Theme: services.ExportTheme{
 				BrowserChrome: services.ExportBrowserChrome{},
 			},
@@ -111,7 +116,7 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("default title when no workflow name", func(t *testing.T) {
-		baseline := &services.ReplayMovieSpec{
+		baseline := &export.ReplayMovieSpec{
 			Theme: services.ExportTheme{
 				BrowserChrome: services.ExportBrowserChrome{},
 			},
@@ -129,7 +134,7 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("defaults applied when missing", func(t *testing.T) {
-		baseline := &services.ReplayMovieSpec{
+		baseline := &export.ReplayMovieSpec{
 			Theme: services.ExportTheme{},
 		}
 		preset := &ThemePreset{}
@@ -153,7 +158,7 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("whitespace in theme names trimmed", func(t *testing.T) {
-		baseline := &services.ReplayMovieSpec{
+		baseline := &export.ReplayMovieSpec{
 			Theme: services.ExportTheme{},
 		}
 		preset := &ThemePreset{
@@ -171,7 +176,7 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("unknown preset names ignored", func(t *testing.T) {
-		baseline := &services.ReplayMovieSpec{
+		baseline := &export.ReplayMovieSpec{
 			Theme: services.ExportTheme{},
 		}
 		preset := &ThemePreset{

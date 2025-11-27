@@ -3,12 +3,17 @@ package export
 import (
 	"strings"
 
-	"github.com/vrooli/browser-automation-studio/services"
+	"github.com/vrooli/browser-automation-studio/services/ai"
+	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/logutil"
+	"github.com/vrooli/browser-automation-studio/services/recording"
+	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
 )
 
 // BuildThemeFromPreset constructs an ExportTheme by applying preset configurations
 // to the baseline theme from the movie spec.
-func BuildThemeFromPreset(baseline *services.ReplayMovieSpec, preset *ThemePreset) *services.ExportTheme {
+func BuildThemeFromPreset(baseline *export.ReplayMovieSpec, preset *ThemePreset) *services.ExportTheme {
 	if baseline == nil || preset == nil {
 		return nil
 	}

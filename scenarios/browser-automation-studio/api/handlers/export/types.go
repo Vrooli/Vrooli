@@ -1,22 +1,24 @@
 package export
 
-import "github.com/vrooli/browser-automation-studio/services"
+import (
+	basexport "github.com/vrooli/browser-automation-studio/services/export"
+)
 
 // Request represents the JSON payload for execution export endpoints.
 type Request struct {
-	Format    string                    `json:"format,omitempty"`
-	FileName  string                    `json:"file_name,omitempty"`
-	OutputDir string                    `json:"output_dir,omitempty"`
-	Overrides *Overrides                `json:"overrides,omitempty"`
-	MovieSpec *services.ReplayMovieSpec `json:"movie_spec,omitempty"`
+	Format    string                       `json:"format,omitempty"`
+	FileName  string                       `json:"file_name,omitempty"`
+	OutputDir string                       `json:"output_dir,omitempty"`
+	Overrides *Overrides                   `json:"overrides,omitempty"`
+	MovieSpec *basexport.ReplayMovieSpec `json:"movie_spec,omitempty"`
 }
 
 // Overrides allows clients to customize export themes and cursor configuration.
 type Overrides struct {
-	Theme        *services.ExportTheme      `json:"theme,omitempty"`
-	Cursor       *services.ExportCursorSpec `json:"cursor,omitempty"`
-	ThemePreset  *ThemePreset               `json:"theme_preset,omitempty"`
-	CursorPreset *CursorPreset              `json:"cursor_preset,omitempty"`
+	Theme        *basexport.ExportTheme      `json:"theme,omitempty"`
+	Cursor       *basexport.ExportCursorSpec `json:"cursor,omitempty"`
+	ThemePreset  *ThemePreset                `json:"theme_preset,omitempty"`
+	CursorPreset *CursorPreset               `json:"cursor_preset,omitempty"`
 }
 
 // ThemePreset specifies which chrome and background preset themes to apply.
