@@ -20,6 +20,9 @@ importers:
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge
+      '@vrooli/vitest-requirement-reporter':
+        specifier: workspace:^
+        version: link:../../../packages/vitest-requirement-reporter
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.1

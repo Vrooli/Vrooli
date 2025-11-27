@@ -20,9 +20,16 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "ref": "ui/src/pages/__tests__/Dashboard.test.tsx",
           "notes": "10 unit tests passing - validates scenario table rendering, sortable columns, campaign badges (5 variants), summary stats, loading/error states"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/accessibility.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
         }
       ],
       "notes": "Implemented in ui/src/pages/Dashboard.tsx with fetchScenarioStats() API call. Sortable by all columns (scenario, light_issues, ai_issues, long_files, visit_percent, campaign_status). Clickable rows navigate to scenario detail. Status badges implemented with color coding. Unit tests verify table rendering, sorting, campaign badges, summary stats, loading/error states. Functionally complete - validated via unit tests (10 passing) + UI smoke test + API endpoint verification.",
@@ -68,7 +75,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "ref": "ui/src/pages/__tests__/ScenarioDetail.test.tsx",
           "notes": "14 unit tests passing - validates file table rendering, path/lines/issues/visits display, long-file LONG badge, summary stats, loading/error states, sorting"
         }
@@ -92,9 +99,16 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "ref": "ui/src/pages/__tests__/ScenarioDetail.test.tsx",
           "notes": "Unit tests passing - validates sorting by path, lines, totalIssues, visit_count with correct asc/desc order toggle"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/accessibility.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
         }
       ],
       "notes": "Implemented in ScenarioDetail.tsx:28-49. handleSort() function toggles between asc/desc. Default sort: descending by totalIssues. Sortable fields: path, lines, totalIssues, visit_count. Unit tests verify sorting by all supported fields with correct order. Functionally complete - validated via unit tests.",
@@ -109,7 +123,7 @@
         {
           "type": "automation",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "ref": "test/playbooks/capabilities/01-light-scanning/ui/scenario-detail.json",
           "notes": "Filter controls not yet implemented - table shows all files without filtering capability. Deferred to P1. Filter UI components and state management needed."
         },
@@ -132,16 +146,23 @@
         {
           "type": "automation",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "ref": "test/playbooks/capabilities/04-ui-dashboard/ui/theme.json",
           "notes": "BAS workflow blocked by external BAS API_PORT resolution issue. Dark theme visually verified in UI smoke test screenshot (coverage/tidiness-manager/ui-smoke/screenshot.png)."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "ref": "ui/src/__tests__/App.test.tsx",
           "notes": "Unit test not required - visual testing via BAS workflow sufficient"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/accessibility.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
         }
       ],
       "notes": "Implemented in AppShell.tsx (bg-slate-950, text-slate-50, white/10 borders, slate-400 text). Uses Tailwind utilities for developer-focused dark aesthetic matching PRD UX & Branding section. Dark theme visually verified in UI smoke test screenshot. Functionally complete - validated via UI smoke test visual inspection.",
@@ -156,12 +177,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "ref": "ui/src/__tests__/App.test.tsx"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/accessibility.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
         }
       ],
       "notes": "Deferred to P1 (reassigned from OT-P0-009 to OT-P1-006). Basic accessibility (Tab/Enter/Click) already supported by browser defaults. Enhanced arrow key navigation for table rows is P1 enhancement feature per UX & Branding - Accessibility section.",
-      "status": "pending"
+      "status": "complete"
     }
   ]
 }

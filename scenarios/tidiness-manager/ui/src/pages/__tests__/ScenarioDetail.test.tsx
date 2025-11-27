@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import ScenarioDetail from '../ScenarioDetail';
 import * as api from '../../lib/api';
+import { ToastProvider } from '../../components/ui/toast';
 
 // [REQ:TM-UI-003] Scenario detail - file table
 // [REQ:TM-UI-004] Scenario detail - sortable columns
@@ -62,9 +63,11 @@ function renderScenarioDetail(scenarioName = 'test-scenario') {
   return render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          <Route path="/scenario/:scenarioName" element={<ScenarioDetail />} />
-        </Routes>
+        <ToastProvider>
+          <Routes>
+            <Route path="/scenario/:scenarioName" element={<ScenarioDetail />} />
+          </Routes>
+        </ToastProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );
@@ -292,4 +295,104 @@ describe('ScenarioDetail', () => {
       expect(utilsRow).toHaveTextContent('0');
     });
   });
+
+  it('[REQ:TM-UI-003] handles empty file list gracefully', async () => {
+    vi.mocked(api.fetchScenarioDetail).mockResolvedValue({
+      stats: {
+        scenario: 'empty-scenario',
+        light_issues: 0,
+        ai_issues: 0,
+        long_files: 0,
+        visit_percent: 0,
+        campaign_status: 'active' as const,
+      },
+      files: [],
+    });
+
+    window.history.pushState({}, '', '/scenario/empty-scenario');
+    renderScenarioDetail('empty-scenario');
+
+    await waitFor(() => {
+      expect(screen.getByText('empty-scenario')).toBeInTheDocument();
+      // Should handle empty file list without crashing
+      const dataRows = screen.queryAllByTestId('file-table-row');
+      expect(dataRows).toHaveLength(0);
+    });
+  });
+
+  it('[REQ:TM-UI-003] handles scenario with all zero stats', async () => {
+    vi.mocked(api.fetchScenarioDetail).mockResolvedValue({
+      stats: {
+        scenario: 'clean-scenario',
+        light_issues: 0,
+        ai_issues: 0,
+        long_files: 0,
+        visit_percent: 0,
+        campaign_status: 'inactive' as const,
+      },
+      files: [
+        {
+          path: 'src/clean.ts',
+          lines: 50,
+          lint_issues: 0,
+          type_issues: 0,
+          ai_issues: 0,
+          visit_count: 0,
+          is_long_file: false,
+        },
+      ],
+    });
+
+    window.history.pushState({}, '', '/scenario/clean-scenario');
+    renderScenarioDetail('clean-scenario');
+
+    await waitFor(() => {
+      const issuesCard = screen.getByTestId('total-issues-card');
+      expect(issuesCard).toHaveTextContent('0 light');
+      expect(issuesCard).toHaveTextContent('0 AI');
+
+      const longFilesCard = screen.getByTestId('long-files-card');
+      expect(longFilesCard).toHaveTextContent('0');
+
+      const cleanRow = screen.getByText('src/clean.ts').closest('tr');
+      expect(cleanRow).toHaveTextContent('0');
+    });
+  });
+
+  it('[REQ:TM-UI-003] handles files with very large issue counts', async () => {
+    vi.mocked(api.fetchScenarioDetail).mockResolvedValue({
+      stats: {
+        scenario: 'messy-scenario',
+        light_issues: 9999,
+        ai_issues: 1234,
+        long_files: 100,
+        visit_percent: 10,
+        campaign_status: 'active' as const,
+      },
+      files: [
+        {
+          path: 'src/messy.ts',
+          lines: 5000,
+          lint_issues: 999,
+          type_issues: 888,
+          ai_issues: 777,
+          visit_count: 0,
+          is_long_file: true,
+        },
+      ],
+    });
+
+    window.history.pushState({}, '', '/scenario/messy-scenario');
+    renderScenarioDetail('messy-scenario');
+
+    await waitFor(() => {
+      const messyRow = screen.getByText('src/messy.ts').closest('tr');
+      // Should display large numbers correctly: 999 + 888 + 777 = 2664
+      expect(messyRow).toHaveTextContent('999');
+      expect(messyRow).toHaveTextContent('888');
+      expect(messyRow).toHaveTextContent('777');
+      expect(messyRow).toHaveTextContent('2664');
+    });
+  });
+
 });

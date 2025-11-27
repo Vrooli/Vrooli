@@ -213,3 +213,223 @@ func TestFilePrioritizer_GetTopNFiles(t *testing.T) {
 		}
 	}
 }
+
+// [REQ:TM-SS-005] [REQ:TM-SS-006] Test edge case: empty file list
+func TestFilePrioritizer_EmptyFileList(t *testing.T) {
+	fp := NewFilePrioritizer(3)
+
+	files := []TrackedFile{}
+	priorities := fp.PrioritizeFiles(files, false)
+
+	if len(priorities) != 0 {
+		t.Errorf("Expected empty result for empty input, got %d files", len(priorities))
+	}
+
+	topFiles := fp.GetTopNFiles(files, 5, false)
+	if len(topFiles) != 0 {
+		t.Errorf("Expected empty result from GetTopNFiles for empty input, got %d files", len(topFiles))
+	}
+}
+
+// [REQ:TM-SS-006] Test edge case: all files deleted
+func TestFilePrioritizer_AllFilesDeleted(t *testing.T) {
+	fp := NewFilePrioritizer(3)
+	now := time.Now()
+
+	files := []TrackedFile{
+		{FilePath: "deleted1.go", VisitCount: 0, FirstSeen: now.Add(-24 * time.Hour), Deleted: true},
+		{FilePath: "deleted2.go", VisitCount: 1, LastVisited: now.Add(-48 * time.Hour), Deleted: true},
+	}
+
+	priorities := fp.PrioritizeFiles(files, false)
+	if len(priorities) != 0 {
+		t.Errorf("Expected no files when all are deleted, got %d", len(priorities))
+	}
+
+	filtered := fp.FilterByMaxVisits(files)
+	if len(filtered) != 0 {
+		t.Errorf("Expected no files when all are deleted, got %d", len(filtered))
+	}
+}
+
+// [REQ:TM-SS-008] Test edge case: request more files than available
+func TestFilePrioritizer_RequestMoreThanAvailable(t *testing.T) {
+	fp := NewFilePrioritizer(3)
+	now := time.Now()
+
+	files := []TrackedFile{
+		{FilePath: "file1.go", VisitCount: 0, FirstSeen: now.Add(-24 * time.Hour)},
+		{FilePath: "file2.go", VisitCount: 1, LastVisited: now.Add(-48 * time.Hour), LastModified: now.Add(-48 * time.Hour)},
+	}
+
+	// Request 10 files but only 2 available
+	topFiles := fp.GetTopNFiles(files, 10, false)
+	if len(topFiles) != 2 {
+		t.Errorf("Expected 2 files (all available), got %d", len(topFiles))
+	}
+}
+
+// [REQ:TM-SS-005] Test edge case: zero timestamps
+func TestFilePrioritizer_ZeroTimestamps(t *testing.T) {
+	fp := NewFilePrioritizer(3)
+
+	files := []TrackedFile{
+		{
+			FilePath:     "zero-times.go",
+			VisitCount:   1,
+			LastVisited:  time.Time{}, // Zero time
+			LastModified: time.Time{}, // Zero time
+			FirstSeen:    time.Time{},
+		},
+	}
+
+	priorities := fp.PrioritizeFiles(files, false)
+	if len(priorities) != 1 {
+		t.Fatalf("Expected 1 file, got %d", len(priorities))
+	}
+
+	// Should handle zero times gracefully (score should be based only on visit count)
+	// Expected: 0 + 0 - (1 * 0.5) = -0.5
+	expectedScore := -0.5
+	if priorities[0].Score < expectedScore-0.1 || priorities[0].Score > expectedScore+0.1 {
+		t.Errorf("Expected score ~%.2f for zero timestamps, got %.2f", expectedScore, priorities[0].Score)
+	}
+}
+
+// [REQ:TM-SS-008] Test edge case: maxVisitsPerFile zero or negative
+func TestFilePrioritizer_InvalidMaxVisits(t *testing.T) {
+	// Zero should default to 3
+	fp1 := NewFilePrioritizer(0)
+	if fp1.maxVisitsPerFile != 3 {
+		t.Errorf("Expected maxVisitsPerFile=3 for zero input, got %d", fp1.maxVisitsPerFile)
+	}
+
+	// Negative should default to 3
+	fp2 := NewFilePrioritizer(-5)
+	if fp2.maxVisitsPerFile != 3 {
+		t.Errorf("Expected maxVisitsPerFile=3 for negative input, got %d", fp2.maxVisitsPerFile)
+	}
+}
+
+// [REQ:TM-SS-005] [REQ:TM-SS-006] Test multiple unvisited files are ordered by staleness
+func TestFilePrioritizer_MultipleUnvisitedOrdering(t *testing.T) {
+	fp := NewFilePrioritizer(3)
+	now := time.Now()
+
+	files := []TrackedFile{
+		{
+			FilePath:     "old-unvisited.go",
+			VisitCount:   0,
+			FirstSeen:    now.Add(-100 * time.Hour), // Older
+			LastModified: now.Add(-100 * time.Hour),
+		},
+		{
+			FilePath:     "new-unvisited.go",
+			VisitCount:   0,
+			FirstSeen:    now.Add(-10 * time.Hour), // Newer
+			LastModified: now.Add(-10 * time.Hour),
+		},
+	}
+
+	priorities := fp.PrioritizeFiles(files, false)
+
+	// Both unvisited, but older file should have higher score due to staleness
+	if priorities[0].Path != "old-unvisited.go" {
+		t.Errorf("Expected old-unvisited.go first (more stale), got %s", priorities[0].Path)
+	}
+
+	// Verify both have unvisited bonus
+	if !priorities[0].IsUnvisited || !priorities[1].IsUnvisited {
+		t.Error("Expected both files to be marked as unvisited")
+	}
+}
+
+// [REQ:TM-SS-006] Test staleness with same visit count but different visit times
+func TestFilePrioritizer_StalenessTiebreaker(t *testing.T) {
+	fp := NewFilePrioritizer(3)
+	now := time.Now()
+
+	files := []TrackedFile{
+		{
+			FilePath:     "stale.go",
+			VisitCount:   1,
+			LastVisited:  now.Add(-100 * time.Hour), // Not visited in long time
+			LastModified: now.Add(-50 * time.Hour),
+			FirstSeen:    now.Add(-200 * time.Hour),
+		},
+		{
+			FilePath:     "fresh.go",
+			VisitCount:   1,
+			LastVisited:  now.Add(-10 * time.Hour), // Recently visited
+			LastModified: now.Add(-50 * time.Hour), // Same modification time
+			FirstSeen:    now.Add(-200 * time.Hour),
+		},
+	}
+
+	priorities := fp.PrioritizeFiles(files, false)
+
+	// Stale file should rank higher (longer since last visit)
+	if priorities[0].Path != "stale.go" {
+		t.Errorf("Expected stale.go first (longer since visit), got %s", priorities[0].Path)
+	}
+
+	// Verify scores reflect staleness difference
+	if priorities[0].Score <= priorities[1].Score {
+		t.Errorf("Expected stale.go to have higher score (%.2f) than fresh.go (%.2f)",
+			priorities[0].Score, priorities[1].Score)
+	}
+}
+
+// [REQ:TM-SS-008] Test FilterByMaxVisits with mixed deleted and non-deleted files
+func TestFilePrioritizer_FilterMixedDeletedFiles(t *testing.T) {
+	fp := NewFilePrioritizer(2)
+
+	files := []TrackedFile{
+		{FilePath: "valid1.go", VisitCount: 0, Deleted: false},
+		{FilePath: "deleted.go", VisitCount: 0, Deleted: true},
+		{FilePath: "valid2.go", VisitCount: 1, Deleted: false},
+		{FilePath: "overvisited.go", VisitCount: 3, Deleted: false},
+	}
+
+	filtered := fp.FilterByMaxVisits(files)
+
+	// Should return only valid1.go and valid2.go (not deleted, visit count < 2)
+	if len(filtered) != 2 {
+		t.Errorf("Expected 2 valid files, got %d", len(filtered))
+	}
+
+	validPaths := map[string]bool{"valid1.go": true, "valid2.go": true}
+	for _, f := range filtered {
+		if !validPaths[f.FilePath] {
+			t.Errorf("Unexpected file in filtered results: %s", f.FilePath)
+		}
+	}
+}
+
+// [REQ:TM-SS-005] [REQ:TM-SS-006] Test score calculation precision
+func TestFilePrioritizer_ScorePrecision(t *testing.T) {
+	fp := NewFilePrioritizer(3)
+	now := time.Now()
+
+	// Create file with specific staleness values for precise score verification
+	files := []TrackedFile{
+		{
+			FilePath:     "precise.go",
+			VisitCount:   3,
+			LastVisited:  now.Add(-36 * time.Hour),  // 1.5 days
+			LastModified: now.Add(-120 * time.Hour), // 5 days
+			FirstSeen:    now.Add(-200 * time.Hour),
+		},
+	}
+
+	priorities := fp.PrioritizeFiles(files, false)
+
+	// Expected: (1.5 * 2) + 5 - (3 * 0.5) = 3 + 5 - 1.5 = 6.5
+	expectedScore := 6.5
+	tolerance := 0.01 // Very tight tolerance for precision test
+
+	if priorities[0].Score < expectedScore-tolerance || priorities[0].Score > expectedScore+tolerance {
+		t.Errorf("Score calculation imprecise: expected %.2f, got %.2f (days_since_visit: %.2f, days_since_mod: %.2f, visit_count: %d)",
+			expectedScore, priorities[0].Score, priorities[0].DaysSinceVisit, priorities[0].DaysSinceMod, priorities[0].VisitCount)
+	}
+}

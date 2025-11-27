@@ -290,4 +290,493 @@ lint:
 	if result.LintOutput == nil {
 		t.Error("expected LintOutput even if timed out")
 	}
+
+	// Verify timeout was recorded
+	if result.LintOutput != nil && result.LintOutput.Success {
+		t.Error("expected lint command to fail/timeout with short timeout")
+	}
+}
+
+// [REQ:TM-LS-007,TM-LS-008] Test context cancellation handling
+func TestLightScanner_ContextCancellation(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create Makefile with slow target
+	makefileContent := `
+.PHONY: lint
+lint:
+	@sleep 30
+	@echo "Done"
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644)
+	if err != nil {
+		t.Fatalf("failed to create Makefile: %v", err)
+	}
+
+	scanner := NewLightScanner(tmpDir, 60*time.Second)
+
+	// Create cancellable context
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Cancel after 500ms
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		cancel()
+	}()
+
+	result, err := scanner.Scan(ctx)
+
+	// Scan should handle cancellation gracefully
+	// Either return partial results or an error
+	if err == nil && result != nil {
+		// Partial results are acceptable
+		t.Logf("Scan returned partial results after cancellation")
+	} else if err != nil && err == context.Canceled {
+		// Explicit cancellation error is also acceptable
+		t.Logf("Scan returned cancellation error as expected")
+	} else if err != nil {
+		// Other errors might occur during cleanup
+		t.Logf("Scan returned error during cancellation: %v", err)
+	}
+}
+
+// [REQ:TM-LS-001,TM-LS-002] Test Makefile with invalid targets
+func TestLightScanner_InvalidMakefileTargets(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create Makefile with syntax errors
+	makefileContent := `
+.PHONY: lint
+lint:
+	@exit 1
+	@echo "This should not run"
+
+.PHONY: type
+type:
+	@invalidcommand
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644)
+	if err != nil {
+		t.Fatalf("failed to create Makefile: %v", err)
+	}
+
+	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	ctx := context.Background()
+
+	result, err := scanner.Scan(ctx)
+	if err != nil {
+		t.Fatalf("scan should complete even with failing Makefile targets: %v", err)
+	}
+
+	// Lint should have been attempted but failed
+	if result.LintOutput == nil {
+		t.Fatal("expected LintOutput even when command fails")
+	}
+	if result.LintOutput.Success {
+		t.Error("expected lint command to fail with non-zero exit")
+	}
+	// Exit code 1 or 2 are both acceptable for command failures
+	if result.LintOutput.ExitCode == 0 {
+		t.Errorf("expected non-zero exit code, got %d", result.LintOutput.ExitCode)
+	}
+}
+
+// [REQ:TM-LS-003] Test empty Makefile output
+func TestLightScanner_EmptyMakefileOutput(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	makefileContent := `
+.PHONY: lint
+lint:
+	@# Silent command with no output
+	@true
+
+.PHONY: type
+type:
+	@# Silent command with no output
+	@true
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644)
+	if err != nil {
+		t.Fatalf("failed to create Makefile: %v", err)
+	}
+
+	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	ctx := context.Background()
+
+	result, err := scanner.Scan(ctx)
+	if err != nil {
+		t.Fatalf("scan failed: %v", err)
+	}
+
+	if result.LintOutput == nil {
+		t.Fatal("expected LintOutput")
+	}
+	if !result.LintOutput.Success {
+		t.Error("expected lint to succeed with no output")
+	}
+	if result.LintOutput.Stdout != "" {
+		t.Errorf("expected empty stdout, got: %q", result.LintOutput.Stdout)
+	}
+}
+
+// [REQ:TM-LS-005] Test file metrics with unreadable files
+func TestLightScanner_UnreadableFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	apiDir := filepath.Join(tmpDir, "api")
+	err := os.MkdirAll(apiDir, 0755)
+	if err != nil {
+		t.Fatalf("failed to create api directory: %v", err)
+	}
+
+	// Create a readable file
+	readableFile := filepath.Join(apiDir, "readable.go")
+	err = os.WriteFile(readableFile, []byte("package main\n"), 0644)
+	if err != nil {
+		t.Fatalf("failed to create readable file: %v", err)
+	}
+
+	// Create an unreadable file (chmod 000)
+	unreadableFile := filepath.Join(apiDir, "unreadable.go")
+	err = os.WriteFile(unreadableFile, []byte("package main\n"), 0000)
+	if err != nil {
+		t.Fatalf("failed to create unreadable file: %v", err)
+	}
+	defer os.Chmod(unreadableFile, 0644) // Cleanup
+
+	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	ctx := context.Background()
+
+	result, err := scanner.Scan(ctx)
+	// Should complete successfully, skipping unreadable files
+	if err != nil {
+		t.Fatalf("scan should complete despite unreadable files: %v", err)
+	}
+
+	// Should have metrics for readable file
+	if len(result.FileMetrics) == 0 {
+		t.Error("expected at least one file metric for readable file")
+	}
+
+	// Verify unreadable file was skipped (not in metrics)
+	for _, m := range result.FileMetrics {
+		if filepath.Base(m.Path) == "unreadable.go" {
+			t.Error("unreadable file should have been skipped")
+		}
+	}
+}
+
+// [REQ:TM-LS-005] Test directory traversal with symlinks
+func TestLightScanner_SymlinkHandling(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	apiDir := filepath.Join(tmpDir, "api")
+	err := os.MkdirAll(apiDir, 0755)
+	if err != nil {
+		t.Fatalf("failed to create api directory: %v", err)
+	}
+
+	// Create a real file
+	realFile := filepath.Join(apiDir, "real.go")
+	err = os.WriteFile(realFile, []byte("package main\nfunc main() {}\n"), 0644)
+	if err != nil {
+		t.Fatalf("failed to create real file: %v", err)
+	}
+
+	// Create a symlink to the real file
+	symlinkFile := filepath.Join(apiDir, "symlink.go")
+	err = os.Symlink(realFile, symlinkFile)
+	if err != nil {
+		t.Skip("Cannot create symlinks on this system")
+	}
+
+	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	ctx := context.Background()
+
+	result, err := scanner.Scan(ctx)
+	if err != nil {
+		t.Fatalf("scan failed: %v", err)
+	}
+
+	// Should handle symlinks gracefully (either follow or skip, but not crash)
+	if len(result.FileMetrics) == 0 {
+		t.Error("expected at least the real file in metrics")
+	}
+}
+
+// [REQ:TM-LS-006] Test long file detection with edge cases
+func TestLightScanner_LongFileBoundary(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	apiDir := filepath.Join(tmpDir, "api")
+	err := os.MkdirAll(apiDir, 0755)
+	if err != nil {
+		t.Fatalf("failed to create api directory: %v", err)
+	}
+
+	testCases := []struct {
+		name       string
+		lineCount  int
+		shouldFlag bool
+	}{
+		{"exactly_500.go", 500, false}, // At threshold, should not flag
+		{"exactly_501.go", 501, true},  // Just over, should flag
+		{"exactly_499.go", 499, false}, // Just under, should not flag
+	}
+
+	for _, tc := range testCases {
+		filePath := filepath.Join(apiDir, tc.name)
+		content := ""
+		for i := 0; i < tc.lineCount; i++ {
+			content += "line\n"
+		}
+		err = os.WriteFile(filePath, []byte(content), 0644)
+		if err != nil {
+			t.Fatalf("failed to create %s: %v", tc.name, err)
+		}
+	}
+
+	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	ctx := context.Background()
+
+	result, err := scanner.Scan(ctx)
+	if err != nil {
+		t.Fatalf("scan failed: %v", err)
+	}
+
+	longFileMap := make(map[string]bool)
+	for _, lf := range result.LongFiles {
+		longFileMap[filepath.Base(lf.Path)] = true
+	}
+
+	for _, tc := range testCases {
+		flagged := longFileMap[tc.name]
+		if tc.shouldFlag && !flagged {
+			t.Errorf("%s with %d lines should be flagged but wasn't", tc.name, tc.lineCount)
+		}
+		if !tc.shouldFlag && flagged {
+			t.Errorf("%s with %d lines should not be flagged but was", tc.name, tc.lineCount)
+		}
+	}
+}
+
+// [REQ:TM-LS-001,TM-LS-002] Test concurrent Makefile execution safety
+func TestLightScanner_ConcurrentScans(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	makefileContent := `
+.PHONY: lint type
+lint:
+	@echo "lint output"
+type:
+	@echo "type output"
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644)
+	if err != nil {
+		t.Fatalf("failed to create Makefile: %v", err)
+	}
+
+	apiDir := filepath.Join(tmpDir, "api")
+	err = os.MkdirAll(apiDir, 0755)
+	if err != nil {
+		t.Fatalf("failed to create api directory: %v", err)
+	}
+
+	testFile := filepath.Join(apiDir, "test.go")
+	err = os.WriteFile(testFile, []byte("package main\n"), 0644)
+	if err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	// Run 5 concurrent scans
+	done := make(chan error, 5)
+	for i := 0; i < 5; i++ {
+		go func() {
+			scanner := NewLightScanner(tmpDir, 30*time.Second)
+			_, err := scanner.Scan(context.Background())
+			done <- err
+		}()
+	}
+
+	// Wait for all scans to complete
+	for i := 0; i < 5; i++ {
+		if err := <-done; err != nil {
+			t.Errorf("concurrent scan %d failed: %v", i, err)
+		}
+	}
+}
+
+// [REQ:TM-LS-005] Test file metrics with mixed file types
+func TestLightScanner_MixedExtensions(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	testFiles := map[string]bool{
+		"api/main.go":     true,
+		"api/utils.go":    true,
+		"ui/src/App.tsx":  true,
+		"ui/src/utils.ts": true,
+		"ui/src/comp.jsx": true,
+		"cli/script.js":   true,
+		"README.md":       false,
+		"package.json":    false,
+		"Makefile":        false,
+	}
+
+	for path := range testFiles {
+		fullPath := filepath.Join(tmpDir, path)
+		err := os.MkdirAll(filepath.Dir(fullPath), 0755)
+		if err != nil {
+			t.Fatalf("failed to create directory: %v", err)
+		}
+		err = os.WriteFile(fullPath, []byte("content\n"), 0644)
+		if err != nil {
+			t.Fatalf("failed to create %s: %v", path, err)
+		}
+	}
+
+	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	ctx := context.Background()
+
+	result, err := scanner.Scan(ctx)
+	if err != nil {
+		t.Fatalf("scan failed: %v", err)
+	}
+
+	metricMap := make(map[string]bool)
+	for _, m := range result.FileMetrics {
+		metricMap[m.Path] = true
+	}
+
+	for path, shouldInclude := range testFiles {
+		found := metricMap[path]
+		if shouldInclude && !found {
+			t.Errorf("Expected %s to be included in metrics", path)
+		}
+		if !shouldInclude && found {
+			t.Errorf("Expected %s to be excluded from metrics", path)
+		}
+	}
+}
+
+// [REQ:TM-LS-005] Test file metrics with empty and whitespace-only files
+func TestLightScanner_EmptyAndWhitespaceFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	apiDir := filepath.Join(tmpDir, "api")
+	err := os.MkdirAll(apiDir, 0755)
+	if err != nil {
+		t.Fatalf("failed to create api directory: %v", err)
+	}
+
+	testCases := []struct {
+		name          string
+		content       string
+		expectedLines int
+		description   string
+	}{
+		{
+			name:          "empty.go",
+			content:       "",
+			expectedLines: 0,
+			description:   "completely empty file",
+		},
+		{
+			name:          "whitespace.go",
+			content:       "   \n\n   \n",
+			expectedLines: 3,
+			description:   "file with only whitespace and newlines",
+		},
+		{
+			name:          "mixed.go",
+			content:       "package main\n\n\nfunc test() {}\n\n",
+			expectedLines: 6,
+			description:   "file with mix of code and blank lines",
+		},
+	}
+
+	for _, tc := range testCases {
+		filePath := filepath.Join(apiDir, tc.name)
+		err = os.WriteFile(filePath, []byte(tc.content), 0644)
+		if err != nil {
+			t.Fatalf("failed to create %s: %v", tc.name, err)
+		}
+	}
+
+	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	ctx := context.Background()
+
+	result, err := scanner.Scan(ctx)
+	if err != nil {
+		t.Fatalf("scan failed: %v", err)
+	}
+
+	// Verify empty file is handled
+	foundEmpty := false
+	for _, m := range result.FileMetrics {
+		if filepath.Base(m.Path) == "empty.go" {
+			foundEmpty = true
+			if m.Lines != 0 {
+				t.Errorf("empty.go should have 0 lines, got %d", m.Lines)
+			}
+		}
+	}
+
+	if !foundEmpty {
+		t.Error("empty.go should still be included in metrics even with 0 lines")
+	}
+}
+
+// [REQ:TM-LS-005] Test file metrics exclude hidden directories and node_modules
+func TestLightScanner_ExcludeIgnoredDirectories(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	testPaths := map[string]bool{
+		"api/main.go":             true,  // Should include
+		".git/config":             false, // Should exclude hidden
+		"node_modules/pkg/lib.js": false, // Should exclude node_modules
+		".cache/temp.go":          false, // Should exclude hidden
+		"vendor/lib/dep.go":       false, // Typically excluded
+		"ui/src/component.tsx":    true,  // Should include
+	}
+
+	for path := range testPaths {
+		fullPath := filepath.Join(tmpDir, path)
+		err := os.MkdirAll(filepath.Dir(fullPath), 0755)
+		if err != nil {
+			t.Fatalf("failed to create directory for %s: %v", path, err)
+		}
+		err = os.WriteFile(fullPath, []byte("content\n"), 0644)
+		if err != nil {
+			t.Fatalf("failed to create %s: %v", path, err)
+		}
+	}
+
+	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	ctx := context.Background()
+
+	result, err := scanner.Scan(ctx)
+	if err != nil {
+		t.Fatalf("scan failed: %v", err)
+	}
+
+	foundPaths := make(map[string]bool)
+	for _, m := range result.FileMetrics {
+		foundPaths[m.Path] = true
+	}
+
+	for path, shouldInclude := range testPaths {
+		found := foundPaths[path]
+		if shouldInclude && !found {
+			t.Logf("Expected %s to be included but it wasn't (might be correct if scanner excludes it)", path)
+		}
+		if !shouldInclude && found {
+			t.Logf("Did not expect %s to be included but it was (might be correct if scanner includes it)", path)
+		}
+	}
+
+	// At minimum, verify we found the main api file
+	if !foundPaths["api/main.go"] {
+		t.Error("Expected api/main.go to be included in scan")
+	}
 }

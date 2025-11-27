@@ -113,7 +113,8 @@ func (cm *CampaignManager) FindCampaignByScenario(scenario string) (*Campaign, e
 	// Find campaign matching this scenario
 	campaignPrefix := fmt.Sprintf("tidiness-%s", scenario)
 	for i := range listResp.Campaigns {
-		if listResp.Campaigns[i].Name[:len(campaignPrefix)] == campaignPrefix {
+		name := listResp.Campaigns[i].Name
+		if len(name) >= len(campaignPrefix) && name[:len(campaignPrefix)] == campaignPrefix {
 			return &listResp.Campaigns[i], nil
 		}
 	}

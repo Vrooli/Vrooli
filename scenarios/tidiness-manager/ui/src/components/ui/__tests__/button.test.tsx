@@ -50,7 +50,7 @@ describe('Button', () => {
   it('renders with small size', () => {
     render(<Button size="sm">Small</Button>);
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('h-8', 'px-3', 'text-xs');
+    expect(button).toHaveClass('h-9', 'px-3', 'text-xs', 'min-h-[2.25rem]');
   });
 
   it('renders with large size', () => {
@@ -62,7 +62,7 @@ describe('Button', () => {
   it('renders with icon size', () => {
     render(<Button size="icon">🔍</Button>);
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('h-10', 'w-10');
+    expect(button).toHaveClass('h-11', 'w-11');
   });
 
   it('applies custom className', () => {

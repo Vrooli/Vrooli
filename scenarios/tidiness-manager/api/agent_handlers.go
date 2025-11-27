@@ -42,7 +42,14 @@ type AgentIssuesRequest struct {
 
 // handleAgentGetIssues returns top N issues for a scenario (TM-API-001, TM-API-002, TM-API-003, TM-API-004, TM-API-006)
 func (s *Server) handleAgentGetIssues(w http.ResponseWriter, r *http.Request) {
-	req := parseAgentIssuesRequest(r)
+	parsed := parseAgentIssuesRequest(r)
+
+	if parsed.Error != nil {
+		respondError(w, http.StatusBadRequest, parsed.Error.Error())
+		return
+	}
+
+	req := parsed.Request
 
 	if req.Scenario == "" {
 		respondError(w, http.StatusBadRequest, "scenario parameter is required")
@@ -327,23 +334,48 @@ func (s *Server) handleAgentGetScenarios(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-func parseAgentIssuesRequest(r *http.Request) AgentIssuesRequest {
+type ParsedRequest struct {
+	Request AgentIssuesRequest
+	Error   error
+}
+
+func parseAgentIssuesRequest(r *http.Request) ParsedRequest {
 	q := r.URL.Query()
 	limit := 10
+	var parseErr error
+
 	if l := q.Get("limit"); l != "" {
-		if v, err := strconv.Atoi(l); err == nil && v > 0 {
+		v, err := strconv.Atoi(l)
+		if err != nil {
+			parseErr = &ValidationError{Field: "limit", Message: "must be a valid integer"}
+		} else if v < 0 {
+			parseErr = &ValidationError{Field: "limit", Message: "must be non-negative"}
+		} else if v > 0 {
 			limit = v
 		}
+		// v == 0 is allowed, defaults to limit=10
 	}
 
-	return AgentIssuesRequest{
-		Scenario: q.Get("scenario"),
-		File:     q.Get("file"),
-		Folder:   q.Get("folder"),
-		Category: q.Get("category"),
-		Limit:    limit,
-		Force:    q.Get("force") == "true",
+	return ParsedRequest{
+		Request: AgentIssuesRequest{
+			Scenario: q.Get("scenario"),
+			File:     q.Get("file"),
+			Folder:   q.Get("folder"),
+			Category: q.Get("category"),
+			Limit:    limit,
+			Force:    q.Get("force") == "true",
+		},
+		Error: parseErr,
 	}
+}
+
+type ValidationError struct {
+	Field   string
+	Message string
+}
+
+func (e *ValidationError) Error() string {
+	return e.Field + ": " + e.Message
 }
 
 func buildIssuesQuery(req AgentIssuesRequest) string {

@@ -31,8 +31,20 @@ export default function FileDetail() {
     return (
       <div>
         <PageHeader title="File Detail" backTo={`/scenario/${scenarioName}`} />
-        <Alert variant="destructive">
-          <AlertDescription>Failed to load file issues: {(error as Error).message}</AlertDescription>
+        <Alert variant="destructive" role="alert" aria-live="assertive">
+          <AlertCircle className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription>
+            <p className="font-semibold mb-2">Failed to load file issues</p>
+            <p className="text-sm">{(error as Error).message}</p>
+            <div className="mt-3 pt-3 border-t border-red-500/20">
+              <p className="text-xs text-red-200/80 mb-2">Troubleshooting:</p>
+              <ul className="text-xs text-red-200/70 space-y-1">
+                <li>• Verify the file path is correct</li>
+                <li>• Check if the scenario exists: <code className="bg-black/30 px-1 rounded">tidiness-manager issues {scenarioName}</code></li>
+                <li>• Ensure the API is running and healthy</li>
+              </ul>
+            </div>
+          </AlertDescription>
         </Alert>
       </div>
     );
@@ -69,51 +81,63 @@ export default function FileDetail() {
 
       {/* Summary */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 mb-6">
-        <Card>
+        <Card data-testid="total-issues-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <div className="flex items-center gap-1">
               <CardTitle className="text-sm font-medium">Total Issues</CardTitle>
               <Info
                 className="h-3 w-3 text-slate-500 cursor-help"
                 title="All issues found in this file from light scans (lint/type) and AI analysis"
+                aria-hidden="true"
               />
             </div>
-            <FileText className="h-4 w-4 text-slate-400" />
+            <FileText className="h-4 w-4 text-slate-400" aria-hidden="true" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{issues.length}</div>
+            <div className="text-2xl font-bold" aria-label={`${issues.length} total issues`}>{issues.length}</div>
+            <p className="text-xs text-slate-500 mt-1" id="total-issues-desc">
+              All issues found in this file
+            </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="open-issues-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <div className="flex items-center gap-1">
               <CardTitle className="text-sm font-medium">Open Issues</CardTitle>
               <Info
                 className="h-3 w-3 text-slate-500 cursor-help"
                 title="Issues that require attention. Mark as resolved when fixed or ignore if not applicable."
+                aria-hidden="true"
               />
             </div>
-            <AlertCircle className="h-4 w-4 text-yellow-500" />
+            <AlertCircle className="h-4 w-4 text-yellow-500" aria-hidden="true" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{openIssues.length}</div>
+            <div className="text-2xl font-bold" aria-label={`${openIssues.length} open issues`}>{openIssues.length}</div>
+            <p className="text-xs text-slate-500 mt-1" id="open-issues-desc">
+              Issues requiring attention
+            </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="resolved-issues-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <div className="flex items-center gap-1">
               <CardTitle className="text-sm font-medium">Resolved</CardTitle>
               <Info
                 className="h-3 w-3 text-slate-500 cursor-help"
                 title="Issues that have been fixed or marked as resolved"
+                aria-hidden="true"
               />
             </div>
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <CheckCircle className="h-4 w-4 text-green-500" aria-hidden="true" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{resolvedIssues.length}</div>
+            <div className="text-2xl font-bold" aria-label={`${resolvedIssues.length} resolved issues`}>{resolvedIssues.length}</div>
+            <p className="text-xs text-slate-500 mt-1" id="resolved-issues-desc">
+              Fixed or dismissed issues
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -131,13 +155,21 @@ export default function FileDetail() {
         </CardHeader>
         <CardContent className="space-y-4">
           {issues.length === 0 ? (
-            <div className="text-center py-12 space-y-3">
-              <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
-              <div className="space-y-1">
-                <p className="text-slate-400 font-semibold">No issues found</p>
+            <div className="text-center py-12 space-y-4" role="status" aria-live="polite">
+              <CheckCircle className="h-12 w-12 text-green-500 mx-auto" aria-hidden="true" />
+              <div className="space-y-2">
+                <p className="text-slate-400 font-semibold text-lg">No issues found</p>
                 <p className="text-sm text-slate-500">
                   This file passed all linting, type checking, and AI analysis
                 </p>
+              </div>
+              <div className="mt-4 pt-4 border-t border-white/10 max-w-md mx-auto">
+                <p className="text-xs text-slate-600 mb-2">Next steps:</p>
+                <ul className="text-xs text-slate-500 space-y-1 text-left">
+                  <li>• Run a new scan to check for changes</li>
+                  <li>• Review other files in {scenarioName}</li>
+                  <li>• Check the global dashboard for pending issues</li>
+                </ul>
               </div>
             </div>
           ) : (
@@ -146,14 +178,21 @@ export default function FileDetail() {
               return (
                 <div
                   key={idx}
-                  className="border border-white/10 rounded-lg p-4 hover:bg-white/5 transition-colors"
+                  className="border border-white/10 rounded-lg p-4 hover:bg-white/5 transition-colors focus-within:ring-2 focus-within:ring-blue-500/50"
+                  role="article"
+                  aria-labelledby={`issue-${idx}-location`}
+                  aria-describedby={`issue-${idx}-message`}
                 >
                   <div className="flex flex-col md:flex-row items-start gap-4">
                     <div className="flex items-start gap-3 flex-1 w-full">
-                      <SeverityIcon className={cn("h-5 w-5 mt-0.5 flex-shrink-0", getSeverityColor(issue.severity))} />
+                      <SeverityIcon
+                        className={cn("h-5 w-5 mt-0.5 flex-shrink-0", getSeverityColor(issue.severity))}
+                        aria-label={`${issue.severity} severity`}
+                      />
                       <div className="flex-1 space-y-2 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span
+                            id={`issue-${idx}-location`}
                             className="font-mono text-sm text-slate-400"
                             title="Line and column number in source file where this issue occurs"
                           >
@@ -166,7 +205,7 @@ export default function FileDetail() {
                             {issue.category}
                           </Badge>
                         </div>
-                        <p className="text-slate-200 break-words">{issue.message}</p>
+                        <p id={`issue-${idx}-message`} className="text-slate-200 break-words">{issue.message}</p>
                         {issue.rule && (
                           <p className="text-xs text-slate-500">Rule: {issue.rule}</p>
                         )}
@@ -177,16 +216,18 @@ export default function FileDetail() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1 md:flex-none"
+                        className="flex-1 md:flex-none focus:ring-2 focus:ring-green-500/50"
                         title="Mark this issue as resolved after fixing the code"
+                        aria-label={`Mark issue at line ${issue.line}:${issue.column} as resolved`}
                       >
                         Mark Resolved
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="flex-1 md:flex-none"
+                        className="flex-1 md:flex-none focus:ring-2 focus:ring-slate-500/50"
                         title="Ignore this issue if it's not applicable or a false positive"
+                        aria-label={`Ignore issue at line ${issue.line}:${issue.column}`}
                       >
                         Ignore
                       </Button>

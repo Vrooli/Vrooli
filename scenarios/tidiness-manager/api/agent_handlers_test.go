@@ -491,3 +491,499 @@ func insertTestIssue(t *testing.T, db *sql.DB, scenario, filePath, category, sev
 		t.Fatalf("Failed to insert test issue: %v", err)
 	}
 }
+
+// [REQ:TM-API-001] Test invalid limit parameter
+func TestAgentGetIssues_InvalidLimit(t *testing.T) {
+	srv := setupTestServerNoData(t)
+	if srv == nil {
+		return
+	}
+
+	tests := []struct {
+		name       string
+		url        string
+		wantStatus int
+	}{
+		{
+			name:       "negative limit",
+			url:        "/api/v1/agent/issues?scenario=test&limit=-5",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "zero limit",
+			url:        "/api/v1/agent/issues?scenario=test&limit=0",
+			wantStatus: http.StatusOK, // Might return empty array
+		},
+		{
+			name:       "non-numeric limit",
+			url:        "/api/v1/agent/issues?scenario=test&limit=abc",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "excessively large limit",
+			url:        "/api/v1/agent/issues?scenario=test&limit=999999",
+			wantStatus: http.StatusOK, // Should be clamped or allowed
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := http.NewRequest("GET", tt.url, nil)
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
+
+			rr := httptest.NewRecorder()
+			srv.router.ServeHTTP(rr, req)
+
+			if rr.Code != tt.wantStatus {
+				t.Errorf("Status = %d, want %d", rr.Code, tt.wantStatus)
+			}
+		})
+	}
+}
+
+// [REQ:TM-API-002] Test folder filter edge cases
+func TestAgentGetIssues_FolderFilterEdgeCases(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	srv := setupTestServer(t)
+	if srv == nil {
+		return
+	}
+
+	// Insert test data with nested folders
+	insertTestIssue(t, srv.db, "test-scenario", "api/v1/handlers.go", "length", "high", "Issue 1", "Desc")
+	insertTestIssue(t, srv.db, "test-scenario", "api/v2/handlers.go", "length", "high", "Issue 2", "Desc")
+	insertTestIssue(t, srv.db, "test-scenario", "ui/components/Button.tsx", "complexity", "medium", "Issue 3", "Desc")
+
+	tests := []struct {
+		name           string
+		folder         string
+		expectedPrefix string
+		minIssues      int
+	}{
+		{
+			name:           "top-level folder",
+			folder:         "api",
+			expectedPrefix: "api/",
+			minIssues:      2,
+		},
+		{
+			name:           "nested folder",
+			folder:         "api/v1",
+			expectedPrefix: "api/v1/",
+			minIssues:      1,
+		},
+		{
+			name:           "non-existent folder",
+			folder:         "nonexistent",
+			expectedPrefix: "nonexistent/",
+			minIssues:      0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := http.NewRequest("GET", "/api/v1/agent/issues?scenario=test-scenario&folder="+tt.folder, nil)
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
+
+			rr := httptest.NewRecorder()
+			srv.router.ServeHTTP(rr, req)
+
+			var issues []AgentIssue
+			if err := json.Unmarshal(rr.Body.Bytes(), &issues); err != nil {
+				t.Fatalf("Failed to parse response: %v", err)
+			}
+
+			if len(issues) < tt.minIssues {
+				t.Errorf("Expected at least %d issues, got %d", tt.minIssues, len(issues))
+			}
+
+			for _, issue := range issues {
+				if len(issue.FilePath) < len(tt.expectedPrefix) ||
+					issue.FilePath[:len(tt.expectedPrefix)] != tt.expectedPrefix {
+					t.Errorf("Issue path %s doesn't start with %s", issue.FilePath, tt.expectedPrefix)
+				}
+			}
+		})
+	}
+}
+
+// [REQ:TM-API-003] Test category filter with all valid categories
+func TestAgentGetIssues_AllCategories(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	srv := setupTestServer(t)
+	if srv == nil {
+		return
+	}
+
+	categories := []string{"dead_code", "duplication", "length", "complexity", "style"}
+
+	// Insert one issue per category
+	for i, cat := range categories {
+		insertTestIssue(t, srv.db, "test-scenario", "file.go", cat, "medium", "Issue "+string(rune('0'+i)), "Desc")
+	}
+
+	// Test filtering by each category
+	for _, cat := range categories {
+		t.Run("category_"+cat, func(t *testing.T) {
+			req, err := http.NewRequest("GET", "/api/v1/agent/issues?scenario=test-scenario&category="+cat, nil)
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
+
+			rr := httptest.NewRecorder()
+			srv.router.ServeHTTP(rr, req)
+
+			var issues []AgentIssue
+			if err := json.Unmarshal(rr.Body.Bytes(), &issues); err != nil {
+				t.Fatalf("Failed to parse response: %v", err)
+			}
+
+			if len(issues) == 0 {
+				t.Errorf("Expected at least one %s issue", cat)
+			}
+
+			for _, issue := range issues {
+				if issue.Category != cat {
+					t.Errorf("Expected category %s, got %s", cat, issue.Category)
+				}
+			}
+		})
+	}
+}
+
+// [REQ:TM-API-004] Test severity ranking with all severity levels
+func TestAgentGetIssues_AllSeverityLevels(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	srv := setupTestServer(t)
+	if srv == nil {
+		return
+	}
+
+	severities := []string{"critical", "high", "medium", "low", "info"}
+
+	// Insert issues in reverse order to test sorting
+	for i, sev := range severities {
+		insertTestIssue(t, srv.db, "test-scenario", "file.go", "length", sev, "Issue "+string(rune('0'+i)), "Desc")
+	}
+
+	req, err := http.NewRequest("GET", "/api/v1/agent/issues?scenario=test-scenario&limit=10", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	srv.router.ServeHTTP(rr, req)
+
+	var issues []AgentIssue
+	if err := json.Unmarshal(rr.Body.Bytes(), &issues); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if len(issues) < len(severities) {
+		t.Errorf("Expected %d issues, got %d", len(severities), len(issues))
+	}
+
+	// Verify ordering
+	severityOrder := map[string]int{
+		"critical": 5,
+		"high":     4,
+		"medium":   3,
+		"low":      2,
+		"info":     1,
+	}
+
+	for i := 0; i < len(issues)-1; i++ {
+		current := severityOrder[issues[i].Severity]
+		next := severityOrder[issues[i+1].Severity]
+		if current < next {
+			t.Errorf("Severity ordering violation at index %d: %s (rank %d) before %s (rank %d)",
+				i, issues[i].Severity, current, issues[i+1].Severity, next)
+		}
+	}
+}
+
+// [REQ:TM-API-002] Test combining multiple filters
+func TestAgentGetIssues_CombinedFilters(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	srv := setupTestServer(t)
+	if srv == nil {
+		return
+	}
+
+	// Insert diverse test data
+	insertTestIssue(t, srv.db, "test-scenario", "api/main.go", "length", "high", "Issue 1", "Desc 1")
+	insertTestIssue(t, srv.db, "test-scenario", "api/main.go", "complexity", "medium", "Issue 2", "Desc 2")
+	insertTestIssue(t, srv.db, "test-scenario", "api/handlers.go", "length", "high", "Issue 3", "Desc 3")
+	insertTestIssue(t, srv.db, "test-scenario", "ui/App.tsx", "length", "high", "Issue 4", "Desc 4")
+
+	tests := []struct {
+		name          string
+		queryParams   string
+		expectedCount int
+		validate      func(t *testing.T, issues []AgentIssue)
+	}{
+		{
+			name:          "file and category",
+			queryParams:   "scenario=test-scenario&file=api/main.go&category=length",
+			expectedCount: 1,
+			validate: func(t *testing.T, issues []AgentIssue) {
+				for _, issue := range issues {
+					if issue.FilePath != "api/main.go" || issue.Category != "length" {
+						t.Errorf("Filter mismatch: got file=%s, category=%s", issue.FilePath, issue.Category)
+					}
+				}
+			},
+		},
+		{
+			name:          "folder and category",
+			queryParams:   "scenario=test-scenario&folder=api&category=length",
+			expectedCount: 2,
+			validate: func(t *testing.T, issues []AgentIssue) {
+				for _, issue := range issues {
+					if len(issue.FilePath) < 4 || issue.FilePath[:4] != "api/" {
+						t.Errorf("Expected api/ folder, got %s", issue.FilePath)
+					}
+					if issue.Category != "length" {
+						t.Errorf("Expected length category, got %s", issue.Category)
+					}
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := http.NewRequest("GET", "/api/v1/agent/issues?"+tt.queryParams, nil)
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
+
+			rr := httptest.NewRecorder()
+			srv.router.ServeHTTP(rr, req)
+
+			var issues []AgentIssue
+			if err := json.Unmarshal(rr.Body.Bytes(), &issues); err != nil {
+				t.Fatalf("Failed to parse response: %v", err)
+			}
+
+			if len(issues) != tt.expectedCount {
+				t.Errorf("Expected %d issues, got %d", tt.expectedCount, len(issues))
+			}
+
+			if tt.validate != nil {
+				tt.validate(t, issues)
+			}
+		})
+	}
+}
+
+// [REQ:TM-API-006] Test empty result sets
+func TestAgentGetIssues_EmptyResults(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	srv := setupTestServer(t)
+	if srv == nil {
+		return
+	}
+
+	// Query non-existent scenario
+	req, err := http.NewRequest("GET", "/api/v1/agent/issues?scenario=nonexistent-scenario", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	srv.router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Status = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var issues []AgentIssue
+	if err := json.Unmarshal(rr.Body.Bytes(), &issues); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if len(issues) != 0 {
+		t.Errorf("Expected empty result set, got %d issues", len(issues))
+	}
+}
+
+// [REQ:TM-API-006] Test special characters in query parameters
+func TestAgentGetIssues_SpecialCharacters(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	srv := setupTestServer(t)
+	if srv == nil {
+		return
+	}
+
+	// Insert issue with special characters in scenario name
+	scenario := "test-scenario-with-dashes"
+	insertTestIssue(t, srv.db, scenario, "api/main.go", "length", "high", "Issue 1", "Desc")
+
+	req, err := http.NewRequest("GET", "/api/v1/agent/issues?scenario="+scenario, nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	srv.router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Status = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var issues []AgentIssue
+	if err := json.Unmarshal(rr.Body.Bytes(), &issues); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if len(issues) == 0 {
+		t.Error("Expected at least one issue")
+	}
+
+	if issues[0].Scenario != scenario {
+		t.Errorf("Scenario = %s, want %s", issues[0].Scenario, scenario)
+	}
+}
+
+// [REQ:TM-API-006] Test issue with nil optional fields
+func TestIssueStorage_NilOptionalFields(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	srv := setupTestServer(t)
+	if srv == nil {
+		return
+	}
+
+	// Insert issue without optional fields
+	_, err := srv.db.Exec(`
+		INSERT INTO issues (
+			scenario, file_path, category, severity, title, description, status, created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, "test-scenario", "api/test.go", "length", "medium", "Test Issue", "Test Description", "open", time.Now())
+
+	if err != nil {
+		t.Fatalf("Failed to insert issue: %v", err)
+	}
+
+	req, _ := http.NewRequest("GET", "/api/v1/agent/issues?scenario=test-scenario", nil)
+	rr := httptest.NewRecorder()
+	srv.router.ServeHTTP(rr, req)
+
+	var issues []AgentIssue
+	if err := json.Unmarshal(rr.Body.Bytes(), &issues); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if len(issues) == 0 {
+		t.Fatal("Expected at least one issue")
+	}
+
+	issue := issues[0]
+	// Verify nil optional fields don't cause errors
+	if issue.LineNumber != nil {
+		t.Log("LineNumber is present (optional)")
+	}
+	if issue.ColumnNumber != nil {
+		t.Log("ColumnNumber is present (optional)")
+	}
+}
+
+// [REQ:TM-API-004] Test ranking with equal severities
+func TestAgentGetIssues_EqualSeverityRanking(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	srv := setupTestServer(t)
+	if srv == nil {
+		return
+	}
+
+	// Insert multiple issues with same severity
+	for i := 0; i < 5; i++ {
+		insertTestIssue(t, srv.db, "test-scenario", "file.go", "length", "high", "Issue "+string(rune('0'+i)), "Desc")
+	}
+
+	req, err := http.NewRequest("GET", "/api/v1/agent/issues?scenario=test-scenario&limit=10", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	srv.router.ServeHTTP(rr, req)
+
+	var issues []AgentIssue
+	if err := json.Unmarshal(rr.Body.Bytes(), &issues); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if len(issues) != 5 {
+		t.Errorf("Expected 5 issues, got %d", len(issues))
+	}
+
+	// All should have same severity
+	for _, issue := range issues {
+		if issue.Severity != "high" {
+			t.Errorf("Expected severity 'high', got '%s'", issue.Severity)
+		}
+	}
+}
+
+// [REQ:TM-API-001] Test concurrent requests
+func TestAgentGetIssues_ConcurrentRequests(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	srv := setupTestServer(t)
+	if srv == nil {
+		return
+	}
+
+	insertTestIssue(t, srv.db, "test-scenario", "api/main.go", "length", "high", "Issue 1", "Desc 1")
+
+	const numRequests = 10
+	results := make(chan int, numRequests)
+
+	for i := 0; i < numRequests; i++ {
+		go func() {
+			req, _ := http.NewRequest("GET", "/api/v1/agent/issues?scenario=test-scenario", nil)
+			rr := httptest.NewRecorder()
+			srv.router.ServeHTTP(rr, req)
+			results <- rr.Code
+		}()
+	}
+
+	// Collect results
+	for i := 0; i < numRequests; i++ {
+		status := <-results
+		if status != http.StatusOK {
+			t.Errorf("Request %d failed with status %d", i, status)
+		}
+	}
+}

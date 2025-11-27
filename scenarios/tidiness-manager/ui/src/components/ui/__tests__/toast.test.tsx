@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { ToastProvider, useToast } from "../toast";
 
 // Test component to trigger toasts
@@ -179,13 +179,12 @@ describe("ToastProvider", () => {
       fireEvent.click(screen.getByText("Show Info"));
       expect(screen.getByText("Test message")).toBeInTheDocument();
 
-      // Advance timers and run all pending timers
-      vi.advanceTimersByTime(5000);
-      await vi.runAllTimersAsync();
+      // Advance timers in act to handle state updates
+      await act(async () => {
+        vi.advanceTimersByTime(5000);
+      });
 
-      await waitFor(() => {
-        expect(screen.queryByText("Test message")).not.toBeInTheDocument();
-      }, { timeout: 500 });
+      expect(screen.queryByText("Test message")).not.toBeInTheDocument();
     });
 
     it("does not auto-dismiss when duration is 0", async () => {

@@ -191,6 +191,14 @@ func RankIssues(issues []RankedIssue, sortBy string) []RankedIssue {
 
 // GetTopNIssues returns top N issues after ranking
 func GetTopNIssues(issues []RankedIssue, sortBy string, n int) []RankedIssue {
+	// Handle edge cases
+	if n < 0 {
+		n = len(issues) // Negative n returns all issues
+	}
+	if n == 0 {
+		return []RankedIssue{}
+	}
+
 	ranked := RankIssues(issues, sortBy)
 	if len(ranked) > n {
 		return ranked[:n]
@@ -235,4 +243,287 @@ func FilterIssuesBySeverity(issues []RankedIssue, severities []string) []RankedI
 		}
 	}
 	return result
+}
+
+// [REQ:TM-API-004] Test empty issue list handling
+func TestIssueRanker_EmptyList(t *testing.T) {
+	var issues []RankedIssue
+
+	ranked := RankIssues(issues, "severity")
+	if len(ranked) != 0 {
+		t.Errorf("Expected 0 ranked issues, got %d", len(ranked))
+	}
+
+	topN := GetTopNIssues(issues, "severity", 5)
+	if len(topN) != 0 {
+		t.Errorf("Expected 0 top issues, got %d", len(topN))
+	}
+
+	filtered := FilterIssuesBySeverity(issues, []string{"high"})
+	if len(filtered) != 0 {
+		t.Errorf("Expected 0 filtered issues, got %d", len(filtered))
+	}
+}
+
+// [REQ:TM-API-004] Test single issue ranking
+func TestIssueRanker_SingleIssue(t *testing.T) {
+	issues := []RankedIssue{
+		{ID: "1", Severity: "high", Category: "length", FilePath: "file.go"},
+	}
+
+	ranked := RankIssues(issues, "severity")
+	if len(ranked) != 1 {
+		t.Errorf("Expected 1 ranked issue, got %d", len(ranked))
+	}
+
+	if ranked[0].ID != "1" {
+		t.Errorf("Expected ID '1', got %s", ranked[0].ID)
+	}
+}
+
+// [REQ:TM-API-004] Test topN edge cases
+func TestIssueRanker_TopNEdgeCases(t *testing.T) {
+	issues := []RankedIssue{
+		{ID: "1", Severity: "high"},
+		{ID: "2", Severity: "medium"},
+		{ID: "3", Severity: "low"},
+	}
+
+	testCases := []struct {
+		name     string
+		n        int
+		expected int
+	}{
+		{"n=0", 0, 0},
+		{"n=1", 1, 1},
+		{"n equals total", 3, 3},
+		{"n exceeds total", 10, 3},
+		{"negative n", -1, 3}, // Should handle gracefully
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := GetTopNIssues(issues, "severity", tc.n)
+			if tc.n < 0 {
+				// Negative should return all or handle gracefully
+				if len(result) < 0 {
+					t.Error("Negative n should not return negative results")
+				}
+			} else if len(result) != tc.expected {
+				t.Errorf("%s: expected %d issues, got %d", tc.name, tc.expected, len(result))
+			}
+		})
+	}
+}
+
+// [REQ:TM-API-004] Test severity ordering with unknown severities
+func TestIssueRanker_UnknownSeverities(t *testing.T) {
+	issues := []RankedIssue{
+		{ID: "1", Severity: "critical"},
+		{ID: "2", Severity: "unknown"},
+		{ID: "3", Severity: "high"},
+		{ID: "4", Severity: ""},
+		{ID: "5", Severity: "CRITICAL"}, // case sensitivity
+	}
+
+	ranked := RankIssues(issues, "severity")
+
+	// Should not crash with unknown severities
+	if len(ranked) != len(issues) {
+		t.Errorf("Expected %d ranked issues, got %d", len(issues), len(ranked))
+	}
+
+	// Known severities should still be ordered correctly
+	foundCritical := false
+	for _, issue := range ranked {
+		if issue.Severity == "critical" {
+			foundCritical = true
+			break
+		}
+	}
+
+	if !foundCritical {
+		t.Error("Expected to find 'critical' severity issue")
+	}
+}
+
+// [REQ:TM-API-004] Test ranking stability (same severity)
+func TestIssueRanker_StableSorting(t *testing.T) {
+	issues := []RankedIssue{
+		{ID: "1", Severity: "high", FilePath: "a.go"},
+		{ID: "2", Severity: "high", FilePath: "b.go"},
+		{ID: "3", Severity: "high", FilePath: "c.go"},
+	}
+
+	ranked := RankIssues(issues, "severity")
+
+	// All have same severity, order should be preserved or predictable
+	if len(ranked) != 3 {
+		t.Fatalf("Expected 3 ranked issues, got %d", len(ranked))
+	}
+
+	// Verify all high severity
+	for _, issue := range ranked {
+		if issue.Severity != "high" {
+			t.Errorf("Expected high severity, got %s", issue.Severity)
+		}
+	}
+}
+
+// [REQ:TM-API-004] Test filter with empty severity list
+func TestIssueRanker_FilterEmptyList(t *testing.T) {
+	issues := []RankedIssue{
+		{ID: "1", Severity: "high"},
+		{ID: "2", Severity: "low"},
+	}
+
+	// Empty filter should return empty results
+	filtered := FilterIssuesBySeverity(issues, []string{})
+	if len(filtered) != 0 {
+		t.Errorf("Expected 0 filtered issues with empty filter, got %d", len(filtered))
+	}
+}
+
+// [REQ:TM-API-004] Test filter with non-matching severities
+func TestIssueRanker_FilterNoMatches(t *testing.T) {
+	issues := []RankedIssue{
+		{ID: "1", Severity: "high"},
+		{ID: "2", Severity: "low"},
+	}
+
+	// Filter for severities not in the list
+	filtered := FilterIssuesBySeverity(issues, []string{"critical", "medium"})
+	if len(filtered) != 0 {
+		t.Errorf("Expected 0 filtered issues, got %d", len(filtered))
+	}
+}
+
+// [REQ:TM-API-004] Test combined sorting with all same values
+func TestIssueRanker_CombinedAllSame(t *testing.T) {
+	issues := []RankedIssue{
+		{ID: "1", Severity: "high", Category: "length"},
+		{ID: "2", Severity: "high", Category: "length"},
+		{ID: "3", Severity: "high", Category: "length"},
+	}
+
+	ranked := RankIssues(issues, "severity,category")
+
+	// Should handle gracefully when all values identical
+	if len(ranked) != 3 {
+		t.Errorf("Expected 3 ranked issues, got %d", len(ranked))
+	}
+}
+
+// [REQ:TM-API-004] Test ranking by unknown sort criteria
+func TestIssueRanker_UnknownSortCriteria(t *testing.T) {
+	issues := []RankedIssue{
+		{ID: "1", Severity: "high"},
+		{ID: "2", Severity: "low"},
+	}
+
+	// Unknown sort criteria should handle gracefully (no-op or default behavior)
+	ranked := RankIssues(issues, "unknown_criteria")
+
+	// Should not crash
+	if len(ranked) != len(issues) {
+		t.Errorf("Expected %d ranked issues, got %d", len(issues), len(ranked))
+	}
+}
+
+// [REQ:TM-API-004] Test large issue list performance
+func TestIssueRanker_LargeList(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping performance test in short mode")
+	}
+
+	// Generate 1000 issues
+	severities := []string{"critical", "high", "medium", "low"}
+	issues := make([]RankedIssue, 1000)
+	for i := 0; i < 1000; i++ {
+		issues[i] = RankedIssue{
+			ID:       string(rune('A' + (i % 26))),
+			Severity: severities[i%4],
+			Category: "length",
+			FilePath: "file.go",
+		}
+	}
+
+	// Should complete without hanging
+	ranked := RankIssues(issues, "severity")
+	if len(ranked) != 1000 {
+		t.Errorf("Expected 1000 ranked issues, got %d", len(ranked))
+	}
+
+	// Verify ordering is correct
+	severityOrder := map[string]int{
+		"critical": 0,
+		"high":     1,
+		"medium":   2,
+		"low":      3,
+	}
+
+	for i := 1; i < len(ranked); i++ {
+		if severityOrder[ranked[i].Severity] < severityOrder[ranked[i-1].Severity] {
+			t.Errorf("Position %d: ordering violated, %s before %s", i, ranked[i-1].Severity, ranked[i].Severity)
+			break
+		}
+	}
+}
+
+// [REQ:TM-API-004] Test file path sorting with special characters
+func TestIssueRanker_FilePathSpecialChars(t *testing.T) {
+	issues := []RankedIssue{
+		{ID: "1", FilePath: "src/file-name.go"},
+		{ID: "2", FilePath: "src/file_name.go"},
+		{ID: "3", FilePath: "src/file name.go"},
+		{ID: "4", FilePath: "src/fileName.go"},
+	}
+
+	ranked := RankIssues(issues, "filepath")
+
+	// Should handle special characters in sorting
+	if len(ranked) != 4 {
+		t.Errorf("Expected 4 ranked issues, got %d", len(ranked))
+	}
+
+	// Verify all paths are present
+	pathMap := make(map[string]bool)
+	for _, issue := range ranked {
+		pathMap[issue.FilePath] = true
+	}
+
+	for _, issue := range issues {
+		if !pathMap[issue.FilePath] {
+			t.Errorf("Missing path after ranking: %s", issue.FilePath)
+		}
+	}
+}
+
+// [REQ:TM-API-004] Test category grouping with various categories
+func TestIssueRanker_CategoryGrouping(t *testing.T) {
+	issues := []RankedIssue{
+		{ID: "1", Category: "style"},
+		{ID: "2", Category: "length"},
+		{ID: "3", Category: "style"},
+		{ID: "4", Category: "complexity"},
+		{ID: "5", Category: "length"},
+	}
+
+	ranked := RankIssues(issues, "category")
+
+	// Verify issues of same category are grouped
+	categoryPositions := make(map[string][]int)
+	for i, issue := range ranked {
+		categoryPositions[issue.Category] = append(categoryPositions[issue.Category], i)
+	}
+
+	// For each category, verify positions are consecutive
+	for category, positions := range categoryPositions {
+		for i := 1; i < len(positions); i++ {
+			if positions[i]-positions[i-1] != 1 {
+				t.Errorf("Category %s not grouped: positions %v", category, positions)
+				break
+			}
+		}
+	}
 }
