@@ -31,17 +31,28 @@ func NewLightScanner(scenarioPath string, timeout time.Duration) *LightScanner {
 
 // ScanResult contains all outputs from a light scan
 type ScanResult struct {
-	Scenario    string        `json:"scenario"`
-	StartedAt   time.Time     `json:"started_at"`
-	CompletedAt time.Time     `json:"completed_at"`
-	Duration    time.Duration `json:"duration_ms"`
-	LintOutput  *CommandRun   `json:"lint_output,omitempty"`
-	TypeOutput  *CommandRun   `json:"type_output,omitempty"`
-	FileMetrics []FileMetric  `json:"file_metrics"`
-	LongFiles   []LongFile    `json:"long_files"`
-	TotalFiles  int           `json:"total_files"`
-	TotalLines  int           `json:"total_lines"`
-	HasMakefile bool          `json:"has_makefile"`
+	Scenario        string                     `json:"scenario"`
+	StartedAt       time.Time                  `json:"started_at"`
+	CompletedAt     time.Time                  `json:"completed_at"`
+	Duration        time.Duration              `json:"duration_ms"`
+	LintOutput      *CommandRun                `json:"lint_output,omitempty"`
+	TypeOutput      *CommandRun                `json:"type_output,omitempty"`
+	FileMetrics     []FileMetric               `json:"file_metrics"`
+	LongFiles       []LongFile                 `json:"long_files"`
+	TotalFiles      int                        `json:"total_files"`
+	TotalLines      int                        `json:"total_lines"`
+	HasMakefile     bool                       `json:"has_makefile"`
+	LanguageMetrics map[Language]*LanguageMetrics `json:"language_metrics,omitempty"`
+}
+
+// LanguageMetrics contains comprehensive metrics for a detected language
+type LanguageMetrics struct {
+	Language         Language          `json:"language"`
+	FileCount        int               `json:"file_count"`
+	TotalLines       int               `json:"total_lines"`
+	CodeMetrics      *CodeMetrics      `json:"code_metrics,omitempty"`
+	Complexity       *ComplexityResult `json:"complexity,omitempty"`
+	Duplicates       *DuplicateResult  `json:"duplicates,omitempty"`
 }
 
 // CommandRun captures execution details
@@ -126,8 +137,62 @@ func (ls *LightScanner) Scan(ctx context.Context) (*ScanResult, error) {
 	}
 	result.LongFiles = longFiles
 
+	// Detect languages and run advanced metrics
+	langMetrics, err := ls.collectLanguageMetrics(ctx)
+	if err != nil {
+		// Don't fail the entire scan if language metrics fail
+		// Just log and continue
+		fmt.Printf("Warning: failed to collect language metrics: %v\n", err)
+	} else {
+		result.LanguageMetrics = langMetrics
+	}
+
 	result.CompletedAt = time.Now()
 	result.Duration = result.CompletedAt.Sub(startTime)
+
+	return result, nil
+}
+
+// collectLanguageMetrics detects languages and runs all available analyzers
+func (ls *LightScanner) collectLanguageMetrics(ctx context.Context) (map[Language]*LanguageMetrics, error) {
+	detector := NewLanguageDetector(ls.scenarioPath)
+	languages, err := detector.DetectLanguages()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[Language]*LanguageMetrics)
+
+	for lang, langInfo := range languages {
+		metrics := &LanguageMetrics{
+			Language:   lang,
+			FileCount:  langInfo.FileCount,
+			TotalLines: langInfo.TotalLines,
+		}
+
+		// Run code metrics (TODOs, imports, functions) - always available
+		codeMetricsAnalyzer := NewCodeMetricsAnalyzer(ls.scenarioPath)
+		codeMetrics, err := codeMetricsAnalyzer.AnalyzeFiles(langInfo.Files, lang)
+		if err == nil {
+			metrics.CodeMetrics = codeMetrics
+		}
+
+		// Run complexity analysis (requires external tools)
+		complexityAnalyzer := NewComplexityAnalyzer(ls.scenarioPath, ls.timeout)
+		complexity, err := complexityAnalyzer.AnalyzeComplexity(ctx, lang, langInfo.Files)
+		if err == nil {
+			metrics.Complexity = complexity
+		}
+
+		// Run duplication detection (requires external tools)
+		duplicationDetector := NewDuplicationDetector(ls.scenarioPath, ls.timeout)
+		duplicates, err := duplicationDetector.DetectDuplication(ctx, lang, langInfo.Files)
+		if err == nil {
+			metrics.Duplicates = duplicates
+		}
+
+		result[lang] = metrics
+	}
 
 	return result, nil
 }

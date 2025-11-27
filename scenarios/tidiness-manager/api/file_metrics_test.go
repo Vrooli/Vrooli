@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -173,7 +174,7 @@ func TestLongFileThreshold(t *testing.T) {
 
 	// Run full scan which includes long file detection
 	scanner := NewLightScanner(tmpDir, 0)
-	result, err := scanner.Scan(nil)
+	result, err := scanner.Scan(context.Background())
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -222,7 +223,7 @@ func TestLongFileThreshold_Configurable(t *testing.T) {
 	}
 
 	scanner := NewLightScanner(tmpDir, 0)
-	result, err := scanner.Scan(nil)
+	result, err := scanner.Scan(context.Background())
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -270,7 +271,7 @@ func TestFileMetrics_Totals(t *testing.T) {
 	}
 
 	scanner := NewLightScanner(tmpDir, 0)
-	result, err := scanner.Scan(nil)
+	result, err := scanner.Scan(context.Background())
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -705,7 +706,7 @@ func TestLongFileThreshold_BoundaryConditions(t *testing.T) {
 			}
 
 			scanner := NewLightScanner(tmpDir, 0)
-			result, err := scanner.Scan(nil)
+			result, err := scanner.Scan(context.Background())
 			if err != nil {
 				t.Fatalf("Scan failed: %v", err)
 			}
@@ -812,7 +813,7 @@ func BenchmarkLongFileDetection(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		scanner := NewLightScanner(tmpDir, 0)
-		_, err := scanner.Scan(nil)
+		_, err := scanner.Scan(context.Background())
 		if err != nil {
 			b.Fatalf("Scan failed: %v", err)
 		}

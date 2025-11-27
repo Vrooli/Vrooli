@@ -15,7 +15,7 @@
 
 ### 🔴 P0 – Must ship for viability
 - [x] OT-P0-001 | Makefile-based light scanning | Execute `make lint` and `make type` for any scenario and parse outputs into structured issues
-- [x] OT-P0-002 | File metrics collection | Compute per-file line counts and flag files exceeding configurable thresholds
+- [x] OT-P0-002 | Code quality metrics | Detect languages (Go/TS/JS/Python/Rust), compute line counts, technical debt markers (TODO/FIXME/HACK), import/function metrics, cyclomatic complexity (via gocyclo), and code duplication (via dupl/jscpd) with graceful tool degradation
 - [x] OT-P0-003 | Light scan performance | Complete light scans for typical scenarios in under 60-120 seconds or surface clear timeout status
 - [x] OT-P0-004 | AI batch scanning | Process files in batches using resource-claude-code/resource-codes with configurable limits
 - [x] OT-P0-005 | visited-tracker integration | Create/attach to campaigns and prioritize unvisited/least-visited files for smart scans
@@ -48,17 +48,18 @@
 - [ ] OT-P2-008 | Smart prioritization | Use file criticality (e.g., main.go more important than test fixtures) to rank issues
 
 ## 🧱 Tech Direction Snapshot
-- Preferred stacks / frameworks: Go API (Makefile execution, file traversal, AI orchestration), React UI (dashboard, campaign management), CLI (agent integration)
+- Preferred stacks / frameworks: Go API (Makefile execution, language detection, file traversal, AI orchestration), React UI (dashboard, campaign management, metrics visualization), CLI (agent integration)
 - Data + storage expectations: PostgreSQL (issue tracking, campaign state, audit trail), file-based JSON (light scan caching for portability), optional Redis (expensive operation caching)
-- Integration strategy: CLI-first for agents → HTTP API for UI/external → visited-tracker campaigns → resource-claude-code/codes for AI analysis → optional code-smell for pattern detection
-- Non-goals / guardrails: Not auto-fixing code (that's code-smell's domain); not standards enforcement (that's scenario-auditor's domain); not replacing existing linters/type checkers (orchestrating them); not real-time IDE integration (batch-oriented)
+- Integration strategy: CLI-first for agents → HTTP API for UI/external → visited-tracker campaigns → resource-claude-code/codes for AI analysis → optional static analysis tools (gocyclo, dupl, jscpd) → optional code-smell for pattern detection
+- Non-goals / guardrails: Not auto-fixing code (that's code-smell's domain); not standards enforcement (that's scenario-auditor's domain); not replacing existing linters/type checkers (orchestrating and extending them); not real-time IDE integration (batch-oriented)
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: postgres (data storage), resource-claude-code (AI analysis), resource-codes (additional AI capabilities)
 - Optional resources: redis (caching), visited-tracker (campaign management, file prioritization), code-smell (pattern analysis integration)
+- Optional tools: gocyclo (Go complexity analysis), dupl (Go duplication detection), jscpd (TS/JS duplication detection)
 - Scenario dependencies: visited-tracker (file tracking), scenario-auditor (complementary standards checks), app-issue-tracker (task creation integration for P2)
 - Operational risks: AI cost runaway (mitigate with strict batching + session limits); false positive noise (mitigate with configurable thresholds); Makefile inconsistency across scenarios (document standards); campaign resource exhaustion (enforce global concurrency limit K)
-- Launch sequencing: Phase 1 - Light scanning + file metrics + basic UI (2 weeks); Phase 2 - AI integration + visited-tracker + agent API (3 weeks); Phase 3 - Auto-campaigns + issue management (2 weeks); Phase 4 - Integrations + P2 features (ongoing)
+- Launch sequencing: Phase 1 - Light scanning + language metrics + basic UI (2 weeks); Phase 2 - AI integration + visited-tracker + agent API (3 weeks); Phase 3 - Auto-campaigns + issue management (2 weeks); Phase 4 - Integrations + P2 features (ongoing)
 
 ## 🎨 UX & Branding
 - Look & feel: Developer-focused dark theme dashboard inspired by scenario-auditor; clean data tables with sortable columns; split-pane for file details; minimalist campaign controls
@@ -93,11 +94,13 @@ Higher score = higher priority for next smart scan
 
 ### Issue Categories
 
-- **length**: Files exceeding line count thresholds
-- **duplication**: Repeated logic across files
-- **dead_code**: Unused functions, imports, components
-- **complexity**: Deep nesting, God objects, long functions
-- **style**: Inconsistent naming, patterns
+- **length**: Files exceeding line count thresholds (detected via line counting)
+- **duplication**: Repeated logic across files (detected via dupl/jscpd)
+- **complexity**: High cyclomatic complexity functions (detected via gocyclo)
+- **technical_debt**: TODO/FIXME/HACK markers (detected via regex)
+- **coupling**: Excessive imports/dependencies (detected via import counting)
+- **dead_code**: Unused functions, imports, components (AI-powered)
+- **style**: Inconsistent naming, patterns (AI-powered)
 - **lint**: Issues from `make lint`
 - **type**: Issues from `make type`
 
@@ -113,3 +116,24 @@ Transitions:
 - PAUSED → ACTIVE: Manual resume
 - ACTIVE → COMPLETED: All files visited OR max sessions reached
 - ACTIVE/PAUSED → ERROR: Repeated failures exceed threshold
+
+### Language Metrics System
+
+Light scans automatically detect languages and collect metrics per language:
+
+**Supported Languages**: Go, TypeScript, JavaScript, Python, Rust
+
+**Universal Metrics** (no tools required):
+- Technical debt markers: TODO, FIXME, HACK counts (case-insensitive regex)
+- Import metrics: avg/max imports per file (language-aware parsing)
+- Function metrics: avg/max functions per file (language-aware parsing)
+
+**Tool-Enhanced Metrics** (graceful degradation):
+- **Complexity** (Go via gocyclo): cyclomatic complexity, high-complexity function locations
+- **Duplication** (Go via dupl, TS/JS via jscpd): duplicate block detection with file locations
+
+**Design Principles**:
+- Detection-based: adapts to scenario structure (not Makefile-dependent)
+- Graceful: works without optional tools, richer with them installed
+- Non-blocking: metric failures don't break light scans
+- Actionable: directly supports refactor phase prioritization

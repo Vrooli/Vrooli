@@ -79,6 +79,65 @@ export interface CommandRun {
   skip_reason?: string;
 }
 
+export interface CodeMetrics {
+  todo_count: number;
+  fixme_count: number;
+  hack_count: number;
+  avg_imports_per_file: number;
+  avg_functions_per_file: number;
+  max_imports_in_file: number;
+  max_functions_in_file: number;
+}
+
+export interface ComplexFile {
+  path: string;
+  function: string;
+  complexity: number;
+  line: number;
+}
+
+export interface ComplexityResult {
+  average_complexity: number;
+  max_complexity: number;
+  high_complexity_files: ComplexFile[];
+  high_complexity_count: number;
+  threshold: number;
+  total_functions: number;
+  skipped: boolean;
+  skip_reason?: string;
+  tool?: string;
+}
+
+export interface DuplicateLocation {
+  path: string;
+  start_line: number;
+  end_line: number;
+}
+
+export interface DuplicateBlock {
+  files: DuplicateLocation[];
+  lines: number;
+  tokens?: number;
+}
+
+export interface DuplicateResult {
+  total_duplicates: number;
+  duplicate_blocks: DuplicateBlock[];
+  total_lines: number;
+  skipped: boolean;
+  skip_reason?: string;
+  tool?: string;
+}
+
+export interface LanguageMetrics {
+  language: string;
+  file_count: number;
+  total_lines: number;
+  code_metrics?: CodeMetrics;
+  complexity?: ComplexityResult;
+  duplicates?: DuplicateResult;
+}
+
 export interface ScanResult {
   scenario: string;
   started_at: string;
@@ -91,6 +150,7 @@ export interface ScanResult {
   total_files: number;
   total_lines: number;
   has_makefile: boolean;
+  language_metrics?: Record<string, LanguageMetrics>;
 }
 
 export interface Issue {
