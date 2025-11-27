@@ -1,3 +1,4 @@
+import { createTestInstruction } from '../../helpers';
 import { NavigationHandler } from '../../../src/handlers/navigation';
 import type { CompiledInstruction, HandlerContext } from '../../../src/types';
 import { createMockPage, createTestConfig } from '../../helpers';
@@ -33,11 +34,11 @@ describe('NavigationHandler', () => {
 
   describe('execute', () => {
     it('should navigate to URL from params', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'navigate',
         params: { url: 'https://example.com' },
         node_id: 'node-1',
-      };
+      });
 
       const result = await handler.execute(instruction, context);
 
@@ -53,11 +54,11 @@ describe('NavigationHandler', () => {
     it('should use current URL when url not provided', async () => {
       mockPage.url.mockReturnValue('https://current-page.com');
 
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'navigate',
         params: {},
         node_id: 'node-1',
-      };
+      });
 
       const result = await handler.execute(instruction, context);
 
@@ -69,11 +70,11 @@ describe('NavigationHandler', () => {
     });
 
     it('should use custom timeout when provided', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'navigate',
         params: { url: 'https://example.com', timeoutMs: 60000 },
         node_id: 'node-1',
-      };
+      });
 
       await handler.execute(instruction, context);
 
@@ -86,11 +87,11 @@ describe('NavigationHandler', () => {
     });
 
     it('should use custom waitUntil when provided', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'navigate',
         params: { url: 'https://example.com', waitUntil: 'load' },
         node_id: 'node-1',
-      };
+      });
 
       await handler.execute(instruction, context);
 
@@ -103,11 +104,11 @@ describe('NavigationHandler', () => {
     });
 
     it('should support domcontentloaded waitUntil', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'navigate',
         params: { url: 'https://example.com', waitUntil: 'domcontentloaded' },
         node_id: 'node-1',
-      };
+      });
 
       await handler.execute(instruction, context);
 
@@ -122,11 +123,11 @@ describe('NavigationHandler', () => {
     it('should handle navigation errors', async () => {
       mockPage.goto.mockRejectedValue(new Error('Navigation failed'));
 
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'navigate',
         params: { url: 'https://example.com' },
         node_id: 'node-1',
-      };
+      });
 
       const result = await handler.execute(instruction, context);
 
@@ -138,11 +139,11 @@ describe('NavigationHandler', () => {
     it('should handle timeout errors', async () => {
       mockPage.goto.mockRejectedValue(new Error('Timeout 30000ms exceeded'));
 
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'navigate',
         params: { url: 'https://example.com' },
         node_id: 'node-1',
-      };
+      });
 
       const result = await handler.execute(instruction, context);
 
@@ -151,11 +152,11 @@ describe('NavigationHandler', () => {
     });
 
     it('should validate params with Zod schema', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'navigate',
         params: { waitUntil: 'invalid-value' }, // Invalid waitUntil
         node_id: 'node-1',
-      };
+      });
 
       const result = await handler.execute(instruction, context);
 
@@ -164,11 +165,11 @@ describe('NavigationHandler', () => {
     });
 
     it('should use default timeout when not provided', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'navigate',
         params: { url: 'https://example.com' },
         node_id: 'node-1',
-      };
+      });
 
       await handler.execute(instruction, context);
 
@@ -181,11 +182,11 @@ describe('NavigationHandler', () => {
     });
 
     it('should use default waitUntil when not provided', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'navigate',
         params: { url: 'https://example.com' },
         node_id: 'node-1',
-      };
+      });
 
       await handler.execute(instruction, context);
 

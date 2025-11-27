@@ -1,3 +1,4 @@
+import { createTestInstruction } from '../../helpers';
 import { ScreenshotHandler } from '../../../src/handlers/screenshot';
 import type { CompiledInstruction, HandlerContext } from '../../../src/types';
 import { createMockPage, createTestConfig } from '../../helpers';
@@ -22,11 +23,11 @@ describe('ScreenshotHandler', () => {
   });
 
   it('should capture screenshot', async () => {
-    const instruction: CompiledInstruction = {
+    const instruction = createTestInstruction({
       type: 'screenshot',
       params: {},
       node_id: 'node-1',
-    };
+    });
 
     const result = await handler.execute(instruction, context);
 
@@ -35,11 +36,11 @@ describe('ScreenshotHandler', () => {
   });
 
   it('should capture element screenshot when selector provided', async () => {
-    const instruction: CompiledInstruction = {
+    const instruction = createTestInstruction({
       type: 'screenshot',
       params: { selector: '#element' },
       node_id: 'node-1',
-    };
+    });
 
     const mockLocator = {
       screenshot: jest.fn().mockResolvedValue(Buffer.from('element-screenshot')),

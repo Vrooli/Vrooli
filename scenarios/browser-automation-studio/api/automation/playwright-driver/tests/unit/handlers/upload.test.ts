@@ -1,3 +1,4 @@
+import { createTestInstruction } from '../../helpers';
 import { UploadHandler } from '../../../src/handlers/upload';
 import type { CompiledInstruction, HandlerContext } from '../../../src/types';
 import { createMockPage, createTestConfig } from '../../helpers';
@@ -22,7 +23,7 @@ describe('UploadHandler', () => {
   });
 
   it('should upload file', async () => {
-    const instruction: CompiledInstruction = {
+    const instruction = createTestInstruction({
       type: 'uploadfile',
       params: { selector: '#file-input', filePath: '/path/to/file.txt' },
       node_id: 'node-1',
@@ -35,7 +36,7 @@ describe('UploadHandler', () => {
   });
 
   it('should upload multiple files', async () => {
-    const instruction: CompiledInstruction = {
+    const instruction = createTestInstruction({
       type: 'uploadfile',
       params: { selector: '#file-input', filePath: ['/file1.txt', '/file2.txt'] },
       node_id: 'node-1',

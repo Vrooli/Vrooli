@@ -1,3 +1,4 @@
+import { createTestInstruction } from '../../helpers';
 import { ScrollHandler } from '../../../src/handlers/scroll';
 import type { CompiledInstruction, HandlerContext } from '../../../src/types';
 import { createMockPage, createTestConfig } from '../../helpers';
@@ -22,7 +23,7 @@ describe('ScrollHandler', () => {
   });
 
   it('should scroll to element', async () => {
-    const instruction: CompiledInstruction = {
+    const instruction = createTestInstruction({
       type: 'scroll',
       params: { selector: '#target' },
       node_id: 'node-1',
@@ -40,7 +41,7 @@ describe('ScrollHandler', () => {
   });
 
   it('should scroll to coordinates', async () => {
-    const instruction: CompiledInstruction = {
+    const instruction = createTestInstruction({
       type: 'scroll',
       params: { x: 0, y: 500 },
       node_id: 'node-1',

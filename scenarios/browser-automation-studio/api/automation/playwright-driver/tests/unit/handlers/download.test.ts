@@ -1,3 +1,4 @@
+import { createTestInstruction } from '../../helpers';
 import { DownloadHandler } from '../../../src/handlers/download';
 import type { CompiledInstruction, HandlerContext } from '../../../src/types';
 import { createMockPage, createTestConfig } from '../../helpers';
@@ -22,7 +23,7 @@ describe('DownloadHandler', () => {
   });
 
   it('should handle download', async () => {
-    const instruction: CompiledInstruction = {
+    const instruction = createTestInstruction({
       type: 'download',
       params: { selector: '#download-link' },
       node_id: 'node-1',

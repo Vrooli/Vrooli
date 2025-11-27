@@ -1,3 +1,4 @@
+import { createTestInstruction } from '../../helpers';
 import { InteractionHandler } from '../../../src/handlers/interaction';
 import type { CompiledInstruction, HandlerContext } from '../../../src/types';
 import { createMockPage, createTestConfig } from '../../helpers';
@@ -33,11 +34,11 @@ describe('InteractionHandler', () => {
 
   describe('execute - click', () => {
     it('should click element by selector', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'click',
         params: { selector: '#button' },
         node_id: 'node-1',
-      };
+      });
 
       const result = await handler.execute(instruction, context);
 
@@ -46,11 +47,11 @@ describe('InteractionHandler', () => {
     });
 
     it('should use custom timeout for click', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'click',
         params: { selector: '#button', timeoutMs: 10000 },
         node_id: 'node-1',
-      };
+      });
 
       await handler.execute(instruction, context);
 
@@ -63,11 +64,11 @@ describe('InteractionHandler', () => {
     it('should handle click errors', async () => {
       mockPage.click.mockRejectedValue(new Error('Element not found'));
 
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'click',
         params: { selector: '#missing' },
         node_id: 'node-1',
-      };
+      });
 
       const result = await handler.execute(instruction, context);
 
@@ -78,11 +79,11 @@ describe('InteractionHandler', () => {
 
   describe('execute - hover', () => {
     it('should hover over element by selector', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'hover',
         params: { selector: '.item' },
         node_id: 'node-1',
-      };
+      });
 
       const result = await handler.execute(instruction, context);
 
@@ -93,11 +94,11 @@ describe('InteractionHandler', () => {
 
   describe('execute - type', () => {
     it('should type text into element', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'type',
         params: { selector: '#input', text: 'Hello World' },
         node_id: 'node-1',
-      };
+      });
 
       const result = await handler.execute(instruction, context);
 
@@ -106,11 +107,11 @@ describe('InteractionHandler', () => {
     });
 
     it('should use custom delay for typing', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'type',
         params: { selector: '#input', text: 'Test', delayMs: 100 },
         node_id: 'node-1',
-      };
+      });
 
       await handler.execute(instruction, context);
 

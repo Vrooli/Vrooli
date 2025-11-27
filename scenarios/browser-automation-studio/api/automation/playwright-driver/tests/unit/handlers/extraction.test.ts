@@ -1,3 +1,4 @@
+import { createTestInstruction } from '../../helpers';
 import { ExtractionHandler } from '../../../src/handlers/extraction';
 import type { CompiledInstruction, HandlerContext } from '../../../src/types';
 import { createMockPage, createTestConfig } from '../../helpers';
@@ -22,7 +23,7 @@ describe('ExtractionHandler', () => {
   });
 
   it('should extract text from element', async () => {
-    const instruction: CompiledInstruction = {
+    const instruction = createTestInstruction({
       type: 'extract',
       params: { selector: '#content', attribute: 'text' },
       node_id: 'node-1',
@@ -40,7 +41,7 @@ describe('ExtractionHandler', () => {
   });
 
   it('should extract attribute value', async () => {
-    const instruction: CompiledInstruction = {
+    const instruction = createTestInstruction({
       type: 'extract',
       params: { selector: '#link', attribute: 'href' },
       node_id: 'node-1',
@@ -58,7 +59,7 @@ describe('ExtractionHandler', () => {
   });
 
   it('should evaluate JavaScript', async () => {
-    const instruction: CompiledInstruction = {
+    const instruction = createTestInstruction({
       type: 'evaluate',
       params: { script: 'return document.title' },
       node_id: 'node-1',

@@ -32,7 +32,7 @@ export async function handleSessionRun(
 
     // Parse instruction
     const body = await parseJsonBody(req, config);
-    const instruction = body as unknown as CompiledInstruction;
+    const instruction = (body as any).instruction as CompiledInstruction;
 
     logger.info('Running instruction', {
       sessionId,

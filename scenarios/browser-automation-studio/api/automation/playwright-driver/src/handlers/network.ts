@@ -32,7 +32,7 @@ export class NetworkHandler extends BaseHandler {
     instruction: CompiledInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
-    const { page, logger } = context;
+    const { logger } = context;
 
     try {
       const validated = NetworkMockParamsSchema.parse(instruction.params);

@@ -1,3 +1,4 @@
+import { createTestInstruction } from '../../helpers';
 import { AssertionHandler } from '../../../src/handlers/assertion';
 import type { CompiledInstruction, HandlerContext } from '../../../src/types';
 import { createMockPage, createTestConfig } from '../../helpers';
@@ -23,15 +24,15 @@ describe('AssertionHandler', () => {
 
   describe('assert - exists', () => {
     it('should pass when element exists', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'assert',
         params: { selector: '#element', mode: 'exists' },
         node_id: 'node-1',
-      };
+      });
 
       const mockLocator = {
         count: jest.fn().mockResolvedValue(1),
-      };
+      });
       mockPage.locator.mockReturnValue(mockLocator as any);
 
       const result = await handler.execute(instruction, context);
@@ -41,15 +42,15 @@ describe('AssertionHandler', () => {
     });
 
     it('should fail when element does not exist', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'assert',
         params: { selector: '#missing', mode: 'exists' },
         node_id: 'node-1',
-      };
+      });
 
       const mockLocator = {
         count: jest.fn().mockResolvedValue(0),
-      };
+      });
       mockPage.locator.mockReturnValue(mockLocator as any);
 
       const result = await handler.execute(instruction, context);
@@ -62,15 +63,15 @@ describe('AssertionHandler', () => {
 
   describe('assert - visible', () => {
     it('should pass when element is visible', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'assert',
         params: { selector: '#element', mode: 'visible' },
         node_id: 'node-1',
-      };
+      });
 
       const mockLocator = {
         isVisible: jest.fn().mockResolvedValue(true),
-      };
+      });
       mockPage.locator.mockReturnValue(mockLocator as any);
 
       const result = await handler.execute(instruction, context);
@@ -82,15 +83,15 @@ describe('AssertionHandler', () => {
 
   describe('assert - text', () => {
     it('should assert text equals', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'assert',
         params: { selector: '#element', mode: 'equals', expectedText: 'Hello' },
         node_id: 'node-1',
-      };
+      });
 
       const mockLocator = {
         textContent: jest.fn().mockResolvedValue('Hello'),
-      };
+      });
       mockPage.locator.mockReturnValue(mockLocator as any);
 
       const result = await handler.execute(instruction, context);
@@ -100,15 +101,15 @@ describe('AssertionHandler', () => {
     });
 
     it('should assert text contains', async () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'assert',
         params: { selector: '#element', mode: 'contains', expectedText: 'World' },
         node_id: 'node-1',
-      };
+      });
 
       const mockLocator = {
         textContent: jest.fn().mockResolvedValue('Hello World'),
-      };
+      });
       mockPage.locator.mockReturnValue(mockLocator as any);
 
       const result = await handler.execute(instruction, context);

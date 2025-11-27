@@ -229,9 +229,12 @@ export class GestureHandler extends BaseHandler {
           position: { x: targetX, y: targetY },
           boundingBox: targetBoundingBox,
         },
+        clickPosition: { x: targetX, y: targetY },
       },
-      elementBoundingBox: sourceBoundingBox,
-      clickPosition: { x: targetX, y: targetY },
+      focus: {
+        selector: validated.sourceSelector,
+        bounding_box: sourceBoundingBox,
+      },
     };
   }
 
@@ -368,9 +371,10 @@ export class GestureHandler extends BaseHandler {
 
     if (!selector) {
       // Apply zoom to entire page via CSS transform
-      await page.evaluate((scaleValue) => {
-        document.body.style.transform = `scale(${scaleValue})`;
-        document.body.style.transformOrigin = 'center center';
+      await page.evaluate((scaleValue: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (globalThis as any).document.body.style.transform = `scale(${scaleValue})`;
+        (globalThis as any).document.body.style.transformOrigin = 'center center';
       }, scale);
 
       logger.info('Page zoom applied', { scale });
@@ -399,9 +403,9 @@ export class GestureHandler extends BaseHandler {
         };
       }
 
-      await element.evaluate((el, scaleValue) => {
-        (el as HTMLElement).style.transform = `scale(${scaleValue})`;
-        (el as HTMLElement).style.transformOrigin = 'center center';
+      await element.evaluate((el: any, scaleValue) => {
+        el.style.transform = `scale(${scaleValue})`;
+        el.style.transformOrigin = 'center center';
       }, scale);
 
       const boundingBox = await element.boundingBox();
@@ -417,7 +421,10 @@ export class GestureHandler extends BaseHandler {
             selector,
           },
         },
-        elementBoundingBox: boundingBox || undefined,
+        focus: boundingBox ? {
+          selector,
+          bounding_box: boundingBox,
+        } : undefined,
       };
     }
   }

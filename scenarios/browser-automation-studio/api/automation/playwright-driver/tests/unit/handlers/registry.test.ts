@@ -1,3 +1,4 @@
+import { createTestInstruction } from '../../helpers';
 import { handlerRegistry } from '../../../src/handlers/registry';
 import { NavigationHandler, InteractionHandler, WaitHandler } from '../../../src/handlers';
 import { UnsupportedInstructionError } from '../../../src/utils/errors';
@@ -73,11 +74,11 @@ describe('HandlerRegistry', () => {
     });
 
     it('should return handler for navigate instruction', () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'navigate',
         params: {},
         node_id: 'node-1',
-      };
+      });
 
       const handler = handlerRegistry.getHandler(instruction);
 
@@ -85,11 +86,11 @@ describe('HandlerRegistry', () => {
     });
 
     it('should return handler for click instruction', () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'click',
         params: {},
         node_id: 'node-1',
-      };
+      });
 
       const handler = handlerRegistry.getHandler(instruction);
 
@@ -97,11 +98,11 @@ describe('HandlerRegistry', () => {
     });
 
     it('should return handler for wait instruction', () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'wait',
         params: {},
         node_id: 'node-1',
-      };
+      });
 
       const handler = handlerRegistry.getHandler(instruction);
 
@@ -109,11 +110,11 @@ describe('HandlerRegistry', () => {
     });
 
     it('should throw error for unsupported instruction type', () => {
-      const instruction: CompiledInstruction = {
+      const instruction = createTestInstruction({
         type: 'unsupported-action',
         params: {},
         node_id: 'node-1',
-      };
+      });
 
       expect(() => handlerRegistry.getHandler(instruction)).toThrow(UnsupportedInstructionError);
       expect(() => handlerRegistry.getHandler(instruction)).toThrow(
