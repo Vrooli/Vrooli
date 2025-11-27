@@ -667,6 +667,20 @@ type stubSession struct {
 }
 
 func (s *stubSession) Run(ctx context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+	if instruction.Index == -1 || instruction.NodeID == entryProbeNodeID {
+		now := time.Now().UTC()
+		end := now
+		return contracts.StepOutcome{
+			SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			StepIndex:      instruction.Index,
+			NodeID:         instruction.NodeID,
+			StepType:       instruction.Type,
+			Success:        true,
+			StartedAt:      now,
+			CompletedAt:    &end,
+		}, nil
+	}
 	out, ok := s.outcomes[instruction.Index]
 	if !ok {
 		return contracts.StepOutcome{}, fmt.Errorf("no stub outcome for step %d", instruction.Index)

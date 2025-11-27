@@ -132,6 +132,14 @@ func tryBrowserlessV1(ctx context.Context, base *url.URL) (string, error) {
 
 	// V1 compatibility check: URL must have /devtools/ path
 	if !strings.Contains(debuggerURL, "/devtools/") {
+		// Some v1 deployments only return the host:port from /json/version.
+		// Fall back to creating a session via /json/new to obtain a devtools URL.
+		sessionURL := *base
+		sessionURL.Path = joinPath(sessionURL.Path, "/json/new")
+		sessionURL.RawQuery = base.RawQuery
+		if wsFromNew, newErr := fetchWebSocketFromSession(ctx, sessionURL.String()); newErr == nil && strings.Contains(wsFromNew, "/devtools/") {
+			return wsFromNew, nil
+		}
 		return "", fmt.Errorf("v1 endpoint returned incomplete URL: %s", debuggerURL)
 	}
 
@@ -197,6 +205,33 @@ func fetchWebSocketDebuggerURL(ctx context.Context, versionURL string) (string, 
 	return versionResp.WebSocketDebuggerURL, nil
 }
 
+func fetchWebSocketFromSession(ctx context.Context, sessionURL string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, sessionURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to build session request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to create v1 session: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body := readBodySnippet(resp.Body, 2048)
+		return "", fmt.Errorf("session endpoint returned HTTP %d: %s", resp.StatusCode, body)
+	}
+
+	var sessionResp struct {
+		WebSocketDebuggerURL string `json:"webSocketDebuggerUrl"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&sessionResp); err != nil {
+		return "", fmt.Errorf("failed to decode session response: %w", err)
+	}
+
+	return sessionResp.WebSocketDebuggerURL, nil
+}
+
 func rewriteAdvertisedWebSocketURL(ctx context.Context, advertised string, fallback *url.URL) (string, error) {
 	if strings.TrimSpace(advertised) == "" {
 		return "", fmt.Errorf("websocket URL is empty")
@@ -257,7 +292,8 @@ func readBodySnippet(r io.Reader, limit int) string {
 func allowLegacyV1Fallback() bool {
 	val := strings.ToLower(strings.TrimSpace(os.Getenv("BROWSERLESS_ALLOW_V1_FALLBACK")))
 	switch val {
-	case "1", "true", "yes", "y", "on":
+	case "", "1", "true", "yes", "y", "on":
+		// Default to allowing v1 fallback so stable browserless v1 works without extra env
 		return true
 	default:
 		return false

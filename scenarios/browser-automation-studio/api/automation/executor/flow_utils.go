@@ -14,8 +14,9 @@ import (
 // flow_utils.go holds small helpers for graph traversal and value coercion.
 
 type flowState struct {
-	vars      map[string]any
-	nextIndex int
+	vars         map[string]any
+	nextIndex    int
+	entryChecked bool
 }
 
 func newFlowState(seed map[string]any) *flowState {
@@ -24,6 +25,20 @@ func newFlowState(seed map[string]any) *flowState {
 		state.vars[k] = v
 	}
 	return state
+}
+
+func (s *flowState) markEntryChecked() {
+	if s == nil {
+		return
+	}
+	s.entryChecked = true
+}
+
+func (s *flowState) hasCheckedEntry() bool {
+	if s == nil {
+		return false
+	}
+	return s.entryChecked
 }
 
 func (s *flowState) get(key string) (any, bool) {

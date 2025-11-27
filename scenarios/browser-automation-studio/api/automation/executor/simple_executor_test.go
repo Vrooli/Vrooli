@@ -1084,6 +1084,88 @@ func TestSimpleExecutorValidatesEngineCapabilities(t *testing.T) {
 	}
 }
 
+func TestEntryProbeFailsFast(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	session := &fakeSession{
+		outcomeByNode: map[string]contracts.StepOutcome{
+			entryProbeNodeID: {
+				Success: false,
+				Failure: &contracts.StepFailure{Message: "missing selector"},
+			},
+		},
+		outcome: contracts.StepOutcome{Success: true},
+	}
+
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			ExecutionID:    execID,
+			WorkflowID:     workflowID,
+			Instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "node-1", Type: "click", Params: map[string]any{"selector": "[data-testid=ready]"}, Metadata: map[string]string{}},
+			},
+			CreatedAt: time.Now().UTC(),
+		},
+		EngineFactory:     &fakeEngineFactory{session: session},
+		Recorder:          &memoryRecorder{},
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 5 * time.Millisecond,
+	}
+
+	executor := NewSimpleExecutor(nil)
+	err := executor.Execute(context.Background(), req)
+	if err == nil {
+		t.Fatalf("expected entry probe failure")
+	}
+	if session.runs != 1 {
+		t.Fatalf("expected only entry probe to run, got %d runs", session.runs)
+	}
+}
+
+func TestEntryProbePassesAndRunsSteps(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	session := &fakeSession{
+		outcomeByNode: map[string]contracts.StepOutcome{
+			entryProbeNodeID: {Success: true},
+		},
+		outcome: contracts.StepOutcome{Success: true},
+	}
+
+	rec := &memoryRecorder{}
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			ExecutionID:    execID,
+			WorkflowID:     workflowID,
+			Instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "node-1", Type: "click", Params: map[string]any{"selector": "[data-testid=ready]"}, Metadata: map[string]string{}},
+			},
+			CreatedAt: time.Now().UTC(),
+		},
+		EngineFactory:     &fakeEngineFactory{session: session},
+		Recorder:          rec,
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 5 * time.Millisecond,
+	}
+
+	executor := NewSimpleExecutor(nil)
+	if err := executor.Execute(context.Background(), req); err != nil {
+		t.Fatalf("execute returned error: %v", err)
+	}
+	if session.runs != 2 {
+		t.Fatalf("expected entry probe + step to run, got %d runs", session.runs)
+	}
+	if len(rec.outcomes) != 1 || !rec.outcomes[0].Success {
+		t.Fatalf("expected recorded step outcome, got %+v", rec.outcomes)
+	}
+}
+
 func TestSimpleExecutorRejectsPlanWithMismatchedSchemaVersions(t *testing.T) {
 	execID := uuid.New()
 	workflowID := uuid.New()

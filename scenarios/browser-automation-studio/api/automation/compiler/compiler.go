@@ -84,6 +84,12 @@ func CompileWorkflow(workflow *database.Workflow) (*ExecutionPlan, error) {
 	if width, height := extractViewportFromSettings(raw.Settings); width > 0 && height > 0 {
 		metadata["executionViewport"] = map[string]int{"width": width, "height": height}
 	}
+	if selector, timeout := extractEntryFromSettings(raw.Settings); selector != "" {
+		metadata["entrySelector"] = selector
+		if timeout > 0 {
+			metadata["entrySelectorTimeoutMs"] = timeout
+		}
+	}
 	if len(metadata) == 0 {
 		metadata = nil
 	}
@@ -230,6 +236,25 @@ func extractViewportFromSettings(settings map[string]any) (int, int) {
 		return 0, 0
 	}
 	return width, height
+}
+
+func extractEntryFromSettings(settings map[string]any) (string, int) {
+	if settings == nil {
+		return "", 0
+	}
+	raw, ok := settings["entrySelector"]
+	if !ok {
+		return "", 0
+	}
+	selector, ok := raw.(string)
+	if !ok || strings.TrimSpace(selector) == "" {
+		return "", 0
+	}
+	timeout := toPositiveInt(settings["entrySelectorTimeoutMs"])
+	if timeout == 0 {
+		timeout = toPositiveInt(settings["entryTimeoutMs"])
+	}
+	return strings.TrimSpace(selector), timeout
 }
 
 type planner struct {

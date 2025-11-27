@@ -689,6 +689,18 @@ func buildBrowserlessCloseURL(rawBase, targetID string) (string, error) {
 }
 
 func (s *Session) closeRemoteTarget() {
+	// First try to close the active target via CDP (works in browserless v2)
+	if s.currentTargetID != "" {
+		ctx, cancel := context.WithTimeout(s.ctx, 3*time.Second)
+		defer cancel()
+		if err := chromedp.Run(ctx, target.CloseTarget(s.currentTargetID)); err == nil {
+			return
+		} else if s.log != nil {
+			s.log.WithError(err).Debug("CDP closeTarget failed, falling back to HTTP close")
+		}
+	}
+
+	// Fallback to HTTP close for older browserless versions
 	if s.browserlessTargetID == "" {
 		return
 	}
@@ -717,6 +729,10 @@ func (s *Session) closeRemoteTarget() {
 			s.log.WithError(err).Debug("browserless close request failed")
 		}
 		return
+	}
+	// 404 is expected on browserless v2 (no close route); treat as best-effort
+	if resp.StatusCode == http.StatusNotFound && s.log != nil {
+		s.log.Debug("browserless close route not found; relying on allocator cleanup")
 	}
 	io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()

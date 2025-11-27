@@ -147,3 +147,34 @@ func TestCompileWorkflowLoopExtractsBody(t *testing.T) {
 		t.Fatalf("unexpected nested loop plan for non-loop body node")
 	}
 }
+
+func TestCompileWorkflowEntryMetadata(t *testing.T) {
+	workflow := &database.Workflow{
+		ID:   uuid.New(),
+		Name: "entry-flow",
+		FlowDefinition: database.JSONMap{
+			"settings": map[string]any{
+				"entrySelector":          "[data-testid=app-ready]",
+				"entrySelectorTimeoutMs": 1500,
+			},
+			"nodes": []any{
+				map[string]any{"id": "a", "type": "navigate", "data": map[string]any{"url": "https://example.com"}},
+			},
+			"edges": []any{},
+		},
+	}
+
+	plan, err := CompileWorkflow(workflow)
+	if err != nil {
+		t.Fatalf("compile failed: %v", err)
+	}
+	if plan.Metadata == nil {
+		t.Fatalf("expected metadata to be populated")
+	}
+	if got := plan.Metadata["entrySelector"]; got != "[data-testid=app-ready]" {
+		t.Fatalf("unexpected entrySelector: %v", got)
+	}
+	if got := plan.Metadata["entrySelectorTimeoutMs"]; got != 1500 {
+		t.Fatalf("unexpected entrySelectorTimeoutMs: %v", got)
+	}
+}

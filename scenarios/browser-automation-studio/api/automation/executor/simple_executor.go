@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -148,11 +149,17 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 		}(),
 	}
 
-	_, err = e.runPlan(ctx, req, execCtx, eng, spec, session, state, reuseMode)
+	session, err = e.runPlan(ctx, req, execCtx, eng, spec, session, state, reuseMode)
 	return err
 }
 
 func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, state *flowState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
+	var err error
+	session, err = e.maybeRunEntrypointProbe(ctx, req.Plan, eng, spec, session, state)
+	if err != nil {
+		return session, err
+	}
+
 	if req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0 {
 		return e.executeGraph(ctx, req, execCtx, eng, spec, session, state, reuseMode)
 	}
@@ -370,6 +377,176 @@ func (e *SimpleExecutor) failureMessage(outcome contracts.StepOutcome) string {
 		return outcome.Failure.Message
 	}
 	return "unknown failure"
+}
+
+const (
+	entryProbeNodeID      = "__entry_probe__"
+	defaultEntryTimeoutMs = 3000
+	minEntryTimeoutMs     = 250
+)
+
+func (e *SimpleExecutor) maybeRunEntrypointProbe(ctx context.Context, plan contracts.ExecutionPlan, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, state *flowState) (engine.EngineSession, error) {
+	if state == nil || state.hasCheckedEntry() {
+		return session, nil
+	}
+	selector, timeoutMs := entrySelectorFromPlan(plan)
+	state.markEntryChecked()
+	if strings.TrimSpace(selector) == "" {
+		return session, nil
+	}
+	if strings.Contains(selector, "${") {
+		// Skip probes on unresolved template placeholders to avoid false negatives
+		return session, nil
+	}
+	if timeoutMs <= 0 {
+		timeoutMs = defaultEntryTimeoutMs
+	}
+	if timeoutMs < minEntryTimeoutMs {
+		timeoutMs = minEntryTimeoutMs
+	}
+
+	if session == nil {
+		var err error
+		session, err = eng.StartSession(ctx, spec)
+		if err != nil {
+			return session, fmt.Errorf("start session for entry probe: %w", err)
+		}
+	}
+
+	probeCtx := ctx
+	if timeoutMs > 0 {
+		var cancel context.CancelFunc
+		probeCtx, cancel = context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+		defer cancel()
+	}
+
+	instr := contracts.CompiledInstruction{
+		Index:  -1,
+		NodeID: entryProbeNodeID,
+		Type:   "wait",
+		Params: map[string]any{
+			"selector":  selector,
+			"timeoutMs": timeoutMs,
+		},
+	}
+
+	outcome, err := session.Run(probeCtx, instr)
+	if err != nil {
+		return session, fmt.Errorf("entry selector %q not reachable within %dms: %w", selector, timeoutMs, err)
+	}
+	if !outcome.Success {
+		return session, fmt.Errorf("entry selector %q not reachable within %dms: %s", selector, timeoutMs, e.failureMessage(outcome))
+	}
+	return session, nil
+}
+
+func entrySelectorFromPlan(plan contracts.ExecutionPlan) (string, int) {
+	if selector, ok := readString(plan.Metadata, "entrySelector"); ok {
+		return selector, readInt(plan.Metadata, "entrySelectorTimeoutMs", "entryTimeoutMs")
+	}
+	selector := firstSelectorFromInstructions(plan.Instructions)
+	return selector, readInt(plan.Metadata, "entrySelectorTimeoutMs", "entryTimeoutMs")
+}
+
+func firstSelectorFromInstructions(instructions []contracts.CompiledInstruction) string {
+	if len(instructions) == 0 {
+		return ""
+	}
+	sorted := append([]contracts.CompiledInstruction{}, instructions...)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Index < sorted[j].Index
+	})
+	for _, instr := range sorted {
+		selector := firstSelectorFromParams(instr.Params)
+		if selector != "" {
+			return selector
+		}
+	}
+	return ""
+}
+
+var selectorPriority = []string{
+	"selector",
+	"waitForSelector",
+	"preconditionSelector",
+	"successSelector",
+	"targetSelector",
+	"dragTargetSelector",
+	"dragSourceSelector",
+	"sourceSelector",
+	"focusSelector",
+	"gestureSelector",
+	"scrollTargetSelector",
+	"frameSelector",
+	"conditionSelector",
+}
+
+func firstSelectorFromParams(params map[string]any) string {
+	for _, key := range selectorPriority {
+		if val, ok := params[key]; ok {
+			if s, ok := val.(string); ok && strings.TrimSpace(s) != "" {
+				return strings.TrimSpace(s)
+			}
+		}
+	}
+	keys := make([]string, 0, len(params))
+	for k := range params {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if !strings.Contains(strings.ToLower(k), "selector") {
+			continue
+		}
+		if val, ok := params[k]; ok {
+			if s, ok := val.(string); ok && strings.TrimSpace(s) != "" {
+				return strings.TrimSpace(s)
+			}
+		}
+	}
+	return ""
+}
+
+func readString(meta map[string]any, key string) (string, bool) {
+	if meta == nil {
+		return "", false
+	}
+	raw, ok := meta[key]
+	if !ok {
+		return "", false
+	}
+	switch v := raw.(type) {
+	case string:
+		if strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v), true
+		}
+	}
+	return "", false
+}
+
+func readInt(meta map[string]any, keys ...string) int {
+	if meta == nil {
+		return 0
+	}
+	for _, key := range keys {
+		if raw, ok := meta[key]; ok {
+			switch v := raw.(type) {
+			case float64:
+				if v > 0 {
+					return int(v)
+				}
+			case int:
+				if v > 0 {
+					return v
+				}
+			case int64:
+				if v > 0 {
+					return int(v)
+				}
+			}
+		}
+	}
+	return 0
 }
 
 func (e *SimpleExecutor) emitEvent(ctx context.Context, req Request, kind contracts.EventKind, stepIndex *int, attempt *int, payload any) {
