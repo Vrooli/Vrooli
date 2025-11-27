@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// [REQ:PCT-DRAFT-PUBLISH] Publishing atomically updates PRD.md and clears draft
 func TestCopyFile(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -169,6 +170,7 @@ This is a test PRD.
 	}
 }
 
+// [REQ:PCT-DRAFT-PUBLISH] Publishing atomically updates PRD.md and clears draft
 func TestCopyFilePreservesContent(t *testing.T) {
 	// Test that copyFile preserves exact byte content
 	tmpDir := t.TempDir()
@@ -202,6 +204,7 @@ func TestCopyFilePreservesContent(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-DRAFT-PUBLISH] Publishing atomically updates PRD.md and clears draft
 func TestCopyFileOverwritesExisting(t *testing.T) {
 	// Test that copyFile overwrites existing destination file
 	tmpDir := t.TempDir()

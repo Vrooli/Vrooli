@@ -19,6 +19,13 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "TestHandleCreateDraft with validation and filesystem sync"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_drafts_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "POST /api/v1/drafts endpoint integration tests"
         }
       ]
     },
@@ -36,6 +43,13 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "TestHandleUpdateDraft with database and filesystem validation"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_drafts_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "PUT /api/v1/drafts/{id} endpoint integration tests"
         }
       ]
     },
@@ -53,6 +67,13 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "TestHandleDeleteDraft with cleanup verification"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_drafts_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "DELETE /api/v1/drafts/{id} endpoint integration tests"
         }
       ]
     },
@@ -82,11 +103,18 @@
       "status": "complete",
       "validation": [
         {
-          "type": "manual",
-          "ref": "ui/src/components/drafts/DraftEditorPane.tsx",
+          "type": "test",
+          "ref": "api/drafts_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Draft content validation and persistence tests"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_drafts_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Editor modes functional, preview renders markdown correctly"
+          "notes": "Draft API endpoints validate content editing workflow"
         }
       ]
     }

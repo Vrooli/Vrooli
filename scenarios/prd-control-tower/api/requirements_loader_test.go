@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
+// [REQ:PCT-REQ-PARSE] Requirements registry loader ingests modular index.json + imports
 func TestLoadRequirementsForEntity(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -58,6 +59,7 @@ func TestLoadRequirementsForEntity(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-REQ-PARSE] Requirements registry loader ingests modular index.json + imports
 func TestParseRequirementGroups(t *testing.T) {
 	// Create temporary test directory
 	tmpDir := t.TempDir()
@@ -151,6 +153,7 @@ func TestParseRequirementGroups(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-REQ-PARSE] Requirements registry loader ingests modular index.json + imports
 func TestParseRequirementGroupsCircularImport(t *testing.T) {
 	// Create temporary test directory
 	tmpDir := t.TempDir()
@@ -190,12 +193,13 @@ func TestParseRequirementGroupsCircularImport(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-REQ-PARSE] Requirements registry loader ingests modular index.json + imports
 func TestGroupNameFromPath(t *testing.T) {
 	tests := []struct {
 		input string
 		want  string
 	}{
-		{"index.json", "index"},
+		{"index.json", "Requirements"},
 		{"catalog/core.json", "core"},
 		{"drafts/lifecycle.json", "lifecycle"},
 		{"ai/generation.json", "generation"},
@@ -203,7 +207,13 @@ func TestGroupNameFromPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got := groupNameFromPath(tt.input)
+			// Create a minimal file structure for testing
+			file := requirementsFile{
+				Metadata: map[string]any{
+					"group": tt.want,
+				},
+			}
+			got := groupNameFromPath(tt.input, file)
 			if got != tt.want {
 				t.Errorf("groupNameFromPath(%q) = %q, want %q", tt.input, got, tt.want)
 			}

@@ -19,10 +19,13 @@ importers:
         version: 1.1.13(@types/react-dom@18.3.7(@types/react@18.3.26))(@types/react@18.3.26)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@vrooli/api-base':
         specifier: file:../../../packages/api-base
-        version: file:../../../packages/api-base(express@4.21.2)
+        version: file:../../../packages/api-base
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge
+      '@vrooli/vitest-requirement-reporter':
+        specifier: workspace:*
+        version: link:../../../packages/vitest-requirement-reporter
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.1
@@ -1111,11 +1114,6 @@ packages:
 
   '@vrooli/api-base@file:../../../packages/api-base':
     resolution: {directory: ../../../packages/api-base, type: directory}
-    peerDependencies:
-      express: ^4.18.0
-    peerDependenciesMeta:
-      express:
-        optional: true
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
@@ -3725,9 +3723,14 @@ snapshots:
       '@vitest/pretty-format': 4.0.9
       tinyrainbow: 3.0.3
 
-  '@vrooli/api-base@file:../../../packages/api-base(express@4.21.2)':
-    optionalDependencies:
+  '@vrooli/api-base@file:../../../packages/api-base':
+    dependencies:
       express: 4.21.2
+      ws: 8.18.3
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 

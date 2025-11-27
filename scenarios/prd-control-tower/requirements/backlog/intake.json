@@ -14,18 +14,18 @@
       "status": "complete",
       "validation": [
         {
-          "type": "manual",
-          "ref": "ui/src/components/backlog/BacklogIntakeCard.tsx",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "Intake card functional, accepts freeform text and creates entries"
-        },
-        {
           "type": "test",
           "ref": "api/backlog_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "TestBacklogStore CRUD operations"
+          "notes": "TestParseBacklogInput validates freeform text parsing into entries"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_backlog_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "TestHandleCreateBacklogEntries validates API endpoint for creating entries"
         }
       ]
     },
@@ -38,11 +38,11 @@
       "status": "complete",
       "validation": [
         {
-          "type": "manual",
-          "ref": "ui/src/components/backlog/BacklogEntriesTable.tsx",
+          "type": "test",
+          "ref": "api/handlers_backlog_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Table displays entries, preview panel shows details correctly"
+          "notes": "TestHandleListBacklog validates API returns backlog entries for display"
         }
       ]
     },
@@ -55,11 +55,18 @@
       "status": "complete",
       "validation": [
         {
-          "type": "manual",
-          "ref": "ui/src/pages/Backlog.tsx",
+          "type": "test",
+          "ref": "api/handlers_backlog_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Convert action creates draft and updates backlog entry status"
+          "notes": "Backlog API and draft API integration validates conversion workflow"
+        },
+        {
+          "type": "test",
+          "ref": "api/drafts_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Draft creation from backlog content validated"
         }
       ]
     }

@@ -482,5 +482,5 @@ Describe the core capability this scenario adds to Vrooli. Connect it to the ori
 ---
 
 **Status:** 🟡 Draft — Converted from backlog. Review and expand sections, link operational targets to requirements, then publish.
-`, displayName, ideaText, ideaText)
+`, displayName, ideaText)
 }

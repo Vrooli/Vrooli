@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// [REQ:PCT-VALIDATE-CALL] Validation service calls scenario-auditor API for PRD structure checks
 // TestRunScenarioAuditorCLI tests the CLI auditor runner
 func TestRunScenarioAuditorCLI(t *testing.T) {
 	tests := []struct {
@@ -54,6 +55,7 @@ func TestRunScenarioAuditorCLI(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-VALIDATE-CALL] Validation service calls scenario-auditor API for PRD structure checks
 // TestRunScenarioAuditor tests the main auditor runner with environment setup
 func TestRunScenarioAuditor(t *testing.T) {
 	tests := []struct {
@@ -103,6 +105,7 @@ func TestRunScenarioAuditor(t *testing.T) {
 	os.Unsetenv("SCENARIO_AUDITOR_URL")
 }
 
+// [REQ:PCT-VALIDATE-CALL] Validation service calls scenario-auditor API for PRD structure checks
 // TestHandleValidatePRD tests the published PRD validation endpoint
 func TestHandleValidatePRD(t *testing.T) {
 	// Ensure scenario-auditor CLI lookup fails quickly so tests don't invoke the real binary
@@ -224,6 +227,7 @@ func TestHandleValidatePRD(t *testing.T) {
 // TestRunScenarioAuditorHTTP was removed since the HTTP implementation was a placeholder
 // TODO: Re-add this test when scenario-auditor provides an HTTP API
 
+// [REQ:PCT-VALIDATE-CACHE] Validation results cache in PostgreSQL with timestamp
 // TestValidationRequestCaching tests validation with cache
 func TestValidationRequestCaching(t *testing.T) {
 	tests := []struct {
@@ -253,6 +257,7 @@ func TestValidationRequestCaching(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-VALIDATE-DISPLAY] Draft workspace displays violations with severity and recommendations
 // TestValidationResponseStructure tests the validation response structure
 func TestValidationResponseStructure(t *testing.T) {
 	now := time.Now()

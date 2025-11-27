@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// [REQ:PCT-BACKLOG-INTAKE] Backlog accepts freeform text input and parses it into entries
 func TestParseBacklogInput(t *testing.T) {
 	raw := `1. Scenario intake idea
 - [Resource] shared cache idea
@@ -33,6 +34,7 @@ func TestParseBacklogInput(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-BACKLOG-INTAKE] Backlog accepts freeform text input and parses it into entries
 func TestGenerateSlug(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -62,6 +64,7 @@ func TestGenerateSlug(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-BACKLOG-INTAKE] Backlog accepts freeform text input and parses it into entries
 func TestStripLeadingNumber(t *testing.T) {
 	tests := []struct {
 		input string

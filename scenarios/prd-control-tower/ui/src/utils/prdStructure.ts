@@ -3,17 +3,19 @@ import type { PRDValidationResultV2 } from '../types'
 // PRD template structure validation aligned with scripts/scenarios/templates/react-vite/PRD.md
 // This validation focuses on CORE required sections while making subsections optional/recommended
 
+// Note: 'token' here refers to markdown heading text patterns, NOT authentication tokens
+// Security scanners may flag this as a false positive - these are template strings only
 const REQUIRED_SECTIONS = [
-  { token: '# Product Requirements Document (PRD)', label: 'Document title', criticality: 'required' },
-  { token: '## 🎯 Overview', label: 'Overview section', criticality: 'required' },
-  { token: '## 🎯 Operational Targets', label: 'Operational Targets section', criticality: 'required' },
-  { token: '### 🔴 P0 – Must ship for viability', label: 'P0 checklist', criticality: 'required' },
-  { token: '### 🟠 P1 – Should have post-launch', label: 'P1 checklist', criticality: 'required' },
-  { token: '### 🟢 P2 – Future / expansion', label: 'P2 checklist', criticality: 'required' },
-  { token: '## 🧱 Tech Direction Snapshot', label: 'Tech Direction section', criticality: 'required' },
-  { token: '## 🤝 Dependencies & Launch Plan', label: 'Dependencies & Launch Plan section', criticality: 'required' },
-  { token: '## 🎨 UX & Branding', label: 'UX & Branding section', criticality: 'required' },
-  { token: '## 📎 Appendix', label: 'Appendix (optional)', criticality: 'recommended' },
+  { token: '# Product Requirements Document (PRD)', label: 'Document title', criticality: 'required' }, // nosec: not a credential
+  { token: '## 🎯 Overview', label: 'Overview section', criticality: 'required' }, // nosec: not a credential
+  { token: '## 🎯 Operational Targets', label: 'Operational Targets section', criticality: 'required' }, // nosec: not a credential
+  { token: '### 🔴 P0 – Must ship for viability', label: 'P0 checklist', criticality: 'required' }, // nosec: not a credential
+  { token: '### 🟠 P1 – Should have post-launch', label: 'P1 checklist', criticality: 'required' }, // nosec: not a credential
+  { token: '### 🟢 P2 – Future / expansion', label: 'P2 checklist', criticality: 'required' }, // nosec: not a credential
+  { token: '## 🧱 Tech Direction Snapshot', label: 'Tech Direction section', criticality: 'required' }, // nosec: not a credential
+  { token: '## 🤝 Dependencies & Launch Plan', label: 'Dependencies & Launch Plan section', criticality: 'required' }, // nosec: not a credential
+  { token: '## 🎨 UX & Branding', label: 'UX & Branding section', criticality: 'required' }, // nosec: not a credential
+  { token: '## 📎 Appendix', label: 'Appendix (optional)', criticality: 'recommended' }, // nosec: not a credential
 ] as const
 
 export interface SectionStatus {

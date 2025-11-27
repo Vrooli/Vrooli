@@ -19,6 +19,13 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "TestGenerateAIContent validates HTTP and CLI integration paths"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_drafts_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Draft API handlers validate AI generation endpoint integration"
         }
       ]
     },
@@ -48,11 +55,18 @@
       "status": "complete",
       "validation": [
         {
-          "type": "manual",
-          "ref": "ui/src/components/drafts/AIAssistantDialog.tsx",
+          "type": "test",
+          "ref": "api/ai_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "AI rewrite functionality validated via AI service tests"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_drafts_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Dialog functional, generates rewrites and applies to editor"
+          "notes": "AI assistant API endpoints validate rewrite workflow"
         }
       ]
     }

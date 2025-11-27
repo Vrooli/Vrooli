@@ -11,7 +11,7 @@
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start run dev stop status logs test clean setup build fmt fmt-go fmt-ui lint lint-go lint-ui
+.PHONY: help start run dev stop status logs test clean setup build fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 .DEFAULT_GOAL := help
 
@@ -39,7 +39,7 @@ help: ## Show this help message
 
 start: ## Start the scenario services
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME)
+	@vrooli scenario start $(SCENARIO_NAME)
 
 run: start ## Start this scenario (alias for 'start')
 
@@ -91,7 +91,13 @@ fmt: fmt-go fmt-ui ## Format all code
 
 fmt-go: ## Format Go code
 	@echo "$(BLUE)📝 Formatting Go code...$(RESET)"
-	@if [ -d api ]; then cd api && gofumpt -w . 2>/dev/null || true; fi
+	@if [ -d api ]; then \
+		if command -v gofumpt &>/dev/null; then \
+			cd api && gofumpt -w . 2>/dev/null || true; \
+		else \
+			echo "$(YELLOW)⚠️  gofumpt not found, skipping Go formatting$(RESET)"; \
+		fi \
+	fi
 	@echo "$(GREEN)✓ Go code formatted$(RESET)"
 
 fmt-ui: ## Format UI code
@@ -103,8 +109,16 @@ lint: lint-go lint-ui ## Lint all code
 
 lint-go: ## Lint Go code
 	@echo "$(BLUE)🔍 Linting Go code...$(RESET)"
-	@if [ -d api ]; then cd api && golangci-lint run 2>/dev/null || true; fi
+	@if [ -d api ]; then \
+		if command -v golangci-lint &>/dev/null; then \
+			cd api && golangci-lint run 2>/dev/null || true; \
+		else \
+			echo "$(YELLOW)⚠️  golangci-lint not found, skipping Go linting$(RESET)"; \
+		fi \
+	fi
 
 lint-ui: ## Lint UI code
 	@echo "$(BLUE)🔍 Linting UI code...$(RESET)"
 	@if [ -d ui ]; then cd ui && npm run lint 2>/dev/null || true; fi
+
+check: lint test ## Run linting and tests

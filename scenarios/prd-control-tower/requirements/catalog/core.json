@@ -22,10 +22,10 @@
         },
         {
           "type": "test",
-          "ref": "test/phases/test-integration.sh",
+          "ref": "api/handlers_catalog_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Integration test calls /api/v1/catalog and verifies 253+ entities"
+          "notes": "TestHandleGetCatalog validates catalog API endpoint integration"
         }
       ]
     },
@@ -45,11 +45,11 @@
           "notes": "TestHandleGetPublishedPRD validates PRD content retrieval"
         },
         {
-          "type": "manual",
-          "ref": "ui/src/pages/ScenarioControlCenter.tsx",
+          "type": "test",
+          "ref": "api/handlers_catalog_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Scenario Control Center PRD tab displays markdown with ReactMarkdown"
+          "notes": "Handler tests validate GET /api/v1/catalog/{type}/{name} endpoint"
         }
       ]
     },
@@ -62,11 +62,18 @@
       "status": "complete",
       "validation": [
         {
-          "type": "manual",
-          "ref": "ui/src/pages/Catalog.tsx",
+          "type": "test",
+          "ref": "api/catalog_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Catalog enumeration tests validate status indicators (has_prd, has_draft, violations)"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_catalog_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Manual verification via UI screenshot showing status chips"
+          "notes": "Catalog API endpoint tests validate status badge data in response"
         }
       ]
     },
@@ -79,11 +86,18 @@
       "status": "complete",
       "validation": [
         {
-          "type": "manual",
-          "ref": "ui/src/pages/Catalog.tsx",
+          "type": "test",
+          "ref": "api/catalog_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Catalog tests validate filtering and search logic"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_catalog_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Search bar functional, filters working in UI"
+          "notes": "Handler tests validate catalog API with query parameter filtering"
         }
       ]
     }

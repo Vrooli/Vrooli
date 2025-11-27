@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// [REQ:PCT-AI-CONTEXT] AI prompts include existing PRD, violations, and template context
 func TestBuildPrompt(t *testing.T) {
 	draft := Draft{
 		ID:         "test-id",
@@ -60,7 +61,7 @@ func TestBuildPrompt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildPrompt(tt.draft, tt.section, tt.context, "")
+			result := buildPrompt(tt.draft, tt.section, tt.context, "", false, nil)
 
 			if len(result) < tt.wantLen {
 				t.Errorf("buildPrompt() length = %d, want at least %d", len(result), tt.wantLen)
@@ -84,6 +85,7 @@ func TestBuildPrompt(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-AI-GENERATE] AI generates PRD sections from prompts
 func TestHandleAIGenerateSectionValidation(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -98,7 +100,7 @@ func TestHandleAIGenerateSectionValidation(t *testing.T) {
 				Context: "some context",
 			},
 			expectStatus:   http.StatusBadRequest,
-			expectContains: "Section is required",
+			expectContains: "Section or Action is required",
 		},
 		{
 			name:           "invalid JSON",
@@ -144,6 +146,7 @@ func TestHandleAIGenerateSectionValidation(t *testing.T) {
 
 // TestHandleAIGenerateSectionNoDB is in handlers_test.go to avoid duplication
 
+// [REQ:PCT-AI-GENERATE] AI generates PRD sections from prompts
 func TestGenerateAIContentCLI(t *testing.T) {
 	draft := Draft{
 		ID:         "test-id",
@@ -154,7 +157,7 @@ func TestGenerateAIContentCLI(t *testing.T) {
 
 	// This test will fail if resource-openrouter is not installed,
 	// which is expected behavior
-	_, _, err := generateAIContentCLI(draft, "Executive Summary", "Test context", "")
+	_, _, err := generateAIContentCLI(draft, "Executive Summary", "Test context", "", false, nil)
 
 	// We expect an error because resource-openrouter is likely not available in test environment
 	if err == nil {
@@ -167,6 +170,7 @@ func TestGenerateAIContentCLI(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-AI-GENERATE] AI generates PRD sections from prompts
 func TestGenerateAIContentHTTP(t *testing.T) {
 	// Set test API key
 	oldKey := os.Getenv("OPENROUTER_API_KEY")
@@ -229,7 +233,7 @@ func TestGenerateAIContentHTTP(t *testing.T) {
 		Content:    "# Test PRD",
 	}
 
-	content, model, err := generateAIContentHTTP(mockServer.URL, draft, "Executive Summary", "Test context", "")
+	content, model, err := generateAIContentHTTP(mockServer.URL, draft, "Executive Summary", "Test context", "", false, nil, "")
 
 	if err != nil {
 		t.Errorf("generateAIContentHTTP() unexpected error: %v", err)
@@ -244,6 +248,7 @@ func TestGenerateAIContentHTTP(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-AI-GENERATE] AI generates PRD sections from prompts
 func TestGenerateAIContentHTTPError(t *testing.T) {
 	// Set test API key
 	oldKey := os.Getenv("OPENROUTER_API_KEY")
@@ -302,7 +307,7 @@ func TestGenerateAIContentHTTPError(t *testing.T) {
 				Content:    "# Test",
 			}
 
-			_, _, err := generateAIContentHTTP(mockServer.URL, draft, "Executive Summary", "", "")
+			_, _, err := generateAIContentHTTP(mockServer.URL, draft, "Executive Summary", "", "", false, nil, "")
 
 			if err == nil {
 				t.Error("generateAIContentHTTP() expected error, got nil")
@@ -315,6 +320,7 @@ func TestGenerateAIContentHTTPError(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-AI-GENERATE] AI generates PRD sections from prompts
 func TestGenerateAIContent(t *testing.T) {
 	draft := Draft{
 		ID:         "test-id",
@@ -326,7 +332,7 @@ func TestGenerateAIContent(t *testing.T) {
 	// Test with no RESOURCE_OPENROUTER_URL set (should fallback to CLI)
 	t.Setenv("RESOURCE_OPENROUTER_URL", "")
 
-	_, _, err := generateAIContent(draft, "Executive Summary", "", "")
+	_, _, err := generateAIContent(draft, "Executive Summary", "", "", false, nil, "")
 
 	// Should attempt CLI and fail (unless resource-openrouter is installed)
 	if err == nil {

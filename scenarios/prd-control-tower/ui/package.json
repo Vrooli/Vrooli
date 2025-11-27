@@ -20,6 +20,7 @@
     "@radix-ui/react-tabs": "^1.1.0",
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "@vrooli/vitest-requirement-reporter": "workspace:*",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "express": "^4.21.2",

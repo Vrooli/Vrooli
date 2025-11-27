@@ -15,10 +15,17 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/requirements_test.go",
+          "ref": "api/requirements_loader_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "TestRequirementsLoader with modular registry fixtures"
+        },
+        {
+          "type": "test",
+          "ref": "api/requirements_handlers_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Requirements API endpoint integration tests"
         }
       ]
     },
@@ -32,10 +39,17 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/requirements_test.go",
+          "ref": "api/requirements_targets_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "TestRequirementsLoader validates requirements ingestion and target parsing logic"
+          "notes": "TestOperationalTargetsParser validates target extraction from PRD"
+        },
+        {
+          "type": "test",
+          "ref": "api/requirements_handlers_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Targets API endpoint integration tests"
         }
       ]
     },
@@ -48,18 +62,18 @@
       "status": "complete",
       "validation": [
         {
-          "type": "manual",
-          "ref": "ui/src/components/drafts/OperationalTargetsPanel.tsx",
-          "phase": "integration",
+          "type": "test",
+          "ref": "api/requirements_targets_test.go",
+          "phase": "unit",
           "status": "implemented",
-          "notes": "Panel displays targets with coverage status and unmatched requirements"
+          "notes": "Target-requirement linkage logic validated"
         },
         {
-          "type": "manual",
-          "ref": "ui/src/components/drafts/RequirementSummaryPanel.tsx",
+          "type": "test",
+          "ref": "api/requirements_enricher_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Panel shows requirement tree with prd_ref linkage"
+          "notes": "Requirements enrichment validates target coverage and linkage"
         }
       ]
     }

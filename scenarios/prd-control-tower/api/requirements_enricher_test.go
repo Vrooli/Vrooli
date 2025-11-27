@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// [REQ:PCT-REQ-LINKAGE] Draft workspace surfaces target coverage and unmatched requirements
 func TestEnrichGroupsRecursive(t *testing.T) {
 	issueMap := map[string]*PRDValidationIssue{
 		"REQ-001": {
@@ -89,6 +90,7 @@ func TestEnrichGroupsRecursive(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-REQ-LINKAGE] Draft workspace surfaces target coverage and unmatched requirements
 func TestEnrichGroupsRecursiveEmpty(t *testing.T) {
 	enriched := enrichGroupsRecursive([]RequirementGroup{}, map[string]*PRDValidationIssue{}, map[string][]TestFileReference{})
 
@@ -97,6 +99,7 @@ func TestEnrichGroupsRecursiveEmpty(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-REQ-LINKAGE] Draft workspace surfaces target coverage and unmatched requirements
 func TestEnrichGroupsRecursiveNoEnrichment(t *testing.T) {
 	groups := []RequirementGroup{
 		{

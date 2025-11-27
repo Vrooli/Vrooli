@@ -21,6 +21,13 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "TestRunScenarioAuditor with HTTP and CLI integration"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_drafts_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validation API endpoint integration tests"
         }
       ]
     },
@@ -50,11 +57,18 @@
       "status": "complete",
       "validation": [
         {
-          "type": "manual",
-          "ref": "ui/src/components/drafts/StructureChecklist.tsx",
+          "type": "test",
+          "ref": "api/validation_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validation response structure tests validate data for UI display"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_drafts_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Checklist displays missing sections and compliance status"
+          "notes": "Validation API returns properly structured violation data"
         }
       ]
     }
