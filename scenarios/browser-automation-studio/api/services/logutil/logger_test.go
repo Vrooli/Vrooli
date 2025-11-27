@@ -43,9 +43,9 @@ func TestTruncateForLog(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := truncateForLog(tt.input, tt.maxLen)
+			result := TruncateForLog(tt.input, tt.maxLen)
 			if result != tt.expected {
-				t.Errorf("truncateForLog(%q, %d) = %q, want %q", tt.input, tt.maxLen, result, tt.expected)
+				t.Errorf("TruncateForLog(%q, %d) = %q, want %q", tt.input, tt.maxLen, result, tt.expected)
 			}
 		})
 	}

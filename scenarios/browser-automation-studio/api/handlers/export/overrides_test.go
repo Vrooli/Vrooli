@@ -3,12 +3,7 @@ package export
 import (
 	"testing"
 
-	"github.com/vrooli/browser-automation-studio/services/ai"
-	"github.com/vrooli/browser-automation-studio/services/export"
-	"github.com/vrooli/browser-automation-studio/services/logutil"
-	"github.com/vrooli/browser-automation-studio/services/recording"
-	"github.com/vrooli/browser-automation-studio/services/replay"
-	"github.com/vrooli/browser-automation-studio/services/workflow"
+	exportservices "github.com/vrooli/browser-automation-studio/services/export"
 )
 
 func TestApply_NilSpec(t *testing.T) {
@@ -24,15 +19,15 @@ func TestApply_NilSpec(t *testing.T) {
 }
 
 func TestApply_NilOverrides(t *testing.T) {
-	spec := &export.ReplayMovieSpec{}
+	spec := &exportservices.ReplayMovieSpec{}
 
 	// Should not panic with nil overrides
 	Apply(spec, nil)
 }
 
 func TestApply_ThemePreset(t *testing.T) {
-	spec := &export.ReplayMovieSpec{
-		Theme: services.ExportTheme{
+	spec := &exportservices.ReplayMovieSpec{
+		Theme: exportservices.ExportTheme{
 			AccentColor: "#000000",
 		},
 	}
@@ -52,14 +47,14 @@ func TestApply_ThemePreset(t *testing.T) {
 }
 
 func TestApply_ExplicitThemeOverride(t *testing.T) {
-	spec := &export.ReplayMovieSpec{
-		Theme: services.ExportTheme{
+	spec := &exportservices.ReplayMovieSpec{
+		Theme: exportservices.ExportTheme{
 			AccentColor: "#000000",
 		},
 	}
 
 	overrides := &Overrides{
-		Theme: &services.ExportTheme{
+		Theme: &exportservices.ExportTheme{
 			AccentColor:  "#FF0000",
 			SurfaceColor: "#FFFFFF",
 		},
@@ -76,14 +71,14 @@ func TestApply_ExplicitThemeOverride(t *testing.T) {
 }
 
 func TestApply_ThemePresetThenOverride(t *testing.T) {
-	spec := &export.ReplayMovieSpec{}
+	spec := &exportservices.ReplayMovieSpec{}
 
 	overrides := &Overrides{
 		ThemePreset: &ThemePreset{
 			ChromeTheme:     "modern",
 			BackgroundTheme: "gradient-blue",
 		},
-		Theme: &services.ExportTheme{
+		Theme: &exportservices.ExportTheme{
 			AccentColor: "#123456", // Explicit override should win
 		},
 	}
@@ -97,8 +92,8 @@ func TestApply_ThemePresetThenOverride(t *testing.T) {
 }
 
 func TestApply_CursorPreset(t *testing.T) {
-	spec := &export.ReplayMovieSpec{
-		Cursor: services.ExportCursorSpec{
+	spec := &exportservices.ReplayMovieSpec{
+		Cursor: exportservices.ExportCursorSpec{
 			InitialPos: "center",
 			Scale:      1.0,
 		},
@@ -124,14 +119,14 @@ func TestApply_CursorPreset(t *testing.T) {
 }
 
 func TestApply_ExplicitCursorOverride(t *testing.T) {
-	spec := &export.ReplayMovieSpec{
-		Cursor: services.ExportCursorSpec{
+	spec := &exportservices.ReplayMovieSpec{
+		Cursor: exportservices.ExportCursorSpec{
 			InitialPos: "center",
 		},
 	}
 
 	overrides := &Overrides{
-		Cursor: &services.ExportCursorSpec{
+		Cursor: &exportservices.ExportCursorSpec{
 			InitialPos: "bottom-right",
 			ClickAnim:  "pulse",
 			Scale:      2.0,
@@ -152,7 +147,7 @@ func TestApply_ExplicitCursorOverride(t *testing.T) {
 }
 
 func TestApplyDecorOverrides_ThemePresetNames(t *testing.T) {
-	spec := &export.ReplayMovieSpec{}
+	spec := &exportservices.ReplayMovieSpec{}
 
 	overrides := &Overrides{
 		ThemePreset: &ThemePreset{
@@ -172,7 +167,7 @@ func TestApplyDecorOverrides_ThemePresetNames(t *testing.T) {
 }
 
 func TestApplyDecorOverrides_CursorPresetNames(t *testing.T) {
-	spec := &export.ReplayMovieSpec{}
+	spec := &exportservices.ReplayMovieSpec{}
 
 	overrides := &Overrides{
 		CursorPreset: &CursorPreset{
@@ -200,7 +195,7 @@ func TestApplyDecorOverrides_CursorPresetNames(t *testing.T) {
 }
 
 func TestApplyDecorOverrides_CursorScaleClamping(t *testing.T) {
-	spec := &export.ReplayMovieSpec{}
+	spec := &exportservices.ReplayMovieSpec{}
 
 	overrides := &Overrides{
 		CursorPreset: &CursorPreset{
@@ -216,10 +211,10 @@ func TestApplyDecorOverrides_CursorScaleClamping(t *testing.T) {
 }
 
 func TestApplyDecorOverrides_ExplicitCursorOverride(t *testing.T) {
-	spec := &export.ReplayMovieSpec{}
+	spec := &exportservices.ReplayMovieSpec{}
 
 	overrides := &Overrides{
-		Cursor: &services.ExportCursorSpec{
+		Cursor: &exportservices.ExportCursorSpec{
 			InitialPos: "top-right",
 			ClickAnim:  "bounce",
 			Scale:      1.8,
@@ -240,11 +235,11 @@ func TestApplyDecorOverrides_ExplicitCursorOverride(t *testing.T) {
 }
 
 func TestSyncCursorFields_InitialPosition(t *testing.T) {
-	spec := &export.ReplayMovieSpec{
-		Cursor: services.ExportCursorSpec{
+	spec := &exportservices.ReplayMovieSpec{
+		Cursor: exportservices.ExportCursorSpec{
 			InitialPos: "bottom-left",
 		},
-		Decor: services.ExportDecor{
+		Decor: exportservices.ExportDecor{
 			CursorInitial: "",
 		},
 	}
@@ -258,11 +253,11 @@ func TestSyncCursorFields_InitialPosition(t *testing.T) {
 }
 
 func TestSyncCursorFields_InitialPositionReverse(t *testing.T) {
-	spec := &export.ReplayMovieSpec{
-		Cursor: services.ExportCursorSpec{
+	spec := &exportservices.ReplayMovieSpec{
+		Cursor: exportservices.ExportCursorSpec{
 			InitialPos: "",
 		},
-		Decor: services.ExportDecor{
+		Decor: exportservices.ExportDecor{
 			CursorInitial: "top-center",
 		},
 	}
@@ -276,11 +271,11 @@ func TestSyncCursorFields_InitialPositionReverse(t *testing.T) {
 }
 
 func TestSyncCursorFields_ClickAnimation(t *testing.T) {
-	spec := &export.ReplayMovieSpec{
-		Cursor: services.ExportCursorSpec{
+	spec := &exportservices.ReplayMovieSpec{
+		Cursor: exportservices.ExportCursorSpec{
 			ClickAnim: "pulse",
 		},
-		Decor: services.ExportDecor{
+		Decor: exportservices.ExportDecor{
 			CursorClickAnimation: "",
 		},
 	}
@@ -293,8 +288,8 @@ func TestSyncCursorFields_ClickAnimation(t *testing.T) {
 }
 
 func TestSyncCursorFields_ScaleClamping(t *testing.T) {
-	spec := &export.ReplayMovieSpec{
-		Cursor: services.ExportCursorSpec{
+	spec := &exportservices.ReplayMovieSpec{
+		Cursor: exportservices.ExportCursorSpec{
 			Scale: 4.0, // Above max
 		},
 	}
@@ -311,11 +306,11 @@ func TestSyncCursorFields_ScaleClamping(t *testing.T) {
 }
 
 func TestSyncCursorFields_DefaultScale(t *testing.T) {
-	spec := &export.ReplayMovieSpec{
-		Decor: services.ExportDecor{
+	spec := &exportservices.ReplayMovieSpec{
+		Decor: exportservices.ExportDecor{
 			CursorScale: 0,
 		},
-		Cursor: services.ExportCursorSpec{
+		Cursor: exportservices.ExportCursorSpec{
 			Scale: 0,
 		},
 	}
@@ -329,18 +324,18 @@ func TestSyncCursorFields_DefaultScale(t *testing.T) {
 }
 
 func TestSyncCursorFields_CursorMotionSync(t *testing.T) {
-	spec := &export.ReplayMovieSpec{
-		Cursor: services.ExportCursorSpec{
+	spec := &exportservices.ReplayMovieSpec{
+		Cursor: exportservices.ExportCursorSpec{
 			InitialPos: "center",
 			ClickAnim:  "ripple",
 			Scale:      1.5,
 		},
-		Decor: services.ExportDecor{
+		Decor: exportservices.ExportDecor{
 			CursorInitial:        "center",
 			CursorClickAnimation: "ripple",
 			CursorScale:          1.5,
 		},
-		CursorMotion: services.ExportCursorMotion{
+		CursorMotion: exportservices.ExportCursorMotion{
 			InitialPosition: "",
 			ClickAnimation:  "",
 			CursorScale:     0,
@@ -362,8 +357,8 @@ func TestSyncCursorFields_CursorMotionSync(t *testing.T) {
 }
 
 func TestSyncCursorFields_DefaultInitialPosition(t *testing.T) {
-	spec := &export.ReplayMovieSpec{
-		CursorMotion: services.ExportCursorMotion{
+	spec := &exportservices.ReplayMovieSpec{
+		CursorMotion: exportservices.ExportCursorMotion{
 			InitialPosition: "",
 		},
 	}

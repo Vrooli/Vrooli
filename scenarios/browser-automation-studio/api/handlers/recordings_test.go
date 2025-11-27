@@ -27,10 +27,10 @@ import (
 
 // Mock recording service for testing
 type mockRecordingService struct {
-	importArchiveFn func(ctx context.Context, archivePath string, opts services.RecordingImportOptions) (*services.RecordingImportResult, error)
+	importArchiveFn func(ctx context.Context, archivePath string, opts recording.RecordingImportOptions) (*recording.RecordingImportResult, error)
 }
 
-func (m *mockRecordingService) ImportArchive(ctx context.Context, archivePath string, opts services.RecordingImportOptions) (*services.RecordingImportResult, error) {
+func (m *mockRecordingService) ImportArchive(ctx context.Context, archivePath string, opts recording.RecordingImportOptions) (*recording.RecordingImportResult, error) {
 	if m.importArchiveFn != nil {
 		return m.importArchiveFn(ctx, archivePath, opts)
 	}
@@ -56,8 +56,8 @@ func TestImportRecording_Success(t *testing.T) {
 		projectID := uuid.New()
 
 		mockService := &mockRecordingService{
-			importArchiveFn: func(ctx context.Context, archivePath string, opts services.RecordingImportOptions) (*services.RecordingImportResult, error) {
-				return &services.RecordingImportResult{
+			importArchiveFn: func(ctx context.Context, archivePath string, opts recording.RecordingImportOptions) (*recording.RecordingImportResult, error) {
+				return &recording.RecordingImportResult{
 					Execution: &database.Execution{
 						ID:          executionID,
 						WorkflowID:  workflowID,
@@ -146,8 +146,8 @@ func TestImportRecording_ServiceUnavailable(t *testing.T) {
 func TestImportRecording_ArchiveTooLarge(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] rejects archives exceeding size limit", func(t *testing.T) {
 		mockService := &mockRecordingService{
-			importArchiveFn: func(ctx context.Context, archivePath string, opts services.RecordingImportOptions) (*services.RecordingImportResult, error) {
-				return nil, services.ErrRecordingArchiveTooLarge
+			importArchiveFn: func(ctx context.Context, archivePath string, opts recording.RecordingImportOptions) (*recording.RecordingImportResult, error) {
+				return nil, recording.ErrRecordingArchiveTooLarge
 			},
 		}
 
@@ -180,8 +180,8 @@ func TestImportRecording_ArchiveTooLarge(t *testing.T) {
 func TestImportRecording_MissingManifest(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] rejects archives with missing manifest", func(t *testing.T) {
 		mockService := &mockRecordingService{
-			importArchiveFn: func(ctx context.Context, archivePath string, opts services.RecordingImportOptions) (*services.RecordingImportResult, error) {
-				return nil, services.ErrRecordingManifestMissingFrames
+			importArchiveFn: func(ctx context.Context, archivePath string, opts recording.RecordingImportOptions) (*recording.RecordingImportResult, error) {
+				return nil, recording.ErrRecordingManifestMissingFrames
 			},
 		}
 
@@ -211,8 +211,8 @@ func TestImportRecording_MissingManifest(t *testing.T) {
 func TestImportRecording_TooManyFrames(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] rejects archives with too many frames", func(t *testing.T) {
 		mockService := &mockRecordingService{
-			importArchiveFn: func(ctx context.Context, archivePath string, opts services.RecordingImportOptions) (*services.RecordingImportResult, error) {
-				return nil, services.ErrRecordingTooManyFrames
+			importArchiveFn: func(ctx context.Context, archivePath string, opts recording.RecordingImportOptions) (*recording.RecordingImportResult, error) {
+				return nil, recording.ErrRecordingTooManyFrames
 			},
 		}
 
@@ -242,7 +242,7 @@ func TestImportRecording_TooManyFrames(t *testing.T) {
 func TestImportRecording_Timeout(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] handles import timeout gracefully", func(t *testing.T) {
 		mockService := &mockRecordingService{
-			importArchiveFn: func(ctx context.Context, archivePath string, opts services.RecordingImportOptions) (*services.RecordingImportResult, error) {
+			importArchiveFn: func(ctx context.Context, archivePath string, opts recording.RecordingImportOptions) (*recording.RecordingImportResult, error) {
 				// Simulate timeout
 				<-ctx.Done()
 				return nil, ctx.Err()

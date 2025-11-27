@@ -309,7 +309,7 @@ func TestCreateWorkflow(t *testing.T) {
 		projectID := uuid.New()
 		service := &mockWorkflowServiceForWorkflows{
 			createWorkflowFn: func(ctx context.Context, projID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error) {
-				return nil, services.ErrWorkflowNameConflict
+				return nil, workflow.ErrWorkflowNameConflict
 			},
 		}
 		handler := setupWorkflowTestHandler(t, service)
@@ -765,7 +765,7 @@ func TestUpdateWorkflow(t *testing.T) {
 		workflowID := uuid.New()
 		service := &mockWorkflowServiceForWorkflows{
 			updateWorkflowFn: func(ctx context.Context, id uuid.UUID, input workflow.WorkflowUpdateInput) (*database.Workflow, error) {
-				return nil, services.ErrWorkflowVersionConflict
+				return nil, workflow.ErrWorkflowVersionConflict
 			},
 		}
 		handler := setupWorkflowTestHandler(t, service)

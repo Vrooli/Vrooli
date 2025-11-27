@@ -221,6 +221,29 @@ func TestWorkflowServiceShouldSyncProjectRespectsCooldown(t *testing.T) {
 	}
 }
 
+// timelineRepositoryMock provides minimal stub implementations for workflow repository interface.
+// It's defined here instead of importing from export/timeline_test.go since test files can't be imported across packages.
+type timelineRepositoryMock struct{}
+
+func (m *timelineRepositoryMock) CreateExecution(ctx context.Context, execution *database.Execution) error {
+	return nil
+}
+func (m *timelineRepositoryMock) GetExecution(ctx context.Context, id uuid.UUID) (*database.Execution, error) {
+	return nil, database.ErrNotFound
+}
+func (m *timelineRepositoryMock) UpdateExecution(ctx context.Context, execution *database.Execution) error {
+	return nil
+}
+func (m *timelineRepositoryMock) CreateExecutionStep(ctx context.Context, step *database.ExecutionStep) error {
+	return nil
+}
+func (m *timelineRepositoryMock) CreateExecutionArtifact(ctx context.Context, artifact *database.ExecutionArtifact) error {
+	return nil
+}
+func (m *timelineRepositoryMock) CreateExecutionLog(ctx context.Context, log *database.ExecutionLog) error {
+	return nil
+}
+
 type workflowUpdateRepoMock struct {
 	timelineRepositoryMock
 	project      *database.Project

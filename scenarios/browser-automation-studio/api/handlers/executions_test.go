@@ -13,12 +13,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/services/ai"
 	"github.com/vrooli/browser-automation-studio/services/export"
-	"github.com/vrooli/browser-automation-studio/services/logutil"
-	"github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/services/replay"
-	"github.com/vrooli/browser-automation-studio/services/workflow"
 )
 
 type replayRendererStub struct {
@@ -26,7 +22,7 @@ type replayRendererStub struct {
 	tempFile     string
 	lastCtx      context.Context
 	receivedSpec *export.ReplayMovieSpec
-	format       services.RenderFormat
+	format       replay.RenderFormat
 	filename     string
 	invokedAt    time.Time
 	deadline     time.Time
@@ -38,7 +34,7 @@ func newReplayRendererStub(t *testing.T) *replayRendererStub {
 	return &replayRendererStub{t: t}
 }
 
-func (s *replayRendererStub) Render(ctx context.Context, spec *export.ReplayMovieSpec, format services.RenderFormat, filename string) (*services.RenderedMedia, error) {
+func (s *replayRendererStub) Render(ctx context.Context, spec *export.ReplayMovieSpec, format replay.RenderFormat, filename string) (*replay.RenderedMedia, error) {
 	s.t.Helper()
 	file, err := os.CreateTemp("", "bas-replay-*.mp4")
 	if err != nil {
@@ -57,7 +53,7 @@ func (s *replayRendererStub) Render(ctx context.Context, spec *export.ReplayMovi
 		s.deadline = deadline
 		s.hadDeadline = true
 	}
-	return &services.RenderedMedia{
+	return &replay.RenderedMedia{
 		Path:        s.tempFile,
 		Filename:    filename,
 		ContentType: "video/mp4",
@@ -77,7 +73,7 @@ func TestPostExecutionExport_AllowsClientMovieSpec(t *testing.T) {
 	baseSpec := &export.ReplayMovieSpec{
 		Version:     "2025-11-07",
 		GeneratedAt: time.Now().Add(-time.Minute),
-		Execution: services.ExportExecutionMetadata{
+		Execution: export.ExportExecutionMetadata{
 			ExecutionID:   execID,
 			WorkflowID:    wfID,
 			WorkflowName:  "Demo Workflow",
@@ -85,15 +81,15 @@ func TestPostExecutionExport_AllowsClientMovieSpec(t *testing.T) {
 			StartedAt:     time.Now().Add(-2 * time.Minute),
 			TotalDuration: 3200,
 		},
-		Theme:  services.ExportTheme{},
-		Cursor: services.ExportCursorSpec{},
-		Decor: services.ExportDecor{
+		Theme:  export.ExportTheme{},
+		Cursor: export.ExportCursorSpec{},
+		Decor: export.ExportDecor{
 			ChromeTheme:     "aurora",
 			BackgroundTheme: "aurora",
 			CursorTheme:     "white",
 		},
-		Summary: services.ExportSummary{FrameCount: 1, TotalDurationMs: 1600},
-		Frames: []services.ExportFrame{{
+		Summary: export.ExportSummary{FrameCount: 1, TotalDurationMs: 1600},
+		Frames: []export.ExportFrame{{
 			Index:         0,
 			StepIndex:     0,
 			StepType:      "navigate",
@@ -103,16 +99,16 @@ func TestPostExecutionExport_AllowsClientMovieSpec(t *testing.T) {
 	}
 
 	incoming := &export.ReplayMovieSpec{
-		Theme: services.ExportTheme{},
-		Cursor: services.ExportCursorSpec{
+		Theme: export.ExportTheme{},
+		Cursor: export.ExportCursorSpec{
 			Style: "halo",
 		},
-		Decor: services.ExportDecor{
+		Decor: export.ExportDecor{
 			ChromeTheme:     "sunset",
 			BackgroundTheme: "sunset",
 			CursorTheme:     "black",
 		},
-		Frames: []services.ExportFrame{{
+		Frames: []export.ExportFrame{{
 			Index:         0,
 			StepIndex:     0,
 			StepType:      "navigate",
@@ -181,8 +177,8 @@ func TestPostExecutionExport_AllowsClientMovieSpec(t *testing.T) {
 func TestPostExecutionExport_RejectsMismatchedSpec(t *testing.T) {
 	execID := uuid.New()
 	baseSpec := &export.ReplayMovieSpec{
-		Execution: services.ExportExecutionMetadata{ExecutionID: execID},
-		Frames:    []services.ExportFrame{{Index: 0, DurationMs: 1000}},
+		Execution: export.ExportExecutionMetadata{ExecutionID: execID},
+		Frames:    []export.ExportFrame{{Index: 0, DurationMs: 1000}},
 	}
 
 	h := &Handler{
@@ -195,8 +191,8 @@ func TestPostExecutionExport_RejectsMismatchedSpec(t *testing.T) {
 	}
 
 	incoming := &export.ReplayMovieSpec{
-		Execution: services.ExportExecutionMetadata{ExecutionID: uuid.New()},
-		Frames:    []services.ExportFrame{{Index: 0, DurationMs: 1000}},
+		Execution: export.ExportExecutionMetadata{ExecutionID: uuid.New()},
+		Frames:    []export.ExportFrame{{Index: 0, DurationMs: 1000}},
 	}
 	body := executionExportRequest{Format: "json", MovieSpec: incoming}
 	payload, _ := json.Marshal(body)
@@ -298,7 +294,7 @@ func TestPostExecutionExport_UsesEstimatedTimeout(t *testing.T) {
 	baseSpec := &export.ReplayMovieSpec{
 		Version:     "2025-11-07",
 		GeneratedAt: now.Add(-time.Second),
-		Execution: services.ExportExecutionMetadata{
+		Execution: export.ExportExecutionMetadata{
 			ExecutionID:   execID,
 			WorkflowID:    wfID,
 			WorkflowName:  "Timeout Demo",
@@ -308,13 +304,13 @@ func TestPostExecutionExport_UsesEstimatedTimeout(t *testing.T) {
 			Progress:      100,
 			TotalDuration: 4000,
 		},
-		Theme: services.ExportTheme{
+		Theme: export.ExportTheme{
 			BackgroundGradient: []string{"#0f172a", "#1d4ed8"},
 			BackgroundPattern:  "aurora",
 			AccentColor:        "#38BDF8",
 			SurfaceColor:       "rgba(15,23,42,0.72)",
 			AmbientGlow:        "rgba(56,189,248,0.22)",
-			BrowserChrome: services.ExportBrowserChrome{
+			BrowserChrome: export.ExportBrowserChrome{
 				Visible:     true,
 				Variant:     "aurora",
 				Title:       "Timeout Demo",
@@ -322,16 +318,16 @@ func TestPostExecutionExport_UsesEstimatedTimeout(t *testing.T) {
 				AccentColor: "#38BDF8",
 			},
 		},
-		Cursor: services.ExportCursorSpec{
+		Cursor: export.ExportCursorSpec{
 			Style:       "halo",
 			AccentColor: "#38BDF8",
-			Trail: services.ExportCursorTrail{
+			Trail: export.ExportCursorTrail{
 				Enabled: true,
 				FadeMs:  650,
 				Weight:  0.16,
 				Opacity: 0.55,
 			},
-			ClickPulse: services.ExportClickPulse{
+			ClickPulse: export.ExportClickPulse{
 				Enabled:    true,
 				Radius:     42,
 				DurationMs: 420,
@@ -341,7 +337,7 @@ func TestPostExecutionExport_UsesEstimatedTimeout(t *testing.T) {
 			InitialPos: "center",
 			ClickAnim:  "pulse",
 		},
-		Decor: services.ExportDecor{
+		Decor: export.ExportDecor{
 			ChromeTheme:          "aurora",
 			BackgroundTheme:      "aurora",
 			CursorTheme:          "white",
@@ -349,26 +345,26 @@ func TestPostExecutionExport_UsesEstimatedTimeout(t *testing.T) {
 			CursorClickAnimation: "pulse",
 			CursorScale:          1,
 		},
-		Playback: services.ExportPlayback{
+		Playback: export.ExportPlayback{
 			FPS:             25,
 			DurationMs:      4000,
 			FrameIntervalMs: 40,
 			TotalFrames:     100,
 		},
-		Presentation: services.ExportPresentation{
-			Canvas:            services.ExportDimensions{Width: 1920, Height: 1080},
-			Viewport:          services.ExportDimensions{Width: 1440, Height: 900},
-			BrowserFrame:      services.ExportFrameRect{X: 0, Y: 0, Width: 1920, Height: 1080, Radius: 24},
+		Presentation: export.ExportPresentation{
+			Canvas:            export.ExportDimensions{Width: 1920, Height: 1080},
+			Viewport:          export.ExportDimensions{Width: 1440, Height: 900},
+			BrowserFrame:      export.ExportFrameRect{X: 0, Y: 0, Width: 1920, Height: 1080, Radius: 24},
 			DeviceScaleFactor: 1,
 		},
-		CursorMotion: services.ExportCursorMotion{
+		CursorMotion: export.ExportCursorMotion{
 			SpeedProfile:    "easeInOut",
 			PathStyle:       "linear",
 			InitialPosition: "center",
 			ClickAnimation:  "pulse",
 			CursorScale:     1,
 		},
-		Frames: []services.ExportFrame{{
+		Frames: []export.ExportFrame{{
 			Index:             0,
 			StepIndex:         0,
 			StepType:          "navigate",
@@ -376,12 +372,12 @@ func TestPostExecutionExport_UsesEstimatedTimeout(t *testing.T) {
 			StartOffsetMs:     0,
 			ScreenshotAssetID: "asset-1",
 		}},
-		Assets: []services.ExportAsset{{
+		Assets: []export.ExportAsset{{
 			ID:     "asset-1",
 			Type:   "image/png",
 			Source: "https://example.com/asset.png",
 		}},
-		Summary: services.ExportSummary{
+		Summary: export.ExportSummary{
 			FrameCount:         1,
 			ScreenshotCount:    1,
 			TotalDurationMs:    2000,
@@ -423,14 +419,14 @@ func TestPostExecutionExport_UsesEstimatedTimeout(t *testing.T) {
 	if !stub.hadDeadline {
 		t.Fatalf("expected render context to include deadline")
 	}
-	if stub.format != services.RenderFormatMP4 {
+	if stub.format != replay.RenderFormatMP4 {
 		t.Fatalf("expected format mp4, got %s", stub.format)
 	}
 	if stub.filename != "custom.mp4" {
 		t.Fatalf("expected filename custom.mp4, got %s", stub.filename)
 	}
 
-	expected := services.EstimateReplayRenderTimeout(stub.receivedSpec)
+	expected := replay.EstimateReplayRenderTimeout(stub.receivedSpec)
 	actual := stub.deadline.Sub(stub.invokedAt)
 	if actual < expected-500*time.Millisecond || actual > expected+2*time.Second {
 		t.Fatalf("render context deadline mismatch: expected ~%s, got %s", expected, actual)

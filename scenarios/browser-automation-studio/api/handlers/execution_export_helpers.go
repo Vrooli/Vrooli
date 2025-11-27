@@ -3,12 +3,7 @@ package handlers
 import (
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/handlers/export"
-	"github.com/vrooli/browser-automation-studio/services/ai"
-	"github.com/vrooli/browser-automation-studio/services/export"
-	"github.com/vrooli/browser-automation-studio/services/logutil"
-	"github.com/vrooli/browser-automation-studio/services/recording"
-	"github.com/vrooli/browser-automation-studio/services/replay"
-	"github.com/vrooli/browser-automation-studio/services/workflow"
+	exportservices "github.com/vrooli/browser-automation-studio/services/export"
 )
 
 // executionExportRequest represents the JSON payload for execution export endpoints.
@@ -30,17 +25,17 @@ type cursorPresetOverride = export.CursorPreset
 var errMovieSpecUnavailable = export.ErrMovieSpecUnavailable
 
 // applyExportOverrides applies client-provided overrides to a movie spec.
-func applyExportOverrides(spec *export.ReplayMovieSpec, overrides *executionExportOverrides) {
+func applyExportOverrides(spec *exportservices.ReplayMovieSpec, overrides *executionExportOverrides) {
 	export.Apply(spec, overrides)
 }
 
 // buildExportSpec constructs a validated ReplayMovieSpec for export by merging client-provided
 // and server-generated specs, validating execution ID matching, and filling in defaults.
-func buildExportSpec(baseline, incoming *export.ReplayMovieSpec, executionID uuid.UUID) (*export.ReplayMovieSpec, error) {
+func buildExportSpec(baseline, incoming *exportservices.ReplayMovieSpec, executionID uuid.UUID) (*exportservices.ReplayMovieSpec, error) {
 	return export.BuildSpec(baseline, incoming, executionID)
 }
 
 // cloneMovieSpec creates a deep copy of a ReplayMovieSpec.
-func cloneMovieSpec(spec *export.ReplayMovieSpec) (*export.ReplayMovieSpec, error) {
+func cloneMovieSpec(spec *exportservices.ReplayMovieSpec) (*exportservices.ReplayMovieSpec, error) {
 	return export.Clone(spec)
 }

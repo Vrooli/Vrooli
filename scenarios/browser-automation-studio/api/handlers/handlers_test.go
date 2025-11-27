@@ -537,7 +537,7 @@ func TestRestoreWorkflowVersionConflict(t *testing.T) {
 				return &workflow.WorkflowVersionSummary{Version: 3}, nil
 			},
 			restoreWorkflowVersionFn: func(context.Context, uuid.UUID, int, string) (*database.Workflow, error) {
-				return nil, services.ErrWorkflowVersionConflict
+				return nil, workflow.ErrWorkflowVersionConflict
 			},
 		},
 		log: logger,

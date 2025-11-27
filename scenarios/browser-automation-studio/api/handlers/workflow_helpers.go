@@ -10,11 +10,6 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/services/ai"
-	"github.com/vrooli/browser-automation-studio/services/export"
-	"github.com/vrooli/browser-automation-studio/services/logutil"
-	"github.com/vrooli/browser-automation-studio/services/recording"
-	"github.com/vrooli/browser-automation-studio/services/replay"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 )
 
@@ -109,7 +104,7 @@ func (h *Handler) waitForExecutionCompletion(ctx context.Context, execution *dat
 	if execution == nil {
 		return nil, errors.New("execution cannot be nil")
 	}
-	if services.IsTerminalExecutionStatus(execution.Status) {
+	if workflow.IsTerminalExecutionStatus(execution.Status) {
 		return execution, nil
 	}
 
@@ -128,7 +123,7 @@ func (h *Handler) waitForExecutionCompletion(ctx context.Context, execution *dat
 			if err != nil {
 				return nil, err
 			}
-			if services.IsTerminalExecutionStatus(latest.Status) {
+			if workflow.IsTerminalExecutionStatus(latest.Status) {
 				return latest, nil
 			}
 		}

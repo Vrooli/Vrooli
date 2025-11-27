@@ -3,17 +3,12 @@ package export
 import (
 	"strings"
 
-	"github.com/vrooli/browser-automation-studio/services/ai"
-	"github.com/vrooli/browser-automation-studio/services/export"
-	"github.com/vrooli/browser-automation-studio/services/logutil"
-	"github.com/vrooli/browser-automation-studio/services/recording"
-	"github.com/vrooli/browser-automation-studio/services/replay"
-	"github.com/vrooli/browser-automation-studio/services/workflow"
+	exportservices "github.com/vrooli/browser-automation-studio/services/export"
 )
 
 // BuildThemeFromPreset constructs an ExportTheme by applying preset configurations
 // to the baseline theme from the movie spec.
-func BuildThemeFromPreset(baseline *export.ReplayMovieSpec, preset *ThemePreset) *services.ExportTheme {
+func BuildThemeFromPreset(baseline *exportservices.ReplayMovieSpec, preset *ThemePreset) *exportservices.ExportTheme {
 	if baseline == nil || preset == nil {
 		return nil
 	}
@@ -88,7 +83,7 @@ func BuildThemeFromPreset(baseline *export.ReplayMovieSpec, preset *ThemePreset)
 
 // BuildCursorSpec constructs an ExportCursorSpec by applying preset configurations
 // and defaults to the existing cursor spec.
-func BuildCursorSpec(existing services.ExportCursorSpec, preset *CursorPreset) services.ExportCursorSpec {
+func BuildCursorSpec(existing exportservices.ExportCursorSpec, preset *CursorPreset) exportservices.ExportCursorSpec {
 	cursor := existing
 
 	// Apply defaults to existing spec

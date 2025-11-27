@@ -199,10 +199,10 @@ func main() {
 	}
 
 	corsPolicy := "restricted"
-	if corsCfg.allowAll {
+	if corsCfg.AllowAll {
 		corsPolicy = "allow_all"
 	} else {
-		corsPolicy = strings.Join(corsCfg.allowedOrigins, ",")
+		corsPolicy = strings.Join(corsCfg.AllowedOrigins, ",")
 	}
 
 	log.WithFields(logrus.Fields{

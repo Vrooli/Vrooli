@@ -16,11 +16,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/httpjson"
-	"github.com/vrooli/browser-automation-studio/services/ai"
-	"github.com/vrooli/browser-automation-studio/services/export"
-	"github.com/vrooli/browser-automation-studio/services/logutil"
-	"github.com/vrooli/browser-automation-studio/services/recording"
-	"github.com/vrooli/browser-automation-studio/services/replay"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
 )
@@ -156,12 +151,12 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	workflow, err := h.workflowService.CreateWorkflowWithProject(ctx, req.ProjectID, req.Name, req.FolderPath, req.FlowDefinition, req.AIPrompt)
+	wf, err := h.workflowService.CreateWorkflowWithProject(ctx, req.ProjectID, req.Name, req.FolderPath, req.FlowDefinition, req.AIPrompt)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to create workflow")
 		var aiErr *workflow.AIWorkflowError
 		switch {
-		case errors.Is(err, services.ErrWorkflowNameConflict):
+		case errors.Is(err, workflow.ErrWorkflowNameConflict):
 			details := map[string]string{"name": req.Name}
 			if req.ProjectID != nil {
 				details["project_id"] = req.ProjectID.String()
@@ -177,7 +172,7 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusCreated, newWorkflowResponse(workflow))
+	h.respondSuccess(w, http.StatusCreated, newWorkflowResponse(wf))
 }
 
 // ListWorkflows handles GET /api/v1/workflows
@@ -211,14 +206,14 @@ func (h *Handler) GetWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	workflow, err := h.workflowService.GetWorkflow(ctx, id)
+	wf, err := h.workflowService.GetWorkflow(ctx, id)
 	if err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to get workflow")
 		h.respondError(w, ErrWorkflowNotFound.WithDetails(map[string]string{"workflow_id": id.String()}))
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, newWorkflowResponse(workflow))
+	h.respondSuccess(w, http.StatusOK, newWorkflowResponse(wf))
 }
 
 // UpdateWorkflow handles PUT /api/v1/workflows/{id}
@@ -261,10 +256,10 @@ func (h *Handler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	workflow, err := h.workflowService.UpdateWorkflow(ctx, id, updateInput)
+	wf, err := h.workflowService.UpdateWorkflow(ctx, id, updateInput)
 	if err != nil {
 		h.log.WithError(err).WithField("workflow_id", id).Error("Failed to update workflow")
-		if errors.Is(err, services.ErrWorkflowVersionConflict) {
+		if errors.Is(err, workflow.ErrWorkflowVersionConflict) {
 			h.respondError(w, ErrConflict.WithDetails(map[string]string{"error": err.Error()}))
 			return
 		}
@@ -276,7 +271,7 @@ func (h *Handler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, newWorkflowResponse(workflow))
+	h.respondSuccess(w, http.StatusOK, newWorkflowResponse(wf))
 }
 
 // ListWorkflowVersions handles GET /api/v1/workflows/{id}/versions
@@ -345,7 +340,7 @@ func (h *Handler) GetWorkflowVersion(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.log.WithError(err).WithFields(map[string]any{"workflow_id": id, "version": versionNumber}).Error("Failed to get workflow version")
 		switch {
-		case errors.Is(err, services.ErrWorkflowVersionNotFound):
+		case errors.Is(err, workflow.ErrWorkflowVersionNotFound):
 			h.respondError(w, ErrWorkflowVersionNotFound.WithDetails(map[string]string{"workflow_id": id.String(), "version": versionStr}))
 		case errors.Is(err, database.ErrNotFound):
 			h.respondError(w, ErrWorkflowNotFound.WithDetails(map[string]string{"workflow_id": id.String()}))
@@ -392,11 +387,11 @@ func (h *Handler) RestoreWorkflowVersion(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		h.log.WithError(err).WithFields(map[string]any{"workflow_id": id, "version": versionNumber}).Error("Failed to restore workflow version")
 		switch {
-		case errors.Is(err, services.ErrWorkflowVersionNotFound):
+		case errors.Is(err, workflow.ErrWorkflowVersionNotFound):
 			h.respondError(w, ErrWorkflowVersionNotFound.WithDetails(map[string]string{"workflow_id": id.String(), "version": versionStr}))
-		case errors.Is(err, services.ErrWorkflowRestoreProjectMismatch):
+		case errors.Is(err, workflow.ErrWorkflowRestoreProjectMismatch):
 			h.respondError(w, ErrInvalidRequest.WithMessage("Workflow is not associated with a project"))
-		case errors.Is(err, services.ErrWorkflowVersionConflict):
+		case errors.Is(err, workflow.ErrWorkflowVersionConflict):
 			h.respondError(w, ErrConflict)
 		default:
 			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "restore_workflow_version"}))
@@ -495,7 +490,7 @@ func (h *Handler) ModifyWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	workflow, err := h.workflowService.ModifyWorkflow(ctx, workflowID, req.ModificationPrompt, req.CurrentFlow)
+	wf, err := h.workflowService.ModifyWorkflow(ctx, workflowID, req.ModificationPrompt, req.CurrentFlow)
 	if err != nil {
 		h.log.WithError(err).WithField("workflow_id", workflowID).Error("Failed to modify workflow via AI")
 		h.respondError(w, ErrAIServiceError.WithDetails(map[string]string{"error": err.Error()}))
@@ -506,7 +501,7 @@ func (h *Handler) ModifyWorkflow(w http.ResponseWriter, r *http.Request) {
 		workflowResponse
 		ModificationNote string `json:"modification_note,omitempty"`
 	}{
-		workflowResponse: newWorkflowResponse(workflow),
+		workflowResponse: newWorkflowResponse(wf),
 		ModificationNote: "ai",
 	})
 }

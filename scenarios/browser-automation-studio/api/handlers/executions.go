@@ -13,12 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/services/ai"
-	"github.com/vrooli/browser-automation-studio/services/export"
-	"github.com/vrooli/browser-automation-studio/services/logutil"
-	"github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/services/replay"
-	"github.com/vrooli/browser-automation-studio/services/workflow"
 )
 
 // GetExecutionScreenshots handles GET /api/v1/executions/{id}/screenshots
@@ -158,11 +153,11 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		applyExportOverrides(spec, body.Overrides)
 	}
 
-	renderTimeout := services.EstimateReplayRenderTimeout(spec)
+	renderTimeout := replay.EstimateReplayRenderTimeout(spec)
 	renderCtx, cancelRender := context.WithTimeout(r.Context(), renderTimeout)
 	defer cancelRender()
 
-	media, renderErr := h.replayRenderer.Render(renderCtx, spec, services.RenderFormat(format), body.FileName)
+	media, renderErr := h.replayRenderer.Render(renderCtx, spec, replay.RenderFormat(format), body.FileName)
 	if renderErr != nil {
 		errMsg := strings.TrimSpace(renderErr.Error())
 		if len(errMsg) > 0 && len(errMsg) > 512 {

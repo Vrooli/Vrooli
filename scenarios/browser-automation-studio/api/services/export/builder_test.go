@@ -2,13 +2,6 @@ package export
 
 import (
 	"testing"
-
-	"github.com/vrooli/browser-automation-studio/services/ai"
-	"github.com/vrooli/browser-automation-studio/services/export"
-	"github.com/vrooli/browser-automation-studio/services/logutil"
-	"github.com/vrooli/browser-automation-studio/services/recording"
-	"github.com/vrooli/browser-automation-studio/services/replay"
-	"github.com/vrooli/browser-automation-studio/services/workflow"
 )
 
 func TestBuildThemeFromPreset(t *testing.T) {
@@ -21,8 +14,8 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("nil preset", func(t *testing.T) {
-		baseline := &export.ReplayMovieSpec{
-			Theme: services.ExportTheme{},
+		baseline := &ReplayMovieSpec{
+			Theme: ExportTheme{},
 		}
 		result := BuildThemeFromPreset(baseline, nil)
 		if result != nil {
@@ -31,11 +24,11 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("aurora chrome theme", func(t *testing.T) {
-		baseline := &export.ReplayMovieSpec{
-			Theme: services.ExportTheme{
-				BrowserChrome: services.ExportBrowserChrome{},
+		baseline := &ReplayMovieSpec{
+			Theme: ExportTheme{
+				BrowserChrome: ExportBrowserChrome{},
 			},
-			Execution: services.ExportExecutionMetadata{
+			Execution: ExportExecutionMetadata{
 				WorkflowName: "Test Workflow",
 			},
 		}
@@ -57,11 +50,11 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("minimal chrome theme", func(t *testing.T) {
-		baseline := &export.ReplayMovieSpec{
-			Theme: services.ExportTheme{
-				BrowserChrome: services.ExportBrowserChrome{},
+		baseline := &ReplayMovieSpec{
+			Theme: ExportTheme{
+				BrowserChrome: ExportBrowserChrome{},
 			},
-			Execution: services.ExportExecutionMetadata{},
+			Execution: ExportExecutionMetadata{},
 		}
 		preset := &ThemePreset{ChromeTheme: "minimal"}
 		result := BuildThemeFromPreset(baseline, preset)
@@ -78,8 +71,8 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("background theme applied", func(t *testing.T) {
-		baseline := &export.ReplayMovieSpec{
-			Theme: services.ExportTheme{},
+		baseline := &ReplayMovieSpec{
+			Theme: ExportTheme{},
 		}
 		preset := &ThemePreset{BackgroundTheme: "midnight"}
 		result := BuildThemeFromPreset(baseline, preset)
@@ -96,11 +89,11 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("workflow name used as title", func(t *testing.T) {
-		baseline := &export.ReplayMovieSpec{
-			Theme: services.ExportTheme{
-				BrowserChrome: services.ExportBrowserChrome{},
+		baseline := &ReplayMovieSpec{
+			Theme: ExportTheme{
+				BrowserChrome: ExportBrowserChrome{},
 			},
-			Execution: services.ExportExecutionMetadata{
+			Execution: ExportExecutionMetadata{
 				WorkflowName: "My Workflow",
 			},
 		}
@@ -116,11 +109,11 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("default title when no workflow name", func(t *testing.T) {
-		baseline := &export.ReplayMovieSpec{
-			Theme: services.ExportTheme{
-				BrowserChrome: services.ExportBrowserChrome{},
+		baseline := &ReplayMovieSpec{
+			Theme: ExportTheme{
+				BrowserChrome: ExportBrowserChrome{},
 			},
-			Execution: services.ExportExecutionMetadata{},
+			Execution: ExportExecutionMetadata{},
 		}
 		preset := &ThemePreset{}
 		result := BuildThemeFromPreset(baseline, preset)
@@ -134,8 +127,8 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("defaults applied when missing", func(t *testing.T) {
-		baseline := &export.ReplayMovieSpec{
-			Theme: services.ExportTheme{},
+		baseline := &ReplayMovieSpec{
+			Theme: ExportTheme{},
 		}
 		preset := &ThemePreset{}
 		result := BuildThemeFromPreset(baseline, preset)
@@ -158,8 +151,8 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("whitespace in theme names trimmed", func(t *testing.T) {
-		baseline := &export.ReplayMovieSpec{
-			Theme: services.ExportTheme{},
+		baseline := &ReplayMovieSpec{
+			Theme: ExportTheme{},
 		}
 		preset := &ThemePreset{
 			ChromeTheme:     " aurora ",
@@ -176,8 +169,8 @@ func TestBuildThemeFromPreset(t *testing.T) {
 	})
 
 	t.Run("unknown preset names ignored", func(t *testing.T) {
-		baseline := &export.ReplayMovieSpec{
-			Theme: services.ExportTheme{},
+		baseline := &ReplayMovieSpec{
+			Theme: ExportTheme{},
 		}
 		preset := &ThemePreset{
 			ChromeTheme:     "unknown",
@@ -197,7 +190,7 @@ func TestBuildThemeFromPreset(t *testing.T) {
 
 func TestBuildCursorSpec(t *testing.T) {
 	t.Run("nil preset returns spec with defaults", func(t *testing.T) {
-		existing := services.ExportCursorSpec{}
+		existing := ExportCursorSpec{}
 		result := BuildCursorSpec(existing, nil)
 		// Should return spec with defaults applied
 		if result.Scale <= 0 {
@@ -209,7 +202,7 @@ func TestBuildCursorSpec(t *testing.T) {
 	})
 
 	t.Run("aura cursor theme", func(t *testing.T) {
-		existing := services.ExportCursorSpec{}
+		existing := ExportCursorSpec{}
 		preset := &CursorPreset{Theme: "aura"}
 		result := BuildCursorSpec(existing, preset)
 
@@ -222,7 +215,7 @@ func TestBuildCursorSpec(t *testing.T) {
 	})
 
 	t.Run("scale applied and clamped", func(t *testing.T) {
-		existing := services.ExportCursorSpec{}
+		existing := ExportCursorSpec{}
 
 		// Test normal scale
 		preset := &CursorPreset{Theme: "aura", Scale: 1.5}
@@ -247,7 +240,7 @@ func TestBuildCursorSpec(t *testing.T) {
 	})
 
 	t.Run("initial position applied", func(t *testing.T) {
-		existing := services.ExportCursorSpec{}
+		existing := ExportCursorSpec{}
 		preset := &CursorPreset{
 			Theme:           "aura",
 			InitialPosition: "center",
@@ -260,7 +253,7 @@ func TestBuildCursorSpec(t *testing.T) {
 	})
 
 	t.Run("click animation applied", func(t *testing.T) {
-		existing := services.ExportCursorSpec{}
+		existing := ExportCursorSpec{}
 		preset := &CursorPreset{
 			Theme:          "aura",
 			ClickAnimation: "ripple",
@@ -273,7 +266,7 @@ func TestBuildCursorSpec(t *testing.T) {
 	})
 
 	t.Run("defaults applied when missing", func(t *testing.T) {
-		existing := services.ExportCursorSpec{}
+		existing := ExportCursorSpec{}
 		preset := &CursorPreset{Theme: "aura"}
 		result := BuildCursorSpec(existing, preset)
 
@@ -283,7 +276,7 @@ func TestBuildCursorSpec(t *testing.T) {
 	})
 
 	t.Run("unknown theme name ignored", func(t *testing.T) {
-		existing := services.ExportCursorSpec{}
+		existing := ExportCursorSpec{}
 		preset := &CursorPreset{Theme: "unknown"}
 		result := BuildCursorSpec(existing, preset)
 

@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/export"
 )
 
@@ -314,31 +315,31 @@ func isUUIDType(t reflect.Type) bool {
 func main() {
 	overrides := map[reflect.Type]string{
 		reflect.TypeOf(export.ReplayMovieSpec{}):           "ReplayMovieSpec",
-		reflect.TypeOf(services.ExportSummary{}):           "ReplayMovieSummary",
-		reflect.TypeOf(services.ExportExecutionMetadata{}): "ReplayMovieExecutionMetadata",
-		reflect.TypeOf(services.ExportAsset{}):             "ReplayMovieAsset",
-		reflect.TypeOf(services.ExportBrowserChrome{}):     "ReplayMovieBrowserChrome",
-		reflect.TypeOf(services.ExportTheme{}):             "ReplayMovieTheme",
-		reflect.TypeOf(services.ExportCursorTrail{}):       "ReplayMovieCursorTrail",
-		reflect.TypeOf(services.ExportClickPulse{}):        "ReplayMovieClickPulse",
-		reflect.TypeOf(services.ExportCursorSpec{}):        "ReplayMovieCursorSpec",
-		reflect.TypeOf(services.ExportDecor{}):             "ReplayMovieDecor",
-		reflect.TypeOf(services.ExportDimensions{}):        "ReplayMovieDimensions",
-		reflect.TypeOf(services.ExportNormalizedPoint{}):   "ReplayMovieNormalizedPoint",
-		reflect.TypeOf(services.ExportNormalizedRect{}):    "ReplayMovieNormalizedRect",
-		reflect.TypeOf(services.ExportResilience{}):        "ReplayMovieResilience",
+		reflect.TypeOf(export.ExportSummary{}):           "ReplayMovieSummary",
+		reflect.TypeOf(export.ExportExecutionMetadata{}): "ReplayMovieExecutionMetadata",
+		reflect.TypeOf(export.ExportAsset{}):             "ReplayMovieAsset",
+		reflect.TypeOf(export.ExportBrowserChrome{}):     "ReplayMovieBrowserChrome",
+		reflect.TypeOf(export.ExportTheme{}):             "ReplayMovieTheme",
+		reflect.TypeOf(export.ExportCursorTrail{}):       "ReplayMovieCursorTrail",
+		reflect.TypeOf(export.ExportClickPulse{}):        "ReplayMovieClickPulse",
+		reflect.TypeOf(export.ExportCursorSpec{}):        "ReplayMovieCursorSpec",
+		reflect.TypeOf(export.ExportDecor{}):             "ReplayMovieDecor",
+		reflect.TypeOf(export.ExportDimensions{}):        "ReplayMovieDimensions",
+		reflect.TypeOf(export.ExportNormalizedPoint{}):   "ReplayMovieNormalizedPoint",
+		reflect.TypeOf(export.ExportNormalizedRect{}):    "ReplayMovieNormalizedRect",
+		reflect.TypeOf(export.ExportResilience{}):        "ReplayMovieResilience",
 		reflect.TypeOf(export.ExportFrame{}):               "ReplayMovieFrame",
-		reflect.TypeOf(services.RetryHistoryEntry{}):       "ReplayMovieRetryHistoryEntry",
+		reflect.TypeOf(typeconv.RetryHistoryEntry{}):       "ReplayMovieRetryHistoryEntry",
 		reflect.TypeOf(contracts.HighlightRegion{}):        "ReplayMovieRegion",
 		reflect.TypeOf(contracts.MaskRegion{}):             "ReplayMovieRegion",
 		reflect.TypeOf(contracts.ElementFocus{}):           "ReplayMovieFocusedElement",
 		reflect.TypeOf(contracts.BoundingBox{}):            "ReplayMovieRegionBounds",
 		reflect.TypeOf(contracts.Point{}):                  "ReplayMovieCursorTrailPoint",
 		reflect.TypeOf(contracts.AssertionOutcome{}):       "ReplayMovieAssertion",
-		reflect.TypeOf(services.ExportPlayback{}):          "ReplayMoviePlayback",
-		reflect.TypeOf(services.ExportPresentation{}):      "ReplayMoviePresentation",
+		reflect.TypeOf(export.ExportPlayback{}):          "ReplayMoviePlayback",
+		reflect.TypeOf(export.ExportPresentation{}):      "ReplayMoviePresentation",
 		reflect.TypeOf(export.ExportFrameRect{}):           "ReplayMovieFrameRect",
-		reflect.TypeOf(services.ExportCursorMotion{}):      "ReplayMovieCursorMotion",
+		reflect.TypeOf(export.ExportCursorMotion{}):      "ReplayMovieCursorMotion",
 	}
 
 	gen := newGenerator(overrides)

@@ -9,25 +9,20 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/vrooli/browser-automation-studio/services/ai"
-	"github.com/vrooli/browser-automation-studio/services/export"
-	"github.com/vrooli/browser-automation-studio/services/logutil"
-	"github.com/vrooli/browser-automation-studio/services/recording"
-	"github.com/vrooli/browser-automation-studio/services/replay"
-	"github.com/vrooli/browser-automation-studio/services/workflow"
+	exportservices "github.com/vrooli/browser-automation-studio/services/export"
 )
 
 var ErrMovieSpecUnavailable = errors.New("movie spec unavailable")
 
 // BuildSpec constructs a validated ReplayMovieSpec for export by merging client-provided
 // and server-generated specs, validating execution ID matching, and filling in defaults.
-func BuildSpec(baseline, incoming *export.ReplayMovieSpec, executionID uuid.UUID) (*export.ReplayMovieSpec, error) {
+func BuildSpec(baseline, incoming *exportservices.ReplayMovieSpec, executionID uuid.UUID) (*exportservices.ReplayMovieSpec, error) {
 	if incoming == nil && baseline == nil {
 		return nil, ErrMovieSpecUnavailable
 	}
 
 	var (
-		spec *export.ReplayMovieSpec
+		spec *exportservices.ReplayMovieSpec
 		err  error
 	)
 
@@ -52,7 +47,7 @@ func BuildSpec(baseline, incoming *export.ReplayMovieSpec, executionID uuid.UUID
 }
 
 // Clone creates a deep copy of a ReplayMovieSpec via JSON marshaling.
-func Clone(spec *export.ReplayMovieSpec) (*export.ReplayMovieSpec, error) {
+func Clone(spec *exportservices.ReplayMovieSpec) (*exportservices.ReplayMovieSpec, error) {
 	if spec == nil {
 		return nil, nil
 	}
@@ -60,7 +55,7 @@ func Clone(spec *export.ReplayMovieSpec) (*export.ReplayMovieSpec, error) {
 	if err != nil {
 		return nil, err
 	}
-	var cloned export.ReplayMovieSpec
+	var cloned exportservices.ReplayMovieSpec
 	if err := json.Unmarshal(encoded, &cloned); err != nil {
 		return nil, err
 	}
@@ -69,7 +64,7 @@ func Clone(spec *export.ReplayMovieSpec) (*export.ReplayMovieSpec, error) {
 
 // Harmonize validates and fills in missing fields in spec using values from baseline.
 // It ensures the execution ID matches and applies sensible defaults for all required fields.
-func Harmonize(spec, baseline *export.ReplayMovieSpec, executionID uuid.UUID) error {
+func Harmonize(spec, baseline *exportservices.ReplayMovieSpec, executionID uuid.UUID) error {
 	if spec == nil {
 		return ErrMovieSpecUnavailable
 	}
@@ -153,7 +148,7 @@ func Harmonize(spec, baseline *export.ReplayMovieSpec, executionID uuid.UUID) er
 }
 
 // ensureTheme fills in missing theme fields from baseline or applies defaults.
-func ensureTheme(spec, baseline *export.ReplayMovieSpec) {
+func ensureTheme(spec, baseline *exportservices.ReplayMovieSpec) {
 	if baseline != nil {
 		if len(spec.Theme.BackgroundGradient) == 0 {
 			spec.Theme.BackgroundGradient = baseline.Theme.BackgroundGradient
@@ -195,7 +190,7 @@ func ensureTheme(spec, baseline *export.ReplayMovieSpec) {
 		spec.Theme.AmbientGlow = "rgba(56,189,248,0.22)"
 	}
 	if spec.Theme.BrowserChrome.Variant == "" {
-		spec.Theme.BrowserChrome = services.ExportBrowserChrome{
+		spec.Theme.BrowserChrome = exportservices.ExportBrowserChrome{
 			Visible:     true,
 			Variant:     "dark",
 			Title:       spec.Execution.WorkflowName,
@@ -208,7 +203,7 @@ func ensureTheme(spec, baseline *export.ReplayMovieSpec) {
 }
 
 // ensureDecor fills in missing decor preset names from baseline or applies defaults.
-func ensureDecor(spec, baseline *export.ReplayMovieSpec) {
+func ensureDecor(spec, baseline *exportservices.ReplayMovieSpec) {
 	if baseline != nil {
 		if spec.Decor.ChromeTheme == "" {
 			spec.Decor.ChromeTheme = baseline.Decor.ChromeTheme
@@ -253,7 +248,7 @@ func ensureDecor(spec, baseline *export.ReplayMovieSpec) {
 }
 
 // ensureCursor fills in missing cursor configuration from baseline or applies defaults.
-func ensureCursor(spec, baseline *export.ReplayMovieSpec) {
+func ensureCursor(spec, baseline *exportservices.ReplayMovieSpec) {
 	if baseline != nil {
 		if spec.Cursor.Style == "" {
 			spec.Cursor = baseline.Cursor
@@ -361,7 +356,7 @@ func ensureCursor(spec, baseline *export.ReplayMovieSpec) {
 }
 
 // ensurePresentation fills in canvas and viewport dimensions from baseline or applies defaults.
-func ensurePresentation(spec, baseline *export.ReplayMovieSpec) {
+func ensurePresentation(spec, baseline *exportservices.ReplayMovieSpec) {
 	if baseline != nil {
 		if spec.Presentation.Canvas.Width == 0 {
 			spec.Presentation.Canvas = baseline.Presentation.Canvas
@@ -390,7 +385,7 @@ func ensurePresentation(spec, baseline *export.ReplayMovieSpec) {
 			spec.Presentation.Viewport.Height = spec.Presentation.Canvas.Height
 		}
 		if spec.Presentation.BrowserFrame.Width == 0 {
-			spec.Presentation.BrowserFrame = services.ExportFrameRect{
+			spec.Presentation.BrowserFrame = exportservices.ExportFrameRect{
 				X:      0,
 				Y:      0,
 				Width:  spec.Presentation.Canvas.Width,
@@ -410,7 +405,7 @@ func ensurePresentation(spec, baseline *export.ReplayMovieSpec) {
 }
 
 // ensureSummaryAndPlayback computes or fills in summary statistics and playback settings.
-func ensureSummaryAndPlayback(spec, baseline *export.ReplayMovieSpec) {
+func ensureSummaryAndPlayback(spec, baseline *exportservices.ReplayMovieSpec) {
 	// Determine frame interval fallback
 	fallbackInterval := spec.Playback.FrameIntervalMs
 	if fallbackInterval <= 0 && baseline != nil && baseline.Playback.FrameIntervalMs > 0 {
@@ -467,7 +462,7 @@ func ensureSummaryAndPlayback(spec, baseline *export.ReplayMovieSpec) {
 }
 
 // computeFrameDurations sums frame durations and finds the maximum duration.
-func computeFrameDurations(frames []services.ExportFrame, fallback int) (total int, max int) {
+func computeFrameDurations(frames []exportservices.ExportFrame, fallback int) (total int, max int) {
 	if fallback <= 0 {
 		fallback = 40
 	}
@@ -488,7 +483,7 @@ func computeFrameDurations(frames []services.ExportFrame, fallback int) (total i
 }
 
 // countFrameScreenshots counts the number of frames with non-empty screenshot asset IDs.
-func countFrameScreenshots(frames []services.ExportFrame) int {
+func countFrameScreenshots(frames []exportservices.ExportFrame) int {
 	count := 0
 	for _, frame := range frames {
 		if strings.TrimSpace(frame.ScreenshotAssetID) != "" {

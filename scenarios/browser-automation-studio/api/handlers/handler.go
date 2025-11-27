@@ -14,11 +14,9 @@ import (
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/handlers/ai"
+	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
-	"github.com/vrooli/browser-automation-studio/services/ai"
 	"github.com/vrooli/browser-automation-studio/services/export"
-	"github.com/vrooli/browser-automation-studio/services/logutil"
 	"github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/services/replay"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
@@ -61,7 +59,7 @@ type WorkflowService interface {
 
 // Handler contains all HTTP handlers
 type replayRenderer interface {
-	Render(ctx context.Context, spec *export.ReplayMovieSpec, format services.RenderFormat, filename string) (*services.RenderedMedia, error)
+	Render(ctx context.Context, spec *export.ReplayMovieSpec, format replay.RenderFormat, filename string) (*replay.RenderedMedia, error)
 }
 
 // Handler contains all HTTP handlers
@@ -80,10 +78,10 @@ type Handler struct {
 	wsAllowedOrigins  []string
 
 	// AI subhandlers
-	screenshotHandler      *ai.ScreenshotHandler
-	domHandler             *ai.DOMHandler
-	elementAnalysisHandler *ai.ElementAnalysisHandler
-	aiAnalysisHandler      *ai.AIAnalysisHandler
+	screenshotHandler      *aihandlers.ScreenshotHandler
+	domHandler             *aihandlers.DOMHandler
+	elementAnalysisHandler *aihandlers.ElementAnalysisHandler
+	aiAnalysisHandler      *aihandlers.AIAnalysisHandler
 }
 
 const (
@@ -162,10 +160,10 @@ func NewHandler(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, 
 	handler.upgrader.CheckOrigin = handler.isOriginAllowed
 
 	// Initialize AI subhandlers with dependencies
-	handler.domHandler = ai.NewDOMHandler(log)
-	handler.screenshotHandler = ai.NewScreenshotHandler(log)
-	handler.elementAnalysisHandler = ai.NewElementAnalysisHandler(log)
-	handler.aiAnalysisHandler = ai.NewAIAnalysisHandler(log, handler.domHandler)
+	handler.domHandler = aihandlers.NewDOMHandler(log)
+	handler.screenshotHandler = aihandlers.NewScreenshotHandler(log)
+	handler.elementAnalysisHandler = aihandlers.NewElementAnalysisHandler(log)
+	handler.aiAnalysisHandler = aihandlers.NewAIAnalysisHandler(log, handler.domHandler)
 
 	return handler
 }
