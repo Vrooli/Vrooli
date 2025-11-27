@@ -9,7 +9,7 @@ import { logger } from '../utils';
  * POST /session/:id/close
  */
 export async function handleSessionClose(
-  req: IncomingMessage,
+  _req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   sessionManager: SessionManager

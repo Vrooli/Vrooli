@@ -26,11 +26,20 @@ export class ConsoleLogCollector {
         this.logs.shift();
       }
 
+      const loc = msg.location();
+      const locationStr = loc.url ? `${loc.url}:${loc.lineNumber}:${loc.columnNumber}` : '';
+
+      // Map Playwright console types to our types
+      const msgType = msg.type();
+      const type: 'log' | 'warn' | 'error' | 'info' | 'debug' =
+        msgType === 'warning' ? 'warn' :
+        ['log', 'warn', 'error', 'info', 'debug'].includes(msgType) ? msgType as any : 'log';
+
       const entry: ConsoleLogEntry = {
         timestamp: new Date().toISOString(),
-        level: msg.type(),
+        type,
         text: msg.text(),
-        location: msg.location(),
+        location: locationStr,
       };
 
       this.logs.push(entry);
@@ -96,11 +105,12 @@ export class NetworkCollector {
       }
 
       const event: NetworkEvent = {
+        type: 'response',
         timestamp: requestData.timestamp,
         method: requestData.method,
         url: requestData.url,
-        status_code: response.status(),
-        duration_ms: Date.now() - new Date(requestData.timestamp).getTime(),
+        status: response.status(),
+        ok: response.ok(),
         resource_type: response.request().resourceType(),
       };
 
@@ -122,11 +132,11 @@ export class NetworkCollector {
       }
 
       const event: NetworkEvent = {
+        type: 'failure',
         timestamp: requestData.timestamp,
         method: requestData.method,
         url: requestData.url,
-        status_code: 0,
-        error: request.failure()?.errorText || 'Request failed',
+        failure: request.failure()?.errorText || 'Request failed',
         resource_type: request.resourceType(),
       };
 

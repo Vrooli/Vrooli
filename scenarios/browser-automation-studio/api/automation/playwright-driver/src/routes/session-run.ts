@@ -6,7 +6,7 @@ import type { Metrics } from '../utils/metrics';
 import type { CompiledInstruction, StepOutcome } from '../types';
 import { parseJsonBody, sendJson, sendError } from '../middleware';
 import { captureScreenshot, captureDOMSnapshot, ConsoleLogCollector, NetworkCollector } from '../telemetry';
-import { logger, metrics as globalMetrics } from '../utils';
+import { logger } from '../utils';
 import winston from 'winston';
 
 /**
@@ -32,12 +32,12 @@ export async function handleSessionRun(
 
     // Parse instruction
     const body = await parseJsonBody(req, config);
-    const instruction = body as CompiledInstruction;
+    const instruction = body as unknown as CompiledInstruction;
 
     logger.info('Running instruction', {
       sessionId,
       type: instruction.type,
-      stepIndex: instruction.step_index,
+      stepIndex: instruction.index,
     });
 
     // Get handler
@@ -92,9 +92,12 @@ export async function handleSessionRun(
     // Build step outcome
     const completedAt = new Date();
     const outcome: StepOutcome = {
-      schema_version: '1.0.0',
-      payload_version: '1.0.0',
-      step_index: instruction.step_index,
+      schema_version: 'automation-step-outcome-v1',
+      payload_version: '1',
+      step_index: instruction.index,
+      attempt: 1, // TODO: Track actual attempt number
+      node_id: instruction.node_id,
+      step_type: instruction.type,
       success: result.success,
       started_at: startedAt.toISOString(),
       completed_at: completedAt.toISOString(),
@@ -105,8 +108,14 @@ export async function handleSessionRun(
       console_logs: consoleLogs,
       network: networkEvents,
       extracted_data: result.extracted_data,
-      focus: result.focus,
     };
+
+    if (result.focus) {
+      outcome.focused_element = {
+        selector: result.focus.selector || '',
+        bounding_box: result.focus.bounding_box,
+      };
+    }
 
     if (!result.success && result.error) {
       outcome.failure = {

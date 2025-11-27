@@ -5,6 +5,14 @@
 const http = require('http');
 const path = require('path');
 const os = require('os');
+const fs = require('fs');
+
+// Prefer a vendored browser so installs are offline-friendly. Allow overrides
+// via PLAYWRIGHT_BROWSERS_PATH or PLAYWRIGHT_CHROMIUM_PATH.
+const VENDORED_BROWSER_PATH = path.join(__dirname, '..', 'node_modules', '@playwright', 'browser-chromium');
+if (!process.env.PLAYWRIGHT_BROWSERS_PATH && fs.existsSync(VENDORED_BROWSER_PATH)) {
+  process.env.PLAYWRIGHT_BROWSERS_PATH = VENDORED_BROWSER_PATH;
+}
 
 let chromium;
 try {
@@ -54,6 +62,10 @@ async function startSession(req, res) {
   const video = !!body.video;
   const harPath = body.har_path;
   const tracePath = body.trace_path || path.join(os.tmpdir(), `bas-trace-${Date.now()}.zip`);
+
+  if (EXEC_PATH && !fs.existsSync(EXEC_PATH)) {
+    return json(res, 500, { error: `PLAYWRIGHT_CHROMIUM_PATH not found: ${EXEC_PATH}` });
+  }
 
   const browser = await chromium.launch({
     headless: process.env.HEADLESS !== 'false',

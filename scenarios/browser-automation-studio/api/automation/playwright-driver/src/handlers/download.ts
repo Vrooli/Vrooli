@@ -74,8 +74,8 @@ export class DownloadHandler extends BaseHandler {
         };
       }
 
-      // Save download to specified path or default
-      const savePath = params.savePath || `/tmp/download-${Date.now()}-${download.suggestedFilename()}`;
+      // Save download to default temp path
+      const savePath = `/tmp/download-${Date.now()}-${download.suggestedFilename()}`;
       await download.saveAs(savePath);
 
       logger.info('Download successful', {

@@ -33,7 +33,10 @@ export class ScrollHandler extends BaseHandler {
 
       // Scroll window to coordinates
       await page.evaluate(
-        ([scrollX, scrollY]) => window.scrollTo(scrollX, scrollY),
+        ([scrollX, scrollY]) => {
+          // @ts-expect-error - window is available in browser context
+          window.scrollTo(scrollX, scrollY);
+        },
         [x, y]
       );
 

@@ -26,13 +26,14 @@ export async function captureDOMSnapshot(
         maxSize: config.telemetry.dom.maxSizeBytes,
       });
 
-      const truncated = html.substring(0, config.telemetry.dom.maxSizeBytes);
-      const preview = truncated.substring(0, 512);
+      const truncatedHtml = html.substring(0, config.telemetry.dom.maxSizeBytes);
+      const preview = truncatedHtml.substring(0, 512);
 
       return {
-        html: truncated,
+        html: truncatedHtml,
         preview,
-        size_bytes: truncated.length,
+        truncated: true,
+        collected_at: new Date().toISOString(),
       };
     }
 
@@ -45,7 +46,7 @@ export async function captureDOMSnapshot(
     return {
       html,
       preview,
-      size_bytes: html.length,
+      collected_at: new Date().toISOString(),
     };
   } catch (error) {
     logger.error('Failed to capture DOM snapshot', {
@@ -72,13 +73,14 @@ export async function captureElementSnapshot(
     const html = await element.innerHTML();
 
     if (html.length > config.telemetry.dom.maxSizeBytes) {
-      const truncated = html.substring(0, config.telemetry.dom.maxSizeBytes);
-      const preview = truncated.substring(0, 512);
+      const truncatedHtml = html.substring(0, config.telemetry.dom.maxSizeBytes);
+      const preview = truncatedHtml.substring(0, 512);
 
       return {
-        html: truncated,
+        html: truncatedHtml,
         preview,
-        size_bytes: truncated.length,
+        truncated: true,
+        collected_at: new Date().toISOString(),
       };
     }
 
@@ -87,7 +89,7 @@ export async function captureElementSnapshot(
     return {
       html,
       preview,
-      size_bytes: html.length,
+      collected_at: new Date().toISOString(),
     };
   } catch (error) {
     logger.error('Failed to capture element snapshot', {

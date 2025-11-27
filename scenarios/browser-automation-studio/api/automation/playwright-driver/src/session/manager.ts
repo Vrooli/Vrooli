@@ -1,4 +1,4 @@
-import { chromium, Browser, Page } from 'playwright';
+import { chromium, Browser } from 'playwright';
 import type { SessionSpec, SessionState } from '../types';
 import type { Config } from '../config';
 import { logger, metrics, SessionNotFoundError, ResourceLimitError } from '../utils';
@@ -183,8 +183,10 @@ export class SessionManager {
 
     // Clear storage
     await session.page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
+      // @ts-expect-error - window is available in browser context
+      window.localStorage.clear();
+      // @ts-expect-error - window is available in browser context
+      window.sessionStorage.clear();
     });
 
     // Reset frame stack

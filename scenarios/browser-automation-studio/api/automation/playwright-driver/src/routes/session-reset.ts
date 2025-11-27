@@ -9,7 +9,7 @@ import { logger } from '../utils';
  * POST /session/:id/reset
  */
 export async function handleSessionReset(
-  req: IncomingMessage,
+  _req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   sessionManager: SessionManager

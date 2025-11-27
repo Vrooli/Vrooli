@@ -40,12 +40,11 @@ browserless::export_config() {
         readonly BROWSERLESS_DATA_DIR
         export BROWSERLESS_DATA_DIR
     fi
-    # Using v2.38.2 tag for testing process leak behavior
-    # v2.38.2 digest: sha256:7c206dfaca4781bb477c6495ff2b5477a932c07a79fd7504bab3cf149e3e4be4 (older, published 29 days ago)
-    # latest digest: sha256:96cc9039f44c8a7b277846783f18c1ec501a7f8b1b12bdfc2bc1f9c3f84a9a17 (newer, published 7 days ago)
-    # Both versions show Chrome process leak - testing to compare severity
+    # Pin to stable v1 line to avoid known Chrome process leaks in v2.x
+    # Context: browserless v2.38.x leaves orphan Chrome processes (similar to upstream issue #1479: https://github.com/browserless/browserless/issues/1479).
+    # Until v2 publishes a leak fix, prefer the 1.61.1 “chrome-stable” tag.
     if [[ -z "${BROWSERLESS_IMAGE:-}" ]]; then
-        BROWSERLESS_IMAGE="ghcr.io/browserless/chrome:v2.38.2"
+        BROWSERLESS_IMAGE="browserless/chrome:1.61.1-chrome-stable"
         readonly BROWSERLESS_IMAGE
         export BROWSERLESS_IMAGE
     fi

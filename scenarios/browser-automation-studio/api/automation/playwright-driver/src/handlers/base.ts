@@ -17,6 +17,9 @@ export interface HandlerContext {
   metrics: Metrics;
   sessionId: string;
 
+  // Multi-tab support (Phase 3)
+  tabStack?: Page[];
+
   // Telemetry collectors (optional, handler can add if needed)
   screenshot?: Screenshot;
   domSnapshot?: DOMSnapshot;
@@ -94,9 +97,12 @@ export abstract class BaseHandler implements InstructionHandler {
     const completedAt = new Date();
 
     const outcome: StepOutcome = {
-      schema_version: '1.0.0',
-      payload_version: '1.0.0',
-      step_index: instruction.step_index,
+      schema_version: 'automation-step-outcome-v1',
+      payload_version: '1',
+      step_index: instruction.index,
+      attempt: 1, // TODO: Track actual attempt number
+      node_id: instruction.node_id,
+      step_type: instruction.type,
       success: result.success,
       started_at: startedAt.toISOString(),
       completed_at: completedAt.toISOString(),
@@ -121,9 +127,12 @@ export abstract class BaseHandler implements InstructionHandler {
       outcome.extracted_data = result.extracted_data;
     }
 
-    // Add focus
+    // Add focused element
     if (result.focus) {
-      outcome.focus = result.focus;
+      outcome.focused_element = {
+        selector: result.focus.selector || '',
+        bounding_box: result.focus.bounding_box,
+      };
     }
 
     // Add failure
@@ -184,10 +193,12 @@ export abstract class BaseHandler implements InstructionHandler {
   ): Promise<string> {
     if (selector) {
       const element = await page.locator(selector).first();
-      return element.textContent() || '';
+      const text = await element.textContent();
+      return text || '';
     }
 
-    return page.textContent('body') || '';
+    const bodyText = await page.textContent('body');
+    return bodyText || '';
   }
 
   /**

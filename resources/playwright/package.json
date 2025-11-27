@@ -8,6 +8,7 @@
     "postinstall": "bash scripts/install-browsers.sh || true"
   },
   "dependencies": {
+    "@playwright/browser-chromium": "1.45.0",
     "playwright-core": "1.45.0"
   },
   "engines": {

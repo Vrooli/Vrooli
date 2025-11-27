@@ -1,8 +1,17 @@
 import type { Page } from 'playwright';
-import type { Screenshot } from '../types';
 import type { Config } from '../config';
 import { MAX_SCREENSHOT_SIZE_BYTES } from '../constants';
 import { logger, metrics } from '../utils';
+
+/**
+ * Internal screenshot representation for the driver
+ */
+export interface ScreenshotCapture {
+  base64: string;
+  media_type: string;
+  width: number;
+  height: number;
+}
 
 /**
  * Capture screenshot from page
@@ -12,7 +21,7 @@ import { logger, metrics } from '../utils';
 export async function captureScreenshot(
   page: Page,
   config: Config
-): Promise<Screenshot | undefined> {
+): Promise<ScreenshotCapture | undefined> {
   if (!config.telemetry.screenshot.enabled) {
     return undefined;
   }
@@ -41,16 +50,16 @@ export async function captureScreenshot(
         });
 
         if (smallerBuffer.length <= config.telemetry.screenshot.maxSizeBytes) {
-          const data = smallerBuffer.toString('base64');
+          const base64 = smallerBuffer.toString('base64');
           const viewport = page.viewportSize();
 
           metrics.screenshotSize.observe(smallerBuffer.length);
 
           return {
-            data,
-            format: 'png',
-            viewport_width: viewport?.width || 0,
-            viewport_height: viewport?.height || 0,
+            base64,
+            media_type: 'image/png',
+            width: viewport?.width || 0,
+            height: viewport?.height || 0,
           };
         }
       }
@@ -62,7 +71,7 @@ export async function captureScreenshot(
       return undefined;
     }
 
-    const data = buffer.toString('base64');
+    const base64 = buffer.toString('base64');
     const viewport = page.viewportSize();
 
     const duration = Date.now() - startTime;
@@ -75,10 +84,10 @@ export async function captureScreenshot(
     metrics.screenshotSize.observe(buffer.length);
 
     return {
-      data,
-      format: 'png',
-      viewport_width: viewport?.width || 0,
-      viewport_height: viewport?.height || 0,
+      base64,
+      media_type: 'image/png',
+      width: viewport?.width || 0,
+      height: viewport?.height || 0,
     };
   } catch (error) {
     logger.error('Failed to capture screenshot', {
@@ -96,7 +105,7 @@ export async function captureCompressedScreenshot(
   quality: number = 80,
   fullPage: boolean = false,
   maxSizeBytes: number = MAX_SCREENSHOT_SIZE_BYTES
-): Promise<Screenshot | undefined> {
+): Promise<ScreenshotCapture | undefined> {
   try {
     const buffer = await page.screenshot({
       type: 'jpeg',
@@ -119,16 +128,16 @@ export async function captureCompressedScreenshot(
       return undefined;
     }
 
-    const data = buffer.toString('base64');
+    const base64 = buffer.toString('base64');
     const viewport = page.viewportSize();
 
     metrics.screenshotSize.observe(buffer.length);
 
     return {
-      data,
-      format: 'jpeg',
-      viewport_width: viewport?.width || 0,
-      viewport_height: viewport?.height || 0,
+      base64,
+      media_type: 'image/jpeg',
+      width: viewport?.width || 0,
+      height: viewport?.height || 0,
     };
   } catch (error) {
     logger.error('Failed to capture compressed screenshot', {

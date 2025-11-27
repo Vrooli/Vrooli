@@ -57,8 +57,8 @@ export class ScreenshotHandler extends BaseHandler {
       }
 
       logger.info('Screenshot captured', {
-        format: screenshot.format,
-        viewport: `${screenshot.viewport_width}x${screenshot.viewport_height}`,
+        media_type: screenshot.media_type,
+        size: `${screenshot.width}x${screenshot.height}`,
       });
 
       return {

@@ -10,7 +10,7 @@ import { VERSION } from '../constants';
  * GET /health
  */
 export async function handleHealth(
-  req: IncomingMessage,
+  _req: IncomingMessage,
   res: ServerResponse,
   sessionManager: SessionManager
 ): Promise<void> {

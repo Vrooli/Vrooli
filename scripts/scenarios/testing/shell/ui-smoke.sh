@@ -447,7 +447,7 @@ testing::ui_smoke::run() {
         --max-time "$curl_timeout_seconds" \
         -H "Content-Type: application/javascript" \
         --data "$js_payload" \
-        "http://localhost:${browserless_port}/chrome/function")
+        "http://localhost:${browserless_port}/function")
     local curl_status=$?
     local end_ms
     end_ms=$(date +%s%3N)
@@ -665,7 +665,7 @@ testing::ui_smoke::_build_browserless_script() {
     local handshake_timeout_ms="$3"
     local js_template
     read -r -d '' js_template <<'JSCODE'
-export default async ({ page }) => {
+module.exports = async ({ page }) => {
     const result = {
         success: false,
         console: [],
@@ -682,51 +682,9 @@ export default async ({ page }) => {
     };
 
     await page.evaluateOnNewDocument(() => {
-        const patched = [];
-
-        const createMemoryStorage = () => {
-            const data = {};
-            return {
-                getItem: key => (Object.prototype.hasOwnProperty.call(data, key) ? data[key] : null),
-                setItem: (key, value) => {
-                    data[String(key)] = String(value);
-                },
-                removeItem: key => {
-                    delete data[String(key)];
-                },
-                clear: () => {
-                    for (const k of Object.keys(data)) {
-                        delete data[k];
-                    }
-                },
-                key: index => Object.keys(data)[index] ?? null,
-                get length() {
-                    return Object.keys(data).length;
-                }
-            };
-        };
-
-        const patchStorage = (prop) => {
-            try {
-                const value = window[prop];
-                if (value) {
-                    return { prop, patched: false };
-                }
-            } catch (err) {
-                const storage = createMemoryStorage();
-                Object.defineProperty(window, prop, {
-                    configurable: true,
-                    get: () => storage
-                });
-                return { prop, patched: true, reason: err?.message || null };
-            }
-            return { prop, patched: false };
-        };
-
-        window.__VROOLI_UI_SMOKE_STORAGE_PATCH__ = [
-            patchStorage('localStorage'),
-            patchStorage('sessionStorage')
-        ];
+        // Simplified storage patch for browserless v1 (vm2) compatibility
+        // Avoid complex error object access that triggers VM2 internal state issues
+        window.__VROOLI_UI_SMOKE_STORAGE_PATCH__ = [];
     });
 
     const handshakeCheck = () => (
@@ -833,12 +791,12 @@ export default async ({ page }) => {
             totalMs: Date.now() - startTime
         };
         result.success = true;
-        return result;
+        return { data: result, type: 'application/json' };
     } catch (error) {
         result.success = false;
         result.error = error.message;
         result.stack = error.stack || null;
-        return result;
+        return { data: result, type: 'application/json' };
     }
 };
 JSCODE

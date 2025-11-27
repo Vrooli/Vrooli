@@ -17,23 +17,30 @@ Lightweight, non-Docker Playwright driver for Vrooli scenarios. It runs the Node
 - `PLAYWRIGHT_DRIVER_PORT` (default `39400`; set `0` to pick a free port)
 - `PLAYWRIGHT_DRIVER_HOST` (default `127.0.0.1`)
 - `PLAYWRIGHT_CHROMIUM_PATH` (optional path to a Chromium/Chrome binary; use this to reuse Electron’s Chromium)
+- `PLAYWRIGHT_BROWSERS_PATH` (defaults to the vendored `@playwright/browser-chromium` if present)
 - `HEADLESS` (`true` by default)
+- `PLAYWRIGHT_STATE_DIR` (optional; where PID/log/port files live; defaults to `TMPDIR`/`/tmp`)
 
 ## Quick start (Tier‑1/dev)
 ```bash
 cd resources/playwright
 pnpm install   # or npm/yarn; installs playwright-core
-./scripts/install-browsers.sh  # optional: downloads Chromium
+./scripts/install-browsers.sh  # optional: downloads Chromium if you don't reuse a vendored/Electron binary
 ./manage.sh start
 curl http://127.0.0.1:39400/health
 ./manage.sh stop
 ```
 
+To export engine env vars for the Go API/UI after the driver is running:
+```bash
+resource-playwright env  # prints ENGINE=playwright and PLAYWRIGHT_DRIVER_URL
+```
+
 ## Desktop/Electron notes
-- Bundle `driver/server.js` and Playwright binaries with your Electron app.
-- Start the driver from Electron’s main process, capture the chosen port (when `PORT=0`), set `PLAYWRIGHT_DRIVER_URL`, and launch the bundled API with `ENGINE=playwright`.
-- To avoid bundling an extra Chromium, align Playwright with the Electron Chromium version and set `PLAYWRIGHT_CHROMIUM_PATH` to Electron’s binary.
-- Prefer pinning Electron and Playwright to compatible versions so you can reuse Electron’s Chromium and avoid the additional ~80–120 MB from `@playwright/browser-chromium`.
+- Bundle `driver/server.js`, its `node_modules`, and a Chromium binary with your Electron app. The driver auto-uses a vendored `@playwright/browser-chromium` if present, or `PLAYWRIGHT_CHROMIUM_PATH` if you want to reuse Electron’s Chromium.
+- Start the driver from Electron’s main process (set `PLAYWRIGHT_DRIVER_PORT=0`), read the chosen port from stdout/port file, export `PLAYWRIGHT_DRIVER_URL`, set `ENGINE=playwright`, and only then launch the bundled API/UI.
+- Keep everything offline: no `npm install` or browser downloads at first launch. Ship the browser bits in the app or repoint `PLAYWRIGHT_CHROMIUM_PATH` to Electron’s binary.
+- Prefer pinning Electron + Playwright to compatible versions so reusing Electron’s Chromium doesn’t break.
 
 ## Commands
 - `resource-playwright install|start|stop|restart|status|health|logs|info` (symlinked to `resources/playwright/manage.sh`)

@@ -225,6 +225,6 @@ export type NetworkMockParams = z.infer<typeof NetworkMockParamsSchema>;
 // Device
 export const RotateParamsSchema = z.object({
   orientation: z.enum(['portrait', 'landscape']),
-  angle: z.enum([0, 90, 180, 270]).optional(),
+  angle: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]).optional(),
 });
 export type RotateParams = z.infer<typeof RotateParamsSchema>;

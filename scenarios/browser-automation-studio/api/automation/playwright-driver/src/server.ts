@@ -13,6 +13,14 @@ import {
   UploadHandler,
   DownloadHandler,
   ScrollHandler,
+  FrameHandler,
+  SelectHandler,
+  KeyboardHandler,
+  CookieStorageHandler,
+  GestureHandler,
+  TabHandler,
+  NetworkHandler,
+  DeviceHandler,
 } from './handlers';
 import {
   handleHealth,
@@ -22,7 +30,7 @@ import {
   handleSessionClose,
 } from './routes';
 import { send404, send405, sendError } from './middleware';
-import { createLogger, setLogger, logger, metrics, Metrics } from './utils';
+import { createLogger, setLogger, logger, metrics } from './utils';
 
 /**
  * Main Playwright Driver Server
@@ -176,6 +184,7 @@ async function main() {
  * Register all instruction handlers
  */
 function registerHandlers(): void {
+  // Phase 1 handlers (13 instruction types)
   handlerRegistry.register(new NavigationHandler());
   handlerRegistry.register(new InteractionHandler());
   handlerRegistry.register(new WaitHandler());
@@ -185,6 +194,18 @@ function registerHandlers(): void {
   handlerRegistry.register(new UploadHandler());
   handlerRegistry.register(new DownloadHandler());
   handlerRegistry.register(new ScrollHandler());
+
+  // Phase 2 handlers (5 instruction types)
+  handlerRegistry.register(new FrameHandler());
+  handlerRegistry.register(new SelectHandler());
+  handlerRegistry.register(new KeyboardHandler());
+  handlerRegistry.register(new CookieStorageHandler());
+
+  // Phase 3 handlers (10 instruction types)
+  handlerRegistry.register(new GestureHandler());
+  handlerRegistry.register(new TabHandler());
+  handlerRegistry.register(new NetworkHandler());
+  handlerRegistry.register(new DeviceHandler());
 }
 
 /**

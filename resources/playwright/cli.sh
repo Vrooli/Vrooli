@@ -12,9 +12,10 @@ source "${ROOT}/config/defaults.sh"
 
 PORT="${PLAYWRIGHT_DRIVER_PORT}"
 HOST="${PLAYWRIGHT_DRIVER_HOST}"
-PID_FILE="${PLAYWRIGHT_PID_FILE:-/tmp/vrooli-playwright-driver.pid}"
-LOG_FILE="${PLAYWRIGHT_LOG_FILE:-/tmp/vrooli-playwright-driver.log}"
-PORT_FILE="${PLAYWRIGHT_PORT_FILE:-/tmp/vrooli-playwright-driver.port}"
+STATE_DIR="${PLAYWRIGHT_STATE_DIR:-${TMPDIR:-/tmp}}"
+PID_FILE="${PLAYWRIGHT_PID_FILE:-${STATE_DIR%/}/vrooli-playwright-driver.pid}"
+LOG_FILE="${PLAYWRIGHT_LOG_FILE:-${STATE_DIR%/}/vrooli-playwright-driver.log}"
+PORT_FILE="${PLAYWRIGHT_PORT_FILE:-${STATE_DIR%/}/vrooli-playwright-driver.port}"
 
 pw::resolve_port() {
   if [[ -f "$PORT_FILE" ]]; then
@@ -141,6 +142,15 @@ pw::info() {
   if command -v jq >/dev/null 2>&1; then jq '.' "$runtime"; else cat "$runtime"; fi
 }
 
+pw::env() {
+  local eff_port
+  eff_port="$(pw::resolve_port)"
+  echo "ENGINE=playwright"
+  echo "PLAYWRIGHT_DRIVER_URL=http://${HOST}:${eff_port}"
+  echo "PLAYWRIGHT_DRIVER_HOST=${HOST}"
+  echo "PLAYWRIGHT_DRIVER_PORT=${eff_port}"
+}
+
 pw::test_smoke() {
   local started_here=false
   if [[ ! -f "$PID_FILE" ]] || ! kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
@@ -185,12 +195,14 @@ CLI_COMMAND_HANDLERS["manage::restart"]="pw::restart"
 CLI_COMMAND_HANDLERS["manage::status"]="pw::status"
 CLI_COMMAND_HANDLERS["manage::health"]="pw::health_cmd"
 CLI_COMMAND_HANDLERS["manage::logs"]="pw::logs"
+CLI_COMMAND_HANDLERS["manage::env"]="pw::env"
 
 CLI_COMMAND_HANDLERS["start"]="pw::start"
 CLI_COMMAND_HANDLERS["stop"]="pw::stop"
 CLI_COMMAND_HANDLERS["restart"]="pw::restart"
 CLI_COMMAND_HANDLERS["install"]="pw::install"
 CLI_COMMAND_HANDLERS["uninstall"]="pw::uninstall"
+CLI_COMMAND_HANDLERS["env"]="pw::env"
 CLI_COMMAND_HANDLERS["test::smoke"]="pw::test_smoke"
 CLI_COMMAND_HANDLERS["test::integration"]="pw::test_smoke"
 CLI_COMMAND_HANDLERS["test::unit"]="pw::test_smoke"

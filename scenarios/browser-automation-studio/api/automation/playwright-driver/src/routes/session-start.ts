@@ -19,7 +19,7 @@ export async function handleSessionStart(
   try {
     // Parse request body
     const body = await parseJsonBody(req, config);
-    const request = body as StartSessionRequest;
+    const request = body as unknown as StartSessionRequest;
 
     // Build session spec
     const spec: SessionSpec = {

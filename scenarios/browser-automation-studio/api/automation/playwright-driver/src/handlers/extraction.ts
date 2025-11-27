@@ -18,7 +18,7 @@ export class ExtractionHandler extends BaseHandler {
     instruction: CompiledInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
-    const { page, logger } = context;
+    const { logger } = context;
 
     try {
       switch (instruction.type.toLowerCase()) {

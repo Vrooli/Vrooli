@@ -90,7 +90,7 @@ export class AssertionHandler extends BaseHandler {
             page,
             params.selector,
             params.attribute || params.attr!,
-            params.expected || params.value || '',
+            String(params.expected ?? params.value ?? ''),
             timeout
           );
           break;
@@ -103,7 +103,7 @@ export class AssertionHandler extends BaseHandler {
             page,
             params.selector,
             mode,
-            params.expected || params.text || '',
+            String(params.expected ?? params.text ?? ''),
             timeout
           );
           break;
@@ -143,7 +143,7 @@ export class AssertionHandler extends BaseHandler {
   private async assertExists(
     page: any,
     selector: string,
-    timeout: number
+    _timeout: number
   ): Promise<AssertionOutcome> {
     const element = await page.$(selector);
     const exists = !!element;
@@ -161,7 +161,7 @@ export class AssertionHandler extends BaseHandler {
   private async assertNotExists(
     page: any,
     selector: string,
-    timeout: number
+    _timeout: number
   ): Promise<AssertionOutcome> {
     const element = await page.$(selector);
     const absent = !element;
