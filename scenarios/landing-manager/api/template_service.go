@@ -144,29 +144,46 @@ func (ts *TemplateService) GenerateScenario(templateID, name, slug string, optio
 		return nil, err
 	}
 
-	// Validate inputs
 	if name == "" || slug == "" {
 		return nil, fmt.Errorf("name and slug are required")
 	}
 
-	dryRun := false
-	if options != nil {
-		if val, ok := options["dry_run"]; ok {
-			switch v := val.(type) {
-			case bool:
-				dryRun = v
-			case string:
-				dryRun = strings.EqualFold(v, "true")
-			}
-		}
-	}
-
-	// Resolve output directory (default: ../generated/<slug> relative to scenario root)
 	outputDir, err := resolveGenerationPath(slug)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve generation path: %w", err)
 	}
 
+	if isDryRun(options) {
+		return buildDryRunResponse(slug, name, template.ID, outputDir), nil
+	}
+
+	if err := ts.materializeScenario(outputDir, templateID, template, name, slug); err != nil {
+		return nil, err
+	}
+
+	validation := validateGeneratedScenario(outputDir)
+	return buildCreatedResponse(slug, name, template.ID, outputDir, validation), nil
+}
+
+func isDryRun(options map[string]interface{}) bool {
+	if options == nil {
+		return false
+	}
+	val, ok := options["dry_run"]
+	if !ok {
+		return false
+	}
+	switch v := val.(type) {
+	case bool:
+		return v
+	case string:
+		return strings.EqualFold(v, "true")
+	default:
+		return false
+	}
+}
+
+func buildDryRunResponse(slug, name, templateID, outputDir string) map[string]interface{} {
 	plannedPaths := []string{
 		outputDir,
 		filepath.Join(outputDir, "api"),
@@ -179,57 +196,28 @@ func (ts *TemplateService) GenerateScenario(templateID, name, slug string, optio
 		filepath.Join(outputDir, "README.md"),
 	}
 
-	if dryRun {
-		return map[string]interface{}{
-			"scenario_id": slug,
-			"name":        name,
-			"template":    template.ID,
-			"path":        outputDir,
-			"status":      "dry_run",
-			"plan": map[string]interface{}{
-				"paths": plannedPaths,
-			},
-			"next_steps": []string{
-				"Re-run without --dry-run to materialize the scenario",
-				"Move the folder to /scenarios/<slug> when ready to run independently",
-				"Start scenario: vrooli scenario start " + slug,
-			},
-		}, nil
-	}
-
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		return nil, fmt.Errorf("failed to create output directory: %w", err)
-	}
-
-	// Copy template assets into the generated scenario directory
-	if err := scaffoldScenario(outputDir); err != nil {
-		return nil, fmt.Errorf("failed to scaffold scenario: %w", err)
-	}
-
-	// Write template metadata for the generated scenario
-	templateOut := filepath.Join(outputDir, "api", "templates", templateID+".json")
-	if err := os.MkdirAll(filepath.Dir(templateOut), 0o755); err != nil {
-		return nil, fmt.Errorf("failed to create template metadata directory: %w", err)
-	}
-	templateData, _ := json.MarshalIndent(template, "", "  ")
-	if err := os.WriteFile(templateOut, templateData, 0o644); err != nil {
-		return nil, fmt.Errorf("failed to write template metadata: %w", err)
-	}
-
-	if err := writeTemplateProvenance(outputDir, template); err != nil {
-		return nil, fmt.Errorf("failed to stamp template provenance: %w", err)
-	}
-
-	if err := rewriteServiceConfig(outputDir, name, slug); err != nil {
-		return nil, fmt.Errorf("failed to rewrite service config: %w", err)
-	}
-
-	validation := validateGeneratedScenario(outputDir)
-
-	result := map[string]interface{}{
+	return map[string]interface{}{
 		"scenario_id": slug,
 		"name":        name,
-		"template":    template.ID,
+		"template":    templateID,
+		"path":        outputDir,
+		"status":      "dry_run",
+		"plan": map[string]interface{}{
+			"paths": plannedPaths,
+		},
+		"next_steps": []string{
+			"Re-run without --dry-run to materialize the scenario",
+			"Move the folder to /scenarios/<slug> when ready to run independently",
+			"Start scenario: vrooli scenario start " + slug,
+		},
+	}
+}
+
+func buildCreatedResponse(slug, name, templateID, outputDir string, validation map[string]interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"scenario_id": slug,
+		"name":        name,
+		"template":    templateID,
 		"path":        outputDir,
 		"status":      "created",
 		"validation":  validation,
@@ -242,8 +230,42 @@ func (ts *TemplateService) GenerateScenario(templateID, name, slug string, optio
 			"Customize content via CLI or admin portal in the generated scenario",
 		},
 	}
+}
 
-	return result, nil
+func (ts *TemplateService) materializeScenario(outputDir, templateID string, template *Template, name, slug string) error {
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	if err := scaffoldScenario(outputDir); err != nil {
+		return fmt.Errorf("failed to scaffold scenario: %w", err)
+	}
+
+	if err := writeTemplateMetadata(outputDir, templateID, template); err != nil {
+		return err
+	}
+
+	if err := writeTemplateProvenance(outputDir, template); err != nil {
+		return fmt.Errorf("failed to stamp template provenance: %w", err)
+	}
+
+	if err := rewriteServiceConfig(outputDir, name, slug); err != nil {
+		return fmt.Errorf("failed to rewrite service config: %w", err)
+	}
+
+	return nil
+}
+
+func writeTemplateMetadata(outputDir, templateID string, template *Template) error {
+	templateOut := filepath.Join(outputDir, "api", "templates", templateID+".json")
+	if err := os.MkdirAll(filepath.Dir(templateOut), 0o755); err != nil {
+		return fmt.Errorf("failed to create template metadata directory: %w", err)
+	}
+	templateData, _ := json.MarshalIndent(template, "", "  ")
+	if err := os.WriteFile(templateOut, templateData, 0o644); err != nil {
+		return fmt.Errorf("failed to write template metadata: %w", err)
+	}
+	return nil
 }
 
 // resolveGenerationPath returns an absolute path for the generated scenario.
@@ -262,15 +284,23 @@ func generationRoot() (string, error) {
 		return filepath.Abs(override)
 	}
 
+	scenarioRoot, err := resolveScenarioRoot()
+	if err != nil {
+		return "", err
+	}
+	defaultRoot := filepath.Join(scenarioRoot, "generated")
+	return filepath.Abs(defaultRoot)
+}
+
+// resolveScenarioRoot finds the landing-manager scenario root directory
+func resolveScenarioRoot() (string, error) {
 	execPath, err := os.Executable()
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve executable path: %w", err)
 	}
 	execDir := filepath.Dir(execPath)
 	// Assume binary resides in /scenarios/landing-manager/api
-	scenarioRoot := filepath.Dir(execDir)
-	defaultRoot := filepath.Join(scenarioRoot, "generated")
-	return filepath.Abs(defaultRoot)
+	return filepath.Dir(execDir), nil
 }
 
 // scaffoldScenario copies the existing landing template assets into the output directory.
@@ -284,12 +314,10 @@ func scaffoldScenario(outputDir string) error {
 		return nil
 	}
 
-	execPath, err := os.Executable()
+	scenarioRoot, err := resolveScenarioRoot()
 	if err != nil {
-		return fmt.Errorf("failed to resolve executable path: %w", err)
+		return err
 	}
-	execDir := filepath.Dir(execPath)
-	scenarioRoot := filepath.Dir(execDir)
 
 	// Prefer dedicated template payload from repo root (scripts/scenarios/templates/saas-landing-page/payload)
 	repoRoot := filepath.Dir(filepath.Dir(scenarioRoot))
@@ -479,17 +507,10 @@ func fixWorkspaceDependencies(outputDir string) error {
 		return fmt.Errorf("failed to parse package.json: %w", err)
 	}
 
-	// Determine absolute path to workspace packages directory
-	// outputDir is like /path/to/Vrooli/scenarios/landing-manager/generated/test-dry
-	// packages dir is /path/to/Vrooli/packages
-	execPath, err := os.Executable()
+	packagesDir, err := resolvePackagesDir()
 	if err != nil {
-		return fmt.Errorf("failed to resolve executable path: %w", err)
+		return err
 	}
-	execDir := filepath.Dir(execPath)                      // /path/to/Vrooli/scenarios/landing-manager/api
-	scenarioRoot := filepath.Dir(execDir)                  // /path/to/Vrooli/scenarios/landing-manager
-	vrooliRoot := filepath.Dir(filepath.Dir(scenarioRoot)) // /path/to/Vrooli
-	packagesDir := filepath.Join(vrooliRoot, "packages")
 
 	// Fix dependencies section
 	if deps, ok := pkg["dependencies"].(map[string]interface{}); ok {
@@ -498,16 +519,9 @@ func fixWorkspaceDependencies(outputDir string) error {
 				// Replace relative file: references with absolute paths
 				if strings.HasPrefix(strValue, "file:../../../packages/") {
 					packageName := strings.TrimPrefix(strValue, "file:../../../packages/")
-					// Security: Clean the path to prevent traversal attacks
-					packageName = filepath.Clean(packageName)
-					// Ensure the cleaned path doesn't escape the packages directory
-					if strings.Contains(packageName, "..") {
-						continue // Skip malicious paths
-					}
-					absolutePath := filepath.Join(packagesDir, packageName)
-					// Verify the resolved path is within the packages directory
-					if !strings.HasPrefix(filepath.Clean(absolutePath), filepath.Clean(packagesDir)) {
-						continue // Skip paths that escape packages directory
+					absolutePath, valid := resolvePackagePath(packageName, packagesDir)
+					if !valid {
+						continue // Skip invalid paths
 					}
 					deps[name] = "file:" + absolutePath
 				}
@@ -526,6 +540,46 @@ func fixWorkspaceDependencies(outputDir string) error {
 	}
 
 	return nil
+}
+
+// resolvePackagesDir finds the absolute path to the Vrooli packages directory
+func resolvePackagesDir() (string, error) {
+	scenarioRoot, err := resolveScenarioRoot()
+	if err != nil {
+		return "", err
+	}
+	vrooliRoot := getVrooliRootFromScenario(scenarioRoot)
+	return filepath.Join(vrooliRoot, "packages"), nil
+}
+
+func getVrooliRootFromScenario(scenarioRoot string) string {
+	return filepath.Dir(filepath.Dir(scenarioRoot)) // /path/to/Vrooli
+}
+
+// resolvePackagePath validates and resolves a package path securely
+func resolvePackagePath(packageName, packagesDir string) (string, bool) {
+	// Security: Clean the path to prevent traversal attacks
+	cleanedName := filepath.Clean(packageName)
+
+	// Reject paths containing traversal attempts
+	if strings.Contains(cleanedName, "..") {
+		return "", false
+	}
+
+	absolutePath := filepath.Join(packagesDir, cleanedName)
+
+	// Verify the resolved path stays within the packages directory
+	if !isPathWithinDirectory(absolutePath, packagesDir) {
+		return "", false
+	}
+
+	return absolutePath, true
+}
+
+func isPathWithinDirectory(path, baseDir string) bool {
+	cleanPath := filepath.Clean(path)
+	cleanBase := filepath.Clean(baseDir)
+	return strings.HasPrefix(cleanPath, cleanBase)
 }
 
 // rewriteServiceConfig adjusts service metadata for the generated scenario.
@@ -815,10 +869,10 @@ func (ts *TemplateService) GetPreviewLinks(scenarioID string) (map[string]interf
 		"path":        scenarioPath,
 		"base_url":    baseURL,
 		"links": map[string]string{
-			"public_landing": baseURL + "/",
-			"admin_portal":   baseURL + "/admin",
-			"admin_login":    baseURL + "/admin/login",
-			"health":         baseURL + "/health",
+			"public":      baseURL + "/",
+			"admin":       baseURL + "/admin",
+			"admin_login": baseURL + "/admin/login",
+			"health":      baseURL + "/health",
 		},
 		"instructions": []string{
 			fmt.Sprintf("Start the scenario: vrooli scenario start %s", scenarioID),

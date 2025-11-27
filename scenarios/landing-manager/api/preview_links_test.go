@@ -67,10 +67,10 @@ func TestGetPreviewLinks_Success(t *testing.T) {
 		}
 
 		expectedLinks := map[string]string{
-			"public_landing": "http://localhost:38000/",
-			"admin_portal":   "http://localhost:38000/admin",
-			"admin_login":    "http://localhost:38000/admin/login",
-			"health":         "http://localhost:38000/health",
+			"public":      "http://localhost:38000/",
+			"admin":       "http://localhost:38000/admin",
+			"admin_login": "http://localhost:38000/admin/login",
+			"health":      "http://localhost:38000/health",
 		}
 
 		for key, expectedURL := range expectedLinks {
@@ -128,8 +128,8 @@ func TestGetPreviewLinks_Success(t *testing.T) {
 			t.Fatal("Expected links to be a map[string]string")
 		}
 
-		if publicURL, ok := links["public_landing"]; !ok || publicURL != "http://localhost:42000/" {
-			t.Errorf("Expected public_landing to use port 42000, got '%s'", publicURL)
+		if publicURL, ok := links["public"]; !ok || publicURL != "http://localhost:42000/" {
+			t.Errorf("Expected public to use port 42000, got '%s'", publicURL)
 		}
 	})
 }
@@ -262,7 +262,7 @@ func TestGetPreviewLinks_LinkFormat(t *testing.T) {
 		}
 
 		// Verify all required link keys are present
-		requiredLinks := []string{"public_landing", "admin_portal", "admin_login", "health"}
+		requiredLinks := []string{"public", "admin", "admin_login", "health"}
 		for _, key := range requiredLinks {
 			if _, ok := links[key]; !ok {
 				t.Errorf("Expected link key '%s' to be present", key)
@@ -278,10 +278,10 @@ func TestGetPreviewLinks_LinkFormat(t *testing.T) {
 		}
 
 		// Verify specific path formats
-		if links["public_landing"] != "http://localhost:35000/" {
+		if links["public"] != "http://localhost:35000/" {
 			t.Errorf("Public landing should be base URL with trailing slash")
 		}
-		if links["admin_portal"] != "http://localhost:35000/admin" {
+		if links["admin"] != "http://localhost:35000/admin" {
 			t.Errorf("Admin portal should be base URL + /admin")
 		}
 		if links["admin_login"] != "http://localhost:35000/admin/login" {

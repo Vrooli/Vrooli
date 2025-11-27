@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cn } from './utils';
+import { cn, slugify } from './utils';
 
 describe('cn utility', () => {
   it('should merge class names correctly', () => {
@@ -33,5 +33,41 @@ describe('cn utility', () => {
     const result = cn('px-2', 'px-4');
     // Should keep only px-4 (later class wins)
     expect(result).toBe('px-4');
+  });
+});
+
+describe('slugify utility', () => {
+  it('should convert to lowercase', () => {
+    expect(slugify('Hello World')).toBe('hello-world');
+  });
+
+  it('should replace spaces with hyphens', () => {
+    expect(slugify('My New Product')).toBe('my-new-product');
+  });
+
+  it('should remove special characters', () => {
+    expect(slugify('Product @#$ Name!')).toBe('product-name');
+  });
+
+  it('should remove leading and trailing hyphens', () => {
+    expect(slugify('--product-name--')).toBe('product-name');
+  });
+
+  it('should collapse multiple hyphens', () => {
+    expect(slugify('product   ---   name')).toBe('product-name');
+  });
+
+  it('should truncate to 60 characters', () => {
+    const longInput = 'a'.repeat(100);
+    const result = slugify(longInput);
+    expect(result.length).toBe(60);
+  });
+
+  it('should handle empty string', () => {
+    expect(slugify('')).toBe('');
+  });
+
+  it('should handle numbers', () => {
+    expect(slugify('Product 123')).toBe('product-123');
   });
 });
