@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
@@ -45,6 +45,12 @@ const mockCampaign = {
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset window location to root path for each test
+    window.history.pushState({}, '', '/');
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   describe('Application rendering', () => {
@@ -78,8 +84,8 @@ describe('App', () => {
         // Should have heading
         expect(screen.getByRole('heading', { name: /visited tracker/i })).toBeInTheDocument();
 
-        // Should have interactive elements
-        expect(screen.getByRole('button', { name: /new campaign/i })).toBeInTheDocument();
+        // Should have interactive elements (button shows "New" on small screens, "New Campaign" on larger)
+        expect(screen.getByRole('button', { name: /new/i })).toBeInTheDocument();
       });
     });
   });
@@ -156,10 +162,10 @@ describe('App', () => {
       render(<App />, { wrapper: createWrapper() });
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new campaign/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /new/i })).toBeInTheDocument();
       });
 
-      const newButton = screen.getByRole('button', { name: /new campaign/i });
+      const newButton = screen.getByRole('button', { name: /new/i });
       await user.click(newButton);
 
       await waitFor(() => {
@@ -176,11 +182,11 @@ describe('App', () => {
       render(<App />, { wrapper: createWrapper() });
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new campaign/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /new/i })).toBeInTheDocument();
       });
 
       // Open create dialog
-      const newButton = screen.getByRole('button', { name: /new campaign/i });
+      const newButton = screen.getByRole('button', { name: /new/i });
       await user.click(newButton);
 
       await waitFor(() => {
@@ -213,11 +219,11 @@ describe('App', () => {
       render(<App />, { wrapper: createWrapper() });
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new campaign/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /new/i })).toBeInTheDocument();
       });
 
       // Open create dialog
-      const newButton = screen.getByRole('button', { name: /new campaign/i });
+      const newButton = screen.getByRole('button', { name: /new/i });
       await user.click(newButton);
 
       await waitFor(() => {
@@ -249,11 +255,11 @@ describe('App', () => {
       render(<App />, { wrapper: createWrapper() });
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new campaign/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /new/i })).toBeInTheDocument();
       });
 
       // Open create dialog
-      const newButton = screen.getByRole('button', { name: /new campaign/i });
+      const newButton = screen.getByRole('button', { name: /new/i });
       await user.click(newButton);
 
       await waitFor(() => {
@@ -284,11 +290,11 @@ describe('App', () => {
       render(<App />, { wrapper: createWrapper() });
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new campaign/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /new/i })).toBeInTheDocument();
       });
 
       // Open create dialog
-      const newButton = screen.getByRole('button', { name: /new campaign/i });
+      const newButton = screen.getByRole('button', { name: /new/i });
       await user.click(newButton);
 
       await waitFor(() => {
@@ -387,11 +393,11 @@ describe('App', () => {
       render(<App />, { wrapper: createWrapper() });
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new campaign/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /new/i })).toBeInTheDocument();
       });
 
       // Open create dialog
-      const newButton = screen.getByRole('button', { name: /new campaign/i });
+      const newButton = screen.getByRole('button', { name: /new/i });
       await user.click(newButton);
 
       await waitFor(() => {

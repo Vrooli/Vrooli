@@ -78,7 +78,7 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
             <AlertCircle className="h-8 w-8 text-red-400" />
           </div>
-          <h2 className="mb-2 text-xl font-semibold text-slate-50">Failed to Load Campaign</h2>
+          <h2 className="mb-2 text-xl font-semibold text-slate-50">Failed to load campaign</h2>
           <p className="mb-6 text-sm text-slate-400">{(error as Error).message}</p>
           <div className="flex gap-3 justify-center">
             <Button variant="outline" onClick={onBack}>
@@ -90,7 +90,7 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
               Try Again
             </Button>
           </div>
-          <p className="mt-4 text-xs text-slate-600">Press Esc to go back</p>
+          <p className="mt-4 text-xs text-slate-500">Press <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">Esc</kbd> to go back</p>
         </div>
       </div>
     );
@@ -319,10 +319,11 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
           {/* Most Stale Files */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-red-400" />
-                  Most Stale Files
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base">
+                  <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-red-400 shrink-0" aria-hidden="true" />
+                  <span className="hidden sm:inline">Most Stale Files</span>
+                  <span className="sm:hidden">Most Stale</span>
                 </CardTitle>
                 <HelpButton content="Files with the highest staleness scores based on time since last visit and modification recency. Prioritize these for review. Hover over paths to copy them." />
               </div>
@@ -361,10 +362,10 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
         </div>
 
         {/* Patterns */}
-        <Card className="mb-8">
+        <Card className="mb-6 sm:mb-8">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base">
+              <FileText className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
               File Patterns
             </CardTitle>
           </CardHeader>
@@ -385,8 +386,8 @@ export function CampaignDetail({ campaignId, onBack }: CampaignDetailProps) {
         {/* Recent Visits */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base">
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
               Recently Visited Files
             </CardTitle>
           </CardHeader>

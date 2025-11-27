@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// TestStrPtr verifies string pointer utility function
 func TestStrPtr(t *testing.T) {
 	test := "test string"
 	ptr := strPtr(test)
@@ -16,5 +17,3 @@ func TestStrPtr(t *testing.T) {
 		t.Errorf("Expected %s, got %s", test, *ptr)
 	}
 }
-
-// Test updateStalenessScores function

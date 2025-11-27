@@ -29,18 +29,11 @@
           "notes": "Tests validate campaign storage and persistence: TestCampaignStorage, TestSaveCampaign, TestLoadCampaign, TestLoadAllCampaigns, TestDeleteCampaignFile [REQ:VT-REQ-001]"
         },
         {
-          "type": "test",
-          "ref": "test/api/campaign-lifecycle.bats",
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "BATS integration tests validate campaign creation, retrieval, listing, and deletion [REQ:VT-REQ-001]"
-        },
-        {
-          "type": "test",
-          "ref": "test/api/http-api.bats",
-          "phase": "integration",
-          "status": "failing",
-          "notes": "HTTP API integration tests validate campaign CRUD operations via REST endpoints"
+          "notes": "E2E workflow validates complete campaign lifecycle: create, verify, visit files, query, and delete [REQ:VT-REQ-001]"
         }
       ]
     },
@@ -62,11 +55,11 @@
           "notes": "Tests validate visit tracking: TestVisitHandler, TestAdjustVisitHandler, TestVisitHandlerErrorPaths, TestAdjustVisitHandlerErrorPaths [REQ:VT-REQ-002]"
         },
         {
-          "type": "test",
-          "ref": "test/api/campaign-lifecycle.bats",
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "BATS integration tests validate visit recording and visit count tracking [REQ:VT-REQ-002]"
+          "notes": "E2E workflow validates visit recording and tracking through complete campaign lifecycle [REQ:VT-REQ-002]"
         }
       ]
     },
@@ -88,19 +81,26 @@
           "notes": "Tests validate staleness algorithm and prioritization: TestCalculateStalenessScore, TestUpdateStalenessScores, TestLeastVisitedHandler, TestMostStaleHandler [REQ:VT-REQ-003]"
         },
         {
-          "type": "test",
-          "ref": "test/api/campaign-lifecycle.bats",
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "BATS integration tests validate least-visited and most-stale prioritization queries [REQ:VT-REQ-003]"
+          "notes": "E2E workflow validates staleness queries (least-visited and most-stale prioritization) [REQ:VT-REQ-003]"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/staleness-scoring.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E workflow validates staleness score calculation and prioritization logic [REQ:VT-REQ-003]"
         }
       ]
     },
     {
       "id": "VT-REQ-004",
       "category": "campaign-tracking.interface",
-      "operational_target_id": "OT-P0-001",
-      "prd_ref": "OT-P0-001",
+      "operational_target_id": "OT-P0-006",
+      "prd_ref": "OT-P0-006",
       "title": "File Synchronization",
       "description": "Sync campaign files with filesystem using glob pattern matching to discover new files and remove deleted ones",
       "priority": "P0",
@@ -114,11 +114,18 @@
           "notes": "Tests validate file sync: TestStructureSyncHandler, TestSyncCampaignFilesErrorPaths [REQ:VT-REQ-004]"
         },
         {
-          "type": "test",
-          "ref": "test/api/http-api.bats",
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/staleness-scoring.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "HTTP API integration tests validate structure/sync endpoint [REQ:VT-REQ-004]"
+          "notes": "E2E workflow validates file sync through structure/sync endpoint [REQ:VT-REQ-004]"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/01-campaign-tracking/cli/campaign-management.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E CLI workflow validates campaign file tracking and management [REQ:VT-REQ-004]"
         }
       ]
     },

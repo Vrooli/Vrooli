@@ -14,6 +14,7 @@ source "${SHELL_DIR}/runtime.sh"
 
 readonly TESTING_UI_SMOKE_EXIT_BROWSERLESS_OFFLINE=50
 readonly TESTING_UI_SMOKE_EXIT_BUNDLE_STALE=60
+TESTING_UI_SMOKE_BROWSERLESS_DETAIL=""
 
 #######################################
 # Diagnose browserless failure and return contextual error message
@@ -114,6 +115,92 @@ testing::ui_smoke::_diagnose_browserless_failure() {
             is_browserless_issue: $is_browserless_issue,
             diagnostics: $diagnostics
         }'
+}
+
+testing::ui_smoke::_preflight_browserless_guard() {
+    local context="${1:-ui-smoke}"
+    TESTING_UI_SMOKE_BROWSERLESS_DETAIL=""
+    local shared_mode="${BAS_BROWSERLESS_SHARED:-false}"
+
+    local status_lib="${APP_ROOT}/resources/browserless/lib/status.sh"
+    local defaults_lib="${APP_ROOT}/resources/browserless/config/defaults.sh"
+    if [[ ! -f "$status_lib" || ! -f "$defaults_lib" ]]; then
+        return 0
+    fi
+    if ! command -v jq >/dev/null 2>&1; then
+        return 0
+    fi
+
+    # shellcheck source=/dev/null
+    source "$defaults_lib"
+    browserless::export_config 2>/dev/null || true
+    # shellcheck source=/dev/null
+    source "$status_lib"
+
+    local diag chrome_count mem_pct chrome_int mem_int
+    diag=$(get_health_diagnostics 2>/dev/null || echo "{}")
+    chrome_count=$(echo "$diag" | jq -r '.processes.chrome // 0' 2>/dev/null || echo "0")
+    mem_pct=$(echo "$diag" | jq -r '.memory.usage_percent // 0' 2>/dev/null || echo "0")
+    chrome_int=${chrome_count%.*}
+    mem_int=${mem_pct%.*}
+    local running_sessions=""
+    local port="${BROWSERLESS_PORT:-4110}"
+    running_sessions=$(curl -s --max-time 3 "http://localhost:${port}/pressure" 2>/dev/null | jq -r '.pressure.running // 0' 2>/dev/null || echo "")
+
+    local attempted=false
+    if { [[ -n "$chrome_int" ]] && [ "$chrome_int" -gt 50 ]; } || \
+       { [[ -n "$mem_int" ]] && [ "$mem_int" -gt 80 ]; }; then
+        if [[ "$shared_mode" =~ ^([Tt]rue|1|yes)$ ]] && [[ -n "$running_sessions" ]] && [ "$running_sessions" -gt 0 ]; then
+            TESTING_UI_SMOKE_BROWSERLESS_DETAIL="Browserless ${context}: high usage (chrome=${chrome_count}, mem=${mem_pct}%) with ${running_sessions} active session(s); shared mode prevents cleanup/restart"
+            return 1
+        fi
+        log::warn "Browserless ${context}: high usage detected (chrome=${chrome_count}, mem=${mem_pct}%). Attempting cleanup."
+        browserless::cleanup_process_leak "ui-smoke preflight (chrome=${chrome_count}, mem=${mem_pct}%)" || true
+        attempted=true
+        sleep 2
+        diag=$(get_health_diagnostics 2>/dev/null || echo "{}")
+        chrome_count=$(echo "$diag" | jq -r '.processes.chrome // 0' 2>/dev/null || echo "0")
+        mem_pct=$(echo "$diag" | jq -r '.memory.usage_percent // 0' 2>/dev/null || echo "0")
+        chrome_int=${chrome_count%.*}
+        mem_int=${mem_pct%.*}
+    fi
+
+    if { [[ -n "$chrome_int" ]] && [ "$chrome_int" -gt 50 ]; } || \
+       { [[ -n "$mem_int" ]] && [ "$mem_int" -gt 80 ]; }; then
+        if command -v docker >/dev/null 2>&1; then
+            if [[ "$shared_mode" =~ ^([Tt]rue|1|yes)$ ]] && [[ -n "$running_sessions" ]] && [ "$running_sessions" -gt 0 ]; then
+                TESTING_UI_SMOKE_BROWSERLESS_DETAIL="Browserless ${context}: restart skipped (shared mode, ${running_sessions} active session(s), chrome=${chrome_count}, mem=${mem_pct}%)"
+            else
+                log::warn "Browserless ${context}: restarting ${BROWSERLESS_CONTAINER_NAME:-vrooli-browserless} to clear leaked sessions"
+                if docker restart "${BROWSERLESS_CONTAINER_NAME:-vrooli-browserless}" >/dev/null 2>&1; then
+                    attempted=true
+                    sleep 3
+                    diag=$(get_health_diagnostics 2>/dev/null || echo "{}")
+                    chrome_count=$(echo "$diag" | jq -r '.processes.chrome // 0' 2>/dev/null || echo "0")
+                    mem_pct=$(echo "$diag" | jq -r '.memory.usage_percent // 0' 2>/dev/null || echo "0")
+                    chrome_int=${chrome_count%.*}
+                    mem_int=${mem_pct%.*}
+                else
+                    log::error "Browserless ${context}: restart failed; manual intervention required"
+                fi
+            fi
+        fi
+    fi
+
+    if [[ -n "$TESTING_UI_SMOKE_BROWSERLESS_DETAIL" ]]; then
+        return 1
+    fi
+
+    if { [[ -n "$chrome_int" ]] && [ "$chrome_int" -gt 50 ]; } || \
+       { [[ -n "$mem_int" ]] && [ "$mem_int" -gt 80 ]; }; then
+        TESTING_UI_SMOKE_BROWSERLESS_DETAIL="Browserless still unhealthy after preflight cleanup (chrome=${chrome_count}, mem=${mem_pct}%)"
+        return 1
+    fi
+
+    if [ "$attempted" = true ]; then
+        log::info "Browserless ${context}: cleanup complete (chrome=${chrome_count}, mem=${mem_pct}%)"
+    fi
+    return 0
 }
 
 # Run the Browserless-backed UI smoke check
@@ -258,6 +345,20 @@ testing::ui_smoke::run() {
         testing::ui_smoke::_persist_summary "$offline_json" "$scenario_dir" "$scenario_name"
         testing::ui_smoke::_emit_summary "$offline_json" "$output_mode" "$summary_fd"
         return $TESTING_UI_SMOKE_EXIT_BROWSERLESS_OFFLINE
+    fi
+
+    if ! testing::ui_smoke::_preflight_browserless_guard; then
+        local guard_json
+        local msg="${TESTING_UI_SMOKE_BROWSERLESS_DETAIL:-Browserless unhealthy before UI smoke}"
+        guard_json=$(testing::ui_smoke::_build_summary_json \
+            --scenario "$scenario_name" \
+            --status "failed" \
+            --message "$msg" \
+            --scenario-dir "$scenario_dir" \
+            --browserless "$browserless_json")
+        testing::ui_smoke::_persist_summary "$guard_json" "$scenario_dir" "$scenario_name"
+        testing::ui_smoke::_emit_summary "$guard_json" "$output_mode" "$summary_fd"
+        return 1
     fi
 
     local runtime_managed=false

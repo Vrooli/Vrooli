@@ -458,22 +458,33 @@ _validate_playbook_reset_metadata() {
 
   local -a missing=()
   local -a invalid=()
+  # Accepted reset values must stay aligned with playbook authoring guidance
+  local -a allowed_reset_values=("none" "full")
+
   while IFS= read -r file_path; do
     [ -z "$file_path" ] && continue
     local reset_value
     reset_value=$(jq -r '.metadata.reset // empty' "$file_path" 2>/dev/null || echo "")
+    # jq -r includes a trailing newline; trim to avoid false negatives
+    reset_value=${reset_value//$'\n'/}
+    reset_value=${reset_value//$'\r'/}
     local rel_path="${file_path#$scenario_dir/}"
-    case "$reset_value" in
-      none|full)
-        :
-        ;;
-      "")
-        missing+=("$rel_path")
-        ;;
-      *)
-        invalid+=("$rel_path:$reset_value")
-        ;;
-    esac
+    if [ -z "$reset_value" ]; then
+      missing+=("$rel_path")
+      continue
+    fi
+
+    local is_allowed=false
+    for allowed in "${allowed_reset_values[@]}"; do
+      if [ "$reset_value" = "$allowed" ]; then
+        is_allowed=true
+        break
+      fi
+    done
+
+    if [ "$is_allowed" = false ]; then
+      invalid+=("$rel_path:$reset_value")
+    fi
   done < <(find "$playbook_root" -type f -name '*.json' ! -name 'registry.json' ! -path '*/__seeds/*' | sort)
 
   if [ ${#missing[@]} -eq 0 ] && [ ${#invalid[@]} -eq 0 ]; then

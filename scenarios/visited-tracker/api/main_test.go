@@ -15,43 +15,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// Test staleness calculation [REQ:VT-REQ-003]
-// Test file locking utilities
-// Test campaign path generation [REQ:VT-REQ-001]
-// Test campaign creation and storage [REQ:VT-REQ-001] [REQ:VT-REQ-005]
-// Test CORS middleware
-// Test health endpoint logic components
-// Test string pointer helper
-// Test updateStalenessScores function
-// [REQ:VT-REQ-003]
-// Test initFileStorage function
-// [REQ:VT-REQ-005]
-// Test saveCampaign function
-// [REQ:VT-REQ-005]
-// Test loadCampaign function
-// [REQ:VT-REQ-005]
-// Test loadAllCampaigns function
-// [REQ:VT-REQ-001] [REQ:VT-REQ-005]
-// [REQ:VT-REQ-001] [REQ:VT-REQ-005]
-// [REQ:VT-REQ-001] [REQ:VT-REQ-005]
-// Test deleteCampaignFile function
-// [REQ:VT-REQ-001]
-// Test health handler
-// [REQ:VT-REQ-006]
-// Test options handler
-// Test listCampaignsHandler
-// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
-// Test createCampaignHandler
-// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
-// Test getCampaignHandler
-// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
-// Test deleteCampaignHandler
-// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
-// Test visitHandler
-// [REQ:VT-REQ-002] [REQ:VT-REQ-006]
-// Test adjustVisitHandler
-// [REQ:VT-REQ-002] [REQ:VT-REQ-006]
-// Test coverageHandler
+// TestCoverageHandler verifies campaign file coverage statistics calculation
 // [REQ:VT-REQ-002] [REQ:VT-REQ-006]
 func TestCoverageHandler(t *testing.T) {
 	// Setup logger for testing
@@ -158,7 +122,8 @@ func TestCoverageHandler(t *testing.T) {
 	}
 }
 
-// [REQ:VT-REQ-010] Test exportHandler
+// TestExportHandler verifies campaign data export functionality
+// [REQ:VT-REQ-010]
 func TestExportHandler(t *testing.T) {
 	// Setup logger for testing
 	cleanup := setupTestLogger()
@@ -229,21 +194,9 @@ func TestExportHandler(t *testing.T) {
 	}
 }
 
-// Test constants (keeping existing functionality)
-// [REQ:VT-REQ-008] Test structureSyncHandler
-// Test leastVisitedHandler
-// [REQ:VT-REQ-009]
-// Test mostStaleHandler
-// [REQ:VT-REQ-003] [REQ:VT-REQ-009]
-// ============================================================================
-// Main Function and Environment Tests (Simplified - No Subprocess Testing)
-// ============================================================================
-
-// ============================================================================
-// Export Handler Tests (Lowest Coverage)
-// ============================================================================
-
-// [REQ:VT-REQ-010] Export Handler Tests (Comprehensive Coverage)
+// TestExportHandlerComprehensive verifies comprehensive campaign export scenarios
+// including filters, formats, and error handling
+// [REQ:VT-REQ-010]
 func TestExportHandlerComprehensive(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -411,22 +364,7 @@ func TestExportHandlerComprehensive(t *testing.T) {
 	}
 }
 
-// ============================================================================
-// Error Path and Edge Case Tests
-// ============================================================================
-
-// [REQ:VT-REQ-006]
-// [REQ:VT-REQ-001] [REQ:VT-REQ-005]
-// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
-// [REQ:VT-REQ-002] [REQ:VT-REQ-006]
-// [REQ:VT-REQ-002] [REQ:VT-REQ-006]
-// ============================================================================
-// Additional Coverage Improvement Tests
-// ============================================================================
-
-// [REQ:VT-REQ-008]
-// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
-// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
+// TestCoverageHandlerErrorPaths verifies coverage handler error handling and edge cases
 // [REQ:VT-REQ-002] [REQ:VT-REQ-006]
 func TestCoverageHandlerErrorPaths(t *testing.T) {
 	cleanup := setupTestLogger()
@@ -509,22 +447,3 @@ func TestCoverageHandlerErrorPaths(t *testing.T) {
 		t.Errorf("Expected status 404 for non-existent campaign, got %d", w.Code)
 	}
 }
-
-// TestGetCampaignHandlerWithDeletedFiles tests getCampaignHandler with deleted files
-// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
-// TestCreateCampaignHandlerMetadataInitialization tests metadata nil handling
-// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
-// TestCreateCampaignHandlerAutoSyncTracking tests auto-sync metadata tracking
-// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
-// TestDeleteCampaignHandlerIdempotent tests idempotent delete behavior
-// [REQ:VT-REQ-001] [REQ:VT-REQ-006]
-// Test findOrCreateCampaignHandler
-// [REQ:VT-REQ-015]
-// Test updateCampaignHandler
-// [REQ:VT-REQ-016]
-// Test updateFileNotesHandler
-// [REQ:VT-REQ-017]
-// Test updateFilePriorityHandler
-// [REQ:VT-REQ-018]
-// Test toggleFileExclusionHandler
-// [REQ:VT-REQ-019]

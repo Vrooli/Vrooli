@@ -20,8 +20,9 @@ export function CliCommand({ command, description, className = "" }: CliCommandP
       await navigator.clipboard.writeText(command);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
+    } catch {
+      // Silently fail if clipboard API is unavailable
+      // User will notice the lack of visual feedback
     }
   };
 
@@ -39,7 +40,7 @@ export function CliCommand({ command, description, className = "" }: CliCommandP
           variant="ghost"
           onClick={handleCopy}
           className="absolute right-1 top-1/2 -translate-y-1/2 h-7 sm:h-8 px-2 sm:px-2.5 hover:bg-white/10"
-          aria-label="Copy command to clipboard"
+          aria-label={copied ? "Copied to clipboard!" : "Copy command to clipboard"}
         >
           {copied ? (
             <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-400" aria-hidden="true" />

@@ -243,7 +243,7 @@ vrooli scenario test visited-tracker integration
 
 ### Base URL
 ```
-http://localhost:17695
+http://localhost:17694
 ```
 
 ### Key Endpoints
@@ -325,6 +325,6 @@ This scenario follows Vrooli's standard development patterns:
 
 ## 📚 Documentation
 
-- **API Documentation**: Available at `http://localhost:17695/docs`
+- **API Documentation**: Available at `http://localhost:17694/docs`
 - **Testing Guide**: See `api/TESTING_GUIDE.md`
 - **Development Setup**: Follow the standard Vrooli development workflow

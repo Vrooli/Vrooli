@@ -41,8 +41,9 @@ export function DialogContent({ className, onClose, children, ...props }: Dialog
           size="sm"
           className="absolute right-4 top-4 h-8 w-8 p-0"
           onClick={onClose}
+          aria-label="Close dialog"
         >
-          <X className="h-4 w-4" />
+          <X className="h-4 w-4" aria-hidden="true" />
         </Button>
       )}
       {children}

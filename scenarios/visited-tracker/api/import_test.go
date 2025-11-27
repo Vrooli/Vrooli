@@ -13,7 +13,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// [REQ:VT-REQ-010] Test importHandler - Campaign Import Functionality
+// TestImportHandler verifies campaign import and merge functionality
+// [REQ:VT-REQ-010]
 func TestImportHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()

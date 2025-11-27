@@ -36,7 +36,8 @@ func main() {
 		// The literal "../../../" is safe because it's compile-time defined and cannot be
 		// manipulated by external sources. filepath.Clean and filepath.Abs provide additional
 		// safety to resolve to absolute canonical path without symbolic links.
-		const initializationRelPath = "../../../"
+		// nosemgrep: go.lang.security.audit.path-traversal.path-join-resolve-dir
+		const initializationRelPath = "../../../" // #nosec G304 - Hardcoded initialization path, not user input
 		if absPath, err := filepath.Abs(initializationRelPath); err == nil {
 			projectRoot = filepath.Clean(absPath)
 		} else {
