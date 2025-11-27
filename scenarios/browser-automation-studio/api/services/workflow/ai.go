@@ -60,7 +60,7 @@ User prompt:
 	s.log.WithFields(logrus.Fields{
 		"model":            s.aiClient.model,
 		"duration_ms":      time.Since(start).Milliseconds(),
-		"response_preview": truncateForLog(response, 400),
+		"response_preview": logutil.TruncateForLog(response, 400),
 	}).Info("AI workflow generated via OpenRouter")
 
 	cleaned := extractJSONObject(stripJSONCodeFence(response))
@@ -68,8 +68,8 @@ User prompt:
 	var payload map[string]any
 	if err := json.Unmarshal([]byte(cleaned), &payload); err != nil {
 		s.log.WithError(err).WithFields(logrus.Fields{
-			"raw_response": truncateForLog(response, 2000),
-			"cleaned":      truncateForLog(cleaned, 2000),
+			"raw_response": logutil.TruncateForLog(response, 2000),
+			"cleaned":      logutil.TruncateForLog(cleaned, 2000),
 		}).Error("Failed to parse workflow JSON returned by OpenRouter")
 		return nil, fmt.Errorf("failed to parse OpenRouter JSON: %w", err)
 	}
@@ -317,8 +317,8 @@ User requested modifications:
 	var payload map[string]any
 	if err := json.Unmarshal([]byte(cleaned), &payload); err != nil {
 		s.log.WithError(err).WithFields(logrus.Fields{
-			"raw_response": truncateForLog(response, 2000),
-			"cleaned":      truncateForLog(cleaned, 2000),
+			"raw_response": logutil.TruncateForLog(response, 2000),
+			"cleaned":      logutil.TruncateForLog(cleaned, 2000),
 			"workflow_id":  workflowID,
 		}).Error("Failed to parse modified workflow JSON returned by OpenRouter")
 		return nil, fmt.Errorf("failed to parse OpenRouter JSON: %w", err)

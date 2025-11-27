@@ -16,7 +16,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/ai"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/logutil"
-	"github.com/vrooli/browser-automation-studio/services/workflow/files"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 

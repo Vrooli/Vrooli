@@ -1,4 +1,4 @@
-package files
+package workflow
 
 // This file previously contained all workflow file synchronization logic.
 // It has been refactored into focused modules:

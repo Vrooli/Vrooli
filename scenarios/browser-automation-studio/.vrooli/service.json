@@ -159,11 +159,11 @@
       "steps": [
         {
           "name": "start-playwright-driver",
-          "run": "if [ -n \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then exit 0; fi; ../../resources/playwright/cli.sh start",
-          "description": "Start local Playwright driver if no driver URL is configured",
+          "run": "if [ -n \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then exit 0; fi; cd playwright-driver && npm run dev",
+          "description": "Start TypeScript Playwright driver (v2.0) if no driver URL is configured",
           "background": true,
           "condition": {
-            "file_exists": "../../resources/playwright/cli.sh"
+            "file_exists": "playwright-driver/package.json"
           }
         },
         {

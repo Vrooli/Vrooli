@@ -1,4 +1,4 @@
-package files
+package workflow
 
 import (
 	"crypto/sha256"
@@ -216,7 +216,7 @@ func parseFlexibleInt(value any) int {
 	return 0
 }
 
-func toInterfaceSlice(value any) []any {
+func ToInterfaceSlice(value any) []any {
 	switch typed := value.(type) {
 	case nil:
 		return []any{}

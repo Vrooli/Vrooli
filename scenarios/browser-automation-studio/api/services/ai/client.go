@@ -107,7 +107,7 @@ func (c *OpenRouterClient) ExecutePrompt(ctx context.Context, prompt string) (st
 	if response == "" {
 		return "", errors.New("resource-openrouter returned an empty response; verify the selected model produces textual completions")
 	}
-	fields["response_preview"] = truncateForLog(response, 400)
+	fields["response_preview"] = logutil.TruncateForLog(response, 400)
 	c.log.WithFields(fields).Debug("OpenRouter prompt executed successfully")
 	return response, nil
 }

@@ -272,3 +272,140 @@ func TestHandleParseType(t *testing.T) {
 		})
 	}
 }
+
+// Test handleLightScan
+func TestHandleLightScan(t *testing.T) {
+	srv := &Server{
+		router: mux.NewRouter(),
+		db:     nil, // No DB needed for basic tests
+	}
+
+	tests := []struct {
+		name       string
+		body       interface{}
+		wantStatus int
+		wantError  string
+	}{
+		{
+			name:       "missing scenario_path",
+			body:       LightScanRequest{},
+			wantStatus: http.StatusBadRequest,
+			wantError:  "scenario_path is required",
+		},
+		{
+			name:       "invalid JSON",
+			body:       "invalid json",
+			wantStatus: http.StatusBadRequest,
+			wantError:  "invalid request body",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var bodyBytes []byte
+			var err error
+
+			if str, ok := tt.body.(string); ok {
+				bodyBytes = []byte(str)
+			} else {
+				bodyBytes, err = json.Marshal(tt.body)
+				if err != nil {
+					t.Fatalf("Failed to marshal request body: %v", err)
+				}
+			}
+
+			req, err := http.NewRequest("POST", "/api/v1/scan/light", bytes.NewBuffer(bodyBytes))
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
+
+			rr := httptest.NewRecorder()
+			srv.handleLightScan(rr, req)
+
+			if status := rr.Code; status != tt.wantStatus {
+				t.Errorf("handleLightScan() status = %v, want %v", status, tt.wantStatus)
+			}
+
+			if tt.wantError != "" {
+				var response map[string]interface{}
+				if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+					t.Fatalf("Failed to decode error response: %v", err)
+				}
+				if response["error"] != tt.wantError {
+					t.Errorf("handleLightScan() error = %v, want %v", response["error"], tt.wantError)
+				}
+			}
+		})
+	}
+}
+
+// Test handleSmartScan
+func TestHandleSmartScan(t *testing.T) {
+	srv := &Server{
+		router: mux.NewRouter(),
+	}
+
+	tests := []struct {
+		name       string
+		body       interface{}
+		wantStatus int
+		wantError  string
+	}{
+		{
+			name:       "missing scenario",
+			body:       SmartScanRequest{},
+			wantStatus: http.StatusBadRequest,
+			wantError:  "scenario is required",
+		},
+		{
+			name:       "missing files",
+			body:       SmartScanRequest{Scenario: "test-scenario"},
+			wantStatus: http.StatusBadRequest,
+			wantError:  "files list cannot be empty",
+		},
+		{
+			name:       "invalid JSON",
+			body:       "invalid json",
+			wantStatus: http.StatusBadRequest,
+			wantError:  "invalid request body",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var bodyBytes []byte
+			var err error
+
+			if str, ok := tt.body.(string); ok {
+				bodyBytes = []byte(str)
+			} else {
+				bodyBytes, err = json.Marshal(tt.body)
+				if err != nil {
+					t.Fatalf("Failed to marshal request body: %v", err)
+				}
+			}
+
+			req, err := http.NewRequest("POST", "/api/v1/scan/smart", bytes.NewBuffer(bodyBytes))
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
+
+			rr := httptest.NewRecorder()
+			srv.handleSmartScan(rr, req)
+
+			if status := rr.Code; status != tt.wantStatus {
+				t.Errorf("handleSmartScan() status = %v, want %v", status, tt.wantStatus)
+			}
+
+			if tt.wantError != "" {
+				var response map[string]interface{}
+				if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+					t.Fatalf("Failed to decode error response: %v", err)
+				}
+				if response["error"] != tt.wantError {
+					t.Errorf("handleSmartScan() error = %v, want %v", response["error"], tt.wantError)
+				}
+			}
+		})
+	}
+}
