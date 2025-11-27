@@ -19,9 +19,28 @@ import (
 	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 )
 
+// captureFrame represents a single captured frame.
+type captureFrame struct {
+	Index       int     `json:"index"`
+	TimestampMs int     `json:"timestampMs"`
+	FrameIndex  int     `json:"frameIndex"`
+	Progress    float64 `json:"progress"`
+	Data        string  `json:"data"`
+}
+
+// captureResponse contains the result of a capture operation.
+type captureResponse struct {
+	Success bool           `json:"success"`
+	Error   string         `json:"error"`
+	Frames  []captureFrame `json:"frames"`
+	FPS     int            `json:"fps"`
+	Width   int            `json:"width"`
+	Height  int            `json:"height"`
+}
+
 // playwrightCaptureClient reuses the automation executor + Playwright engine to
-// capture replay frames without Browserless. It navigates to the export page,
-// injects the movie spec, waits for render, and captures a screenshot.
+// capture replay frames. It navigates to the export page, injects the movie spec,
+// waits for render, and captures screenshots.
 type playwrightCaptureClient struct {
 	exportPageURL string
 }
@@ -30,7 +49,7 @@ func newPlaywrightCaptureClient(exportPageURL string) replayCaptureClient {
 	return &playwrightCaptureClient{exportPageURL: exportPageURL}
 }
 
-func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovieSpec, captureInterval int) (*browserlessCaptureResponse, error) {
+func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovieSpec, captureInterval int) (*captureResponse, error) {
 	if c == nil {
 		return nil, fmt.Errorf("playwright capture client not configured")
 	}
@@ -43,7 +62,7 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 
 	// Only attempt when Playwright driver is present.
 	if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-		return nil, fmt.Errorf("PLAYWRIGHT_DRIVER_URL not set; Playwright driver required for desktop capture")
+		return nil, fmt.Errorf("PLAYWRIGHT_DRIVER_URL not set; Playwright driver required for capture")
 	}
 
 	factory, err := autoengine.DefaultFactory(nil)
@@ -89,7 +108,7 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 		return nil, fmt.Errorf("playwright capture produced zero outcomes")
 	}
 
-	frames := make([]browserlessCaptureFrame, 0, len(rec.outcomes))
+	frames := make([]captureFrame, 0, len(rec.outcomes))
 	for idx, outcome := range rec.outcomes {
 		if outcome.Screenshot == nil || len(outcome.Screenshot.Data) == 0 {
 			continue
@@ -98,7 +117,7 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 		if outcome.CompletedAt != nil && plan.CreatedAt.Before(*outcome.CompletedAt) {
 			ts = int(outcome.CompletedAt.Sub(plan.CreatedAt).Milliseconds())
 		}
-		frames = append(frames, browserlessCaptureFrame{
+		frames = append(frames, captureFrame{
 			Index:       idx,
 			Data:        base64.StdEncoding.EncodeToString(outcome.Screenshot.Data),
 			TimestampMs: ts,
@@ -107,7 +126,7 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 	if len(frames) == 0 {
 		return nil, fmt.Errorf("playwright capture returned no frames")
 	}
-	return &browserlessCaptureResponse{Frames: frames}, nil
+	return &captureResponse{Frames: frames}, nil
 }
 
 func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieSpec, captureInterval int) []autocontracts.CompiledInstruction {

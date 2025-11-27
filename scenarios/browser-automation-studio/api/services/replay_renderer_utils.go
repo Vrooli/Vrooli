@@ -33,12 +33,16 @@ func defaultFilename(spec *ReplayMovieSpec, extension string) string {
 	return fmt.Sprintf("%s.%s", stem, extension)
 }
 
+const (
+	renderTimeoutBufferMillis  = 120000
+	perFrameRenderBudgetMillis = 220
+)
+
 // EstimateReplayRenderTimeout returns a conservative timeout budget for rendering a
-// replay movie spec. The calculation is aligned with the Browserless capture
-// budgeting inside renderWithBrowserless, ensuring handlers can provision a
-// long-lived context without hard-coding large constants.
+// replay movie spec. The calculation ensures handlers can provision a long-lived
+// context without hard-coding large constants.
 func EstimateReplayRenderTimeout(spec *ReplayMovieSpec) time.Duration {
-	timeoutMs := browserlessTimeoutBufferMillis
+	timeoutMs := renderTimeoutBufferMillis
 	if spec != nil {
 		captureInterval := spec.Playback.FrameIntervalMs
 		if captureInterval <= 0 {
@@ -75,7 +79,7 @@ func EstimateReplayRenderTimeout(spec *ReplayMovieSpec) time.Duration {
 			frameBudget = 1
 		}
 
-		timeoutMs += frameBudget * perFrameBrowserlessBudgetMillis
+		timeoutMs += frameBudget * perFrameRenderBudgetMillis
 		// Provide additional breathing room for ffmpeg assembly and other overheads.
 		timeoutMs += 60000
 	}

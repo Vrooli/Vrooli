@@ -5,24 +5,21 @@ Interfaces and implementations that run browser instructions.
 What lives here:
 - `AutomationEngine` / `EngineSession`: StartSession → Run/Reset/Close
 - `SessionSpec`: execution/workflow IDs, viewport, reuse mode, capability requirements
-- Env-based selection (`ENGINE`, `ENGINE_OVERRIDE`) via `selection.go`
 - Static factory for dependency injection
-- `BrowserlessEngine`: thin adapter over CDP session; converts runtime responses → contract `StepOutcome`
-- `PlaywrightEngine`: HTTP client for the local Playwright driver (Node) used in desktop/Electron bundles; emits the same contract `StepOutcome` shape.
-  - Performs `/health` checks against the driver endpoint before reporting capabilities.
+- `PlaywrightEngine`: HTTP client for the local Playwright driver (Node.js server); emits contract `StepOutcome` payloads
+  - Performs `/health` checks against the driver endpoint before reporting capabilities
+  - Supports advanced features: HAR capture, video recording, trace collection
 
 Session reuse modes: `fresh` (always new), `clean` (reuse process, reset storage), `reuse` (stick to existing state).
 
 ```mermaid
 sequenceDiagram
-    participant Sel as SelectionConfig
     participant Fac as Factory
-    participant Eng as AutomationEngine
+    participant Eng as PlaywrightEngine
     participant Sess as EngineSession
     participant Exec as SimpleExecutor
 
-    Exec->>Sel: Resolve(engineName)
-    Exec->>Fac: Resolve(name)
+    Exec->>Fac: Resolve("playwright")
     Fac->>Eng: return engine
     Exec->>Eng: Capabilities()
     Exec->>Eng: StartSession(SessionSpec)
@@ -35,4 +32,10 @@ sequenceDiagram
     Exec->>Sess: Close()
 ```
 
-Current engines: Browserless and Playwright. Selection defaults to Browserless unless overridden; set `ENGINE=playwright` when running with the Playwright driver (local desktop/Electron bundles).***
+Current engine: **Playwright only**. The system previously supported Browserless (CDP-based) but migrated entirely to Playwright for improved stability, better feature support (HAR/video/tracing), and simpler desktop/Electron integration.
+
+## Configuration
+
+Set `PLAYWRIGHT_DRIVER_URL` to point to the local Playwright driver server:
+- Default: `http://127.0.0.1:39400`
+- The driver is automatically started when using the scenario lifecycle (see `.vrooli/service.json`)

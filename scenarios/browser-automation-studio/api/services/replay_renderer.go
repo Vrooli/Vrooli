@@ -1,12 +1,11 @@
 // Package services provides rendering capabilities for browser automation replay artifacts.
 //
 // The ReplayRenderer orchestrates video and GIF generation from replay movie specifications.
-// It delegates to specialized modules for capture (Browserless/Playwright), media processing (FFmpeg),
+// It delegates to specialized modules for capture (Playwright), media processing (FFmpeg),
 // and utility operations (filename generation, timeout estimation).
 //
 // Module Organization:
 //   - replay_renderer.go (this file): Core types, orchestration, and main Render method
-//   - replay_renderer_browserless.go: Browserless capture client and JavaScript execution script
 //   - replay_renderer_ffmpeg.go: FFmpeg video assembly and GIF conversion
 //   - replay_renderer_utils.go: Filename sanitization and timeout estimation
 //   - replay_renderer_config.go: Configuration and constructor
@@ -44,13 +43,12 @@ func (m *RenderedMedia) Cleanup() {
 	m.cleanup()
 }
 
-// ReplayRenderer renders replay movie specs to video or gif assets using a browserless capture pipeline.
+// ReplayRenderer renders replay movie specs to video or gif assets using Playwright capture.
 type ReplayRenderer struct {
 	log               *logrus.Logger
 	recordingsRoot    string
 	ffmpegPath        string
 	httpClient        *http.Client
-	browserlessURL    string
 	exportPageURL     string
 	captureIntervalMs int
 	apiBaseURL        string
@@ -72,10 +70,9 @@ func NewReplayRenderer(log *logrus.Logger, recordingsRoot string) *ReplayRendere
 	return newReplayRendererConfig(log, recordingsRoot)
 }
 
-// replayCaptureClient abstracts the capture transport so non-Browserless
-// engines can be plugged in without rewriting the renderer pipeline.
+// replayCaptureClient abstracts the capture transport.
 type replayCaptureClient interface {
-	Capture(ctx context.Context, spec *ReplayMovieSpec, captureInterval int) (*browserlessCaptureResponse, error)
+	Capture(ctx context.Context, spec *ReplayMovieSpec, captureInterval int) (*captureResponse, error)
 }
 
 // Render creates a media artifact for the provided replay movie spec.
@@ -91,28 +88,14 @@ func (r *ReplayRenderer) Render(ctx context.Context, spec *ReplayMovieSpec, form
 	}
 
 	if r.captureClient == nil {
-		switch {
-		case r.shouldUseBrowserless():
-			r.captureClient = &browserlessCaptureClient{renderer: r}
-		case os.Getenv("PLAYWRIGHT_DRIVER_URL") != "":
-			r.captureClient = newPlaywrightCaptureClient(r.exportPageURL)
-		default:
-			r.captureClient = &browserlessCaptureClient{renderer: r} // preserve legacy behavior
+		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
+			return nil, errors.New("PLAYWRIGHT_DRIVER_URL required for replay rendering")
 		}
+		r.captureClient = newPlaywrightCaptureClient(r.exportPageURL)
 	}
 
-	if _, ok := r.captureClient.(*browserlessCaptureClient); ok {
-		if !r.shouldUseBrowserless() {
-			return nil, errors.New("browserless export is required but not configured")
-		}
-		if err := r.validateExportPageURL(); err != nil {
-			return nil, err
-		}
-	}
-	if _, ok := r.captureClient.(*playwrightCaptureClient); ok {
-		if strings.TrimSpace(r.exportPageURL) == "" {
-			return nil, errors.New("export page url not configured; set BAS_EXPORT_PAGE_URL or BAS_UI_BASE_URL")
-		}
+	if strings.TrimSpace(r.exportPageURL) == "" {
+		return nil, errors.New("export page url not configured; set BAS_EXPORT_PAGE_URL or BAS_UI_BASE_URL")
 	}
 
 	captureInterval := r.captureIntervalMs
@@ -120,7 +103,7 @@ func (r *ReplayRenderer) Render(ctx context.Context, spec *ReplayMovieSpec, form
 		captureInterval = spec.Playback.FrameIntervalMs
 	}
 	if spec.Summary.TotalDurationMs > 0 {
-		targetInterval := int(math.Ceil(float64(spec.Summary.TotalDurationMs) / float64(maxBrowserlessCaptureFrames)))
+		targetInterval := int(math.Ceil(float64(spec.Summary.TotalDurationMs) / float64(maxCaptureFrames)))
 		if targetInterval > captureInterval {
 			captureInterval = targetInterval
 		}
@@ -129,11 +112,11 @@ func (r *ReplayRenderer) Render(ctx context.Context, spec *ReplayMovieSpec, form
 		}
 	}
 
-	return r.renderWithBrowserless(ctx, spec, format, filename, captureInterval)
+	return r.renderCapture(ctx, spec, format, filename, captureInterval)
 }
 
-// WithCaptureClient allows callers to override the capture transport (e.g.,
-// Playwright desktop engine) while reusing the renderer pipeline.
+// WithCaptureClient allows callers to override the capture transport
+// while reusing the renderer pipeline.
 func (r *ReplayRenderer) WithCaptureClient(client replayCaptureClient) *ReplayRenderer {
 	if client == nil {
 		return r
@@ -142,10 +125,13 @@ func (r *ReplayRenderer) WithCaptureClient(client replayCaptureClient) *ReplayRe
 	return r
 }
 
-// renderWithBrowserless orchestrates the full pipeline: capture, decode, assemble, and optionally convert to GIF.
-func (r *ReplayRenderer) renderWithBrowserless(ctx context.Context, spec *ReplayMovieSpec, format RenderFormat, filename string, captureInterval int) (*RenderedMedia, error) {
+// renderCapture orchestrates the full pipeline: capture, decode, assemble, and optionally convert to GIF.
+func (r *ReplayRenderer) renderCapture(ctx context.Context, spec *ReplayMovieSpec, format RenderFormat, filename string, captureInterval int) (*RenderedMedia, error) {
 	if r.captureClient == nil {
-		r.captureClient = &browserlessCaptureClient{renderer: r}
+		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
+			return nil, errors.New("PLAYWRIGHT_DRIVER_URL required for capture")
+		}
+		r.captureClient = newPlaywrightCaptureClient(r.exportPageURL)
 	}
 
 	capture, err := r.captureClient.Capture(ctx, spec, captureInterval)
@@ -153,10 +139,10 @@ func (r *ReplayRenderer) renderWithBrowserless(ctx context.Context, spec *Replay
 		return nil, err
 	}
 	if capture == nil || len(capture.Frames) == 0 {
-		return nil, errors.New("browserless capture returned no frames")
+		return nil, errors.New("capture returned no frames")
 	}
 
-	tempRoot, err := os.MkdirTemp("", "bas-browserless-")
+	tempRoot, err := os.MkdirTemp("", "bas-replay-")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
@@ -192,7 +178,7 @@ func (r *ReplayRenderer) renderWithBrowserless(ctx context.Context, spec *Replay
 
 	if written == 0 {
 		cleanup()
-		return nil, errors.New("browserless capture produced zero usable frames")
+		return nil, errors.New("capture produced zero usable frames")
 	}
 
 	fps := capture.FPS

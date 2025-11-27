@@ -11,24 +11,19 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/browserless"
 )
 
 const (
-	browserlessFunctionPath         = "/chrome/function"
-	defaultCaptureInterval          = 40
-	defaultCaptureTailMs            = 320
-	defaultPresentationWidth        = 1280
-	defaultPresentationHeight       = 720
-	maxBrowserlessCaptureFrames     = 720
-	browserlessTimeoutBufferMillis  = 120000
-	perFrameBrowserlessBudgetMillis = 220
+	defaultCaptureInterval    = 40
+	defaultCaptureTailMs      = 320
+	defaultPresentationWidth  = 1280
+	defaultPresentationHeight = 720
+	maxCaptureFrames          = 720
 )
 
 func newReplayRendererConfig(log *logrus.Logger, recordingsRoot string) *ReplayRenderer {
 	ffmpegPath := detectFFmpegBinary()
 	client := &http.Client{Timeout: 16 * time.Minute}
-	browserlessURL, _ := browserless.ResolveURL(log, false)
 	exportPageURL := strings.TrimSpace(os.Getenv("BAS_EXPORT_PAGE_URL"))
 	if exportPageURL == "" {
 		exportPageURL = strings.TrimSpace(os.Getenv("BAS_UI_EXPORT_URL"))
@@ -81,18 +76,15 @@ func newReplayRendererConfig(log *logrus.Logger, recordingsRoot string) *ReplayR
 	if apiPort != "" {
 		apiBaseURL = fmt.Sprintf("%s://%s:%s", apiScheme, apiHost, apiPort)
 	}
-	renderer := &ReplayRenderer{
+	return &ReplayRenderer{
 		log:               log,
 		recordingsRoot:    recordingsRoot,
 		ffmpegPath:        ffmpegPath,
 		httpClient:        client,
-		browserlessURL:    browserlessURL,
 		exportPageURL:     exportPageURL,
 		captureIntervalMs: captureInterval,
 		apiBaseURL:        apiBaseURL,
 	}
-	renderer.captureClient = &browserlessCaptureClient{renderer: renderer}
-	return renderer
 }
 
 func detectFFmpegBinary() string {

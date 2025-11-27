@@ -58,20 +58,15 @@ type automationRunner struct {
 }
 
 func newAutomationRunner(log *logrus.Logger) (*automationRunner, error) {
-	selection := autoengine.FromEnv()
 	factory, err := autoengine.DefaultFactory(log)
 	if err != nil {
 		return nil, err
-	}
-	engineName := selection.Resolve("")
-	if engineName == "" {
-		engineName = "browserless"
 	}
 	return &automationRunner{
 		executor:      autoexecutor.NewSimpleExecutor(nil),
 		engineFactory: factory,
 		log:           log,
-		defaultEngine: engineName,
+		defaultEngine: "playwright",
 	}, nil
 }
 

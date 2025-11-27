@@ -14,7 +14,7 @@ type SelectionConfig struct {
 // FromEnv builds SelectionConfig from environment variables. The variables are
 // intentionally simple to avoid widening handler contracts:
 //
-//	ENGINE: global default engine name (e.g., browserless)
+//	ENGINE: global default engine name (default: playwright)
 //	ENGINE_OVERRIDE: hard override for all executions (e.g., desktop)
 func FromEnv() SelectionConfig {
 	return SelectionConfig{

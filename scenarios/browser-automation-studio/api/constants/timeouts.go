@@ -43,8 +43,8 @@ const (
 
 // External Service Timeouts
 const (
-	// BrowserlessHealthTimeout is used for browserless health check requests.
-	BrowserlessHealthTimeout = 5 * time.Second
+	// BrowserEngineHealthTimeout is used for browser engine health check requests.
+	BrowserEngineHealthTimeout = 5 * time.Second
 
 	// ShortLivedBackgroundContext is used for background operations that should
 	// complete quickly (e.g., connection initialization).

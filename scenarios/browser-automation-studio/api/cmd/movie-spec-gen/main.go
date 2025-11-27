@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	runtimepkg "github.com/vrooli/browser-automation-studio/browserless/runtime"
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/services"
 )
 
@@ -329,12 +329,12 @@ func main() {
 		reflect.TypeOf(services.ExportResilience{}):        "ReplayMovieResilience",
 		reflect.TypeOf(services.ExportFrame{}):             "ReplayMovieFrame",
 		reflect.TypeOf(services.RetryHistoryEntry{}):       "ReplayMovieRetryHistoryEntry",
-		reflect.TypeOf(runtimepkg.HighlightRegion{}):       "ReplayMovieRegion",
-		reflect.TypeOf(runtimepkg.MaskRegion{}):            "ReplayMovieRegion",
-		reflect.TypeOf(runtimepkg.ElementFocus{}):          "ReplayMovieFocusedElement",
-		reflect.TypeOf(runtimepkg.BoundingBox{}):           "ReplayMovieRegionBounds",
-		reflect.TypeOf(runtimepkg.Point{}):                 "ReplayMovieCursorTrailPoint",
-		reflect.TypeOf(runtimepkg.AssertionResult{}):       "ReplayMovieAssertion",
+		reflect.TypeOf(contracts.HighlightRegion{}):  "ReplayMovieRegion",
+		reflect.TypeOf(contracts.MaskRegion{}):       "ReplayMovieRegion",
+		reflect.TypeOf(contracts.ElementFocus{}):     "ReplayMovieFocusedElement",
+		reflect.TypeOf(contracts.BoundingBox{}):      "ReplayMovieRegionBounds",
+		reflect.TypeOf(contracts.Point{}):            "ReplayMovieCursorTrailPoint",
+		reflect.TypeOf(contracts.AssertionOutcome{}): "ReplayMovieAssertion",
 		reflect.TypeOf(services.ExportPlayback{}):          "ReplayMoviePlayback",
 		reflect.TypeOf(services.ExportPresentation{}):      "ReplayMoviePresentation",
 		reflect.TypeOf(services.ExportFrameRect{}):         "ReplayMovieFrameRect",
