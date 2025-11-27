@@ -72,13 +72,25 @@ export function useResetAutoSteerExecution() {
 
 /**
  * Seek Auto Steer execution cursor to a specific phase/iteration
+ * If profileId and scenarioName are provided and no execution state exists, initializes it first.
  */
 export function useSeekAutoSteerExecution() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ taskId, phaseIndex, phaseIteration }: { taskId: string; phaseIndex: number; phaseIteration: number }) =>
-      api.seekAutoSteerExecution(taskId, phaseIndex, phaseIteration),
+    mutationFn: ({
+      taskId,
+      phaseIndex,
+      phaseIteration,
+      profileId,
+      scenarioName,
+    }: {
+      taskId: string;
+      phaseIndex: number;
+      phaseIteration: number;
+      profileId?: string;
+      scenarioName?: string;
+    }) => api.seekAutoSteerExecution(taskId, phaseIndex, phaseIteration, profileId, scenarioName),
     onSuccess: (state) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.executionState(state?.task_id ?? 'none') });
     },

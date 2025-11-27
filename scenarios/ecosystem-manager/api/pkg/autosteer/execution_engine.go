@@ -223,14 +223,26 @@ func (e *ExecutionEngine) EvaluateIteration(taskID string, scenarioName string) 
 }
 
 // SeekExecution manually adjusts the execution cursor to a specific phase/iteration.
-func (e *ExecutionEngine) SeekExecution(taskID string, phaseIndex int, phaseIteration int) (*ProfileExecutionState, error) {
+// If no execution state exists and profileID + scenarioName are provided, initializes the state first.
+// This allows setting the starting position before the first execution.
+func (e *ExecutionEngine) SeekExecution(taskID, profileID, scenarioName string, phaseIndex int, phaseIteration int) (*ProfileExecutionState, error) {
 	state, err := e.GetExecutionState(taskID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get execution state: %w", err)
 	}
 
+	// If no state exists, try to initialize it first
 	if state == nil {
-		return nil, fmt.Errorf("no execution state found for task: %s", taskID)
+		if profileID == "" || scenarioName == "" {
+			return nil, fmt.Errorf("no execution state found for task %s; provide profile_id and scenario_name to initialize", taskID)
+		}
+
+		log.Printf("Auto Steer: Initializing execution state for task %s before seeking (profile: %s, scenario: %s)", taskID, profileID, scenarioName)
+		state, err = e.StartExecution(taskID, profileID, scenarioName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize execution state: %w", err)
+		}
+		log.Printf("Auto Steer: Initialized task %s at phase 0, now seeking to phase %d iteration %d", taskID, phaseIndex, phaseIteration)
 	}
 
 	profile, err := e.profileService.GetProfile(state.ProfileID)

@@ -29,7 +29,7 @@ type ExecutionEngineAPI interface {
 	StartExecution(taskID, profileID, scenarioName string) (*ProfileExecutionState, error)
 	EvaluateIteration(taskID, scenarioName string) (*IterationEvaluation, error)
 	DeleteExecutionState(taskID string) error
-	SeekExecution(taskID string, phaseIndex, phaseIteration int) (*ProfileExecutionState, error)
+	SeekExecution(taskID, profileID, scenarioName string, phaseIndex, phaseIteration int) (*ProfileExecutionState, error)
 	AdvancePhase(taskID, scenarioName string) (*PhaseAdvanceResult, error)
 	GetExecutionState(taskID string) (*ProfileExecutionState, error)
 	GetCurrentMode(taskID string) (SteerMode, error)
@@ -262,9 +262,12 @@ func (h *AutoSteerHandlers) ResetExecution(w http.ResponseWriter, r *http.Reques
 
 // SeekExecution handles POST /api/auto-steer/execution/seek
 // Allows operators to jump to a specific phase/iteration without restarting.
+// If no execution state exists, profile_id and scenario_name can be provided to initialize it first.
 func (h *AutoSteerHandlers) SeekExecution(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		TaskID         string `json:"task_id"`
+		ProfileID      string `json:"profile_id,omitempty"`       // Optional: for initialization if no state exists
+		ScenarioName   string `json:"scenario_name,omitempty"`    // Optional: for initialization if no state exists
 		PhaseIndex     int    `json:"phase_index"`
 		PhaseIteration int    `json:"phase_iteration"`
 	}
@@ -279,7 +282,7 @@ func (h *AutoSteerHandlers) SeekExecution(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	state, err := h.executionEngine.SeekExecution(req.TaskID, req.PhaseIndex, req.PhaseIteration)
+	state, err := h.executionEngine.SeekExecution(req.TaskID, req.ProfileID, req.ScenarioName, req.PhaseIndex, req.PhaseIteration)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "Failed to seek execution: "+err.Error())
 		return

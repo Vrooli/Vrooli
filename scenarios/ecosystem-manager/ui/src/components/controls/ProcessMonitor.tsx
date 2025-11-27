@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRunningProcesses } from '../../hooks/useRunningProcesses';
 import { Button } from '../ui/button';
 import { ProcessCard } from './ProcessCard';
-import { Activity, ChevronDown } from 'lucide-react';
+import { Activity, ChevronDown, X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -20,6 +20,20 @@ export function ProcessMonitor({ onSelectTask }: ProcessMonitorProps) {
   const [loadingTaskId, setLoadingTaskId] = useState<string | null>(null);
 
   const processCount = processes.length;
+
+  // Handle escape key to close popup
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [isOpen]);
 
   const findTaskInCache = (taskId: string): Task | undefined => {
     const listQueries = queryClient.getQueriesData<Task[]>({ queryKey: queryKeys.tasks.lists() });
@@ -83,11 +97,22 @@ export function ProcessMonitor({ onSelectTask }: ProcessMonitorProps) {
 
           {/* Dropdown panel */}
           <div className="absolute right-0 bottom-full mb-2 w-80 bg-background border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-            <div className="p-3 border-b">
-              <h3 className="font-semibold text-sm">Running Processes</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {processCount} active {processCount === 1 ? 'process' : 'processes'}
-              </p>
+            <div className="p-3 border-b flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-sm">Running Processes</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {processCount} active {processCount === 1 ? 'process' : 'processes'}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 flex-shrink-0"
+                onClick={() => setIsOpen(false)}
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
 
             <div className="p-2 space-y-2">

@@ -4,18 +4,34 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/settings"
+)
+
+// insightProcess tracks a running insight generation process
+type insightProcess struct {
+	taskID    string
+	taskTitle string
+	started   time.Time
+}
+
+var (
+	// Global registry for insight processes
+	insightProcessesMu sync.RWMutex
+	insightProcesses   = make(map[string]*insightProcess)
 )
 
 // ProcessInfo contains runtime information about a running task process
 type ProcessInfo struct {
 	TaskID          string `json:"task_id"`
 	ProcessID       int    `json:"process_id"`
-	StartTime       string `json:"start_time"`       // RFC3339 timestamp
-	Duration        string `json:"duration"`         // Human-readable (e.g., "5m30s")
-	DurationSeconds int64  `json:"duration_seconds"` // Machine-readable seconds
+	ProcessType     string `json:"process_type"`             // "task" or "insight"
+	TaskTitle       string `json:"task_title,omitempty"`     // Optional task title for UI display
+	StartTime       string `json:"start_time"`               // RFC3339 timestamp
+	Duration        string `json:"duration"`                 // Human-readable (e.g., "5m30s")
+	DurationSeconds int64  `json:"duration_seconds"`         // Machine-readable seconds
 	AgentID         string `json:"agent_id,omitempty"`
 	TimeoutAt       string `json:"timeout_at,omitempty"`     // RFC3339 timestamp when timeout occurs
 	TimedOut        bool   `json:"timed_out"`                // Whether task has exceeded timeout
@@ -129,16 +145,25 @@ func (qp *Processor) GetRunningProcessesInfo() []ProcessInfo {
 	processes := make([]ProcessInfo, 0, len(qp.executions))
 	now := time.Now()
 
+	// Add task executions
 	for taskID, execState := range qp.executions {
 		duration := now.Sub(execState.started)
 		info := ProcessInfo{
 			TaskID:          taskID,
 			ProcessID:       execState.pid(),
+			ProcessType:     "task", // Default to task type
 			StartTime:       execState.started.Format(time.RFC3339),
 			Duration:        duration.Round(time.Second).String(),
 			DurationSeconds: int64(duration.Seconds()),
 			AgentID:         execState.agentTag,
 			TimedOut:        execState.isTimedOut(),
+		}
+
+		// Try to get task title from storage
+		if qp.storage != nil {
+			if task, _, err := qp.storage.GetTaskByID(taskID); err == nil && task != nil {
+				info.TaskTitle = task.Title
+			}
 		}
 
 		// Add timeout information if available
@@ -155,7 +180,50 @@ func (qp *Processor) GetRunningProcessesInfo() []ProcessInfo {
 		processes = append(processes, info)
 	}
 
+	// Add insight generation processes
+	insightProcessesMu.RLock()
+	for taskID, insightProc := range insightProcesses {
+		duration := now.Sub(insightProc.started)
+		info := ProcessInfo{
+			TaskID:          taskID,
+			ProcessID:       0, // No actual process ID for HTTP-based insights
+			ProcessType:     "insight",
+			TaskTitle:       insightProc.taskTitle,
+			StartTime:       insightProc.started.Format(time.RFC3339),
+			Duration:        duration.Round(time.Second).String(),
+			DurationSeconds: int64(duration.Seconds()),
+			AgentID:         "insight-generator",
+		}
+		processes = append(processes, info)
+	}
+	insightProcessesMu.RUnlock()
+
 	return processes
+}
+
+// RegisterInsightProcess registers a running insight generation process
+func RegisterInsightProcess(taskID, taskTitle string) {
+	insightProcessesMu.Lock()
+	defer insightProcessesMu.Unlock()
+
+	insightProcesses[taskID] = &insightProcess{
+		taskID:    taskID,
+		taskTitle: taskTitle,
+		started:   time.Now(),
+	}
+
+	log.Printf("Registered insight generation process for task %s", taskID)
+}
+
+// UnregisterInsightProcess removes an insight generation process from the registry
+func UnregisterInsightProcess(taskID string) {
+	insightProcessesMu.Lock()
+	defer insightProcessesMu.Unlock()
+
+	if _, exists := insightProcesses[taskID]; exists {
+		delete(insightProcesses, taskID)
+		log.Printf("Unregistered insight generation process for task %s", taskID)
+	}
 }
 
 // IsTaskRunning returns true if the task is currently tracked in executions

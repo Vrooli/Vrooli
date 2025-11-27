@@ -1,6 +1,6 @@
 import { useState, useEffect, type KeyboardEvent, type MouseEvent } from 'react';
 import { Button } from '../ui/button';
-import { XCircle, Clock } from 'lucide-react';
+import { XCircle, Clock, Lightbulb, Zap } from 'lucide-react';
 import { useTerminateProcess } from '../../hooks/useRunningProcesses';
 import type { RunningProcess } from '../../types/api';
 
@@ -45,10 +45,16 @@ export function ProcessCard({ process, onSelect }: ProcessCardProps) {
   const handleTerminate = (event: MouseEvent) => {
     event.stopPropagation();
     const taskId = process.task_id || process.process_id;
-    if (confirm(`Terminate process for task ${taskId}?`)) {
+    const processTypeLabel = process.process_type === 'insight' ? 'insight generation' : 'task';
+    if (confirm(`Terminate ${processTypeLabel} process for task ${taskId}?`)) {
       terminateProcess.mutate(taskId);
     }
   };
+
+  const isInsight = process.process_type === 'insight';
+  const ProcessIcon = isInsight ? Lightbulb : Zap;
+  const iconColor = isInsight ? 'text-amber-500' : 'text-blue-500';
+  const bgColor = isInsight ? 'bg-amber-500/10 hover:bg-amber-500/20' : 'bg-muted/50 hover:bg-muted';
 
   return (
     <div
@@ -65,32 +71,40 @@ export function ProcessCard({ process, onSelect }: ProcessCardProps) {
             }
           : undefined
       }
-      className={`flex items-center justify-between gap-3 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors ${
+      className={`flex items-center justify-between gap-3 p-2 rounded-lg transition-colors ${bgColor} ${
         onSelect ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60' : ''
       }`}
     >
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium truncate">
-            Task {process.task_id.slice(0, 8)}
-          </span>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Clock className="h-3 w-3" />
-            <span className="tabular-nums">{formatElapsed(elapsedSeconds)}</span>
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <ProcessIcon className={`h-4 w-4 flex-shrink-0 ${iconColor}`} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium truncate">
+              {isInsight ? 'Generating Insights' : `Task ${process.task_id.slice(0, 8)}`}
+            </span>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              <span className="tabular-nums">{formatElapsed(elapsedSeconds)}</span>
+            </div>
           </div>
+          {process.task_title && (
+            <div className="text-xs text-muted-foreground truncate">
+              {process.task_title}
+            </div>
+          )}
+          {!isInsight && process.agent_id && (
+            <div className="text-xs text-muted-foreground truncate">
+              Agent: {process.agent_id}
+            </div>
+          )}
         </div>
-        {process.agent_id && (
-          <div className="text-xs text-muted-foreground truncate">
-            Agent: {process.agent_id}
-          </div>
-        )}
       </div>
       <Button
         variant="ghost"
         size="sm"
         onClick={handleTerminate}
         disabled={terminateProcess.isPending}
-        className="h-8 w-8 p-0"
+        className="h-8 w-8 p-0 flex-shrink-0"
       >
         <XCircle className="h-4 w-4 text-destructive" />
       </Button>

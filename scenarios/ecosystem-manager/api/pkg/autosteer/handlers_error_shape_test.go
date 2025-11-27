@@ -35,7 +35,7 @@ func (s *stubExecutionEngine) EvaluateIteration(taskID, scenarioName string) (*I
 	return nil, nil
 }
 func (s *stubExecutionEngine) DeleteExecutionState(taskID string) error { return nil }
-func (s *stubExecutionEngine) SeekExecution(taskID string, phaseIndex, phaseIteration int) (*ProfileExecutionState, error) {
+func (s *stubExecutionEngine) SeekExecution(taskID, profileID, scenarioName string, phaseIndex, phaseIteration int) (*ProfileExecutionState, error) {
 	return nil, nil
 }
 func (s *stubExecutionEngine) AdvancePhase(taskID, scenarioName string) (*PhaseAdvanceResult, error) {

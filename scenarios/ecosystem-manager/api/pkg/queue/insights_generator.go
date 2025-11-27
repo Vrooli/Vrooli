@@ -21,6 +21,21 @@ func (qp *Processor) GenerateInsightReportForTask(taskID string, limit int, stat
 	log.Printf("Generating insight report for task %s (limit: %d, filter: %s)", taskID, limit, statusFilter)
 	systemlog.Infof("Starting insight generation for task %s", taskID)
 
+	// Get task title for process tracking
+	var taskTitle string
+	if qp.storage != nil {
+		if task, _, err := qp.storage.GetTaskByID(taskID); err == nil && task != nil {
+			taskTitle = task.Title
+		}
+	}
+	if taskTitle == "" {
+		taskTitle = taskID
+	}
+
+	// Register insight generation process
+	RegisterInsightProcess(taskID, taskTitle)
+	defer UnregisterInsightProcess(taskID)
+
 	// Load execution history
 	history, err := qp.LoadExecutionHistory(taskID)
 	if err != nil {
@@ -528,6 +543,21 @@ func (qp *Processor) GenerateInsightReportWithCustomPrompt(taskID string, limit 
 	if customPrompt == "" {
 		return nil, fmt.Errorf("custom prompt is required")
 	}
+
+	// Get task title for process tracking
+	var taskTitle string
+	if qp.storage != nil {
+		if task, _, err := qp.storage.GetTaskByID(taskID); err == nil && task != nil {
+			taskTitle = task.Title
+		}
+	}
+	if taskTitle == "" {
+		taskTitle = taskID
+	}
+
+	// Register insight generation process
+	RegisterInsightProcess(taskID, taskTitle)
+	defer UnregisterInsightProcess(taskID)
 
 	// Load execution history for metadata
 	history, err := qp.LoadExecutionHistory(taskID)

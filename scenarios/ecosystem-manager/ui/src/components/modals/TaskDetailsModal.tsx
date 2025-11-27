@@ -42,6 +42,7 @@ interface TaskDetailsModalProps {
   task: Task | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialTab?: 'details' | 'prompt' | 'executions' | 'insights' | 'campaigns';
 }
 
 const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low'];
@@ -234,8 +235,8 @@ function CampaignsTab({ task }: { task: Task }) {
   );
 }
 
-export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalProps) {
-  const [activeTab, setActiveTab] = useState('details');
+export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'details' }: TaskDetailsModalProps) {
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   // Form state
   const [targetName, setTargetName] = useState('');
@@ -351,14 +352,21 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
   // Reset when modal closes
   useEffect(() => {
     if (!open) {
-      setActiveTab('details');
+      setActiveTab(initialTab);
       setSelectedExecutionId(null);
       setNotesDirty(false);
       lastTaskIdRef.current = null;
       lastSyncedNotesRef.current = '';
       setAutoSteerExpanded(false);
     }
-  }, [open]);
+  }, [open, initialTab]);
+
+  // Update active tab when initialTab changes and modal is open
+  useEffect(() => {
+    if (open) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab, open]);
 
   useEffect(() => {
     if (autoSteerProfileId !== AUTO_STEER_NONE && steerMode !== 'none') {
@@ -557,10 +565,15 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
 
     try {
       if (seekNeeded) {
+        const scenarioName = Array.isArray(normalizedTarget)
+          ? normalizedTarget[0]
+          : normalizedTarget;
         await seekAutoSteer.mutateAsync({
           taskId: task.id,
           phaseIndex: phaseDraft,
           phaseIteration: desiredPhaseIteration,
+          profileId: autoSteerProfileId !== AUTO_STEER_NONE ? autoSteerProfileId : undefined,
+          scenarioName: scenarioName || undefined,
         });
         await refetchAutoSteerState();
       }
@@ -860,10 +873,15 @@ export function TaskDetailsModal({ task, open, onOpenChange }: TaskDetailsModalP
                             disabled={!canSeekAutoSteer || seekAutoSteer.isPending}
                             onClick={async () => {
                               if (!task) return;
+                              const scenarioName = Array.isArray(normalizedTarget)
+                                ? normalizedTarget[0]
+                                : (normalizedTarget || task.target);
                               await seekAutoSteer.mutateAsync({
                                 taskId: task.id,
                                 phaseIndex: phaseDraft,
                                 phaseIteration: Math.min(iterationDraft, selectedPhaseMaxIterations),
+                                profileId: autoSteerProfileId !== AUTO_STEER_NONE ? autoSteerProfileId : undefined,
+                                scenarioName: scenarioName || undefined,
                               });
                               await Promise.allSettled([
                                 refetchAutoSteerState(),

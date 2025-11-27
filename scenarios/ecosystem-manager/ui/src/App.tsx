@@ -16,7 +16,13 @@ export default function App() {
   const { activeModal, setActiveModal, isFilterPanelOpen } = useAppState();
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTab, setSelectedTab] = useState<'details' | 'prompt' | 'executions' | 'insights' | 'campaigns'>('details');
   const deleteTask = useDeleteTask();
+
+  const handleSelectTask = (task: Task, tab: 'details' | 'prompt' | 'executions' | 'insights' | 'campaigns' = 'details') => {
+    setSelectedTask(task);
+    setSelectedTab(tab);
+  };
 
   const handleDeleteTask = (task: Task) => {
     const label = task.title || task.id;
@@ -37,15 +43,22 @@ export default function App() {
     ensureDiscoveryLoaded();
   }, []);
 
+  const handleCloseTaskModal = (open: boolean) => {
+    if (!open) {
+      setSelectedTask(null);
+      setSelectedTab('details');
+    }
+  };
+
   return (
     <div className="h-screen bg-background text-foreground flex flex-col">
       {/* Floating Controls */}
-      <FloatingControls onSelectTask={(task) => setSelectedTask(task)} />
+      <FloatingControls onSelectTask={handleSelectTask} />
 
       {/* Main Content */}
       <main className="p-0 flex-1 min-h-0 overflow-hidden">
         <KanbanBoard
-          onViewTaskDetails={(task) => setSelectedTask(task)}
+          onViewTaskDetails={(task) => handleSelectTask(task)}
           onDeleteTask={handleDeleteTask}
         />
       </main>
@@ -63,7 +76,8 @@ export default function App() {
       <TaskDetailsModal
         task={selectedTask}
         open={!!selectedTask}
-        onOpenChange={(open) => !open && setSelectedTask(null)}
+        onOpenChange={handleCloseTaskModal}
+        initialTab={selectedTab}
       />
 
       {/* Settings Modal */}

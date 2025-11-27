@@ -123,6 +123,7 @@ export interface RunningProcess {
   task_id: string;
   task_title: string;
   process_id: string;
+  process_type: 'task' | 'insight';
   agent_id: string;
   start_time: string;
   elapsed_seconds: number;

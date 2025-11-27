@@ -174,11 +174,13 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 	history.TimeoutAllowed = timeoutDuration.String()
 
 	// Initialize Auto Steer if needed (first time executing with Auto Steer profile)
+	autoSteerInitFailed := false
 	if qp.autoSteerIntegration != nil && task.AutoSteerProfileID != "" {
 		scenarioName := getScenarioNameFromTask(&task)
 		if err := qp.autoSteerIntegration.InitializeAutoSteer(&task, scenarioName); err != nil {
 			log.Printf("Failed to initialize Auto Steer for task %s: %v", task.ID, err)
 			systemlog.Errorf("Auto Steer initialization failed for task %s: %v", task.ID, err)
+			autoSteerInitFailed = true
 			// Continue without Auto Steer rather than failing the task
 		}
 	}
@@ -296,26 +298,36 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 
 		// Auto Steer: Evaluate iteration and determine if task should continue
 		if qp.autoSteerIntegration != nil && task.AutoSteerProfileID != "" {
-			scenarioName := getScenarioNameFromTask(&task)
-			shouldContinue, err := qp.autoSteerIntegration.ShouldContinueTask(&task, scenarioName)
-			if err != nil {
-				log.Printf("Warning: Auto Steer evaluation failed for task %s: %v", task.ID, err)
-				systemlog.Warnf("Auto Steer evaluation error for %s: %v", task.ID, err)
-				// Continue with normal requeue behavior on error
+			// If initialization failed earlier, disable auto-requeue to prevent infinite loop
+			if autoSteerInitFailed {
+				log.Printf("Auto Steer: Task %s initialization failed - disabling auto-requeue", task.ID)
+				systemlog.Warnf("Auto Steer: Task %s disabled due to initialization failure", task.ID)
+				task.ProcessorAutoRequeue = false
+				task.Status = tasks.StatusCompletedFinalized
 			} else {
-				if !shouldContinue {
-					log.Printf("Auto Steer: Task %s completed all phases - moving to finalized", task.ID)
-					systemlog.Infof("Auto Steer: Task %s fully complete - finalized", task.ID)
-					// Use completed-finalized to prevent profile reset on manual moves
+				scenarioName := getScenarioNameFromTask(&task)
+				shouldContinue, err := qp.autoSteerIntegration.ShouldContinueTask(&task, scenarioName)
+				if err != nil {
+					log.Printf("Warning: Auto Steer evaluation failed for task %s: %v", task.ID, err)
+					systemlog.Warnf("Auto Steer evaluation error for %s: %v", task.ID, err)
+					// Disable auto-requeue to prevent infinite loop when evaluation fails
 					task.ProcessorAutoRequeue = false
 					task.Status = tasks.StatusCompletedFinalized
 				} else {
-					if task.ProcessorAutoRequeue {
-						log.Printf("Auto Steer: Task %s will continue - requeuing for next iteration", task.ID)
-						task.Status = "pending"
+					if !shouldContinue {
+						log.Printf("Auto Steer: Task %s completed all phases - moving to finalized", task.ID)
+						systemlog.Infof("Auto Steer: Task %s fully complete - finalized", task.ID)
+						// Use completed-finalized to prevent profile reset on manual moves
+						task.ProcessorAutoRequeue = false
+						task.Status = tasks.StatusCompletedFinalized
 					} else {
-						log.Printf("Auto Steer: Task %s would continue, but auto-enqueue is disabled; leaving completed", task.ID)
-						task.Status = "completed"
+						if task.ProcessorAutoRequeue {
+							log.Printf("Auto Steer: Task %s will continue - requeuing for next iteration", task.ID)
+							task.Status = "pending"
+						} else {
+							log.Printf("Auto Steer: Task %s would continue, but auto-enqueue is disabled; leaving completed", task.ID)
+							task.Status = "completed"
+						}
 					}
 				}
 			}

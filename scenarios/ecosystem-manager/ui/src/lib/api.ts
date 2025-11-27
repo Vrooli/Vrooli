@@ -985,13 +985,21 @@ class ApiClient {
     });
   }
 
-  async seekAutoSteerExecution(taskId: string, phaseIndex: number, phaseIteration: number): Promise<AutoSteerExecutionState> {
+  async seekAutoSteerExecution(
+    taskId: string,
+    phaseIndex: number,
+    phaseIteration: number,
+    profileId?: string,
+    scenarioName?: string
+  ): Promise<AutoSteerExecutionState> {
     return this.fetchJSON<AutoSteerExecutionState>(`/api/auto-steer/execution/seek`, {
       method: 'POST',
       body: JSON.stringify({
         task_id: taskId,
         phase_index: phaseIndex,
         phase_iteration: phaseIteration,
+        ...(profileId && { profile_id: profileId }),
+        ...(scenarioName && { scenario_name: scenarioName }),
       }),
     });
   }
