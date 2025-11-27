@@ -501,6 +501,183 @@ cmd_recommend_refactors() {
     esac
 }
 
+cmd_visit() {
+    # Wrapper for visited-tracker visit command with refactor tag
+    if ! command -v visited-tracker >/dev/null 2>&1; then
+        echo -e "${RED}✗${NC} visited-tracker CLI not found" >&2
+        echo "Install visited-tracker scenario first" >&2
+        return 1
+    fi
+
+    local file_path=""
+    local note=""
+    local scenario=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scenario)
+                scenario="$2"
+                shift 2
+                ;;
+            --note)
+                note="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$file_path" ]]; then
+                    file_path="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$file_path" ]]; then
+        echo -e "${RED}✗${NC} File path required" >&2
+        echo "Usage: tidiness-manager visit <file-path> --scenario <name> --note <note>" >&2
+        return 1
+    fi
+
+    if [[ -z "$scenario" ]]; then
+        echo -e "${RED}✗${NC} Scenario name required (use --scenario)" >&2
+        return 1
+    fi
+
+    # Resolve absolute path to scenario location using VROOLI_ROOT
+    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+    local location="$vrooli_root/scenarios/$scenario"
+
+    if [[ ! -d "$location" ]]; then
+        echo -e "${YELLOW}⚠${NC} Warning: Scenario directory not found at $location" >&2
+    fi
+
+    # Build visited-tracker command with absolute location path
+    local vt_cmd="visited-tracker visit \"$file_path\" --location \"$location\" --tag refactor"
+    if [[ -n "$note" ]]; then
+        vt_cmd="$vt_cmd --note \"$note\""
+    fi
+
+    echo -e "${BLUE}Recording visit to $file_path...${NC}" >&2
+    eval "$vt_cmd"
+}
+
+cmd_exclude() {
+    # Wrapper for visited-tracker exclude command with refactor tag
+    if ! command -v visited-tracker >/dev/null 2>&1; then
+        echo -e "${RED}✗${NC} visited-tracker CLI not found" >&2
+        echo "Install visited-tracker scenario first" >&2
+        return 1
+    fi
+
+    local file_path=""
+    local reason=""
+    local scenario=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scenario)
+                scenario="$2"
+                shift 2
+                ;;
+            --reason)
+                reason="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$file_path" ]]; then
+                    file_path="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$file_path" ]]; then
+        echo -e "${RED}✗${NC} File path required" >&2
+        echo "Usage: tidiness-manager exclude <file-path> --scenario <name> --reason <reason>" >&2
+        return 1
+    fi
+
+    if [[ -z "$scenario" ]]; then
+        echo -e "${RED}✗${NC} Scenario name required (use --scenario)" >&2
+        return 1
+    fi
+
+    # Resolve absolute path to scenario location using VROOLI_ROOT
+    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+    local location="$vrooli_root/scenarios/$scenario"
+
+    if [[ ! -d "$location" ]]; then
+        echo -e "${YELLOW}⚠${NC} Warning: Scenario directory not found at $location" >&2
+    fi
+
+    # Build visited-tracker command with absolute location path
+    local vt_cmd="visited-tracker exclude \"$file_path\" --location \"$location\" --tag refactor"
+    if [[ -n "$reason" ]]; then
+        vt_cmd="$vt_cmd --reason \"$reason\""
+    fi
+
+    echo -e "${BLUE}Excluding $file_path from future recommendations...${NC}" >&2
+    eval "$vt_cmd"
+}
+
+cmd_campaign_note() {
+    # Wrapper for visited-tracker campaigns note command
+    if ! command -v visited-tracker >/dev/null 2>&1; then
+        echo -e "${RED}✗${NC} visited-tracker CLI not found" >&2
+        echo "Install visited-tracker scenario first" >&2
+        return 1
+    fi
+
+    local note=""
+    local scenario=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scenario)
+                scenario="$2"
+                shift 2
+                ;;
+            --note)
+                note="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$scenario" ]]; then
+        echo -e "${RED}✗${NC} Scenario name required (use --scenario)" >&2
+        echo "Usage: tidiness-manager campaign-note --scenario <name> --note <note>" >&2
+        return 1
+    fi
+
+    if [[ -z "$note" ]]; then
+        echo -e "${RED}✗${NC} Note content required (use --note)" >&2
+        return 1
+    fi
+
+    # Resolve absolute path to scenario location using VROOLI_ROOT
+    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+    local location="$vrooli_root/scenarios/$scenario"
+
+    if [[ ! -d "$location" ]]; then
+        echo -e "${YELLOW}⚠${NC} Warning: Scenario directory not found at $location" >&2
+    fi
+
+    # Build visited-tracker command with absolute location path
+    local campaign_name="$scenario - Code Refactoring"
+    local vt_cmd="visited-tracker campaigns note --location \"$location\" --tag refactor --name \"$campaign_name\" --note \"$note\""
+
+    echo -e "${BLUE}Adding campaign note for $scenario...${NC}" >&2
+    eval "$vt_cmd"
+}
+
 cmd_help() {
     cat <<'EOF'
 tidiness-manager - Code cleanliness orchestrator for scenarios
@@ -546,6 +723,25 @@ COMMANDS
 
           # Get paths only for scripting (easy parsing)
           tidiness-manager recommend-refactors tidiness-manager --format paths --limit 10
+
+    visit FILE_PATH --scenario SCENARIO [--note NOTE]
+        Mark a file as visited during refactoring (wraps visited-tracker)
+        Use after completing refactoring work on a file
+        Example:
+          tidiness-manager visit api/handlers.go --scenario my-scenario --note "Extracted helpers, reduced complexity"
+
+    exclude FILE_PATH --scenario SCENARIO [--reason REASON]
+        Exclude a file from future refactor recommendations
+        Use for config files, generated code, or fully-refactored files
+        Example:
+          tidiness-manager exclude package.json --scenario my-scenario --reason "Config file, not a refactor target"
+          tidiness-manager exclude api/main.go --scenario my-scenario --reason "Fully refactored - clean structure"
+
+    campaign-note --scenario SCENARIO --note NOTE
+        Add a strategic note to the refactor campaign for handoff context
+        Use before ending your session to guide the next iteration
+        Example:
+          tidiness-manager campaign-note --scenario my-scenario --note "Completed 14/38 files. Focus: API error handling patterns"
 
     issues [SCENARIO] [--category CAT] [--severity SEV] [--limit N]
         List tidiness issues for agent consumption (JSON output)
@@ -663,6 +859,15 @@ main() {
             ;;
         recommend-refactors)
             cmd_recommend_refactors "$@"
+            ;;
+        visit)
+            cmd_visit "$@"
+            ;;
+        exclude)
+            cmd_exclude "$@"
+            ;;
+        campaign-note)
+            cmd_campaign_note "$@"
             ;;
         issues)
             cmd_issues "$@"

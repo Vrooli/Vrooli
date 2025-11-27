@@ -35,7 +35,7 @@ type ScanResult struct {
 	Scenario        string                        `json:"scenario"`
 	StartedAt       time.Time                     `json:"started_at"`
 	CompletedAt     time.Time                     `json:"completed_at"`
-	Duration        time.Duration                 `json:"duration_ms"`
+	Duration        int64                         `json:"duration_ms"` // Duration in milliseconds
 	LintOutput      *CommandRun                   `json:"lint_output,omitempty"`
 	TypeOutput      *CommandRun                   `json:"type_output,omitempty"`
 	FileMetrics     []FileMetric                  `json:"file_metrics"`
@@ -168,7 +168,7 @@ func (ls *LightScanner) ScanWithOptions(ctx context.Context, opts ScanOptions) (
 	}
 
 	result.CompletedAt = time.Now()
-	result.Duration = result.CompletedAt.Sub(startTime)
+	result.Duration = result.CompletedAt.Sub(startTime).Milliseconds()
 
 	return result, nil
 }

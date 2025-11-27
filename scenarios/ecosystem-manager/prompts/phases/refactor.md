@@ -63,7 +63,7 @@ To ensure **systematic coverage without repetition**, use `tidiness-manager` to 
 
 **At the start of each iteration:**
 ```bash
-# Get 5 top-priority files (auto-scans if needed, <500ms if cached)
+# Get 5 top-priority files (auto-scans if needed)
 # Priority score combines: staleness + length + complexity + tech debt + missing tests
 tidiness-manager recommend-refactors {{TARGET}} \
   --limit 5 \
@@ -90,53 +90,52 @@ tidiness-manager recommend-refactors {{TARGET}} \
 **Output includes enriched data:**
 - File path, language, and line count
 - Visit count and staleness score (from visited-tracker integration)
-- Code quality metrics: TODO/FIXME/HACK counts, complexity, test coverage
+- Code quality metrics: TODO/FIXME/HACK counts, function counts, comment ratios
+- Test file indicator (has_test_file: true if file has tests or is a test file)
+- Optional: complexity and duplication metrics (when external analysis tools are available)
 - Composite refactor priority score
 
 **After analyzing each file:**
 ```bash
 # Record your visit with specific notes about improvements and remaining work
-visited-tracker visit <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag refactor \
+tidiness-manager visit <file-path> \
+  --scenario {{TARGET}} \
   --note "<summary of refactorings made and what remains>"
 ```
 
 **When a file is irrelevant to refactoring (config, build scripts, generated files, etc.):**
 ```bash
 # Mark it excluded so it doesn't resurface - this is NOT a refactor target
-visited-tracker exclude <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag refactor \
+tidiness-manager exclude <file-path> \
+  --scenario {{TARGET}} \
   --reason "Not a refactor target - config/generated/tooling/etc."
 ```
 
 **When a file is fully refactored:**
 ```bash
 # Mark it excluded so it doesn't resurface in future queries
-visited-tracker exclude <file-path> \
-  --location scenarios/{{TARGET}} \
-  --tag refactor \
+tidiness-manager exclude <file-path> \
+  --scenario {{TARGET}} \
   --reason "All refactoring complete - clean structure, clear naming, no duplication"
 ```
-
-**Note:** tidiness-manager uses visited-tracker under the hood, so excluded files won't appear in recommendations.
 
 **Before ending your session:**
 ```bash
 # Add campaign note for handoff context to the next iteration
-visited-tracker campaigns note \
-  --location scenarios/{{TARGET}} \
-  --tag refactor \
-  --name "{{TARGET}} - Code Refactoring" \
+tidiness-manager campaign-note \
+  --scenario {{TARGET}} \
   --note "<overall progress summary, patterns observed, priority areas for next iteration>"
 ```
 
 **Interpreting the response:**
-- Prioritize files with **high staleness_score (>7.0)** - neglected files needing attention
+- **staleness_score scale**: Unvisited files = 1000, visited files = 0-100 (higher = more stale)
+  - 1000: Never visited (highest priority for new files)
+  - 50-100: Stale visited files (neglected, need attention)
+  - 10-50: Moderately fresh (visited recently enough)
+  - 0-10: Recently visited (lowest staleness)
+- Prioritize files with **high refactor_priority** - composite score combining staleness, length, complexity, tech debt
 - Focus on **low visit_count (0-2)** - files not yet analyzed
 - Review **notes from previous visits** - understand context and remaining work
-- Check **coverage_percent** - track systematic progress toward 100%
 
 **Note format guidelines:**
 - **File notes**: Be specific about what you refactored and what still needs work

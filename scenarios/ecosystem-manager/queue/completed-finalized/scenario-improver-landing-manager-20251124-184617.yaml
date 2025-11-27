@@ -13,16 +13,17 @@ dependencies: []
 blocks: []
 related_scenarios: []
 related_resources: []
-status: pending
-current_phase: completed
+status: completed-finalized
+current_phase: completed-finalized
 started_at: "2025-11-25T14:36:59-05:00"
 completed_at: "2025-11-26T18:12:27-05:00"
-completion_count: 41
+cooldown_until: "2025-11-27T08:01:15-05:00"
+completion_count: 42
 last_completed_at: "2025-11-26T18:12:27-05:00"
 validation_criteria: []
 created_by: ""
 created_at: "2025-11-24T18:46:17-05:00"
-updated_at: "2025-11-26T18:12:52-05:00"
+updated_at: "2025-11-27T07:58:05-05:00"
 tags: []
 notes: If not already, make sure there's a way to open/preview the generated landing pages from the UI. Last time I checked (could be fixed now), I didn't see the ability to do this. I could start it, but that's not too helpful when I can't see it!
 results:
@@ -36,5 +37,5 @@ results:
     timeout_allowed: 2h5m0s
 consecutive_completion_claims: 0
 consecutive_failures: 0
-processor_auto_requeue: true
+processor_auto_requeue: false
 auto_steer_profile_id: ec725997-ceb7-4f0d-8b13-5f55ca45f336
