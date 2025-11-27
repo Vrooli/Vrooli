@@ -210,7 +210,7 @@ I've implemented a **complete architectural foundation** for the Playwright driv
 
 ### Step 1: Install Dependencies
 ```bash
-cd api/automation/playwright-driver
+cd playwright-driver
 npm install
 ```
 
@@ -395,7 +395,7 @@ METRICS_PORT=9090
 ## References
 
 - **Go Contracts**: `api/automation/contracts/*.go`
-- **Original Driver**: `api/automation/playwright-driver/server.js` (legacy)
+- **Original Driver**: `resources/playwright/driver/server.js` (legacy, 13/28 features)
 - **Plans**: `docs/plans/playwright-driver-completion.md`
 - **Status**: `IMPLEMENTATION_STATUS.md`
 

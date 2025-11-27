@@ -141,7 +141,7 @@ executions/<execution-id>/steps/<step-index>/
 ```
 
 Screenshot customization pipeline:
-- Baseline overlay injection now lives in the Playwright driver (`api/automation/playwright-driver/server.js`); highlight/mask logic is implemented directly in the browser context.
+- Baseline overlay injection now lives in the Playwright driver (`playwright-driver/src/handlers/screenshot.ts`); highlight/mask logic is implemented directly in the browser context.
 - Step executor composes options from node params (`focus_selector`, `highlight_selectors`, `mask_selectors`, `zoom_factor`), renders overlays in the browser context, captures PNG, and returns overlay metadata for replays.
 
 ### 6. Error Handling & Cancellation

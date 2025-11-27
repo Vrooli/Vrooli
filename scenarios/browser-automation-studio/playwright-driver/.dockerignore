@@ -1,0 +1,53 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# Build artifacts
+dist/
+*.tsbuildinfo
+
+# Tests
+tests/
+*.test.ts
+*.spec.ts
+coverage/
+.nyc_output/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Config files (except production)
+.eslintrc.js
+.prettierrc
+jest.config.js
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.log
+*.tmp
+.cache/
+
+# Development files
+*.sh
+PHASE*.md
+IMPLEMENTATION_STATUS.md
+TESTS_SUMMARY.md

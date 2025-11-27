@@ -154,7 +154,7 @@ src/
 
 - **Detailed Plan**: `docs/plans/playwright-driver-completion.md`
 - **Go Contracts**: `api/automation/contracts/*.go`
-- **Current Driver**: `api/automation/playwright-driver/server.js`
+- **Current Driver**: `playwright-driver/src/server.ts` (TypeScript v2.0)
 - **Handler Docs**: `docs/nodes/*.md`
 - **Automation README**: `api/automation/README.md`
 

@@ -1180,7 +1180,7 @@ metrics:
 ## References
 
 - Go Contracts: `api/automation/contracts/`
-- Current Driver: `api/automation/playwright-driver/server.js`
+- Current Driver: `playwright-driver/src/server.ts` (TypeScript v2.0)
 - Handler Docs: `docs/nodes/*.md`
 - Automation README: `api/automation/README.md`
 - Engine README: `api/automation/engine/README.md`

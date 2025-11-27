@@ -7,7 +7,7 @@ Quick start guide for migrating the Playwright driver to TypeScript.
 ### Initialize TypeScript Project
 
 ```bash
-cd api/automation/playwright-driver
+cd playwright-driver
 
 # Initialize package.json
 npm init -y

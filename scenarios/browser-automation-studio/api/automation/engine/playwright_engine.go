@@ -68,7 +68,7 @@ func (e *PlaywrightEngine) Capabilities(_ context.Context) (contracts.EngineCapa
 		RequiresDocker:        false,
 		RequiresXvfb:          false,
 		MaxConcurrentSessions: 2,
-		AllowsParallelTabs:    false,
+		AllowsParallelTabs:    true,
 		SupportsHAR:           true,
 		SupportsVideo:         true,
 		SupportsIframes:       true,

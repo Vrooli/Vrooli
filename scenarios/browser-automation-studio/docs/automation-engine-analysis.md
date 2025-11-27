@@ -423,7 +423,7 @@ See detailed completion plan in `docs/plans/playwright-driver-completion.md`:
 - **Engine Interface**: `api/automation/engine/engine.go`
 - **Contracts**: `api/automation/contracts/*.go`
 - **Playwright Engine**: `api/automation/engine/playwright_engine.go`
-- **Playwright Driver**: `api/automation/playwright-driver/server.js`
+- **Playwright Driver**: `playwright-driver/src/server.ts` (TypeScript v2.0)
 - **Executor**: `api/automation/executor/simple_executor.go`
 - **Recorder**: `api/automation/recorder/db_recorder.go`
 - **Architecture Docs**: `api/automation/README.md`, `api/automation/engine/README.md`
