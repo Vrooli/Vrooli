@@ -309,8 +309,8 @@ func parseIncludeParam(r *http.Request) []string {
 
 // filterExecutions filters execution history by status and applies limit
 func filterExecutions(history []queue.ExecutionHistory, statusFilter string, limit int) []queue.ExecutionHistory {
-	// If no status filter, just apply limit
-	if statusFilter == "" {
+	// If no status filter or "all", just apply limit
+	if statusFilter == "" || statusFilter == "all" {
 		if limit > 0 && len(history) > limit {
 			return history[:limit]
 		}

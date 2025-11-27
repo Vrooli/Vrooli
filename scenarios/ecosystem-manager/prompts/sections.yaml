@@ -112,14 +112,14 @@ operations:
     description: Iteratively improves existing scenarios to advance PRD completion
     template: templates/scenario-improver
     additional_sections: []
-    
+
     variables:
       scenario_type: "scenario"
       focus: "iterative improvement of existing scenarios"
       primary_output: "PRD progression and working features"
-    
+
     # Time allocation: See global_config.time_allocations.improvers
-    
+
     success_criteria:
       - "Quick Validation Loop completed: `vrooli scenario status <name>`, `scenario-auditor audit <name> --timeout 240`, and the scenario test command all run after changes with results captured"
       - "At least one operational target (P0/P1) advanced end-to-end with linked requirements updated and `[REQ:ID]` tests proving the outcome"
@@ -128,7 +128,7 @@ operations:
       - "Requirements registry/README updated when new requirements or modules are added so coverage tracking stays accurate"
       - "No regressions: previously passing tests remain green or are explicitly documented with cause and next steps"
       - "Final handoff enumerates validation commands, touched files, and remaining risks per improver template"
-    
+
     principles:
       - "Fix lifecycle/security failures before chasing new features"
       - "Advance one operational target at a time and prove it with requirements-linked tests"
@@ -136,6 +136,32 @@ operations:
       - "Document every change in the scenario docs so the next agent has context"
       - "Use repo-wide consumers and dependency searches before changing APIs/CLI outputs"
       - "Leave clear next steps whenever work cannot be finished"
+
+  insight-generator:
+    name: insight-generator
+    type: analyzer
+    target: execution-history
+    description: Analyzes execution history to identify patterns and suggest improvements
+    template: templates/insight-generator
+    additional_sections: []
+
+    variables:
+      focus: "pattern detection and actionable improvement suggestions"
+      primary_output: "InsightReport with patterns and suggestions"
+
+    success_criteria:
+      - "JSON response validates against InsightReport schema"
+      - "At least one pattern identified (or explicit statement that none found)"
+      - "Each suggestion has specific file paths and changes"
+      - "Impact estimates are data-driven and realistic"
+      - "Evidence includes actual log excerpts from executions"
+
+    principles:
+      - "Be specific: exact file paths, exact changes, exact evidence"
+      - "Be data-driven: base all conclusions on execution logs"
+      - "Be actionable: every suggestion must be implementable immediately"
+      - "Be honest: if no clear patterns, say so"
+      - "Prioritize by impact: focus on changes that affect most executions"
 
 # Global configuration
 global_config:

@@ -477,6 +477,7 @@ func (a *Application) registerDiscoveryRoutes(api *mux.Router) {
 func (a *Application) registerInsightRoutes(api *mux.Router) {
 	// Task-level insight routes
 	api.HandleFunc("/tasks/{id}/insights", a.insightHandlers.GetTaskInsightsHandler).Methods("GET")
+	api.HandleFunc("/tasks/{id}/insights/preview", a.insightHandlers.PreviewInsightPromptHandler).Methods("GET")
 	api.HandleFunc("/tasks/{id}/insights/generate", a.insightHandlers.GenerateInsightReportHandler).Methods("POST")
 	api.HandleFunc("/tasks/{id}/insights/{report_id}", a.insightHandlers.GetInsightReportHandler).Methods("GET")
 	api.HandleFunc("/tasks/{id}/insights/{report_id}/suggestions/{suggestion_id}/status", a.insightHandlers.UpdateSuggestionStatusHandler).Methods("POST")

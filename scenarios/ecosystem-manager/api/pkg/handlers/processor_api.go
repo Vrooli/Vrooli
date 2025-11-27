@@ -25,6 +25,8 @@ type ProcessorAPI interface {
 	SaveInsightReport(report queue.InsightReport) error
 	UpdateSuggestionStatus(taskID, reportID, suggestionID, status string) error
 	LoadAllInsightReports(sinceTime time.Time) ([]queue.InsightReport, error)
+	BuildInsightPrompt(taskID string, limit int, statusFilter string) (string, error)
 	GenerateInsightReportForTask(taskID string, limit int, statusFilter string) (*queue.InsightReport, error)
+	GenerateInsightReportWithCustomPrompt(taskID string, limit int, statusFilter string, customPrompt string) (*queue.InsightReport, error)
 	GenerateSystemInsightReport(sinceTime time.Time) (*queue.SystemInsightReport, error)
 }

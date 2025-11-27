@@ -13,16 +13,17 @@ dependencies: []
 blocks: []
 related_scenarios: []
 related_resources: []
-status: pending
-current_phase: ""
+status: completed-finalized
+current_phase: completed-finalized
 started_at: ""
-completed_at: ""
-completion_count: 37
-last_completed_at: "2025-11-25T16:02:56-05:00"
+completed_at: "2025-11-26T14:55:19-05:00"
+cooldown_until: "2025-11-26T14:56:19-05:00"
+completion_count: 38
+last_completed_at: "2025-11-26T14:55:19-05:00"
 validation_criteria: []
 created_by: ""
 created_at: "2025-11-25T01:21:24-05:00"
-updated_at: "2025-11-26T11:44:59-05:00"
+updated_at: "2025-11-26T14:55:19-05:00"
 tags: []
 notes: |-
     Not sure current UI status, but this is going to be an app we sell as a desktop app. that means we need to ensure there's a proper homepage, tutorial, settings (e.g. setting default replay options), etc. We need to ensure the user experience is onboarding is exceptional.
@@ -31,5 +32,5 @@ notes: |-
 results: {}
 consecutive_completion_claims: 0
 consecutive_failures: 0
-processor_auto_requeue: true
+processor_auto_requeue: false
 steer_mode: progress

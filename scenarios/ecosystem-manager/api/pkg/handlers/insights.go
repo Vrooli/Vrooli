@@ -71,6 +71,71 @@ func (h *InsightHandlers) GetInsightReportHandler(w http.ResponseWriter, r *http
 	writeJSON(w, report, http.StatusOK)
 }
 
+// PreviewInsightPromptHandler returns the prompt that would be used for insight generation
+// GET /api/tasks/{id}/insights/preview
+func (h *InsightHandlers) PreviewInsightPromptHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	taskID := vars["id"]
+
+	// Parse query params
+	limit := parseIntParam(r, "limit", 10)
+	statusFilter := r.URL.Query().Get("status_filter")
+	if statusFilter == "" {
+		statusFilter = "failed,timeout"
+	}
+
+	// Validate limit
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 50 {
+		limit = 50
+	}
+
+	// Load execution history
+	history, err := h.processor.LoadExecutionHistory(taskID)
+	if err != nil {
+		log.Printf("ERROR: Failed to load execution history for preview (task %s): %v", taskID, err)
+		writeError(w, fmt.Sprintf("Failed to load execution history: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	if len(history) == 0 {
+		writeError(w, "No execution history available to analyze", http.StatusBadRequest)
+		return
+	}
+
+	// Filter executions
+	filtered := filterExecutions(history, statusFilter, limit)
+
+	if len(filtered) == 0 {
+		// Provide helpful feedback about why we can't generate insights
+		writeError(w, fmt.Sprintf(
+			"No executions found matching filter: %s. "+
+				"This task has %d total executions, but none match your selected status filter. "+
+				"Try changing the Status Filter to 'All Statuses' to analyze all executions.",
+			statusFilter, len(history),
+		), http.StatusBadRequest)
+		return
+	}
+
+	// Build the preview prompt
+	prompt, err := h.processor.BuildInsightPrompt(taskID, limit, statusFilter)
+	if err != nil {
+		log.Printf("ERROR: Failed to build insight prompt for task %s: %v", taskID, err)
+		writeError(w, fmt.Sprintf("Failed to build prompt: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, map[string]any{
+		"task_id":       taskID,
+		"prompt":        prompt,
+		"limit":         limit,
+		"status_filter": statusFilter,
+		"executions":    len(filtered),
+	}, http.StatusOK)
+}
+
 // GenerateInsightReportHandler triggers insight generation for a task
 // POST /api/tasks/{id}/insights/generate
 func (h *InsightHandlers) GenerateInsightReportHandler(w http.ResponseWriter, r *http.Request) {
@@ -81,6 +146,7 @@ func (h *InsightHandlers) GenerateInsightReportHandler(w http.ResponseWriter, r 
 	var options struct {
 		Limit        int    `json:"limit"`
 		StatusFilter string `json:"status_filter"` // e.g., "failed,timeout"
+		CustomPrompt string `json:"custom_prompt"` // Optional custom prompt
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&options); err != nil {
@@ -115,12 +181,27 @@ func (h *InsightHandlers) GenerateInsightReportHandler(w http.ResponseWriter, r 
 	filtered := filterExecutions(history, options.StatusFilter, options.Limit)
 
 	if len(filtered) == 0 {
-		writeError(w, fmt.Sprintf("No executions matching filter: %s", options.StatusFilter), http.StatusBadRequest)
+		// Provide helpful feedback about why we can't generate insights
+		writeError(w, fmt.Sprintf(
+			"No executions found matching filter: %s. "+
+				"This task has %d total executions, but none match your selected status filter. "+
+				"Try changing the Status Filter to 'All Statuses' to analyze all executions.",
+			options.StatusFilter, len(history),
+		), http.StatusBadRequest)
 		return
 	}
 
 	// Generate insight report using the workflow
-	report, err := h.processor.GenerateInsightReportForTask(taskID, options.Limit, options.StatusFilter)
+	var report *queue.InsightReport
+
+	if options.CustomPrompt != "" {
+		// Use custom prompt
+		report, err = h.processor.GenerateInsightReportWithCustomPrompt(taskID, options.Limit, options.StatusFilter, options.CustomPrompt)
+	} else {
+		// Use default prompt
+		report, err = h.processor.GenerateInsightReportForTask(taskID, options.Limit, options.StatusFilter)
+	}
+
 	if err != nil {
 		log.Printf("ERROR: Failed to generate insight report for task %s: %v", taskID, err)
 		systemlog.Errorf("Failed to generate insight report for task %s: %v", taskID, err)

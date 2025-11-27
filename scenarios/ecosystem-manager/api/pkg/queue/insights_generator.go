@@ -102,6 +102,14 @@ func filterExecutionsByStatus(history []ExecutionHistory, statusFilter string, l
 		statusFilter = "failed,timeout" // Default to failures
 	}
 
+	// If "all", return all executions with limit applied
+	if statusFilter == "all" {
+		if limit > 0 && len(history) > limit {
+			return history[:limit]
+		}
+		return history
+	}
+
 	// Build status map
 	statuses := make(map[string]bool)
 	for _, s := range strings.Split(statusFilter, ",") {
@@ -467,4 +475,118 @@ func extractJSONFromMarkdown(output string) string {
 	}
 
 	return output
+}
+
+// BuildInsightPrompt builds and returns the prompt that would be used for insight generation
+// without actually generating the report. Useful for preview/editing workflows.
+func (qp *Processor) BuildInsightPrompt(taskID string, limit int, statusFilter string) (string, error) {
+	log.Printf("Building insight prompt for task %s (limit: %d, filter: %s)", taskID, limit, statusFilter)
+
+	// Load execution history
+	history, err := qp.LoadExecutionHistory(taskID)
+	if err != nil {
+		return "", fmt.Errorf("load execution history: %w", err)
+	}
+
+	if len(history) == 0 {
+		return "", fmt.Errorf("no execution history available for analysis")
+	}
+
+	// Filter executions based on status
+	filtered := filterExecutionsByStatus(history, statusFilter, limit)
+	if len(filtered) == 0 {
+		return "", fmt.Errorf("no executions matching filter: %s", statusFilter)
+	}
+
+	// Compute statistics
+	stats := ComputeExecutionStatistics(filtered)
+
+	// Load execution file contents (output and last message)
+	executionDetails, err := qp.loadExecutionDetails(filtered)
+	if err != nil {
+		log.Printf("Warning: Failed to load some execution details: %v", err)
+		// Continue with what we have
+	}
+
+	// Assemble the insight-generator prompt
+	prompt, err := qp.assembleInsightPrompt(taskID, filtered, stats, executionDetails)
+	if err != nil {
+		return "", fmt.Errorf("assemble insight prompt: %w", err)
+	}
+
+	log.Printf("Built insight prompt (%d chars) for task %s", len(prompt), taskID)
+
+	return prompt, nil
+}
+
+// GenerateInsightReportWithCustomPrompt generates an insight report using a custom prompt
+// instead of the default template. This allows users to customize the analysis focus.
+func (qp *Processor) GenerateInsightReportWithCustomPrompt(taskID string, limit int, statusFilter string, customPrompt string) (*InsightReport, error) {
+	log.Printf("Generating insight report with custom prompt for task %s (limit: %d, filter: %s)", taskID, limit, statusFilter)
+	systemlog.Infof("Starting custom insight generation for task %s", taskID)
+
+	if customPrompt == "" {
+		return nil, fmt.Errorf("custom prompt is required")
+	}
+
+	// Load execution history for metadata
+	history, err := qp.LoadExecutionHistory(taskID)
+	if err != nil {
+		return nil, fmt.Errorf("load execution history: %w", err)
+	}
+
+	if len(history) == 0 {
+		return nil, fmt.Errorf("no execution history available for analysis")
+	}
+
+	// Filter executions based on status
+	filtered := filterExecutionsByStatus(history, statusFilter, limit)
+	if len(filtered) == 0 {
+		return nil, fmt.Errorf("no executions matching filter: %s", statusFilter)
+	}
+
+	// Compute statistics
+	stats := ComputeExecutionStatistics(filtered)
+
+	log.Printf("Using custom insight prompt (%d chars) for task %s", len(customPrompt), taskID)
+
+	// Call Claude Code with the custom prompt
+	claudeResponse, err := qp.callClaudeCodeForInsight(customPrompt, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("call Claude Code: %w", err)
+	}
+
+	if !claudeResponse.Success {
+		return nil, fmt.Errorf("Claude Code execution failed: %s", claudeResponse.Error)
+	}
+
+	// Parse JSON response into InsightReport
+	report, err := parseInsightResponse(claudeResponse.Output, taskID, filtered, stats)
+	if err != nil {
+		// Try to extract JSON from the output if it's wrapped in markdown
+		cleanedOutput := extractJSONFromMarkdown(claudeResponse.Output)
+		report, err = parseInsightResponse(cleanedOutput, taskID, filtered, stats)
+		if err != nil {
+			return nil, fmt.Errorf("parse insight response: %w\nOutput: %s", err, claudeResponse.Output)
+		}
+	}
+
+	// Enrich report with metadata
+	report.GeneratedBy = "insight-generator"
+	if report.GeneratedAt.IsZero() {
+		report.GeneratedAt = time.Now()
+	}
+	if report.ID == "" {
+		// ID will be generated when saved
+	}
+
+	// Save the report
+	if err := qp.SaveInsightReport(*report); err != nil {
+		return nil, fmt.Errorf("save insight report: %w", err)
+	}
+
+	systemlog.Infof("Generated custom insight report %s for task %s (%d patterns, %d suggestions)",
+		report.ID, taskID, len(report.Patterns), len(report.Suggestions))
+
+	return report, nil
 }

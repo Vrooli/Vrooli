@@ -1106,6 +1106,39 @@ class ApiClient {
     return response.report;
   }
 
+  async previewInsightPrompt(
+    taskId: string,
+    options: GenerateInsightOptions = {}
+  ): Promise<{ prompt: string; task_id: string; status_filter: string; limit: number; executions: number }> {
+    const params = new URLSearchParams();
+    if (options.limit) params.append('limit', options.limit.toString());
+    if (options.status_filter) params.append('status_filter', options.status_filter);
+    if (options.include_files) params.append('include_files', options.include_files.join(','));
+
+    const queryString = params.toString();
+    const url = `/api/tasks/${taskId}/insights/preview${queryString ? '?' + queryString : ''}`;
+
+    return await this.fetchJSON<{ prompt: string; task_id: string; status_filter: string; limit: number; executions: number }>(url);
+  }
+
+  async generateInsightReportWithPrompt(
+    taskId: string,
+    options: GenerateInsightOptions & { custom_prompt: string }
+  ): Promise<void> {
+    const params = new URLSearchParams();
+    if (options.limit) params.append('limit', options.limit.toString());
+    if (options.status_filter) params.append('status_filter', options.status_filter);
+    if (options.include_files) params.append('include_files', options.include_files.join(','));
+
+    const queryString = params.toString();
+    const url = `/api/tasks/${taskId}/insights/generate${queryString ? '?' + queryString : ''}`;
+
+    return this.fetchJSON<void>(url, {
+      method: 'POST',
+      body: JSON.stringify({ custom_prompt: options.custom_prompt }),
+    });
+  }
+
   // ==================== Aliases for consistency ====================
 
   // Queue management aliases (for hook compatibility)
