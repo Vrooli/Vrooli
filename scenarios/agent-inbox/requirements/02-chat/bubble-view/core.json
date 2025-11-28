@@ -1,0 +1,89 @@
+{
+  "module": "bubble-chat-view",
+  "description": "ChatGPT-style message bubble interface with OpenRouter integration",
+  "requirements": [
+    {
+      "id": "BUBBLE-001",
+      "title": "Create new chat",
+      "description": "Start a new chat conversation with selected model and view mode",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.tsx"
+        }
+      ]
+    },
+    {
+      "id": "BUBBLE-002",
+      "title": "Message bubbles",
+      "description": "Display messages as styled bubbles with user/assistant distinction",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.tsx"
+        }
+      ]
+    },
+    {
+      "id": "BUBBLE-003",
+      "title": "Streaming responses",
+      "description": "Stream AI responses in real-time via WebSocket",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "BUBBLE-004",
+      "title": "OpenRouter integration",
+      "description": "Send chat completions to OpenRouter API with selected model",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "BUBBLE-005",
+      "title": "Model selector",
+      "description": "Dropdown to select from available OpenRouter models",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "BUBBLE-006",
+      "title": "Switch model mid-conversation",
+      "description": "Change the model for subsequent messages without starting new chat",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "BUBBLE-007",
+      "title": "Conversation forking",
+      "description": "Create a new chat branching from a specific message",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "module": "label-management",
+  "description": "Create and manage colored labels for organizing chats",
+  "requirements": [
+    {
+      "id": "LABEL-001",
+      "title": "Create labels",
+      "description": "Create new labels with custom name and color",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
+        }
+      ]
+    },
+    {
+      "id": "LABEL-002",
+      "title": "List labels",
+      "description": "Retrieve all labels via API",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
+        }
+      ]
+    },
+    {
+      "id": "LABEL-003",
+      "title": "Assign labels to chats",
+      "description": "Add one or more labels to a chat via UI or API",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
+        }
+      ]
+    },
+    {
+      "id": "LABEL-004",
+      "title": "Display labels on chat list",
+      "description": "Show colored label badges in the inbox list view",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "LABEL-005",
+      "title": "Edit labels",
+      "description": "Rename or change color of existing labels",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "LABEL-006",
+      "title": "Delete labels",
+      "description": "Remove labels (optionally from all associated chats)",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}

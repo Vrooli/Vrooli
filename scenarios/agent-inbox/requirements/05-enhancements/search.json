@@ -1,0 +1,33 @@
+{
+  "module": "search-functionality",
+  "description": "Full-text search across chat messages",
+  "requirements": [
+    {
+      "id": "SEARCH-001",
+      "title": "Full-text search",
+      "description": "Search across all chat messages with PostgreSQL full-text search",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "SEARCH-002",
+      "title": "Search UI",
+      "description": "Search bar in inbox header with results highlighting",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "SEARCH-003",
+      "title": "Search results navigation",
+      "description": "Click search result to open chat at matching message",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}

@@ -1,0 +1,247 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string",
+          "readiness": "boolean",
+          "dependencies": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "agent-inbox status"
+      }
+    },
+    {
+      "id": "list-chats",
+      "path": "/api/v1/chats",
+      "method": "GET",
+      "summary": "List all chats",
+      "description": "Retrieve all chats with optional filtering by label, read/unread status",
+      "category": "chats",
+      "query_params": [
+        {"name": "label", "type": "string", "description": "Filter by label ID"},
+        {"name": "unread", "type": "boolean", "description": "Filter unread chats only"},
+        {"name": "archived", "type": "boolean", "description": "Include archived chats"}
+      ],
+      "response": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": "string",
+            "name": "string",
+            "labels": "array",
+            "unread": "boolean",
+            "last_message": "string",
+            "updated_at": "string"
+          }
+        }
+      },
+      "cli_mapping": {
+        "command": "agent-inbox list"
+      }
+    },
+    {
+      "id": "create-chat",
+      "path": "/api/v1/chats",
+      "method": "POST",
+      "summary": "Create a new chat",
+      "description": "Start a new chat conversation",
+      "category": "chats",
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string",
+          "model": "string",
+          "view_mode": "string"
+        }
+      },
+      "cli_mapping": {
+        "command": "agent-inbox new"
+      }
+    },
+    {
+      "id": "get-chat",
+      "path": "/api/v1/chats/{id}",
+      "method": "GET",
+      "summary": "Get chat details",
+      "description": "Retrieve full chat with messages",
+      "category": "chats",
+      "path_params": [
+        {"name": "id", "type": "string", "description": "Chat ID"}
+      ],
+      "cli_mapping": {
+        "command": "agent-inbox open"
+      }
+    },
+    {
+      "id": "update-chat",
+      "path": "/api/v1/chats/{id}",
+      "method": "PATCH",
+      "summary": "Update chat properties",
+      "description": "Rename chat, add/remove labels, mark read/unread, archive",
+      "category": "chats",
+      "path_params": [
+        {"name": "id", "type": "string", "description": "Chat ID"}
+      ],
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string",
+          "labels": "array",
+          "unread": "boolean",
+          "archived": "boolean"
+        }
+      },
+      "cli_mapping": {
+        "command": "agent-inbox update"
+      }
+    },
+    {
+      "id": "delete-chat",
+      "path": "/api/v1/chats/{id}",
+      "method": "DELETE",
+      "summary": "Delete a chat",
+      "description": "Permanently delete a chat and all its messages",
+      "category": "chats",
+      "path_params": [
+        {"name": "id", "type": "string", "description": "Chat ID"}
+      ],
+      "cli_mapping": {
+        "command": "agent-inbox delete"
+      }
+    },
+    {
+      "id": "send-message",
+      "path": "/api/v1/chats/{id}/messages",
+      "method": "POST",
+      "summary": "Send message to chat",
+      "description": "Send a user message and get AI response",
+      "category": "messages",
+      "path_params": [
+        {"name": "id", "type": "string", "description": "Chat ID"}
+      ],
+      "request": {
+        "type": "object",
+        "properties": {
+          "content": "string",
+          "model": "string"
+        }
+      }
+    },
+    {
+      "id": "list-labels",
+      "path": "/api/v1/labels",
+      "method": "GET",
+      "summary": "List all labels",
+      "description": "Get all available labels for organizing chats",
+      "category": "labels",
+      "cli_mapping": {
+        "command": "agent-inbox labels"
+      }
+    },
+    {
+      "id": "create-label",
+      "path": "/api/v1/labels",
+      "method": "POST",
+      "summary": "Create a label",
+      "description": "Create a new label with name and color",
+      "category": "labels",
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string",
+          "color": "string"
+        }
+      }
+    },
+    {
+      "id": "list-models",
+      "path": "/api/v1/models",
+      "method": "GET",
+      "summary": "List available models",
+      "description": "Get list of available AI models from OpenRouter",
+      "category": "models",
+      "cli_mapping": {
+        "command": "agent-inbox models"
+      }
+    },
+    {
+      "id": "terminal-session",
+      "path": "/api/v1/terminal/sessions",
+      "method": "POST",
+      "summary": "Start terminal session",
+      "description": "Start a new terminal session for coding agent interaction",
+      "category": "terminal"
+    },
+    {
+      "id": "auto-name-chat",
+      "path": "/api/v1/chats/{id}/auto-name",
+      "method": "POST",
+      "summary": "Auto-generate chat name",
+      "description": "Use Ollama to generate a descriptive name based on chat content",
+      "category": "chats",
+      "path_params": [
+        {"name": "id", "type": "string", "description": "Chat ID"}
+      ]
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health",
+      "endpoint_id": "health"
+    },
+    {
+      "name": "list",
+      "description": "List all chats",
+      "endpoint_id": "list-chats"
+    },
+    {
+      "name": "new",
+      "description": "Create a new chat",
+      "endpoint_id": "create-chat"
+    },
+    {
+      "name": "open",
+      "description": "Open a chat by ID",
+      "endpoint_id": "get-chat"
+    },
+    {
+      "name": "update",
+      "description": "Update chat properties",
+      "endpoint_id": "update-chat"
+    },
+    {
+      "name": "delete",
+      "description": "Delete a chat",
+      "endpoint_id": "delete-chat"
+    },
+    {
+      "name": "labels",
+      "description": "List all labels",
+      "endpoint_id": "list-labels"
+    },
+    {
+      "name": "models",
+      "description": "List available AI models",
+      "endpoint_id": "list-models"
+    }
+  ]
+}

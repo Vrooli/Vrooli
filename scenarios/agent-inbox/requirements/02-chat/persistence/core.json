@@ -1,0 +1,97 @@
+{
+  "module": "chat-persistence",
+  "description": "PostgreSQL storage for chats and messages",
+  "requirements": [
+    {
+      "id": "PERSIST-001",
+      "title": "Store chat metadata",
+      "description": "Save chat ID, name, model, view mode, labels, timestamps to PostgreSQL",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
+        }
+      ]
+    },
+    {
+      "id": "PERSIST-002",
+      "title": "Store messages",
+      "description": "Save all messages with role, content, timestamp, token count to PostgreSQL",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
+        }
+      ]
+    },
+    {
+      "id": "PERSIST-003",
+      "title": "Load chat history",
+      "description": "Retrieve full conversation history when opening a chat",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.tsx"
+        }
+      ]
+    },
+    {
+      "id": "PERSIST-004",
+      "title": "Delete chat",
+      "description": "Permanently delete chat and all associated messages",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.tsx"
+        }
+      ]
+    },
+    {
+      "id": "PERSIST-005",
+      "title": "Export chat",
+      "description": "Export chat history to markdown, JSON, or plain text",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}

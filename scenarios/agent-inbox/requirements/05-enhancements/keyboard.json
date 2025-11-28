@@ -1,0 +1,51 @@
+{
+  "module": "keyboard-navigation",
+  "description": "Email-style keyboard shortcuts for power users",
+  "requirements": [
+    {
+      "id": "KEY-001",
+      "title": "J/K navigation",
+      "description": "Use j/k keys to navigate up/down in chat list",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "KEY-002",
+      "title": "Enter to open",
+      "description": "Press Enter to open selected chat",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "KEY-003",
+      "title": "Escape to close",
+      "description": "Press Escape to close chat and return to inbox",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "KEY-004",
+      "title": "Shortcut for new chat",
+      "description": "Cmd/Ctrl+N to create new chat",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "KEY-005",
+      "title": "Shortcut for search",
+      "description": "Cmd/Ctrl+K or / to focus search",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}

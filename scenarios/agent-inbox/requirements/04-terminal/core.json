@@ -1,0 +1,60 @@
+{
+  "module": "terminal-view",
+  "description": "Terminal/console view for coding agent interactions",
+  "requirements": [
+    {
+      "id": "TERM-001",
+      "title": "Terminal view mode",
+      "description": "Display chat in terminal-style view instead of bubble chat",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "TERM-002",
+      "title": "PTY session management",
+      "description": "Create and manage PTY sessions for coding agent execution",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "TERM-003",
+      "title": "Real-time terminal output",
+      "description": "Stream terminal output via WebSocket to UI",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "TERM-004",
+      "title": "Terminal input",
+      "description": "Send user input to terminal session",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "TERM-005",
+      "title": "Agent selection",
+      "description": "Select which coding agent to use (Claude Code, Codex, etc.)",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "TERM-006",
+      "title": "Session sandboxing",
+      "description": "Isolate terminal sessions with resource limits for security",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}

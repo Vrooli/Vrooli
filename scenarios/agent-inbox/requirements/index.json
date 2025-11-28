@@ -1,0 +1,17 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-inbox/list-view/core.json",
+    "01-inbox/labels/core.json",
+    "02-chat/bubble-view/core.json",
+    "02-chat/persistence/core.json",
+    "03-naming/auto-naming.json",
+    "04-terminal/core.json",
+    "05-enhancements/search.json",
+    "05-enhancements/keyboard.json"
+  ]
+}

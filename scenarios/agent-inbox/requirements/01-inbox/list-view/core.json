@@ -1,0 +1,125 @@
+{
+  "module": "inbox-list-view",
+  "description": "Email-like inbox list view for managing AI chats",
+  "requirements": [
+    {
+      "id": "INBOX-LIST-001",
+      "title": "Display chat list",
+      "description": "Display all chats in a scrollable list with name, preview snippet, labels, and read/unread indicator",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.tsx"
+        }
+      ]
+    },
+    {
+      "id": "INBOX-LIST-002",
+      "title": "Read/unread indicators",
+      "description": "Visual distinction between read and unread chats (bold text, dot indicator)",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.tsx"
+        }
+      ]
+    },
+    {
+      "id": "INBOX-LIST-003",
+      "title": "Toggle read status",
+      "description": "Allow users to mark chats as read or unread",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.tsx"
+        }
+      ]
+    },
+    {
+      "id": "INBOX-LIST-004",
+      "title": "Archive chats",
+      "description": "Move chats to archive without deleting them",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.tsx"
+        }
+      ]
+    },
+    {
+      "id": "INBOX-LIST-005",
+      "title": "Bulk selection",
+      "description": "Select multiple chats for bulk operations",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "INBOX-LIST-006",
+      "title": "Starred chats",
+      "description": "Star/pin important chats to the top of the list",
+      "prd_ref": "OT-P1-008",
+      "criticality": "P1",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.tsx"
+        }
+      ]
+    }
+  ]
+}
