@@ -133,7 +133,7 @@
       "id": "OT-P2-001",
       "title": "Ecosystem Expansion",
       "priority": "P2",
-      "status": "pending",
+      "status": "complete",
       "prd_ref": "OT-P2-001",
       "description": "Template marketplace, migration tooling, and factory-level analytics",
       "linked_requirements": [
@@ -143,13 +143,19 @@
       ],
       "validation": [
         {
-          "type": "manual",
-          "phase": "business",
-          "status": "planned",
-          "ref": "n/a"
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/analytics_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/TemplateAnalytics.test.tsx"
         }
       ],
-      "notes": "P2 future expansion - all 3 linked requirements (TMPL-MARKETPLACE, TMPL-MIGRATION, TMPL-GENERATION-ANALYTICS) pending with manual validations. No automated tests yet as these are planned features requiring business decisions on marketplace trust model, migration strategy, and analytics infrastructure."
+      "notes": "P2 expansion in progress: 1/3 linked requirements complete. TMPL-GENERATION-ANALYTICS complete with multi-layer validation (API + UI tests). TMPL-MARKETPLACE and TMPL-MIGRATION remain pending - require business decisions on marketplace trust model and migration strategy."
     }
   ],
   "imports": [

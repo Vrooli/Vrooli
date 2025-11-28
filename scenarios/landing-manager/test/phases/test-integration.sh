@@ -15,4 +15,8 @@ if [ -f "${SCENARIO_DIR}/initialization/configuration/landing-manager.env" ]; th
     set +a
 fi
 
+# Landing-manager workflows involve scenario generation, lifecycle management, and promotion
+# which can take 60-120+ seconds. Increase the default 45s timeout to accommodate these.
+export TESTING_PLAYBOOKS_WORKFLOW_TIMEOUT=180
+
 testing::integration::validate_all

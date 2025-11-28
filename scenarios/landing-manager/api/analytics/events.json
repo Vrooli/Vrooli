@@ -1,0 +1,130 @@
+[
+  {
+    "event_id": "20251128-091654.706",
+    "template_id": "lead-magnet",
+    "scenario_id": "lifecycle-test",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-28T09:16:54.706880213-05:00",
+    "duration_ms": 23
+  },
+  {
+    "event_id": "20251128-091723.321",
+    "template_id": "lead-magnet",
+    "scenario_id": "promotion-test",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-28T09:17:23.321383258-05:00",
+    "duration_ms": 23
+  },
+  {
+    "event_id": "20251128-093729.966",
+    "template_id": "lead-magnet",
+    "scenario_id": "test-landing",
+    "is_dry_run": true,
+    "success": true,
+    "timestamp": "2025-11-28T09:37:29.966101789-05:00",
+    "duration_ms": 0
+  },
+  {
+    "event_id": "20251128-093735.006",
+    "template_id": "lead-magnet",
+    "scenario_id": "lifecycle-test",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-28T09:37:35.006397914-05:00",
+    "duration_ms": 23
+  },
+  {
+    "event_id": "20251128-093803.655",
+    "template_id": "lead-magnet",
+    "scenario_id": "promotion-test",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-28T09:38:03.655476702-05:00",
+    "duration_ms": 24
+  },
+  {
+    "event_id": "20251128-094430.582",
+    "template_id": "lead-magnet",
+    "scenario_id": "test-landing",
+    "is_dry_run": true,
+    "success": true,
+    "timestamp": "2025-11-28T09:44:30.582918562-05:00",
+    "duration_ms": 0
+  },
+  {
+    "event_id": "20251128-094435.281",
+    "template_id": "lead-magnet",
+    "scenario_id": "promotion-test",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-28T09:44:35.281766628-05:00",
+    "duration_ms": 16
+  },
+  {
+    "event_id": "20251128-094646.910",
+    "template_id": "lead-magnet",
+    "scenario_id": "test-landing",
+    "is_dry_run": true,
+    "success": true,
+    "timestamp": "2025-11-28T09:46:46.91050224-05:00",
+    "duration_ms": 0
+  },
+  {
+    "event_id": "20251128-094651.410",
+    "template_id": "saas-landing-page",
+    "scenario_id": "lifecycle-test",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-28T09:46:51.410417402-05:00",
+    "duration_ms": 16
+  },
+  {
+    "event_id": "20251128-094931.037",
+    "template_id": "lead-magnet",
+    "scenario_id": "test-landing",
+    "is_dry_run": true,
+    "success": true,
+    "timestamp": "2025-11-28T09:49:31.037559373-05:00",
+    "duration_ms": 0
+  },
+  {
+    "event_id": "20251128-094935.937",
+    "template_id": "lead-magnet",
+    "scenario_id": "lifecycle-test",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-28T09:49:35.937740068-05:00",
+    "duration_ms": 17
+  },
+  {
+    "event_id": "20251128-095003.819",
+    "template_id": "lead-magnet",
+    "scenario_id": "promotion-test",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-28T09:50:03.819574492-05:00",
+    "duration_ms": 17
+  },
+  {
+    "event_id": "20251128-095043.316",
+    "template_id": "saas-landing-page",
+    "scenario_id": "lifecycle-test",
+    "is_dry_run": false,
+    "success": false,
+    "error_reason": "failed to scaffold scenario: failed to copy /home/matthalloran8/Vrooli/scripts/scenarios/templates/saas-landing-page/payload/api: open /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/lifecycle-test/api/landing-manager-api: text file busy",
+    "timestamp": "2025-11-28T09:50:43.31619064-05:00",
+    "duration_ms": 0
+  },
+  {
+    "event_id": "20251128-095043.320",
+    "template_id": "saas-landing-page",
+    "scenario_id": "lifecycle-test",
+    "is_dry_run": false,
+    "success": false,
+    "error_reason": "failed to scaffold scenario: failed to copy /home/matthalloran8/Vrooli/scripts/scenarios/templates/saas-landing-page/payload/api: open /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/lifecycle-test/api/landing-manager-api: text file busy",
+    "timestamp": "2025-11-28T09:50:43.32049083-05:00",
+    "duration_ms": 0
+  }
+]

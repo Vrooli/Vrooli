@@ -20,7 +20,7 @@
         "destinationType": "scenario",
         "scenario": "landing-manager",
         "scenarioPath": "/",
-        "waitUntil": "networkidle0",
+        "waitUntil": "networkidle",
         "timeoutMs": 30000
       }
     },
@@ -52,7 +52,7 @@
       "data": {
         "label": "Wait for slug auto-generation",
         "waitType": "time",
-        "waitForMs": 500
+        "durationMs": 500
       }
     },
     {
@@ -61,8 +61,9 @@
       "data": {
         "label": "Assert slug was auto-generated",
         "selector": "@selector/generation-slug-input",
-        "assertMode": "has_value",
-        "expectedText": "test-landing",
+        "assertMode": "attribute_contains",
+        "attributeName": "value",
+        "expectedValue": "test-landing",
         "timeoutMs": 5000,
         "failureMessage": "Slug should auto-generate from name"
       }
@@ -93,8 +94,8 @@
       "data": {
         "label": "Assert dry-run success message",
         "selector": "@selector/generation-result-message",
-        "assertMode": "contains_text",
-        "expectedText": "Dry-run plan generated",
+        "assertMode": "text_contains",
+        "expectedValue": "Dry-run plan generated",
         "timeoutMs": 5000,
         "failureMessage": "Should show dry-run plan generated message"
       }
@@ -105,8 +106,8 @@
       "data": {
         "label": "Assert generation status is dry-run",
         "selector": "@selector/generation-result-status",
-        "assertMode": "contains_text",
-        "expectedText": "Status:",
+        "assertMode": "text_contains",
+        "expectedValue": "Status:",
         "timeoutMs": 5000,
         "failureMessage": "Should show generation status"
       }

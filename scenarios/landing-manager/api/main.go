@@ -86,11 +86,12 @@ type Config struct {
 
 // Server wires the HTTP router and database connection
 type Server struct {
-	config          *Config
-	db              *sql.DB
-	router          *mux.Router
-	templateService *TemplateService
-	httpClient      *http.Client
+	config           *Config
+	db               *sql.DB
+	router           *mux.Router
+	templateService  *TemplateService
+	analyticsService *AnalyticsService
+	httpClient       *http.Client
 }
 
 // NewServer initializes configuration, database, and routes
@@ -119,11 +120,12 @@ func NewServer() (*Server, error) {
 	}
 
 	srv := &Server{
-		config:          cfg,
-		db:              db,
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-		httpClient:      &http.Client{Timeout: 15 * time.Second},
+		config:           cfg,
+		db:               db,
+		router:           mux.NewRouter(),
+		templateService:  NewTemplateService(),
+		analyticsService: NewAnalyticsService(),
+		httpClient:       &http.Client{Timeout: 15 * time.Second},
 	}
 
 	srv.setupRoutes()
@@ -146,6 +148,10 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/preview/{scenario_id}", s.handlePreviewLinks).Methods("GET")
 	s.router.HandleFunc("/api/v1/personas", s.handlePersonaList).Methods("GET")
 	s.router.HandleFunc("/api/v1/personas/{id}", s.handlePersonaShow).Methods("GET")
+
+	// Factory-level analytics endpoints (OT-P2-001 / TMPL-GENERATION-ANALYTICS)
+	s.router.HandleFunc("/api/v1/analytics/summary", s.handleAnalyticsSummary).Methods("GET")
+	s.router.HandleFunc("/api/v1/analytics/events", s.handleAnalyticsEvents).Methods("GET")
 
 	// Admin authentication endpoints (OT-P0-008)
 	s.router.HandleFunc("/api/v1/admin/login", handleTemplateOnly("admin authentication")).Methods("POST")
@@ -288,6 +294,7 @@ func (s *Server) handleTemplateShow(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGenerate(w http.ResponseWriter, r *http.Request) {
+	startTime := time.Now()
 	var req struct {
 		TemplateID string                 `json:"template_id"`
 		Name       string                 `json:"name"`
@@ -315,7 +322,21 @@ func (s *Server) handleGenerate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response, err := s.templateService.GenerateScenario(req.TemplateID, req.Name, req.Slug, req.Options)
+	durationMs := time.Since(startTime).Milliseconds()
+
+	// Determine if this was a dry-run
+	isDryRun := false
+	if req.Options != nil {
+		if dr, ok := req.Options["dry_run"].(bool); ok {
+			isDryRun = dr
+		}
+	}
+
 	if err != nil {
+		// [REQ:TMPL-GENERATION-ANALYTICS] Record failed generation
+		if s.analyticsService != nil {
+			s.analyticsService.RecordGeneration(req.TemplateID, req.Slug, isDryRun, false, err.Error(), durationMs)
+		}
 		s.log("failed to generate scenario", map[string]interface{}{
 			"template_id": req.TemplateID,
 			"name":        req.Name,
@@ -323,6 +344,11 @@ func (s *Server) handleGenerate(w http.ResponseWriter, r *http.Request) {
 		})
 		s.respondError(w, http.StatusBadRequest, "Failed to generate scenario")
 		return
+	}
+
+	// [REQ:TMPL-GENERATION-ANALYTICS] Record successful generation
+	if s.analyticsService != nil {
+		s.analyticsService.RecordGeneration(req.TemplateID, req.Slug, isDryRun, true, "", durationMs)
 	}
 
 	s.respondJSON(w, http.StatusCreated, response)
@@ -534,6 +560,30 @@ func (s *Server) handlePersonaShow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.respondJSON(w, http.StatusOK, persona)
+}
+
+// handleAnalyticsSummary returns aggregate generation analytics
+// [REQ:TMPL-GENERATION-ANALYTICS] API endpoint for factory-level analytics summary
+func (s *Server) handleAnalyticsSummary(w http.ResponseWriter, r *http.Request) {
+	if s.analyticsService == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "Analytics service not available")
+		return
+	}
+
+	summary := s.analyticsService.GetSummary()
+	s.respondJSON(w, http.StatusOK, summary)
+}
+
+// handleAnalyticsEvents returns detailed generation event history
+// [REQ:TMPL-GENERATION-ANALYTICS] API endpoint for detailed analytics events
+func (s *Server) handleAnalyticsEvents(w http.ResponseWriter, r *http.Request) {
+	if s.analyticsService == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "Analytics service not available")
+		return
+	}
+
+	events := s.analyticsService.GetEvents()
+	s.respondJSON(w, http.StatusOK, events)
 }
 
 // loggingMiddleware prints structured request logs

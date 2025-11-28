@@ -2,7 +2,8 @@
   "metadata": {
     "description": "Validates UI-based scenario promotion from staging (generated/) to production (scenarios/) without requiring terminal/file operations",
     "requirements": ["TMPL-PROMOTION"],
-    "reset": "none"
+    "reset": "none",
+    "executionTimeoutMs": 90000
   },
   "settings": {
     "executionViewport": {
@@ -20,15 +21,64 @@
         "destinationType": "scenario",
         "scenario": "landing-manager",
         "scenarioPath": "/",
-        "waitUntil": "networkidle0",
+        "waitUntil": "networkidle",
         "timeoutMs": 30000
+      }
+    },
+    {
+      "id": "wait-for-form",
+      "type": "wait",
+      "data": {
+        "label": "Wait for generation form to load",
+        "selector": "@selector/generation-form",
+        "timeoutMs": 15000,
+        "waitForMs": 500,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "fill-name",
+      "type": "type",
+      "data": {
+        "label": "Fill in scenario name for promotion test",
+        "selector": "@selector/generation-name-input",
+        "text": "Promotion Test",
+        "clearFirst": true,
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-after-name",
+      "type": "wait",
+      "data": {
+        "label": "Wait for slug auto-generation",
+        "waitType": "time",
+        "durationMs": 500
+      }
+    },
+    {
+      "id": "click-generate",
+      "type": "click",
+      "data": {
+        "label": "Click generate button to create test scenario",
+        "selector": "@selector/generate-button",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-for-generation",
+      "type": "wait",
+      "data": {
+        "label": "Wait for scenario generation to complete",
+        "waitType": "time",
+        "durationMs": 8000
       }
     },
     {
       "id": "wait-for-generated-list",
       "type": "wait",
       "data": {
-        "label": "Wait for generated scenarios list to load",
+        "label": "Wait for generated scenarios list to appear",
         "selector": "@selector/generated-scenarios-list",
         "timeoutMs": 15000,
         "waitForMs": 500,
@@ -39,8 +89,8 @@
       "id": "assert-promote-button-exists",
       "type": "assert",
       "data": {
-        "label": "Assert promote button is present for stopped scenarios",
-        "selector": "@selector/lifecycle-promote-button",
+        "label": "Assert promote button is present for stopped promotion-test scenario",
+        "selector": "@selector/lifecyclePromoteButton(scenarioId=promotion-test)",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Promote button should be visible for stopped scenarios"
@@ -51,7 +101,7 @@
       "type": "click",
       "data": {
         "label": "Click promote to production button",
-        "selector": "@selector/lifecycle-promote-button",
+        "selector": "@selector/lifecyclePromoteButton(scenarioId=promotion-test)",
         "timeoutMs": 5000
       }
     },
@@ -61,7 +111,7 @@
       "data": {
         "label": "Wait for promotion confirmation",
         "waitType": "time",
-        "waitForMs": 2000
+        "durationMs": 2000
       }
     },
     {
@@ -77,7 +127,12 @@
     }
   ],
   "edges": [
-    { "id": "edge-1", "source": "navigate-factory", "target": "wait-for-generated-list", "type": "smoothstep" },
+    { "id": "edge-0-1", "source": "navigate-factory", "target": "wait-for-form", "type": "smoothstep" },
+    { "id": "edge-0-2", "source": "wait-for-form", "target": "fill-name", "type": "smoothstep" },
+    { "id": "edge-0-3", "source": "fill-name", "target": "wait-after-name", "type": "smoothstep" },
+    { "id": "edge-0-4", "source": "wait-after-name", "target": "click-generate", "type": "smoothstep" },
+    { "id": "edge-0-5", "source": "click-generate", "target": "wait-for-generation", "type": "smoothstep" },
+    { "id": "edge-1", "source": "wait-for-generation", "target": "wait-for-generated-list", "type": "smoothstep" },
     { "id": "edge-2", "source": "wait-for-generated-list", "target": "assert-promote-button-exists", "type": "smoothstep" },
     { "id": "edge-3", "source": "assert-promote-button-exists", "target": "click-promote", "type": "smoothstep" },
     { "id": "edge-4", "source": "click-promote", "target": "wait-for-confirmation", "type": "smoothstep" },

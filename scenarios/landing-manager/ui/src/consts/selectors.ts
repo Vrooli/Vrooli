@@ -309,29 +309,60 @@ const literalSelectors: LiteralSelectorTree = {
   'generated-scenarios-list': 'generated-scenarios-list',
   'refresh-generated-button': 'refresh-generated-button',
 
-  // Lifecycle Controls (per scenario)
-  'lifecycle-start-button': 'lifecycle-start-button',
-  'lifecycle-stop-button': 'lifecycle-stop-button',
-  'lifecycle-restart-button': 'lifecycle-restart-button',
-  'lifecycle-logs-button': 'lifecycle-logs-button',
-  'lifecycle-promote-button': 'lifecycle-promote-button',
-  'scenario-status-badge': 'scenario-status-badge',
-  'scenario-logs-display': 'scenario-logs-display',
+  // Lifecycle Controls - generic selectors using data attributes for first-match
+  'lifecycle-start-button-any': '[data-lifecycle-start-button]',
+  'lifecycle-stop-button-any': '[data-lifecycle-stop-button]',
+  'lifecycle-restart-button-any': '[data-lifecycle-restart-button]',
+  'lifecycle-logs-button-any': '[data-lifecycle-logs-button]',
+  'lifecycle-promote-button-any': '[data-lifecycle-promote-button]',
+  'scenario-status-badge-any': '[data-scenario-status-badge]',
+  'scenario-logs-display-any': '[data-scenario-logs-display]',
   'scenario-public-link': 'scenario-public-link',
   'scenario-admin-link': 'scenario-admin-link',
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {
-  /*
-  Example dynamic selectors:
-  templates: {
-    cardById: defineDynamicSelector({
-      description: 'Template card filtered by template ID',
-      testIdPattern: 'template-card-${id}',
-      params: { id: { type: 'string' } },
-    }),
-  },
-  */
+  // Scenario-specific lifecycle controls
+  scenarioStatusBadge: defineDynamicSelector({
+    description: 'Status badge for a specific scenario by ID',
+    testIdPattern: 'scenario-status-badge-${scenarioId}',
+    params: { scenarioId: { type: 'string' } },
+  }),
+  lifecycleStartButton: defineDynamicSelector({
+    description: 'Start button for a specific scenario by ID',
+    testIdPattern: 'lifecycle-start-button-${scenarioId}',
+    params: { scenarioId: { type: 'string' } },
+  }),
+  lifecycleStopButton: defineDynamicSelector({
+    description: 'Stop button for a specific scenario by ID',
+    testIdPattern: 'lifecycle-stop-button-${scenarioId}',
+    params: { scenarioId: { type: 'string' } },
+  }),
+  lifecycleRestartButton: defineDynamicSelector({
+    description: 'Restart button for a specific scenario by ID',
+    testIdPattern: 'lifecycle-restart-button-${scenarioId}',
+    params: { scenarioId: { type: 'string' } },
+  }),
+  lifecycleLogsButton: defineDynamicSelector({
+    description: 'Logs button for a specific scenario by ID',
+    testIdPattern: 'lifecycle-logs-button-${scenarioId}',
+    params: { scenarioId: { type: 'string' } },
+  }),
+  lifecyclePromoteButton: defineDynamicSelector({
+    description: 'Promote button for a specific scenario by ID',
+    testIdPattern: 'lifecycle-promote-button-${scenarioId}',
+    params: { scenarioId: { type: 'string' } },
+  }),
+  scenarioLogsDisplay: defineDynamicSelector({
+    description: 'Logs display for a specific scenario by ID',
+    testIdPattern: 'scenario-logs-display-${scenarioId}',
+    params: { scenarioId: { type: 'string' } },
+  }),
+  generatedScenario: defineDynamicSelector({
+    description: 'Generated scenario card by ID',
+    testIdPattern: 'generated-scenario-${scenarioId}',
+    params: { scenarioId: { type: 'string' } },
+  }),
 };
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);

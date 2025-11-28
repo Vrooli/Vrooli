@@ -1,30 +1,30 @@
 # Problems & Known Issues
 
-> **Last Updated**: 2025-11-25 (Scenario Improver Agent Phase 1 Iteration 6)
-> **Status**: All P0 operational targets complete, 1 P1 target complete (dry-run), requirements 54% (7/13), completeness 12/100 (early_stage), test suite 5/6 phases passing
+> **Last Updated**: 2025-11-27 (Scenario Improver Agent Phase 1 Iteration 10)
+> **Status**: requirements 65% (13/20 passing), completeness 59/100 (functional_incomplete), test suite 5/6 phases passing
 
 ## Open Issues
 
-### 🔴 BAS Integration Test Failures - BAS Infrastructure Bug (HIGH PRIORITY, EXTERNAL, VERIFIED 2025-11-25T06:18)
-- **What**: Integration phase failing with 2/2 BAS workflows failing execution. Workflows submit successfully but BAS API crashes during execution.
-- **Status**: Structure phase passing ✅. Playbook metadata correct, selectors properly defined in selectors.ts and selectors.manifest.json. BAS scenario is RUNNING but API crashes when executing workflows.
-- **Root Cause**: **BAS nil pointer dereference in MinIO screenshot storage** (confirmed 2025-11-25T06:18 via BAS API logs). BAS API log shows:
-  ```
-  panic: runtime error: invalid memory address or nil pointer dereference
-  [signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x80d79b]
-  goroutine 6336 [running]:
-  github.com/vrooli/browser-automation-studio/storage.(*MinIOClient).StoreScreenshot(0x0, ...)
-  /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/storage/minio.go:119 +0x25b
-  ```
-  BAS workflow execution attempts to store screenshots but MinIO client is nil (MinIO not installed per `vrooli scenario status browser-automation-studio`), causing panic. This is a **BAS bug** - the code should handle nil MinIO gracefully (skip screenshots or fail gracefully).
-- **Impact**: Integration tests fail but **functionality is proven complete**. Both TMPL-AVAILABILITY and TMPL-DRY-RUN are working (verified via CLI, API, unit tests). Requirements updated to "complete" with integration tests marked "blocked". **Outside landing-manager scope** - requires BAS fix at `/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/`.
-- **Boundary**: This is a browser-automation-studio scenario bug (minio.go:119), not a landing-manager issue. Landing-manager's playbooks are correctly structured with proper metadata, selectors, and workflow definitions.
-- **Workaround**: None available within landing-manager boundaries. BAS must be fixed to either (1) skip screenshot storage when MinIO unavailable, or (2) configure MinIO properly, or (3) handle nil client gracefully.
-- **Verification Evidence**:
-  - CLI dry-run: `LANDING_MANAGER__API_BASE="http://localhost:15843/api/v1" landing-manager generate saas-landing-page --name "Test" --slug test-x --dry-run` returns proper plan with file paths, status=dry_run, no writes ✅
-  - API dry-run: `curl -X POST http://localhost:15843/api/v1/generate -d '{"template_id":"saas-landing-page","name":"Test","slug":"test","dry_run":true}'` returns validation response ✅
-  - Unit tests: api/template_service_test.go and ui/src/pages/FactoryHome.test.tsx passing ✅
-- **Next**: File issue in browser-automation-studio scenario or install MinIO resource. Landing-manager requirements are complete; integration tests will pass once BAS handles nil MinIO client without crashing.
+### 🟡 BAS Integration Test Failures - Workflow Assertion Mismatches (MEDIUM PRIORITY, 2025-11-27T23:22)
+- **What**: Integration phase failing with 3/3 BAS workflows executing but failing on UI element assertions.
+- **Status**: ✅ Workflow validation issues FIXED (iteration 10). Workflows now execute successfully. Structure phase passing ✅. Playbook metadata correct, selectors properly defined.
+- **Progress**:
+  - **Fixed** (2025-11-27): Workflow schema validation errors (waitUntil: "networkidle0" → "networkidle", assertMode: "contains_text" → "text_contains", expectedText → expectedValue, waitForMs → durationMs for time waits)
+  - **Current Issue**: Workflows execute but assertions fail because UI elements/content don't match expected values
+  - dry-run-generation: 9 steps, 1/3 assertions passed (fails at assert-result-message, assert-status)
+  - lifecycle-management: 4 steps, 0/1 assertions passed (fails at assert-lifecycle-controls-exist)
+  - scenario-promotion: 4 steps, 0/1 assertions passed (fails at assert-promote-button-exists)
+- **Root Cause**: UI implementation doesn't fully match the expected test automation flow. Either:
+  1. UI elements use different selectors than workflows expect
+  2. UI flow/behavior differs from workflow expectations
+  3. UI features partially implemented but not complete end-to-end
+- **Impact**: Integration tests fail but **core functionality exists and is proven via API/unit tests**. Features like dry-run, lifecycle management, and promotion work via API/CLI. Requirements TMPL-DRY-RUN, TMPL-LIFECYCLE, TMPL-PROMOTION marked "in_progress" pending E2E validation.
+- **Boundary**: Within landing-manager scope - UI implementation needs alignment with test expectations.
+- **Evidence**:
+  - Workflow artifacts: `/home/matthalloran8/Vrooli/scenarios/landing-manager/coverage/automation/test/playbooks/capabilities/01-template-management/ui/`
+  - API tests: All lifecycle/dry-run/promotion API tests passing in api/integration_test.go
+  - Unit tests: UI component tests passing (111/111 React tests)
+- **Next**: Either (1) update UI to match workflow expectations, or (2) update workflows to match actual UI implementation, or (3) complete unimplemented UI features.
 
 ### 🟡 Factory validation coverage gaps (PARTIALLY RESOLVED)
 - **What**: Factory UI/API flows weren't validated end-to-end in automation.

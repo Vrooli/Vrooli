@@ -202,3 +202,40 @@ export async function promoteScenario(scenarioId: string) {
     method: 'POST',
   });
 }
+
+// Analytics types
+// [REQ:TMPL-GENERATION-ANALYTICS] Factory-level analytics tracking
+export interface GenerationEvent {
+  event_id: string;
+  template_id: string;
+  scenario_id?: string;
+  is_dry_run: boolean;
+  success: boolean;
+  error_reason?: string;
+  timestamp: string;
+  duration_ms: number;
+}
+
+export interface AnalyticsSummary {
+  total_generations: number;
+  successful_count: number;
+  failed_count: number;
+  dry_run_count: number;
+  success_rate: number;
+  by_template: Record<string, number>;
+  average_duration_ms: number;
+  recent_events: GenerationEvent[];
+  first_generation?: string;
+  last_generation?: string;
+  generations_by_day?: Record<string, number>;
+}
+
+// Analytics API functions
+// [REQ:TMPL-GENERATION-ANALYTICS] API functions for analytics data
+export async function getAnalyticsSummary() {
+  return apiCall<AnalyticsSummary>('/analytics/summary');
+}
+
+export async function getAnalyticsEvents() {
+  return apiCall<GenerationEvent[]>('/analytics/events');
+}
