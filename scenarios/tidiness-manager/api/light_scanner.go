@@ -219,6 +219,27 @@ func (ls *LightScanner) collectLanguageMetrics(ctx context.Context) (map[Languag
 
 // runMakeCommand executes a make target and captures output
 func (ls *LightScanner) runMakeCommand(ctx context.Context, target string) *CommandRun {
+	// Security: Validate make target to prevent command injection
+	// Only allow alphanumeric targets and hyphens (e.g. lint, type, type-check)
+	validTarget := true
+	for _, c := range target {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_') {
+			validTarget = false
+			break
+		}
+	}
+	if !validTarget || len(target) == 0 || len(target) > 64 {
+		return &CommandRun{
+			Command:    fmt.Sprintf("make %s", target),
+			ExitCode:   -1,
+			Stderr:     "invalid make target format",
+			Duration:   0,
+			Success:    false,
+			Skipped:    true,
+			SkipReason: "target validation failed",
+		}
+	}
+
 	cmdCtx, cancel := context.WithTimeout(ctx, ls.timeout)
 	defer cancel()
 

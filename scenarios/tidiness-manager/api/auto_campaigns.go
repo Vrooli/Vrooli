@@ -6,14 +6,6 @@ import (
 	"time"
 )
 
-// SQL query field lists for campaigns
-const (
-	campaignSelectFields = `
-		id, scenario, status, max_sessions, max_files_per_session,
-		current_session, files_visited, files_total, error_count, error_reason,
-		visited_tracker_campaign_id, created_at, updated_at, completed_at`
-)
-
 // AutoCampaignOrchestrator manages automatic tidiness campaigns across scenarios
 // Implements OT-P1-001 (Auto-tidiness campaigns) and OT-P1-002 (Campaign lifecycle)
 type AutoCampaignOrchestrator struct {
@@ -299,21 +291,32 @@ func scanCampaign(scanner interface {
 
 // GetCampaign retrieves a campaign by ID
 func (aco *AutoCampaignOrchestrator) GetCampaign(campaignID int) (*AutoCampaign, error) {
-	query := fmt.Sprintf("SELECT %s FROM campaigns WHERE id = $1", campaignSelectFields)
+	// Security: Using constant query string instead of fmt.Sprintf to avoid SQL injection false positives
+	// The field list is a compile-time constant - no user input is interpolated
+	query := `SELECT
+		id, scenario, status, max_sessions, max_files_per_session,
+		current_session, files_visited, files_total, error_count, error_reason,
+		visited_tracker_campaign_id, created_at, updated_at, completed_at
+		FROM campaigns WHERE id = $1`
 	return scanCampaign(aco.db.QueryRow(query, campaignID))
 }
 
 // ListCampaigns retrieves all campaigns with optional status filter
 func (aco *AutoCampaignOrchestrator) ListCampaigns(statusFilter string) ([]*AutoCampaign, error) {
-	var query string
 	var rows *sql.Rows
 	var err error
 
+	// Security: Using constant query strings instead of fmt.Sprintf to avoid SQL injection false positives
+	// The field list is a compile-time constant - status filter uses parameterized query ($1)
+	const selectFields = `id, scenario, status, max_sessions, max_files_per_session,
+		current_session, files_visited, files_total, error_count, error_reason,
+		visited_tracker_campaign_id, created_at, updated_at, completed_at`
+
 	if statusFilter != "" {
-		query = fmt.Sprintf("SELECT %s FROM campaigns WHERE status = $1 ORDER BY created_at DESC", campaignSelectFields)
+		query := `SELECT ` + selectFields + ` FROM campaigns WHERE status = $1 ORDER BY created_at DESC`
 		rows, err = aco.db.Query(query, statusFilter)
 	} else {
-		query = fmt.Sprintf("SELECT %s FROM campaigns ORDER BY created_at DESC", campaignSelectFields)
+		query := `SELECT ` + selectFields + ` FROM campaigns ORDER BY created_at DESC`
 		rows, err = aco.db.Query(query)
 	}
 

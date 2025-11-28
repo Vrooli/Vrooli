@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os/exec"
 	"strconv"
@@ -138,8 +139,7 @@ func (s *Server) handleAgentStoreIssue(w http.ResponseWriter, r *http.Request) {
 		ResourceUsed     string `json:"resource_used"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&issue); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+	if !decodeAndValidateJSON(w, r, &issue) {
 		return
 	}
 
@@ -205,8 +205,7 @@ func (s *Server) handleAgentUpdateIssue(w http.ResponseWriter, r *http.Request) 
 		ResolutionNotes string `json:"resolution_notes"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+	if !decodeAndValidateJSON(w, r, &update) {
 		return
 	}
 
@@ -327,12 +326,17 @@ func parseAgentIssuesRequest(r *http.Request) ParsedRequest {
 	limit := 10
 	var parseErr error
 
+	// Security: Enforce maximum limit to prevent resource exhaustion
+	const maxLimit = 1000
+
 	if l := q.Get("limit"); l != "" {
 		v, err := strconv.Atoi(l)
 		if err != nil {
 			parseErr = &ValidationError{Field: "limit", Message: "must be a valid integer"}
 		} else if v < 0 {
 			parseErr = &ValidationError{Field: "limit", Message: "must be non-negative"}
+		} else if v > maxLimit {
+			parseErr = &ValidationError{Field: "limit", Message: fmt.Sprintf("must not exceed %d", maxLimit)}
 		} else if v > 0 {
 			limit = v
 		}

@@ -210,8 +210,28 @@ func (s *SmartScanner) processBatch(ctx context.Context, batchID int, files []st
 
 // readFileContent reads the content of a file from the scenario directory
 func (s *SmartScanner) readFileContent(scenario, filePath string) (string, error) {
-	fullPath := filepath.Join(getScenarioPath(scenario), filePath)
-	content, err := os.ReadFile(fullPath)
+	// Security: Prevent path traversal attacks
+	scenarioPath := getScenarioPath(scenario)
+	fullPath := filepath.Join(scenarioPath, filePath)
+
+	// Ensure the resolved path is within the scenario directory
+	cleanPath := filepath.Clean(fullPath)
+	rel, err := filepath.Rel(scenarioPath, cleanPath)
+	if err != nil || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
+		return "", fmt.Errorf("invalid file path: access denied")
+	}
+
+	// Security: Limit file size to prevent resource exhaustion (10MB max)
+	info, err := os.Stat(cleanPath)
+	if err != nil {
+		return "", err
+	}
+	const maxFileSize = 10 * 1024 * 1024 // 10MB
+	if info.Size() > maxFileSize {
+		return "", fmt.Errorf("file too large: %d bytes (max %d)", info.Size(), maxFileSize)
+	}
+
+	content, err := os.ReadFile(cleanPath)
 	if err != nil {
 		return "", err
 	}
@@ -252,17 +272,24 @@ func (s *SmartScanner) callAIResource(ctx context.Context, fileContents map[stri
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("AI resource returned status %d: %s", resp.StatusCode, string(body))
+		// Security: Limit error response size to prevent memory exhaustion
+		limitedBody := io.LimitReader(resp.Body, 1024) // 1KB max for error messages
+		io.ReadAll(limitedBody)
+		// Sanitize error message to prevent information leakage
+		return nil, fmt.Errorf("AI resource returned status %d", resp.StatusCode)
 	}
+
+	// Security: Limit response body size to prevent memory exhaustion (50MB max)
+	const maxResponseSize = 50 * 1024 * 1024
+	limitedReader := io.LimitReader(resp.Body, maxResponseSize)
 
 	// Parse AI response
 	var aiResponse struct {
 		Issues []AIIssue `json:"issues"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&aiResponse); err != nil {
-		return nil, fmt.Errorf("failed to decode AI response: %w", err)
+	if err := json.NewDecoder(limitedReader).Decode(&aiResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode AI response")
 	}
 
 	return aiResponse.Issues, nil

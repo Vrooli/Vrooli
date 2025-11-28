@@ -70,6 +70,47 @@ func assertNoError(t *testing.T, err error) {
 	}
 }
 
+// assertResultNotNil checks that a DuplicateResult is not nil
+func assertResultNotNil(t *testing.T, result *DuplicateResult) {
+	t.Helper()
+	if result == nil {
+		t.Fatal("Expected non-nil result")
+	}
+}
+
+// assertResultSkipped validates that a result is properly skipped
+func assertResultSkipped(t *testing.T, result *DuplicateResult, expectedReasonContains string) {
+	t.Helper()
+	assertResultNotNil(t, result)
+	if !result.Skipped {
+		t.Error("Expected result to be skipped")
+	}
+	if result.SkipReason == "" {
+		t.Error("Expected SkipReason to be set")
+	}
+	if expectedReasonContains != "" && !contains(result.SkipReason, expectedReasonContains) {
+		t.Errorf("Expected skip reason to contain %q, got: %q", expectedReasonContains, result.SkipReason)
+	}
+}
+
+// calculateTotalFileLocations counts all file locations across all duplicate blocks
+func calculateTotalFileLocations(blocks []DuplicateBlock) int {
+	total := 0
+	for _, block := range blocks {
+		total += len(block.Files)
+	}
+	return total
+}
+
+// calculateTotalLines sums all lines across all duplicate blocks
+func calculateTotalLines(blocks []DuplicateBlock) int {
+	total := 0
+	for _, block := range blocks {
+		total += block.Lines
+	}
+	return total
+}
+
 // duplicationTestFunc represents a duplication detection function under test
 type duplicationTestFunc func(ctx context.Context, files []string) (*DuplicateResult, error)
 
@@ -258,21 +299,8 @@ func TestDetectDuplication_UnsupportedLanguage(t *testing.T) {
 	ctx := context.Background()
 
 	result, err := dd.DetectDuplication(ctx, LanguagePython, []string{"test.py"})
-	if err != nil {
-		t.Fatalf("Expected no error for unsupported language, got: %v", err)
-	}
-
-	if !result.Skipped {
-		t.Error("Expected result to be skipped for unsupported language")
-	}
-
-	if result.SkipReason == "" {
-		t.Error("Expected SkipReason to be set")
-	}
-
-	if !contains(result.SkipReason, "not implemented") {
-		t.Errorf("Expected skip reason to mention 'not implemented', got: %q", result.SkipReason)
-	}
+	assertNoError(t, err)
+	assertResultSkipped(t, result, "not implemented")
 }
 
 // [REQ:TM-LS-005] Test duplication detection with no files (table-driven)
@@ -301,10 +329,7 @@ func TestDetectDuplication_NoFiles(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := tt.detectFunc(ctx, []string{})
 			assertNoError(t, err)
-
-			if result == nil {
-				t.Fatal("Expected non-nil result")
-			}
+			assertResultNotNil(t, result)
 
 			if !result.Skipped {
 				t.Error("Expected result to be skipped for empty file list")
@@ -360,19 +385,11 @@ func TestDetectDuplication_ToolNotInstalled(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := tt.detectFunc(ctx, tt.files)
 			assertNoError(t, err)
-
-			if result == nil {
-				t.Fatal("Expected non-nil result")
-			}
+			assertResultNotNil(t, result)
 
 			if !tt.toolCheckFunc() {
 				// Tool not installed - should skip gracefully
-				if !result.Skipped {
-					t.Errorf("Expected result to be skipped when %s not installed", tt.toolName)
-				}
-				if !contains(result.SkipReason, tt.notInstalled) {
-					t.Errorf("Expected skip reason to mention %q, got: %q", tt.notInstalled, result.SkipReason)
-				}
+				assertResultSkipped(t, result, tt.notInstalled)
 			} else {
 				t.Logf("%s is installed, test verified it runs without error", tt.toolName)
 			}
@@ -661,56 +678,27 @@ found 2 clones
 
 // [REQ:TM-LS-005] Test total lines calculation accuracy
 func TestDuplicateResult_TotalLinesCalculation(t *testing.T) {
-	result := DuplicateResult{
-		DuplicateBlocks: []DuplicateBlock{
-			{Lines: 10, Files: []DuplicateLocation{{}, {}}},
-			{Lines: 20, Files: []DuplicateLocation{{}, {}}},
-			{Lines: 15, Files: []DuplicateLocation{{}, {}}},
-		},
+	blocks := []DuplicateBlock{
+		{Lines: 10, Files: []DuplicateLocation{{}, {}}},
+		{Lines: 20, Files: []DuplicateLocation{{}, {}}},
+		{Lines: 15, Files: []DuplicateLocation{{}, {}}},
 	}
 
-	expectedTotal := 10 + 20 + 15
-
-	// Manually calculate to verify
-	actualTotal := 0
-	for _, block := range result.DuplicateBlocks {
-		actualTotal += block.Lines
-	}
-
-	if actualTotal != expectedTotal {
-		t.Errorf("Expected total lines %d, got %d", expectedTotal, actualTotal)
-	}
-
-	if actualTotal != 45 {
-		t.Errorf("Expected 45 total lines, got %d", actualTotal)
-	}
+	actualTotal := calculateTotalLines(blocks)
+	assertEqual(t, actualTotal, 45, "total lines")
 }
 
 // [REQ:TM-LS-005] Test TotalDuplicates count accuracy
 func TestDuplicateResult_TotalDuplicatesAccuracy(t *testing.T) {
 	// Test with 3 blocks, each having 2 file locations
-	result := DuplicateResult{
-		TotalDuplicates: 6, // Should equal total file locations across all blocks
-		DuplicateBlocks: []DuplicateBlock{
-			{Files: []DuplicateLocation{{}, {}}}, // 2 locations
-			{Files: []DuplicateLocation{{}, {}}}, // 2 locations
-			{Files: []DuplicateLocation{{}, {}}}, // 2 locations
-		},
+	blocks := []DuplicateBlock{
+		{Files: []DuplicateLocation{{}, {}}}, // 2 locations
+		{Files: []DuplicateLocation{{}, {}}}, // 2 locations
+		{Files: []DuplicateLocation{{}, {}}}, // 2 locations
 	}
 
-	// Verify TotalDuplicates matches actual count
-	actualCount := 0
-	for _, block := range result.DuplicateBlocks {
-		actualCount += len(block.Files)
-	}
-
-	if result.TotalDuplicates != actualCount {
-		t.Errorf("TotalDuplicates (%d) doesn't match actual count (%d)", result.TotalDuplicates, actualCount)
-	}
-
-	if actualCount != 6 {
-		t.Errorf("Expected 6 total duplicate locations, got %d", actualCount)
-	}
+	actualCount := calculateTotalFileLocations(blocks)
+	assertEqual(t, actualCount, 6, "total file locations")
 }
 
 // [REQ:TM-LS-005] Test parseDuplOutput with very large output (stress test)

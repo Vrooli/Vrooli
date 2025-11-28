@@ -101,13 +101,19 @@ func (cm *CampaignManager) FindCampaignByScenario(scenario string) (*Campaign, e
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("visited-tracker returned %d: %s", resp.StatusCode, string(body))
+		// Security: Limit error body size and sanitize error message
+		limitedBody := io.LimitReader(resp.Body, 1024)
+		io.ReadAll(limitedBody)
+		return nil, fmt.Errorf("visited-tracker returned status %d", resp.StatusCode)
 	}
 
+	// Security: Limit response body size to prevent memory exhaustion (10MB max)
+	const maxResponseSize = 10 * 1024 * 1024
+	limitedReader := io.LimitReader(resp.Body, maxResponseSize)
+
 	var listResp ListCampaignsResponse
-	if err := json.NewDecoder(resp.Body).Decode(&listResp); err != nil {
-		return nil, fmt.Errorf("failed to decode campaigns: %w", err)
+	if err := json.NewDecoder(limitedReader).Decode(&listResp); err != nil {
+		return nil, fmt.Errorf("failed to decode campaigns")
 	}
 
 	// Find campaign matching this scenario
@@ -151,13 +157,19 @@ func (cm *CampaignManager) CreateCampaign(scenario string) (*Campaign, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("visited-tracker returned %d: %s", resp.StatusCode, string(respBody))
+		// Security: Limit error body size and sanitize error message
+		limitedBody := io.LimitReader(resp.Body, 1024)
+		io.ReadAll(limitedBody)
+		return nil, fmt.Errorf("visited-tracker returned status %d", resp.StatusCode)
 	}
 
+	// Security: Limit response body size (10MB max)
+	const maxResponseSize = 10 * 1024 * 1024
+	limitedReader := io.LimitReader(resp.Body, maxResponseSize)
+
 	var createResp CreateCampaignResponse
-	if err := json.NewDecoder(resp.Body).Decode(&createResp); err != nil {
-		return nil, fmt.Errorf("failed to decode campaign response: %w", err)
+	if err := json.NewDecoder(limitedReader).Decode(&createResp); err != nil {
+		return nil, fmt.Errorf("failed to decode campaign response")
 	}
 
 	return &createResp.Campaign, nil
@@ -165,6 +177,19 @@ func (cm *CampaignManager) CreateCampaign(scenario string) (*Campaign, error) {
 
 // GetCampaignFiles retrieves all tracked files for a campaign
 func (cm *CampaignManager) GetCampaignFiles(campaignID string) ([]TrackedFile, error) {
+	// Security: Validate campaign ID format (UUID or numeric)
+	// Prevent URL injection by ensuring campaignID contains only safe characters
+	validID := true
+	for _, c := range campaignID {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-') {
+			validID = false
+			break
+		}
+	}
+	if !validID || len(campaignID) == 0 || len(campaignID) > 64 {
+		return nil, fmt.Errorf("invalid campaign ID format")
+	}
+
 	url := fmt.Sprintf("%s/api/v1/campaigns/%s", cm.visitedTrackerURL, campaignID)
 	resp, err := cm.httpClient.Get(url)
 	if err != nil {
@@ -173,13 +198,19 @@ func (cm *CampaignManager) GetCampaignFiles(campaignID string) ([]TrackedFile, e
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("visited-tracker returned %d: %s", resp.StatusCode, string(body))
+		// Security: Limit error body size and sanitize error message
+		limitedBody := io.LimitReader(resp.Body, 1024)
+		io.ReadAll(limitedBody)
+		return nil, fmt.Errorf("visited-tracker returned status %d", resp.StatusCode)
 	}
 
+	// Security: Limit response body size (10MB max)
+	const maxResponseSize = 10 * 1024 * 1024
+	limitedReader := io.LimitReader(resp.Body, maxResponseSize)
+
 	var campaign Campaign
-	if err := json.NewDecoder(resp.Body).Decode(&campaign); err != nil {
-		return nil, fmt.Errorf("failed to decode campaign: %w", err)
+	if err := json.NewDecoder(limitedReader).Decode(&campaign); err != nil {
+		return nil, fmt.Errorf("failed to decode campaign")
 	}
 
 	return campaign.TrackedFiles, nil

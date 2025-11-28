@@ -6,6 +6,9 @@
   },
   "version": "1.0.0",
   "phases": {
+    "unit": {
+      "timeout": "300s"
+    },
     "integration": {
       "timeout": "540s",
       "browser_session_strategy": "clean"

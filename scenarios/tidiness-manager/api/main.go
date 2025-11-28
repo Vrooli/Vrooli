@@ -253,7 +253,8 @@ func resolveDatabaseURL() (string, error) {
 	}
 
 	if host == "" || port == "" || user == "" || password == "" || name == "" {
-		return "", fmt.Errorf("DATABASE_URL or POSTGRES_HOST/PORT/USER/PASSWORD and SCENARIO_NAME must be set by the lifecycle system")
+		// Security: Don't leak which specific variables are missing
+		return "", fmt.Errorf("database configuration incomplete - required environment variables must be set by lifecycle system")
 	}
 
 	pgURL := &url.URL{
@@ -263,6 +264,8 @@ func resolveDatabaseURL() (string, error) {
 		Path:   name,
 	}
 	values := pgURL.Query()
+	// Security Note: SSL disabled for local development. In production deployments,
+	// use sslmode=require or sslmode=verify-full with appropriate certificates.
 	values.Set("sslmode", "disable")
 	pgURL.RawQuery = values.Encode()
 

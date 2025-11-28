@@ -58,15 +58,35 @@ func (s *Server) handleLightScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate path exists
+	// Security: Validate and sanitize the scenario path to prevent directory traversal
 	absPath, err := filepath.Abs(req.ScenarioPath)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "invalid scenario_path")
 		return
 	}
 
+	// Security: Ensure path is within allowed scenarios directory
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	}
+	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
+
+	// Check if absPath is within scenariosDir
+	relPath, err := filepath.Rel(scenariosDir, absPath)
+	if err != nil || len(relPath) > 0 && relPath[0] == '.' {
+		respondError(w, http.StatusBadRequest, "path must be within scenarios directory")
+		return
+	}
+
+	// Security: Limit timeout to prevent resource exhaustion (max 10 minutes)
+	const maxTimeout = 600
 	timeout := 120 * time.Second
 	if req.TimeoutSec > 0 {
+		if req.TimeoutSec > maxTimeout {
+			respondError(w, http.StatusBadRequest, fmt.Sprintf("timeout_sec cannot exceed %d seconds", maxTimeout))
+			return
+		}
 		timeout = time.Duration(req.TimeoutSec) * time.Second
 	}
 
@@ -98,7 +118,8 @@ func (s *Server) handleLightScan(w http.ResponseWriter, r *http.Request) {
 			"scenario":    absPath,
 			"incremental": req.Incremental,
 		})
-		respondError(w, http.StatusInternalServerError, "scan failed: "+err.Error())
+		// Security: Don't leak internal error details to client
+		respondError(w, http.StatusInternalServerError, "scan failed - check server logs for details")
 		return
 	}
 
@@ -189,8 +210,18 @@ func respondError(w http.ResponseWriter, status int, message string) {
 }
 
 // decodeAndValidateJSON decodes JSON request body and validates required fields
+// Security: Limits request body size to prevent DoS attacks
 func decodeAndValidateJSON(w http.ResponseWriter, r *http.Request, v interface{}) bool {
-	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+	// Limit request body to 10MB to prevent memory exhaustion
+	const maxBodySize = 10 * 1024 * 1024
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+
+	decoder := json.NewDecoder(r.Body)
+	// Security: DisallowUnknownFields prevents injection of unexpected fields
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(v); err != nil {
+		// Don't leak parsing details to client
 		respondError(w, http.StatusBadRequest, "invalid request body")
 		return false
 	}
@@ -234,7 +265,12 @@ func (s *Server) handleSmartScan(w http.ResponseWriter, r *http.Request) {
 	// Perform smart scan
 	result, err := scanner.ScanScenario(r.Context(), req)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "scan failed: "+err.Error())
+		s.log("smart scan failed", map[string]interface{}{
+			"error":    err.Error(),
+			"scenario": req.Scenario,
+		})
+		// Security: Don't leak internal error details to client
+		respondError(w, http.StatusInternalServerError, "scan failed - check server logs for details")
 		return
 	}
 
