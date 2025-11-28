@@ -3,13 +3,17 @@
   "version": "1.0.0",
   "service": {
     "parent": "vrooli",
-    "name": "agent-inbox",
-    "displayName": "Agent Inbox",
-    "description": "AI chat inbox for managing conversations with multiple AI models and coding agents",
+    "name": "scenario-completeness-scoring",
+    "displayName": "Scenario Completeness Scoring",
+    "description": "Configurable health observatory for measuring and tracking scenario completeness with circuit breaker resilience",
     "version": "0.0.1",
-    "type": "business-application",
-    "category": "ai_tools",
+    "type": "developer_tools",
+    "category": "developer_tools",
     "tags": [
+      "scoring",
+      "metrics",
+      "health-monitoring",
+      "circuit-breaker",
       "react-ui",
       "go-api"
     ],
@@ -23,7 +27,7 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/agent-inbox"
+      "directory": "/scenarios/scenario-completeness-scoring"
     },
     "license": "MIT",
     "homepage": "https://github.com/Vrooli/Vrooli",
@@ -54,13 +58,9 @@
     "health": {
       "description": "Standard API/UI health checks",
       "startup_grace_period": 15000,
-      "endpoints": {
-        "api": "/health",
-        "ui": "/health"
-      },
       "checks": [
         {
-          "name": "api_endpoint",
+          "name": "api",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "timeout": 10000,
@@ -68,7 +68,7 @@
           "critical": true
         },
         {
-          "name": "ui_endpoint",
+          "name": "ui",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
@@ -87,11 +87,11 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o agent-inbox-api .",
-          "description": "Build Go API server binary"
+          "run": "cd api && go mod download && go build -o scenario-completeness-scoring-api .",
+          "description": "Compile Go API server"
         },
         {
-          "name": "install-ui-deps",
+          "name": "install-ui",
           "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies"
         },
@@ -99,29 +99,17 @@
           "name": "build-ui",
           "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
           "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display service URLs"
         }
-      ],
-      "condition": {
-        "binaries": ["api/agent-inbox-api"],
-        "ui-bundle": "ui/dist/index.html"
-      }
+      ]
     },
     "develop": {
       "description": "Launch API and Vite dev server",
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./agent-inbox-api",
+          "run": "cd api && ./scenario-completeness-scoring-api",
           "background": true,
-          "description": "Start Go API server",
-          "condition": {
-            "file_exists": "api/agent-inbox-api"
-          }
+          "description": "Start Go API server"
         },
         {
           "name": "start-ui",
@@ -131,11 +119,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display service URLs"
         }
       ]
     },
@@ -154,7 +137,7 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f 'agent-inbox-api' || true",
+          "run": "pkill -f 'scenario-completeness-scoring-api' || true",
           "description": "Stop Go API"
         },
         {
@@ -166,25 +149,13 @@
     }
   },
   "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Primary relational data store",
-        "schema": "agent-inbox"
-      },
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "description": "Local LLM for automatic chat naming"
-      },
-      "openrouter": {
-        "type": "openrouter",
-        "enabled": true,
-        "required": true,
-        "description": "Multi-model chat completions API"
+    "resources": {},
+    "scenarios": {
+      "ecosystem-manager": {
+        "type": "scenario",
+        "enabled": false,
+        "required": false,
+        "description": "Primary consumer of this API for autosteer metrics"
       }
     }
   }

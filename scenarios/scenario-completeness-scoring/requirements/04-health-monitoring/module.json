@@ -1,0 +1,34 @@
+{
+  "_metadata": {
+    "module_name": "Health Monitoring",
+    "description": "Collector health status and diagnostics",
+    "prd_ref": "OT-P0-008",
+    "priority": "P0"
+  },
+  "requirements": [
+    {
+      "id": "SCS-HEALTH-001",
+      "title": "Health status API",
+      "description": "Endpoint showing which collectors are healthy, degraded, or failed",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "SCS-HEALTH-002",
+      "title": "Collector status tracking",
+      "description": "Track OK, Degraded, Failed states for each collector",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "SCS-HEALTH-003",
+      "title": "Collector test endpoint",
+      "description": "API endpoint to test a specific collector on demand",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P1",
+      "validation": []
+    }
+  ]
+}

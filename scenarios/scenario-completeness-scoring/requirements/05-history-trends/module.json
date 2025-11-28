@@ -1,0 +1,42 @@
+{
+  "_metadata": {
+    "module_name": "History and Trends",
+    "description": "Score history storage and trend analysis",
+    "prd_ref": "OT-P1-001, OT-P1-002",
+    "priority": "P1"
+  },
+  "requirements": [
+    {
+      "id": "SCS-HIST-001",
+      "title": "Score history storage",
+      "description": "Store score snapshots over time with timestamp, breakdown, and config used",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "SCS-HIST-002",
+      "title": "SQLite database",
+      "description": "Use SQLite for portable score history storage",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "SCS-HIST-003",
+      "title": "Trend detection",
+      "description": "Detect score improvements/regressions and stalls (unchanged score despite activity)",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "SCS-HIST-004",
+      "title": "History API endpoint",
+      "description": "GET endpoint to retrieve score history for a scenario",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "validation": []
+    }
+  ]
+}

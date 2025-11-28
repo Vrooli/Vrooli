@@ -1,0 +1,72 @@
+{
+  "_metadata": {
+    "module_name": "Core Scoring",
+    "description": "Core score calculation functionality",
+    "prd_ref": "OT-P0-001, OT-P0-004, OT-P0-006, OT-P0-007",
+    "priority": "P0"
+  },
+  "requirements": [
+    {
+      "id": "SCS-CORE-001",
+      "title": "Calculate completeness scores with 4 dimensions",
+      "description": "Calculate scores across Quality (50%), Coverage (15%), Quantity (10%), UI (25%)",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "validation": [],
+      "children": [
+        {
+          "id": "SCS-CORE-001A",
+          "title": "Quality dimension scoring",
+          "description": "Calculate requirement pass rate (20pts), target pass rate (15pts), test pass rate (15pts)",
+          "criticality": "P0",
+          "validation": []
+        },
+        {
+          "id": "SCS-CORE-001B",
+          "title": "Coverage dimension scoring",
+          "description": "Calculate test coverage ratio (8pts), requirement depth (7pts)",
+          "criticality": "P0",
+          "validation": []
+        },
+        {
+          "id": "SCS-CORE-001C",
+          "title": "Quantity dimension scoring",
+          "description": "Calculate requirements count (4pts), targets count (3pts), tests count (3pts)",
+          "criticality": "P0",
+          "validation": []
+        },
+        {
+          "id": "SCS-CORE-001D",
+          "title": "UI dimension scoring",
+          "description": "Calculate template detection (10pts), component complexity (5pts), API integration (6pts), routing (1.5pts), code volume (2.5pts)",
+          "criticality": "P0",
+          "validation": []
+        }
+      ]
+    },
+    {
+      "id": "SCS-CORE-002",
+      "title": "Score retrieval API endpoint",
+      "description": "GET endpoint to retrieve current score and breakdown for any scenario",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "SCS-CORE-003",
+      "title": "Weight redistribution",
+      "description": "When components are disabled, redistribute weights proportionally to remaining components",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "SCS-CORE-004",
+      "title": "Graceful degradation",
+      "description": "Return partial scores when some collectors fail rather than failing entirely",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "validation": []
+    }
+  ]
+}

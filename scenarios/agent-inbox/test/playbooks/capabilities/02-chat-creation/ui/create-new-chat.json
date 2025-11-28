@@ -1,0 +1,47 @@
+{
+  "metadata": {
+    "description": "Validate creating a new chat session with bubble view mode",
+    "requirement": "BUBBLE-001",
+    "version": 1
+  },
+  "steps": [
+    {
+      "action": "navigate",
+      "url": "${UI_BASE_URL}",
+      "description": "Navigate to Agent Inbox UI"
+    },
+    {
+      "action": "wait",
+      "selector": "@selector/inbox.container",
+      "timeout": 5000,
+      "description": "Wait for inbox container to load"
+    },
+    {
+      "action": "click",
+      "selector": "@selector/inbox.newChatButton",
+      "description": "Click new chat button"
+    },
+    {
+      "action": "wait",
+      "selector": "@selector/inbox.messageList",
+      "timeout": 3000,
+      "description": "Wait for chat view to open"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/inbox.messageInput",
+      "assertion": "visible",
+      "description": "Verify message input is visible"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/inbox.sendMessageButton",
+      "assertion": "visible",
+      "description": "Verify send button is visible"
+    },
+    {
+      "action": "screenshot",
+      "name": "new-chat-created"
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "_metadata": {
+    "module_name": "UI Dashboard",
+    "description": "Visual interface for score management",
+    "prd_ref": "OT-P1-004, OT-P1-005, OT-P1-006, OT-P2-003",
+    "priority": "P1"
+  },
+  "requirements": [
+    {
+      "id": "SCS-UI-001",
+      "title": "Dashboard overview",
+      "description": "Visual overview of all scenarios with scores, trends, and health status",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "SCS-UI-002",
+      "title": "Configuration UI",
+      "description": "Toggle switches for components with health indicators and presets",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "SCS-UI-003",
+      "title": "Scenario detail view",
+      "description": "Drill-down showing full breakdown, history chart, and recommendations",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "SCS-UI-004",
+      "title": "What-if simulator UI",
+      "description": "Interactive UI for simulating changes and seeing impact",
+      "prd_ref": "OT-P2-003",
+      "criticality": "P2",
+      "validation": []
+    },
+    {
+      "id": "SCS-UI-005",
+      "title": "Score progress bars",
+      "description": "Visual progress bars for each scoring dimension",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "SCS-UI-006",
+      "title": "Sparkline trend charts",
+      "description": "Small inline charts showing score history trends",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "validation": []
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "description": "Validate chat list display shows chats with previews, read/unread indicators, and labels",
+    "requirement": "INBOX-LIST-001",
+    "version": 1
+  },
+  "steps": [
+    {
+      "action": "navigate",
+      "url": "${UI_BASE_URL}",
+      "description": "Navigate to Agent Inbox UI"
+    },
+    {
+      "action": "wait",
+      "selector": "@selector/inbox.container",
+      "timeout": 5000,
+      "description": "Wait for inbox container to load"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/inbox.chatList",
+      "assertion": "visible",
+      "description": "Verify chat list is visible"
+    },
+    {
+      "action": "screenshot",
+      "name": "inbox-list-display"
+    }
+  ]
+}

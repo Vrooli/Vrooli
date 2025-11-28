@@ -864,10 +864,31 @@ func loggingMiddleware(next http.Handler) http.Handler {
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
+	// Get allowed origins from environment or use localhost defaults for development
+	allowedOriginsStr := os.Getenv("CORS_ALLOWED_ORIGINS")
+	if allowedOriginsStr == "" {
+		// Default to localhost origins for development - lifecycle provides UI_PORT
+		uiPort := os.Getenv("UI_PORT")
+		if uiPort == "" {
+			uiPort = "35000"
+		}
+		allowedOriginsStr = fmt.Sprintf("http://localhost:%s,http://127.0.0.1:%s", uiPort, uiPort)
+	}
+	allowedOrigins := strings.Split(allowedOriginsStr, ",")
+	allowedOriginSet := make(map[string]bool)
+	for _, origin := range allowedOrigins {
+		allowedOriginSet[strings.TrimSpace(origin)] = true
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+		if origin != "" && allowedOriginSet[origin] {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin")
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)

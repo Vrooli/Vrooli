@@ -1,0 +1,30 @@
+{
+  "_metadata": {
+    "description": "Operational requirements registry for scenario-completeness-scoring",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true,
+    "last_validated_at": "2025-11-28",
+    "last_synced_at": "2025-11-28"
+  },
+  "meta": {
+    "scenario": "scenario-completeness-scoring",
+    "version": "2025.11",
+    "generated": "2025-11-28",
+    "owners": [
+      {
+        "team": "Vrooli Platform",
+        "contact": "platform@vrooli.dev"
+      }
+    ]
+  },
+  "imports": [
+    "./01-core-scoring/module.json",
+    "./02-configuration/module.json",
+    "./03-circuit-breaker/module.json",
+    "./04-health-monitoring/module.json",
+    "./05-history-trends/module.json",
+    "./06-analysis/module.json",
+    "./07-ui-dashboard/module.json"
+  ],
+  "requirements": []
+}

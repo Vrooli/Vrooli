@@ -1,0 +1,42 @@
+{
+  "_metadata": {
+    "module_name": "Analysis",
+    "description": "What-if analysis and recommendations",
+    "prd_ref": "OT-P1-003, OT-P1-007, OT-P1-009, OT-P2-001",
+    "priority": "P1"
+  },
+  "requirements": [
+    {
+      "id": "SCS-ANALYSIS-001",
+      "title": "What-if analysis",
+      "description": "Simulate 'if you fix X, your score would be Y' predictions",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "SCS-ANALYSIS-002",
+      "title": "Prioritized recommendations",
+      "description": "Ranked list of improvements with estimated point impact",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "SCS-ANALYSIS-003",
+      "title": "Bulk score refresh",
+      "description": "Recalculate scores for all scenarios in one operation",
+      "prd_ref": "OT-P1-009",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "SCS-ANALYSIS-004",
+      "title": "Cross-scenario comparison",
+      "description": "Side-by-side comparison of multiple scenarios",
+      "prd_ref": "OT-P2-001",
+      "criticality": "P2",
+      "validation": []
+    }
+  ]
+}

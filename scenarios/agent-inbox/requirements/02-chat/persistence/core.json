@@ -18,9 +18,9 @@
         },
         {
           "type": "test",
-          "phase": "unit",
+          "phase": "integration",
           "status": "implemented",
-          "ref": "api/main_test.go"
+          "ref": "test/playbooks/journeys/basic-chat-flow.json"
         }
       ]
     },
@@ -37,6 +37,12 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "api/main_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/playbooks/journeys/basic-chat-flow.json"
         }
       ]
     },

@@ -1,0 +1,78 @@
+{
+  "metadata": {
+    "description": "End-to-end journey: Create chat, send message, archive chat",
+    "requirement": "INBOX-LIST-001,BUBBLE-001,BUBBLE-002,PERSIST-001,PERSIST-002",
+    "version": 1
+  },
+  "steps": [
+    {
+      "action": "navigate",
+      "url": "${UI_BASE_URL}",
+      "description": "Navigate to Agent Inbox UI"
+    },
+    {
+      "action": "wait",
+      "selector": "@selector/inbox.container",
+      "timeout": 5000,
+      "description": "Wait for inbox container to load"
+    },
+    {
+      "action": "click",
+      "selector": "@selector/inbox.newChatButton",
+      "description": "Create a new chat"
+    },
+    {
+      "action": "wait",
+      "selector": "@selector/inbox.messageInput",
+      "timeout": 3000,
+      "description": "Wait for message input"
+    },
+    {
+      "action": "type",
+      "selector": "@selector/inbox.messageInput",
+      "text": "Hello, this is a test message!",
+      "description": "Type a test message"
+    },
+    {
+      "action": "click",
+      "selector": "@selector/inbox.sendMessageButton",
+      "description": "Send the message"
+    },
+    {
+      "action": "wait",
+      "timeout": 1000,
+      "description": "Wait for message to be sent"
+    },
+    {
+      "action": "click",
+      "selector": "@selector/nav.inbox",
+      "description": "Navigate back to inbox"
+    },
+    {
+      "action": "wait",
+      "selector": "@selector/inbox.chatList",
+      "timeout": 3000,
+      "description": "Wait for chat list"
+    },
+    {
+      "action": "click",
+      "selector": "@selector/inbox.toggleArchiveButton",
+      "description": "Archive the chat"
+    },
+    {
+      "action": "click",
+      "selector": "@selector/nav.archived",
+      "description": "Navigate to archived view"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/inbox.chatList",
+      "assertion": "hasContent",
+      "description": "Verify archived chat appears"
+    },
+    {
+      "action": "screenshot",
+      "name": "basic-chat-flow-complete"
+    }
+  ]
+}

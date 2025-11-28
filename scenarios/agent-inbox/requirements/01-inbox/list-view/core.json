@@ -21,6 +21,18 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "ui/src/App.tsx"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/playbooks/capabilities/01-inbox-list/ui/chat-list-display.json"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/playbooks/journeys/basic-chat-flow.json"
         }
       ]
     },
@@ -43,6 +55,12 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "ui/src/App.tsx"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/playbooks/capabilities/01-inbox-list/ui/read-unread-toggle.json"
         }
       ]
     },
@@ -65,6 +83,12 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "ui/src/App.tsx"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/playbooks/capabilities/01-inbox-list/ui/read-unread-toggle.json"
         }
       ]
     },
@@ -87,6 +111,12 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "ui/src/App.tsx"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/playbooks/journeys/basic-chat-flow.json"
         }
       ]
     },

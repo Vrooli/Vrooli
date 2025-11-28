@@ -21,6 +21,18 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "ui/src/App.tsx"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/playbooks/capabilities/02-chat-creation/ui/create-new-chat.json"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/playbooks/journeys/basic-chat-flow.json"
         }
       ]
     },
@@ -37,6 +49,12 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "ui/src/App.tsx"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/playbooks/journeys/basic-chat-flow.json"
         }
       ]
     },

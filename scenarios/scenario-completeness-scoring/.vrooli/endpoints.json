@@ -1,0 +1,335 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus collector status",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string",
+          "readiness": "boolean",
+          "collectors": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring status"
+      }
+    },
+    {
+      "id": "list-scores",
+      "path": "/api/scores",
+      "method": "GET",
+      "summary": "List all scenario scores",
+      "description": "Returns current completeness scores for all scenarios",
+      "category": "scoring",
+      "response": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "scenario": "string",
+            "score": "number",
+            "classification": "string",
+            "trend": "string"
+          }
+        }
+      },
+      "examples": [
+        {
+          "name": "List all scores",
+          "curl": "curl http://localhost:${API_PORT}/api/scores"
+        }
+      ],
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring scores"
+      }
+    },
+    {
+      "id": "get-score",
+      "path": "/api/scores/{scenario}",
+      "method": "GET",
+      "summary": "Get scenario score",
+      "description": "Returns detailed completeness score breakdown for a specific scenario",
+      "category": "scoring",
+      "parameters": [
+        {
+          "name": "scenario",
+          "in": "path",
+          "required": true,
+          "type": "string",
+          "description": "Scenario name"
+        }
+      ],
+      "response": {
+        "type": "object",
+        "properties": {
+          "scenario": "string",
+          "score": "number",
+          "classification": "string",
+          "breakdown": "object",
+          "recommendations": "array"
+        }
+      },
+      "examples": [
+        {
+          "name": "Get score for ecosystem-manager",
+          "curl": "curl http://localhost:${API_PORT}/api/scores/ecosystem-manager"
+        }
+      ],
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring score {scenario}"
+      }
+    },
+    {
+      "id": "calculate-score",
+      "path": "/api/scores/{scenario}/calculate",
+      "method": "POST",
+      "summary": "Force score recalculation",
+      "description": "Forces a fresh calculation of the scenario's completeness score",
+      "category": "scoring",
+      "parameters": [
+        {
+          "name": "scenario",
+          "in": "path",
+          "required": true,
+          "type": "string",
+          "description": "Scenario name"
+        }
+      ],
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring calculate {scenario}"
+      }
+    },
+    {
+      "id": "get-history",
+      "path": "/api/scores/{scenario}/history",
+      "method": "GET",
+      "summary": "Get score history",
+      "description": "Returns historical score snapshots for trend analysis",
+      "category": "scoring",
+      "parameters": [
+        {
+          "name": "scenario",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "type": "number",
+          "description": "Maximum number of history entries to return"
+        }
+      ],
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring history {scenario}"
+      }
+    },
+    {
+      "id": "what-if",
+      "path": "/api/scores/{scenario}/what-if",
+      "method": "POST",
+      "summary": "Run what-if analysis",
+      "description": "Simulates score changes based on hypothetical improvements",
+      "category": "analysis",
+      "parameters": [
+        {
+          "name": "scenario",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "request_body": {
+        "type": "object",
+        "properties": {
+          "changes": {
+            "type": "array",
+            "description": "List of simulated changes"
+          }
+        }
+      },
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring what-if {scenario}"
+      }
+    },
+    {
+      "id": "get-config",
+      "path": "/api/config",
+      "method": "GET",
+      "summary": "Get global configuration",
+      "description": "Returns the global scoring configuration",
+      "category": "configuration",
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring config"
+      }
+    },
+    {
+      "id": "update-config",
+      "path": "/api/config",
+      "method": "PUT",
+      "summary": "Update global configuration",
+      "description": "Updates the global scoring configuration",
+      "category": "configuration",
+      "request_body": {
+        "type": "object",
+        "properties": {
+          "components": "object",
+          "penalties": "object",
+          "circuit_breaker": "object"
+        }
+      },
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring config set"
+      }
+    },
+    {
+      "id": "get-presets",
+      "path": "/api/config/presets",
+      "method": "GET",
+      "summary": "List configuration presets",
+      "description": "Returns available configuration presets",
+      "category": "configuration",
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring presets"
+      }
+    },
+    {
+      "id": "apply-preset",
+      "path": "/api/config/presets/{name}/apply",
+      "method": "POST",
+      "summary": "Apply configuration preset",
+      "description": "Applies a named preset to the global configuration",
+      "category": "configuration",
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "type": "string",
+          "description": "Preset name (default, skip-e2e, code-quality-only)"
+        }
+      ],
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring preset apply {name}"
+      }
+    },
+    {
+      "id": "collector-health",
+      "path": "/api/health/collectors",
+      "method": "GET",
+      "summary": "Get collector health status",
+      "description": "Returns health status for each scoring collector",
+      "category": "health",
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring collectors"
+      }
+    },
+    {
+      "id": "circuit-breaker-status",
+      "path": "/api/health/circuit-breaker",
+      "method": "GET",
+      "summary": "Get circuit breaker status",
+      "description": "Returns status of auto-disabled components",
+      "category": "health",
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring circuit-breaker"
+      }
+    },
+    {
+      "id": "circuit-breaker-reset",
+      "path": "/api/health/circuit-breaker/reset",
+      "method": "POST",
+      "summary": "Reset circuit breaker",
+      "description": "Re-enables all auto-disabled collectors",
+      "category": "health",
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring circuit-breaker reset"
+      }
+    },
+    {
+      "id": "recommendations",
+      "path": "/api/recommendations/{scenario}",
+      "method": "GET",
+      "summary": "Get prioritized recommendations",
+      "description": "Returns ranked list of improvements with estimated point impact",
+      "category": "analysis",
+      "parameters": [
+        {
+          "name": "scenario",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring recommend {scenario}"
+      }
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and collector health",
+      "endpoint_id": "health"
+    },
+    {
+      "name": "scores",
+      "description": "List all scenario scores",
+      "endpoint_id": "list-scores"
+    },
+    {
+      "name": "score",
+      "description": "Get detailed score for a scenario",
+      "endpoint_id": "get-score"
+    },
+    {
+      "name": "calculate",
+      "description": "Force score recalculation",
+      "endpoint_id": "calculate-score"
+    },
+    {
+      "name": "history",
+      "description": "View score history",
+      "endpoint_id": "get-history"
+    },
+    {
+      "name": "config",
+      "description": "View or update configuration",
+      "endpoint_id": "get-config"
+    },
+    {
+      "name": "presets",
+      "description": "List available presets",
+      "endpoint_id": "get-presets"
+    },
+    {
+      "name": "collectors",
+      "description": "View collector health status",
+      "endpoint_id": "collector-health"
+    },
+    {
+      "name": "circuit-breaker",
+      "description": "View circuit breaker status",
+      "endpoint_id": "circuit-breaker-status"
+    },
+    {
+      "name": "recommend",
+      "description": "Get prioritized recommendations",
+      "endpoint_id": "recommendations"
+    }
+  ]
+}

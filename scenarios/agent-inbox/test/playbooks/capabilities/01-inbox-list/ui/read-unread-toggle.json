@@ -1,0 +1,51 @@
+{
+  "metadata": {
+    "description": "Validate toggling read/unread status updates visual indicator",
+    "requirement": "INBOX-LIST-002,INBOX-LIST-003",
+    "version": 1
+  },
+  "steps": [
+    {
+      "action": "navigate",
+      "url": "${UI_BASE_URL}",
+      "description": "Navigate to Agent Inbox UI"
+    },
+    {
+      "action": "wait",
+      "selector": "@selector/inbox.container",
+      "timeout": 5000,
+      "description": "Wait for inbox container to load"
+    },
+    {
+      "action": "click",
+      "selector": "@selector/inbox.newChatButton",
+      "description": "Create a new chat for testing"
+    },
+    {
+      "action": "wait",
+      "selector": "@selector/inbox.messageList",
+      "timeout": 3000,
+      "description": "Wait for chat to open"
+    },
+    {
+      "action": "click",
+      "selector": "@selector/nav.inbox",
+      "description": "Navigate back to inbox"
+    },
+    {
+      "action": "click",
+      "selector": "@selector/inbox.toggleReadButton",
+      "description": "Toggle read status"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/inbox.unreadIndicator",
+      "assertion": "visible",
+      "description": "Verify unread indicator appears"
+    },
+    {
+      "action": "screenshot",
+      "name": "read-unread-toggle"
+    }
+  ]
+}

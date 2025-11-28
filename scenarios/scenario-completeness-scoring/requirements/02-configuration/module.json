@@ -1,0 +1,42 @@
+{
+  "_metadata": {
+    "module_name": "Configuration",
+    "description": "Scoring configuration management",
+    "prd_ref": "OT-P0-002, OT-P0-003, OT-P1-008",
+    "priority": "P0"
+  },
+  "requirements": [
+    {
+      "id": "SCS-CFG-001",
+      "title": "Component toggle API",
+      "description": "Enable/disable individual scoring components and penalties via configuration",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "SCS-CFG-002",
+      "title": "Per-scenario overrides",
+      "description": "Support scenario-specific configuration that overrides global defaults",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "SCS-CFG-003",
+      "title": "Configuration presets system",
+      "description": "Pre-defined configurations (e.g., Skip E2E, Code Quality Only, Full Scoring)",
+      "prd_ref": "OT-P1-008",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "SCS-CFG-004",
+      "title": "Configuration persistence",
+      "description": "Save and load configuration from JSON files",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "validation": []
+    }
+  ]
+}

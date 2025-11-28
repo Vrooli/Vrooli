@@ -1,0 +1,42 @@
+{
+  "_metadata": {
+    "module_name": "Circuit Breaker",
+    "description": "Resilience pattern for collector failures",
+    "prd_ref": "OT-P0-005",
+    "priority": "P0"
+  },
+  "requirements": [
+    {
+      "id": "SCS-CB-001",
+      "title": "Auto-disable failing collectors",
+      "description": "Auto-disable collectors that fail N consecutive times",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "SCS-CB-002",
+      "title": "Failure tracking",
+      "description": "Track consecutive failures per collector",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "SCS-CB-003",
+      "title": "Periodic retry",
+      "description": "Periodically retry tripped collectors to check if they recovered",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "SCS-CB-004",
+      "title": "Circuit breaker reset API",
+      "description": "API endpoint to manually reset all tripped circuit breakers",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "validation": []
+    }
+  ]
+}
