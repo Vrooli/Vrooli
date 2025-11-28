@@ -242,51 +242,62 @@ func (cma *CodeMetricsAnalyzer) isFunctionDefinition(line string, lang Language)
 
 	switch lang {
 	case LanguageGo:
-		// Go functions: func name(...) or func (receiver) name(...)
-		return strings.HasPrefix(trimmed, "func ") && !strings.Contains(trimmed, "//")
-
+		return cma.isGoFunctionDef(trimmed)
 	case LanguageTypeScript, LanguageJavaScript:
-		// TS/JS functions: function name(...), const name = (...) =>, name(...) {, async function
-		patterns := []string{
-			"function ",
-			"async function ",
-			"const ",
-			"let ",
-			"var ",
-		}
-		for _, pattern := range patterns {
-			if strings.HasPrefix(trimmed, pattern) {
-				// Simple heuristic: contains ( and either => or {
-				if strings.Contains(trimmed, "(") && (strings.Contains(trimmed, "=>") || strings.Contains(trimmed, "{")) {
-					return !strings.HasPrefix(trimmed, "//")
-				}
-			}
-		}
-		// Method definitions: methodName(...) {
-		if strings.Contains(trimmed, "(") && strings.Contains(trimmed, "{") && !strings.HasPrefix(trimmed, "//") {
-			// Exclude control flow and other non-function lines
-			excludes := []string{"if ", "while ", "for ", "switch ", "catch "}
-			for _, exclude := range excludes {
-				if strings.HasPrefix(trimmed, exclude) {
-					return false
-				}
-			}
-			return true
-		}
-		return false
-
+		return cma.isJSFunctionDef(trimmed)
 	case LanguagePython:
-		// Python functions: def name(...):
-		return strings.HasPrefix(trimmed, "def ") && !strings.HasPrefix(trimmed, "#")
-
+		return cma.isPythonFunctionDef(trimmed)
 	case LanguageRust:
-		// Rust functions: fn name(...) or pub fn name(...)
-		return (strings.HasPrefix(trimmed, "fn ") || strings.HasPrefix(trimmed, "pub fn ")) &&
-			!strings.HasPrefix(trimmed, "//")
-
+		return cma.isRustFunctionDef(trimmed)
 	default:
 		return false
 	}
+}
+
+// isGoFunctionDef detects Go function definitions
+func (cma *CodeMetricsAnalyzer) isGoFunctionDef(trimmed string) bool {
+	// Go functions: func name(...) or func (receiver) name(...)
+	return strings.HasPrefix(trimmed, "func ") && !strings.Contains(trimmed, "//")
+}
+
+// isJSFunctionDef detects TypeScript/JavaScript function definitions
+func (cma *CodeMetricsAnalyzer) isJSFunctionDef(trimmed string) bool {
+	// Check explicit function declarations
+	patterns := []string{"function ", "async function ", "const ", "let ", "var "}
+	for _, pattern := range patterns {
+		if strings.HasPrefix(trimmed, pattern) {
+			// Simple heuristic: contains ( and either => or {
+			if strings.Contains(trimmed, "(") && (strings.Contains(trimmed, "=>") || strings.Contains(trimmed, "{")) {
+				return !strings.HasPrefix(trimmed, "//")
+			}
+		}
+	}
+
+	// Method definitions: methodName(...) {
+	if strings.Contains(trimmed, "(") && strings.Contains(trimmed, "{") && !strings.HasPrefix(trimmed, "//") {
+		// Exclude control flow and other non-function lines
+		excludes := []string{"if ", "while ", "for ", "switch ", "catch "}
+		for _, exclude := range excludes {
+			if strings.HasPrefix(trimmed, exclude) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// isPythonFunctionDef detects Python function definitions
+func (cma *CodeMetricsAnalyzer) isPythonFunctionDef(trimmed string) bool {
+	// Python functions: def name(...):
+	return strings.HasPrefix(trimmed, "def ") && !strings.HasPrefix(trimmed, "#")
+}
+
+// isRustFunctionDef detects Rust function definitions
+func (cma *CodeMetricsAnalyzer) isRustFunctionDef(trimmed string) bool {
+	// Rust functions: fn name(...) or pub fn name(...)
+	return (strings.HasPrefix(trimmed, "fn ") || strings.HasPrefix(trimmed, "pub fn ")) &&
+		!strings.HasPrefix(trimmed, "//")
 }
 
 // isCommentLine detects if a line is a comment, tracking multi-line comment state

@@ -23,18 +23,13 @@ func TestCollectFileMetrics_LineCounting(t *testing.T) {
 
 	for path, lineCount := range testFiles {
 		fullPath := filepath.Join(tmpDir, path)
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-			t.Fatalf("Failed to create directory: %v", err)
-		}
 
 		// Create file with specified number of lines
 		content := ""
 		for i := 0; i < lineCount; i++ {
 			content += "line\n"
 		}
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
-			t.Fatalf("Failed to write test file: %v", err)
-		}
+		writeTestFile(t, fullPath, content)
 	}
 
 	// Create scanner and collect metrics
@@ -93,12 +88,7 @@ func TestCollectFileMetrics_ExtensionFiltering(t *testing.T) {
 
 	for _, tf := range testFiles {
 		fullPath := filepath.Join(tmpDir, tf.path)
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-			t.Fatalf("Failed to create directory: %v", err)
-		}
-		if err := os.WriteFile(fullPath, []byte("test content\n"), 0644); err != nil {
-			t.Fatalf("Failed to write test file: %v", err)
-		}
+		writeTestFile(t, fullPath, "test content\n")
 	}
 
 	scanner := NewLightScanner(tmpDir, 0)
@@ -159,17 +149,12 @@ func TestLongFileThreshold(t *testing.T) {
 
 	for _, tf := range testFiles {
 		fullPath := filepath.Join(tmpDir, tf.path)
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-			t.Fatalf("Failed to create directory: %v", err)
-		}
 
 		content := ""
 		for i := 0; i < tf.lineCount; i++ {
 			content += "line\n"
 		}
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
-			t.Fatalf("Failed to write test file: %v", err)
-		}
+		writeTestFile(t, fullPath, content)
 	}
 
 	// Run full scan which includes long file detection
@@ -209,18 +194,13 @@ func TestLongFileThreshold_Configurable(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	fullPath := filepath.Join(tmpDir, "api", "test.go")
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-		t.Fatalf("Failed to create directory: %v", err)
-	}
 
 	// Create a file with exactly 501 lines (just over threshold)
 	content := ""
 	for i := 0; i < 501; i++ {
 		content += "line\n"
 	}
-	if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
-		t.Fatalf("Failed to write test file: %v", err)
-	}
+	writeTestFile(t, fullPath, content)
 
 	scanner := NewLightScanner(tmpDir, 0)
 	result, err := scanner.Scan(context.Background())
@@ -256,17 +236,12 @@ func TestFileMetrics_Totals(t *testing.T) {
 	expectedTotal := 0
 	for _, tf := range testFiles {
 		fullPath := filepath.Join(tmpDir, tf.path)
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-			t.Fatalf("Failed to create directory: %v", err)
-		}
 
 		content := ""
 		for i := 0; i < tf.lines; i++ {
 			content += "line\n"
 		}
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
-			t.Fatalf("Failed to write test file: %v", err)
-		}
+		writeTestFile(t, fullPath, content)
 		expectedTotal += tf.lines
 	}
 
@@ -303,17 +278,12 @@ func TestCollectFileMetrics_EmptyFiles(t *testing.T) {
 
 	for _, tf := range testFiles {
 		fullPath := filepath.Join(tmpDir, tf.path)
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-			t.Fatalf("Failed to create directory: %v", err)
-		}
 
 		content := ""
 		for i := 0; i < tf.lines; i++ {
 			content += "\n"
 		}
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
-			t.Fatalf("Failed to write test file: %v", err)
-		}
+		writeTestFile(t, fullPath, content)
 	}
 
 	scanner := NewLightScanner(tmpDir, 0)
@@ -355,12 +325,7 @@ func TestCollectFileMetrics_ExcludeHiddenDirs(t *testing.T) {
 
 	for _, tf := range testFiles {
 		fullPath := filepath.Join(tmpDir, tf.path)
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-			t.Fatalf("Failed to create directory: %v", err)
-		}
-		if err := os.WriteFile(fullPath, []byte("content\n"), 0644); err != nil {
-			t.Fatalf("Failed to write test file: %v", err)
-		}
+		writeTestFile(t, fullPath, "content\n")
 	}
 
 	scanner := NewLightScanner(tmpDir, 0)
@@ -502,12 +467,7 @@ func TestCollectFileMetrics_ExtensionMetadata(t *testing.T) {
 
 	for _, tf := range testFiles {
 		fullPath := filepath.Join(tmpDir, tf.path)
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-			t.Fatalf("Failed to create directory: %v", err)
-		}
-		if err := os.WriteFile(fullPath, []byte("content\n"), 0644); err != nil {
-			t.Fatalf("Failed to write test file: %v", err)
-		}
+		writeTestFile(t, fullPath, "content\n")
 	}
 
 	scanner := NewLightScanner(tmpDir, 0)
@@ -607,12 +567,7 @@ func TestCollectFileMetrics_Concurrent(t *testing.T) {
 	// Create test files
 	for i := 0; i < 10; i++ {
 		fullPath := filepath.Join(tmpDir, "api", fmt.Sprintf("file%d.go", i))
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-			t.Fatalf("Failed to create directory: %v", err)
-		}
-		if err := os.WriteFile(fullPath, []byte("package main\n"), 0644); err != nil {
-			t.Fatalf("Failed to write file: %v", err)
-		}
+		writeTestFile(t, fullPath, "package main\n")
 	}
 
 	// Run concurrent metric collections

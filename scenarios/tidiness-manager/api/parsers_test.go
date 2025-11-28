@@ -6,47 +6,53 @@ import (
 	"testing"
 )
 
+// Test helpers
+
+// requireIssues validates the number of issues and returns them
+func requireIssues(t *testing.T, issues []Issue, expectedCount int) []Issue {
+	t.Helper()
+	if len(issues) != expectedCount {
+		t.Fatalf("expected %d issue(s), got %d", expectedCount, len(issues))
+	}
+	return issues
+}
+
+// assertIssue validates all key properties of an issue in one call
+func assertIssue(t *testing.T, issue Issue, file string, line, column int, rule, category, tool, severity string) {
+	t.Helper()
+	if issue.File != file {
+		t.Errorf("expected file %q, got %q", file, issue.File)
+	}
+	if issue.Line != line {
+		t.Errorf("expected line %d, got %d", line, issue.Line)
+	}
+	if issue.Column != column {
+		t.Errorf("expected column %d, got %d", column, issue.Column)
+	}
+	if issue.Rule != rule {
+		t.Errorf("expected rule %q, got %q", rule, issue.Rule)
+	}
+	if issue.Category != category {
+		t.Errorf("expected category %q, got %q", category, issue.Category)
+	}
+	if issue.Tool != tool {
+		t.Errorf("expected tool %q, got %q", tool, issue.Tool)
+	}
+	if issue.Severity != severity {
+		t.Errorf("expected severity %q, got %q", severity, issue.Severity)
+	}
+}
+
 // [REQ:TM-LS-003] Test eslint format parsing
 func TestParseLintOutput_ESLint(t *testing.T) {
 	output := `
 src/components/App.tsx:10:5: Unexpected console statement [no-console]
 src/utils/helpers.ts:25:12: 'value' is assigned a value but never used [no-unused-vars]
 `
-	issues := ParseLintOutput("test-scenario", "eslint", strings.TrimSpace(output))
+	issues := requireIssues(t, ParseLintOutput("test-scenario", "eslint", strings.TrimSpace(output)), 2)
 
-	if len(issues) != 2 {
-		t.Fatalf("expected 2 issues, got %d", len(issues))
-	}
-
-	// Check first issue
-	issue := issues[0]
-	if issue.File != "src/components/App.tsx" {
-		t.Errorf("expected file 'src/components/App.tsx', got %q", issue.File)
-	}
-	if issue.Line != 10 {
-		t.Errorf("expected line 10, got %d", issue.Line)
-	}
-	if issue.Column != 5 {
-		t.Errorf("expected column 5, got %d", issue.Column)
-	}
-	if issue.Rule != "no-console" {
-		t.Errorf("expected rule 'no-console', got %q", issue.Rule)
-	}
-	if issue.Category != "lint" {
-		t.Errorf("expected category 'lint', got %q", issue.Category)
-	}
-	if issue.Tool != "eslint" {
-		t.Errorf("expected tool 'eslint', got %q", issue.Tool)
-	}
-
-	// Check second issue
-	issue2 := issues[1]
-	if issue2.File != "src/utils/helpers.ts" {
-		t.Errorf("expected file 'src/utils/helpers.ts', got %q", issue2.File)
-	}
-	if issue2.Rule != "no-unused-vars" {
-		t.Errorf("expected rule 'no-unused-vars', got %q", issue2.Rule)
-	}
+	assertIssue(t, issues[0], "src/components/App.tsx", 10, 5, "no-console", "lint", "eslint", "warning")
+	assertIssue(t, issues[1], "src/utils/helpers.ts", 25, 12, "no-unused-vars", "lint", "eslint", "warning")
 }
 
 // [REQ:TM-LS-003] Test golangci-lint format parsing
@@ -55,22 +61,9 @@ func TestParseLintOutput_GolangCILint(t *testing.T) {
 api/main.go:42:1: exported function NewServer should have comment or be unexported (revive)
 api/handlers.go:15:8: G104: Errors unhandled (gosec)
 `
-	issues := ParseLintOutput("test-scenario", "golangci-lint", strings.TrimSpace(output))
+	issues := requireIssues(t, ParseLintOutput("test-scenario", "golangci-lint", strings.TrimSpace(output)), 2)
 
-	if len(issues) != 2 {
-		t.Fatalf("expected 2 issues, got %d", len(issues))
-	}
-
-	issue := issues[0]
-	if issue.File != "api/main.go" {
-		t.Errorf("expected file 'api/main.go', got %q", issue.File)
-	}
-	if issue.Line != 42 {
-		t.Errorf("expected line 42, got %d", issue.Line)
-	}
-	if issue.Tool != "golangci-lint" {
-		t.Errorf("expected tool 'golangci-lint', got %q", issue.Tool)
-	}
+	assertIssue(t, issues[0], "api/main.go", 42, 1, "", "lint", "golangci-lint", "warning")
 }
 
 // [REQ:TM-LS-004] Test TypeScript error parsing
@@ -80,41 +73,10 @@ src/App.tsx(10,5): error TS2304: Cannot find name 'unknown'
 src/utils/api.ts(25,12): error TS2322: Type 'string' is not assignable to type 'number'
 ui/components/Button.tsx(8,3): warning TS6133: 'props' is declared but never used
 `
-	issues := ParseTypeOutput("test-scenario", "tsc", strings.TrimSpace(output))
+	issues := requireIssues(t, ParseTypeOutput("test-scenario", "tsc", strings.TrimSpace(output)), 3)
 
-	if len(issues) != 3 {
-		t.Fatalf("expected 3 issues, got %d", len(issues))
-	}
-
-	// Check error issue
-	issue := issues[0]
-	if issue.File != "src/App.tsx" {
-		t.Errorf("expected file 'src/App.tsx', got %q", issue.File)
-	}
-	if issue.Line != 10 {
-		t.Errorf("expected line 10, got %d", issue.Line)
-	}
-	if issue.Column != 5 {
-		t.Errorf("expected column 5, got %d", issue.Column)
-	}
-	if issue.Severity != "error" {
-		t.Errorf("expected severity 'error', got %q", issue.Severity)
-	}
-	if issue.Rule != "TS2304" {
-		t.Errorf("expected rule 'TS2304', got %q", issue.Rule)
-	}
-	if issue.Category != "type" {
-		t.Errorf("expected category 'type', got %q", issue.Category)
-	}
-
-	// Check warning issue
-	issue3 := issues[2]
-	if issue3.Severity != "warning" {
-		t.Errorf("expected severity 'warning', got %q", issue3.Severity)
-	}
-	if issue3.Rule != "TS6133" {
-		t.Errorf("expected rule 'TS6133', got %q", issue3.Rule)
-	}
+	assertIssue(t, issues[0], "src/App.tsx", 10, 5, "TS2304", "type", "tsc", "error")
+	assertIssue(t, issues[2], "ui/components/Button.tsx", 8, 3, "TS6133", "type", "tsc", "warning")
 }
 
 // [REQ:TM-LS-004] Test Go type error parsing
@@ -150,35 +112,51 @@ api/handlers.go:15:2: cannot use "string" (type string) as type int in assignmen
 	}
 }
 
-// [REQ:TM-LS-003,TM-LS-004] Test handling empty output
+// [REQ:TM-LS-003] Test handling empty lint output
+// [REQ:TM-LS-003,TM-LS-004] Test handling empty output (table-driven)
 func TestParseOutput_Empty(t *testing.T) {
-	lintIssues := ParseLintOutput("test", "lint", "")
-	if len(lintIssues) != 0 {
-		t.Errorf("expected 0 lint issues for empty output, got %d", len(lintIssues))
+	tests := []struct {
+		name      string
+		parseFunc func(scenario, tool, output string) []Issue
+		tool      string
+	}{
+		{"Lint output empty", ParseLintOutput, "lint"},
+		{"Type output empty", ParseTypeOutput, "type"},
 	}
 
-	typeIssues := ParseTypeOutput("test", "type", "")
-	if len(typeIssues) != 0 {
-		t.Errorf("expected 0 type issues for empty output, got %d", len(typeIssues))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			issues := tt.parseFunc("test", tt.tool, "")
+			if len(issues) != 0 {
+				t.Errorf("expected 0 issues, got %d", len(issues))
+			}
+		})
 	}
 }
 
-// [REQ:TM-LS-003,TM-LS-004] Test handling malformed output
+// [REQ:TM-LS-003,TM-LS-004] Test handling malformed output (table-driven)
 func TestParseOutput_Malformed(t *testing.T) {
 	malformed := `
-This is not a valid lint output
+This is not a valid output
 Random text without structure
 Another line of gibberish
 `
-	lintIssues := ParseLintOutput("test", "lint", malformed)
-	// Should not crash, may return empty or partial results
-	if lintIssues == nil {
-		t.Error("expected non-nil slice even for malformed input")
+	tests := []struct {
+		name      string
+		parseFunc func(scenario, tool, output string) []Issue
+		tool      string
+	}{
+		{"Lint output malformed", ParseLintOutput, "lint"},
+		{"Type output malformed", ParseTypeOutput, "type"},
 	}
 
-	typeIssues := ParseTypeOutput("test", "type", malformed)
-	if typeIssues == nil {
-		t.Error("expected non-nil slice even for malformed input")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			issues := tt.parseFunc("test", tt.tool, malformed)
+			if issues == nil {
+				t.Error("expected non-nil slice")
+			}
+		})
 	}
 }
 
@@ -215,19 +193,40 @@ func TestParseLintOutput_Unicode(t *testing.T) {
 	}
 }
 
-// [REQ:TM-LS-003,TM-LS-004] Test parsing with extremely long lines
+// [REQ:TM-LS-003,TM-LS-004] Test parsing output with extremely long lines (table-driven)
 func TestParseOutput_LongLines(t *testing.T) {
-	// Create a line with extremely long message
 	longMessage := strings.Repeat("A", 5000)
-	output := fmt.Sprintf("file.go:10:5: %s [rule]", longMessage)
-	issues := ParseLintOutput("test", "lint", output)
 
-	if len(issues) != 1 {
-		t.Fatalf("expected 1 issue, got %d", len(issues))
+	tests := []struct {
+		name      string
+		parseFunc func(scenario, tool, output string) []Issue
+		tool      string
+		output    string
+	}{
+		{
+			name:      "Lint output with long line",
+			parseFunc: ParseLintOutput,
+			tool:      "lint",
+			output:    fmt.Sprintf("file.go:10:5: %s [rule]", longMessage),
+		},
+		{
+			name:      "Type output with long line",
+			parseFunc: ParseTypeOutput,
+			tool:      "tsc",
+			output:    fmt.Sprintf("file.go(10,5): error TS2304: %s", longMessage),
+		},
 	}
 
-	if len(issues[0].Message) == 0 {
-		t.Error("expected message to be preserved even if very long")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			issues := tt.parseFunc("test", tt.tool, tt.output)
+			if len(issues) != 1 {
+				t.Errorf("expected 1 issue, got %d", len(issues))
+			}
+			if len(issues[0].Message) == 0 {
+				t.Error("expected message to be preserved even if very long")
+			}
+		})
 	}
 }
 
@@ -332,18 +331,38 @@ func TestParseTypeOutput_GoBuildErrors(t *testing.T) {
 	}
 }
 
-// [REQ:TM-LS-003,TM-LS-004] Test parsing with Windows-style paths
+// [REQ:TM-LS-003,TM-LS-004] Test parsing output with Windows-style paths (table-driven)
 func TestParseOutput_WindowsPaths(t *testing.T) {
-	output := `C:\Users\user\project\src\file.ts:10:5: Error message [rule]`
-	issues := ParseLintOutput("test", "lint", output)
-
-	if len(issues) != 1 {
-		t.Fatalf("expected 1 issue, got %d", len(issues))
+	tests := []struct {
+		name      string
+		parseFunc func(scenario, tool, output string) []Issue
+		tool      string
+		output    string
+	}{
+		{
+			name:      "Lint output with Windows path",
+			parseFunc: ParseLintOutput,
+			tool:      "lint",
+			output:    `C:\Users\user\project\src\file.ts:10:5: Error message [rule]`,
+		},
+		{
+			name:      "Type output with Windows path",
+			parseFunc: ParseTypeOutput,
+			tool:      "tsc",
+			output:    `C:\Users\user\project\src\file.ts(10,5): error TS2304: Error message`,
+		},
 	}
 
-	issue := issues[0]
-	if !strings.Contains(issue.File, "file.ts") {
-		t.Errorf("expected Windows path to be preserved, got %q", issue.File)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			issues := tt.parseFunc("test", tt.tool, tt.output)
+			if len(issues) != 1 {
+				t.Errorf("expected 1 issue, got %d", len(issues))
+			}
+			if !strings.Contains(issues[0].File, "file.ts") {
+				t.Errorf("expected Windows path to be preserved, got %q", issues[0].File)
+			}
+		})
 	}
 }
 
@@ -359,8 +378,8 @@ func TestParseLintOutput_ANSIColors(t *testing.T) {
 	}
 }
 
-// [REQ:TM-LS-003,TM-LS-004] Test parsing with mixed severity levels
-func TestParseOutput_MixedSeverity(t *testing.T) {
+// [REQ:TM-LS-003] Test parsing lint output with mixed severity levels
+func TestParseLintOutput_MixedSeverity(t *testing.T) {
 	output := `
 file.go:10:5: fatal error: cannot compile
 file.go:15:2: error: undefined variable
@@ -383,6 +402,39 @@ file.go:25:4: note: consider using const
 
 	if !hasError {
 		t.Error("expected at least one error severity issue")
+	}
+}
+
+// [REQ:TM-LS-004] Test parsing type output with mixed severity levels
+func TestParseTypeOutput_MixedSeverity(t *testing.T) {
+	output := `
+file.go(10,5): error TS2304: Cannot find name
+file.go(15,2): warning TS6133: Variable unused
+file.go(20,3): note: Consider using readonly
+`
+	issues := ParseTypeOutput("test", "tsc", strings.TrimSpace(output))
+
+	if len(issues) == 0 {
+		t.Fatal("expected at least one issue")
+	}
+
+	// Verify severity detection works for various keywords
+	hasError := false
+	hasWarning := false
+	for _, issue := range issues {
+		if issue.Severity == "error" {
+			hasError = true
+		}
+		if issue.Severity == "warning" {
+			hasWarning = true
+		}
+	}
+
+	if !hasError {
+		t.Error("expected at least one error severity issue")
+	}
+	if !hasWarning {
+		t.Error("expected at least one warning severity issue")
 	}
 }
 
@@ -431,21 +483,16 @@ src/file3.go:30:15: Error in simple relative [rule3]
 	}
 }
 
-// [REQ:TM-LS-003,TM-LS-004] Test concurrent parsing safety
-func TestParseOutput_Concurrent(t *testing.T) {
+// [REQ:TM-LS-003] Test concurrent lint parsing safety
+func TestParseLintOutput_Concurrent(t *testing.T) {
 	lintOutput := `
 file1.go:10:5: Error 1 [rule1]
 file2.go:20:10: Error 2 [rule2]
 file3.go:30:15: Error 3 [rule3]
 `
-	typeOutput := `
-file1.ts(10,5): error TS2304: Error 1
-file2.ts(20,10): error TS2322: Error 2
-file3.ts(30,15): warning TS6133: Error 3
-`
 
 	// Run 10 concurrent parse operations
-	done := make(chan bool, 20)
+	done := make(chan bool, 10)
 	for i := 0; i < 10; i++ {
 		go func() {
 			issues := ParseLintOutput("test", "lint", lintOutput)
@@ -454,6 +501,25 @@ file3.ts(30,15): warning TS6133: Error 3
 			}
 			done <- true
 		}()
+	}
+
+	// Wait for all goroutines
+	for i := 0; i < 10; i++ {
+		<-done
+	}
+}
+
+// [REQ:TM-LS-004] Test concurrent type parsing safety
+func TestParseTypeOutput_Concurrent(t *testing.T) {
+	typeOutput := `
+file1.ts(10,5): error TS2304: Error 1
+file2.ts(20,10): error TS2322: Error 2
+file3.ts(30,15): warning TS6133: Error 3
+`
+
+	// Run 10 concurrent parse operations
+	done := make(chan bool, 10)
+	for i := 0; i < 10; i++ {
 		go func() {
 			issues := ParseTypeOutput("test", "tsc", typeOutput)
 			if len(issues) != 3 {
@@ -464,7 +530,7 @@ file3.ts(30,15): warning TS6133: Error 3
 	}
 
 	// Wait for all goroutines
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 10; i++ {
 		<-done
 	}
 }
@@ -550,8 +616,8 @@ file2.go:20:10: Single line error [rule2]`
 	}
 }
 
-// [REQ:TM-LS-003,TM-LS-004] Test parsing with null bytes and control characters
-func TestParseOutput_ControlCharacters(t *testing.T) {
+// [REQ:TM-LS-003] Test parsing lint output with null bytes and control characters
+func TestParseLintOutput_ControlCharacters(t *testing.T) {
 	// Test with various control characters that might appear in corrupted output
 	testCases := []struct {
 		name   string
@@ -566,6 +632,30 @@ func TestParseOutput_ControlCharacters(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			issues := ParseLintOutput("test", "lint", tc.output)
+			// Should not crash, might parse successfully or skip
+			if issues == nil {
+				t.Error("expected non-nil result")
+			}
+		})
+	}
+}
+
+// [REQ:TM-LS-004] Test parsing type output with null bytes and control characters
+func TestParseTypeOutput_ControlCharacters(t *testing.T) {
+	// Test with various control characters that might appear in corrupted output
+	testCases := []struct {
+		name   string
+		output string
+	}{
+		{"null byte", "file.go(10,5): error TS2304: Error\x00message"},
+		{"tab character", "file.go(10,5): error TS2304: Error\tmessage"},
+		{"carriage return", "file.go(10,5): error TS2304: Error\rmessage"},
+		{"form feed", "file.go(10,5): error TS2304: Error\fmessage"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			issues := ParseTypeOutput("test", "tsc", tc.output)
 			// Should not crash, might parse successfully or skip
 			if issues == nil {
 				t.Error("expected non-nil result")
@@ -645,93 +735,90 @@ ui/components/Button.tsx(8,3): warning TS6133: 'props' is declared but never use
 	}
 }
 
-// [REQ:TM-LS-003,TM-LS-004] Test that all Issue struct fields are properly populated
-func TestParseOutput_CompleteIssueFields(t *testing.T) {
-	testCases := []struct {
-		name      string
-		parseFunc func(string, string, string) []Issue
-		scenario  string
-		tool      string
-		output    string
-		expected  Issue
-	}{
-		{
-			name:      "lint issue complete fields",
-			parseFunc: ParseLintOutput,
-			scenario:  "test-scenario",
-			tool:      "eslint",
-			output:    "src/App.tsx:10:5: Unexpected console [no-console]",
-			expected: Issue{
-				Scenario: "test-scenario",
-				Tool:     "eslint",
-				Category: "lint",
-				File:     "src/App.tsx",
-				Line:     10,
-				Column:   5,
-				Rule:     "no-console",
-				Severity: "", // May not be set for basic lint output
-			},
-		},
-		{
-			name:      "type issue complete fields",
-			parseFunc: ParseTypeOutput,
-			scenario:  "my-scenario",
-			tool:      "tsc",
-			output:    "src/App.tsx(10,5): error TS2304: Cannot find name 'foo'",
-			expected: Issue{
-				Scenario: "my-scenario",
-				Tool:     "tsc",
-				Category: "type",
-				File:     "src/App.tsx",
-				Line:     10,
-				Column:   5,
-				Rule:     "TS2304",
-				Severity: "error",
-			},
-		},
+// [REQ:TM-LS-003] Test that all lint Issue struct fields are properly populated
+func TestParseLintOutput_CompleteIssueFields(t *testing.T) {
+	scenario := "test-scenario"
+	tool := "eslint"
+	output := "src/App.tsx:10:5: Unexpected console [no-console]"
+
+	issues := ParseLintOutput(scenario, tool, output)
+
+	if len(issues) != 1 {
+		t.Fatalf("expected 1 issue, got %d", len(issues))
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			issues := tc.parseFunc(tc.scenario, tc.tool, tc.output)
+	issue := issues[0]
 
-			if len(issues) != 1 {
-				t.Fatalf("expected 1 issue, got %d", len(issues))
-			}
+	// Verify all expected fields are populated
+	if issue.Scenario != scenario {
+		t.Errorf("Scenario: expected %q, got %q", scenario, issue.Scenario)
+	}
+	if issue.Tool != tool {
+		t.Errorf("Tool: expected %q, got %q", tool, issue.Tool)
+	}
+	if issue.Category != "lint" {
+		t.Errorf("Category: expected %q, got %q", "lint", issue.Category)
+	}
+	if issue.File != "src/App.tsx" {
+		t.Errorf("File: expected %q, got %q", "src/App.tsx", issue.File)
+	}
+	if issue.Line != 10 {
+		t.Errorf("Line: expected %d, got %d", 10, issue.Line)
+	}
+	if issue.Column != 5 {
+		t.Errorf("Column: expected %d, got %d", 5, issue.Column)
+	}
+	if issue.Rule != "no-console" {
+		t.Errorf("Rule: expected %q, got %q", "no-console", issue.Rule)
+	}
+	// Message should always be non-empty
+	if issue.Message == "" {
+		t.Error("Message should not be empty")
+	}
+}
 
-			issue := issues[0]
+// [REQ:TM-LS-004] Test that all type Issue struct fields are properly populated
+func TestParseTypeOutput_CompleteIssueFields(t *testing.T) {
+	scenario := "my-scenario"
+	tool := "tsc"
+	output := "src/App.tsx(10,5): error TS2304: Cannot find name 'foo'"
 
-			// Verify all expected fields are populated
-			if issue.Scenario != tc.expected.Scenario {
-				t.Errorf("Scenario: expected %q, got %q", tc.expected.Scenario, issue.Scenario)
-			}
-			if issue.Tool != tc.expected.Tool {
-				t.Errorf("Tool: expected %q, got %q", tc.expected.Tool, issue.Tool)
-			}
-			if issue.Category != tc.expected.Category {
-				t.Errorf("Category: expected %q, got %q", tc.expected.Category, issue.Category)
-			}
-			if issue.File != tc.expected.File {
-				t.Errorf("File: expected %q, got %q", tc.expected.File, issue.File)
-			}
-			if issue.Line != tc.expected.Line {
-				t.Errorf("Line: expected %d, got %d", tc.expected.Line, issue.Line)
-			}
-			if issue.Column != tc.expected.Column {
-				t.Errorf("Column: expected %d, got %d", tc.expected.Column, issue.Column)
-			}
-			if issue.Rule != tc.expected.Rule {
-				t.Errorf("Rule: expected %q, got %q", tc.expected.Rule, issue.Rule)
-			}
-			// Severity check only if expected value is set
-			if tc.expected.Severity != "" && issue.Severity != tc.expected.Severity {
-				t.Errorf("Severity: expected %q, got %q", tc.expected.Severity, issue.Severity)
-			}
-			// Message should always be non-empty
-			if issue.Message == "" {
-				t.Error("Message should not be empty")
-			}
-		})
+	issues := ParseTypeOutput(scenario, tool, output)
+
+	if len(issues) != 1 {
+		t.Fatalf("expected 1 issue, got %d", len(issues))
+	}
+
+	issue := issues[0]
+
+	// Verify all expected fields are populated
+	if issue.Scenario != scenario {
+		t.Errorf("Scenario: expected %q, got %q", scenario, issue.Scenario)
+	}
+	if issue.Tool != tool {
+		t.Errorf("Tool: expected %q, got %q", tool, issue.Tool)
+	}
+	if issue.Category != "type" {
+		t.Errorf("Category: expected %q, got %q", "type", issue.Category)
+	}
+	if issue.File != "src/App.tsx" {
+		t.Errorf("File: expected %q, got %q", "src/App.tsx", issue.File)
+	}
+	if issue.Line != 10 {
+		t.Errorf("Line: expected %d, got %d", 10, issue.Line)
+	}
+	if issue.Column != 5 {
+		t.Errorf("Column: expected %d, got %d", 5, issue.Column)
+	}
+	if issue.Rule != "TS2304" {
+		t.Errorf("Rule: expected %q, got %q", "TS2304", issue.Rule)
+	}
+	if issue.Severity != "error" {
+		t.Errorf("Severity: expected %q, got %q", "error", issue.Severity)
+	}
+	// Message should always be non-empty
+	if issue.Message == "" {
+		t.Error("Message should not be empty")
 	}
 }
 

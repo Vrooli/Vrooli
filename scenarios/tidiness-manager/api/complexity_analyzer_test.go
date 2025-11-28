@@ -8,10 +8,38 @@ import (
 	"time"
 )
 
-func TestComplexityAnalyzer_AnalyzeComplexity_Go_ToolNotInstalled(t *testing.T) {
-	tmpDir := t.TempDir()
+// Test helper: creates a complexity analyzer with standard timeout
+func newTestComplexityAnalyzer(t *testing.T) *ComplexityAnalyzer {
+	t.Helper()
+	return NewComplexityAnalyzer(t.TempDir(), 30*time.Second)
+}
 
-	analyzer := NewComplexityAnalyzer(tmpDir, 30*time.Second)
+// Test helper: creates a Go source file with given code
+func createGoFile(t *testing.T, dir, filename, code string) string {
+	t.Helper()
+	path := filepath.Join(dir, filename)
+	if err := os.WriteFile(path, []byte(code), 0644); err != nil {
+		t.Fatalf("Failed to create Go file %s: %v", filename, err)
+	}
+	return path
+}
+
+// Test helper: asserts result is skipped with a reason
+func assertSkipped(t *testing.T, result *ComplexityResult, reasonSubstring string) {
+	t.Helper()
+	if !result.Skipped {
+		t.Error("Expected result to be skipped")
+	}
+	if result.SkipReason == "" {
+		t.Error("Expected skip reason to be set")
+	}
+	if reasonSubstring != "" && !contains(result.SkipReason, reasonSubstring) {
+		t.Errorf("Expected skip reason to contain %q, got %q", reasonSubstring, result.SkipReason)
+	}
+}
+
+func TestComplexityAnalyzer_AnalyzeComplexity_Go_ToolNotInstalled(t *testing.T) {
+	analyzer := newTestComplexityAnalyzer(t)
 
 	// If gocyclo is not installed, should return skipped result
 	result, err := analyzer.AnalyzeComplexity(context.Background(), LanguageGo, []string{"dummy.go"})
@@ -21,12 +49,7 @@ func TestComplexityAnalyzer_AnalyzeComplexity_Go_ToolNotInstalled(t *testing.T) 
 
 	// Check if gocyclo is available
 	if !commandExists("gocyclo") {
-		if !result.Skipped {
-			t.Error("Expected result to be skipped when gocyclo not installed")
-		}
-		if result.SkipReason == "" {
-			t.Error("Expected skip reason when gocyclo not installed")
-		}
+		assertSkipped(t, result, "")
 	}
 }
 
@@ -49,11 +72,7 @@ func add(a, b int) int {
 	return a + b
 }
 `
-
-	simpleFile := filepath.Join(tmpDir, "simple.go")
-	if err := os.WriteFile(simpleFile, []byte(simpleCode), 0644); err != nil {
-		t.Fatal(err)
-	}
+	createGoFile(t, tmpDir, "simple.go", simpleCode)
 
 	// Create a complex Go file with high cyclomatic complexity
 	complexCode := `package main
@@ -88,11 +107,7 @@ func complex(n int) int {
 	return result
 }
 `
-
-	complexFile := filepath.Join(tmpDir, "complex.go")
-	if err := os.WriteFile(complexFile, []byte(complexCode), 0644); err != nil {
-		t.Fatal(err)
-	}
+	createGoFile(t, tmpDir, "complex.go", complexCode)
 
 	analyzer := NewComplexityAnalyzer(tmpDir, 30*time.Second)
 	result, err := analyzer.AnalyzeComplexity(context.Background(), LanguageGo, []string{"simple.go", "complex.go"})
@@ -127,36 +142,25 @@ func complex(n int) int {
 }
 
 func TestComplexityAnalyzer_AnalyzeComplexity_TypeScript_NotImplemented(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	analyzer := NewComplexityAnalyzer(tmpDir, 30*time.Second)
+	analyzer := newTestComplexityAnalyzer(t)
 	result, err := analyzer.AnalyzeComplexity(context.Background(), LanguageTypeScript, []string{"test.ts"})
 	if err != nil {
 		t.Fatalf("AnalyzeComplexity failed: %v", err)
 	}
 
 	// TypeScript complexity should be skipped for now
-	if !result.Skipped {
-		t.Error("Expected TypeScript complexity to be skipped")
-	}
-	if result.SkipReason == "" {
-		t.Error("Expected skip reason for TypeScript")
-	}
+	assertSkipped(t, result, "")
 }
 
 func TestComplexityAnalyzer_EmptyFileList(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	analyzer := NewComplexityAnalyzer(tmpDir, 30*time.Second)
+	analyzer := newTestComplexityAnalyzer(t)
 	result, err := analyzer.AnalyzeComplexity(context.Background(), LanguageGo, []string{})
 	if err != nil {
 		t.Fatalf("AnalyzeComplexity failed: %v", err)
 	}
 
 	// Should skip if no files to analyze
-	if !result.Skipped {
-		t.Error("Expected analysis to be skipped for empty file list")
-	}
+	assertSkipped(t, result, "")
 }
 
 func TestCommandExists(t *testing.T) {

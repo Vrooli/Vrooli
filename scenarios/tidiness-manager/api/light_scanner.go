@@ -266,20 +266,8 @@ func (ls *LightScanner) runMakeCommand(ctx context.Context, target string) *Comm
 func (ls *LightScanner) collectFileMetrics() ([]FileMetric, error) {
 	metrics := []FileMetric{}
 
-	// Source directories to scan
-	sourceDirs := []string{
-		filepath.Join(ls.scenarioPath, "api"),
-		filepath.Join(ls.scenarioPath, "ui", "src"),
-		filepath.Join(ls.scenarioPath, "cli"),
-	}
-
-	extensions := map[string]bool{
-		".go":  true,
-		".ts":  true,
-		".tsx": true,
-		".js":  true,
-		".jsx": true,
-	}
+	sourceDirs := ls.getSourceDirs()
+	extensions := ls.getSupportedExtensions()
 
 	for _, dir := range sourceDirs {
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -292,8 +280,7 @@ func (ls *LightScanner) collectFileMetrics() ([]FileMetric, error) {
 			}
 
 			if info.IsDir() {
-				// Skip node_modules and hidden directories
-				if info.Name() == "node_modules" || strings.HasPrefix(info.Name(), ".") {
+				if shouldSkipDirectory(info) {
 					return filepath.SkipDir
 				}
 				return nil
@@ -347,9 +334,8 @@ func countLines(path string) (int, error) {
 	return count, scanner.Err()
 }
 
-// collectFileMetricsIncremental only scans files modified since last scan
-func (ls *LightScanner) collectFileMetricsIncremental(ctx context.Context, db *sql.DB) ([]FileMetric, error) {
-	// Get previously scanned files and their last scan times
+// getPreviousScans retrieves the last scan times for all files from the database
+func (ls *LightScanner) getPreviousScans(ctx context.Context, db *sql.DB) (map[string]time.Time, error) {
 	scenario := filepath.Base(ls.scenarioPath)
 	query := `
 		SELECT file_path, updated_at
@@ -359,8 +345,7 @@ func (ls *LightScanner) collectFileMetricsIncremental(ctx context.Context, db *s
 
 	rows, err := db.QueryContext(ctx, query, scenario)
 	if err != nil {
-		// If query fails, fall back to full scan
-		return ls.collectFileMetrics()
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -374,20 +359,44 @@ func (ls *LightScanner) collectFileMetricsIncremental(ctx context.Context, db *s
 		previousScans[filePath] = updatedAt
 	}
 
-	// Scan all source directories
-	sourceDirs := []string{
+	return previousScans, nil
+}
+
+// getSourceDirs returns the list of source directories to scan
+func (ls *LightScanner) getSourceDirs() []string {
+	return []string{
 		filepath.Join(ls.scenarioPath, "api"),
 		filepath.Join(ls.scenarioPath, "ui", "src"),
 		filepath.Join(ls.scenarioPath, "cli"),
 	}
+}
 
-	extensions := map[string]bool{
+// getSupportedExtensions returns the map of file extensions to scan
+func (ls *LightScanner) getSupportedExtensions() map[string]bool {
+	return map[string]bool{
 		".go":  true,
 		".ts":  true,
 		".tsx": true,
 		".js":  true,
 		".jsx": true,
 	}
+}
+
+// shouldSkipDirectory checks if a directory should be skipped during scanning
+func shouldSkipDirectory(info os.FileInfo) bool {
+	return info.Name() == "node_modules" || strings.HasPrefix(info.Name(), ".")
+}
+
+// needsRescan checks if a file needs to be rescanned based on modification time
+func needsRescan(relPath string, info os.FileInfo, previousScans map[string]time.Time) bool {
+	lastScan, exists := previousScans[relPath]
+	return !exists || info.ModTime().After(lastScan)
+}
+
+// scanSourceDirs scans all source directories and returns changed files
+func (ls *LightScanner) scanSourceDirs(previousScans map[string]time.Time) ([]FileMetric, int) {
+	sourceDirs := ls.getSourceDirs()
+	extensions := ls.getSupportedExtensions()
 
 	var changedFiles []FileMetric
 	unchangedCount := 0
@@ -397,13 +406,13 @@ func (ls *LightScanner) collectFileMetricsIncremental(ctx context.Context, db *s
 			continue
 		}
 
-		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return nil
 			}
 
 			if info.IsDir() {
-				if info.Name() == "node_modules" || strings.HasPrefix(info.Name(), ".") {
+				if shouldSkipDirectory(info) {
 					return filepath.SkipDir
 				}
 				return nil
@@ -417,9 +426,7 @@ func (ls *LightScanner) collectFileMetricsIncremental(ctx context.Context, db *s
 			relPath, _ := filepath.Rel(ls.scenarioPath, path)
 
 			// Check if file needs rescanning
-			lastScan, exists := previousScans[relPath]
-			if exists && !info.ModTime().After(lastScan) {
-				// File unchanged since last scan - skip it
+			if !needsRescan(relPath, info, previousScans) {
 				unchangedCount++
 				return nil
 			}
@@ -438,11 +445,20 @@ func (ls *LightScanner) collectFileMetricsIncremental(ctx context.Context, db *s
 
 			return nil
 		})
-
-		if err != nil {
-			return nil, err
-		}
 	}
+
+	return changedFiles, unchangedCount
+}
+
+// collectFileMetricsIncremental only scans files modified since last scan
+func (ls *LightScanner) collectFileMetricsIncremental(ctx context.Context, db *sql.DB) ([]FileMetric, error) {
+	previousScans, err := ls.getPreviousScans(ctx, db)
+	if err != nil {
+		// If query fails, fall back to full scan
+		return ls.collectFileMetrics()
+	}
+
+	changedFiles, unchangedCount := ls.scanSourceDirs(previousScans)
 
 	fmt.Printf("Incremental scan: %d files changed, %d files unchanged (skipped)\n",
 		len(changedFiles), unchangedCount)

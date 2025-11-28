@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"math/rand"
+	"sync"
 	"testing"
 )
 
@@ -524,6 +527,317 @@ func TestIssueRanker_CategoryGrouping(t *testing.T) {
 				t.Errorf("Category %s not grouped: positions %v", category, positions)
 				break
 			}
+		}
+	}
+}
+
+// [REQ:TM-API-004] Test concurrent ranking (thread safety)
+func TestIssueRanker_Concurrent(t *testing.T) {
+	issues := []RankedIssue{
+		{ID: "1", Severity: "high", Category: "length"},
+		{ID: "2", Severity: "critical", Category: "complexity"},
+		{ID: "3", Severity: "low", Category: "style"},
+		{ID: "4", Severity: "medium", Category: "dead_code"},
+	}
+
+	var wg sync.WaitGroup
+	iterations := 100
+
+	// Run multiple concurrent rankings
+	for i := 0; i < iterations; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ranked := RankIssues(issues, "severity")
+			if len(ranked) != len(issues) {
+				t.Errorf("Concurrent ranking: expected %d issues, got %d", len(issues), len(ranked))
+			}
+			// Verify first is critical
+			if ranked[0].Severity != "critical" {
+				t.Errorf("Concurrent ranking: first should be critical, got %s", ranked[0].Severity)
+			}
+		}()
+	}
+
+	wg.Wait()
+}
+
+// [REQ:TM-API-004] Test ranking with duplicate IDs
+func TestIssueRanker_DuplicateIDs(t *testing.T) {
+	issues := []RankedIssue{
+		{ID: "1", Severity: "high", FilePath: "a.go"},
+		{ID: "1", Severity: "critical", FilePath: "b.go"}, // Same ID, different file
+		{ID: "2", Severity: "medium", FilePath: "c.go"},
+	}
+
+	ranked := RankIssues(issues, "severity")
+
+	// Should handle duplicates gracefully
+	if len(ranked) != 3 {
+		t.Errorf("Expected 3 ranked issues including duplicates, got %d", len(ranked))
+	}
+
+	// Both ID "1" entries should be present
+	id1Count := 0
+	for _, issue := range ranked {
+		if issue.ID == "1" {
+			id1Count++
+		}
+	}
+	if id1Count != 2 {
+		t.Errorf("Expected 2 issues with ID '1', got %d", id1Count)
+	}
+}
+
+// [REQ:TM-API-004] Test topN with negative values (boundary)
+func TestIssueRanker_TopNNegativeBoundary(t *testing.T) {
+	issues := []RankedIssue{
+		{ID: "1", Severity: "high"},
+		{ID: "2", Severity: "medium"},
+	}
+
+	// Test various negative values
+	testCases := []int{-1, -5, -100}
+	for _, n := range testCases {
+		result := GetTopNIssues(issues, "severity", n)
+		// Should return all issues (graceful handling)
+		if len(result) != len(issues) {
+			t.Errorf("GetTopNIssues with n=%d: expected %d issues, got %d", n, len(issues), len(result))
+		}
+	}
+}
+
+// [REQ:TM-API-004] Test ranking with nil/empty fields
+func TestIssueRanker_NilFields(t *testing.T) {
+	issues := []RankedIssue{
+		{ID: "", Severity: "", Category: "", FilePath: ""},
+		{ID: "1", Severity: "high", Category: "length", FilePath: "file.go"},
+		{ID: "2", Severity: "critical", Category: "", FilePath: ""},
+	}
+
+	// Should not crash with empty/nil fields
+	ranked := RankIssues(issues, "severity")
+	if len(ranked) != 3 {
+		t.Errorf("Expected 3 ranked issues, got %d", len(ranked))
+	}
+
+	// Known severities should be ordered correctly (critical before high)
+	// Empty string severity gets default map value (0), so will be treated as highest priority
+	// Find the critical and high severity issues
+	var criticalPos, highPos int
+	for i, issue := range ranked {
+		if issue.Severity == "critical" {
+			criticalPos = i
+		} else if issue.Severity == "high" {
+			highPos = i
+		}
+	}
+
+	// Critical should come before high
+	if criticalPos > highPos {
+		t.Errorf("Critical (pos %d) should come before high (pos %d)", criticalPos, highPos)
+	}
+}
+
+// [REQ:TM-API-004] Test combined sorting edge case: all different severities, same category
+func TestIssueRanker_CombinedSortingEdgeCase(t *testing.T) {
+	issues := []RankedIssue{
+		{ID: "1", Severity: "low", Category: "style"},
+		{ID: "2", Severity: "critical", Category: "style"},
+		{ID: "3", Severity: "high", Category: "style"},
+		{ID: "4", Severity: "medium", Category: "style"},
+	}
+
+	ranked := RankIssues(issues, "severity,category")
+
+	// Should be sorted by severity (all same category)
+	expectedOrder := []string{"critical", "high", "medium", "low"}
+	for i, expectedSev := range expectedOrder {
+		if ranked[i].Severity != expectedSev {
+			t.Errorf("Position %d: expected severity %s, got %s", i, expectedSev, ranked[i].Severity)
+		}
+		if ranked[i].Category != "style" {
+			t.Errorf("Position %d: expected category 'style', got %s", i, ranked[i].Category)
+		}
+	}
+}
+
+// [REQ:TM-API-004] Benchmark ranking small dataset
+func BenchmarkRankIssues_Small(b *testing.B) {
+	issues := []RankedIssue{
+		{ID: "1", Severity: "low"},
+		{ID: "2", Severity: "high"},
+		{ID: "3", Severity: "critical"},
+		{ID: "4", Severity: "medium"},
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = RankIssues(issues, "severity")
+	}
+}
+
+// [REQ:TM-API-004] Benchmark ranking large dataset
+func BenchmarkRankIssues_Large(b *testing.B) {
+	severities := []string{"critical", "high", "medium", "low"}
+	issues := make([]RankedIssue, 1000)
+	for i := 0; i < 1000; i++ {
+		issues[i] = RankedIssue{
+			ID:       fmt.Sprintf("issue-%d", i),
+			Severity: severities[i%4],
+			Category: "length",
+			FilePath: fmt.Sprintf("file-%d.go", i),
+		}
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = RankIssues(issues, "severity")
+	}
+}
+
+// [REQ:TM-API-004] Benchmark combined sorting
+func BenchmarkRankIssues_Combined(b *testing.B) {
+	severities := []string{"critical", "high", "medium", "low"}
+	categories := []string{"style", "length", "complexity", "dead_code"}
+	issues := make([]RankedIssue, 500)
+	for i := 0; i < 500; i++ {
+		issues[i] = RankedIssue{
+			ID:       fmt.Sprintf("issue-%d", i),
+			Severity: severities[i%4],
+			Category: categories[i%4],
+			FilePath: fmt.Sprintf("file-%d.go", i),
+		}
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = RankIssues(issues, "severity,category")
+	}
+}
+
+// [REQ:TM-API-004] Benchmark GetTopNIssues
+func BenchmarkGetTopNIssues(b *testing.B) {
+	severities := []string{"critical", "high", "medium", "low"}
+	issues := make([]RankedIssue, 1000)
+	for i := 0; i < 1000; i++ {
+		issues[i] = RankedIssue{
+			ID:       fmt.Sprintf("issue-%d", i),
+			Severity: severities[i%4],
+		}
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = GetTopNIssues(issues, "severity", 10)
+	}
+}
+
+// [REQ:TM-API-004] Benchmark FilterIssuesBySeverity
+func BenchmarkFilterIssuesBySeverity(b *testing.B) {
+	severities := []string{"critical", "high", "medium", "low"}
+	issues := make([]RankedIssue, 1000)
+	for i := 0; i < 1000; i++ {
+		issues[i] = RankedIssue{
+			ID:       fmt.Sprintf("issue-%d", i),
+			Severity: severities[i%4],
+		}
+	}
+	filterSevs := []string{"critical", "high"}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = FilterIssuesBySeverity(issues, filterSevs)
+	}
+}
+
+// [REQ:TM-API-004] Fuzz test for RankIssues with random data
+func FuzzRankIssues(f *testing.F) {
+	// Seed corpus
+	f.Add("high", "length", "file1.go", 42)
+	f.Add("critical", "complexity", "file2.go", 100)
+	f.Add("low", "style", "file3.go", 1)
+
+	f.Fuzz(func(t *testing.T, severity, category, filePath string, lineNum int) {
+		issue := RankedIssue{
+			ID:         "fuzz-1",
+			Severity:   severity,
+			Category:   category,
+			FilePath:   filePath,
+			LineNumber: lineNum,
+		}
+
+		// Should not panic with any input
+		ranked := RankIssues([]RankedIssue{issue}, "severity")
+		if len(ranked) != 1 {
+			t.Errorf("Expected 1 ranked issue, got %d", len(ranked))
+		}
+
+		// Try all sort modes
+		_ = RankIssues([]RankedIssue{issue}, "category")
+		_ = RankIssues([]RankedIssue{issue}, "filepath")
+		_ = RankIssues([]RankedIssue{issue}, "severity,category")
+	})
+}
+
+// [REQ:TM-API-004] Fuzz test for GetTopNIssues with random N values
+func FuzzGetTopNIssues(f *testing.F) {
+	// Seed corpus
+	f.Add(5, "high")
+	f.Add(-1, "critical")
+	f.Add(0, "medium")
+	f.Add(1000, "low")
+
+	f.Fuzz(func(t *testing.T, n int, severity string) {
+		issues := []RankedIssue{
+			{ID: "1", Severity: severity},
+			{ID: "2", Severity: "medium"},
+			{ID: "3", Severity: "high"},
+		}
+
+		// Should not panic with any n value
+		result := GetTopNIssues(issues, "severity", n)
+
+		// Result should never be longer than input
+		if len(result) > len(issues) {
+			t.Errorf("Result length %d exceeds input length %d", len(result), len(issues))
+		}
+
+		// Result should be >= 0
+		if len(result) < 0 {
+			t.Errorf("Result length cannot be negative: %d", len(result))
+		}
+	})
+}
+
+// [REQ:TM-API-004] Test sorting stability with randomized data
+func TestIssueRanker_RandomizedStability(t *testing.T) {
+	// Create issues with random data but known severities
+	rand.Seed(12345) // Fixed seed for reproducibility
+	issues := make([]RankedIssue, 20)
+	severities := []string{"critical", "high", "medium", "low"}
+
+	for i := 0; i < 20; i++ {
+		issues[i] = RankedIssue{
+			ID:       fmt.Sprintf("issue-%d", i),
+			Severity: severities[rand.Intn(4)],
+			Category: fmt.Sprintf("cat-%d", rand.Intn(3)),
+			FilePath: fmt.Sprintf("file-%d.go", rand.Intn(10)),
+		}
+	}
+
+	// Rank multiple times, should get same result
+	ranked1 := RankIssues(issues, "severity")
+	ranked2 := RankIssues(issues, "severity")
+
+	if len(ranked1) != len(ranked2) {
+		t.Fatalf("Ranking produced different lengths: %d vs %d", len(ranked1), len(ranked2))
+	}
+
+	// Verify results are identical
+	for i := range ranked1 {
+		if ranked1[i].ID != ranked2[i].ID {
+			t.Errorf("Position %d: ID mismatch %s vs %s", i, ranked1[i].ID, ranked2[i].ID)
 		}
 	}
 }

@@ -16,13 +16,10 @@ importers:
         version: 5.90.10(react@18.3.1)
       '@vrooli/api-base':
         specifier: file:../../../packages/api-base
-        version: file:../../../packages/api-base
+        version: file:../../../packages/api-base(express@4.21.2)(ws@8.18.3)
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge
-      '@vrooli/vitest-requirement-reporter':
-        specifier: workspace:^
-        version: link:../../../packages/vitest-requirement-reporter
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.1
@@ -47,6 +44,9 @@ importers:
       tailwind-merge:
         specifier: ^2.3.0
         version: 2.6.0
+      ws:
+        specifier: ^8.16.0
+        version: 8.18.3
     devDependencies:
       '@testing-library/jest-dom':
         specifier: ^6.6.3
@@ -794,6 +794,9 @@ packages:
 
   '@vrooli/api-base@file:../../../packages/api-base':
     resolution: {directory: ../../../packages/api-base, type: directory}
+    peerDependencies:
+      express: ^4.18.2
+      ws: ^8.16.0
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
@@ -2850,14 +2853,10 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 1.2.0
 
-  '@vrooli/api-base@file:../../../packages/api-base':
+  '@vrooli/api-base@file:../../../packages/api-base(express@4.21.2)(ws@8.18.3)':
     dependencies:
       express: 4.21.2
       ws: 8.18.3
-    transitivePeerDependencies:
-      - bufferutil
-      - supports-color
-      - utf-8-validate
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 

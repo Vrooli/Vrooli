@@ -8,10 +8,22 @@ import (
 	"time"
 )
 
+// Test helpers
+
+// setupTestCampaignManager creates a mock server with the provided handler and returns
+// a CampaignManager configured to use it, along with a cleanup function
+func setupTestCampaignManager(handler http.HandlerFunc) (*CampaignManager, func()) {
+	server := httptest.NewServer(handler)
+	cm := &CampaignManager{
+		visitedTrackerURL: server.URL,
+		httpClient:        &http.Client{Timeout: 5 * time.Second},
+	}
+	return cm, server.Close
+}
+
 // [REQ:TM-SS-003] Test campaign creation
 func TestCampaignManager_CreateCampaign(t *testing.T) {
-	// Mock visited-tracker server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/campaigns" && r.Method == http.MethodPost {
 			var req CreateCampaignRequest
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -48,13 +60,8 @@ func TestCampaignManager_CreateCampaign(t *testing.T) {
 		}
 
 		http.NotFound(w, r)
-	}))
-	defer server.Close()
-
-	cm := &CampaignManager{
-		visitedTrackerURL: server.URL,
-		httpClient:        &http.Client{Timeout: 5 * time.Second},
-	}
+	})
+	defer cleanup()
 
 	campaign, err := cm.CreateCampaign("test-scenario")
 	if err != nil {
@@ -72,8 +79,7 @@ func TestCampaignManager_CreateCampaign(t *testing.T) {
 
 // [REQ:TM-SS-004] Test finding existing campaign
 func TestCampaignManager_FindCampaignByScenario(t *testing.T) {
-	// Mock visited-tracker server with existing campaigns
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/campaigns" && r.Method == http.MethodGet {
 			resp := ListCampaignsResponse{
 				Campaigns: []Campaign{
@@ -98,13 +104,8 @@ func TestCampaignManager_FindCampaignByScenario(t *testing.T) {
 		}
 
 		http.NotFound(w, r)
-	}))
-	defer server.Close()
-
-	cm := &CampaignManager{
-		visitedTrackerURL: server.URL,
-		httpClient:        &http.Client{Timeout: 5 * time.Second},
-	}
+	})
+	defer cleanup()
 
 	campaign, err := cm.FindCampaignByScenario("test-scenario")
 	if err != nil {
@@ -124,8 +125,7 @@ func TestCampaignManager_FindCampaignByScenario(t *testing.T) {
 func TestCampaignManager_GetOrCreateCampaign(t *testing.T) {
 	attemptedCreate := false
 
-	// Mock visited-tracker server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/campaigns" && r.Method == http.MethodGet {
 			// First call: return empty list (no existing campaign)
 			resp := ListCampaignsResponse{
@@ -158,13 +158,8 @@ func TestCampaignManager_GetOrCreateCampaign(t *testing.T) {
 		}
 
 		http.NotFound(w, r)
-	}))
-	defer server.Close()
-
-	cm := &CampaignManager{
-		visitedTrackerURL: server.URL,
-		httpClient:        &http.Client{Timeout: 5 * time.Second},
-	}
+	})
+	defer cleanup()
 
 	campaign, err := cm.GetOrCreateCampaign("new-scenario")
 	if err != nil {
@@ -201,7 +196,7 @@ func TestCampaignManager_GracefulDegradation(t *testing.T) {
 
 // [REQ:TM-SS-003] Test campaign creation with various metadata
 func TestCampaignManager_CreateCampaignMetadata(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/campaigns" && r.Method == http.MethodPost {
 			var req CreateCampaignRequest
 			json.NewDecoder(r.Body).Decode(&req)
@@ -226,13 +221,8 @@ func TestCampaignManager_CreateCampaignMetadata(t *testing.T) {
 			return
 		}
 		http.NotFound(w, r)
-	}))
-	defer server.Close()
-
-	cm := &CampaignManager{
-		visitedTrackerURL: server.URL,
-		httpClient:        &http.Client{Timeout: 5 * time.Second},
-	}
+	})
+	defer cleanup()
 
 	campaign, err := cm.CreateCampaign("test-scenario-with-metadata")
 	if err != nil {
@@ -246,7 +236,7 @@ func TestCampaignManager_CreateCampaignMetadata(t *testing.T) {
 
 // [REQ:TM-SS-004] Test finding campaign when multiple campaigns exist
 func TestCampaignManager_FindCampaignMultiple(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		resp := ListCampaignsResponse{
 			Campaigns: []Campaign{
 				{ID: "c1", Name: "tidiness-scenario-a-123", FromAgent: "tidiness-manager"},
@@ -256,13 +246,8 @@ func TestCampaignManager_FindCampaignMultiple(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
-	}))
-	defer server.Close()
-
-	cm := &CampaignManager{
-		visitedTrackerURL: server.URL,
-		httpClient:        &http.Client{Timeout: 5 * time.Second},
-	}
+	})
+	defer cleanup()
 
 	tests := []struct {
 		scenario   string
@@ -293,7 +278,7 @@ func TestCampaignManager_FindCampaignMultiple(t *testing.T) {
 
 // [REQ:TM-SS-004] Test not finding campaign
 func TestCampaignManager_CampaignNotFound(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		resp := ListCampaignsResponse{
 			Campaigns: []Campaign{
 				{ID: "c1", Name: "tidiness-other-scenario-123", FromAgent: "tidiness-manager"},
@@ -301,13 +286,8 @@ func TestCampaignManager_CampaignNotFound(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
-	}))
-	defer server.Close()
-
-	cm := &CampaignManager{
-		visitedTrackerURL: server.URL,
-		httpClient:        &http.Client{Timeout: 5 * time.Second},
-	}
+	})
+	defer cleanup()
 
 	campaign, err := cm.FindCampaignByScenario("nonexistent-scenario")
 	if err != nil {
@@ -340,16 +320,11 @@ func TestCampaignManager_CreateCampaignError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(tt.statusCode)
 				w.Write([]byte(tt.response))
-			}))
-			defer server.Close()
-
-			cm := &CampaignManager{
-				visitedTrackerURL: server.URL,
-				httpClient:        &http.Client{Timeout: 5 * time.Second},
-			}
+			})
+			defer cleanup()
 
 			_, err := cm.CreateCampaign("test-scenario")
 			if err == nil {
@@ -361,16 +336,11 @@ func TestCampaignManager_CreateCampaignError(t *testing.T) {
 
 // [REQ:TM-SS-004] Test list campaigns error handling
 func TestCampaignManager_ListCampaignsError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(`{"error": "database error"}`))
-	}))
-	defer server.Close()
-
-	cm := &CampaignManager{
-		visitedTrackerURL: server.URL,
-		httpClient:        &http.Client{Timeout: 5 * time.Second},
-	}
+	})
+	defer cleanup()
 
 	_, err := cm.FindCampaignByScenario("test-scenario")
 	if err == nil {
@@ -382,7 +352,7 @@ func TestCampaignManager_ListCampaignsError(t *testing.T) {
 func TestCampaignManager_CampaignNameFormat(t *testing.T) {
 	var capturedName string
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			var req CreateCampaignRequest
 			json.NewDecoder(r.Body).Decode(&req)
@@ -394,13 +364,8 @@ func TestCampaignManager_CampaignNameFormat(t *testing.T) {
 			w.WriteHeader(http.StatusCreated)
 			json.NewEncoder(w).Encode(resp)
 		}
-	}))
-	defer server.Close()
-
-	cm := &CampaignManager{
-		visitedTrackerURL: server.URL,
-		httpClient:        &http.Client{Timeout: 5 * time.Second},
-	}
+	})
+	defer cleanup()
 
 	_, err := cm.CreateCampaign("my-scenario")
 	if err != nil {
@@ -442,7 +407,7 @@ func TestCampaignManager_Timeout(t *testing.T) {
 func TestCampaignManager_PatternConfiguration(t *testing.T) {
 	var capturedPatterns []string
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			var req CreateCampaignRequest
 			json.NewDecoder(r.Body).Decode(&req)
@@ -457,13 +422,8 @@ func TestCampaignManager_PatternConfiguration(t *testing.T) {
 			w.WriteHeader(http.StatusCreated)
 			json.NewEncoder(w).Encode(resp)
 		}
-	}))
-	defer server.Close()
-
-	cm := &CampaignManager{
-		visitedTrackerURL: server.URL,
-		httpClient:        &http.Client{Timeout: 5 * time.Second},
-	}
+	})
+	defer cleanup()
 
 	campaign, err := cm.CreateCampaign("test-scenario")
 	if err != nil {
@@ -484,7 +444,7 @@ func TestCampaignManager_PatternConfiguration(t *testing.T) {
 // [REQ:TM-SS-003] Test concurrent campaign operations
 func TestCampaignManager_ConcurrentOperations(t *testing.T) {
 	requestCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
 		if r.Method == http.MethodGet {
 			resp := ListCampaignsResponse{Campaigns: []Campaign{}}
@@ -498,13 +458,8 @@ func TestCampaignManager_ConcurrentOperations(t *testing.T) {
 			w.WriteHeader(http.StatusCreated)
 			json.NewEncoder(w).Encode(resp)
 		}
-	}))
-	defer server.Close()
-
-	cm := &CampaignManager{
-		visitedTrackerURL: server.URL,
-		httpClient:        &http.Client{Timeout: 5 * time.Second},
-	}
+	})
+	defer cleanup()
 
 	const numConcurrent = 5
 	results := make(chan error, numConcurrent)
@@ -526,18 +481,13 @@ func TestCampaignManager_ConcurrentOperations(t *testing.T) {
 
 // [REQ:TM-SS-004] Test IsVisitedTrackerAvailable with healthy server
 func TestCampaignManager_IsAvailableHealthy(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"status": "healthy"}`))
 		}
-	}))
-	defer server.Close()
-
-	cm := &CampaignManager{
-		visitedTrackerURL: server.URL,
-		httpClient:        &http.Client{Timeout: 5 * time.Second},
-	}
+	})
+	defer cleanup()
 
 	if !cm.IsVisitedTrackerAvailable() {
 		t.Error("Expected visited-tracker to be available")
@@ -546,15 +496,10 @@ func TestCampaignManager_IsAvailableHealthy(t *testing.T) {
 
 // [REQ:TM-SS-003] Test empty scenario name
 func TestCampaignManager_EmptyScenario(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
-	}))
-	defer server.Close()
-
-	cm := &CampaignManager{
-		visitedTrackerURL: server.URL,
-		httpClient:        &http.Client{Timeout: 5 * time.Second},
-	}
+	})
+	defer cleanup()
 
 	// Should handle empty scenario gracefully
 	campaign, err := cm.CreateCampaign("")
@@ -564,5 +509,291 @@ func TestCampaignManager_EmptyScenario(t *testing.T) {
 
 	if campaign != nil && campaign.ID == "" {
 		t.Error("Campaign ID should not be empty")
+	}
+}
+
+// [REQ:TM-SS-003] Test campaign creation with special characters in scenario name
+func TestCampaignManager_SpecialCharactersInScenario(t *testing.T) {
+	tests := []struct {
+		name     string
+		scenario string
+	}{
+		{"dashes", "my-scenario-name"},
+		{"underscores", "my_scenario_name"},
+		{"mixed", "my-scenario_name-123"},
+		{"numbers", "scenario-123-test"},
+		{"unicode", "测试场景"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var capturedScenario string
+			cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodPost {
+					var req CreateCampaignRequest
+					json.NewDecoder(r.Body).Decode(&req)
+					capturedScenario = req.Metadata["scenario"].(string)
+
+					resp := CreateCampaignResponse{
+						Campaign: Campaign{
+							ID:       "test-id",
+							Metadata: req.Metadata,
+						},
+					}
+					w.WriteHeader(http.StatusCreated)
+					json.NewEncoder(w).Encode(resp)
+				}
+			})
+			defer cleanup()
+
+			campaign, err := cm.CreateCampaign(tt.scenario)
+			if err != nil {
+				t.Fatalf("CreateCampaign failed: %v", err)
+			}
+
+			if capturedScenario != tt.scenario {
+				t.Errorf("Expected scenario %q, got %q", tt.scenario, capturedScenario)
+			}
+
+			if campaign.Metadata["scenario"] != tt.scenario {
+				t.Errorf("Campaign metadata scenario = %v, want %s", campaign.Metadata["scenario"], tt.scenario)
+			}
+		})
+	}
+}
+
+// [REQ:TM-SS-003] Test malformed JSON response handling
+func TestCampaignManager_MalformedJSONResponse(t *testing.T) {
+	tests := []struct {
+		name        string
+		response    string
+		expectError bool
+	}{
+		{"incomplete json", `{"id": "test-id", "name": "`, true},
+		{"invalid json", `{this is not json}`, true},
+		{"empty response", ``, true},
+		{"null response", `null`, false}, // null is valid JSON, creates empty campaign
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusCreated)
+				w.Write([]byte(tt.response))
+			})
+			defer cleanup()
+
+			_, err := cm.CreateCampaign("test-scenario")
+			if tt.expectError && err == nil {
+				t.Error("Expected error for malformed JSON")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+// [REQ:TM-SS-004] Test list campaigns with malformed JSON
+func TestCampaignManager_ListCampaignsMalformedJSON(t *testing.T) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"campaigns": [{"id": "broken"`))
+	})
+	defer cleanup()
+
+	_, err := cm.FindCampaignByScenario("test-scenario")
+	if err == nil {
+		t.Error("Expected error for malformed JSON response")
+	}
+}
+
+// [REQ:TM-SS-003] Test campaign metadata field completeness
+func TestCampaignManager_MetadataFields(t *testing.T) {
+	var capturedMetadata map[string]interface{}
+
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			var req CreateCampaignRequest
+			json.NewDecoder(r.Body).Decode(&req)
+			capturedMetadata = req.Metadata
+
+			resp := CreateCampaignResponse{
+				Campaign: Campaign{
+					ID:       "test-id",
+					Metadata: req.Metadata,
+				},
+			}
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(resp)
+		}
+	})
+	defer cleanup()
+
+	_, err := cm.CreateCampaign("test-scenario")
+	if err != nil {
+		t.Fatalf("CreateCampaign failed: %v", err)
+	}
+
+	// Verify expected metadata fields are present
+	expectedFields := []string{"scenario"}
+	for _, field := range expectedFields {
+		if _, ok := capturedMetadata[field]; !ok {
+			t.Errorf("Expected metadata field %q to be present", field)
+		}
+	}
+
+	// Verify scenario field has correct value
+	if capturedMetadata["scenario"] != "test-scenario" {
+		t.Errorf("Metadata scenario = %v, want test-scenario", capturedMetadata["scenario"])
+	}
+}
+
+// [REQ:TM-SS-004] Test finding campaign returns first match regardless of from_agent
+func TestCampaignManager_FindCampaignAnyAgent(t *testing.T) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
+		resp := ListCampaignsResponse{
+			Campaigns: []Campaign{
+				{ID: "c1", Name: "tidiness-test-scenario-123", FromAgent: "other-agent"},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
+	defer cleanup()
+
+	campaign, err := cm.FindCampaignByScenario("test-scenario")
+	if err != nil {
+		t.Fatalf("FindCampaignByScenario failed: %v", err)
+	}
+
+	// Implementation currently returns campaign regardless of from_agent if name matches
+	if campaign == nil {
+		t.Error("Expected campaign to be found even with different agent")
+	}
+
+	if campaign != nil && campaign.ID != "c1" {
+		t.Errorf("Expected campaign c1, got %s", campaign.ID)
+	}
+}
+
+// [REQ:TM-SS-003] Test campaign response field validation
+func TestCampaignManager_ResponseFieldValidation(t *testing.T) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			resp := CreateCampaignResponse{
+				Campaign: Campaign{
+					ID:        "campaign-123",
+					Name:      "tidiness-test-123456",
+					FromAgent: "tidiness-manager",
+					Patterns:  []string{"**/*"},
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+					Status:    "active",
+					Metadata:  map[string]interface{}{"scenario": "test"},
+				},
+			}
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(resp)
+		}
+	})
+	defer cleanup()
+
+	campaign, err := cm.CreateCampaign("test")
+	if err != nil {
+		t.Fatalf("CreateCampaign failed: %v", err)
+	}
+
+	// Verify all fields are populated
+	if campaign.ID == "" {
+		t.Error("Campaign ID should not be empty")
+	}
+	if campaign.Name == "" {
+		t.Error("Campaign Name should not be empty")
+	}
+	if campaign.FromAgent != "tidiness-manager" {
+		t.Errorf("FromAgent = %s, want tidiness-manager", campaign.FromAgent)
+	}
+	if len(campaign.Patterns) == 0 {
+		t.Error("Patterns should not be empty")
+	}
+	if campaign.Status != "active" {
+		t.Errorf("Status = %s, want active", campaign.Status)
+	}
+	if campaign.CreatedAt.IsZero() {
+		t.Error("CreatedAt should be set")
+	}
+	if campaign.UpdatedAt.IsZero() {
+		t.Error("UpdatedAt should be set")
+	}
+	if campaign.Metadata == nil {
+		t.Error("Metadata should not be nil")
+	}
+}
+
+// [REQ:TM-SS-003] [REQ:TM-SS-004] Benchmark CreateCampaign
+func BenchmarkCreateCampaign(b *testing.B) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
+		resp := CreateCampaignResponse{
+			Campaign: Campaign{ID: "test-id"},
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(resp)
+	})
+	defer cleanup()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = cm.CreateCampaign("test-scenario")
+	}
+}
+
+// [REQ:TM-SS-004] Benchmark FindCampaignByScenario
+func BenchmarkFindCampaignByScenario(b *testing.B) {
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
+		resp := ListCampaignsResponse{
+			Campaigns: []Campaign{
+				{ID: "c1", Name: "tidiness-test-scenario-123", FromAgent: "tidiness-manager"},
+			},
+		}
+		json.NewEncoder(w).Encode(resp)
+	})
+	defer cleanup()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = cm.FindCampaignByScenario("test-scenario")
+	}
+}
+
+// [REQ:TM-SS-003] [REQ:TM-SS-004] Benchmark GetOrCreateCampaign
+func BenchmarkGetOrCreateCampaign(b *testing.B) {
+	callCount := 0
+	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			// Return empty on first call, existing on subsequent
+			if callCount == 0 {
+				json.NewEncoder(w).Encode(ListCampaignsResponse{Campaigns: []Campaign{}})
+			} else {
+				json.NewEncoder(w).Encode(ListCampaignsResponse{
+					Campaigns: []Campaign{
+						{ID: "c1", Name: "tidiness-test-scenario-123"},
+					},
+				})
+			}
+			callCount++
+		} else if r.Method == http.MethodPost {
+			resp := CreateCampaignResponse{Campaign: Campaign{ID: "new-id"}}
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(resp)
+		}
+	})
+	defer cleanup()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = cm.GetOrCreateCampaign("test-scenario")
 	}
 }

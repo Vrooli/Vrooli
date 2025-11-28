@@ -49,8 +49,7 @@ func (s *Server) hasRecentScan(ctx context.Context, scenario string, within time
 // handleLightScan performs a complete light scan on a scenario
 func (s *Server) handleLightScan(w http.ResponseWriter, r *http.Request) {
 	var req LightScanRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+	if !decodeAndValidateJSON(w, r, &req) {
 		return
 	}
 
@@ -104,11 +103,7 @@ func (s *Server) handleLightScan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Collect and persist detailed file metrics to database (TM-FM-001, TM-FM-002)
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
-	}
-	scenarioPath := filepath.Join(vrooliRoot, "scenarios", result.Scenario)
+	scenarioPath := getScenarioPath(result.Scenario)
 
 	// Extract all file paths from scan results
 	filePaths := make([]string, len(result.FileMetrics))
@@ -144,8 +139,7 @@ func (s *Server) handleLightScan(w http.ResponseWriter, r *http.Request) {
 // handleParseLint parses lint output into structured issues
 func (s *Server) handleParseLint(w http.ResponseWriter, r *http.Request) {
 	var req ParseRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+	if !decodeAndValidateJSON(w, r, &req) {
 		return
 	}
 
@@ -164,8 +158,7 @@ func (s *Server) handleParseLint(w http.ResponseWriter, r *http.Request) {
 // handleParseType parses type checker output into structured issues
 func (s *Server) handleParseType(w http.ResponseWriter, r *http.Request) {
 	var req ParseRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+	if !decodeAndValidateJSON(w, r, &req) {
 		return
 	}
 
@@ -195,11 +188,28 @@ func respondError(w http.ResponseWriter, status int, message string) {
 	})
 }
 
+// decodeAndValidateJSON decodes JSON request body and validates required fields
+func decodeAndValidateJSON(w http.ResponseWriter, r *http.Request, v interface{}) bool {
+	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return false
+	}
+	return true
+}
+
+// getScenarioPath resolves the full scenario path from VROOLI_ROOT
+func getScenarioPath(scenario string) string {
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	}
+	return filepath.Join(vrooliRoot, "scenarios", scenario)
+}
+
 // handleSmartScan performs AI-powered smart scanning (TM-SS-001, TM-SS-002)
 func (s *Server) handleSmartScan(w http.ResponseWriter, r *http.Request) {
 	var req SmartScanRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+	if !decodeAndValidateJSON(w, r, &req) {
 		return
 	}
 

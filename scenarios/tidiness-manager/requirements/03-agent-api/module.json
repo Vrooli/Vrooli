@@ -14,8 +14,14 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/agent_handlers_test.go",
+          "ref": "api/agent_api_scenario_summary_test.go",
           "notes": "Unit tests passing - TestAgentGetIssues_BasicScenarioQuery, TestAgentGetIssues_LimitParameter validate endpoint behavior"
+        },
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "implemented",
+          "ref": "test/cli/agent-api.bats"
         }
       ],
       "notes": "Implemented as GET /api/v1/agent/issues?scenario={name}&limit=N - fully functional with database integration",
@@ -31,8 +37,14 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/agent_handlers_test.go",
+          "ref": "api/agent_api_scoped_query_test.go",
           "notes": "Unit tests passing - TestAgentGetIssues_FileFilter, TestAgentGetIssues_FolderFilter validate file and folder scoping"
+        },
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "implemented",
+          "ref": "test/cli/agent-api.bats"
         }
       ],
       "notes": "Implemented as GET /api/v1/agent/issues?scenario={name}&file=path/to/file.ts - supports file and folder filters",
@@ -48,8 +60,14 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/agent_handlers_test.go",
+          "ref": "api/agent_api_scoped_query_test.go",
           "notes": "Unit tests passing - TestAgentGetIssues_CategoryFilter validates category-based filtering"
+        },
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "implemented",
+          "ref": "test/cli/agent-api.bats"
         }
       ],
       "notes": "Implemented as GET /api/v1/agent/issues?scenario={name}&category=dead_code - supports all issue categories",
@@ -65,7 +83,7 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/agent_handlers_test.go"
+          "ref": "api/agent_api_ranking_test.go"
         }
       ],
       "notes": "Implemented with severity-based ranking (critical→high→medium→low→info) plus creation date DESC",
@@ -81,13 +99,13 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/agent_handlers_test.go"
+          "ref": "api/agent_api_cli_wrapper_test.go"
         },
         {
           "type": "test",
-          "phase": "business",
+          "phase": "cli",
           "status": "implemented",
-          "ref": "cli/tidiness-manager.bats"
+          "ref": "test/cli/agent-api.bats"
         }
       ],
       "notes": "CLI fully functional: tidiness-manager issues --scenario <name> --limit 10 --category dead_code. BATS tests verify CLI commands wrap HTTP API correctly with all filtering options.",
@@ -103,7 +121,13 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/agent_handlers_test.go"
+          "ref": "api/agent_api_storage_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "implemented",
+          "ref": "test/cli/agent-api.bats"
         }
       ],
       "notes": "PostgreSQL schema implemented with all required fields, supports querying by scenario/file/folder/category/severity",
@@ -119,7 +143,7 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/agent_handlers_test.go"
+          "ref": "api/agent_api_storage_test.go"
         }
       ],
       "notes": "Campaign metadata linkage implemented - issues table has campaign_id, session_id, resource_used fields",

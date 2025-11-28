@@ -75,10 +75,7 @@ func (s *Server) handleAgentGetIssues(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := s.db.QueryContext(r.Context(), query, args...)
 	if err != nil {
-		s.log("query failed", map[string]interface{}{
-			"error": err.Error(),
-			"query": query,
-		})
+		s.logQueryError("query", err, query)
 		respondError(w, http.StatusInternalServerError, "failed to query issues")
 		return
 	}
@@ -106,24 +103,15 @@ func (s *Server) handleAgentGetIssues(w http.ResponseWriter, r *http.Request) {
 			&issue.CreatedAt,
 		)
 		if err != nil {
-			s.log("scan failed", map[string]interface{}{"error": err.Error()})
+			s.logQueryError("scan", err)
 			continue
 		}
 
-		if lineNum.Valid {
-			v := int(lineNum.Int64)
-			issue.LineNumber = &v
-		}
-		if colNum.Valid {
-			v := int(colNum.Int64)
-			issue.ColumnNumber = &v
-		}
-		if agentNotes.Valid {
-			issue.AgentNotes = agentNotes.String
-		}
-		if remediation.Valid {
-			issue.RemediationSteps = remediation.String
-		}
+		// Use helper functions to handle nullable fields
+		issue.LineNumber = assignNullInt(lineNum)
+		issue.ColumnNumber = assignNullInt(colNum)
+		issue.AgentNotes = assignNullString(agentNotes)
+		issue.RemediationSteps = assignNullString(remediation)
 
 		issues = append(issues, issue)
 	}
@@ -185,7 +173,7 @@ func (s *Server) handleAgentStoreIssue(w http.ResponseWriter, r *http.Request) {
 			respondError(w, http.StatusConflict, "duplicate issue")
 			return
 		}
-		s.log("insert failed", map[string]interface{}{"error": err.Error()})
+		s.logQueryError("insert", err)
 		respondError(w, http.StatusInternalServerError, "failed to store issue")
 		return
 	}
@@ -247,7 +235,7 @@ func (s *Server) handleAgentUpdateIssue(w http.ResponseWriter, r *http.Request) 
 			respondError(w, http.StatusNotFound, "issue not found")
 			return
 		}
-		s.log("update failed", map[string]interface{}{"error": err.Error()})
+		s.logQueryError("update", err)
 		respondError(w, http.StatusInternalServerError, "failed to update issue")
 		return
 	}
@@ -264,7 +252,7 @@ func (s *Server) handleAgentGetScenarios(w http.ResponseWriter, r *http.Request)
 	// Get all scenarios from filesystem using vrooli CLI
 	allScenarios, err := s.getAllScenarios(r.Context())
 	if err != nil {
-		s.log("failed to get scenarios from CLI", map[string]interface{}{"error": err.Error()})
+		s.logQueryError("get scenarios from CLI", err)
 		respondError(w, http.StatusInternalServerError, "failed to query scenarios")
 		return
 	}
@@ -310,12 +298,7 @@ func (s *Server) handleAgentGetScenarios(w http.ResponseWriter, r *http.Request)
 	for _, scenarioName := range allScenarios {
 		counts, hasIssues := issueCounts[scenarioName]
 		if !hasIssues {
-			counts = map[string]interface{}{
-				"total":      0,
-				"lint":       0,
-				"type":       0,
-				"long_files": 0,
-			}
+			counts = makeZeroCounts()
 		}
 
 		scenario := map[string]interface{}{
@@ -378,6 +361,66 @@ func (e *ValidationError) Error() string {
 	return e.Field + ": " + e.Message
 }
 
+// Helper functions for reducing code duplication
+
+// assignNullInt converts sql.NullInt64 to *int, returning nil if invalid
+func assignNullInt(value sql.NullInt64) *int {
+	if !value.Valid {
+		return nil
+	}
+	v := int(value.Int64)
+	return &v
+}
+
+// assignNullString converts sql.NullString to string, returning empty if invalid
+func assignNullString(value sql.NullString) string {
+	if !value.Valid {
+		return ""
+	}
+	return value.String
+}
+
+// logQueryError logs database query failures with context
+func (s *Server) logQueryError(operation string, err error, query ...string) {
+	logData := map[string]interface{}{"error": err.Error()}
+	if len(query) > 0 {
+		logData["query"] = query[0]
+	}
+	s.log(operation+" failed", logData)
+}
+
+// makeZeroCounts returns a map with all issue counts set to zero
+func makeZeroCounts() map[string]interface{} {
+	return map[string]interface{}{
+		"total":      0,
+		"lint":       0,
+		"type":       0,
+		"long_files": 0,
+	}
+}
+
+// queryBuilder helps construct SQL queries with dynamic conditions
+type queryBuilder struct {
+	conditions []string
+	args       []interface{}
+}
+
+func newQueryBuilder(initialArg interface{}) *queryBuilder {
+	return &queryBuilder{
+		conditions: []string{},
+		args:       []interface{}{initialArg},
+	}
+}
+
+func (qb *queryBuilder) addCondition(condition string, arg interface{}) {
+	qb.conditions = append(qb.conditions, condition)
+	qb.args = append(qb.args, arg)
+}
+
+func (qb *queryBuilder) paramCount() int {
+	return len(qb.args)
+}
+
 func buildIssuesQuery(req AgentIssuesRequest) string {
 	base := `
 		SELECT
@@ -388,19 +431,16 @@ func buildIssuesQuery(req AgentIssuesRequest) string {
 		WHERE scenario = $1 AND status = 'open'
 	`
 
-	conditions := []string{}
+	qb := newQueryBuilder(req.Scenario)
+
 	if req.File != "" {
-		conditions = append(conditions, "AND file_path = $2")
+		qb.addCondition("AND file_path = $"+strconv.Itoa(qb.paramCount()+1), req.File)
 	} else if req.Folder != "" {
-		conditions = append(conditions, "AND file_path LIKE $2")
+		qb.addCondition("AND file_path LIKE $"+strconv.Itoa(qb.paramCount()+1), req.Folder+"%")
 	}
 
 	if req.Category != "" {
-		if req.File != "" || req.Folder != "" {
-			conditions = append(conditions, "AND category = $3")
-		} else {
-			conditions = append(conditions, "AND category = $2")
-		}
+		qb.addCondition("AND category = $"+strconv.Itoa(qb.paramCount()+1), req.Category)
 	}
 
 	// TM-API-004: Rank by severity, then criticality
@@ -417,46 +457,31 @@ func buildIssuesQuery(req AgentIssuesRequest) string {
 			created_at DESC
 	`
 
-	limit := " LIMIT $"
-	paramCount := 1
-	if req.File != "" || req.Folder != "" {
-		paramCount++
-	}
-	if req.Category != "" {
-		paramCount++
-	}
-	paramCount++
-	limit += strconv.Itoa(paramCount)
+	limitClause := " LIMIT $" + strconv.Itoa(qb.paramCount()+1)
 
-	return base + strings.Join(conditions, " ") + ordering + limit
+	return base + strings.Join(qb.conditions, " ") + ordering + limitClause
 }
 
 func buildIssuesArgs(req AgentIssuesRequest) []interface{} {
-	args := []interface{}{req.Scenario}
+	qb := newQueryBuilder(req.Scenario)
 
 	if req.File != "" {
-		args = append(args, req.File)
+		qb.args = append(qb.args, req.File)
 	} else if req.Folder != "" {
-		args = append(args, req.Folder+"%")
+		qb.args = append(qb.args, req.Folder+"%")
 	}
 
 	if req.Category != "" {
-		args = append(args, req.Category)
+		qb.args = append(qb.args, req.Category)
 	}
 
-	args = append(args, req.Limit)
-	return args
+	qb.args = append(qb.args, req.Limit)
+	return qb.args
 }
 
 // handleAgentGetScenarioDetail returns detailed stats and file list for a specific scenario (OT-P0-010, TM-UI-003, TM-UI-004)
 func (s *Server) handleAgentGetScenarioDetail(w http.ResponseWriter, r *http.Request) {
-	vars := map[string]string{}
-	// Extract {name} path parameter from request URL
-	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/agent/scenarios/"), "/")
-	if len(parts) > 0 {
-		vars["name"] = parts[0]
-	}
-
+	vars := mux.Vars(r)
 	scenarioName := vars["name"]
 	if scenarioName == "" {
 		respondError(w, http.StatusBadRequest, "scenario name is required")
@@ -475,7 +500,7 @@ func (s *Server) handleAgentGetScenarioDetail(w http.ResponseWriter, r *http.Req
 	`
 	err := s.db.QueryRowContext(r.Context(), query, scenarioName).Scan(&lightIssues, &aiIssues, &longFiles)
 	if err != nil && err != sql.ErrNoRows {
-		s.log("query failed", map[string]interface{}{"error": err.Error()})
+		s.logQueryError("query stats", err)
 		respondError(w, http.StatusInternalServerError, "failed to query stats")
 		return
 	}
@@ -496,7 +521,7 @@ func (s *Server) handleAgentGetScenarioDetail(w http.ResponseWriter, r *http.Req
 
 	rows, err := s.db.QueryContext(r.Context(), filesQuery, scenarioName)
 	if err != nil {
-		s.log("query failed", map[string]interface{}{"error": err.Error()})
+		s.logQueryError("query files", err)
 		respondError(w, http.StatusInternalServerError, "failed to query files")
 		return
 	}
@@ -511,15 +536,12 @@ func (s *Server) handleAgentGetScenarioDetail(w http.ResponseWriter, r *http.Req
 		}
 
 		file := map[string]interface{}{
-			"path":        "",
+			"path":        assignNullString(filePath),
 			"lines":       0,
 			"totalIssues": 0,
 			"visitCount":  0,
 		}
 
-		if filePath.Valid {
-			file["path"] = filePath.String
-		}
 		if lineCount.Valid {
 			file["lines"] = int(lineCount.Int64)
 		}

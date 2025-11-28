@@ -6,6 +6,14 @@ import (
 	"time"
 )
 
+// SQL query field lists for campaigns
+const (
+	campaignSelectFields = `
+		id, scenario, status, max_sessions, max_files_per_session,
+		current_session, files_visited, files_total, error_count, error_reason,
+		visited_tracker_campaign_id, created_at, updated_at, completed_at`
+)
+
 // AutoCampaignOrchestrator manages automatic tidiness campaigns across scenarios
 // Implements OT-P1-001 (Auto-tidiness campaigns) and OT-P1-002 (Campaign lifecycle)
 type AutoCampaignOrchestrator struct {
@@ -112,44 +120,47 @@ func (aco *AutoCampaignOrchestrator) GetActiveCampaignCount() (int, error) {
 	return count, err
 }
 
+// updateCampaignStatus updates campaign status with optional completion timestamp
+func (aco *AutoCampaignOrchestrator) updateCampaignStatus(campaignID int, newStatus string, fromStatuses []string, setCompleted bool) error {
+	var query string
+	if setCompleted {
+		query = `UPDATE campaigns SET status = $1, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $2`
+	} else {
+		query = `UPDATE campaigns SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`
+	}
+
+	if len(fromStatuses) > 0 {
+		if setCompleted {
+			query = `UPDATE campaigns SET status = $1, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND status = ANY($3)`
+		} else {
+			query = `UPDATE campaigns SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND status = ANY($3)`
+		}
+		_, err := aco.db.Exec(query, newStatus, campaignID, fromStatuses)
+		return err
+	}
+
+	_, err := aco.db.Exec(query, newStatus, campaignID)
+	return err
+}
+
 // StartCampaign transitions a campaign from 'created' to 'active' [REQ:TM-AC-001]
 func (aco *AutoCampaignOrchestrator) StartCampaign(campaignID int) error {
-	_, err := aco.db.Exec(`
-		UPDATE campaigns
-		SET status = 'active', updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1 AND status = 'created'
-	`, campaignID)
-	return err
+	return aco.updateCampaignStatus(campaignID, "active", []string{"created"}, false)
 }
 
 // PauseCampaign pauses an active campaign [REQ:TM-AC-005]
 func (aco *AutoCampaignOrchestrator) PauseCampaign(campaignID int) error {
-	_, err := aco.db.Exec(`
-		UPDATE campaigns
-		SET status = 'paused', updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1 AND status = 'active'
-	`, campaignID)
-	return err
+	return aco.updateCampaignStatus(campaignID, "paused", []string{"active"}, false)
 }
 
 // ResumeCampaign resumes a paused campaign [REQ:TM-AC-005]
 func (aco *AutoCampaignOrchestrator) ResumeCampaign(campaignID int) error {
-	_, err := aco.db.Exec(`
-		UPDATE campaigns
-		SET status = 'active', updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1 AND status = 'paused'
-	`, campaignID)
-	return err
+	return aco.updateCampaignStatus(campaignID, "active", []string{"paused"}, false)
 }
 
 // TerminateCampaign manually terminates a campaign [REQ:TM-AC-006]
 func (aco *AutoCampaignOrchestrator) TerminateCampaign(campaignID int) error {
-	_, err := aco.db.Exec(`
-		UPDATE campaigns
-		SET status = 'terminated', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1 AND status IN ('created', 'active', 'paused')
-	`, campaignID)
-	return err
+	return aco.updateCampaignStatus(campaignID, "terminated", []string{"created", "active", "paused"}, true)
 }
 
 // CheckAndAutoComplete checks if a campaign should auto-complete [REQ:TM-AC-003, TM-AC-004]
@@ -260,17 +271,14 @@ func (aco *AutoCampaignOrchestrator) RecordCampaignError(campaignID int, errorRe
 	return nil
 }
 
-// GetCampaign retrieves a campaign by ID
-func (aco *AutoCampaignOrchestrator) GetCampaign(campaignID int) (*AutoCampaign, error) {
+// scanCampaign scans a campaign row into an AutoCampaign struct
+func scanCampaign(scanner interface {
+	Scan(dest ...interface{}) error
+}) (*AutoCampaign, error) {
 	campaign := &AutoCampaign{}
 	var completedAt sql.NullTime
 
-	err := aco.db.QueryRow(`
-		SELECT id, scenario, status, max_sessions, max_files_per_session,
-			current_session, files_visited, files_total, error_count, error_reason,
-			visited_tracker_campaign_id, created_at, updated_at, completed_at
-		FROM campaigns WHERE id = $1
-	`, campaignID).Scan(
+	err := scanner.Scan(
 		&campaign.ID, &campaign.Scenario, &campaign.Status,
 		&campaign.MaxSessions, &campaign.MaxFilesPerSession,
 		&campaign.CurrentSession, &campaign.FilesVisited, &campaign.FilesTotal,
@@ -289,27 +297,24 @@ func (aco *AutoCampaignOrchestrator) GetCampaign(campaignID int) (*AutoCampaign,
 	return campaign, nil
 }
 
+// GetCampaign retrieves a campaign by ID
+func (aco *AutoCampaignOrchestrator) GetCampaign(campaignID int) (*AutoCampaign, error) {
+	query := fmt.Sprintf("SELECT %s FROM campaigns WHERE id = $1", campaignSelectFields)
+	return scanCampaign(aco.db.QueryRow(query, campaignID))
+}
+
 // ListCampaigns retrieves all campaigns with optional status filter
 func (aco *AutoCampaignOrchestrator) ListCampaigns(statusFilter string) ([]*AutoCampaign, error) {
+	var query string
 	var rows *sql.Rows
 	var err error
 
 	if statusFilter != "" {
-		rows, err = aco.db.Query(`
-			SELECT id, scenario, status, max_sessions, max_files_per_session,
-				current_session, files_visited, files_total, error_count, error_reason,
-				visited_tracker_campaign_id, created_at, updated_at, completed_at
-			FROM campaigns WHERE status = $1
-			ORDER BY created_at DESC
-		`, statusFilter)
+		query = fmt.Sprintf("SELECT %s FROM campaigns WHERE status = $1 ORDER BY created_at DESC", campaignSelectFields)
+		rows, err = aco.db.Query(query, statusFilter)
 	} else {
-		rows, err = aco.db.Query(`
-			SELECT id, scenario, status, max_sessions, max_files_per_session,
-				current_session, files_visited, files_total, error_count, error_reason,
-				visited_tracker_campaign_id, created_at, updated_at, completed_at
-			FROM campaigns
-			ORDER BY created_at DESC
-		`)
+		query = fmt.Sprintf("SELECT %s FROM campaigns ORDER BY created_at DESC", campaignSelectFields)
+		rows, err = aco.db.Query(query)
 	}
 
 	if err != nil {
@@ -319,25 +324,10 @@ func (aco *AutoCampaignOrchestrator) ListCampaigns(statusFilter string) ([]*Auto
 
 	campaigns := []*AutoCampaign{}
 	for rows.Next() {
-		campaign := &AutoCampaign{}
-		var completedAt sql.NullTime
-
-		err := rows.Scan(
-			&campaign.ID, &campaign.Scenario, &campaign.Status,
-			&campaign.MaxSessions, &campaign.MaxFilesPerSession,
-			&campaign.CurrentSession, &campaign.FilesVisited, &campaign.FilesTotal,
-			&campaign.ErrorCount, &campaign.ErrorReason,
-			&campaign.VisitedTrackerCampaignID,
-			&campaign.CreatedAt, &campaign.UpdatedAt, &completedAt,
-		)
+		campaign, err := scanCampaign(rows)
 		if err != nil {
 			return nil, err
 		}
-
-		if completedAt.Valid {
-			campaign.CompletedAt = &completedAt.Time
-		}
-
 		campaigns = append(campaigns, campaign)
 	}
 

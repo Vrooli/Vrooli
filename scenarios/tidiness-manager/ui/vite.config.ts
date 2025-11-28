@@ -1,15 +1,20 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import RequirementReporter from '@vrooli/vitest-requirement-reporter';
+// import RequirementReporter from '@vrooli/vitest-requirement-reporter';
 
 export default defineConfig({
-  base: '/',
+  base: './',
   plugins: [react()],
   test: {
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
-    reporters: ['default', new RequirementReporter()],
+    // reporters: [new RequirementReporter({
+    //   outputFile: 'coverage/vitest-requirements.json',
+    //   emitStdout: true,
+    //   verbose: true,
+    //   conciseMode: true,
+    // })],
     coverage: {
       reporter: ['json-summary', 'text'],
       reportOnFailure: true,

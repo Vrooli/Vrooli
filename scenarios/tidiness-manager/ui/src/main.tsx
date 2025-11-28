@@ -38,7 +38,12 @@ if (
     console.warn('[tidiness-manager] Unable to determine parent origin for iframe bridge', error);
   }
 
-  initIframeBridgeChild({ parentOrigin, appId: 'tidiness-manager' });
+  initIframeBridgeChild({
+    parentOrigin,
+    appId: 'tidiness-manager',
+    captureLogs: { enabled: true, streaming: true },
+    captureNetwork: { enabled: true, streaming: true },
+  });
   (window as unknown as Record<string, unknown>)[BRIDGE_FLAG] = true;
 }
 

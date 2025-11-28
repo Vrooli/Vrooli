@@ -6,11 +6,60 @@ import (
 	"testing"
 )
 
-func TestCodeMetricsAnalyzer_AnalyzeFiles_Go(t *testing.T) {
-	tmpDir := t.TempDir()
+// assertCodeMetricsTechDebt validates TODO/FIXME/HACK counts in CodeMetrics
+func assertCodeMetricsTechDebt(t *testing.T, metrics *CodeMetrics, todoCount, fixmeCount, hackCount int) {
+	t.Helper()
+	if metrics.TodoCount != todoCount {
+		t.Errorf("Expected %d TODO(s), got %d", todoCount, metrics.TodoCount)
+	}
+	if metrics.FixmeCount != fixmeCount {
+		t.Errorf("Expected %d FIXME(s), got %d", fixmeCount, metrics.FixmeCount)
+	}
+	if metrics.HackCount != hackCount {
+		t.Errorf("Expected %d HACK(s), got %d", hackCount, metrics.HackCount)
+	}
+}
 
-	// Create a Go file with various markers
-	goCode := `package main
+// assertAvgImportsAndFunctions validates average imports and functions per file
+func assertAvgImportsAndFunctions(t *testing.T, metrics *CodeMetrics, avgImports, avgFunctions float64) {
+	t.Helper()
+	if metrics.AvgImportsPerFile != avgImports {
+		t.Errorf("Expected %.1f import(s) per file, got %f", avgImports, metrics.AvgImportsPerFile)
+	}
+	if metrics.AvgFunctionsPerFile != avgFunctions {
+		t.Errorf("Expected %.1f function(s) per file, got %f", avgFunctions, metrics.AvgFunctionsPerFile)
+	}
+}
+
+// writeCodeFile writes a test file with the given content to tmpDir/filename
+func writeCodeFile(t *testing.T, tmpDir, filename, content string) {
+	t.Helper()
+	filePath := filepath.Join(tmpDir, filename)
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// codeMetricsLanguageTestCase defines test data for language-specific code metrics analysis
+type codeMetricsLanguageTestCase struct {
+	name             string
+	language         Language
+	filename         string
+	code             string
+	expectedTodo     int
+	expectedFixme    int
+	expectedHack     int
+	expectedImports  float64
+	minFunctions     float64
+}
+
+func TestCodeMetricsAnalyzer_AnalyzeFiles_Languages(t *testing.T) {
+	testCases := []codeMetricsLanguageTestCase{
+		{
+			name:     "Go",
+			language: LanguageGo,
+			filename: "test.go",
+			code: `package main
 
 import (
 	"fmt"
@@ -27,46 +76,18 @@ func processData() {
 func helper() {
 	// another function
 }
-`
-
-	filePath := filepath.Join(tmpDir, "test.go")
-	if err := os.WriteFile(filePath, []byte(goCode), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{"test.go"}, LanguageGo)
-	if err != nil {
-		t.Fatalf("AnalyzeFiles failed: %v", err)
-	}
-
-	// Check TODO/FIXME/HACK counts
-	if metrics.TodoCount != 1 {
-		t.Errorf("Expected 1 TODO, got %d", metrics.TodoCount)
-	}
-	if metrics.FixmeCount != 1 {
-		t.Errorf("Expected 1 FIXME, got %d", metrics.FixmeCount)
-	}
-	if metrics.HackCount != 1 {
-		t.Errorf("Expected 1 HACK, got %d", metrics.HackCount)
-	}
-
-	// Check import count (1 import block with 2 packages)
-	// Note: Go's import block counts as a single import line
-	if metrics.AvgImportsPerFile != 1.0 {
-		t.Errorf("Expected 1 import per file, got %f", metrics.AvgImportsPerFile)
-	}
-
-	// Check function count (2 functions: processData, helper)
-	if metrics.AvgFunctionsPerFile != 2.0 {
-		t.Errorf("Expected 2 functions per file, got %f", metrics.AvgFunctionsPerFile)
-	}
-}
-
-func TestCodeMetricsAnalyzer_AnalyzeFiles_TypeScript(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	tsCode := `import React from 'react';
+`,
+			expectedTodo:    1,
+			expectedFixme:   1,
+			expectedHack:    1,
+			expectedImports: 1.0, // Go import block counts as single import
+			minFunctions:    2.0,
+		},
+		{
+			name:     "TypeScript",
+			language: LanguageTypeScript,
+			filename: "test.tsx",
+			code: `import React from 'react';
 import { useState } from 'react';
 
 // TODO: add prop validation
@@ -80,45 +101,18 @@ const helper = () => {
   // HACK: workaround for browser bug
   return 42;
 };
-`
-
-	filePath := filepath.Join(tmpDir, "test.tsx")
-	if err := os.WriteFile(filePath, []byte(tsCode), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{"test.tsx"}, LanguageTypeScript)
-	if err != nil {
-		t.Fatalf("AnalyzeFiles failed: %v", err)
-	}
-
-	// Check markers
-	if metrics.TodoCount != 1 {
-		t.Errorf("Expected 1 TODO, got %d", metrics.TodoCount)
-	}
-	if metrics.FixmeCount != 1 {
-		t.Errorf("Expected 1 FIXME, got %d", metrics.FixmeCount)
-	}
-	if metrics.HackCount != 1 {
-		t.Errorf("Expected 1 HACK, got %d", metrics.HackCount)
-	}
-
-	// Check import count (2 imports)
-	if metrics.AvgImportsPerFile != 2.0 {
-		t.Errorf("Expected 2 imports per file, got %f", metrics.AvgImportsPerFile)
-	}
-
-	// Check function count (should detect both the component and helper)
-	if metrics.AvgFunctionsPerFile < 1.0 {
-		t.Errorf("Expected at least 1 function per file, got %f", metrics.AvgFunctionsPerFile)
-	}
-}
-
-func TestCodeMetricsAnalyzer_AnalyzeFiles_Python(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	pyCode := `import os
+`,
+			expectedTodo:    1,
+			expectedFixme:   1,
+			expectedHack:    1,
+			expectedImports: 2.0,
+			minFunctions:    1.0,
+		},
+		{
+			name:     "Python",
+			language: LanguagePython,
+			filename: "test.py",
+			code: `import os
 from pathlib import Path
 
 # TODO: add error handling
@@ -129,38 +123,36 @@ def process():
 def helper():
     # HACK: temporary solution
     return None
-`
-
-	filePath := filepath.Join(tmpDir, "test.py")
-	if err := os.WriteFile(filePath, []byte(pyCode), 0644); err != nil {
-		t.Fatal(err)
+`,
+			expectedTodo:    1,
+			expectedFixme:   1,
+			expectedHack:    1,
+			expectedImports: 2.0,
+			minFunctions:    2.0,
+		},
 	}
 
-	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{"test.py"}, LanguagePython)
-	if err != nil {
-		t.Fatalf("AnalyzeFiles failed: %v", err)
-	}
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			writeCodeFile(t, tmpDir, tc.filename, tc.code)
 
-	// Check markers
-	if metrics.TodoCount != 1 {
-		t.Errorf("Expected 1 TODO, got %d", metrics.TodoCount)
-	}
-	if metrics.FixmeCount != 1 {
-		t.Errorf("Expected 1 FIXME, got %d", metrics.FixmeCount)
-	}
-	if metrics.HackCount != 1 {
-		t.Errorf("Expected 1 HACK, got %d", metrics.HackCount)
-	}
+			analyzer := NewCodeMetricsAnalyzer(tmpDir)
+			metrics, err := analyzer.AnalyzeFiles([]string{tc.filename}, tc.language)
+			if err != nil {
+				t.Fatalf("AnalyzeFiles failed: %v", err)
+			}
 
-	// Check import count (2 import lines)
-	if metrics.AvgImportsPerFile != 2.0 {
-		t.Errorf("Expected 2 imports per file, got %f", metrics.AvgImportsPerFile)
-	}
+			assertCodeMetricsTechDebt(t, metrics, tc.expectedTodo, tc.expectedFixme, tc.expectedHack)
 
-	// Check function count (2 functions)
-	if metrics.AvgFunctionsPerFile != 2.0 {
-		t.Errorf("Expected 2 functions per file, got %f", metrics.AvgFunctionsPerFile)
+			if metrics.AvgImportsPerFile != tc.expectedImports {
+				t.Errorf("Expected %f imports per file, got %f", tc.expectedImports, metrics.AvgImportsPerFile)
+			}
+			if metrics.AvgFunctionsPerFile < tc.minFunctions {
+				t.Errorf("Expected at least %f functions per file, got %f", tc.minFunctions, metrics.AvgFunctionsPerFile)
+			}
+		})
 	}
 }
 
@@ -180,10 +172,7 @@ func TestCodeMetricsAnalyzer_CaseInsensitiveMarkers(t *testing.T) {
 func test() {}
 `
 
-	filePath := filepath.Join(tmpDir, "test.go")
-	if err := os.WriteFile(filePath, []byte(code), 0644); err != nil {
-		t.Fatal(err)
-	}
+	writeCodeFile(t, tmpDir, "test.go", code)
 
 	analyzer := NewCodeMetricsAnalyzer(tmpDir)
 	metrics, err := analyzer.AnalyzeFiles([]string{"test.go"}, LanguageGo)
@@ -192,15 +181,7 @@ func test() {}
 	}
 
 	// Should detect all case variations
-	if metrics.TodoCount != 3 {
-		t.Errorf("Expected 3 TODOs (case-insensitive), got %d", metrics.TodoCount)
-	}
-	if metrics.FixmeCount != 2 {
-		t.Errorf("Expected 2 FIXMEs (case-insensitive), got %d", metrics.FixmeCount)
-	}
-	if metrics.HackCount != 2 {
-		t.Errorf("Expected 2 HACKs (case-insensitive), got %d", metrics.HackCount)
-	}
+	assertCodeMetricsTechDebt(t, metrics, 3, 2, 2)
 }
 
 func TestCodeMetricsAnalyzer_EmptyFiles(t *testing.T) {
@@ -221,11 +202,27 @@ func TestCodeMetricsAnalyzer_EmptyFiles(t *testing.T) {
 	}
 }
 
-// Tests for comment density
-func TestCodeMetricsAnalyzer_CommentDensity_Go(t *testing.T) {
-	tmpDir := t.TempDir()
+// commentDensityTestCase defines test data for comment density analysis
+type commentDensityTestCase struct {
+	name                  string
+	language              Language
+	filename              string
+	code                  string
+	expectedCommentLines  int
+	expectedCodeLines     int
+	expectedRatio         float64
+	validateExactCodeLine bool
+	validateExactRatio    bool
+}
 
-	goCode := `package main
+// Tests for comment density
+func TestCodeMetricsAnalyzer_CommentDensity(t *testing.T) {
+	testCases := []commentDensityTestCase{
+		{
+			name:     "Go",
+			language: LanguageGo,
+			filename: "test.go",
+			code: `package main
 
 // Single line comment
 import "fmt"
@@ -239,41 +236,18 @@ func main() {
 	// Another single-line comment
 	fmt.Println(x)
 }
-`
-
-	filePath := filepath.Join(tmpDir, "test.go")
-	if err := os.WriteFile(filePath, []byte(goCode), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{"test.go"}, LanguageGo)
-	if err != nil {
-		t.Fatalf("AnalyzeFiles failed: %v", err)
-	}
-
-	// Verify comment lines: 1 (single) + 4 (multi-line: /*, 2 middle, */) + 1 (another single) = 6
-	if metrics.TotalCommentLines != 6 {
-		t.Errorf("Expected 6 comment lines, got %d", metrics.TotalCommentLines)
-	}
-
-	// Verify code lines (non-empty, non-comment lines)
-	// package main, import, func main(), {, x := 5, fmt.Println, } = 6 lines
-	// Note: x := 5 // inline counts as code (line starts with code)
-	if metrics.TotalCodeLines != 6 {
-		t.Errorf("Expected 6 code lines, got %d", metrics.TotalCodeLines)
-	}
-
-	// Verify ratio (6 comments / 6 code = 1.0)
-	if metrics.CommentToCodeRatio != 1.0 {
-		t.Errorf("Expected ratio 1.0, got %f", metrics.CommentToCodeRatio)
-	}
-}
-
-func TestCodeMetricsAnalyzer_CommentDensity_TypeScript(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	tsCode := `// File header comment
+`,
+			expectedCommentLines:  6,
+			expectedCodeLines:     6,
+			expectedRatio:         1.0,
+			validateExactCodeLine: true,
+			validateExactRatio:    true,
+		},
+		{
+			name:     "TypeScript",
+			language: LanguageTypeScript,
+			filename: "test.tsx",
+			code: `// File header comment
 import React from 'react';
 
 /**
@@ -284,39 +258,18 @@ export function Component() {
   // Implementation comment
   return <div>Hello</div>;
 }
-`
-
-	filePath := filepath.Join(tmpDir, "test.tsx")
-	if err := os.WriteFile(filePath, []byte(tsCode), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{"test.tsx"}, LanguageTypeScript)
-	if err != nil {
-		t.Fatalf("AnalyzeFiles failed: %v", err)
-	}
-
-	// Comment lines: 1 (header) + 4 (JSDoc: /**, 2 middle, */) + 1 (implementation) = 6
-	if metrics.TotalCommentLines != 6 {
-		t.Errorf("Expected 6 comment lines, got %d", metrics.TotalCommentLines)
-	}
-
-	// Code lines should be > 0
-	if metrics.TotalCodeLines == 0 {
-		t.Errorf("Expected code lines > 0, got %d", metrics.TotalCodeLines)
-	}
-
-	// Ratio should be reasonable
-	if metrics.CommentToCodeRatio <= 0 {
-		t.Errorf("Expected positive comment ratio, got %f", metrics.CommentToCodeRatio)
-	}
-}
-
-func TestCodeMetricsAnalyzer_CommentDensity_Python(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	pyCode := `# File header
+`,
+			expectedCommentLines:  6,
+			expectedCodeLines:     0, // Will validate > 0
+			expectedRatio:         0, // Will validate > 0
+			validateExactCodeLine: false,
+			validateExactRatio:    false,
+		},
+		{
+			name:     "Python",
+			language: LanguagePython,
+			filename: "test.py",
+			code: `# File header
 import os
 
 """
@@ -327,26 +280,54 @@ Multi-line docstring
 def process():
     # Implementation comment
     pass
-`
-
-	filePath := filepath.Join(tmpDir, "test.py")
-	if err := os.WriteFile(filePath, []byte(pyCode), 0644); err != nil {
-		t.Fatal(err)
+`,
+			expectedCommentLines:  6,
+			expectedCodeLines:     0, // Will validate > 0
+			expectedRatio:         0, // Will validate > 0
+			validateExactCodeLine: false,
+			validateExactRatio:    false,
+		},
 	}
 
-	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{"test.py"}, LanguagePython)
-	if err != nil {
-		t.Fatalf("AnalyzeFiles failed: %v", err)
-	}
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			filePath := filepath.Join(tmpDir, tc.filename)
+			if err := os.WriteFile(filePath, []byte(tc.code), 0644); err != nil {
+				t.Fatal(err)
+			}
 
-	// Comment lines: 1 (header) + 4 (docstring: """, 2 middle, """) + 1 (implementation) = 6
-	if metrics.TotalCommentLines != 6 {
-		t.Errorf("Expected 6 comment lines, got %d", metrics.TotalCommentLines)
-	}
+			analyzer := NewCodeMetricsAnalyzer(tmpDir)
+			metrics, err := analyzer.AnalyzeFiles([]string{tc.filename}, tc.language)
+			if err != nil {
+				t.Fatalf("AnalyzeFiles failed: %v", err)
+			}
 
-	if metrics.TotalCodeLines == 0 {
-		t.Errorf("Expected code lines > 0, got %d", metrics.TotalCodeLines)
+			if metrics.TotalCommentLines != tc.expectedCommentLines {
+				t.Errorf("Expected %d comment lines, got %d", tc.expectedCommentLines, metrics.TotalCommentLines)
+			}
+
+			if tc.validateExactCodeLine {
+				if metrics.TotalCodeLines != tc.expectedCodeLines {
+					t.Errorf("Expected %d code lines, got %d", tc.expectedCodeLines, metrics.TotalCodeLines)
+				}
+			} else {
+				if metrics.TotalCodeLines == 0 {
+					t.Errorf("Expected code lines > 0, got %d", metrics.TotalCodeLines)
+				}
+			}
+
+			if tc.validateExactRatio {
+				if metrics.CommentToCodeRatio != tc.expectedRatio {
+					t.Errorf("Expected ratio %f, got %f", tc.expectedRatio, metrics.CommentToCodeRatio)
+				}
+			} else {
+				if metrics.CommentToCodeRatio <= 0 {
+					t.Errorf("Expected positive comment ratio, got %f", metrics.CommentToCodeRatio)
+				}
+			}
+		})
 	}
 }
 

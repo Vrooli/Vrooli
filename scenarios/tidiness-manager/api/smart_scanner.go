@@ -210,17 +210,11 @@ func (s *SmartScanner) processBatch(ctx context.Context, batchID int, files []st
 
 // readFileContent reads the content of a file from the scenario directory
 func (s *SmartScanner) readFileContent(scenario, filePath string) (string, error) {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
-	}
-
-	fullPath := filepath.Join(vrooliRoot, "scenarios", scenario, filePath)
+	fullPath := filepath.Join(getScenarioPath(scenario), filePath)
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
 		return "", err
 	}
-
 	return string(content), nil
 }
 

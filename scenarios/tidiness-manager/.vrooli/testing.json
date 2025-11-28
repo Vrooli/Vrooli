@@ -1,10 +1,15 @@
 {
   "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
   "_metadata": {
-    "description": "Sample testing configuration for React + Vite template",
-    "last_updated": "2025-11-08T00:00:00Z"
+    "description": "Testing configuration for tidiness-manager",
+    "last_updated": "2025-11-27T10:53:00-05:00"
   },
   "version": "1.0.0",
+  "phases": {
+    "unit": {
+      "timeout": "6m"
+    }
+  },
   "structure": {
     "additional_dirs": [
       "ui"

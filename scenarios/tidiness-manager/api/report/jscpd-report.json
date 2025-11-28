@@ -1,0 +1,1997 @@
+{
+  "statistics": {
+    "detectionDate": "2025-11-27T23:10:32.829Z",
+    "formats": {
+      "javascript": {
+        "sources": {
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/agent-form/SlugSelector.tsx": {
+            "lines": 20,
+            "tokens": 186,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/agent-form/BriefTextarea.tsx": {
+            "lines": 6,
+            "tokens": 55,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/pages/FactoryHome.tsx": {
+            "lines": 154,
+            "tokens": 1224,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/Tooltip.tsx": {
+            "lines": 5,
+            "tokens": 65,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/TemplateEmptyState.tsx": {
+            "lines": 0,
+            "tokens": 3,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/TemplateDetailsPanel.tsx": {
+            "lines": 16,
+            "tokens": 197,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/TemplateCatalog.tsx": {
+            "lines": 45,
+            "tokens": 318,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/TemplateCard.tsx": {
+            "lines": 17,
+            "tokens": 173,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/PromoteDialog.tsx": {
+            "lines": 54,
+            "tokens": 470,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/KeyboardShortcutsDialog.tsx": {
+            "lines": 47,
+            "tokens": 463,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/GenerationForm.tsx": {
+            "lines": 200,
+            "tokens": 2128,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/GeneratedScenariosList.tsx": {
+            "lines": 299,
+            "tokens": 2896,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/AgentCustomizationForm.tsx": {
+            "lines": 68,
+            "tokens": 516,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/main.tsx": {
+            "lines": 0,
+            "tokens": 3,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/App.tsx": {
+            "lines": 15,
+            "tokens": 160,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/App.test.tsx": {
+            "lines": 0,
+            "tokens": 5,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 946,
+          "tokens": 8862,
+          "sources": 16,
+          "clones": 0,
+          "duplicatedLines": 0,
+          "duplicatedTokens": 0,
+          "percentage": 0,
+          "percentageTokens": 0,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "tsx": {
+        "sources": {
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/agent-form/SlugSelector.tsx": {
+            "lines": 59,
+            "tokens": 504,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/agent-form/NoScenariosWarning.tsx": {
+            "lines": 12,
+            "tokens": 153,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/agent-form/CustomizationResult.tsx": {
+            "lines": 28,
+            "tokens": 346,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/agent-form/BriefTextarea.tsx": {
+            "lines": 40,
+            "tokens": 331,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/pages/TemplateProvenance.test.tsx": {
+            "lines": 202,
+            "tokens": 1974,
+            "sources": 1,
+            "clones": 18,
+            "duplicatedLines": 191,
+            "duplicatedTokens": 3045,
+            "percentage": 94.55,
+            "percentageTokens": 154.26,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/pages/TemplatePreviewLinks.test.tsx": {
+            "lines": 181,
+            "tokens": 1461,
+            "sources": 1,
+            "clones": 5,
+            "duplicatedLines": 49,
+            "duplicatedTokens": 952,
+            "percentage": 27.07,
+            "percentageTokens": 65.16,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/pages/TemplateMultiple.test.tsx": {
+            "lines": 155,
+            "tokens": 1441,
+            "sources": 1,
+            "clones": 8,
+            "duplicatedLines": 85,
+            "duplicatedTokens": 1483,
+            "percentage": 54.84,
+            "percentageTokens": 102.91,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/pages/TemplateMetadata.test.tsx": {
+            "lines": 163,
+            "tokens": 1633,
+            "sources": 1,
+            "clones": 4,
+            "duplicatedLines": 45,
+            "duplicatedTokens": 688,
+            "percentage": 27.61,
+            "percentageTokens": 42.13,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/pages/TemplateGeneration.test.tsx": {
+            "lines": 172,
+            "tokens": 1614,
+            "sources": 1,
+            "clones": 7,
+            "duplicatedLines": 84,
+            "duplicatedTokens": 982,
+            "percentage": 48.84,
+            "percentageTokens": 60.84,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/pages/TemplateAvailability.test.tsx": {
+            "lines": 132,
+            "tokens": 1193,
+            "sources": 1,
+            "clones": 7,
+            "duplicatedLines": 85,
+            "duplicatedTokens": 844,
+            "percentage": 64.39,
+            "percentageTokens": 70.75,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/pages/GenerationOutputValidation.test.tsx": {
+            "lines": 207,
+            "tokens": 1766,
+            "sources": 1,
+            "clones": 5,
+            "duplicatedLines": 57,
+            "duplicatedTokens": 802,
+            "percentage": 27.54,
+            "percentageTokens": 45.41,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/pages/FactoryHome.tsx": {
+            "lines": 451,
+            "tokens": 4322,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/pages/FactoryHome.test.tsx": {
+            "lines": 352,
+            "tokens": 2691,
+            "sources": 1,
+            "clones": 6,
+            "duplicatedLines": 83,
+            "duplicatedTokens": 656,
+            "percentage": 23.58,
+            "percentageTokens": 24.38,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/pages/AgentTrigger.test.tsx": {
+            "lines": 188,
+            "tokens": 1490,
+            "sources": 1,
+            "clones": 4,
+            "duplicatedLines": 48,
+            "duplicatedTokens": 527,
+            "percentage": 25.53,
+            "percentageTokens": 35.37,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/pages/AgentProfiles.test.tsx": {
+            "lines": 233,
+            "tokens": 1963,
+            "sources": 1,
+            "clones": 2,
+            "duplicatedLines": 29,
+            "duplicatedTokens": 435,
+            "percentage": 12.45,
+            "percentageTokens": 22.16,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/Tooltip.tsx": {
+            "lines": 38,
+            "tokens": 250,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/TemplateEmptyState.tsx": {
+            "lines": 30,
+            "tokens": 250,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/TemplateDetailsPanel.tsx": {
+            "lines": 70,
+            "tokens": 717,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/TemplateCatalog.tsx": {
+            "lines": 110,
+            "tokens": 912,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/TemplateCardSkeleton.tsx": {
+            "lines": 20,
+            "tokens": 161,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/TemplateCard.tsx": {
+            "lines": 60,
+            "tokens": 516,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/StatsOverview.tsx": {
+            "lines": 66,
+            "tokens": 750,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/QuickStartGuide.tsx": {
+            "lines": 50,
+            "tokens": 678,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/PromoteDialog.tsx": {
+            "lines": 82,
+            "tokens": 636,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/KeyboardShortcutsDialog.tsx": {
+            "lines": 72,
+            "tokens": 596,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/GenerationForm.tsx": {
+            "lines": 296,
+            "tokens": 3044,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/GeneratedScenariosList.tsx": {
+            "lines": 464,
+            "tokens": 4355,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/components/AgentCustomizationForm.tsx": {
+            "lines": 144,
+            "tokens": 1256,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/main.tsx": {
+            "lines": 49,
+            "tokens": 364,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/App.tsx": {
+            "lines": 55,
+            "tokens": 555,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/App.test.tsx": {
+            "lines": 170,
+            "tokens": 1540,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 4351,
+          "tokens": 39462,
+          "sources": 31,
+          "clones": 33,
+          "duplicatedLines": 378,
+          "duplicatedTokens": 5207,
+          "percentage": 8.69,
+          "percentageTokens": 13.19,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "typescript": {
+        "sources": {
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/lib/utils.ts": {
+            "lines": 20,
+            "tokens": 125,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/lib/utils.test.ts": {
+            "lines": 72,
+            "tokens": 688,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/lib/api.ts": {
+            "lines": 203,
+            "tokens": 1575,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/lib/api.test.ts": {
+            "lines": 301,
+            "tokens": 2488,
+            "sources": 1,
+            "clones": 2,
+            "duplicatedLines": 20,
+            "duplicatedTokens": 170,
+            "percentage": 6.64,
+            "percentageTokens": 6.83,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/hooks/useScenarioLifecycle.ts": {
+            "lines": 149,
+            "tokens": 1437,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/consts/selectors.ts": {
+            "lines": 329,
+            "tokens": 2994,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/test-setup.ts": {
+            "lines": 15,
+            "tokens": 135,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 1089,
+          "tokens": 9442,
+          "sources": 7,
+          "clones": 1,
+          "duplicatedLines": 10,
+          "duplicatedTokens": 85,
+          "percentage": 0.92,
+          "percentageTokens": 0.9,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "json": {
+        "sources": {
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/consts/selectors.manifest.json": {
+            "lines": 143,
+            "tokens": 821,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 143,
+          "tokens": 821,
+          "sources": 1,
+          "clones": 0,
+          "duplicatedLines": 0,
+          "duplicatedTokens": 0,
+          "percentage": 0,
+          "percentageTokens": 0,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "css": {
+        "sources": {
+          "/home/matthalloran8/Vrooli/scenarios/landing-manager/ui/src/styles.css": {
+            "lines": 221,
+            "tokens": 1406,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 221,
+          "tokens": 1406,
+          "sources": 1,
+          "clones": 0,
+          "duplicatedLines": 0,
+          "duplicatedTokens": 0,
+          "percentage": 0,
+          "percentageTokens": 0,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      }
+    },
+    "total": {
+      "lines": 6750,
+      "tokens": 59993,
+      "sources": 56,
+      "clones": 34,
+      "duplicatedLines": 388,
+      "duplicatedTokens": 5292,
+      "percentage": 5.75,
+      "percentageTokens": 8.82,
+      "newDuplicatedLines": 0,
+      "newClones": 0
+    }
+  },
+  "duplicates": [
+    {
+      "format": "tsx",
+      "lines": 9,
+      "fragment": ");\n    vi.mocked(api.getScenarioStatus).mockResolvedValue({ success: true, scenario_id: \"test\", running: false, status_text: \"stopped\" });\n    vi.mocked(api.startScenario).mockResolvedValue({ success: true, message: \"started\", scenario_id: \"test\" });\n    vi.mocked(api.stopScenario).mockResolvedValue({ success: true, message: \"stopped\", scenario_id: \"test\" });\n    vi.mocked(api.restartScenario).mockResolvedValue({ success: true, message: \"restarted\", scenario_id: \"test\" });\n    vi.mocked(api.getScenarioLogs).mockResolvedValue({ success: true, scenario_id: \"test\", logs: \"logs\" });\n    vi.mocked(api.getPreviewLinks).mockResolvedValue({ scenario_id: \"test\", links: {} });\n\n    render",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 95,
+        "end": 103,
+        "startLoc": {
+          "line": 95,
+          "column": 18,
+          "position": 869
+        },
+        "endLoc": {
+          "line": 103,
+          "column": 7,
+          "position": 1085
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 32,
+        "end": 39,
+        "startLoc": {
+          "line": 32,
+          "column": 2,
+          "position": 271
+        },
+        "endLoc": {
+          "line": 39,
+          "column": 2,
+          "position": 486
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 16,
+      "fragment": ");\n    vi.mocked(api.getScenarioStatus).mockResolvedValue({ success: true, scenario_id: \"test\", running: false, status_text: \"stopped\" });\n    vi.mocked(api.startScenario).mockResolvedValue({ success: true, message: \"started\", scenario_id: \"test\" });\n    vi.mocked(api.stopScenario).mockResolvedValue({ success: true, message: \"stopped\", scenario_id: \"test\" });\n    vi.mocked(api.restartScenario).mockResolvedValue({ success: true, message: \"restarted\", scenario_id: \"test\" });\n    vi.mocked(api.getScenarioLogs).mockResolvedValue({ success: true, scenario_id: \"test\", logs: \"logs\" });\n    vi.mocked(api.getPreviewLinks).mockResolvedValue({ scenario_id: \"test\", links: {} });\n\n    render(\n      <BrowserRouter>\n        <FactoryHome />\n      </BrowserRouter>\n    );\n\n    await waitFor(() => {\n      expect(screen.getByText('Old Landing'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 156,
+        "end": 171,
+        "startLoc": {
+          "line": 156,
+          "column": 31,
+          "position": 1447
+        },
+        "endLoc": {
+          "line": 171,
+          "column": 14,
+          "position": 1706
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 32,
+        "end": 110,
+        "startLoc": {
+          "line": 32,
+          "column": 2,
+          "position": 271
+        },
+        "endLoc": {
+          "line": 110,
+          "column": 12,
+          "position": 1128
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 9,
+      "fragment": "import { describe, it, expect, beforeEach, vi } from 'vitest';\nimport { render, screen, waitFor } from '@testing-library/react';\nimport { BrowserRouter } from 'react-router-dom';\nimport FactoryHome from './FactoryHome';\nimport * as api from '../lib/api';\n\nvi.mock('../lib/api');\n\nconst mockTemplates",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplatePreviewLinks.test.tsx",
+        "start": 2,
+        "end": 10,
+        "startLoc": {
+          "line": 2,
+          "column": 1,
+          "position": 2
+        },
+        "endLoc": {
+          "line": 10,
+          "column": 14,
+          "position": 93
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 2,
+        "end": 10,
+        "startLoc": {
+          "line": 2,
+          "column": 1,
+          "position": 2
+        },
+        "endLoc": {
+          "line": 10,
+          "column": 13,
+          "position": 93
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 8,
+      "fragment": ");\n    vi.mocked(api.getScenarioStatus).mockResolvedValue({ success: true, scenario_id: \"test\", running: false, status_text: \"stopped\" });\n    vi.mocked(api.startScenario).mockResolvedValue({ success: true, message: \"started\", scenario_id: \"test\" });\n    vi.mocked(api.stopScenario).mockResolvedValue({ success: true, message: \"stopped\", scenario_id: \"test\" });\n    vi.mocked(api.restartScenario).mockResolvedValue({ success: true, message: \"restarted\", scenario_id: \"test\" });\n    vi.mocked(api.getScenarioLogs).mockResolvedValue({ success: true, scenario_id: \"test\", logs: \"logs\" });\n    vi.mocked(api.getPreviewLinks).mockResolvedValue({ scenario_id: \"test\", links: {} });\n    vi",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplatePreviewLinks.test.tsx",
+        "start": 47,
+        "end": 54,
+        "startLoc": {
+          "line": 47,
+          "column": 23,
+          "position": 348
+        },
+        "endLoc": {
+          "line": 54,
+          "column": 3,
+          "position": 563
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 32,
+        "end": 39,
+        "startLoc": {
+          "line": 32,
+          "column": 2,
+          "position": 271
+        },
+        "endLoc": {
+          "line": 39,
+          "column": 2,
+          "position": 486
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 9,
+      "fragment": "import { describe, it, expect, beforeEach, vi } from 'vitest';\nimport { render, screen, waitFor } from '@testing-library/react';\nimport { BrowserRouter } from 'react-router-dom';\nimport FactoryHome from './FactoryHome';\nimport * as api from '../lib/api';\n\nvi.mock('../lib/api');\n\nconst mockMultipleTemplates",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateMultiple.test.tsx",
+        "start": 2,
+        "end": 10,
+        "startLoc": {
+          "line": 2,
+          "column": 1,
+          "position": 2
+        },
+        "endLoc": {
+          "line": 10,
+          "column": 22,
+          "position": 93
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 2,
+        "end": 10,
+        "startLoc": {
+          "line": 2,
+          "column": 1,
+          "position": 2
+        },
+        "endLoc": {
+          "line": 10,
+          "column": 13,
+          "position": 93
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 10,
+      "fragment": "]);\n    vi.mocked(api.getScenarioStatus).mockResolvedValue({ success: true, scenario_id: \"test\", running: false, status_text: \"stopped\" });\n    vi.mocked(api.startScenario).mockResolvedValue({ success: true, message: \"started\", scenario_id: \"test\" });\n    vi.mocked(api.stopScenario).mockResolvedValue({ success: true, message: \"stopped\", scenario_id: \"test\" });\n    vi.mocked(api.restartScenario).mockResolvedValue({ success: true, message: \"restarted\", scenario_id: \"test\" });\n    vi.mocked(api.getScenarioLogs).mockResolvedValue({ success: true, scenario_id: \"test\", logs: \"logs\" });\n    vi.mocked(api.getPreviewLinks).mockResolvedValue({ scenario_id: \"test\", links: {} });\n  });\n\n  it('should list multiple templates in the UI'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateMultiple.test.tsx",
+        "start": 33,
+        "end": 42,
+        "startLoc": {
+          "line": 33,
+          "column": 2,
+          "position": 303
+        },
+        "endLoc": {
+          "line": 42,
+          "column": 43,
+          "position": 527
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 32,
+        "end": 41,
+        "startLoc": {
+          "line": 32,
+          "column": 36,
+          "position": 270
+        },
+        "endLoc": {
+          "line": 41,
+          "column": 60,
+          "position": 494
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 12,
+      "fragment": "render(\n      <BrowserRouter>\n        <FactoryHome />\n      </BrowserRouter>\n    );\n\n    await waitFor(() => {\n      const saasVersion = screen.getByTestId('template-version-saas-landing-page');\n      const leadMagnetVersion = screen.getByTestId('template-version-lead-magnet');\n\n      expect(saasVersion).toHaveTextContent('v1.0.0');\n      expect(leadMagnetVersion).toHaveTextContent('v2.1.0'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateMultiple.test.tsx",
+        "start": 142,
+        "end": 153,
+        "startLoc": {
+          "line": 142,
+          "column": 5,
+          "position": 1338
+        },
+        "endLoc": {
+          "line": 153,
+          "column": 9,
+          "position": 1425
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateMultiple.test.tsx",
+        "start": 120,
+        "end": 131,
+        "startLoc": {
+          "line": 120,
+          "column": 5,
+          "position": 1154
+        },
+        "endLoc": {
+          "line": 131,
+          "column": 9,
+          "position": 1241
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 9,
+      "fragment": "import { describe, it, expect, beforeEach, vi } from 'vitest';\nimport { render, screen, waitFor } from '@testing-library/react';\nimport { BrowserRouter } from 'react-router-dom';\nimport FactoryHome from './FactoryHome';\nimport * as api from '../lib/api';\n\nvi.mock('../lib/api');\n\nconst mockTemplateWithFullMetadata",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateMetadata.test.tsx",
+        "start": 2,
+        "end": 10,
+        "startLoc": {
+          "line": 2,
+          "column": 1,
+          "position": 2
+        },
+        "endLoc": {
+          "line": 10,
+          "column": 29,
+          "position": 93
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 2,
+        "end": 10,
+        "startLoc": {
+          "line": 2,
+          "column": 1,
+          "position": 2
+        },
+        "endLoc": {
+          "line": 10,
+          "column": 13,
+          "position": 93
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 11,
+      "fragment": ");\n    vi.mocked(api.listGeneratedScenarios).mockResolvedValue([]);\n    vi.mocked(api.getScenarioStatus).mockResolvedValue({ success: true, scenario_id: \"test\", running: false, status_text: \"stopped\" });\n    vi.mocked(api.startScenario).mockResolvedValue({ success: true, message: \"started\", scenario_id: \"test\" });\n    vi.mocked(api.stopScenario).mockResolvedValue({ success: true, message: \"stopped\", scenario_id: \"test\" });\n    vi.mocked(api.restartScenario).mockResolvedValue({ success: true, message: \"restarted\", scenario_id: \"test\" });\n    vi.mocked(api.getScenarioLogs).mockResolvedValue({ success: true, scenario_id: \"test\", logs: \"logs\" });\n    vi.mocked(api.getPreviewLinks).mockResolvedValue({ scenario_id: \"test\", links: {} });\n  });\n\n  it('should display sections metadata in UI'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateMetadata.test.tsx",
+        "start": 46,
+        "end": 56,
+        "startLoc": {
+          "line": 46,
+          "column": 29,
+          "position": 473
+        },
+        "endLoc": {
+          "line": 56,
+          "column": 41,
+          "position": 713
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateMultiple.test.tsx",
+        "start": 32,
+        "end": 41,
+        "startLoc": {
+          "line": 32,
+          "column": 2,
+          "position": 287
+        },
+        "endLoc": {
+          "line": 41,
+          "column": 60,
+          "position": 494
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 17,
+      "fragment": ");\n    vi.mocked(api.listGeneratedScenarios).mockResolvedValue([]);\n    vi.mocked(api.getScenarioStatus).mockResolvedValue({ success: true, scenario_id: \"test\", running: false, status_text: \"stopped\" });\n    vi.mocked(api.startScenario).mockResolvedValue({ success: true, message: \"started\", scenario_id: \"test\" });\n    vi.mocked(api.stopScenario).mockResolvedValue({ success: true, message: \"stopped\", scenario_id: \"test\" });\n    vi.mocked(api.restartScenario).mockResolvedValue({ success: true, message: \"restarted\", scenario_id: \"test\" });\n    vi.mocked(api.getScenarioLogs).mockResolvedValue({ success: true, scenario_id: \"test\", logs: \"logs\" });\n    vi.mocked(api.getPreviewLinks).mockResolvedValue({ scenario_id: \"test\", links: {} });\n\n    render(\n      <BrowserRouter>\n        <FactoryHome />\n      </BrowserRouter>\n    );\n\n    await waitFor(() => {\n      expect(screen.getAllByText",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateMetadata.test.tsx",
+        "start": 126,
+        "end": 142,
+        "startLoc": {
+          "line": 126,
+          "column": 16,
+          "position": 1209
+        },
+        "endLoc": {
+          "line": 142,
+          "column": 13,
+          "position": 1483
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateMultiple.test.tsx",
+        "start": 32,
+        "end": 110,
+        "startLoc": {
+          "line": 32,
+          "column": 2,
+          "position": 287
+        },
+        "endLoc": {
+          "line": 110,
+          "column": 10,
+          "position": 1126
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 16,
+      "fragment": "import { describe, it, expect, beforeEach, vi } from 'vitest';\nimport { render, screen, waitFor } from '@testing-library/react';\nimport { BrowserRouter } from 'react-router-dom';\nimport FactoryHome from './FactoryHome';\nimport * as api from '../lib/api';\n\nvi.mock('../lib/api');\n\nconst mockTemplate = {\n  id: 'saas-landing-page',\n  name: 'SaaS Landing Page',\n  description: 'Landing page template for SaaS products',\n  version: '1.0.0',\n};\n\nconst mockGenerationResult",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateGeneration.test.tsx",
+        "start": 2,
+        "end": 17,
+        "startLoc": {
+          "line": 2,
+          "column": 1,
+          "position": 2
+        },
+        "endLoc": {
+          "line": 17,
+          "column": 21,
+          "position": 133
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 2,
+        "end": 17,
+        "startLoc": {
+          "line": 2,
+          "column": 1,
+          "position": 2
+        },
+        "endLoc": {
+          "line": 17,
+          "column": 36,
+          "position": 133
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 6,
+      "fragment": ", () => {\n  beforeEach(() => {\n    vi.resetAllMocks();\n    vi.mocked(api.listTemplates).mockResolvedValue([mockTemplate]);\n    vi.mocked(api.getTemplate).mockResolvedValue(mockTemplate);\n    vi.mocked(api.generateScenario",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateGeneration.test.tsx",
+        "start": 26,
+        "end": 31,
+        "startLoc": {
+          "line": 26,
+          "column": 61,
+          "position": 193
+        },
+        "endLoc": {
+          "line": 31,
+          "column": 17,
+          "position": 261
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 27,
+        "end": 32,
+        "startLoc": {
+          "line": 27,
+          "column": 64,
+          "position": 195
+        },
+        "endLoc": {
+          "line": 32,
+          "column": 23,
+          "position": 263
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 11,
+      "fragment": ");\n    vi.mocked(api.listGeneratedScenarios).mockResolvedValue([]);\n    vi.mocked(api.getScenarioStatus).mockResolvedValue({ success: true, scenario_id: \"test\", running: false, status_text: \"stopped\" });\n    vi.mocked(api.startScenario).mockResolvedValue({ success: true, message: \"started\", scenario_id: \"test\" });\n    vi.mocked(api.stopScenario).mockResolvedValue({ success: true, message: \"stopped\", scenario_id: \"test\" });\n    vi.mocked(api.restartScenario).mockResolvedValue({ success: true, message: \"restarted\", scenario_id: \"test\" });\n    vi.mocked(api.getScenarioLogs).mockResolvedValue({ success: true, scenario_id: \"test\", logs: \"logs\" });\n    vi.mocked(api.getPreviewLinks).mockResolvedValue({ scenario_id: \"test\", links: {} });\n  });\n\n  it('should display generation form with required fields'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateGeneration.test.tsx",
+        "start": 31,
+        "end": 41,
+        "startLoc": {
+          "line": 31,
+          "column": 21,
+          "position": 267
+        },
+        "endLoc": {
+          "line": 41,
+          "column": 54,
+          "position": 507
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateMultiple.test.tsx",
+        "start": 32,
+        "end": 41,
+        "startLoc": {
+          "line": 32,
+          "column": 2,
+          "position": 287
+        },
+        "endLoc": {
+          "line": 41,
+          "column": 60,
+          "position": 494
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 13,
+      "fragment": ", async () => {\n    render(\n      <BrowserRouter>\n        <FactoryHome />\n      </BrowserRouter>\n    );\n\n    await waitFor(() => {\n      const generateButtons = screen.getAllByText(/Generate now/i);\n      expect(generateButtons.length).toBeGreaterThan(0);\n    });\n\n    // Verify the API function exists for generation",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateGeneration.test.tsx",
+        "start": 105,
+        "end": 117,
+        "startLoc": {
+          "line": 105,
+          "column": 65,
+          "position": 974
+        },
+        "endLoc": {
+          "line": 117,
+          "column": 49,
+          "position": 1058
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateGeneration.test.tsx",
+        "start": 58,
+        "end": 69,
+        "startLoc": {
+          "line": 58,
+          "column": 67,
+          "position": 633
+        },
+        "endLoc": {
+          "line": 69,
+          "column": 2,
+          "position": 716
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 18,
+      "fragment": ";\n\n    vi.mocked(api.listGeneratedScenarios).mockResolvedValue(mockGeneratedScenarios);\n    vi.mocked(api.getScenarioStatus).mockResolvedValue({ success: true, scenario_id: \"test\", running: false, status_text: \"stopped\" });\n    vi.mocked(api.startScenario).mockResolvedValue({ success: true, message: \"started\", scenario_id: \"test\" });\n    vi.mocked(api.stopScenario).mockResolvedValue({ success: true, message: \"stopped\", scenario_id: \"test\" });\n    vi.mocked(api.restartScenario).mockResolvedValue({ success: true, message: \"restarted\", scenario_id: \"test\" });\n    vi.mocked(api.getScenarioLogs).mockResolvedValue({ success: true, scenario_id: \"test\", logs: \"logs\" });\n    vi.mocked(api.getPreviewLinks).mockResolvedValue({ scenario_id: \"test\", links: {} });\n\n    render(\n      <BrowserRouter>\n        <FactoryHome />\n      </BrowserRouter>\n    );\n\n    await waitFor(() => {\n      expect(screen.getByText('Test Landing'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateGeneration.test.tsx",
+        "start": 132,
+        "end": 149,
+        "startLoc": {
+          "line": 132,
+          "column": 2,
+          "position": 1161
+        },
+        "endLoc": {
+          "line": 149,
+          "column": 15,
+          "position": 1436
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplatePreviewLinks.test.tsx",
+        "start": 46,
+        "end": 110,
+        "startLoc": {
+          "line": 46,
+          "column": 2,
+          "position": 333
+        },
+        "endLoc": {
+          "line": 110,
+          "column": 12,
+          "position": 1128
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 18,
+      "fragment": "import { describe, it, expect, beforeEach, vi } from 'vitest';\nimport { render, screen, waitFor } from '@testing-library/react';\nimport { BrowserRouter } from 'react-router-dom';\nimport FactoryHome from './FactoryHome';\nimport * as api from '../lib/api';\n\nvi.mock('../lib/api');\n\nconst mockTemplates = [\n  {\n    id: 'saas-landing-page',\n    name: 'SaaS Landing Page',\n    description: 'Landing page template for SaaS products',\n    version: '1.0.0',\n  },\n];\n\ndescribe",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateAvailability.test.tsx",
+        "start": 2,
+        "end": 19,
+        "startLoc": {
+          "line": 2,
+          "column": 1,
+          "position": 2
+        },
+        "endLoc": {
+          "line": 19,
+          "column": 9,
+          "position": 138
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 2,
+        "end": 19,
+        "startLoc": {
+          "line": 2,
+          "column": 1,
+          "position": 2
+        },
+        "endLoc": {
+          "line": 19,
+          "column": 6,
+          "position": 138
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 6,
+      "fragment": ", () => {\n  beforeEach(() => {\n    vi.resetAllMocks();\n    vi.mocked(api.listTemplates).mockResolvedValue(mockTemplates);\n    vi.mocked(api.getTemplate).mockResolvedValue(mockTemplates[0]);\n    vi.mocked(api.listGeneratedScenarios).mockResolvedValue([",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateAvailability.test.tsx",
+        "start": 19,
+        "end": 24,
+        "startLoc": {
+          "line": 19,
+          "column": 59,
+          "position": 141
+        },
+        "endLoc": {
+          "line": 24,
+          "column": 2,
+          "position": 215
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplatePreviewLinks.test.tsx",
+        "start": 42,
+        "end": 47,
+        "startLoc": {
+          "line": 42,
+          "column": 61,
+          "position": 273
+        },
+        "endLoc": {
+          "line": 47,
+          "column": 23,
+          "position": 347
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 11,
+      "fragment": ");\n    vi.mocked(api.listGeneratedScenarios).mockResolvedValue([]);\n    vi.mocked(api.getScenarioStatus).mockResolvedValue({ success: true, scenario_id: \"test\", running: false, status_text: \"stopped\" });\n    vi.mocked(api.startScenario).mockResolvedValue({ success: true, message: \"started\", scenario_id: \"test\" });\n    vi.mocked(api.stopScenario).mockResolvedValue({ success: true, message: \"stopped\", scenario_id: \"test\" });\n    vi.mocked(api.restartScenario).mockResolvedValue({ success: true, message: \"restarted\", scenario_id: \"test\" });\n    vi.mocked(api.getScenarioLogs).mockResolvedValue({ success: true, scenario_id: \"test\", logs: \"logs\" });\n    vi.mocked(api.getPreviewLinks).mockResolvedValue({ scenario_id: \"test\", links: {} });\n  });\n\n  it('should expose saas-landing-page template via UI listing'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateAvailability.test.tsx",
+        "start": 23,
+        "end": 33,
+        "startLoc": {
+          "line": 23,
+          "column": 2,
+          "position": 200
+        },
+        "endLoc": {
+          "line": 33,
+          "column": 58,
+          "position": 440
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateMultiple.test.tsx",
+        "start": 32,
+        "end": 41,
+        "startLoc": {
+          "line": 32,
+          "column": 2,
+          "position": 287
+        },
+        "endLoc": {
+          "line": 41,
+          "column": 60,
+          "position": 494
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 6,
+      "fragment": ", () => {\n  beforeEach(() => {\n    vi.resetAllMocks();\n    vi.mocked(api.listTemplates).mockResolvedValue([mockTemplate]);\n    vi.mocked(api.getTemplate).mockResolvedValue(mockTemplate);\n    vi.mocked(api.listGeneratedScenarios).mockResolvedValue([mockGeneratedScenarioWithAllComponents",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/GenerationOutputValidation.test.tsx",
+        "start": 42,
+        "end": 47,
+        "startLoc": {
+          "line": 42,
+          "column": 71,
+          "position": 304
+        },
+        "endLoc": {
+          "line": 47,
+          "column": 39,
+          "position": 378
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 27,
+        "end": 32,
+        "startLoc": {
+          "line": 27,
+          "column": 64,
+          "position": 195
+        },
+        "endLoc": {
+          "line": 32,
+          "column": 36,
+          "position": 269
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 10,
+      "fragment": "]);\n    vi.mocked(api.getScenarioStatus).mockResolvedValue({ success: true, scenario_id: \"test\", running: false, status_text: \"stopped\" });\n    vi.mocked(api.startScenario).mockResolvedValue({ success: true, message: \"started\", scenario_id: \"test\" });\n    vi.mocked(api.stopScenario).mockResolvedValue({ success: true, message: \"stopped\", scenario_id: \"test\" });\n    vi.mocked(api.restartScenario).mockResolvedValue({ success: true, message: \"restarted\", scenario_id: \"test\" });\n    vi.mocked(api.getScenarioLogs).mockResolvedValue({ success: true, scenario_id: \"test\", logs: \"logs\" });\n    vi.mocked(api.getPreviewLinks).mockResolvedValue({ scenario_id: \"test\", links: {} });\n  });\n\n  it('should display generated scenario with ready status indicating runnability'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/GenerationOutputValidation.test.tsx",
+        "start": 47,
+        "end": 56,
+        "startLoc": {
+          "line": 47,
+          "column": 39,
+          "position": 379
+        },
+        "endLoc": {
+          "line": 56,
+          "column": 77,
+          "position": 603
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 32,
+        "end": 41,
+        "startLoc": {
+          "line": 32,
+          "column": 36,
+          "position": 270
+        },
+        "endLoc": {
+          "line": 41,
+          "column": 60,
+          "position": 494
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 12,
+      "fragment": ", async () => {\n    render(\n      <BrowserRouter>\n        <FactoryHome />\n      </BrowserRouter>\n    );\n\n    await waitFor(() => {\n      const versionElements = screen.getAllByText(/v1\\.0\\.0/i);\n      expect(versionElements.length).toBeGreaterThan(0);\n    });\n    // Ensure all pending state updates are processed",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/GenerationOutputValidation.test.tsx",
+        "start": 110,
+        "end": 121,
+        "startLoc": {
+          "line": 110,
+          "column": 54,
+          "position": 958
+        },
+        "endLoc": {
+          "line": 121,
+          "column": 50,
+          "position": 1041
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateMetadata.test.tsx",
+        "start": 92,
+        "end": 103,
+        "startLoc": {
+          "line": 92,
+          "column": 51,
+          "position": 951
+        },
+        "endLoc": {
+          "line": 103,
+          "column": 2,
+          "position": 1034
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 16,
+      "fragment": ");\n    vi.mocked(api.getScenarioStatus).mockResolvedValue({ success: true, scenario_id: \"test\", running: false, status_text: \"stopped\" });\n    vi.mocked(api.startScenario).mockResolvedValue({ success: true, message: \"started\", scenario_id: \"test\" });\n    vi.mocked(api.stopScenario).mockResolvedValue({ success: true, message: \"stopped\", scenario_id: \"test\" });\n    vi.mocked(api.restartScenario).mockResolvedValue({ success: true, message: \"restarted\", scenario_id: \"test\" });\n    vi.mocked(api.getScenarioLogs).mockResolvedValue({ success: true, scenario_id: \"test\", logs: \"logs\" });\n    vi.mocked(api.getPreviewLinks).mockResolvedValue({ scenario_id: \"test\", links: {} });\n\n    render(\n      <BrowserRouter>\n        <FactoryHome />\n      </BrowserRouter>\n    );\n\n    await waitFor(() => {\n      expect(screen.getByText('Ready Scenario'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/GenerationOutputValidation.test.tsx",
+        "start": 163,
+        "end": 178,
+        "startLoc": {
+          "line": 163,
+          "column": 10,
+          "position": 1308
+        },
+        "endLoc": {
+          "line": 178,
+          "column": 17,
+          "position": 1567
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 32,
+        "end": 110,
+        "startLoc": {
+          "line": 32,
+          "column": 2,
+          "position": 271
+        },
+        "endLoc": {
+          "line": 110,
+          "column": 12,
+          "position": 1128
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 18,
+      "fragment": "import { describe, it, expect, beforeEach, vi } from 'vitest';\nimport { render, screen, waitFor } from '@testing-library/react';\nimport { BrowserRouter } from 'react-router-dom';\nimport { act } from 'react';\nimport FactoryHome from './FactoryHome';\nimport * as api from '../lib/api';\n\nvi.mock('../lib/api');\n\n// Helper to wait for all pending async state updates\nasync function waitForAsyncUpdates() {\n  await act(async () => {\n    // Wait for multiple microtask cycles to ensure all effects have settled\n    await new Promise(resolve => setTimeout(resolve, 50));\n  });\n}\n\nconst mockTemplates",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/FactoryHome.test.tsx",
+        "start": 1,
+        "end": 18,
+        "startLoc": {
+          "line": 1,
+          "column": 1,
+          "position": 0
+        },
+        "endLoc": {
+          "line": 18,
+          "column": 14,
+          "position": 162
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/GenerationOutputValidation.test.tsx",
+        "start": 2,
+        "end": 19,
+        "startLoc": {
+          "line": 2,
+          "column": 1,
+          "position": 2
+        },
+        "endLoc": {
+          "line": 19,
+          "column": 13,
+          "position": 164
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 14,
+      "fragment": ", async () => {\n    render(\n      <BrowserRouter>\n        <FactoryHome />\n      </BrowserRouter>\n    );\n\n    await waitFor(() => {\n      const templateElements = screen.getAllByText('SaaS Landing Page');\n      expect(templateElements.length).toBeGreaterThan(0);\n    });\n\n    expect(api.listTemplates).toHaveBeenCalledTimes(1);\n    expect",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/FactoryHome.test.tsx",
+        "start": 118,
+        "end": 131,
+        "startLoc": {
+          "line": 118,
+          "column": 36,
+          "position": 865
+        },
+        "endLoc": {
+          "line": 131,
+          "column": 7,
+          "position": 963
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateAvailability.test.tsx",
+        "start": 33,
+        "end": 46,
+        "startLoc": {
+          "line": 33,
+          "column": 58,
+          "position": 441
+        },
+        "endLoc": {
+          "line": 46,
+          "column": 2,
+          "position": 539
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 15,
+      "fragment": ", async () => {\n    vi.mocked(api.listTemplates).mockImplementation(\n      () => new Promise(() => {}) // Never resolves\n    );\n\n    render(\n      <BrowserRouter>\n        <FactoryHome />\n      </BrowserRouter>\n    );\n\n    await waitFor(() => {\n      expect(screen.getByLabelText(/Loading templates/i)).toBeInTheDocument();\n    });\n    await",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/FactoryHome.test.tsx",
+        "start": 141,
+        "end": 155,
+        "startLoc": {
+          "line": 141,
+          "column": 40,
+          "position": 1056
+        },
+        "endLoc": {
+          "line": 155,
+          "column": 6,
+          "position": 1165
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateAvailability.test.tsx",
+        "start": 91,
+        "end": 105,
+        "startLoc": {
+          "line": 91,
+          "column": 56,
+          "position": 890
+        },
+        "endLoc": {
+          "line": 105,
+          "column": 2,
+          "position": 999
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 15,
+      "fragment": ", async () => {\n    const errorMessage = 'Failed to load templates';\n    vi.mocked(api.listTemplates).mockRejectedValue(new Error(errorMessage));\n\n    render(\n      <BrowserRouter>\n        <FactoryHome />\n      </BrowserRouter>\n    );\n\n    await waitFor(() => {\n      expect(screen.getByText(errorMessage)).toBeInTheDocument();\n    });\n\n    await",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/FactoryHome.test.tsx",
+        "start": 158,
+        "end": 172,
+        "startLoc": {
+          "line": 158,
+          "column": 40,
+          "position": 1182
+        },
+        "endLoc": {
+          "line": 172,
+          "column": 6,
+          "position": 1285
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateAvailability.test.tsx",
+        "start": 107,
+        "end": 120,
+        "startLoc": {
+          "line": 107,
+          "column": 67,
+          "position": 1008
+        },
+        "endLoc": {
+          "line": 120,
+          "column": 2,
+          "position": 1110
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 13,
+      "fragment": ", async () => {\n    render(\n      <BrowserRouter>\n        <FactoryHome />\n      </BrowserRouter>\n    );\n\n    await waitFor(() => {\n      const templateElements = screen.getAllByText('SaaS Landing Page');\n      expect(templateElements.length).toBeGreaterThan(0);\n    });\n\n    const",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/FactoryHome.test.tsx",
+        "start": 178,
+        "end": 190,
+        "startLoc": {
+          "line": 178,
+          "column": 49,
+          "position": 1332
+        },
+        "endLoc": {
+          "line": 190,
+          "column": 6,
+          "position": 1416
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateAvailability.test.tsx",
+        "start": 33,
+        "end": 45,
+        "startLoc": {
+          "line": 33,
+          "column": 58,
+          "position": 441
+        },
+        "endLoc": {
+          "line": 45,
+          "column": 7,
+          "position": 525
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 14,
+      "fragment": ", async () => {\n    render(\n      <BrowserRouter>\n        <FactoryHome />\n      </BrowserRouter>\n    );\n\n    await waitFor(() => {\n      expect(screen.getByText(/Dry-run \\(preview only\\)/i)).toBeInTheDocument();\n      const generateButtons = screen.getAllByText(/Generate now/i);\n      expect(generateButtons.length).toBeGreaterThan(0);\n    });\n\n    await",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/FactoryHome.test.tsx",
+        "start": 241,
+        "end": 254,
+        "startLoc": {
+          "line": 241,
+          "column": 36,
+          "position": 1820
+        },
+        "endLoc": {
+          "line": 254,
+          "column": 6,
+          "position": 1920
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateGeneration.test.tsx",
+        "start": 71,
+        "end": 83,
+        "startLoc": {
+          "line": 71,
+          "column": 55,
+          "position": 725
+        },
+        "endLoc": {
+          "line": 83,
+          "column": 2,
+          "position": 824
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 16,
+      "fragment": "import { describe, it, expect, beforeEach, vi } from 'vitest';\nimport { render, screen, waitFor } from '@testing-library/react';\nimport { BrowserRouter } from 'react-router-dom';\nimport FactoryHome from './FactoryHome';\nimport * as api from '../lib/api';\n\nvi.mock('../lib/api');\n\nconst mockTemplate = {\n  id: 'saas-landing-page',\n  name: 'SaaS Landing Page',\n  description: 'Landing page template for SaaS products',\n  version: '1.0.0',\n};\n\nconst mockGeneratedScenario",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/AgentTrigger.test.tsx",
+        "start": 2,
+        "end": 17,
+        "startLoc": {
+          "line": 2,
+          "column": 1,
+          "position": 2
+        },
+        "endLoc": {
+          "line": 17,
+          "column": 22,
+          "position": 133
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 2,
+        "end": 17,
+        "startLoc": {
+          "line": 2,
+          "column": 1,
+          "position": 2
+        },
+        "endLoc": {
+          "line": 17,
+          "column": 36,
+          "position": 133
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 8,
+      "fragment": "]);\n    vi.mocked(api.getScenarioStatus).mockResolvedValue({ success: true, scenario_id: \"test\", running: false, status_text: \"stopped\" });\n    vi.mocked(api.startScenario).mockResolvedValue({ success: true, message: \"started\", scenario_id: \"test\" });\n    vi.mocked(api.stopScenario).mockResolvedValue({ success: true, message: \"stopped\", scenario_id: \"test\" });\n    vi.mocked(api.restartScenario).mockResolvedValue({ success: true, message: \"restarted\", scenario_id: \"test\" });\n    vi.mocked(api.getScenarioLogs).mockResolvedValue({ success: true, scenario_id: \"test\", logs: \"logs\" });\n    vi.mocked(api.getPreviewLinks).mockResolvedValue({ scenario_id: \"test\", links: {} });\n    vi.mocked(api.customizeScenario",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/AgentTrigger.test.tsx",
+        "start": 40,
+        "end": 47,
+        "startLoc": {
+          "line": 40,
+          "column": 22,
+          "position": 308
+        },
+        "endLoc": {
+          "line": 47,
+          "column": 18,
+          "position": 530
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 32,
+        "end": 54,
+        "startLoc": {
+          "line": 32,
+          "column": 36,
+          "position": 270
+        },
+        "endLoc": {
+          "line": 54,
+          "column": 16,
+          "position": 569
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 14,
+      "fragment": ", async () => {\n    render(\n      <BrowserRouter>\n        <FactoryHome />\n      </BrowserRouter>\n    );\n\n    await waitFor(() => {\n      // May appear multiple times (heading + tooltips)\n      const agentElements = screen.getAllByText(/Agent customization/i);\n      expect(agentElements.length).toBeGreaterThan(0);\n    });\n\n    // Form should accept brief (which can include asset references)",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/AgentTrigger.test.tsx",
+        "start": 122,
+        "end": 135,
+        "startLoc": {
+          "line": 122,
+          "column": 72,
+          "position": 1029
+        },
+        "endLoc": {
+          "line": 135,
+          "column": 65,
+          "position": 1116
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/AgentTrigger.test.tsx",
+        "start": 50,
+        "end": 62,
+        "startLoc": {
+          "line": 50,
+          "column": 51,
+          "position": 549
+        },
+        "endLoc": {
+          "line": 62,
+          "column": 2,
+          "position": 635
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 18,
+      "fragment": "import { describe, it, expect, beforeEach, vi } from 'vitest';\nimport { render, screen, waitFor } from '@testing-library/react';\nimport { BrowserRouter } from 'react-router-dom';\nimport FactoryHome from './FactoryHome';\nimport * as api from '../lib/api';\n\nvi.mock('../lib/api');\n\nconst mockTemplates = [\n  {\n    id: 'saas-landing-page',\n    name: 'SaaS Landing Page',\n    description: 'Landing page template for SaaS products',\n    version: '1.0.0',\n  },\n];\n\nconst mockPersonas",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/AgentProfiles.test.tsx",
+        "start": 2,
+        "end": 19,
+        "startLoc": {
+          "line": 2,
+          "column": 1,
+          "position": 2
+        },
+        "endLoc": {
+          "line": 19,
+          "column": 13,
+          "position": 140
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplateProvenance.test.tsx",
+        "start": 2,
+        "end": 19,
+        "startLoc": {
+          "line": 2,
+          "column": 1,
+          "position": 2
+        },
+        "endLoc": {
+          "line": 19,
+          "column": 23,
+          "position": 140
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 13,
+      "fragment": ", () => {\n  beforeEach(() => {\n    vi.resetAllMocks();\n    vi.mocked(api.listTemplates).mockResolvedValue(mockTemplates);\n    vi.mocked(api.getTemplate).mockResolvedValue(mockTemplates[0]);\n    vi.mocked(api.listGeneratedScenarios).mockResolvedValue([]);\n    vi.mocked(api.getScenarioStatus).mockResolvedValue({ success: true, scenario_id: \"test\", running: false, status_text: \"stopped\" });\n    vi.mocked(api.startScenario).mockResolvedValue({ success: true, message: \"started\", scenario_id: \"test\" });\n    vi.mocked(api.stopScenario).mockResolvedValue({ success: true, message: \"stopped\", scenario_id: \"test\" });\n    vi.mocked(api.restartScenario).mockResolvedValue({ success: true, message: \"restarted\", scenario_id: \"test\" });\n    vi.mocked(api.getScenarioLogs).mockResolvedValue({ success: true, scenario_id: \"test\", logs: \"logs\" });\n    vi.mocked(api.getPreviewLinks).mockResolvedValue({ scenario_id: \"test\", links: {} });\n    vi.mocked(api.listPersonas",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/pages/AgentProfiles.test.tsx",
+        "start": 36,
+        "end": 48,
+        "startLoc": {
+          "line": 36,
+          "column": 54,
+          "position": 247
+        },
+        "endLoc": {
+          "line": 48,
+          "column": 13,
+          "position": 544
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/pages/TemplatePreviewLinks.test.tsx",
+        "start": 42,
+        "end": 54,
+        "startLoc": {
+          "line": 42,
+          "column": 61,
+          "position": 273
+        },
+        "endLoc": {
+          "line": 54,
+          "column": 16,
+          "position": 569
+        }
+      }
+    },
+    {
+      "format": "typescript",
+      "lines": 11,
+      "fragment": ",\n      };\n\n      global.fetch = vi.fn(() =>\n        Promise.resolve({\n          ok: true,\n          json: () => Promise.resolve(mockResult),\n        } as Response)\n      );\n\n      const result = await generateScenario('saas-landing-page', 'Test Landing', 'test-landing',",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../landing-manager/ui/src/lib/api.test.ts",
+        "start": 180,
+        "end": 190,
+        "startLoc": {
+          "line": 180,
+          "column": 2,
+          "position": 1450
+        },
+        "endLoc": {
+          "line": 190,
+          "column": 2,
+          "position": 1535
+        }
+      },
+      "secondFile": {
+        "name": "../../landing-manager/ui/src/lib/api.test.ts",
+        "start": 151,
+        "end": 161,
+        "startLoc": {
+          "line": 151,
+          "column": 2,
+          "position": 1225
+        },
+        "endLoc": {
+          "line": 161,
+          "column": 2,
+          "position": 1310
+        }
+      }
+    }
+  ]
+}

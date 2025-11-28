@@ -6,32 +6,62 @@ import (
 	"testing"
 )
 
+// Test helper: creates a directory and its test files
+func createTestDir(t *testing.T, basePath string, relPath string, files map[string]string) string {
+	t.Helper()
+	dirPath := filepath.Join(basePath, relPath)
+	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		t.Fatalf("Failed to create directory %s: %v", dirPath, err)
+	}
+	for filename, content := range files {
+		createTestFile(t, filepath.Join(dirPath, filename), content)
+	}
+	return dirPath
+}
+
+// Test helper: creates a test file with content
+func createTestFile(t *testing.T, path string, content string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create test file %s: %v", path, err)
+	}
+}
+
+// Test helper: asserts language info matches expectations
+func assertLanguageInfo(t *testing.T, languages map[Language]*LanguageInfo, lang Language, expectedFileCount int, expectedPrimaryDir string) {
+	t.Helper()
+	info, found := languages[lang]
+	if !found {
+		t.Errorf("%s language not detected", lang)
+		return
+	}
+	if info.FileCount != expectedFileCount {
+		t.Errorf("%s: expected %d files, got %d", lang, expectedFileCount, info.FileCount)
+	}
+	if expectedPrimaryDir != "" && info.PrimaryDir != expectedPrimaryDir {
+		t.Errorf("%s: expected primary dir %q, got %q", lang, expectedPrimaryDir, info.PrimaryDir)
+	}
+}
+
 func TestLanguageDetector_DetectLanguages(t *testing.T) {
-	// Create temporary scenario structure
 	tmpDir := t.TempDir()
 
 	// Create api/ directory with Go files
-	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	createTestFile(t, filepath.Join(apiDir, "main.go"), "package main\n\nfunc main() {}\n")
-	createTestFile(t, filepath.Join(apiDir, "handlers.go"), "package main\n\nfunc handleRequest() {}\n")
+	createTestDir(t, tmpDir, "api", map[string]string{
+		"main.go":     "package main\n\nfunc main() {}\n",
+		"handlers.go": "package main\n\nfunc handleRequest() {}\n",
+	})
 
 	// Create ui/src/ directory with TypeScript files
-	uiSrcDir := filepath.Join(tmpDir, "ui", "src")
-	if err := os.MkdirAll(uiSrcDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	createTestFile(t, filepath.Join(uiSrcDir, "App.tsx"), "export default function App() {}\n")
-	createTestFile(t, filepath.Join(uiSrcDir, "utils.ts"), "export const helper = () => {}\n")
+	createTestDir(t, tmpDir, "ui/src", map[string]string{
+		"App.tsx":  "export default function App() {}\n",
+		"utils.ts": "export const helper = () => {}\n",
+	})
 
 	// Create cli/ directory with Python files
-	cliDir := filepath.Join(tmpDir, "cli")
-	if err := os.MkdirAll(cliDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	createTestFile(t, filepath.Join(cliDir, "main.py"), "def main():\n    pass\n")
+	createTestDir(t, tmpDir, "cli", map[string]string{
+		"main.py": "def main():\n    pass\n",
+	})
 
 	detector := NewLanguageDetector(tmpDir)
 	languages, err := detector.DetectLanguages()
@@ -44,51 +74,18 @@ func TestLanguageDetector_DetectLanguages(t *testing.T) {
 		t.Errorf("Expected 3 languages, got %d", len(languages))
 	}
 
-	// Check Go detection
-	goInfo, hasGo := languages[LanguageGo]
-	if !hasGo {
-		t.Error("Go language not detected")
-	} else {
-		if goInfo.FileCount != 2 {
-			t.Errorf("Expected 2 Go files, got %d", goInfo.FileCount)
-		}
-		if goInfo.PrimaryDir != "api" {
-			t.Errorf("Expected Go primary dir 'api', got '%s'", goInfo.PrimaryDir)
-		}
-	}
-
-	// Check TypeScript detection
-	tsInfo, hasTS := languages[LanguageTypeScript]
-	if !hasTS {
-		t.Error("TypeScript language not detected")
-	} else {
-		if tsInfo.FileCount != 2 {
-			t.Errorf("Expected 2 TypeScript files, got %d", tsInfo.FileCount)
-		}
-		if tsInfo.PrimaryDir != "ui" {
-			t.Errorf("Expected TypeScript primary dir 'ui', got '%s'", tsInfo.PrimaryDir)
-		}
-	}
-
-	// Check Python detection
-	pyInfo, hasPy := languages[LanguagePython]
-	if !hasPy {
-		t.Error("Python language not detected")
-	} else {
-		if pyInfo.FileCount != 1 {
-			t.Errorf("Expected 1 Python file, got %d", pyInfo.FileCount)
-		}
-	}
+	// Verify all detected languages
+	assertLanguageInfo(t, languages, LanguageGo, 2, "api")
+	assertLanguageInfo(t, languages, LanguageTypeScript, 2, "ui")
+	assertLanguageInfo(t, languages, LanguagePython, 1, "")
 }
 
 func TestLanguageDetector_HasLanguage(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	createTestFile(t, filepath.Join(apiDir, "main.go"), "package main\n")
+	createTestDir(t, tmpDir, "api", map[string]string{
+		"main.go": "package main\n",
+	})
 
 	detector := NewLanguageDetector(tmpDir)
 
@@ -113,15 +110,14 @@ func TestLanguageDetector_SkipsNodeModules(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create ui/src/node_modules with TypeScript files (should be ignored)
-	nodeModulesDir := filepath.Join(tmpDir, "ui", "src", "node_modules")
-	if err := os.MkdirAll(nodeModulesDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	createTestFile(t, filepath.Join(nodeModulesDir, "ignored.ts"), "// should be ignored\n")
+	createTestDir(t, tmpDir, "ui/src/node_modules", map[string]string{
+		"ignored.ts": "// should be ignored\n",
+	})
 
 	// Create ui/src with actual TypeScript file
-	uiSrcDir := filepath.Join(tmpDir, "ui", "src")
-	createTestFile(t, filepath.Join(uiSrcDir, "App.tsx"), "export default function App() {}\n")
+	createTestDir(t, tmpDir, "ui/src", map[string]string{
+		"App.tsx": "export default function App() {}\n",
+	})
 
 	detector := NewLanguageDetector(tmpDir)
 	languages, err := detector.DetectLanguages()
@@ -129,19 +125,6 @@ func TestLanguageDetector_SkipsNodeModules(t *testing.T) {
 		t.Fatalf("DetectLanguages failed: %v", err)
 	}
 
-	tsInfo, hasTS := languages[LanguageTypeScript]
-	if !hasTS {
-		t.Fatal("TypeScript not detected")
-	}
-
 	// Should only count the App.tsx, not the file in node_modules
-	if tsInfo.FileCount != 1 {
-		t.Errorf("Expected 1 TypeScript file (node_modules ignored), got %d", tsInfo.FileCount)
-	}
-}
-
-func createTestFile(t *testing.T, path string, content string) {
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		t.Fatalf("Failed to create test file %s: %v", path, err)
-	}
+	assertLanguageInfo(t, languages, LanguageTypeScript, 1, "ui")
 }

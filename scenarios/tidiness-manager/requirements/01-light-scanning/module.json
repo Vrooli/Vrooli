@@ -14,13 +14,25 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/light_scanner_test.go"
+          "ref": "api/lint_execution_test.go"
         },
         {
           "type": "test",
-          "phase": "unit",
-          "status": "not_implemented",
-          "ref": "api/main_test.go"
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/light_scanner_integration_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/end_to_end_scan_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "implemented",
+          "ref": "test/cli/light-scanning.bats"
         }
       ],
       "notes": "Must handle scenarios without Makefile gracefully (skip or warn)",
@@ -36,13 +48,25 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/light_scanner_test.go"
+          "ref": "api/type_execution_test.go"
         },
         {
           "type": "test",
-          "phase": "unit",
-          "status": "not_implemented",
-          "ref": "api/main_test.go"
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/light_scanner_integration_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/end_to_end_scan_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "implemented",
+          "ref": "test/cli/light-scanning.bats"
         }
       ],
       "notes": "Parse typescript and Go type errors into structured format",
@@ -63,11 +87,23 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "not_implemented",
-          "ref": "api/main_test.go"
+          "status": "implemented",
+          "ref": "api/no_makefile_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/end_to_end_scan_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "implemented",
+          "ref": "test/cli/light-scanning.bats"
         }
       ],
-      "notes": "Support multiple linter formats (eslint, golangci-lint)",
+      "notes": "Support multiple linter formats (eslint, golangci-lint). Parsers_test.go includes 34 unit tests plus 2 fuzz tests for comprehensive edge case coverage.",
       "status": "complete"
     },
     {
@@ -84,12 +120,18 @@
         },
         {
           "type": "test",
-          "phase": "unit",
-          "status": "not_implemented",
-          "ref": "api/main_test.go"
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/end_to_end_scan_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "implemented",
+          "ref": "test/cli/light-scanning.bats"
         }
       ],
-      "notes": "Support typescript tsc and Go type errors",
+      "notes": "Support typescript tsc and Go type errors. Comprehensive edge case coverage via 34 unit tests + fuzz tests.",
       "status": "complete"
     },
     {
@@ -103,6 +145,24 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "api/file_metrics_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/light_scanner_integration_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/end_to_end_scan_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "implemented",
+          "ref": "test/cli/light-scanning.bats"
         }
       ],
       "notes": "Default patterns: src/**/*.{ts,tsx,go,js,jsx}",
@@ -119,6 +179,24 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "api/file_metrics_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/light_scanner_integration_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/end_to_end_scan_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "implemented",
+          "ref": "test/cli/light-scanning.bats"
         }
       ],
       "notes": "Default threshold: 400-600 lines (configurable per scenario)",
@@ -134,10 +212,28 @@
           "type": "test",
           "phase": "performance",
           "status": "implemented",
-          "ref": "api/light_scanner_test.go"
+          "ref": "api/scan_performance_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/light_scanner_integration_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/end_to_end_scan_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "implemented",
+          "ref": "test/cli/light-scanning.bats"
         }
       ],
-      "notes": "CLI scan command wired, performance tests passing (picker-wheel completes in 0s)",
+      "notes": "CLI scan command wired, performance tests passing. Integration tests verify 30-file scenario completes in <60s (actual: ~7ms).",
       "status": "complete"
     },
     {
@@ -150,7 +246,19 @@
           "type": "test",
           "phase": "performance",
           "status": "implemented",
-          "ref": "api/light_scanner_test.go"
+          "ref": "api/scan_performance_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/end_to_end_scan_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "implemented",
+          "ref": "test/cli/light-scanning.bats"
         }
       ],
       "notes": "CLI scan command wired, performance tests passing (tidiness-manager completes in 2s)",

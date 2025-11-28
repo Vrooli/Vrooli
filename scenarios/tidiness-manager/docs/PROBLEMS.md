@@ -4,6 +4,95 @@ Track issues, blockers, and deferred decisions here. Keep open issues at the top
 
 ## Open Issues
 
+### Completeness Tool BATS Test Recognition Limitation
+**Status**: Open (Ecosystem-level tool limitation)
+**Severity**: Medium (affects completeness score calculation)
+**Description**: The scenario completeness tool (`vrooli scenario completeness`) does not recognize CLI BATS tests (`test/cli/*.bats`) as valid test locations. It only recognizes:
+- `api/**/*_test.go` (API unit tests)
+- `ui/src/**/*.test.tsx` (UI unit tests)
+- `test/playbooks/**/*.{json,yaml}` (e2e automation)
+
+**Impact**: 21/62 requirements reference `test/cli/` paths which are flagged as "unsupported test directories" even though the BATS tests exist, are comprehensive, and pass. This incorrectly penalizes the completeness score (-8pts) and misreports 57 P0/P1 requirements as lacking "multi-layer validation" when they actually have API + CLI test layers.
+
+**Example**: TM-LS-001 (Makefile lint execution) has:
+- Unit tests: `api/lint_execution_test.go` ✓
+- Integration tests: `api/light_scanner_integration_test.go` ✓
+- CLI tests: `test/cli/light-scanning.bats` ✓ (but flagged as invalid)
+
+The completeness tool says "has: API → needs: API + E2E" but for backend-only requirements, CLI tests ARE the appropriate second validation layer, not browser automation.
+
+**Root Cause**: Completeness tool validation logic doesn't account for CLI/BATS tests as a valid test layer for backend requirements. Tool expects browser e2e tests for all P0/P1 requirements regardless of whether they involve UI.
+
+**Workaround**: Backend requirements can legitimately be validated via:
+- API layer: Go unit/integration tests
+- CLI layer: BATS integration tests
+- E2E layer: Browser automation (only for UI-facing features)
+
+**Mitigation**: Document that tidiness-manager's actual test coverage is comprehensive despite completeness score penalty. The 21 requirements with "invalid" test/cli/ references all have passing tests that validate their functionality.
+
+**Next Steps**:
+1. Update ecosystem completeness tool to recognize `test/cli/**/*.bats` as valid CLI test layer
+2. Or: Update tool logic to allow backend requirements to achieve multi-layer validation via API + CLI (not requiring browser e2e)
+3. Or: Accept completeness score penalty as tool limitation and document actual coverage separately
+
+---
+
+### Missing Tidiness Score API Endpoint (Phase 4 Blocker)
+**Status**: Open (Feature gap - blocking refactoring phase stop condition)
+**Severity**: High (blocks phase completion metric)
+**Description**: The tidiness-manager API is missing a GET endpoint to retrieve the tidiness score for a scenario. The ecosystem-manager's refactoring phase expects to call an endpoint like `/api/v1/scan/{scenario}` or `/api/v1/scenarios/{scenario}/score` that returns a JSON response with the tidiness score (0-100 scale).
+
+**Current State**:
+- Tidiness-manager has POST endpoints for triggering scans: `/api/v1/scan/light` and `/api/v1/scan/smart`
+- But no GET endpoint to retrieve computed scores from previous scans
+- ecosystem-manager's `getTidinessScore()` function (metrics_refactor.go:49-83) expects:
+  ```go
+  GET {tidinessManagerURL}/api/scan/{scenarioName}
+  Response: {"score": 85.5, "violations": 12}
+  ```
+
+**Impact**:
+- Phase 4 (Refactoring) stop condition `tidiness_score > 90.00` cannot be evaluated (currently shows 0.00)
+- ecosystem-manager falls back to `estimateTidinessLocally()` which is a crude heuristic
+- Cannot track refactoring progress via tidiness metrics
+- Phase will run to max iterations (12) without ability to stop on metric achievement
+
+**Expected Behavior**:
+When a scan completes (light or smart), the results should be stored in the database with:
+- Scenario name
+- Scan timestamp
+- Computed tidiness score (0-100)
+- Issue counts by category/severity
+- Summary statistics (files scanned, issues found, etc.)
+
+Then a GET endpoint should allow retrieving the latest scan results:
+```
+GET /api/v1/scenarios/{scenario}/tidiness
+Response: {
+  "scenario": "tidiness-manager",
+  "score": 85.5,
+  "last_scan": "2025-11-27T21:00:00Z",
+  "violations": 12,
+  "issues_by_severity": {"high": 2, "medium": 5, "low": 5}
+}
+```
+
+**Workaround**: None. Feature must be implemented to unblock phase metric tracking.
+
+**Root Cause**: Tidiness-manager was designed with agent-facing APIs (`/api/v1/agent/*`) but missing the summary/metrics APIs needed by ecosystem-manager for automated phase steering.
+
+**Next Steps**:
+1. Design tidiness score calculation logic (based on issue counts, severity weights, file metrics)
+2. Store scan results in database (new `scan_summaries` table)
+3. Implement `GET /api/v1/scenarios/{scenario}/tidiness` endpoint
+4. Add requirement TM-API-009 for tidiness score retrieval
+5. Write tests validating score calculation and retrieval
+6. Update ecosystem-manager to use the new endpoint
+
+**Alternative**: If implementing the feature is out of scope for refactoring phase, accept that tidiness_score metric will remain 0.00 and phase will complete on max_iterations only. Other stop conditions (cyclomatic_complexity_avg < 8.00, duplication_percentage < 3.00) can still be evaluated.
+
+---
+
 ### BAS MinIO Dependency Blocking Integration Tests (External Blocker)
 **Status**: Open (External resource dependency)
 **Severity**: High (blocks all BAS integration tests)
@@ -356,3 +445,41 @@ github.com/vrooli/browser-automation-studio/automation/recorder.(*DBRecorder).pe
 **Files Modified** (document changes for rollback if needed):
 - `packages/api-base/package.json` - moved express/ws to dependencies (can revert if Option C chosen)
 - `scenarios/tidiness-manager/ui/vite.config.ts` - added dynamic API_PORT proxy (safe to keep)
+
+### UI Tests Failing Due to Async/Timing Issues (2025-11-27)
+**Status**: Open
+**Severity**: Medium (13 tests failing, blocking 100% pass rate)
+**Description**: CampaignsView tests are experiencing timing and async issues that cause failures. Tests are timing out or looking for UI elements that don't match the actual implementation.
+
+**Failing Tests**:
+- Empty state > should display use cases for campaigns
+- Campaigns list > should show correct badge variants for different statuses
+- Campaign actions > should copy pause/resume/stop commands to clipboard (3 tests)
+- Campaign actions > should show error toast on clipboard failure
+- Polling behavior > should refetch campaigns every 10 seconds
+- Edge cases > should handle unknown statuses, missing fields, long names, empty names (4 tests)
+- Accessibility > should have accessible button labels
+- Accessibility > should provide tooltips for actions
+
+**Root Causes Identified**:
+1. Tests using fake timers (`vi.useFakeTimers()`) not properly advancing time for React Query refetch intervals
+2. Tests waiting for elements that never appear because component stuck in loading state
+3. Test assertions looking for wrong tooltip text ("UI campaign creation coming soon" vs actual "Create a new automated campaign...")
+4. Clipboard API mock potentially not resolving promises correctly
+5. Toast notifications not appearing in test environment within timeout period
+
+**Impact**:
+- Unit test pass rate: currently showing 48/48 (100%) for Go tests, but UI tests are not counted in main unit phase
+- Node/UI tests show 296/309 passing (13 failing) = 95.8% pass rate
+- Does not block core functionality but indicates test quality issues
+
+**Recommended Fixes**:
+1. Replace fake timers with proper `waitFor` with increased timeouts
+2. Ensure React Query cache is properly cleared between tests
+3. Update test assertions to match actual UI implementation
+4. Add proper async/await handling for clipboard operations
+5. Increase test timeouts for toast notification assertions
+6. Consider using `@testing-library/user-event`'s `advanceTimers` helper
+
+**Workaround**: Tests can be run individually to debug, but full suite has timing-sensitive failures.
+TM-UI-004 sorting test flakiness - two tests failing intermittently, needs investigation

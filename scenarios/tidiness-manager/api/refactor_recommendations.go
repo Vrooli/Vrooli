@@ -49,6 +49,63 @@ type RefactorRecommender struct {
 	prioritizer *FilePrioritizer
 }
 
+// parseIntParam extracts and parses an integer query parameter with a default value
+func parseIntParam(r *http.Request, key string, defaultValue int) int {
+	if val := r.URL.Query().Get(key); val != "" {
+		if parsed, err := strconv.Atoi(val); err == nil && parsed > 0 {
+			return parsed
+		}
+	}
+	return defaultValue
+}
+
+// parseStringParam extracts a string query parameter with a default value
+func parseStringParam(r *http.Request, key, defaultValue string) string {
+	if val := r.URL.Query().Get(key); val != "" {
+		return val
+	}
+	return defaultValue
+}
+
+// parseBoolParam extracts and parses a boolean query parameter
+func parseBoolParam(r *http.Request, key string) bool {
+	return r.URL.Query().Get(key) == "true"
+}
+
+// toFloatPtr converts sql.NullFloat64 to *float64
+func toFloatPtr(nf sql.NullFloat64) *float64 {
+	if !nf.Valid {
+		return nil
+	}
+	val := nf.Float64
+	return &val
+}
+
+// toIntPtr converts sql.NullInt64 to *int
+func toIntPtr(ni sql.NullInt64) *int {
+	if !ni.Valid {
+		return nil
+	}
+	val := int(ni.Int64)
+	return &val
+}
+
+// getMetricFloat extracts float from nullable pointer, defaults to 0
+func getMetricFloat(ptr *float64) float64 {
+	if ptr == nil {
+		return 0.0
+	}
+	return *ptr
+}
+
+// getMetricInt extracts int from nullable pointer, defaults to 0
+func getMetricInt(ptr *int) int {
+	if ptr == nil {
+		return 0
+	}
+	return *ptr
+}
+
 // NewRefactorRecommender creates a RefactorRecommender instance
 func NewRefactorRecommender(db *sql.DB, campaignMgr *CampaignManager) *RefactorRecommender {
 	return &RefactorRecommender{
@@ -192,18 +249,9 @@ func (rr *RefactorRecommender) getFileMetricsFromDB(ctx context.Context, scenari
 		if ext.Valid {
 			m.FileExtension = ext.String
 		}
-		if complexityAvg.Valid {
-			val := complexityAvg.Float64
-			m.ComplexityAvg = &val
-		}
-		if complexityMax.Valid {
-			val := int(complexityMax.Int64)
-			m.ComplexityMax = &val
-		}
-		if duplicationPct.Valid {
-			val := duplicationPct.Float64
-			m.DuplicationPct = &val
-		}
+		m.ComplexityAvg = toFloatPtr(complexityAvg)
+		m.ComplexityMax = toIntPtr(complexityMax)
+		m.DuplicationPct = toFloatPtr(duplicationPct)
 
 		metrics = append(metrics, m)
 	}
@@ -213,10 +261,7 @@ func (rr *RefactorRecommender) getFileMetricsFromDB(ctx context.Context, scenari
 
 // calculatePriority computes a composite refactor priority score
 func (rr *RefactorRecommender) calculatePriority(rec RefactorRecommendation) float64 {
-	score := 0.0
-
-	// Base: visited-tracker staleness (0-1000+)
-	score += rec.StalenessScore
+	score := rec.StalenessScore // Base: visited-tracker staleness (0-1000+)
 
 	// Length penalty (0-100 points) - files over 500 lines
 	if rec.LineCount > 500 {
@@ -224,13 +269,15 @@ func (rr *RefactorRecommender) calculatePriority(rec RefactorRecommendation) flo
 	}
 
 	// Complexity penalty (0-50 points) - complexity over 10
-	if rec.ComplexityMax != nil && *rec.ComplexityMax > 10 {
-		score += float64(*rec.ComplexityMax-10) * 2.0
+	complexity := getMetricInt(rec.ComplexityMax)
+	if complexity > 10 {
+		score += float64(complexity-10) * 2.0
 	}
 
 	// Duplication penalty (0-30 points) - over 5% duplication
-	if rec.DuplicationPct != nil && *rec.DuplicationPct > 0.05 {
-		score += (*rec.DuplicationPct - 0.05) * 300.0
+	duplication := getMetricFloat(rec.DuplicationPct)
+	if duplication > 0.05 {
+		score += (duplication - 0.05) * 300.0
 	}
 
 	// Technical debt penalty (0-20 points)
@@ -255,15 +302,7 @@ func (rr *RefactorRecommender) sortRecommendations(recs []RefactorRecommendation
 	switch sortBy {
 	case "complexity":
 		sort.Slice(recs, func(i, j int) bool {
-			ci := 0
-			if recs[i].ComplexityMax != nil {
-				ci = *recs[i].ComplexityMax
-			}
-			cj := 0
-			if recs[j].ComplexityMax != nil {
-				cj = *recs[j].ComplexityMax
-			}
-			return ci > cj
+			return getMetricInt(recs[i].ComplexityMax) > getMetricInt(recs[j].ComplexityMax)
 		})
 	case "length":
 		sort.Slice(recs, func(i, j int) bool {
@@ -271,15 +310,7 @@ func (rr *RefactorRecommender) sortRecommendations(recs []RefactorRecommendation
 		})
 	case "duplication":
 		sort.Slice(recs, func(i, j int) bool {
-			di := 0.0
-			if recs[i].DuplicationPct != nil {
-				di = *recs[i].DuplicationPct
-			}
-			dj := 0.0
-			if recs[j].DuplicationPct != nil {
-				dj = *recs[j].DuplicationPct
-			}
-			return di > dj
+			return getMetricFloat(recs[i].DuplicationPct) > getMetricFloat(recs[j].DuplicationPct)
 		})
 	case "priority":
 		sort.Slice(recs, func(i, j int) bool {
@@ -349,33 +380,12 @@ func (s *Server) handleRefactorRecommendations(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	limit := 10
-	if l := r.URL.Query().Get("limit"); l != "" {
-		if v, err := strconv.Atoi(l); err == nil && v > 0 {
-			limit = v
-		}
-	}
-
-	sortBy := r.URL.Query().Get("sort_by")
-	if sortBy == "" {
-		sortBy = "priority" // default to composite priority
-	}
-
-	minLines := 0
-	if ml := r.URL.Query().Get("min_lines"); ml != "" {
-		if v, err := strconv.Atoi(ml); err == nil && v > 0 {
-			minLines = v
-		}
-	}
-
-	maxVisits := 0
-	if mv := r.URL.Query().Get("max_visits"); mv != "" {
-		if v, err := strconv.Atoi(mv); err == nil && v > 0 {
-			maxVisits = v
-		}
-	}
-
-	autoScan := r.URL.Query().Get("auto_scan") == "true"
+	// Parse query parameters using helper functions
+	limit := parseIntParam(r, "limit", 10)
+	sortBy := parseStringParam(r, "sort_by", "priority")
+	minLines := parseIntParam(r, "min_lines", 0)
+	maxVisits := parseIntParam(r, "max_visits", 0)
+	autoScan := parseBoolParam(r, "auto_scan")
 
 	// If auto_scan is enabled, check if we have metrics for this scenario
 	if autoScan {
