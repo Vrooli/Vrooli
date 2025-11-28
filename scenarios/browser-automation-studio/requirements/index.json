@@ -101,7 +101,7 @@
       "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
       "title": "Persist normalized execution artifacts for replay & video rendering",
       "description": "Ensures replay artifacts are persisted, queryable, and exportable for downstream renderers.",
-      "status": "in_progress",
+      "status": "complete",
       "children": [
         "BAS-REPLAY-TIMELINE-PERSISTENCE",
         "BAS-REPLAY-EXPORT-BUNDLE"

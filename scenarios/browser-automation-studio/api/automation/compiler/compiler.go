@@ -923,7 +923,7 @@ func resolveSelectors(step *ExecutionStep) error {
 	// Check if there are any @selector/ references before loading manifest
 	// This avoids unnecessary file I/O and allows workflows with pre-resolved selectors to work
 	hasSelectorsRefs := false
-	selectorParams := []string{"selector", "successSelector", "failureSelector"}
+	selectorParams := []string{"selector", "successSelector", "failureSelector", "sourceSelector", "targetSelector"}
 
 	for _, paramName := range selectorParams {
 		if selectorRef, ok := step.Params[paramName].(string); ok {

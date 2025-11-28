@@ -896,26 +896,42 @@ func instructionTimeout(plan contracts.ExecutionPlan, instruction contracts.Comp
 
 // executionTimeout reads the execution-level timeout (ms) from plan metadata.
 func executionTimeout(plan contracts.ExecutionPlan) time.Duration {
-	if plan.Metadata == nil {
-		return 0
-	}
-	if v, ok := plan.Metadata["executionTimeoutMs"]; ok {
-		switch t := v.(type) {
-		case int:
-			if t > 0 {
-				return time.Duration(t) * time.Millisecond
-			}
-		case int64:
-			if t > 0 {
-				return time.Duration(t) * time.Millisecond
-			}
-		case float64:
-			if t > 0 {
-				return time.Duration(t) * time.Millisecond
+	// Check for explicit timeout in metadata
+	if plan.Metadata != nil {
+		if v, ok := plan.Metadata["executionTimeoutMs"]; ok {
+			switch t := v.(type) {
+			case int:
+				if t > 0 {
+					return time.Duration(t) * time.Millisecond
+				}
+			case int64:
+				if t > 0 {
+					return time.Duration(t) * time.Millisecond
+				}
+			case float64:
+				if t > 0 {
+					return time.Duration(t) * time.Millisecond
+				}
 			}
 		}
 	}
-	return 0
+
+	// Default timeout: 120 seconds for workflows with subflows, 90 seconds otherwise
+	// This prevents infinite loops while allowing complex workflows to complete
+	hasSubflows := false
+	if plan.Instructions != nil {
+		for _, instr := range plan.Instructions {
+			if instr.Type == "subflow" {
+				hasSubflows = true
+				break
+			}
+		}
+	}
+
+	if hasSubflows {
+		return 120 * time.Second
+	}
+	return 90 * time.Second
 }
 
 // recordTerminatedStep best-effort persists an outcome when execution is cancelled or times out,

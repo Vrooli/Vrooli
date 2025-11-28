@@ -75,7 +75,9 @@ export class AssertionHandler extends BaseHandler {
           break;
 
         case 'attribute':
-          if (!params.attribute && !params.attr) {
+        case 'attribute_equals':
+        case 'attribute_contains':
+          if (!params.attribute && !params.attr && !params.attributeName) {
             return {
               success: false,
               error: {
@@ -86,24 +88,47 @@ export class AssertionHandler extends BaseHandler {
               },
             };
           }
+          // Normalize attribute mode for assertAttribute method
+          const attrMode = mode.replace('attribute_', '');
           assertion = await this.assertAttribute(
             page,
             params.selector,
-            params.attribute || params.attr!,
-            String(params.expected ?? params.value ?? ''),
+            params.attribute || params.attr || params.attributeName!,
+            String(params.expected ?? params.expectedValue ?? params.value ?? ''),
+            timeout,
+            attrMode
+          );
+          break;
+
+        case 'text_equals':
+        case 'equals':
+          assertion = await this.assertText(
+            page,
+            params.selector,
+            'equals',
+            String(params.expected ?? params.expectedValue ?? params.text ?? ''),
             timeout
           );
           break;
 
-        case 'equals':
+        case 'text_contains':
         case 'contains':
+          assertion = await this.assertText(
+            page,
+            params.selector,
+            'contains',
+            String(params.expected ?? params.expectedValue ?? params.text ?? ''),
+            timeout
+          );
+          break;
+
         case 'matches':
         default:
           assertion = await this.assertText(
             page,
             params.selector,
             mode,
-            String(params.expected ?? params.text ?? ''),
+            String(params.expected ?? params.expectedValue ?? params.text ?? ''),
             timeout
           );
           break;
@@ -253,18 +278,30 @@ export class AssertionHandler extends BaseHandler {
     selector: string,
     attribute: string,
     expected: string,
-    timeout: number
+    timeout: number,
+    mode: string = 'equals'
   ): Promise<AssertionOutcome> {
     const actual = (await page.getAttribute(selector, attribute, { timeout })) || '';
-    const success = actual === expected;
+
+    let success = false;
+    let message = '';
+
+    if (mode === 'contains') {
+      success = actual.includes(expected);
+      message = success ? '' : `expected attribute ${attribute} "${actual}" to contain "${expected}"`;
+    } else {
+      // equals
+      success = actual === expected;
+      message = success ? '' : `expected attribute ${attribute} "${actual}" to equal "${expected}"`;
+    }
 
     return {
-      mode: 'attribute',
+      mode: `attribute_${mode}`,
       selector,
       expected,
       actual,
       success,
-      message: success ? '' : `expected attribute ${attribute} "${actual}" to equal "${expected}"`,
+      message,
     };
   }
 

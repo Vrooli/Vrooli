@@ -86,24 +86,24 @@ func truncateAll(db *DB) error {
 	if db == nil {
 		return nil
 	}
-	queries := []string{
-		"TRUNCATE execution_artifacts CASCADE",
-		"TRUNCATE execution_steps CASCADE",
-		"TRUNCATE execution_logs CASCADE",
-		"TRUNCATE screenshots CASCADE",
-		"TRUNCATE extracted_data CASCADE",
-		"TRUNCATE executions CASCADE",
-		"TRUNCATE workflow_versions CASCADE",
-		"TRUNCATE workflows CASCADE",
-		"TRUNCATE workflow_folders CASCADE",
-		"TRUNCATE projects CASCADE",
-	}
+	// Use a single TRUNCATE statement with all tables to avoid deadlock issues
+	// when multiple test goroutines attempt concurrent truncation.
+	query := `TRUNCATE
+		execution_artifacts,
+		execution_steps,
+		execution_logs,
+		screenshots,
+		extracted_data,
+		executions,
+		workflow_versions,
+		workflows,
+		workflow_folders,
+		projects
+	CASCADE`
 
 	ctx := context.Background()
-	for _, query := range queries {
-		if _, err := db.ExecContext(ctx, query); err != nil {
-			return err
-		}
+	if _, err := db.ExecContext(ctx, query); err != nil {
+		return err
 	}
 
 	return nil

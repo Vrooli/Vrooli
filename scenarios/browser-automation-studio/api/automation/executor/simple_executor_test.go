@@ -406,9 +406,12 @@ func TestSimpleExecutorHonorsInstructionTimeout(t *testing.T) {
 	execID := uuid.New()
 	workflowID := uuid.New()
 
+	// The executor adds a 2-second buffer to instruction timeouts for HTTP overhead.
+	// To trigger a timeout, the session delay must exceed timeout + buffer.
+	// We use a 100ms timeout with a 2.5s delay, ensuring timeout triggers.
 	session := &fakeSession{
 		outcome: contracts.StepOutcome{Success: true},
-		delay:   50 * time.Millisecond,
+		delay:   2500 * time.Millisecond,
 	}
 
 	rec := &memoryRecorder{}
@@ -417,7 +420,9 @@ func TestSimpleExecutorHonorsInstructionTimeout(t *testing.T) {
 			ExecutionID: execID,
 			WorkflowID:  workflowID,
 			Instructions: []contracts.CompiledInstruction{
-				{Index: 0, NodeID: "slow", Type: "navigate", Params: map[string]any{"timeoutMs": float64(5)}},
+				// 100ms timeout + 2s buffer = 2.1s context deadline
+				// 2.5s delay > 2.1s deadline -> timeout triggers
+				{Index: 0, NodeID: "slow", Type: "navigate", Params: map[string]any{"timeoutMs": float64(100)}},
 			},
 			CreatedAt: time.Now().UTC(),
 		},
@@ -433,8 +438,9 @@ func TestSimpleExecutorHonorsInstructionTimeout(t *testing.T) {
 	if err == nil || !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("expected context deadline exceeded, got %v", err)
 	}
-	if time.Since(start) > 200*time.Millisecond {
-		t.Fatalf("timeout should abort quickly, took %v", time.Since(start))
+	// Should abort within ~2.1s (timeout + buffer), with some margin
+	if time.Since(start) > 3*time.Second {
+		t.Fatalf("timeout should abort within buffer window, took %v", time.Since(start))
 	}
 	if len(rec.outcomes) != 1 {
 		t.Fatalf("expected recorder to capture one outcome, got %d", len(rec.outcomes))

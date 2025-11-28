@@ -68,9 +68,11 @@ export const AssertParamsSchema = z.object({
   mode: z.string().optional(),
   kind: z.string().optional(),
   expected: z.unknown().optional(),
+  expectedValue: z.unknown().optional(), // Workflow schema uses expectedValue, handler checks both
   text: z.string().optional(),
   attribute: z.string().optional(),
   attr: z.string().optional(),
+  attributeName: z.string().optional(), // Workflow schema uses attributeName, handler checks attribute/attr/attributeName
   value: z.string().optional(),
   contains: z.boolean().optional(),
   timeoutMs: z.number().optional(),
@@ -197,6 +199,7 @@ export const DragDropParamsSchema = z.object({
   offsetY: z.number().optional(),
   steps: z.number().optional(),
   delayMs: z.number().optional(),
+  timeoutMs: z.number().optional(),
 });
 export type DragDropParams = z.infer<typeof DragDropParamsSchema>;
 

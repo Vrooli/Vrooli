@@ -36,7 +36,9 @@ export class HandlerRegistry {
    * Get handler for instruction type
    */
   getHandler(instruction: CompiledInstruction): InstructionHandler {
-    const handler = this.handlers.get(instruction.type);
+    // Normalize instruction type to lowercase for case-insensitive lookup
+    const normalizedType = instruction.type.toLowerCase();
+    const handler = this.handlers.get(normalizedType);
 
     if (!handler) {
       throw new UnsupportedInstructionError(instruction.type);
@@ -49,7 +51,7 @@ export class HandlerRegistry {
    * Check if type is supported
    */
   isSupported(type: string): boolean {
-    return this.handlers.has(type);
+    return this.handlers.has(type.toLowerCase());
   }
 
   /**

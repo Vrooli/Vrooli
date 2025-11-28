@@ -760,8 +760,9 @@ func TestFolderOperations(t *testing.T) {
 		repo := NewRepository(db, log)
 		ctx := context.Background()
 
+		folderPath := fmt.Sprintf("/test/my-folder-%s", uuid.NewString())
 		folder := &WorkflowFolder{
-			Path:      fmt.Sprintf("/test/my-folder-%s", uuid.NewString()),
+			Path:      folderPath,
 			Name:      "My Folder",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -772,7 +773,7 @@ func TestFolderOperations(t *testing.T) {
 			t.Fatalf("Failed to create folder: %v", err)
 		}
 
-		retrieved, err := repo.GetFolder(ctx, "/test/my-folder")
+		retrieved, err := repo.GetFolder(ctx, folderPath)
 		if err != nil {
 			t.Fatalf("Failed to get folder: %v", err)
 		}

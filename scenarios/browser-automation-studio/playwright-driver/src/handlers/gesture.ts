@@ -98,20 +98,36 @@ export class GestureHandler extends BaseHandler {
     const validated = DragDropParamsSchema.parse(instruction.params);
     const { page, logger } = context;
 
-    logger.debug('Executing drag-drop', {
+    const timeout = validated.timeoutMs || 30000;
+
+    logger.info('🎯 [DRAGDROP] Starting drag-drop operation', {
       sourceSelector: validated.sourceSelector,
       targetSelector: validated.targetSelector,
       offset: validated.offsetX || validated.offsetY ? { x: validated.offsetX, y: validated.offsetY } : undefined,
       steps: validated.steps,
+      timeout,
     });
 
-    // Get source element
-    const sourceElement = await page.$(validated.sourceSelector);
+    // Get source element with explicit timeout and wait for visible state
+    logger.info('🔍 [DRAGDROP] Waiting for source element...');
+    const sourceElement = await page.waitForSelector(validated.sourceSelector, {
+      timeout,
+      state: 'visible'
+    }).catch((error) => {
+      logger.error('❌ [DRAGDROP] Source element wait failed', {
+        selector: validated.sourceSelector,
+        timeout,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    });
+
     if (!sourceElement) {
+      logger.error('❌ [DRAGDROP] Source element not found');
       return {
         success: false,
         error: {
-          message: `Source element not found: ${validated.sourceSelector}`,
+          message: `Source element not found or not visible within ${timeout}ms: ${validated.sourceSelector}`,
           code: 'ELEMENT_NOT_FOUND',
           kind: 'user',
           retryable: false,
@@ -119,8 +135,10 @@ export class GestureHandler extends BaseHandler {
       };
     }
 
+    logger.info('✅ [DRAGDROP] Source element found, getting bounding box...');
     const sourceBoundingBox = await sourceElement.boundingBox();
     if (!sourceBoundingBox) {
+      logger.error('❌ [DRAGDROP] Could not get source bounding box');
       return {
         success: false,
         error: {
@@ -135,6 +153,7 @@ export class GestureHandler extends BaseHandler {
     // Calculate source position (center of element)
     const sourceX = sourceBoundingBox.x + sourceBoundingBox.width / 2;
     const sourceY = sourceBoundingBox.y + sourceBoundingBox.height / 2;
+    logger.info('✅ [DRAGDROP] Source position calculated', { sourceX, sourceY, box: sourceBoundingBox });
 
     let targetX: number;
     let targetY: number;
@@ -142,13 +161,27 @@ export class GestureHandler extends BaseHandler {
 
     // Determine target position
     if (validated.targetSelector) {
-      // Drag to target element
-      const targetElement = await page.$(validated.targetSelector);
+      // Drag to target element with explicit timeout
+      // Target only needs to be attached (not necessarily visible) for drag operations
+      logger.info('🔍 [DRAGDROP] Waiting for target element...');
+      const targetElement = await page.waitForSelector(validated.targetSelector, {
+        timeout,
+        state: 'attached'
+      }).catch((error) => {
+        logger.error('❌ [DRAGDROP] Target element wait failed', {
+          selector: validated.targetSelector,
+          timeout,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      });
+
       if (!targetElement) {
+        logger.error('❌ [DRAGDROP] Target element not found');
         return {
           success: false,
           error: {
-            message: `Target element not found: ${validated.targetSelector}`,
+            message: `Target element not found within ${timeout}ms: ${validated.targetSelector}`,
             code: 'ELEMENT_NOT_FOUND',
             kind: 'user',
             retryable: false,
@@ -156,8 +189,10 @@ export class GestureHandler extends BaseHandler {
         };
       }
 
+      logger.info('✅ [DRAGDROP] Target element found, getting bounding box...');
       targetBoundingBox = await targetElement.boundingBox();
       if (!targetBoundingBox) {
+        logger.error('❌ [DRAGDROP] Could not get target bounding box');
         return {
           success: false,
           error: {
@@ -171,11 +206,14 @@ export class GestureHandler extends BaseHandler {
 
       targetX = targetBoundingBox.x + targetBoundingBox.width / 2;
       targetY = targetBoundingBox.y + targetBoundingBox.height / 2;
+      logger.info('✅ [DRAGDROP] Target position calculated', { targetX, targetY, box: targetBoundingBox });
     } else if (validated.offsetX !== undefined || validated.offsetY !== undefined) {
       // Drag by offset
       targetX = sourceX + (validated.offsetX || 0);
       targetY = sourceY + (validated.offsetY || 0);
+      logger.info('✅ [DRAGDROP] Target position from offset', { targetX, targetY, offset: { x: validated.offsetX, y: validated.offsetY } });
     } else {
+      logger.error('❌ [DRAGDROP] No target or offset specified');
       return {
         success: false,
         error: {
@@ -189,26 +227,42 @@ export class GestureHandler extends BaseHandler {
 
     // Perform drag-and-drop
     const steps = validated.steps || 10;
+    logger.info('🖱️ [DRAGDROP] Starting mouse operations', { steps, from: { x: sourceX, y: sourceY }, to: { x: targetX, y: targetY } });
+
+    logger.info('🖱️ [DRAGDROP] Moving to source position...');
     await page.mouse.move(sourceX, sourceY);
+    logger.info('✅ [DRAGDROP] Moved to source');
+
+    logger.info('🖱️ [DRAGDROP] Mouse down...');
     await page.mouse.down();
+    logger.info('✅ [DRAGDROP] Mouse down complete');
 
     // Animate drag if steps > 1
     if (steps > 1) {
       const deltaX = (targetX - sourceX) / steps;
       const deltaY = (targetY - sourceY) / steps;
       const delayMs = validated.delayMs || 0;
+      logger.info('🖱️ [DRAGDROP] Animating drag with steps', { steps, delayMs, delta: { x: deltaX, y: deltaY } });
 
       for (let i = 1; i <= steps; i++) {
-        await page.mouse.move(sourceX + deltaX * i, sourceY + deltaY * i);
+        const currentX = sourceX + deltaX * i;
+        const currentY = sourceY + deltaY * i;
+        logger.info(`🖱️ [DRAGDROP] Step ${i}/${steps}`, { x: currentX, y: currentY });
+        await page.mouse.move(currentX, currentY);
         if (delayMs > 0) {
           await page.waitForTimeout(delayMs);
         }
       }
+      logger.info('✅ [DRAGDROP] Animation complete');
     } else {
+      logger.info('🖱️ [DRAGDROP] Moving directly to target...');
       await page.mouse.move(targetX, targetY);
+      logger.info('✅ [DRAGDROP] Moved to target');
     }
 
+    logger.info('🖱️ [DRAGDROP] Mouse up...');
     await page.mouse.up();
+    logger.info('✅ [DRAGDROP] Mouse up complete');
 
     logger.info('Drag-drop completed', {
       from: { x: sourceX, y: sourceY },
