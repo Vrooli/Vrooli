@@ -342,9 +342,33 @@ _testing_playbooks__execute_adhoc_workflow() {
     # Workflow files can have two structures:
     # 1. Direct: {metadata: {...}, nodes: [...], edges: [...]} (test playbooks)
     # 2. Wrapped: {flow_definition: {metadata: {...}, nodes: [...], edges: [...]}} (saved workflows)
-    # The API expects just the flow_definition part, without extra playbook metadata
+    # The API expects just nodes, edges, and settings (no test-specific metadata fields)
+    # Recursively strip metadata from nested workflowDefinition objects in subflow nodes
     local flow_def
-    flow_def=$(printf '%s' "$workflow_json" | jq '(.flow_definition // .) | del(.metadata, .description, .requirements, .cleanup, .fixtures)')
+    flow_def=$(printf '%s' "$workflow_json" | jq '
+        # Recursive function to clean workflow definitions
+        def clean_workflow:
+            if type == "object" then
+                # Process workflowDefinition recursively in subflow nodes
+                if has("workflowDefinition") then
+                    .workflowDefinition |= clean_workflow
+                else . end
+                # Keep only nodes, edges, and settings at workflow definition level
+                | if has("nodes") and has("edges") then
+                    {
+                        nodes: (.nodes | map(
+                            if .data.workflowDefinition then
+                                .data.workflowDefinition |= clean_workflow
+                            else . end
+                        )),
+                        edges,
+                        settings
+                    }
+                else . end
+            else . end;
+
+        (.flow_definition // .) | clean_workflow
+    ')
 
     # Extract metadata for the request
     local name

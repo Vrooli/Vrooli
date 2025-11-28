@@ -895,7 +895,12 @@ def inject_selector_references(
             return resolved
 
         replaced = SELECTOR_TOKEN_PATTERN.sub(_replace, definition)
-        return replaced
+        # Strip /*dup-N*/ suffixes that may remain after selector resolution
+        # These suffixes make selectors unique in workflows but must be removed before execution
+        cleaned = re.sub(r'\s*/\*dup-\d+\*/', '', replaced)
+        if cleaned != replaced:
+            print(f"[PYTHON_RESOLVER] Stripped dup suffix: '{replaced}' -> '{cleaned}'", file=sys.stderr)
+        return cleaned
     return definition
 
 

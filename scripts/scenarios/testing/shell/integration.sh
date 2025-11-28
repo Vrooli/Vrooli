@@ -179,12 +179,17 @@ testing::integration::check_runtime_freshness() {
     local api_binary="${scenario_dir}/api/browser-automation-studio-api"
     local ui_bundle="${scenario_dir}/ui/dist/index.html"
 
-    # Resolve ports if not set
-    if [ -z "${API_PORT:-}" ] && command -v vrooli >/dev/null 2>&1; then
-        API_PORT=$(vrooli scenario port "$scenario_name" API_PORT 2>/dev/null || echo "")
-    fi
-    if [ -z "${UI_PORT:-}" ] && command -v vrooli >/dev/null 2>&1; then
-        UI_PORT=$(vrooli scenario port "$scenario_name" UI_PORT 2>/dev/null || echo "")
+    # Resolve ports for the scenario being tested
+    # IMPORTANT: Always query the scenario's actual ports, don't trust inherited environment
+    # variables which may belong to a different scenario (e.g. when testing from within another
+    # scenario's context like ecosystem-manager)
+    if command -v vrooli >/dev/null 2>&1; then
+        local resolved_api_port resolved_ui_port
+        resolved_api_port=$(vrooli scenario port "$scenario_name" API_PORT 2>/dev/null || echo "")
+        resolved_ui_port=$(vrooli scenario port "$scenario_name" UI_PORT 2>/dev/null || echo "")
+        # Only use resolved ports if they were successfully retrieved
+        [ -n "$resolved_api_port" ] && API_PORT="$resolved_api_port"
+        [ -n "$resolved_ui_port" ] && UI_PORT="$resolved_ui_port"
     fi
 
     local api_build_mtime ui_build_mtime
