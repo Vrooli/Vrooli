@@ -695,7 +695,10 @@ testing::unit::run_go_tests() {
     local full_output="$coverage_root/full-output.txt"
 
     # Build test command
-    local test_cmd="go test -json ./... -timeout $timeout"
+    # Use -p 1 to run packages serially, preventing deadlocks when multiple packages
+    # share a testcontainer database (each package's TestMain starts a container,
+    # but concurrent truncation across packages causes PostgreSQL deadlocks)
+    local test_cmd="go test -p 1 -json ./... -timeout $timeout"
     local coverage_profile_path="coverage.out"
     local coverage_html_path="coverage.html"
 
