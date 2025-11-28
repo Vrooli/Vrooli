@@ -1,0 +1,104 @@
+{
+  "_metadata": {
+    "prd_section": "P0 - Real-time Health Monitoring Dashboard",
+    "description": "Interactive UI dashboard for visualizing knowledge system health and exploring semantic relationships"
+  },
+  "requirements": [
+    {
+      "id": "KO-HD-001",
+      "title": "Dashboard UI framework",
+      "prd_ref": "OT-P0-006",
+      "description": "React + Vite UI with Matrix-style mission control aesthetic per PRD style guidelines",
+      "validation": [
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/playbooks/capabilities/06-health-dashboard/ui/dashboard-load.json"
+        }
+      ],
+      "notes": "Dark theme, technical typography, dashboard layout with subtle animations",
+      "status": "complete"
+    },
+    {
+      "id": "KO-HD-002",
+      "title": "Health metrics visualization",
+      "prd_ref": "OT-P0-006",
+      "description": "Real-time display of knowledge quality metrics with visual indicators and trends",
+      "validation": [
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/playbooks/capabilities/06-health-dashboard/ui/metrics-display.json"
+        }
+      ],
+      "notes": "Show coherence, freshness, redundancy scores per collection and overall",
+      "status": "complete"
+    },
+    {
+      "id": "KO-HD-003",
+      "title": "Interactive knowledge graph",
+      "prd_ref": "OT-P0-006",
+      "description": "Visual graph component showing concept relationships with interactivity (zoom, pan, click)",
+      "validation": [
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/playbooks/capabilities/06-health-dashboard/ui/graph-interaction.json"
+        }
+      ],
+      "notes": "Support up to 1000 nodes with acceptable performance",
+      "status": "complete"
+    },
+    {
+      "id": "KO-HD-004",
+      "title": "Search interface",
+      "prd_ref": "OT-P0-006",
+      "description": "Search input with real-time results display and semantic similarity scores",
+      "validation": [
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/playbooks/capabilities/06-health-dashboard/ui/search-interface.json"
+        }
+      ],
+      "notes": "Support collection filtering and result limits",
+      "status": "complete"
+    },
+    {
+      "id": "KO-HD-005",
+      "title": "Dashboard accessibility",
+      "prd_ref": "OT-P0-006",
+      "description": "WCAG AA compliance with keyboard navigation support",
+      "validation": [
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/playbooks/capabilities/06-health-dashboard/ui/accessibility.json"
+        }
+      ],
+      "notes": "Professional interface for technical users",
+      "status": "complete"
+    },
+    {
+      "id": "KO-HD-006",
+      "title": "UI smoke test",
+      "prd_ref": "OT-P0-006",
+      "description": "Production bundle loads successfully with iframe bridge ready",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "not_implemented",
+          "ref": "test/cli/knowledge-observatory.bats"
+        }
+      ],
+      "notes": "Browserless captures screenshot, console, network artifacts",
+      "status": "pending"
+    }
+  ]
+}

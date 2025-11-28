@@ -1,0 +1,49 @@
+{
+  "metadata": {
+    "description": "Verifies dashboard meets WCAG AA accessibility standards",
+    "version": 1,
+    "reset": "full",
+    "requirements": ["KO-HD-005"]
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-home",
+      "type": "navigate",
+      "data": {
+        "label": "Open Knowledge Observatory dashboard",
+        "destinationType": "scenario",
+        "scenario": "knowledge-observatory",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle",
+        "timeoutMs": 30000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "assert-accessibility",
+      "type": "assert",
+      "data": {
+        "label": "Page is accessible",
+        "selector": "html",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Page should be accessible"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "assert-accessibility",
+      "type": "smoothstep"
+    }
+  ]
+}

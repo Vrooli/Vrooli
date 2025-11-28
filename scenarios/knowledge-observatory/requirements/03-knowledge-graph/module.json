@@ -1,0 +1,72 @@
+{
+  "_metadata": {
+    "prd_section": "P0 - Visual Knowledge Graph",
+    "description": "Generate and visualize knowledge relationship graphs showing concept connections"
+  },
+  "requirements": [
+    {
+      "id": "KO-KG-001",
+      "title": "Graph generation from vector relationships",
+      "prd_ref": "OT-P0-003",
+      "description": "Build graph structure by finding semantically similar entries and creating edges based on similarity strength",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "ref": "api/graph_test.go"
+        }
+      ],
+      "notes": "Support configurable similarity threshold and max traversal depth",
+      "status": "pending"
+    },
+    {
+      "id": "KO-KG-002",
+      "title": "Graph API endpoint",
+      "prd_ref": "OT-P0-003",
+      "description": "GET /api/v1/knowledge/graph returns nodes and edges in standardized format for visualization",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "ref": "api/graph_api_test.go"
+        }
+      ],
+      "notes": "Support concept-centered graphs and full collection graphs",
+      "status": "pending"
+    },
+    {
+      "id": "KO-KG-003",
+      "title": "Graph rendering performance < 2s",
+      "prd_ref": "OT-P0-003",
+      "description": "Graph generation and rendering for up to 1000 nodes must complete in under 2 seconds",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "not_implemented",
+          "ref": "api/graph_performance_test.go"
+        }
+      ],
+      "notes": "Limit to 1000 nodes for performance; use filtering for larger graphs",
+      "status": "pending"
+    },
+    {
+      "id": "KO-KG-004",
+      "title": "Graph metadata extraction",
+      "prd_ref": "OT-P0-003",
+      "description": "Extract and include relevant metadata (source, scenario, quality) in graph nodes",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "ref": "api/graph_test.go"
+        }
+      ],
+      "notes": "Enable filtering and visualization by metadata properties",
+      "status": "pending"
+    }
+  ]
+}

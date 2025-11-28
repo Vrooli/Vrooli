@@ -1,131 +1,76 @@
 #!/usr/bin/env bats
+# Tests for knowledge-observatory CLI
 
-# Knowledge Observatory CLI Tests
+# Test configuration
+readonly TEST_CLI="./knowledge-observatory"
+readonly TEST_CONFIG_DIR="$HOME/.knowledge-observatory"
+readonly TEST_CONFIG_FILE="$TEST_CONFIG_DIR/config.json"
 
+# Setup and teardown
 setup() {
-    # Discover the actual API port from the running scenario
-    # The lifecycle system sets API_PORT in the environment
-    if [ -z "$API_PORT" ]; then
-        # Try to discover from the running process if not in environment
-        API_PORT=$(ps aux | grep knowledge-observatory-api | grep -v grep | head -n1 | xargs -I{} sh -c 'cat /proc/$(echo {} | awk "{print \$2}")/environ 2>/dev/null | tr "\0" "\n" | grep "^API_PORT=" | cut -d= -f2' || echo "20270")
+    # Backup existing config if it exists
+    if [[ -f "$TEST_CONFIG_FILE" ]]; then
+        mv "$TEST_CONFIG_FILE" "$TEST_CONFIG_FILE.bak"
     fi
-    export KNOWLEDGE_OBSERVATORY_API_URL="http://localhost:${API_PORT}"
-    CLI="./knowledge-observatory"
 }
 
-@test "CLI exists and is executable" {
-    [ -f "$CLI" ]
-    [ -x "$CLI" ]
+teardown() {
+    # Restore config if it was backed up
+    if [[ -f "$TEST_CONFIG_FILE.bak" ]]; then
+        mv "$TEST_CONFIG_FILE.bak" "$TEST_CONFIG_FILE"
+    fi
 }
 
-@test "CLI shows help" {
-    run $CLI help
+# Test: CLI exists and is executable
+@test "CLI script exists and is executable" {
+    [[ -f "$TEST_CLI" ]]
+    [[ -x "$TEST_CLI" ]]
+}
+
+# Test: Help command
+@test "help command displays usage information" {
+    run $TEST_CLI help
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Knowledge Observatory CLI" ]]
+    [[ "$output" =~ "Usage:" ]]
     [[ "$output" =~ "Commands:" ]]
-    [[ "$output" =~ "search" ]]
 }
 
-@test "CLI shows version" {
-    run $CLI version
+# Test: Version command
+@test "version command displays version" {
+    run $TEST_CLI version
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "1.0.0" ]]
+    [[ "$output" =~ "version" ]]
 }
 
-@test "CLI status command works" {
-    run $CLI status
+# Test: Configuration initialization
+@test "configuration is initialized on first run" {
+    rm -f "$TEST_CONFIG_FILE"
+    run $TEST_CLI version
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Knowledge Observatory Status" ]]
+    [[ -f "$TEST_CONFIG_FILE" ]]
 }
 
-@test "CLI status with JSON flag" {
-    run $CLI status --json
+# Test: Configure command
+@test "configure command can set and retrieve values" {
+    run $TEST_CLI configure api_base http://test.example.com
     [ "$status" -eq 0 ]
-    # Should output valid JSON
-    echo "$output" | grep -q '"status"'
-}
-
-@test "CLI search requires query" {
-    run $CLI search
-    [ "$status" -eq 1 ]
-    [[ "$output" =~ "Search query is required" ]]
-}
-
-@test "CLI search with query" {
-    skip "Requires API to be running"
-    run $CLI search "test query"
+    
+    run $TEST_CLI configure
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Search Results" ]]
+    [[ "$output" =~ "test.example.com" ]]
 }
 
-@test "CLI search with options" {
-    skip "Requires API to be running"
-    run $CLI search "test" --limit 5 --collection vrooli_knowledge
+# Test: Help lists supported commands
+@test "help output lists supported commands" {
+    run $TEST_CLI help
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "status" ]]
+    [[ "$output" =~ "configure" ]]
 }
 
-@test "CLI health command" {
-    skip "Requires API to be running"
-    run $CLI health
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "Knowledge Observatory Status" ]]
-}
-
-@test "CLI graph command" {
-    skip "Requires API to be running"
-    run $CLI graph
-    [ "$status" -eq 0 ]
-}
-
-@test "CLI graph with center concept" {
-    skip "Requires API to be running"
-    run $CLI graph --center "scenario-generator" --depth 2
-    [ "$status" -eq 0 ]
-}
-
-@test "CLI metrics command" {
-    skip "Requires API to be running"
-    run $CLI metrics
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "Knowledge Quality Metrics" ]]
-}
-
-@test "CLI metrics with collection filter" {
-    skip "Requires API to be running"
-    run $CLI metrics --collection vrooli_knowledge
-    [ "$status" -eq 0 ]
-}
-
-@test "CLI handles unknown command" {
-    run $CLI nonexistent
+# Test: Invalid command
+@test "invalid command shows error" {
+    run $TEST_CLI invalid_command
     [ "$status" -eq 1 ]
     [[ "$output" =~ "Unknown command" ]]
-}
-
-@test "CLI search help" {
-    run $CLI search --help
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "Usage:" ]]
-    [[ "$output" =~ "--collection" ]]
-}
-
-@test "CLI health help" {
-    run $CLI health --help
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "Usage:" ]]
-    [[ "$output" =~ "--watch" ]]
-}
-
-@test "CLI graph help" {
-    run $CLI graph --help
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "Usage:" ]]
-    [[ "$output" =~ "--depth" ]]
-}
-
-@test "CLI metrics help" {
-    run $CLI metrics --help
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "Usage:" ]]
-    [[ "$output" =~ "--time-range" ]]
 }

@@ -1,555 +1,241 @@
 #!/bin/bash
+# knowledge-observatory - Command-line interface for Knowledge Observatory
 
 set -euo pipefail
 
-SCRIPT_NAME="knowledge-observatory"
-VERSION="1.0.0"
-# Use API_PORT environment variable if set, otherwise default to 20270
-DEFAULT_PORT="${API_PORT:-20270}"
-API_URL="${KNOWLEDGE_OBSERVATORY_API_URL:-http://localhost:${DEFAULT_PORT}}"
-RESOURCE_QDRANT_CLI="${RESOURCE_QDRANT_CLI:-resource-qdrant}"
+readonly CLI_NAME="knowledge-observatory"
+readonly CLI_VERSION="1.0.0"
+readonly CONFIG_DIR="$HOME/.${CLI_NAME}"
+readonly CONFIG_FILE="$CONFIG_DIR/config.json"
+readonly SCENARIO_ID="knowledge-observatory"
+readonly DEFAULT_TOKEN=""
+CONFIG_API_BASE=""
+API_BASE=""
 
-show_help() {
-    cat << EOF
-Knowledge Observatory CLI - Monitor and manage Vrooli's semantic knowledge system
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m'
 
-Usage: $SCRIPT_NAME <command> [options]
-
-Commands:
-    status          Show knowledge system operational status
-    search          Semantic search across knowledge base
-    health          Show knowledge system health metrics
-    graph           Generate knowledge relationship graph
-    metrics         Show detailed quality metrics
-    collections     Manage Qdrant collections (direct CLI access)
-    direct-search   Direct semantic search via resource-qdrant CLI
-    help            Display this help message
-    version         Show version information
-
-Options:
-    --json          Output in JSON format
-    --verbose       Show detailed output
-    --api-url URL   Override API URL (default: $API_URL)
-
-Examples:
-    $SCRIPT_NAME search "How does Vrooli handle scenarios?"
-    $SCRIPT_NAME search "agent workflows" --limit 20 --collection vrooli_knowledge
-    $SCRIPT_NAME health --json
-    $SCRIPT_NAME graph --center "scenario-generator" --depth 3
-    $SCRIPT_NAME metrics --collection scenario_memory --time-range 24h
-    $SCRIPT_NAME collections list
-    $SCRIPT_NAME collections info my_collection
-    $SCRIPT_NAME direct-search "knowledge graph" --collection vrooli_knowledge --limit 5
-
-For detailed help on a specific command:
-    $SCRIPT_NAME <command> --help
-
-EOF
+init_config() {
+    if [[ ! -d "$CONFIG_DIR" ]]; then
+        mkdir -p "$CONFIG_DIR"
+    fi
+    
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        cat > "$CONFIG_FILE" <<JSON
+{
+  "api_base": "",
+  "api_token": "$DEFAULT_TOKEN",
+  "output_format": "json",
+  "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+}
+JSON
+        echo -e "${GREEN}✓${NC} Configuration created at $CONFIG_FILE"
+    fi
 }
 
-show_version() {
-    echo "$SCRIPT_NAME version $VERSION"
-    echo "API URL: $API_URL"
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        CONFIG_API_BASE=$(jq -r '.api_base // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+        API_TOKEN=$(jq -r '.api_token // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+    else
+        CONFIG_API_BASE=""
+        API_TOKEN=""
+    fi
 }
 
-check_dependencies() {
-    if ! command -v curl &> /dev/null; then
-        echo "Error: curl is required but not installed" >&2
-        exit 1
+detect_api_port() {
+    if command -v vrooli >/dev/null 2>&1; then
+        vrooli scenario port "$SCENARIO_ID" API_PORT 2>/dev/null || true
     fi
-    if ! command -v "$RESOURCE_QDRANT_CLI" &> /dev/null; then
-        echo "Error: $RESOURCE_QDRANT_CLI CLI is required but not found" >&2
-        echo "Make sure resource-qdrant is installed and accessible" >&2
-        exit 1
+}
+
+detect_api_base() {
+    if [[ -n "${API_BASE_URL:-}" ]]; then
+        echo "${API_BASE_URL%/}"
+        return 0
     fi
-    if ! command -v jq &> /dev/null && [[ "${JSON_OUTPUT:-false}" == "true" ]]; then
-        echo "Warning: jq is not installed, JSON output will be unformatted" >&2
+
+    if [[ -n "${API_PORT:-}" ]]; then
+        echo "http://${API_HOST:-localhost}:${API_PORT}/api/v1"
+        return 0
     fi
+
+    local detected_port
+    detected_port="$(detect_api_port)"
+    if [[ -n "$detected_port" ]]; then
+        echo "http://localhost:${detected_port}/api/v1"
+        return 0
+    fi
+
+    return 1
+}
+
+normalize_api_base() {
+    local value="$1"
+    if [[ -z "$value" || "$value" == "null" ]]; then
+        return 1
+    fi
+    echo "${value%/}"
+}
+
+resolve_api_base() {
+    local candidate
+
+    if candidate=$(normalize_api_base "$1" 2>/dev/null); then
+        echo "$candidate"
+        return 0
+    fi
+
+    local detected
+    if detected=$(detect_api_base); then
+        echo "$detected"
+        return 0
+    fi
+
+    return 1
 }
 
 api_request() {
     local method="$1"
     local endpoint="$2"
-    local data="${3:-}"
-    local response
-    
-    if [[ -n "$data" ]]; then
-        response=$(curl -s -X "$method" \
-            -H "Content-Type: application/json" \
-            -d "$data" \
-            "${API_URL}${endpoint}")
-    else
-        response=$(curl -s -X "$method" "${API_URL}${endpoint}")
-    fi
-    
-    if [[ $? -ne 0 ]]; then
-        echo "Error: Failed to connect to API at $API_URL" >&2
-        exit 1
-    fi
-    
-    echo "$response"
-}
+    local url="${API_BASE}${endpoint}"
 
-# Direct resource-qdrant integration functions
-qdrant_request() {
-    local args=("$@")
-    local result
-    
-    if ! result=$("$RESOURCE_QDRANT_CLI" "${args[@]}" 2>&1); then
-        echo "Error: resource-qdrant command failed: $result" >&2
+    if [[ -z "$API_BASE" ]]; then
+        echo -e "${RED}✗${NC} API base URL is not configured. Start the scenario via 'vrooli scenario run knowledge-observatory' or run '$CLI_NAME configure api_base <url>'." >&2
         return 1
     fi
-    
-    echo "$result"
-}
 
-cmd_collections() {
-    local subcommand="${1:-list}"
-    shift || true
-    
-    case "$subcommand" in
-        list)
-            echo "🔍 Qdrant Collections"
-            echo "====================="
-            echo ""
-            qdrant_request collections list
-            ;;
-        info)
-            local collection="$1"
-            if [[ -z "$collection" ]]; then
-                echo "Error: Collection name required" >&2
-                echo "Usage: $SCRIPT_NAME collections info <collection_name>" >&2
-                exit 1
-            fi
-            echo "📊 Collection Info: $collection"
-            echo "=================================="
-            echo ""
-            qdrant_request collections info "$collection"
-            ;;
-        search)
-            cmd_direct_search "$@"
-            ;;
-        *)
-            echo "Error: Unknown collections subcommand: $subcommand" >&2
-            echo "Available: list, info, search" >&2
-            exit 1
-            ;;
-    esac
-}
+    local headers=(-H 'Content-Type: application/json')
+    if [[ -n "${API_TOKEN:-}" ]]; then
+        headers+=(-H "Authorization: Bearer $API_TOKEN")
+    fi
 
-cmd_direct_search() {
-    local query=""
-    local collection=""
-    local limit="10"
-    
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --collection|-c)
-                collection="$2"
-                shift 2
-                ;;
-            --limit|-l)
-                limit="$2"
-                shift 2
-                ;;
-            --help)
-                echo "Usage: $SCRIPT_NAME direct-search <query> [options]"
-                echo ""
-                echo "Options:"
-                echo "  --collection NAME  Search specific collection"
-                echo "  --limit N          Maximum results (default: 10)"
-                exit 0
-                ;;
-            *)
-                if [[ -z "$query" ]]; then
-                    query="$1"
-                else
-                    query="$query $1"
-                fi
-                shift
-                ;;
-        esac
-    done
-    
-    if [[ -z "$query" ]]; then
-        echo "Error: Search query is required" >&2
-        exit 1
-    fi
-    
-    echo "🔍 Direct Qdrant Search: \"$query\""
-    echo "=============================="
-    echo ""
-    
-    local args=("collections" "search" "--text" "$query" "--limit" "$limit")
-    if [[ -n "$collection" ]]; then
-        args+=("--collection" "$collection")
-    fi
-    
-    qdrant_request "${args[@]}"
+    curl -s -X "$method" "${headers[@]}" "$url"
 }
 
 cmd_status() {
-    local json_output="${1:-false}"
-    local response
-    
-    response=$(api_request GET "/health")
-    
-    if [[ "$json_output" == "true" ]]; then
-        if command -v jq &> /dev/null; then
-            echo "$response" | jq .
-        else
-            echo "$response"
-        fi
-    else
-        echo "🔭 Knowledge Observatory Status"
-        echo "================================"
-        echo ""
-        
-        local status=$(echo "$response" | grep -o '"status":"[^"]*' | cut -d'"' -f4)
-        local total=$(echo "$response" | grep -o '"total_entries":[0-9]*' | cut -d':' -f2)
-        local health=$(echo "$response" | grep -o '"overall_health":"[^"]*' | cut -d'"' -f4)
-        
-        echo "Status: ${status:-unknown}"
-        echo "Total Entries: ${total:-0}"
-        echo "Overall Health: ${health:-unknown}"
-        echo ""
-        echo "Use --json for detailed collection information"
+    echo -e "${BLUE}Checking system health...${NC}"
+    response=$(api_request GET "/health" || true)
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} API is not reachable"
+        return 1
     fi
+
+    status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
+    if [[ "$status" == "healthy" ]]; then
+        echo -e "${GREEN}✓${NC} Service is healthy"
+    else
+        echo -e "${YELLOW}⚠${NC} Service status: $status"
+    fi
+
+    echo "$response" | jq -r '
+        "  Service: \(.service // "unknown")",
+        "  Version: \(.version // "unknown")",
+        "  Database: \(.dependencies.database // "unknown")"
+    ' 2>/dev/null || true
 }
 
-cmd_search() {
-    shift
-    local query=""
-    local collection=""
-    local limit="10"
-    local threshold="0.5"
-    local json_output="false"
-    
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --collection)
-                collection="$2"
-                shift 2
-                ;;
-            --limit)
-                limit="$2"
-                shift 2
-                ;;
-            --threshold)
-                threshold="$2"
-                shift 2
-                ;;
-            --json)
-                json_output="true"
-                shift
-                ;;
-            --help)
-                echo "Usage: $SCRIPT_NAME search <query> [options]"
-                echo ""
-                echo "Options:"
-                echo "  --collection NAME  Search specific collection"
-                echo "  --limit N          Maximum results (default: 10)"
-                echo "  --threshold F      Similarity threshold 0-1 (default: 0.5)"
-                echo "  --json            Output raw JSON"
-                exit 0
-                ;;
-            *)
-                if [[ -z "$query" ]]; then
-                    query="$1"
-                else
-                    query="$query $1"
-                fi
-                shift
-                ;;
-        esac
-    done
-    
-    if [[ -z "$query" ]]; then
-        echo "Error: Search query is required" >&2
-        echo "Usage: $SCRIPT_NAME search <query> [options]" >&2
-        exit 1
-    fi
-    
-    local data=$(cat <<EOF
-{
-    "query": "$query",
-    "collection": "$collection",
-    "limit": $limit,
-    "threshold": $threshold
-}
-EOF
-)
-    
-    local response=$(api_request POST "/api/v1/knowledge/search" "$data")
-    
-    if [[ "$json_output" == "true" ]]; then
-        if command -v jq &> /dev/null; then
-            echo "$response" | jq .
-        else
-            echo "$response"
-        fi
-    else
-        echo "🔍 Search Results for: \"$query\""
-        echo "================================"
-        echo ""
-        
-        if command -v jq &> /dev/null; then
-            echo "$response" | jq -r '.results[] | "[\(.score | tostring[0:4])] \(.content[0:100])..."'
-        else
-            echo "$response"
-        fi
-        
-        echo ""
-        local count=$(echo "$response" | grep -o '"count":[0-9]*' | cut -d':' -f2)
-        local time=$(echo "$response" | grep -o '"query_time_ms":[0-9]*' | cut -d':' -f2)
-        echo "Found ${count:-0} results in ${time:-0}ms"
-    fi
-}
+cmd_configure() {
+    local key="${1:-}"
+    local value="${2:-}"
 
-cmd_health() {
-    shift
-    local json_output="false"
-    local watch="false"
-    
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --json)
-                json_output="true"
-                shift
-                ;;
-            --watch)
-                watch="true"
-                shift
-                ;;
-            --help)
-                echo "Usage: $SCRIPT_NAME health [options]"
-                echo ""
-                echo "Options:"
-                echo "  --json   Output raw JSON"
-                echo "  --watch  Continuous monitoring mode"
-                exit 0
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    if [[ "$watch" == "true" ]]; then
-        while true; do
-            clear
-            cmd_status "$json_output"
-            echo ""
-            echo "Press Ctrl+C to stop monitoring..."
-            sleep 5
-        done
-    else
-        cmd_status "$json_output"
+    if [[ -z "$key" ]]; then
+        cat "$CONFIG_FILE" | jq '.' 2>/dev/null || cat "$CONFIG_FILE"
+        return 0
     fi
-}
 
-cmd_graph() {
-    shift
-    local center=""
-    local depth="2"
-    local max_nodes="100"
-    local format="json"
-    
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --center)
-                center="$2"
-                shift 2
-                ;;
-            --depth)
-                depth="$2"
-                shift 2
-                ;;
-            --max-nodes)
-                max_nodes="$2"
-                shift 2
-                ;;
-            --format)
-                format="$2"
-                shift 2
-                ;;
-            --help)
-                echo "Usage: $SCRIPT_NAME graph [options]"
-                echo ""
-                echo "Options:"
-                echo "  --center CONCEPT   Center graph on concept"
-                echo "  --depth N          Graph traversal depth (default: 2)"
-                echo "  --max-nodes N      Maximum nodes (default: 100)"
-                echo "  --format FORMAT    Output format: json|dot|mermaid"
-                exit 0
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    local data=$(cat <<EOF
-{
-    "center_concept": "$center",
-    "depth": $depth,
-    "max_nodes": $max_nodes
-}
-EOF
-)
-    
-    local response=$(api_request POST "/api/v1/knowledge/graph" "$data")
-    
-    case "$format" in
-        dot)
-            echo "digraph KnowledgeGraph {"
-            if command -v jq &> /dev/null; then
-                echo "$response" | jq -r '.nodes[] | "  \(.id) [label=\"\(.label)\"];"'
-                echo "$response" | jq -r '.edges[] | "  \(.source) -> \(.target) [weight=\(.weight)];"'
-            fi
-            echo "}"
+    case "$key" in
+        api|api_base)
+            jq --arg v "$value" '.api_base = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}✓${NC} API base set to: $value"
+            CONFIG_API_BASE="$value"
             ;;
-        mermaid)
-            echo "graph TD"
-            if command -v jq &> /dev/null; then
-                echo "$response" | jq -r '.nodes[] | "  \(.id)[\(.label)]"'
-                echo "$response" | jq -r '.edges[] | "  \(.source) --> \(.target)"'
-            fi
+        token|api_token)
+            jq --arg v "$value" '.api_token = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}✓${NC} API token updated"
+            API_TOKEN="$value"
             ;;
         *)
-            if command -v jq &> /dev/null; then
-                echo "$response" | jq .
-            else
-                echo "$response"
-            fi
+            echo -e "${RED}✗${NC} Unknown configuration key: $key"
+            echo "Valid keys: api_base, api_token"
+            return 1
             ;;
     esac
 }
 
-cmd_metrics() {
-    shift
-    local collections=""
-    local time_range=""
-    local json_output="false"
-    
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --collection)
-                collections="$2"
-                shift 2
-                ;;
-            --time-range)
-                time_range="$2"
-                shift 2
-                ;;
-            --json)
-                json_output="true"
-                shift
-                ;;
-            --help)
-                echo "Usage: $SCRIPT_NAME metrics [options]"
-                echo ""
-                echo "Options:"
-                echo "  --collection NAME  Specific collection"
-                echo "  --time-range RANGE Time range (1h, 24h, 7d, 30d)"
-                echo "  --json            Output raw JSON"
-                exit 0
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    local data=""
-    if [[ -n "$collections" ]] || [[ -n "$time_range" ]]; then
-        data=$(cat <<EOF
-{
-    "collections": ["$collections"],
-    "time_range": "$time_range"
-}
-EOF
-)
-    fi
-    
-    local response=$(api_request POST "/api/v1/knowledge/metrics" "$data")
-    
-    if [[ "$json_output" == "true" ]]; then
-        if command -v jq &> /dev/null; then
-            echo "$response" | jq .
-        else
-            echo "$response"
-        fi
+cmd_version() {
+    echo "$CLI_NAME version $CLI_VERSION"
+    if [[ -n "$API_BASE" ]]; then
+        echo "API endpoint: $API_BASE"
     else
-        echo "📊 Knowledge Quality Metrics"
-        echo "================================"
-        echo ""
-        
-        if command -v jq &> /dev/null; then
-            echo "$response" | jq -r '.metrics | to_entries[] | "\(.key):"'
-            echo "$response" | jq -r '.metrics | to_entries[] | "  Coherence:  \(.value.coherence_score)"'
-            echo "$response" | jq -r '.metrics | to_entries[] | "  Freshness:  \(.value.freshness_score)"'
-            echo "$response" | jq -r '.metrics | to_entries[] | "  Redundancy: \(.value.redundancy_score)"'
-            echo "$response" | jq -r '.metrics | to_entries[] | "  Coverage:   \(.value.coverage_score)"'
-            echo ""
-            
-            local alerts=$(echo "$response" | jq -r '.alerts | length')
-            if [[ "$alerts" -gt 0 ]]; then
-                echo "⚠️  Alerts:"
-                echo "$response" | jq -r '.alerts[] | "  [\(.level)] \(.collection): \(.message)"'
-            fi
-        else
-            echo "$response"
-        fi
+        echo "API endpoint: (auto-detect when scenario is running)"
     fi
 }
 
+cmd_help() {
+    cat <<'EOF'
+knowledge-observatory - Command-line interface for Knowledge Observatory
+
+Usage: knowledge-observatory <command>
+
+Commands:
+    status          Check API and dependency health
+    configure       View or update CLI configuration
+    version         Show CLI version
+    help            Show this help message
+EOF
+}
+
 main() {
-    if [[ $# -eq 0 ]]; then
-        show_help
-        exit 0
+    init_config
+    load_config
+
+    local command="${1:-help}"
+    shift || true
+
+    local env_prefix="$(echo "$CLI_NAME" | tr '[:lower:]' '[:upper:]' | tr -c 'A-Z0-9' '_')"
+    local env_api_base_var="${env_prefix}_API_BASE"
+    local env_api_token_var="${env_prefix}_API_TOKEN"
+
+    local env_api_base="${!env_api_base_var:-}"
+    local env_api_token="${!env_api_token_var:-}"
+
+    if [[ -n "$env_api_token" ]]; then
+        API_TOKEN="$env_api_token"
     fi
-    
-    case "$1" in
+
+    if [[ -n "$env_api_base" ]]; then
+        API_BASE="${env_api_base%/}"
+    fi
+
+    if [[ "$command" == "status" ]]; then
+        if [[ -z "$API_BASE" ]]; then
+            if ! API_BASE=$(resolve_api_base "$CONFIG_API_BASE"); then
+                echo -e "${RED}✗${NC} Unable to determine API base URL. Ensure the scenario is running via 'vrooli scenario run $SCENARIO_ID' or configure it with '$CLI_NAME configure api_base <url>'."
+                exit 1
+            fi
+        fi
+    fi
+
+    case "$command" in
         status)
-            shift
-            local json="false"
-            [[ "${1:-}" == "--json" ]] && json="true"
-            cmd_status "$json"
+            cmd_status
             ;;
-        search)
-            check_dependencies
-            cmd_search "$@"
-            ;;
-        health)
-            check_dependencies
-            cmd_health "$@"
-            ;;
-        graph)
-            check_dependencies
-            cmd_graph "$@"
-            ;;
-        metrics)
-            check_dependencies
-            cmd_metrics "$@"
-            ;;
-        collections)
-            check_dependencies
-            cmd_collections "$@"
-            ;;
-        direct-search)
-            check_dependencies
-            cmd_direct_search "$@"
-            ;;
-        help|--help|-h)
-            show_help
+        configure|config)
+            cmd_configure "$@"
             ;;
         version|--version|-v)
-            show_version
+            cmd_version
+            ;;
+        help|--help|-h)
+            cmd_help
             ;;
         *)
-            echo "Error: Unknown command '$1'" >&2
-            echo "Run '$SCRIPT_NAME help' for usage information" >&2
+            echo -e "${RED}✗${NC} Unknown command: $command"
+            echo "Run '$CLI_NAME help' for usage information"
             exit 1
             ;;
     esac

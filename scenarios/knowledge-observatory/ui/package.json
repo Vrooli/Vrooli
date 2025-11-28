@@ -1,21 +1,51 @@
 {
   "name": "knowledge-observatory-ui",
   "version": "1.0.0",
-  "description": "Knowledge Observatory Dashboard - Monitor Vrooli's Semantic Intelligence",
-  "main": "server.js",
+  "description": "React + Vite front-end for Knowledge Observatory",
+  "private": true,
+  "type": "module",
   "scripts": {
-    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh nodemon server.js'",
-    "build": "node build.js"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext ts,tsx",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.1.0",
+    "@tanstack/react-query": "^5.59.0",
+    "@vrooli/api-base": "file:../../../packages/api-base",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "@vrooli/vitest-requirement-reporter": "file:../../../packages/vitest-requirement-reporter",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
     "express": "^4.18.2",
-    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+    "lucide-react": "^0.424.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.3.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.7.0",
+    "@typescript-eslint/parser": "^8.7.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "@vitest/coverage-v8": "^2.1.4",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.9.1",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.11",
+    "jsdom": "^27.1.0",
+    "postcss": "^8.4.44",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.6",
+    "vitest": "^2.1.4"
   },
-  "engines": {
-    "node": ">=14.0.0"
-  }
+  "packageManager": "pnpm@9.12.1"
 }

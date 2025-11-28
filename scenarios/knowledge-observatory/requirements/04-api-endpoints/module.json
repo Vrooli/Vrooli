@@ -1,0 +1,88 @@
+{
+  "_metadata": {
+    "prd_section": "P0 - API Endpoints for Programmatic Access",
+    "description": "Provide REST API endpoints for other scenarios and agents to query knowledge system"
+  },
+  "requirements": [
+    {
+      "id": "KO-API-001",
+      "title": "Health check endpoint",
+      "prd_ref": "OT-P0-004",
+      "description": "GET /health returns service status and basic metrics for lifecycle management",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "not_implemented",
+          "ref": "test/cli/knowledge-observatory.bats"
+        }
+      ],
+      "notes": "Required for lifecycle system health monitoring",
+      "status": "pending"
+    },
+    {
+      "id": "KO-API-002",
+      "title": "API versioning and contract stability",
+      "prd_ref": "OT-P0-004",
+      "description": "All endpoints use /api/v1 prefix and maintain backward compatibility within version",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "ref": "api/api_contract_test.go"
+        }
+      ],
+      "notes": "Critical for cross-scenario integration stability",
+      "status": "pending"
+    },
+    {
+      "id": "KO-API-003",
+      "title": "CORS configuration",
+      "prd_ref": "OT-P0-004",
+      "description": "Properly configured CORS headers for UI access with secure origin validation",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "ref": "api/cors_test.go"
+        }
+      ],
+      "notes": "Support allowlist-based origin validation, no wildcards in production",
+      "status": "pending"
+    },
+    {
+      "id": "KO-API-004",
+      "title": "Error handling and status codes",
+      "prd_ref": "OT-P0-004",
+      "description": "Consistent error responses with appropriate HTTP status codes and error messages",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "ref": "api/error_handling_test.go"
+        }
+      ],
+      "notes": "Follow REST conventions: 2xx success, 4xx client errors, 5xx server errors",
+      "status": "pending"
+    },
+    {
+      "id": "KO-API-005",
+      "title": "API documentation",
+      "prd_ref": "OT-P0-004",
+      "description": "API endpoints documented with request/response schemas and example usage",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "structure",
+          "status": "not_implemented",
+          "ref": "test/cli/knowledge-observatory.bats"
+        }
+      ],
+      "notes": "Enable other scenarios to integrate without reading source code",
+      "status": "pending"
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "_metadata": {
+    "prd_section": "P0 - Natural Language Semantic Search",
+    "description": "Enable semantic search across all Qdrant collections using natural language queries"
+  },
+  "requirements": [
+    {
+      "id": "KO-SS-001",
+      "title": "Semantic search API endpoint",
+      "prd_ref": "OT-P0-001",
+      "description": "POST /api/v1/knowledge/search endpoint accepts natural language queries and returns semantically similar results from Qdrant",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/search_test.go"
+        }
+      ],
+      "notes": "Must support collection filtering, result limits, and similarity thresholds",
+      "status": "complete"
+    },
+    {
+      "id": "KO-SS-002",
+      "title": "Query vectorization via Ollama",
+      "prd_ref": "OT-P0-001",
+      "description": "Transform natural language queries into embeddings using Ollama's embedding models",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/search_test.go"
+        }
+      ],
+      "notes": "Use nomic-embed-text model for consistent embedding dimension",
+      "status": "complete"
+    },
+    {
+      "id": "KO-SS-003",
+      "title": "Qdrant collection search",
+      "prd_ref": "OT-P0-001",
+      "description": "Execute vector similarity search against Qdrant collections and return ranked results",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/search_test.go"
+        }
+      ],
+      "notes": "Support multi-collection search with configurable similarity thresholds",
+      "status": "complete"
+    },
+    {
+      "id": "KO-SS-004",
+      "title": "Search response time < 500ms",
+      "prd_ref": "OT-P0-001",
+      "description": "95% of semantic search queries must complete in under 500ms",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "not_implemented",
+          "ref": "api/search_performance_test.go"
+        }
+      ],
+      "notes": "Critical for interactive search experience",
+      "status": "pending"
+    }
+  ]
+}

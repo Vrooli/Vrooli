@@ -1,11 +1,14 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
+    "parent": "vrooli",
     "name": "knowledge-observatory",
     "displayName": "Knowledge Observatory",
     "description": "Real-time monitoring and management of Vrooli's semantic knowledge system - acts as a consciousness monitor for collective intelligence",
     "version": "1.0.0",
+    "type": "scenario",
+    "category": "general",
     "tags": [
       "vrooli-enhancement",
       "knowledge-management",
@@ -19,9 +22,6 @@
       "qdrant-vectors",
       "dashboard-ui"
     ],
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "general",
     "maintainers": [
       {
         "name": "Vrooli Team",
@@ -56,7 +56,8 @@
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "Knowledge Observatory health check configuration",
+      "description": "Standard API/UI health checks",
+      "startup_grace_period": 15000,
       "endpoints": {
         "api": "/health",
         "ui": "/health"
@@ -66,33 +67,22 @@
           "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
         },
         {
           "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
           "timeout": 5000,
-          "interval": 30000
-        },
-        {
-          "name": "qdrant_connection",
-          "type": "http",
-          "target": "http://localhost:${RESOURCE_PORTS[qdrant]}/health",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
+          "interval": 30000,
+          "critical": false
         }
-      ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 10000
+      ]
     },
     "setup": {
-      "description": "Initialize Knowledge Observatory",
+      "description": "Build API & UI, install CLI, initialize database",
       "condition": {
         "checks": [
           {
@@ -112,57 +102,50 @@
             "targets": [
               "knowledge-observatory"
             ]
-          },
-          {
-            "type": "resources",
-            "populated": true
           }
         ]
       },
       "steps": [
         {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add knowledge observatory data to resources"
-        },
-        {
           "name": "install-cli",
-          "run": "bash cli/install.sh",
-          "description": "Install Knowledge Observatory CLI globally",
-          "condition": {
-            "file_exists": "cli/install.sh"
-          }
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI into ~/.vrooli/bin"
         },
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o knowledge-observatory-api .",
-          "description": "Build Go API binary"
+          "description": "Build Go API binary (knowledge-observatory-api) in api/ directory"
+        },
+        {
+          "name": "setup-database",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Initialize PostgreSQL schema and seed knowledge-observatory data"
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install",
+          "run": "if [ -f ui/package.json ]; then cd ui && npm install; else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies"
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build production UI bundle"
+          "run": "if [ -f ui/package.json ]; then cd ui && npm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI"
         },
         {
           "name": "show-urls",
-          "run": "echo '🔭 Knowledge Observatory initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: knowledge-observatory --help\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}'",
-          "description": "Display service access URLs"
+          "run": "echo '🔭 Knowledge Observatory initialized\\n  📊 API: http://localhost:${API_PORT}\\n  🌐 UI: http://localhost:${UI_PORT}\\n  🎯 CLI: knowledge-observatory --help'",
+          "description": "Display access URLs for API and UI"
         }
       ]
     },
     "develop": {
-      "description": "Start Knowledge Observatory with API and UI",
+      "description": "Launch API and production UI bundle via Node server",
       "steps": [
         {
           "name": "start-api",
           "run": "cd api && ./knowledge-observatory-api",
-          "description": "Start Go API server in background",
           "background": true,
+          "description": "Start Go API server",
           "condition": {
             "file_exists": "api/knowledge-observatory-api"
           }
@@ -170,41 +153,41 @@
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
-          "description": "Start UI dashboard server",
           "background": true,
+          "description": "Serve production UI bundle",
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
         },
         {
           "name": "show-urls",
-          "run": "echo '🔭 Knowledge Observatory running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: knowledge-observatory --help'",
-          "description": "Display service URLs and usage information"
+          "run": "echo '🔭 Knowledge Observatory running:\\n  📊 API: http://localhost:${API_PORT}\\n  🌐 UI: http://localhost:${UI_PORT}\\n  🎯 CLI: knowledge-observatory --help'",
+          "description": "Display access URLs for API and UI after startup"
         }
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing for knowledge-observatory",
+      "description": "Execute phased test suite",
       "steps": [
         {
-          "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
-          "description": "Execute phased scenario test suite"
+          "name": "run-tests",
+          "run": "./test/run-tests.sh",
+          "description": "Run structure/unit/integration/business/performance phases"
         }
       ]
     },
     "stop": {
-      "description": "Stop services",
+      "description": "Stop background processes",
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f \"knowledge-observatory-api\" || true; sleep 1; pkill -9 -f \"knowledge-observatory-api\" 2>/dev/null || true",
-          "description": "Stop API process"
+          "run": "pkill -f 'knowledge-observatory-api' || true",
+          "description": "Stop Go API"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/knowledge-observatory.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/knowledge-observatory.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
         }
       ]
     }
@@ -215,13 +198,13 @@
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "purpose": "Primary vector database containing all semantic knowledge to monitor and search"
+        "description": "Primary vector database containing all semantic knowledge to monitor and search"
       },
       "postgres": {
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store knowledge metadata, quality metrics, search history, and configuration",
+        "description": "Knowledge metadata, quality metrics, search history, and configuration storage",
         "initialization": [
           {
             "file": "initialization/postgres/schema.sql",
@@ -229,40 +212,17 @@
           },
           {
             "file": "initialization/postgres/seed.sql",
-            "type": "data"
-          }
-        ]
-      },
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": false,
-        "purpose": "Automated knowledge quality monitoring and analysis workflows",
-        "initialization": [
-          {
-            "file": "initialization/n8n/knowledge-quality-monitor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/semantic-analyzer.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/knowledge-graph-builder.json",
-            "type": "workflow"
+            "type": "seed"
           }
         ]
       },
       "ollama": {
         "type": "ollama",
-        "enabled": true,
+        "enabled": false,
         "required": false,
-        "purpose": "Enhanced semantic analysis and natural language query understanding",
-        "models": [
-          "llama3.2",
-          "nomic-embed-text"
-        ]
+        "description": "Enhanced semantic analysis and natural language query understanding"
       }
-    }
+    },
+    "scenarios": {}
   }
 }

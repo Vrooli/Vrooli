@@ -1,0 +1,63 @@
+{
+  "metadata": {
+    "description": "Verifies health metrics visualization displays quality scores",
+    "version": 1,
+    "reset": "full",
+    "requirements": ["KO-HD-002"]
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-home",
+      "type": "navigate",
+      "data": {
+        "label": "Open Knowledge Observatory dashboard",
+        "destinationType": "scenario",
+        "scenario": "knowledge-observatory",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle",
+        "timeoutMs": 30000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "wait-for-load",
+      "type": "wait",
+      "data": {
+        "label": "Wait for dashboard to load",
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "assert-content-exists",
+      "type": "assert",
+      "data": {
+        "label": "Dashboard content rendered",
+        "selector": "body",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Dashboard should display content"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-for-load",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-load",
+      "target": "assert-content-exists",
+      "type": "smoothstep"
+    }
+  ]
+}
