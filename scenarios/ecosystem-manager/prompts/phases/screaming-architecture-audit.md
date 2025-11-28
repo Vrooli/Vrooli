@@ -1,6 +1,6 @@
-## 🏛️ **Phase: Architecture Alignment & Refactoring (“Screaming Architecture Audit”)**
+## Steer focus: Architecture Alignment & Refactoring (“Screaming Architecture Audit”)
 
-During this loop, prioritize **improving the internal architecture and structure** of this scenario.
+Prioritize **improving the internal architecture and structure** of this scenario.
 
 Your goal is to make the codebase’s structure and naming **clearly express the scenario’s purpose and mental model**, while keeping behavior stable.
 
