@@ -394,6 +394,63 @@ func sanitizeCommandOutput(output string) string {
 	return output
 }
 
+func (s *Server) handleScenarioDelete(w http.ResponseWriter, r *http.Request) {
+	scenarioID := mux.Vars(r)["scenario_id"]
+	if err := validateScenarioID(scenarioID); err != nil {
+		s.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Only allow deletion from staging area (generated/) - not production
+	vrooliRoot := getVrooliRoot()
+	stagingPath := filepath.Join(vrooliRoot, "scenarios", "landing-manager", "generated", scenarioID)
+
+	// Check if scenario exists in staging
+	if _, err := os.Stat(stagingPath); os.IsNotExist(err) {
+		s.respondJSON(w, http.StatusNotFound, map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Scenario '%s' not found in staging area. Only scenarios in generated/ can be deleted through this endpoint.", scenarioID),
+		})
+		return
+	}
+
+	// Stop the scenario if running (idempotent - ignore errors)
+	stopCmd := exec.Command("vrooli", "scenario", "stop", scenarioID, "--path", stagingPath)
+	if output, err := stopCmd.CombinedOutput(); err != nil {
+		s.log("delete_stop_warning", map[string]interface{}{
+			"scenario_id": scenarioID,
+			"output":      string(output),
+			"error":       err.Error(),
+		})
+		// Continue anyway - scenario might not have been running
+	}
+
+	// Remove the scenario directory
+	if err := os.RemoveAll(stagingPath); err != nil {
+		s.log("delete_failed", map[string]interface{}{
+			"scenario_id": scenarioID,
+			"path":        stagingPath,
+			"error":       err.Error(),
+		})
+		s.respondJSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Failed to delete scenario: %v", err),
+		})
+		return
+	}
+
+	s.log("scenario_deleted", map[string]interface{}{
+		"scenario_id": scenarioID,
+		"path":        stagingPath,
+	})
+
+	s.respondJSON(w, http.StatusOK, map[string]interface{}{
+		"success":     true,
+		"message":     "Scenario deleted successfully",
+		"scenario_id": scenarioID,
+	})
+}
+
 func (s *Server) handleScenarioPromote(w http.ResponseWriter, r *http.Request) {
 	scenarioID := mux.Vars(r)["scenario_id"]
 	if err := validateScenarioID(scenarioID); err != nil {

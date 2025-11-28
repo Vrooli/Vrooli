@@ -1,6 +1,7 @@
 import { memo, useState } from 'react';
 import {
   AlertCircle,
+  AlertTriangle,
   Calendar,
   Check,
   CheckCircle,
@@ -18,6 +19,9 @@ import {
   Settings,
   Sparkles,
   Square,
+  Trash2,
+  Wand2,
+  X,
   Zap,
 } from 'lucide-react';
 import { type GeneratedScenario, listGeneratedScenarios } from '../lib/api';
@@ -37,7 +41,10 @@ interface GeneratedScenariosListProps {
   onRestartScenario: (scenarioId: string) => void;
   onToggleLogs: (scenarioId: string) => void;
   onPromoteScenario: (scenarioId: string) => void;
+  onDeleteScenario: (scenarioId: string) => void;
   onSelectScenario: (slug: string) => void;
+  onCreateClick: () => void;
+  onCustomizeClick: (scenario: GeneratedScenario) => void;
 }
 
 export const GeneratedScenariosList = memo(function GeneratedScenariosList({
@@ -54,9 +61,28 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
   onRestartScenario,
   onToggleLogs,
   onPromoteScenario,
+  onDeleteScenario,
   onSelectScenario,
+  onCreateClick,
+  onCustomizeClick,
 }: GeneratedScenariosListProps) {
   const [copiedSlug, setCopiedSlug] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  const handleDeleteClick = (scenarioId: string) => {
+    setDeleteConfirm(scenarioId);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteConfirm) {
+      onDeleteScenario(deleteConfirm);
+      setDeleteConfirm(null);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirm(null);
+  };
 
   const handleRefresh = async () => {
     try {
@@ -73,15 +99,6 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
     navigator.clipboard.writeText(slug);
     setCopiedSlug(true);
     setTimeout(() => setCopiedSlug(false), 2000);
-    const agentForm = document.querySelector('[data-testid="agent-customization-form"]');
-    agentForm?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
-
-  const handleScrollToForm = () => {
-    const formElement = document.querySelector('[data-testid="generation-form"]');
-    formElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    const nameInput = document.getElementById('generation-name-input') as HTMLInputElement;
-    nameInput?.focus();
   };
 
   return (
@@ -207,9 +224,9 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
             </div>
           </div>
           <button
-            onClick={handleScrollToForm}
+            onClick={onCreateClick}
             className="inline-flex items-center gap-2 px-8 py-4 text-base font-bold bg-gradient-to-r from-emerald-500/30 to-blue-500/30 border-2 border-emerald-500/60 text-emerald-200 rounded-xl hover:from-emerald-500/40 hover:to-blue-500/40 hover:border-emerald-400/80 hover:scale-105 transition-all shadow-xl shadow-emerald-500/25 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
-            aria-label="Scroll to generation form and start creating"
+            aria-label="Create your first landing page"
           >
             <Rocket className="h-5 w-5" aria-hidden="true" />
             Create My First Landing Page
@@ -246,11 +263,20 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
                       <button
                         onClick={() => handleCopySlug(scenario.scenario_id)}
                         className="inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded border border-slate-500/30 bg-slate-500/10 text-slate-400 hover:text-slate-300 hover:bg-slate-500/20 transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        title="Copy slug and select for agent customization"
-                        aria-label={`Copy slug and select ${scenario.scenario_id} for agent customization`}
+                        title="Copy slug to clipboard"
+                        aria-label={`Copy slug ${scenario.scenario_id}`}
                       >
                         {copiedSlug ? <Check className="h-2.5 w-2.5" aria-hidden="true" /> : <Copy className="h-2.5 w-2.5" aria-hidden="true" />}
                         <span className="hidden sm:inline">{copiedSlug ? 'Copied!' : 'Copy'}</span>
+                      </button>
+                      <button
+                        onClick={() => onCustomizeClick(scenario)}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded border border-purple-500/30 bg-purple-500/10 text-purple-300 hover:text-purple-200 hover:bg-purple-500/20 transition-colors focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        title="Customize with AI"
+                        aria-label={`Customize ${scenario.name} with AI`}
+                      >
+                        <Wand2 className="h-2.5 w-2.5" aria-hidden="true" />
+                        <span className="hidden sm:inline">Customize</span>
                       </button>
                     </div>
                     <p className="text-xs text-slate-400 mt-1">
@@ -362,17 +388,30 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
                         <span>{showLogs[scenario.scenario_id] ? 'Hide' : 'Show'} Logs</span>
                       </button>
                       {!status.running && !status.loading && (
-                        <button
-                          onClick={() => onPromoteScenario(scenario.scenario_id)}
-                          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border-2 border-purple-500/60 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-200 hover:from-purple-500/30 hover:to-pink-500/30 hover:border-purple-400 transition-all shadow-lg shadow-purple-500/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                          aria-label="Promote to production"
-                          title="Move this scenario from staging (generated/) to production (scenarios/)"
-                          data-testid={`lifecycle-promote-button-${scenario.scenario_id}`}
-                          data-lifecycle-promote-button
-                        >
-                          <Rocket className="h-3.5 w-3.5" aria-hidden="true" />
-                          <span>Promote to Production</span>
-                        </button>
+                        <>
+                          <button
+                            onClick={() => onPromoteScenario(scenario.scenario_id)}
+                            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border-2 border-purple-500/60 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-200 hover:from-purple-500/30 hover:to-pink-500/30 hover:border-purple-400 transition-all shadow-lg shadow-purple-500/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            aria-label="Promote to production"
+                            title="Move this scenario from staging (generated/) to production (scenarios/)"
+                            data-testid={`lifecycle-promote-button-${scenario.scenario_id}`}
+                            data-lifecycle-promote-button
+                          >
+                            <Rocket className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span>Promote to Production</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClick(scenario.scenario_id)}
+                            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:border-red-400 transition-all focus:outline-none focus:ring-2 focus:ring-red-500"
+                            aria-label="Delete scenario"
+                            title="Permanently delete this scenario from staging"
+                            data-testid={`lifecycle-delete-button-${scenario.scenario_id}`}
+                            data-lifecycle-delete-button
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span className="hidden sm:inline">Delete</span>
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -471,6 +510,68 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
               </article>
             );
           })}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={handleDeleteCancel}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-dialog-title"
+        >
+          <div
+            className="relative w-full max-w-md mx-4 rounded-2xl border border-red-500/30 bg-slate-900 p-6 shadow-2xl shadow-red-500/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={handleDeleteCancel}
+              className="absolute top-4 right-4 p-1 text-slate-400 hover:text-white transition-colors"
+              aria-label="Close dialog"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-start gap-4 mb-6">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-red-400" aria-hidden="true" />
+              </div>
+              <div>
+                <h3 id="delete-dialog-title" className="text-lg font-bold text-white mb-1">
+                  Delete Landing Page?
+                </h3>
+                <p className="text-sm text-slate-300">
+                  Are you sure you want to delete{' '}
+                  <code className="px-1.5 py-0.5 rounded bg-slate-800 font-mono text-red-300">{deleteConfirm}</code>?
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4 mb-6">
+              <p className="text-sm text-red-200 leading-relaxed">
+                <strong>This action is permanent.</strong> The scenario directory and all its contents will be removed
+                from the staging area. This cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleDeleteCancel}
+                className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-500 border border-red-500 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 shadow-lg shadow-red-500/20"
+                data-testid="delete-confirm-button"
+              >
+                Delete Permanently
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

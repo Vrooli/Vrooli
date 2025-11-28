@@ -1,6 +1,10 @@
-import { Rocket, Monitor, Sparkles } from 'lucide-react';
+import { Rocket, Monitor, Sparkles, ArrowRight } from 'lucide-react';
 
-export function QuickStartGuide() {
+interface QuickStartGuideProps {
+  onCreateClick: () => void;
+}
+
+export function QuickStartGuide({ onCreateClick }: QuickStartGuideProps) {
   return (
     <div className="rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 p-5 sm:p-6" role="region" aria-label="Quick start guide">
       <div className="flex items-start gap-4">
@@ -38,11 +42,21 @@ export function QuickStartGuide() {
               </div>
             </div>
           </div>
-          <div className="flex items-start gap-2 pt-3 border-t border-emerald-500/20">
-            <Sparkles className="h-4 w-4 text-blue-300 mt-0.5 flex-shrink-0" aria-hidden="true" />
-            <p className="text-xs text-blue-200 font-medium">
-              <strong>Iterate risk-free:</strong> All new scenarios start in a staging folder. Test, refine, and customize before moving to production.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-emerald-500/20">
+            <div className="flex items-start gap-2">
+              <Sparkles className="h-4 w-4 text-blue-300 mt-0.5 flex-shrink-0" aria-hidden="true" />
+              <p className="text-xs text-blue-200 font-medium">
+                <strong>Iterate risk-free:</strong> All new scenarios start in a staging folder.
+              </p>
+            </div>
+            <button
+              onClick={onCreateClick}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-gradient-to-r from-emerald-500/30 to-blue-500/30 border-2 border-emerald-500/60 text-emerald-100 rounded-lg hover:from-emerald-500/40 hover:to-blue-500/40 hover:border-emerald-400/80 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-emerald-500/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+            >
+              <Rocket className="h-4 w-4" aria-hidden="true" />
+              Create Landing Page
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </button>
           </div>
         </div>
       </div>

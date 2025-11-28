@@ -192,6 +192,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", s.handleScenarioStatus).Methods("GET")
 	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/logs", s.handleScenarioLogs).Methods("GET")
 	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/promote", s.handleScenarioPromote).Methods("POST")
+	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}", s.handleScenarioDelete).Methods("DELETE")
 }
 
 // Start launches the HTTP server with graceful shutdown

@@ -37,16 +37,12 @@ export function KeyboardShortcutsDialog({ isOpen, onClose }: KeyboardShortcutsDi
 
         <div className="space-y-3 text-sm">
           <div className="flex items-center justify-between py-2 border-b border-white/10">
-            <span className="text-slate-300">Generate scenario</span>
-            <kbd className="px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 font-mono text-xs text-slate-200">⌘/Ctrl + Enter</kbd>
+            <span className="text-slate-300">Open create dialog</span>
+            <kbd className="px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 font-mono text-xs text-slate-200">⌘/Ctrl + K</kbd>
           </div>
           <div className="flex items-center justify-between py-2 border-b border-white/10">
-            <span className="text-slate-300">Dry-run preview</span>
-            <kbd className="px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 font-mono text-xs text-slate-200">⌘/Ctrl + Shift + Enter</kbd>
-          </div>
-          <div className="flex items-center justify-between py-2 border-b border-white/10">
-            <span className="text-slate-300">Refresh templates</span>
-            <kbd className="px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 font-mono text-xs text-slate-200">⌘/Ctrl + R</kbd>
+            <span className="text-slate-300">Close dialog</span>
+            <kbd className="px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 font-mono text-xs text-slate-200">Escape</kbd>
           </div>
           <div className="flex items-center justify-between py-2">
             <span className="text-slate-300">Skip to main content</span>
@@ -57,7 +53,7 @@ export function KeyboardShortcutsDialog({ isOpen, onClose }: KeyboardShortcutsDi
         <div className="pt-4 border-t border-white/10">
           <p className="text-xs text-slate-400 flex items-start gap-2">
             <Zap className="h-4 w-4 flex-shrink-0 mt-0.5 text-emerald-400" aria-hidden="true" />
-            <span>All keyboard shortcuts work when the generation form is visible and not disabled.</span>
+            <span>Press ⌘/Ctrl+K anywhere to quickly create a new landing page.</span>
           </p>
         </div>
 

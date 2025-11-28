@@ -203,6 +203,18 @@ export async function promoteScenario(scenarioId: string) {
   });
 }
 
+export interface DeleteResponse {
+  success: boolean;
+  message: string;
+  scenario_id: string;
+}
+
+export async function deleteScenario(scenarioId: string) {
+  return apiCall<DeleteResponse>(`/lifecycle/${scenarioId}`, {
+    method: 'DELETE',
+  });
+}
+
 // Analytics types
 // [REQ:TMPL-GENERATION-ANALYTICS] Factory-level analytics tracking
 export interface GenerationEvent {

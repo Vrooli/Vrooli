@@ -126,5 +126,14 @@
     "error_reason": "failed to scaffold scenario: failed to copy /home/matthalloran8/Vrooli/scripts/scenarios/templates/saas-landing-page/payload/api: open /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/lifecycle-test/api/landing-manager-api: text file busy",
     "timestamp": "2025-11-28T09:50:43.32049083-05:00",
     "duration_ms": 0
+  },
+  {
+    "event_id": "20251128-175338.263",
+    "template_id": "lead-magnet",
+    "scenario_id": "test",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-28T17:53:38.263479877-05:00",
+    "duration_ms": 16
   }
 ]

@@ -1,0 +1,19 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "requirements": [],
+  "imports": [
+    "02-admin-portal/module.json",
+    "03-customization-ux/module.json",
+    "04-ab-testing/module.json",
+    "05-metrics/module.json",
+    "06-payments/module.json",
+    "07-security/module.json",
+    "08-performance/module.json",
+    "09-design-branding/module.json",
+    "10-advanced-features/module.json"
+  ]
+}
