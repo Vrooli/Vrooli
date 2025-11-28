@@ -1,0 +1,187 @@
+{
+  "metadata": {
+    "description": "Validates UI-based lifecycle management (start/stop/restart/logs) for generated scenarios without requiring terminal access",
+    "requirements": ["TMPL-LIFECYCLE"],
+    "reset": "none"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-factory",
+      "type": "navigate",
+      "data": {
+        "label": "Navigate to landing-manager factory UI",
+        "destinationType": "scenario",
+        "scenario": "landing-manager",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 30000
+      }
+    },
+    {
+      "id": "wait-for-generated-list",
+      "type": "wait",
+      "data": {
+        "label": "Wait for generated scenarios list to load",
+        "selector": "@selector/generated-scenarios-list",
+        "timeoutMs": 15000,
+        "waitForMs": 500,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "assert-lifecycle-controls-exist",
+      "type": "assert",
+      "data": {
+        "label": "Assert lifecycle controls are present",
+        "selector": "@selector/lifecycle-start-button",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Lifecycle controls should be visible for generated scenarios"
+      }
+    },
+    {
+      "id": "click-start",
+      "type": "click",
+      "data": {
+        "label": "Click start button for generated scenario",
+        "selector": "@selector/lifecycle-start-button",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-for-status-change",
+      "type": "wait",
+      "data": {
+        "label": "Wait for scenario to start",
+        "waitType": "time",
+        "waitForMs": 3000
+      }
+    },
+    {
+      "id": "assert-running-status",
+      "type": "assert",
+      "data": {
+        "label": "Assert scenario is running",
+        "selector": "@selector/scenario-status-badge",
+        "assertMode": "contains_text",
+        "expectedText": "Running",
+        "timeoutMs": 10000,
+        "failureMessage": "Status should show 'Running' after start"
+      }
+    },
+    {
+      "id": "click-logs",
+      "type": "click",
+      "data": {
+        "label": "Click show logs button",
+        "selector": "@selector/lifecycle-logs-button",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-for-logs",
+      "type": "wait",
+      "data": {
+        "label": "Wait for logs to appear",
+        "selector": "@selector/scenario-logs-display",
+        "timeoutMs": 5000,
+        "waitForMs": 500,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "assert-logs-visible",
+      "type": "assert",
+      "data": {
+        "label": "Assert logs are displayed",
+        "selector": "@selector/scenario-logs-display",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Logs display should be visible after clicking show logs"
+      }
+    },
+    {
+      "id": "click-restart",
+      "type": "click",
+      "data": {
+        "label": "Click restart button",
+        "selector": "@selector/lifecycle-restart-button",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-for-restart",
+      "type": "wait",
+      "data": {
+        "label": "Wait for scenario to restart",
+        "waitType": "time",
+        "waitForMs": 3000
+      }
+    },
+    {
+      "id": "assert-still-running",
+      "type": "assert",
+      "data": {
+        "label": "Assert scenario is still running after restart",
+        "selector": "@selector/scenario-status-badge",
+        "assertMode": "contains_text",
+        "expectedText": "Running",
+        "timeoutMs": 10000,
+        "failureMessage": "Status should show 'Running' after restart"
+      }
+    },
+    {
+      "id": "click-stop",
+      "type": "click",
+      "data": {
+        "label": "Click stop button",
+        "selector": "@selector/lifecycle-stop-button",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-for-stop",
+      "type": "wait",
+      "data": {
+        "label": "Wait for scenario to stop",
+        "waitType": "time",
+        "waitForMs": 3000
+      }
+    },
+    {
+      "id": "assert-stopped-status",
+      "type": "assert",
+      "data": {
+        "label": "Assert scenario is stopped",
+        "selector": "@selector/scenario-status-badge",
+        "assertMode": "contains_text",
+        "expectedText": "Stopped",
+        "timeoutMs": 10000,
+        "failureMessage": "Status should show 'Stopped' after stop"
+      }
+    }
+  ],
+  "edges": [
+    { "id": "edge-1", "source": "navigate-factory", "target": "wait-for-generated-list", "type": "smoothstep" },
+    { "id": "edge-2", "source": "wait-for-generated-list", "target": "assert-lifecycle-controls-exist", "type": "smoothstep" },
+    { "id": "edge-3", "source": "assert-lifecycle-controls-exist", "target": "click-start", "type": "smoothstep" },
+    { "id": "edge-4", "source": "click-start", "target": "wait-for-status-change", "type": "smoothstep" },
+    { "id": "edge-5", "source": "wait-for-status-change", "target": "assert-running-status", "type": "smoothstep" },
+    { "id": "edge-6", "source": "assert-running-status", "target": "click-logs", "type": "smoothstep" },
+    { "id": "edge-7", "source": "click-logs", "target": "wait-for-logs", "type": "smoothstep" },
+    { "id": "edge-8", "source": "wait-for-logs", "target": "assert-logs-visible", "type": "smoothstep" },
+    { "id": "edge-9", "source": "assert-logs-visible", "target": "click-restart", "type": "smoothstep" },
+    { "id": "edge-10", "source": "click-restart", "target": "wait-for-restart", "type": "smoothstep" },
+    { "id": "edge-11", "source": "wait-for-restart", "target": "assert-still-running", "type": "smoothstep" },
+    { "id": "edge-12", "source": "assert-still-running", "target": "click-stop", "type": "smoothstep" },
+    { "id": "edge-13", "source": "click-stop", "target": "wait-for-stop", "type": "smoothstep" },
+    { "id": "edge-14", "source": "wait-for-stop", "target": "assert-stopped-status", "type": "smoothstep" }
+  ]
+}

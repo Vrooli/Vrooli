@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import {
   AlertCircle,
   Calendar,
@@ -40,7 +40,7 @@ interface GeneratedScenariosListProps {
   onSelectScenario: (slug: string) => void;
 }
 
-export function GeneratedScenariosList({
+export const GeneratedScenariosList = memo(function GeneratedScenariosList({
   generated,
   loadingGenerated,
   generatedError,
@@ -266,7 +266,7 @@ export function GeneratedScenariosList({
                           ? 'text-emerald-300 border border-emerald-500/30 bg-emerald-500/10'
                           : 'text-slate-400 border border-slate-500/30 bg-slate-500/10'
                       }`}
-                      data-testid={`generated-scenario-status-${scenario.scenario_id}`}
+                      data-testid="scenario-status-badge"
                       role="status"
                       aria-live="polite"
                     >
@@ -317,6 +317,7 @@ export function GeneratedScenariosList({
                         className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         aria-label="Start scenario"
                         title="Start this landing page scenario"
+                        data-testid="lifecycle-start-button"
                       >
                         <Play className="h-3.5 w-3.5" aria-hidden="true" />
                         <span className="hidden sm:inline">Start</span>
@@ -327,6 +328,7 @@ export function GeneratedScenariosList({
                         className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:border-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-red-500"
                         aria-label="Stop scenario"
                         title="Stop this landing page scenario"
+                        data-testid="lifecycle-stop-button"
                       >
                         <Square className="h-3.5 w-3.5" aria-hidden="true" />
                         <span className="hidden sm:inline">Stop</span>
@@ -337,6 +339,7 @@ export function GeneratedScenariosList({
                         className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 hover:border-blue-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
                         aria-label="Restart scenario"
                         title="Restart this landing page scenario"
+                        data-testid="lifecycle-restart-button"
                       >
                         <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
                         <span className="hidden sm:inline">Restart</span>
@@ -348,6 +351,7 @@ export function GeneratedScenariosList({
                         className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-slate-500/30 bg-slate-500/10 text-slate-300 hover:bg-slate-500/20 hover:border-slate-400 transition-all focus:outline-none focus:ring-2 focus:ring-slate-500"
                         aria-label={showLogs[scenario.scenario_id] ? 'Hide logs' : 'Show logs'}
                         title={showLogs[scenario.scenario_id] ? 'Hide scenario logs' : 'View scenario logs'}
+                        data-testid="lifecycle-logs-button"
                       >
                         <FileOutput className="h-3.5 w-3.5" aria-hidden="true" />
                         <span>{showLogs[scenario.scenario_id] ? 'Hide' : 'Show'} Logs</span>
@@ -358,6 +362,7 @@ export function GeneratedScenariosList({
                           className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border-2 border-purple-500/60 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-200 hover:from-purple-500/30 hover:to-pink-500/30 hover:border-purple-400 transition-all shadow-lg shadow-purple-500/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
                           aria-label="Promote to production"
                           title="Move this scenario from staging (generated/) to production (scenarios/)"
+                          data-testid="lifecycle-promote-button"
                         >
                           <Rocket className="h-3.5 w-3.5" aria-hidden="true" />
                           <span>Promote to Production</span>
@@ -368,7 +373,7 @@ export function GeneratedScenariosList({
 
                   {/* Logs Display */}
                   {showLogs[scenario.scenario_id] && (
-                    <div className="rounded-lg border border-white/10 bg-slate-900/60 p-3">
+                    <div className="rounded-lg border border-white/10 bg-slate-900/60 p-3" data-testid="scenario-logs-display">
                       <div className="text-xs font-medium text-slate-400 mb-2">Recent Logs</div>
                       <pre className="text-[10px] text-slate-300 bg-slate-950 border border-white/10 rounded p-2 overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto">
                         {scenarioLogs[scenario.scenario_id] || 'Loading logs...'}
@@ -396,6 +401,7 @@ export function GeneratedScenariosList({
                             target="_blank"
                             rel="noopener noreferrer"
                             className="group flex items-center justify-between gap-2 text-sm font-semibold text-emerald-100 bg-emerald-900/40 hover:bg-emerald-900/60 border-2 border-emerald-500/40 hover:border-emerald-400/60 rounded-lg px-4 py-3 transition-all shadow-md hover:shadow-lg hover:shadow-emerald-500/20 hover:scale-102"
+                            data-testid="scenario-public-link"
                           >
                             <span className="truncate flex items-center gap-2">
                               <Globe className="h-4 w-4" aria-hidden="true" />
@@ -410,6 +416,7 @@ export function GeneratedScenariosList({
                             target="_blank"
                             rel="noopener noreferrer"
                             className="group flex items-center justify-between gap-2 text-sm font-semibold text-blue-100 bg-blue-900/40 hover:bg-blue-900/60 border-2 border-blue-500/40 hover:border-blue-400/60 rounded-lg px-4 py-3 transition-all shadow-md hover:shadow-lg hover:shadow-blue-500/20 hover:scale-102"
+                            data-testid="scenario-admin-link"
                           >
                             <span className="truncate flex items-center gap-2">
                               <Settings className="h-4 w-4" aria-hidden="true" />
@@ -462,4 +469,4 @@ export function GeneratedScenariosList({
       )}
     </section>
   );
-}
+});

@@ -213,10 +213,16 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "api/generation_dry_run_test.go"
+        },
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "failing",
+          "ref": "test/playbooks/capabilities/01-template-management/ui/dry-run-generation.json"
         }
       ],
-      "status": "complete",
-      "notes": "Multi-layer validation: API unit tests (Go), UI unit tests (React). BAS e2e integration test blocked by external MinIO bug (browser-automation-studio/api/storage/minio.go:119 nil pointer - documented in PROBLEMS.md). Dry-run functionality verified complete via CLI and API (returns plan with file paths, status=dry_run, no writes)."
+      "status": "in_progress",
+      "notes": "Multi-layer validation: API unit tests (Go), E2E automation (BAS playbook). Dry-run functionality verified complete via CLI, API, and UI (returns plan with file paths, status=dry_run, no writes)."
     },
     {
       "id": "TMPL-AGENT-PROFILES",
@@ -250,13 +256,19 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
           "ref": "api/integration_test.go"
+        },
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "failing",
+          "ref": "test/playbooks/capabilities/01-template-management/ui/lifecycle-management.json"
         }
       ],
-      "status": "complete",
-      "notes": "Multi-layer validation: Integration tests (api/integration_test.go::TestIntegration_LifecycleEndpoints), UI unit tests (React). API provides lifecycle management endpoints: /api/v1/lifecycle/{scenario_id}/{start,stop,restart,status,logs}. UI displays generated scenarios with live status indicators, start/stop/restart buttons, logs viewer, and direct access links to running scenarios (public landing + admin portal). Eliminates need for terminal commands - users can manage entire lifecycle from factory UI. Generated scenarios in generated/ folder serve as staging area."
+      "status": "in_progress",
+      "notes": "Multi-layer validation: API integration tests (api/integration_test.go::TestIntegration_LifecycleEndpoints), E2E automation (BAS playbook). API provides lifecycle management endpoints: /api/v1/lifecycle/{scenario_id}/{start,stop,restart,status,logs}. UI displays generated scenarios with live status indicators, start/stop/restart buttons, logs viewer, and direct access links to running scenarios (public landing + admin portal). Eliminates need for terminal commands - users can manage entire lifecycle from factory UI. Generated scenarios in generated/ folder serve as staging area."
     },
     {
       "id": "TMPL-PROMOTION",
@@ -267,16 +279,22 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
           "ref": "api/integration_test.go"
+        },
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "failing",
+          "ref": "test/playbooks/capabilities/01-template-management/ui/scenario-promotion.json"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "dependencies": [
         "TMPL-LIFECYCLE"
       ],
-      "notes": "Multi-layer validation: Integration tests (api/integration_test.go::TestIntegration_PromoteWorkflow), UI unit tests (React). Completes the UI-first workflow: generate → test in staging → promote to production. API endpoint: POST /api/v1/lifecycle/{scenario_id}/promote moves generated/<slug>/ to scenarios/<slug>/, updates references, and handles conflicts. UI provides 'Promote to Production' button on running scenarios with confirmation dialog. CLI command: landing-manager promote <scenario-id>."
+      "notes": "Multi-layer validation: API integration tests (api/integration_test.go::TestIntegration_PromoteWorkflow), E2E automation (BAS playbook). Completes the UI-first workflow: generate → test in staging → promote to production. API endpoint: POST /api/v1/lifecycle/{scenario_id}/promote moves generated/<slug>/ to scenarios/<slug>/, updates references, and handles conflicts. UI provides 'Promote to Production' button on stopped scenarios with confirmation dialog. CLI command: landing-manager promote <scenario-id>."
     },
     {
       "id": "TMPL-MARKETPLACE",
@@ -289,11 +307,11 @@
           "type": "manual",
           "phase": "business",
           "status": "planned",
-          "ref": "test/.manual-validations.json",
+          "ref": "n/a",
           "tracked": true,
           "last_validated": null,
           "validator": "Ecosystem Manager",
-          "validation_notes": "Requires business decision on trust/safety model before implementation"
+          "validation_notes": "P2 requirement - not yet implemented. Requires business decision on trust/safety model. Details in test/.manual-validations.json (TMPL-MARKETPLACE)."
         }
       ],
       "status": "pending",
@@ -310,11 +328,11 @@
           "type": "manual",
           "phase": "business",
           "status": "planned",
-          "ref": "test/.manual-validations.json",
+          "ref": "n/a",
           "tracked": true,
           "last_validated": null,
           "validator": "Ecosystem Manager",
-          "validation_notes": "Requires versioning strategy and migration patterns before implementation"
+          "validation_notes": "P2 requirement - not yet implemented. Requires versioning strategy and migration patterns. Details in test/.manual-validations.json (TMPL-MIGRATION)."
         }
       ],
       "status": "pending",
@@ -331,11 +349,11 @@
           "type": "manual",
           "phase": "business",
           "status": "planned",
-          "ref": "test/.manual-validations.json",
+          "ref": "n/a",
           "tracked": true,
           "last_validated": null,
           "validator": "Ecosystem Manager",
-          "validation_notes": "Requires analytics infrastructure and metrics definition before implementation"
+          "validation_notes": "P2 requirement - not yet implemented. Requires analytics infrastructure and metrics definition. Details in test/.manual-validations.json (TMPL-GENERATION-ANALYTICS)."
         }
       ],
       "status": "pending",

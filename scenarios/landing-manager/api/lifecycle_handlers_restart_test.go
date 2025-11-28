@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -31,9 +32,15 @@ func TestHandleScenarioRestart_EmptyScenarioID(t *testing.T) {
 		t.Errorf("Expected status 400 for empty scenario_id, got %d", w.Code)
 	}
 
+	// Security improvement: Now returns structured JSON error
 	body := w.Body.String()
-	if body != "scenario_id is required\n" {
+	if !strings.Contains(body, "scenario_id is required") {
 		t.Errorf("Expected 'scenario_id is required' error, got: %s", body)
+	}
+	// Verify it's valid JSON
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Errorf("Expected JSON response, got parse error: %v", err)
 	}
 }
 

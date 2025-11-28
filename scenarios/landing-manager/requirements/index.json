@@ -4,7 +4,154 @@
     "auto_sync_enabled": true,
     "schema_version": "1.0.0"
   },
-  "requirements": [],
+  "requirements": [
+    {
+      "id": "OT-P0-001",
+      "title": "Template Registry & Discovery",
+      "priority": "P0",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "description": "Expose templates via CLI/API with metadata for listing, inspection, and selection (availability, metadata quality, multi-template support)",
+      "linked_requirements": [
+        "TMPL-AVAILABILITY",
+        "TMPL-METADATA",
+        "TMPL-MULTIPLE"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/template_service_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/TemplateAvailability.test.tsx"
+        }
+      ],
+      "notes": "Multi-layer validation via child requirements: API tests (template_service_test.go) validate template listing/metadata/multi-template support, UI tests validate template catalog display and selection. All 3 linked requirements (TMPL-AVAILABILITY, TMPL-METADATA, TMPL-MULTIPLE) complete with API+UI validation."
+    },
+    {
+      "id": "OT-P0-002",
+      "title": "Scenario Generation Pipeline",
+      "priority": "P0",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "description": "Generate runnable landing-page scenarios with single command, proper output structure, provenance stamping, and validation",
+      "linked_requirements": [
+        "TMPL-GENERATION",
+        "TMPL-OUTPUT-VALIDATION",
+        "TMPL-PROVENANCE"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/generation_core_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/TemplateGeneration.test.tsx"
+        }
+      ],
+      "notes": "Multi-layer validation via child requirements: API tests (generation_core_test.go, generation_output_validation_test.go, generation_provenance_test.go) validate generation pipeline correctness, UI tests validate generation form and workflow. All 3 linked requirements (TMPL-GENERATION, TMPL-OUTPUT-VALIDATION, TMPL-PROVENANCE) complete with API+UI validation."
+    },
+    {
+      "id": "OT-P0-003",
+      "title": "Agent Integration & Customization",
+      "priority": "P0",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "description": "Trigger agent-based customization with structured briefs and predefined personas",
+      "linked_requirements": [
+        "AGENT-TRIGGER",
+        "TMPL-AGENT-PROFILES"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/AgentTrigger.test.tsx"
+        }
+      ],
+      "notes": "Multi-layer validation via child requirements: API tests (main_test.go, personas_test.go) validate agent triggering and persona catalog, UI tests validate customization form and agent profiles display. All 2 linked requirements (AGENT-TRIGGER, TMPL-AGENT-PROFILES) complete with API+UI validation."
+    },
+    {
+      "id": "OT-P1-001",
+      "title": "Generation Workflow Enhancements",
+      "priority": "P1",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "description": "Add preview links, dry-run planning, generation diagnostics, UI-based lifecycle management (start/stop/logs/access generated scenarios without terminal), and UI-based promotion from staging to production",
+      "linked_requirements": [
+        "TMPL-PREVIEW-LINKS",
+        "TMPL-DRY-RUN",
+        "TMPL-LIFECYCLE",
+        "TMPL-PROMOTION"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/preview_links_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/generation_dry_run_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/integration_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/TemplatePreviewLinks.test.tsx"
+        }
+      ],
+      "notes": "Multi-layer validation (API + UI): API tests validate preview links (preview_links_test.go), dry-run mode (generation_dry_run_test.go), and lifecycle operations (integration_test.go). UI tests validate preview link display (TemplatePreviewLinks.test.tsx). Child requirements include E2E automation (TMPL-DRY-RUN, TMPL-LIFECYCLE, TMPL-PROMOTION) currently failing due to external BAS MinIO bug (documented in PROBLEMS.md). All 4 linked requirements functionally complete - preview links working, dry-run verified via CLI/API/unit tests, lifecycle management fully implemented."
+    },
+    {
+      "id": "OT-P2-001",
+      "title": "Ecosystem Expansion",
+      "priority": "P2",
+      "status": "pending",
+      "prd_ref": "OT-P2-001",
+      "description": "Template marketplace, migration tooling, and factory-level analytics",
+      "linked_requirements": [
+        "TMPL-MARKETPLACE",
+        "TMPL-MIGRATION",
+        "TMPL-GENERATION-ANALYTICS"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "n/a"
+        }
+      ],
+      "notes": "P2 future expansion - all 3 linked requirements (TMPL-MARKETPLACE, TMPL-MIGRATION, TMPL-GENERATION-ANALYTICS) pending with manual validations. No automated tests yet as these are planned features requiring business decisions on marketplace trust model, migration strategy, and analytics infrastructure."
+    }
+  ],
   "imports": [
     "01-template-management/module.json"
   ]

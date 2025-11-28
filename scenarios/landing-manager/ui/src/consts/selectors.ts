@@ -308,6 +308,17 @@ const literalSelectors: LiteralSelectorTree = {
   'generated-scenarios': 'generated-scenarios',
   'generated-scenarios-list': 'generated-scenarios-list',
   'refresh-generated-button': 'refresh-generated-button',
+
+  // Lifecycle Controls (per scenario)
+  'lifecycle-start-button': 'lifecycle-start-button',
+  'lifecycle-stop-button': 'lifecycle-stop-button',
+  'lifecycle-restart-button': 'lifecycle-restart-button',
+  'lifecycle-logs-button': 'lifecycle-logs-button',
+  'lifecycle-promote-button': 'lifecycle-promote-button',
+  'scenario-status-badge': 'scenario-status-badge',
+  'scenario-logs-display': 'scenario-logs-display',
+  'scenario-public-link': 'scenario-public-link',
+  'scenario-admin-link': 'scenario-admin-link',
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {

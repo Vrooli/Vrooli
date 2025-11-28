@@ -6,10 +6,31 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
 )
+
+// Security: Validate scenario IDs to prevent path traversal and command injection
+// Must match: lowercase alphanumeric, hyphens, underscores (1-128 chars)
+var scenarioIDPattern = regexp.MustCompile(`^[a-z0-9_-]{1,128}$`)
+
+// validateScenarioID ensures the scenario ID is safe for filesystem and command usage
+func validateScenarioID(scenarioID string) error {
+	if scenarioID == "" {
+		return fmt.Errorf("scenario_id is required")
+	}
+	if !scenarioIDPattern.MatchString(scenarioID) {
+		return fmt.Errorf("invalid scenario_id: must contain only lowercase letters, numbers, hyphens, and underscores (1-128 chars)")
+	}
+	// Additional check: prevent hidden files and parent directory references
+	if strings.HasPrefix(scenarioID, ".") || strings.Contains(scenarioID, "..") {
+		return fmt.Errorf("invalid scenario_id: cannot start with . or contain ..")
+	}
+	return nil
+}
 
 // isScenarioNotFound checks if a command error indicates a missing scenario
 func isScenarioNotFound(output string) bool {
@@ -37,13 +58,14 @@ func (s *Server) handleLifecycleError(w http.ResponseWriter, operation, scenario
 	s.log(fmt.Sprintf("scenario_%s_failed", operation), map[string]interface{}{
 		"scenario_id": scenarioID,
 		"error":       err.Error(),
-		"output":      output,
+		"output":      output, // Full output in logs for debugging
 	})
 
+	// Security: Sanitize output before sending to client
 	s.respondJSON(w, http.StatusInternalServerError, map[string]interface{}{
 		"success": false,
-		"message": fmt.Sprintf("Failed to %s scenario: %v", operation, err),
-		"output":  output,
+		"message": fmt.Sprintf("Failed to %s scenario", operation), // Don't leak error details
+		"output":  sanitizeCommandOutput(output),
 	})
 }
 
@@ -53,7 +75,7 @@ func (s *Server) respondLifecycleSuccess(w http.ResponseWriter, scenarioID, oper
 		"success":     true,
 		"message":     fmt.Sprintf("Scenario %s successfully", operation),
 		"scenario_id": scenarioID,
-		"output":      output,
+		"output":      sanitizeCommandOutput(output), // Security: sanitize before sending to client
 	})
 }
 
@@ -101,8 +123,8 @@ func createLifecycleCommand(operation, scenarioID string, loc scenarioLocation, 
 
 func (s *Server) handleScenarioStart(w http.ResponseWriter, r *http.Request) {
 	scenarioID := mux.Vars(r)["scenario_id"]
-	if scenarioID == "" {
-		http.Error(w, "scenario_id is required", http.StatusBadRequest)
+	if err := validateScenarioID(scenarioID); err != nil {
+		s.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -127,8 +149,8 @@ func (s *Server) handleScenarioStart(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleScenarioStop(w http.ResponseWriter, r *http.Request) {
 	scenarioID := mux.Vars(r)["scenario_id"]
-	if scenarioID == "" {
-		http.Error(w, "scenario_id is required", http.StatusBadRequest)
+	if err := validateScenarioID(scenarioID); err != nil {
+		s.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -179,8 +201,8 @@ func (s *Server) handleScenarioStop(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleScenarioRestart(w http.ResponseWriter, r *http.Request) {
 	scenarioID := mux.Vars(r)["scenario_id"]
-	if scenarioID == "" {
-		http.Error(w, "scenario_id is required", http.StatusBadRequest)
+	if err := validateScenarioID(scenarioID); err != nil {
+		s.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -205,8 +227,8 @@ func (s *Server) handleScenarioRestart(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleScenarioStatus(w http.ResponseWriter, r *http.Request) {
 	scenarioID := mux.Vars(r)["scenario_id"]
-	if scenarioID == "" {
-		http.Error(w, "scenario_id is required", http.StatusBadRequest)
+	if err := validateScenarioID(scenarioID); err != nil {
+		s.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -311,8 +333,8 @@ func (s *Server) handleScenarioStatus(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleScenarioLogs(w http.ResponseWriter, r *http.Request) {
 	scenarioID := mux.Vars(r)["scenario_id"]
-	if scenarioID == "" {
-		http.Error(w, "scenario_id is required", http.StatusBadRequest)
+	if err := validateScenarioID(scenarioID); err != nil {
+		s.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -356,13 +378,26 @@ func getTailParam(r *http.Request) string {
 	if tail == "" {
 		return "50"
 	}
+	// Security: validate tail parameter is a positive integer within reasonable bounds
+	if n, err := strconv.Atoi(tail); err != nil || n < 1 || n > 10000 {
+		return "50" // fallback to safe default
+	}
 	return tail
+}
+
+// sanitizeCommandOutput removes sensitive information from command output before sending to client
+func sanitizeCommandOutput(output string) string {
+	// Remove absolute paths that might leak system structure
+	output = regexp.MustCompile(`/home/[^/\s]+`).ReplaceAllString(output, "/home/user")
+	output = regexp.MustCompile(`/Users/[^/\s]+`).ReplaceAllString(output, "/Users/user")
+	// Note: Add more sanitization rules as needed (environment variables, credentials, etc.)
+	return output
 }
 
 func (s *Server) handleScenarioPromote(w http.ResponseWriter, r *http.Request) {
 	scenarioID := mux.Vars(r)["scenario_id"]
-	if scenarioID == "" {
-		http.Error(w, "scenario_id is required", http.StatusBadRequest)
+	if err := validateScenarioID(scenarioID); err != nil {
+		s.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 

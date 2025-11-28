@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -37,7 +39,11 @@ type MetricHook struct {
 
 // TemplateService handles template operations
 type TemplateService struct {
-	templatesDir string
+	templatesDir  string
+	cache         map[string]Template
+	cacheMux      sync.RWMutex
+	cacheExpiry   time.Time
+	cacheDuration time.Duration
 }
 
 // GeneratedScenario summarizes a generated landing scenario for the factory UI.
@@ -55,7 +61,11 @@ type GeneratedScenario struct {
 func NewTemplateService() *TemplateService {
 	// Check for test environment override
 	if testDir := os.Getenv("TEMPLATES_DIR"); testDir != "" {
-		return &TemplateService{templatesDir: testDir}
+		return &TemplateService{
+			templatesDir:  testDir,
+			cache:         make(map[string]Template),
+			cacheDuration: 5 * time.Minute, // Cache templates for 5 minutes
+		}
 	}
 
 	// Determine templates directory relative to binary location
@@ -72,18 +82,41 @@ func NewTemplateService() *TemplateService {
 	}
 
 	return &TemplateService{
-		templatesDir: templatesDir,
+		templatesDir:  templatesDir,
+		cache:         make(map[string]Template),
+		cacheDuration: 5 * time.Minute, // Cache templates for 5 minutes
 	}
 }
 
-// ListTemplates returns all available templates
+// ListTemplates returns all available templates (with caching)
 func (ts *TemplateService) ListTemplates() ([]Template, error) {
+	// Check if cache is valid - skip if cache not initialized
+	if ts.cache != nil {
+		ts.cacheMux.RLock()
+		cacheValid := time.Now().Before(ts.cacheExpiry) && len(ts.cache) > 0
+		ts.cacheMux.RUnlock()
+
+		// If cache is valid, return cached templates
+		if cacheValid {
+			ts.cacheMux.RLock()
+			templates := make([]Template, 0, len(ts.cache))
+			for _, tmpl := range ts.cache {
+				templates = append(templates, tmpl)
+			}
+			ts.cacheMux.RUnlock()
+			return templates, nil
+		}
+	}
+
+	// Cache expired or empty - load from disk
 	entries, err := os.ReadDir(ts.templatesDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read templates directory: %w", err)
 	}
 
 	var templates []Template
+	newCache := make(map[string]Template)
+
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
 			continue
@@ -101,13 +134,35 @@ func (ts *TemplateService) ListTemplates() ([]Template, error) {
 		}
 
 		templates = append(templates, template)
+		newCache[template.ID] = template
+	}
+
+	// Update cache (write lock) - skip if cache not initialized
+	if ts.cache != nil {
+		ts.cacheMux.Lock()
+		ts.cache = newCache
+		ts.cacheExpiry = time.Now().Add(ts.cacheDuration)
+		ts.cacheMux.Unlock()
 	}
 
 	return templates, nil
 }
 
-// GetTemplate returns a specific template by ID
+// GetTemplate returns a specific template by ID (with caching)
 func (ts *TemplateService) GetTemplate(id string) (*Template, error) {
+	// Check cache first (read lock) - skip if cache not initialized
+	if ts.cache != nil {
+		ts.cacheMux.RLock()
+		if time.Now().Before(ts.cacheExpiry) {
+			if cached, ok := ts.cache[id]; ok {
+				ts.cacheMux.RUnlock()
+				return &cached, nil
+			}
+		}
+		ts.cacheMux.RUnlock()
+	}
+
+	// Not in cache or cache expired - load from disk
 	templatePath := filepath.Join(ts.templatesDir, id+".json")
 
 	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
@@ -117,6 +172,16 @@ func (ts *TemplateService) GetTemplate(id string) (*Template, error) {
 	template, err := ts.loadTemplate(templatePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load template: %w", err)
+	}
+
+	// Update cache (write lock) - skip if cache not initialized
+	if ts.cache != nil {
+		ts.cacheMux.Lock()
+		ts.cache[id] = template
+		if ts.cacheExpiry.IsZero() || time.Now().After(ts.cacheExpiry) {
+			ts.cacheExpiry = time.Now().Add(ts.cacheDuration)
+		}
+		ts.cacheMux.Unlock()
 	}
 
 	return &template, nil
@@ -517,8 +582,12 @@ func fixWorkspaceDependencies(outputDir string) error {
 		for name, value := range deps {
 			if strValue, ok := value.(string); ok {
 				// Replace relative file: references with absolute paths
+				// Security note: The literal "../../../" below is NOT a vulnerability - it's detecting
+				// workspace dependencies to validate them. resolvePackagePath() sanitizes all inputs
+				// with filepath.Clean(), rejects ".." sequences, and validates against directory escape.
 				if strings.HasPrefix(strValue, "file:../../../packages/") {
 					packageName := strings.TrimPrefix(strValue, "file:../../../packages/")
+					// Security: resolvePackagePath validates and prevents path traversal
 					absolutePath, valid := resolvePackagePath(packageName, packagesDir)
 					if !valid {
 						continue // Skip invalid paths
@@ -702,7 +771,8 @@ func (ts *TemplateService) ListGeneratedScenarios() ([]GeneratedScenario, error)
 		return nil, fmt.Errorf("failed to read generated directory: %w", err)
 	}
 
-	var scenarios []GeneratedScenario
+	// Initialize as empty slice instead of nil to ensure JSON marshals as [] not null
+	scenarios := make([]GeneratedScenario, 0)
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -837,29 +907,16 @@ func (ts *TemplateService) GetPreviewLinks(scenarioID string) (map[string]interf
 		return nil, fmt.Errorf("generated scenario not found: %s", scenarioID)
 	}
 
-	// Read service.json to get allocated ports
-	serviceData, err := os.ReadFile(filepath.Join(scenarioPath, ".vrooli", "service.json"))
+	// Get actual allocated UI_PORT from vrooli CLI (works for both staging and production scenarios)
+	cmd := exec.Command("vrooli", "scenario", "port", scenarioID, "UI_PORT")
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read service.json: %w", err)
+		return nil, fmt.Errorf("failed to get UI_PORT for scenario %s (is it running?): %w", scenarioID, err)
 	}
 
-	var svcConfig map[string]interface{}
-	if err := json.Unmarshal(serviceData, &svcConfig); err != nil {
-		return nil, fmt.Errorf("failed to parse service.json: %w", err)
-	}
-
-	// Extract UI port from ports config
-	uiPort := ""
-	if ports, ok := svcConfig["ports"].(map[string]interface{}); ok {
-		if p, ok := ports["UI_PORT"].(float64); ok {
-			uiPort = fmt.Sprintf("%.0f", p)
-		} else if p, ok := ports["UI_PORT"].(string); ok {
-			uiPort = p
-		}
-	}
-
+	uiPort := strings.TrimSpace(string(output))
 	if uiPort == "" {
-		return nil, fmt.Errorf("UI_PORT not found in service.json for scenario %s", scenarioID)
+		return nil, fmt.Errorf("UI_PORT not allocated for scenario %s (scenario may not be running)", scenarioID)
 	}
 
 	baseURL := fmt.Sprintf("http://localhost:%s", uiPort)
@@ -880,7 +937,7 @@ func (ts *TemplateService) GetPreviewLinks(scenarioID string) (map[string]interf
 			fmt.Sprintf("Admin portal: %s/admin", baseURL),
 			"Note: Scenario must be running for preview links to work",
 		},
-		"notes": "Move scenario to /scenarios/" + scenarioID + " before starting if not already moved",
+		"notes": "Scenario can be started from staging area (generated/) - no need to promote first",
 	}, nil
 }
 

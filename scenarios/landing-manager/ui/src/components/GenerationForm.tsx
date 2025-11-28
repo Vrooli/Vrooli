@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { AlertCircle, CheckCircle, HelpCircle, Loader2, Play, RefreshCcw, Rocket, Zap } from 'lucide-react';
 import { type GenerationResult, type Template } from '../lib/api';
 import { slugify } from '../lib/utils';
@@ -21,7 +22,7 @@ interface GenerationFormProps {
   onClearError: () => void;
 }
 
-export function GenerationForm({
+export const GenerationForm = memo(function GenerationForm({
   selectedTemplate,
   name,
   slug,
@@ -294,4 +295,4 @@ export function GenerationForm({
       )}
     </section>
   );
-}
+});

@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -21,6 +22,61 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
+
+// Security: Validation patterns
+var (
+	templateIDPattern = regexp.MustCompile(`^[a-z0-9_-]{1,64}$`)
+	scenarioNamePattern = regexp.MustCompile(`^[a-zA-Z0-9_\s-]{1,128}$`)
+	scenarioSlugPattern = regexp.MustCompile(`^[a-z0-9_-]{1,64}$`)
+	personaIDPattern = regexp.MustCompile(`^[a-z0-9_-]{1,64}$`)
+)
+
+// validateTemplateID ensures the template ID is safe
+func validateTemplateID(id string) error {
+	if id == "" {
+		return fmt.Errorf("template_id is required")
+	}
+	if !templateIDPattern.MatchString(id) {
+		return fmt.Errorf("invalid template_id format")
+	}
+	return nil
+}
+
+// validateScenarioName validates scenario name input
+func validateScenarioName(name string) error {
+	if name == "" {
+		return fmt.Errorf("name is required")
+	}
+	if len(name) > 128 {
+		return fmt.Errorf("name too long (max 128 characters)")
+	}
+	if !scenarioNamePattern.MatchString(name) {
+		return fmt.Errorf("invalid name: must contain only letters, numbers, spaces, hyphens, and underscores")
+	}
+	return nil
+}
+
+// validateScenarioSlug validates scenario slug input
+func validateScenarioSlug(slug string) error {
+	if slug == "" {
+		return fmt.Errorf("slug is required")
+	}
+	if !scenarioSlugPattern.MatchString(slug) {
+		return fmt.Errorf("invalid slug: must contain only lowercase letters, numbers, hyphens, and underscores (1-64 chars)")
+	}
+	return nil
+}
+
+// validatePersonaID validates persona ID input
+func validatePersonaID(id string) error {
+	if id == "" {
+		return nil // persona_id is optional
+	}
+	if !personaIDPattern.MatchString(id) {
+		return fmt.Errorf("invalid persona_id format")
+	}
+	return nil
+}
 
 // Config holds minimal runtime configuration
 type Config struct {
@@ -76,6 +132,7 @@ func NewServer() (*Server, error) {
 
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
+	s.router.Use(requestSizeLimitMiddleware) // Security: limit request body size
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
@@ -214,10 +271,16 @@ func (s *Server) handleTemplateShow(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	// Security: Validate template ID
+	if err := validateTemplateID(id); err != nil {
+		s.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	template, err := s.templateService.GetTemplate(id)
 	if err != nil {
 		s.log("failed to get template", map[string]interface{}{"id": id, "error": err.Error()})
-		http.Error(w, "Template not found", http.StatusNotFound)
+		s.respondError(w, http.StatusNotFound, "Template not found")
 		return
 	}
 
@@ -233,7 +296,21 @@ func (s *Server) handleGenerate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		s.respondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Security: Validate all inputs
+	if err := validateTemplateID(req.TemplateID); err != nil {
+		s.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := validateScenarioName(req.Name); err != nil {
+		s.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := validateScenarioSlug(req.Slug); err != nil {
+		s.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -244,7 +321,7 @@ func (s *Server) handleGenerate(w http.ResponseWriter, r *http.Request) {
 			"name":        req.Name,
 			"error":       err.Error(),
 		})
-		http.Error(w, fmt.Sprintf("Failed to generate scenario: %v", err), http.StatusBadRequest)
+		s.respondError(w, http.StatusBadRequest, "Failed to generate scenario")
 		return
 	}
 
@@ -266,13 +343,19 @@ func (s *Server) handlePreviewLinks(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	scenarioID := vars["scenario_id"]
 
+	// Security: Validate scenario ID (reuse slug pattern)
+	if err := validateScenarioSlug(scenarioID); err != nil {
+		s.respondError(w, http.StatusBadRequest, "invalid scenario_id format")
+		return
+	}
+
 	preview, err := s.templateService.GetPreviewLinks(scenarioID)
 	if err != nil {
 		s.log("failed to get preview links", map[string]interface{}{
 			"scenario_id": scenarioID,
 			"error":       err.Error(),
 		})
-		http.Error(w, fmt.Sprintf("Failed to get preview links: %v", err), http.StatusNotFound)
+		s.respondError(w, http.StatusNotFound, "Failed to get preview links")
 		return
 	}
 
@@ -289,13 +372,32 @@ func (s *Server) handleCustomize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		s.respondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Security: Validate inputs
+	if req.ScenarioID == "" {
+		s.respondError(w, http.StatusBadRequest, "scenario_id is required")
+		return
+	}
+	if err := validateScenarioSlug(req.ScenarioID); err != nil { // scenario_id follows slug format
+		s.respondError(w, http.StatusBadRequest, "invalid scenario_id format")
+		return
+	}
+	if len(req.Brief) > 10000 {
+		s.respondError(w, http.StatusBadRequest, "brief too long (max 10000 characters)")
+		return
+	}
+	if err := validatePersonaID(req.PersonaID); err != nil {
+		s.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	issueTrackerBase, err := s.resolveIssueTrackerBase()
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Issue tracker unavailable: %v", err), http.StatusBadGateway)
+		// Security: Don't leak internal error details
+		s.respondError(w, http.StatusBadGateway, "Issue tracker unavailable")
 		return
 	}
 
@@ -342,7 +444,7 @@ func (s *Server) handleCustomize(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.postJSON(issueTrackerBase+"/issues", issuePayload, &issueResp); err != nil {
 		s.log("issue_tracker_create_failed", map[string]interface{}{"error": err.Error()})
-		http.Error(w, fmt.Sprintf("Failed to file issue: %v", err), http.StatusBadGateway)
+		s.respondError(w, http.StatusBadGateway, "Failed to file issue")
 		return
 	}
 
@@ -418,10 +520,16 @@ func (s *Server) handlePersonaShow(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	// Security: Validate persona ID
+	if err := validatePersonaID(id); err != nil {
+		s.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	persona, err := s.templateService.GetPersona(id)
 	if err != nil {
 		s.log("failed to get persona", map[string]interface{}{"id": id, "error": err.Error()})
-		http.Error(w, "Persona not found", http.StatusNotFound)
+		s.respondError(w, http.StatusNotFound, "Persona not found")
 		return
 	}
 
@@ -439,6 +547,15 @@ func loggingMiddleware(next http.Handler) http.Handler {
 			"duration": time.Since(start).String(),
 		}
 		logStructured("request_completed", fields)
+	})
+}
+
+// requestSizeLimitMiddleware limits request body size to prevent DoS attacks
+func requestSizeLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Security: Limit request body to 10MB to prevent memory exhaustion
+		r.Body = http.MaxBytesReader(w, r.Body, 10*1024*1024)
+		next.ServeHTTP(w, r)
 	})
 }
 

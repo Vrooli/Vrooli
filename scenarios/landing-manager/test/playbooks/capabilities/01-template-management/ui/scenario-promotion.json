@@ -1,0 +1,86 @@
+{
+  "metadata": {
+    "description": "Validates UI-based scenario promotion from staging (generated/) to production (scenarios/) without requiring terminal/file operations",
+    "requirements": ["TMPL-PROMOTION"],
+    "reset": "none"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-factory",
+      "type": "navigate",
+      "data": {
+        "label": "Navigate to landing-manager factory UI",
+        "destinationType": "scenario",
+        "scenario": "landing-manager",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 30000
+      }
+    },
+    {
+      "id": "wait-for-generated-list",
+      "type": "wait",
+      "data": {
+        "label": "Wait for generated scenarios list to load",
+        "selector": "@selector/generated-scenarios-list",
+        "timeoutMs": 15000,
+        "waitForMs": 500,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "assert-promote-button-exists",
+      "type": "assert",
+      "data": {
+        "label": "Assert promote button is present for stopped scenarios",
+        "selector": "@selector/lifecycle-promote-button",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Promote button should be visible for stopped scenarios"
+      }
+    },
+    {
+      "id": "click-promote",
+      "type": "click",
+      "data": {
+        "label": "Click promote to production button",
+        "selector": "@selector/lifecycle-promote-button",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-for-confirmation",
+      "type": "wait",
+      "data": {
+        "label": "Wait for promotion confirmation",
+        "waitType": "time",
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "assert-promotion-result",
+      "type": "assert",
+      "data": {
+        "label": "Assert promotion completed (button no longer visible or success message shown)",
+        "selector": "@selector/generated-scenarios-list",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Generated scenarios list should still be present after promotion"
+      }
+    }
+  ],
+  "edges": [
+    { "id": "edge-1", "source": "navigate-factory", "target": "wait-for-generated-list", "type": "smoothstep" },
+    { "id": "edge-2", "source": "wait-for-generated-list", "target": "assert-promote-button-exists", "type": "smoothstep" },
+    { "id": "edge-3", "source": "assert-promote-button-exists", "target": "click-promote", "type": "smoothstep" },
+    { "id": "edge-4", "source": "click-promote", "target": "wait-for-confirmation", "type": "smoothstep" },
+    { "id": "edge-5", "source": "wait-for-confirmation", "target": "assert-promotion-result", "type": "smoothstep" }
+  ]
+}

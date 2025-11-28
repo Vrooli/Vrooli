@@ -1,259 +1,71 @@
 {
   "_metadata": {
-    "description": "Manual validation tracking for requirements without automated tests",
-    "last_updated": "2025-11-25",
-    "validator": "Ecosystem Manager Improver",
-    "schema_version": "1.0.0"
+    "description": "Manual validation tracking for requirements that cannot be automated",
+    "schema_version": "1.0.0",
+    "last_updated": "2025-11-27"
   },
   "validations": [
     {
-      "requirement_id": "STRIPE-CONFIG",
-      "status": "complete",
-      "validation_date": "2025-11-22",
-      "validator": "Ecosystem Manager",
-      "method": "code_review",
-      "notes": "Stripe keys configured via environment variables in api/stripe_service.go; verified in business test phase",
-      "evidence": "api/stripe_service.go:NewStripeService, test/phases/test-business.sh"
-    },
-    {
-      "requirement_id": "STRIPE-ROUTES",
-      "status": "complete",
-      "validation_date": "2025-11-22",
-      "validator": "Ecosystem Manager",
-      "method": "api_test",
-      "notes": "Checkout and webhook routes validated in business test phase (27/27 endpoints passing)",
-      "evidence": "test/phases/test-business.sh, .vrooli/endpoints.json"
-    },
-    {
-      "requirement_id": "STRIPE-SIG",
-      "status": "complete",
-      "validation_date": "2025-11-22",
-      "validator": "Ecosystem Manager",
-      "method": "code_review",
-      "notes": "Webhook signature verification implemented in api/stripe_service.go:VerifyWebhookSignature",
-      "evidence": "api/stripe_service.go:VerifyWebhookSignature"
-    },
-    {
-      "requirement_id": "SUB-VERIFY",
-      "status": "complete",
-      "validation_date": "2025-11-22",
-      "validator": "Ecosystem Manager",
-      "method": "api_test",
-      "notes": "Subscription verification endpoint tested in business phase; returns active/inactive status",
-      "evidence": "test/phases/test-business.sh, api/stripe_service.go:VerifySubscription"
-    },
-    {
-      "requirement_id": "SUB-CACHE",
-      "status": "complete",
-      "validation_date": "2025-11-22",
-      "validator": "Ecosystem Manager",
-      "method": "code_review",
-      "notes": "Subscription caching implemented with TTL support in api/stripe_service.go",
-      "evidence": "api/stripe_service.go cache implementation"
-    },
-    {
-      "requirement_id": "SUB-CANCEL",
-      "status": "complete",
-      "validation_date": "2025-11-22",
-      "validator": "Ecosystem Manager",
-      "method": "api_test",
-      "notes": "Subscription cancellation endpoint validated in business test phase",
-      "evidence": "test/phases/test-business.sh"
-    },
-    {
-      "requirement_id": "DESIGN-GUIDE",
-      "status": "pending",
-      "validation_date": null,
-      "validator": null,
-      "method": "pending_implementation",
-      "notes": "P1 requirement: Template metadata lacks frontend_aesthetics block for design agents",
-      "evidence": "Deferred to P1 phase"
-    },
-    {
-      "requirement_id": "DESIGN-FONT",
-      "status": "complete",
-      "validation_date": "2025-11-22",
-      "validator": "Ecosystem Manager Improver",
-      "method": "code_review",
-      "notes": "P1 requirement: Space Grotesk font (distinctive geometric sans-serif) implemented via Google Fonts",
-      "evidence": "ui/src/styles.css:1 (Google Fonts import), ui/src/styles.css:53 (font-family declaration)"
-    },
-    {
-      "requirement_id": "DESIGN-VARS",
-      "status": "complete",
-      "validation_date": "2025-11-22",
-      "validator": "Ecosystem Manager Improver",
-      "method": "code_review",
-      "notes": "P1 requirement: Comprehensive CSS custom properties for colors, spacing, radius, and shadows",
-      "evidence": "ui/src/styles.css:10-50 (CSS variables: --color-*, --spacing-*, --radius-*, --shadow-*)"
-    },
-    {
-      "requirement_id": "DESIGN-BG",
-      "status": "complete",
-      "validation_date": "2025-11-22",
-      "validator": "Ecosystem Manager Improver",
-      "method": "visual_review",
-      "notes": "P1 requirement: Multi-layered gradient backgrounds (mesh gradient with radial + linear gradients)",
-      "evidence": "ui/src/styles.css:58-82 (gradient utilities), ui/src/pages/PublicHome.tsx:18 (bg-mesh-gradient usage)"
-    },
-    {
-      "requirement_id": "DESIGN-VIDEO",
-      "status": "pending",
-      "validation_date": null,
-      "validator": null,
-      "method": "pending_implementation",
-      "notes": "P1 requirement: Video embed support not yet implemented",
-      "evidence": "Deferred to P1 phase"
-    },
-    {
-      "requirement_id": "TMPL-MULTI",
-      "status": "pending",
-      "validation_date": null,
-      "validator": null,
-      "method": "pending_implementation",
-      "notes": "P2 requirement: Only saas-landing-page template exists; multi-template deferred",
-      "evidence": "Deferred to P2 phase"
-    },
-    {
       "requirement_id": "TMPL-MARKETPLACE",
-      "status": "pending",
-      "validation_date": null,
+      "title": "Template marketplace integration",
       "validator": "Ecosystem Manager",
-      "method": "pending_implementation",
-      "notes": "P2 requirement: Template marketplace feature deferred to future phase. Requires business decision on trust/safety model before implementation.",
-      "evidence": "requirements/01-template-management/module.json:TMPL-MARKETPLACE",
-      "tracked": true,
-      "validation_notes": "Requires business decision on trust/safety model before implementation"
+      "validation_type": "business_decision",
+      "status": "planned",
+      "last_validated": null,
+      "validation_notes": "Requires business decision on trust/safety model before implementation. Need to define: template submission process, review criteria, security scanning requirements, and marketplace UI/UX.",
+      "next_steps": [
+        "Define trust/safety model for third-party templates",
+        "Design template submission and review workflow",
+        "Implement security scanning for uploaded templates",
+        "Create marketplace UI for template discovery"
+      ],
+      "blocked_by": [
+        "Business decision on marketplace model",
+        "Security requirements for third-party code"
+      ]
     },
     {
       "requirement_id": "TMPL-MIGRATION",
-      "status": "pending",
-      "validation_date": null,
+      "title": "Template migration helper",
       "validator": "Ecosystem Manager",
-      "method": "pending_implementation",
-      "notes": "P2 requirement: Template migration helper deferred to future phase. Requires versioning strategy and migration patterns before implementation.",
-      "evidence": "requirements/01-template-management/module.json:TMPL-MIGRATION",
-      "tracked": true,
-      "validation_notes": "Requires versioning strategy and migration patterns before implementation"
+      "validation_type": "technical_infrastructure",
+      "status": "planned",
+      "last_validated": null,
+      "validation_notes": "Requires versioning strategy and migration patterns before implementation. Need to define: version comparison logic, migration script generation, compatibility checks, and automated testing of migrations.",
+      "next_steps": [
+        "Define template versioning scheme (semver)",
+        "Design migration pattern library",
+        "Implement version comparison and compatibility checking",
+        "Create migration script generator",
+        "Build automated migration testing"
+      ],
+      "blocked_by": [
+        "Template versioning strategy",
+        "Migration pattern definition"
+      ],
+      "dependencies": [
+        "TMPL-PROVENANCE"
+      ]
     },
     {
       "requirement_id": "TMPL-GENERATION-ANALYTICS",
-      "status": "pending",
-      "validation_date": null,
+      "title": "Analytics on generation usage",
       "validator": "Ecosystem Manager",
-      "method": "pending_implementation",
-      "notes": "P2 requirement: Analytics on generation usage deferred to future phase. Requires analytics infrastructure and metrics definition before implementation.",
-      "evidence": "requirements/01-template-management/module.json:TMPL-GENERATION-ANALYTICS",
-      "tracked": true,
-      "validation_notes": "Requires analytics infrastructure and metrics definition before implementation"
-    },
-    {
-      "requirement_id": "AB-SIGNIFICANCE",
-      "status": "pending",
-      "validation_date": null,
-      "validator": null,
-      "method": "pending_implementation",
-      "notes": "P2 requirement: Statistical significance testing deferred to advanced analytics",
-      "evidence": "Deferred to P2 phase"
-    },
-    {
-      "requirement_id": "AB-AUTO-WINNER",
-      "status": "pending",
-      "validation_date": null,
-      "validator": null,
-      "method": "pending_implementation",
-      "notes": "P2 requirement: Automatic winner selection deferred to advanced A/B testing",
-      "evidence": "Deferred to P2 phase"
-    },
-    {
-      "requirement_id": "AB-BANDIT",
-      "status": "pending",
-      "validation_date": null,
-      "validator": null,
-      "method": "pending_implementation",
-      "notes": "P2 requirement: Multi-armed bandit algorithm deferred to advanced features",
-      "evidence": "Deferred to P2 phase"
-    },
-    {
-      "requirement_id": "METRIC-HEATMAP",
-      "status": "pending",
-      "validation_date": null,
-      "validator": null,
-      "method": "pending_implementation",
-      "notes": "P2 requirement: Click heatmap visualization deferred to enhanced analytics",
-      "evidence": "Deferred to P2 phase"
-    },
-    {
-      "requirement_id": "METRIC-REPLAY",
-      "status": "pending",
-      "validation_date": null,
-      "validator": null,
-      "method": "pending_implementation",
-      "notes": "P2 requirement: Session replay deferred to enhanced analytics phase",
-      "evidence": "Deferred to P2 phase"
-    },
-    {
-      "requirement_id": "METRIC-FUNNEL",
-      "status": "pending",
-      "validation_date": null,
-      "validator": null,
-      "method": "pending_implementation",
-      "notes": "P2 requirement: Multi-step funnel analysis deferred to enhanced analytics",
-      "evidence": "Deferred to P2 phase"
-    },
-    {
-      "requirement_id": "AGENT-VARIANTS",
-      "status": "pending",
-      "validation_date": null,
-      "validator": null,
-      "method": "pending_implementation",
-      "notes": "P2 requirement: Agent-generated A/B variants deferred to agent capabilities phase",
-      "evidence": "Deferred to P2 phase"
-    },
-    {
-      "requirement_id": "AGENT-MVT",
-      "status": "pending",
-      "validation_date": null,
-      "validator": null,
-      "method": "pending_implementation",
-      "notes": "P2 requirement: Multivariate testing deferred to advanced agent features",
-      "evidence": "Deferred to P2 phase"
-    },
-    {
-      "requirement_id": "AGENT-PERSONA",
-      "status": "pending",
-      "validation_date": null,
-      "validator": null,
-      "method": "pending_implementation",
-      "notes": "P2 requirement: Persona-based variants deferred to agent capabilities phase",
-      "evidence": "Deferred to P2 phase"
-    },
-    {
-      "requirement_id": "INTEG-CRM",
-      "status": "pending",
-      "validation_date": null,
-      "validator": null,
-      "method": "pending_implementation",
-      "notes": "P2 requirement: CRM integration (HubSpot, Salesforce) deferred to integration phase",
-      "evidence": "Deferred to P2 phase"
-    },
-    {
-      "requirement_id": "INTEG-EMAIL",
-      "status": "pending",
-      "validation_date": null,
-      "validator": null,
-      "method": "pending_implementation",
-      "notes": "P2 requirement: Email marketing integration deferred to integration phase",
-      "evidence": "Deferred to P2 phase"
-    },
-    {
-      "requirement_id": "INTEG-WEBHOOK",
-      "status": "pending",
-      "validation_date": null,
-      "validator": null,
-      "method": "pending_implementation",
-      "notes": "P2 requirement: Custom webhook notifications deferred to integration phase",
-      "evidence": "Deferred to P2 phase"
+      "validation_type": "infrastructure",
+      "status": "planned",
+      "last_validated": null,
+      "validation_notes": "Requires analytics infrastructure and metrics definition before implementation. Need to define: which events to track, data retention policy, privacy considerations, and analytics dashboard.",
+      "next_steps": [
+        "Define key metrics to track (generations per template, success rate, customization patterns)",
+        "Implement event telemetry in generation pipeline",
+        "Set up analytics database/storage",
+        "Create analytics dashboard in factory UI",
+        "Define data retention and privacy policy"
+      ],
+      "blocked_by": [
+        "Analytics infrastructure decision",
+        "Metrics definition and priority"
+      ]
     }
   ]
 }

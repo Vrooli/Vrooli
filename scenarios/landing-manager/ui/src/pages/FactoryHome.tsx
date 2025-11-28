@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle, Loader2, HelpCircle, Sparkles, Zap } from 'lucide-react';
 import {
   generateScenario,
@@ -69,12 +69,8 @@ export default function FactoryHome() {
         setTemplates(tpl);
         setSelectedId((id) => id ?? tpl[0]?.id ?? null);
         setTemplatesError(null);
-
-        // Hydrate the selected template with full metadata if needed
-        if (tpl[0]?.id) {
-          const full = await getTemplate(tpl[0].id);
-          setTemplates([full, ...tpl.slice(1)]);
-        }
+        // Removed unnecessary template hydration - listTemplates already returns full metadata
+        // This eliminates a redundant API call on mount, improving initial load performance
       } catch (err) {
         setTemplatesError(err instanceof Error ? err.message : 'Failed to load templates');
       } finally {
@@ -102,7 +98,7 @@ export default function FactoryHome() {
     loadGenerated();
   }, []);
 
-  const handleNameChange = (value: string) => {
+  const handleNameChange = useCallback((value: string) => {
     setName(value);
     // Validate name
     if (value.trim().length === 0) {
@@ -122,9 +118,9 @@ export default function FactoryHome() {
       }
       return prev;
     });
-  };
+  }, [name]);
 
-  const handleSlugChange = (value: string) => {
+  const handleSlugChange = useCallback((value: string) => {
     const cleaned = slugify(value);
     setSlug(cleaned);
     // Validate slug
@@ -139,7 +135,7 @@ export default function FactoryHome() {
     } else {
       setSlugError(null);
     }
-  };
+  }, []);
 
   const handleGenerate = async (dryRun: boolean) => {
     if (!selectedTemplate) return;

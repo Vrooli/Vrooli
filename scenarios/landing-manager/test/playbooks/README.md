@@ -63,12 +63,13 @@ Or trigger automatically by running `make test`.
 ## Coverage
 
 Current playbooks validate:
-- **TMPL-AVAILABILITY** (P0): Template catalog display with saas-landing-page
 - **TMPL-DRY-RUN** (P1): Dry-run generation (plan-only mode)
+- **TMPL-LIFECYCLE** (P1): UI-based lifecycle management (start/stop/restart/logs)
+- **TMPL-PROMOTION** (P1): UI-based scenario promotion from staging to production
 
-### Planned Additions
+### Future Additions
 
-To achieve full P0 multi-layer validation (+9pts completeness improvement):
+For additional coverage:
 - **TMPL-METADATA**: Template metadata panel display (sections, metrics hooks, schema)
 - **TMPL-GENERATION**: Full scenario generation (non-dry-run)
 - **TMPL-OUTPUT-VALIDATION**: Generated scenario structure validation

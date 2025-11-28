@@ -114,25 +114,42 @@ export function useScenarioLifecycle(): UseScenarioLifecycleReturn {
   }, [showLogs, logs]);
 
   const loadStatuses = useCallback(async (scenarioIds: string[]) => {
-    for (const scenarioId of scenarioIds) {
-      try {
+    // Parallelize all status checks instead of sequential loop
+    const results = await Promise.allSettled(
+      scenarioIds.map(async (scenarioId) => {
         const status = await getScenarioStatus(scenarioId);
-        setStatuses((prev) => ({
-          ...prev,
-          [scenarioId]: { running: status.running, loading: false },
-        }));
+        return { scenarioId, status };
+      })
+    );
 
-        // Load preview links if running
+    // Update all statuses in a single batch
+    const statusUpdates: Record<string, ScenarioStatus> = {};
+    const runningScenarios: string[] = [];
+
+    results.forEach((result) => {
+      if (result.status === 'fulfilled') {
+        const { scenarioId, status } = result.value;
+        statusUpdates[scenarioId] = { running: status.running, loading: false };
         if (status.running) {
-          await fetchPreviewLinks(scenarioId);
+          runningScenarios.push(scenarioId);
         }
-      } catch {
-        // Set default status on error
-        setStatuses((prev) => ({
-          ...prev,
-          [scenarioId]: { running: false, loading: false },
-        }));
+      } else {
+        // Extract scenarioId from rejected promise (fallback to index)
+        const index = results.indexOf(result);
+        if (index >= 0 && index < scenarioIds.length) {
+          statusUpdates[scenarioIds[index]] = { running: false, loading: false };
+        }
       }
+    });
+
+    // Single state update for all statuses
+    setStatuses((prev) => ({ ...prev, ...statusUpdates }));
+
+    // Parallelize preview link fetches for running scenarios
+    if (runningScenarios.length > 0) {
+      await Promise.allSettled(
+        runningScenarios.map((scenarioId) => fetchPreviewLinks(scenarioId))
+      );
     }
   }, [fetchPreviewLinks]);
 

@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import RequirementReporter from '@vrooli/vitest-requirement-reporter';
 
 export default defineConfig({
   base: './',  // Required for tunnel/proxy contexts
@@ -8,6 +9,12 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
+    reporters: [new RequirementReporter({
+      outputFile: 'coverage/vitest-requirements.json',
+      emitStdout: true,
+      verbose: true,
+      conciseMode: true,
+    })],
     coverage: {
       provider: 'v8',
       reporter: ['json-summary', 'json', 'text'],
