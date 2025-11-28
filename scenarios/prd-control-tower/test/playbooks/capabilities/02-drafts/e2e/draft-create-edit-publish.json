@@ -1,0 +1,148 @@
+{
+  "metadata": {
+    "description": "Draft editor workflow: navigate to catalog, open scenario, and access draft editor (NOTE: Save/Publish steps omitted due to Monaco+React controlled component limitation - see PROBLEMS.md)",
+    "version": 1,
+    "reset": "full",
+    "requirements": ["PCT-FUNC-002", "PCT-DRAFT-CREATE", "PCT-DRAFT-EDIT"]
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-home",
+      "type": "navigate",
+      "data": {
+        "label": "Open PRD Control Tower",
+        "destinationType": "scenario",
+        "scenario": "prd-control-tower",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle",
+        "timeoutMs": 30000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "click-catalog-link",
+      "type": "click",
+      "data": {
+        "label": "Navigate to Catalog page",
+        "selector": "@selector/navigation.catalogLink",
+        "timeoutMs": 10000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "assert-catalog-loaded",
+      "type": "assert",
+      "data": {
+        "label": "Catalog cards visible",
+        "selector": "@selector/catalog.card",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Catalog should display scenario cards"
+      }
+    },
+    {
+      "id": "click-first-card",
+      "type": "click",
+      "data": {
+        "label": "Click first scenario card",
+        "selector": "@selector/catalog.card",
+        "timeoutMs": 10000,
+        "waitForMs": 3000
+      }
+    },
+    {
+      "id": "assert-scenario-loaded",
+      "type": "assert",
+      "data": {
+        "label": "Scenario control center loaded",
+        "selector": "@selector/scenario.tabs.prd",
+        "assertMode": "exists",
+        "timeoutMs": 20000,
+        "failureMessage": "Scenario detail page should load with PRD tab"
+      }
+    },
+    {
+      "id": "click-edit-draft",
+      "type": "click",
+      "data": {
+        "label": "Click Edit Draft button",
+        "selector": "a[href*='/draft/']",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "assert-editor-loaded",
+      "type": "assert",
+      "data": {
+        "label": "Draft editor loaded",
+        "selector": "@selector/drafts.editor.textarea",
+        "assertMode": "exists",
+        "timeoutMs": 20000,
+        "failureMessage": "Draft editor should be visible after clicking Edit Draft"
+      }
+    },
+    {
+      "id": "assert-editor-has-content",
+      "type": "assert",
+      "data": {
+        "label": "Editor contains PRD content",
+        "selector": ".monaco-editor .view-lines",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Editor should display content after loading"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "click-catalog-link",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "click-catalog-link",
+      "target": "assert-catalog-loaded",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "assert-catalog-loaded",
+      "target": "click-first-card",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "click-first-card",
+      "target": "assert-scenario-loaded",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "assert-scenario-loaded",
+      "target": "click-edit-draft",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "click-edit-draft",
+      "target": "assert-editor-loaded",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "assert-editor-loaded",
+      "target": "assert-editor-has-content",
+      "type": "smoothstep"
+    }
+  ]
+}

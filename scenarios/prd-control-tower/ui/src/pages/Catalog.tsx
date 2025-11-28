@@ -8,9 +8,11 @@ import {
   Search,
   Sparkles,
   StickyNote,
+  Tag,
   Target,
 } from 'lucide-react'
 
+import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -24,9 +26,10 @@ import { usePrepareDraft } from '../utils/useDraft'
 import type { CatalogEntry, CatalogResponse } from '../types'
 import { CatalogCard, QuickAddIdeaDialog } from '../components/catalog'
 import { cn } from '../lib/utils'
+import { selectors } from '../consts/selectors'
 
 type CatalogFilter = 'all' | 'scenario' | 'resource'
-type CatalogSort = 'status' | 'name_asc' | 'name_desc' | 'coverage'
+type CatalogSort = 'status' | 'name_asc' | 'name_desc' | 'coverage' | 'recently_viewed'
 
 export default function Catalog() {
   const [entries, setEntries] = useState<CatalogEntry[]>([])
@@ -36,6 +39,8 @@ export default function Catalog() {
   const [typeFilter, setTypeFilter] = useState<CatalogFilter>('all')
   const [sortMode, setSortMode] = useState<CatalogSort>('status')
   const [quickAddOpen, setQuickAddOpen] = useState(false)
+  const [selectedLabels, setSelectedLabels] = useState<string[]>([])
+  const [availableLabels, setAvailableLabels] = useState<string[]>([])
   const navigate = useNavigate()
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -55,7 +60,7 @@ export default function Catalog() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(buildApiUrl('/catalog?include_requirements=1'))
+      const response = await fetch(buildApiUrl('/catalog?include_requirements=1&include_visits=1'))
       if (!response.ok) {
         throw new Error(`Failed to fetch catalog: ${response.statusText}`)
       }
@@ -68,9 +73,49 @@ export default function Catalog() {
     }
   }, [])
 
+  const fetchLabels = useCallback(async () => {
+    try {
+      const response = await fetch(buildApiUrl('/catalog/labels'))
+      if (!response.ok) {
+        console.warn('Failed to fetch labels')
+        return
+      }
+      const data: { labels: string[] } = await response.json()
+      setAvailableLabels(data.labels || [])
+    } catch (err) {
+      console.warn('Failed to fetch labels:', err)
+    }
+  }, [])
+
+  const recordVisit = useCallback(async (entityType: string, entityName: string) => {
+    try {
+      const response = await fetch(buildApiUrl(`/catalog/${entityType}/${entityName}/visit`), {
+        method: 'POST',
+      })
+      if (!response.ok) {
+        console.warn(`Failed to record visit for ${entityType}:${entityName}`)
+      }
+    } catch (err) {
+      console.warn('Failed to record visit:', err)
+    }
+  }, [])
+
+  const handleLabelsUpdate = useCallback((entityType: string, entityName: string, labels: string[]) => {
+    setEntries(prev =>
+      prev.map(entry =>
+        entry.type === entityType && entry.name === entityName
+          ? { ...entry, labels }
+          : entry
+      )
+    )
+    // Refresh available labels
+    fetchLabels()
+  }, [fetchLabels])
+
   useEffect(() => {
     fetchCatalog()
-  }, [fetchCatalog])
+    fetchLabels()
+  }, [fetchCatalog, fetchLabels])
 
   // Keyboard shortcuts: Cmd/Ctrl+K to focus search, Escape to clear
   useEffect(() => {
@@ -149,7 +194,9 @@ export default function Catalog() {
         entry.name.toLowerCase().includes(query) ||
         entry.description.toLowerCase().includes(query)
       const matchesType = typeFilter === 'all' || entry.type === typeFilter
-      return matchesSearch && matchesType
+      const matchesLabels = selectedLabels.length === 0 ||
+        (entry.labels && selectedLabels.every(label => entry.labels?.includes(label)))
+      return matchesSearch && matchesType && matchesLabels
     })
 
     const getCoverageScore = (entry: CatalogEntry) => {
@@ -166,6 +213,18 @@ export default function Catalog() {
           return b.name.localeCompare(a.name)
         case 'coverage':
           return getCoverageScore(b) - getCoverageScore(a)
+        case 'recently_viewed': {
+          // Sort by visit count first, then by last visited timestamp
+          const aVisits = a.visit_count ?? 0
+          const bVisits = b.visit_count ?? 0
+          if (bVisits !== aVisits) {
+            return bVisits - aVisits
+          }
+          // If visit counts equal, sort by most recently visited
+          const aTime = a.last_visited_at ? new Date(a.last_visited_at).getTime() : 0
+          const bTime = b.last_visited_at ? new Date(b.last_visited_at).getTime() : 0
+          return bTime - aTime
+        }
         case 'status': {
           const score = (entry: CatalogEntry) => {
             if (entry.has_prd) return 3
@@ -179,7 +238,7 @@ export default function Catalog() {
           return a.name.localeCompare(b.name)
       }
     })
-  }, [entries, search, typeFilter, sortMode])
+  }, [entries, search, typeFilter, sortMode, selectedLabels])
 
   const stats = useMemo(
     () => [
@@ -396,6 +455,7 @@ export default function Catalog() {
               <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
               <Input
                 ref={searchInputRef}
+                data-testid={selectors.catalog.searchInput}
                 value={search}
                 onChange={event => setSearch(event.target.value)}
                 placeholder="Search by name or description..."
@@ -423,25 +483,58 @@ export default function Catalog() {
                 </button>
               )}
             </div>
-            <div className="flex flex-col gap-1.5 w-full sm:w-auto">
-              <label htmlFor="catalog-sort" className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Sort by
-                <HelpTooltip
-                  content="Choose how to order catalog entries. 'Status' shows PRDs first, 'Coverage' sorts by requirement completion percentage."
-                  side="right"
-                />
-              </label>
-              <select
-                id="catalog-sort"
-                value={sortMode}
-                onChange={(event) => setSortMode(event.target.value as CatalogSort)}
-                className="h-12 sm:h-auto rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100 w-full sm:w-auto min-w-0 sm:min-w-[200px]"
-              >
-                <option value="status">Status (PRD first)</option>
-                <option value="coverage">Requirements coverage</option>
-                <option value="name_asc">Name A → Z</option>
-                <option value="name_desc">Name Z → A</option>
-              </select>
+            <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+              <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+                <label htmlFor="catalog-sort" className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Sort by
+                  <HelpTooltip
+                    content="Choose how to order catalog entries. 'Status' shows PRDs first, 'Coverage' sorts by requirement completion percentage."
+                    side="right"
+                  />
+                </label>
+                <select
+                  id="catalog-sort"
+                  value={sortMode}
+                  onChange={(event) => setSortMode(event.target.value as CatalogSort)}
+                  className="h-12 sm:h-auto rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100 w-full sm:w-auto min-w-0 sm:min-w-[200px]"
+                >
+                  <option value="status">Status (PRD first)</option>
+                  <option value="recently_viewed">Recently viewed</option>
+                  <option value="coverage">Requirements coverage</option>
+                  <option value="name_asc">Name A → Z</option>
+                  <option value="name_desc">Name Z → A</option>
+                </select>
+              </div>
+              {availableLabels.length > 0 && (
+                <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <Tag size={14} />
+                    Filter by labels
+                    <HelpTooltip
+                      content="Click labels to filter catalog entries. Multiple labels require ALL to match."
+                      side="right"
+                    />
+                  </label>
+                  <div className="flex flex-wrap gap-2 items-center min-h-[48px] sm:min-h-[40px]">
+                    {availableLabels.map(label => (
+                      <Badge
+                        key={label}
+                        variant={selectedLabels.includes(label) ? "default" : "outline"}
+                        className="cursor-pointer hover:scale-105 transition-transform"
+                        onClick={() => {
+                          setSelectedLabels(prev =>
+                            prev.includes(label)
+                              ? prev.filter(l => l !== label)
+                              : [...prev, label]
+                          )
+                        }}
+                      >
+                        {label}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -461,7 +554,7 @@ export default function Catalog() {
           </div>
 
           {/* Active filters chips */}
-          {(search || typeFilter !== 'all') && (
+          {(search || typeFilter !== 'all' || selectedLabels.length > 0) && (
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Active filters:</span>
               {search && (
@@ -489,11 +582,24 @@ export default function Catalog() {
                   <span className="ml-1 text-blue-500 group-hover:text-blue-700 font-bold">×</span>
                 </button>
               )}
-              {(search || typeFilter !== 'all') && (
+              {selectedLabels.map(label => (
+                <button
+                  key={label}
+                  onClick={() => setSelectedLabels(prev => prev.filter(l => l !== label))}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-green-100 pl-3 pr-2 py-1.5 text-xs font-medium text-green-700 hover:bg-green-200 active:scale-95 transition-all group"
+                  aria-label={`Remove label filter: ${label}`}
+                >
+                  <Tag size={12} className="shrink-0" />
+                  {label}
+                  <span className="ml-1 text-green-500 group-hover:text-green-700 font-bold">×</span>
+                </button>
+              ))}
+              {(search || typeFilter !== 'all' || selectedLabels.length > 0) && (
                 <button
                   onClick={() => {
                     setSearch('')
                     setTypeFilter('all')
+                    setSelectedLabels([])
                     searchInputRef.current?.focus()
                   }}
                   className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2 ml-1"
@@ -604,6 +710,8 @@ export default function Catalog() {
               navigate={navigate}
               prepareDraft={prepareDraft}
               preparingId={preparingId}
+              onVisit={recordVisit}
+              onLabelsUpdate={handleLabelsUpdate}
             />
           ))}
         </div>

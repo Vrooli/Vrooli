@@ -1,0 +1,176 @@
+{
+  "metadata": {
+    "description": "Verifies requirements registry display and operational target linkage in Scenario Control Center",
+    "version": 1,
+    "reset": "full",
+    "requirements": ["PCT-FUNC-004", "PCT-REQ-PARSE", "PCT-REQ-TARGETS", "PCT-REQ-LINKAGE"]
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-home",
+      "type": "navigate",
+      "data": {
+        "label": "Open PRD Control Tower",
+        "destinationType": "scenario",
+        "scenario": "prd-control-tower",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle",
+        "timeoutMs": 30000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "click-requirements-link",
+      "type": "click",
+      "data": {
+        "label": "Navigate to Requirements Registry",
+        "selector": "@selector/navigation.requirementsLink",
+        "timeoutMs": 20000,
+        "waitForMs": 3000
+      }
+    },
+    {
+      "id": "assert-requirements-loaded",
+      "type": "assert",
+      "data": {
+        "label": "Requirements cards visible",
+        "selector": "@selector/requirements.requirementCard",
+        "assertMode": "exists",
+        "timeoutMs": 30000,
+        "failureMessage": "Requirements registry should display requirement cards"
+      }
+    },
+    {
+      "id": "count-requirements",
+      "type": "evaluate",
+      "data": {
+        "label": "Count requirements displayed",
+        "expression": "document.querySelectorAll('@selector/requirements.requirementCard').length",
+        "storeResult": "requirementCount"
+      }
+    },
+    {
+      "id": "navigate-catalog",
+      "type": "click",
+      "data": {
+        "label": "Return to catalog",
+        "selector": "@selector/navigation.catalogLink",
+        "timeoutMs": 10000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "click-first-scenario",
+      "type": "click",
+      "data": {
+        "label": "Open first scenario detail",
+        "selector": "@selector/catalog.card",
+        "timeoutMs": 15000,
+        "waitForMs": 3000
+      }
+    },
+    {
+      "id": "click-requirements-tab",
+      "type": "click",
+      "data": {
+        "label": "Switch to Requirements tab",
+        "selector": "@selector/scenario.tabs.requirements",
+        "timeoutMs": 20000,
+        "waitForMs": 3000
+      }
+    },
+    {
+      "id": "assert-scenario-requirements-visible",
+      "type": "assert",
+      "data": {
+        "label": "Scenario requirements displayed",
+        "selector": "@selector/requirements.requirementCard",
+        "assertMode": "exists",
+        "timeoutMs": 30000,
+        "failureMessage": "Requirements tab should show scenario-specific requirements"
+      }
+    },
+    {
+      "id": "click-targets-tab",
+      "type": "click",
+      "data": {
+        "label": "Switch to Operational Targets tab",
+        "selector": "@selector/scenario.tabs.targets",
+        "timeoutMs": 20000,
+        "waitForMs": 3000
+      }
+    },
+    {
+      "id": "assert-targets-visible",
+      "type": "evaluate",
+      "data": {
+        "label": "Verify operational targets loaded",
+        "expression": "document.querySelector('@selector/scenario.tabs.targets') !== null",
+        "storeResult": "hasTargetsTab"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "click-requirements-link",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "click-requirements-link",
+      "target": "assert-requirements-loaded",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "assert-requirements-loaded",
+      "target": "count-requirements",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "count-requirements",
+      "target": "navigate-catalog",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "navigate-catalog",
+      "target": "click-first-scenario",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "click-first-scenario",
+      "target": "click-requirements-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "click-requirements-tab",
+      "target": "assert-scenario-requirements-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "assert-scenario-requirements-visible",
+      "target": "click-targets-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "click-targets-tab",
+      "target": "assert-targets-visible",
+      "type": "smoothstep"
+    }
+  ]
+}

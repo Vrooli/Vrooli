@@ -63,6 +63,9 @@ export interface CatalogEntry {
   has_requirements: boolean
   description: string
   requirements_summary?: CatalogRequirementSummary
+  visit_count?: number
+  last_visited_at?: string
+  labels?: string[]
 }
 
 export interface CatalogResponse {

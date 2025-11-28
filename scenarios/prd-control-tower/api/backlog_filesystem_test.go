@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// [REQ:PCT-BACKLOG-INTAKE] Test getBacklogPath generates correct paths
+// [REQ:PCT-FUNC-003][REQ:PCT-BACKLOG-INTAKE] Backlog intake - Test path generation
 func TestGetBacklogPath(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -50,7 +50,7 @@ func TestSaveBacklogEntryToFile_Integration(t *testing.T) {
 	t.Skip("Covered by integration tests")
 }
 
-// [REQ:PCT-BACKLOG-INTAKE] Test loadBacklogEntryFromFile reads files correctly
+// [REQ:PCT-FUNC-003][REQ:PCT-BACKLOG-INTAKE] Backlog intake - Test file loading
 func TestLoadBacklogEntryFromFile(t *testing.T) {
 	tmpDir := filepath.Join(os.TempDir(), "prd-test-backlog-"+uuid.New().String())
 	defer os.RemoveAll(tmpDir)
@@ -194,7 +194,7 @@ func TestDeleteBacklogFile_Integration(t *testing.T) {
 	t.Skip("Covered by integration tests")
 }
 
-// [REQ:PCT-BACKLOG-INTAKE] Test syncBacklogFilesystemWithDatabase syncs files to database
+// [REQ:PCT-FUNC-003][REQ:PCT-BACKLOG-CONVERT] Backlog intake - Test filesystem-database sync
 func TestSyncBacklogFilesystemWithDatabase(t *testing.T) {
 	// Test with nil executor
 	err := syncBacklogFilesystemWithDatabase(nil)

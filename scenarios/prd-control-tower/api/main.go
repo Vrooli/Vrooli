@@ -89,8 +89,11 @@ func main() {
 
 	// Catalog endpoints
 	apiV1.HandleFunc("/catalog", handleGetCatalog).Methods("GET")
+	apiV1.HandleFunc("/catalog/labels", handleGetCatalogLabels).Methods("GET")
 	apiV1.HandleFunc("/catalog/{type}/{name}", handleGetPublishedPRD).Methods("GET")
 	apiV1.HandleFunc("/catalog/{type}/{name}/draft", handleEnsureDraftFromPublishedPRD).Methods("POST")
+	apiV1.HandleFunc("/catalog/{type}/{name}/visit", handleRecordVisit).Methods("POST")
+	apiV1.HandleFunc("/catalog/{type}/{name}/labels", handleUpdateCatalogLabels).Methods("PUT")
 	apiV1.HandleFunc("/catalog/{type}/{name}/requirements", handleGetRequirements).Methods("GET")
 	apiV1.HandleFunc("/catalog/{type}/{name}/requirements", handleCreateRequirement).Methods("POST")
 	apiV1.HandleFunc("/catalog/{type}/{name}/requirements/{requirement_id}", handleUpdateRequirement).Methods("PUT")

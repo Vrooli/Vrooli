@@ -1,0 +1,128 @@
+{
+  "metadata": {
+    "description": "Verifies catalog view displays all scenarios/resources and allows navigation to detail pages",
+    "version": 1,
+    "reset": "full",
+    "requirements": ["PCT-FUNC-001", "PCT-CATALOG-ENUMERATE", "PCT-CATALOG-VIEW-PRD", "PCT-CATALOG-STATUS"]
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-home",
+      "type": "navigate",
+      "data": {
+        "label": "Open PRD Control Tower home page",
+        "destinationType": "scenario",
+        "scenario": "prd-control-tower",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle",
+        "timeoutMs": 30000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "click-catalog-link",
+      "type": "click",
+      "data": {
+        "label": "Navigate to Catalog page",
+        "selector": "@selector/navigation.catalogLink",
+        "timeoutMs": 10000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "assert-catalog-loaded",
+      "type": "assert",
+      "data": {
+        "label": "Catalog page loaded with cards",
+        "selector": "@selector/catalog.card",
+        "assertMode": "exists",
+        "timeoutMs": 15000,
+        "failureMessage": "Catalog should display at least one entity card"
+      }
+    },
+    {
+      "id": "count-catalog-cards",
+      "type": "evaluate",
+      "data": {
+        "label": "Count catalog entries",
+        "expression": "document.querySelectorAll('@selector/catalog.card').length",
+        "storeResult": "cardCount"
+      }
+    },
+    {
+      "id": "assert-cards-present",
+      "type": "evaluate",
+      "data": {
+        "label": "Verify multiple catalog entries exist",
+        "expression": "document.querySelectorAll('@selector/catalog.card').length > 0",
+        "storeResult": "hasCards"
+      }
+    },
+    {
+      "id": "click-first-card",
+      "type": "click",
+      "data": {
+        "label": "Click first catalog card",
+        "selector": "@selector/catalog.card",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "assert-detail-loaded",
+      "type": "assert",
+      "data": {
+        "label": "Scenario Control Center loaded",
+        "selector": "@selector/scenario.tabs.prd",
+        "assertMode": "exists",
+        "timeoutMs": 15000,
+        "failureMessage": "Should navigate to Scenario Control Center with PRD tab"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "click-catalog-link",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "click-catalog-link",
+      "target": "assert-catalog-loaded",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "assert-catalog-loaded",
+      "target": "count-catalog-cards",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "count-catalog-cards",
+      "target": "assert-cards-present",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "assert-cards-present",
+      "target": "click-first-card",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "click-first-card",
+      "target": "assert-detail-loaded",
+      "type": "smoothstep"
+    }
+  ]
+}

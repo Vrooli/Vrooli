@@ -26,6 +26,13 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "TestHandleGetCatalog validates catalog API endpoint integration"
+        },
+        {
+          "type": "test",
+          "ref": "test/playbooks/capabilities/01-catalog/e2e/catalog-view-and-navigate.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "End-to-end validation of catalog enumeration and navigation workflow"
         }
       ]
     },
@@ -50,6 +57,13 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "Handler tests validate GET /api/v1/catalog/{type}/{name} endpoint"
+        },
+        {
+          "type": "test",
+          "ref": "test/playbooks/capabilities/01-catalog/e2e/catalog-view-and-navigate.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "E2E validation of navigation to PRD detail view"
         }
       ]
     },
@@ -74,6 +88,13 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "Catalog API endpoint tests validate status badge data in response"
+        },
+        {
+          "type": "test",
+          "ref": "test/playbooks/capabilities/01-catalog/e2e/catalog-view-and-navigate.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "E2E validation of catalog status badges rendering"
         }
       ]
     },

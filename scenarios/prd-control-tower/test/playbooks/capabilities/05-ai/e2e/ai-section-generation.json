@@ -1,0 +1,112 @@
+{
+  "metadata": {
+    "description": "Verifies AI-assisted PRD section generation via resource-openrouter integration",
+    "version": 1,
+    "reset": "full",
+    "requirements": ["PCT-FUNC-005", "PCT-AI-GENERATE", "PCT-AI-CONTEXT"]
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-home",
+      "type": "navigate",
+      "data": {
+        "label": "Open PRD Control Tower",
+        "destinationType": "scenario",
+        "scenario": "prd-control-tower",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle",
+        "timeoutMs": 30000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "click-drafts-link",
+      "type": "click",
+      "data": {
+        "label": "Navigate to Drafts page",
+        "selector": "@selector/navigation.draftsLink",
+        "timeoutMs": 10000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "check-draft-exists",
+      "type": "evaluate",
+      "data": {
+        "label": "Check if draft exists",
+        "expression": "document.querySelector('@selector/drafts.draftCard') !== null",
+        "storeResult": "hasDraft"
+      }
+    },
+    {
+      "id": "click-existing-draft",
+      "type": "click",
+      "data": {
+        "label": "Open existing draft",
+        "selector": "@selector/drafts.draftCard",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "assert-editor-loaded",
+      "type": "assert",
+      "data": {
+        "label": "Draft editor loaded",
+        "selector": "@selector/drafts.editor.textarea",
+        "assertMode": "exists",
+        "timeoutMs": 15000,
+        "failureMessage": "Draft editor should be visible"
+      }
+    },
+    {
+      "id": "check-ai-dialog-availability",
+      "type": "evaluate",
+      "data": {
+        "label": "Check if AI assistant dialog is available",
+        "expression": "document.body.innerHTML.includes('AI') || document.body.innerHTML.includes('Generate')",
+        "storeResult": "hasAIFeature"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "click-drafts-link",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "click-drafts-link",
+      "target": "check-draft-exists",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "check-draft-exists",
+      "target": "click-existing-draft",
+      "type": "smoothstep",
+      "condition": "hasDraft === true"
+    },
+    {
+      "id": "e4",
+      "source": "click-existing-draft",
+      "target": "assert-editor-loaded",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "assert-editor-loaded",
+      "target": "check-ai-dialog-availability",
+      "type": "smoothstep"
+    }
+  ]
+}

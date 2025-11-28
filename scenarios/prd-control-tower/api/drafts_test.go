@@ -29,6 +29,7 @@ func (r *recordingExec) Exec(query string, args ...any) (sql.Result, error) {
 	return noopResult{}, nil
 }
 
+// [REQ:PCT-FUNC-002][REQ:PCT-DRAFT-SAVE] Draft lifecycle - Test null string handling for draft metadata
 func TestNullString(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -76,6 +77,7 @@ func TestNullString(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-FUNC-002][REQ:PCT-DRAFT-CREATE] Draft lifecycle - Test draft path generation
 func TestGetDraftPath(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -115,6 +117,7 @@ func TestGetDraftPath(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-FUNC-002][REQ:PCT-DRAFT-EDIT] Draft lifecycle - Test draft validation rules
 func TestDraftValidation(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -171,6 +174,7 @@ func TestDraftValidation(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-FUNC-002][REQ:PCT-DRAFT-SAVE] Draft lifecycle - Test filesystem-database synchronization
 func TestSyncDraftFilesystemWithDatabase(t *testing.T) {
 	originalDir, err := os.Getwd()
 	if err != nil {

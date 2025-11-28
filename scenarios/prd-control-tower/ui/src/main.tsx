@@ -77,6 +77,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <Route path="/drafts" element={<Drafts />} />
               <Route path="/draft/:entityType/:entityName" element={<Drafts />} />
               <Route path="/backlog" element={<Backlog />} />
+              <Route path="/requirements" element={<RequirementsRegistry />} />
               <Route path="/requirements-registry" element={<RequirementsRegistry />} />
               <Route path="/scenario/:entityType/:entityName" element={<ScenarioControlCenter />} />
               {/* Legacy routes redirect to Scenario Control Center */}

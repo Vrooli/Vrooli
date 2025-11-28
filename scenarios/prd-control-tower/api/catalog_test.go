@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// [REQ:PCT-CATALOG-ENUMERATE] Catalog enumerates all scenarios and resources with PRD status
+// [REQ:PCT-FUNC-001][REQ:PCT-CATALOG-ENUMERATE] Catalog view - Test description extraction
 func TestExtractDescription(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -87,7 +87,7 @@ This is the description after blank lines.
 	}
 }
 
-// [REQ:PCT-CATALOG-ENUMERATE] Catalog enumerates all scenarios and resources with PRD status
+// [REQ:PCT-FUNC-001][REQ:PCT-CATALOG-ENUMERATE] Catalog view - Test description extraction for nonexistent files
 func TestExtractDescriptionNonexistentFile(t *testing.T) {
 	result := extractDescription("/nonexistent/file.md")
 	if result != "" {
@@ -95,7 +95,7 @@ func TestExtractDescriptionNonexistentFile(t *testing.T) {
 	}
 }
 
-// [REQ:PCT-CATALOG-STATUS] Catalog displays accurate status badges for each entity
+// [REQ:PCT-FUNC-001][REQ:PCT-CATALOG-STATUS] Catalog view - Test draft status detection
 func TestHasDraft(t *testing.T) {
 	// Create temporary draft directory structure
 	tmpDir := t.TempDir()
@@ -157,7 +157,7 @@ func TestHasDraft(t *testing.T) {
 	}
 }
 
-// [REQ:PCT-CATALOG-ENUMERATE] Catalog enumerates all scenarios and resources with PRD status
+// [REQ:PCT-FUNC-001][REQ:PCT-CATALOG-ENUMERATE] Catalog view - Test entity enumeration
 func TestEnumerateEntities(t *testing.T) {
 	// Create temporary directory structure
 	tmpDir := t.TempDir()

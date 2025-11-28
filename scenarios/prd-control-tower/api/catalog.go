@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -21,14 +22,17 @@ import (
 
 // CatalogEntry represents a scenario or resource with its PRD status
 type CatalogEntry struct {
-	Type            string `json:"type"`             // "scenario" or "resource"
-	Name            string `json:"name"`             // Entity name
-	HasPRD          bool   `json:"has_prd"`          // Whether PRD.md exists
-	PRDPath         string `json:"prd_path"`         // Absolute path to PRD.md
-	HasDraft        bool   `json:"has_draft"`        // Whether a draft exists
-	HasRequirements bool   `json:"has_requirements"` // Whether requirements/index.json exists
-	Description     string `json:"description"`      // Brief description (if available)
+	Type            string                     `json:"type"`                        // "scenario" or "resource"
+	Name            string                     `json:"name"`                        // Entity name
+	HasPRD          bool                       `json:"has_prd"`                     // Whether PRD.md exists
+	PRDPath         string                     `json:"prd_path"`                    // Absolute path to PRD.md
+	HasDraft        bool                       `json:"has_draft"`                   // Whether a draft exists
+	HasRequirements bool                       `json:"has_requirements"`            // Whether requirements/index.json exists
+	Description     string                     `json:"description"`                 // Brief description (if available)
 	Requirements    *CatalogRequirementSummary `json:"requirements_summary,omitempty"`
+	VisitCount      int                        `json:"visit_count,omitempty"`       // Number of times viewed
+	LastVisitedAt   *time.Time                 `json:"last_visited_at,omitempty"`   // Last time viewed
+	Labels          []string                   `json:"labels,omitempty"`            // User-defined labels
 }
 
 type CatalogRequirementSummary struct {
@@ -95,6 +99,11 @@ func handleGetCatalog(w http.ResponseWriter, r *http.Request) {
 			summary := summarizeRequirementGroupsForCatalog(groups)
 			entries[i].Requirements = &summary
 		}
+	}
+
+	// Enrich with visit tracking and labels
+	if shouldIncludeVisits(r) {
+		enrichEntriesWithVisitsAndLabels(entries)
 	}
 
 	response := CatalogResponse{
@@ -518,4 +527,220 @@ func ensureDraftFromPublishedPRD(store dbQueryExecutor, entityType string, entit
 
 		return draft, nil
 	}
+}
+
+// shouldIncludeVisits checks if visit tracking data should be included in catalog response
+func shouldIncludeVisits(r *http.Request) bool {
+	flag := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("include_visits")))
+	return flag == "1" || flag == "true" || flag == "yes"
+}
+
+// enrichEntriesWithVisitsAndLabels adds visit counts, last visited timestamps, and labels to catalog entries
+func enrichEntriesWithVisitsAndLabels(entries []CatalogEntry) {
+	if db == nil {
+		return
+	}
+
+	// Build map for quick lookup
+	entryMap := make(map[string]*CatalogEntry)
+	for i := range entries {
+		key := entries[i].Type + "/" + entries[i].Name
+		entryMap[key] = &entries[i]
+	}
+
+	// Fetch all visit data and labels in one query
+	rows, err := db.Query(`
+		SELECT v.entity_type, v.entity_name, v.visit_count, v.last_visited_at,
+		       COALESCE(array_agg(l.label) FILTER (WHERE l.label IS NOT NULL), '{}') as labels
+		FROM catalog_visits v
+		LEFT JOIN catalog_labels l ON v.entity_type = l.entity_type AND v.entity_name = l.entity_name
+		GROUP BY v.entity_type, v.entity_name, v.visit_count, v.last_visited_at
+	`)
+	if err != nil {
+		slog.Warn("failed to fetch visit tracking data", "error", err)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var entityType, entityName string
+		var visitCount int
+		var lastVisited time.Time
+		var labels []string
+
+		if err := rows.Scan(&entityType, &entityName, &visitCount, &lastVisited, &labels); err != nil {
+			slog.Warn("failed to scan visit data", "error", err)
+			continue
+		}
+
+		key := entityType + "/" + entityName
+		if entry, ok := entryMap[key]; ok {
+			entry.VisitCount = visitCount
+			entry.LastVisitedAt = &lastVisited
+			entry.Labels = labels
+		}
+	}
+}
+
+// handleRecordVisit records or updates a visit to a catalog entry
+// POST /api/v1/catalog/{type}/{name}/visit
+func handleRecordVisit(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	entityType := vars["type"]
+	entityName := vars["name"]
+
+	if !isValidEntityType(entityType) {
+		respondInvalidEntityType(w)
+		return
+	}
+
+	if entityName == "" {
+		respondBadRequest(w, "entity_name is required")
+		return
+	}
+
+	if db == nil {
+		respondServiceUnavailable(w, "Database not available")
+		return
+	}
+
+	// Upsert visit record
+	now := time.Now()
+	_, err := db.Exec(`
+		INSERT INTO catalog_visits (entity_type, entity_name, visit_count, last_visited_at, created_at)
+		VALUES ($1, $2, 1, $3, $3)
+		ON CONFLICT (entity_type, entity_name) 
+		DO UPDATE SET 
+			visit_count = catalog_visits.visit_count + 1,
+			last_visited_at = $3
+	`, entityType, entityName, now)
+
+	if err != nil {
+		respondInternalError(w, "Failed to record visit", err)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{
+		"status": "success",
+		"message": "Visit recorded",
+	})
+}
+
+// handleGetCatalogLabels returns all unique labels used in the catalog
+// GET /api/v1/catalog/labels
+func handleGetCatalogLabels(w http.ResponseWriter, r *http.Request) {
+	if db == nil {
+		respondServiceUnavailable(w, "Database not available")
+		return
+	}
+
+	rows, err := db.Query(`
+		SELECT DISTINCT label, COUNT(*) as usage_count
+		FROM catalog_labels
+		GROUP BY label
+		ORDER BY usage_count DESC, label ASC
+	`)
+	if err != nil {
+		respondInternalError(w, "Failed to fetch labels", err)
+		return
+	}
+	defer rows.Close()
+
+	type LabelInfo struct {
+		Label string `json:"label"`
+		Count int    `json:"count"`
+	}
+
+	labels := []LabelInfo{}
+	for rows.Next() {
+		var label string
+		var count int
+		if err := rows.Scan(&label, &count); err != nil {
+			slog.Warn("failed to scan label", "error", err)
+			continue
+		}
+		labels = append(labels, LabelInfo{Label: label, Count: count})
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"labels": labels,
+		"total": len(labels),
+	})
+}
+
+// handleUpdateCatalogLabels updates labels for a catalog entry
+// PUT /api/v1/catalog/{type}/{name}/labels
+func handleUpdateCatalogLabels(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	entityType := vars["type"]
+	entityName := vars["name"]
+
+	if !isValidEntityType(entityType) {
+		respondInvalidEntityType(w)
+		return
+	}
+
+	if entityName == "" {
+		respondBadRequest(w, "entity_name is required")
+		return
+	}
+
+	type UpdateLabelsRequest struct {
+		Labels []string `json:"labels"`
+	}
+
+	var req UpdateLabelsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondInvalidJSON(w, err)
+		return
+	}
+
+	if db == nil {
+		respondServiceUnavailable(w, "Database not available")
+		return
+	}
+
+	// Start transaction
+	tx, err := db.Begin()
+	if err != nil {
+		respondInternalError(w, "Failed to start transaction", err)
+		return
+	}
+	defer tx.Rollback()
+
+	// Delete existing labels
+	_, err = tx.Exec(`
+		DELETE FROM catalog_labels
+		WHERE entity_type = $1 AND entity_name = $2
+	`, entityType, entityName)
+	if err != nil {
+		respondInternalError(w, "Failed to delete existing labels", err)
+		return
+	}
+
+	// Insert new labels
+	for _, label := range req.Labels {
+		label = strings.TrimSpace(label)
+		if label == "" {
+			continue
+		}
+		_, err = tx.Exec(`
+			INSERT INTO catalog_labels (entity_type, entity_name, label, created_at)
+			VALUES ($1, $2, $3, $4)
+		`, entityType, entityName, label, time.Now())
+		if err != nil {
+			respondInternalError(w, "Failed to insert label", err)
+			return
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		respondInternalError(w, "Failed to commit transaction", err)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"labels": req.Labels,
+	})
 }

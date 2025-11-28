@@ -12,6 +12,7 @@ import { TopNav } from '../components/ui/top-nav'
 import { Breadcrumbs } from '../components/ui/breadcrumbs'
 import { useConfirm } from '../utils/confirmDialog'
 import { decodeRouteSegment } from '../utils/formatters'
+import { selectors } from '../consts/selectors'
 
 export default function Drafts() {
   const { entityType: routeEntityType, entityName: routeEntityName } = useParams<{
@@ -281,6 +282,7 @@ export default function Drafts() {
           <Input
             ref={searchInputRef}
             id="drafts-search"
+            data-testid={selectors.drafts.searchInput}
             type="text"
             className="pl-9 pr-20"
             placeholder="Search drafts by name, type, or owner..."

@@ -9,6 +9,7 @@ import { Input } from '../ui/input'
 import { Badge } from '../ui/badge'
 import { Textarea } from '../ui/textarea'
 import { cn } from '../../lib/utils'
+import { selectors } from '../../consts/selectors'
 
 interface BacklogEntriesTableProps {
   entries: BacklogEntry[]
@@ -190,7 +191,7 @@ export function BacklogEntriesTable({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+            <table data-testid={selectors.backlog.entriesTable} className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead>
                 <tr className="text-xs uppercase tracking-wide text-slate-500">
                   <th className="px-3 py-2">
@@ -225,7 +226,7 @@ export function BacklogEntriesTable({
                   const hasNotes = Boolean(entry.notes)
 
                   return (
-                    <tr key={entry.id} className={cn(isSelected && 'bg-violet-50/60')}>
+                    <tr key={entry.id} data-testid={selectors.backlog.entryRow} className={cn(isSelected && 'bg-violet-50/60')}>
                       <td className="px-3 py-3">
                         <input
                           type="checkbox"

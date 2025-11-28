@@ -8,6 +8,7 @@ import { Button } from '../components/ui/button'
 import { TopNav } from '../components/ui/top-nav'
 import { buildApiUrl } from '../utils/apiClient'
 import type { CatalogEntry, CatalogResponse, RequirementGroup, RequirementsResponse } from '../types'
+import { selectors } from '../consts/selectors'
 
 interface RequirementsSummary {
   entityType: string
@@ -195,7 +196,7 @@ export default function RequirementsRegistry() {
 
   return (
     <div className="app-container space-y-6" data-layout="dual">
-      <TopNav />
+      <TopNav data-testid={selectors.requirements.registryView} />
 
       <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
         <div className="space-y-2">
@@ -317,7 +318,7 @@ export default function RequirementsRegistry() {
               : 0
 
             return (
-              <Card key={key} className="flex flex-col justify-between hover:border-violet-300 transition">
+              <Card key={key} data-testid={selectors.requirements.requirementCard} className="flex flex-col justify-between hover:border-violet-300 transition">
                 <CardHeader>
                   <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-lg">{entry.name}</CardTitle>

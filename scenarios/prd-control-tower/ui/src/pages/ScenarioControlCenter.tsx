@@ -27,6 +27,7 @@ import type { ScenarioQualityReport } from '../types'
 import { buildApiUrl } from '../utils/apiClient'
 import { useReportIssueActions } from '../components/issues/ReportIssueProvider'
 import { buildIssueReportSeedForCategories, buildIssueReportSeedFromQualityReport } from '../utils/issueReports'
+import { selectors } from '../consts/selectors'
 
 interface DiagnosticsState {
   entityType: string
@@ -445,12 +446,14 @@ export default function ScenarioControlCenter() {
             </TabsTrigger>
             <TabsTrigger
               value="prd"
+              data-testid={selectors.scenario.tabs.prd}
               className="data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:shadow-md h-10 font-semibold transition-all"
             >
               PRD
             </TabsTrigger>
             <TabsTrigger
               value="requirements"
+              data-testid={selectors.scenario.tabs.requirements}
               className="data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:shadow-md h-10 font-semibold transition-all"
             >
               <span>Requirements</span>
@@ -462,6 +465,7 @@ export default function ScenarioControlCenter() {
             </TabsTrigger>
             <TabsTrigger
               value="targets"
+              data-testid={selectors.scenario.tabs.targets}
               className="data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:shadow-md h-10 font-semibold transition-all"
             >
               <span>Targets</span>

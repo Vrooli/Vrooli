@@ -1,11 +1,16 @@
+import { useState } from 'react'
 import { Link, type NavigateFunction } from 'react-router-dom'
-import { CheckCircle, FileEdit, XCircle, HelpCircle, type LucideIcon } from 'lucide-react'
+import { CheckCircle, FileEdit, XCircle, HelpCircle, Tag, type LucideIcon } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog'
+import { Input } from '../ui/input'
 import { Tooltip } from '../ui/tooltip'
 import { cn } from '../../lib/utils'
 import type { CatalogEntry } from '../../types'
+import { selectors } from '../../consts/selectors'
+import { buildApiUrl } from '../../utils/apiClient'
 
 type StatusKey = 'draft' | 'published' | 'missing'
 
@@ -20,9 +25,15 @@ export interface CatalogCardProps {
   navigate: NavigateFunction
   prepareDraft: (entityType: string, entityName: string) => Promise<void>
   preparingId: string | null
+  onVisit?: (entityType: string, entityName: string) => void
+  onLabelsUpdate?: (entityType: string, entityName: string, labels: string[]) => void
 }
 
-export function CatalogCard({ entry, navigate, prepareDraft, preparingId }: CatalogCardProps) {
+export function CatalogCard({ entry, navigate, prepareDraft, preparingId, onVisit, onLabelsUpdate }: CatalogCardProps) {
+  const [editLabelsOpen, setEditLabelsOpen] = useState(false)
+  const [labelInput, setLabelInput] = useState('')
+  const [editingLabels, setEditingLabels] = useState<string[]>(entry.labels || [])
+  const [savingLabels, setSavingLabels] = useState(false)
   const encodedName = encodeURIComponent(entry.name)
   const draftKey = `${entry.type}:${entry.name}`
   const scenarioPath = `/scenario/${entry.type}/${encodedName}`
@@ -37,12 +48,59 @@ export function CatalogCard({ entry, navigate, prepareDraft, preparingId }: Cata
 
   const onNavigate = () => {
     if (primaryPath) {
+      // Record visit before navigating
+      if (onVisit) {
+        onVisit(entry.type, entry.name)
+      }
       navigate(primaryPath)
+    }
+  }
+
+  const handleOpenLabelsDialog = (event: React.MouseEvent) => {
+    event.stopPropagation()
+    setEditingLabels(entry.labels || [])
+    setLabelInput('')
+    setEditLabelsOpen(true)
+  }
+
+  const handleAddLabel = () => {
+    const trimmed = labelInput.trim()
+    if (trimmed && !editingLabels.includes(trimmed)) {
+      setEditingLabels([...editingLabels, trimmed])
+      setLabelInput('')
+    }
+  }
+
+  const handleRemoveLabel = (label: string) => {
+    setEditingLabels(editingLabels.filter(l => l !== label))
+  }
+
+  const handleSaveLabels = async () => {
+    setSavingLabels(true)
+    try {
+      const response = await fetch(buildApiUrl(`/catalog/${entry.type}/${entry.name}/labels`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ labels: editingLabels }),
+      })
+      if (!response.ok) {
+        throw new Error('Failed to update labels')
+      }
+      if (onLabelsUpdate) {
+        onLabelsUpdate(entry.type, entry.name, editingLabels)
+      }
+      setEditLabelsOpen(false)
+    } catch (err) {
+      console.error('Failed to save labels:', err)
+      alert('Failed to save labels. Please try again.')
+    } finally {
+      setSavingLabels(false)
     }
   }
 
   return (
     <Card
+      data-testid={selectors.catalog.card}
       role={primaryPath ? 'link' : undefined}
       tabIndex={primaryPath ? 0 : -1}
       onClick={onNavigate}
@@ -135,6 +193,30 @@ export function CatalogCard({ entry, navigate, prepareDraft, preparingId }: Cata
           <p className="text-xs text-muted-foreground">No requirements registered yet.</p>
         )}
 
+        {/* Labels display */}
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <div className="flex flex-wrap items-center gap-1.5 flex-1">
+            {entry.labels && entry.labels.length > 0 ? (
+              entry.labels.map((label, idx) => (
+                <Badge key={idx} variant="outline" className="text-[10px] sm:text-[11px] px-2 py-0.5">
+                  {label}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-xs text-slate-400 italic">No labels</span>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleOpenLabelsDialog}
+            className="h-7 px-2 text-xs hover:bg-slate-100"
+            title="Edit labels"
+          >
+            <Tag size={14} />
+          </Button>
+        </div>
+
         <div className="flex flex-wrap gap-2" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
           {entry.has_prd && (
             <Button variant="ghost" size="sm" asChild className="min-h-[44px] text-sm px-4 hover:bg-slate-100 transition-all active:scale-95">
@@ -181,6 +263,61 @@ export function CatalogCard({ entry, navigate, prepareDraft, preparingId }: Cata
           )}
         </div>
       </CardContent>
+
+      {/* Labels editor dialog */}
+      <Dialog open={editLabelsOpen} onOpenChange={setEditLabelsOpen}>
+        <DialogContent onClick={e => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>Edit Labels</DialogTitle>
+            <DialogDescription>
+              Add or remove labels for {entry.type}: {entry.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                value={labelInput}
+                onChange={e => setLabelInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleAddLabel()
+                  }
+                }}
+                placeholder="Type a label and press Enter"
+                className="flex-1"
+              />
+              <Button onClick={handleAddLabel} disabled={!labelInput.trim()}>
+                Add
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2 min-h-[60px] p-3 border rounded-md bg-slate-50">
+              {editingLabels.length > 0 ? (
+                editingLabels.map(label => (
+                  <Badge
+                    key={label}
+                    variant="default"
+                    className="cursor-pointer hover:bg-destructive"
+                    onClick={() => handleRemoveLabel(label)}
+                  >
+                    {label} ×
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm text-slate-400 italic">No labels yet</span>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditLabelsOpen(false)} disabled={savingLabels}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveLabels} disabled={savingLabels}>
+              {savingLabels ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react'
 import Editor, { Monaco } from '@monaco-editor/react'
 import { type editor } from 'monaco-editor'
 import { cn } from '../../lib/utils'
+import { selectors } from '../../consts/selectors'
 
 interface MonacoMarkdownEditorProps {
   value: string
@@ -67,7 +68,7 @@ export function MonacoMarkdownEditor({
 
   // Handle content changes
   const handleChange = (newValue: string | undefined) => {
-    if (newValue !== undefined && newValue !== value) {
+    if (newValue !== undefined) {
       onChange(newValue)
     }
   }
@@ -130,7 +131,7 @@ export function MonacoMarkdownEditor({
   }, [textareaRef, value, onChange])
 
   return (
-    <div className={cn('rounded-md border overflow-hidden bg-white', className)}>
+    <div className={cn('rounded-md border overflow-hidden bg-white', className)} data-testid={selectors.drafts.editor.textarea}>
       <Editor
         height={height}
         language="markdown"

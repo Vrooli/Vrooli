@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// [REQ:PCT-AI-CONTEXT] AI prompts include existing PRD, violations, and template context
+// [REQ:PCT-FUNC-005][REQ:PCT-AI-CONTEXT] AI generation - Test context building for prompts
 func TestBuildPrompt(t *testing.T) {
 	draft := Draft{
 		ID:         "test-id",

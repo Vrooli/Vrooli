@@ -2,6 +2,7 @@ import { CheckCircle2, Circle, Target } from 'lucide-react'
 import type { OperationalTarget } from '../../types'
 import { Badge } from '../ui/badge'
 import { cn } from '../../lib/utils'
+import { selectors } from '../../consts/selectors'
 
 interface TargetsListProps {
   targets: OperationalTarget[]
@@ -43,7 +44,7 @@ export function TargetsList({ targets, selectedId, onSelect }: TargetsListProps)
   })
 
   return (
-    <div className="space-y-6 overflow-y-auto max-h-[calc(100vh-250px)]">
+    <div data-testid={selectors.requirements.targetsList} className="space-y-6 overflow-y-auto max-h-[calc(100vh-250px)]">
       {sortedCategories.map((category) => (
         <div key={category} className="space-y-2">
           <h3 className="text-sm font-semibold text-slate-700 px-2">{category}</h3>

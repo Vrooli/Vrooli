@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui
 import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Badge } from '../ui/badge'
+import { selectors } from '../../consts/selectors'
 
 interface BacklogIntakeCardProps {
   rawInput: string
@@ -22,7 +23,7 @@ export function BacklogIntakeCard({ rawInput, ideaCount, onChange, onClear }: Ba
 2. Resource usage tracker`
 
   return (
-    <Card className="h-full border-2 border-violet-200 bg-gradient-to-br from-white to-violet-50/30 shadow-md hover:shadow-lg transition-shadow">
+    <Card data-testid={selectors.backlog.intakeCard} className="h-full border-2 border-violet-200 bg-gradient-to-br from-white to-violet-50/30 shadow-md hover:shadow-lg transition-shadow">
       <CardHeader className="flex flex-row items-start justify-between gap-4 pb-4">
         <div className="space-y-3 flex-1">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
@@ -87,6 +88,7 @@ export function BacklogIntakeCard({ rawInput, ideaCount, onChange, onClear }: Ba
       <CardContent className="space-y-4 pt-4">
         <div className="relative">
           <Textarea
+            data-testid={selectors.backlog.textArea}
             className="min-h-[280px] font-mono text-sm border-2 border-slate-200 focus-visible:border-violet-400 focus-visible:ring-4 focus-visible:ring-violet-100 transition-all shadow-sm"
             placeholder={exampleText}
             value={rawInput}

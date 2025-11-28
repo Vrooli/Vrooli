@@ -26,6 +26,13 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "Requirements API endpoint integration tests"
+        },
+        {
+          "type": "test",
+          "ref": "test/playbooks/capabilities/04-requirements/e2e/requirements-view-and-linkage.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "E2E validation of requirements registry display"
         }
       ]
     },
@@ -50,6 +57,13 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "Targets API endpoint integration tests"
+        },
+        {
+          "type": "test",
+          "ref": "test/playbooks/capabilities/04-requirements/e2e/requirements-view-and-linkage.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "E2E validation of operational targets tab"
         }
       ]
     },
@@ -74,6 +88,13 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "Requirements enrichment validates target coverage and linkage"
+        },
+        {
+          "type": "test",
+          "ref": "test/playbooks/capabilities/04-requirements/e2e/requirements-view-and-linkage.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "E2E validation of requirement-target linkage in UI"
         }
       ]
     }

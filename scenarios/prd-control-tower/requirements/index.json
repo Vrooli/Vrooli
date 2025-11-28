@@ -37,6 +37,22 @@
         "PCT-CATALOG-VIEW-PRD",
         "PCT-CATALOG-STATUS",
         "PCT-CATALOG-FILTER"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/catalog_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests for catalog enumeration, description extraction, and draft status detection"
+        },
+        {
+          "type": "test",
+          "ref": "test/playbooks/capabilities/01-catalog/e2e/catalog-view-and-navigate.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "End-to-end validation of catalog view and navigation workflow"
+        }
       ]
     },
     {
@@ -52,6 +68,22 @@
         "PCT-DRAFT-DELETE",
         "PCT-DRAFT-PUBLISH",
         "PCT-DRAFT-EDIT"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/drafts_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests for draft path generation, validation, and filesystem-database synchronization"
+        },
+        {
+          "type": "test",
+          "ref": "test/playbooks/capabilities/02-drafts/e2e/draft-create-edit-publish.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "End-to-end validation of complete draft lifecycle"
+        }
       ]
     },
     {
@@ -65,6 +97,22 @@
         "PCT-BACKLOG-INTAKE",
         "PCT-BACKLOG-PREVIEW",
         "PCT-BACKLOG-CONVERT"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/backlog_filesystem_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests for backlog path generation, file loading, and filesystem-database sync"
+        },
+        {
+          "type": "test",
+          "ref": "test/playbooks/capabilities/03-backlog/e2e/backlog-intake-and-convert.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "End-to-end validation of backlog intake and conversion workflow"
+        }
       ]
     },
     {
@@ -78,6 +126,22 @@
         "PCT-REQ-PARSE",
         "PCT-REQ-TARGETS",
         "PCT-REQ-LINKAGE"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/requirements_targets_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests for operational target extraction and requirement-target linking"
+        },
+        {
+          "type": "test",
+          "ref": "test/playbooks/capabilities/04-requirements/e2e/requirements-view-and-linkage.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "End-to-end validation of requirements registry and target linkage"
+        }
       ]
     },
     {
@@ -91,6 +155,29 @@
         "PCT-AI-GENERATE",
         "PCT-AI-CONTEXT",
         "PCT-AI-REWRITE"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ai_prompts_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests for AI action prompt building and context generation"
+        },
+        {
+          "type": "test",
+          "ref": "api/ai_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests for AI prompt context building with PRD, violations, and templates"
+        },
+        {
+          "type": "test",
+          "ref": "test/playbooks/capabilities/05-ai/e2e/ai-section-generation.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "End-to-end validation of AI section generation feature"
+        }
       ]
     },
     {

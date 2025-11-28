@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
 import { cn } from '../../lib/utils'
+import { selectors } from '../../consts/selectors'
 
 interface BacklogPreviewPanelProps {
   ideas: PendingIdea[]
@@ -36,7 +37,7 @@ export function BacklogPreviewPanel({
   const selectedCount = selection.size
 
   return (
-    <Card className="h-full">
+    <Card data-testid={selectors.backlog.previewPanel} className="h-full">
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div className="space-y-1 flex-1">
           <CardTitle className="text-2xl font-semibold">Live preview</CardTitle>
@@ -44,6 +45,7 @@ export function BacklogPreviewPanel({
         </div>
         <div className="flex flex-col items-end gap-2">
           <Button
+            data-testid={selectors.backlog.selectAllButton}
             variant={selection.size > 0 ? "secondary" : "outline"}
             size="sm"
             onClick={onToggleSelectAll}
@@ -145,6 +147,7 @@ export function BacklogPreviewPanel({
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button
+            data-testid={selectors.backlog.saveButton}
             variant="outline"
             disabled={selectedCount === 0 || busy}
             onClick={() => onRunAction('save')}
@@ -154,6 +157,7 @@ export function BacklogPreviewPanel({
             Save to backlog
           </Button>
           <Button
+            data-testid={selectors.backlog.convertButton}
             disabled={selectedCount === 0 || busy}
             onClick={() => onRunAction('convert')}
             size="lg"

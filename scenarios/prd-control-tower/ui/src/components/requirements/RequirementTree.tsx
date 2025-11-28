@@ -3,6 +3,7 @@ import { useState } from 'react'
 import type { RequirementGroup, RequirementRecord } from '../../types'
 import { Badge } from '../ui/badge'
 import { cn } from '../../lib/utils'
+import { selectors } from '../../consts/selectors'
 
 interface RequirementTreeProps {
   groups: RequirementGroup[]
@@ -60,6 +61,7 @@ function RequirementGroupNode({ group, level, selectedId, onSelect }: Requiremen
           {group.requirements.map((req) => (
             <div
               key={req.id}
+              data-testid={selectors.requirements.requirementCard}
               className={cn(
                 'flex items-center gap-2 rounded-lg px-3 py-2 ml-4 cursor-pointer transition-colors',
                 selectedId === req.id ? 'bg-blue-50 border-l-2 border-blue-500' : 'hover:bg-slate-50',

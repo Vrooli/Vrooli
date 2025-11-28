@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// [REQ:PCT-REQ-TARGETS] Operational target parser extracts checklist items from PRD
+// [REQ:PCT-FUNC-004][REQ:PCT-REQ-TARGETS] Requirements registry - Test operational target extraction
 func TestExtractOperationalTargets(t *testing.T) {
 	// Create a temporary PRD file for testing
 	tmpDir := t.TempDir()
@@ -247,7 +247,7 @@ func TestFlattenRequirements(t *testing.T) {
 	}
 }
 
-// [REQ:PCT-REQ-LINKAGE] Draft workspace surfaces target coverage and unmatched requirements
+// [REQ:PCT-FUNC-004][REQ:PCT-REQ-LINKAGE] Requirements registry - Test target-requirement linking
 func TestLinkTargetsAndRequirements(t *testing.T) {
 	targets := []OperationalTarget{
 		{

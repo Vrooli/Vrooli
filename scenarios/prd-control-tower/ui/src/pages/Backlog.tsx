@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { StickyNote, ListChecks, Sparkles, ClipboardList } from 'lucide-react'
 import { useConfirm } from '../utils/confirmDialog'
@@ -28,6 +28,7 @@ type PreviewOverride = Partial<Pick<PendingIdea, 'entityType' | 'suggestedName' 
 type PreviewActionMode = 'save' | 'convert'
 
 export default function Backlog() {
+  const navigate = useNavigate()
   const confirm = useConfirm()
   const [rawInput, setRawInput] = useState('')
   const [previewOverrides, setPreviewOverrides] = useState<Record<string, PreviewOverride>>({})
@@ -164,14 +165,43 @@ export default function Backlog() {
         )
         if (mode === 'convert') {
           const results = await convertBacklogEntriesRequest(created.map((entry) => entry.id))
+          
+
           const successes = results.filter((result) => !result.error)
           const failures = results.length - successes.length
+          
+
+          // Determine navigation target based on conversion results
+          let navigationTarget: string | null = null
+          if (successes.length === 1 && successes[0].draft) {
+            // Single draft: navigate directly to draft editor
+            const draft = successes[0].draft
+            navigationTarget = `/draft/${draft.entity_type}/${encodeURIComponent(draft.entity_name)}`
+            
+            
+          } else if (successes.length > 1) {
+            // Multiple drafts: navigate to drafts list page
+            navigationTarget = '/drafts'
+            
+          } else {
+            
+          }
+
           if (successes.length) {
             toast.success(`Created ${successes.length} draft${successes.length === 1 ? '' : 's'} from backlog ideas`)
           }
           if (failures > 0) {
             toast.error(`${failures} item${failures === 1 ? '' : 's'} failed to convert. Check logs for details.`)
           }
+
+          // Navigate before refresh to avoid race conditions
+          if (navigationTarget) {
+            
+            navigate(navigationTarget)
+            
+            return // Skip refresh and preview selection clear since we're leaving the page
+          }
+          
         } else {
           toast.success(`Added ${created.length} idea${created.length === 1 ? '' : 's'} to backlog`)
         }

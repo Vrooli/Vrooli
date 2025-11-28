@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../ui/card
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { cn } from '../../lib/utils'
+import { selectors } from '../../consts/selectors'
 
 export interface DraftCardGridProps {
   drafts: Draft[]
@@ -30,6 +31,7 @@ export function DraftCardGrid({ drafts, selectedDraftId, onSelectDraft, onDelete
         return (
           <Card
             key={draft.id}
+            data-testid={selectors.drafts.draftCard}
             role="button"
             tabIndex={0}
             aria-pressed={isSelected}

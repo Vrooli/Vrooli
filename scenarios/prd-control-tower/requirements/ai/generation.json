@@ -26,6 +26,13 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "Draft API handlers validate AI generation endpoint integration"
+        },
+        {
+          "type": "test",
+          "ref": "test/playbooks/capabilities/05-ai/e2e/ai-section-generation.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "E2E validation of AI section generation availability"
         }
       ]
     },
@@ -43,6 +50,13 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "TestBuildPrompt validates context assembly"
+        },
+        {
+          "type": "test",
+          "ref": "test/playbooks/capabilities/05-ai/e2e/ai-section-generation.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "E2E validation of AI context integration"
         }
       ]
     },

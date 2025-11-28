@@ -1,22 +1,25 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ClipboardList, Layers, StickyNote, Home, Compass, ShieldAlert } from 'lucide-react'
+import { ClipboardList, Layers, StickyNote, Home, Compass, ShieldAlert, ListTree } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { fetchQualitySummary } from '../../utils/quality'
 import type { QualitySummary } from '../../types'
+import { selectors } from '../../consts/selectors'
 
 interface NavItem {
   to: string
   label: string
   icon: typeof Home
+  testId: string
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'Orientation', icon: Compass },
-  { to: '/catalog', label: 'Catalog', icon: Home },
-  { to: '/backlog', label: 'Backlog', icon: StickyNote },
-  { to: '/drafts', label: 'Drafts', icon: Layers },
-  { to: '/quality-scanner', label: 'Quality', icon: ShieldAlert },
+  { to: '/', label: 'Orientation', icon: Compass, testId: selectors.navigation.orientationLink },
+  { to: '/catalog', label: 'Catalog', icon: Home, testId: selectors.navigation.catalogLink },
+  { to: '/backlog', label: 'Backlog', icon: StickyNote, testId: selectors.navigation.backlogLink },
+  { to: '/drafts', label: 'Drafts', icon: Layers, testId: selectors.navigation.draftsLink },
+  { to: '/requirements', label: 'Requirements', icon: ListTree, testId: selectors.navigation.requirementsLink },
+  { to: '/quality-scanner', label: 'Quality', icon: ShieldAlert, testId: selectors.navigation.qualityScannerLink },
 ]
 
 export function TopNav() {
@@ -64,6 +67,7 @@ export function TopNav() {
               <Link
                 key={item.to}
                 to={item.to}
+                data-testid={item.testId}
                 className={cn(
                   'flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 rounded-lg px-2 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition-all duration-200 min-w-[3.5rem] sm:min-w-0 min-h-[44px] sm:min-h-0',
                   isActive
