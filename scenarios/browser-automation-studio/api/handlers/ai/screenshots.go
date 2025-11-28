@@ -21,7 +21,7 @@ const (
 	previewDefaultViewportHeight      = 1080
 	defaultPreviewWaitMilliseconds    = 1200
 	defaultPreviewTimeoutMilliseconds = 20000
-	defaultPreviewWaitUntil           = "networkidle2"
+	defaultPreviewWaitUntil           = "networkidle"
 )
 
 type previewConsoleLog struct {

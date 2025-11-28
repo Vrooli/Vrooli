@@ -23,10 +23,10 @@
         },
         {
           "type": "test",
-          "ref": "test/phases/test-unit.sh",
+          "ref": "api/services/workflow/service_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Unit phase captures autosave coverage thresholds."
+          "notes": "TestAutosaveDefaultsExpectedVersion validates autosave functionality"
         },
         {
           "type": "manual",
@@ -54,7 +54,7 @@
         },
         {
           "type": "test",
-          "ref": "api/services/workflow_service_test.go",
+          "ref": "api/services/workflow/service_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "TestListWorkflowVersionsSummaries, TestRestoreWorkflowVersionAppliesHistoricDefinition validate service layer."

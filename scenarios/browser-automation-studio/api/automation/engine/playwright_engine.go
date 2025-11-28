@@ -44,7 +44,8 @@ func newPlaywrightEngine(driverURL string, log *logrus.Logger) (*PlaywrightEngin
 	if strings.TrimSpace(driverURL) == "" {
 		return nil, fmt.Errorf("PLAYWRIGHT_DRIVER_URL is required")
 	}
-	client := &http.Client{Timeout: 2 * time.Minute}
+	// 5 minute timeout to allow for slow playwright operations (screenshots, network waiting, etc.)
+	client := &http.Client{Timeout: 5 * time.Minute}
 	return &PlaywrightEngine{
 		driverURL:  strings.TrimRight(driverURL, "/"),
 		httpClient: client,
@@ -125,6 +126,12 @@ func (e *PlaywrightEngine) StartSession(ctx context.Context, spec SessionSpec) (
 			Tracing:   spec.Capabilities.NeedsTracing,
 		},
 	}
+
+	e.log.WithFields(logrus.Fields{
+		"execution_id":    spec.ExecutionID,
+		"viewport_width":  spec.ViewportWidth,
+		"viewport_height": spec.ViewportHeight,
+	}).Info("Starting playwright session with viewport")
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(req); err != nil {

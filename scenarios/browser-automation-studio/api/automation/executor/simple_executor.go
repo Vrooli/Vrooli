@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/events"
@@ -51,6 +52,14 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+
+	// DEBUG: Check if context has a deadline
+	if deadline, ok := ctx.Deadline(); ok {
+		fmt.Printf("[EXECUTOR_DEBUG] Execute called with context deadline: %v (in %v)\n", deadline, time.Until(deadline))
+	} else {
+		fmt.Printf("[EXECUTOR_DEBUG] Execute called with NO context deadline\n")
+	}
+
 	if err := e.validateRequest(req); err != nil {
 		return err
 	}
@@ -59,11 +68,14 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
+		fmt.Printf("[EXECUTOR_DEBUG] Set execution timeout: %v\n", timeout)
+	} else {
+		fmt.Printf("[EXECUTOR_DEBUG] No execution timeout set (executionTimeout returned 0)\n")
 	}
 
 	engineName := req.EngineName
 	if engineName == "" {
-		engineName = "browserless"
+		engineName = "playwright"
 	}
 
 	compiler := req.PlanCompiler
@@ -86,10 +98,16 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 	// Capabilities are fetched up front to allow callers to validate or log.
 	caps := req.EngineCaps
 	if caps == nil {
+		fmt.Printf("[EXECUTOR_DEBUG] About to fetch engine capabilities\n")
+		if deadline, ok := ctx.Deadline(); ok {
+			fmt.Printf("[EXECUTOR_DEBUG] ctx has deadline before Capabilities call: %v (in %v)\n", deadline, time.Until(deadline))
+		}
 		descriptor, err := eng.Capabilities(ctx)
 		if err != nil {
+			fmt.Printf("[EXECUTOR_DEBUG] eng.Capabilities FAILED: %v\n", err)
 			return fmt.Errorf("engine capabilities: %w", err)
 		}
+		fmt.Printf("[EXECUTOR_DEBUG] Engine capabilities fetched successfully\n")
 		caps = &descriptor
 	}
 	if err := caps.Validate(); err != nil {
@@ -442,9 +460,25 @@ func (e *SimpleExecutor) maybeRunEntrypointProbe(ctx context.Context, plan contr
 
 func entrySelectorFromPlan(plan contracts.ExecutionPlan) (string, int) {
 	if selector, ok := readString(plan.Metadata, "entrySelector"); ok {
+		fmt.Fprintf(os.Stderr, "[ENTRY_PROBE] Using explicit entrySelector from metadata: %q\n", selector)
 		return selector, readInt(plan.Metadata, "entrySelectorTimeoutMs", "entryTimeoutMs")
 	}
+
+	// Skip entry probe for workflows that start with navigation - the page context
+	// hasn't been established yet, so any selector checks would fail
+	if len(plan.Instructions) > 0 {
+		sorted := append([]contracts.CompiledInstruction{}, plan.Instructions...)
+		sort.Slice(sorted, func(i, j int) bool {
+			return sorted[i].Index < sorted[j].Index
+		})
+		if sorted[0].Type == "navigate" {
+			fmt.Fprintf(os.Stderr, "[ENTRY_PROBE] Skipping entry probe - workflow starts with navigate\n")
+			return "", 0
+		}
+	}
+
 	selector := firstSelectorFromInstructions(plan.Instructions)
+	fmt.Fprintf(os.Stderr, "[ENTRY_PROBE] Extracted selector from instructions (%d total): %q\n", len(plan.Instructions), selector)
 	return selector, readInt(plan.Metadata, "entrySelectorTimeoutMs", "entryTimeoutMs")
 }
 
@@ -457,6 +491,12 @@ func firstSelectorFromInstructions(instructions []contracts.CompiledInstruction)
 		return sorted[i].Index < sorted[j].Index
 	})
 	for _, instr := range sorted {
+		// Skip navigation instructions - they don't have meaningful selectors for entry probe
+		// Navigation establishes the page context, so we should wait for the first
+		// interactive element instead
+		if instr.Type == "navigate" {
+			continue
+		}
 		selector := firstSelectorFromParams(instr.Params)
 		if selector != "" {
 			return selector
@@ -706,9 +746,21 @@ func (e *SimpleExecutor) maybeResetSession(ctx context.Context, eng engine.Autom
 func extractViewport(metadata map[string]any) (int, int) {
 	raw, ok := metadata["executionViewport"].(map[string]any)
 	if !ok || raw == nil {
+		logrus.WithFields(logrus.Fields{
+			"metadata":          metadata,
+			"executionViewport": metadata["executionViewport"],
+			"type_ok":           ok,
+		}).Warn("extractViewport: executionViewport not found or wrong type")
 		return 0, 0
 	}
-	return intValue(raw, "width"), intValue(raw, "height")
+	width := intValue(raw, "width")
+	height := intValue(raw, "height")
+	logrus.WithFields(logrus.Fields{
+		"raw":    raw,
+		"width":  width,
+		"height": height,
+	}).Info("extractViewport: extracted viewport dimensions")
+	return width, height
 }
 
 func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, session engine.EngineSession, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
@@ -724,7 +776,12 @@ func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, sessio
 		attemptCtx := ctx
 		var cancel context.CancelFunc
 		if timeout > 0 {
-			attemptCtx, cancel = context.WithTimeout(ctx, timeout)
+			// Add 2 seconds of buffer time to account for HTTP overhead, network latency,
+			// and playwright-driver internal polling logic. The driver needs the full timeout
+			// duration to poll for element presence/absence, but the HTTP context deadline
+			// would otherwise cut it off before polling completes.
+			httpBufferTime := 2 * time.Second
+			attemptCtx, cancel = context.WithTimeout(ctx, timeout+httpBufferTime)
 		}
 
 		outcome, err := session.Run(attemptCtx, instruction)

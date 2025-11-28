@@ -294,7 +294,7 @@ func (db *DB) seedDemoWorkflow() error {
 				"data": map[string]any{
 					"label":     "Navigate to Example",
 					"url":       "https://example.com",
-					"waitUntil": "networkidle2",
+					"waitUntil": "networkidle",
 					"timeoutMs": 20000,
 				},
 			},

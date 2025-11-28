@@ -20,7 +20,7 @@
         "destinationType": "scenario",
         "scenario": "browser-automation-studio",
         "scenarioPath": "/",
-        "waitUntil": "networkidle0",
+        "waitUntil": "networkidle",
         "timeoutMs": 30000
       }
     },

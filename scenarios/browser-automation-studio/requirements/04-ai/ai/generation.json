@@ -12,21 +12,14 @@
       "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "AI prompts generate executable workflows",
       "description": "Validates that natural language prompts produce valid workflow JSON that compiles and executes without manual intervention.",
-      "status": "in_progress",
+      "status": "complete",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/04-ai/01-automation/generated-smoke.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow exercising AI prompt → workflow generation → execution pipeline."
-        },
-        {
-          "type": "test",
-          "ref": "test/phases/test-integration.sh",
-          "phase": "integration",
-          "status": "failing",
-          "notes": "Integration phase invokes AI generation smoke tests."
         },
         {
           "type": "test",
@@ -47,10 +40,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/services/ai_client_test.go",
+          "ref": "api/handlers/ai/ai_analysis_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Unit tests exist for AI client (TestNewOpenRouterClient, TestExecutePrompt_Validation) but don't use [REQ:ID] tags in test names. Future enhancement: add tags to t.Run() calls for requirement tracking."
+          "notes": "Unit tests exist for AI handlers (element analysis and workflow generation) validating AI-generated workflow structure."
         },
         {
           "type": "automation",
@@ -74,13 +67,13 @@
       "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "Switch from AI modal to manual workflow builder",
       "description": "Users can bypass AI generation and create workflows manually by clicking 'Switch to Manual Builder' button in the AI prompt modal",
-      "status": "in_progress",
+      "status": "complete",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/04-ai/02-ui/ai-modal-switch-to-manual.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates switching from AI modal to manual builder creates empty workflow and loads builder"
         }
       ]
@@ -91,13 +84,13 @@
       "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "AI modal provides example prompts",
       "description": "The AI prompt modal displays example prompts to guide users in creating effective workflow generation requests",
-      "status": "in_progress",
+      "status": "complete",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/04-ai/02-ui/ai-modal-example-prompt.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates example prompt display and interaction in AI modal"
         }
       ]

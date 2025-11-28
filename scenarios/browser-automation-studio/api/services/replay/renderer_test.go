@@ -4,8 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/services/export"
 )
 

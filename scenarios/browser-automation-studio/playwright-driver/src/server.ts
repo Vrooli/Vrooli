@@ -70,7 +70,15 @@ async function main() {
   // Create metrics server if enabled
   let metricsServer: ReturnType<typeof createServer> | null = null;
   if (config.metrics.enabled) {
-    metricsServer = createMetricsServer(config.metrics.port);
+    try {
+      metricsServer = await createMetricsServer(config.metrics.port);
+    } catch (error) {
+      logger.warn('Failed to start metrics server, continuing without metrics', {
+        error: error instanceof Error ? error.message : String(error),
+        port: config.metrics.port,
+      });
+      // Continue without metrics - this is non-fatal
+    }
   }
 
   // Create main HTTP server
@@ -125,12 +133,18 @@ async function main() {
     }
   });
 
+  // Set server timeout (default Node.js timeout is 2 minutes, we need more for long-running playwright operations)
+  server.timeout = config.server.requestTimeout;
+  server.keepAliveTimeout = config.server.requestTimeout + 5000; // Slightly longer than request timeout
+  server.headersTimeout = config.server.requestTimeout + 10000; // Slightly longer than keepAlive
+
   // Start listening
   server.listen(config.server.port, config.server.host, () => {
     logger.info('Server listening', {
       port: config.server.port,
       host: config.server.host,
       url: `http://${config.server.host}:${config.server.port}`,
+      requestTimeout: config.server.requestTimeout,
     });
   });
 
@@ -211,26 +225,35 @@ function registerHandlers(): void {
 /**
  * Create metrics server
  */
-function createMetricsServer(port: number): ReturnType<typeof createServer> {
-  const server = createServer(async (req, res) => {
-    if (req.url === '/metrics') {
-      res.setHeader('Content-Type', metrics.getRegistry().contentType);
-      const metricsOutput = await metrics.getMetrics();
-      res.end(metricsOutput);
-    } else {
-      res.statusCode = 404;
-      res.end('Not found');
-    }
-  });
+function createMetricsServer(port: number): Promise<ReturnType<typeof createServer>> {
+  return new Promise((resolve, reject) => {
+    const server = createServer(async (req, res) => {
+      if (req.url === '/metrics') {
+        res.setHeader('Content-Type', metrics.getRegistry().contentType);
+        const metricsOutput = await metrics.getMetrics();
+        res.end(metricsOutput);
+      } else {
+        res.statusCode = 404;
+        res.end('Not found');
+      }
+    });
 
-  server.listen(port, '0.0.0.0', () => {
-    logger.info('Metrics server listening', {
-      port,
-      url: `http://0.0.0.0:${port}/metrics`,
+    server.on('error', (error: NodeJS.ErrnoException) => {
+      if (error.code === 'EADDRINUSE') {
+        reject(new Error(`Metrics port ${port} is already in use`));
+      } else {
+        reject(error);
+      }
+    });
+
+    server.listen(port, '0.0.0.0', () => {
+      logger.info('Metrics server listening', {
+        port,
+        url: `http://0.0.0.0:${port}/metrics`,
+      });
+      resolve(server);
     });
   });
-
-  return server;
 }
 
 // Start server

@@ -12,27 +12,20 @@
       "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
       "title": "Timeline artifacts persist normalized execution events",
       "description": "Ensures execution artifacts are normalized, stored, and queryable so the replay UI and marketing renderer consume consistent payloads.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "test",
-          "ref": "api/services/timeline_test.go",
+          "ref": "api/services/workflow/timeline_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Validates timeline persistence, retrieval, and query filters."
         },
         {
-          "type": "test",
-          "ref": "test/phases/test-unit.sh",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Unit phase captures timeline service coverage thresholds."
-        },
-        {
           "type": "automation",
           "ref": "test/playbooks/capabilities/05-replay/01-automation/render-check.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "E2E validation that replay artifacts are persisted and accessible for rendering"
         }
       ]
@@ -43,41 +36,34 @@
       "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
       "title": "Replay exports portable bundles for marketing and sharing",
       "description": "Confirms the export endpoint generates self-contained bundles (screenshots, timeline JSON, metadata) that work offline.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "test",
-          "ref": "api/services/exporter.go",
+          "ref": "api/services/export/exporter_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Exporter generates ReplayMovieSpec with execution metadata."
+          "notes": "Unit tests validate export bundle generation and metadata. Exporter generates ReplayMovieSpec with execution metadata."
         },
         {
           "type": "test",
-          "ref": "api/services/exporter_test.go",
+          "ref": "api/services/replay/renderer_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Unit tests validate export bundle generation and metadata."
-        },
-        {
-          "type": "test",
-          "ref": "api/services/replay_renderer.go",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "ReplayRenderer generates video/gif from replay specs via Browserless (tested in unit phase)."
+          "notes": "ReplayRenderer generates video/gif from replay specs via Playwright (tested in unit phase)."
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/05-replay/01-automation/render-check.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "End-to-end validation of replay export and rendering workflow."
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/05-replay/02-ui/execution-result-export.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates execution result export functionality and replay artifact availability in the UI"
         }
       ]

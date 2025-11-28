@@ -1,0 +1,27 @@
+{
+  "flow_definition": {
+    "nodes": [
+      {
+        "id": "test-subflow",
+        "type": "subflow",
+        "data": {
+          "label": "Test subflow",
+          "workflowDefinition": {
+            "nodes": [
+              {
+                "id": "nav",
+                "type": "navigate",
+                "data": {
+                  "label": "Navigate to example.com",
+                  "url": "https://example.com"
+                }
+              }
+            ],
+            "edges": []
+          }
+        }
+      }
+    ],
+    "edges": []
+  }
+}

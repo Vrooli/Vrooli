@@ -419,7 +419,9 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	// Use ExecutionCompletionTimeout for workflow execution since workflows may include complex
+	// navigation, element interactions, and subflows that require more time than CRUD operations
+	ctx, cancel := context.WithTimeout(r.Context(), constants.ExecutionCompletionTimeout)
 	defer cancel()
 
 	execution, err := h.workflowService.ExecuteWorkflow(ctx, workflowID, req.Parameters)
@@ -568,7 +570,9 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 		workflowName = strings.TrimSpace(req.Metadata.Name)
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	// Use ExecutionCompletionTimeout for adhoc workflows since they may include complex
+	// navigation, element interactions, and subflows that require more time than CRUD operations
+	ctx, cancel := context.WithTimeout(r.Context(), constants.ExecutionCompletionTimeout)
 	defer cancel()
 
 	execution, err := h.workflowService.ExecuteAdhocWorkflow(

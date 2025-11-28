@@ -161,19 +161,56 @@ export class AssertionHandler extends BaseHandler {
   private async assertNotExists(
     page: any,
     selector: string,
-    _timeout: number
+    timeout: number
   ): Promise<AssertionOutcome> {
-    const element = await page.$(selector);
-    const absent = !element;
+    try {
+      console.log(`[assertNotExists] Starting assertion for selector: ${selector}, timeout: ${timeout}ms`);
 
-    return {
-      mode: 'notexists',
-      selector,
-      expected: 'absent',
-      actual: absent ? 'absent' : 'present',
-      success: absent,
-      message: absent ? '' : 'expected element to be absent',
-    };
+      // First check if element exists at all
+      const initialElement = await page.$(selector);
+      console.log(`[assertNotExists] Initial element query result:`, initialElement ? 'FOUND' : 'NOT FOUND');
+
+      if (!initialElement) {
+        // Element already doesn't exist - success
+        console.log(`[assertNotExists] Element absent from start - SUCCESS`);
+        return {
+          mode: 'notexists',
+          selector,
+          expected: 'absent',
+          actual: 'absent',
+          success: true,
+          message: '',
+        };
+      }
+
+      // Element exists, wait for it to be removed using Playwright's locator API
+      // This properly waits for DOM mutations
+      console.log(`[assertNotExists] Element present, using locator.waitFor({state: 'detached'})`);
+      const locator = page.locator(selector);
+      await locator.waitFor({ state: 'detached', timeout });
+
+      // Element was successfully removed
+      console.log(`[assertNotExists] Element successfully detached - SUCCESS`);
+      return {
+        mode: 'notexists',
+        selector,
+        expected: 'absent',
+        actual: 'absent',
+        success: true,
+        message: '',
+      };
+    } catch (error) {
+      // Timeout - element still present
+      console.log(`[assertNotExists] Timeout waiting for detachment - FAILURE`, error instanceof Error ? error.message : error);
+      return {
+        mode: 'notexists',
+        selector,
+        expected: 'absent',
+        actual: 'present',
+        success: false,
+        message: 'expected element to be absent',
+      };
+    }
   }
 
   private async assertVisible(

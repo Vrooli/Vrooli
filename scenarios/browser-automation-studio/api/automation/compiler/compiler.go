@@ -1,15 +1,20 @@
 package compiler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
 )
 
 // ExecutionPlan represents a validated sequence of steps derived from a workflow definition.
@@ -49,6 +54,8 @@ type Position struct {
 
 // CompileWorkflow converts a stored workflow definition into an execution plan.
 func CompileWorkflow(workflow *database.Workflow) (*ExecutionPlan, error) {
+	log.Printf("[COMPILER_DEBUG] CompileWorkflow called for workflow: %s (ID: %s)", workflow.Name, workflow.ID)
+
 	if workflow == nil {
 		return nil, errors.New("workflow is nil")
 	}
@@ -62,9 +69,12 @@ func CompileWorkflow(workflow *database.Workflow) (*ExecutionPlan, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal workflow definition: %w", err)
 	}
+	log.Printf("[COMPILER_DEBUG] Workflow definition marshalled, size: %d bytes", len(data))
+
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("invalid workflow definition: %w", err)
 	}
+	log.Printf("[COMPILER_DEBUG] Workflow definition parsed: %d nodes, %d edges", len(raw.Nodes), len(raw.Edges))
 
 	if len(raw.Nodes) == 0 {
 		return &ExecutionPlan{
@@ -75,6 +85,7 @@ func CompileWorkflow(workflow *database.Workflow) (*ExecutionPlan, error) {
 		}, nil
 	}
 
+	log.Printf("[COMPILER_DEBUG] Calling compileFlow for workflow: %s", workflow.Name)
 	plan, err := compileFlow(flowFragment{definition: raw}, workflow.ID, workflow.Name)
 	if err != nil {
 		return nil, err
@@ -82,7 +93,7 @@ func CompileWorkflow(workflow *database.Workflow) (*ExecutionPlan, error) {
 
 	metadata := map[string]any{}
 	if width, height := extractViewportFromSettings(raw.Settings); width > 0 && height > 0 {
-		metadata["executionViewport"] = map[string]int{"width": width, "height": height}
+		metadata["executionViewport"] = map[string]any{"width": width, "height": height}
 	}
 	if selector, timeout := extractEntryFromSettings(raw.Settings); selector != "" {
 		metadata["entrySelector"] = selector
@@ -106,6 +117,12 @@ func compileFlow(fragment flowFragment, workflowID uuid.UUID, workflowName strin
 	}
 
 	steps, err := planner.buildSteps()
+	if err != nil {
+		return nil, err
+	}
+
+	// Inline subflow nodes before processing loops
+	steps, err = inlineSubflows(steps, workflowID, workflowName)
 	if err != nil {
 		return nil, err
 	}
@@ -154,6 +171,92 @@ func applySpecialEdges(plan *ExecutionPlan, special map[string][]EdgeRef) {
 		}
 		step.OutgoingEdges = append(step.OutgoingEdges, edges...)
 	}
+}
+
+// inlineSubflows replaces subflow nodes with their expanded workflow definitions.
+// The Python resolver (resolve-workflow.py) converts @fixture/ references into
+// workflowDefinition objects. This function flattens those nested definitions
+// into the parent execution plan while preserving edge connections.
+func inlineSubflows(steps []ExecutionStep, workflowID uuid.UUID, workflowName string) ([]ExecutionStep, error) {
+	result := make([]ExecutionStep, 0, len(steps))
+
+	log.Printf("[SUBFLOW_DEBUG] inlineSubflows called with %d steps", len(steps))
+
+	for _, step := range steps {
+		if step.Type != StepSubflow {
+			result = append(result, step)
+			continue
+		}
+
+		log.Printf("[SUBFLOW_DEBUG] Found subflow node: %s", step.NodeID)
+		log.Printf("[SUBFLOW_DEBUG] step.Params keys: %v", func() []string {
+			keys := make([]string, 0, len(step.Params))
+			for k := range step.Params {
+				keys = append(keys, k)
+			}
+			return keys
+		}())
+
+		// Extract workflowDefinition from params
+		workflowDef, ok := step.Params["workflowDefinition"].(map[string]any)
+		if !ok {
+			log.Printf("[SUBFLOW_DEBUG] NO workflowDefinition in params (or wrong type)! Type: %T", step.Params["workflowDefinition"])
+			// Subflow without workflowDefinition - skip it (Python resolver did not inline it)
+			// This happens when resolve-workflow.py is not used or when testing pre-resolved workflows
+			continue
+		}
+
+		log.Printf("[SUBFLOW_DEBUG] workflowDefinition found with %d top-level keys", len(workflowDef))
+
+		// Parse the nested workflow definition
+		defData, err := json.Marshal(workflowDef)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal subflow definition for node %s: %w", step.NodeID, err)
+		}
+
+		var nestedFlow flowDefinition
+		if err := json.Unmarshal(defData, &nestedFlow); err != nil {
+			return nil, fmt.Errorf("failed to parse subflow definition for node %s: %w", step.NodeID, err)
+		}
+
+		log.Printf("[SUBFLOW_DEBUG] Parsed nestedFlow with %d nodes", len(nestedFlow.Nodes))
+
+		// Compile the nested workflow into steps
+		nestedPlan, err := compileFlow(
+			flowFragment{definition: nestedFlow},
+			workflowID,
+			fmt.Sprintf("%s::%s", workflowName, step.NodeID),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to compile subflow %s: %w", step.NodeID, err)
+		}
+
+		log.Printf("[SUBFLOW_DEBUG] Compiled nestedPlan with %d steps", len(nestedPlan.Steps))
+
+		// Inline the nested steps, preserving the subflow node's outgoing edges
+		// by transferring them to the last step of the nested plan
+		if len(nestedPlan.Steps) == 0 {
+			// Empty subflow - skip it
+			continue
+		}
+
+		// Add all nested steps except the last one
+		for i := 0; i < len(nestedPlan.Steps)-1; i++ {
+			result = append(result, nestedPlan.Steps[i])
+		}
+
+		// Add the last nested step and transfer the subflow's outgoing edges to it
+		lastStep := nestedPlan.Steps[len(nestedPlan.Steps)-1]
+		lastStep.OutgoingEdges = append(lastStep.OutgoingEdges, step.OutgoingEdges...)
+		result = append(result, lastStep)
+	}
+
+	// Reindex all steps to maintain sequential order
+	for i := range result {
+		result[i].Index = i
+	}
+
+	return result, nil
 }
 
 // flowDefinition mirrors the React Flow payload persisted with workflows.
@@ -507,6 +610,26 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 		if pos := toPosition(node.Position); pos != nil {
 			step.SourcePosition = pos
 		}
+
+		// Resolve navigate node URLs from destinationType: "scenario" format
+		if stepType == StepNavigate {
+			if err := resolveNavigateURL(&step); err != nil {
+				return nil, fmt.Errorf("failed to resolve navigate URL for node %s: %w", nodeID, err)
+			}
+		}
+
+		// Normalize assert node params (assertMode -> mode)
+		if stepType == StepAssert {
+			if err := normalizeAssertParams(&step); err != nil {
+				return nil, fmt.Errorf("failed to normalize assert params for node %s: %w", nodeID, err)
+			}
+		}
+
+		// Resolve @selector/ references in all steps that have selector parameters
+		if err := resolveSelectors(&step); err != nil {
+			return nil, fmt.Errorf("failed to resolve selectors for node %s: %w", nodeID, err)
+		}
+
 		for _, edge := range p.outgoing[nodeID] {
 			if isLoopBodyEdge(edge) {
 				continue
@@ -689,4 +812,239 @@ func edgeCondition(edge rawEdge) string {
 		}
 	}
 	return ""
+}
+
+// resolveNavigateURL resolves destination URLs for navigate nodes with destinationType: "scenario"
+func resolveNavigateURL(step *ExecutionStep) error {
+	if step == nil || step.Type != StepNavigate || step.Params == nil {
+		return nil
+	}
+
+	// If URL is already set, no resolution needed
+	if url, ok := step.Params["url"].(string); ok && strings.TrimSpace(url) != "" {
+		return nil
+	}
+
+	// Check if this is a scenario destination
+	destinationType, _ := step.Params["destinationType"].(string)
+	if strings.TrimSpace(destinationType) != "scenario" {
+		// Not a scenario destination, no resolution needed
+		return nil
+	}
+
+	// Extract scenario name and path
+	scenarioName, _ := step.Params["scenario"].(string)
+	scenarioPath, _ := step.Params["scenarioPath"].(string)
+
+	scenarioName = strings.TrimSpace(scenarioName)
+	if scenarioName == "" {
+		return fmt.Errorf("navigate node with destinationType 'scenario' missing scenario name")
+	}
+
+	// Resolve URL via scenarioport package
+	ctx := context.Background()
+	resolvedURL, _, err := scenarioport.ResolveURL(ctx, scenarioName, scenarioPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve URL for scenario %s: %w", scenarioName, err)
+	}
+
+	// Set the resolved URL in params
+	step.Params["url"] = resolvedURL
+
+	return nil
+}
+
+// selectorManifest holds the loaded selector mappings from selectors.manifest.json
+var selectorManifest map[string]interface{}
+var selectorManifestOnce sync.Once
+var selectorManifestErr error
+
+// loadSelectorManifest loads the selector manifest from ui/src/consts/selectors.manifest.json
+func loadSelectorManifest() error {
+	selectorManifestOnce.Do(func() {
+		// Try multiple paths to find the manifest, depending on working directory
+		// (working directory could be scenario root or api/ subdirectory)
+		manifestPaths := []string{
+			"ui/src/consts/selectors.manifest.json",      // When running from scenario root
+			"../ui/src/consts/selectors.manifest.json",   // When running from api/ subdirectory
+		}
+
+		var data []byte
+		var err error
+
+		for _, path := range manifestPaths {
+			data, err = os.ReadFile(path)
+			if err == nil {
+				break
+			}
+		}
+
+		if err != nil {
+			selectorManifestErr = fmt.Errorf("failed to read selector manifest (tried: %v): %w", manifestPaths, err)
+			return
+		}
+
+		// Parse JSON
+		var manifest map[string]interface{}
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			selectorManifestErr = fmt.Errorf("failed to parse selector manifest: %w", err)
+			return
+		}
+
+		selectorManifest = manifest
+	})
+
+	return selectorManifestErr
+}
+
+// normalizeAssertParams normalizes assert node parameters from workflow format to playwright-driver format
+// Specifically: assertMode -> mode
+func normalizeAssertParams(step *ExecutionStep) error {
+	if step == nil || step.Type != StepAssert || step.Params == nil {
+		return nil
+	}
+
+	// Map assertMode to mode (playwright-driver expects "mode")
+	if assertMode, ok := step.Params["assertMode"].(string); ok && assertMode != "" {
+		step.Params["mode"] = assertMode
+		// Keep assertMode for backward compatibility, but mode takes precedence
+	}
+
+	return nil
+}
+
+// resolveSelectors resolves @selector/ references in step parameters to actual CSS selectors
+func resolveSelectors(step *ExecutionStep) error {
+	log.Printf("[SELECTOR_RESOLVE] resolveSelectors called for step type=%s nodeID=%s", step.Type, step.NodeID)
+	if step == nil || step.Params == nil {
+		return nil
+	}
+
+	// Check if there are any @selector/ references before loading manifest
+	// This avoids unnecessary file I/O and allows workflows with pre-resolved selectors to work
+	hasSelectorsRefs := false
+	selectorParams := []string{"selector", "successSelector", "failureSelector"}
+
+	for _, paramName := range selectorParams {
+		if selectorRef, ok := step.Params[paramName].(string); ok {
+			log.Printf("[SELECTOR_RESOLVE] checking param=%s value='%s' hasPrefix=%v", paramName, selectorRef, strings.HasPrefix(selectorRef, "@selector/"))
+			if strings.HasPrefix(selectorRef, "@selector/") {
+				hasSelectorsRefs = true
+				break
+			}
+		}
+	}
+	log.Printf("[SELECTOR_RESOLVE] hasSelectorsRefs=%v (will %s manifest loading)", hasSelectorsRefs, map[bool]string{true: "proceed with", false: "skip"}[hasSelectorsRefs])
+
+	if !hasSelectorsRefs {
+		if resilience, ok := step.Params["resilience"].(map[string]interface{}); ok {
+			if successSelector, ok := resilience["successSelector"].(string); ok && strings.HasPrefix(successSelector, "@selector/") {
+				hasSelectorsRefs = true
+			}
+			if !hasSelectorsRefs {
+				if failureSelector, ok := resilience["failureSelector"].(string); ok && strings.HasPrefix(failureSelector, "@selector/") {
+					hasSelectorsRefs = true
+				}
+			}
+		}
+	}
+
+	// Only load manifest if we found @selector/ references
+	if !hasSelectorsRefs {
+		return nil
+	}
+
+	// Load manifest if not already loaded
+	if err := loadSelectorManifest(); err != nil {
+		return err
+	}
+
+	// Check for selector-related parameters and resolve @selector/ references
+	for _, paramName := range selectorParams {
+		if selectorRef, ok := step.Params[paramName].(string); ok {
+			// Strip /*dup-N*/ suffix first (used to make selector IDs unique in workflows)
+			cleanedRef := selectorRef
+			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
+				cleanedRef = cleanedRef[:idx]
+			}
+
+			// Debug logging - ALWAYS log selector processing
+			log.Printf("[SELECTOR_RESOLVE] param=%s original='%s' cleaned='%s'", paramName, selectorRef, cleanedRef)
+
+			// Try to resolve @selector/ references
+			if resolved := resolveSelectorReference(cleanedRef); resolved != "" {
+				log.Printf("[SELECTOR_RESOLVE] param=%s resolved='%s'", paramName, resolved)
+				step.Params[paramName] = resolved
+			} else if cleanedRef != selectorRef {
+				// No @selector/ reference, but we cleaned the /*dup-N*/ suffix
+				log.Printf("[SELECTOR_RESOLVE] param=%s no_manifest using_cleaned='%s'", paramName, cleanedRef)
+				step.Params[paramName] = cleanedRef
+			} else {
+				log.Printf("[SELECTOR_RESOLVE] param=%s unchanged='%s'", paramName, selectorRef)
+			}
+		}
+	}
+
+	// Handle resilience.successSelector and resilience.failureSelector
+	if resilience, ok := step.Params["resilience"].(map[string]interface{}); ok {
+		if successSelector, ok := resilience["successSelector"].(string); ok {
+			cleanedRef := successSelector
+			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
+				cleanedRef = cleanedRef[:idx]
+			}
+			if resolved := resolveSelectorReference(cleanedRef); resolved != "" {
+				resilience["successSelector"] = resolved
+			} else if cleanedRef != successSelector {
+				resilience["successSelector"] = cleanedRef
+			}
+		}
+		if failureSelector, ok := resilience["failureSelector"].(string); ok {
+			cleanedRef := failureSelector
+			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
+				cleanedRef = cleanedRef[:idx]
+			}
+			if resolved := resolveSelectorReference(cleanedRef); resolved != "" {
+				resilience["failureSelector"] = resolved
+			} else if cleanedRef != failureSelector {
+				resilience["failureSelector"] = cleanedRef
+			}
+		}
+	}
+
+	return nil
+}
+
+// resolveSelectorReference resolves a single @selector/ reference to an actual CSS selector
+func resolveSelectorReference(selectorRef string) string {
+	// Check if this is a @selector/ reference
+	if !strings.HasPrefix(selectorRef, "@selector/") {
+		return "" // Not a reference, leave as-is
+	}
+
+	// Extract the path (e.g., "dashboard.newProjectButton" from "@selector/dashboard.newProjectButton")
+	path := strings.TrimPrefix(selectorRef, "@selector/")
+
+	// Strip /*dup-N*/ suffix if present (used to make selectors unique in workflows)
+	// Example: "dialogs.project.root /*dup-1*/" -> "dialogs.project.root"
+	if idx := strings.Index(path, " /*dup-"); idx != -1 {
+		path = path[:idx]
+	}
+
+	// Look up in manifest
+	selectors, ok := selectorManifest["selectors"].(map[string]interface{})
+	if !ok {
+		return ""
+	}
+
+	entry, ok := selectors[path].(map[string]interface{})
+	if !ok {
+		return ""
+	}
+
+	selector, ok := entry["selector"].(string)
+	if !ok {
+		return ""
+	}
+
+	return selector
 }

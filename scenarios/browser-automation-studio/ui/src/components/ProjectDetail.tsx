@@ -1575,7 +1575,9 @@ function ProjectDetail({
 
       {showEditProjectModal && (
         <ProjectModal
-          onClose={() => setShowEditProjectModal(false)}
+          onClose={() => {
+            setShowEditProjectModal(false);
+          }}
           project={project}
           onSuccess={() => toast.success("Project updated successfully")}
         />

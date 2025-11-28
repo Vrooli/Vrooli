@@ -409,7 +409,7 @@
         },
         "waitUntil": {
           "type": "string",
-          "enum": ["load", "domcontentloaded", "networkidle0", "networkidle2"],
+          "enum": ["load", "domcontentloaded", "networkidle"],
           "description": "Event to wait for after navigation"
         }
       },

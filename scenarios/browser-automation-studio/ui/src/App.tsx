@@ -57,6 +57,11 @@ function App() {
   const { fetchScenarios } = useScenarioStore();
   const isLargeScreen = useMediaQuery("(min-width: 1024px)");
 
+  // Debug logging for modal state
+  useEffect(() => {
+    console.log("[DEBUG] App: showProjectModal changed to:", showProjectModal);
+  }, [showProjectModal]);
+
   const clampExecutionWidth = useCallback(
     (value: number) =>
       Math.min(EXECUTION_MAX_WIDTH, Math.max(EXECUTION_MIN_WIDTH, value)),
@@ -544,6 +549,7 @@ function App() {
 
   // Dashboard View
   if (currentView === "dashboard") {
+    console.log("[DEBUG] App rendering Dashboard view, showProjectModal:", showProjectModal);
     return (
       <div
         className="h-screen flex flex-col bg-flow-bg"
@@ -562,12 +568,15 @@ function App() {
           />
         </Suspense>
 
-        {showProjectModal && (
-          <ProjectModal
-            onClose={() => setShowProjectModal(false)}
-            onSuccess={handleProjectCreated}
-          />
-        )}
+        <ProjectModal
+          isOpen={showProjectModal}
+          onClose={() => {
+            console.log("[DEBUG] App: setShowProjectModal(false) called, current value:", showProjectModal);
+            setShowProjectModal(false);
+            console.log("[DEBUG] App: setShowProjectModal(false) completed");
+          }}
+          onSuccess={handleProjectCreated}
+        />
       </div>
     );
   }

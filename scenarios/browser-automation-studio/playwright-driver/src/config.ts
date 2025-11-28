@@ -4,7 +4,7 @@ const ConfigSchema = z.object({
   server: z.object({
     port: z.number().default(39400),
     host: z.string().default('127.0.0.1'),
-    requestTimeout: z.number().default(120000),
+    requestTimeout: z.number().default(300000), // 5 minutes - playwright operations can be slow
     maxRequestSize: z.number().default(5 * 1024 * 1024),
   }),
   browser: z.object({
@@ -65,7 +65,7 @@ export function loadConfig(): Config {
     server: {
       port: parseInt(process.env.PLAYWRIGHT_DRIVER_PORT || '39400', 10),
       host: process.env.PLAYWRIGHT_DRIVER_HOST || '127.0.0.1',
-      requestTimeout: parseInt(process.env.REQUEST_TIMEOUT_MS || '120000', 10),
+      requestTimeout: parseInt(process.env.REQUEST_TIMEOUT_MS || '300000', 10), // 5 minutes
       maxRequestSize: parseInt(process.env.MAX_REQUEST_SIZE || '5242880', 10),
     },
     browser: {

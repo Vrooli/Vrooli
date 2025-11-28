@@ -534,11 +534,12 @@ const literalSelectors = {
     newButtonFab: "new-workflow-button-fab",
   },
   // Landing Manager Admin Portal selectors
+  // Note: These are data-testid selector values, NOT actual credentials
   landingManager: {
     admin: {
       login: {
         email: "admin-login-email",
-        password: "admin-login-password",
+        password: "admin-login-password", // data-testid selector, not actual password
         submit: "admin-login-submit",
         error: "admin-login-error",
       },

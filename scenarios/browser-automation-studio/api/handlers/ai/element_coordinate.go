@@ -24,7 +24,7 @@ func (h *ElementAnalysisHandler) getElementAtCoordinate(ctx context.Context, url
 			Type:   "navigate",
 			Params: map[string]any{
 				"url":       url,
-				"waitUntil": "networkidle2",
+				"waitUntil": "networkidle",
 				"timeoutMs": 45000,
 			},
 		},

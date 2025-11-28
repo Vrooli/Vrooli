@@ -12,13 +12,13 @@
       "prd_ref": "Workflow Builder > Canvas Interactions",
       "title": "Add node from palette to canvas via drag-and-drop",
       "description": "Users can drag node types from the palette and drop them onto the workflow canvas to add new workflow steps",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/02-canvas/builder-add-node-from-palette.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates drag-and-drop from node palette to canvas with proper positioning"
         }
       ]

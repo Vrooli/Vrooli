@@ -35,6 +35,8 @@ export async function handleSessionStart(
     logger.info('Starting session', {
       executionId: spec.execution_id,
       reuseMode: spec.reuse_mode,
+      viewport: spec.viewport,
+      requestViewport: request.viewport,
     });
 
     // Start session

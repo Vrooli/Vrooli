@@ -22,7 +22,8 @@
         "coverage": {
           "warn_threshold": 40,
           "error_threshold": 30
-        }
+        },
+        "timeout": "180s"
       },
       "node": {}
     },

@@ -52,12 +52,15 @@ const buildAutoFolderPath = (
 };
 
 interface ProjectModalProps {
+  isOpen?: boolean;
   onClose: () => void;
   project?: Project | null; // null for create, project for edit
   onSuccess?: (project: Project) => void;
 }
 
-function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
+function ProjectModal({ isOpen = true, onClose, project, onSuccess }: ProjectModalProps) {
+  console.log(`[DEBUG] ProjectModal render - isOpen: ${isOpen}`);
+
   const { createProject, updateProject, isLoading, error, projects } =
     useProjectStore();
   const detectedPathSource = useMemo(() => {
@@ -220,7 +223,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
 
   return (
     <ResponsiveDialog
-      isOpen
+      isOpen={isOpen}
       onDismiss={onClose}
       ariaLabelledBy={titleId}
       size="default"
@@ -239,7 +242,10 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
         </div>
         <button
           data-testid={selectors.dialogs.base.closeButton}
-          onClick={onClose}
+          onClick={() => {
+            logger.debug("ProjectModal X button clicked", { component: "ProjectModal" });
+            onClose();
+          }}
           className="text-gray-400 hover:text-white transition-colors"
           aria-label="Close project modal"
         >
@@ -361,7 +367,10 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
           <button
             type="button"
             data-testid={selectors.dialogs.project.cancelButton}
-            onClick={onClose}
+            onClick={() => {
+              logger.debug("ProjectModal Cancel button clicked", { component: "ProjectModal" });
+              onClose();
+            }}
             className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
             disabled={isSubmitting}
           >

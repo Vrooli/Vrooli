@@ -387,7 +387,7 @@ template = {
                 "destinationType": "scenario",
                 "scenario": "browser-automation-studio",
                 "scenarioPath": "/",
-                "waitUntil": "networkidle0",
+                "waitUntil": "networkidle",
                 "timeoutMs": 45000,
                 "waitForMs": 2000
             }

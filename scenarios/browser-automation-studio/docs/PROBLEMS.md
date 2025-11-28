@@ -103,9 +103,61 @@ This file tracks unresolved issues, technical debt, and planned improvements for
 ### Recent Fixes
 - ✅ **Keyboard node execution bug** (2025-11-25): Fixed missing `Keys` and `Sequence` fields in `InstructionParam` struct. Keyboard nodes with `keys: ["Escape"]` or `sequence: "text"` formats now execute correctly. Resolved 3 integration test failures (16/52 passing, up from 13/52).
 
-### Root Cause: Integration Test Failures
+### ✅ RESOLVED: Playwright-Driver Resource Failure (2025-11-27)
 
-**Latest Analysis (2025-11-25 Session)**: Current integration test run shows 38/52 failures (73% failure rate, 14 passing). The failure patterns differ from previous analysis:
+**Status**: FIXED - Playwright-driver now handles port conflicts gracefully
+
+**Original Problem**: The playwright-driver TypeScript server crashed on startup when metrics port 9090 was already in use, causing all 53 integration tests to abort with "engine \"browserless\" not registered".
+
+**Root Cause**: The metrics server creation in `playwright-driver/src/server.ts` used synchronous `server.listen()` without error handling. When port 9090 was occupied, an uncaught exception crashed the entire process before the main HTTP server could start.
+
+**Solution Implemented**:
+Modified `playwright-driver/src/server.ts` (lines 70-82 and 222-251) to:
+1. Made `createMetricsServer()` return a Promise that resolves on successful binding or rejects on error
+2. Added `server.on('error')` handler to catch `EADDRINUSE` errors and reject with clear message
+3. Wrapped metrics server creation in try-catch block so failures are non-fatal (logs warning and continues)
+4. Changed main() to await the Promise so errors are caught properly
+
+**Verification**:
+- Playwright-driver now starts successfully when port 9090 is in use (logs "Failed to start metrics server, continuing without metrics")
+- Main HTTP server binds to port 39400 and registers 37 handlers as expected
+- Integration tests now EXECUTE workflows instead of aborting immediately
+- BAS scenario health checks show API ✅ healthy, UI ✅ healthy
+
+**Remaining Work**: Integration tests now run but fail on selector/timing issues (expected - this was blocking us from seeing those issues). The metrics port conflict fix unblocked the execution pipeline.
+
+### ✅ RESOLVED: Integration Test Infrastructure - JQ Infinite Recursion (2025-11-27)
+
+**Status**: FIXED - Integration tests now execute workflows properly
+
+**Original Problem**: All integration tests failed immediately with "jq: error: cannot allocate memory" when trying to execute workflows, preventing any test execution.
+
+**Root Cause**: The `clean_workflow` function in `scripts/scenarios/testing/playbooks/workflow-runner.sh` (lines 348-362) used jq's `walk()` function which created infinite recursion when processing workflows with nested subflows. The function was recursively calling itself on every object while also using `walk()` to traverse the tree, causing exponential recursion depth.
+
+**Solution Implemented**:
+Modified the jq function to manually handle recursion only where needed:
+- Removed the problematic `walk()` call that was recursing on every object
+- Added explicit recursion for `workflowDefinition` fields in subflow nodes
+- Now processes workflows linearly: strips metadata, keeps nodes/edges/settings, recurses only into subflow definitions
+
+**Verification**:
+- Integration test pass rate improved from 0/53 (100% failure) to 17/53 (32% pass rate)
+- Workflows with deeply nested subflows (3-4 levels) now execute in <1 second instead of timing out
+- Simple workflows complete successfully, revealing actual UI/selector issues
+- Remaining 36 failures are legitimate test issues (selector mismatches, timing), not infrastructure problems
+
+**Remaining Test Failures** (36/53):
+The jq fix unblocked the real test failures which are now visible:
+1. **Selector Issues**: Many tests fail because UI selectors don't match (e.g., `[data-testid="react-flow-canvas"]` not found after subflow navigation)
+2. **Timing Issues**: Some tests don't wait long enough for UI state transitions
+3. **Subflow Navigation**: Subflow nodes might not be properly navigating/rendering the builder UI
+
+**Next Steps**:
+1. Investigate selector mismatch failures - check if selectors changed or if subflows aren't loading UI properly
+2. Add appropriate wait steps for UI state transitions
+3. Verify subflow execution properly renders target UIs before asserting on selectors
+
+**Previous Analysis (2025-11-25 Session)**: Integration test run showed 38/52 failures (73% failure rate, 14 passing). The failure patterns differ from previous analysis:
 
 **Primary Root Cause - Selector Mismatches:**
 - Test workflows reference selectors that don't exist or have wrong testid values

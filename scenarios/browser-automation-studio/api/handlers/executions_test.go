@@ -15,6 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
 )
 
 type replayRendererStub struct {
