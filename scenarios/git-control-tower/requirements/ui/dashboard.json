@@ -1,0 +1,26 @@
+{
+  "_metadata": {
+    "description": "Web UI dashboard requirements for git-control-tower",
+    "domain": "ui",
+    "last_updated": "2025-11-27"
+  },
+  "requirements": [
+    {
+      "id": "GCT-UI-DASHBOARD",
+      "category": "ui.p2",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "Web UI dashboard with visual diff viewer",
+      "description": "Provides visual diff viewer, interactive staging, branch management, and service health monitoring in a single-page web application.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/App.tsx",
+          "phase": "manual",
+          "status": "implemented",
+          "notes": "Manual UI testing of dashboard features"
+        }
+      ]
+    }
+  ]
+}

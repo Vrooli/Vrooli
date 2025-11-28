@@ -1,0 +1,99 @@
+{
+  "_metadata": {
+    "description": "Git Control Tower requirement registry - Parent-level requirements reference child modules declared under imports",
+    "last_validated_at": "2025-11-27T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-11-27T00:00:00.000Z"
+  },
+  "meta": {
+    "scenario": "git-control-tower",
+    "version": "1.0.0",
+    "generated": "2025-11-27",
+    "owners": [
+      {
+        "platform": "git-control-tower",
+        "contact": "dev-team@vrooli.dev"
+      }
+    ]
+  },
+  "imports": [
+    "api/core.json",
+    "cli/commands.json",
+    "ui/dashboard.json"
+  ],
+  "requirements": [
+    {
+      "id": "GCT-FUNC-001",
+      "category": "foundation",
+      "prd_ref": "Operational Targets > P0",
+      "title": "P0 operational targets - Core git API functionality",
+      "description": "Tracks all P0 requirements for production readiness including health checks, repository status, file diffs, staging operations, commit composition, push/pull status, audit logging, and CLI parity.",
+      "status": "in_progress",
+      "children": [
+        "GCT-API-HEALTH",
+        "GCT-API-STATUS",
+        "GCT-API-DIFF",
+        "GCT-API-STAGE",
+        "GCT-API-COMMIT",
+        "GCT-API-PUSH-PULL",
+        "GCT-API-AUDIT",
+        "GCT-CLI-PARITY"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/*_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests for all P0 API endpoints"
+        }
+      ]
+    },
+    {
+      "id": "GCT-FUNC-002",
+      "category": "extended",
+      "prd_ref": "Operational Targets > P1",
+      "title": "P1 operational targets - Extended functionality",
+      "description": "Tracks P1 requirements including branch operations, AI-assisted commit messages, conflict detection, and change preview with impact analysis.",
+      "status": "complete",
+      "children": [
+        "GCT-API-BRANCHES",
+        "GCT-API-AI-COMMIT",
+        "GCT-API-CONFLICTS",
+        "GCT-API-PREVIEW"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/*_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests for all P1 API endpoints"
+        }
+      ]
+    },
+    {
+      "id": "GCT-FUNC-003",
+      "category": "ui",
+      "prd_ref": "Operational Targets > P2",
+      "title": "P2 operational targets - Web UI and future expansion",
+      "description": "Tracks P2 requirements including web UI dashboard, worktree management, and stash operations.",
+      "status": "in_progress",
+      "children": [
+        "GCT-UI-DASHBOARD",
+        "GCT-API-WORKTREE",
+        "GCT-API-STASH"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/App.tsx",
+          "phase": "manual",
+          "status": "implemented",
+          "notes": "Manual testing of web UI dashboard"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "_metadata": {
+    "description": "CLI command requirements for git-control-tower",
+    "domain": "cli",
+    "last_updated": "2025-11-27"
+  },
+  "requirements": [
+    {
+      "id": "GCT-CLI-PARITY",
+      "category": "cli.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-008",
+      "title": "CLI command parity with API functionality",
+      "description": "Provides CLI wrapper commands matching all API functionality including status, diff, stage, unstage, commit, and health check operations.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/test.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "CLI command integration tests"
+        }
+      ]
+    }
+  ]
+}

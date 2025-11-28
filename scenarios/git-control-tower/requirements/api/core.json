@@ -1,0 +1,230 @@
+{
+  "_metadata": {
+    "description": "Core API requirements for git operations",
+    "domain": "api",
+    "last_updated": "2025-11-27"
+  },
+  "requirements": [
+    {
+      "id": "GCT-API-HEALTH",
+      "category": "api.foundation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Health check endpoint validates system dependencies",
+      "description": "Implements GET /api/v1/health endpoint that validates database connectivity, git binary availability, and repository access with structured JSON response.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/health_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Health check validation with database and git binary checks"
+        }
+      ]
+    },
+    {
+      "id": "GCT-API-STATUS",
+      "category": "api.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Repository status API returns comprehensive git state",
+      "description": "Implements GET /api/v1/status endpoint returning current branch, tracking status, staged/unstaged/untracked files, and conflicts with scope detection.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/status_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Repository status endpoint validation"
+        }
+      ]
+    },
+    {
+      "id": "GCT-API-DIFF",
+      "category": "api.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "File diff endpoint returns git diff for any file path",
+      "description": "Implements GET /api/v1/diff endpoint that returns git diff for any file path relative to HEAD.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/diff_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "File diff endpoint validation"
+        }
+      ]
+    },
+    {
+      "id": "GCT-API-STAGE",
+      "category": "api.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Stage and unstage operations support file and scope-based selection",
+      "description": "Implements POST /api/v1/stage and POST /api/v1/unstage endpoints for staging/unstaging specific files or by scope (scenario/resource).",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/stage_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Stage/unstage operation validation"
+        }
+      ]
+    },
+    {
+      "id": "GCT-API-COMMIT",
+      "category": "api.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Commit composition API with conventional commit validation",
+      "description": "Implements POST /api/v1/commit endpoint that creates commits with conventional commit message validation and returns commit hash.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/commit_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Commit composition and validation"
+        }
+      ]
+    },
+    {
+      "id": "GCT-API-PUSH-PULL",
+      "category": "api.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Push/pull status checking with safety validation",
+      "description": "Implements GET /api/v1/push-status endpoint that checks if push is needed with safety checks for behind-remote scenarios.",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/push_status_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Push/pull status validation needs implementation"
+        }
+      ]
+    },
+    {
+      "id": "GCT-API-AUDIT",
+      "category": "api.foundation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "PostgreSQL audit logging with graceful degradation",
+      "description": "Logs all mutating operations (stage, unstage, commit) to PostgreSQL database with graceful degradation when database is unavailable.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/audit_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Audit logging validation including degradation scenarios"
+        }
+      ]
+    },
+    {
+      "id": "GCT-API-BRANCHES",
+      "category": "api.extended",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Branch operations with uncommitted change detection",
+      "description": "Implements branch listing, creation, and switching with uncommitted change detection via GET /api/v1/branches and POST /api/v1/branches endpoints.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/branches_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Branch operations validation"
+        }
+      ]
+    },
+    {
+      "id": "GCT-API-AI-COMMIT",
+      "category": "api.ai",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "AI-assisted commit message generation",
+      "description": "Implements POST /api/v1/commit/suggest endpoint that generates commit message suggestions using Ollama/OpenRouter with rule-based fallback.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ai_commit_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "AI commit message generation validation"
+        }
+      ]
+    },
+    {
+      "id": "GCT-API-CONFLICTS",
+      "category": "api.extended",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Conflict detection and reporting",
+      "description": "Detects active merge conflicts and potential conflicts (local changes + behind remote) via enhanced status endpoint.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/conflicts_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Conflict detection validation"
+        }
+      ]
+    },
+    {
+      "id": "GCT-API-PREVIEW",
+      "category": "api.extended",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Change preview with impact analysis",
+      "description": "Implements GET /api/v1/preview endpoint that provides commit impact preview with LOC analysis, affected scenarios/resources, and deployment risk assessment.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/preview_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Change preview and impact analysis validation"
+        }
+      ]
+    },
+    {
+      "id": "GCT-API-WORKTREE",
+      "category": "api.future",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "Worktree management via API",
+      "description": "Implements endpoints for listing, creating, and managing git worktrees programmatically.",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/worktree_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Worktree management validation pending implementation"
+        }
+      ]
+    },
+    {
+      "id": "GCT-API-STASH",
+      "category": "api.future",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "Stash operations via API",
+      "description": "Implements endpoints for saving, applying, and dropping stashes programmatically.",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/stash_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Stash operations validation pending implementation"
+        }
+      ]
+    }
+  ]
+}

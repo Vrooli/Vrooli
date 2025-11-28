@@ -107,18 +107,6 @@ Git Control Tower transforms git from a manual CLI tool into a queryable, contro
 
 ## 📎 Appendix
 
-### Performance Targets
-- Status API: < 500ms for 95% of requests
-- Diff generation: < 200ms for files < 10KB
-- Commit creation: < 1s including validation
-- Database queries: < 50ms for audit logs
-
-### Future Capabilities Enabled
-1. Autonomous deployment pipelines - scenarios stage changes and trigger deployments
-2. Multi-agent coordination - check for conflicts before making changes
-3. Intelligent code review - fetch and analyze diffs programmatically
-4. Change analytics - analyze commit patterns to understand codebase evolution
-
 ### Related Documentation
 - README.md - user-facing quick start
 - initialization/postgres/schema.sql - audit log schema
