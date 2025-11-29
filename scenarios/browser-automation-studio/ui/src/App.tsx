@@ -17,6 +17,8 @@ const AIPromptModal = lazy(() => import("@features/ai/AIPromptModal"));
 const Dashboard = lazy(() => import("@features/projects/Dashboard"));
 const ProjectDetail = lazy(() => import("@features/projects/ProjectDetail"));
 const SettingsPage = lazy(() => import("@features/settings/SettingsPage"));
+const GlobalWorkflowsView = lazy(() => import("@features/dashboard/GlobalWorkflowsView").then(m => ({ default: m.GlobalWorkflowsView })));
+const GlobalExecutionsView = lazy(() => import("@features/dashboard/GlobalExecutionsView").then(m => ({ default: m.GlobalExecutionsView })));
 
 // Stores and hooks
 import { useExecutionStore } from "@stores/executionStore";
@@ -39,7 +41,7 @@ interface NormalizedWorkflow extends Partial<Workflow> {
   projectId?: string;
 }
 
-type AppView = "dashboard" | "project-detail" | "project-workflow" | "settings";
+type AppView = "dashboard" | "project-detail" | "project-workflow" | "settings" | "all-workflows" | "all-executions";
 
 const EXECUTION_MIN_WIDTH = 360;
 const EXECUTION_MAX_WIDTH = 720;
@@ -220,6 +222,30 @@ function App() {
       setShowAIModal(false);
       setShowProjectModal(false);
       setCurrentView("settings");
+    },
+    [safeNavigate],
+  );
+
+  const navigateToAllWorkflows = useCallback(
+    (replace = false) => {
+      const url = "/workflows";
+      const state = { view: "all-workflows" };
+      safeNavigate(state, url, replace);
+      setShowAIModal(false);
+      setShowProjectModal(false);
+      setCurrentView("all-workflows");
+    },
+    [safeNavigate],
+  );
+
+  const navigateToAllExecutions = useCallback(
+    (replace = false) => {
+      const url = "/executions";
+      const state = { view: "all-executions" };
+      safeNavigate(state, url, replace);
+      setShowAIModal(false);
+      setShowProjectModal(false);
+      setCurrentView("all-executions");
     },
     [safeNavigate],
   );
@@ -721,6 +747,20 @@ function App() {
         return;
       }
 
+      // Handle /workflows route (global workflows view)
+      if (segments[0] === "workflows" && segments.length === 1) {
+        console.log("[DEBUG] resolvePath: navigating to all workflows");
+        navigateToAllWorkflows(replace);
+        return;
+      }
+
+      // Handle /executions route (global executions view)
+      if (segments[0] === "executions" && segments.length === 1) {
+        console.log("[DEBUG] resolvePath: navigating to all executions");
+        navigateToAllExecutions(replace);
+        return;
+      }
+
       if (segments[0] !== "projects" || !segments[1]) {
         console.log("[DEBUG] resolvePath: invalid path, navigating to dashboard");
         navigateToDashboard(replace);
@@ -786,7 +826,7 @@ function App() {
 
     window.addEventListener("popstate", popHandler);
     return () => window.removeEventListener("popstate", popHandler);
-  }, [navigateToDashboard, navigateToSettings, openProject, openWorkflow]);
+  }, [navigateToDashboard, navigateToSettings, navigateToAllWorkflows, navigateToAllExecutions, openProject, openWorkflow]);
 
   // Show loading while determining initial route
   if (currentView === null) {
@@ -822,6 +862,8 @@ function App() {
             onViewExecution={handleViewExecution}
             onAIGenerateWorkflow={handleDashboardAIGenerate}
             onRunWorkflow={handleRunWorkflow}
+            onViewAllWorkflows={navigateToAllWorkflows}
+            onViewAllExecutions={navigateToAllExecutions}
           />
         </Suspense>
 
@@ -864,6 +906,75 @@ function App() {
           }
         >
           <SettingsPage onBack={navigateToDashboard} />
+        </Suspense>
+
+        <KeyboardShortcutsModal
+          isOpen={showKeyboardShortcuts}
+          onClose={() => setShowKeyboardShortcuts(false)}
+          shortcuts={shortcutDefinitions}
+        />
+
+        <GuidedTour
+          isOpen={showTour}
+          onClose={closeTour}
+        />
+      </div>
+    );
+  }
+
+  // All Workflows View (global)
+  if (currentView === "all-workflows") {
+    return (
+      <div
+        className="h-screen flex flex-col bg-flow-bg"
+        data-testid={selectors.app.shell.ready}
+      >
+        <Suspense
+          fallback={
+            <div className="h-screen flex items-center justify-center bg-flow-bg">
+              <LoadingSpinner variant="default" size={24} message="Loading workflows..." />
+            </div>
+          }
+        >
+          <GlobalWorkflowsView
+            onBack={navigateToDashboard}
+            onNavigateToWorkflow={handleNavigateToWorkflow}
+            onRunWorkflow={handleRunWorkflow}
+          />
+        </Suspense>
+
+        <KeyboardShortcutsModal
+          isOpen={showKeyboardShortcuts}
+          onClose={() => setShowKeyboardShortcuts(false)}
+          shortcuts={shortcutDefinitions}
+        />
+
+        <GuidedTour
+          isOpen={showTour}
+          onClose={closeTour}
+        />
+      </div>
+    );
+  }
+
+  // All Executions View (global)
+  if (currentView === "all-executions") {
+    return (
+      <div
+        className="h-screen flex flex-col bg-flow-bg"
+        data-testid={selectors.app.shell.ready}
+      >
+        <Suspense
+          fallback={
+            <div className="h-screen flex items-center justify-center bg-flow-bg">
+              <LoadingSpinner variant="default" size={24} message="Loading executions..." />
+            </div>
+          }
+        >
+          <GlobalExecutionsView
+            onBack={navigateToDashboard}
+            onViewExecution={handleViewExecution}
+          />
         </Suspense>
 
         <KeyboardShortcutsModal

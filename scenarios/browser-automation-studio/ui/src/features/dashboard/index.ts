@@ -5,3 +5,5 @@ export { QuickStartWidget } from './QuickStartWidget';
 export { GlobalSearchModal } from './GlobalSearchModal';
 export { RunningIndicator } from './RunningIndicator';
 export { TemplatesGallery } from './TemplatesGallery';
+export { GlobalWorkflowsView } from './GlobalWorkflowsView';
+export { GlobalExecutionsView } from './GlobalExecutionsView';

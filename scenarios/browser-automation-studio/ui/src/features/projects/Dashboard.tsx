@@ -48,6 +48,8 @@ interface DashboardProps {
   onViewExecution?: (executionId: string, workflowId: string) => void;
   onAIGenerateWorkflow?: (prompt: string) => void;
   onRunWorkflow?: (workflowId: string) => void;
+  onViewAllWorkflows?: () => void;
+  onViewAllExecutions?: () => void;
   isGeneratingWorkflow?: boolean;
 }
 
@@ -61,6 +63,8 @@ function Dashboard({
   onViewExecution,
   onAIGenerateWorkflow,
   onRunWorkflow,
+  onViewAllWorkflows,
+  onViewAllExecutions,
   isGeneratingWorkflow = false,
 }: DashboardProps) {
   const {
@@ -128,13 +132,30 @@ function Dashboard({
   }, [onRunWorkflow]);
 
   const handleViewAllWorkflows = useCallback(() => {
-    // For now, just select the first project or create one
-    if (projects.length > 0) {
-      onProjectSelect(projects[0]);
+    if (onViewAllWorkflows) {
+      onViewAllWorkflows();
     } else {
-      onCreateProject();
+      // Fallback: select the first project or create one
+      if (projects.length > 0) {
+        onProjectSelect(projects[0]);
+      } else {
+        onCreateProject();
+      }
     }
-  }, [projects, onProjectSelect, onCreateProject]);
+  }, [onViewAllWorkflows, projects, onProjectSelect, onCreateProject]);
+
+  const handleViewAllExecutions = useCallback(() => {
+    if (onViewAllExecutions) {
+      onViewAllExecutions();
+    } else {
+      // Fallback: select the first project or create one
+      if (projects.length > 0) {
+        onProjectSelect(projects[0]);
+      } else {
+        onCreateProject();
+      }
+    }
+  }, [onViewAllExecutions, projects, onProjectSelect, onCreateProject]);
 
   const normalizedSearch = searchTerm.toLowerCase();
   const filteredProjects = projects.filter((project) => {
@@ -557,7 +578,7 @@ function Dashboard({
                 />
                 <RecentExecutionsWidget
                   onViewExecution={handleViewExecution}
-                  onViewAll={handleViewAllWorkflows}
+                  onViewAll={handleViewAllExecutions}
                 />
               </div>
 
