@@ -16,9 +16,17 @@ import {
   isReplayCursorClickAnimation,
   CURSOR_SCALE_MIN,
   CURSOR_SCALE_MAX,
+  REPLAY_CHROME_OPTIONS,
+  REPLAY_BACKGROUND_OPTIONS,
+  REPLAY_CURSOR_OPTIONS,
+  REPLAY_CURSOR_POSITIONS,
+  REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
 } from '../features/execution/replay/replayThemeOptions';
 
 const STORAGE_PREFIX = 'browserAutomation.settings.';
+const PRESETS_STORAGE_KEY = `${STORAGE_PREFIX}replay.userPresets`;
+const WORKFLOW_DEFAULTS_KEY = `${STORAGE_PREFIX}workflowDefaults`;
+const API_KEYS_KEY = `${STORAGE_PREFIX}apiKeys`;
 
 // Storage helpers with error handling
 const safeGetItem = (key: string): string | null => {
@@ -77,10 +85,143 @@ export interface ReplaySettings {
   loop: boolean;
 }
 
+export interface WorkflowDefaultSettings {
+  defaultTimeout: number; // in seconds
+  stepTimeout: number; // in seconds
+  retryAttempts: number;
+  retryDelay: number; // in ms
+  screenshotOnFailure: boolean;
+  screenshotOnSuccess: boolean;
+  headless: boolean;
+  slowMo: number; // in ms
+}
+
+export interface ApiKeySettings {
+  browserlessApiKey: string;
+  openaiApiKey: string;
+  anthropicApiKey: string;
+  customApiEndpoint: string;
+}
+
+export interface ReplayPreset {
+  id: string;
+  name: string;
+  settings: ReplaySettings;
+  isBuiltIn?: boolean;
+  createdAt?: string;
+}
+
+// Built-in presets that ship with the application
+export const BUILT_IN_PRESETS: ReplayPreset[] = [
+  {
+    id: 'default',
+    name: 'Default',
+    isBuiltIn: true,
+    settings: {
+      chromeTheme: 'aurora',
+      backgroundTheme: 'aurora',
+      cursorTheme: 'white',
+      cursorInitialPosition: 'center',
+      cursorScale: 1,
+      cursorClickAnimation: 'pulse',
+      cursorSpeedProfile: 'easeInOut',
+      cursorPathStyle: 'linear',
+      frameDuration: 1600,
+      autoPlay: false,
+      loop: true,
+    },
+  },
+  {
+    id: 'cinematic',
+    name: 'Cinematic',
+    isBuiltIn: true,
+    settings: {
+      chromeTheme: 'midnight',
+      backgroundTheme: 'nebula',
+      cursorTheme: 'aura',
+      cursorInitialPosition: 'center',
+      cursorScale: 1.2,
+      cursorClickAnimation: 'ripple',
+      cursorSpeedProfile: 'easeInOut',
+      cursorPathStyle: 'cubic',
+      frameDuration: 2500,
+      autoPlay: true,
+      loop: true,
+    },
+  },
+  {
+    id: 'minimal',
+    name: 'Minimal',
+    isBuiltIn: true,
+    settings: {
+      chromeTheme: 'minimal',
+      backgroundTheme: 'charcoal',
+      cursorTheme: 'arrowLight',
+      cursorInitialPosition: 'top-left',
+      cursorScale: 0.9,
+      cursorClickAnimation: 'none',
+      cursorSpeedProfile: 'linear',
+      cursorPathStyle: 'linear',
+      frameDuration: 1200,
+      autoPlay: false,
+      loop: false,
+    },
+  },
+  {
+    id: 'presentation',
+    name: 'Presentation',
+    isBuiltIn: true,
+    settings: {
+      chromeTheme: 'chromium',
+      backgroundTheme: 'grid',
+      cursorTheme: 'arrowNeon',
+      cursorInitialPosition: 'center',
+      cursorScale: 1.4,
+      cursorClickAnimation: 'pulse',
+      cursorSpeedProfile: 'easeOut',
+      cursorPathStyle: 'parabolicUp',
+      frameDuration: 2000,
+      autoPlay: true,
+      loop: true,
+    },
+  },
+  {
+    id: 'ocean-vibes',
+    name: 'Ocean Vibes',
+    isBuiltIn: true,
+    settings: {
+      chromeTheme: 'aurora',
+      backgroundTheme: 'ocean',
+      cursorTheme: 'white',
+      cursorInitialPosition: 'bottom-right',
+      cursorScale: 1.1,
+      cursorClickAnimation: 'ripple',
+      cursorSpeedProfile: 'easeInOut',
+      cursorPathStyle: 'parabolicDown',
+      frameDuration: 2200,
+      autoPlay: true,
+      loop: true,
+    },
+  },
+];
+
 interface SettingsStore {
   replay: ReplaySettings;
+  workflowDefaults: WorkflowDefaultSettings;
+  apiKeys: ApiKeySettings;
+  userPresets: ReplayPreset[];
+  activePresetId: string | null;
   setReplaySetting: <K extends keyof ReplaySettings>(key: K, value: ReplaySettings[K]) => void;
   resetReplaySettings: () => void;
+  loadPreset: (presetId: string) => void;
+  saveAsPreset: (name: string) => ReplayPreset;
+  deletePreset: (presetId: string) => void;
+  randomizeSettings: () => void;
+  getAllPresets: () => ReplayPreset[];
+  setWorkflowDefault: <K extends keyof WorkflowDefaultSettings>(key: K, value: WorkflowDefaultSettings[K]) => void;
+  resetWorkflowDefaults: () => void;
+  setApiKey: <K extends keyof ApiKeySettings>(key: K, value: ApiKeySettings[K]) => void;
+  clearApiKeys: () => void;
 }
 
 const loadReplaySettings = (): ReplaySettings => {
@@ -129,8 +270,111 @@ const getDefaultReplaySettings = (): ReplaySettings => ({
   loop: true,
 });
 
-export const useSettingsStore = create<SettingsStore>((set) => ({
+const getDefaultWorkflowSettings = (): WorkflowDefaultSettings => ({
+  defaultTimeout: 30,
+  stepTimeout: 10,
+  retryAttempts: 2,
+  retryDelay: 1000,
+  screenshotOnFailure: true,
+  screenshotOnSuccess: false,
+  headless: true,
+  slowMo: 0,
+});
+
+const getDefaultApiKeySettings = (): ApiKeySettings => ({
+  browserlessApiKey: '',
+  openaiApiKey: '',
+  anthropicApiKey: '',
+  customApiEndpoint: '',
+});
+
+const loadWorkflowDefaults = (): WorkflowDefaultSettings => {
+  try {
+    const stored = safeGetItem(WORKFLOW_DEFAULTS_KEY);
+    if (!stored) return getDefaultWorkflowSettings();
+    const parsed = JSON.parse(stored);
+    return { ...getDefaultWorkflowSettings(), ...parsed };
+  } catch {
+    return getDefaultWorkflowSettings();
+  }
+};
+
+const saveWorkflowDefaults = (settings: WorkflowDefaultSettings): void => {
+  safeSetItem(WORKFLOW_DEFAULTS_KEY, JSON.stringify(settings));
+};
+
+const loadApiKeySettings = (): ApiKeySettings => {
+  try {
+    const stored = safeGetItem(API_KEYS_KEY);
+    if (!stored) return getDefaultApiKeySettings();
+    const parsed = JSON.parse(stored);
+    return { ...getDefaultApiKeySettings(), ...parsed };
+  } catch {
+    return getDefaultApiKeySettings();
+  }
+};
+
+const saveApiKeySettings = (settings: ApiKeySettings): void => {
+  safeSetItem(API_KEYS_KEY, JSON.stringify(settings));
+};
+
+// Load user presets from localStorage
+const loadUserPresets = (): ReplayPreset[] => {
+  try {
+    const stored = safeGetItem(PRESETS_STORAGE_KEY);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((p: unknown) =>
+      p && typeof p === 'object' && 'id' in p && 'name' in p && 'settings' in p
+    );
+  } catch {
+    return [];
+  }
+};
+
+// Save user presets to localStorage
+const saveUserPresets = (presets: ReplayPreset[]): void => {
+  safeSetItem(PRESETS_STORAGE_KEY, JSON.stringify(presets));
+};
+
+// Generate a random ID for new presets
+const generatePresetId = (): string => {
+  return `user-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+};
+
+// Pick a random item from an array
+const randomChoice = <T,>(arr: readonly T[]): T => {
+  return arr[Math.floor(Math.random() * arr.length)];
+};
+
+// Valid speed profiles for randomization
+const SPEED_PROFILES: CursorSpeedProfile[] = ['instant', 'linear', 'easeIn', 'easeOut', 'easeInOut'];
+const PATH_STYLES: CursorPathStyle[] = ['linear', 'parabolicUp', 'parabolicDown', 'cubic', 'pseudorandom'];
+
+// Generate random replay settings
+const generateRandomSettings = (): ReplaySettings => {
+  return {
+    chromeTheme: randomChoice(REPLAY_CHROME_OPTIONS).id,
+    backgroundTheme: randomChoice(REPLAY_BACKGROUND_OPTIONS).id,
+    cursorTheme: randomChoice(REPLAY_CURSOR_OPTIONS).id,
+    cursorInitialPosition: randomChoice(REPLAY_CURSOR_POSITIONS).id,
+    cursorScale: Math.round((CURSOR_SCALE_MIN + Math.random() * (CURSOR_SCALE_MAX - CURSOR_SCALE_MIN)) * 10) / 10,
+    cursorClickAnimation: randomChoice(REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS).id,
+    cursorSpeedProfile: randomChoice(SPEED_PROFILES),
+    cursorPathStyle: randomChoice(PATH_STYLES),
+    frameDuration: Math.round((800 + Math.random() * 5200) / 100) * 100, // 800-6000 in 100ms steps
+    autoPlay: Math.random() > 0.5,
+    loop: Math.random() > 0.3, // 70% chance of loop
+  };
+};
+
+export const useSettingsStore = create<SettingsStore>((set, get) => ({
   replay: loadReplaySettings(),
+  workflowDefaults: loadWorkflowDefaults(),
+  apiKeys: loadApiKeySettings(),
+  userPresets: loadUserPresets(),
+  activePresetId: null,
 
   setReplaySetting: (key, value) => {
     saveReplaySetting(key, value);
@@ -139,6 +383,8 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
         ...state.replay,
         [key]: value,
       },
+      // Clear active preset since settings were manually changed
+      activePresetId: null,
     }));
   },
 
@@ -154,7 +400,89 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
         // Ignore
       }
     });
-    set({ replay: defaults });
+    set({ replay: defaults, activePresetId: 'default' });
+  },
+
+  loadPreset: (presetId: string) => {
+    // Find in built-in presets first
+    let preset = BUILT_IN_PRESETS.find((p) => p.id === presetId);
+    // Then check user presets
+    if (!preset) {
+      preset = get().userPresets.find((p) => p.id === presetId);
+    }
+    if (!preset) return;
+
+    // Apply all settings
+    const { settings } = preset;
+    Object.entries(settings).forEach(([key, value]) => {
+      saveReplaySetting(key as keyof ReplaySettings, value);
+    });
+
+    set({ replay: { ...settings }, activePresetId: presetId });
+  },
+
+  saveAsPreset: (name: string) => {
+    const currentSettings = get().replay;
+    const newPreset: ReplayPreset = {
+      id: generatePresetId(),
+      name,
+      settings: { ...currentSettings },
+      createdAt: new Date().toISOString(),
+    };
+
+    const updatedPresets = [...get().userPresets, newPreset];
+    saveUserPresets(updatedPresets);
+    set({ userPresets: updatedPresets, activePresetId: newPreset.id });
+
+    return newPreset;
+  },
+
+  deletePreset: (presetId: string) => {
+    const updatedPresets = get().userPresets.filter((p) => p.id !== presetId);
+    saveUserPresets(updatedPresets);
+
+    // Clear active preset if it was the deleted one
+    const newActiveId = get().activePresetId === presetId ? null : get().activePresetId;
+    set({ userPresets: updatedPresets, activePresetId: newActiveId });
+  },
+
+  randomizeSettings: () => {
+    const randomSettings = generateRandomSettings();
+
+    // Apply all settings to storage
+    Object.entries(randomSettings).forEach(([key, value]) => {
+      saveReplaySetting(key as keyof ReplaySettings, value);
+    });
+
+    set({ replay: randomSettings, activePresetId: null });
+  },
+
+  getAllPresets: () => {
+    return [...BUILT_IN_PRESETS, ...get().userPresets];
+  },
+
+  setWorkflowDefault: (key, value) => {
+    const updated = { ...get().workflowDefaults, [key]: value };
+    saveWorkflowDefaults(updated);
+    set({ workflowDefaults: updated });
+  },
+
+  resetWorkflowDefaults: () => {
+    const defaults = getDefaultWorkflowSettings();
+    saveWorkflowDefaults(defaults);
+    set({ workflowDefaults: defaults });
+  },
+
+  setApiKey: (key, value) => {
+    const updated = { ...get().apiKeys, [key]: value };
+    saveApiKeySettings(updated);
+    set({ apiKeys: updated });
+  },
+
+  clearApiKeys: () => {
+    const defaults = getDefaultApiKeySettings();
+    saveApiKeySettings(defaults);
+    set({ apiKeys: defaults });
   },
 }));
 

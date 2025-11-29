@@ -54,6 +54,7 @@ interface ProjectDetailProps {
   onBack: () => void;
   onWorkflowSelect: (workflow: Workflow) => Promise<void>;
   onCreateWorkflow: () => void;
+  onCreateWorkflowDirect?: () => void;
 }
 
 interface FolderItem {
@@ -69,6 +70,7 @@ function ProjectDetail({
   onBack,
   onWorkflowSelect,
   onCreateWorkflow,
+  onCreateWorkflowDirect,
 }: ProjectDetailProps) {
   const [workflows, setWorkflows] = useState<WorkflowWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -1393,7 +1395,7 @@ function ProjectDetail({
                         </button>
 
                         <button
-                          onClick={onCreateWorkflow}
+                          onClick={onCreateWorkflowDirect ?? onCreateWorkflow}
                           className="bg-flow-node border border-gray-700 rounded-xl p-5 text-left hover:border-flow-accent hover:shadow-lg hover:shadow-blue-500/10 transition-all group"
                         >
                           <div className="flex items-center gap-3 mb-3">

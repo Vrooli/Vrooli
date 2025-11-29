@@ -398,6 +398,39 @@ function App() {
     setShowAIModal(true);
   };
 
+  const handleCreateWorkflowDirect = async () => {
+    if (!currentProject?.id) {
+      toast.error("Select a project before creating a workflow.");
+      return;
+    }
+
+    const workflowName = `new-workflow-${Date.now()}`;
+    const folderPath = selectedFolder || "/";
+
+    try {
+      const workflow = await useWorkflowStore
+        .getState()
+        .createWorkflow(workflowName, folderPath, currentProject.id);
+
+      if (currentProject && workflow?.id) {
+        await openWorkflow(currentProject, workflow.id, {
+          workflowData: workflow as Record<string, unknown>,
+        });
+      }
+    } catch (error) {
+      logger.error(
+        "Failed to create workflow",
+        {
+          component: "App",
+          action: "handleCreateWorkflowDirect",
+          projectId: currentProject?.id,
+        },
+        error,
+      );
+      toast.error("Failed to create workflow. Please try again.");
+    }
+  };
+
   const handleSwitchToManualBuilder = async () => {
     console.log("[DEBUG] handleSwitchToManualBuilder called", {
       hasCurrentProject: !!currentProject,
@@ -768,6 +801,7 @@ function App() {
             onBack={handleBackToDashboard}
             onWorkflowSelect={handleWorkflowSelect}
             onCreateWorkflow={handleCreateWorkflow}
+            onCreateWorkflowDirect={handleCreateWorkflowDirect}
           />
         </Suspense>
 
