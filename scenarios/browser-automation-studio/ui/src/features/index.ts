@@ -8,6 +8,7 @@
  * - ai: AI-powered workflow generation and editing
  * - settings: Application settings and preferences
  * - onboarding: Tutorial and first-time user experience
+ * - docs: In-app documentation hub (Getting Started, Node Reference, Schema Reference)
  */
 export * from "./projects";
 export * from "./workflows";
@@ -15,3 +16,4 @@ export * from "./execution";
 export * from "./ai";
 export * from "./settings";
 export * from "./onboarding";
+export * from "./docs";

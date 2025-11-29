@@ -7,6 +7,7 @@ import {
   Bot,
   Settings,
   HelpCircle,
+  BookOpen,
   Command,
   Pencil,
   ChevronRight,
@@ -31,6 +32,7 @@ interface DashboardProps {
   onShowKeyboardShortcuts?: () => void;
   onOpenSettings?: () => void;
   onOpenTutorial?: () => void;
+  onOpenDocs?: () => void;
   onNavigateToWorkflow?: (projectId: string, workflowId: string) => void;
   onViewExecution?: (executionId: string, workflowId: string) => void;
   onAIGenerateWorkflow?: (prompt: string) => void;
@@ -47,6 +49,7 @@ function Dashboard({
   onShowKeyboardShortcuts,
   onOpenSettings,
   onOpenTutorial,
+  onOpenDocs,
   onNavigateToWorkflow,
   onViewExecution,
   onAIGenerateWorkflow,
@@ -316,6 +319,17 @@ function Dashboard({
                 <Search size={18} />
               </button>
 
+              {onOpenDocs && (
+                <button
+                  onClick={onOpenDocs}
+                  className="hidden sm:flex p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                  title="Documentation"
+                  aria-label="Open documentation"
+                  data-testid={selectors.dashboard.docsButton}
+                >
+                  <BookOpen size={18} />
+                </button>
+              )}
               {onOpenTutorial && (
                 <button
                   onClick={onOpenTutorial}

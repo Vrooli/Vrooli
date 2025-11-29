@@ -290,6 +290,7 @@ const literalSelectors = {
   dashboard: {
     newProjectButton: "dashboard-new-project-button",
     settingsButton: "dashboard-settings-button",
+    docsButton: "dashboard-docs-button",
     continueEditingChip: "dashboard-continue-editing-chip",
     tryDemoButton: "dashboard-try-demo-button",
   },
@@ -598,6 +599,11 @@ const dynamicSelectorDefinitions = {
     favoriteButton: defineDynamicSelector({
       description: "Favorite toggle button for a node palette card",
       testIdPattern: "node-palette-${type}-favorite-button",
+      params: { type: { type: "string" } },
+    }),
+    helpButton: defineDynamicSelector({
+      description: "Help button to view documentation for a node palette card",
+      testIdPattern: "node-palette-${type}-help-button",
       params: { type: { type: "string" } },
     }),
     category: defineDynamicSelector({

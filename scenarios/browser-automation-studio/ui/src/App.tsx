@@ -6,6 +6,7 @@ import "reactflow/dist/style.css";
 import { ResponsiveDialog, Sidebar, Header, KeyboardShortcutsModal } from "@shared/layout";
 import { ProjectModal } from "@features/projects";
 import { GuidedTour, useGuidedTour } from "@features/onboarding";
+import { DocsModal } from "@features/docs";
 
 // Keyboard shortcuts
 import { useKeyboardShortcuts, type KeyboardShortcut } from "@hooks/useKeyboardShortcuts";
@@ -52,6 +53,7 @@ function App() {
   const [showAIModal, setShowAIModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+  const [showDocs, setShowDocs] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<string>("/");
   const [selectedWorkflow, setSelectedWorkflow] =
     useState<NormalizedWorkflow | null>(null);
@@ -889,6 +891,7 @@ function App() {
             onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
             onOpenSettings={navigateToSettings}
             onOpenTutorial={openTour}
+            onOpenDocs={() => setShowDocs(true)}
             onNavigateToWorkflow={handleNavigateToWorkflow}
             onViewExecution={handleViewExecution}
             onAIGenerateWorkflow={handleDashboardAIGenerate}
@@ -918,6 +921,11 @@ function App() {
           isOpen={showKeyboardShortcuts}
           onClose={() => setShowKeyboardShortcuts(false)}
           shortcuts={shortcutDefinitions}
+        />
+
+        <DocsModal
+          isOpen={showDocs}
+          onClose={() => setShowDocs(false)}
         />
       </div>
     );

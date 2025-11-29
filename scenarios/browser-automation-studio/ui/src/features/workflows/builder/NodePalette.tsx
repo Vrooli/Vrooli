@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { ChevronDown, Code, History, Search, Star } from "lucide-react";
+import { ChevronDown, Code, HelpCircle, History, Search, Star, X } from "lucide-react";
 import {
   NODE_CATEGORIES,
   WORKFLOW_NODE_DEFINITIONS,
@@ -14,6 +14,8 @@ import {
   type WorkflowNodeDefinition,
 } from "@constants/nodeCategories";
 import { selectors } from "@constants/selectors";
+import { getNodeDocumentation } from "@features/docs";
+import { MarkdownRenderer } from "@features/docs/MarkdownRenderer";
 
 const FAVORITES_KEY = "bas.palette.favorites";
 const RECENTS_KEY = "bas.palette.recents";
@@ -89,6 +91,7 @@ interface NodeCardProps {
   node: WorkflowNodeDefinition;
   onDragStart: (event: React.DragEvent<HTMLDivElement>, type: string) => void;
   onToggleFavorite: (type: string) => void;
+  onShowHelp: (type: string) => void;
   isFavorite: boolean;
   searchTerm: string;
 }
@@ -97,6 +100,7 @@ function NodeCard({
   node,
   onDragStart,
   onToggleFavorite,
+  onShowHelp,
   isFavorite,
   searchTerm,
 }: NodeCardProps) {
@@ -110,33 +114,51 @@ function NodeCard({
       className="relative bg-flow-bg border border-gray-700 rounded-lg p-3 cursor-move hover:border-flow-accent transition-colors group"
       data-testid={selectors.nodePalette.card({ type: node.type })}
     >
-      <button
-        type="button"
-        aria-label={`${isFavorite ? "Remove" : "Add"} ${node.label} ${isFavorite ? "from" : "to"} favorites`}
-        aria-pressed={isFavorite}
-        className="absolute right-2 top-2 text-gray-500 hover:text-yellow-300"
-        onClick={(event) => {
-          event.stopPropagation();
-          event.preventDefault();
-          onToggleFavorite(node.type);
-        }}
-        data-testid={selectors.nodePalette.favoriteButton({
-          type: node.type,
-        })}
-      >
-        <Star
-          size={14}
-          className={isFavorite ? "text-yellow-300" : "text-gray-500"}
-          fill={isFavorite ? "currentColor" : "none"}
-        />
-      </button>
+      {/* Action buttons */}
+      <div className="absolute right-2 top-2 flex items-center gap-1">
+        <button
+          type="button"
+          aria-label={`View ${node.label} documentation`}
+          className="text-gray-500 hover:text-flow-accent opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={(event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            onShowHelp(node.type);
+          }}
+          data-testid={selectors.nodePalette.helpButton({
+            type: node.type,
+          })}
+        >
+          <HelpCircle size={14} />
+        </button>
+        <button
+          type="button"
+          aria-label={`${isFavorite ? "Remove" : "Add"} ${node.label} ${isFavorite ? "from" : "to"} favorites`}
+          aria-pressed={isFavorite}
+          className="text-gray-500 hover:text-yellow-300"
+          onClick={(event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            onToggleFavorite(node.type);
+          }}
+          data-testid={selectors.nodePalette.favoriteButton({
+            type: node.type,
+          })}
+        >
+          <Star
+            size={14}
+            className={isFavorite ? "text-yellow-300" : "text-gray-500"}
+            fill={isFavorite ? "currentColor" : "none"}
+          />
+        </button>
+      </div>
       <div className="flex items-start gap-3">
         <div
           className={`mt-0.5 ${node.color} group-hover:scale-110 transition-transform`}
         >
           <Icon size={18} />
         </div>
-        <div className="flex-1">
+        <div className="flex-1 pr-10">
           <div className="font-medium text-sm text-white mb-0.5">
             {highlightText(node.label, searchTerm)}
           </div>
@@ -144,6 +166,64 @@ function NodeCard({
             {highlightText(node.description, searchTerm)}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Node Help Panel - Shows documentation for a specific node type
+ */
+interface NodeHelpPanelProps {
+  nodeType: string;
+  onClose: () => void;
+}
+
+function NodeHelpPanel({ nodeType, onClose }: NodeHelpPanelProps) {
+  const doc = getNodeDocumentation(nodeType);
+  const nodeDef = WORKFLOW_NODE_DEFINITIONS[nodeType];
+
+  if (!doc) {
+    return (
+      <div className="p-4 text-center text-gray-500">
+        <p>No documentation available for this node type.</p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-2 text-flow-accent hover:underline text-sm"
+        >
+          Close
+        </button>
+      </div>
+    );
+  }
+
+  const Icon = nodeDef?.icon;
+
+  return (
+    <div className="flex flex-col h-full bg-flow-node border-l border-gray-700">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon size={18} className={nodeDef?.color || "text-gray-400"} />}
+          <h3 className="font-semibold text-white">{doc.name}</h3>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+          aria-label="Close help panel"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="text-xs text-gray-500 mb-3">
+          {doc.category} • Type: <code className="text-amber-300">{doc.type}</code>
+        </div>
+        <MarkdownRenderer content={doc.content} />
       </div>
     </div>
   );
@@ -158,9 +238,18 @@ function NodePalette() {
   );
   const [quickAccessExpanded, setQuickAccessExpanded] = useState(true);
   const [hydrated, setHydrated] = useState(false);
+  const [helpNodeType, setHelpNodeType] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const normalizedQuery = normalizeQuery(searchTerm);
+
+  const showHelp = useCallback((nodeType: string) => {
+    setHelpNodeType(nodeType);
+  }, []);
+
+  const closeHelp = useCallback(() => {
+    setHelpNodeType(null);
+  }, []);
 
   const isValidNodeType = useCallback(
     (nodeType: string) => Boolean(WORKFLOW_NODE_DEFINITIONS[nodeType]),
@@ -419,6 +508,7 @@ function NodePalette() {
                         node={node}
                         onDragStart={handleDragStart}
                         onToggleFavorite={toggleFavorite}
+                        onShowHelp={showHelp}
                         isFavorite
                         searchTerm={normalizedQuery}
                       />
@@ -449,6 +539,7 @@ function NodePalette() {
                         node={node}
                         onDragStart={handleDragStart}
                         onToggleFavorite={toggleFavorite}
+                        onShowHelp={showHelp}
                         isFavorite={favorites.has(node.type)}
                         searchTerm={normalizedQuery}
                       />
@@ -515,6 +606,7 @@ function NodePalette() {
                       node={node}
                       onDragStart={handleDragStart}
                       onToggleFavorite={toggleFavorite}
+                      onShowHelp={showHelp}
                       isFavorite={favorites.has(node.type)}
                       searchTerm={normalizedQuery}
                     />
@@ -546,6 +638,20 @@ function NodePalette() {
           instantly.
         </p>
       </div>
+
+      {/* Node Help Modal */}
+      {helpNodeType && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeHelp();
+          }}
+        >
+          <div className="w-full max-w-2xl max-h-[80vh] m-4 rounded-xl overflow-hidden shadow-2xl border border-gray-700">
+            <NodeHelpPanel nodeType={helpNodeType} onClose={closeHelp} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
