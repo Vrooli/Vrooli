@@ -73,8 +73,9 @@ func NewServer() (*Server, error) {
 	historyRepo := history.NewRepository(historyDB)
 	trendAnalyzer := history.NewTrendAnalyzer(historyRepo, 5) // Stall after 5 unchanged
 
-	// Initialize metrics collector
-	collector := collectors.NewMetricsCollector(cfg.VrooliRoot)
+	// Initialize metrics collector with circuit breaker integration
+	// [REQ:SCS-CORE-003] Graceful degradation via circuit breaker
+	collector := collectors.NewMetricsCollectorWithCircuitBreaker(cfg.VrooliRoot, cbRegistry)
 	configLoader := config.NewLoader(cfg.VrooliRoot)
 
 	// Create handler context with all dependencies

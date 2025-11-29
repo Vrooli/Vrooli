@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"scenario-completeness-scoring/pkg/config"
+	apierrors "scenario-completeness-scoring/pkg/errors"
 	"scenario-completeness-scoring/pkg/scoring"
 	"scenario-completeness-scoring/pkg/validators"
 
@@ -20,21 +21,35 @@ import (
 
 // HandleListScores returns a list of all scenarios with their scores
 // [REQ:SCS-CORE-002] Score retrieval API endpoint
+// [REQ:SCS-CORE-003] Graceful degradation - continues on individual scenario failures
+// [REQ:SCS-CORE-004] Reports partial results and skipped scenarios
 func (ctx *Context) HandleListScores(w http.ResponseWriter, r *http.Request) {
 	scenariosDir := filepath.Join(ctx.VrooliRoot, "scenarios")
 
-	// Load config for scoring options
-	cfg, _ := ctx.ConfigLoader.LoadGlobal()
-	scoringOpts := configToScoringOptions(cfg)
+	// Load config for scoring options, defaulting on error
+	// ASSUMPTION: Config loading may fail (disk issues, corruption)
+	// HARDENED: Fall back to defaults instead of nil
+	cfg, err := ctx.ConfigLoader.LoadGlobal()
+	if err != nil {
+		log.Printf("config_load_warning | error=%v | using defaults", err)
+	}
+	scoringOpts := configToScoringOptions(cfg) // configToScoringOptions handles nil safely
 
 	// Discover scenarios by listing directories
 	entries, err := os.ReadDir(scenariosDir)
 	if err != nil {
-		http.Error(w, "Failed to read scenarios directory", http.StatusInternalServerError)
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeInternalError,
+			"Failed to read scenarios directory",
+			apierrors.CategoryFileSystem,
+		).WithDetails(err.Error()), http.StatusInternalServerError)
 		return
 	}
 
 	var scenarios []map[string]interface{}
+	var skippedScenarios []map[string]interface{} // Track failed scenarios for transparency
+	var partialCount int                          // Count scenarios with partial data
+
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -46,23 +61,39 @@ func (ctx *Context) HandleListScores(w http.ResponseWriter, r *http.Request) {
 
 		scenarioName := entry.Name()
 
-		// Try to collect metrics (gracefully handle failures)
-		metrics, err := ctx.Collector.Collect(scenarioName)
+		// Try to collect metrics with partial result info
+		result, err := ctx.Collector.CollectWithPartialResults(scenarioName)
 		if err != nil {
-			// Log but continue with other scenarios
-			log.Printf("Warning: failed to collect metrics for %s: %v", scenarioName, err)
+			// Log and track skipped scenarios for transparency
+			log.Printf("collection_failed | scenario=%s error=%v", scenarioName, err)
+			skippedScenarios = append(skippedScenarios, map[string]interface{}{
+				"scenario": scenarioName,
+				"error":    err.Error(),
+				"reason":   "collection_failed",
+			})
 			continue
 		}
 
+		metrics := result.Metrics
 		thresholds := scoring.GetThresholds(metrics.Category)
 		breakdown := scoring.CalculateCompletenessScoreWithOptions(*metrics, thresholds, 0, scoringOpts)
 
-		scenarios = append(scenarios, map[string]interface{}{
+		scenarioData := map[string]interface{}{
 			"scenario":       scenarioName,
 			"category":       metrics.Category,
 			"score":          breakdown.Score,
 			"classification": breakdown.Classification,
-		})
+		}
+
+		// Include partial result info if not complete
+		if !result.PartialResult.IsComplete {
+			scenarioData["partial"] = true
+			scenarioData["confidence"] = result.PartialResult.Confidence
+			scenarioData["missing_collectors"] = result.PartialResult.Missing
+			partialCount++
+		}
+
+		scenarios = append(scenarios, scenarioData)
 	}
 
 	response := map[string]interface{}{
@@ -71,26 +102,100 @@ func (ctx *Context) HandleListScores(w http.ResponseWriter, r *http.Request) {
 		"calculated_at": time.Now().UTC().Format(time.RFC3339),
 	}
 
+	// Include degradation info if there are issues
+	if len(skippedScenarios) > 0 || partialCount > 0 {
+		response["degradation"] = map[string]interface{}{
+			"skipped":         skippedScenarios,
+			"skipped_count":   len(skippedScenarios),
+			"partial_count":   partialCount,
+			"is_complete":     len(skippedScenarios) == 0 && partialCount == 0,
+			"message":         getDegradationMessage(len(skippedScenarios), partialCount),
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
+// getDegradationMessage generates a user-friendly message about data completeness
+func getDegradationMessage(skipped, partial int) string {
+	if skipped == 0 && partial == 0 {
+		return ""
+	}
+	parts := []string{}
+	if skipped > 0 {
+		parts = append(parts, fmt.Sprintf("%d scenario(s) skipped due to errors", skipped))
+	}
+	if partial > 0 {
+		parts = append(parts, fmt.Sprintf("%d scenario(s) have partial data", partial))
+	}
+	return strings.Join(parts, "; ")
+}
+
+// writeAPIError writes a structured API error response
+// [REQ:SCS-CORE-003] User-friendly error responses with actionable guidance
+func writeAPIError(w http.ResponseWriter, apiErr *apierrors.APIError, statusCode int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"error": apiErr,
+	})
+}
+
 // HandleGetScore returns the detailed score for a specific scenario
 // [REQ:SCS-CORE-002] Score retrieval API endpoint
+// [REQ:SCS-CORE-003] Graceful degradation - returns partial results when possible
+// [REQ:SCS-CORE-004] Includes data completeness info
 func (ctx *Context) HandleGetScore(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	scenarioName := vars["scenario"]
 
-	// Collect real metrics from the scenario
-	metrics, err := ctx.Collector.Collect(scenarioName)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to collect metrics for scenario %s: %v", scenarioName, err), http.StatusNotFound)
+	// Validate scenario name
+	// ASSUMPTION: Scenario names are user-controlled input
+	// HARDENED: Explicit validation prevents path traversal and injection
+	if errMsg := ValidateScenarioName(scenarioName); errMsg != "" {
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeValidationFailed,
+			"Invalid scenario name",
+			apierrors.CategoryValidation,
+		).WithDetails(errMsg).WithNextSteps(
+			"Scenario names must start with a letter or number",
+			"Use only letters, numbers, hyphens, and underscores",
+			"Maximum length is 64 characters",
+		), http.StatusBadRequest)
 		return
 	}
 
-	// Load config for scoring options
-	cfg, _ := ctx.ConfigLoader.LoadGlobal()
-	scoringOpts := configToScoringOptions(cfg)
+	// Collect real metrics from the scenario with partial result info
+	result, err := ctx.Collector.CollectWithPartialResults(scenarioName)
+	if err != nil {
+		// Check for specific error types to provide better messages
+		if scoringErr, ok := err.(*apierrors.ScoringError); ok {
+			writeAPIError(w, apierrors.NewAPIError(
+				apierrors.ErrCodeScenarioNotFound,
+				fmt.Sprintf("Failed to collect metrics for scenario '%s'", scenarioName),
+				scoringErr.Category,
+			).WithDetails(scoringErr.Message).WithNextSteps(
+				"Check that the scenario name is correct",
+				"Verify the scenario directory exists",
+				"Run 'vrooli scenario list' to see available scenarios",
+			), http.StatusNotFound)
+			return
+		}
+		writeAPIError(w, apierrors.ErrScenarioNotFound.WithDetails(err.Error()), http.StatusNotFound)
+		return
+	}
+
+	metrics := result.Metrics
+
+	// Load config for scoring options, defaulting on error
+	// ASSUMPTION: Config loading may fail (disk issues, corruption)
+	// HARDENED: Fall back to defaults instead of nil
+	cfg, err := ctx.ConfigLoader.LoadGlobal()
+	if err != nil {
+		log.Printf("config_load_warning | scenario=%s error=%v | using defaults", scenarioName, err)
+	}
+	scoringOpts := configToScoringOptions(cfg) // configToScoringOptions handles nil safely
 
 	// Perform validation quality analysis
 	scenarioRoot := ctx.Collector.GetScenarioRoot(scenarioName)
@@ -125,6 +230,19 @@ func (ctx *Context) HandleGetScore(w http.ResponseWriter, r *http.Request) {
 		"calculated_at":       time.Now().UTC().Format(time.RFC3339),
 	}
 
+	// Include partial result info if data is incomplete
+	// [REQ:SCS-CORE-004] Report partial results to UI
+	if !result.PartialResult.IsComplete {
+		response["partial_result"] = map[string]interface{}{
+			"is_complete":       false,
+			"confidence":        result.PartialResult.Confidence,
+			"available":         result.PartialResult.Available,
+			"missing":           result.PartialResult.Missing,
+			"collector_errors":  result.PartialResult.CollectorErrors,
+			"message":           result.PartialResult.GetMessage(),
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -136,16 +254,44 @@ func (ctx *Context) HandleCalculateScore(w http.ResponseWriter, r *http.Request)
 	vars := mux.Vars(r)
 	scenarioName := vars["scenario"]
 
-	// Force recalculation by collecting fresh metrics
-	metrics, err := ctx.Collector.Collect(scenarioName)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to calculate score for scenario %s: %v", scenarioName, err), http.StatusNotFound)
+	// Validate scenario name
+	// ASSUMPTION: Scenario names are user-controlled input
+	// HARDENED: Explicit validation prevents path traversal and injection
+	if errMsg := ValidateScenarioName(scenarioName); errMsg != "" {
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeValidationFailed,
+			"Invalid scenario name",
+			apierrors.CategoryValidation,
+		).WithDetails(errMsg).WithNextSteps(
+			"Scenario names must start with a letter or number",
+			"Use only letters, numbers, hyphens, and underscores",
+			"Maximum length is 64 characters",
+		), http.StatusBadRequest)
 		return
 	}
 
-	// Load config for scoring options
-	cfg, _ := ctx.ConfigLoader.LoadGlobal()
-	scoringOpts := configToScoringOptions(cfg)
+	// Force recalculation by collecting fresh metrics
+	metrics, err := ctx.Collector.Collect(scenarioName)
+	if err != nil {
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeScenarioNotFound,
+			fmt.Sprintf("Failed to calculate score for scenario '%s'", scenarioName),
+			apierrors.CategoryCollector,
+		).WithDetails(err.Error()).WithNextSteps(
+			"Verify the scenario exists",
+			"Run 'vrooli scenario list' to see available scenarios",
+		), http.StatusNotFound)
+		return
+	}
+
+	// Load config for scoring options, defaulting on error
+	// ASSUMPTION: Config loading may fail (disk issues, corruption)
+	// HARDENED: Fall back to defaults instead of nil
+	cfg, cfgErr := ctx.ConfigLoader.LoadGlobal()
+	if cfgErr != nil {
+		log.Printf("config_load_warning | scenario=%s error=%v | using defaults", scenarioName, cfgErr)
+	}
+	scoringOpts := configToScoringOptions(cfg) // configToScoringOptions handles nil safely
 
 	thresholds := scoring.GetThresholds(metrics.Category)
 	breakdown := scoring.CalculateCompletenessScoreWithOptions(*metrics, thresholds, 0, scoringOpts)
@@ -185,10 +331,33 @@ func (ctx *Context) HandleValidationAnalysis(w http.ResponseWriter, r *http.Requ
 	vars := mux.Vars(r)
 	scenarioName := vars["scenario"]
 
+	// Validate scenario name
+	// ASSUMPTION: Scenario names are user-controlled input
+	// HARDENED: Explicit validation prevents path traversal and injection
+	if errMsg := ValidateScenarioName(scenarioName); errMsg != "" {
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeValidationFailed,
+			"Invalid scenario name",
+			apierrors.CategoryValidation,
+		).WithDetails(errMsg).WithNextSteps(
+			"Scenario names must start with a letter or number",
+			"Use only letters, numbers, hyphens, and underscores",
+			"Maximum length is 64 characters",
+		), http.StatusBadRequest)
+		return
+	}
+
 	// Collect metrics to get counts
 	metrics, err := ctx.Collector.Collect(scenarioName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to collect metrics for scenario %s: %v", scenarioName, err), http.StatusNotFound)
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeScenarioNotFound,
+			fmt.Sprintf("Failed to collect metrics for scenario '%s'", scenarioName),
+			apierrors.CategoryCollector,
+		).WithDetails(err.Error()).WithNextSteps(
+			"Verify the scenario exists",
+			"Run 'vrooli scenario list' to see available scenarios",
+		), http.StatusNotFound)
 		return
 	}
 
@@ -245,16 +414,44 @@ func (ctx *Context) HandleGetRecommendations(w http.ResponseWriter, r *http.Requ
 	vars := mux.Vars(r)
 	scenarioName := vars["scenario"]
 
-	// Collect metrics and calculate score
-	metrics, err := ctx.Collector.Collect(scenarioName)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to collect metrics for scenario %s: %v", scenarioName, err), http.StatusNotFound)
+	// Validate scenario name
+	// ASSUMPTION: Scenario names are user-controlled input
+	// HARDENED: Explicit validation prevents path traversal and injection
+	if errMsg := ValidateScenarioName(scenarioName); errMsg != "" {
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeValidationFailed,
+			"Invalid scenario name",
+			apierrors.CategoryValidation,
+		).WithDetails(errMsg).WithNextSteps(
+			"Scenario names must start with a letter or number",
+			"Use only letters, numbers, hyphens, and underscores",
+			"Maximum length is 64 characters",
+		), http.StatusBadRequest)
 		return
 	}
 
-	// Load config for scoring options
-	cfg, _ := ctx.ConfigLoader.LoadGlobal()
-	scoringOpts := configToScoringOptions(cfg)
+	// Collect metrics and calculate score
+	metrics, err := ctx.Collector.Collect(scenarioName)
+	if err != nil {
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeScenarioNotFound,
+			fmt.Sprintf("Failed to collect metrics for scenario '%s'", scenarioName),
+			apierrors.CategoryCollector,
+		).WithDetails(err.Error()).WithNextSteps(
+			"Verify the scenario exists",
+			"Run 'vrooli scenario list' to see available scenarios",
+		), http.StatusNotFound)
+		return
+	}
+
+	// Load config for scoring options, defaulting on error
+	// ASSUMPTION: Config loading may fail (disk issues, corruption)
+	// HARDENED: Fall back to defaults instead of nil
+	cfg, cfgErr := ctx.ConfigLoader.LoadGlobal()
+	if cfgErr != nil {
+		log.Printf("config_load_warning | scenario=%s error=%v | using defaults", scenarioName, cfgErr)
+	}
+	scoringOpts := configToScoringOptions(cfg) // configToScoringOptions handles nil safely
 
 	thresholds := scoring.GetThresholds(metrics.Category)
 	breakdown := scoring.CalculateCompletenessScoreWithOptions(*metrics, thresholds, 0, scoringOpts)

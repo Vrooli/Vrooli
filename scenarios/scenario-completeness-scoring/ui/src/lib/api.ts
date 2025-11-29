@@ -150,12 +150,31 @@ export interface ScenarioScore {
   category: string;
   score: number;
   classification: string;
+  // Partial result info (when some collectors failed)
+  partial?: boolean;
+  confidence?: number;
+  missing_collectors?: string[];
+}
+
+// Degradation info when scenarios are skipped or have partial data
+export interface DegradationInfo {
+  skipped: Array<{
+    scenario: string;
+    error: string;
+    reason: string;
+  }>;
+  skipped_count: number;
+  partial_count: number;
+  is_complete: boolean;
+  message: string;
 }
 
 export interface ScoresListResponse {
   scenarios: ScenarioScore[];
   total: number;
   calculated_at: string;
+  // Optional degradation info when there are issues
+  degradation?: DegradationInfo;
 }
 
 export interface ValidationQualityAnalysis {
@@ -163,6 +182,20 @@ export interface ValidationQualityAnalysis {
   issue_count: number;
   total_penalty: number;
   overall_severity: string;
+}
+
+// Partial result info for score detail responses
+export interface PartialResultInfo {
+  is_complete: boolean;
+  confidence: number;
+  available: Record<string, boolean>;
+  missing: string[];
+  collector_errors?: Array<{
+    collector: string;
+    message: string;
+    severity: string;
+  }>;
+  message: string;
 }
 
 export interface ScoreDetailResponse {
@@ -177,6 +210,8 @@ export interface ScoreDetailResponse {
   validation_analysis?: ValidationQualityAnalysis;
   recalculated?: boolean;
   snapshot_id?: number;
+  // Partial result info when some collectors failed
+  partial_result?: PartialResultInfo;
 }
 
 export interface CollectorStatus {
@@ -290,19 +325,96 @@ export interface TrendResponse {
 
 // === API Functions ===
 
-async function apiCall<T>(path: string, options?: RequestInit): Promise<T> {
-  const url = buildApiUrl(path, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+/**
+ * Retry configuration for transient failures
+ * [REQ:SCS-CORE-003] Graceful degradation with automatic retry
+ */
+interface RetryConfig {
+  maxRetries: number;
+  baseDelay: number; // ms
+  maxDelay: number;  // ms
+  retryableStatuses: number[];
+}
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`API error ${res.status}: ${text || res.statusText}`);
+const DEFAULT_RETRY_CONFIG: RetryConfig = {
+  maxRetries: 3,
+  baseDelay: 500,
+  maxDelay: 5000,
+  retryableStatuses: [408, 429, 500, 502, 503, 504], // Timeout, Rate limit, Server errors
+};
+
+/**
+ * Sleep utility for retry delays
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Calculate exponential backoff delay with jitter
+ */
+function getRetryDelay(attempt: number, config: RetryConfig): number {
+  const exponentialDelay = Math.min(
+    config.baseDelay * Math.pow(2, attempt),
+    config.maxDelay
+  );
+  // Add jitter (±25%) to prevent thundering herd
+  const jitter = exponentialDelay * 0.25 * (Math.random() * 2 - 1);
+  return Math.round(exponentialDelay + jitter);
+}
+
+/**
+ * Core API call function with automatic retry for transient failures
+ * [REQ:SCS-CORE-003] Graceful degradation - retries transient network failures
+ */
+async function apiCall<T>(
+  path: string,
+  options?: RequestInit,
+  retryConfig: Partial<RetryConfig> = {}
+): Promise<T> {
+  const config = { ...DEFAULT_RETRY_CONFIG, ...retryConfig };
+  const url = buildApiUrl(path, { baseUrl: API_BASE });
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: { "Content-Type": "application/json" },
+        ...options,
+      });
+
+      if (!res.ok) {
+        // Check if this is a retryable status
+        if (config.retryableStatuses.includes(res.status) && attempt < config.maxRetries) {
+          const delay = getRetryDelay(attempt, config);
+          console.warn(`API request failed with ${res.status}, retrying in ${delay}ms (attempt ${attempt + 1}/${config.maxRetries})`);
+          await sleep(delay);
+          continue;
+        }
+
+        // Non-retryable error or max retries exceeded
+        const text = await res.text().catch(() => "");
+        throw new Error(`API error ${res.status}: ${text || res.statusText}`);
+      }
+
+      return res.json() as Promise<T>;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Only retry network errors, not response errors
+      if (error instanceof TypeError && error.message.includes('fetch') && attempt < config.maxRetries) {
+        const delay = getRetryDelay(attempt, config);
+        console.warn(`Network error, retrying in ${delay}ms (attempt ${attempt + 1}/${config.maxRetries}):`, error.message);
+        await sleep(delay);
+        continue;
+      }
+
+      throw lastError;
+    }
   }
 
-  return res.json() as Promise<T>;
+  throw lastError || new Error('Max retries exceeded');
 }
 
 // Health

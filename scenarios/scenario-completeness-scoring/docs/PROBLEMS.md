@@ -46,3 +46,13 @@
    - **Issue**: The `useRecentScenarios` hook accessed `localStorage` directly without checking availability, causing `SecurityError` in sandboxed iframe contexts (Browserless, incognito mode, etc.).
    - **Fix**: Added `isLocalStorageAvailable()` helper function that tests localStorage access with try/catch before use. The hook now gracefully degrades when localStorage is unavailable - recent scenarios tracking simply won't persist across sessions but the UI continues to function.
    - **Files Changed**: `ui/src/hooks/useRecentScenarios.ts`
+
+2. **Failure Topography & Graceful Degradation** (2025-11-29)
+   - **Issue**: Collectors lacked circuit breaker integration, errors returned generic messages without actionable guidance, and UI didn't communicate partial/degraded states to users.
+   - **Fix**: Implemented comprehensive failure handling improvements:
+     - Created `pkg/errors/` package with structured error types (`CollectorError`, `ScoringError`, `PartialResult`, `APIError`) categorizing failures by severity, recovery info, and next steps
+     - Integrated circuit breakers with collectors via `NewMetricsCollectorWithCircuitBreaker()`
+     - Added `CollectWithPartialResults()` returning confidence scores (0-1) and missing collector info
+     - API responses now include `degradation` and `partial_result` fields
+     - UI shows degradation/partial data banners with expandable details
+   - **Files Changed**: New `api/pkg/errors/types.go`, `api/pkg/errors/types_test.go`, updated `api/pkg/collectors/interface.go`, `api/pkg/handlers/scores.go`, `api/main.go`, `ui/src/lib/api.ts`, `ui/src/pages/Dashboard.tsx`, `ui/src/pages/ScenarioDetail.tsx`

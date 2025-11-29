@@ -6,10 +6,21 @@ import (
 	"net/http"
 	"time"
 
+	apierrors "scenario-completeness-scoring/pkg/errors"
 	"scenario-completeness-scoring/pkg/health"
 
 	"github.com/gorilla/mux"
 )
+
+// validCollectors is the whitelist of known collector names
+// ASSUMPTION: Only specific collectors are valid
+// HARDENED: Whitelist approach prevents injection via collector names
+var validCollectors = map[string]bool{
+	"requirements": true,
+	"tests":        true,
+	"ui":           true,
+	"service":      true,
+}
 
 // HandleHealth returns basic service health status
 func (ctx *Context) HandleHealth(w http.ResponseWriter, r *http.Request) {
@@ -52,6 +63,21 @@ func (ctx *Context) HandleTestCollector(w http.ResponseWriter, r *http.Request) 
 	vars := mux.Vars(r)
 	collectorName := vars["name"]
 
+	// Validate collector name against whitelist
+	// ASSUMPTION: Collector names are user-controlled input
+	// HARDENED: Whitelist validation prevents injection attacks
+	if !validCollectors[collectorName] {
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeValidationFailed,
+			fmt.Sprintf("Unknown collector: '%s'", collectorName),
+			apierrors.CategoryValidation,
+		).WithNextSteps(
+			"Valid collectors: requirements, tests, ui, service",
+			"Use GET /api/v1/health/collectors to see all collector statuses",
+		), http.StatusNotFound)
+		return
+	}
+
 	// Define test functions for each collector type
 	var testFn health.CollectorTestFunc
 	switch collectorName {
@@ -66,9 +92,6 @@ func (ctx *Context) HandleTestCollector(w http.ResponseWriter, r *http.Request) 
 			_, err := ctx.Collector.Collect("scenario-completeness-scoring")
 			return err
 		}
-	default:
-		http.Error(w, fmt.Sprintf("Unknown collector: %s", collectorName), http.StatusNotFound)
-		return
 	}
 
 	result := ctx.HealthTracker.TestCollector(collectorName, testFn)
@@ -138,9 +161,31 @@ func (ctx *Context) HandleResetCircuitBreaker(w http.ResponseWriter, r *http.Req
 	vars := mux.Vars(r)
 	collectorName := vars["collector"]
 
+	// Validate collector name against whitelist
+	// ASSUMPTION: Collector names are user-controlled input
+	// HARDENED: Whitelist validation prevents injection attacks
+	if !validCollectors[collectorName] {
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeValidationFailed,
+			fmt.Sprintf("Unknown collector: '%s'", collectorName),
+			apierrors.CategoryValidation,
+		).WithNextSteps(
+			"Valid collectors: requirements, tests, ui, service",
+			"Use GET /api/v1/health/circuit-breaker to see all circuit breakers",
+		), http.StatusNotFound)
+		return
+	}
+
 	success := ctx.CBRegistry.Reset(collectorName)
 	if !success {
-		http.Error(w, fmt.Sprintf("Circuit breaker not found: %s", collectorName), http.StatusNotFound)
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeInternalError,
+			fmt.Sprintf("Circuit breaker not found: %s", collectorName),
+			apierrors.CategoryInternal,
+		).WithNextSteps(
+			"The circuit breaker may not have been initialized",
+			"Try resetting all circuit breakers instead",
+		), http.StatusNotFound)
 		return
 	}
 

@@ -5,6 +5,9 @@
 package handlers
 
 import (
+	"regexp"
+	"strings"
+
 	"scenario-completeness-scoring/pkg/analysis"
 	"scenario-completeness-scoring/pkg/circuitbreaker"
 	"scenario-completeness-scoring/pkg/collectors"
@@ -12,6 +15,11 @@ import (
 	"scenario-completeness-scoring/pkg/health"
 	"scenario-completeness-scoring/pkg/history"
 )
+
+// scenarioNamePattern validates scenario names
+// ASSUMPTION: Scenario names follow standard Vrooli naming conventions
+// HARDENED: Explicit validation prevents path traversal and injection attacks
+var scenarioNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$`)
 
 // Context holds shared dependencies for all handlers.
 // This replaces the Server struct pattern where handlers were methods
@@ -54,4 +62,24 @@ func NewContext(
 		WhatIfAnalyzer: whatIfAnalyzer,
 		BulkRefresher:  bulkRefresher,
 	}
+}
+
+// ValidateScenarioName validates a scenario name for safety and correctness
+// Returns an error message if invalid, empty string if valid
+// ASSUMPTION: Scenario names are alphanumeric with hyphens/underscores
+// HARDENED: Prevents path traversal attacks (../) and empty names
+func ValidateScenarioName(name string) string {
+	if name == "" {
+		return "scenario name cannot be empty"
+	}
+	if len(name) > 64 {
+		return "scenario name too long (max 64 characters)"
+	}
+	if strings.Contains(name, "..") || strings.Contains(name, "/") || strings.Contains(name, "\\") {
+		return "scenario name contains invalid characters"
+	}
+	if !scenarioNamePattern.MatchString(name) {
+		return "scenario name must start with alphanumeric and contain only letters, numbers, hyphens, and underscores"
+	}
+	return ""
 }

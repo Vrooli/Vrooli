@@ -168,33 +168,36 @@ func CalculateCoverageScore(metrics Metrics, requirements []RequirementTree) Cov
 	}
 }
 
-// getThresholdLevel determines threshold level (excellent, good, ok, below)
+// getThresholdLevel determines threshold level (excellent, good, ok, below).
+// This delegates to DecideThresholdLevel for the actual decision logic.
+// See decisions.go for threshold decision documentation.
 func getThresholdLevel(count int, thresholds ThresholdLevels) string {
-	if count >= thresholds.Excellent {
-		return "excellent"
-	}
-	if count >= thresholds.Good {
-		return "good"
-	}
-	if count >= thresholds.OK {
-		return "ok"
-	}
-	return "below"
+	return DecideThresholdLevel(count, thresholds)
 }
 
 // CalculateQuantityScore computes the quantity dimension score (10 points max)
 // [REQ:SCS-CORE-001C] Quantity dimension scoring
+// ASSUMPTION: Threshold.Good values are always positive
+// HARDENED: Guard against division by zero with safe defaults
 func CalculateQuantityScore(metrics Metrics, thresholds ThresholdConfig) QuantityScore {
+	// Safe division helper - returns 0 if divisor is 0
+	safeDivide := func(numerator, divisor int) float64 {
+		if divisor <= 0 {
+			return 0.0
+		}
+		return float64(numerator) / float64(divisor)
+	}
+
 	// Requirements score (4 points max)
-	reqRatio := math.Min(float64(metrics.Requirements.Total)/float64(thresholds.Requirements.Good), 1.0)
+	reqRatio := math.Min(safeDivide(metrics.Requirements.Total, thresholds.Requirements.Good), 1.0)
 	reqPoints := int(math.Round(reqRatio * 4))
 
 	// Targets score (3 points max)
-	targetRatio := math.Min(float64(metrics.Targets.Total)/float64(thresholds.Targets.Good), 1.0)
+	targetRatio := math.Min(safeDivide(metrics.Targets.Total, thresholds.Targets.Good), 1.0)
 	targetPoints := int(math.Round(targetRatio * 3))
 
 	// Tests score (3 points max)
-	testRatio := math.Min(float64(metrics.Tests.Total)/float64(thresholds.Tests.Good), 1.0)
+	testRatio := math.Min(safeDivide(metrics.Tests.Total, thresholds.Tests.Good), 1.0)
 	testPoints := int(math.Round(testRatio * 3))
 
 	return QuantityScore{
@@ -220,6 +223,7 @@ func CalculateQuantityScore(metrics Metrics, thresholds ThresholdConfig) Quantit
 
 // CalculateUIScore computes the UI dimension score (25 points max)
 // [REQ:SCS-CORE-001D] UI dimension scoring
+// Decision logic is delegated to decision helpers in decisions.go for clarity.
 func CalculateUIScore(uiMetrics *UIMetrics, thresholds ThresholdConfig) UIScore {
 	if uiMetrics == nil {
 		return UIScore{
@@ -251,74 +255,27 @@ func CalculateUIScore(uiMetrics *UIMetrics, thresholds ThresholdConfig) UIScore 
 		}
 	}
 
-	// Template signature check (10 points) - Binary: 0 if template, 10 if not
-	templatePoints := 0
-	if !uiMetrics.IsTemplate {
-		templatePoints = 10
-	}
+	// Template signature check (10 points) - Uses decision helper
+	templatePoints, _ := DecideTemplatePoints(uiMetrics.IsTemplate)
 
-	// Component count (5 points) - Based on file count vs thresholds
-	componentPoints := 0
-	if uiMetrics.FileCount >= thresholds.UI.FileCount.Excellent {
-		componentPoints = 5
-	} else if uiMetrics.FileCount >= thresholds.UI.FileCount.Good {
-		componentPoints = 4
-	} else if uiMetrics.FileCount >= thresholds.UI.FileCount.OK {
-		componentPoints = 3
-	} else if uiMetrics.FileCount >= 10 {
-		componentPoints = 2
-	} else if uiMetrics.FileCount >= 5 {
-		componentPoints = 1
-	}
+	// Component count (5 points) - Uses decision helper
+	componentPoints := DecideComponentComplexityPoints(uiMetrics.FileCount, thresholds.UI.FileCount)
 
-	// API integration depth (6 points) - Unique endpoints beyond /health
-	apiPoints := 0
-	if uiMetrics.APIBeyondHealth >= thresholds.UI.APIEndpoints.Excellent {
-		apiPoints = 6
-	} else if uiMetrics.APIBeyondHealth >= thresholds.UI.APIEndpoints.Good {
-		apiPoints = 5
-	} else if uiMetrics.APIBeyondHealth >= thresholds.UI.APIEndpoints.OK {
-		apiPoints = 4
-	} else if uiMetrics.APIBeyondHealth >= 2 {
-		apiPoints = 3
-	} else if uiMetrics.APIBeyondHealth >= 1 {
-		apiPoints = 2
-	}
+	// API integration depth (6 points) - Uses decision helper
+	apiPoints := DecideAPIIntegrationPoints(uiMetrics.APIBeyondHealth, thresholds.UI.APIEndpoints)
 
-	// Router complexity (1.5 points) - Lower weight since SPAs can be complete
-	routerPoints := 0.0
-	if uiMetrics.RouteCount >= 5 {
-		routerPoints = 1.5
-	} else if uiMetrics.RouteCount >= 3 {
-		routerPoints = 1.0
-	} else if uiMetrics.RouteCount >= 1 {
-		routerPoints = 0.5
-	}
+	// Router complexity (1.5 points) - Uses decision helper
+	routerPoints := DecideRoutingPoints(uiMetrics.RouteCount)
 
-	// Code volume (2.5 points) - Total LOC vs threshold
-	volumePoints := 0.0
-	if uiMetrics.TotalLOC >= thresholds.UI.TotalLOC.Excellent {
-		volumePoints = 2.5
-	} else if uiMetrics.TotalLOC >= thresholds.UI.TotalLOC.Good {
-		volumePoints = 2.0
-	} else if uiMetrics.TotalLOC >= thresholds.UI.TotalLOC.OK {
-		volumePoints = 1.5
-	} else if uiMetrics.TotalLOC >= 100 {
-		volumePoints = 0.5
-	}
+	// Code volume (2.5 points) - Uses decision helper
+	volumePoints := DecideVolumePoints(uiMetrics.TotalLOC, thresholds.UI.TotalLOC)
 
 	totalUIScore := int(math.Round(float64(templatePoints+componentPoints+apiPoints) + routerPoints + volumePoints))
 
-	// Determine threshold level for file count
+	// Determine threshold level for file count - special case for "none" when count is 0
 	fileCountThreshold := "none"
-	if uiMetrics.FileCount >= thresholds.UI.FileCount.Excellent {
-		fileCountThreshold = "excellent"
-	} else if uiMetrics.FileCount >= thresholds.UI.FileCount.Good {
-		fileCountThreshold = "good"
-	} else if uiMetrics.FileCount >= thresholds.UI.FileCount.OK {
-		fileCountThreshold = "ok"
-	} else if uiMetrics.FileCount > 0 {
-		fileCountThreshold = "below"
+	if uiMetrics.FileCount > 0 {
+		fileCountThreshold = DecideThresholdLevel(uiMetrics.FileCount, thresholds.UI.FileCount)
 	}
 
 	return UIScore{
@@ -353,22 +310,11 @@ func CalculateUIScore(uiMetrics *UIMetrics, thresholds ThresholdConfig) UIScore 
 	}
 }
 
-// ClassifyScore maps a score to a classification level
+// ClassifyScore maps a score to a classification level.
+// This delegates to DecideClassification for the actual decision logic.
+// See decisions.go for threshold constants and decision documentation.
 func ClassifyScore(score int) (string, string) {
-	switch {
-	case score >= 96:
-		return "production_ready", "Production ready, excellent validation coverage"
-	case score >= 81:
-		return "nearly_ready", "Nearly ready, final polish and edge cases"
-	case score >= 61:
-		return "mostly_complete", "Mostly complete, needs refinement and validation"
-	case score >= 41:
-		return "functional_incomplete", "Functional but incomplete, needs more features/tests"
-	case score >= 21:
-		return "foundation_laid", "Foundation laid, core features in progress"
-	default:
-		return "early_stage", "Just starting, needs significant development"
-	}
+	return DecideClassification(score)
 }
 
 // CalculateCompletenessScore computes the overall completeness score
@@ -504,22 +450,23 @@ func CalculateCompletenessScoreWithOptions(metrics Metrics, thresholds Threshold
 	}
 }
 
-// GenerateRecommendations creates actionable improvement suggestions
+// GenerateRecommendations creates actionable improvement suggestions.
+// Uses decision helpers from decisions.go to determine when to recommend each action.
 func GenerateRecommendations(breakdown ScoreBreakdown, thresholds ThresholdConfig) []Recommendation {
 	var recommendations []Recommendation
 	priority := 1
 
 	// UI recommendations (highest priority if template detected)
-	if breakdown.UI.TemplateCheck.IsTemplate {
+	if ShouldRecommendTemplateReplacement(breakdown.UI.TemplateCheck.IsTemplate) {
 		recommendations = append(recommendations, Recommendation{
 			Priority:    priority,
 			Description: "Replace template UI with scenario-specific interface",
-			Impact:      10,
+			Impact:      int(TemplateUIPoints), // Use constant from decisions.go
 		})
 		priority++
 	}
 
-	if breakdown.UI.ComponentComplexity.Threshold == "below" {
+	if ShouldRecommendMoreUIFiles(breakdown.UI.ComponentComplexity.Threshold) {
 		gap := thresholds.UI.FileCount.OK - breakdown.UI.ComponentComplexity.FileCount
 		if gap > 0 {
 			recommendations = append(recommendations, Recommendation{
@@ -531,7 +478,7 @@ func GenerateRecommendations(breakdown ScoreBreakdown, thresholds ThresholdConfi
 		}
 	}
 
-	if breakdown.UI.APIIntegration.EndpointCount == 0 {
+	if ShouldRecommendAPIIntegration(breakdown.UI.APIIntegration.EndpointCount) {
 		recommendations = append(recommendations, Recommendation{
 			Priority:    priority,
 			Description: "Integrate UI with API endpoints beyond /health",
@@ -540,8 +487,8 @@ func GenerateRecommendations(breakdown ScoreBreakdown, thresholds ThresholdConfi
 		priority++
 	}
 
-	// Quality recommendations
-	if breakdown.Quality.TestPassRate.Rate < 0.9 {
+	// Quality recommendations - use decision helpers for pass rate checks
+	if ShouldRecommendTestPassRateImprovement(breakdown.Quality.TestPassRate.Rate) {
 		recommendations = append(recommendations, Recommendation{
 			Priority:    priority,
 			Description: "Increase test pass rate to 90%+",
@@ -550,7 +497,7 @@ func GenerateRecommendations(breakdown ScoreBreakdown, thresholds ThresholdConfi
 		priority++
 	}
 
-	if breakdown.Quality.RequirementPassRate.Rate < 0.9 {
+	if ShouldRecommendRequirementPassRateImprovement(breakdown.Quality.RequirementPassRate.Rate) {
 		recommendations = append(recommendations, Recommendation{
 			Priority:    priority,
 			Description: "Increase requirement pass rate to 90%+",
@@ -559,7 +506,7 @@ func GenerateRecommendations(breakdown ScoreBreakdown, thresholds ThresholdConfi
 		priority++
 	}
 
-	if breakdown.Quality.TargetPassRate.Rate < 0.9 {
+	if ShouldRecommendTargetPassRateImprovement(breakdown.Quality.TargetPassRate.Rate) {
 		recommendations = append(recommendations, Recommendation{
 			Priority:    priority,
 			Description: "Increase operational target pass rate to 90%+",
@@ -569,7 +516,7 @@ func GenerateRecommendations(breakdown ScoreBreakdown, thresholds ThresholdConfi
 	}
 
 	// Quantity recommendations
-	if breakdown.Quantity.Tests.Threshold == "below" || breakdown.Quantity.Tests.Threshold == "ok" {
+	if ShouldRecommendMoreTests(breakdown.Quantity.Tests.Threshold) {
 		recommendations = append(recommendations, Recommendation{
 			Priority:    priority,
 			Description: "Add more tests to reach 'good' threshold",
@@ -579,7 +526,7 @@ func GenerateRecommendations(breakdown ScoreBreakdown, thresholds ThresholdConfi
 	}
 
 	// Coverage recommendations
-	if breakdown.Coverage.TestCoverageRatio.Ratio < 2.0 {
+	if ShouldRecommendBetterCoverage(breakdown.Coverage.TestCoverageRatio.Ratio) {
 		recommendations = append(recommendations, Recommendation{
 			Priority:    priority,
 			Description: "Add tests to reach optimal 2:1 test-to-requirement ratio",

@@ -9,6 +9,7 @@ import {
   Settings,
   Beaker,
   Check,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { ScoreBar } from "../components/ScoreBar";
@@ -28,6 +29,29 @@ interface ScenarioDetailProps {
   onBack: () => void;
   onOpenConfig?: () => void;
 }
+
+// Safe accessor for nested score properties
+// ASSUMPTION: API responses may have missing or null nested fields
+// HARDENED: Guards against undefined/null at any depth
+const safeRate = (passRate: { rate?: number } | undefined | null): number => {
+  return passRate?.rate ?? 0;
+};
+
+const safePoints = (metric: { points?: number } | undefined | null): number => {
+  return metric?.points ?? 0;
+};
+
+const safeCount = (metric: { count?: number } | undefined | null): number => {
+  return metric?.count ?? 0;
+};
+
+const safeRatio = (ratio: { ratio?: number } | undefined | null): number => {
+  return ratio?.ratio ?? 0;
+};
+
+const safeAvgDepth = (depth: { avg_depth?: number } | undefined | null): number => {
+  return depth?.avg_depth ?? 0;
+};
 
 const buildScoreDetails = (entries: Array<[string, number | undefined | null]>): Record<string, number> => {
   return entries.reduce((acc, [key, value]) => {
@@ -108,27 +132,30 @@ export function ScenarioDetail({ scenario, onBack, onOpenConfig }: ScenarioDetai
   }
 
   const { breakdown, metrics, recommendations } = scoreData;
+
+  // ASSUMPTION: breakdown fields may be missing or have undefined nested properties
+  // HARDENED: Use safe accessors to prevent runtime crashes on malformed API responses
   const qualityDetails = buildScoreDetails([
-    ["requirement_pass_rate", breakdown.quality.requirement_pass_rate.rate * 100],
-    ["target_pass_rate", breakdown.quality.target_pass_rate.rate * 100],
-    ["test_pass_rate", breakdown.quality.test_pass_rate.rate * 100],
+    ["requirement_pass_rate", safeRate(breakdown?.quality?.requirement_pass_rate) * 100],
+    ["target_pass_rate", safeRate(breakdown?.quality?.target_pass_rate) * 100],
+    ["test_pass_rate", safeRate(breakdown?.quality?.test_pass_rate) * 100],
   ]);
   const coverageDetails = buildScoreDetails([
-    ["test_coverage_ratio", breakdown.coverage.test_coverage_ratio.ratio * 100],
-    ["depth_avg", breakdown.coverage.depth_score.avg_depth],
-    ["depth_points", breakdown.coverage.depth_score.points],
+    ["test_coverage_ratio", safeRatio(breakdown?.coverage?.test_coverage_ratio) * 100],
+    ["depth_avg", safeAvgDepth(breakdown?.coverage?.depth_score)],
+    ["depth_points", safePoints(breakdown?.coverage?.depth_score)],
   ]);
   const quantityDetails = buildScoreDetails([
-    ["requirements", breakdown.quantity.requirements.points],
-    ["targets", breakdown.quantity.targets.points],
-    ["tests", breakdown.quantity.tests.points],
+    ["requirements", safePoints(breakdown?.quantity?.requirements)],
+    ["targets", safePoints(breakdown?.quantity?.targets)],
+    ["tests", safePoints(breakdown?.quantity?.tests)],
   ]);
   const uiDetails = buildScoreDetails([
-    ["template_points", breakdown.ui.template_check.points],
-    ["component_complexity", breakdown.ui.component_complexity.points],
-    ["api_integration", breakdown.ui.api_integration.points],
-    ["routing", breakdown.ui.routing.points],
-    ["code_volume", breakdown.ui.code_volume.points],
+    ["template_points", safePoints(breakdown?.ui?.template_check)],
+    ["component_complexity", safePoints(breakdown?.ui?.component_complexity)],
+    ["api_integration", safePoints(breakdown?.ui?.api_integration)],
+    ["routing", safePoints(breakdown?.ui?.routing)],
+    ["code_volume", safePoints(breakdown?.ui?.code_volume)],
   ]);
 
   const penaltyValue = -(breakdown.validation_penalty ?? 0);
@@ -186,6 +213,34 @@ export function ScenarioDetail({ scenario, onBack, onOpenConfig }: ScenarioDetai
             )}
           </div>
         </div>
+
+        {/* Partial Data Banner - [REQ:SCS-CORE-004] Show when score is based on partial data */}
+        {scoreData?.partial_result && !scoreData.partial_result.is_complete && (
+          <div className="mb-6 p-4 rounded-xl border border-yellow-500/30 bg-yellow-500/10" data-testid="partial-data-banner">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-yellow-400 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-medium text-yellow-200">Score Based on Partial Data</p>
+                <p className="text-sm text-yellow-300/70 mt-1">
+                  {scoreData.partial_result.message}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {scoreData.partial_result.missing.map((collector) => (
+                    <span
+                      key={collector}
+                      className="text-xs px-2 py-1 rounded bg-yellow-500/20 text-yellow-400"
+                    >
+                      {collector} unavailable
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-yellow-300/50 mt-2">
+                  Confidence: {Math.round(scoreData.partial_result.confidence * 100)}% — Some dimensions may be incomplete.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Score Overview Card */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">

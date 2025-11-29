@@ -503,7 +503,8 @@ func TestCollectorCollect(t *testing.T) {
 	}
 }
 
-// [REQ:SCS-CORE-001] Test collector with non-existent scenario returns defaults
+// [REQ:SCS-CORE-003] Test collector with non-existent scenario returns error
+// Non-existent scenarios should fail fast with clear feedback
 func TestCollectorCollectMissing(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.MkdirAll(filepath.Join(tmpDir, "scenarios"), 0755)
@@ -511,19 +512,38 @@ func TestCollectorCollectMissing(t *testing.T) {
 	collector := NewMetricsCollector(tmpDir)
 	metrics, err := collector.Collect("non-existent")
 
-	// Collect gracefully handles missing scenarios with defaults
+	// Non-existent scenario should return an error
+	if err == nil {
+		t.Error("Expected error for non-existent scenario")
+	}
+	if metrics != nil {
+		t.Error("Expected nil metrics for non-existent scenario")
+	}
+}
+
+// [REQ:SCS-CORE-003] Test collector with existing but empty scenario returns defaults
+// Existing scenarios with missing data files should return partial results with defaults
+func TestCollectorCollectExistingButEmpty(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Create the scenario directory (it exists but has no data)
+	os.MkdirAll(filepath.Join(tmpDir, "scenarios", "empty-scenario"), 0755)
+
+	collector := NewMetricsCollector(tmpDir)
+	metrics, err := collector.Collect("empty-scenario")
+
+	// Should succeed with default values for missing data
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 	if metrics == nil {
-		t.Fatal("Expected non-nil metrics even for missing scenario")
+		t.Fatal("Expected non-nil metrics for existing empty scenario")
 	}
 	// Should return default category and empty counts
 	if metrics.Category != "utility" {
 		t.Errorf("Expected default category 'utility', got '%s'", metrics.Category)
 	}
 	if metrics.Requirements.Total != 0 {
-		t.Errorf("Expected 0 requirements for missing scenario, got %d", metrics.Requirements.Total)
+		t.Errorf("Expected 0 requirements for empty scenario, got %d", metrics.Requirements.Total)
 	}
 }
 

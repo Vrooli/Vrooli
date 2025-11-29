@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"scenario-completeness-scoring/pkg/config"
+	apierrors "scenario-completeness-scoring/pkg/errors"
 
 	"github.com/gorilla/mux"
 )
@@ -71,29 +72,60 @@ func (ctx *Context) HandleGetConfig(w http.ResponseWriter, r *http.Request) {
 
 // HandleUpdateConfig updates the global scoring configuration
 // [REQ:SCS-CFG-004] Configuration persistence
+// [REQ:SCS-CORE-003] Structured error responses with actionable guidance
 func (ctx *Context) HandleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Failed to read request body", http.StatusBadRequest)
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeValidationFailed,
+			"Failed to read request body",
+			apierrors.CategoryValidation,
+		).WithDetails(err.Error()).WithNextSteps(
+			"Ensure the request body is valid",
+			"Check that Content-Type is application/json",
+		), http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
 	var cfg config.ScoringConfig
 	if err := json.Unmarshal(body, &cfg); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeValidationFailed,
+			"Invalid JSON in request body",
+			apierrors.CategoryValidation,
+		).WithDetails(err.Error()).WithNextSteps(
+			"Verify the JSON syntax is correct",
+			"Use a JSON validator to check the payload",
+		), http.StatusBadRequest)
 		return
 	}
 
 	// Validate configuration
 	if err := config.ValidateConfig(&cfg); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid configuration: %v", err), http.StatusBadRequest)
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeConfigInvalid,
+			"Invalid configuration values",
+			apierrors.CategoryConfig,
+		).WithDetails(err.Error()).WithNextSteps(
+			"Check that weight values are between 0 and 100",
+			"Ensure at least one scoring component is enabled",
+			"Verify weights sum to 100",
+		), http.StatusBadRequest)
 		return
 	}
 
 	// Save to disk
 	if err := ctx.ConfigLoader.SaveGlobal(&cfg); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to save configuration: %v", err), http.StatusInternalServerError)
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeInternalError,
+			"Failed to save configuration",
+			apierrors.CategoryFileSystem,
+		).WithDetails(err.Error()).AsRecoverable().WithNextSteps(
+			"Check disk space availability",
+			"Verify write permissions to config directory",
+			"Try again in a few moments",
+		), http.StatusInternalServerError)
 		return
 	}
 
@@ -109,21 +141,53 @@ func (ctx *Context) HandleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 
 // HandleGetScenarioConfig returns configuration for a specific scenario
 // [REQ:SCS-CFG-002] Per-scenario overrides
+// [REQ:SCS-CORE-003] Structured error responses with actionable guidance
 func (ctx *Context) HandleGetScenarioConfig(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	scenarioName := vars["scenario"]
 
+	// Validate scenario name
+	// ASSUMPTION: Scenario names are user-controlled input
+	// HARDENED: Explicit validation prevents path traversal and injection
+	if errMsg := ValidateScenarioName(scenarioName); errMsg != "" {
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeValidationFailed,
+			"Invalid scenario name",
+			apierrors.CategoryValidation,
+		).WithDetails(errMsg).WithNextSteps(
+			"Scenario names must start with a letter or number",
+			"Use only letters, numbers, hyphens, and underscores",
+			"Maximum length is 64 characters",
+		), http.StatusBadRequest)
+		return
+	}
+
 	// Get effective config (merged global + scenario override)
 	effectiveCfg, err := ctx.ConfigLoader.GetEffectiveConfig(scenarioName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to load configuration: %v", err), http.StatusInternalServerError)
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeInternalError,
+			fmt.Sprintf("Failed to load configuration for scenario '%s'", scenarioName),
+			apierrors.CategoryConfig,
+		).WithDetails(err.Error()).AsRecoverable().WithNextSteps(
+			"Check that global configuration exists",
+			"Verify the scenario name is correct",
+			"Try reloading the page",
+		), http.StatusInternalServerError)
 		return
 	}
 
 	// Get scenario-specific override
 	override, err := ctx.ConfigLoader.LoadScenarioOverride(scenarioName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to load override: %v", err), http.StatusInternalServerError)
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeInternalError,
+			fmt.Sprintf("Failed to load override for scenario '%s'", scenarioName),
+			apierrors.CategoryConfig,
+		).WithDetails(err.Error()).AsRecoverable().WithNextSteps(
+			"The scenario may not have a custom override yet",
+			"Try creating an override first via PUT /config/scenarios/{scenario}",
+		), http.StatusInternalServerError)
 		return
 	}
 
@@ -139,20 +203,48 @@ func (ctx *Context) HandleGetScenarioConfig(w http.ResponseWriter, r *http.Reque
 
 // HandleUpdateScenarioConfig updates configuration for a specific scenario
 // [REQ:SCS-CFG-002] Per-scenario overrides
+// [REQ:SCS-CORE-003] Structured error responses with actionable guidance
 func (ctx *Context) HandleUpdateScenarioConfig(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	scenarioName := vars["scenario"]
 
+	// Validate scenario name
+	// ASSUMPTION: Scenario names are user-controlled input
+	// HARDENED: Explicit validation prevents path traversal and injection
+	if errMsg := ValidateScenarioName(scenarioName); errMsg != "" {
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeValidationFailed,
+			"Invalid scenario name",
+			apierrors.CategoryValidation,
+		).WithDetails(errMsg).WithNextSteps(
+			"Scenario names must start with a letter or number",
+			"Use only letters, numbers, hyphens, and underscores",
+			"Maximum length is 64 characters",
+		), http.StatusBadRequest)
+		return
+	}
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Failed to read request body", http.StatusBadRequest)
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeValidationFailed,
+			"Failed to read request body",
+			apierrors.CategoryValidation,
+		).WithDetails(err.Error()), http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
 	var override config.ScenarioOverride
 	if err := json.Unmarshal(body, &override); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeValidationFailed,
+			"Invalid JSON in request body",
+			apierrors.CategoryValidation,
+		).WithDetails(err.Error()).WithNextSteps(
+			"Verify the JSON syntax is correct",
+			"Example: {\"enabled\": true, \"preset\": \"skip-e2e\"}",
+		), http.StatusBadRequest)
 		return
 	}
 
@@ -161,14 +253,29 @@ func (ctx *Context) HandleUpdateScenarioConfig(w http.ResponseWriter, r *http.Re
 	// Validate if overrides are provided
 	if override.Overrides != nil {
 		if err := config.ValidateConfig(override.Overrides); err != nil {
-			http.Error(w, fmt.Sprintf("Invalid configuration: %v", err), http.StatusBadRequest)
+			writeAPIError(w, apierrors.NewAPIError(
+				apierrors.ErrCodeConfigInvalid,
+				fmt.Sprintf("Invalid configuration overrides for scenario '%s'", scenarioName),
+				apierrors.CategoryConfig,
+			).WithDetails(err.Error()).WithNextSteps(
+				"Check that weight values are between 0 and 100",
+				"Ensure at least one scoring component is enabled",
+			), http.StatusBadRequest)
 			return
 		}
 	}
 
 	// Save override
 	if err := ctx.ConfigLoader.SaveScenarioOverride(&override); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to save configuration: %v", err), http.StatusInternalServerError)
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeInternalError,
+			fmt.Sprintf("Failed to save configuration for scenario '%s'", scenarioName),
+			apierrors.CategoryFileSystem,
+		).WithDetails(err.Error()).AsRecoverable().WithNextSteps(
+			"Check disk space availability",
+			"Verify write permissions",
+			"Try again in a few moments",
+		), http.StatusInternalServerError)
 		return
 	}
 
@@ -184,12 +291,37 @@ func (ctx *Context) HandleUpdateScenarioConfig(w http.ResponseWriter, r *http.Re
 
 // HandleDeleteScenarioConfig deletes configuration override for a specific scenario
 // [REQ:SCS-CFG-002] Per-scenario overrides
+// [REQ:SCS-CORE-003] Structured error responses with actionable guidance
 func (ctx *Context) HandleDeleteScenarioConfig(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	scenarioName := vars["scenario"]
 
+	// Validate scenario name
+	// ASSUMPTION: Scenario names are user-controlled input
+	// HARDENED: Explicit validation prevents path traversal and injection
+	if errMsg := ValidateScenarioName(scenarioName); errMsg != "" {
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeValidationFailed,
+			"Invalid scenario name",
+			apierrors.CategoryValidation,
+		).WithDetails(errMsg).WithNextSteps(
+			"Scenario names must start with a letter or number",
+			"Use only letters, numbers, hyphens, and underscores",
+			"Maximum length is 64 characters",
+		), http.StatusBadRequest)
+		return
+	}
+
 	if err := ctx.ConfigLoader.DeleteScenarioOverride(scenarioName); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to delete configuration: %v", err), http.StatusInternalServerError)
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeInternalError,
+			fmt.Sprintf("Failed to delete configuration for scenario '%s'", scenarioName),
+			apierrors.CategoryFileSystem,
+		).WithDetails(err.Error()).AsRecoverable().WithNextSteps(
+			"The scenario may not have an existing override",
+			"Check file system permissions",
+			"Try again in a few moments",
+		), http.StatusInternalServerError)
 		return
 	}
 
@@ -218,19 +350,40 @@ func (ctx *Context) HandleListPresets(w http.ResponseWriter, r *http.Request) {
 
 // HandleApplyPreset applies a preset to global configuration
 // [REQ:SCS-CFG-003] Configuration presets system
+// [REQ:SCS-CORE-003] Structured error responses with actionable guidance
 func (ctx *Context) HandleApplyPreset(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	presetName := vars["name"]
 
 	preset := config.GetPreset(presetName)
 	if preset == nil {
-		http.Error(w, fmt.Sprintf("Unknown preset: %s", presetName), http.StatusNotFound)
+		availablePresets := config.ListPresetInfo()
+		presetNames := make([]string, len(availablePresets))
+		for i, p := range availablePresets {
+			presetNames[i] = p.Name
+		}
+		writeAPIError(w, apierrors.NewAPIError(
+			"PRESET_NOT_FOUND",
+			fmt.Sprintf("Unknown preset: '%s'", presetName),
+			apierrors.CategoryValidation,
+		).WithNextSteps(
+			fmt.Sprintf("Available presets: %v", presetNames),
+			"Use GET /api/v1/config/presets to see all available presets",
+		), http.StatusNotFound)
 		return
 	}
 
 	// Save preset config as global config
 	if err := ctx.ConfigLoader.SaveGlobal(&preset.Config); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to apply preset: %v", err), http.StatusInternalServerError)
+		writeAPIError(w, apierrors.NewAPIError(
+			apierrors.ErrCodeInternalError,
+			fmt.Sprintf("Failed to apply preset '%s'", presetName),
+			apierrors.CategoryFileSystem,
+		).WithDetails(err.Error()).AsRecoverable().WithNextSteps(
+			"Check disk space availability",
+			"Verify write permissions",
+			"Try again in a few moments",
+		), http.StatusInternalServerError)
 		return
 	}
 

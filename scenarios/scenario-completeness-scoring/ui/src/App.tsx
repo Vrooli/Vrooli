@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Dashboard } from "./pages/Dashboard";
 import { ScenarioDetail } from "./pages/ScenarioDetail";
 import { Configuration } from "./pages/Configuration";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // [REQ:SCS-UI-001] Main app with navigation between dashboard, detail, and config views
+// [REQ:SCS-CORE-003] Graceful degradation with error boundaries
 export default function App() {
   const [selectedScenario, setSelectedScenario] = useState<string | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
@@ -14,12 +16,18 @@ export default function App() {
   if (selectedScenario) {
     return (
       <>
-        <ScenarioDetail
-          scenario={selectedScenario}
-          onBack={() => setSelectedScenario(null)}
-          onOpenConfig={handleOpenConfig}
-        />
-        {configOpen && <Configuration onClose={() => setConfigOpen(false)} />}
+        <ErrorBoundary context="Scenario Detail">
+          <ScenarioDetail
+            scenario={selectedScenario}
+            onBack={() => setSelectedScenario(null)}
+            onOpenConfig={handleOpenConfig}
+          />
+        </ErrorBoundary>
+        {configOpen && (
+          <ErrorBoundary context="Configuration">
+            <Configuration onClose={() => setConfigOpen(false)} />
+          </ErrorBoundary>
+        )}
       </>
     );
   }
@@ -27,11 +35,17 @@ export default function App() {
   // Default: show dashboard
   return (
     <>
-      <Dashboard
-        onSelectScenario={setSelectedScenario}
-        onOpenConfig={handleOpenConfig}
-      />
-      {configOpen && <Configuration onClose={() => setConfigOpen(false)} />}
+      <ErrorBoundary context="Dashboard">
+        <Dashboard
+          onSelectScenario={setSelectedScenario}
+          onOpenConfig={handleOpenConfig}
+        />
+      </ErrorBoundary>
+      {configOpen && (
+        <ErrorBoundary context="Configuration">
+          <Configuration onClose={() => setConfigOpen(false)} />
+        </ErrorBoundary>
+      )}
     </>
   );
 }

@@ -33,8 +33,15 @@ func NewLoader(vrooliRoot string) *Loader {
 }
 
 // globalConfigPath returns the path to the global config file
+// ASSUMPTION: User home directory is available
+// HARDENED: Falls back to /tmp if home dir lookup fails
 func (l *Loader) globalConfigPath() string {
-	homeDir, _ := os.UserHomeDir()
+	homeDir, err := os.UserHomeDir()
+	if err != nil || homeDir == "" {
+		// Fall back to a reasonable default directory
+		// This can happen in containerized environments or restricted shells
+		homeDir = "/tmp"
+	}
 	return filepath.Join(homeDir, VrooliConfigDir, GlobalConfigFile)
 }
 

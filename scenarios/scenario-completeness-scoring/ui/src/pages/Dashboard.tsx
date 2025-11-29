@@ -69,32 +69,44 @@ export function Dashboard({ onSelectScenario, onOpenConfig }: DashboardProps) {
     : [];
 
   // Extract unique categories for filter dropdown
+  // ASSUMPTION: scoresData.scenarios is always an array of valid objects
+  // HARDENED: Defensive checks prevent crashes on malformed API responses
   const categories = useMemo(() => {
-    if (!scoresData?.scenarios) return [];
-    const cats = new Set(scoresData.scenarios.map((s) => s.category));
+    if (!scoresData?.scenarios || !Array.isArray(scoresData.scenarios)) return [];
+    const cats = new Set(
+      scoresData.scenarios
+        .filter((s) => s && typeof s.category === "string")
+        .map((s) => s.category)
+    );
     return Array.from(cats).sort();
   }, [scoresData?.scenarios]);
 
   // Filter and sort scenarios
+  // ASSUMPTION: Each scenario object has scenario, category, and score fields
+  // HARDENED: Guards against missing or malformed fields
   const filteredScenarios = useMemo(() => {
-    if (!scoresData?.scenarios) return [];
+    if (!scoresData?.scenarios || !Array.isArray(scoresData.scenarios)) return [];
     return scoresData.scenarios
       .filter((s) => {
+        if (!s || typeof s.scenario !== "string") return false;
+        const scenarioName = s.scenario.toLowerCase();
+        const categoryName = (s.category ?? "").toLowerCase();
         const matchesSearch = searchQuery === "" ||
-          s.scenario.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          s.category.toLowerCase().includes(searchQuery.toLowerCase());
+          scenarioName.includes(searchQuery.toLowerCase()) ||
+          categoryName.includes(searchQuery.toLowerCase());
         const matchesCategory = categoryFilter === "all" || s.category === categoryFilter;
         return matchesSearch && matchesCategory;
       })
-      .sort((a, b) => b.score - a.score);
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   }, [scoresData?.scenarios, searchQuery, categoryFilter]);
 
   // Identify scenarios that need attention (low score <50 or declining)
+  // HARDENED: Guards against missing score values
   const needsAttentionScenarios = useMemo(() => {
-    if (!scoresData?.scenarios) return [];
+    if (!scoresData?.scenarios || !Array.isArray(scoresData.scenarios)) return [];
     return scoresData.scenarios
-      .filter((s) => s.score < 50)
-      .sort((a, b) => a.score - b.score)
+      .filter((s) => s && typeof s.score === "number" && s.score < 50)
+      .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
       .slice(0, 3);
   }, [scoresData?.scenarios]);
 
@@ -321,7 +333,7 @@ export function Dashboard({ onSelectScenario, onOpenConfig }: DashboardProps) {
 
         {/* Error State */}
         {scoresError && (
-          <div className="mb-6 p-4 rounded-xl border border-red-500/30 bg-red-500/10">
+          <div className="mb-6 p-4 rounded-xl border border-red-500/30 bg-red-500/10" data-testid="error-banner">
             <div className="flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-red-400 mt-0.5" />
               <div>
@@ -330,6 +342,42 @@ export function Dashboard({ onSelectScenario, onOpenConfig }: DashboardProps) {
                   {scoresError instanceof Error
                     ? scoresError.message
                     : "Unknown error"}
+                </p>
+                <p className="text-xs text-red-300/50 mt-2">
+                  Try refreshing the page or check that the scoring API is running.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Degradation Banner - Shown when some scenarios were skipped or have partial data */}
+        {/* [REQ:SCS-CORE-004] User-facing degradation info */}
+        {scoresData?.degradation && !scoresData.degradation.is_complete && (
+          <div className="mb-6 p-4 rounded-xl border border-yellow-500/30 bg-yellow-500/10" data-testid="degradation-banner">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-yellow-400 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-medium text-yellow-200">Partial Data Available</p>
+                <p className="text-sm text-yellow-300/70 mt-1">
+                  {scoresData.degradation.message}
+                </p>
+                {scoresData.degradation.skipped_count > 0 && (
+                  <details className="mt-2">
+                    <summary className="text-xs text-yellow-300/50 cursor-pointer hover:text-yellow-300/70">
+                      {scoresData.degradation.skipped_count} scenario(s) could not be loaded
+                    </summary>
+                    <ul className="mt-2 space-y-1 pl-4">
+                      {scoresData.degradation.skipped.map((s) => (
+                        <li key={s.scenario} className="text-xs text-yellow-300/60">
+                          <span className="font-medium">{s.scenario}</span>: {s.error}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+                <p className="text-xs text-yellow-300/50 mt-2">
+                  Scores are still being calculated with available data. Some values may be incomplete.
                 </p>
               </div>
             </div>
@@ -384,9 +432,20 @@ export function Dashboard({ onSelectScenario, onOpenConfig }: DashboardProps) {
                   data-testid={`scenario-row-${scenario.scenario}`}
                 >
                   <td className="px-4 py-3">
-                    <span className="font-medium text-slate-200">
-                      {scenario.scenario}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-slate-200">
+                        {scenario.scenario}
+                      </span>
+                      {/* [REQ:SCS-CORE-004] Partial data indicator */}
+                      {scenario.partial && (
+                        <span
+                          className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400"
+                          title={`Partial data (${Math.round((scenario.confidence ?? 0) * 100)}% confidence). Missing: ${scenario.missing_collectors?.join(", ") || "unknown"}`}
+                        >
+                          partial
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-sm text-slate-400">
@@ -394,17 +453,22 @@ export function Dashboard({ onSelectScenario, onOpenConfig }: DashboardProps) {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span
-                      className={`font-bold text-lg ${
-                        scenario.score >= 80
-                          ? "text-emerald-400"
-                          : scenario.score >= 50
-                          ? "text-amber-400"
-                          : "text-red-400"
-                      }`}
-                    >
-                      {scenario.score}
-                    </span>
+                    <div className="flex items-center justify-center gap-1">
+                      <span
+                        className={`font-bold text-lg ${
+                          scenario.score >= 80
+                            ? "text-emerald-400"
+                            : scenario.score >= 50
+                            ? "text-amber-400"
+                            : "text-red-400"
+                        }`}
+                      >
+                        {scenario.score}
+                      </span>
+                      {scenario.partial && (
+                        <span className="text-xs text-yellow-400" title="Score based on partial data">~</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <ScoreClassificationBadge
