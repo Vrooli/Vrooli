@@ -18,6 +18,7 @@ import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import type { ExecutionHistory, LogEntry, ProfilePerformance } from '@/types/api';
+import { SteerFocusBadge, getExecutionSteerFocus } from '@/components/steer/SteerFocusBadge';
 
 interface SystemLogsModalProps {
   open: boolean;
@@ -77,6 +78,10 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
     () => Object.fromEntries((profiles ?? []).map((p) => [p.id, p.name])),
     [profiles],
   );
+  const autoSteerProfilesById = useMemo(
+    () => Object.fromEntries((profiles ?? []).map((p) => [p.id, p])),
+    [profiles],
+  );
 
   useEffect(() => {
     if (activeTab !== 'logs') return;
@@ -129,13 +134,6 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
       return formatDurationMs(end - start);
     }
     return '--';
-  };
-
-  const formatSteerInfo = (execution?: ExecutionHistory | null) => {
-    if (!execution) return '—';
-    const mode = execution.steer_mode || execution.steering_source || '';
-    const phase = execution.steer_phase_index ? ` • phase ${execution.steer_phase_index}` : '';
-    return mode ? `${mode}${phase}` : '—';
   };
 
   const normalizeLevel = (level?: string): NormalizedLevel => {
@@ -556,6 +554,8 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                       )}
                       {filteredExecutions.map((exec) => {
                         const isSelected = exec.id === selectedExecutionId;
+                        const steerFocus = getExecutionSteerFocus(exec, autoSteerProfilesById);
+                        const hasSteerFocus = Boolean(steerFocus.autoSteerProfileName || steerFocus.manualSteerMode);
                         return (
                           <tr
                             key={exec.id}
@@ -568,7 +568,13 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                             <td className="px-4 py-2 font-mono text-xs text-slate-300">
                               {exec.task_title || exec.task_id}
                             </td>
-                            <td className="px-4 py-2 text-slate-200 text-xs">{formatSteerInfo(exec)}</td>
+                            <td className="px-4 py-2 text-slate-200 text-xs">
+                              {hasSteerFocus ? (
+                                <SteerFocusBadge {...steerFocus} />
+                              ) : (
+                                <span className="text-slate-500">—</span>
+                              )}
+                            </td>
                             <td className="px-4 py-3">
                               <span className={`text-xs px-2 py-1 rounded border ${getStatusTone(exec.status)}`}>
                                 {exec.status}

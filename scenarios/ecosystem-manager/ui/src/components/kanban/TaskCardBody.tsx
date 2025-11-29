@@ -3,8 +3,9 @@
  * Displays task title, target (for improver tasks), notes preview, and steering indicators
  */
 
-import { Compass, FileText, Zap } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import type { Task, AutoSteerProfile } from '../../types/api';
+import { SteerFocusBadge } from '@/components/steer/SteerFocusBadge';
 import { useAppState } from '../../contexts/AppStateContext';
 
 interface TaskCardBodyProps {
@@ -54,38 +55,12 @@ export function TaskCardBody({ task, autoSteerProfile, autoSteerPhaseIndex }: Ta
         </div>
       )}
 
-      {/* Auto Steer indicator */}
-      {hasAutoSteer && (
-        <div
-          className="flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-100 text-indigo-900 border border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-100 dark:border-indigo-500/30"
-          title={phaseTooltip}
-        >
-          <Zap className="h-3.5 w-3.5" />
-          <div className="flex flex-col leading-tight">
-              <span className="text-xs font-semibold flex items-center gap-1">
-                <span>{autoSteerProfile?.name ?? 'Auto Steer'}</span>
-              {phaseMode && (
-                <>
-                  <span className="text-[10px] text-indigo-800/70 dark:text-indigo-100/70">•</span>
-                  <span className="font-normal text-[11px] text-indigo-800/90 dark:text-indigo-100/90 uppercase">
-                    {phaseMode}
-                  </span>
-                </>
-              )}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Manual steering indicator */}
-      {!hasAutoSteer && manualSteerMode && (
-        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-amber-100 text-amber-900 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-50 dark:border-amber-500/30">
-          <Compass className="h-3.5 w-3.5" />
-          <div className="leading-tight text-xs font-semibold">
-            {manualSteerMode}
-          </div>
-        </div>
-      )}
+      <SteerFocusBadge
+        autoSteerProfileName={hasAutoSteer ? autoSteerProfile?.name ?? 'Auto Steer' : undefined}
+        phaseMode={phaseMode}
+        phaseTooltip={phaseTooltip}
+        manualSteerMode={!hasAutoSteer && manualSteerMode ? manualSteerMode : undefined}
+      />
     </div>
   );
 }

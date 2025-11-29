@@ -48,14 +48,13 @@ func (qp *Processor) cleanupTaskWithVerifiedAgentRemoval(taskID string, cleanupF
 	// Result: Reconciliation does nothing, agent appears stuck forever
 	agentTag := makeAgentTag(taskID)
 	if err := qp.ensureAgentRemoved(agentTag, 0, context); err != nil {
+		// Log severe warning regardless of keepTracking so we can correlate with UI state
+		systemlog.Errorf("CRITICAL: Agent %s stuck after %s - cleanup attempted: %v", agentTag, context, err)
+		log.Printf("ERROR: Agent %s stuck in registry - cleanup attempted: %v", agentTag, err)
 		if keepTracking {
-			// Keep execution tracked so reconciliation can detect and fix the zombie agent
-			systemlog.Errorf("CRITICAL: Agent %s stuck after %s - keeping execution tracked for reconciliation: %v", agentTag, context, err)
-			log.Printf("ERROR: Agent %s stuck in registry - execution remains tracked for recovery: %v", agentTag, err)
-			return
+			// Keep reconciliation informed but allow the execution record to be unregistered
+			systemlog.Warnf("Execution %s flagged as cleanup-critical after %s; reconciliation may still run", taskID, context)
 		}
-		// Log warning but continue if not keeping tracked
-		log.Printf("WARNING: Agent %s may still be in registry after %s: %v", agentTag, context, err)
 	}
 
 	// Step 3: Only after cleanup is verified, unregister from execution tracking

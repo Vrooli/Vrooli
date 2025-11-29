@@ -34,6 +34,8 @@ import { api } from '@/lib/api';
 import { markdownToHtml } from '@/lib/markdown';
 import { queryKeys } from '@/lib/queryKeys';
 import { ExecutionDetailCard } from '@/components/executions/ExecutionDetailCard';
+import { SteerFocusBadge, getExecutionSteerFocus } from '@/components/steer/SteerFocusBadge';
+import type { SteerFocusInfo } from '@/components/steer/SteerFocusBadge';
 import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfileEditorModal';
 import { InsightsTab } from '@/components/insights/InsightsTab';
 import type { Task, Priority, ExecutionHistory, UpdateTaskInput, SteerMode, Campaign } from '@/types/api';
@@ -257,6 +259,10 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
   const { data: profiles = [] } = useAutoSteerProfiles();
+  const autoSteerProfilesById = useMemo(
+    () => Object.fromEntries((profiles ?? []).map((profile) => [profile.id, profile])),
+    [profiles],
+  );
   const { data: phaseNames = [], isLoading: phasesLoading } = usePhaseNames();
   const {
     data: autoSteerState,
@@ -454,6 +460,40 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
       }
     }
     return '—';
+  };
+
+  const formatExecutionStatusLabel = (status: ExecutionHistory['status']) => {
+    switch (status) {
+      case 'completed':
+        return 'Completed';
+      case 'failed':
+        return 'Failed';
+      case 'rate_limited':
+        return 'Rate limited';
+      default:
+        return 'Running';
+    }
+  };
+
+  const formatSteerSummary = (focus?: SteerFocusInfo) => {
+    if (!focus) return '';
+    if (focus.autoSteerProfileName) {
+      return focus.phaseMode ? `${focus.autoSteerProfileName} • ${focus.phaseMode}` : focus.autoSteerProfileName;
+    }
+    return focus.manualSteerMode ?? '';
+  };
+
+  const formatExecutionSummary = (execution: ExecutionHistory, focus?: SteerFocusInfo) => {
+    const parts = [formatExecutionStatusLabel(execution.status)];
+    const duration = formatExecutionDuration(execution);
+    if (duration && duration !== '—') {
+      parts.push(duration);
+    }
+    const steerLabel = formatSteerSummary(focus);
+    if (steerLabel) {
+      parts.push(`Steer: ${steerLabel}`);
+    }
+    return parts.join(' · ');
   };
 
   const getStatusTone = (status: ExecutionHistory['status']) => {
@@ -1040,6 +1080,8 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                 <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
                   {sortedExecutions.map((exec, idx) => {
                     const isSelected = exec.id === selectedExecutionId;
+                    const steerFocus = getExecutionSteerFocus(exec, autoSteerProfilesById);
+                    const summaryLabel = formatExecutionSummary(exec, steerFocus);
                     return (
                       <div
                         key={exec.id}
@@ -1059,8 +1101,10 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                         }`}
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className="text-sm font-medium">Execution #{idx + 1}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-white line-clamp-2">
+                              {summaryLabel}
+                            </div>
                             <div className="text-xs text-slate-400">
                               Started: {formatDateTime(exec.start_time)}
                               {exec.end_time && <> • Ended: {formatDateTime(exec.end_time)}</>}
@@ -1073,6 +1117,11 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                             {exec.status}
                           </div>
                         </div>
+                        {(steerFocus.autoSteerProfileName || steerFocus.manualSteerMode) && (
+                          <div className="mt-3">
+                            <SteerFocusBadge {...steerFocus} />
+                          </div>
+                        )}
                         {exec.exit_code !== undefined && (
                           <div className="mt-2 text-xs text-slate-400">
                             Exit code: {exec.exit_code}

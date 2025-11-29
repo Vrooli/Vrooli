@@ -1,0 +1,41 @@
+id: scenario-improver-agent-inbox-20251128-092757
+title: Improve scenario agent-inbox
+type: scenario
+operation: improver
+target: agent-inbox
+targets:
+    - agent-inbox
+category: ""
+priority: medium
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: completed-finalized
+current_phase: completed-finalized
+started_at: "2025-11-28T09:29:26-05:00"
+completed_at: "2025-11-28T18:07:07-05:00"
+cooldown_until: "2025-11-28T18:47:13-05:00"
+completion_count: 3
+last_completed_at: "2025-11-28T18:07:07-05:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-11-28T09:27:57-05:00"
+updated_at: "2025-11-28T18:44:03-05:00"
+tags: []
+notes: ""
+results:
+    completed_at: "2025-11-28T18:07:07-05:00"
+    execution_time: 9m1s
+    message: Task completed successfully
+    output: "[INFO]    Started health monitor for claude-code (PID: 3900728, interval: 30s)\n[HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 7500 claude --print --max-turns 100 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 11382 chars)\n\nThe playbooks were registered successfully. Now let me provide the final handoff summary:\n\n---\n\n## Final Handoff Summary\n\n### 1. Validation Evidence\n\n**Commands Executed:**\n```bash\n# Check scenario status\nvrooli scenario status agent-inbox\n\n# Check completeness score  \nvrooli scenario completeness agent-inbox\n\n# Run scenario auditor\nscenario-auditor audit agent-inbox --timeout 240\n\n# Rebuild playbook registry\nnode scripts/scenarios/testing/playbooks/build-registry.mjs --scenario /home/matthalloran8/Vrooli/scenarios/agent-inbox\n```\n\n**Before/After Metrics:**\n| Metric | Before | After |\n|--------|--------|-------|\n| Security Vulnerabilities | 1 (HIGH: CORS Wildcard) | 0 |\n| Standards Violations | 75 | 50 |\n| Health Endpoints Defined | Missing | api: /health, ui: /health |\n| E2E Playbooks | 0 | 4 |\n| Completeness Score | 0/100 | 0/100 (base 36, -40 penalty) |\n| Makefile Format | Non-compliant | Standards-compliant |\n\n**Logs/Output Location:**\n- Security scan: `logs/scenario-auditor/security/agent-inbox/`\n- Standards scan: `logs/scenario-auditor/standards/agent-inbox/`\n- Playbook registry: `test/playbooks/registry.json`\n\n---\n\n### 2. Changes & Files\n\n**Files Modified:**\n\n| Path | Change |\n|------|--------|\n| `api/main.go:866-900` | Fixed CORS wildcard vulnerability - now uses env-based allowed origins |\n| `Makefile` | Complete rewrite to match standards template (help, start, stop, test, logs, clean) |\n| `.vrooli/service.json` | Added health endpoints, setup condition, show-urls steps, renamed install-ui to install-ui-deps |\n| `requirements/01-inbox/list-view/core.json` | Added integration phase E2E validation refs |\n| `requirements/02-chat/bubble-view/core.json` | Added integration phase E2E validation refs |\n| `requirements/02-chat/persistence/core.json` | Added integration phase E2E validation refs |\n| `test/playbooks/README.md` | Updated with directory structure documentation |\n| `docs/PROGRESS.md` | Added session entry |\n\n**Files Created:**\n\n| Path | Purpose |\n|------|---------|\n| `test/playbooks/capabilities/01-inbox-list/ui/chat-list-display.json` | E2E playbook for INBOX-LIST-001 |\n| `test/playbooks/capabilities/01-inbox-list/ui/read-unread-toggle.json` | E2E playbook for INBOX-LIST-002,003 |\n| `test/playbooks/capabilities/02-chat-creation/ui/create-new-chat.json` | E2E playbook for BUBBLE-001 |\n| `test/playbooks/journeys/basic-chat-flow.json` | Multi-requirement E2E journey |\n\n---\n\n### 3. Current Scenario Health\n\n**What Now Works:**\n- Security: CORS properly configured with explicit allowed origins (no wildcard)\n- Health checks: Properly defined endpoints for API and UI\n- Lifecycle: Setup conditions and show-urls steps added for proper automation\n- Makefile: Standards-compliant with all required targets\n- Playbooks: 4 E2E workflows registered for multi-layer validation\n\n**What Still Fails/Pending:**\n- **28 critical P0/P1 requirements missing validation** (unchanged - requires actual implementation)\n- **OpenRouter integration** (BUBBLE-003,004) - not installed\n- **Streaming responses** (BUBBLE-003) - pending implementation\n- **Model selector** (BUBBLE-005,006) - pending implementation\n- **Terminal view mode** (OT-P0-010) - pending implementation\n- **Auto-naming with Ollama** (NAME-001,002) - pending implementation\n- Standards violations remain at 50 (mostly PRD template section issues)\n\n**No Regressions:**\n- All existing API functionality preserved\n- UI functionality preserved\n- Existing tests structure unchanged\n\n---\n\n### 4. Next Steps / Risks\n\n**High Priority (P0 remaining to unlock operational targets):**\n1. **OpenRouter Integration** - Install resource and implement chat completions\n   - `vrooli resource install openrouter`\n   - Implement `/api/v1/chat/completions` endpoint\n   - Add streaming via WebSocket\n\n2. **Model Selector** - Required for multi-model support\n   - Add model list endpoint\n   - Add dropdown in chat header\n\n3. **Break monolithic test files** - Reduce validation penalty\n   - Split `api/main_test.go` into focused test files\n   - Create UI component tests\n\n**Medium Priority:**\n- Fix PRD template sections (add emoji prefixes to P1/P2 headers)\n- Implement terminal view mode for coding agents\n- Add auto-naming with Ollama\n\n**Risks:**\n- OpenRouter resource not installed - blocks core AI chat functionality\n- Tests require running PostgreSQL - integration tests skip without DATABASE_URL\n- Completeness penalty (-40pts) from monolithic test files and missing multi-layer validation\n\n**Blockers:**\n- None - scenario structure is stable and can be started\n\n---\n\n**Validation Commands for Next Agent:**\n```bash\n# Check status\nvrooli scenario status agent-inbox\n\n# Check completeness  \nvrooli scenario completeness agent-inbox\n\n# Run auditor\nscenario-auditor audit agent-inbox --timeout 240\n\n# Start scenario\nvrooli scenario start agent-inbox\n\n# Run tests (requires DATABASE_URL)\ncd scenarios/agent-inbox && make test\n```\n"
+    prompt_size: 11449 chars (11.18 KB)
+    started_at: "2025-11-28T17:58:06-05:00"
+    success: true
+    timeout_allowed: 2h5m0s
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: false
+auto_steer_profile_id: ec725997-ceb7-4f0d-8b13-5f55ca45f336
