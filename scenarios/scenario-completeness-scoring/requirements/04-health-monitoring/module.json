@@ -12,7 +12,23 @@
       "description": "Endpoint showing which collectors are healthy, degraded, or failed",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/health/tracker_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestGetOverallHealth and TestOverallStatusReflectsWorst verify health status API logic"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/health-monitoring/api/health-status.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates health status API endpoint"
+        }
+      ]
     },
     {
       "id": "SCS-HEALTH-002",
@@ -20,7 +36,23 @@
       "description": "Track OK, Degraded, Failed states for each collector",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/health/tracker_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestRecordCheckSuccess, TestRecordCheckFailure, TestConsecutiveFailures, TestSuccessResetsFailures verify status tracking"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/health-monitoring/api/collector-status.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates collector status tracking"
+        }
+      ]
     },
     {
       "id": "SCS-HEALTH-003",
@@ -28,7 +60,23 @@
       "description": "API endpoint to test a specific collector on demand",
       "prd_ref": "OT-P0-008",
       "criticality": "P1",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/health/tracker_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestTestCollectorSuccess and TestTestCollectorFailure verify test endpoint logic"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/health-monitoring/api/collector-health.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates collector test endpoint"
+        }
+      ]
     }
   ]
 }

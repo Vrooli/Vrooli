@@ -266,25 +266,54 @@ const createSelectorRegistry = <
 };
 
 const literalSelectors: LiteralSelectorTree = {
-  /*
-  Example literal selectors:
   dashboard: {
-    newProjectButton: 'dashboard-new-project-button',
+    root: "dashboard",
+    scenariosTable: "scenarios-table",
+    healthAlertBanner: "health-alert-banner",
   },
-  */
+  scenarioDetail: {
+    root: "scenario-detail",
+    recommendationsSection: "recommendations-section",
+  },
+  configuration: {
+    root: "configuration-panel",
+    presetsList: "presets-list",
+    trippedBreakersAlert: "tripped-breakers-alert",
+  },
+  components: {
+    trendIndicator: "trend-indicator",
+    sparkline: "sparkline",
+    scoreClassificationBadge: "score-classification-badge",
+  },
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {
-  /*
-  Example dynamic selectors:
-  projects: {
-    cardByName: defineDynamicSelector({
-      description: 'Project card filtered by name',
-      selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
-      params: { name: { type: 'string' } },
+  dashboard: {
+    scenarioRow: defineDynamicSelector({
+      description: "Scenario row by name",
+      testIdPattern: "scenario-row-${name}",
+      params: { name: { type: "string" } },
     }),
   },
-  */
+  configuration: {
+    preset: defineDynamicSelector({
+      description: "Preset button by name",
+      testIdPattern: "preset-${name}",
+      params: { name: { type: "string" } },
+    }),
+  },
+  components: {
+    scoreBar: defineDynamicSelector({
+      description: "Score bar by dimension",
+      testIdPattern: "score-bar-${dimension}",
+      params: { dimension: { type: "string" } },
+    }),
+    healthBadge: defineDynamicSelector({
+      description: "Health badge by status",
+      testIdPattern: "health-badge-${status}",
+      params: { status: { type: "enum", values: ["ok", "degraded", "failed"] } },
+    }),
+  },
 };
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);

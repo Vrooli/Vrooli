@@ -12,35 +12,132 @@
       "description": "Calculate scores across Quality (50%), Coverage (15%), Quantity (10%), UI (25%)",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
-      "validation": [],
-      "children": [
+      "status": "in_progress",
+      "children": ["SCS-CORE-001A", "SCS-CORE-001B", "SCS-CORE-001C", "SCS-CORE-001D"],
+      "validation": [
         {
-          "id": "SCS-CORE-001A",
-          "title": "Quality dimension scoring",
-          "description": "Calculate requirement pass rate (20pts), target pass rate (15pts), test pass rate (15pts)",
-          "criticality": "P0",
-          "validation": []
+          "type": "test",
+          "ref": "api/pkg/scoring/completeness_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestCalculateCompletenessScore verifies overall score calculation"
         },
         {
-          "id": "SCS-CORE-001B",
-          "title": "Coverage dimension scoring",
-          "description": "Calculate test coverage ratio (8pts), requirement depth (7pts)",
-          "criticality": "P0",
-          "validation": []
+          "type": "test",
+          "ref": "api/pkg/collectors/collectors_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Collector tests verify metric gathering"
         },
         {
-          "id": "SCS-CORE-001C",
-          "title": "Quantity dimension scoring",
-          "description": "Calculate requirements count (4pts), targets count (3pts), tests count (3pts)",
-          "criticality": "P0",
-          "validation": []
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/core-scoring/api/score-retrieval.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates score retrieval returns proper breakdown"
+        }
+      ]
+    },
+    {
+      "id": "SCS-CORE-001A",
+      "title": "Quality dimension scoring",
+      "description": "Calculate requirement pass rate (20pts), target pass rate (15pts), test pass rate (15pts)",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/scoring/quality_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestCalculateQualityScore tests all quality metrics"
         },
         {
-          "id": "SCS-CORE-001D",
-          "title": "UI dimension scoring",
-          "description": "Calculate template detection (10pts), component complexity (5pts), API integration (6pts), routing (1.5pts), code volume (2.5pts)",
-          "criticality": "P0",
-          "validation": []
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/core-scoring/api/quality-dimension.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Focused E2E playbook validates quality dimension in score breakdown"
+        }
+      ]
+    },
+    {
+      "id": "SCS-CORE-001B",
+      "title": "Coverage dimension scoring",
+      "description": "Calculate test coverage ratio (8pts), requirement depth (7pts)",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/scoring/coverage_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestCalculateCoverageScore and TestGetMaxDepth test coverage metrics"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/core-scoring/api/coverage-dimension.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Focused E2E playbook validates coverage dimension in score breakdown"
+        }
+      ]
+    },
+    {
+      "id": "SCS-CORE-001C",
+      "title": "Quantity dimension scoring",
+      "description": "Calculate requirements count (4pts), targets count (3pts), tests count (3pts)",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/scoring/quantity_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestCalculateQuantityScore tests quantity thresholds"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/core-scoring/api/quantity-dimension.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Focused E2E playbook validates quantity dimension in score breakdown"
+        }
+      ]
+    },
+    {
+      "id": "SCS-CORE-001D",
+      "title": "UI dimension scoring",
+      "description": "Calculate template detection (10pts), component complexity (5pts), API integration (6pts), routing (1.5pts), code volume (2.5pts)",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/scoring/ui_score_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestCalculateUIScore and TestUITemplateDetection test UI scoring"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/collectors/collectors_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestCollectUIMetrics, TestDetectRouting, TestExtractAPIEndpoints test UI collection"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/core-scoring/api/ui-dimension.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Focused E2E playbook validates UI dimension in score breakdown"
         }
       ]
     },
@@ -48,17 +145,42 @@
       "id": "SCS-CORE-002",
       "title": "Score retrieval API endpoint",
       "description": "GET endpoint to retrieve current score and breakdown for any scenario",
-      "prd_ref": "OT-P0-004",
+      "prd_ref": "OT-P0-001",
       "criticality": "P0",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/core-scoring/api/score-retrieval.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates score retrieval and force recalculation endpoints"
+        }
+      ]
     },
     {
       "id": "SCS-CORE-003",
       "title": "Weight redistribution",
       "description": "When components are disabled, redistribute weights proportionally to remaining components",
-      "prd_ref": "OT-P0-006",
+      "prd_ref": "OT-P0-007",
       "criticality": "P0",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/scoring/degradation_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestValidationPenalty and TestPenaltyBreakdown validate penalty application"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/configuration/api/config-retrieval.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates config with weights available for redistribution"
+        }
+      ]
     },
     {
       "id": "SCS-CORE-004",
@@ -66,7 +188,23 @@
       "description": "Return partial scores when some collectors fail rather than failing entirely",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/scoring/degradation_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestGracefulDegradation and TestGracefulDegradationZeroTotals test partial scoring"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/health-monitoring/api/collector-health.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates health API that enables degradation tracking"
+        }
+      ]
     }
   ]
 }

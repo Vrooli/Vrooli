@@ -1,0 +1,42 @@
+{
+  "metadata": {
+    "name": "Configuration Presets E2E Test",
+    "description": "Tests the configuration presets listing and application API endpoints",
+    "tags": ["e2e", "api", "configuration", "presets"],
+    "requirements": ["SCS-CFG-003"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/config/presets",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.presets"},
+          {"type": "json_path_gte", "path": "$.total", "expected": 5}
+        ]
+      }
+    },
+    {
+      "id": "2",
+      "type": "http_request",
+      "data": {
+        "method": "POST",
+        "url": "{{API_URL}}/api/v1/config/presets/default/apply",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path", "path": "$.success", "expected": true},
+          {"type": "json_path", "path": "$.preset", "expected": "default"}
+        ]
+      }
+    }
+  ]
+}

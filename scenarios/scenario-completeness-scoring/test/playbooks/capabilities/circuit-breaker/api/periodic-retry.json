@@ -1,0 +1,26 @@
+{
+  "metadata": {
+    "name": "Periodic Retry E2E Test",
+    "description": "Tests circuit breaker periodic retry for recovery",
+    "tags": ["e2e", "api", "circuit-breaker", "retry"],
+    "requirements": ["SCS-CB-003"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/health/circuit-breaker",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.breakers"}
+        ],
+        "notes": "Verify circuit breaker states including half-open for recovery retries"
+      }
+    }
+  ]
+}

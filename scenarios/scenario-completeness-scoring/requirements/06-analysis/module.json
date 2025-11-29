@@ -12,31 +12,95 @@
       "description": "Simulate 'if you fix X, your score would be Y' predictions",
       "prd_ref": "OT-P1-003",
       "criticality": "P1",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/analysis/analysis_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestWhatIfAnalysis verifies what-if prediction logic"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/analysis/api/what-if-analysis.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates what-if API endpoint"
+        }
+      ]
     },
     {
       "id": "SCS-ANALYSIS-002",
       "title": "Prioritized recommendations",
       "description": "Ranked list of improvements with estimated point impact",
-      "prd_ref": "OT-P1-007",
+      "prd_ref": "OT-P1-003",
       "criticality": "P1",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/scoring/recommendations_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestGenerateRecommendations, TestRecommendationImpactValues, TestRecommendationPriority verify recommendation generation"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/analysis/api/what-if-analysis.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates recommendations are returned with scores"
+        }
+      ]
     },
     {
       "id": "SCS-ANALYSIS-003",
       "title": "Bulk score refresh",
       "description": "Recalculate scores for all scenarios in one operation",
-      "prd_ref": "OT-P1-009",
+      "prd_ref": "OT-P1-003",
       "criticality": "P1",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/analysis/analysis_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestBulkRefresh verifies bulk refresh logic"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/analysis/api/bulk-operations.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates bulk refresh API endpoint"
+        }
+      ]
     },
     {
       "id": "SCS-ANALYSIS-004",
       "title": "Cross-scenario comparison",
       "description": "Side-by-side comparison of multiple scenarios",
-      "prd_ref": "OT-P2-001",
+      "prd_ref": "OT-P1-003",
       "criticality": "P2",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/analysis/analysis_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestCompare verifies comparison logic"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/analysis/api/bulk-operations.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates comparison API endpoint"
+        }
+      ]
     }
   ]
 }

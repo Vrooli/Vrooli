@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "name": "Health Status API E2E Test",
+    "description": "Tests the health status API endpoint",
+    "tags": ["e2e", "api", "health"],
+    "requirements": ["SCS-HEALTH-001"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/health/collectors",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.collectors"},
+          {"type": "json_path_exists", "path": "$.overall_status"}
+        ],
+        "notes": "Verify health status API returns collector statuses and overall status"
+      }
+    }
+  ]
+}

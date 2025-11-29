@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "name": "Quantity Dimension E2E Test",
+    "description": "Tests quantity dimension scoring in score breakdown",
+    "tags": ["e2e", "api", "scoring", "quantity"],
+    "requirements": ["SCS-CORE-001C"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.breakdown.quantity"},
+          {"type": "json_path_exists", "path": "$.breakdown.quantity.score"},
+          {"type": "json_path_exists", "path": "$.breakdown.quantity.max"}
+        ],
+        "notes": "Verify quantity dimension is included in breakdown with score and max values"
+      }
+    }
+  ]
+}

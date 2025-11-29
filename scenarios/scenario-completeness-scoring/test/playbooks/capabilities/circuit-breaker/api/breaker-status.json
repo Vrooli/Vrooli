@@ -1,0 +1,38 @@
+{
+  "metadata": {
+    "name": "Circuit Breaker Status E2E Test",
+    "description": "Tests the circuit breaker status and reset API endpoints",
+    "tags": ["e2e", "api", "circuit-breaker"],
+    "requirements": ["SCS-CB-004"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/health/circuit-breaker",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.breakers"},
+          {"type": "json_path_exists", "path": "$.stats"}
+        ]
+      }
+    },
+    {
+      "id": "2",
+      "type": "http_request",
+      "data": {
+        "method": "POST",
+        "url": "{{API_URL}}/api/v1/health/circuit-breaker/reset",
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path", "path": "$.success", "expected": true}
+        ]
+      }
+    }
+  ]
+}

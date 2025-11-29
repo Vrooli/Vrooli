@@ -1,0 +1,26 @@
+{
+  "metadata": {
+    "name": "Scenario Configuration Override E2E Test",
+    "description": "Tests the per-scenario configuration override API endpoints",
+    "tags": ["e2e", "api", "configuration", "scenario-override"],
+    "requirements": ["SCS-CFG-002"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/config/scenarios/scenario-completeness-scoring",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path", "path": "$.scenario", "expected": "scenario-completeness-scoring"},
+          {"type": "json_path_exists", "path": "$.effective"}
+        ]
+      }
+    }
+  ]
+}

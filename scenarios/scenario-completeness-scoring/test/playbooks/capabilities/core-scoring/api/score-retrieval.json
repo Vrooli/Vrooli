@@ -1,0 +1,40 @@
+{
+  "metadata": {
+    "name": "Score Retrieval E2E Test",
+    "description": "Tests the /api/v1/scores/{scenario} endpoint returns proper score breakdown",
+    "tags": ["e2e", "api", "scoring"],
+    "requirements": ["SCS-CORE-001", "SCS-CORE-002"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path", "path": "$.scenario", "expected": "scenario-completeness-scoring"},
+          {"type": "json_path_exists", "path": "$.score"},
+          {"type": "json_path_exists", "path": "$.classification"},
+          {"type": "json_path_exists", "path": "$.breakdown"}
+        ]
+      }
+    },
+    {
+      "id": "2",
+      "type": "http_request",
+      "data": {
+        "method": "POST",
+        "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/calculate",
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path", "path": "$.recalculated", "expected": true}
+        ]
+      }
+    }
+  ]
+}

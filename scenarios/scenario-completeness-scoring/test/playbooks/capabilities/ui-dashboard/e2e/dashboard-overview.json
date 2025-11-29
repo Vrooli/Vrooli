@@ -1,0 +1,62 @@
+{
+  "metadata": {
+    "name": "Dashboard Overview E2E Test",
+    "description": "Tests the UI dashboard showing all scenarios with scores, trends, and health status",
+    "tags": ["e2e", "ui", "dashboard"],
+    "requirements": ["SCS-UI-001", "SCS-UI-006"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "navigate",
+      "data": {
+        "url": "{{UI_URL}}",
+        "waitFor": "[data-testid='dashboard']"
+      }
+    },
+    {
+      "id": "2",
+      "type": "assertion",
+      "data": {
+        "selector": "[data-testid='dashboard']",
+        "assertions": [
+          {"type": "visible"}
+        ],
+        "notes": "Dashboard root container is visible"
+      }
+    },
+    {
+      "id": "3",
+      "type": "assertion",
+      "data": {
+        "selector": "[data-testid='scenarios-table']",
+        "assertions": [
+          {"type": "visible"}
+        ],
+        "notes": "Scenarios table is rendered"
+      }
+    },
+    {
+      "id": "4",
+      "type": "assertion",
+      "data": {
+        "selector": "[data-testid='sparkline']",
+        "assertions": [
+          {"type": "exists"}
+        ],
+        "notes": "Sparkline trend charts are present"
+      }
+    },
+    {
+      "id": "5",
+      "type": "assertion",
+      "data": {
+        "selector": "[data-testid='trend-indicator']",
+        "assertions": [
+          {"type": "exists"}
+        ],
+        "notes": "Trend indicators are present"
+      }
+    }
+  ]
+}

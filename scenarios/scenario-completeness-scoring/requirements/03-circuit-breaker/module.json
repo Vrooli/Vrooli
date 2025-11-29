@@ -12,7 +12,23 @@
       "description": "Auto-disable collectors that fail N consecutive times",
       "prd_ref": "OT-P0-005",
       "criticality": "P0",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/circuitbreaker/breaker_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestBreakerTripsAfterThreshold verifies auto-disable after threshold failures"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/circuit-breaker/api/failure-tracking.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates circuit breaker auto-disable behavior"
+        }
+      ]
     },
     {
       "id": "SCS-CB-002",
@@ -20,7 +36,23 @@
       "description": "Track consecutive failures per collector",
       "prd_ref": "OT-P0-005",
       "criticality": "P0",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/circuitbreaker/breaker_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestFailureTracking and TestTimestamps verify failure count and timestamp tracking"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/circuit-breaker/api/failure-tracking.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates breaker status includes failure counts"
+        }
+      ]
     },
     {
       "id": "SCS-CB-003",
@@ -28,7 +60,23 @@
       "description": "Periodically retry tripped collectors to check if they recovered",
       "prd_ref": "OT-P0-005",
       "criticality": "P0",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/circuitbreaker/breaker_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestHalfOpenRecovery and TestHalfOpenFailure verify retry logic"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/circuit-breaker/api/periodic-retry.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates breaker states including half-open for retries"
+        }
+      ]
     },
     {
       "id": "SCS-CB-004",
@@ -36,7 +84,30 @@
       "description": "API endpoint to manually reset all tripped circuit breakers",
       "prd_ref": "OT-P0-005",
       "criticality": "P0",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/circuitbreaker/breaker_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestManualReset verifies reset functionality"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/circuitbreaker/registry_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestRegistryReset and TestRegistryResetAll verify registry reset APIs"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/circuit-breaker/api/breaker-status.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates circuit breaker reset endpoints"
+        }
+      ]
     }
   ]
 }

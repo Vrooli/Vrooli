@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "name": "Quality Dimension E2E Test",
+    "description": "Tests quality dimension scoring in score breakdown",
+    "tags": ["e2e", "api", "scoring", "quality"],
+    "requirements": ["SCS-CORE-001A"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.breakdown.quality"},
+          {"type": "json_path_exists", "path": "$.breakdown.quality.score"},
+          {"type": "json_path_exists", "path": "$.breakdown.quality.max"}
+        ],
+        "notes": "Verify quality dimension is included in breakdown with score and max values"
+      }
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "metadata": {
+    "name": "Configuration API E2E Test",
+    "description": "Tests the configuration retrieval and update API endpoints",
+    "tags": ["e2e", "api", "configuration"],
+    "requirements": ["SCS-CFG-001", "SCS-CFG-004"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/config",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.version"},
+          {"type": "json_path_exists", "path": "$.scoring"},
+          {"type": "json_path_exists", "path": "$.scoring.weights"},
+          {"type": "json_path_exists", "path": "$.classifications"}
+        ]
+      }
+    },
+    {
+      "id": "2",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/config/thresholds",
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.categories"},
+          {"type": "json_path", "path": "$.default_category", "expected": "utility"}
+        ]
+      }
+    },
+    {
+      "id": "3",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/config/thresholds/utility",
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path", "path": "$.category", "expected": "utility"},
+          {"type": "json_path_exists", "path": "$.thresholds"}
+        ]
+      }
+    }
+  ]
+}

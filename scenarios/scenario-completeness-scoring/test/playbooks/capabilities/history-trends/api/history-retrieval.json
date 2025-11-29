@@ -1,0 +1,54 @@
+{
+  "metadata": {
+    "name": "Score History E2E Test",
+    "description": "Tests the score history storage and retrieval API endpoints",
+    "tags": ["e2e", "api", "history"],
+    "requirements": ["SCS-HIST-001", "SCS-HIST-002", "SCS-HIST-004"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "http_request",
+      "data": {
+        "method": "POST",
+        "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/calculate",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path", "path": "$.recalculated", "expected": true}
+        ],
+        "notes": "First calculate a score to create a history entry"
+      }
+    },
+    {
+      "id": "2",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/history?limit=10",
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.snapshots"},
+          {"type": "json_path_exists", "path": "$.count"}
+        ],
+        "notes": "Verify history retrieval returns snapshots array with count"
+      }
+    },
+    {
+      "id": "3",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/history?limit=5",
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.snapshots"},
+          {"type": "json_array_length_lte", "path": "$.snapshots", "expected": 5}
+        ],
+        "notes": "Verify limit parameter works correctly"
+      }
+    }
+  ]
+}

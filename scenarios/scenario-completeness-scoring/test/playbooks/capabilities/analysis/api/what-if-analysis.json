@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "name": "What-If Analysis E2E Test",
+    "description": "Tests the what-if analysis and recommendations API endpoints",
+    "tags": ["e2e", "api", "analysis"],
+    "requirements": ["SCS-ANALYSIS-001", "SCS-ANALYSIS-002"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "http_request",
+      "data": {
+        "method": "POST",
+        "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/what-if",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "changes": [
+            {"component": "quality.requirement_pass_rate", "new_value": 0.9}
+          ]
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.current_score"},
+          {"type": "json_path_exists", "path": "$.projected_score"},
+          {"type": "json_path_exists", "path": "$.impact"}
+        ],
+        "notes": "Verify what-if analysis returns current score, projected score, and impact"
+      }
+    },
+    {
+      "id": "2",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.recommendations"}
+        ],
+        "notes": "Verify score response includes recommendations"
+      }
+    }
+  ]
+}

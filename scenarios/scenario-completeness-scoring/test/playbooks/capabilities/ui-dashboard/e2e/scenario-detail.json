@@ -1,0 +1,70 @@
+{
+  "metadata": {
+    "name": "Scenario Detail View E2E Test",
+    "description": "Tests the scenario detail page with score breakdown, history chart, and recommendations",
+    "tags": ["e2e", "ui", "detail"],
+    "requirements": ["SCS-UI-003", "SCS-UI-005"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "navigate",
+      "data": {
+        "url": "{{UI_URL}}",
+        "waitFor": "[data-testid='dashboard']"
+      }
+    },
+    {
+      "id": "2",
+      "type": "click",
+      "data": {
+        "selector": "[data-testid^='scenario-row-']",
+        "notes": "Click first scenario row to open detail view"
+      }
+    },
+    {
+      "id": "3",
+      "type": "assertion",
+      "data": {
+        "selector": "[data-testid='scenario-detail']",
+        "assertions": [
+          {"type": "visible"}
+        ],
+        "notes": "Scenario detail view is visible"
+      }
+    },
+    {
+      "id": "4",
+      "type": "assertion",
+      "data": {
+        "selector": "[data-testid^='score-bar-']",
+        "assertions": [
+          {"type": "exists"}
+        ],
+        "notes": "Score progress bars are present for dimensions"
+      }
+    },
+    {
+      "id": "5",
+      "type": "assertion",
+      "data": {
+        "selector": "[data-testid='recommendations-section']",
+        "assertions": [
+          {"type": "visible"}
+        ],
+        "notes": "Recommendations section is visible"
+      }
+    },
+    {
+      "id": "6",
+      "type": "assertion",
+      "data": {
+        "selector": "[data-testid='sparkline']",
+        "assertions": [
+          {"type": "exists"}
+        ],
+        "notes": "History sparkline is present"
+      }
+    }
+  ]
+}

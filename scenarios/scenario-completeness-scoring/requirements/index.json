@@ -18,13 +18,13 @@
     ]
   },
   "imports": [
-    "./01-core-scoring/module.json",
-    "./02-configuration/module.json",
-    "./03-circuit-breaker/module.json",
-    "./04-health-monitoring/module.json",
-    "./05-history-trends/module.json",
-    "./06-analysis/module.json",
-    "./07-ui-dashboard/module.json"
+    "01-core-scoring/module.json",
+    "02-configuration/module.json",
+    "03-circuit-breaker/module.json",
+    "04-health-monitoring/module.json",
+    "05-history-trends/module.json",
+    "06-analysis/module.json",
+    "07-ui-dashboard/module.json"
   ],
   "requirements": []
 }

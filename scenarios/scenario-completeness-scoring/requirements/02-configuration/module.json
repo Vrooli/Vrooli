@@ -12,23 +12,71 @@
       "description": "Enable/disable individual scoring components and penalties via configuration",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/config/config_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestDefaultConfig, TestWeightNormalize verify component toggling"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/configuration/api/config-retrieval.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E tests for GET /api/v1/config endpoint"
+        }
+      ]
     },
     {
       "id": "SCS-CFG-002",
       "title": "Per-scenario overrides",
       "description": "Support scenario-specific configuration that overrides global defaults",
-      "prd_ref": "OT-P0-003",
+      "prd_ref": "OT-P0-002",
       "criticality": "P0",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/config/config_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestConfigMerge, TestLoaderScenarioOverride, TestLoaderGetEffectiveConfig verify per-scenario overrides"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/configuration/api/scenario-config.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E tests for scenario-specific config endpoints"
+        }
+      ]
     },
     {
       "id": "SCS-CFG-003",
       "title": "Configuration presets system",
       "description": "Pre-defined configurations (e.g., Skip E2E, Code Quality Only, Full Scoring)",
-      "prd_ref": "OT-P1-008",
+      "prd_ref": "OT-P0-002",
       "criticality": "P1",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/config/config_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestPresetsExist, TestCodeQualityOnlyPreset, TestListPresetInfo, TestStrictPresetHasTighterThresholds verify presets"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/configuration/api/presets.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E tests for preset listing and application"
+        }
+      ]
     },
     {
       "id": "SCS-CFG-004",
@@ -36,7 +84,23 @@
       "description": "Save and load configuration from JSON files",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/config/config_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestLoaderLoadGlobalDefault, TestLoaderSaveAndLoadGlobal, TestLoaderDeleteScenarioOverride, TestValidateConfig verify persistence"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/configuration/api/config-retrieval.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E tests for config persistence via API"
+        }
+      ]
     }
   ]
 }

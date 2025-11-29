@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "name": "Bulk Operations E2E Test",
+    "description": "Tests bulk score refresh and cross-scenario comparison API endpoints",
+    "tags": ["e2e", "api", "analysis", "bulk"],
+    "requirements": ["SCS-ANALYSIS-003", "SCS-ANALYSIS-004"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "http_request",
+      "data": {
+        "method": "POST",
+        "url": "{{API_URL}}/api/v1/scores/refresh-all",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.results"},
+          {"type": "json_path_exists", "path": "$.total"}
+        ],
+        "notes": "Verify bulk refresh recalculates all scenarios"
+      }
+    },
+    {
+      "id": "2",
+      "type": "http_request",
+      "data": {
+        "method": "POST",
+        "url": "{{API_URL}}/api/v1/compare",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "scenarios": ["scenario-completeness-scoring"]
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.comparisons"}
+        ],
+        "notes": "Verify cross-scenario comparison endpoint"
+      }
+    }
+  ]
+}

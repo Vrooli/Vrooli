@@ -1,0 +1,26 @@
+{
+  "metadata": {
+    "name": "Collector Status Tracking E2E Test",
+    "description": "Tests collector status tracking (OK, Degraded, Failed states)",
+    "tags": ["e2e", "api", "health", "collector"],
+    "requirements": ["SCS-HEALTH-002"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/health/collectors",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.collectors"}
+        ],
+        "notes": "Verify collector list is returned with individual status tracking"
+      }
+    }
+  ]
+}

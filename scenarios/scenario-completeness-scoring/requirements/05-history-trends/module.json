@@ -12,7 +12,23 @@
       "description": "Store score snapshots over time with timestamp, breakdown, and config used",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/history/history_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestRepositorySave, TestRepositoryGetLatest, TestRepositoryGetHistory, TestRepositoryCount verify snapshot storage"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/history-trends/api/history-retrieval.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates history storage and retrieval via API"
+        }
+      ]
     },
     {
       "id": "SCS-HIST-002",
@@ -20,15 +36,47 @@
       "description": "Use SQLite for portable score history storage",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/history/history_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestNewDB, TestDBMigration, TestDBPath verify SQLite initialization and schema migration"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/history-trends/api/history-retrieval.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates SQLite persistence via history endpoint"
+        }
+      ]
     },
     {
       "id": "SCS-HIST-003",
       "title": "Trend detection",
       "description": "Detect score improvements/regressions and stalls (unchanged score despite activity)",
-      "prd_ref": "OT-P1-002",
+      "prd_ref": "OT-P1-001",
       "criticality": "P1",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/history/history_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestTrendAnalyzer, TestTrendStalled, TestTrendDeclining, TestTrendStatistics, TestTrendSummary verify trend detection"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/history-trends/api/trend-analysis.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates trend detection and analysis API"
+        }
+      ]
     },
     {
       "id": "SCS-HIST-004",
@@ -36,7 +84,23 @@
       "description": "GET endpoint to retrieve score history for a scenario",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/history/history_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestRepositoryGetHistory verifies history retrieval with limit and ordering"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/history-trends/api/history-retrieval.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E playbook validates history API endpoint with limit parameter"
+        }
+      ]
     }
   ]
 }

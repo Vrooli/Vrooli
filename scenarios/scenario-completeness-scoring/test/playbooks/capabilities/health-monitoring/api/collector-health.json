@@ -1,0 +1,40 @@
+{
+  "metadata": {
+    "name": "Health Monitoring E2E Test",
+    "description": "Tests the health monitoring and collector status API endpoints",
+    "tags": ["e2e", "api", "health"],
+    "requirements": ["SCS-HEALTH-001", "SCS-HEALTH-003"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/health/collectors",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.status"},
+          {"type": "json_path_exists", "path": "$.collectors"},
+          {"type": "json_path_exists", "path": "$.summary"}
+        ]
+      }
+    },
+    {
+      "id": "2",
+      "type": "http_request",
+      "data": {
+        "method": "POST",
+        "url": "{{API_URL}}/api/v1/health/collectors/requirements/test",
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path", "path": "$.name", "expected": "requirements"},
+          {"type": "json_path_exists", "path": "$.success"}
+        ]
+      }
+    }
+  ]
+}

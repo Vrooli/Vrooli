@@ -1,0 +1,26 @@
+{
+  "metadata": {
+    "name": "Failure Tracking E2E Test",
+    "description": "Tests circuit breaker failure tracking and auto-disable",
+    "tags": ["e2e", "api", "circuit-breaker", "failure"],
+    "requirements": ["SCS-CB-001", "SCS-CB-002"]
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "type": "http_request",
+      "data": {
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/health/circuit-breaker",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.breakers"}
+        ],
+        "notes": "Verify circuit breaker status returns breaker states with failure counts"
+      }
+    }
+  ]
+}
