@@ -15,6 +15,12 @@ Track implementation progress for scenario-completeness-scoring.
 | 2025-11-29 | Claude | Phase 6 Analysis +80% | Implemented what-if analysis (SCS-ANALYSIS-001), bulk refresh (SCS-ANALYSIS-003), and cross-scenario comparison (SCS-ANALYSIS-004). Fixed floating point precision in estimateImpact. All analysis package tests pass. |
 | 2025-11-29 | Claude | Phase 7 UI Dashboard +90% | Replaced template UI with full dashboard implementation. Created Dashboard.tsx, ScenarioDetail.tsx, Configuration.tsx pages. Added components: ScoreBar, TrendIndicator, HealthBadge, Sparkline, ScoreClassificationBadge. Extended api.ts with 15+ API client functions. UI builds successfully (272KB bundle). |
 | 2025-11-29 | Claude | Test Coverage & Validation +95% | Increased Go test coverage from 69% to 77.4%. Added comprehensive tests for collectors (79.4%) and analysis (37.4%) packages. Added UI unit tests with vitest (ScoreBar.test.tsx). Fixed jsdom dependency. Full test suite passes. Requirements sync shows 32/33 complete (97%). Completeness score improved from 30/100 to 61/100. |
+| 2025-11-29 | Claude | Architecture Refactoring | "Screaming Architecture" refactor: Extracted handlers from main.go (1150→271 lines, 76% reduction) into domain-organized pkg/handlers/ package. Created handlers/scores.go (score retrieval), handlers/config.go (configuration), handlers/health.go (health monitoring), handlers/analysis.go (history, trends, what-if). All tests pass. Code now "screams its purpose" with clear domain boundaries. |
+| 2025-11-29 | Claude | Domain Types Unification | Created `pkg/domain/` package with unified types (Requirement, Validation, OperationalTarget). Eliminated duplicate type definitions in collectors and validators packages. Removed conversion layer (`convert.go`). Both packages now use type aliases to domain types, improving architecture alignment and eliminating data transformation overhead. All 97+ tests pass. |
+| 2025-11-29 | Claude | Architectural Cleanup | (1) Eliminated `scoring.ValidationQualityAnalysis` type duplication by changing scoring functions to accept penalty as `int` instead of struct - removed 16 lines of conversion code in handlers/scores.go. (2) Removed redundant `min`/`max` helper functions from validators/analyzer.go since Go 1.21+ has built-in versions. All tests pass. Architecture now has cleaner boundaries between scoring (just needs penalty value) and validators (provides full analysis details). |
+| 2025-11-29 | Claude | Experience Architecture Audit | UX flow improvements to reduce friction for common user jobs: (1) Added search/filter to Dashboard - users can now find scenarios by name or category instantly. (2) Added health summary bar to Dashboard header - ops users see collector status at a glance without opening config modal. (3) Updated purpose statement to "Track scenario completeness scores and identify areas for improvement". (4) Added Configure button to ScenarioDetail page - direct path from detail to config without going back to dashboard. (5) Updated selectors.ts with new test selectors. UI bundle: 276KB. All tests pass. |
+| 2025-11-29 | Claude | Experience Architecture Audit Phase 2 | Advanced UX improvements addressing cognitive friction: (1) **Expandable ScoreBar details** - users can now click on any score dimension (Quality, Coverage, Quantity, UI) to see the exact point breakdown for that dimension, eliminating guesswork about why points were lost. (2) **What-If Analysis UI** - added interactive what-if section on ScenarioDetail page where users can select recommendations via checkboxes and immediately see projected score and new classification. This surfaces the existing what-if API (`/api/v1/scores/{scenario}/what-if`) in a user-friendly way. (3) **ScoreBar Penalties display** - penalties now shown as their own expandable bar with full detail breakdown. (4) Updated selectors.ts with `whatIfSection` and `scoreBarDetails`. UI bundle: 282KB. All tests pass, UI smoke passes. |
+| 2025-11-29 | Claude | Experience Architecture Audit Phase 3 | Continued UX flow improvements for reduced navigation friction: (1) **Recent Scenarios Quick Access** - added localStorage-based tracking via `useRecentScenarios` hook; Dashboard now shows "Continue where you left off" section with up to 5 recently viewed scenarios and their current scores. (2) **Needs Attention Section** - Dashboard shows scenarios with scores <50 highlighted in a dedicated panel for ops users to quickly identify problematic scenarios. (3) **Score Legend/Help** - added `ScoreLegend` component (help button + popover) explaining what each score classification means (Production Ready 90+, Nearly Ready 80+, etc.) with dimension weight breakdown. (4) Updated selectors.ts with `quickAccessSection`, `recentScenarios`, `needsAttention`, `scoreLegendButton`, `scoreLegendPopover`. UI bundle: 287KB. All tests pass, UI smoke passes. |
 
 ## Milestone Summary
 
@@ -104,55 +110,77 @@ Track implementation progress for scenario-completeness-scoring.
 - [x] Phase 7: UI Dashboard (replace template) ✓ (Core implementation complete)
 - [x] Test coverage improvements ✓ (Go: 77.4%, UI tests added)
 - [x] Requirements validation sync ✓ (32/33 complete, 97%)
+- [x] Experience Architecture Audit ✓ (search/filter, health summary, configure button, expandable score bars, what-if UI)
 - [ ] E2E playbooks for UI testing
 
 ### Next Steps
 1. **Multi-layer Validation** - Add API-layer tests for requirements currently validated only by E2E (SCS-CORE-002, SCS-UI-001-004) to reduce validation penalties
-2. **E2E Playbooks** - Add BAS playbooks for UI workflows (dashboard, detail view, configuration)
+2. **E2E Playbooks** - Add BAS playbooks for UI workflows (dashboard, detail view, configuration, what-if analysis)
 3. **Test File Consolidation** - Refactor tests to avoid "monolithic test file" penalties (3 files validate ≥4 requirements)
 4. **UI Polish** - Add loading states, error boundaries, accessibility improvements
+5. **Future UX Enhancements** - Recent scenarios quick access, keyboard shortcuts, cross-scenario comparison UI
 
 ## Implementation Details
 
 ### Package Structure
 ```
-api/pkg/
-├── scoring/
-│   ├── types.go              # ScoreBreakdown, Metrics, Thresholds, etc.
-│   ├── calculator.go         # CalculateQualityScore, CalculateCoverageScore, etc.
-│   ├── completeness_test.go  # [REQ:SCS-CORE-001]
-│   ├── quality_test.go       # [REQ:SCS-CORE-001A]
-│   ├── coverage_test.go      # [REQ:SCS-CORE-001B]
-│   ├── quantity_test.go      # [REQ:SCS-CORE-001C]
-│   ├── ui_score_test.go      # [REQ:SCS-CORE-001D]
-│   ├── degradation_test.go   # [REQ:SCS-CORE-003,004]
-│   ├── thresholds_test.go    # [REQ:SCS-CFG-002]
-│   └── recommendations_test.go # [REQ:SCS-ANALYSIS-002]
-├── collectors/
-│   ├── interface.go          # MetricsCollector, Collect()
-│   ├── service.go            # loadServiceConfig()
-│   ├── requirements.go       # loadRequirements(), calculateRequirementPass()
-│   ├── tests.go              # loadTestResults()
-│   ├── ui.go                 # collectUIMetrics(), detectRouting()
-│   └── collectors_test.go    # Comprehensive collector tests
-├── config/
-│   ├── types.go              # ScoringConfig, ComponentConfig, WeightConfig [REQ:SCS-CFG-001]
-│   ├── loader.go             # Config loading/saving, per-scenario overrides [REQ:SCS-CFG-002,004]
-│   ├── presets.go            # Built-in presets (default, skip-e2e, etc.) [REQ:SCS-CFG-003]
-│   └── config_test.go        # Comprehensive config tests (16 tests)
-├── circuitbreaker/
-│   ├── breaker.go            # CircuitBreaker state machine [REQ:SCS-CB-001,002,003]
-│   ├── registry.go           # Registry for multiple breakers [REQ:SCS-CB-004]
-│   ├── breaker_test.go       # Unit tests for breaker logic
-│   └── registry_test.go      # Unit tests for registry
-├── health/
-│   ├── tracker.go            # Collector health tracking [REQ:SCS-HEALTH-001,002,003]
-│   └── tracker_test.go       # Unit tests for health tracking
-└── history/
-    ├── db.go                 # SQLite database setup and migrations [REQ:SCS-HIST-002]
-    ├── repository.go         # CRUD operations for score snapshots [REQ:SCS-HIST-001]
-    ├── trends.go             # Trend analysis (improving, declining, stalled) [REQ:SCS-HIST-003]
-    └── history_test.go       # Unit tests for history package (15 tests)
+api/
+├── main.go                   # Server bootstrap only (~271 lines) - minimal, focused
+└── pkg/
+    ├── domain/               # CORE DOMAIN TYPES - single source of truth
+    │   └── types.go          # Requirement, Validation, OperationalTarget (shared by collectors/validators)
+    ├── handlers/             # HTTP handlers organized by DOMAIN concept ("Screaming Architecture")
+    │   ├── context.go        # Handler dependency injection context
+    │   ├── scores.go         # Score retrieval/calculation endpoints [REQ:SCS-CORE-002]
+    │   ├── config.go         # Configuration endpoints [REQ:SCS-CFG-001-004]
+    │   ├── health.go         # Health monitoring endpoints [REQ:SCS-HEALTH-001, SCS-CB-004]
+    │   └── analysis.go       # History, trends, what-if endpoints [REQ:SCS-ANALYSIS-*]
+    ├── scoring/              # Core business logic - score calculation
+    │   ├── types.go          # ScoreBreakdown, Metrics, Thresholds, etc.
+    │   ├── calculator.go     # CalculateQualityScore, CalculateCoverageScore, etc.
+    │   ├── completeness_test.go  # [REQ:SCS-CORE-001]
+    │   ├── quality_test.go       # [REQ:SCS-CORE-001A]
+    │   ├── coverage_test.go      # [REQ:SCS-CORE-001B]
+    │   ├── quantity_test.go      # [REQ:SCS-CORE-001C]
+    │   ├── ui_score_test.go      # [REQ:SCS-CORE-001D]
+    │   ├── degradation_test.go   # [REQ:SCS-CORE-003,004]
+    │   ├── thresholds_test.go    # [REQ:SCS-CFG-002]
+    │   └── recommendations_test.go # [REQ:SCS-ANALYSIS-002]
+    ├── collectors/           # Data collection from scenarios (uses domain types)
+    │   ├── interface.go      # MetricsCollector, Collect() + type aliases to domain
+    │   ├── service.go        # loadServiceConfig()
+    │   ├── requirements.go   # loadRequirements(), calculateRequirementPass()
+    │   ├── tests.go          # loadTestResults()
+    │   ├── ui.go             # collectUIMetrics(), detectRouting()
+    │   └── collectors_test.go
+    ├── config/               # Scoring configuration management
+    │   ├── types.go          # ScoringConfig, ComponentConfig [REQ:SCS-CFG-001]
+    │   ├── loader.go         # Config loading/saving [REQ:SCS-CFG-002,004]
+    │   ├── presets.go        # Built-in presets [REQ:SCS-CFG-003]
+    │   └── config_test.go
+    ├── circuitbreaker/       # Resilience infrastructure
+    │   ├── breaker.go        # CircuitBreaker state machine [REQ:SCS-CB-001,002,003]
+    │   ├── registry.go       # Registry for multiple breakers [REQ:SCS-CB-004]
+    │   ├── breaker_test.go
+    │   └── registry_test.go
+    ├── health/               # Health monitoring
+    │   ├── tracker.go        # Collector health tracking [REQ:SCS-HEALTH-001,002,003]
+    │   └── tracker_test.go
+    ├── history/              # Score persistence and trends
+    │   ├── db.go             # SQLite database [REQ:SCS-HIST-002]
+    │   ├── repository.go     # CRUD operations [REQ:SCS-HIST-001]
+    │   ├── trends.go         # Trend analysis [REQ:SCS-HIST-003]
+    │   └── history_test.go
+    ├── analysis/             # Advanced analysis features
+    │   ├── whatif.go         # What-if simulation [REQ:SCS-ANALYSIS-001]
+    │   ├── bulk.go           # Bulk refresh/comparison [REQ:SCS-ANALYSIS-003,004]
+    │   └── analysis_test.go
+    └── validators/           # Validation quality analysis (uses domain types)
+        ├── types.go          # ValidationQualityAnalysis, issues + type aliases to domain
+        ├── analyzer.go       # Main analysis entry point
+        ├── layer_detector.go # Multi-layer validation detection
+        ├── test_quality.go   # Test file quality analysis
+        └── analyzer_test.go
 ```
 
 ### Test Coverage
@@ -178,11 +206,16 @@ All 97+ tests pass across 7 packages:
 **See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the detailed phased implementation guide.**
 
 Key points:
-1. **Scoring Logic**: Now in `api/pkg/scoring/` - matches JS implementation in `scripts/scenarios/lib/completeness.js`
-2. **Collectors Complete**: Phase 1.2 collectors now gather real metrics from scenario directories
-3. **API Integration**: `main.go` now uses collectors for all score endpoints
-4. **SQLite**: Implemented for score history storage in `api/pkg/history/`
+1. **Architecture**: "Screaming Architecture" pattern - `main.go` is minimal bootstrap (~271 lines), all HTTP handlers are in `pkg/handlers/` organized by domain concept (scores, config, health, analysis)
+2. **Scoring Logic**: Core business logic in `api/pkg/scoring/` - matches JS implementation in `scripts/scenarios/lib/completeness.js`
+3. **Collectors**: `api/pkg/collectors/` gathers real metrics from scenario directories
+4. **SQLite**: Score history storage in `api/pkg/history/`
 5. **Test Coverage**: All tests pass; tests split by requirement for proper validation tracking
 6. **Integration**: Eventually replace ecosystem-manager's `pkg/autosteer/metrics*.go`
 7. **UI Dashboard**: Fully implemented - Dashboard, ScenarioDetail, Configuration pages
 8. **Analysis Features**: What-if analysis, bulk refresh, and cross-scenario comparison implemented
+9. **Handler Organization**: When adding new endpoints, add them to the appropriate handler file:
+   - `handlers/scores.go` - Score retrieval, calculation, recommendations
+   - `handlers/config.go` - Configuration, presets, thresholds
+   - `handlers/health.go` - Collector health, circuit breakers
+   - `handlers/analysis.go` - History, trends, what-if, comparison

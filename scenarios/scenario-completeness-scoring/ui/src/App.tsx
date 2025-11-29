@@ -8,13 +8,19 @@ export default function App() {
   const [selectedScenario, setSelectedScenario] = useState<string | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
 
+  const handleOpenConfig = () => setConfigOpen(true);
+
   // Show scenario detail if one is selected
   if (selectedScenario) {
     return (
-      <ScenarioDetail
-        scenario={selectedScenario}
-        onBack={() => setSelectedScenario(null)}
-      />
+      <>
+        <ScenarioDetail
+          scenario={selectedScenario}
+          onBack={() => setSelectedScenario(null)}
+          onOpenConfig={handleOpenConfig}
+        />
+        {configOpen && <Configuration onClose={() => setConfigOpen(false)} />}
+      </>
     );
   }
 
@@ -23,7 +29,7 @@ export default function App() {
     <>
       <Dashboard
         onSelectScenario={setSelectedScenario}
-        onOpenConfig={() => setConfigOpen(true)}
+        onOpenConfig={handleOpenConfig}
       />
       {configOpen && <Configuration onClose={() => setConfigOpen(false)} />}
     </>

@@ -127,7 +127,7 @@ func (b *BulkRefresher) refreshScenario(scenarioName string) ScenarioRefreshInfo
 	}
 
 	thresholds := scoring.GetThresholds(metrics.Category)
-	breakdown := scoring.CalculateCompletenessScore(*metrics, thresholds, nil)
+	breakdown := scoring.CalculateCompletenessScore(*metrics, thresholds, 0)
 
 	// Get previous score from history if available
 	previousScore := 0
@@ -231,7 +231,7 @@ func (b *BulkRefresher) Compare(scenarioNames []string) (*ComparisonResult, erro
 		}
 
 		thresholds := scoring.GetThresholds(metrics.Category)
-		breakdown := scoring.CalculateCompletenessScore(*metrics, thresholds, nil)
+		breakdown := scoring.CalculateCompletenessScore(*metrics, thresholds, 0)
 
 		comparisons = append(comparisons, ScenarioComparison{
 			Scenario:       name,

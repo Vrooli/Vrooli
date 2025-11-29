@@ -64,8 +64,8 @@ func (w *WhatIfAnalyzer) Analyze(scenarioName string, changes []MetricChange) (*
 
 	thresholds := scoring.GetThresholds(metrics.Category)
 
-	// Calculate current score
-	currentBreakdown := scoring.CalculateCompletenessScore(*metrics, thresholds, nil)
+	// Calculate current score (no validation penalty for what-if analysis)
+	currentBreakdown := scoring.CalculateCompletenessScore(*metrics, thresholds, 0)
 
 	// Create a copy of metrics to simulate changes
 	simulatedMetrics := *metrics
@@ -89,8 +89,8 @@ func (w *WhatIfAnalyzer) Analyze(scenarioName string, changes []MetricChange) (*
 		}
 	}
 
-	// Calculate projected score
-	projectedBreakdown := scoring.CalculateCompletenessScore(simulatedMetrics, thresholds, nil)
+	// Calculate projected score (no validation penalty for what-if analysis)
+	projectedBreakdown := scoring.CalculateCompletenessScore(simulatedMetrics, thresholds, 0)
 
 	// Calculate impact for each change
 	for i := range appliedChanges {

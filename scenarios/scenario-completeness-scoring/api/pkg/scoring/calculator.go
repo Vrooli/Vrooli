@@ -373,7 +373,9 @@ func ClassifyScore(score int) (string, string) {
 
 // CalculateCompletenessScore computes the overall completeness score
 // [REQ:SCS-CORE-001] Calculate completeness scores with 4 dimensions
-func CalculateCompletenessScore(metrics Metrics, thresholds ThresholdConfig, validation *ValidationQualityAnalysis) ScoreBreakdown {
+// The validationPenalty parameter is the total penalty points from validation
+// quality analysis (see validators.ValidationQualityAnalysis.TotalPenalty).
+func CalculateCompletenessScore(metrics Metrics, thresholds ThresholdConfig, validationPenalty int) ScoreBreakdown {
 	quality := CalculateQualityScore(metrics)
 	coverage := CalculateCoverageScore(metrics, metrics.Requirements_)
 	quantity := CalculateQuantityScore(metrics, thresholds)
@@ -381,11 +383,6 @@ func CalculateCompletenessScore(metrics Metrics, thresholds ThresholdConfig, val
 
 	baseScore := quality.Score + coverage.Score + quantity.Score + ui.Score
 
-	// Apply validation quality penalties if provided
-	validationPenalty := 0
-	if validation != nil {
-		validationPenalty = validation.TotalPenalty
-	}
 	finalScore := baseScore - validationPenalty
 	if finalScore < 0 {
 		finalScore = 0
@@ -408,7 +405,9 @@ func CalculateCompletenessScore(metrics Metrics, thresholds ThresholdConfig, val
 
 // CalculateCompletenessScoreWithOptions computes the overall completeness score using config options
 // [REQ:SCS-CFG-001] Component toggle support - dimensions can be disabled via options
-func CalculateCompletenessScoreWithOptions(metrics Metrics, thresholds ThresholdConfig, validation *ValidationQualityAnalysis, opts *ScoringOptions) ScoreBreakdown {
+// The validationPenalty parameter is the total penalty points from validation
+// quality analysis (see validators.ValidationQualityAnalysis.TotalPenalty).
+func CalculateCompletenessScoreWithOptions(metrics Metrics, thresholds ThresholdConfig, validationPenalty int, opts *ScoringOptions) ScoreBreakdown {
 	if opts == nil {
 		opts = DefaultScoringOptions()
 	}
@@ -485,11 +484,6 @@ func CalculateCompletenessScoreWithOptions(metrics Metrics, thresholds Threshold
 
 	baseScore := int(math.Round(totalRawScore))
 
-	// Apply validation quality penalties if provided
-	validationPenalty := 0
-	if validation != nil {
-		validationPenalty = validation.TotalPenalty
-	}
 	finalScore := baseScore - validationPenalty
 	if finalScore < 0 {
 		finalScore = 0

@@ -3,7 +3,12 @@
 ## Open Issues
 
 ### High Priority
-None currently - scenario is in initialization phase.
+1. **UI Smoke Test Fails via ecosystem-manager Embedding** (Cross-scenario)
+   - **Issue**: The `vrooli scenario ui-smoke scenario-completeness-scoring` test routes through ecosystem-manager's UI (port 36110) which embeds scenarios in iframes. Ecosystem-manager's `ThemeContext.tsx` uses `localStorage` directly without a try/catch guard, causing `SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document` when run in Browserless's sandboxed context.
+   - **Impact**: UI smoke tests fail even though scenario-completeness-scoring's own code is fixed.
+   - **Fix Required**: ecosystem-manager's `ui/src/contexts/ThemeContext.tsx` needs the same localStorage availability check pattern applied in this scenario's `useRecentScenarios.ts`.
+   - **Workaround**: Test the scenario UI directly at its allocated port (e.g., `http://localhost:39141`) rather than through ecosystem-manager embedding.
+   - **Date Identified**: 2025-11-29
 
 ### Medium Priority
 1. **JS to Go Migration Complexity**: The existing `scripts/scenarios/lib/completeness.js` has ~550 lines of logic to port. Need to ensure parity during migration.
@@ -37,4 +42,7 @@ None currently - scenario is in initialization phase.
 
 ## Resolved Issues
 
-None yet - scenario is newly created.
+1. **localStorage SecurityError in useRecentScenarios** (2025-11-29)
+   - **Issue**: The `useRecentScenarios` hook accessed `localStorage` directly without checking availability, causing `SecurityError` in sandboxed iframe contexts (Browserless, incognito mode, etc.).
+   - **Fix**: Added `isLocalStorageAvailable()` helper function that tests localStorage access with try/catch before use. The hook now gracefully degrades when localStorage is unavailable - recent scenarios tracking simply won't persist across sessions but the UI continues to function.
+   - **Files Changed**: `ui/src/hooks/useRecentScenarios.ts`

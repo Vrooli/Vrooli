@@ -36,28 +36,113 @@ export interface Metrics {
   ui?: UIMetrics;
 }
 
+export interface PassRate {
+  passing: number;
+  total: number;
+  rate: number;
+  points: number;
+}
+
+export interface QualityScore {
+  score: number;
+  max: number;
+  disabled?: boolean;
+  requirement_pass_rate: PassRate;
+  target_pass_rate: PassRate;
+  test_pass_rate: PassRate;
+}
+
+export interface CoverageRatio {
+  ratio: number;
+  points: number;
+}
+
+export interface DepthScoreDetail {
+  avg_depth: number;
+  points: number;
+}
+
+export interface CoverageScore {
+  score: number;
+  max: number;
+  disabled?: boolean;
+  test_coverage_ratio: CoverageRatio;
+  depth_score: DepthScoreDetail;
+}
+
+export interface QuantityMetric {
+  count: number;
+  threshold: string;
+  points: number;
+}
+
+export interface QuantityScore {
+  score: number;
+  max: number;
+  disabled?: boolean;
+  requirements: QuantityMetric;
+  targets: QuantityMetric;
+  tests: QuantityMetric;
+}
+
+export interface TemplateCheckResult {
+  is_template: boolean;
+  penalty: number;
+  points: number;
+}
+
+export interface ComponentComplexity {
+  file_count: number;
+  component_count?: number;
+  page_count?: number;
+  threshold: string;
+  points: number;
+}
+
+export interface APIIntegration {
+  endpoint_count: number;
+  total_endpoints?: number;
+  points: number;
+}
+
+export interface RoutingScore {
+  has_routing: boolean;
+  route_count: number;
+  points: number;
+}
+
+export interface CodeVolume {
+  total_loc: number;
+  points: number;
+}
+
+export interface UIScore {
+  score: number;
+  max: number;
+  disabled?: boolean;
+  template_check: TemplateCheckResult;
+  component_complexity: ComponentComplexity;
+  api_integration: APIIntegration;
+  routing: RoutingScore;
+  code_volume: CodeVolume;
+}
+
 export interface ScoreBreakdown {
+  base_score: number;
+  validation_penalty: number;
   score: number;
   classification: string;
-  quality: number;
-  coverage: number;
-  quantity: number;
-  ui: number;
-  penalties: number;
-  details: {
-    quality: Record<string, number>;
-    coverage: Record<string, number>;
-    quantity: Record<string, number>;
-    ui: Record<string, number>;
-    penalties: Record<string, number>;
-  };
+  classification_description: string;
+  quality: QualityScore;
+  coverage: CoverageScore;
+  quantity: QuantityScore;
+  ui: UIScore;
 }
 
 export interface Recommendation {
-  area: string;
-  action: string;
-  impact: number;
   priority: number;
+  description: string;
+  impact?: number;
 }
 
 export interface ScenarioScore {
@@ -73,6 +158,13 @@ export interface ScoresListResponse {
   calculated_at: string;
 }
 
+export interface ValidationQualityAnalysis {
+  has_issues: boolean;
+  issue_count: number;
+  total_penalty: number;
+  overall_severity: string;
+}
+
 export interface ScoreDetailResponse {
   scenario: string;
   category: string;
@@ -82,6 +174,9 @@ export interface ScoreDetailResponse {
   metrics: Metrics;
   recommendations: Recommendation[];
   calculated_at: string;
+  validation_analysis?: ValidationQualityAnalysis;
+  recalculated?: boolean;
+  snapshot_id?: number;
 }
 
 export interface CollectorStatus {
@@ -284,4 +379,26 @@ export async function fetchRecommendations(scenario: string): Promise<{
   potential_score: number;
 }> {
   return apiCall(`/recommendations/${encodeURIComponent(scenario)}`);
+}
+
+// Bulk Operations
+export interface BulkRefreshResult {
+  result: {
+    total: number;
+    successful: number;
+    failed: number;
+    scenarios: Array<{
+      scenario: string;
+      category: string;
+      score: number;
+      classification: string;
+      delta: number;
+      success: boolean;
+      error?: string;
+    }>;
+  };
+}
+
+export async function refreshAllScores(): Promise<BulkRefreshResult> {
+  return apiCall<BulkRefreshResult>("/scores/refresh-all", { method: "POST" });
 }

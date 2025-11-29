@@ -270,10 +270,20 @@ const literalSelectors: LiteralSelectorTree = {
     root: "dashboard",
     scenariosTable: "scenarios-table",
     healthAlertBanner: "health-alert-banner",
+    healthSummaryBar: "health-summary-bar",
+    searchFilterBar: "search-filter-bar",
+    searchInput: "search-input",
+    categoryFilter: "category-filter",
+    quickAccessSection: "quick-access-section",
+    recentScenarios: "recent-scenarios",
+    needsAttention: "needs-attention",
   },
   scenarioDetail: {
     root: "scenario-detail",
     recommendationsSection: "recommendations-section",
+    configureButton: "configure-button",
+    whatIfSection: "what-if-section",
+    scoreBarDetails: "score-bar-details",
   },
   configuration: {
     root: "configuration-panel",
@@ -284,6 +294,8 @@ const literalSelectors: LiteralSelectorTree = {
     trendIndicator: "trend-indicator",
     sparkline: "sparkline",
     scoreClassificationBadge: "score-classification-badge",
+    scoreLegendButton: "score-legend-button",
+    scoreLegendPopover: "score-legend-popover",
   },
 };
 

@@ -548,17 +548,5 @@ func analyzeMissingAutomation(
 	}, penalty
 }
 
-// Helper function for Go <1.21
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
+// NOTE: Go 1.21+ has built-in min() and max() functions, so we no longer need
+// custom implementations. The module specifies go 1.21 in go.mod.

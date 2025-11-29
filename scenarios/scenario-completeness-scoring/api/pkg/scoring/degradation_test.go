@@ -18,13 +18,11 @@ func TestValidationPenalty(t *testing.T) {
 	thresholds := DefaultThresholds()
 
 	// Without penalty
-	noValidation := CalculateCompletenessScore(metrics, thresholds, nil)
+	noValidation := CalculateCompletenessScore(metrics, thresholds, 0)
 
-	// With penalty
-	validation := &ValidationQualityAnalysis{
-		TotalPenalty: 20,
-	}
-	withValidation := CalculateCompletenessScore(metrics, thresholds, validation)
+	// With penalty (validation penalty passed as int)
+	validationPenalty := 20
+	withValidation := CalculateCompletenessScore(metrics, thresholds, validationPenalty)
 
 	if noValidation.ValidationPenalty != 0 {
 		t.Errorf("Expected no validation penalty, got %d", noValidation.ValidationPenalty)
@@ -52,7 +50,7 @@ func TestGracefulDegradation(t *testing.T) {
 	thresholds := DefaultThresholds()
 
 	// Should still calculate a score
-	breakdown := CalculateCompletenessScore(metricsNoUI, thresholds, nil)
+	breakdown := CalculateCompletenessScore(metricsNoUI, thresholds, 0)
 
 	if breakdown.Score < 0 {
 		t.Errorf("Score should be non-negative, got %d", breakdown.Score)
@@ -84,7 +82,7 @@ func TestGracefulDegradationZeroTotals(t *testing.T) {
 	thresholds := DefaultThresholds()
 
 	// Should not panic and should return valid (zero) score
-	breakdown := CalculateCompletenessScore(metricsEmpty, thresholds, nil)
+	breakdown := CalculateCompletenessScore(metricsEmpty, thresholds, 0)
 
 	if breakdown.Score < 0 {
 		t.Errorf("Score should be non-negative, got %d", breakdown.Score)
@@ -109,16 +107,11 @@ func TestPenaltyBreakdown(t *testing.T) {
 	}
 	thresholds := DefaultThresholds()
 
-	// Apply penalty with details
-	validation := &ValidationQualityAnalysis{
-		TotalPenalty: 15,
-		Penalties: []PenaltyDetail{
-			{Type: "monolithic_test", Points: 5, Message: "Test file validates too many requirements"},
-			{Type: "missing_e2e", Points: 10, Message: "Missing E2E validation layer"},
-		},
-	}
+	// Apply penalty (the detailed breakdown is available from validators.ValidationQualityAnalysis
+	// but the scoring engine only needs the total penalty value)
+	validationPenalty := 15
 
-	breakdown := CalculateCompletenessScore(metrics, thresholds, validation)
+	breakdown := CalculateCompletenessScore(metrics, thresholds, validationPenalty)
 
 	if breakdown.ValidationPenalty != 15 {
 		t.Errorf("Expected validation penalty 15, got %d", breakdown.ValidationPenalty)

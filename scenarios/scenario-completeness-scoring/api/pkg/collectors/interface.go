@@ -1,8 +1,10 @@
-// Package collectors provides data collection for scenario completeness scoring
+// Package collectors provides data collection for scenario completeness scoring.
+// It gathers metrics from scenario directories including requirements, tests, and UI analysis.
 // [REQ:SCS-CORE-001] Metric collection interface
 package collectors
 
 import (
+	"scenario-completeness-scoring/pkg/domain"
 	"scenario-completeness-scoring/pkg/scoring"
 )
 
@@ -73,87 +75,42 @@ func (c *MetricsCollector) GetScenarioRoot(scenarioName string) string {
 	return c.VrooliRoot + "/scenarios/" + scenarioName
 }
 
-// LoadRequirements loads all requirements with validation data for a scenario
-// This is used by the validation quality analyzer
-func (c *MetricsCollector) LoadRequirements(scenarioName string) []Requirement {
+// LoadRequirements loads all requirements with validation data for a scenario.
+// This is used by the validation quality analyzer.
+func (c *MetricsCollector) LoadRequirements(scenarioName string) []domain.Requirement {
 	scenarioRoot := c.GetScenarioRoot(scenarioName)
 	return loadRequirements(scenarioRoot)
 }
 
-// PassMetrics holds pass/fail counts
+// PassMetrics holds pass/fail counts for scoring calculations
 type PassMetrics struct {
 	Total   int
 	Passing int
 }
 
-// ServiceConfig holds minimal service configuration
-type ServiceConfig struct {
-	Category string `json:"category"`
-	Name     string `json:"name"`
-	Version  string `json:"version"`
-}
+// Type aliases for backward compatibility - these delegate to domain types
+// to maintain a clean transition while avoiding breaking changes.
+type (
+	// Requirement is an alias to the domain.Requirement type
+	Requirement = domain.Requirement
+	// Validation is an alias to the domain.Validation type
+	Validation = domain.Validation
+	// RequirementsIndex is an alias to the domain.RequirementsIndex type
+	RequirementsIndex = domain.RequirementsIndex
+	// SyncMetadata is an alias to the domain.SyncMetadata type
+	SyncMetadata = domain.SyncMetadata
+	// SyncedReq is an alias to the domain.SyncedReq type
+	SyncedReq = domain.SyncedReq
+	// SyncedOperationalTarget is an alias to the domain.SyncedOperationalTarget type
+	SyncedOperationalTarget = domain.SyncedOperationalTarget
+	// TargetCounts is an alias to the domain.TargetCounts type
+	TargetCounts = domain.TargetCounts
+	// ServiceConfig is an alias to the domain.ServiceConfig type
+	ServiceConfig = domain.ServiceConfig
+	// TestResults is an alias to the domain.TestResults type
+	TestResults = domain.TestResults
+)
 
-// Requirement represents a requirement from the requirements JSON
-type Requirement struct {
-	ID                  string          `json:"id"`
-	Title               string          `json:"title"`
-	Status              string          `json:"status"`
-	Priority            string          `json:"priority,omitempty"`
-	Category            string          `json:"category,omitempty"`
-	PRDRef              string          `json:"prd_ref,omitempty"`
-	Children            []string        `json:"children,omitempty"`
-	OperationalTargetID string          `json:"operational_target_id,omitempty"`
-	Validation          []ValidationRef `json:"validation,omitempty"`
-}
-
-// ValidationRef represents a validation reference
-type ValidationRef struct {
-	Type   string `json:"type"`
-	Ref    string `json:"ref"`
-	Phase  string `json:"phase,omitempty"`
-	Status string `json:"status,omitempty"`
-}
-
-// RequirementsData holds the requirements index/module data
-type RequirementsData struct {
-	Requirements []Requirement `json:"requirements"`
-	Imports      []string      `json:"imports,omitempty"`
-}
-
-// TestResults holds test execution results
-type TestResults struct {
-	Total   int
-	Passing int
-	Failing int
-	LastRun string
-}
-
-// SyncMetadata holds requirement sync metadata
-type SyncMetadata struct {
-	LastSynced         string                    `json:"last_synced"`
-	Requirements       map[string]SyncedReq      `json:"requirements"`
-	OperationalTargets []SyncedOperationalTarget `json:"operational_targets,omitempty"`
-}
-
-// SyncedReq holds synced requirement status
-type SyncedReq struct {
-	Status string `json:"status"`
-}
-
-// SyncedOperationalTarget holds operational target from sync metadata
-type SyncedOperationalTarget struct {
-	Key         string            `json:"key"`
-	TargetID    string            `json:"target_id"`
-	FolderHint  string            `json:"folder_hint,omitempty"`
-	Status      string            `json:"status"`
-	Criticality string            `json:"criticality,omitempty"`
-	Counts      *TargetCounts     `json:"counts,omitempty"`
-}
-
-// TargetCounts holds counts for an operational target
-type TargetCounts struct {
-	Total      int `json:"total"`
-	Complete   int `json:"complete"`
-	InProgress int `json:"in_progress"`
-	Pending    int `json:"pending"`
-}
+// RequirementsData is kept for JSON unmarshaling compatibility
+// It maps directly to domain.RequirementsIndex
+type RequirementsData = domain.RequirementsIndex

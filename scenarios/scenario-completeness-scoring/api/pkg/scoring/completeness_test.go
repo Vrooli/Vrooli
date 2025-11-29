@@ -36,7 +36,7 @@ func TestCalculateCompletenessScore(t *testing.T) {
 	}
 
 	thresholds := DefaultThresholds()
-	breakdown := CalculateCompletenessScore(metrics, thresholds, nil)
+	breakdown := CalculateCompletenessScore(metrics, thresholds, 0)
 
 	// Verify the score is calculated
 	if breakdown.Score <= 0 {
@@ -119,7 +119,7 @@ func TestScoreBounds(t *testing.T) {
 	}
 	thresholds := DefaultThresholds()
 
-	result := CalculateCompletenessScore(perfectMetrics, thresholds, nil)
+	result := CalculateCompletenessScore(perfectMetrics, thresholds, 0)
 	if result.Score > 100 {
 		t.Errorf("Score should not exceed 100, got %d", result.Score)
 	}
@@ -131,7 +131,7 @@ func TestScoreBounds(t *testing.T) {
 		Tests:        MetricCounts{Total: 0, Passing: 0},
 		UI:           nil,
 	}
-	heavyPenalty := &ValidationQualityAnalysis{TotalPenalty: 100}
+	heavyPenalty := 100 // Validation penalty as int
 
 	result2 := CalculateCompletenessScore(worstMetrics, thresholds, heavyPenalty)
 	if result2.Score < 0 {

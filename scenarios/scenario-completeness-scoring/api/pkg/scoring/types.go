@@ -194,18 +194,11 @@ type UIThresholdConfig struct {
 	APIEndpoints ThresholdLevels `json:"api_endpoints"`
 }
 
-// ValidationQualityAnalysis holds penalty information
-type ValidationQualityAnalysis struct {
-	TotalPenalty int             `json:"total_penalty"`
-	Penalties    []PenaltyDetail `json:"penalties,omitempty"`
-}
-
-// PenaltyDetail represents a single penalty
-type PenaltyDetail struct {
-	Type    string `json:"type"`
-	Points  int    `json:"points"`
-	Message string `json:"message"`
-}
+// NOTE: ValidationQualityAnalysis was removed in favor of passing the penalty
+// value directly as an int. The full validation analysis result lives in
+// pkg/validators/types.go as validators.ValidationQualityAnalysis, which
+// provides complete issue details, patterns, and recommendations.
+// The scoring engine only needs the total penalty value, not the full analysis.
 
 // ScoringOptions controls which dimensions are enabled and their weights
 // This is used to wire configuration into the scoring logic

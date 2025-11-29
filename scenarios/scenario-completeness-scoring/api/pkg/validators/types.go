@@ -2,6 +2,10 @@
 // It detects testing anti-patterns and gaming behaviors that inflate metrics without genuine validation.
 package validators
 
+import (
+	"scenario-completeness-scoring/pkg/domain"
+)
+
 // ValidationQualityAnalysis holds the complete validation analysis result
 type ValidationQualityAnalysis struct {
 	HasIssues       bool                   `json:"has_issues"`
@@ -56,34 +60,15 @@ type MonolithicTestInfo struct {
 	Severity string   `json:"severity"`
 }
 
-// Requirement represents a requirement for validation analysis
-type Requirement struct {
-	ID                  string       `json:"id"`
-	Title               string       `json:"title,omitempty"`
-	Status              string       `json:"status,omitempty"`
-	Priority            string       `json:"priority,omitempty"`
-	Category            string       `json:"category,omitempty"`
-	PRDRef              string       `json:"prd_ref,omitempty"`
-	OperationalTargetID string       `json:"operational_target_id,omitempty"`
-	Children            []string     `json:"children,omitempty"`
-	Validation          []Validation `json:"validation,omitempty"`
-}
-
-// Validation represents a validation reference
-type Validation struct {
-	Type       string `json:"type"`
-	Ref        string `json:"ref,omitempty"`
-	WorkflowID string `json:"workflow_id,omitempty"`
-	Status     string `json:"status,omitempty"`
-}
-
-// OperationalTarget represents an operational target
-type OperationalTarget struct {
-	ID           string   `json:"id"`
-	Title        string   `json:"title,omitempty"`
-	Priority     string   `json:"priority,omitempty"`
-	Requirements []string `json:"requirements,omitempty"`
-}
+// Type aliases to domain types - eliminates duplicate definitions and conversion layer
+type (
+	// Requirement is an alias to the domain.Requirement type
+	Requirement = domain.Requirement
+	// Validation is an alias to the domain.Validation type
+	Validation = domain.Validation
+	// OperationalTarget is an alias to the domain.OperationalTarget type
+	OperationalTarget = domain.OperationalTarget
+)
 
 // TestRefUsageAnalysis holds analysis of test ref usage across requirements
 type TestRefUsageAnalysis struct {
