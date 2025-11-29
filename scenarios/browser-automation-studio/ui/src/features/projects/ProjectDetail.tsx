@@ -1315,30 +1315,70 @@ function ProjectDetail({
                   <div className="text-gray-400">Loading workflows...</div>
                 </div>
               ) : filteredWorkflows.length === 0 && searchTerm === "" ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="text-center">
-                    <div className="mb-4 flex items-center justify-center text-gray-600">
-                      {error ? <WifiOff size={48} /> : <FileCode size={48} />}
+                <div className="max-w-2xl mx-auto pt-8">
+                  <div className="text-center mb-8">
+                    <div className="mb-5 flex items-center justify-center">
+                      <div className="p-4 bg-green-500/20 rounded-2xl">
+                        {error ? <WifiOff size={40} className="text-red-400" /> : <FileCode size={40} className="text-green-400" />}
+                      </div>
                     </div>
-                    <h3 className="text-lg font-semibold text-white mb-2">
-                      {error ? "Unable to Load Workflows" : "No Workflows Yet"}
+                    <h3 className="text-xl font-semibold text-white mb-2">
+                      {error ? "Unable to Load Workflows" : "Ready to Automate"}
                     </h3>
-                    <p className="text-gray-400 mb-6">
+                    <p className="text-gray-400 max-w-md mx-auto">
                       {error
                         ? "There was an issue connecting to the API. You can still use the interface when the connection is restored."
-                        : "Create your first workflow to start automating tasks in this project"}
+                        : "Create your first workflow to automate browser tasks. Use AI to describe what you want, or build visually with the drag-and-drop builder."}
                     </p>
-                    {!error && (
-                      <button
-                        data-testid={selectors.workflows.newButton}
-                        onClick={onCreateWorkflow}
-                        className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
-                      >
-                        <Plus size={16} />
-                        Create Workflow
-                      </button>
-                    )}
                   </div>
+
+                  {!error && (
+                    <>
+                      {/* Quick Actions */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                        <button
+                          onClick={onCreateWorkflow}
+                          className="bg-flow-node border border-gray-700 rounded-xl p-5 text-left hover:border-flow-accent hover:shadow-lg hover:shadow-blue-500/10 transition-all group"
+                        >
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="p-2 bg-amber-500/20 rounded-lg group-hover:bg-amber-500/30 transition-colors">
+                              <Plus size={20} className="text-amber-400" />
+                            </div>
+                            <h4 className="font-medium text-white">AI-Assisted</h4>
+                          </div>
+                          <p className="text-sm text-gray-400">
+                            Describe your automation in plain language and let AI generate the workflow.
+                          </p>
+                        </button>
+
+                        <button
+                          onClick={onCreateWorkflow}
+                          className="bg-flow-node border border-gray-700 rounded-xl p-5 text-left hover:border-flow-accent hover:shadow-lg hover:shadow-blue-500/10 transition-all group"
+                        >
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="p-2 bg-blue-500/20 rounded-lg group-hover:bg-blue-500/30 transition-colors">
+                              <FolderTree size={20} className="text-blue-400" />
+                            </div>
+                            <h4 className="font-medium text-white">Visual Builder</h4>
+                          </div>
+                          <p className="text-sm text-gray-400">
+                            Use the drag-and-drop interface to build workflows step by step.
+                          </p>
+                        </button>
+                      </div>
+
+                      {/* Workflow ideas */}
+                      <div className="text-center text-sm text-gray-500">
+                        <p className="mb-2">Try automating:</p>
+                        <div className="flex flex-wrap justify-center gap-2">
+                          <span className="px-2 py-1 bg-gray-800 rounded text-gray-400">Form submissions</span>
+                          <span className="px-2 py-1 bg-gray-800 rounded text-gray-400">UI testing</span>
+                          <span className="px-2 py-1 bg-gray-800 rounded text-gray-400">Data extraction</span>
+                          <span className="px-2 py-1 bg-gray-800 rounded text-gray-400">Screenshots</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : filteredWorkflows.length === 0 ? (
                 <div className="flex items-center justify-center h-64">

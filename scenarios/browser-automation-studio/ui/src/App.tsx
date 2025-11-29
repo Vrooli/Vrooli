@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useState, lazy, Suspense } from "react";
+import { useCallback, useEffect, useState, lazy, Suspense, useMemo } from "react";
 import { ReactFlowProvider } from "reactflow";
 import "reactflow/dist/style.css";
 
 // Shared layout components
-import { ResponsiveDialog, Sidebar, Header } from "@shared/layout";
+import { ResponsiveDialog, Sidebar, Header, KeyboardShortcutsModal } from "@shared/layout";
 import { ProjectModal } from "@features/projects";
+
+// Keyboard shortcuts
+import { useKeyboardShortcuts, type KeyboardShortcut } from "@hooks/useKeyboardShortcuts";
 
 // Lazy load heavy components for better initial load performance
 const WorkflowBuilder = lazy(() => import("@features/workflows/builder/WorkflowBuilder"));
@@ -42,6 +45,7 @@ function App() {
   const [currentView, setCurrentView] = useState<AppView | null>(null);
   const [showAIModal, setShowAIModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<string>("/");
   const [selectedWorkflow, setSelectedWorkflow] =
     useState<NormalizedWorkflow | null>(null);
@@ -458,6 +462,85 @@ function App() {
     }
   };
 
+  // Define keyboard shortcuts for the entire application
+  const keyboardShortcuts = useMemo<KeyboardShortcut[]>(
+    () => [
+      {
+        key: "?",
+        modifiers: ["meta"],
+        description: "Show keyboard shortcuts",
+        category: "Help",
+        action: () => setShowKeyboardShortcuts(true),
+      },
+      {
+        key: "n",
+        modifiers: ["meta"],
+        description: "Create new project/workflow",
+        category: "Navigation",
+        action: () => {
+          if (currentView === "dashboard") {
+            setShowProjectModal(true);
+          } else if (currentView === "project-detail" || currentView === "project-workflow") {
+            setShowAIModal(true);
+          }
+        },
+      },
+      {
+        key: "escape",
+        description: "Close modal or go back",
+        category: "Navigation",
+        action: () => {
+          if (showKeyboardShortcuts) {
+            setShowKeyboardShortcuts(false);
+          } else if (showAIModal) {
+            setShowAIModal(false);
+          } else if (showProjectModal) {
+            setShowProjectModal(false);
+          } else if (currentView === "project-workflow" && currentProject) {
+            openProject(currentProject);
+          } else if (currentView === "project-detail") {
+            navigateToDashboard();
+          }
+        },
+      },
+      {
+        key: "/",
+        modifiers: ["meta"],
+        description: "Focus search",
+        category: "Navigation",
+        action: () => {
+          const searchInput = document.querySelector<HTMLInputElement>(
+            'input[placeholder*="Search"]'
+          );
+          searchInput?.focus();
+        },
+      },
+      {
+        key: "h",
+        modifiers: ["meta"],
+        description: "Go to dashboard",
+        category: "Navigation",
+        action: () => navigateToDashboard(),
+      },
+    ],
+    [currentView, currentProject, showKeyboardShortcuts, showAIModal, showProjectModal, navigateToDashboard, openProject]
+  );
+
+  // Register keyboard shortcuts
+  useKeyboardShortcuts(keyboardShortcuts);
+
+  // Shortcut definitions for the help modal (without action functions)
+  const shortcutDefinitions = useMemo(
+    () =>
+      keyboardShortcuts.map(({ key, modifiers, description, category }) => ({
+        key,
+        modifiers,
+        description,
+        category,
+      })),
+    [keyboardShortcuts]
+  );
+
   useEffect(() => {
     const resolvePath = async (path: string, replace = false) => {
       console.log("[DEBUG] resolvePath called", { path, replace });
@@ -566,6 +649,7 @@ function App() {
           <Dashboard
             onProjectSelect={handleProjectSelect}
             onCreateProject={handleCreateProject}
+            onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
           />
         </Suspense>
 
@@ -577,6 +661,12 @@ function App() {
             console.log("[DEBUG] App: setShowProjectModal(false) completed");
           }}
           onSuccess={handleProjectCreated}
+        />
+
+        <KeyboardShortcutsModal
+          isOpen={showKeyboardShortcuts}
+          onClose={() => setShowKeyboardShortcuts(false)}
+          shortcuts={shortcutDefinitions}
         />
       </div>
     );
@@ -617,6 +707,12 @@ function App() {
             />
           </Suspense>
         )}
+
+        <KeyboardShortcutsModal
+          isOpen={showKeyboardShortcuts}
+          onClose={() => setShowKeyboardShortcuts(false)}
+          shortcuts={shortcutDefinitions}
+        />
       </div>
     );
   }
@@ -638,6 +734,7 @@ function App() {
           currentProject={currentProject}
           currentWorkflow={selectedWorkflow}
           showBackToProject={currentView === "project-workflow"}
+          onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
         />
 
         <div className="flex-1 flex overflow-hidden min-h-0">
@@ -749,6 +846,12 @@ function App() {
             />
           </Suspense>
         )}
+
+        <KeyboardShortcutsModal
+          isOpen={showKeyboardShortcuts}
+          onClose={() => setShowKeyboardShortcuts(false)}
+          shortcuts={shortcutDefinitions}
+        />
       </div>
     </ReactFlowProvider>
   );

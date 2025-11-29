@@ -12,7 +12,9 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  Keyboard,
 } from "lucide-react";
+import { getModifierKey } from "@hooks/useKeyboardShortcuts";
 import { useState, useRef, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
@@ -46,6 +48,7 @@ interface HeaderProps {
   currentProject?: Project | null;
   currentWorkflow?: HeaderWorkflow | null;
   showBackToProject?: boolean;
+  onShowKeyboardShortcuts?: () => void;
 }
 
 function Header({
@@ -54,6 +57,7 @@ function Header({
   currentProject,
   currentWorkflow: selectedWorkflow,
   showBackToProject,
+  onShowKeyboardShortcuts,
 }: HeaderProps) {
   const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow);
   const saveWorkflow = useWorkflowStore((state) => state.saveWorkflow);
@@ -845,6 +849,16 @@ function Header({
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
+            {onShowKeyboardShortcuts && (
+              <button
+                onClick={onShowKeyboardShortcuts}
+                className="toolbar-button flex items-center gap-0 sm:gap-2"
+                title={`Keyboard shortcuts (${getModifierKey()}+?)`}
+                aria-label="Show keyboard shortcuts"
+              >
+                <Keyboard size={16} />
+              </button>
+            )}
             <button
               onClick={handleDebug}
               className="toolbar-button flex items-center gap-0 sm:gap-2"

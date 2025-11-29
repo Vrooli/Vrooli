@@ -11,17 +11,24 @@ import {
   WifiOff,
   Search,
   X,
+  Keyboard,
+  Sparkles,
+  Zap,
+  FileCode,
+  Bot,
 } from "lucide-react";
 import { useProjectStore, Project } from "@stores/projectStore";
 import { openCalendar } from "@utils/vrooli";
 import { selectors } from "@constants/selectors";
+import { getModifierKey } from "@hooks/useKeyboardShortcuts";
 
 interface DashboardProps {
   onProjectSelect: (project: Project) => void;
   onCreateProject: () => void;
+  onShowKeyboardShortcuts?: () => void;
 }
 
-function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
+function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts }: DashboardProps) {
   const {
     projects,
     isLoading,
@@ -155,14 +162,26 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                 Manage your automation projects and workflows
               </p>
             </div>
-            <button
-              data-testid={selectors.dashboard.newProjectButton}
-              onClick={onCreateProject}
-              className="hidden md:inline-flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              <Plus size={16} />
-              New Project
-            </button>
+            <div className="hidden md:flex items-center gap-2">
+              {onShowKeyboardShortcuts && (
+                <button
+                  onClick={onShowKeyboardShortcuts}
+                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                  title={`Keyboard shortcuts (${getModifierKey()}+?)`}
+                  aria-label="Show keyboard shortcuts"
+                >
+                  <Keyboard size={18} />
+                </button>
+              )}
+              <button
+                data-testid={selectors.dashboard.newProjectButton}
+                onClick={onCreateProject}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                <Plus size={16} />
+                New Project
+              </button>
+            </div>
           </div>
 
           {/* Search */}
@@ -206,34 +225,125 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
       {/* Content */}
       <div className="flex-1 min-h-0 overflow-auto px-4 py-6 sm:px-6">
         {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-gray-400">Loading projects...</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-pulse">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-flow-node border border-gray-700 rounded-lg p-6"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-gray-700 rounded-lg" />
+                  <div className="flex-1">
+                    <div className="h-5 bg-gray-700 rounded w-3/4 mb-2" />
+                    <div className="h-3 bg-gray-700 rounded w-1/2" />
+                  </div>
+                </div>
+                <div className="h-4 bg-gray-700 rounded w-full mb-2" />
+                <div className="h-4 bg-gray-700 rounded w-2/3 mb-4" />
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="text-center">
+                    <div className="h-6 bg-gray-700 rounded w-12 mx-auto mb-1" />
+                    <div className="h-3 bg-gray-700 rounded w-16 mx-auto" />
+                  </div>
+                  <div className="text-center">
+                    <div className="h-6 bg-gray-700 rounded w-12 mx-auto mb-1" />
+                    <div className="h-3 bg-gray-700 rounded w-16 mx-auto" />
+                  </div>
+                </div>
+                <div className="flex justify-between pt-4 border-t border-gray-700">
+                  <div className="h-3 bg-gray-700 rounded w-20" />
+                  <div className="h-3 bg-gray-700 rounded w-16" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredProjects.length === 0 && searchTerm === "" ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="mb-4 flex items-center justify-center text-gray-600">
-                {error ? <WifiOff size={48} /> : <FolderOpen size={48} />}
+          <div className="max-w-4xl mx-auto">
+            {/* Welcome Section */}
+            <div className="text-center mb-10">
+              <div className="mb-6 flex items-center justify-center">
+                <div className="p-4 bg-flow-accent/20 rounded-2xl">
+                  {error ? <WifiOff size={48} className="text-red-400" /> : <Bot size={48} className="text-flow-accent" />}
+                </div>
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">
-                {error ? "Unable to Load Projects" : "No Projects Yet"}
-              </h3>
-              <p className="text-gray-400 mb-6">
+              <h2 className="text-2xl font-bold text-white mb-3">
+                {error ? "Unable to Load Projects" : "Welcome to Browser Automation Studio"}
+              </h2>
+              <p className="text-gray-400 max-w-lg mx-auto">
                 {error
                   ? "There was an issue connecting to the API. You can still use the interface when the connection is restored."
-                  : "Create your first project to get started with browser automation"}
+                  : "Create visual workflows to automate browser tasks, test UIs, and extract data from websites with AI assistance."}
               </p>
-              {!error && (
-                <button
-                  data-testid={selectors.dashboard.newProjectButton}
-                  onClick={onCreateProject}
-                  className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
-                >
-                  <Plus size={16} />
-                  Create Project
-                </button>
-              )}
             </div>
+
+            {!error && (
+              <>
+                {/* Getting Started Steps */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+                  <div className="bg-flow-node border border-gray-700 rounded-xl p-5 hover:border-flow-accent/50 transition-colors">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-400 font-bold text-sm">
+                        1
+                      </div>
+                      <FolderOpen size={20} className="text-flow-accent" />
+                    </div>
+                    <h3 className="font-semibold text-white mb-2">Create a Project</h3>
+                    <p className="text-sm text-gray-400">
+                      Organize your workflows into projects for easy management.
+                    </p>
+                  </div>
+
+                  <div className="bg-flow-node border border-gray-700 rounded-xl p-5 hover:border-flow-accent/50 transition-colors">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-400 font-bold text-sm">
+                        2
+                      </div>
+                      <Sparkles size={20} className="text-amber-400" />
+                    </div>
+                    <h3 className="font-semibold text-white mb-2">Build with AI</h3>
+                    <p className="text-sm text-gray-400">
+                      Describe what you want to automate and let AI create the workflow.
+                    </p>
+                  </div>
+
+                  <div className="bg-flow-node border border-gray-700 rounded-xl p-5 hover:border-flow-accent/50 transition-colors">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-400 font-bold text-sm">
+                        3
+                      </div>
+                      <Zap size={20} className="text-green-400" />
+                    </div>
+                    <h3 className="font-semibold text-white mb-2">Execute & Monitor</h3>
+                    <p className="text-sm text-gray-400">
+                      Run workflows and watch real-time screenshots of automation progress.
+                    </p>
+                  </div>
+                </div>
+
+                {/* CTA and Tips */}
+                <div className="flex flex-col items-center gap-6">
+                  <button
+                    data-testid={selectors.dashboard.newProjectButton}
+                    onClick={onCreateProject}
+                    className="flex items-center gap-2 px-6 py-3 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors text-lg font-medium"
+                  >
+                    <Plus size={20} />
+                    Create Your First Project
+                  </button>
+
+                  <div className="flex items-center gap-6 text-sm text-gray-500">
+                    <span className="flex items-center gap-1.5">
+                      <Keyboard size={14} />
+                      Press <kbd className="px-1.5 py-0.5 bg-gray-800 rounded text-gray-400">{getModifierKey()}+?</kbd> for shortcuts
+                    </span>
+                    <span className="hidden sm:flex items-center gap-1.5">
+                      <FileCode size={14} />
+                      Visual workflow builder included
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         ) : filteredProjects.length === 0 ? (
           <div className="flex items-center justify-center h-64">
