@@ -262,9 +262,11 @@ func (s *ProfileService) validateProfile(profile *AutoSteerProfile) error {
 
 	// Validate each phase
 	for i, phase := range profile.Phases {
-		if !phase.Mode.IsValid() {
+		normalizedMode := phase.Mode.Normalized()
+		if !normalizedMode.IsValid() {
 			return fmt.Errorf("phase %d has invalid mode: %s", i, phase.Mode)
 		}
+		profile.Phases[i].Mode = normalizedMode
 
 		if phase.MaxIterations <= 0 {
 			return fmt.Errorf("phase %d must have maxIterations > 0", i)

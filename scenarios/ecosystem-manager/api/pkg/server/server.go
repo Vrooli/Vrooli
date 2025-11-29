@@ -241,6 +241,7 @@ func (a *Application) initializeDatabase() error {
 func (a *Application) initializeComponents() error {
 	queueDir := filepath.Join(a.scenarioRoot, "queue")
 	promptsDir := filepath.Join(a.scenarioRoot, "prompts")
+	phasesDir := filepath.Join(promptsDir, "phases")
 
 	// Ensure queue directories exist (aligned with valid queue statuses)
 	for _, dir := range tasks.GetValidStatuses() {
@@ -276,6 +277,11 @@ func (a *Application) initializeComponents() error {
 	}
 	log.Println("✅ Prompt assembler initialized")
 	systemlog.Info("Prompt assembler initialized")
+
+	if err := autosteer.RegisterSteerModesFromDir(phasesDir); err != nil {
+		log.Printf("Warning: could not register steer modes from %s: %v", phasesDir, err)
+		systemlog.Warnf("Could not register steer modes from %s: %v", phasesDir, err)
+	}
 
 	// Initialize WebSocket manager
 	a.wsManager = websocket.NewManager()
@@ -321,7 +327,7 @@ func (a *Application) initializeComponents() error {
 		a.db,
 		a.autoSteerProfileService,
 		a.autoSteerMetricsCollector,
-		filepath.Join(promptsDir, "phases"),
+		phasesDir,
 	)
 	a.autoSteerHistoryService = autosteer.NewHistoryService(a.db)
 	log.Println("✅ Auto Steer components initialized")

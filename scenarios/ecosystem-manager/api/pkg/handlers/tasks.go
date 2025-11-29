@@ -331,16 +331,7 @@ func validateAndNormalizeSteerMode(task *tasks.TaskItem, w http.ResponseWriter) 
 	}
 
 	if !mode.IsValid() {
-		writeError(w, fmt.Sprintf("Invalid steer_mode: %s. Must be one of: %v", mode, []autosteer.SteerMode{
-			autosteer.ModeProgress,
-			autosteer.ModeUX,
-			autosteer.ModeRefactor,
-			autosteer.ModeTest,
-			autosteer.ModeExplore,
-			autosteer.ModePolish,
-			autosteer.ModePerformance,
-			autosteer.ModeSecurity,
-		}), http.StatusBadRequest)
+		writeError(w, fmt.Sprintf("Invalid steer_mode: %s. Must be one of: %v", mode, autosteer.AllowedSteerModes()), http.StatusBadRequest)
 		return false
 	}
 

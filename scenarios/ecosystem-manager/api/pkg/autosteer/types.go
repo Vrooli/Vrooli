@@ -1,6 +1,12 @@
 package autosteer
 
 import (
+	"io/fs"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
 	"time"
 )
 
@@ -18,14 +24,180 @@ const (
 	ModeSecurity    SteerMode = "security"    // Vulnerability scanning, input validation
 )
 
-// IsValid checks if a SteerMode is valid
+var (
+	builtInSteerModes = []SteerMode{
+		ModeProgress,
+		ModeUX,
+		ModeRefactor,
+		ModeTest,
+		ModeExplore,
+		ModePolish,
+		ModePerformance,
+		ModeSecurity,
+	}
+
+	builtInSteerModeSet = map[SteerMode]struct{}{
+		ModeProgress:    {},
+		ModeUX:          {},
+		ModeRefactor:    {},
+		ModeTest:        {},
+		ModeExplore:     {},
+		ModePolish:      {},
+		ModePerformance: {},
+		ModeSecurity:    {},
+	}
+
+	steerModeRegistry = &modeRegistry{
+		custom: make(map[SteerMode]struct{}),
+	}
+)
+
+type modeRegistry struct {
+	mu        sync.RWMutex
+	custom    map[SteerMode]struct{}
+	phasesDir string
+}
+
+func normalizeSteerMode(mode SteerMode) SteerMode {
+	return SteerMode(strings.TrimSpace(strings.ToLower(string(mode))))
+}
+
+// Normalized returns a lowercase, trimmed representation of the mode.
+func (m SteerMode) Normalized() SteerMode {
+	return normalizeSteerMode(m)
+}
+
+func (r *modeRegistry) has(mode SteerMode) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	_, ok := r.custom[mode]
+	return ok
+}
+
+func (r *modeRegistry) add(mode SteerMode) {
+	if mode == "" {
+		return
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.custom[mode] = struct{}{}
+}
+
+func (r *modeRegistry) listCustom() []SteerMode {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	modes := make([]SteerMode, 0, len(r.custom))
+	for mode := range r.custom {
+		modes = append(modes, mode)
+	}
+	return modes
+}
+
+func (r *modeRegistry) setPhasesDir(dir string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.phasesDir = dir
+}
+
+func (r *modeRegistry) getPhasesDir() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.phasesDir
+}
+
+// RegisterSteerModes allows custom modes to be registered at runtime (e.g., from prompt files).
+func RegisterSteerModes(modes ...SteerMode) {
+	for _, mode := range modes {
+		normalized := normalizeSteerMode(mode)
+		if normalized == "" {
+			continue
+		}
+		steerModeRegistry.add(normalized)
+	}
+}
+
+// RegisterSteerModesFromDir scans prompts/phases for markdown files and registers them as modes.
+// It also records the directory for future lookups when new prompts are added at runtime.
+func RegisterSteerModesFromDir(phasesDir string) error {
+	if strings.TrimSpace(phasesDir) == "" {
+		return nil
+	}
+
+	steerModeRegistry.setPhasesDir(phasesDir)
+
+	var modes []SteerMode
+
+	err := filepath.WalkDir(phasesDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if !strings.HasSuffix(strings.ToLower(d.Name()), ".md") {
+			return nil
+		}
+
+		name := normalizeSteerMode(SteerMode(strings.TrimSuffix(d.Name(), ".md")))
+		if name != "" {
+			modes = append(modes, name)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	RegisterSteerModes(modes...)
+	return nil
+}
+
+// AllowedSteerModes returns all built-in and registered custom modes, sorted for stability.
+func AllowedSteerModes() []SteerMode {
+	customModes := steerModeRegistry.listCustom()
+
+	modes := make([]SteerMode, 0, len(builtInSteerModes)+len(customModes))
+	modes = append(modes, builtInSteerModes...)
+
+	for _, mode := range customModes {
+		if _, exists := builtInSteerModeSet[mode]; !exists {
+			modes = append(modes, mode)
+		}
+	}
+
+	sort.Slice(modes, func(i, j int) bool {
+		return modes[i] < modes[j]
+	})
+
+	return modes
+}
+
+// IsValid checks if a SteerMode is valid. Custom modes are lazily registered from phase prompts.
 func (m SteerMode) IsValid() bool {
-	switch m {
-	case ModeProgress, ModeUX, ModeRefactor, ModeTest, ModeExplore, ModePolish, ModePerformance, ModeSecurity:
-		return true
-	default:
+	normalized := normalizeSteerMode(m)
+	if normalized == "" {
 		return false
 	}
+
+	if _, ok := builtInSteerModeSet[normalized]; ok {
+		return true
+	}
+
+	if steerModeRegistry.has(normalized) {
+		return true
+	}
+
+	if phasesDir := steerModeRegistry.getPhasesDir(); phasesDir != "" {
+		promptPath := filepath.Join(phasesDir, string(normalized)+".md")
+		if _, err := os.Stat(promptPath); err == nil {
+			steerModeRegistry.add(normalized)
+			return true
+		}
+	}
+
+	return false
 }
 
 // ConditionType defines the type of condition (simple or compound)
