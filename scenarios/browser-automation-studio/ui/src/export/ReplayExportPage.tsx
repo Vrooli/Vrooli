@@ -12,7 +12,7 @@ import ReplayPlayer, {
   type ReplayPlayerController,
   type CursorSpeedProfile,
   type CursorPathStyle,
-} from "../components/ReplayPlayer";
+} from "../features/execution/ReplayPlayer";
 import {
   mapAssertion,
   mapRegions,

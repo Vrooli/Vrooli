@@ -1,24 +1,27 @@
 import { useCallback, useEffect, useState, lazy, Suspense } from "react";
 import { ReactFlowProvider } from "reactflow";
-import ResponsiveDialog from "./components/ResponsiveDialog";
-import Sidebar from "./components/Sidebar";
-import Header from "./components/Header";
-import ProjectModal from "./components/ProjectModal";
+import "reactflow/dist/style.css";
+
+// Shared layout components
+import { ResponsiveDialog, Sidebar, Header } from "@shared/layout";
+import { ProjectModal } from "@features/projects";
 
 // Lazy load heavy components for better initial load performance
-const WorkflowBuilder = lazy(() => import("./components/WorkflowBuilder"));
-const ExecutionViewer = lazy(() => import("./components/ExecutionViewer"));
-const AIPromptModal = lazy(() => import("./components/AIPromptModal"));
-const Dashboard = lazy(() => import("./components/Dashboard"));
-const ProjectDetail = lazy(() => import("./components/ProjectDetail"));
-import { useExecutionStore } from "./stores/executionStore";
-import { useProjectStore, Project } from "./stores/projectStore";
-import { useWorkflowStore } from "./stores/workflowStore";
-import { useScenarioStore } from "./stores/scenarioStore";
-import { useMediaQuery } from "./hooks/useMediaQuery";
-import type { Workflow } from "./stores/workflowStore";
+const WorkflowBuilder = lazy(() => import("@features/workflows/builder/WorkflowBuilder"));
+const ExecutionViewer = lazy(() => import("@features/execution/ExecutionViewer"));
+const AIPromptModal = lazy(() => import("@features/ai/AIPromptModal"));
+const Dashboard = lazy(() => import("@features/projects/Dashboard"));
+const ProjectDetail = lazy(() => import("@features/projects/ProjectDetail"));
+
+// Stores and hooks
+import { useExecutionStore } from "@stores/executionStore";
+import { useProjectStore, type Project } from "@stores/projectStore";
+import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
+import { useScenarioStore } from "@stores/scenarioStore";
+import { useMediaQuery } from "@hooks/useMediaQuery";
+import { logger } from "@utils/logger";
 import toast from "react-hot-toast";
-import { selectors } from "./consts/selectors";
+import { selectors } from "@constants/selectors";
 
 interface NormalizedWorkflow extends Partial<Workflow> {
   id: string;
@@ -28,8 +31,6 @@ interface NormalizedWorkflow extends Partial<Workflow> {
   updatedAt: Date;
   projectId?: string;
 }
-import { logger } from "./utils/logger";
-import "reactflow/dist/style.css";
 
 type AppView = "dashboard" | "project-detail" | "project-workflow";
 

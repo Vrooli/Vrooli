@@ -175,12 +175,13 @@ const healthEndpointPlugin = (): Plugin => ({
 
 const ALIASES = {
   '@': path.resolve(__dirname, './src'),
-  '@components': path.resolve(__dirname, './src/components'),
+  '@features': path.resolve(__dirname, './src/features'),
+  '@shared': path.resolve(__dirname, './src/shared'),
+  '@routing': path.resolve(__dirname, './src/routing'),
   '@hooks': path.resolve(__dirname, './src/hooks'),
   '@stores': path.resolve(__dirname, './src/stores'),
   '@utils': path.resolve(__dirname, './src/utils'),
-  '@types': path.resolve(__dirname, './src/types'),
-  '@api': path.resolve(__dirname, './src/api'),
+  '@constants': path.resolve(__dirname, './src/constants'),
 };
 
 export default defineConfig({
@@ -258,14 +259,14 @@ export default defineConfig({
         resolve: { alias: ALIASES },
         test: {
           ...PROJECT_BASE_TEST_CONFIG,
-          name: 'components-core',
+          name: 'features-core',
           include: [
-            'src/components/ProjectModal.test.tsx',
-            'src/components/ResponsiveDialog.test.tsx',
-            'src/components/__tests__/VariableSuggestionList.test.tsx',
-            'src/components/__tests__/ExecutionViewer.test.tsx',
-            'src/components/__tests__/WorkflowToolbar.test.tsx',
-            'src/components/ProjectDetail.test.tsx',
+            'src/features/projects/ProjectModal.test.tsx',
+            'src/features/projects/ProjectDetail.test.tsx',
+            'src/shared/layout/ResponsiveDialog.test.tsx',
+            'src/shared/components/VariableSuggestionList.test.tsx',
+            'src/features/execution/ExecutionViewer.test.tsx',
+            'src/features/workflows/builder/WorkflowToolbar.test.tsx',
           ],
           pool: 'threads',
           poolOptions: THREADS_TWO,
@@ -275,8 +276,8 @@ export default defineConfig({
         resolve: { alias: ALIASES },
         test: {
           ...PROJECT_BASE_TEST_CONFIG,
-          name: 'components-palette',
-          include: ['src/components/__tests__/NodePalette.test.tsx'],
+          name: 'workflow-palette',
+          include: ['src/features/workflows/builder/NodePalette.test.tsx'],
           pool: 'forks',
           poolOptions: FORKS_ONE,
           reuseWorkers: false,
@@ -287,7 +288,7 @@ export default defineConfig({
         test: {
           ...PROJECT_BASE_TEST_CONFIG,
           name: 'workflow-builder',
-          include: ['src/components/__tests__/WorkflowBuilder.test.tsx'],
+          include: ['src/features/workflows/builder/WorkflowBuilder.test.tsx'],
           pool: 'forks',
           poolOptions: FORKS_ONE,
           reuseWorkers: false,

@@ -6,8 +6,8 @@ cd "$ROOT_DIR"
 
 PROJECTS=(
   stores
-  components-core
-  components-palette
+  features-core
+  workflow-palette
   workflow-builder
 )
 
