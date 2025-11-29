@@ -134,7 +134,7 @@ func (s *Server) setupRoutes() {
 // Start launches the HTTP server with graceful shutdown
 func (s *Server) Start() error {
 	s.log("starting server", map[string]interface{}{
-		"service": "landing-manager-api",
+		"service": "{{SCENARIO_ID}}-api",
 		"port":    s.config.Port,
 	})
 
@@ -179,7 +179,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 	response := map[string]interface{}{
 		"status":    status,
-		"service":   "Landing Manager API",
+		"service":   "{{SCENARIO_DISPLAY_NAME}} API",
 		"version":   "1.0.0",
 		"readiness": status == "healthy",
 		"timestamp": time.Now().UTC().Format(time.RFC3339),

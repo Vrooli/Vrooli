@@ -15,7 +15,7 @@ const app = createScenarioServer({
   uiPort: process.env.UI_PORT,
   apiPort: process.env.API_PORT,
   distDir: './dist',
-  serviceName: 'landing-manager',
+  serviceName: '{{SCENARIO_ID}}',
   version: '1.0.0',
   corsOrigins: '*'
 });

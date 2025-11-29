@@ -36,7 +36,7 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET)"
-	@echo "    Never run ./api/landing-manager-api or ./ui/server directly!"
+	@echo "    Never run ./api/$(SCENARIO_NAME)-api or ./ui/server directly!"
 	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
 
 start: ## Start this scenario (uses Vrooli lifecycle)
@@ -70,7 +70,7 @@ clean: ## Clean build artifacts
 
 build: ## Build API and UI
 	@echo "$(BLUE)🔨 Building $(SCENARIO_NAME)...$(RESET)"
-	@cd api && go build -o landing-manager-api .
+	@cd api && go build -o $(SCENARIO_NAME)-api .
 	@if [ -d ui ]; then cd ui && pnpm run build; fi
 	@echo "$(GREEN)✓ Build complete$(RESET)"
 

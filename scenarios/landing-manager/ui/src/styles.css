@@ -220,3 +220,258 @@ select:focus-visible {
     padding: var(--spacing-md);
   }
 }
+
+/* ============================================
+   Landing Preview Component Styles
+   ============================================ */
+
+/* Fullscreen body class - prevents scrolling when preview is fullscreen */
+body.landing-preview-immersive {
+  overflow: hidden;
+}
+
+/* Preview View Container */
+.landing-preview-view {
+  display: flex;
+  flex-direction: column;
+  height: 600px;
+  max-height: 70vh;
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgb(15 23 42);
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.landing-preview-view--fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  height: 100vh;
+  max-height: 100vh;
+  border-radius: 0;
+  border: none;
+}
+
+/* Preview Content Area */
+.landing-preview-view__content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: rgb(2 6 23);
+}
+
+/* Iframe Styling */
+.landing-preview-view__iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: white;
+}
+
+.landing-preview-view__iframe--loading {
+  opacity: 0;
+}
+
+/* Loading Overlay */
+.landing-preview-view__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgb(2 6 23);
+  z-index: 10;
+}
+
+/* Placeholder for not running / error states */
+.landing-preview-view__placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgb(15 23 42) 0%, rgb(2 6 23) 100%);
+}
+
+.landing-preview-view__placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2rem;
+}
+
+/* ============================================
+   Landing Preview Toolbar Styles
+   ============================================ */
+
+.landing-preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgb(15 23 42);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.landing-preview-toolbar__left,
+.landing-preview-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.landing-preview-toolbar__center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
+.landing-preview-toolbar__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(248 250 252);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Icon Buttons */
+.landing-preview-toolbar__icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.375rem;
+  border: none;
+  background: transparent;
+  color: rgb(148 163 184);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.landing-preview-toolbar__icon-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgb(248 250 252);
+}
+
+.landing-preview-toolbar__icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.landing-preview-toolbar__icon-btn--close:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2);
+  color: rgb(248 113 113);
+}
+
+/* View Type Toggle */
+.landing-preview-toolbar__view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-left: 0.5rem;
+  padding: 0.125rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.landing-preview-toolbar__view-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  border: none;
+  background: transparent;
+  color: rgb(148 163 184);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.landing-preview-toolbar__view-btn:hover:not(.landing-preview-toolbar__view-btn--active) {
+  color: rgb(203 213 225);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.landing-preview-toolbar__view-btn--active {
+  background: rgba(16, 185, 129, 0.2);
+  color: rgb(52, 211, 153);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* Action Buttons */
+.landing-preview-toolbar__action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.landing-preview-toolbar__action-btn--customize {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.4);
+  color: rgb(167, 139, 250);
+}
+
+.landing-preview-toolbar__action-btn--customize:hover {
+  background: rgba(139, 92, 246, 0.25);
+  border-color: rgba(139, 92, 246, 0.6);
+  color: rgb(196, 181, 253);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .landing-preview-toolbar {
+    padding: 0.375rem 0.5rem;
+  }
+
+  .landing-preview-toolbar__view-toggle {
+    display: none;
+  }
+
+  .landing-preview-toolbar__action-btn span {
+    display: none;
+  }
+
+  .landing-preview-toolbar__action-btn {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .landing-preview-view {
+    height: 400px;
+  }
+}
+
+/* Animation utilities for spinning icons */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}

@@ -6,6 +6,7 @@ import {
   Check,
   CheckCircle,
   Copy,
+  Eye,
   ExternalLink,
   FileOutput,
   FileText,
@@ -26,6 +27,7 @@ import {
 } from 'lucide-react';
 import { type GeneratedScenario, listGeneratedScenarios } from '../lib/api';
 import { Tooltip } from './Tooltip';
+import { LandingPreviewView } from './LandingPreviewView';
 
 interface GeneratedScenariosListProps {
   generated: GeneratedScenario[];
@@ -68,6 +70,15 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
 }: GeneratedScenariosListProps) {
   const [copiedSlug, setCopiedSlug] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [previewScenario, setPreviewScenario] = useState<GeneratedScenario | null>(null);
+
+  const handleOpenPreview = (scenario: GeneratedScenario) => {
+    setPreviewScenario(scenario);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewScenario(null);
+  };
 
   const handleDeleteClick = (scenarioId: string) => {
     setDeleteConfirm(scenarioId);
@@ -437,22 +448,30 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
                             Live & Ready
                           </div>
                         </div>
-                        <span className="text-xs text-emerald-300/70 font-medium">Click to open</span>
+                        <span className="text-xs text-emerald-300/70 font-medium">Preview or open in new tab</span>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="flex flex-wrap gap-2.5">
+                        {/* Preview button - opens inline preview */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPreview(scenario)}
+                          className="flex-1 group flex items-center justify-center gap-2 text-sm font-bold text-white bg-gradient-to-r from-emerald-600/80 to-blue-600/80 hover:from-emerald-500 hover:to-blue-500 border-2 border-emerald-400/60 hover:border-emerald-300 rounded-lg px-4 py-3 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:scale-102"
+                          data-testid="scenario-preview-button"
+                        >
+                          <Eye className="h-4 w-4" aria-hidden="true" />
+                          Preview
+                        </button>
                         {links.links.public && (
                           <a
                             href={links.links.public}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="group flex items-center justify-between gap-2 text-sm font-semibold text-emerald-100 bg-emerald-900/40 hover:bg-emerald-900/60 border-2 border-emerald-500/40 hover:border-emerald-400/60 rounded-lg px-4 py-3 transition-all shadow-md hover:shadow-lg hover:shadow-emerald-500/20 hover:scale-102"
+                            className="group flex items-center justify-center gap-2 text-sm font-semibold text-emerald-100 bg-emerald-900/40 hover:bg-emerald-900/60 border-2 border-emerald-500/40 hover:border-emerald-400/60 rounded-lg px-4 py-3 transition-all shadow-md hover:shadow-lg hover:shadow-emerald-500/20 hover:scale-102"
                             data-testid="scenario-public-link"
+                            title="Open public landing in new tab"
                           >
-                            <span className="truncate flex items-center gap-2">
-                              <Globe className="h-4 w-4" aria-hidden="true" />
-                              Public Landing
-                            </span>
-                            <ExternalLink className="h-4 w-4 flex-shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" aria-hidden="true" />
+                            <Globe className="h-4 w-4" aria-hidden="true" />
+                            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                           </a>
                         )}
                         {links.links.admin && (
@@ -460,14 +479,12 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
                             href={links.links.admin}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="group flex items-center justify-between gap-2 text-sm font-semibold text-blue-100 bg-blue-900/40 hover:bg-blue-900/60 border-2 border-blue-500/40 hover:border-blue-400/60 rounded-lg px-4 py-3 transition-all shadow-md hover:shadow-lg hover:shadow-blue-500/20 hover:scale-102"
+                            className="group flex items-center justify-center gap-2 text-sm font-semibold text-blue-100 bg-blue-900/40 hover:bg-blue-900/60 border-2 border-blue-500/40 hover:border-blue-400/60 rounded-lg px-4 py-3 transition-all shadow-md hover:shadow-lg hover:shadow-blue-500/20 hover:scale-102"
                             data-testid="scenario-admin-link"
+                            title="Open admin dashboard in new tab"
                           >
-                            <span className="truncate flex items-center gap-2">
-                              <Settings className="h-4 w-4" aria-hidden="true" />
-                              Admin Dashboard
-                            </span>
-                            <ExternalLink className="h-4 w-4 flex-shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" aria-hidden="true" />
+                            <Settings className="h-4 w-4" aria-hidden="true" />
+                            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                           </a>
                         )}
                       </div>
@@ -510,6 +527,19 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
               </article>
             );
           })}
+        </div>
+      )}
+
+      {/* Landing Preview View */}
+      {previewScenario && (
+        <div className="mt-6">
+          <LandingPreviewView
+            scenario={previewScenario}
+            isRunning={scenarioStatuses[previewScenario.scenario_id]?.running ?? false}
+            onClose={handleClosePreview}
+            onCustomize={onCustomizeClick}
+            onStartScenario={onStartScenario}
+          />
         </div>
       )}
 

@@ -1,4 +1,4 @@
-module landing-manager
+module {{SCENARIO_ID}}
 
 go 1.24.0
 

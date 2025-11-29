@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "service": {
     "parent": "vrooli",
-    "name": "saas-landing-template",
-    "displayName": "SaaS Landing Template",
-    "description": "Runtime payload for generated landing-page scenarios (public landing + admin portal with A/B testing, analytics, and Stripe)",
+    "name": "{{SCENARIO_ID}}",
+    "displayName": "{{SCENARIO_DISPLAY_NAME}}",
+    "description": "{{SCENARIO_DESCRIPTION}}",
     "version": "1.0.0",
     "type": "application-template",
     "category": "business_tools",
@@ -28,7 +28,7 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/templates/landing-page-react-vite"
+      "directory": "/scenarios/{{SCENARIO_ID}}"
     },
     "license": "MIT",
     "homepage": "https://github.com/Vrooli/Vrooli",
@@ -88,7 +88,7 @@
         "checks": [
           {
             "type": "binaries",
-            "targets": ["api/landing-manager-api"]
+            "targets": ["api/{{SCENARIO_ID}}-api"]
           },
           {
             "type": "ui-bundle",
@@ -110,8 +110,8 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o landing-manager-api .",
-          "description": "Build Go API binary (landing-manager-api) in api/ directory for reuse by start-api step"
+          "run": "cd api && go mod download && go build -o {{SCENARIO_ID}}-api .",
+          "description": "Build Go API binary ({{SCENARIO_ID}}-api) in api/ directory for reuse by start-api step"
         },
         {
           "name": "install-ui-deps",
@@ -135,10 +135,10 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "bash -c 'set -a && source initialization/configuration/landing-manager.env && set +a && cd api && exec ./landing-manager-api'",
+          "run": "cd api && exec ./{{SCENARIO_ID}}-api",
           "background": true,
           "condition": {
-            "file_exists": "api/landing-manager-api"
+            "file_exists": "api/{{SCENARIO_ID}}-api"
           },
           "description": "Start Go API server"
         },
@@ -173,10 +173,10 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "bash -c 'set -a && source initialization/configuration/landing-manager.env && set +a && cd api && exec ./landing-manager-api'",
+          "run": "cd api && exec ./{{SCENARIO_ID}}-api",
           "background": true,
           "condition": {
-            "file_exists": "api/landing-manager-api"
+            "file_exists": "api/{{SCENARIO_ID}}-api"
           },
           "description": "Start Go API server in production mode"
         },
@@ -196,7 +196,7 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f 'landing-manager-api' || true",
+          "run": "pkill -f '{{SCENARIO_ID}}-api' || true",
           "description": "Stop Go API"
         },
         {
@@ -214,7 +214,7 @@
         "enabled": true,
         "required": true,
         "description": "Primary relational data store for generated landing pages (content, variants, metrics, subscriptions)",
-        "schema": "landing-manager"
+        "schema": "{{SCENARIO_ID}}"
       },
       "resource-claude-code": {
         "type": "resource",

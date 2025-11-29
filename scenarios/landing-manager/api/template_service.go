@@ -388,6 +388,15 @@ func (ts *TemplateService) materializeScenario(outputDir, templateID string, tem
 		return fmt.Errorf("failed to scaffold scenario: %w", err)
 	}
 
+	// Generate description for the scenario
+	description := fmt.Sprintf("Generated landing page scenario from template '%s'", name)
+
+	// Substitute template placeholders ({{SCENARIO_ID}}, {{SCENARIO_DISPLAY_NAME}}, {{SCENARIO_DESCRIPTION}})
+	// across all text files. This follows the react-vite template pattern.
+	if err := substituteTemplatePlaceholders(outputDir, slug, name, description); err != nil {
+		return fmt.Errorf("failed to substitute template placeholders: %w", err)
+	}
+
 	if err := writeTemplateMetadata(outputDir, templateID, template); err != nil {
 		return err
 	}
@@ -733,7 +742,9 @@ func isPathWithinDirectory(path, baseDir string) bool {
 	return strings.HasPrefix(cleanPath, cleanBase)
 }
 
-// rewriteServiceConfig adjusts service metadata for the generated scenario.
+// rewriteServiceConfig removes factory-only steps from the generated scenario's service.json.
+// Note: Most customization (names, binary names, paths) is handled by substituteTemplatePlaceholders.
+// This function only removes factory-specific steps that shouldn't appear in generated scenarios.
 func rewriteServiceConfig(outputDir, name, slug string) error {
 	path := filepath.Join(outputDir, ".vrooli", "service.json")
 	data, err := os.ReadFile(path)
@@ -746,17 +757,6 @@ func rewriteServiceConfig(outputDir, name, slug string) error {
 		return fmt.Errorf("failed to parse service.json: %w", err)
 	}
 
-	service, ok := cfg["service"].(map[string]interface{})
-	if ok {
-		service["name"] = slug
-		service["displayName"] = name
-		service["description"] = fmt.Sprintf("Generated landing page scenario from template '%s'", name)
-	}
-
-	if repo, ok := service["repository"].(map[string]interface{}); ok {
-		repo["directory"] = fmt.Sprintf("/scenarios/%s", slug)
-	}
-
 	// Remove factory-only steps (e.g., install-cli) from generated lifecycle
 	if lifecycle, ok := cfg["lifecycle"].(map[string]interface{}); ok {
 		if setup, ok := lifecycle["setup"].(map[string]interface{}); ok {
@@ -765,26 +765,13 @@ func rewriteServiceConfig(outputDir, name, slug string) error {
 				for _, s := range steps {
 					stepMap, ok := s.(map[string]interface{})
 					if ok {
-						if name, _ := stepMap["name"].(string); name == "install-cli" {
+						if stepName, _ := stepMap["name"].(string); stepName == "install-cli" {
 							continue
 						}
 					}
 					filtered = append(filtered, s)
 				}
 				setup["steps"] = filtered
-			}
-		}
-		if develop, ok := lifecycle["develop"].(map[string]interface{}); ok {
-			if steps, ok := develop["steps"].([]interface{}); ok {
-				for i, s := range steps {
-					if stepMap, ok := s.(map[string]interface{}); ok {
-						if name, _ := stepMap["name"].(string); name == "start-api" {
-							stepMap["run"] = "cd api && exec ./landing-manager-api"
-							steps[i] = stepMap
-						}
-					}
-				}
-				develop["steps"] = steps
 			}
 		}
 	}
@@ -795,6 +782,86 @@ func rewriteServiceConfig(outputDir, name, slug string) error {
 	}
 
 	return os.WriteFile(path, updated, 0o644)
+}
+
+// substituteTemplatePlaceholders walks through all text files in the output directory
+// and replaces template placeholders ({{SCENARIO_ID}}, {{SCENARIO_DISPLAY_NAME}}, {{SCENARIO_DESCRIPTION}})
+// with actual values. This follows the react-vite template pattern.
+func substituteTemplatePlaceholders(outputDir, slug, displayName, description string) error {
+	// File extensions to process (text files that might contain placeholders)
+	textExtensions := map[string]bool{
+		".go":   true,
+		".json": true,
+		".js":   true,
+		".ts":   true,
+		".tsx":  true,
+		".jsx":  true,
+		".md":   true,
+		".html": true,
+		".css":  true,
+		".yaml": true,
+		".yml":  true,
+		".toml": true,
+		".mod":  true,
+		".sum":  true,
+		".env":  true,
+		".sh":   true,
+		"":      true, // Makefile has no extension
+	}
+
+	// Directories to skip
+	skipDirs := map[string]bool{
+		"node_modules": true,
+		"dist":         true,
+		"coverage":     true,
+		".git":         true,
+	}
+
+	return filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip directories in the skip list
+		if info.IsDir() {
+			if skipDirs[info.Name()] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		// Check if this is a text file we should process
+		ext := filepath.Ext(info.Name())
+		if !textExtensions[ext] {
+			// Special case for Makefile (no extension)
+			if info.Name() != "Makefile" {
+				return nil
+			}
+		}
+
+		// Read the file
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("failed to read %s: %w", path, err)
+		}
+
+		content := string(data)
+		original := content
+
+		// Replace placeholders
+		content = strings.ReplaceAll(content, "{{SCENARIO_ID}}", slug)
+		content = strings.ReplaceAll(content, "{{SCENARIO_DISPLAY_NAME}}", displayName)
+		content = strings.ReplaceAll(content, "{{SCENARIO_DESCRIPTION}}", description)
+
+		// Only write if content changed
+		if content != original {
+			if err := os.WriteFile(path, []byte(content), info.Mode()); err != nil {
+				return fmt.Errorf("failed to write %s: %w", path, err)
+			}
+		}
+
+		return nil
+	})
 }
 
 // writeTemplateProvenance records template id/version and generation timestamp.
@@ -1001,12 +1068,22 @@ func (ts *TemplateService) GetPreviewLinks(scenarioID string) (map[string]interf
 		return nil, fmt.Errorf("UI_PORT not allocated for scenario %s (scenario may not be running)", scenarioID)
 	}
 
+	// Get API_PORT as well for proxy support
+	apiCmd := exec.Command("vrooli", "scenario", "port", scenarioID, "API_PORT")
+	apiOutput, apiErr := apiCmd.CombinedOutput()
+	apiPort := ""
+	if apiErr == nil {
+		apiPort = strings.TrimSpace(string(apiOutput))
+	}
+
 	baseURL := fmt.Sprintf("http://localhost:%s", uiPort)
 
 	return map[string]interface{}{
 		"scenario_id": scenarioID,
 		"path":        scenarioPath,
 		"base_url":    baseURL,
+		"ui_port":     uiPort,
+		"api_port":    apiPort,
 		"links": map[string]string{
 			"public":      baseURL + "/",
 			"admin":       baseURL + "/admin",
