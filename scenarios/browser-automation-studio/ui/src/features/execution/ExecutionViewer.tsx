@@ -31,6 +31,7 @@ import {
   Film,
   FileJson,
   FolderOutput,
+  Pencil,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { format } from "date-fns";
@@ -50,6 +51,8 @@ import type {
   TimelineArtifact,
 } from "@stores/executionStore";
 import { useWorkflowStore } from "@stores/workflowStore";
+import { useExportStore, type Export } from "@stores/exportStore";
+import { ExportSuccessPanel } from "./ExportSuccessPanel";
 import type { Screenshot, LogEntry } from "@stores/executionEventProcessor";
 import { toast } from "react-hot-toast";
 import { ResponsiveDialog } from "@shared/layout";
@@ -804,6 +807,7 @@ function ActiveExecutionViewer({
   const startExecution = useExecutionStore((state) => state.startExecution);
   const loadExecution = useExecutionStore((state) => state.loadExecution);
   const loadExecutions = useExecutionStore((state) => state.loadExecutions);
+  const workflowName = useCurrentWorkflowName();
   const [activeTab, setActiveTab] = useState<ViewerTab>("replay");
   const [hasAutoSwitchedToReplay, setHasAutoSwitchedToReplay] =
     useState<boolean>(
@@ -959,6 +963,9 @@ function ActiveExecutionViewer({
   const movieSpecRetryTimeoutRef = useRef<number | null>(null);
   const movieSpecAbortControllerRef = useRef<AbortController | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [showExportSuccess, setShowExportSuccess] = useState(false);
+  const [lastCreatedExport, setLastCreatedExport] = useState<Export | null>(null);
+  const { createExport } = useExportStore();
   const supportsFileSystemAccess =
     typeof window !== "undefined" &&
     typeof (window as typeof window & { showSaveFilePicker?: unknown })
@@ -2966,6 +2973,28 @@ function ActiveExecutionViewer({
         document.body.removeChild(anchor);
         URL.revokeObjectURL(downloadUrl);
 
+        // Create export record in the library
+        const exportName = exportFileStem || `${workflowName} Export`;
+        const createdExport = await createExport({
+          executionId: execution.id,
+          workflowId: execution.workflowId,
+          name: exportName,
+          format: exportFormat as 'mp4' | 'gif' | 'json' | 'html',
+          settings: {
+            chromeTheme: replayChromeTheme,
+            backgroundTheme: replayBackgroundTheme,
+            cursorTheme: replayCursorTheme,
+            cursorScale: replayCursorScale,
+          },
+          fileSizeBytes: blob.size,
+          durationMs: exportPreview?.totalDurationMs,
+          frameCount: exportPreview?.capturedFrameCount,
+        });
+
+        if (createdExport) {
+          setLastCreatedExport(createdExport);
+          setShowExportSuccess(true);
+        }
         toast.success("Replay export ready");
         setIsExportDialogOpen(false);
       } catch (error) {
@@ -3055,6 +3084,29 @@ function ActiveExecutionViewer({
         }
       }
 
+      // Create export record in the library for JSON exports
+      const exportName = exportFileStem || `${workflowName} Export`;
+      const createdExport = await createExport({
+        executionId: execution.id,
+        workflowId: execution.workflowId,
+        name: exportName,
+        format: 'json',
+        settings: {
+          chromeTheme: replayChromeTheme,
+          backgroundTheme: replayBackgroundTheme,
+          cursorTheme: replayCursorTheme,
+          cursorScale: replayCursorScale,
+        },
+        fileSizeBytes: blob.size,
+        durationMs: exportPreview?.totalDurationMs,
+        frameCount: exportPreview?.capturedFrameCount,
+      });
+
+      if (createdExport) {
+        setLastCreatedExport(createdExport);
+        setShowExportSuccess(true);
+      }
+
       setIsExportDialogOpen(false);
     } catch (error) {
       const message =
@@ -3068,6 +3120,9 @@ function ActiveExecutionViewer({
     exportFormat,
     exportPreview,
     execution.id,
+    execution.workflowId,
+    workflowName,
+    exportFileStem,
     finalFileName,
     movieSpec,
     replayBackgroundTheme,
@@ -3079,6 +3134,7 @@ function ActiveExecutionViewer({
     replayFrames.length,
     supportsFileSystemAccess,
     useNativeFilePicker,
+    createExport,
   ]);
 
   const getStatusIcon = () => {
@@ -3212,11 +3268,12 @@ function ActiveExecutionViewer({
             className="toolbar-button p-1.5"
             title={
               canRestart
-                ? "Restart workflow"
-                : "Stop execution before restarting"
+                ? "Re-run workflow"
+                : "Stop execution before re-running"
             }
             onClick={handleRestart}
             disabled={!canRestart || isRestarting || isStopping}
+            data-testid={selectors.executions.viewer.rerunButton}
           >
             {isRestarting ? (
               <Loader size={14} className="animate-spin" />
@@ -3251,13 +3308,23 @@ function ActiveExecutionViewer({
             )}
           </button>
           {onClose && (
-            <button
-              className="toolbar-button p-1.5 ml-2 border-l border-gray-700 pl-3"
-              title="Close"
-              onClick={onClose}
-            >
-              <X size={14} />
-            </button>
+            <>
+              <button
+                className="toolbar-button p-1.5 ml-2 border-l border-gray-700 pl-3 text-blue-400 hover:text-blue-300"
+                title="Edit workflow"
+                onClick={onClose}
+                data-testid={selectors.executions.viewer.editWorkflowButton}
+              >
+                <Pencil size={14} />
+              </button>
+              <button
+                className="toolbar-button p-1.5"
+                title="Close"
+                onClick={onClose}
+              >
+                <X size={14} />
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -4530,6 +4597,27 @@ function ActiveExecutionViewer({
           </div>
         </div>
       </ResponsiveDialog>
+
+      {/* Export Success Panel */}
+      {showExportSuccess && lastCreatedExport && (
+        <ExportSuccessPanel
+          export_={lastCreatedExport}
+          onClose={() => {
+            setShowExportSuccess(false);
+            setLastCreatedExport(null);
+          }}
+          onViewInLibrary={() => {
+            setShowExportSuccess(false);
+            setLastCreatedExport(null);
+            // Navigate to exports tab - this will be handled by parent component
+            window.dispatchEvent(new CustomEvent('navigate-to-exports'));
+          }}
+          onViewExecution={() => {
+            setShowExportSuccess(false);
+            setLastCreatedExport(null);
+          }}
+        />
+      )}
     </div>
   );
 }

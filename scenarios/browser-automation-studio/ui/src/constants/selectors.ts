@@ -290,6 +290,8 @@ const literalSelectors = {
   dashboard: {
     newProjectButton: "dashboard-new-project-button",
     settingsButton: "dashboard-settings-button",
+    continueEditingChip: "dashboard-continue-editing-chip",
+    tryDemoButton: "dashboard-try-demo-button",
   },
   dialogs: {
     base: {
@@ -345,6 +347,8 @@ const literalSelectors = {
       statusCompleted: "execution-status-completed",
       statusFailed: "execution-status-failed",
       stopButton: "execution-stop-button",
+      rerunButton: "execution-rerun-button",
+      editWorkflowButton: "execution-edit-workflow-button",
       logs: "execution-logs",
       screenshots: "execution-screenshots",
       screenshot: "execution-screenshot",

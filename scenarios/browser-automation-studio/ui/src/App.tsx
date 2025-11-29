@@ -491,6 +491,37 @@ function App() {
     }
   }, [startExecution]);
 
+  // Handler for trying the demo workflow from welcome state
+  const handleTryDemo = useCallback(async () => {
+    try {
+      // Fetch the first workflow (demo workflow is seeded first)
+      const response = await fetch('/api/v1/workflows?limit=1');
+      if (!response.ok) {
+        throw new Error('Failed to fetch workflows');
+      }
+      const data = await response.json();
+      const workflows = data.workflows || [];
+
+      if (workflows.length > 0) {
+        const demoWorkflow = workflows[0];
+        const projectId = demoWorkflow.project_id ?? demoWorkflow.projectId;
+        const workflowId = demoWorkflow.id;
+
+        if (projectId && workflowId) {
+          await handleNavigateToWorkflow(projectId, workflowId);
+          toast.success('Loading demo workflow...');
+        } else {
+          toast.error('Demo workflow not properly configured');
+        }
+      } else {
+        toast.error('No demo workflow available. Create a project first!');
+      }
+    } catch (error) {
+      logger.error('Failed to load demo workflow', { component: 'App', action: 'handleTryDemo' }, error);
+      toast.error('Failed to load demo workflow');
+    }
+  }, [handleNavigateToWorkflow]);
+
   const handleBackToDashboard = () => {
     navigateToDashboard();
   };
@@ -864,6 +895,7 @@ function App() {
             onRunWorkflow={handleRunWorkflow}
             onViewAllWorkflows={navigateToAllWorkflows}
             onViewAllExecutions={navigateToAllExecutions}
+            onTryDemo={handleTryDemo}
           />
         </Suspense>
 

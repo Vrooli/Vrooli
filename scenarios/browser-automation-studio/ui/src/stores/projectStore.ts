@@ -35,6 +35,7 @@ interface ProjectState {
   error: string | null;
   bulkExecutionInProgress: Record<string, boolean>;
   isConnected: boolean;
+  lastUsedProjectId: string | null;
 
   // Actions
   fetchProjects: () => Promise<void>;
@@ -46,7 +47,29 @@ interface ProjectState {
   getProject: (id: string) => Promise<Project | null>;
   executeAllWorkflows: (projectId: string) => Promise<BulkExecutionResult>;
   clearError: () => void;
+  getOrCreateDefaultProject: () => Promise<Project>;
+  getSmartDefaultProject: () => Project | null;
+  setLastUsedProject: (projectId: string) => void;
 }
+
+// Load last used project from localStorage
+const loadLastUsedProjectId = (): string | null => {
+  try {
+    if (typeof window === 'undefined') return null;
+    return window.localStorage.getItem('browserAutomation.lastUsedProjectId');
+  } catch {
+    return null;
+  }
+};
+
+const saveLastUsedProjectId = (projectId: string): void => {
+  try {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('browserAutomation.lastUsedProjectId', projectId);
+  } catch {
+    // Ignore storage errors
+  }
+};
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
@@ -56,6 +79,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   error: null,
   bulkExecutionInProgress: {},
   isConnected: true,
+  lastUsedProjectId: loadLastUsedProjectId(),
 
   fetchProjects: async () => {
     set({ isLoading: true, error: null });
@@ -250,5 +274,68 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   clearError: () => {
     set({ error: null, isConnected: true });
+  },
+
+  getOrCreateDefaultProject: async () => {
+    const { projects, createProject, fetchProjects } = get();
+
+    // Refresh projects list first
+    if (projects.length === 0) {
+      await fetchProjects();
+    }
+
+    const currentProjects = get().projects;
+
+    // If there's at least one project, return the smart default
+    if (currentProjects.length > 0) {
+      const defaultProject = get().getSmartDefaultProject();
+      if (defaultProject) {
+        return defaultProject;
+      }
+    }
+
+    // Create a default project
+    const newProject = await createProject({
+      name: 'My Automations',
+      description: 'Default project for automation workflows',
+      folder_path: '/my-automations',
+    });
+
+    // Set as last used
+    get().setLastUsedProject(newProject.id);
+
+    return newProject;
+  },
+
+  getSmartDefaultProject: () => {
+    const { projects, lastUsedProjectId } = get();
+
+    if (projects.length === 0) {
+      return null;
+    }
+
+    // If there's only one project, return it
+    if (projects.length === 1) {
+      return projects[0];
+    }
+
+    // Try to find the last used project
+    if (lastUsedProjectId) {
+      const lastUsed = projects.find((p) => p.id === lastUsedProjectId);
+      if (lastUsed) {
+        return lastUsed;
+      }
+    }
+
+    // Fall back to the most recently updated project
+    const sortedByUpdate = [...projects].sort(
+      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    );
+    return sortedByUpdate[0];
+  },
+
+  setLastUsedProject: (projectId: string) => {
+    saveLastUsedProjectId(projectId);
+    set({ lastUsedProjectId: projectId });
   },
 }));

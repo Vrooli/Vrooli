@@ -210,6 +210,29 @@ CREATE TABLE IF NOT EXISTS ai_generations (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create exports table for tracking exported replay assets
+CREATE TABLE IF NOT EXISTS exports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+    workflow_id UUID REFERENCES workflows(id) ON DELETE SET NULL,
+    name VARCHAR(255) NOT NULL,
+    format VARCHAR(50) NOT NULL DEFAULT 'mp4',
+    settings JSONB DEFAULT '{}',
+    storage_url VARCHAR(1000),
+    thumbnail_url VARCHAR(1000),
+    file_size_bytes BIGINT,
+    duration_ms INTEGER,
+    frame_count INTEGER,
+    ai_caption TEXT,
+    ai_caption_generated_at TIMESTAMP,
+    status VARCHAR(50) NOT NULL DEFAULT 'completed',
+    error TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_export_format CHECK (format IN ('mp4', 'gif', 'json', 'html')),
+    CONSTRAINT chk_export_status CHECK (status IN ('pending', 'processing', 'completed', 'failed'))
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_workflows_project_id ON workflows(project_id);
 CREATE INDEX IF NOT EXISTS idx_workflows_folder_path ON workflows(folder_path);
@@ -224,6 +247,9 @@ CREATE INDEX IF NOT EXISTS idx_execution_artifacts_step ON execution_artifacts(s
 CREATE INDEX IF NOT EXISTS idx_extracted_data_execution_id ON extracted_data(execution_id);
 CREATE INDEX IF NOT EXISTS idx_workflow_schedules_active ON workflow_schedules(is_active);
 CREATE INDEX IF NOT EXISTS idx_ai_generations_workflow_id ON ai_generations(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_exports_execution_id ON exports(execution_id);
+CREATE INDEX IF NOT EXISTS idx_exports_workflow_id ON exports(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_exports_created_at ON exports(created_at DESC);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -255,3 +281,6 @@ CREATE TRIGGER update_execution_steps_updated_at BEFORE UPDATE ON execution_step
 
 DROP TRIGGER IF EXISTS update_execution_artifacts_updated_at ON execution_artifacts;
 CREATE TRIGGER update_execution_artifacts_updated_at BEFORE UPDATE ON execution_artifacts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_exports_updated_at ON exports;
+CREATE TRIGGER update_exports_updated_at BEFORE UPDATE ON exports FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -62,6 +62,15 @@ type Repository interface {
 	CreateFolder(ctx context.Context, folder *WorkflowFolder) error
 	GetFolder(ctx context.Context, path string) (*WorkflowFolder, error)
 	ListFolders(ctx context.Context) ([]*WorkflowFolder, error)
+
+	// Export operations
+	CreateExport(ctx context.Context, export *Export) error
+	GetExport(ctx context.Context, id uuid.UUID) (*Export, error)
+	UpdateExport(ctx context.Context, export *Export) error
+	DeleteExport(ctx context.Context, id uuid.UUID) error
+	ListExports(ctx context.Context, limit, offset int) ([]*ExportWithDetails, error)
+	ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*Export, error)
+	ListExportsByWorkflow(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*Export, error)
 }
 
 // repository implements the Repository interface

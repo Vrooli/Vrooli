@@ -163,6 +163,14 @@ func main() {
 		r.Post("/executions/{id}/stop", handler.StopExecution)
 		r.Get("/executions/{id}/screenshots", handler.GetExecutionScreenshots)
 
+		// Export library routes
+		r.Get("/exports", handler.ListExports)
+		r.Post("/exports", handler.CreateExport)
+		r.Get("/exports/{id}", handler.GetExport)
+		r.Patch("/exports/{id}", handler.UpdateExport)
+		r.Delete("/exports/{id}", handler.DeleteExport)
+		r.Post("/exports/{id}/generate-caption", handler.GenerateExportCaption)
+
 		// Scenario routes
 		r.Get("/scenarios", handler.ListScenarios)
 		r.Get("/scenarios/{name}/port", handler.GetScenarioPort)

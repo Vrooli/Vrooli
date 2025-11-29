@@ -265,3 +265,31 @@ type AIGeneration struct {
 	Error            string     `json:"error,omitempty" db:"error"`
 	CreatedAt        time.Time  `json:"created_at" db:"created_at"`
 }
+
+// Export represents an exported replay asset (video, gif, or json package)
+type Export struct {
+	ID                   uuid.UUID  `json:"id" db:"id"`
+	ExecutionID          uuid.UUID  `json:"execution_id" db:"execution_id"`
+	WorkflowID           *uuid.UUID `json:"workflow_id,omitempty" db:"workflow_id"`
+	Name                 string     `json:"name" db:"name"`
+	Format               string     `json:"format" db:"format"`
+	Settings             JSONMap    `json:"settings,omitempty" db:"settings"`
+	StorageURL           string     `json:"storage_url,omitempty" db:"storage_url"`
+	ThumbnailURL         string     `json:"thumbnail_url,omitempty" db:"thumbnail_url"`
+	FileSizeBytes        *int64     `json:"file_size_bytes,omitempty" db:"file_size_bytes"`
+	DurationMs           *int       `json:"duration_ms,omitempty" db:"duration_ms"`
+	FrameCount           *int       `json:"frame_count,omitempty" db:"frame_count"`
+	AICaption            string     `json:"ai_caption,omitempty" db:"ai_caption"`
+	AICaptionGeneratedAt *time.Time `json:"ai_caption_generated_at,omitempty" db:"ai_caption_generated_at"`
+	Status               string     `json:"status" db:"status"`
+	Error                string     `json:"error,omitempty" db:"error"`
+	CreatedAt            time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at" db:"updated_at"`
+}
+
+// ExportWithDetails includes related workflow and execution info for display
+type ExportWithDetails struct {
+	Export
+	WorkflowName  string `json:"workflow_name,omitempty" db:"workflow_name"`
+	ExecutionDate string `json:"execution_date,omitempty" db:"execution_date"`
+}
