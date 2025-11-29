@@ -15,10 +15,28 @@ export interface Variant {
   archived_at?: string;
 }
 
+/**
+ * Section types available for landing pages.
+ * When adding a new section, update this union and:
+ * 1. Create component in components/sections/{Name}Section.tsx
+ * 2. Add switch case in pages/PublicHome.tsx
+ * 3. Add CHECK constraint in initialization/postgres/schema.sql
+ * 4. Create schema in scenarios/landing-manager/api/templates/sections/{id}.json
+ */
+export type SectionType =
+  | 'hero'
+  | 'features'
+  | 'pricing'
+  | 'cta'
+  | 'testimonials'
+  | 'faq'
+  | 'footer'
+  | 'video';
+
 export interface ContentSection {
   id: number;
   variant_id: number;
-  section_type: 'hero' | 'features' | 'pricing' | 'cta' | 'testimonials' | 'faq' | 'footer';
+  section_type: SectionType;
   content: Record<string, unknown>;
   order: number;
   enabled: boolean;

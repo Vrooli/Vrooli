@@ -1,0 +1,38 @@
+{
+  "$schema": "./_schema.json",
+  "id": "video",
+  "name": "Video Section",
+  "description": "Embedded video player for product demos, explainers, or testimonials. Supports YouTube and Vimeo.",
+  "category": "engagement",
+  "fields": {
+    "title": {
+      "type": "string",
+      "label": "Section Title",
+      "placeholder": "See it in action",
+      "max_length": 80,
+      "required": false
+    },
+    "videoUrl": {
+      "type": "string",
+      "label": "Video URL",
+      "placeholder": "https://www.youtube.com/watch?v=xxxxx",
+      "required": true,
+      "description": "YouTube or Vimeo video URL"
+    },
+    "thumbnailUrl": {
+      "type": "string",
+      "label": "Thumbnail URL",
+      "placeholder": "/assets/video-thumbnail.png",
+      "required": false,
+      "description": "Custom thumbnail image (auto-generated if not provided)"
+    },
+    "caption": {
+      "type": "string",
+      "label": "Caption",
+      "max_length": 150,
+      "required": false
+    }
+  },
+  "ui_component": "VideoSection",
+  "default_order": 3
+}

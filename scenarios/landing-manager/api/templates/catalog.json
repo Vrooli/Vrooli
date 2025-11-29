@@ -1,0 +1,35 @@
+{
+  "$schema": "./schemas/catalog.schema.json",
+  "version": "1.0.0",
+  "description": "Landing Manager Template Registry - Indexes all available landing page templates by category",
+  "categories": {
+    "saas": {
+      "name": "SaaS",
+      "description": "Templates optimized for Software-as-a-Service products",
+      "templates": ["saas-landing-page"]
+    },
+    "lead-generation": {
+      "name": "Lead Generation",
+      "description": "Templates focused on capturing leads and building email lists",
+      "templates": ["lead-magnet"]
+    }
+  },
+  "templates": {
+    "saas-landing-page": {
+      "path": "catalog/saas/landing-page.json",
+      "category": "saas",
+      "version": "1.0.0",
+      "sections_used": ["hero", "features", "pricing", "cta", "social-proof", "video"]
+    },
+    "lead-magnet": {
+      "path": "catalog/lead-generation/lead-magnet.json",
+      "category": "lead-generation",
+      "version": "1.0.0",
+      "sections_used": ["hero", "lead-form", "benefits", "social-proof", "preview"]
+    }
+  },
+  "section_catalog": {
+    "path": "sections/",
+    "description": "Reusable section schemas that templates compose"
+  }
+}

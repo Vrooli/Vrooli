@@ -1,0 +1,65 @@
+{
+  "$schema": "./_schema.json",
+  "id": "footer",
+  "name": "Footer Section",
+  "description": "Site footer with navigation links, social links, and company information",
+  "category": "navigation",
+  "fields": {
+    "company_name": {
+      "type": "string",
+      "label": "Company Name",
+      "max_length": 60,
+      "required": true
+    },
+    "tagline": {
+      "type": "string",
+      "label": "Company Tagline",
+      "max_length": 150,
+      "required": false
+    },
+    "columns": {
+      "type": "array",
+      "label": "Link Columns",
+      "max_items": 4,
+      "item_schema": {
+        "title": {
+          "type": "string",
+          "label": "Column Title",
+          "max_length": 30
+        },
+        "links": {
+          "type": "array",
+          "label": "Links",
+          "item_schema": {
+            "label": {
+              "type": "string",
+              "label": "Link Text"
+            },
+            "url": {
+              "type": "string",
+              "label": "Link URL"
+            }
+          }
+        }
+      }
+    },
+    "social_links": {
+      "type": "object",
+      "label": "Social Links",
+      "properties": {
+        "github": { "type": "string", "label": "GitHub URL" },
+        "twitter": { "type": "string", "label": "Twitter URL" },
+        "linkedin": { "type": "string", "label": "LinkedIn URL" },
+        "email": { "type": "string", "label": "Email Address" }
+      }
+    },
+    "copyright": {
+      "type": "string",
+      "label": "Copyright Text",
+      "placeholder": "2024 Company Name. All rights reserved.",
+      "max_length": 100
+    }
+  },
+  "ui_component": "FooterSection",
+  "default_order": 99
+}

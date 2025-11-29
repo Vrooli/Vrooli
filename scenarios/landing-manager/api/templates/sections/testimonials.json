@@ -1,0 +1,65 @@
+{
+  "$schema": "./_schema.json",
+  "id": "testimonials",
+  "name": "Testimonials Section",
+  "description": "Customer testimonials with ratings, quotes, and author information",
+  "category": "social-proof",
+  "fields": {
+    "title": {
+      "type": "string",
+      "label": "Section Title",
+      "placeholder": "What our customers say",
+      "max_length": 80,
+      "required": true
+    },
+    "subtitle": {
+      "type": "string",
+      "label": "Section Subtitle",
+      "placeholder": "Trusted by teams worldwide",
+      "max_length": 150,
+      "required": false
+    },
+    "testimonials": {
+      "type": "array",
+      "label": "Testimonials",
+      "min_items": 1,
+      "max_items": 6,
+      "item_schema": {
+        "content": {
+          "type": "string",
+          "label": "Testimonial Quote",
+          "max_length": 300,
+          "required": true
+        },
+        "name": {
+          "type": "string",
+          "label": "Author Name",
+          "max_length": 60,
+          "required": true
+        },
+        "role": {
+          "type": "string",
+          "label": "Author Role",
+          "max_length": 60
+        },
+        "company": {
+          "type": "string",
+          "label": "Company Name",
+          "max_length": 60
+        },
+        "rating": {
+          "type": "number",
+          "label": "Star Rating",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "avatar_url": {
+          "type": "string",
+          "label": "Avatar URL"
+        }
+      }
+    }
+  },
+  "ui_component": "TestimonialsSection",
+  "default_order": 5
+}

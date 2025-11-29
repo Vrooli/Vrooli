@@ -1,0 +1,44 @@
+{
+  "$schema": "./_schema.json",
+  "id": "lead-form",
+  "name": "Lead Capture Form",
+  "description": "Email capture form with minimal friction for lead generation",
+  "category": "conversion",
+  "fields": {
+    "form_title": {
+      "type": "string",
+      "label": "Form Title",
+      "placeholder": "Download Now",
+      "max_length": 60,
+      "required": true
+    },
+    "cta_text": {
+      "type": "string",
+      "label": "Submit Button Text",
+      "placeholder": "Get Instant Access",
+      "max_length": 30,
+      "required": true
+    },
+    "privacy_note": {
+      "type": "string",
+      "label": "Privacy Note",
+      "placeholder": "We respect your privacy. Unsubscribe anytime.",
+      "max_length": 150,
+      "required": false
+    },
+    "require_name": {
+      "type": "boolean",
+      "label": "Require Name Field",
+      "default": false
+    },
+    "success_message": {
+      "type": "string",
+      "label": "Success Message",
+      "placeholder": "Check your email for the download link!",
+      "max_length": 150,
+      "required": false
+    }
+  },
+  "ui_component": "LeadFormSection",
+  "default_order": 2
+}

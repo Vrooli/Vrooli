@@ -1,0 +1,45 @@
+{
+  "$schema": "./_schema.json",
+  "id": "faq",
+  "name": "FAQ Section",
+  "description": "Frequently asked questions with expandable accordion answers",
+  "category": "trust-building",
+  "fields": {
+    "title": {
+      "type": "string",
+      "label": "Section Title",
+      "placeholder": "Frequently Asked Questions",
+      "max_length": 80,
+      "required": true
+    },
+    "subtitle": {
+      "type": "string",
+      "label": "Section Subtitle",
+      "placeholder": "Everything you need to know",
+      "max_length": 150,
+      "required": false
+    },
+    "faqs": {
+      "type": "array",
+      "label": "FAQ Items",
+      "min_items": 3,
+      "max_items": 10,
+      "item_schema": {
+        "question": {
+          "type": "string",
+          "label": "Question",
+          "max_length": 150,
+          "required": true
+        },
+        "answer": {
+          "type": "string",
+          "label": "Answer",
+          "max_length": 500,
+          "required": true
+        }
+      }
+    }
+  },
+  "ui_component": "FAQSection",
+  "default_order": 7
+}

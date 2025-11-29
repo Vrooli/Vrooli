@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Landing Page Section Schema",
+  "description": "Defines the structure for reusable landing page section types",
+  "type": "object",
+  "required": ["id", "name", "description", "fields", "ui_component"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Reference to this schema file"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Unique identifier for the section type (kebab-case)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name for the section"
+    },
+    "description": {
+      "type": "string",
+      "description": "Explains what this section is for and when to use it"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "above-fold",
+        "value-proposition",
+        "social-proof",
+        "conversion",
+        "trust-building",
+        "engagement",
+        "navigation"
+      ],
+      "description": "Functional category for organizing sections"
+    },
+    "fields": {
+      "type": "object",
+      "description": "Field definitions that control section content",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type", "label"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["string", "number", "boolean", "array", "object"]
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable field label"
+          },
+          "description": {
+            "type": "string",
+            "description": "Help text for the field"
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Example value"
+          },
+          "max_length": {
+            "type": "integer",
+            "description": "Maximum character length for strings"
+          },
+          "required": {
+            "type": "boolean",
+            "default": false
+          },
+          "default": {
+            "description": "Default value if not provided"
+          },
+          "enum": {
+            "type": "array",
+            "description": "Allowed values for string fields"
+          },
+          "min_items": {
+            "type": "integer",
+            "description": "Minimum array length"
+          },
+          "max_items": {
+            "type": "integer",
+            "description": "Maximum array length"
+          },
+          "item_schema": {
+            "type": "object",
+            "description": "Schema for array items"
+          },
+          "properties": {
+            "type": "object",
+            "description": "Schema for object properties"
+          }
+        }
+      }
+    },
+    "ui_component": {
+      "type": "string",
+      "description": "React component name that renders this section"
+    },
+    "default_order": {
+      "type": "integer",
+      "description": "Suggested position in the page (lower = higher)"
+    }
+  }
+}

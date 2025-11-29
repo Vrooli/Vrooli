@@ -1,0 +1,73 @@
+{
+  "$schema": "./_schema.json",
+  "id": "pricing",
+  "name": "Pricing Section",
+  "description": "Pricing tiers with features and call-to-action buttons. Supports Stripe integration.",
+  "category": "conversion",
+  "fields": {
+    "title": {
+      "type": "string",
+      "label": "Section Title",
+      "placeholder": "Simple, transparent pricing",
+      "max_length": 80,
+      "required": true
+    },
+    "subtitle": {
+      "type": "string",
+      "label": "Section Subtitle",
+      "placeholder": "Choose the plan that works for you",
+      "max_length": 150,
+      "required": false
+    },
+    "tiers": {
+      "type": "array",
+      "label": "Pricing Tiers",
+      "min_items": 1,
+      "max_items": 4,
+      "item_schema": {
+        "name": {
+          "type": "string",
+          "label": "Tier Name",
+          "max_length": 30
+        },
+        "price": {
+          "type": "string",
+          "label": "Price Display",
+          "description": "e.g., '$29/mo' or 'Free'"
+        },
+        "description": {
+          "type": "string",
+          "label": "Tier Description",
+          "max_length": 100
+        },
+        "stripe_price_id": {
+          "type": "string",
+          "label": "Stripe Price ID",
+          "placeholder": "price_xxxxx"
+        },
+        "features": {
+          "type": "array",
+          "label": "Included Features",
+          "description": "List of features included in this tier"
+        },
+        "cta_text": {
+          "type": "string",
+          "label": "CTA Text",
+          "max_length": 30
+        },
+        "cta_url": {
+          "type": "string",
+          "label": "CTA URL",
+          "placeholder": "/signup?plan=pro"
+        },
+        "highlighted": {
+          "type": "boolean",
+          "label": "Highlight This Tier",
+          "description": "Make this tier stand out (e.g., 'Most Popular')"
+        }
+      }
+    }
+  },
+  "ui_component": "PricingSection",
+  "default_order": 4
+}

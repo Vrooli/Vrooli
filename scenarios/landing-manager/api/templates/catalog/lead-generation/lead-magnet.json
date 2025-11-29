@@ -1,0 +1,147 @@
+{
+  "id": "lead-magnet",
+  "name": "Lead Magnet Landing Page",
+  "description": "Focused landing page template for capturing leads with a free resource offer (ebook, guide, template, etc.). Optimized for conversion with minimal distractions.",
+  "version": "1.0.0",
+  "metadata": {
+    "author": "Vrooli Team",
+    "category": "lead-generation",
+    "tags": ["lead-magnet", "conversion", "email-capture", "freemium"],
+    "created_at": "2025-11-25",
+    "updated_at": "2025-11-28"
+  },
+  "sections": {
+    "required": [
+      { "$ref": "../../sections/hero.json", "id": "hero" },
+      { "$ref": "../../sections/lead-form.json", "id": "lead-form" },
+      { "$ref": "../../sections/benefits.json", "id": "benefits" }
+    ],
+    "optional": [
+      { "$ref": "../../sections/social-proof.json", "id": "social-proof" },
+      { "$ref": "../../sections/preview.json", "id": "preview" },
+      { "$ref": "../../sections/faq.json", "id": "faq" },
+      { "$ref": "../../sections/footer.json", "id": "footer" }
+    ]
+  },
+  "metrics_hooks": [
+    {
+      "id": "page_view",
+      "name": "Page View",
+      "description": "Track landing page loads",
+      "event_type": "pageview",
+      "required_fields": ["session_id", "timestamp"]
+    },
+    {
+      "id": "form_view",
+      "name": "Form View",
+      "description": "Track when lead form comes into viewport",
+      "event_type": "form_view",
+      "required_fields": ["session_id", "timestamp"]
+    },
+    {
+      "id": "form_start",
+      "name": "Form Start",
+      "description": "Track when user starts filling the form",
+      "event_type": "form_start",
+      "required_fields": ["session_id", "timestamp"]
+    },
+    {
+      "id": "form_submit",
+      "name": "Form Submit",
+      "description": "Track lead capture submissions",
+      "event_type": "form_submit",
+      "required_fields": ["session_id", "email", "timestamp"]
+    },
+    {
+      "id": "download",
+      "name": "Resource Download",
+      "description": "Track successful resource downloads",
+      "event_type": "download",
+      "required_fields": ["session_id", "lead_id", "timestamp"]
+    }
+  ],
+  "customization_schema": {
+    "branding": {
+      "logo_url": {
+        "type": "string",
+        "label": "Logo URL",
+        "placeholder": "/assets/logo.svg"
+      },
+      "primary_color": {
+        "type": "string",
+        "label": "Primary Color (hex)",
+        "placeholder": "#10b981"
+      },
+      "accent_color": {
+        "type": "string",
+        "label": "Accent Color (hex)",
+        "placeholder": "#f59e0b"
+      },
+      "font_family": {
+        "type": "string",
+        "label": "Font Family",
+        "placeholder": "Inter, system-ui, sans-serif"
+      }
+    },
+    "seo": {
+      "title": {
+        "type": "string",
+        "label": "Page Title",
+        "max_length": 60
+      },
+      "description": {
+        "type": "string",
+        "label": "Meta Description",
+        "max_length": 160
+      },
+      "og_image": {
+        "type": "string",
+        "label": "Social Share Image URL"
+      }
+    },
+    "email_delivery": {
+      "from_email": {
+        "type": "string",
+        "label": "From Email Address",
+        "placeholder": "hello@yourdomain.com"
+      },
+      "from_name": {
+        "type": "string",
+        "label": "From Name",
+        "placeholder": "Your Company"
+      },
+      "resource_download_url": {
+        "type": "string",
+        "label": "Resource Download URL or Path",
+        "placeholder": "/resources/guide.pdf"
+      }
+    }
+  },
+  "frontend_aesthetics": {
+    "style": "clean, focused, high-conversion",
+    "colors": "Vibrant greens/blues for primary actions. High contrast for readability.",
+    "typography": "Clear hierarchy with large, readable headlines. Emphasis on benefits.",
+    "layout": "Single-column, linear flow. Minimal navigation to reduce distractions.",
+    "components": "Large CTA buttons, trust badges, social proof above the fold.",
+    "animations": "Subtle entrance animations, focus on form fields."
+  },
+  "tech_stack": {
+    "frontend": "React + TypeScript + Vite + TailwindCSS + shadcn/ui + Lucide icons",
+    "backend": "Go (Gin framework) + PostgreSQL",
+    "email": "SMTP or email service integration (SendGrid/Mailgun)",
+    "analytics": "Custom events API (form funnel metrics)",
+    "deployment": "Vrooli lifecycle system (local or production)"
+  },
+  "generated_structure": {
+    "directories": ["api/", "ui/src/", "ui/public/", "initialization/postgres/", "test/", "docs/"],
+    "key_files": [
+      ".vrooli/service.json",
+      "Makefile",
+      "README.md",
+      "PRD.md",
+      "api/main.go",
+      "ui/src/App.tsx",
+      "initialization/postgres/schema.sql"
+    ]
+  }
+}

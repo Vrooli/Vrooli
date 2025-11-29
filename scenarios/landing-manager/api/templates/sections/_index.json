@@ -1,0 +1,208 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Section Registry",
+  "description": "Single source of truth for all available landing page sections. Agents should read this file to discover available sections.",
+  "_paths": {
+    "_comment": "All paths relative to scenario root: scenarios/landing-manager/",
+    "schema_base": "api/templates/sections/",
+    "component_base": "generated/test/ui/src/components/sections/",
+    "renderer": "generated/test/ui/src/pages/PublicHome.tsx",
+    "types": "generated/test/ui/src/lib/api.ts",
+    "db_schema": "initialization/postgres/schema.sql"
+  },
+  "_agent_instructions": {
+    "read_first": "This file is the SINGLE SOURCE OF TRUTH for sections. Start here.",
+    "to_add_section": [
+      "1. Create schema: {schema_base}/{section-id}.json following _schema.json",
+      "2. Create component: {component_base}/{SectionName}Section.tsx",
+      "3. Register here: Add entry to 'sections' array below",
+      "4. Wire renderer: Add import + switch case in {renderer}",
+      "5. Update types: Add to SectionType union in {types}",
+      "6. Update DB: Add to CHECK constraint in {db_schema} (line ~88)"
+    ],
+    "to_remove_section": [
+      "1. Remove entry from 'sections' array below",
+      "2. Delete {schema_base}/{section-id}.json",
+      "3. Delete {component_base}/{SectionName}Section.tsx",
+      "4. Remove from {renderer} imports and switch",
+      "5. Remove from {types} SectionType union",
+      "6. Remove from {db_schema} CHECK constraint"
+    ],
+    "to_modify_section": {
+      "schema_only": "Edit {schema_base}/{id}.json - changes available fields",
+      "component_only": "Edit {component_base}/{Name}Section.tsx - changes rendering",
+      "both": "Ensure field names in schema match props expected by component"
+    },
+    "naming_conventions": {
+      "section_id": "kebab-case (e.g., 'social-proof')",
+      "schema_file": "{section-id}.json",
+      "component_file": "{SectionName}Section.tsx (PascalCase, e.g., 'SocialProofSection.tsx')",
+      "db_type": "Same as section_id"
+    }
+  },
+  "version": "1.0.0",
+  "sections": [
+    {
+      "id": "hero",
+      "name": "Hero Section",
+      "description": "Main headline, value proposition, and primary CTA. First thing visitors see.",
+      "category": "above-fold",
+      "schema": "api/templates/sections/hero.json",
+      "component": "generated/test/ui/src/components/sections/HeroSection.tsx",
+      "status": "implemented",
+      "default_order": 1,
+      "content_fields": ["title", "subtitle", "cta_text", "cta_url", "image_url", "background_style"]
+    },
+    {
+      "id": "features",
+      "name": "Features Section",
+      "description": "Product features in a grid layout with icons.",
+      "category": "value-proposition",
+      "schema": "api/templates/sections/features.json",
+      "component": "generated/test/ui/src/components/sections/FeaturesSection.tsx",
+      "status": "implemented",
+      "default_order": 2,
+      "content_fields": ["title", "subtitle", "features[]"]
+    },
+    {
+      "id": "benefits",
+      "name": "Benefits Section",
+      "description": "User benefits and outcomes.",
+      "category": "value-proposition",
+      "schema": "api/templates/sections/benefits.json",
+      "component": "generated/test/ui/src/components/sections/BenefitsSection.tsx",
+      "status": "schema-only",
+      "default_order": 3,
+      "content_fields": ["title", "benefits[]"]
+    },
+    {
+      "id": "video",
+      "name": "Video Section",
+      "description": "Embedded video player (YouTube/Vimeo).",
+      "category": "engagement",
+      "schema": "api/templates/sections/video.json",
+      "component": "generated/test/ui/src/components/sections/VideoSection.tsx",
+      "status": "implemented",
+      "default_order": 4,
+      "content_fields": ["title", "video_url", "thumbnail_url", "caption"]
+    },
+    {
+      "id": "pricing",
+      "name": "Pricing Section",
+      "description": "Pricing tiers with Stripe integration.",
+      "category": "conversion",
+      "schema": "api/templates/sections/pricing.json",
+      "component": "generated/test/ui/src/components/sections/PricingSection.tsx",
+      "status": "implemented",
+      "default_order": 5,
+      "content_fields": ["title", "subtitle", "tiers[]"]
+    },
+    {
+      "id": "testimonials",
+      "name": "Testimonials Section",
+      "description": "Customer testimonials with ratings and avatars.",
+      "category": "social-proof",
+      "schema": "api/templates/sections/testimonials.json",
+      "component": "generated/test/ui/src/components/sections/TestimonialsSection.tsx",
+      "status": "implemented",
+      "default_order": 6,
+      "content_fields": ["title", "testimonials[]"]
+    },
+    {
+      "id": "social-proof",
+      "name": "Social Proof Section",
+      "description": "Trust badges, logos, and social proof indicators.",
+      "category": "social-proof",
+      "schema": "api/templates/sections/social-proof.json",
+      "component": "generated/test/ui/src/components/sections/SocialProofSection.tsx",
+      "status": "schema-only",
+      "default_order": 7,
+      "content_fields": ["title", "logos[]", "stats[]"]
+    },
+    {
+      "id": "faq",
+      "name": "FAQ Section",
+      "description": "Frequently asked questions in accordion format.",
+      "category": "trust-building",
+      "schema": "api/templates/sections/faq.json",
+      "component": "generated/test/ui/src/components/sections/FAQSection.tsx",
+      "status": "implemented",
+      "default_order": 8,
+      "content_fields": ["title", "questions[]"]
+    },
+    {
+      "id": "lead-form",
+      "name": "Lead Form Section",
+      "description": "Email capture and lead generation form.",
+      "category": "conversion",
+      "schema": "api/templates/sections/lead-form.json",
+      "component": "generated/test/ui/src/components/sections/LeadFormSection.tsx",
+      "status": "schema-only",
+      "default_order": 9,
+      "content_fields": ["title", "subtitle", "cta_text", "fields[]"]
+    },
+    {
+      "id": "preview",
+      "name": "Preview Section",
+      "description": "Product preview or demo content.",
+      "category": "engagement",
+      "schema": "api/templates/sections/preview.json",
+      "component": "generated/test/ui/src/components/sections/PreviewSection.tsx",
+      "status": "schema-only",
+      "default_order": 10,
+      "content_fields": ["title", "preview_url", "features[]"]
+    },
+    {
+      "id": "cta",
+      "name": "CTA Section",
+      "description": "Call-to-action block with headline and button.",
+      "category": "conversion",
+      "schema": "api/templates/sections/cta.json",
+      "component": "generated/test/ui/src/components/sections/CTASection.tsx",
+      "status": "implemented",
+      "default_order": 11,
+      "content_fields": ["title", "subtitle", "cta_text", "cta_url"]
+    },
+    {
+      "id": "footer",
+      "name": "Footer Section",
+      "description": "Site footer with links, social, and company info.",
+      "category": "navigation",
+      "schema": "api/templates/sections/footer.json",
+      "component": "generated/test/ui/src/components/sections/FooterSection.tsx",
+      "status": "implemented",
+      "default_order": 99,
+      "content_fields": ["company_name", "tagline", "links[]", "social[]"]
+    }
+  ],
+  "categories": {
+    "above-fold": {
+      "name": "Above Fold",
+      "description": "First thing visitors see - hero sections, announcements"
+    },
+    "value-proposition": {
+      "name": "Value Proposition",
+      "description": "Communicate product value - features, benefits"
+    },
+    "social-proof": {
+      "name": "Social Proof",
+      "description": "Build credibility - testimonials, logos, reviews"
+    },
+    "conversion": {
+      "name": "Conversion",
+      "description": "Drive action - pricing, CTAs, lead forms"
+    },
+    "trust-building": {
+      "name": "Trust Building",
+      "description": "Answer objections - FAQ, guarantees"
+    },
+    "engagement": {
+      "name": "Engagement",
+      "description": "Increase time on page - video, previews, demos"
+    },
+    "navigation": {
+      "name": "Navigation",
+      "description": "Site structure - footer, headers"
+    }
+  }
+}

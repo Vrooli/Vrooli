@@ -28,6 +28,29 @@ type Template struct {
 	GeneratedStructure  map[string]interface{} `json:"generated_structure,omitempty"`
 }
 
+// TemplateCatalog represents the template registry index
+type TemplateCatalog struct {
+	Version     string                      `json:"version"`
+	Description string                      `json:"description"`
+	Categories  map[string]CategoryInfo     `json:"categories"`
+	Templates   map[string]TemplateRef      `json:"templates"`
+}
+
+// CategoryInfo describes a template category
+type CategoryInfo struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Templates   []string `json:"templates"`
+}
+
+// TemplateRef is a reference to a template in the catalog
+type TemplateRef struct {
+	Path         string   `json:"path"`
+	Category     string   `json:"category"`
+	Version      string   `json:"version"`
+	SectionsUsed []string `json:"sections_used"`
+}
+
 // MetricHook defines an analytics event type
 type MetricHook struct {
 	ID             string   `json:"id"`
@@ -89,6 +112,8 @@ func NewTemplateService() *TemplateService {
 }
 
 // ListTemplates returns all available templates (with caching)
+// Prefers catalog-based structure (catalog.json + catalog/{category}/*.json)
+// Falls back to legacy flat structure ({id}.json) for backward compatibility
 func (ts *TemplateService) ListTemplates() ([]Template, error) {
 	// Check if cache is valid - skip if cache not initialized
 	if ts.cache != nil {
@@ -108,33 +133,60 @@ func (ts *TemplateService) ListTemplates() ([]Template, error) {
 		}
 	}
 
-	// Cache expired or empty - load from disk
-	entries, err := os.ReadDir(ts.templatesDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read templates directory: %w", err)
-	}
-
 	var templates []Template
 	newCache := make(map[string]Template)
 
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
-			continue
+	// Try catalog-based structure first (screaming architecture)
+	catalogPath := filepath.Join(ts.templatesDir, "catalog.json")
+	if _, err := os.Stat(catalogPath); err == nil {
+		catalog, err := ts.loadCatalog(catalogPath)
+		if err == nil {
+			for id, ref := range catalog.Templates {
+				templatePath := filepath.Join(ts.templatesDir, ref.Path)
+				template, err := ts.loadTemplate(templatePath)
+				if err != nil {
+					logStructured("template_load_error", map[string]interface{}{
+						"id":    id,
+						"path":  ref.Path,
+						"error": err.Error(),
+					})
+					continue
+				}
+				templates = append(templates, template)
+				newCache[template.ID] = template
+			}
 		}
+	}
 
-		templatePath := filepath.Join(ts.templatesDir, entry.Name())
-		template, err := ts.loadTemplate(templatePath)
+	// Fall back to legacy flat structure if no catalog templates found
+	if len(templates) == 0 {
+		entries, err := os.ReadDir(ts.templatesDir)
 		if err != nil {
-			// Log error but continue processing other templates
-			logStructured("template_load_error", map[string]interface{}{
-				"file":  entry.Name(),
-				"error": err.Error(),
-			})
-			continue
+			return nil, fmt.Errorf("failed to read templates directory: %w", err)
 		}
 
-		templates = append(templates, template)
-		newCache[template.ID] = template
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+				continue
+			}
+			// Skip catalog.json and other non-template files
+			if entry.Name() == "catalog.json" {
+				continue
+			}
+
+			templatePath := filepath.Join(ts.templatesDir, entry.Name())
+			template, err := ts.loadTemplate(templatePath)
+			if err != nil {
+				logStructured("template_load_error", map[string]interface{}{
+					"file":  entry.Name(),
+					"error": err.Error(),
+				})
+				continue
+			}
+
+			templates = append(templates, template)
+			newCache[template.ID] = template
+		}
 	}
 
 	// Update cache (write lock) - skip if cache not initialized
@@ -148,7 +200,23 @@ func (ts *TemplateService) ListTemplates() ([]Template, error) {
 	return templates, nil
 }
 
+// loadCatalog reads and parses the template catalog index
+func (ts *TemplateService) loadCatalog(path string) (*TemplateCatalog, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read catalog: %w", err)
+	}
+
+	var catalog TemplateCatalog
+	if err := json.Unmarshal(data, &catalog); err != nil {
+		return nil, fmt.Errorf("failed to parse catalog JSON: %w", err)
+	}
+
+	return &catalog, nil
+}
+
 // GetTemplate returns a specific template by ID (with caching)
+// Prefers catalog-based lookup, falls back to legacy flat structure
 func (ts *TemplateService) GetTemplate(id string) (*Template, error) {
 	// Check cache first (read lock) - skip if cache not initialized
 	if ts.cache != nil {
@@ -162,8 +230,22 @@ func (ts *TemplateService) GetTemplate(id string) (*Template, error) {
 		ts.cacheMux.RUnlock()
 	}
 
-	// Not in cache or cache expired - load from disk
-	templatePath := filepath.Join(ts.templatesDir, id+".json")
+	// Try catalog-based lookup first (screaming architecture)
+	var templatePath string
+	catalogPath := filepath.Join(ts.templatesDir, "catalog.json")
+	if _, err := os.Stat(catalogPath); err == nil {
+		catalog, err := ts.loadCatalog(catalogPath)
+		if err == nil {
+			if ref, ok := catalog.Templates[id]; ok {
+				templatePath = filepath.Join(ts.templatesDir, ref.Path)
+			}
+		}
+	}
+
+	// Fall back to legacy flat structure
+	if templatePath == "" {
+		templatePath = filepath.Join(ts.templatesDir, id+".json")
+	}
 
 	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("template not found: %s", id)
