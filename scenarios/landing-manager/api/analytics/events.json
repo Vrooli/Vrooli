@@ -266,5 +266,41 @@
     "success": true,
     "timestamp": "2025-11-29T00:02:33.259593906-05:00",
     "duration_ms": 16
+  },
+  {
+    "event_id": "20251129-001347.180",
+    "template_id": "saas-landing-page",
+    "scenario_id": "saas",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-29T00:13:47.180438432-05:00",
+    "duration_ms": 16
+  },
+  {
+    "event_id": "20251129-001356.611",
+    "template_id": "lead-magnet",
+    "scenario_id": "lead",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-29T00:13:56.611590543-05:00",
+    "duration_ms": 16
+  },
+  {
+    "event_id": "20251129-004423.297",
+    "template_id": "saas-landing-page",
+    "scenario_id": "sassy",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-29T00:44:23.297160098-05:00",
+    "duration_ms": 17
+  },
+  {
+    "event_id": "20251129-004432.366",
+    "template_id": "lead-magnet",
+    "scenario_id": "leads",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-29T00:44:32.366717808-05:00",
+    "duration_ms": 16
   }
 ]

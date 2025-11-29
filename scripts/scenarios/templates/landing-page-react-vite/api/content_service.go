@@ -62,7 +62,8 @@ func (s *ContentService) querySections(query string, variantID int64) ([]Content
 	}
 	defer rows.Close()
 
-	var sections []ContentSection
+	// Initialize as empty slice (not nil) to ensure JSON serializes to [] not null
+	sections := []ContentSection{}
 	for rows.Next() {
 		var section ContentSection
 		var contentJSON []byte
@@ -199,6 +200,32 @@ func (s *ContentService) DeleteSection(sectionID int64) error {
 	}
 	if rows == 0 {
 		return fmt.Errorf("section not found")
+	}
+
+	return nil
+}
+
+// CopySectionsFromVariant copies all sections from one variant to another
+// Used when creating new variants to give them default content from Control
+func (s *ContentService) CopySectionsFromVariant(sourceVariantID, targetVariantID int64) error {
+	// Get all sections from source variant
+	sections, err := s.GetSections(sourceVariantID)
+	if err != nil {
+		return fmt.Errorf("get source sections: %w", err)
+	}
+
+	// Copy each section to target variant
+	for _, section := range sections {
+		newSection := ContentSection{
+			VariantID:   targetVariantID,
+			SectionType: section.SectionType,
+			Content:     section.Content,
+			Order:       section.Order,
+			Enabled:     section.Enabled,
+		}
+		if _, err := s.CreateSection(newSection); err != nil {
+			return fmt.Errorf("copy section %s: %w", section.SectionType, err)
+		}
 	}
 
 	return nil

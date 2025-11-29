@@ -103,7 +103,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/public/variants/{slug}", handlePublicVariantBySlug(s.variantService)).Methods("GET")
 	// Admin endpoints (require auth)
 	s.router.HandleFunc("/api/v1/variants", s.requireAdmin(handleVariantsList(s.variantService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/variants", s.requireAdmin(handleVariantCreate(s.variantService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/variants", s.requireAdmin(handleVariantCreateWithSections(s.variantService, s.contentService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/variants/{slug}", s.requireAdmin(handleVariantBySlug(s.variantService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/variants/{slug}", s.requireAdmin(handleVariantUpdate(s.variantService))).Methods("PATCH")
 	s.router.HandleFunc("/api/v1/variants/{slug}/archive", s.requireAdmin(handleVariantArchive(s.variantService))).Methods("POST")

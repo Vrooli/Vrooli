@@ -37,8 +37,9 @@ export default function PublicHome() {
       try {
         setSectionsLoading(true);
         const data = await getSections(variant.id);
-        // Sort by order and filter enabled sections
-        const enabledSections = data.sections
+        // Sort by order and filter enabled sections (handle null/undefined gracefully)
+        const sectionsList = data.sections ?? [];
+        const enabledSections = sectionsList
           .filter((s) => s.enabled)
           .sort((a, b) => a.order - b.order);
         setSections(enabledSections);

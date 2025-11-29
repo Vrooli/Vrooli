@@ -378,6 +378,7 @@ func handleVariantsList(vs *VariantService) http.HandlerFunc {
 }
 
 // handleVariantCreate handles POST /api/v1/variants (OT-P0-017: AB-CRUD)
+// DEPRECATED: Use handleVariantCreateWithSections instead
 func handleVariantCreate(vs *VariantService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -406,6 +407,53 @@ func handleVariantCreate(vs *VariantService) http.HandlerFunc {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(variant)
+	}
+}
+
+// handleVariantCreateWithSections creates a variant and copies sections from Control
+func handleVariantCreateWithSections(vs *VariantService, cs *ContentService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req struct {
+			Slug        string `json:"slug"`
+			Name        string `json:"name"`
+			Description string `json:"description"`
+			Weight      int    `json:"weight"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if req.Slug == "" || req.Name == "" {
+			http.Error(w, "slug and name are required", http.StatusBadRequest)
+			return
+		}
+
+		variant, err := vs.CreateVariant(req.Slug, req.Name, req.Description, req.Weight)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Copy sections from Control variant (id=1) to give new variant default content
+		if err := cs.CopySectionsFromVariant(1, int64(variant.ID)); err != nil {
+			// Log error but don't fail - variant was created successfully
+			logStructuredError("Failed to copy sections to new variant", map[string]interface{}{
+				"variant_id":   variant.ID,
+				"variant_slug": variant.Slug,
+				"error":        err.Error(),
+			})
 		}
 
 		w.Header().Set("Content-Type", "application/json")
