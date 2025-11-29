@@ -6,7 +6,5 @@
  * @features/workflows/components as they belong to the workflow domain.
  */
 
-// Currently no truly app-wide shared components exist.
-// Add components here only when they are genuinely reusable across
-// multiple unrelated features (e.g., both projects and execution).
-export {};
+// Re-export UI components for convenience
+export * from '../ui';

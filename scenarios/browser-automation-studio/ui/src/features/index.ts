@@ -6,8 +6,10 @@
  * - workflows: Visual workflow builder and node types
  * - execution: Execution viewing, history, and replay
  * - ai: AI-powered workflow generation and editing
+ * - settings: Application settings and preferences
  */
 export * from "./projects";
 export * from "./workflows";
 export * from "./execution";
 export * from "./ai";
+export * from "./settings";

@@ -15,6 +15,7 @@ const ExecutionViewer = lazy(() => import("@features/execution/ExecutionViewer")
 const AIPromptModal = lazy(() => import("@features/ai/AIPromptModal"));
 const Dashboard = lazy(() => import("@features/projects/Dashboard"));
 const ProjectDetail = lazy(() => import("@features/projects/ProjectDetail"));
+const SettingsPage = lazy(() => import("@features/settings/SettingsPage"));
 
 // Stores and hooks
 import { useExecutionStore } from "@stores/executionStore";
@@ -35,7 +36,7 @@ interface NormalizedWorkflow extends Partial<Workflow> {
   projectId?: string;
 }
 
-type AppView = "dashboard" | "project-detail" | "project-workflow";
+type AppView = "dashboard" | "project-detail" | "project-workflow" | "settings";
 
 const EXECUTION_MIN_WIDTH = 360;
 const EXECUTION_MAX_WIDTH = 720;
@@ -200,6 +201,18 @@ function App() {
       setCurrentView("dashboard");
     },
     [safeNavigate, setCurrentProject],
+  );
+
+  const navigateToSettings = useCallback(
+    (replace = false) => {
+      const url = "/settings";
+      const state = { view: "settings" };
+      safeNavigate(state, url, replace);
+      setShowAIModal(false);
+      setShowProjectModal(false);
+      setCurrentView("settings");
+    },
+    [safeNavigate],
   );
 
   const openProject = useCallback(
@@ -498,7 +511,7 @@ function App() {
             setShowProjectModal(false);
           } else if (currentView === "project-workflow" && currentProject) {
             openProject(currentProject);
-          } else if (currentView === "project-detail") {
+          } else if (currentView === "project-detail" || currentView === "settings") {
             navigateToDashboard();
           }
         },
@@ -522,8 +535,15 @@ function App() {
         category: "Navigation",
         action: () => navigateToDashboard(),
       },
+      {
+        key: ",",
+        modifiers: ["meta"],
+        description: "Open settings",
+        category: "Navigation",
+        action: () => navigateToSettings(),
+      },
     ],
-    [currentView, currentProject, showKeyboardShortcuts, showAIModal, showProjectModal, navigateToDashboard, openProject]
+    [currentView, currentProject, showKeyboardShortcuts, showAIModal, showProjectModal, navigateToDashboard, navigateToSettings, openProject]
   );
 
   // Register keyboard shortcuts
@@ -554,6 +574,13 @@ function App() {
 
       const segments = normalized.split("/").filter(Boolean);
       console.log("[DEBUG] resolvePath segments", { segments });
+
+      // Handle /settings route
+      if (segments[0] === "settings") {
+        console.log("[DEBUG] resolvePath: navigating to settings");
+        navigateToSettings(replace);
+        return;
+      }
 
       if (segments[0] !== "projects" || !segments[1]) {
         console.log("[DEBUG] resolvePath: invalid path, navigating to dashboard");
@@ -620,7 +647,7 @@ function App() {
 
     window.addEventListener("popstate", popHandler);
     return () => window.removeEventListener("popstate", popHandler);
-  }, [navigateToDashboard, openProject, openWorkflow]);
+  }, [navigateToDashboard, navigateToSettings, openProject, openWorkflow]);
 
   // Show loading while determining initial route
   if (currentView === null) {
@@ -650,6 +677,7 @@ function App() {
             onProjectSelect={handleProjectSelect}
             onCreateProject={handleCreateProject}
             onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
+            onOpenSettings={navigateToSettings}
           />
         </Suspense>
 
@@ -662,6 +690,32 @@ function App() {
           }}
           onSuccess={handleProjectCreated}
         />
+
+        <KeyboardShortcutsModal
+          isOpen={showKeyboardShortcuts}
+          onClose={() => setShowKeyboardShortcuts(false)}
+          shortcuts={shortcutDefinitions}
+        />
+      </div>
+    );
+  }
+
+  // Settings View
+  if (currentView === "settings") {
+    return (
+      <div
+        className="h-screen flex flex-col bg-flow-bg"
+        data-testid={selectors.app.shell.ready}
+      >
+        <Suspense
+          fallback={
+            <div className="h-screen flex items-center justify-center bg-flow-bg">
+              <div className="text-flow-text">Loading settings...</div>
+            </div>
+          }
+        >
+          <SettingsPage onBack={navigateToDashboard} />
+        </Suspense>
 
         <KeyboardShortcutsModal
           isOpen={showKeyboardShortcuts}

@@ -1,5 +1,5 @@
 /**
- * Shared UI components - reusable across features
+ * Shared UI components
  */
-export { default as Tooltip } from "./Tooltip";
-export { default as Skeleton, CardSkeleton, ListSkeleton, TableRowSkeleton } from "./Skeleton";
+export { default as Skeleton } from './Skeleton';
+export { default as Tooltip } from './Tooltip';

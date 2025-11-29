@@ -16,6 +16,7 @@ import {
   Zap,
   FileCode,
   Bot,
+  Settings,
 } from "lucide-react";
 import { useProjectStore, Project } from "@stores/projectStore";
 import { openCalendar } from "@utils/vrooli";
@@ -26,9 +27,10 @@ interface DashboardProps {
   onProjectSelect: (project: Project) => void;
   onCreateProject: () => void;
   onShowKeyboardShortcuts?: () => void;
+  onOpenSettings?: () => void;
 }
 
-function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts }: DashboardProps) {
+function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts, onOpenSettings }: DashboardProps) {
   const {
     projects,
     isLoading,
@@ -171,6 +173,17 @@ function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts }
                   aria-label="Show keyboard shortcuts"
                 >
                   <Keyboard size={18} />
+                </button>
+              )}
+              {onOpenSettings && (
+                <button
+                  onClick={onOpenSettings}
+                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                  title={`Settings (${getModifierKey()}+,)`}
+                  aria-label="Open settings"
+                  data-testid={selectors.dashboard.settingsButton}
+                >
+                  <Settings size={18} />
                 </button>
               )}
               <button

@@ -289,6 +289,7 @@ const literalSelectors = {
   },
   dashboard: {
     newProjectButton: "dashboard-new-project-button",
+    settingsButton: "dashboard-settings-button",
   },
   dialogs: {
     base: {
