@@ -21,9 +21,16 @@ import {
   EyeOff,
   AlertTriangle,
   Wrench,
+  Monitor,
+  Sun,
+  Moon,
+  Laptop,
+  Type,
+  Accessibility,
+  Minimize2,
 } from 'lucide-react';
 import { useSettingsStore, BUILT_IN_PRESETS } from '@stores/settingsStore';
-import type { ApiKeySettings } from '@stores/settingsStore';
+import type { ApiKeySettings, ThemeMode, FontSize, FontFamily } from '@stores/settingsStore';
 import {
   REPLAY_CHROME_OPTIONS,
   REPLAY_BACKGROUND_OPTIONS,
@@ -44,7 +51,7 @@ import Tooltip from '@shared/ui/Tooltip';
 
 const ReplayPlayer = lazy(() => import('../execution/ReplayPlayer'));
 
-type SettingsTab = 'replay' | 'workflow' | 'apikeys';
+type SettingsTab = 'display' | 'replay' | 'workflow' | 'apikeys';
 
 const SPEED_PROFILE_OPTIONS: Array<{ id: CursorSpeedProfile; label: string; description: string }> = [
   { id: 'linear', label: 'Linear', description: 'Consistent motion between frames' },
@@ -273,6 +280,7 @@ function OptionGrid<T extends string>({ options, value, onChange, columns = 3 }:
 
 // Tabs configuration
 const SETTINGS_TABS: Array<{ id: SettingsTab; label: string; icon: React.ReactNode; description: string }> = [
+  { id: 'display', label: 'Display', icon: <Monitor size={18} />, description: 'Appearance and accessibility' },
   { id: 'replay', label: 'Replay', icon: <Film size={18} />, description: 'Customize replay appearance' },
   { id: 'workflow', label: 'Workflow Defaults', icon: <Wrench size={18} />, description: 'Default workflow settings' },
   { id: 'apikeys', label: 'API Keys', icon: <Key size={18} />, description: 'Manage API integrations' },
@@ -283,6 +291,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
     replay,
     workflowDefaults,
     apiKeys,
+    display,
     userPresets,
     activePresetId,
     setReplaySetting,
@@ -296,9 +305,12 @@ function SettingsPage({ onBack }: SettingsPageProps) {
     resetWorkflowDefaults,
     setApiKey,
     clearApiKeys,
+    setDisplaySetting,
+    resetDisplaySettings,
+    getEffectiveTheme,
   } = useSettingsStore();
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>('replay');
+  const [activeTab, setActiveTab] = useState<SettingsTab>('display');
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(true);
   const [showPresetDropdown, setShowPresetDropdown] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -320,7 +332,11 @@ function SettingsPage({ onBack }: SettingsPageProps) {
   }, [activePresetId, allPresets]);
 
   const handleReset = useCallback(() => {
-    if (activeTab === 'replay') {
+    if (activeTab === 'display') {
+      if (window.confirm('Reset all display settings to defaults?')) {
+        resetDisplaySettings();
+      }
+    } else if (activeTab === 'replay') {
       if (window.confirm('Reset all replay settings to defaults?')) {
         resetReplaySettings();
       }
@@ -333,7 +349,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
         clearApiKeys();
       }
     }
-  }, [activeTab, resetReplaySettings, resetWorkflowDefaults, clearApiKeys]);
+  }, [activeTab, resetDisplaySettings, resetReplaySettings, resetWorkflowDefaults, clearApiKeys]);
 
   const handleRandomize = useCallback(() => {
     randomizeSettings();
@@ -968,6 +984,194 @@ function SettingsPage({ onBack }: SettingsPageProps) {
     </div>
   );
 
+  const renderDisplaySettings = () => {
+    const themeOptions: Array<{ id: ThemeMode; label: string; icon: React.ReactNode; description: string }> = [
+      { id: 'light', label: 'Light', icon: <Sun size={20} />, description: 'Bright theme for well-lit environments' },
+      { id: 'dark', label: 'Dark', icon: <Moon size={20} />, description: 'Dark theme that reduces eye strain' },
+      { id: 'system', label: 'System', icon: <Laptop size={20} />, description: 'Follow your system preferences' },
+    ];
+
+    const fontSizeOptions: Array<{ id: FontSize; label: string; description: string }> = [
+      { id: 'small', label: 'Small', description: 'Compact interface, more content visible' },
+      { id: 'medium', label: 'Medium', description: 'Default balanced size' },
+      { id: 'large', label: 'Large', description: 'Larger text for better readability' },
+    ];
+
+    const fontFamilyOptions: Array<{ id: FontFamily; label: string; preview: string; description: string }> = [
+      { id: 'mono', label: 'Monospace', preview: 'Aa Bb Cc', description: 'Technical feel, fixed-width characters' },
+      { id: 'sans', label: 'Sans Serif', preview: 'Aa Bb Cc', description: 'Clean and modern appearance' },
+      { id: 'system', label: 'System', preview: 'Aa Bb Cc', description: 'Match your OS default font' },
+    ];
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 mb-6">
+          <Monitor size={24} className="text-purple-400" />
+          <div>
+            <h2 className="text-lg font-semibold text-white">Display Settings</h2>
+            <p className="text-sm text-gray-400">Customize appearance and accessibility</p>
+          </div>
+        </div>
+
+        <SettingSection title="Theme" tooltip="Choose your preferred color scheme.">
+          <div className="grid grid-cols-3 gap-3">
+            {themeOptions.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setDisplaySetting('themeMode', option.id)}
+                className={`flex flex-col items-center p-4 rounded-lg border transition-all ${
+                  display.themeMode === option.id
+                    ? 'border-flow-accent bg-flow-accent/10 ring-1 ring-flow-accent/50'
+                    : 'border-gray-700 hover:border-gray-600 bg-gray-800/30'
+                }`}
+              >
+                <div className={`mb-2 ${display.themeMode === option.id ? 'text-flow-accent' : 'text-gray-400'}`}>
+                  {option.icon}
+                </div>
+                <span className="text-sm font-medium text-white">{option.label}</span>
+                <span className="text-xs text-gray-500 mt-1 text-center">{option.description}</span>
+              </button>
+            ))}
+          </div>
+          {display.themeMode === 'system' && (
+            <p className="mt-3 text-xs text-gray-500 flex items-center gap-1">
+              <Laptop size={12} />
+              Currently using: {getEffectiveTheme()} theme based on system preference
+            </p>
+          )}
+        </SettingSection>
+
+        <SettingSection title="Font Size" tooltip="Adjust the text size throughout the application.">
+          <div className="space-y-3">
+            {fontSizeOptions.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setDisplaySetting('fontSize', option.id)}
+                className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
+                  display.fontSize === option.id
+                    ? 'border-flow-accent bg-flow-accent/10'
+                    : 'border-gray-700 hover:border-gray-600 bg-gray-800/30'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Type size={18} className={display.fontSize === option.id ? 'text-flow-accent' : 'text-gray-400'} />
+                  <div className="text-left">
+                    <span className="text-sm font-medium text-white block">{option.label}</span>
+                    <span className="text-xs text-gray-500">{option.description}</span>
+                  </div>
+                </div>
+                {display.fontSize === option.id && (
+                  <Check size={16} className="text-flow-accent" />
+                )}
+              </button>
+            ))}
+          </div>
+        </SettingSection>
+
+        <SettingSection title="Font Family" tooltip="Choose your preferred typeface." defaultOpen={false}>
+          <div className="space-y-3">
+            {fontFamilyOptions.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setDisplaySetting('fontFamily', option.id)}
+                className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
+                  display.fontFamily === option.id
+                    ? 'border-flow-accent bg-flow-accent/10'
+                    : 'border-gray-700 hover:border-gray-600 bg-gray-800/30'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`text-lg ${option.id === 'mono' ? 'font-mono' : option.id === 'sans' ? 'font-sans' : 'font-system'} ${
+                      display.fontFamily === option.id ? 'text-flow-accent' : 'text-gray-400'
+                    }`}
+                  >
+                    {option.preview}
+                  </span>
+                  <div className="text-left">
+                    <span className="text-sm font-medium text-white block">{option.label}</span>
+                    <span className="text-xs text-gray-500">{option.description}</span>
+                  </div>
+                </div>
+                {display.fontFamily === option.id && (
+                  <Check size={16} className="text-flow-accent" />
+                )}
+              </button>
+            ))}
+          </div>
+        </SettingSection>
+
+        <SettingSection title="Accessibility" tooltip="Options to improve usability and reduce visual stress.">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-3">
+                <Accessibility size={18} className="text-gray-400" />
+                <div>
+                  <label className="text-sm text-gray-300 block">Reduced Motion</label>
+                  <span className="text-xs text-gray-500">Minimize animations and transitions</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={display.reducedMotion}
+                onClick={() => setDisplaySetting('reducedMotion', !display.reducedMotion)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/50 ${
+                  display.reducedMotion ? 'bg-flow-accent' : 'bg-gray-700'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${display.reducedMotion ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+            <div className="flex items-center justify-between py-2 border-t border-gray-800">
+              <div className="flex items-center gap-3">
+                <Eye size={18} className="text-gray-400" />
+                <div>
+                  <label className="text-sm text-gray-300 block">High Contrast</label>
+                  <span className="text-xs text-gray-500">Increase text and border contrast</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={display.highContrast}
+                onClick={() => setDisplaySetting('highContrast', !display.highContrast)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/50 ${
+                  display.highContrast ? 'bg-flow-accent' : 'bg-gray-700'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${display.highContrast ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+            <div className="flex items-center justify-between py-2 border-t border-gray-800">
+              <div className="flex items-center gap-3">
+                <Minimize2 size={18} className="text-gray-400" />
+                <div>
+                  <label className="text-sm text-gray-300 block">Compact Mode</label>
+                  <span className="text-xs text-gray-500">Reduce spacing for denser information</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={display.compactMode}
+                onClick={() => setDisplaySetting('compactMode', !display.compactMode)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/50 ${
+                  display.compactMode ? 'bg-flow-accent' : 'bg-gray-700'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${display.compactMode ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+          </div>
+        </SettingSection>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-screen bg-flow-bg">
       {/* Header */}
@@ -1124,16 +1328,21 @@ function SettingsPage({ onBack }: SettingsPageProps) {
 
       {/* Content */}
       <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-        {/* Settings Panel */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:max-w-2xl">
+        {/* Settings Panel - constrain width only when preview is shown (Replay tab) */}
+        <div className={`flex-1 overflow-y-auto p-4 sm:p-6 ${activeTab === 'replay' ? 'lg:max-w-2xl' : ''}`}>
+          {activeTab === 'display' && renderDisplaySettings()}
           {activeTab === 'replay' && renderReplaySettings()}
           {activeTab === 'workflow' && renderWorkflowSettings()}
           {activeTab === 'apikeys' && renderApiKeysSettings()}
         </div>
 
-        {/* Live Preview - Only show for replay tab */}
+        {/* Live Preview - Only show for replay tab
+            Force dark mode on preview container since replay content is designed for dark backgrounds */}
         {activeTab === 'replay' && (
-          <div className="lg:w-1/2 xl:w-3/5 border-t lg:border-t-0 lg:border-l border-gray-800 bg-gray-900/50 flex flex-col min-h-0 overflow-hidden">
+          <div
+            data-theme="dark"
+            className="lg:w-1/2 xl:w-3/5 border-t lg:border-t-0 lg:border-l border-gray-800 bg-gray-900/50 flex flex-col min-h-0 overflow-hidden"
+          >
             <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-800">
               <div className="flex items-center gap-2">
                 <Film size={16} className="text-gray-400" />

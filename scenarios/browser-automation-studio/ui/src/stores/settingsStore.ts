@@ -27,6 +27,7 @@ const STORAGE_PREFIX = 'browserAutomation.settings.';
 const PRESETS_STORAGE_KEY = `${STORAGE_PREFIX}replay.userPresets`;
 const WORKFLOW_DEFAULTS_KEY = `${STORAGE_PREFIX}workflowDefaults`;
 const API_KEYS_KEY = `${STORAGE_PREFIX}apiKeys`;
+const DISPLAY_SETTINGS_KEY = `${STORAGE_PREFIX}display`;
 
 // Storage helpers with error handling
 const safeGetItem = (key: string): string | null => {
@@ -101,6 +102,21 @@ export interface ApiKeySettings {
   openaiApiKey: string;
   anthropicApiKey: string;
   customApiEndpoint: string;
+}
+
+export type ThemeMode = 'light' | 'dark' | 'system';
+export type FontSize = 'small' | 'medium' | 'large';
+export type FontFamily = 'mono' | 'sans' | 'system';
+export type SidebarWidth = 'narrow' | 'default' | 'wide';
+
+export interface DisplaySettings {
+  themeMode: ThemeMode;
+  fontSize: FontSize;
+  fontFamily: FontFamily;
+  reducedMotion: boolean;
+  highContrast: boolean;
+  compactMode: boolean;
+  sidebarWidth: SidebarWidth;
 }
 
 export interface ReplayPreset {
@@ -209,6 +225,7 @@ interface SettingsStore {
   replay: ReplaySettings;
   workflowDefaults: WorkflowDefaultSettings;
   apiKeys: ApiKeySettings;
+  display: DisplaySettings;
   userPresets: ReplayPreset[];
   activePresetId: string | null;
   setReplaySetting: <K extends keyof ReplaySettings>(key: K, value: ReplaySettings[K]) => void;
@@ -222,6 +239,9 @@ interface SettingsStore {
   resetWorkflowDefaults: () => void;
   setApiKey: <K extends keyof ApiKeySettings>(key: K, value: ApiKeySettings[K]) => void;
   clearApiKeys: () => void;
+  setDisplaySetting: <K extends keyof DisplaySettings>(key: K, value: DisplaySettings[K]) => void;
+  resetDisplaySettings: () => void;
+  getEffectiveTheme: () => 'light' | 'dark';
 }
 
 const loadReplaySettings = (): ReplaySettings => {
@@ -288,6 +308,16 @@ const getDefaultApiKeySettings = (): ApiKeySettings => ({
   customApiEndpoint: '',
 });
 
+const getDefaultDisplaySettings = (): DisplaySettings => ({
+  themeMode: 'dark',
+  fontSize: 'medium',
+  fontFamily: 'mono',
+  reducedMotion: false,
+  highContrast: false,
+  compactMode: false,
+  sidebarWidth: 'default',
+});
+
 const loadWorkflowDefaults = (): WorkflowDefaultSettings => {
   try {
     const stored = safeGetItem(WORKFLOW_DEFAULTS_KEY);
@@ -316,6 +346,60 @@ const loadApiKeySettings = (): ApiKeySettings => {
 
 const saveApiKeySettings = (settings: ApiKeySettings): void => {
   safeSetItem(API_KEYS_KEY, JSON.stringify(settings));
+};
+
+const loadDisplaySettings = (): DisplaySettings => {
+  try {
+    const stored = safeGetItem(DISPLAY_SETTINGS_KEY);
+    if (!stored) return getDefaultDisplaySettings();
+    const parsed = JSON.parse(stored);
+    return { ...getDefaultDisplaySettings(), ...parsed };
+  } catch {
+    return getDefaultDisplaySettings();
+  }
+};
+
+const saveDisplaySettings = (settings: DisplaySettings): void => {
+  safeSetItem(DISPLAY_SETTINGS_KEY, JSON.stringify(settings));
+};
+
+// Detect system color scheme preference
+const getSystemTheme = (): 'light' | 'dark' => {
+  if (typeof window === 'undefined') return 'dark';
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+};
+
+// Detect system reduced motion preference
+const getSystemReducedMotion = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+};
+
+// Apply theme to document
+const applyTheme = (settings: DisplaySettings): void => {
+  if (typeof window === 'undefined') return;
+
+  const root = document.documentElement;
+
+  // Determine effective theme
+  const effectiveTheme = settings.themeMode === 'system' ? getSystemTheme() : settings.themeMode;
+  root.setAttribute('data-theme', effectiveTheme);
+
+  // Apply font size class
+  root.setAttribute('data-font-size', settings.fontSize);
+
+  // Apply font family class
+  root.setAttribute('data-font-family', settings.fontFamily);
+
+  // Apply reduced motion
+  const effectiveReducedMotion = settings.reducedMotion || getSystemReducedMotion();
+  root.setAttribute('data-reduced-motion', String(effectiveReducedMotion));
+
+  // Apply high contrast
+  root.setAttribute('data-high-contrast', String(settings.highContrast));
+
+  // Apply compact mode
+  root.setAttribute('data-compact', String(settings.compactMode));
 };
 
 // Load user presets from localStorage
@@ -369,10 +453,25 @@ const generateRandomSettings = (): ReplaySettings => {
   };
 };
 
+// Initialize display settings and apply theme on load
+const initialDisplaySettings = loadDisplaySettings();
+if (typeof window !== 'undefined') {
+  applyTheme(initialDisplaySettings);
+
+  // Listen for system theme changes
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    const current = loadDisplaySettings();
+    if (current.themeMode === 'system') {
+      applyTheme(current);
+    }
+  });
+}
+
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
   replay: loadReplaySettings(),
   workflowDefaults: loadWorkflowDefaults(),
   apiKeys: loadApiKeySettings(),
+  display: initialDisplaySettings,
   userPresets: loadUserPresets(),
   activePresetId: null,
 
@@ -483,6 +582,25 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     const defaults = getDefaultApiKeySettings();
     saveApiKeySettings(defaults);
     set({ apiKeys: defaults });
+  },
+
+  setDisplaySetting: (key, value) => {
+    const updated = { ...get().display, [key]: value };
+    saveDisplaySettings(updated);
+    applyTheme(updated);
+    set({ display: updated });
+  },
+
+  resetDisplaySettings: () => {
+    const defaults = getDefaultDisplaySettings();
+    saveDisplaySettings(defaults);
+    applyTheme(defaults);
+    set({ display: defaults });
+  },
+
+  getEffectiveTheme: () => {
+    const { themeMode } = get().display;
+    return themeMode === 'system' ? getSystemTheme() : themeMode;
   },
 }));
 

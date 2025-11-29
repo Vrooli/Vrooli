@@ -3,67 +3,259 @@
 @tailwind utilities;
 
 @layer base {
+  /* Dark theme (default) - RGB values for Tailwind opacity support */
+  :root,
+  [data-theme="dark"] {
+    --flow-bg: 13 14 20;
+    --flow-bg-secondary: 17 19 24;
+    --flow-node: 26 29 41;
+    --flow-node-hover: 37 40 55;
+    --flow-edge: 74 85 104;
+    --flow-accent: 59 130 246;
+    --flow-accent-hover: 37 99 235;
+    --flow-text: 243 244 246;
+    --flow-text-secondary: 156 163 175;
+    --flow-text-muted: 107 114 128;
+    --flow-border: 55 65 81;
+    --flow-border-light: 75 85 99;
+    --flow-success: 34 197 94;
+    --flow-warning: 245 158 11;
+    --flow-error: 239 68 68;
+    --flow-surface: 31 41 55;
+    --flow-surface-hover: 55 65 81;
+    --scrollbar-bg: 13 14 20;
+    --scrollbar-thumb: 55 65 81;
+    --scrollbar-thumb-hover: 75 85 99;
+
+    /* Theme-aware gray scale (maps to Tailwind's gray-*) */
+    --gray-50: 249 250 251;
+    --gray-100: 243 244 246;
+    --gray-200: 229 231 235;
+    --gray-300: 209 213 219;
+    --gray-400: 156 163 175;
+    --gray-500: 107 114 128;
+    --gray-600: 75 85 99;
+    --gray-700: 55 65 81;
+    --gray-800: 31 41 55;
+    --gray-900: 17 24 39;
+    --gray-950: 3 7 18;
+
+    /* White stays white for text in dark mode */
+    --color-white: 255 255 255;
+    /* Black stays black for overlays in dark mode */
+    --color-black: 0 0 0;
+  }
+
+  /* Light theme - RGB values for Tailwind opacity support */
+  [data-theme="light"] {
+    --flow-bg: 248 250 252;
+    --flow-bg-secondary: 241 245 249;
+    --flow-node: 255 255 255;
+    --flow-node-hover: 241 245 249;
+    --flow-edge: 148 163 184;
+    --flow-accent: 37 99 235;
+    --flow-accent-hover: 29 78 216;
+    --flow-text: 15 23 42;
+    --flow-text-secondary: 71 85 105;
+    --flow-text-muted: 100 116 139;
+    --flow-border: 203 213 225;
+    --flow-border-light: 226 232 240;
+    --flow-success: 22 163 74;
+    --flow-warning: 217 119 6;
+    --flow-error: 220 38 38;
+    --flow-surface: 255 255 255;
+    --flow-surface-hover: 241 245 249;
+    --scrollbar-bg: 248 250 252;
+    --scrollbar-thumb: 203 213 225;
+    --scrollbar-thumb-hover: 148 163 184;
+
+    /* Light theme: invert gray scale semantically
+       Dark backgrounds become light, light text becomes dark */
+    --gray-50: 3 7 18;
+    --gray-100: 17 24 39;
+    --gray-200: 31 41 55;
+    --gray-300: 55 65 81;
+    --gray-400: 75 85 99;
+    --gray-500: 107 114 128;
+    --gray-600: 156 163 175;
+    --gray-700: 203 213 225;
+    --gray-800: 226 232 240;
+    --gray-900: 241 245 249;
+    --gray-950: 248 250 252;
+
+    /* White becomes dark for text in light mode */
+    --color-white: 15 23 42;
+    /* Black stays black for overlays (or slightly lighter for better aesthetics) */
+    --color-black: 0 0 0;
+  }
+
+  /* High contrast mode */
+  [data-high-contrast="true"] {
+    --flow-text: 255 255 255;
+    --flow-text-secondary: 229 231 235;
+    --flow-text-muted: 209 213 219;
+    --flow-border: 107 114 128;
+    --flow-accent: 96 165 250;
+  }
+
+  [data-theme="light"][data-high-contrast="true"] {
+    --flow-text: 0 0 0;
+    --flow-text-secondary: 31 41 55;
+    --flow-text-muted: 55 65 81;
+    --flow-border: 55 65 81;
+    --flow-accent: 29 78 216;
+  }
+
+  /* Font size scaling */
+  :root,
+  [data-font-size="medium"] {
+    --font-size-base: 1rem;
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --spacing-scale: 1;
+  }
+
+  [data-font-size="small"] {
+    --font-size-base: 0.875rem;
+    --font-size-xs: 0.625rem;
+    --font-size-sm: 0.75rem;
+    --font-size-lg: 1rem;
+    --font-size-xl: 1.125rem;
+    --font-size-2xl: 1.25rem;
+    --spacing-scale: 0.9;
+  }
+
+  [data-font-size="large"] {
+    --font-size-base: 1.125rem;
+    --font-size-xs: 0.875rem;
+    --font-size-sm: 1rem;
+    --font-size-lg: 1.25rem;
+    --font-size-xl: 1.5rem;
+    --font-size-2xl: 1.75rem;
+    --spacing-scale: 1.1;
+  }
+
+  /* Font family */
+  [data-font-family="mono"] {
+    --font-family-base: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  [data-font-family="sans"] {
+    --font-family-base: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  [data-font-family="system"] {
+    --font-family-base: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  /* Reduced motion */
+  [data-reduced-motion="true"],
+  [data-reduced-motion="true"] * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Compact mode - reduces spacing throughout the UI */
   :root {
-    --flow-bg: #0d0e14;
-    --flow-node: #1a1d29;
-    --flow-node-hover: #252837;
-    --flow-edge: #4a5568;
-    --flow-accent: #3b82f6;
+    /* Base spacing values in rem that scale with compact mode */
+    --space-1: 0.25rem;  /* 4px */
+    --space-2: 0.5rem;   /* 8px */
+    --space-3: 0.75rem;  /* 12px */
+    --space-4: 1rem;     /* 16px */
+    --space-5: 1.25rem;  /* 20px */
+    --space-6: 1.5rem;   /* 24px */
+    --space-8: 2rem;     /* 32px */
+    /* Component-specific spacing */
+    --card-padding: var(--space-4);
+    --section-gap: var(--space-6);
+    --item-gap: var(--space-3);
   }
-  
+
+  [data-compact="true"] {
+    --spacing-scale: 0.85;
+    /* Tighter spacing for compact mode */
+    --space-1: 0.1875rem;  /* 3px */
+    --space-2: 0.375rem;   /* 6px */
+    --space-3: 0.5rem;     /* 8px */
+    --space-4: 0.75rem;    /* 12px */
+    --space-5: 1rem;       /* 16px */
+    --space-6: 1.25rem;    /* 20px */
+    --space-8: 1.5rem;     /* 24px */
+    /* Component-specific spacing */
+    --card-padding: var(--space-3);
+    --section-gap: var(--space-4);
+    --item-gap: var(--space-2);
+  }
+
   * {
-    border-color: theme('colors.gray.700');
+    border-color: rgb(var(--flow-border));
   }
-  
+
   body {
-    @apply bg-flow-bg text-gray-100 font-mono;
+    background-color: rgb(var(--flow-bg));
+    color: rgb(var(--flow-text));
+    font-family: var(--font-family-base, ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace);
+    font-size: var(--font-size-base);
   }
 }
 
 @layer components {
   .workflow-node {
-    @apply bg-flow-node border border-gray-700 rounded-lg p-3 min-w-[200px] shadow-lg hover:shadow-xl transition-all hover:border-flow-accent;
+    @apply bg-flow-node border border-gray-700 rounded-lg min-w-[200px] shadow-lg hover:shadow-xl transition-all hover:border-flow-accent;
+    padding: var(--space-3);
   }
-  
+
   .workflow-node.selected {
     @apply border-flow-accent shadow-xl shadow-blue-500/20;
   }
-  
+
   .node-handle {
     @apply w-3 h-3 bg-flow-accent border-2 border-flow-bg rounded-full;
   }
-  
+
   .terminal-output {
-    @apply bg-terminal-bg text-terminal-text p-4 rounded-lg font-mono text-sm overflow-auto;
+    @apply bg-terminal-bg text-terminal-text rounded-lg font-mono text-sm overflow-auto;
+    padding: var(--space-4);
     max-height: 400px;
     white-space: pre-wrap;
     word-break: break-word;
   }
-  
+
   .screenshot-viewer {
     @apply bg-gray-900 rounded-lg overflow-hidden;
   }
-  
+
   .workflow-toolbar {
-    @apply bg-flow-node/90 backdrop-blur-sm border border-gray-700 rounded-lg p-2 flex gap-2;
+    @apply bg-flow-node/90 backdrop-blur-sm border border-gray-700 rounded-lg flex;
+    padding: var(--space-2);
+    gap: var(--space-2);
   }
-  
+
   .toolbar-button {
-    @apply p-2 rounded-md bg-flow-bg hover:bg-flow-node-hover transition-colors text-gray-400 hover:text-white;
+    @apply rounded-md bg-flow-bg hover:bg-flow-node-hover transition-colors text-gray-400 hover:text-white;
+    padding: var(--space-2);
   }
-  
+
   .toolbar-button.active {
     @apply bg-flow-accent text-white;
   }
-  
+
   .folder-tree {
-    @apply bg-flow-node rounded-lg p-4;
+    @apply bg-flow-node rounded-lg;
+    padding: var(--space-4);
   }
-  
+
   .folder-item {
-    @apply flex items-center gap-2 py-1 px-2 rounded hover:bg-flow-node-hover cursor-pointer transition-colors;
+    @apply flex items-center rounded hover:bg-flow-node-hover cursor-pointer transition-colors;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
   }
-  
+
   .folder-item.selected {
     @apply bg-flow-accent/20 text-flow-accent;
   }
@@ -112,15 +304,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-flow-bg;
+  background-color: rgb(var(--scrollbar-bg));
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-700 rounded;
+  background-color: rgb(var(--scrollbar-thumb));
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-600;
+  background-color: rgb(var(--scrollbar-thumb-hover));
 }
 
 @keyframes cursor-click-pulse {
@@ -187,25 +380,30 @@
 /* Improved button states */
 @layer components {
   .btn-primary {
-    @apply bg-flow-accent hover:bg-blue-600 active:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-flow-bg disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-flow-accent hover:bg-blue-600 active:bg-blue-700 text-white rounded-lg font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-flow-bg disabled:opacity-50 disabled:cursor-not-allowed;
+    padding: var(--space-2) var(--space-4);
   }
 
   .btn-secondary {
-    @apply bg-flow-node hover:bg-flow-node-hover active:bg-gray-700 text-gray-200 px-4 py-2 rounded-lg font-medium border border-gray-700 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-flow-bg disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-flow-node hover:bg-flow-node-hover active:bg-gray-700 text-gray-200 rounded-lg font-medium border border-gray-700 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-flow-bg disabled:opacity-50 disabled:cursor-not-allowed;
+    padding: var(--space-2) var(--space-4);
   }
 
   .btn-ghost {
-    @apply hover:bg-gray-800 active:bg-gray-700 text-gray-400 hover:text-white px-3 py-2 rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent/60 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply hover:bg-gray-800 active:bg-gray-700 text-gray-400 hover:text-white rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent/60 disabled:opacity-50 disabled:cursor-not-allowed;
+    padding: var(--space-2) var(--space-3);
   }
 
   /* Input focus states */
   .input-field {
-    @apply bg-flow-node border border-gray-700 rounded-lg text-white placeholder-gray-500 px-3 py-2 transition-all duration-150 focus:outline-none focus:border-flow-accent focus:ring-2 focus:ring-flow-accent/30 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-flow-node border border-gray-700 rounded-lg text-white placeholder-gray-500 transition-all duration-150 focus:outline-none focus:border-flow-accent focus:ring-2 focus:ring-flow-accent/30 disabled:opacity-50 disabled:cursor-not-allowed;
+    padding: var(--space-2) var(--space-3);
   }
 
   /* Card styles */
   .card {
-    @apply bg-flow-node border border-gray-700 rounded-lg p-4 transition-all duration-200;
+    @apply bg-flow-node border border-gray-700 rounded-lg transition-all duration-200;
+    padding: var(--card-padding);
   }
 
   .card-interactive {

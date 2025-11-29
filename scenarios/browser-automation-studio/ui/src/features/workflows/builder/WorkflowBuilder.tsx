@@ -27,6 +27,7 @@ import type {
   ViewportPreset,
 } from "@stores/workflowStore";
 import { useWorkflowStore } from "@stores/workflowStore";
+import { useSettingsStore } from "@stores/settingsStore";
 import type {
   WorkflowDefinition,
   WorkflowValidationResult,
@@ -109,16 +110,22 @@ const nodeTypes: NodeTypes = {
   loop: LoopNode,
 };
 
-const defaultEdgeOptions = {
+// Edge marker colors by theme - darker for light mode, lighter for dark mode
+const EDGE_MARKER_COLORS = {
+  dark: "#6b7280",  // gray-500 - visible on dark backgrounds
+  light: "#4b5563", // gray-600 - visible on light backgrounds
+} as const;
+
+const createEdgeOptions = (theme: "light" | "dark") => ({
   animated: true,
   type: "smoothstep",
   markerEnd: {
     type: MarkerType.ArrowClosed,
     width: 20,
     height: 20,
-    color: "#4a5568",
+    color: EDGE_MARKER_COLORS[theme],
   },
-};
+});
 
 const DEFAULT_DESKTOP_VIEWPORT: ExecutionViewportSettings = {
   width: 1920,
@@ -206,6 +213,14 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
   );
   const scheduleAutosave = useWorkflowStore((state) => state.scheduleAutosave);
   const cancelAutosave = useWorkflowStore((state) => state.cancelAutosave);
+
+  // Theme-aware edge options
+  const getEffectiveTheme = useSettingsStore((state) => state.getEffectiveTheme);
+  const effectiveTheme = getEffectiveTheme();
+  const defaultEdgeOptions = useMemo(
+    () => createEdgeOptions(effectiveTheme),
+    [effectiveTheme],
+  );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(storeNodes || []);
   const [edges, setEdges, onEdgesChange] = useEdgesState(storeEdges || []);
