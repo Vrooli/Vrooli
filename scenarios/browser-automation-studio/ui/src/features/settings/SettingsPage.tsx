@@ -52,6 +52,190 @@ interface SettingsPageProps {
 }
 
 // Demo frames for the live preview
+// Demo frame 1: Modern landing page with navigation, hero section, and feature cards
+const DEMO_FRAME_1_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="heroGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e293b"/>
+      <stop offset="100%" style="stop-color:#0f172a"/>
+    </linearGradient>
+    <linearGradient id="btnGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#6366f1"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect fill="url(#heroGrad)" width="1920" height="1080"/>
+  <!-- Decorative circles -->
+  <circle cx="1600" cy="200" r="300" fill="#3b82f6" opacity="0.05"/>
+  <circle cx="200" cy="800" r="250" fill="#6366f1" opacity="0.05"/>
+  <!-- Navigation bar -->
+  <rect fill="#0f172a" width="1920" height="72" opacity="0.9"/>
+  <rect x="80" y="22" width="120" height="28" rx="6" fill="#3b82f6"/>
+  <text x="140" y="43" font-family="system-ui" font-size="16" fill="white" text-anchor="middle" font-weight="bold">AutoFlow</text>
+  <text x="300" y="43" font-family="system-ui" font-size="14" fill="#94a3b8">Products</text>
+  <text x="420" y="43" font-family="system-ui" font-size="14" fill="#94a3b8">Solutions</text>
+  <text x="540" y="43" font-family="system-ui" font-size="14" fill="#94a3b8">Pricing</text>
+  <text x="660" y="43" font-family="system-ui" font-size="14" fill="#94a3b8">Docs</text>
+  <rect x="1680" y="22" width="160" height="40" rx="8" fill="url(#btnGrad)"/>
+  <text x="1760" y="48" font-family="system-ui" font-size="14" fill="white" text-anchor="middle" font-weight="600">Get Started</text>
+  <!-- Hero section -->
+  <text x="960" y="320" font-family="system-ui" font-size="64" fill="white" text-anchor="middle" font-weight="bold">Automate Your Workflow</text>
+  <text x="960" y="390" font-family="system-ui" font-size="24" fill="#94a3b8" text-anchor="middle">Build, test, and deploy browser automations in minutes</text>
+  <!-- CTA buttons -->
+  <rect x="780" y="450" width="180" height="56" rx="12" fill="url(#btnGrad)"/>
+  <text x="870" y="486" font-family="system-ui" font-size="18" fill="white" text-anchor="middle" font-weight="600">Start Free</text>
+  <rect x="980" y="450" width="180" height="56" rx="12" fill="none" stroke="#475569" stroke-width="2"/>
+  <text x="1070" y="486" font-family="system-ui" font-size="18" fill="#94a3b8" text-anchor="middle">Watch Demo</text>
+  <!-- Feature cards -->
+  <rect x="240" y="600" width="440" height="200" rx="16" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <circle cx="300" cy="660" r="24" fill="#3b82f6" opacity="0.2"/>
+  <text x="300" y="668" font-family="system-ui" font-size="20" fill="#3b82f6" text-anchor="middle">⚡</text>
+  <text x="360" y="668" font-family="system-ui" font-size="20" fill="white" font-weight="600">Fast Execution</text>
+  <text x="280" y="720" font-family="system-ui" font-size="14" fill="#64748b">Run automations 10x faster with</text>
+  <text x="280" y="745" font-family="system-ui" font-size="14" fill="#64748b">our optimized browser engine</text>
+  <rect x="740" y="600" width="440" height="200" rx="16" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <circle cx="800" cy="660" r="24" fill="#22c55e" opacity="0.2"/>
+  <text x="800" y="668" font-family="system-ui" font-size="20" fill="#22c55e" text-anchor="middle">✓</text>
+  <text x="860" y="668" font-family="system-ui" font-size="20" fill="white" font-weight="600">Visual Builder</text>
+  <text x="780" y="720" font-family="system-ui" font-size="14" fill="#64748b">No code required. Build workflows</text>
+  <text x="780" y="745" font-family="system-ui" font-size="14" fill="#64748b">with drag-and-drop interface</text>
+  <rect x="1240" y="600" width="440" height="200" rx="16" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <circle cx="1300" cy="660" r="24" fill="#a855f7" opacity="0.2"/>
+  <text x="1300" y="668" font-family="system-ui" font-size="20" fill="#a855f7" text-anchor="middle">🔄</text>
+  <text x="1360" y="668" font-family="system-ui" font-size="20" fill="white" font-weight="600">Smart Retries</text>
+  <text x="1280" y="720" font-family="system-ui" font-size="14" fill="#64748b">Auto-healing selectors and</text>
+  <text x="1280" y="745" font-family="system-ui" font-size="14" fill="#64748b">intelligent retry mechanisms</text>
+  <!-- Stats bar -->
+  <rect x="0" y="880" width="1920" height="120" fill="#0f172a"/>
+  <text x="380" y="945" font-family="system-ui" font-size="36" fill="white" text-anchor="middle" font-weight="bold">10M+</text>
+  <text x="380" y="980" font-family="system-ui" font-size="14" fill="#64748b" text-anchor="middle">Automations Run</text>
+  <text x="760" y="945" font-family="system-ui" font-size="36" fill="white" text-anchor="middle" font-weight="bold">99.9%</text>
+  <text x="760" y="980" font-family="system-ui" font-size="14" fill="#64748b" text-anchor="middle">Uptime</text>
+  <text x="1140" y="945" font-family="system-ui" font-size="36" fill="white" text-anchor="middle" font-weight="bold">50K+</text>
+  <text x="1140" y="980" font-family="system-ui" font-size="14" fill="#64748b" text-anchor="middle">Active Users</text>
+  <text x="1520" y="945" font-family="system-ui" font-size="36" fill="white" text-anchor="middle" font-weight="bold">4.9★</text>
+  <text x="1520" y="980" font-family="system-ui" font-size="14" fill="#64748b" text-anchor="middle">User Rating</text>
+</svg>`;
+
+// Demo frame 2: Signup form with email input focused
+const DEMO_FRAME_2_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="bgGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="100%" style="stop-color:#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e293b"/>
+      <stop offset="100%" style="stop-color:#0f172a"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect fill="url(#bgGrad2)" width="1920" height="1080"/>
+  <!-- Decorative elements -->
+  <circle cx="200" cy="200" r="400" fill="#3b82f6" opacity="0.03"/>
+  <circle cx="1700" cy="900" r="350" fill="#6366f1" opacity="0.03"/>
+  <!-- Navigation -->
+  <rect fill="#0f172a" width="1920" height="72" opacity="0.95"/>
+  <rect x="80" y="22" width="120" height="28" rx="6" fill="#3b82f6"/>
+  <text x="140" y="43" font-family="system-ui" font-size="16" fill="white" text-anchor="middle" font-weight="bold">AutoFlow</text>
+  <text x="1760" y="43" font-family="system-ui" font-size="14" fill="#94a3b8" text-anchor="middle">Already have an account? Sign in</text>
+  <!-- Main card container -->
+  <rect x="560" y="160" width="800" height="760" rx="24" fill="url(#cardGrad)" stroke="#334155" stroke-width="1"/>
+  <!-- Card header -->
+  <text x="960" y="240" font-family="system-ui" font-size="36" fill="white" text-anchor="middle" font-weight="bold">Create your account</text>
+  <text x="960" y="285" font-family="system-ui" font-size="16" fill="#64748b" text-anchor="middle">Start automating in less than 2 minutes</text>
+  <!-- Social login buttons -->
+  <rect x="640" y="330" width="280" height="50" rx="10" fill="#1e293b" stroke="#334155"/>
+  <text x="780" y="362" font-family="system-ui" font-size="14" fill="white" text-anchor="middle">Continue with Google</text>
+  <rect x="1000" y="330" width="280" height="50" rx="10" fill="#1e293b" stroke="#334155"/>
+  <text x="1140" y="362" font-family="system-ui" font-size="14" fill="white" text-anchor="middle">Continue with GitHub</text>
+  <!-- Divider -->
+  <line x1="640" y1="420" x2="880" y2="420" stroke="#334155" stroke-width="1"/>
+  <text x="960" y="425" font-family="system-ui" font-size="14" fill="#64748b" text-anchor="middle">or</text>
+  <line x1="1040" y1="420" x2="1280" y2="420" stroke="#334155" stroke-width="1"/>
+  <!-- Form fields -->
+  <text x="640" y="480" font-family="system-ui" font-size="14" fill="#94a3b8">Full Name</text>
+  <rect x="640" y="495" width="640" height="52" rx="10" fill="#0f172a" stroke="#334155"/>
+  <text x="660" y="528" font-family="system-ui" font-size="16" fill="#64748b">Enter your name</text>
+  <!-- Email field - highlighted as active -->
+  <text x="640" y="585" font-family="system-ui" font-size="14" fill="#94a3b8">Email Address</text>
+  <rect x="640" y="600" width="640" height="52" rx="10" fill="#0f172a" stroke="#3b82f6" stroke-width="2"/>
+  <rect x="640" y="600" width="640" height="52" rx="10" fill="#3b82f6" opacity="0.05"/>
+  <text x="660" y="633" font-family="system-ui" font-size="16" fill="white">|</text>
+  <text x="640" y="670" font-family="system-ui" font-size="12" fill="#3b82f6">We'll send you a verification link</text>
+  <!-- Password field -->
+  <text x="640" y="710" font-family="system-ui" font-size="14" fill="#94a3b8">Password</text>
+  <rect x="640" y="725" width="640" height="52" rx="10" fill="#0f172a" stroke="#334155"/>
+  <text x="660" y="758" font-family="system-ui" font-size="16" fill="#64748b">Create a strong password</text>
+  <!-- Submit button -->
+  <rect x="640" y="810" width="640" height="56" rx="12" fill="#3b82f6"/>
+  <text x="960" y="846" font-family="system-ui" font-size="18" fill="white" text-anchor="middle" font-weight="600">Create Account</text>
+  <!-- Terms -->
+  <text x="960" y="895" font-family="system-ui" font-size="12" fill="#64748b" text-anchor="middle">By signing up, you agree to our Terms of Service and Privacy Policy</text>
+</svg>`;
+
+// Demo frame 3: Success state with confirmation
+const DEMO_FRAME_3_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="bgGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="100%" style="stop-color:#042f2e"/>
+    </linearGradient>
+    <linearGradient id="successGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22c55e"/>
+      <stop offset="100%" style="stop-color:#16a34a"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect fill="url(#bgGrad3)" width="1920" height="1080"/>
+  <!-- Decorative elements -->
+  <circle cx="960" cy="540" r="500" fill="#22c55e" opacity="0.02"/>
+  <circle cx="960" cy="540" r="350" fill="#22c55e" opacity="0.03"/>
+  <!-- Navigation -->
+  <rect fill="#0f172a" width="1920" height="72" opacity="0.95"/>
+  <rect x="80" y="22" width="120" height="28" rx="6" fill="#22c55e"/>
+  <text x="140" y="43" font-family="system-ui" font-size="16" fill="white" text-anchor="middle" font-weight="bold">AutoFlow</text>
+  <!-- Success icon -->
+  <circle cx="960" cy="320" r="80" fill="url(#successGrad)"/>
+  <path d="M920 320 L945 345 L1005 285" stroke="white" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Success message -->
+  <text x="960" y="460" font-family="system-ui" font-size="42" fill="white" text-anchor="middle" font-weight="bold">Account Created Successfully!</text>
+  <text x="960" y="510" font-family="system-ui" font-size="18" fill="#94a3b8" text-anchor="middle">Welcome to AutoFlow. We've sent a verification email to</text>
+  <text x="960" y="545" font-family="system-ui" font-size="18" fill="#22c55e" text-anchor="middle" font-weight="600">user@example.com</text>
+  <!-- Action card -->
+  <rect x="610" y="600" width="700" height="180" rx="20" fill="#1e293b" stroke="#22c55e" stroke-width="2" opacity="0.8"/>
+  <text x="960" y="660" font-family="system-ui" font-size="20" fill="white" text-anchor="middle" font-weight="600">What's Next?</text>
+  <text x="960" y="700" font-family="system-ui" font-size="16" fill="#94a3b8" text-anchor="middle">Check your email and click the verification link to get started.</text>
+  <rect x="810" y="730" width="300" height="44" rx="10" fill="url(#successGrad)"/>
+  <text x="960" y="759" font-family="system-ui" font-size="16" fill="white" text-anchor="middle" font-weight="600">Go to Dashboard →</text>
+  <!-- Progress indicators -->
+  <g transform="translate(660, 850)">
+    <circle cx="0" cy="0" r="16" fill="#22c55e"/>
+    <text x="0" y="5" font-family="system-ui" font-size="12" fill="white" text-anchor="middle" font-weight="bold">1</text>
+    <line x1="16" y1="0" x2="200" y2="0" stroke="#22c55e" stroke-width="3"/>
+    <circle cx="200" cy="0" r="16" fill="#22c55e"/>
+    <text x="200" y="5" font-family="system-ui" font-size="12" fill="white" text-anchor="middle" font-weight="bold">2</text>
+    <line x1="216" y1="0" x2="400" y2="0" stroke="#22c55e" stroke-width="3"/>
+    <circle cx="400" cy="0" r="16" fill="#22c55e"/>
+    <text x="400" y="5" font-family="system-ui" font-size="12" fill="white" text-anchor="middle" font-weight="bold">3</text>
+    <line x1="416" y1="0" x2="600" y2="0" stroke="#334155" stroke-width="3" stroke-dasharray="8,4"/>
+    <circle cx="600" cy="0" r="16" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+    <text x="600" y="5" font-family="system-ui" font-size="12" fill="#64748b" text-anchor="middle">4</text>
+    <text x="0" y="40" font-family="system-ui" font-size="12" fill="#94a3b8" text-anchor="middle">Sign Up</text>
+    <text x="200" y="40" font-family="system-ui" font-size="12" fill="#94a3b8" text-anchor="middle">Verify</text>
+    <text x="400" y="40" font-family="system-ui" font-size="12" fill="#22c55e" text-anchor="middle">Complete</text>
+    <text x="600" y="40" font-family="system-ui" font-size="12" fill="#64748b" text-anchor="middle">Start</text>
+  </g>
+  <!-- Confetti dots -->
+  <circle cx="300" cy="300" r="6" fill="#22c55e" opacity="0.6"/>
+  <circle cx="1600" cy="400" r="8" fill="#3b82f6" opacity="0.5"/>
+  <circle cx="400" cy="700" r="5" fill="#a855f7" opacity="0.4"/>
+  <circle cx="1500" cy="250" r="7" fill="#f59e0b" opacity="0.5"/>
+  <circle cx="250" cy="500" r="4" fill="#22c55e" opacity="0.3"/>
+  <circle cx="1650" cy="650" r="6" fill="#ec4899" opacity="0.4"/>
+</svg>`;
+
 const createDemoFrames = (): ReplayFrame[] => [
   {
     id: 'demo-1',
@@ -60,14 +244,14 @@ const createDemoFrames = (): ReplayFrame[] => [
     status: 'completed',
     success: true,
     durationMs: 1200,
-    finalUrl: 'https://example.com',
+    finalUrl: 'https://autoflow.app',
     screenshot: {
       artifactId: 'demo-screenshot-1',
-      url: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080"%3E%3Crect fill="%231e293b" width="1920" height="1080"/%3E%3Ctext x="960" y="540" font-family="system-ui" font-size="48" fill="%2394a3b8" text-anchor="middle"%3EExample.com%3C/text%3E%3Crect x="760" y="400" width="400" height="60" rx="8" fill="%233b82f6"/%3E%3Ctext x="960" y="440" font-family="system-ui" font-size="24" fill="white" text-anchor="middle"%3EGet Started%3C/text%3E%3C/svg%3E',
+      url: `data:image/svg+xml,${encodeURIComponent(DEMO_FRAME_1_SVG)}`,
       width: 1920,
       height: 1080,
     },
-    clickPosition: { x: 960, y: 430 },
+    clickPosition: { x: 1760, y: 42 },
   },
   {
     id: 'demo-2',
@@ -76,15 +260,16 @@ const createDemoFrames = (): ReplayFrame[] => [
     status: 'completed',
     success: true,
     durationMs: 800,
+    finalUrl: 'https://autoflow.app/signup',
     screenshot: {
       artifactId: 'demo-screenshot-2',
-      url: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080"%3E%3Crect fill="%230f172a" width="1920" height="1080"/%3E%3Ctext x="960" y="300" font-family="system-ui" font-size="56" fill="white" text-anchor="middle"%3EWelcome!%3C/text%3E%3Ctext x="960" y="380" font-family="system-ui" font-size="24" fill="%2394a3b8" text-anchor="middle"%3EYour automation is running%3C/text%3E%3Crect x="660" y="500" width="600" height="200" rx="12" fill="%231e293b" stroke="%233b82f6" stroke-width="2"/%3E%3Ctext x="960" y="580" font-family="system-ui" font-size="20" fill="%2394a3b8" text-anchor="middle"%3EEnter your email%3C/text%3E%3Crect x="710" y="620" width="500" height="50" rx="6" fill="%230f172a"/%3E%3C/svg%3E',
+      url: `data:image/svg+xml,${encodeURIComponent(DEMO_FRAME_2_SVG)}`,
       width: 1920,
       height: 1080,
     },
-    clickPosition: { x: 960, y: 645 },
+    clickPosition: { x: 960, y: 626 },
     highlightRegions: [
-      { boundingBox: { x: 660, y: 500, width: 600, height: 200 }, color: 'rgba(59,130,246,0.3)' },
+      { boundingBox: { x: 640, y: 600, width: 640, height: 52 }, color: 'rgba(59,130,246,0.25)' },
     ],
   },
   {
@@ -94,17 +279,18 @@ const createDemoFrames = (): ReplayFrame[] => [
     status: 'completed',
     success: true,
     durationMs: 1500,
+    finalUrl: 'https://autoflow.app/welcome',
     screenshot: {
       artifactId: 'demo-screenshot-3',
-      url: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080"%3E%3Crect fill="%230f172a" width="1920" height="1080"/%3E%3Ctext x="960" y="300" font-family="system-ui" font-size="56" fill="white" text-anchor="middle"%3EWelcome!%3C/text%3E%3Crect x="660" y="500" width="600" height="200" rx="12" fill="%231e293b" stroke="%2322c55e" stroke-width="2"/%3E%3Ctext x="960" y="580" font-family="system-ui" font-size="20" fill="%2394a3b8" text-anchor="middle"%3EEnter your email%3C/text%3E%3Crect x="710" y="620" width="500" height="50" rx="6" fill="%230f172a" stroke="%2322c55e"/%3E%3Ctext x="730" y="652" font-family="monospace" font-size="18" fill="white"%3Euser@example.com%3C/text%3E%3Ccircle cx="960" cy="800" r="40" fill="%2322c55e"/%3E%3Cpath d="M940 800 L955 815 L985 785" stroke="white" stroke-width="4" fill="none"/%3E%3C/svg%3E',
+      url: `data:image/svg+xml,${encodeURIComponent(DEMO_FRAME_3_SVG)}`,
       width: 1920,
       height: 1080,
     },
     assertion: {
       mode: 'exists',
-      selector: 'input[type="email"]',
+      selector: '.success-message',
       success: true,
-      message: 'Email input found',
+      message: 'Account creation successful',
     },
   },
 ];
@@ -431,8 +617,8 @@ function SettingsPage({ onBack }: SettingsPageProps) {
         </div>
 
         {/* Live Preview */}
-        <div className="lg:w-1/2 xl:w-3/5 border-t lg:border-t-0 lg:border-l border-gray-800 bg-gray-900/50 flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+        <div className="lg:w-1/2 xl:w-3/5 border-t lg:border-t-0 lg:border-l border-gray-800 bg-gray-900/50 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-800">
             <div className="flex items-center gap-2">
               <Film size={16} className="text-gray-400" />
               <span className="text-sm font-medium text-white">Live Preview</span>
@@ -446,32 +632,34 @@ function SettingsPage({ onBack }: SettingsPageProps) {
               {isPreviewPlaying ? 'Pause' : 'Play'}
             </button>
           </div>
-          <div className="flex-1 p-4 min-h-[300px] lg:min-h-0 flex items-center justify-center">
-            <div className="w-full max-w-4xl aspect-video">
-              <Suspense
-                fallback={
-                  <div className="w-full h-full flex items-center justify-center bg-gray-800 rounded-lg">
-                    <span className="text-gray-400">Loading preview...</span>
-                  </div>
-                }
-              >
-                <ReplayPlayer
-                  frames={demoFrames}
-                  autoPlay={isPreviewPlaying}
-                  loop={replay.loop}
-                  chromeTheme={replay.chromeTheme}
-                  backgroundTheme={replay.backgroundTheme}
-                  cursorTheme={replay.cursorTheme}
-                  cursorInitialPosition={replay.cursorInitialPosition}
-                  cursorScale={replay.cursorScale}
-                  cursorClickAnimation={replay.cursorClickAnimation}
-                  cursorDefaultSpeedProfile={replay.cursorSpeedProfile}
-                  cursorDefaultPathStyle={replay.cursorPathStyle}
-                />
-              </Suspense>
+          <div className="flex-1 min-h-0 p-4 flex items-center justify-center overflow-hidden">
+            <div className="w-full h-full max-w-4xl flex items-center justify-center">
+              <div className="w-full max-h-full aspect-video overflow-hidden">
+                <Suspense
+                  fallback={
+                    <div className="w-full h-full flex items-center justify-center bg-gray-800 rounded-lg">
+                      <span className="text-gray-400">Loading preview...</span>
+                    </div>
+                  }
+                >
+                  <ReplayPlayer
+                    frames={demoFrames}
+                    autoPlay={isPreviewPlaying}
+                    loop={replay.loop}
+                    chromeTheme={replay.chromeTheme}
+                    backgroundTheme={replay.backgroundTheme}
+                    cursorTheme={replay.cursorTheme}
+                    cursorInitialPosition={replay.cursorInitialPosition}
+                    cursorScale={replay.cursorScale}
+                    cursorClickAnimation={replay.cursorClickAnimation}
+                    cursorDefaultSpeedProfile={replay.cursorSpeedProfile}
+                    cursorDefaultPathStyle={replay.cursorPathStyle}
+                  />
+                </Suspense>
+              </div>
             </div>
           </div>
-          <div className="px-4 py-3 border-t border-gray-800 text-center">
+          <div className="flex-shrink-0 px-4 py-3 border-t border-gray-800 text-center">
             <p className="text-xs text-gray-500">
               Preview shows a sample 3-step workflow with your current settings
             </p>

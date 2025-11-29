@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Clock,
   Keyboard,
+  HelpCircle,
 } from "lucide-react";
 import { getModifierKey } from "@hooks/useKeyboardShortcuts";
 import { useState, useRef, useEffect } from "react";
@@ -49,6 +50,7 @@ interface HeaderProps {
   currentWorkflow?: HeaderWorkflow | null;
   showBackToProject?: boolean;
   onShowKeyboardShortcuts?: () => void;
+  onOpenTutorial?: () => void;
 }
 
 function Header({
@@ -58,6 +60,7 @@ function Header({
   currentWorkflow: selectedWorkflow,
   showBackToProject,
   onShowKeyboardShortcuts,
+  onOpenTutorial,
 }: HeaderProps) {
   const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow);
   const saveWorkflow = useWorkflowStore((state) => state.saveWorkflow);
@@ -849,6 +852,16 @@ function Header({
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
+            {onOpenTutorial && (
+              <button
+                onClick={onOpenTutorial}
+                className="toolbar-button flex items-center gap-0 sm:gap-2"
+                title={`Tutorial (${getModifierKey()}+Shift+T)`}
+                aria-label="Open tutorial"
+              >
+                <HelpCircle size={16} />
+              </button>
+            )}
             {onShowKeyboardShortcuts && (
               <button
                 onClick={onShowKeyboardShortcuts}

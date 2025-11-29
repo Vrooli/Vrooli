@@ -5,6 +5,7 @@ import "reactflow/dist/style.css";
 // Shared layout components
 import { ResponsiveDialog, Sidebar, Header, KeyboardShortcutsModal } from "@shared/layout";
 import { ProjectModal } from "@features/projects";
+import { GuidedTour, useGuidedTour } from "@features/onboarding";
 
 // Keyboard shortcuts
 import { useKeyboardShortcuts, type KeyboardShortcut } from "@hooks/useKeyboardShortcuts";
@@ -26,6 +27,7 @@ import { useMediaQuery } from "@hooks/useMediaQuery";
 import { logger } from "@utils/logger";
 import toast from "react-hot-toast";
 import { selectors } from "@constants/selectors";
+import { LoadingSpinner } from "@shared/ui";
 
 interface NormalizedWorkflow extends Partial<Workflow> {
   id: string;
@@ -62,6 +64,9 @@ function App() {
   const closeExecutionViewer = useExecutionStore((state) => state.closeViewer);
   const { fetchScenarios } = useScenarioStore();
   const isLargeScreen = useMediaQuery("(min-width: 1024px)");
+
+  // Guided tour state
+  const { showTour, openTour, closeTour } = useGuidedTour();
 
   // Debug logging for modal state
   useEffect(() => {
@@ -486,6 +491,13 @@ function App() {
         action: () => setShowKeyboardShortcuts(true),
       },
       {
+        key: "t",
+        modifiers: ["meta", "shift"],
+        description: "Open guided tour",
+        category: "Help",
+        action: () => openTour(),
+      },
+      {
         key: "n",
         modifiers: ["meta"],
         description: "Create new project/workflow",
@@ -543,7 +555,7 @@ function App() {
         action: () => navigateToSettings(),
       },
     ],
-    [currentView, currentProject, showKeyboardShortcuts, showAIModal, showProjectModal, navigateToDashboard, navigateToSettings, openProject]
+    [currentView, currentProject, showKeyboardShortcuts, showAIModal, showProjectModal, navigateToDashboard, navigateToSettings, openProject, openTour]
   );
 
   // Register keyboard shortcuts
@@ -653,7 +665,7 @@ function App() {
   if (currentView === null) {
     return (
       <div className="h-screen flex items-center justify-center bg-flow-bg">
-        <div className="text-gray-400">Loading...</div>
+        <LoadingSpinner variant="branded" size={32} message="Loading Browser Automation Studio..." />
       </div>
     );
   }
@@ -669,7 +681,7 @@ function App() {
         <Suspense
           fallback={
             <div className="h-screen flex items-center justify-center bg-flow-bg">
-              <div className="text-flow-text">Loading dashboard...</div>
+              <LoadingSpinner variant="branded" size={28} message="Loading dashboard..." />
             </div>
           }
         >
@@ -678,8 +690,14 @@ function App() {
             onCreateProject={handleCreateProject}
             onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
             onOpenSettings={navigateToSettings}
+            onOpenTutorial={openTour}
           />
         </Suspense>
+
+        <GuidedTour
+          isOpen={showTour}
+          onClose={closeTour}
+        />
 
         <ProjectModal
           isOpen={showProjectModal}
@@ -710,7 +728,7 @@ function App() {
         <Suspense
           fallback={
             <div className="h-screen flex items-center justify-center bg-flow-bg">
-              <div className="text-flow-text">Loading settings...</div>
+              <LoadingSpinner variant="default" size={24} message="Loading settings..." />
             </div>
           }
         >
@@ -721,6 +739,11 @@ function App() {
           isOpen={showKeyboardShortcuts}
           onClose={() => setShowKeyboardShortcuts(false)}
           shortcuts={shortcutDefinitions}
+        />
+
+        <GuidedTour
+          isOpen={showTour}
+          onClose={closeTour}
         />
       </div>
     );
@@ -736,7 +759,7 @@ function App() {
         <Suspense
           fallback={
             <div className="h-screen flex items-center justify-center bg-flow-bg">
-              <div className="text-flow-text">Loading project...</div>
+              <LoadingSpinner variant="default" size={24} message="Loading project..." />
             </div>
           }
         >
@@ -750,7 +773,11 @@ function App() {
 
         {showAIModal && (
           <Suspense
-            fallback={<div className="text-flow-text">Loading AI modal...</div>}
+            fallback={
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <LoadingSpinner variant="branded" size={24} message="Loading AI assistant..." />
+              </div>
+            }
           >
             <AIPromptModal
               onClose={() => setShowAIModal(false)}
@@ -766,6 +793,11 @@ function App() {
           isOpen={showKeyboardShortcuts}
           onClose={() => setShowKeyboardShortcuts(false)}
           shortcuts={shortcutDefinitions}
+        />
+
+        <GuidedTour
+          isOpen={showTour}
+          onClose={closeTour}
         />
       </div>
     );
@@ -789,6 +821,7 @@ function App() {
           currentWorkflow={selectedWorkflow}
           showBackToProject={currentView === "project-workflow"}
           onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
+          onOpenTutorial={openTour}
         />
 
         <div className="flex-1 flex overflow-hidden min-h-0">
@@ -805,9 +838,7 @@ function App() {
               <Suspense
                 fallback={
                   <div className="h-full flex items-center justify-center">
-                    <div className="text-flow-text">
-                      Loading workflow builder...
-                    </div>
+                    <LoadingSpinner variant="default" size={24} message="Loading workflow builder..." />
                   </div>
                 }
               >
@@ -840,9 +871,7 @@ function App() {
                     <Suspense
                       fallback={
                         <div className="h-full flex items-center justify-center">
-                          <div className="text-flow-text">
-                            Loading execution viewer...
-                          </div>
+                          <LoadingSpinner variant="minimal" size={20} />
                         </div>
                       }
                     >
@@ -871,9 +900,7 @@ function App() {
               <Suspense
                 fallback={
                   <div className="h-full flex items-center justify-center">
-                    <div className="text-flow-text">
-                      Loading execution viewer...
-                    </div>
+                    <LoadingSpinner variant="minimal" size={20} />
                   </div>
                 }
               >
@@ -889,7 +916,11 @@ function App() {
 
         {showAIModal && (
           <Suspense
-            fallback={<div className="text-flow-text">Loading AI modal...</div>}
+            fallback={
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <LoadingSpinner variant="branded" size={24} message="Loading AI assistant..." />
+              </div>
+            }
           >
             <AIPromptModal
               onClose={() => setShowAIModal(false)}
@@ -905,6 +936,11 @@ function App() {
           isOpen={showKeyboardShortcuts}
           onClose={() => setShowKeyboardShortcuts(false)}
           shortcuts={shortcutDefinitions}
+        />
+
+        <GuidedTour
+          isOpen={showTour}
+          onClose={closeTour}
         />
       </div>
     </ReactFlowProvider>

@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { logger } from "@utils/logger";
+import toast from "react-hot-toast";
 import {
   Plus,
   FolderOpen,
@@ -17,6 +18,9 @@ import {
   FileCode,
   Bot,
   Settings,
+  HelpCircle,
+  Trash2,
+  MoreVertical,
 } from "lucide-react";
 import { useProjectStore, Project } from "@stores/projectStore";
 import { openCalendar } from "@utils/vrooli";
@@ -28,9 +32,10 @@ interface DashboardProps {
   onCreateProject: () => void;
   onShowKeyboardShortcuts?: () => void;
   onOpenSettings?: () => void;
+  onOpenTutorial?: () => void;
 }
 
-function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts, onOpenSettings }: DashboardProps) {
+function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts, onOpenSettings, onOpenTutorial }: DashboardProps) {
   const {
     projects,
     isLoading,
@@ -39,8 +44,11 @@ function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts, 
     fetchProjects,
     executeAllWorkflows,
     clearError,
+    deleteProject,
   } = useProjectStore();
   const [searchTerm, setSearchTerm] = useState("");
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
+  const [showActionsFor, setShowActionsFor] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -110,6 +118,33 @@ function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts, 
     }
   };
 
+  const handleDeleteProject = useCallback(async (e: React.MouseEvent, projectId: string, projectName: string) => {
+    e.stopPropagation();
+    setShowActionsFor(null);
+
+    const confirmed = window.confirm(
+      `Delete "${projectName}" and all its workflows? This action cannot be undone.`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingProjectId(projectId);
+    try {
+      await deleteProject(projectId);
+      toast.success(`Project "${projectName}" deleted`);
+    } catch (error) {
+      logger.error(
+        "Failed to delete project",
+        { component: "Dashboard", action: "handleDeleteProject", projectId },
+        error
+      );
+      toast.error("Failed to delete project");
+    } finally {
+      setDeletingProjectId(null);
+    }
+  }, [deleteProject]);
+
   // Status bar for API connection issues
   const StatusBar = () => {
     if (!error) return null;
@@ -165,6 +200,16 @@ function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts, 
               </p>
             </div>
             <div className="hidden md:flex items-center gap-2">
+              {onOpenTutorial && (
+                <button
+                  onClick={onOpenTutorial}
+                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                  title={`Tutorial (${getModifierKey()}+Shift+T)`}
+                  aria-label="Open tutorial"
+                >
+                  <HelpCircle size={18} />
+                </button>
+              )}
               {onShowKeyboardShortcuts && (
                 <button
                   onClick={onShowKeyboardShortcuts}
@@ -344,7 +389,16 @@ function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts, 
                     Create Your First Project
                   </button>
 
-                  <div className="flex items-center gap-6 text-sm text-gray-500">
+                  <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm text-gray-500">
+                    {onOpenTutorial && (
+                      <button
+                        onClick={onOpenTutorial}
+                        className="flex items-center gap-1.5 hover:text-gray-300 transition-colors"
+                      >
+                        <HelpCircle size={14} />
+                        <span>View tutorial</span>
+                      </button>
+                    )}
                     <span className="flex items-center gap-1.5">
                       <Keyboard size={14} />
                       Press <kbd className="px-1.5 py-0.5 bg-gray-800 rounded text-gray-400">{getModifierKey()}+?</kbd> for shortcuts
@@ -359,17 +413,25 @@ function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts, 
             )}
           </div>
         ) : filteredProjects.length === 0 ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="mb-4 flex items-center justify-center text-gray-600">
-                <FolderOpen size={48} />
+          <div className="flex items-center justify-center h-64 animate-fade-in">
+            <div className="text-center max-w-sm">
+              <div className="mb-4 flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center">
+                  <Search size={28} className="text-gray-500" />
+                </div>
               </div>
               <h3 className="text-lg font-semibold text-white mb-2">
                 No Projects Found
               </h3>
-              <p className="text-gray-400">
-                No projects match your search criteria
+              <p className="text-gray-400 mb-4">
+                No projects match &ldquo;<span className="text-gray-300">{searchTerm}</span>&rdquo;
               </p>
+              <button
+                onClick={() => setSearchTerm("")}
+                className="text-flow-accent hover:text-blue-400 text-sm font-medium transition-colors"
+              >
+                Clear search
+              </button>
             </div>
           </div>
         ) : (
@@ -380,126 +442,160 @@ function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts, 
             role="region"
             aria-label="Projects list"
           >
-            {filteredProjects.map((project) => (
-              <div
-                key={project.id}
-                onClick={() => onProjectSelect(project)}
-                className="bg-flow-node border border-gray-700 rounded-lg p-5 sm:p-6 cursor-pointer hover:border-flow-accent hover:shadow-lg hover:shadow-blue-500/20 transition-all"
-                data-testid={selectors.projects.card}
-                data-project-id={project.id}
-                data-project-name={project.name}
-              >
-                {/* Project Header */}
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 sm:w-8 sm:h-8 bg-flow-accent/20 rounded-lg flex items-center justify-center">
-                      <FolderOpen size={16} className="text-flow-accent" />
-                    </div>
-                    <div>
-                      <h3
-                        className="font-semibold text-white truncate max-w-[12rem] sm:max-w-32"
-                        title={project.name}
-                        data-testid={selectors.projects.cardTitle}
-                        data-project-id={project.id}
-                        data-project-name={project.name}
-                      >
-                        {project.name}
-                      </h3>
-                    </div>
-                  </div>
+            {filteredProjects.map((project) => {
+              const isDeleting = deletingProjectId === project.id;
+              const isActionsOpen = showActionsFor === project.id;
+              const workflowCount = project.stats?.workflow_count ?? 0;
+              const executionCount = project.stats?.execution_count ?? 0;
 
-                  {/* Action Buttons */}
-                  <div className="hidden sm:flex items-center gap-1">
-                    {/* Schedule Button */}
-                    <button
-                      onClick={(e) => handleScheduleClick(e)}
-                      className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-                      title="Open Calendar"
-                      aria-label="Open Calendar for project"
-                    >
-                      <Calendar size={14} />
-                    </button>
-
-                    {/* Run All Workflows Button */}
-                    <button
-                      onClick={(e) => handleRunAllWorkflows(e, project.id)}
-                      disabled={bulkExecutionInProgress[project.id]}
-                      className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={
-                        bulkExecutionInProgress[project.id]
-                          ? "Running workflows..."
-                          : "Run All Workflows"
-                      }
-                      aria-label={
-                        bulkExecutionInProgress[project.id]
-                          ? "Running workflows"
-                          : "Run all workflows in project"
-                      }
-                    >
-                      {bulkExecutionInProgress[project.id] ? (
-                        <Loader size={14} className="animate-spin" />
-                      ) : (
-                        <PlayCircle size={14} />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Mobile Actions */}
-                <div className="flex flex-col gap-2 sm:hidden">
-                  <button
-                    onClick={(e) => handleRunAllWorkflows(e, project.id)}
-                    disabled={bulkExecutionInProgress[project.id]}
-                    className="flex items-center justify-center gap-2 rounded-md bg-flow-accent/80 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-flow-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {bulkExecutionInProgress[project.id] ? (
-                      <Loader size={14} className="animate-spin" />
-                    ) : (
-                      <PlayCircle size={14} />
-                    )}
-                    Run Workflows
-                  </button>
-                  <button
-                    onClick={(e) => handleScheduleClick(e)}
-                    className="flex items-center justify-center gap-2 rounded-md border border-gray-700 px-3 py-2 text-sm font-medium text-gray-200 transition-colors hover:bg-gray-700/70"
-                  >
-                    <Calendar size={14} />
-                    Open Calendar
-                  </button>
-                </div>
-
-                {/* Project Description */}
-                {project.description && (
-                  <p className="text-gray-400 text-sm mb-4 line-clamp-3">
-                    {project.description}
-                  </p>
-                )}
-
-                {/* Last Activity */}
-                <div className="flex items-center justify-between text-xs text-gray-500 pt-4 border-t border-gray-700">
-                  <div className="flex items-center gap-1">
-                    <Clock size={12} />
-                    <span>Updated {formatDate(project.updated_at)}</span>
-                  </div>
-                  {project.stats?.last_execution && (
-                    <div className="flex items-center gap-1">
-                      <Play size={12} />
-                      <span>
-                        Last run {formatDate(project.stats.last_execution)}
-                      </span>
+              return (
+                <div
+                  key={project.id}
+                  onClick={() => !isDeleting && onProjectSelect(project)}
+                  className={`group relative bg-flow-node border border-gray-700 rounded-xl p-5 cursor-pointer hover:border-flow-accent/60 hover:shadow-lg hover:shadow-blue-500/10 transition-all ${
+                    isDeleting ? "opacity-50 pointer-events-none" : ""
+                  }`}
+                  data-testid={selectors.projects.card}
+                  data-project-id={project.id}
+                  data-project-name={project.name}
+                >
+                  {/* Deleting Overlay */}
+                  {isDeleting && (
+                    <div className="absolute inset-0 bg-flow-node/80 rounded-xl flex items-center justify-center z-10">
+                      <Loader size={24} className="animate-spin text-red-400" />
                     </div>
                   )}
-                </div>
 
-                {/* Folder Path */}
-                <div
-                  className="mt-2 text-xs text-gray-600 truncate"
-                  title={project.folder_path}
-                >
-                  {project.folder_path}
+                  {/* Project Header */}
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-flow-accent/20 to-blue-500/10 rounded-xl flex items-center justify-center border border-flow-accent/20">
+                        <FolderOpen size={18} className="text-flow-accent" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3
+                          className="font-semibold text-white truncate"
+                          title={project.name}
+                          data-testid={selectors.projects.cardTitle}
+                          data-project-id={project.id}
+                          data-project-name={project.name}
+                        >
+                          {project.name}
+                        </h3>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                          <span>{workflowCount} workflow{workflowCount !== 1 ? 's' : ''}</span>
+                          {executionCount > 0 && (
+                            <>
+                              <span>•</span>
+                              <span>{executionCount} run{executionCount !== 1 ? 's' : ''}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions Menu */}
+                    <div className="relative flex-shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowActionsFor(isActionsOpen ? null : project.id);
+                        }}
+                        className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-700 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        aria-label="Project actions"
+                        aria-expanded={isActionsOpen}
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+
+                      {isActionsOpen && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-20"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowActionsFor(null);
+                            }}
+                          />
+                          <div className="absolute right-0 top-full mt-1 z-30 w-48 bg-flow-node border border-gray-700 rounded-lg shadow-xl overflow-hidden animate-fade-in">
+                            <button
+                              onClick={(e) => handleRunAllWorkflows(e, project.id)}
+                              disabled={bulkExecutionInProgress[project.id]}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700/50 hover:text-white transition-colors disabled:opacity-50"
+                            >
+                              {bulkExecutionInProgress[project.id] ? (
+                                <Loader size={14} className="animate-spin" />
+                              ) : (
+                                <PlayCircle size={14} />
+                              )}
+                              Run All Workflows
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowActionsFor(null);
+                                handleScheduleClick(e);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700/50 hover:text-white transition-colors"
+                            >
+                              <Calendar size={14} />
+                              Schedule
+                            </button>
+                            <div className="border-t border-gray-700" />
+                            <button
+                              onClick={(e) => handleDeleteProject(e, project.id, project.name)}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                            >
+                              <Trash2 size={14} />
+                              Delete Project
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Project Description */}
+                  {project.description ? (
+                    <p className="text-gray-400 text-sm mb-4 line-clamp-2">
+                      {project.description}
+                    </p>
+                  ) : (
+                    <p className="text-gray-600 text-sm mb-4 italic">
+                      No description
+                    </p>
+                  )}
+
+                  {/* Quick Stats */}
+                  {(workflowCount > 0 || executionCount > 0) && (
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="bg-gray-800/50 rounded-lg px-3 py-2 text-center">
+                        <div className="text-lg font-semibold text-white">{workflowCount}</div>
+                        <div className="text-xs text-gray-500">Workflows</div>
+                      </div>
+                      <div className="bg-gray-800/50 rounded-lg px-3 py-2 text-center">
+                        <div className="text-lg font-semibold text-white">{executionCount}</div>
+                        <div className="text-xs text-gray-500">Executions</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-700/50">
+                    <div className="flex items-center gap-1.5">
+                      <Clock size={12} />
+                      <span>Updated {formatDate(project.updated_at)}</span>
+                    </div>
+                    {project.stats?.last_execution && (
+                      <div className="flex items-center gap-1.5 text-green-500/80">
+                        <Play size={10} />
+                        <span>{formatDate(project.stats.last_execution)}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

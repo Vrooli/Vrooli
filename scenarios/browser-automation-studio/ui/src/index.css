@@ -160,3 +160,116 @@
 .cursor-click-ripple {
   animation: cursor-click-ripple 0.75s ease-out forwards;
 }
+
+/* Enhanced micro-interactions */
+@layer utilities {
+  /* Smooth transitions for interactive elements */
+  .transition-micro {
+    @apply transition-all duration-150 ease-out;
+  }
+
+  /* Focus ring for accessibility */
+  .focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-flow-bg;
+  }
+
+  /* Card hover effect */
+  .hover-card {
+    @apply hover:border-flow-accent/50 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-200;
+  }
+
+  /* Button press effect */
+  .btn-press {
+    @apply active:scale-[0.98] transition-transform duration-75;
+  }
+}
+
+/* Improved button states */
+@layer components {
+  .btn-primary {
+    @apply bg-flow-accent hover:bg-blue-600 active:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-flow-bg disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-flow-node hover:bg-flow-node-hover active:bg-gray-700 text-gray-200 px-4 py-2 rounded-lg font-medium border border-gray-700 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-flow-bg disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply hover:bg-gray-800 active:bg-gray-700 text-gray-400 hover:text-white px-3 py-2 rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent/60 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Input focus states */
+  .input-field {
+    @apply bg-flow-node border border-gray-700 rounded-lg text-white placeholder-gray-500 px-3 py-2 transition-all duration-150 focus:outline-none focus:border-flow-accent focus:ring-2 focus:ring-flow-accent/30 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Card styles */
+  .card {
+    @apply bg-flow-node border border-gray-700 rounded-lg p-4 transition-all duration-200;
+  }
+
+  .card-interactive {
+    @apply card cursor-pointer hover:border-flow-accent/50 hover:shadow-lg hover:shadow-blue-500/10;
+  }
+}
+
+/* Animation keyframes */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out;
+}
+
+/* Skeleton wave animation */
+@keyframes skeleton-wave {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.skeleton-wave {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05),
+    transparent
+  );
+  background-size: 200px 100%;
+  animation: skeleton-wave 1.5s ease-in-out infinite;
+}
