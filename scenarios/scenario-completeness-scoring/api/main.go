@@ -102,6 +102,29 @@ func NewServer() (*Server, error) {
 	return srv, nil
 }
 
+// configToScoringOptions converts config.ScoringConfig to scoring.ScoringOptions
+// Normalizes weights to sum to 100 when some dimensions are disabled
+func configToScoringOptions(cfg *config.ScoringConfig) *scoring.ScoringOptions {
+	if cfg == nil {
+		return scoring.DefaultScoringOptions()
+	}
+
+	// Normalize weights to redistribute when dimensions are disabled
+	// This ensures the total always sums to 100
+	normalizedWeights := cfg.Weights.Normalize(cfg.Components)
+
+	return &scoring.ScoringOptions{
+		QualityEnabled:  cfg.Components.Quality.Enabled,
+		CoverageEnabled: cfg.Components.Coverage.Enabled,
+		QuantityEnabled: cfg.Components.Quantity.Enabled,
+		UIEnabled:       cfg.Components.UI.Enabled,
+		QualityWeight:   normalizedWeights.Quality,
+		CoverageWeight:  normalizedWeights.Coverage,
+		QuantityWeight:  normalizedWeights.Quantity,
+		UIWeight:        normalizedWeights.UI,
+	}
+}
+
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	s.router.Use(corsMiddleware)
@@ -214,6 +237,10 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleListScores(w http.ResponseWriter, r *http.Request) {
 	scenariosDir := filepath.Join(s.config.VrooliRoot, "scenarios")
 
+	// Load config for scoring options
+	cfg, _ := s.configLoader.LoadGlobal()
+	scoringOpts := configToScoringOptions(cfg)
+
 	// Discover scenarios by listing directories
 	entries, err := os.ReadDir(scenariosDir)
 	if err != nil {
@@ -242,7 +269,7 @@ func (s *Server) handleListScores(w http.ResponseWriter, r *http.Request) {
 		}
 
 		thresholds := scoring.GetThresholds(metrics.Category)
-		breakdown := scoring.CalculateCompletenessScore(*metrics, thresholds, nil)
+		breakdown := scoring.CalculateCompletenessScoreWithOptions(*metrics, thresholds, nil, scoringOpts)
 
 		scenarios = append(scenarios, map[string]interface{}{
 			"scenario":       scenarioName,
@@ -274,6 +301,10 @@ func (s *Server) handleGetScore(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to collect metrics for scenario %s: %v", scenarioName, err), http.StatusNotFound)
 		return
 	}
+
+	// Load config for scoring options
+	cfg, _ := s.configLoader.LoadGlobal()
+	scoringOpts := configToScoringOptions(cfg)
 
 	// Perform validation quality analysis
 	scenarioRoot := s.collector.GetScenarioRoot(scenarioName)
@@ -308,7 +339,7 @@ func (s *Server) handleGetScore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	thresholds := scoring.GetThresholds(metrics.Category)
-	breakdown := scoring.CalculateCompletenessScore(*metrics, thresholds, scoringValidation)
+	breakdown := scoring.CalculateCompletenessScoreWithOptions(*metrics, thresholds, scoringValidation, scoringOpts)
 	recommendations := scoring.GenerateRecommendations(breakdown, thresholds)
 
 	response := map[string]interface{}{
@@ -343,8 +374,12 @@ func (s *Server) handleCalculateScore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Load config for scoring options
+	cfg, _ := s.configLoader.LoadGlobal()
+	scoringOpts := configToScoringOptions(cfg)
+
 	thresholds := scoring.GetThresholds(metrics.Category)
-	breakdown := scoring.CalculateCompletenessScore(*metrics, thresholds, nil)
+	breakdown := scoring.CalculateCompletenessScoreWithOptions(*metrics, thresholds, nil, scoringOpts)
 	recommendations := scoring.GenerateRecommendations(breakdown, thresholds)
 
 	// Save snapshot to history [REQ:SCS-HIST-001]
@@ -378,14 +413,22 @@ func (s *Server) handleCalculateScore(w http.ResponseWriter, r *http.Request) {
 // handleGetConfig returns the current scoring configuration
 // [REQ:SCS-CFG-001] Component toggle API
 func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
-	config := map[string]interface{}{
-		"version": "1.0.0",
+	// Load actual config from disk
+	cfg, err := s.configLoader.LoadGlobal()
+	if err != nil {
+		// Fall back to default config if load fails
+		defaultCfg := config.DefaultConfig()
+		cfg = &defaultCfg
+	}
+
+	response := map[string]interface{}{
+		"version": cfg.Version,
 		"scoring": map[string]interface{}{
 			"weights": map[string]int{
-				"quality":  50,
-				"coverage": 15,
-				"quantity": 10,
-				"ui":       25,
+				"quality":  cfg.Weights.Quality,
+				"coverage": cfg.Weights.Coverage,
+				"quantity": cfg.Weights.Quantity,
+				"ui":       cfg.Weights.UI,
 			},
 			"quality_breakdown": map[string]int{
 				"requirement_pass_rate": 20,
@@ -409,6 +452,8 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 				"code_volume":          2.5,
 			},
 		},
+		"components": cfg.Components,
+		"penalties":  cfg.Penalties,
 		"classifications": map[string]interface{}{
 			"production_ready":      map[string]int{"min": 96, "max": 100},
 			"nearly_ready":          map[string]int{"min": 81, "max": 95},
@@ -420,7 +465,7 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(config)
+	json.NewEncoder(w).Encode(response)
 }
 
 // handleGetThresholds returns all category thresholds
@@ -953,8 +998,12 @@ func (s *Server) handleGetRecommendations(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// Load config for scoring options
+	cfg, _ := s.configLoader.LoadGlobal()
+	scoringOpts := configToScoringOptions(cfg)
+
 	thresholds := scoring.GetThresholds(metrics.Category)
-	breakdown := scoring.CalculateCompletenessScore(*metrics, thresholds, nil)
+	breakdown := scoring.CalculateCompletenessScoreWithOptions(*metrics, thresholds, nil, scoringOpts)
 	recommendations := scoring.GenerateRecommendations(breakdown, thresholds)
 
 	// Calculate total potential impact

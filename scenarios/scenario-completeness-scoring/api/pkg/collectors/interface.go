@@ -130,11 +130,30 @@ type TestResults struct {
 
 // SyncMetadata holds requirement sync metadata
 type SyncMetadata struct {
-	LastSynced   string                 `json:"last_synced"`
-	Requirements map[string]SyncedReq   `json:"requirements"`
+	LastSynced         string                    `json:"last_synced"`
+	Requirements       map[string]SyncedReq      `json:"requirements"`
+	OperationalTargets []SyncedOperationalTarget `json:"operational_targets,omitempty"`
 }
 
 // SyncedReq holds synced requirement status
 type SyncedReq struct {
 	Status string `json:"status"`
+}
+
+// SyncedOperationalTarget holds operational target from sync metadata
+type SyncedOperationalTarget struct {
+	Key         string            `json:"key"`
+	TargetID    string            `json:"target_id"`
+	FolderHint  string            `json:"folder_hint,omitempty"`
+	Status      string            `json:"status"`
+	Criticality string            `json:"criticality,omitempty"`
+	Counts      *TargetCounts     `json:"counts,omitempty"`
+}
+
+// TargetCounts holds counts for an operational target
+type TargetCounts struct {
+	Total      int `json:"total"`
+	Complete   int `json:"complete"`
+	InProgress int `json:"in_progress"`
+	Pending    int `json:"pending"`
 }

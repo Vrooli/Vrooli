@@ -92,20 +92,30 @@ func scanModules(dir string, loadedFiles map[string]bool) []Requirement {
 }
 
 // loadSyncMetadata loads requirements sync metadata
+// Tries multiple locations to match JS behavior
 func loadSyncMetadata(scenarioRoot string) *SyncMetadata {
-	syncPath := filepath.Join(scenarioRoot, "coverage", "requirements-sync.json")
-
-	data, err := os.ReadFile(syncPath)
-	if err != nil {
-		return nil
+	// Try primary location: coverage/requirements-sync/latest.json
+	syncPaths := []string{
+		filepath.Join(scenarioRoot, "coverage", "requirements-sync", "latest.json"),
+		filepath.Join(scenarioRoot, "coverage", "requirements-sync.json"),
+		filepath.Join(scenarioRoot, "coverage", "sync", "latest.json"),
 	}
 
-	var syncData SyncMetadata
-	if err := json.Unmarshal(data, &syncData); err != nil {
-		return nil
+	for _, syncPath := range syncPaths {
+		data, err := os.ReadFile(syncPath)
+		if err != nil {
+			continue
+		}
+
+		var syncData SyncMetadata
+		if err := json.Unmarshal(data, &syncData); err != nil {
+			continue
+		}
+
+		return &syncData
 	}
 
-	return &syncData
+	return nil
 }
 
 // calculateRequirementPass calculates requirement pass rate
@@ -148,14 +158,23 @@ func calculateRequirementPass(requirements []Requirement, syncData *SyncMetadata
 
 // calculateTargetPass calculates operational target pass rate
 // [REQ:SCS-CORE-001A] Target pass rate calculation
+// Uses sync metadata operational_targets when available (matches JS behavior)
 func calculateTargetPass(requirements []Requirement, syncData *SyncMetadata) PassMetrics {
-	// Build map of targets to their requirements
+	// First, check if sync metadata has operational_targets (preferred source)
+	if syncData != nil && len(syncData.OperationalTargets) > 0 {
+		return calculateTargetPassFromSyncMetadata(syncData)
+	}
+
+	// Fall back to building targets from requirements
 	targetReqs := make(map[string][]Requirement)
 
 	for _, req := range requirements {
 		targetID := req.OperationalTargetID
 		if targetID == "" {
-			// Try to infer from ID prefix (e.g., SCS-CORE -> OT-P0-001)
+			// Also try prd_ref field (matches JS behavior)
+			targetID = extractTargetFromPrdRef(req.PRDRef)
+		}
+		if targetID == "" {
 			continue
 		}
 		targetReqs[targetID] = append(targetReqs[targetID], req)
@@ -170,32 +189,71 @@ func calculateTargetPass(requirements []Requirement, syncData *SyncMetadata) Pas
 	passing := 0
 
 	for _, reqs := range targetReqs {
-		allPassed := true
+		// Target passes if at least one linked requirement passes (matches JS behavior)
+		anyPassed := false
 		for _, req := range reqs {
 			status := strings.ToLower(req.Status)
-			if status != "passed" && status != "complete" && status != "done" {
-				if syncData != nil {
-					if synced, ok := syncData.Requirements[req.ID]; ok {
-						if synced.Status != "passed" && synced.Status != "complete" {
-							allPassed = false
-							break
-						}
-					} else {
-						allPassed = false
+			if status == "passed" || status == "complete" || status == "done" {
+				anyPassed = true
+				break
+			}
+			if syncData != nil {
+				if synced, ok := syncData.Requirements[req.ID]; ok {
+					if synced.Status == "passed" || synced.Status == "complete" {
+						anyPassed = true
 						break
 					}
-				} else {
-					allPassed = false
-					break
 				}
 			}
 		}
-		if allPassed {
+		if anyPassed {
 			passing++
 		}
 	}
 
 	return PassMetrics{Total: total, Passing: passing}
+}
+
+// calculateTargetPassFromSyncMetadata uses pre-computed operational targets from sync metadata
+// This matches the JS behavior which prioritizes sync metadata operational_targets
+func calculateTargetPassFromSyncMetadata(syncData *SyncMetadata) PassMetrics {
+	total := len(syncData.OperationalTargets)
+	passing := 0
+
+	// TARGET_PASS_THRESHOLD from JS constants.js: 0.5 (50%)
+	const targetPassThreshold = 0.5
+
+	for _, target := range syncData.OperationalTargets {
+		// Check if target status is explicitly complete
+		status := strings.ToLower(target.Status)
+		if status == "complete" || status == "passed" {
+			passing++
+			continue
+		}
+
+		// Check counts if available (matches JS isFolderTargetPassing)
+		if target.Counts != nil && target.Counts.Total > 0 {
+			completeRatio := float64(target.Counts.Complete) / float64(target.Counts.Total)
+			if completeRatio > targetPassThreshold {
+				passing++
+			}
+		}
+	}
+
+	return PassMetrics{Total: total, Passing: passing}
+}
+
+// extractTargetFromPrdRef extracts OT-P0-001 style target IDs from prd_ref field
+func extractTargetFromPrdRef(prdRef string) string {
+	if prdRef == "" {
+		return ""
+	}
+	// Match OT-P0-001, OT-P1-002, etc. pattern
+	prdRef = strings.ToUpper(prdRef)
+	if strings.HasPrefix(prdRef, "OT-P") {
+		return prdRef
+	}
+	return ""
 }
 
 // countPriorityRequirements counts P0/P1 requirements as proxy for targets

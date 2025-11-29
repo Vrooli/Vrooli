@@ -406,6 +406,110 @@ func CalculateCompletenessScore(metrics Metrics, thresholds ThresholdConfig, val
 	}
 }
 
+// CalculateCompletenessScoreWithOptions computes the overall completeness score using config options
+// [REQ:SCS-CFG-001] Component toggle support - dimensions can be disabled via options
+func CalculateCompletenessScoreWithOptions(metrics Metrics, thresholds ThresholdConfig, validation *ValidationQualityAnalysis, opts *ScoringOptions) ScoreBreakdown {
+	if opts == nil {
+		opts = DefaultScoringOptions()
+	}
+
+	// Always calculate all dimensions to show actual metrics
+	// Even disabled dimensions show their metrics for transparency
+	var quality QualityScore
+	var coverage CoverageScore
+	var quantity QuantityScore
+	var ui UIScore
+
+	// Track which dimensions contribute to the score
+	var totalRawScore float64
+
+	// Quality dimension - always calculate, but only count if enabled
+	quality = CalculateQualityScore(metrics)
+	if opts.QualityEnabled && opts.QualityWeight > 0 {
+		// Scale the score based on weight ratio (original max is 50)
+		scaledScore := float64(quality.Score) * float64(opts.QualityWeight) / 50.0
+		totalRawScore += scaledScore
+		quality.Max = opts.QualityWeight
+		quality.Score = int(math.Round(scaledScore))
+	} else {
+		// Keep the calculated metrics but mark as disabled with zero score
+		quality.Score = 0
+		quality.Max = 0
+		quality.Disabled = true
+	}
+
+	// Coverage dimension - always calculate, but only count if enabled
+	coverage = CalculateCoverageScore(metrics, metrics.Requirements_)
+	if opts.CoverageEnabled && opts.CoverageWeight > 0 {
+		// Scale the score based on weight ratio (original max is 15)
+		scaledScore := float64(coverage.Score) * float64(opts.CoverageWeight) / 15.0
+		totalRawScore += scaledScore
+		coverage.Max = opts.CoverageWeight
+		coverage.Score = int(math.Round(scaledScore))
+	} else {
+		// Keep the calculated metrics but mark as disabled with zero score
+		coverage.Score = 0
+		coverage.Max = 0
+		coverage.Disabled = true
+	}
+
+	// Quantity dimension - always calculate, but only count if enabled
+	quantity = CalculateQuantityScore(metrics, thresholds)
+	if opts.QuantityEnabled && opts.QuantityWeight > 0 {
+		// Scale the score based on weight ratio (original max is 10)
+		scaledScore := float64(quantity.Score) * float64(opts.QuantityWeight) / 10.0
+		totalRawScore += scaledScore
+		quantity.Max = opts.QuantityWeight
+		quantity.Score = int(math.Round(scaledScore))
+	} else {
+		// Keep the calculated metrics but mark as disabled with zero score
+		quantity.Score = 0
+		quantity.Max = 0
+		quantity.Disabled = true
+	}
+
+	// UI dimension - always calculate, but only count if enabled
+	ui = CalculateUIScore(metrics.UI, thresholds)
+	if opts.UIEnabled && opts.UIWeight > 0 {
+		// Scale the score based on weight ratio (original max is 25)
+		scaledScore := float64(ui.Score) * float64(opts.UIWeight) / 25.0
+		totalRawScore += scaledScore
+		ui.Max = opts.UIWeight
+		ui.Score = int(math.Round(scaledScore))
+	} else {
+		// Keep the calculated metrics but mark as disabled with zero score
+		ui.Score = 0
+		ui.Max = 0
+		ui.Disabled = true
+	}
+
+	baseScore := int(math.Round(totalRawScore))
+
+	// Apply validation quality penalties if provided
+	validationPenalty := 0
+	if validation != nil {
+		validationPenalty = validation.TotalPenalty
+	}
+	finalScore := baseScore - validationPenalty
+	if finalScore < 0 {
+		finalScore = 0
+	}
+
+	classification, desc := ClassifyScore(finalScore)
+
+	return ScoreBreakdown{
+		BaseScore:          baseScore,
+		ValidationPenalty:  validationPenalty,
+		Score:              finalScore,
+		Classification:     classification,
+		ClassificationDesc: desc,
+		Quality:            quality,
+		Coverage:           coverage,
+		Quantity:           quantity,
+		UI:                 ui,
+	}
+}
+
 // GenerateRecommendations creates actionable improvement suggestions
 func GenerateRecommendations(breakdown ScoreBreakdown, thresholds ThresholdConfig) []Recommendation {
 	var recommendations []Recommendation

@@ -402,6 +402,7 @@ func TestCalculateTargetPass(t *testing.T) {
 	}
 
 	// Test with operational target IDs
+	// NOTE: JS behavior is "at least one linked requirement passes" = target passes
 	requirementsWithTargets := []Requirement{
 		{ID: "REQ-001", OperationalTargetID: "OT-001", Status: "passed"},
 		{ID: "REQ-002", OperationalTargetID: "OT-001", Status: "passed"},
@@ -413,9 +414,9 @@ func TestCalculateTargetPass(t *testing.T) {
 	if pass.Total != 2 {
 		t.Errorf("Expected 2 targets, got %d", pass.Total)
 	}
-	// OT-001 should pass (both passed), OT-002 should fail (one in_progress)
-	if pass.Passing != 1 {
-		t.Errorf("Expected 1 passing target, got %d", pass.Passing)
+	// OT-001 passes (both passed), OT-002 passes (REQ-004 is passed - matches JS "any one passes" logic)
+	if pass.Passing != 2 {
+		t.Errorf("Expected 2 passing targets (JS behavior: any linked req passes), got %d", pass.Passing)
 	}
 }
 

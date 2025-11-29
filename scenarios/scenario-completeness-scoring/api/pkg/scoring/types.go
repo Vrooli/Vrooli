@@ -21,6 +21,7 @@ type ScoreBreakdown struct {
 type QualityScore struct {
 	Score               int       `json:"score"`
 	Max                 int       `json:"max"`
+	Disabled            bool      `json:"disabled,omitempty"`
 	RequirementPassRate PassRate  `json:"requirement_pass_rate"`
 	TargetPassRate      PassRate  `json:"target_pass_rate"`
 	TestPassRate        PassRate  `json:"test_pass_rate"`
@@ -38,6 +39,7 @@ type PassRate struct {
 type CoverageScore struct {
 	Score             int              `json:"score"`
 	Max               int              `json:"max"`
+	Disabled          bool             `json:"disabled,omitempty"`
 	TestCoverageRatio CoverageRatio    `json:"test_coverage_ratio"`
 	DepthScore        DepthScoreDetail `json:"depth_score"`
 }
@@ -58,6 +60,7 @@ type DepthScoreDetail struct {
 type QuantityScore struct {
 	Score        int            `json:"score"`
 	Max          int            `json:"max"`
+	Disabled     bool           `json:"disabled,omitempty"`
 	Requirements QuantityMetric `json:"requirements"`
 	Targets      QuantityMetric `json:"targets"`
 	Tests        QuantityMetric `json:"tests"`
@@ -74,6 +77,7 @@ type QuantityMetric struct {
 type UIScore struct {
 	Score               int                 `json:"score"`
 	Max                 int                 `json:"max"`
+	Disabled            bool                `json:"disabled,omitempty"`
 	TemplateCheck       TemplateCheckResult `json:"template_check"`
 	ComponentComplexity ComponentComplexity `json:"component_complexity"`
 	APIIntegration      APIIntegration      `json:"api_integration"`
@@ -201,4 +205,34 @@ type PenaltyDetail struct {
 	Type    string `json:"type"`
 	Points  int    `json:"points"`
 	Message string `json:"message"`
+}
+
+// ScoringOptions controls which dimensions are enabled and their weights
+// This is used to wire configuration into the scoring logic
+type ScoringOptions struct {
+	// Enabled flags for each dimension
+	QualityEnabled  bool
+	CoverageEnabled bool
+	QuantityEnabled bool
+	UIEnabled       bool
+
+	// Weights for each dimension (should sum to 100 when accounting for enabled dimensions)
+	QualityWeight  int
+	CoverageWeight int
+	QuantityWeight int
+	UIWeight       int
+}
+
+// DefaultScoringOptions returns options with all dimensions enabled at default weights
+func DefaultScoringOptions() *ScoringOptions {
+	return &ScoringOptions{
+		QualityEnabled:  true,
+		CoverageEnabled: true,
+		QuantityEnabled: true,
+		UIEnabled:       true,
+		QualityWeight:   50,
+		CoverageWeight:  15,
+		QuantityWeight:  10,
+		UIWeight:        25,
+	}
 }
