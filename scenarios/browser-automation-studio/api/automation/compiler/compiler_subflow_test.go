@@ -42,7 +42,7 @@ func TestCompileWorkflowWithInlineSubflow(t *testing.T) {
 	}
 
 	plan, err := CompileWorkflow(workflow)
-	if err != nil{
+	if err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
 

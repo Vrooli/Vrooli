@@ -31,31 +31,31 @@ var (
 
 // CreateExportRequest represents the request to create an export record
 type CreateExportRequest struct {
-	ExecutionID   string                 `json:"execution_id"`
-	WorkflowID    string                 `json:"workflow_id,omitempty"`
-	Name          string                 `json:"name"`
-	Format        string                 `json:"format"`
-	Settings      map[string]any         `json:"settings,omitempty"`
-	StorageURL    string                 `json:"storage_url,omitempty"`
-	ThumbnailURL  string                 `json:"thumbnail_url,omitempty"`
-	FileSizeBytes *int64                 `json:"file_size_bytes,omitempty"`
-	DurationMs    *int                   `json:"duration_ms,omitempty"`
-	FrameCount    *int                   `json:"frame_count,omitempty"`
-	Status        string                 `json:"status,omitempty"`
+	ExecutionID   string         `json:"execution_id"`
+	WorkflowID    string         `json:"workflow_id,omitempty"`
+	Name          string         `json:"name"`
+	Format        string         `json:"format"`
+	Settings      map[string]any `json:"settings,omitempty"`
+	StorageURL    string         `json:"storage_url,omitempty"`
+	ThumbnailURL  string         `json:"thumbnail_url,omitempty"`
+	FileSizeBytes *int64         `json:"file_size_bytes,omitempty"`
+	DurationMs    *int           `json:"duration_ms,omitempty"`
+	FrameCount    *int           `json:"frame_count,omitempty"`
+	Status        string         `json:"status,omitempty"`
 }
 
 // UpdateExportRequest represents the request to update an export
 type UpdateExportRequest struct {
-	Name          string                 `json:"name,omitempty"`
-	Settings      map[string]any         `json:"settings,omitempty"`
-	StorageURL    string                 `json:"storage_url,omitempty"`
-	ThumbnailURL  string                 `json:"thumbnail_url,omitempty"`
-	FileSizeBytes *int64                 `json:"file_size_bytes,omitempty"`
-	DurationMs    *int                   `json:"duration_ms,omitempty"`
-	FrameCount    *int                   `json:"frame_count,omitempty"`
-	AICaption     string                 `json:"ai_caption,omitempty"`
-	Status        string                 `json:"status,omitempty"`
-	Error         string                 `json:"error,omitempty"`
+	Name          string         `json:"name,omitempty"`
+	Settings      map[string]any `json:"settings,omitempty"`
+	StorageURL    string         `json:"storage_url,omitempty"`
+	ThumbnailURL  string         `json:"thumbnail_url,omitempty"`
+	FileSizeBytes *int64         `json:"file_size_bytes,omitempty"`
+	DurationMs    *int           `json:"duration_ms,omitempty"`
+	FrameCount    *int           `json:"frame_count,omitempty"`
+	AICaption     string         `json:"ai_caption,omitempty"`
+	Status        string         `json:"status,omitempty"`
+	Error         string         `json:"error,omitempty"`
 }
 
 // ListExports handles GET /api/v1/exports

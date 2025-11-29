@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	
 )
 
 var ErrMovieSpecUnavailable = errors.New("movie spec unavailable")

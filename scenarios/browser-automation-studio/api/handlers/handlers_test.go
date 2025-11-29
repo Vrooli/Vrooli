@@ -141,6 +141,29 @@ func (m *mockRepository) ListFolders(ctx context.Context) ([]*database.WorkflowF
 	return nil, nil
 }
 
+// Export operations
+func (m *mockRepository) CreateExport(ctx context.Context, export *database.Export) error {
+	return nil
+}
+func (m *mockRepository) GetExport(ctx context.Context, id uuid.UUID) (*database.Export, error) {
+	return nil, nil
+}
+func (m *mockRepository) UpdateExport(ctx context.Context, export *database.Export) error {
+	return nil
+}
+func (m *mockRepository) DeleteExport(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+func (m *mockRepository) ListExports(ctx context.Context, limit, offset int) ([]*database.ExportWithDetails, error) {
+	return nil, nil
+}
+func (m *mockRepository) ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*database.Export, error) {
+	return nil, nil
+}
+func (m *mockRepository) ListExportsByWorkflow(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*database.Export, error) {
+	return nil, nil
+}
+
 // Ensure mockRepository implements the interface at compile time
 var _ database.Repository = (*mockRepository)(nil)
 

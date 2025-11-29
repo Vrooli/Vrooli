@@ -14,6 +14,12 @@ import (
 	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 )
 
+// AutomationRunner provides an interface for running ephemeral automation sequences.
+// This abstraction enables testing AI helper endpoints without requiring a real browser.
+type AutomationRunner interface {
+	Run(ctx context.Context, viewportWidth, viewportHeight int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error)
+}
+
 // inMemoryRecorder captures outcomes/telemetry without touching the database so AI
 // helper endpoints can reuse the automation stack without polluting execution tables.
 type inMemoryRecorder struct {
@@ -48,29 +54,64 @@ func (r *inMemoryRecorder) Outcomes() []autocontracts.StepOutcome {
 	return out
 }
 
-// automationRunner wires the engine/executor stack for ephemeral, in-process
+// DefaultAutomationRunner wires the engine/executor stack for ephemeral, in-process
 // automation runs used by AI helper endpoints.
-type automationRunner struct {
+type DefaultAutomationRunner struct {
 	executor      autoexecutor.Executor
 	engineFactory autoengine.Factory
 	log           *logrus.Logger
 	defaultEngine string
 }
 
-func newAutomationRunner(log *logrus.Logger) (*automationRunner, error) {
-	factory, err := autoengine.DefaultFactory(log)
-	if err != nil {
-		return nil, err
+// AutomationRunnerOption configures the DefaultAutomationRunner.
+type AutomationRunnerOption func(*DefaultAutomationRunner)
+
+// WithEngineFactory sets a custom engine factory.
+func WithEngineFactory(factory autoengine.Factory) AutomationRunnerOption {
+	return func(r *DefaultAutomationRunner) {
+		r.engineFactory = factory
 	}
-	return &automationRunner{
-		executor:      autoexecutor.NewSimpleExecutor(nil),
-		engineFactory: factory,
-		log:           log,
-		defaultEngine: "playwright",
-	}, nil
 }
 
-func (r *automationRunner) run(ctx context.Context, viewportWidth, viewportHeight int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+// WithExecutor sets a custom executor.
+func WithExecutor(executor autoexecutor.Executor) AutomationRunnerOption {
+	return func(r *DefaultAutomationRunner) {
+		r.executor = executor
+	}
+}
+
+// NewDefaultAutomationRunner creates a DefaultAutomationRunner with optional configuration.
+func NewDefaultAutomationRunner(log *logrus.Logger, opts ...AutomationRunnerOption) (*DefaultAutomationRunner, error) {
+	runner := &DefaultAutomationRunner{
+		executor:      autoexecutor.NewSimpleExecutor(nil),
+		log:           log,
+		defaultEngine: "playwright",
+	}
+
+	// Apply options first to allow factory injection
+	for _, opt := range opts {
+		opt(runner)
+	}
+
+	// Only create default factory if not provided via options
+	if runner.engineFactory == nil {
+		factory, err := autoengine.DefaultFactory(log)
+		if err != nil {
+			return nil, err
+		}
+		runner.engineFactory = factory
+	}
+
+	return runner, nil
+}
+
+// newAutomationRunner is a convenience wrapper for backward compatibility.
+func newAutomationRunner(log *logrus.Logger) (*DefaultAutomationRunner, error) {
+	return NewDefaultAutomationRunner(log)
+}
+
+// Run executes a sequence of automation instructions and returns outcomes.
+func (r *DefaultAutomationRunner) Run(ctx context.Context, viewportWidth, viewportHeight int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -109,3 +150,57 @@ func (r *automationRunner) run(ctx context.Context, viewportWidth, viewportHeigh
 
 	return recorder.Outcomes(), events, nil
 }
+
+// MockAutomationRunner is a test double for AutomationRunner.
+type MockAutomationRunner struct {
+	Outcomes []autocontracts.StepOutcome
+	Events   []autocontracts.EventEnvelope
+	Err      error
+	RunCalls []MockRunCall
+}
+
+// MockRunCall records a call to Run.
+type MockRunCall struct {
+	ViewportWidth  int
+	ViewportHeight int
+	Instructions   []autocontracts.CompiledInstruction
+}
+
+// NewMockAutomationRunner creates a MockAutomationRunner with default successful outcomes.
+func NewMockAutomationRunner() *MockAutomationRunner {
+	return &MockAutomationRunner{
+		Outcomes: []autocontracts.StepOutcome{
+			{
+				Success:   true,
+				StepIndex: 0,
+				NodeID:    "mock-step",
+				StepType:  "navigate",
+			},
+		},
+	}
+}
+
+// Run records the call and returns configured outcomes or error.
+func (m *MockAutomationRunner) Run(_ context.Context, viewportWidth, viewportHeight int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+	m.RunCalls = append(m.RunCalls, MockRunCall{
+		ViewportWidth:  viewportWidth,
+		ViewportHeight: viewportHeight,
+		Instructions:   instructions,
+	})
+
+	if m.Err != nil {
+		return nil, nil, m.Err
+	}
+	return m.Outcomes, m.Events, nil
+}
+
+// Reset clears recorded calls for reuse between tests.
+func (m *MockAutomationRunner) Reset() {
+	m.RunCalls = nil
+}
+
+// Compile-time interface enforcement
+var (
+	_ AutomationRunner = (*DefaultAutomationRunner)(nil)
+	_ AutomationRunner = (*MockAutomationRunner)(nil)
+)

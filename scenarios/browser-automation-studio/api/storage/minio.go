@@ -247,3 +247,6 @@ func (m *MinIOClient) HealthCheck(ctx context.Context) error {
 	}
 	return nil
 }
+
+// Compile-time interface enforcement
+var _ StorageInterface = (*MinIOClient)(nil)

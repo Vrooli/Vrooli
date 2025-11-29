@@ -15,21 +15,51 @@ import (
 // It coordinates between element extraction, AI suggestions, and coordinate probing.
 type ElementAnalysisHandler struct {
 	log                 *logrus.Logger
-	runner              *automationRunner
+	runner              AutomationRunner
 	suggestionGenerator *ollamaSuggestionGenerator
 }
 
-// NewElementAnalysisHandler creates a new element analysis handler.
-func NewElementAnalysisHandler(log *logrus.Logger) *ElementAnalysisHandler {
-	runner, err := newAutomationRunner(log)
-	if err != nil && log != nil {
-		log.WithError(err).Warn("Failed to initialize automation runner for element analysis; requests will fail")
+// ElementAnalysisOption configures the ElementAnalysisHandler.
+type ElementAnalysisOption func(*ElementAnalysisHandler)
+
+// WithElementRunner sets a custom automation runner.
+func WithElementRunner(runner AutomationRunner) ElementAnalysisOption {
+	return func(h *ElementAnalysisHandler) {
+		h.runner = runner
 	}
-	return &ElementAnalysisHandler{
-		log:                 log,
-		runner:              runner,
-		suggestionGenerator: newOllamaSuggestionGenerator(log),
+}
+
+// WithSuggestionGenerator sets a custom suggestion generator.
+func WithSuggestionGenerator(gen *ollamaSuggestionGenerator) ElementAnalysisOption {
+	return func(h *ElementAnalysisHandler) {
+		h.suggestionGenerator = gen
 	}
+}
+
+// NewElementAnalysisHandler creates a new element analysis handler with optional configuration.
+func NewElementAnalysisHandler(log *logrus.Logger, opts ...ElementAnalysisOption) *ElementAnalysisHandler {
+	handler := &ElementAnalysisHandler{log: log}
+
+	// Apply options first
+	for _, opt := range opts {
+		opt(handler)
+	}
+
+	// Create default runner if not provided
+	if handler.runner == nil {
+		runner, err := newAutomationRunner(log)
+		if err != nil && log != nil {
+			log.WithError(err).Warn("Failed to initialize automation runner for element analysis; requests will fail")
+		}
+		handler.runner = runner
+	}
+
+	// Create default suggestion generator if not provided
+	if handler.suggestionGenerator == nil {
+		handler.suggestionGenerator = newOllamaSuggestionGenerator(log)
+	}
+
+	return handler
 }
 
 // AnalyzeElements handles POST /api/v1/analyze-elements

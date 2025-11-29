@@ -23,7 +23,7 @@ import (
 // Playwright actions and returning contract StepOutcome payloads.
 type PlaywrightEngine struct {
 	driverURL  string
-	httpClient *http.Client
+	httpClient HTTPDoer
 	log        *logrus.Logger
 }
 
@@ -49,6 +49,22 @@ func newPlaywrightEngine(driverURL string, log *logrus.Logger) (*PlaywrightEngin
 	return &PlaywrightEngine{
 		driverURL:  strings.TrimRight(driverURL, "/"),
 		httpClient: client,
+		log:        log,
+	}, nil
+}
+
+// NewPlaywrightEngineWithHTTPClient constructs an engine with a custom HTTP client.
+// This is primarily used for testing to inject mock HTTP responses.
+func NewPlaywrightEngineWithHTTPClient(driverURL string, httpClient HTTPDoer, log *logrus.Logger) (*PlaywrightEngine, error) {
+	if strings.TrimSpace(driverURL) == "" {
+		return nil, fmt.Errorf("PLAYWRIGHT_DRIVER_URL is required")
+	}
+	if httpClient == nil {
+		return nil, fmt.Errorf("httpClient is required")
+	}
+	return &PlaywrightEngine{
+		driverURL:  strings.TrimRight(driverURL, "/"),
+		httpClient: httpClient,
 		log:        log,
 	}, nil
 }

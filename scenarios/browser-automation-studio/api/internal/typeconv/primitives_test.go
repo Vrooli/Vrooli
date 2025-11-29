@@ -213,3 +213,130 @@ func TestToStringSlice(t *testing.T) {
 		})
 	}
 }
+
+func TestToInterfaceSlice(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       any
+		expectedLen int
+	}{
+		{"nil", nil, 0},
+		{"[]any", []any{"a", 1, true}, 3},
+		{"[]map[string]any", []map[string]any{{"a": 1}, {"b": 2}}, 2},
+		{"map[string]any", map[string]any{"a": 1, "b": 2}, 2},
+		// Note: JSON string parsing only works for types that json.Marshal returns something parseable as array
+		// A plain string is not a valid JSON array
+		{"string (not array)", "hello", 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ToInterfaceSlice(tt.input)
+			if len(result) != tt.expectedLen {
+				t.Errorf("ToInterfaceSlice(%v) length = %d, expected %d", tt.input, len(result), tt.expectedLen)
+			}
+		})
+	}
+}
+
+func TestDeepCloneMap(t *testing.T) {
+	t.Run("nil input", func(t *testing.T) {
+		result := DeepCloneMap(nil)
+		if result != nil {
+			t.Errorf("DeepCloneMap(nil) should return nil")
+		}
+	})
+
+	t.Run("simple map", func(t *testing.T) {
+		input := map[string]any{"a": 1, "b": "hello"}
+		result := DeepCloneMap(input)
+
+		// Verify values are the same
+		if result["a"] != 1 || result["b"] != "hello" {
+			t.Errorf("DeepCloneMap values don't match")
+		}
+
+		// Verify it's a different map
+		input["c"] = "modified"
+		if _, exists := result["c"]; exists {
+			t.Errorf("DeepCloneMap should create independent copy")
+		}
+	})
+
+	t.Run("nested map", func(t *testing.T) {
+		input := map[string]any{
+			"outer": map[string]any{"inner": "value"},
+		}
+		result := DeepCloneMap(input)
+
+		// Modify the input nested map
+		inner := input["outer"].(map[string]any)
+		inner["inner"] = "modified"
+
+		// Verify the clone is not affected
+		resultInner := result["outer"].(map[string]any)
+		if resultInner["inner"] != "value" {
+			t.Errorf("DeepCloneMap should deep copy nested maps")
+		}
+	})
+
+	t.Run("nested slice", func(t *testing.T) {
+		input := map[string]any{
+			"items": []any{"a", "b", "c"},
+		}
+		result := DeepCloneMap(input)
+
+		// Modify the input slice
+		inputItems := input["items"].([]any)
+		inputItems[0] = "modified"
+
+		// Verify the clone is not affected
+		resultItems := result["items"].([]any)
+		if resultItems[0] != "a" {
+			t.Errorf("DeepCloneMap should deep copy slices")
+		}
+	})
+}
+
+func TestDeepCloneValue(t *testing.T) {
+	t.Run("primitive int", func(t *testing.T) {
+		result := DeepCloneValue(42)
+		if result != 42 {
+			t.Errorf("DeepCloneValue should preserve int")
+		}
+	})
+
+	t.Run("primitive string", func(t *testing.T) {
+		result := DeepCloneValue("hello")
+		if result != "hello" {
+			t.Errorf("DeepCloneValue should preserve string")
+		}
+	})
+
+	t.Run("string slice", func(t *testing.T) {
+		input := []string{"a", "b", "c"}
+		result := DeepCloneValue(input).([]string)
+
+		input[0] = "modified"
+		if result[0] != "a" {
+			t.Errorf("DeepCloneValue should copy string slices")
+		}
+	})
+
+	t.Run("any slice with maps", func(t *testing.T) {
+		input := []any{
+			map[string]any{"key": "value"},
+		}
+		result := DeepCloneValue(input).([]any)
+
+		// Modify the input
+		inputMap := input[0].(map[string]any)
+		inputMap["key"] = "modified"
+
+		// Verify the clone is not affected
+		resultMap := result[0].(map[string]any)
+		if resultMap["key"] != "value" {
+			t.Errorf("DeepCloneValue should deep copy slices with maps")
+		}
+	})
+}

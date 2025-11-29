@@ -57,6 +57,7 @@ type ReplayRenderer struct {
 	captureIntervalMs int
 	apiBaseURL        string
 	captureClient     replayCaptureClient
+	videoEncoder      VideoEncoder
 }
 
 // RenderFormat enumerates supported render formats.
@@ -129,6 +130,16 @@ func (r *ReplayRenderer) WithCaptureClient(client replayCaptureClient) *ReplayRe
 	return r
 }
 
+// WithVideoEncoder allows callers to override the video encoding implementation.
+// This enables testing replay rendering without requiring FFmpeg.
+func (r *ReplayRenderer) WithVideoEncoder(encoder VideoEncoder) *ReplayRenderer {
+	if encoder == nil {
+		return r
+	}
+	r.videoEncoder = encoder
+	return r
+}
+
 // renderCapture orchestrates the full pipeline: capture, decode, assemble, and optionally convert to GIF.
 func (r *ReplayRenderer) renderCapture(ctx context.Context, spec *ReplayMovieSpec, format RenderFormat, filename string, captureInterval int) (*RenderedMedia, error) {
 	if r.captureClient == nil {
@@ -195,7 +206,11 @@ func (r *ReplayRenderer) renderCapture(ctx context.Context, spec *ReplayMovieSpe
 
 	sequencePattern := filepath.Join(framesDir, "frame-%05d.jpg")
 	baseVideoPath := filepath.Join(tempRoot, "replay.mp4")
-	if err := r.assembleVideoFromSequence(ctx, sequencePattern, fps, baseVideoPath); err != nil {
+	encoder := r.videoEncoder
+	if encoder == nil {
+		encoder = NewFFmpegEncoder(r.ffmpegPath)
+	}
+	if err := encoder.AssembleVideoFromSequence(ctx, sequencePattern, fps, baseVideoPath); err != nil {
 		cleanup()
 		return nil, err
 	}
@@ -212,7 +227,7 @@ func (r *ReplayRenderer) renderCapture(ctx context.Context, spec *ReplayMovieSpe
 			gifWidth = defaultPresentationWidth
 		}
 		gifFPS := capture.FPS
-		if err := r.convertToGIF(ctx, baseVideoPath, gifPath, gifWidth, gifFPS); err != nil {
+		if err := encoder.ConvertToGIF(ctx, baseVideoPath, gifPath, gifWidth, gifFPS); err != nil {
 			cleanup()
 			return nil, err
 		}

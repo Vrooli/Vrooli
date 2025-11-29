@@ -4,20 +4,54 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"os/exec"
 
 	"github.com/sirupsen/logrus"
 )
 
+const defaultOllamaModel = "llama3.2"
+
 // ollamaSuggestionGenerator handles AI-powered workflow suggestions using Ollama.
 type ollamaSuggestionGenerator struct {
-	log *logrus.Logger
+	log    *logrus.Logger
+	client OllamaClient
+	model  string
+}
+
+// OllamaSuggestionOption configures the ollamaSuggestionGenerator.
+type OllamaSuggestionOption func(*ollamaSuggestionGenerator)
+
+// WithOllamaClient sets a custom Ollama client.
+func WithOllamaClient(client OllamaClient) OllamaSuggestionOption {
+	return func(g *ollamaSuggestionGenerator) {
+		g.client = client
+	}
+}
+
+// WithOllamaModel sets the Ollama model to use.
+func WithOllamaModel(model string) OllamaSuggestionOption {
+	return func(g *ollamaSuggestionGenerator) {
+		g.model = model
+	}
 }
 
 // newOllamaSuggestionGenerator creates a new Ollama suggestion generator.
-func newOllamaSuggestionGenerator(log *logrus.Logger) *ollamaSuggestionGenerator {
-	return &ollamaSuggestionGenerator{log: log}
+func newOllamaSuggestionGenerator(log *logrus.Logger, opts ...OllamaSuggestionOption) *ollamaSuggestionGenerator {
+	generator := &ollamaSuggestionGenerator{
+		log:   log,
+		model: defaultOllamaModel,
+	}
+
+	// Apply options first
+	for _, opt := range opts {
+		opt(generator)
+	}
+
+	// Create default client if not provided
+	if generator.client == nil {
+		generator.client = NewDefaultOllamaClient(log)
+	}
+
+	return generator
 }
 
 // generateAISuggestions uses Ollama to generate intelligent automation suggestions
@@ -26,43 +60,21 @@ func (g *ollamaSuggestionGenerator) generateAISuggestions(ctx context.Context, e
 	// Build prompt for Ollama
 	prompt := g.buildElementAnalysisPrompt(elements, pageContext)
 
-	// Create temporary file for Ollama output
-	tmpOllamaFile, err := os.CreateTemp("", "ollama-suggestions-*.json")
+	// Query Ollama via the client interface
+	response, err := g.client.Query(ctx, g.model, prompt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp ollama file: %w", err)
-	}
-	defer os.Remove(tmpOllamaFile.Name())
-	defer tmpOllamaFile.Close()
-
-	// Call resource-ollama using the query command
-	ollamaCmd := exec.CommandContext(ctx, "resource-ollama", "query",
-		"--model", "llama3.2",
-		"--prompt", prompt)
-
-	output, err := ollamaCmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("failed to call ollama: %w, output: %s", err, string(output))
+		return nil, fmt.Errorf("failed to call ollama: %w", err)
 	}
 
-	// Write ollama output to temp file for parsing
-	if err := os.WriteFile(tmpOllamaFile.Name(), output, 0600); err != nil {
-		return nil, fmt.Errorf("failed to write ollama output: %w", err)
-	}
-
-	// Read and parse Ollama response
-	ollamaData, err := os.ReadFile(tmpOllamaFile.Name())
-	if err != nil {
-		return nil, fmt.Errorf("failed to read ollama output: %w", err)
-	}
-
+	// Parse the response
 	var ollamaResponse struct {
 		Suggestions []AISuggestion `json:"suggestions"`
 	}
 
-	if err := json.Unmarshal(ollamaData, &ollamaResponse); err != nil {
+	if err := json.Unmarshal([]byte(response), &ollamaResponse); err != nil {
 		// If JSON parsing fails, try to extract from the raw response
 		g.log.WithError(err).Warn("Failed to parse Ollama JSON response, trying fallback parsing")
-		return g.parseOllamaFallback(string(ollamaData))
+		return g.parseOllamaFallback(response)
 	}
 
 	return ollamaResponse.Suggestions, nil

@@ -6,10 +6,10 @@ import (
 
 // Request represents the JSON payload for execution export endpoints.
 type Request struct {
-	Format    string                       `json:"format,omitempty"`
-	FileName  string                       `json:"file_name,omitempty"`
-	OutputDir string                       `json:"output_dir,omitempty"`
-	Overrides *Overrides                   `json:"overrides,omitempty"`
+	Format    string                     `json:"format,omitempty"`
+	FileName  string                     `json:"file_name,omitempty"`
+	OutputDir string                     `json:"output_dir,omitempty"`
+	Overrides *Overrides                 `json:"overrides,omitempty"`
 	MovieSpec *basexport.ReplayMovieSpec `json:"movie_spec,omitempty"`
 }
 

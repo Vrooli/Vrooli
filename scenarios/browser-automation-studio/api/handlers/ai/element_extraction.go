@@ -250,7 +250,7 @@ func (h *ElementAnalysisHandler) extractPageElements(ctx context.Context, url st
 		},
 	}
 
-	outcomes, _, err := h.runner.run(ctx, previewDefaultViewportWidth, previewDefaultViewportHeight, instructions)
+	outcomes, _, err := h.runner.Run(ctx, previewDefaultViewportWidth, previewDefaultViewportHeight, instructions)
 	if err != nil {
 		return nil, PageContext{}, "", fmt.Errorf("automation run failed: %w", err)
 	}

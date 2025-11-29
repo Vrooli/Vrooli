@@ -93,3 +93,6 @@ func NewRepository(db *DB, log *logrus.Logger) Repository {
 // - repository_executions.go: Execution, step, and artifact operations
 // - repository_artifacts.go: Screenshot, log, and extracted data operations
 // - repository_folders.go: Folder operations
+
+// Compile-time interface enforcement
+var _ Repository = (*repository)(nil)

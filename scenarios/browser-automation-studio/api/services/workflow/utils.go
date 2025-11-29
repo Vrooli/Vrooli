@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 )
 
 const (
@@ -216,35 +217,20 @@ func parseFlexibleInt(value any) int {
 	return 0
 }
 
+// ToInterfaceSlice delegates to typeconv.ToInterfaceSlice for consistency.
+// This wrapper handles database.JSONMap as a special case since the typeconv
+// package doesn't depend on the database package.
 func ToInterfaceSlice(value any) []any {
-	switch typed := value.(type) {
-	case nil:
-		return []any{}
-	case []any:
-		return typed
-	case []map[string]any:
-		result := make([]any, len(typed))
-		for i := range typed {
-			result[i] = typed[i]
-		}
-		return result
-	case database.JSONMap:
-		result := make([]any, 0, len(typed))
-		for _, v := range typed {
+	// Handle database.JSONMap specially since it's a domain-specific type
+	if jsonMap, ok := value.(database.JSONMap); ok {
+		result := make([]any, 0, len(jsonMap))
+		for _, v := range jsonMap {
 			result = append(result, v)
 		}
 		return result
-	default:
-		bytes, err := json.Marshal(typed)
-		if err != nil {
-			return []any{}
-		}
-		var arr []any
-		if err := json.Unmarshal(bytes, &arr); err != nil {
-			return []any{}
-		}
-		return arr
 	}
+	// Delegate to the general-purpose implementation
+	return typeconv.ToInterfaceSlice(value)
 }
 
 func equalStringArrays(a, b pq.StringArray) bool {

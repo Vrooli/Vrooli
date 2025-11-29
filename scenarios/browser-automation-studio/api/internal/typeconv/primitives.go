@@ -128,3 +128,74 @@ func ToStringSlice(value any) []string {
 	}
 	return result
 }
+
+// ToInterfaceSlice safely converts various types to []any.
+// Handles []any, []map[string]any, map[string]any (values), and JSON-serializable types.
+// Returns empty slice if conversion fails.
+func ToInterfaceSlice(value any) []any {
+	switch typed := value.(type) {
+	case nil:
+		return []any{}
+	case []any:
+		return typed
+	case []map[string]any:
+		result := make([]any, len(typed))
+		for i := range typed {
+			result[i] = typed[i]
+		}
+		return result
+	case map[string]any:
+		result := make([]any, 0, len(typed))
+		for _, v := range typed {
+			result = append(result, v)
+		}
+		return result
+	default:
+		bytes, err := json.Marshal(typed)
+		if err != nil {
+			return []any{}
+		}
+		var arr []any
+		if err := json.Unmarshal(bytes, &arr); err != nil {
+			return []any{}
+		}
+		return arr
+	}
+}
+
+// DeepCloneMap creates a deep copy of a map[string]any, recursively cloning nested maps and slices.
+// Returns nil if input is nil.
+func DeepCloneMap(source map[string]any) map[string]any {
+	if source == nil {
+		return nil
+	}
+	clone := make(map[string]any, len(source))
+	for k, v := range source {
+		clone[k] = DeepCloneValue(v)
+	}
+	return clone
+}
+
+// DeepCloneValue creates a deep copy of a value, handling maps, slices, and primitives.
+// Used by DeepCloneMap for recursive cloning.
+func DeepCloneValue(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		cloned := make(map[string]any, len(typed))
+		for k, v := range typed {
+			cloned[k] = DeepCloneValue(v)
+		}
+		return cloned
+	case []any:
+		result := make([]any, len(typed))
+		for i := range typed {
+			result[i] = DeepCloneValue(typed[i])
+		}
+		return result
+	case []string:
+		return append([]string{}, typed...)
+	default:
+		// Primitives and other types are returned as-is (they're copied by value)
+		return typed
+	}
+}

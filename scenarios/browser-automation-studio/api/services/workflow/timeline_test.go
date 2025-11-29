@@ -158,6 +158,29 @@ func (m *timelineRepositoryMock) ListFolders(ctx context.Context) ([]*database.W
 	return nil, nil
 }
 
+// Export operations
+func (m *timelineRepositoryMock) CreateExport(ctx context.Context, export *database.Export) error {
+	return nil
+}
+func (m *timelineRepositoryMock) GetExport(ctx context.Context, id uuid.UUID) (*database.Export, error) {
+	return nil, nil
+}
+func (m *timelineRepositoryMock) UpdateExport(ctx context.Context, export *database.Export) error {
+	return nil
+}
+func (m *timelineRepositoryMock) DeleteExport(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+func (m *timelineRepositoryMock) ListExports(ctx context.Context, limit, offset int) ([]*database.ExportWithDetails, error) {
+	return nil, nil
+}
+func (m *timelineRepositoryMock) ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*database.Export, error) {
+	return nil, nil
+}
+func (m *timelineRepositoryMock) ListExportsByWorkflow(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*database.Export, error) {
+	return nil, nil
+}
+
 func TestGetExecutionTimeline(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] builds timeline from execution artifacts", func(t *testing.T) {
 		executionID := uuid.New()

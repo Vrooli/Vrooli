@@ -714,3 +714,6 @@ func buildTimelinePayload(outcome contracts.StepOutcome, screenshotURL string, s
 	}
 	return payload
 }
+
+// Compile-time interface enforcement
+var _ Recorder = (*DBRecorder)(nil)

@@ -107,9 +107,22 @@ type HealthResponse struct {
 	Metrics      map[string]any `json:"metrics,omitempty"`
 }
 
-// NewHandler creates a new handler instance
-func NewHandler(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, allowAllOrigins bool, allowedOrigins []string) *Handler {
-	// Initialize MinIO client for screenshot serving
+// HandlerDeps holds all dependencies for the Handler.
+// This struct separates dependency wiring from handler construction.
+type HandlerDeps struct {
+	WorkflowService   WorkflowService
+	WorkflowValidator *workflowvalidator.Validator
+	Storage           storage.StorageInterface
+	RecordingService  recording.RecordingServiceInterface
+	RecordingsRoot    string
+	ReplayRenderer    replayRenderer
+}
+
+// InitDefaultDeps initializes the standard production dependencies.
+// This function is responsible for infrastructure wiring, keeping it separate
+// from handler construction for clearer responsibility boundaries.
+func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger) HandlerDeps {
+	// Initialize storage client
 	var storageClient storage.StorageInterface
 	minioClient, err := storage.NewMinIOClient(log)
 	if err != nil {
@@ -119,9 +132,11 @@ func NewHandler(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, 
 		storageClient = minioClient
 	}
 
+	// Initialize recordings infrastructure
 	recordingsRoot := paths.ResolveRecordingsRoot(log)
 	recordingService := recording.NewRecordingService(repo, storageClient, wsHub, log, recordingsRoot)
-	// Wire automation stack (feature-flag protected inside service).
+
+	// Wire automation stack
 	autoExecutor := autoexecutor.NewSimpleExecutor(nil)
 	autoEngineFactory, engErr := autoengine.DefaultFactory(log)
 	if engErr != nil {
@@ -129,29 +144,50 @@ func NewHandler(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, 
 	}
 	autoRecorder := autorecorder.NewDBRecorder(repo, storageClient, log)
 
+	// Create workflow service with dependencies
 	workflowSvc := workflow.NewWorkflowServiceWithDeps(repo, wsHub, log, workflow.WorkflowServiceOptions{
 		Executor:         autoExecutor,
 		EngineFactory:    autoEngineFactory,
 		ArtifactRecorder: autoRecorder,
 	})
-	replayRenderer := replay.NewReplayRenderer(log, recordingsRoot)
 
-	allowedCopy := append([]string(nil), allowedOrigins...)
-
+	// Create validator
 	validatorInstance, err := workflowvalidator.NewValidator()
 	if err != nil {
 		log.WithError(err).Fatal("Failed to initialize workflow validator")
 	}
 
+	return HandlerDeps{
+		WorkflowService:   workflowSvc,
+		WorkflowValidator: validatorInstance,
+		Storage:           storageClient,
+		RecordingService:  recordingService,
+		RecordingsRoot:    recordingsRoot,
+		ReplayRenderer:    replay.NewReplayRenderer(log, recordingsRoot),
+	}
+}
+
+// NewHandler creates a new handler instance with default dependencies.
+// For testing or custom wiring, use NewHandlerWithDeps instead.
+func NewHandler(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, allowAllOrigins bool, allowedOrigins []string) *Handler {
+	deps := InitDefaultDeps(repo, wsHub, log)
+	return NewHandlerWithDeps(repo, wsHub, log, allowAllOrigins, allowedOrigins, deps)
+}
+
+// NewHandlerWithDeps creates a handler with explicitly provided dependencies.
+// This enables testing with mock dependencies and custom configurations.
+func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log *logrus.Logger, allowAllOrigins bool, allowedOrigins []string, deps HandlerDeps) *Handler {
+	allowedCopy := append([]string(nil), allowedOrigins...)
+
 	handler := &Handler{
-		workflowService:   workflowSvc,
-		workflowValidator: validatorInstance,
+		workflowService:   deps.WorkflowService,
+		workflowValidator: deps.WorkflowValidator,
 		repo:              repo,
 		wsHub:             wsHub,
-		storage:           storageClient,
-		recordingService:  recordingService,
-		recordingsRoot:    recordingsRoot,
-		replayRenderer:    replayRenderer,
+		storage:           deps.Storage,
+		recordingService:  deps.RecordingService,
+		recordingsRoot:    deps.RecordingsRoot,
+		replayRenderer:    deps.ReplayRenderer,
 		log:               log,
 		wsAllowAll:        allowAllOrigins,
 		wsAllowedOrigins:  allowedCopy,

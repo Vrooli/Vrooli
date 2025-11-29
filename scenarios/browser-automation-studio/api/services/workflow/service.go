@@ -13,6 +13,7 @@ import (
 	autoexec "github.com/vrooli/browser-automation-studio/automation/executor"
 	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/ai"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
@@ -51,7 +52,7 @@ type WorkflowService struct {
 	repo             database.Repository
 	wsHub            *wsHub.Hub
 	log              *logrus.Logger
-	aiClient         *ai.OpenRouterClient
+	aiClient         ai.AIClient
 	executor         autoexec.Executor
 	engineFactory    autoengine.Factory
 	artifactRecorder autorecorder.Recorder
@@ -114,16 +115,22 @@ type WorkflowServiceOptions struct {
 	EngineFactory    autoengine.Factory
 	ArtifactRecorder autorecorder.Recorder
 	PlanCompiler     autoexec.PlanCompiler
+	AIClient         ai.AIClient
 }
 
 // NewWorkflowServiceWithDeps allows advanced configuration for upcoming engine
 // abstraction work while keeping the legacy constructor stable.
 func NewWorkflowServiceWithDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, opts WorkflowServiceOptions) *WorkflowService {
+	aiClient := opts.AIClient
+	if aiClient == nil {
+		aiClient = ai.NewOpenRouterClient(log)
+	}
+
 	svc := &WorkflowService{
 		repo:             repo,
 		wsHub:            wsHub,
 		log:              log,
-		aiClient:         ai.NewOpenRouterClient(log),
+		aiClient:         aiClient,
 		executor:         opts.Executor,
 		engineFactory:    opts.EngineFactory,
 		artifactRecorder: opts.ArtifactRecorder,
@@ -133,6 +140,8 @@ func NewWorkflowServiceWithDeps(repo database.Repository, wsHub *wsHub.Hub, log 
 	return svc
 }
 
+// cloneJSONMap creates a deep copy of a database.JSONMap using typeconv utilities.
+// Handles database.JSONMap and pq.StringArray as special domain-specific types.
 func cloneJSONMap(source database.JSONMap) database.JSONMap {
 	if source == nil {
 		return nil
@@ -144,26 +153,16 @@ func cloneJSONMap(source database.JSONMap) database.JSONMap {
 	return clone
 }
 
+// deepCloneInterface delegates to typeconv.DeepCloneValue with additional handling
+// for domain-specific types (database.JSONMap, pq.StringArray).
 func deepCloneInterface(value any) any {
 	switch typed := value.(type) {
-	case map[string]any:
-		cloned := make(map[string]any, len(typed))
-		for k, v := range typed {
-			cloned[k] = deepCloneInterface(v)
-		}
-		return cloned
 	case database.JSONMap:
 		return cloneJSONMap(typed)
-	case []any:
-		result := make([]any, len(typed))
-		for i := range typed {
-			result[i] = deepCloneInterface(typed[i])
-		}
-		return result
 	case pq.StringArray:
 		return append(pq.StringArray{}, typed...)
 	default:
-		return typed
+		return typeconv.DeepCloneValue(typed)
 	}
 }
 

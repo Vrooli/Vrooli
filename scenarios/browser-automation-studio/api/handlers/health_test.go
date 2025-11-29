@@ -100,14 +100,8 @@ func (m *healthMockRepository) ListExecutions(ctx context.Context, workflowID *u
 func (m *healthMockRepository) CreateExecutionLog(ctx context.Context, log *database.ExecutionLog) error {
 	return nil
 }
-func (m *healthMockRepository) ListExecutionLogs(ctx context.Context, executionID uuid.UUID, level string, limit, offset int) ([]*database.ExecutionLog, error) {
-	return nil, nil
-}
 func (m *healthMockRepository) CreateScreenshot(ctx context.Context, screenshot *database.Screenshot) error {
 	return nil
-}
-func (m *healthMockRepository) ListExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*database.Screenshot, error) {
-	return nil, nil
 }
 func (m *healthMockRepository) DeleteProjectWorkflows(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error {
 	return nil
@@ -152,6 +146,29 @@ func (m *healthMockRepository) GetFolder(ctx context.Context, path string) (*dat
 	return nil, nil
 }
 func (m *healthMockRepository) ListFolders(ctx context.Context) ([]*database.WorkflowFolder, error) {
+	return nil, nil
+}
+
+// Export operations
+func (m *healthMockRepository) CreateExport(ctx context.Context, export *database.Export) error {
+	return nil
+}
+func (m *healthMockRepository) GetExport(ctx context.Context, id uuid.UUID) (*database.Export, error) {
+	return nil, nil
+}
+func (m *healthMockRepository) UpdateExport(ctx context.Context, export *database.Export) error {
+	return nil
+}
+func (m *healthMockRepository) DeleteExport(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+func (m *healthMockRepository) ListExports(ctx context.Context, limit, offset int) ([]*database.ExportWithDetails, error) {
+	return nil, nil
+}
+func (m *healthMockRepository) ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*database.Export, error) {
+	return nil, nil
+}
+func (m *healthMockRepository) ListExportsByWorkflow(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*database.Export, error) {
 	return nil, nil
 }
 

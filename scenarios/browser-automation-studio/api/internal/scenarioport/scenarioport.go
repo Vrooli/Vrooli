@@ -21,9 +21,24 @@ type ScenarioMetadata struct {
 	Status      string `json:"status"`
 }
 
-var portLookupFunc = defaultPortLookup
+// ScenarioCLI abstracts interactions with the Vrooli scenario CLI.
+// This seam enables testing scenario operations without shelling out to the CLI.
+type ScenarioCLI interface {
+	// LookupPort retrieves the port number for a named port of a scenario.
+	LookupPort(ctx context.Context, scenarioName, portName string) (int, error)
 
-func defaultPortLookup(ctx context.Context, scenarioName, portName string) (int, error) {
+	// ListScenarios returns metadata for all known scenarios.
+	ListScenarios(ctx context.Context) ([]ScenarioMetadata, error)
+
+	// GetStatus retrieves the current status of a scenario (running, stopped, etc.).
+	GetStatus(ctx context.Context, scenarioName string) (string, error)
+}
+
+// DefaultScenarioCLI implements ScenarioCLI using the actual Vrooli CLI.
+type DefaultScenarioCLI struct{}
+
+// LookupPort shells out to 'vrooli scenario port' to get the port number.
+func (c *DefaultScenarioCLI) LookupPort(ctx context.Context, scenarioName, portName string) (int, error) {
 	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", scenarioName, portName)
 	output, err := cmd.Output()
 	if err != nil {
@@ -47,6 +62,125 @@ func defaultPortLookup(ctx context.Context, scenarioName, portName string) (int,
 	return port, nil
 }
 
+// ListScenarios shells out to 'vrooli scenario list --json' to get all scenarios.
+func (c *DefaultScenarioCLI) ListScenarios(ctx context.Context) ([]ScenarioMetadata, error) {
+	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "list", "--json")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list scenarios: %w", err)
+	}
+
+	var payload scenarioListResponse
+	if err := json.Unmarshal(output, &payload); err != nil {
+		return nil, fmt.Errorf("failed to parse scenario list: %w", err)
+	}
+
+	scenarios := make([]ScenarioMetadata, 0, len(payload.Scenarios))
+	for _, item := range payload.Scenarios {
+		trimmedName := strings.TrimSpace(item.Name)
+		if trimmedName == "" {
+			continue
+		}
+		scenarios = append(scenarios, ScenarioMetadata{
+			Name:        trimmedName,
+			Description: strings.TrimSpace(item.Description),
+			Status:      strings.TrimSpace(item.Status),
+		})
+	}
+
+	return scenarios, nil
+}
+
+// GetStatus shells out to 'vrooli scenario status' to get the current status.
+func (c *DefaultScenarioCLI) GetStatus(ctx context.Context, scenarioName string) (string, error) {
+	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "status", scenarioName)
+	output, err := cmd.Output()
+	if err != nil {
+		return "unknown", nil // Status command failing is not an error condition
+	}
+
+	statusStr := strings.TrimSpace(string(output))
+	if strings.Contains(strings.ToLower(statusStr), "running") {
+		return "running", nil
+	} else if strings.Contains(strings.ToLower(statusStr), "stopped") {
+		return "stopped", nil
+	}
+	return "unknown", nil
+}
+
+// Compile-time interface enforcement
+var _ ScenarioCLI = (*DefaultScenarioCLI)(nil)
+
+// MockScenarioCLI is a test double for ScenarioCLI.
+type MockScenarioCLI struct {
+	Ports     map[string]map[string]int // scenarioName -> portName -> port
+	Scenarios []ScenarioMetadata
+	Statuses  map[string]string // scenarioName -> status
+	Errors    map[string]error  // method -> error
+}
+
+// NewMockScenarioCLI creates a new mock with empty defaults.
+func NewMockScenarioCLI() *MockScenarioCLI {
+	return &MockScenarioCLI{
+		Ports:    make(map[string]map[string]int),
+		Statuses: make(map[string]string),
+		Errors:   make(map[string]error),
+	}
+}
+
+// LookupPort returns the configured port or error.
+func (m *MockScenarioCLI) LookupPort(_ context.Context, scenarioName, portName string) (int, error) {
+	if err, ok := m.Errors["LookupPort"]; ok && err != nil {
+		return 0, err
+	}
+	if ports, ok := m.Ports[scenarioName]; ok {
+		if port, ok := ports[portName]; ok {
+			return port, nil
+		}
+	}
+	return 0, fmt.Errorf("port %s not found for scenario %s", portName, scenarioName)
+}
+
+// ListScenarios returns the configured scenarios or error.
+func (m *MockScenarioCLI) ListScenarios(_ context.Context) ([]ScenarioMetadata, error) {
+	if err, ok := m.Errors["ListScenarios"]; ok && err != nil {
+		return nil, err
+	}
+	return m.Scenarios, nil
+}
+
+// GetStatus returns the configured status or "unknown".
+func (m *MockScenarioCLI) GetStatus(_ context.Context, scenarioName string) (string, error) {
+	if err, ok := m.Errors["GetStatus"]; ok && err != nil {
+		return "", err
+	}
+	if status, ok := m.Statuses[scenarioName]; ok {
+		return status, nil
+	}
+	return "unknown", nil
+}
+
+// Compile-time interface enforcement
+var _ ScenarioCLI = (*MockScenarioCLI)(nil)
+
+// Global CLI instance (allows backward-compatible seam injection)
+var scenarioCLI ScenarioCLI = &DefaultScenarioCLI{}
+
+// SetScenarioCLIForTests replaces the global CLI instance for testing.
+func SetScenarioCLIForTests(cli ScenarioCLI) func() {
+	previous := scenarioCLI
+	scenarioCLI = cli
+	return func() {
+		scenarioCLI = previous
+	}
+}
+
+// Legacy compatibility - portLookupFunc now delegates to scenarioCLI
+var portLookupFunc = func(ctx context.Context, scenarioName, portName string) (int, error) {
+	return scenarioCLI.LookupPort(ctx, scenarioName, portName)
+}
+
+// SetPortLookupFuncForTests provides backward compatibility for existing tests.
 func SetPortLookupFuncForTests(fn func(context.Context, string, string) (int, error)) func() {
 	previous := portLookupFunc
 	portLookupFunc = fn
@@ -145,36 +279,22 @@ type scenarioListResponse struct {
 	Scenarios []ScenarioMetadata `json:"scenarios"`
 }
 
+// ListScenarios returns metadata for all known scenarios.
+// This function delegates to the global scenarioCLI instance.
 func ListScenarios(ctx context.Context) ([]ScenarioMetadata, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	return scenarioCLI.ListScenarios(ctx)
+}
 
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "list", "--json")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to list scenarios: %w", err)
+// GetScenarioStatus returns the current status of a scenario.
+// This function delegates to the global scenarioCLI instance.
+func GetScenarioStatus(ctx context.Context, scenarioName string) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
 	}
-
-	var payload scenarioListResponse
-	if err := json.Unmarshal(output, &payload); err != nil {
-		return nil, fmt.Errorf("failed to parse scenario list: %w", err)
-	}
-
-	scenarios := make([]ScenarioMetadata, 0, len(payload.Scenarios))
-	for _, item := range payload.Scenarios {
-		trimmedName := strings.TrimSpace(item.Name)
-		if trimmedName == "" {
-			continue
-		}
-		scenarios = append(scenarios, ScenarioMetadata{
-			Name:        trimmedName,
-			Description: strings.TrimSpace(item.Description),
-			Status:      strings.TrimSpace(item.Status),
-		})
-	}
-
-	return scenarios, nil
+	return scenarioCLI.GetStatus(ctx, scenarioName)
 }
 
 func uniqueNormalizedNames(names []string) []string {

@@ -314,7 +314,7 @@ func isUUIDType(t reflect.Type) bool {
 
 func main() {
 	overrides := map[reflect.Type]string{
-		reflect.TypeOf(export.ReplayMovieSpec{}):           "ReplayMovieSpec",
+		reflect.TypeOf(export.ReplayMovieSpec{}):         "ReplayMovieSpec",
 		reflect.TypeOf(export.ExportSummary{}):           "ReplayMovieSummary",
 		reflect.TypeOf(export.ExportExecutionMetadata{}): "ReplayMovieExecutionMetadata",
 		reflect.TypeOf(export.ExportAsset{}):             "ReplayMovieAsset",
@@ -328,17 +328,17 @@ func main() {
 		reflect.TypeOf(export.ExportNormalizedPoint{}):   "ReplayMovieNormalizedPoint",
 		reflect.TypeOf(export.ExportNormalizedRect{}):    "ReplayMovieNormalizedRect",
 		reflect.TypeOf(export.ExportResilience{}):        "ReplayMovieResilience",
-		reflect.TypeOf(export.ExportFrame{}):               "ReplayMovieFrame",
-		reflect.TypeOf(typeconv.RetryHistoryEntry{}):       "ReplayMovieRetryHistoryEntry",
-		reflect.TypeOf(contracts.HighlightRegion{}):        "ReplayMovieRegion",
-		reflect.TypeOf(contracts.MaskRegion{}):             "ReplayMovieRegion",
-		reflect.TypeOf(contracts.ElementFocus{}):           "ReplayMovieFocusedElement",
-		reflect.TypeOf(contracts.BoundingBox{}):            "ReplayMovieRegionBounds",
-		reflect.TypeOf(contracts.Point{}):                  "ReplayMovieCursorTrailPoint",
-		reflect.TypeOf(contracts.AssertionOutcome{}):       "ReplayMovieAssertion",
+		reflect.TypeOf(export.ExportFrame{}):             "ReplayMovieFrame",
+		reflect.TypeOf(typeconv.RetryHistoryEntry{}):     "ReplayMovieRetryHistoryEntry",
+		reflect.TypeOf(contracts.HighlightRegion{}):      "ReplayMovieRegion",
+		reflect.TypeOf(contracts.MaskRegion{}):           "ReplayMovieRegion",
+		reflect.TypeOf(contracts.ElementFocus{}):         "ReplayMovieFocusedElement",
+		reflect.TypeOf(contracts.BoundingBox{}):          "ReplayMovieRegionBounds",
+		reflect.TypeOf(contracts.Point{}):                "ReplayMovieCursorTrailPoint",
+		reflect.TypeOf(contracts.AssertionOutcome{}):     "ReplayMovieAssertion",
 		reflect.TypeOf(export.ExportPlayback{}):          "ReplayMoviePlayback",
 		reflect.TypeOf(export.ExportPresentation{}):      "ReplayMoviePresentation",
-		reflect.TypeOf(export.ExportFrameRect{}):           "ReplayMovieFrameRect",
+		reflect.TypeOf(export.ExportFrameRect{}):         "ReplayMovieFrameRect",
 		reflect.TypeOf(export.ExportCursorMotion{}):      "ReplayMovieCursorMotion",
 	}
 

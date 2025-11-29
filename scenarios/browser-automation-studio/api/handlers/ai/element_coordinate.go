@@ -41,7 +41,7 @@ func (h *ElementAnalysisHandler) getElementAtCoordinate(ctx context.Context, url
 		},
 	}
 
-	outcomes, _, err := h.runner.run(ctx, 0, 0, instructions)
+	outcomes, _, err := h.runner.Run(ctx, 0, 0, instructions)
 	if err != nil {
 		return nil, fmt.Errorf("automation probe failed: %w", err)
 	}

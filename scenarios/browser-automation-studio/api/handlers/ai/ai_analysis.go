@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -13,18 +12,67 @@ import (
 	"github.com/vrooli/browser-automation-studio/internal/httpjson"
 )
 
-// AIAnalysisHandler handles AI-powered element analysis using Ollama
-type AIAnalysisHandler struct {
-	log        *logrus.Logger
-	domHandler *DOMHandler
+// DOMExtractor defines the interface for extracting DOM trees.
+// This abstraction enables testing AI analysis without requiring browser automation.
+type DOMExtractor interface {
+	ExtractDOMTree(ctx context.Context, url string) (string, error)
 }
 
-// NewAIAnalysisHandler creates a new AI analysis handler
-func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler) *AIAnalysisHandler {
-	return &AIAnalysisHandler{
-		log:        log,
-		domHandler: domHandler,
+// AIAnalysisHandler handles AI-powered element analysis using Ollama
+type AIAnalysisHandler struct {
+	log          *logrus.Logger
+	domExtractor DOMExtractor
+	ollamaClient OllamaClient
+	model        string
+}
+
+// AIAnalysisOption configures the AIAnalysisHandler.
+type AIAnalysisOption func(*AIAnalysisHandler)
+
+// WithDOMExtractor sets a custom DOM extractor.
+func WithDOMExtractor(extractor DOMExtractor) AIAnalysisOption {
+	return func(h *AIAnalysisHandler) {
+		h.domExtractor = extractor
 	}
+}
+
+// WithAIAnalysisOllamaClient sets a custom Ollama client for AI analysis.
+func WithAIAnalysisOllamaClient(client OllamaClient) AIAnalysisOption {
+	return func(h *AIAnalysisHandler) {
+		h.ollamaClient = client
+	}
+}
+
+// WithAIAnalysisModel sets the Ollama model to use for AI analysis.
+func WithAIAnalysisModel(model string) AIAnalysisOption {
+	return func(h *AIAnalysisHandler) {
+		h.model = model
+	}
+}
+
+// NewAIAnalysisHandler creates a new AI analysis handler with optional configuration.
+func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler, opts ...AIAnalysisOption) *AIAnalysisHandler {
+	handler := &AIAnalysisHandler{
+		log:   log,
+		model: "llama3.2:3b",
+	}
+
+	// Apply options first
+	for _, opt := range opts {
+		opt(handler)
+	}
+
+	// Use domHandler as the extractor if not provided via options
+	if handler.domExtractor == nil && domHandler != nil {
+		handler.domExtractor = domHandler
+	}
+
+	// Create default Ollama client if not provided
+	if handler.ollamaClient == nil {
+		handler.ollamaClient = NewDefaultOllamaClient(log)
+	}
+
+	return handler
 }
 
 // AIAnalyzeElements handles POST /api/v1/ai-analyze-elements
@@ -62,8 +110,12 @@ func (h *AIAnalysisHandler) AIAnalyzeElements(w http.ResponseWriter, r *http.Req
 
 // analyzeElementsWithAI uses Ollama to analyze the DOM and suggest elements
 func (h *AIAnalysisHandler) analyzeElementsWithAI(ctx context.Context, url, intent string) ([]ElementInfo, error) {
+	if h.domExtractor == nil {
+		return nil, fmt.Errorf("DOM extractor not configured")
+	}
+
 	// First, extract the DOM tree from the page
-	domData, err := h.domHandler.ExtractDOMTree(ctx, url)
+	domData, err := h.domExtractor.ExtractDOMTree(ctx, url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract DOM tree: %w", err)
 	}
@@ -118,56 +170,25 @@ Example format:
   }
 ]`, url, intent, domData)
 
-	// Call Ollama API directly using curl
-	ollamaPayload := map[string]any{
-		"model":  "llama3.2:3b", // Use a fast text model
-		"prompt": prompt,
-		"stream": false,
-		// Don't use format: json as it causes double-escaping issues
-	}
-
-	payloadBytes, err := json.Marshal(ollamaPayload)
+	// Query Ollama via the client interface
+	responseText, err := h.ollamaClient.Query(ctx, h.model, prompt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal ollama payload: %w", err)
-	}
-
-	// Call Ollama API
-	curlCmd := exec.CommandContext(ctx, "curl", "-s", "-X", "POST",
-		"http://localhost:11434/api/generate",
-		"-H", "Content-Type: application/json",
-		"-d", string(payloadBytes))
-
-	output, err := curlCmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("failed to call ollama API: %w, output: %s", err, string(output))
-	}
-
-	// Parse Ollama response
-	var ollamaResp struct {
-		Model    string `json:"model"`
-		Response string `json:"response"`
-		Done     bool   `json:"done"`
-	}
-
-	if err := json.Unmarshal(output, &ollamaResp); err != nil {
-		return nil, fmt.Errorf("failed to parse ollama response: %w", err)
+		return nil, fmt.Errorf("failed to call ollama API: %w", err)
 	}
 
 	// Log the raw Ollama response for debugging
 	previewLen := 200
-	if len(ollamaResp.Response) < previewLen {
-		previewLen = len(ollamaResp.Response)
+	if len(responseText) < previewLen {
+		previewLen = len(responseText)
 	}
 	h.log.WithFields(logrus.Fields{
-		"model":            ollamaResp.Model,
-		"done":             ollamaResp.Done,
-		"response_length":  len(ollamaResp.Response),
-		"response_preview": ollamaResp.Response[:previewLen],
+		"model":            h.model,
+		"response_length":  len(responseText),
+		"response_preview": responseText[:previewLen],
 	}).Info("Received Ollama response")
 
 	// Parse the JSON response from the model
 	var suggestions []ElementInfo
-	responseText := ollamaResp.Response
 
 	// First try direct parsing
 	if err := json.Unmarshal([]byte(responseText), &suggestions); err != nil {
@@ -190,9 +211,9 @@ Example format:
 
 			// Try parsing the cleaned JSON
 			if err := json.Unmarshal([]byte(jsonStr), &suggestions); err != nil {
-				origPreview := ollamaResp.Response
-				if len(ollamaResp.Response) > 300 {
-					origPreview = ollamaResp.Response[:300]
+				origPreview := responseText
+				if len(responseText) > 300 {
+					origPreview = responseText[:300]
 				}
 				cleanedPreview := jsonStr
 				if len(jsonStr) > 300 {

@@ -109,7 +109,8 @@ func TestNewAIAnalysisHandler(t *testing.T) {
 
 		assert.NotNil(t, handler)
 		assert.Equal(t, log, handler.log)
-		assert.Equal(t, domHandler, handler.domHandler)
+		// The domHandler is used as the domExtractor interface
+		assert.NotNil(t, handler.domExtractor)
 	})
 }
 

@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os/exec"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
@@ -56,17 +54,7 @@ func (h *Handler) getScenarioPortInfo(ctx context.Context, scenarioName string) 
 	}
 
 	// Check if the scenario is running by trying to get its status
-	statusCmd := exec.CommandContext(ctx, "vrooli", "scenario", "status", scenarioName)
-	statusOutput, err := statusCmd.Output()
-	status := "unknown"
-	if err == nil {
-		statusStr := strings.TrimSpace(string(statusOutput))
-		if strings.Contains(strings.ToLower(statusStr), "running") {
-			status = "running"
-		} else if strings.Contains(strings.ToLower(statusStr), "stopped") {
-			status = "stopped"
-		}
-	}
+	status, _ := scenarioport.GetScenarioStatus(ctx, scenarioName)
 
 	h.log.WithFields(logrus.Fields{
 		"scenario":  scenarioName,

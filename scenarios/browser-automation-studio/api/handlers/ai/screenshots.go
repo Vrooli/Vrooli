@@ -40,15 +40,38 @@ type previewRequest struct {
 
 type ScreenshotHandler struct {
 	log    *logrus.Logger
-	runner *automationRunner
+	runner AutomationRunner
 }
 
-func NewScreenshotHandler(log *logrus.Logger) *ScreenshotHandler {
-	runner, err := newAutomationRunner(log)
-	if err != nil && log != nil {
-		log.WithError(err).Warn("Failed to initialize automation runner for screenshots; requests will fail")
+// ScreenshotHandlerOption configures the ScreenshotHandler.
+type ScreenshotHandlerOption func(*ScreenshotHandler)
+
+// WithScreenshotRunner sets a custom automation runner for screenshots.
+func WithScreenshotRunner(runner AutomationRunner) ScreenshotHandlerOption {
+	return func(h *ScreenshotHandler) {
+		h.runner = runner
 	}
-	return &ScreenshotHandler{log: log, runner: runner}
+}
+
+// NewScreenshotHandler creates a new ScreenshotHandler with optional configuration.
+func NewScreenshotHandler(log *logrus.Logger, opts ...ScreenshotHandlerOption) *ScreenshotHandler {
+	handler := &ScreenshotHandler{log: log}
+
+	// Apply options first
+	for _, opt := range opts {
+		opt(handler)
+	}
+
+	// Create default runner if not provided
+	if handler.runner == nil {
+		runner, err := newAutomationRunner(log)
+		if err != nil && log != nil {
+			log.WithError(err).Warn("Failed to initialize automation runner for screenshots; requests will fail")
+		}
+		handler.runner = runner
+	}
+
+	return handler
 }
 
 func clampPreviewViewport(value int) int {
@@ -120,7 +143,7 @@ func (h *ScreenshotHandler) TakePreviewScreenshot(w http.ResponseWriter, r *http
 	}
 
 	start := time.Now()
-	outcomes, events, err := h.runner.run(ctx, viewportWidth, viewportHeight, instructions)
+	outcomes, events, err := h.runner.Run(ctx, viewportWidth, viewportHeight, instructions)
 	if err != nil {
 		h.log.WithError(err).Error("Preview automation failed")
 		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "automation_run", "error": err.Error()}))

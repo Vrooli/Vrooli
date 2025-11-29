@@ -157,16 +157,38 @@ var domExtractionExpression = `(function() {
 // DOMHandler handles DOM tree extraction operations
 type DOMHandler struct {
 	log    *logrus.Logger
-	runner *automationRunner
+	runner AutomationRunner
 }
 
-// NewDOMHandler creates a new DOM handler
-func NewDOMHandler(log *logrus.Logger) *DOMHandler {
-	runner, err := newAutomationRunner(log)
-	if err != nil && log != nil {
-		log.WithError(err).Warn("Failed to initialize automation runner for DOM extraction; requests will fail")
+// DOMHandlerOption configures the DOMHandler.
+type DOMHandlerOption func(*DOMHandler)
+
+// WithDOMRunner sets a custom automation runner for DOM extraction.
+func WithDOMRunner(runner AutomationRunner) DOMHandlerOption {
+	return func(h *DOMHandler) {
+		h.runner = runner
 	}
-	return &DOMHandler{log: log, runner: runner}
+}
+
+// NewDOMHandler creates a new DOM handler with optional configuration.
+func NewDOMHandler(log *logrus.Logger, opts ...DOMHandlerOption) *DOMHandler {
+	handler := &DOMHandler{log: log}
+
+	// Apply options first
+	for _, opt := range opts {
+		opt(handler)
+	}
+
+	// Create default runner if not provided
+	if handler.runner == nil {
+		runner, err := newAutomationRunner(log)
+		if err != nil && log != nil {
+			log.WithError(err).Warn("Failed to initialize automation runner for DOM extraction; requests will fail")
+		}
+		handler.runner = runner
+	}
+
+	return handler
 }
 
 // ExtractDOMTree extracts the DOM tree from a given URL
@@ -211,7 +233,7 @@ func (h *DOMHandler) ExtractDOMTree(ctx context.Context, url string) (string, er
 		},
 	}
 
-	outcomes, _, err := h.runner.run(ctx, previewDefaultViewportWidth, previewDefaultViewportHeight, instructions)
+	outcomes, _, err := h.runner.Run(ctx, previewDefaultViewportWidth, previewDefaultViewportHeight, instructions)
 	if err != nil {
 		return "", fmt.Errorf("automation run failed: %w", err)
 	}

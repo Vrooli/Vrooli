@@ -2,8 +2,6 @@ package export
 
 import (
 	"strings"
-
-	
 )
 
 // Apply applies client-provided overrides to a movie spec, applying presets first,
