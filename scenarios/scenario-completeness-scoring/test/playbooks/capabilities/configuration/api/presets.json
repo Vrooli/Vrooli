@@ -3,13 +3,16 @@
     "name": "Configuration Presets E2E Test",
     "description": "Tests the configuration presets listing and application API endpoints",
     "tags": ["e2e", "api", "configuration", "presets"],
-    "requirements": ["SCS-CFG-003"]
+    "requirements": ["SCS-CFG-003"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "http_request",
       "data": {
+        "label": "List available presets",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/config/presets",
         "headers": {
@@ -26,6 +29,7 @@
       "id": "2",
       "type": "http_request",
       "data": {
+        "label": "Apply default preset",
         "method": "POST",
         "url": "{{API_URL}}/api/v1/config/presets/default/apply",
         "headers": {
@@ -38,5 +42,8 @@
         ]
       }
     }
+  ],
+  "edges": [
+    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"}
   ]
 }

@@ -3,13 +3,16 @@
     "name": "Circuit Breaker Status E2E Test",
     "description": "Tests the circuit breaker status and reset API endpoints",
     "tags": ["e2e", "api", "circuit-breaker"],
-    "requirements": ["SCS-CB-004"]
+    "requirements": ["SCS-CB-004"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "http_request",
       "data": {
+        "label": "Get circuit breaker status",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/health/circuit-breaker",
         "headers": {
@@ -26,6 +29,7 @@
       "id": "2",
       "type": "http_request",
       "data": {
+        "label": "Reset all circuit breakers",
         "method": "POST",
         "url": "{{API_URL}}/api/v1/health/circuit-breaker/reset",
         "assertions": [
@@ -34,5 +38,8 @@
         ]
       }
     }
+  ],
+  "edges": [
+    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"}
   ]
 }

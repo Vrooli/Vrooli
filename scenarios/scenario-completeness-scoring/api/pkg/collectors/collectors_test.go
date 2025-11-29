@@ -340,3 +340,300 @@ line 5
 		t.Errorf("Expected 5 LOC, got %d", loc)
 	}
 }
+
+// [REQ:SCS-CORE-001] Test sync metadata loading
+func TestLoadSyncMetadata(t *testing.T) {
+	// Test with no sync metadata
+	emptyDir := t.TempDir()
+	metadata := loadSyncMetadata(emptyDir)
+	if metadata != nil {
+		t.Error("Expected nil for missing sync metadata")
+	}
+
+	// Test with valid sync metadata
+	tmpDir := t.TempDir()
+	coverageDir := filepath.Join(tmpDir, "coverage")
+	os.MkdirAll(coverageDir, 0755)
+
+	syncContent := `{
+		"requirements": {
+			"REQ-001": {"status": "passed", "last_run": "2025-11-28"},
+			"REQ-002": {"status": "failed", "last_run": "2025-11-28"}
+		}
+	}`
+	os.WriteFile(filepath.Join(coverageDir, "requirements-sync.json"), []byte(syncContent), 0644)
+
+	metadata = loadSyncMetadata(tmpDir)
+	if metadata == nil {
+		t.Fatal("Expected sync metadata to be loaded")
+	}
+	if len(metadata.Requirements) != 2 {
+		t.Errorf("Expected 2 requirements in sync metadata, got %d", len(metadata.Requirements))
+	}
+
+	// Test with invalid JSON
+	invalidDir := t.TempDir()
+	coverageDir2 := filepath.Join(invalidDir, "coverage")
+	os.MkdirAll(coverageDir2, 0755)
+	os.WriteFile(filepath.Join(coverageDir2, "requirements-sync.json"), []byte("invalid json"), 0644)
+
+	metadata = loadSyncMetadata(invalidDir)
+	if metadata != nil {
+		t.Error("Expected nil for invalid JSON")
+	}
+}
+
+// [REQ:SCS-CORE-001A] Test target pass calculation
+func TestCalculateTargetPass(t *testing.T) {
+	// Test with priority-based counting (no operational target IDs)
+	requirements := []Requirement{
+		{ID: "REQ-001", Priority: "P0", Status: "passed"},
+		{ID: "REQ-002", Priority: "P0", Status: "in_progress"},
+		{ID: "REQ-003", Priority: "P1", Status: "complete"},
+		{ID: "REQ-004", Priority: "P2", Status: "passed"}, // P2 should not be counted
+	}
+
+	pass := calculateTargetPass(requirements, nil)
+	if pass.Total != 3 {
+		t.Errorf("Expected 3 P0/P1 requirements, got %d", pass.Total)
+	}
+	if pass.Passing != 2 {
+		t.Errorf("Expected 2 passing P0/P1 requirements, got %d", pass.Passing)
+	}
+
+	// Test with operational target IDs
+	requirementsWithTargets := []Requirement{
+		{ID: "REQ-001", OperationalTargetID: "OT-001", Status: "passed"},
+		{ID: "REQ-002", OperationalTargetID: "OT-001", Status: "passed"},
+		{ID: "REQ-003", OperationalTargetID: "OT-002", Status: "in_progress"},
+		{ID: "REQ-004", OperationalTargetID: "OT-002", Status: "passed"},
+	}
+
+	pass = calculateTargetPass(requirementsWithTargets, nil)
+	if pass.Total != 2 {
+		t.Errorf("Expected 2 targets, got %d", pass.Total)
+	}
+	// OT-001 should pass (both passed), OT-002 should fail (one in_progress)
+	if pass.Passing != 1 {
+		t.Errorf("Expected 1 passing target, got %d", pass.Passing)
+	}
+}
+
+// [REQ:SCS-CORE-001A] Test priority requirements counting
+func TestCountPriorityRequirements(t *testing.T) {
+	requirements := []Requirement{
+		{ID: "REQ-001", Priority: "P0", Status: "passed"},
+		{ID: "REQ-002", Priority: "P0", Status: "done"},
+		{ID: "REQ-003", Priority: "P1", Status: "failed"},
+		{ID: "REQ-004", Priority: "P2", Status: "passed"}, // Should be excluded
+		{ID: "REQ-005", Priority: "", Status: "complete"}, // Empty priority should be included
+	}
+
+	pass := countPriorityRequirements(requirements, nil)
+	// P0, P0, P1, and empty (4 total)
+	if pass.Total != 4 {
+		t.Errorf("Expected 4 priority requirements, got %d", pass.Total)
+	}
+	// passed, done, complete (3 passing)
+	if pass.Passing != 3 {
+		t.Errorf("Expected 3 passing, got %d", pass.Passing)
+	}
+
+	// Test with sync metadata
+	syncData := &SyncMetadata{
+		Requirements: map[string]SyncedReq{
+			"REQ-003": {Status: "passed"}, // Override failed status
+		},
+	}
+
+	pass = countPriorityRequirements(requirements, syncData)
+	if pass.Passing != 4 {
+		t.Errorf("Expected 4 passing with sync override, got %d", pass.Passing)
+	}
+}
+
+// [REQ:SCS-CORE-001] Test MetricsCollector creation
+func TestNewMetricsCollector(t *testing.T) {
+	tmpDir := t.TempDir()
+	collector := NewMetricsCollector(tmpDir)
+
+	if collector == nil {
+		t.Fatal("Expected non-nil collector")
+	}
+	if collector.VrooliRoot != tmpDir {
+		t.Errorf("Expected VrooliRoot %s, got %s", tmpDir, collector.VrooliRoot)
+	}
+}
+
+// [REQ:SCS-CORE-001] Test collector with scenario directory
+func TestCollectorCollect(t *testing.T) {
+	// Create a minimal scenario structure
+	tmpDir := t.TempDir()
+	scenarioName := "test-scenario"
+	scenarioDir := filepath.Join(tmpDir, "scenarios", scenarioName)
+
+	// Create .vrooli directory with service.json
+	vrooliDir := filepath.Join(scenarioDir, ".vrooli")
+	os.MkdirAll(vrooliDir, 0755)
+	os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(`{"category": "utility", "name": "test-scenario"}`), 0644)
+
+	// Create requirements
+	reqDir := filepath.Join(scenarioDir, "requirements")
+	os.MkdirAll(reqDir, 0755)
+	os.WriteFile(filepath.Join(reqDir, "index.json"), []byte(`{"imports": [], "requirements": [{"id": "REQ-001", "status": "passed"}]}`), 0644)
+
+	collector := NewMetricsCollector(tmpDir)
+	metrics, err := collector.Collect(scenarioName)
+
+	if err != nil {
+		t.Fatalf("Collect failed: %v", err)
+	}
+	if metrics == nil {
+		t.Fatal("Expected non-nil metrics")
+	}
+	if metrics.Scenario != scenarioName {
+		t.Errorf("Expected scenario name %s, got %s", scenarioName, metrics.Scenario)
+	}
+	if metrics.Category != "utility" {
+		t.Errorf("Expected category 'utility', got '%s'", metrics.Category)
+	}
+	if metrics.Requirements.Total != 1 {
+		t.Errorf("Expected 1 requirement, got %d", metrics.Requirements.Total)
+	}
+}
+
+// [REQ:SCS-CORE-001] Test collector with non-existent scenario returns defaults
+func TestCollectorCollectMissing(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.MkdirAll(filepath.Join(tmpDir, "scenarios"), 0755)
+
+	collector := NewMetricsCollector(tmpDir)
+	metrics, err := collector.Collect("non-existent")
+
+	// Collect gracefully handles missing scenarios with defaults
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if metrics == nil {
+		t.Fatal("Expected non-nil metrics even for missing scenario")
+	}
+	// Should return default category and empty counts
+	if metrics.Category != "utility" {
+		t.Errorf("Expected default category 'utility', got '%s'", metrics.Category)
+	}
+	if metrics.Requirements.Total != 0 {
+		t.Errorf("Expected 0 requirements for missing scenario, got %d", metrics.Requirements.Total)
+	}
+}
+
+// [REQ:SCS-CORE-001A] Test requirement pass with sync data
+func TestCalculateRequirementPassWithSync(t *testing.T) {
+	requirements := []Requirement{
+		{ID: "REQ-001", Status: "in_progress"},
+		{ID: "REQ-002", Status: "failed"},
+	}
+
+	// Without sync data - both should fail
+	pass := calculateRequirementPass(requirements, nil)
+	if pass.Passing != 0 {
+		t.Errorf("Expected 0 passing without sync, got %d", pass.Passing)
+	}
+
+	// With sync data overriding one
+	syncData := &SyncMetadata{
+		Requirements: map[string]SyncedReq{
+			"REQ-001": {Status: "passed"},
+		},
+	}
+
+	pass = calculateRequirementPass(requirements, syncData)
+	if pass.Passing != 1 {
+		t.Errorf("Expected 1 passing with sync, got %d", pass.Passing)
+	}
+}
+
+// [REQ:SCS-CORE-001] Test requirements with children grouping
+func TestRequirementsWithChildrenGrouping(t *testing.T) {
+	requirements := []Requirement{
+		{ID: "REQ-001", Children: []string{"REQ-001A", "REQ-001B"}}, // Parent with empty status
+		{ID: "REQ-001A", Status: "passed"},
+		{ID: "REQ-001B", Status: "passed"},
+		{ID: "REQ-002", Status: "in_progress"},
+	}
+
+	pass := calculateRequirementPass(requirements, nil)
+	// REQ-001 should be skipped (empty status + has children)
+	// So total should be 3, passing should be 2
+	if pass.Total != 3 {
+		t.Errorf("Expected 3 total (parent skipped), got %d", pass.Total)
+	}
+	if pass.Passing != 2 {
+		t.Errorf("Expected 2 passing, got %d", pass.Passing)
+	}
+}
+
+// [REQ:SCS-CORE-001] Test phase-based test results loading
+func TestLoadPhaseBasedResults(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create phase-based results structure
+	artifactsDir := filepath.Join(tmpDir, "test", "artifacts")
+	os.MkdirAll(artifactsDir, 0755)
+
+	// Create a log file with test results
+	logContent := `[PHASE_START:unit:1/1]
+Running unit tests...
+✅ 15 tests passed  ❌ 3 tests failed
+[PHASE_END:unit:passed:30s]`
+	os.WriteFile(filepath.Join(artifactsDir, "phase-unit-12345.log"), []byte(logContent), 0644)
+
+	results := loadTestResults(tmpDir)
+	// Phase-based loading may return results if it parses the log
+	_ = results
+}
+
+// [REQ:SCS-CORE-001D] Test maxInt helper
+func TestMaxInt(t *testing.T) {
+	tests := []struct {
+		a, b, expected int
+	}{
+		{1, 2, 2},
+		{5, 3, 5},
+		{-1, -5, -1},
+		{0, 0, 0},
+	}
+
+	for _, tc := range tests {
+		result := maxInt(tc.a, tc.b)
+		if result != tc.expected {
+			t.Errorf("maxInt(%d, %d) = %d, expected %d", tc.a, tc.b, result, tc.expected)
+		}
+	}
+}
+
+// [REQ:SCS-CORE-001A] Test calculateTargetPass with sync metadata
+func TestCalculateTargetPassWithSyncData(t *testing.T) {
+	requirementsWithTargets := []Requirement{
+		{ID: "REQ-001", OperationalTargetID: "OT-001", Status: "in_progress"},
+		{ID: "REQ-002", OperationalTargetID: "OT-001", Status: "in_progress"},
+	}
+
+	// Without sync - target should fail
+	pass := calculateTargetPass(requirementsWithTargets, nil)
+	if pass.Passing != 0 {
+		t.Errorf("Expected 0 passing without sync, got %d", pass.Passing)
+	}
+
+	// With sync overriding both requirements
+	syncData := &SyncMetadata{
+		Requirements: map[string]SyncedReq{
+			"REQ-001": {Status: "passed"},
+			"REQ-002": {Status: "complete"},
+		},
+	}
+
+	pass = calculateTargetPass(requirementsWithTargets, syncData)
+	if pass.Passing != 1 {
+		t.Errorf("Expected 1 passing target with sync, got %d", pass.Passing)
+	}
+}

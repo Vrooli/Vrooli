@@ -3,13 +3,16 @@
     "name": "Scenario Detail View E2E Test",
     "description": "Tests the scenario detail page with score breakdown, history chart, and recommendations",
     "tags": ["e2e", "ui", "detail"],
-    "requirements": ["SCS-UI-003", "SCS-UI-005"]
+    "requirements": ["SCS-UI-003", "SCS-UI-005"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "navigate",
       "data": {
+        "label": "Navigate to dashboard",
         "url": "{{UI_URL}}",
         "waitFor": "[data-testid='dashboard']"
       }
@@ -18,6 +21,7 @@
       "id": "2",
       "type": "click",
       "data": {
+        "label": "Open scenario detail",
         "selector": "[data-testid^='scenario-row-']",
         "notes": "Click first scenario row to open detail view"
       }
@@ -26,6 +30,7 @@
       "id": "3",
       "type": "assertion",
       "data": {
+        "label": "Verify detail view visible",
         "selector": "[data-testid='scenario-detail']",
         "assertions": [
           {"type": "visible"}
@@ -37,6 +42,7 @@
       "id": "4",
       "type": "assertion",
       "data": {
+        "label": "Verify score bars",
         "selector": "[data-testid^='score-bar-']",
         "assertions": [
           {"type": "exists"}
@@ -48,6 +54,7 @@
       "id": "5",
       "type": "assertion",
       "data": {
+        "label": "Verify recommendations section",
         "selector": "[data-testid='recommendations-section']",
         "assertions": [
           {"type": "visible"}
@@ -59,6 +66,7 @@
       "id": "6",
       "type": "assertion",
       "data": {
+        "label": "Verify history sparkline",
         "selector": "[data-testid='sparkline']",
         "assertions": [
           {"type": "exists"}
@@ -66,5 +74,12 @@
         "notes": "History sparkline is present"
       }
     }
+  ],
+  "edges": [
+    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"},
+    {"id": "e2", "source": "2", "target": "3", "type": "smoothstep"},
+    {"id": "e3", "source": "3", "target": "4", "type": "smoothstep"},
+    {"id": "e4", "source": "4", "target": "5", "type": "smoothstep"},
+    {"id": "e5", "source": "5", "target": "6", "type": "smoothstep"}
   ]
 }

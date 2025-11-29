@@ -3,13 +3,16 @@
     "name": "Score Retrieval E2E Test",
     "description": "Tests the /api/v1/scores/{scenario} endpoint returns proper score breakdown",
     "tags": ["e2e", "api", "scoring"],
-    "requirements": ["SCS-CORE-001", "SCS-CORE-002"]
+    "requirements": ["SCS-CORE-001", "SCS-CORE-002"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "http_request",
       "data": {
+        "label": "Get score for scenario",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
         "headers": {
@@ -28,6 +31,7 @@
       "id": "2",
       "type": "http_request",
       "data": {
+        "label": "Force recalculate score",
         "method": "POST",
         "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/calculate",
         "assertions": [
@@ -36,5 +40,8 @@
         ]
       }
     }
+  ],
+  "edges": [
+    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"}
   ]
 }

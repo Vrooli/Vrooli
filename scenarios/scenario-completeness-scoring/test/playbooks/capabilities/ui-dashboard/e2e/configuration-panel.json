@@ -3,13 +3,16 @@
     "name": "Configuration Panel E2E Test",
     "description": "Tests the configuration UI with presets, health status, and circuit breaker controls",
     "tags": ["e2e", "ui", "configuration"],
-    "requirements": ["SCS-UI-002"]
+    "requirements": ["SCS-UI-002"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "navigate",
       "data": {
+        "label": "Navigate to dashboard",
         "url": "{{UI_URL}}",
         "waitFor": "[data-testid='dashboard']"
       }
@@ -18,6 +21,7 @@
       "id": "2",
       "type": "click",
       "data": {
+        "label": "Open configuration panel",
         "selector": "button:has-text('Config')",
         "notes": "Click configuration button to open config panel"
       }
@@ -26,6 +30,7 @@
       "id": "3",
       "type": "assertion",
       "data": {
+        "label": "Verify configuration panel visible",
         "selector": "[data-testid='configuration-panel']",
         "assertions": [
           {"type": "visible"}
@@ -37,6 +42,7 @@
       "id": "4",
       "type": "assertion",
       "data": {
+        "label": "Verify presets list",
         "selector": "[data-testid='presets-list']",
         "assertions": [
           {"type": "visible"}
@@ -48,6 +54,7 @@
       "id": "5",
       "type": "assertion",
       "data": {
+        "label": "Verify health badges",
         "selector": "[data-testid^='health-badge-']",
         "assertions": [
           {"type": "exists"}
@@ -55,5 +62,11 @@
         "notes": "Health badges are present"
       }
     }
+  ],
+  "edges": [
+    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"},
+    {"id": "e2", "source": "2", "target": "3", "type": "smoothstep"},
+    {"id": "e3", "source": "3", "target": "4", "type": "smoothstep"},
+    {"id": "e4", "source": "4", "target": "5", "type": "smoothstep"}
   ]
 }

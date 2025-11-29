@@ -29,7 +29,7 @@
     },
     {
       "id": "list-scores",
-      "path": "/api/scores",
+      "path": "/api/v1/scores",
       "method": "GET",
       "summary": "List all scenario scores",
       "description": "Returns current completeness scores for all scenarios",
@@ -49,7 +49,7 @@
       "examples": [
         {
           "name": "List all scores",
-          "curl": "curl http://localhost:${API_PORT}/api/scores"
+          "curl": "curl http://localhost:${API_PORT}/api/v1/scores"
         }
       ],
       "cli_mapping": {
@@ -58,7 +58,7 @@
     },
     {
       "id": "get-score",
-      "path": "/api/scores/{scenario}",
+      "path": "/api/v1/scores/{scenario}",
       "method": "GET",
       "summary": "Get scenario score",
       "description": "Returns detailed completeness score breakdown for a specific scenario",
@@ -85,7 +85,7 @@
       "examples": [
         {
           "name": "Get score for ecosystem-manager",
-          "curl": "curl http://localhost:${API_PORT}/api/scores/ecosystem-manager"
+          "curl": "curl http://localhost:${API_PORT}/api/v1/scores/ecosystem-manager"
         }
       ],
       "cli_mapping": {
@@ -94,7 +94,7 @@
     },
     {
       "id": "calculate-score",
-      "path": "/api/scores/{scenario}/calculate",
+      "path": "/api/v1/scores/{scenario}/calculate",
       "method": "POST",
       "summary": "Force score recalculation",
       "description": "Forces a fresh calculation of the scenario's completeness score",
@@ -114,7 +114,7 @@
     },
     {
       "id": "get-history",
-      "path": "/api/scores/{scenario}/history",
+      "path": "/api/v1/scores/{scenario}/history",
       "method": "GET",
       "summary": "Get score history",
       "description": "Returns historical score snapshots for trend analysis",
@@ -140,7 +140,7 @@
     },
     {
       "id": "what-if",
-      "path": "/api/scores/{scenario}/what-if",
+      "path": "/api/v1/scores/{scenario}/what-if",
       "method": "POST",
       "summary": "Run what-if analysis",
       "description": "Simulates score changes based on hypothetical improvements",
@@ -168,7 +168,7 @@
     },
     {
       "id": "get-config",
-      "path": "/api/config",
+      "path": "/api/v1/config",
       "method": "GET",
       "summary": "Get global configuration",
       "description": "Returns the global scoring configuration",
@@ -179,7 +179,7 @@
     },
     {
       "id": "update-config",
-      "path": "/api/config",
+      "path": "/api/v1/config",
       "method": "PUT",
       "summary": "Update global configuration",
       "description": "Updates the global scoring configuration",
@@ -198,7 +198,7 @@
     },
     {
       "id": "get-presets",
-      "path": "/api/config/presets",
+      "path": "/api/v1/config/presets",
       "method": "GET",
       "summary": "List configuration presets",
       "description": "Returns available configuration presets",
@@ -209,7 +209,7 @@
     },
     {
       "id": "apply-preset",
-      "path": "/api/config/presets/{name}/apply",
+      "path": "/api/v1/config/presets/{name}/apply",
       "method": "POST",
       "summary": "Apply configuration preset",
       "description": "Applies a named preset to the global configuration",
@@ -229,7 +229,7 @@
     },
     {
       "id": "collector-health",
-      "path": "/api/health/collectors",
+      "path": "/api/v1/health/collectors",
       "method": "GET",
       "summary": "Get collector health status",
       "description": "Returns health status for each scoring collector",
@@ -240,7 +240,7 @@
     },
     {
       "id": "circuit-breaker-status",
-      "path": "/api/health/circuit-breaker",
+      "path": "/api/v1/health/circuit-breaker",
       "method": "GET",
       "summary": "Get circuit breaker status",
       "description": "Returns status of auto-disabled components",
@@ -251,7 +251,7 @@
     },
     {
       "id": "circuit-breaker-reset",
-      "path": "/api/health/circuit-breaker/reset",
+      "path": "/api/v1/health/circuit-breaker/reset",
       "method": "POST",
       "summary": "Reset circuit breaker",
       "description": "Re-enables all auto-disabled collectors",
@@ -262,7 +262,7 @@
     },
     {
       "id": "recommendations",
-      "path": "/api/recommendations/{scenario}",
+      "path": "/api/v1/recommendations/{scenario}",
       "method": "GET",
       "summary": "Get prioritized recommendations",
       "description": "Returns ranked list of improvements with estimated point impact",

@@ -3,13 +3,16 @@
     "name": "Health Status API E2E Test",
     "description": "Tests the health status API endpoint",
     "tags": ["e2e", "api", "health"],
-    "requirements": ["SCS-HEALTH-001"]
+    "requirements": ["SCS-HEALTH-001"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "http_request",
       "data": {
+        "label": "Get overall health status",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/health/collectors",
         "headers": {
@@ -23,5 +26,6 @@
         "notes": "Verify health status API returns collector statuses and overall status"
       }
     }
-  ]
+  ],
+  "edges": []
 }

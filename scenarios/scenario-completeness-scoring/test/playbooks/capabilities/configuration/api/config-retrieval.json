@@ -3,13 +3,16 @@
     "name": "Configuration API E2E Test",
     "description": "Tests the configuration retrieval and update API endpoints",
     "tags": ["e2e", "api", "configuration"],
-    "requirements": ["SCS-CFG-001", "SCS-CFG-004"]
+    "requirements": ["SCS-CFG-001", "SCS-CFG-004"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "http_request",
       "data": {
+        "label": "Get global configuration",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/config",
         "headers": {
@@ -28,6 +31,7 @@
       "id": "2",
       "type": "http_request",
       "data": {
+        "label": "Get all thresholds",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/config/thresholds",
         "assertions": [
@@ -41,6 +45,7 @@
       "id": "3",
       "type": "http_request",
       "data": {
+        "label": "Get utility category thresholds",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/config/thresholds/utility",
         "assertions": [
@@ -50,5 +55,9 @@
         ]
       }
     }
+  ],
+  "edges": [
+    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"},
+    {"id": "e2", "source": "2", "target": "3", "type": "smoothstep"}
   ]
 }

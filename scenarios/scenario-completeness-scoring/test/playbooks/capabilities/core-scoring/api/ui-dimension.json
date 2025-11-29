@@ -3,13 +3,16 @@
     "name": "UI Dimension E2E Test",
     "description": "Tests UI dimension scoring in score breakdown",
     "tags": ["e2e", "api", "scoring", "ui"],
-    "requirements": ["SCS-CORE-001D"]
+    "requirements": ["SCS-CORE-001D"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "http_request",
       "data": {
+        "label": "Get score breakdown with UI dimension",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
         "headers": {
@@ -24,5 +27,6 @@
         "notes": "Verify UI dimension is included in breakdown with score and max values"
       }
     }
-  ]
+  ],
+  "edges": []
 }

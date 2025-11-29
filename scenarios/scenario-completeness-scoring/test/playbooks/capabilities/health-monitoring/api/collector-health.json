@@ -3,13 +3,16 @@
     "name": "Health Monitoring E2E Test",
     "description": "Tests the health monitoring and collector status API endpoints",
     "tags": ["e2e", "api", "health"],
-    "requirements": ["SCS-HEALTH-001", "SCS-HEALTH-003"]
+    "requirements": ["SCS-HEALTH-001", "SCS-HEALTH-003"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "http_request",
       "data": {
+        "label": "Get collector health status",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/health/collectors",
         "headers": {
@@ -27,6 +30,7 @@
       "id": "2",
       "type": "http_request",
       "data": {
+        "label": "Test requirements collector",
         "method": "POST",
         "url": "{{API_URL}}/api/v1/health/collectors/requirements/test",
         "assertions": [
@@ -36,5 +40,8 @@
         ]
       }
     }
+  ],
+  "edges": [
+    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"}
   ]
 }

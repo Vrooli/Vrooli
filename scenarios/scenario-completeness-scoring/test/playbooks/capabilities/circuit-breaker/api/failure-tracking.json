@@ -3,13 +3,16 @@
     "name": "Failure Tracking E2E Test",
     "description": "Tests circuit breaker failure tracking and auto-disable",
     "tags": ["e2e", "api", "circuit-breaker", "failure"],
-    "requirements": ["SCS-CB-001", "SCS-CB-002"]
+    "requirements": ["SCS-CB-001", "SCS-CB-002"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "http_request",
       "data": {
+        "label": "Get circuit breaker failure states",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/health/circuit-breaker",
         "headers": {
@@ -22,5 +25,6 @@
         "notes": "Verify circuit breaker status returns breaker states with failure counts"
       }
     }
-  ]
+  ],
+  "edges": []
 }

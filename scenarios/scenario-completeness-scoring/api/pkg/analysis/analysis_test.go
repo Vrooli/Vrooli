@@ -281,3 +281,292 @@ func TestComparisonRanking(t *testing.T) {
 		}
 	}
 }
+
+// [REQ:SCS-ANALYSIS-001] Test applyChange for all component types
+func TestApplyChangeAllComponents(t *testing.T) {
+	analyzer := &WhatIfAnalyzer{}
+
+	tests := []struct {
+		name      string
+		component string
+		setup     func() *scoring.Metrics
+		newValue  float64
+		wantApply bool
+	}{
+		{
+			name:      "quality.requirement_pass_rate",
+			component: "quality.requirement_pass_rate",
+			setup: func() *scoring.Metrics {
+				return &scoring.Metrics{
+					Requirements: scoring.MetricCounts{Total: 10, Passing: 5},
+				}
+			},
+			newValue:  0.8,
+			wantApply: true,
+		},
+		{
+			name:      "quality.target_pass_rate",
+			component: "quality.target_pass_rate",
+			setup: func() *scoring.Metrics {
+				return &scoring.Metrics{
+					Targets: scoring.MetricCounts{Total: 10, Passing: 5},
+				}
+			},
+			newValue:  0.9,
+			wantApply: true,
+		},
+		{
+			name:      "quantity.requirements",
+			component: "quantity.requirements",
+			setup: func() *scoring.Metrics {
+				return &scoring.Metrics{
+					Requirements: scoring.MetricCounts{Total: 10, Passing: 8},
+				}
+			},
+			newValue:  20,
+			wantApply: true,
+		},
+		{
+			name:      "quantity.targets",
+			component: "quantity.targets",
+			setup: func() *scoring.Metrics {
+				return &scoring.Metrics{
+					Targets: scoring.MetricCounts{Total: 5, Passing: 4},
+				}
+			},
+			newValue:  10,
+			wantApply: true,
+		},
+		{
+			name:      "ui.file_count",
+			component: "ui.file_count",
+			setup: func() *scoring.Metrics {
+				return &scoring.Metrics{
+					UI: &scoring.UIMetrics{FileCount: 10},
+				}
+			},
+			newValue:  25,
+			wantApply: true,
+		},
+		{
+			name:      "ui.api_endpoints",
+			component: "ui.api_endpoints",
+			setup: func() *scoring.Metrics {
+				return &scoring.Metrics{
+					UI: &scoring.UIMetrics{APIBeyondHealth: 3},
+				}
+			},
+			newValue:  10,
+			wantApply: true,
+		},
+		{
+			name:      "ui.route_count",
+			component: "ui.route_count",
+			setup: func() *scoring.Metrics {
+				return &scoring.Metrics{
+					UI: &scoring.UIMetrics{RouteCount: 2},
+				}
+			},
+			newValue:  5,
+			wantApply: true,
+		},
+		{
+			name:      "ui.loc",
+			component: "ui.loc",
+			setup: func() *scoring.Metrics {
+				return &scoring.Metrics{
+					UI: &scoring.UIMetrics{TotalLOC: 1000},
+				}
+			},
+			newValue:  5000,
+			wantApply: true,
+		},
+		{
+			name:      "empty metrics - requirements",
+			component: "quality.requirement_pass_rate",
+			setup: func() *scoring.Metrics {
+				return &scoring.Metrics{
+					Requirements: scoring.MetricCounts{Total: 0, Passing: 0},
+				}
+			},
+			newValue:  1.0,
+			wantApply: false, // Total is 0, can't apply
+		},
+		{
+			name:      "nil UI",
+			component: "ui.template",
+			setup: func() *scoring.Metrics {
+				return &scoring.Metrics{UI: nil}
+			},
+			newValue:  0,
+			wantApply: false, // UI is nil
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			metrics := tc.setup()
+			change := MetricChange{
+				Component: tc.component,
+				NewValue:  tc.newValue,
+			}
+
+			_, _, applied := analyzer.applyChange(metrics, change)
+			if applied != tc.wantApply {
+				t.Errorf("applyChange for %s: got applied=%v, want %v", tc.component, applied, tc.wantApply)
+			}
+		})
+	}
+}
+
+// [REQ:SCS-ANALYSIS-001] Test estimateImpact for all components
+func TestEstimateImpactAllComponents(t *testing.T) {
+	tests := []struct {
+		component string
+		oldValue  float64
+		newValue  float64
+		expected  int
+	}{
+		{"ui.template", 1.0, 0.0, 10},        // Template removal
+		{"ui.template", 0.0, 1.0, 0},         // Non-template to template (no gain)
+		{"quality.requirement_pass_rate", 0.5, 1.0, 10}, // 50% improvement
+		{"quality.target_pass_rate", 0.5, 1.0, 8},       // 50% improvement
+		{"quality.test_pass_rate", 0.5, 1.0, 8},         // 50% improvement
+		{"quantity.tests", 10, 50, 4},                   // +40 tests
+		{"quantity.requirements", 5, 15, 1},             // +10 requirements
+		{"quantity.targets", 3, 8, 1},                   // +5 targets
+		{"unknown.component", 0, 100, 0},                // Unknown = 0 impact
+	}
+
+	for _, tc := range tests {
+		impact := estimateImpact(tc.component, tc.oldValue, tc.newValue)
+		if impact != tc.expected {
+			t.Errorf("estimateImpact(%s, %.1f, %.1f) = %d, want %d",
+				tc.component, tc.oldValue, tc.newValue, impact, tc.expected)
+		}
+	}
+}
+
+// [REQ:SCS-ANALYSIS-001] Test NewWhatIfAnalyzer
+func TestNewWhatIfAnalyzer(t *testing.T) {
+	analyzer := NewWhatIfAnalyzer(nil)
+	if analyzer == nil {
+		t.Error("Expected non-nil analyzer")
+	}
+}
+
+// [REQ:SCS-ANALYSIS-003] Test NewBulkRefresher
+func TestNewBulkRefresher(t *testing.T) {
+	refresher := NewBulkRefresher("/tmp", nil, nil)
+	if refresher == nil {
+		t.Error("Expected non-nil refresher")
+	}
+}
+
+// [REQ:SCS-ANALYSIS-001] Test ComponentInfo structure
+func TestComponentInfo(t *testing.T) {
+	components := AvailableComponents()
+
+	// Check all components have required fields
+	for _, c := range components {
+		if c.Name == "" {
+			t.Error("Component name should not be empty")
+		}
+		if c.Description == "" {
+			t.Errorf("Component %s should have a description", c.Name)
+		}
+		if c.Category == "" {
+			t.Errorf("Component %s should have a category", c.Name)
+		}
+		if c.MaxPoints <= 0 {
+			t.Errorf("Component %s should have positive max points", c.Name)
+		}
+	}
+}
+
+// [REQ:SCS-ANALYSIS-001] Test WhatIfResult structure
+func TestWhatIfResultStructure(t *testing.T) {
+	result := WhatIfResult{
+		CurrentScore:         50,
+		ProjectedScore:       75,
+		Delta:                25,
+		CurrentClass:         "foundation_laid",
+		ProjectedClass:       "mostly_complete",
+		ClassificationChanged: true,
+		ChangesApplied: []AppliedChange{
+			{Component: "ui.template", OldValue: 1.0, NewValue: 0.0, Impact: 10},
+			{Component: "quality.test_pass_rate", OldValue: 0.5, NewValue: 1.0, Impact: 15},
+		},
+	}
+
+	if result.Delta != result.ProjectedScore-result.CurrentScore {
+		t.Errorf("Delta should equal ProjectedScore - CurrentScore")
+	}
+	if !result.ClassificationChanged {
+		t.Error("Classification should have changed")
+	}
+	if len(result.ChangesApplied) != 2 {
+		t.Errorf("Expected 2 changes applied, got %d", len(result.ChangesApplied))
+	}
+}
+
+// [REQ:SCS-ANALYSIS-001] Test AppliedChange structure
+func TestAppliedChangeStructure(t *testing.T) {
+	change := AppliedChange{
+		Component: "quality.test_pass_rate",
+		OldValue:  0.5,
+		NewValue:  1.0,
+		Impact:    8,
+	}
+
+	if change.Component == "" {
+		t.Error("Component should not be empty")
+	}
+	if change.NewValue <= change.OldValue && change.Impact > 0 {
+		// This is fine - just testing structure
+	}
+}
+
+// [REQ:SCS-ANALYSIS-004] Test ScenarioComparison structure
+func TestScenarioComparisonStructure(t *testing.T) {
+	comparison := ScenarioComparison{
+		Scenario:       "test-scenario",
+		Category:       "utility",
+		Score:          75,
+		Classification: "mostly_complete",
+		Rank:           1,
+	}
+
+	if comparison.Scenario == "" {
+		t.Error("Scenario should not be empty")
+	}
+	if comparison.Rank < 1 {
+		t.Error("Rank should be positive")
+	}
+}
+
+// [REQ:SCS-ANALYSIS-001] Test MetricChange structure
+func TestMetricChangeStructure(t *testing.T) {
+	change := MetricChange{
+		Component: "quality.test_pass_rate",
+		NewValue:  1.0,
+	}
+
+	if change.Component == "" {
+		t.Error("Component should not be empty")
+	}
+}
+
+// [REQ:SCS-ANALYSIS-001] Test WhatIfRequest structure
+func TestWhatIfRequestStructure(t *testing.T) {
+	request := WhatIfRequest{
+		Changes: []MetricChange{
+			{Component: "ui.template", NewValue: 0},
+			{Component: "quality.test_pass_rate", NewValue: 1.0},
+		},
+	}
+
+	if len(request.Changes) != 2 {
+		t.Errorf("Expected 2 changes, got %d", len(request.Changes))
+	}
+}

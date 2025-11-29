@@ -3,13 +3,16 @@
     "name": "Scenario Configuration Override E2E Test",
     "description": "Tests the per-scenario configuration override API endpoints",
     "tags": ["e2e", "api", "configuration", "scenario-override"],
-    "requirements": ["SCS-CFG-002"]
+    "requirements": ["SCS-CFG-002"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "http_request",
       "data": {
+        "label": "Get scenario-specific config",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/config/scenarios/scenario-completeness-scoring",
         "headers": {
@@ -22,5 +25,6 @@
         ]
       }
     }
-  ]
+  ],
+  "edges": []
 }

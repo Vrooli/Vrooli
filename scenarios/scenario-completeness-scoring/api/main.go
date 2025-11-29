@@ -22,6 +22,7 @@ import (
 	"scenario-completeness-scoring/pkg/health"
 	"scenario-completeness-scoring/pkg/history"
 	"scenario-completeness-scoring/pkg/scoring"
+	"scenario-completeness-scoring/pkg/validators"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -145,6 +146,9 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/compare", s.handleCompare).Methods("POST", "OPTIONS")
 	s.router.HandleFunc("/api/v1/recommendations/{scenario}", s.handleGetRecommendations).Methods("GET", "OPTIONS")
 	s.router.HandleFunc("/api/v1/analysis/components", s.handleListAnalysisComponents).Methods("GET", "OPTIONS")
+
+	// Validation quality analysis endpoint
+	s.router.HandleFunc("/api/v1/scores/{scenario}/validation-analysis", s.handleValidationAnalysis).Methods("GET", "OPTIONS")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -271,19 +275,54 @@ func (s *Server) handleGetScore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Perform validation quality analysis
+	scenarioRoot := s.collector.GetScenarioRoot(scenarioName)
+	rawReqs := s.collector.LoadRequirements(scenarioName)
+	validatorReqs := validators.ConvertRequirements(rawReqs)
+
+	validationAnalysis := validators.AnalyzeValidationQuality(
+		validators.MetricCounts{
+			RequirementsTotal: metrics.Requirements.Total,
+			TestsTotal:        metrics.Tests.Total,
+		},
+		validatorReqs,
+		nil, // No operational targets yet
+		scenarioRoot,
+	)
+
+	// Convert to scoring.ValidationQualityAnalysis for score calculation
+	var scoringValidation *scoring.ValidationQualityAnalysis
+	if validationAnalysis.TotalPenalty > 0 {
+		penalties := make([]scoring.PenaltyDetail, len(validationAnalysis.Issues))
+		for i, issue := range validationAnalysis.Issues {
+			penalties[i] = scoring.PenaltyDetail{
+				Type:    issue.Type,
+				Points:  issue.Penalty,
+				Message: issue.Message,
+			}
+		}
+		scoringValidation = &scoring.ValidationQualityAnalysis{
+			TotalPenalty: validationAnalysis.TotalPenalty,
+			Penalties:    penalties,
+		}
+	}
+
 	thresholds := scoring.GetThresholds(metrics.Category)
-	breakdown := scoring.CalculateCompletenessScore(*metrics, thresholds, nil)
+	breakdown := scoring.CalculateCompletenessScore(*metrics, thresholds, scoringValidation)
 	recommendations := scoring.GenerateRecommendations(breakdown, thresholds)
 
 	response := map[string]interface{}{
-		"scenario":        scenarioName,
-		"category":        metrics.Category,
-		"score":           breakdown.Score,
-		"classification":  breakdown.Classification,
-		"breakdown":       breakdown,
-		"metrics":         metrics,
-		"recommendations": recommendations,
-		"calculated_at":   time.Now().UTC().Format(time.RFC3339),
+		"scenario":            scenarioName,
+		"category":            metrics.Category,
+		"score":               breakdown.Score,
+		"base_score":          breakdown.BaseScore,
+		"validation_penalty":  breakdown.ValidationPenalty,
+		"classification":      breakdown.Classification,
+		"breakdown":           breakdown,
+		"metrics":             metrics,
+		"validation_analysis": validationAnalysis,
+		"recommendations":     recommendations,
+		"calculated_at":       time.Now().UTC().Format(time.RFC3339),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -944,6 +983,44 @@ func (s *Server) handleListAnalysisComponents(w http.ResponseWriter, r *http.Req
 	response := map[string]interface{}{
 		"components": components,
 		"total":      len(components),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleValidationAnalysis returns validation quality analysis for a scenario
+// This detects anti-patterns and gaming behaviors in test validation
+func (s *Server) handleValidationAnalysis(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	scenarioName := vars["scenario"]
+
+	// Collect metrics to get counts
+	metrics, err := s.collector.Collect(scenarioName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to collect metrics for scenario %s: %v", scenarioName, err), http.StatusNotFound)
+		return
+	}
+
+	// Perform validation quality analysis
+	scenarioRoot := s.collector.GetScenarioRoot(scenarioName)
+	rawReqs := s.collector.LoadRequirements(scenarioName)
+	validatorReqs := validators.ConvertRequirements(rawReqs)
+
+	analysis := validators.AnalyzeValidationQuality(
+		validators.MetricCounts{
+			RequirementsTotal: metrics.Requirements.Total,
+			TestsTotal:        metrics.Tests.Total,
+		},
+		validatorReqs,
+		nil, // No operational targets yet
+		scenarioRoot,
+	)
+
+	response := map[string]interface{}{
+		"scenario":    scenarioName,
+		"analysis":    analysis,
+		"analyzed_at": time.Now().UTC().Format(time.RFC3339),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

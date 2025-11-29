@@ -3,13 +3,16 @@
     "name": "What-If Analysis E2E Test",
     "description": "Tests the what-if analysis and recommendations API endpoints",
     "tags": ["e2e", "api", "analysis"],
-    "requirements": ["SCS-ANALYSIS-001", "SCS-ANALYSIS-002"]
+    "requirements": ["SCS-ANALYSIS-001", "SCS-ANALYSIS-002"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "http_request",
       "data": {
+        "label": "What-if analysis request",
         "method": "POST",
         "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/what-if",
         "headers": {
@@ -33,6 +36,7 @@
       "id": "2",
       "type": "http_request",
       "data": {
+        "label": "Get score with recommendations",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
         "assertions": [
@@ -42,5 +46,8 @@
         "notes": "Verify score response includes recommendations"
       }
     }
+  ],
+  "edges": [
+    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"}
   ]
 }

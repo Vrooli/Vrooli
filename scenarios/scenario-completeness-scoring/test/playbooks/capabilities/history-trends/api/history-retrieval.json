@@ -3,13 +3,16 @@
     "name": "Score History E2E Test",
     "description": "Tests the score history storage and retrieval API endpoints",
     "tags": ["e2e", "api", "history"],
-    "requirements": ["SCS-HIST-001", "SCS-HIST-002", "SCS-HIST-004"]
+    "requirements": ["SCS-HIST-001", "SCS-HIST-002", "SCS-HIST-004"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "http_request",
       "data": {
+        "label": "Calculate score to create history entry",
         "method": "POST",
         "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/calculate",
         "headers": {
@@ -26,6 +29,7 @@
       "id": "2",
       "type": "http_request",
       "data": {
+        "label": "Get score history",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/history?limit=10",
         "assertions": [
@@ -40,6 +44,7 @@
       "id": "3",
       "type": "http_request",
       "data": {
+        "label": "Verify history limit parameter",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/history?limit=5",
         "assertions": [
@@ -50,5 +55,9 @@
         "notes": "Verify limit parameter works correctly"
       }
     }
+  ],
+  "edges": [
+    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"},
+    {"id": "e2", "source": "2", "target": "3", "type": "smoothstep"}
   ]
 }

@@ -3,13 +3,16 @@
     "name": "Dashboard Overview E2E Test",
     "description": "Tests the UI dashboard showing all scenarios with scores, trends, and health status",
     "tags": ["e2e", "ui", "dashboard"],
-    "requirements": ["SCS-UI-001", "SCS-UI-006"]
+    "requirements": ["SCS-UI-001", "SCS-UI-006"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "navigate",
       "data": {
+        "label": "Navigate to dashboard",
         "url": "{{UI_URL}}",
         "waitFor": "[data-testid='dashboard']"
       }
@@ -18,6 +21,7 @@
       "id": "2",
       "type": "assertion",
       "data": {
+        "label": "Verify dashboard container",
         "selector": "[data-testid='dashboard']",
         "assertions": [
           {"type": "visible"}
@@ -29,6 +33,7 @@
       "id": "3",
       "type": "assertion",
       "data": {
+        "label": "Verify scenarios table",
         "selector": "[data-testid='scenarios-table']",
         "assertions": [
           {"type": "visible"}
@@ -40,6 +45,7 @@
       "id": "4",
       "type": "assertion",
       "data": {
+        "label": "Verify sparkline charts",
         "selector": "[data-testid='sparkline']",
         "assertions": [
           {"type": "exists"}
@@ -51,6 +57,7 @@
       "id": "5",
       "type": "assertion",
       "data": {
+        "label": "Verify trend indicators",
         "selector": "[data-testid='trend-indicator']",
         "assertions": [
           {"type": "exists"}
@@ -58,5 +65,11 @@
         "notes": "Trend indicators are present"
       }
     }
+  ],
+  "edges": [
+    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"},
+    {"id": "e2", "source": "2", "target": "3", "type": "smoothstep"},
+    {"id": "e3", "source": "3", "target": "4", "type": "smoothstep"},
+    {"id": "e4", "source": "4", "target": "5", "type": "smoothstep"}
   ]
 }

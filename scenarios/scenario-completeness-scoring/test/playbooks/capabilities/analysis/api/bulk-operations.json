@@ -3,13 +3,16 @@
     "name": "Bulk Operations E2E Test",
     "description": "Tests bulk score refresh and cross-scenario comparison API endpoints",
     "tags": ["e2e", "api", "analysis", "bulk"],
-    "requirements": ["SCS-ANALYSIS-003", "SCS-ANALYSIS-004"]
+    "requirements": ["SCS-ANALYSIS-003", "SCS-ANALYSIS-004"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "http_request",
       "data": {
+        "label": "Bulk refresh all scores",
         "method": "POST",
         "url": "{{API_URL}}/api/v1/scores/refresh-all",
         "headers": {
@@ -27,6 +30,7 @@
       "id": "2",
       "type": "http_request",
       "data": {
+        "label": "Compare scenarios",
         "method": "POST",
         "url": "{{API_URL}}/api/v1/compare",
         "headers": {
@@ -42,5 +46,8 @@
         "notes": "Verify cross-scenario comparison endpoint"
       }
     }
+  ],
+  "edges": [
+    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"}
   ]
 }

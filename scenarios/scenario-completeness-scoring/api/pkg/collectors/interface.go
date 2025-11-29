@@ -68,6 +68,18 @@ func (c *MetricsCollector) Collect(scenarioName string) (*scoring.Metrics, error
 	}, nil
 }
 
+// GetScenarioRoot returns the full path to a scenario directory
+func (c *MetricsCollector) GetScenarioRoot(scenarioName string) string {
+	return c.VrooliRoot + "/scenarios/" + scenarioName
+}
+
+// LoadRequirements loads all requirements with validation data for a scenario
+// This is used by the validation quality analyzer
+func (c *MetricsCollector) LoadRequirements(scenarioName string) []Requirement {
+	scenarioRoot := c.GetScenarioRoot(scenarioName)
+	return loadRequirements(scenarioRoot)
+}
+
 // PassMetrics holds pass/fail counts
 type PassMetrics struct {
 	Total   int
@@ -83,12 +95,14 @@ type ServiceConfig struct {
 
 // Requirement represents a requirement from the requirements JSON
 type Requirement struct {
-	ID                  string        `json:"id"`
-	Title               string        `json:"title"`
-	Status              string        `json:"status"`
-	Priority            string        `json:"priority,omitempty"`
-	Children            []string      `json:"children,omitempty"`
-	OperationalTargetID string        `json:"operational_target_id,omitempty"`
+	ID                  string          `json:"id"`
+	Title               string          `json:"title"`
+	Status              string          `json:"status"`
+	Priority            string          `json:"priority,omitempty"`
+	Category            string          `json:"category,omitempty"`
+	PRDRef              string          `json:"prd_ref,omitempty"`
+	Children            []string        `json:"children,omitempty"`
+	OperationalTargetID string          `json:"operational_target_id,omitempty"`
 	Validation          []ValidationRef `json:"validation,omitempty"`
 }
 

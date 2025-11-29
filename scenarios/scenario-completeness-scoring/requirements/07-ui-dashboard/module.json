@@ -18,14 +18,14 @@
           "type": "test",
           "ref": "ui/src/pages/Dashboard.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Dashboard page implemented with scenario table, health alerts, and score display"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/ui-dashboard/e2e/dashboard-overview.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "E2E playbook validates dashboard rendering and components"
         }
       ]
@@ -42,14 +42,14 @@
           "type": "test",
           "ref": "ui/src/pages/Configuration.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Configuration panel with presets, health status, and circuit breaker controls"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/ui-dashboard/e2e/configuration-panel.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "E2E playbook validates configuration panel and preset selection"
         }
       ]
@@ -66,14 +66,14 @@
           "type": "test",
           "ref": "ui/src/pages/ScenarioDetail.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Scenario detail page with score breakdown, sparkline history, metrics, and recommendations"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/ui-dashboard/e2e/scenario-detail.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "E2E playbook validates scenario detail view and components"
         }
       ]
@@ -99,14 +99,14 @@
           "type": "test",
           "ref": "ui/src/components/ScoreBar.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "ScoreBar component with percentage display and color coding"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/ui-dashboard/e2e/scenario-detail.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "E2E playbook validates score bars in detail view"
         }
       ]
@@ -123,14 +123,14 @@
           "type": "test",
           "ref": "ui/src/components/Sparkline.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "SVG sparkline component with trend coloring"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/ui-dashboard/e2e/dashboard-overview.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "E2E playbook validates sparklines in dashboard view"
         }
       ]

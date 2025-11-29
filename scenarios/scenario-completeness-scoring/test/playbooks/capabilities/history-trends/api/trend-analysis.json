@@ -3,13 +3,16 @@
     "name": "Trend Analysis E2E Test",
     "description": "Tests the trend detection and analysis API endpoints",
     "tags": ["e2e", "api", "trends"],
-    "requirements": ["SCS-HIST-003"]
+    "requirements": ["SCS-HIST-003"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "http_request",
       "data": {
+        "label": "Get scenario trend analysis",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/trends",
         "headers": {
@@ -28,6 +31,7 @@
       "id": "2",
       "type": "http_request",
       "data": {
+        "label": "Get all scenarios trends",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/trends",
         "assertions": [
@@ -37,5 +41,8 @@
         "notes": "Verify all-scenarios trend endpoint returns trends array"
       }
     }
+  ],
+  "edges": [
+    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"}
   ]
 }

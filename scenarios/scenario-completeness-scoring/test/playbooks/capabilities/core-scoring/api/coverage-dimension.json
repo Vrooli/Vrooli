@@ -3,13 +3,16 @@
     "name": "Coverage Dimension E2E Test",
     "description": "Tests coverage dimension scoring in score breakdown",
     "tags": ["e2e", "api", "scoring", "coverage"],
-    "requirements": ["SCS-CORE-001B"]
+    "requirements": ["SCS-CORE-001B"],
+    "reset": "none"
   },
+  "settings": {},
   "nodes": [
     {
       "id": "1",
       "type": "http_request",
       "data": {
+        "label": "Get score breakdown with coverage dimension",
         "method": "GET",
         "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
         "headers": {
@@ -24,5 +27,6 @@
         "notes": "Verify coverage dimension is included in breakdown with score and max values"
       }
     }
-  ]
+  ],
+  "edges": []
 }
