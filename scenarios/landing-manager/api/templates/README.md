@@ -89,11 +89,24 @@ Check `sections/_index.json` for current status of each section:
 
 When working with sections, these files may need updates (paths relative to scenario root):
 
+**REQUIRED (only 3 files!):**
+
 | File | Purpose | When to Update |
 |------|---------|----------------|
-| `api/templates/sections/_index.json` | Registry | Add/remove sections |
-| `api/templates/sections/{id}.json` | Schema | Change section fields |
-| `generated/test/ui/src/components/sections/{Name}Section.tsx` | Component | Change rendering |
-| `generated/test/ui/src/pages/PublicHome.tsx` | Renderer | Add/remove section types |
-| `generated/test/ui/src/lib/api.ts` | Types | Add/remove section types |
-| `initialization/postgres/schema.sql` | DB | Add/remove section types |
+| `generated/test/ui/src/components/sections/{Name}Section.tsx` | Component | Create/modify section UI |
+| `generated/test/ui/src/components/sections/registry.tsx` | Registry | Add/remove/update section registration |
+| `initialization/postgres/schema.sql` | DB | Add/remove section types from CHECK constraint |
+
+**OPTIONAL (for documentation):**
+
+| File | Purpose | When to Update |
+|------|---------|----------------|
+| `api/templates/sections/{id}.json` | Schema | Document field definitions |
+| `api/templates/sections/_index.json` | Metadata | Document section metadata |
+
+**AUTO-DERIVED (no manual updates needed):**
+
+| File | What's Auto-Derived |
+|------|---------------------|
+| `generated/test/ui/src/lib/api.ts` | `SectionType` union - re-exported from registry.tsx |
+| `generated/test/ui/src/pages/PublicHome.tsx` | Component rendering - uses `getSectionComponent()` from registry |

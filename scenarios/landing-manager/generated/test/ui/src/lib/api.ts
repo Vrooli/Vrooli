@@ -17,21 +17,13 @@ export interface Variant {
 
 /**
  * Section types available for landing pages.
- * When adding a new section, update this union and:
- * 1. Create component in components/sections/{Name}Section.tsx
- * 2. Add switch case in pages/PublicHome.tsx
- * 3. Add CHECK constraint in initialization/postgres/schema.sql
- * 4. Create schema in scenarios/landing-manager/api/templates/sections/{id}.json
+ * This type is auto-derived from the section registry.
+ *
+ * To add a new section, update components/sections/registry.tsx
+ * No need to manually update this file!
  */
-export type SectionType =
-  | 'hero'
-  | 'features'
-  | 'pricing'
-  | 'cta'
-  | 'testimonials'
-  | 'faq'
-  | 'footer'
-  | 'video';
+import type { SectionType } from '../components/sections/registry';
+export type { SectionType };
 
 export interface ContentSection {
   id: number;

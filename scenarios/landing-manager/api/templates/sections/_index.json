@@ -1,40 +1,38 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Section Registry",
-  "description": "Single source of truth for all available landing page sections. Agents should read this file to discover available sections.",
+  "description": "Metadata registry for landing page sections. Component registration happens in registry.tsx.",
   "_paths": {
     "_comment": "All paths relative to scenario root: scenarios/landing-manager/",
+    "component_registry": "generated/test/ui/src/components/sections/registry.tsx",
     "schema_base": "api/templates/sections/",
     "component_base": "generated/test/ui/src/components/sections/",
-    "renderer": "generated/test/ui/src/pages/PublicHome.tsx",
-    "types": "generated/test/ui/src/lib/api.ts",
     "db_schema": "initialization/postgres/schema.sql"
   },
   "_agent_instructions": {
-    "read_first": "This file is the SINGLE SOURCE OF TRUTH for sections. Start here.",
+    "read_first": "For adding sections, see AGENT.md - only 3 files to update now!",
+    "primary_registry": "The COMPONENT REGISTRY (registry.tsx) is the source of truth for UI. This file (_index.json) provides metadata and field documentation.",
     "to_add_section": [
-      "1. Create schema: {schema_base}/{section-id}.json following _schema.json",
-      "2. Create component: {component_base}/{SectionName}Section.tsx",
-      "3. Register here: Add entry to 'sections' array below",
-      "4. Wire renderer: Add import + switch case in {renderer}",
-      "5. Update types: Add to SectionType union in {types}",
-      "6. Update DB: Add to CHECK constraint in {db_schema} (line ~88)"
+      "1. Create component: {component_base}/{SectionName}Section.tsx",
+      "2. Register in: {component_registry} - add import and SECTION_REGISTRY entry",
+      "3. Update DB: Add to CHECK constraint in {db_schema} (line ~88)",
+      "(Optional) Create schema: {schema_base}/{section-id}.json for field documentation",
+      "(Optional) Add entry here for metadata"
     ],
     "to_remove_section": [
-      "1. Remove entry from 'sections' array below",
-      "2. Delete {schema_base}/{section-id}.json",
-      "3. Delete {component_base}/{SectionName}Section.tsx",
-      "4. Remove from {renderer} imports and switch",
-      "5. Remove from {types} SectionType union",
-      "6. Remove from {db_schema} CHECK constraint"
+      "1. Remove from SECTION_REGISTRY in {component_registry}",
+      "2. Delete {component_base}/{SectionName}Section.tsx",
+      "3. Remove from {db_schema} CHECK constraint",
+      "(Optional) Delete {schema_base}/{section-id}.json",
+      "(Optional) Remove entry from this file"
     ],
-    "to_modify_section": {
-      "schema_only": "Edit {schema_base}/{id}.json - changes available fields",
-      "component_only": "Edit {component_base}/{Name}Section.tsx - changes rendering",
-      "both": "Ensure field names in schema match props expected by component"
+    "auto_derived": {
+      "SectionType": "Auto-derived from registry.tsx keys - no manual update needed",
+      "PublicHome_rendering": "Uses getSectionComponent() - no switch statement to update"
     },
     "naming_conventions": {
       "section_id": "kebab-case (e.g., 'social-proof')",
+      "registry_key": "Same as section_id",
       "schema_file": "{section-id}.json",
       "component_file": "{SectionName}Section.tsx (PascalCase, e.g., 'SocialProofSection.tsx')",
       "db_type": "Same as section_id"

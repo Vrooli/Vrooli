@@ -1,14 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useVariant } from '../contexts/VariantContext';
 import { getSections, type ContentSection } from '../lib/api';
-import { HeroSection } from '../components/sections/HeroSection';
-import { FeaturesSection } from '../components/sections/FeaturesSection';
-import { PricingSection } from '../components/sections/PricingSection';
-import { CTASection } from '../components/sections/CTASection';
-import { TestimonialsSection } from '../components/sections/TestimonialsSection';
-import { FAQSection } from '../components/sections/FAQSection';
-import { FooterSection } from '../components/sections/FooterSection';
-import { VideoSection } from '../components/sections/VideoSection';
+import { getSectionComponent } from '../components/sections/registry';
 
 /**
  * Public Landing Page
@@ -119,34 +112,16 @@ export default function PublicHome() {
     );
   }
 
-  // Render sections
+  // Render sections using the registry (no switch statement needed)
   const renderSection = (section: ContentSection) => {
-    const commonProps = {
-      key: section.id,
-      content: section.content,
-    };
+    const Component = getSectionComponent(section.section_type);
 
-    switch (section.section_type) {
-      case 'hero':
-        return <HeroSection {...commonProps} />;
-      case 'features':
-        return <FeaturesSection {...commonProps} />;
-      case 'pricing':
-        return <PricingSection {...commonProps} />;
-      case 'cta':
-        return <CTASection {...commonProps} />;
-      case 'testimonials':
-        return <TestimonialsSection {...commonProps} />;
-      case 'faq':
-        return <FAQSection {...commonProps} />;
-      case 'footer':
-        return <FooterSection {...commonProps} />;
-      case 'video':
-        return <VideoSection {...commonProps} />;
-      default:
-        console.warn(`Unknown section type: ${section.section_type}`);
-        return null;
+    if (!Component) {
+      console.warn(`Unknown section type: ${section.section_type}`);
+      return null;
     }
+
+    return <Component key={section.id} content={section.content} />;
   };
 
   return (

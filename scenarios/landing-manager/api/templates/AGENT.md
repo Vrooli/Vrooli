@@ -25,45 +25,93 @@
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                    SINGLE SOURCE OF TRUTH                          │
-│              api/templates/sections/_index.json                     │
 │                                                                     │
-│  Contains: All section metadata, paths, status, content fields     │
+│  Section Registry: generated/test/ui/src/components/sections/      │
+│                    registry.tsx                                     │
+│                                                                     │
+│  Contains: Component mappings, types, metadata                      │
+│  Auto-derives: SectionType union, rendering logic                  │
 └─────────────────────────────────────────────────────────────────────┘
                                   │
           ┌───────────────────────┼───────────────────────┐
           │                       │                       │
           ▼                       ▼                       ▼
 ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-│  Section Schema │   │ React Component │   │   Data Layer    │
+│  Section Schema │   │ React Component │   │   Database      │
 │   {id}.json     │   │ {Name}Section   │   │                 │
-│                 │   │     .tsx        │   │  - api.ts types │
-│ Defines fields, │   │                 │   │  - schema.sql   │
-│ validation,     │   │ Renders the     │   │  - PublicHome   │
-│ constraints     │   │ section UI      │   │    .tsx switch  │
+│                 │   │     .tsx        │   │  - schema.sql   │
+│ Defines fields, │   │                 │   │    CHECK        │
+│ validation,     │   │ Renders the     │   │    constraint   │
+│ constraints     │   │ section UI      │   │                 │
 └─────────────────┘   └─────────────────┘   └─────────────────┘
 ```
 
-## Files You'll Touch
+## Adding a New Section (3 Steps Only!)
 
-| Purpose | Path | When to Modify |
-|---------|------|----------------|
-| **Section Registry** | `api/templates/sections/_index.json` | Add/remove any section |
-| **Section Schemas** | `api/templates/sections/{id}.json` | Add/modify section fields |
-| **React Components** | `generated/test/ui/src/components/sections/{Name}Section.tsx` | Add/modify section UI |
-| **Section Renderer** | `generated/test/ui/src/pages/PublicHome.tsx` | Add/remove section imports & switch cases |
-| **TypeScript Types** | `generated/test/ui/src/lib/api.ts` | Add/remove from SectionType union |
-| **Database Schema** | `initialization/postgres/schema.sql` | Add/remove from CHECK constraint (~line 88) |
+### Before: 6 files to update ❌
+### After: 3 files to update ✅
 
-## Adding a New Section (Step-by-Step)
+The registry pattern eliminates:
+- Switch statement updates
+- TypeScript union updates
+- PublicHome.tsx imports
 
-### 1. Run the helper script
-```bash
-./scripts/manage-sections.sh add my-new-section
+### Step 1: Create the Component
+
+Create `generated/test/ui/src/components/sections/MyNewSectionSection.tsx`:
+
+```tsx
+interface MyNewSectionSectionProps {
+  content: {
+    title?: string;
+    // Add fields matching your schema
+  };
+}
+
+export function MyNewSectionSection({ content }: MyNewSectionSectionProps) {
+  return (
+    <section className="py-24 bg-slate-950">
+      <div className="container mx-auto px-6">
+        <h2 className="text-4xl font-bold text-white text-center">
+          {content.title || 'Default Title'}
+        </h2>
+      </div>
+    </section>
+  );
+}
 ```
-This prints templates and instructions for all files you need to modify.
 
-### 2. Create the schema file
-Create `api/templates/sections/my-new-section.json`:
+### Step 2: Register in Registry
+
+Add to `generated/test/ui/src/components/sections/registry.tsx`:
+
+```tsx
+// Import at top
+import { MyNewSectionSection } from './MyNewSectionSection';
+
+// Add to SECTION_REGISTRY
+'my-new-section': {
+  component: MyNewSectionSection,
+  name: 'My New Section',
+  category: 'value-proposition',
+  defaultOrder: 50,
+},
+```
+
+**That's it for the UI!** The SectionType and PublicHome rendering are handled automatically.
+
+### Step 3: Update Database Schema (if needed)
+
+Add to `initialization/postgres/schema.sql` CHECK constraint (~line 88):
+
+```sql
+section_type VARCHAR(50) NOT NULL CHECK (section_type IN ('hero', ..., 'my-new-section')),
+```
+
+### Optional: Create Schema Definition
+
+If you want field validation/documentation, create `api/templates/sections/my-new-section.json`:
+
 ```json
 {
   "$schema": "./_schema.json",
@@ -84,103 +132,46 @@ Create `api/templates/sections/my-new-section.json`:
 }
 ```
 
-### 3. Create the component
-Create `generated/test/ui/src/components/sections/MyNewSectionSection.tsx`:
-```tsx
-interface MyNewSectionSectionProps {
-  content: {
-    title?: string;
-  };
-}
+And register in `api/templates/sections/_index.json`.
 
-export function MyNewSectionSection({ content }: MyNewSectionSectionProps) {
-  return (
-    <section className="py-24 bg-slate-950">
-      <div className="container mx-auto px-6">
-        <h2 className="text-4xl font-bold text-white text-center">
-          {content.title || 'Default Title'}
-        </h2>
-      </div>
-    </section>
-  );
-}
-```
+## Files You'll Touch
 
-### 4. Register in _index.json
-Add to the `sections` array in `api/templates/sections/_index.json`:
-```json
-{
-  "id": "my-new-section",
-  "name": "My New Section",
-  "description": "What this section does",
-  "category": "value-proposition",
-  "schema": "api/templates/sections/my-new-section.json",
-  "component": "generated/test/ui/src/components/sections/MyNewSectionSection.tsx",
-  "status": "implemented",
-  "default_order": 50,
-  "content_fields": ["title"]
-}
-```
+| Purpose | Path | When to Modify |
+|---------|------|----------------|
+| **Component Registry** | `generated/test/ui/src/components/sections/registry.tsx` | **Always** - register new sections here |
+| **React Components** | `generated/test/ui/src/components/sections/{Name}Section.tsx` | Create/modify section UI |
+| **Database Schema** | `initialization/postgres/schema.sql` | Add section type to CHECK constraint |
+| **Section Schemas** (optional) | `api/templates/sections/{id}.json` | Document field definitions |
+| **Section Index** (optional) | `api/templates/sections/_index.json` | Update if using schema |
 
-### 5. Update PublicHome.tsx
-Add import at top:
-```tsx
-import { MyNewSectionSection } from '../components/sections/MyNewSectionSection';
-```
+## Files You DON'T Need to Touch
 
-Add case in `renderSection()` switch (before `default:`):
-```tsx
-case 'my-new-section':
-  return <MyNewSectionSection {...commonProps} />;
-```
+These files auto-derive from the registry:
 
-### 6. Update api.ts
-Add to `SectionType` union:
-```tsx
-export type SectionType =
-  | 'hero'
-  | 'features'
-  // ... existing types ...
-  | 'my-new-section';  // Add here
-```
-
-### 7. Update schema.sql
-Modify the CHECK constraint (around line 88):
-```sql
-section_type VARCHAR(50) NOT NULL CHECK (section_type IN ('hero', 'features', ..., 'my-new-section')),
-```
-
-### 8. Validate
-```bash
-./scripts/manage-sections.sh validate
-```
+| File | What's Auto-Derived |
+|------|---------------------|
+| `generated/test/ui/src/lib/api.ts` | `SectionType` union (re-exported from registry) |
+| `generated/test/ui/src/pages/PublicHome.tsx` | Component rendering (uses `getSectionComponent()`) |
 
 ## Removing a Section
 
-```bash
-# Get removal instructions
-./scripts/manage-sections.sh remove <section-id>
-```
-
-Then:
-1. Delete `api/templates/sections/{id}.json`
+1. Remove from `SECTION_REGISTRY` in `registry.tsx`
 2. Delete `generated/test/ui/src/components/sections/{Name}Section.tsx`
-3. Remove entry from `api/templates/sections/_index.json`
-4. Remove import and switch case from `PublicHome.tsx`
-5. Remove from `SectionType` union in `api.ts`
-6. Remove from CHECK constraint in `schema.sql`
-7. Run `./scripts/manage-sections.sh validate`
+3. Remove from `schema.sql` CHECK constraint
+4. (Optional) Delete `api/templates/sections/{id}.json`
+5. (Optional) Remove from `_index.json`
+6. Run `./scripts/manage-sections.sh validate`
 
 ## Modifying Section Content
 
-**Schema changes only** (new fields):
-1. Edit `api/templates/sections/{id}.json`
-2. Update `content_fields` in `_index.json`
-3. Update component props interface
-4. Update component to render new fields
-
 **Styling changes only**:
-1. Edit `generated/test/ui/src/components/sections/{Name}Section.tsx`
+- Edit the component TSX file
+- No other files need changes
+
+**Schema changes** (new fields):
+- Update the component's props interface
+- Update the component to render new fields
+- (Optional) Update the JSON schema
 
 ## Implemented Sections
 
@@ -195,29 +186,20 @@ Then:
 | `cta` | CTASection | conversion | Call-to-action block |
 | `footer` | FooterSection | navigation | Site footer |
 
-## Schema-Only Sections (Need Components)
-
-| ID | Component Needed | Category |
-|----|------------------|----------|
-| `benefits` | BenefitsSection | value-proposition |
-| `social-proof` | SocialProofSection | social-proof |
-| `lead-form` | LeadFormSection | conversion |
-| `preview` | PreviewSection | engagement |
-
 ## Critical Rules
 
-1. **Field names must match** - Schema field names MUST exactly match component prop names
-2. **Always provide defaults** - Components should render gracefully with empty content
-3. **Validate after changes** - Run `./scripts/manage-sections.sh validate`
+1. **Register in registry.tsx** - This is the single source of truth for components
+2. **Match section IDs** - Registry key must match DB section_type
+3. **Provide defaults** - Components should render gracefully with empty content
 4. **Keep sections independent** - Sections should not depend on each other
-5. **Test your changes** - Run `make test` from scenario root
+5. **Validate after changes** - Run `./scripts/manage-sections.sh validate`
 
 ## Naming Conventions
 
 | Type | Convention | Example |
 |------|------------|---------|
 | Section ID | kebab-case | `social-proof` |
-| Schema file | `{id}.json` | `social-proof.json` |
+| Registry key | Same as ID | `'social-proof'` |
 | Component file | `{PascalCase}Section.tsx` | `SocialProofSection.tsx` |
 | Component name | `{PascalCase}Section` | `SocialProofSection` |
 | DB type | Same as ID | `'social-proof'` |
@@ -229,18 +211,12 @@ Sections store content as JSONB in PostgreSQL:
 - Queryable: Can search within content
 - Validated: By component at render time
 
-## Common Tasks
+## Registry Pattern Benefits
 
-### Add a field to existing section
-1. Edit schema JSON to add field definition
-2. Update `content_fields` in `_index.json`
-3. Update component interface and rendering
+The registry pattern (`registry.tsx`) provides:
 
-### Change section styling
-1. Edit component TSX file only
-2. Use Tailwind classes
-3. No other files need changes
-
-### Reorder default sections
-1. Edit `default_order` in schema JSON
-2. Update `default_order` in `_index.json`
+1. **Single registration point** - One file to update for new sections
+2. **Auto-derived types** - SectionType updates automatically
+3. **No switch statements** - Components looked up dynamically
+4. **Metadata co-location** - Component, name, category together
+5. **Type safety** - Invalid section types caught at compile time

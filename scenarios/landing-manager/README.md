@@ -60,6 +60,31 @@ make start
 # Visit http://localhost:<port>/admin for admin portal
 ```
 
+## 🤖 Agent Section Customization
+
+**For agents customizing landing page sections**, start here:
+
+```bash
+# From scenario root
+./scripts/manage-sections.sh help      # See all commands
+./scripts/manage-sections.sh list      # List all section types
+./scripts/manage-sections.sh validate  # Check consistency
+./scripts/manage-sections.sh add <id>  # Guide for adding a section
+```
+
+**Full documentation**: See [`api/templates/AGENT.md`](./api/templates/AGENT.md) for:
+- Step-by-step guides (only 3 files to update!)
+- Component templates and examples
+- Architecture overview with diagrams
+- Critical rules and naming conventions
+
+**Key insight**: The registry pattern means adding a section only requires:
+1. Create component: `generated/{instance}/ui/src/components/sections/{Name}Section.tsx`
+2. Register in: `generated/{instance}/ui/src/components/sections/registry.tsx`
+3. Update DB: Add to CHECK constraint in `initialization/postgres/schema.sql`
+
+No switch statements, no manual type updates - it's all auto-derived from the registry!
+
 ## 📋 Current State
 
 - ✅ Factory UI entrypoint at `/` with template catalog + generation (dry-run + real)
@@ -83,8 +108,17 @@ See [PRD.md](./PRD.md) for detailed operational targets.
 ```
 landing-manager/
 ├── api/                    # Go API (template management, generation orchestration)
+│   └── templates/          # Section schemas and template definitions
+│       ├── AGENT.md        # 📖 START HERE for section customization
+│       ├── sections/       # Section type definitions (hero, features, etc.)
+│       └── catalog/        # Landing page templates (saas/, lead-generation/)
 ├── cli/                    # CLI commands (generate, customize, status)
-├── ui/                     # Factory UI (optional; may be CLI-only in MVP)
+├── ui/                     # Factory UI (admin dashboard for managing templates)
+├── generated/              # Generated landing page instances
+│   └── {instance}/         # Each generated landing page (e.g., "test", "vrooli-pro")
+│       └── ui/src/components/sections/  # Section components live here
+├── scripts/
+│   └── manage-sections.sh  # Section management helper for agents
 ├── docs/
 │   ├── RESEARCH.md         # Uniqueness check, domain research, external references
 │   ├── PROGRESS.md         # Chronological progress log
@@ -100,6 +134,15 @@ landing-manager/
 ├── PRD.md                  # Product Requirements Document (read-only)
 └── README.md               # This file
 ```
+
+### Key Directories Explained
+
+| Directory | Purpose |
+|-----------|---------|
+| `ui/` | **Factory dashboard** - Admin UI for managing templates and generating landing pages |
+| `generated/{name}/ui/` | **Generated landing pages** - Each instance has its own React app with sections |
+| `api/templates/` | **Section schemas** - JSON definitions for section types (hero, pricing, etc.) |
+| `scripts/` | **Agent tooling** - Helper scripts for section management |
 
 ## 🧱 Tech Stack
 
