@@ -21,12 +21,12 @@
 - UI: Factory dashboard only (template links + generation guidance). No landing/admin runtime here.
 - Agent Integration: Triggers an agent to customize **generated** landing pages using template-safe APIs/files
 
-> Scope note: All landing runtime features (admin portal, A/B testing, metrics, Stripe, subscription verification) belong to the template payload at `scripts/scenarios/templates/saas-landing-page/payload` and the scenarios generated from it. The factory’s responsibility stops at generating and orchestrating.
+> Scope note: All landing runtime features (admin portal, A/B testing, metrics, Stripe, subscription verification) belong to the template at `scripts/scenarios/templates/landing-page-react-vite` and the scenarios generated from it. The factory's responsibility stops at generating and orchestrating.
 
 **Value promise**: Reduces landing page setup from weeks to minutes by shipping a factory + template bundle. Factory handles metadata and generation; templates provide the landing runtime once generated.
 
 ## 🎯 Operational Targets
-> Runtime landing/admin targets live in `scripts/scenarios/templates/saas-landing-page/payload/PRD.md` and are validated in generated scenarios.
+> Runtime landing/admin targets live in `scripts/scenarios/templates/landing-page-react-vite/PRD.md` and are validated in generated scenarios.
 
 ### 🔴 P0 – Must ship for viability
 - [x] **OT-P0-001: Template Registry & Discovery** — Expose templates via CLI/API with metadata for listing, inspection, and selection (availability, metadata quality, multi-template support)

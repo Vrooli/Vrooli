@@ -135,5 +135,136 @@
     "success": true,
     "timestamp": "2025-11-28T17:53:38.263479877-05:00",
     "duration_ms": 16
+  },
+  {
+    "event_id": "20251128-223102.918",
+    "template_id": "saas-landing-page",
+    "scenario_id": "tttt",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-28T22:31:02.918287126-05:00",
+    "duration_ms": 16
+  },
+  {
+    "event_id": "20251128-224738.347",
+    "template_id": "saas-landing-page",
+    "scenario_id": "test-landing",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-28T22:47:38.347508257-05:00",
+    "duration_ms": 16
+  },
+  {
+    "event_id": "20251128-225026.571",
+    "template_id": "saas-landing-page",
+    "scenario_id": "raaa",
+    "is_dry_run": false,
+    "success": false,
+    "error_reason": "failed to scaffold scenario: failed to copy /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/tttt/api: stat /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/tttt/api: no such file or directory",
+    "timestamp": "2025-11-28T22:50:26.571603656-05:00",
+    "duration_ms": 0
+  },
+  {
+    "event_id": "20251128-225037.465",
+    "template_id": "saas-landing-page",
+    "scenario_id": "raaaa",
+    "is_dry_run": false,
+    "success": false,
+    "error_reason": "failed to scaffold scenario: failed to copy /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/tttt/api: stat /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/tttt/api: no such file or directory",
+    "timestamp": "2025-11-28T22:50:37.465253731-05:00",
+    "duration_ms": 0
+  },
+  {
+    "event_id": "20251128-225148.450",
+    "template_id": "saas-landing-page",
+    "scenario_id": "test-landing",
+    "is_dry_run": false,
+    "success": false,
+    "error_reason": "failed to scaffold scenario: failed to copy /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/tttt/api: stat /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/tttt/api: no such file or directory",
+    "timestamp": "2025-11-28T22:51:48.450486812-05:00",
+    "duration_ms": 0
+  },
+  {
+    "event_id": "20251128-230940.457",
+    "template_id": "saas-landing-page",
+    "scenario_id": "boop",
+    "is_dry_run": false,
+    "success": false,
+    "error_reason": "failed to scaffold scenario: failed to copy /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/tttt/api: stat /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/tttt/api: no such file or directory",
+    "timestamp": "2025-11-28T23:09:40.457925051-05:00",
+    "duration_ms": 0
+  },
+  {
+    "event_id": "20251128-231449.280",
+    "template_id": "saas-landing-page",
+    "scenario_id": "testgen123",
+    "is_dry_run": false,
+    "success": false,
+    "error_reason": "failed to scaffold scenario: failed to copy /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/tttt/api: stat /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/tttt/api: no such file or directory",
+    "timestamp": "2025-11-28T23:14:49.280370659-05:00",
+    "duration_ms": 0
+  },
+  {
+    "event_id": "20251128-231703.648",
+    "template_id": "saas-landing-page",
+    "scenario_id": "test-landing",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-28T23:17:03.648478656-05:00",
+    "duration_ms": 17
+  },
+  {
+    "event_id": "20251128-232551.008",
+    "template_id": "saas-landing-page",
+    "scenario_id": "test-landing",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-28T23:25:51.008269933-05:00",
+    "duration_ms": 17
+  },
+  {
+    "event_id": "20251128-233332.330",
+    "template_id": "saas-landing-page",
+    "scenario_id": "final-test",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-28T23:33:32.33019415-05:00",
+    "duration_ms": 16
+  },
+  {
+    "event_id": "20251128-233539.818",
+    "template_id": "saas-landing-page",
+    "scenario_id": "asdf",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-28T23:35:39.81845758-05:00",
+    "duration_ms": 16
+  },
+  {
+    "event_id": "20251128-234334.344",
+    "template_id": "saas-landing-page",
+    "scenario_id": "ffffffffffff",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-28T23:43:34.344507382-05:00",
+    "duration_ms": 16
+  },
+  {
+    "event_id": "20251129-000159.860",
+    "template_id": "lead-magnet",
+    "scenario_id": "bloop",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-29T00:01:59.860519343-05:00",
+    "duration_ms": 18
+  },
+  {
+    "event_id": "20251129-000233.259",
+    "template_id": "saas-landing-page",
+    "scenario_id": "saas",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-11-29T00:02:33.259593906-05:00",
+    "duration_ms": 16
   }
 ]

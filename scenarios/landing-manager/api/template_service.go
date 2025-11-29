@@ -466,9 +466,9 @@ func scaffoldScenario(outputDir string) error {
 		return err
 	}
 
-	// Prefer dedicated template payload from repo root (scripts/scenarios/templates/saas-landing-page/payload)
+	// Prefer dedicated template from repo root (scripts/scenarios/templates/landing-page-react-vite)
 	repoRoot := filepath.Dir(filepath.Dir(scenarioRoot))
-	templatePayload := filepath.Join(repoRoot, "scripts", "scenarios", "templates", "saas-landing-page", "payload")
+	templatePayload := filepath.Join(repoRoot, "scripts", "scenarios", "templates", "landing-page-react-vite")
 	if _, err := os.Stat(templatePayload); err == nil {
 		return copyTemplatePayload(templatePayload, outputDir)
 	}

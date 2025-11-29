@@ -28,7 +28,7 @@ Every future bundle (Vrooli Home, etc.) will get its own landing page scenario v
 
 ### Factory vs Template Boundaries
 - **Factory UI (this scenario)**: root route `/` shows a factory dashboard with template links and generation instructions. It does **not** host production landing/admin runtime or previews.
-- **Template payload**: `scripts/scenarios/templates/saas-landing-page/payload` contains the landing/admin UI + API + requirements + PRD copied into generated scenarios.
+- **Template**: `scripts/scenarios/templates/landing-page-react-vite` contains the landing/admin UI + API + requirements + PRD copied into generated scenarios.
 - **Generated scenarios**: run the landing/admin experience independently on their own ports. Validate runtime features there.
 
 ## 🚀 Quick Start (Factory + Template Preview)
@@ -178,7 +178,7 @@ landing-manager/
 - Generation analytics/telemetry
 - Upgrade assist when template version changes
 
-> Runtime landing/admin targets (A/B testing, metrics, Stripe, admin portal, subscription verification) live in the template payload at `scripts/scenarios/templates/saas-landing-page/payload/PRD.md` and are validated in generated scenarios.
+> Runtime landing/admin targets (A/B testing, metrics, Stripe, admin portal, subscription verification) live in the template at `scripts/scenarios/templates/landing-page-react-vite/PRD.md` and are validated in generated scenarios.
 
 ## 🧪 Testing
 
