@@ -23,6 +23,7 @@ import { useExecutionStore } from "@stores/executionStore";
 import { useProjectStore, type Project } from "@stores/projectStore";
 import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
 import { useScenarioStore } from "@stores/scenarioStore";
+import { useDashboardStore, type RecentWorkflow } from "@stores/dashboardStore";
 import { useMediaQuery } from "@hooks/useMediaQuery";
 import { logger } from "@utils/logger";
 import toast from "react-hot-toast";
@@ -57,12 +58,15 @@ function App() {
   );
   const [isResizingExecution, setIsResizingExecution] = useState(false);
 
-  const { currentProject, setCurrentProject } = useProjectStore();
+  const { projects, currentProject, setCurrentProject } = useProjectStore();
   const { loadWorkflow } = useWorkflowStore();
   const currentExecution = useExecutionStore((state) => state.currentExecution);
   const viewerWorkflowId = useExecutionStore((state) => state.viewerWorkflowId);
   const closeExecutionViewer = useExecutionStore((state) => state.closeViewer);
+  const loadExecution = useExecutionStore((state) => state.loadExecution);
+  const startExecution = useExecutionStore((state) => state.startExecution);
   const { fetchScenarios } = useScenarioStore();
+  const { setLastEditedWorkflow } = useDashboardStore();
   const isLargeScreen = useMediaQuery("(min-width: 1024px)");
 
   // Guided tour state
@@ -280,6 +284,17 @@ function App() {
       // Set view immediately so WorkflowBuilder renders even if loading fails
       setCurrentView("project-workflow");
 
+      // Update last edited workflow for "Continue Editing" feature
+      const lastEdited: RecentWorkflow = {
+        id: workflowId,
+        name: options?.workflowData?.name as string ?? 'Untitled',
+        projectId: project.id,
+        projectName: project.name,
+        updatedAt: new Date(),
+        folderPath: options?.workflowData?.folder_path as string ?? options?.workflowData?.folderPath as string ?? '/',
+      };
+      setLastEditedWorkflow(lastEdited);
+
       try {
         console.log("[DEBUG] openWorkflow called", {
           workflowId,
@@ -329,6 +344,15 @@ function App() {
             setSelectedFolder(
               normalized.folderPath || project.folder_path || "/",
             );
+            // Update last edited workflow with actual name from API
+            setLastEditedWorkflow({
+              id: normalized.id,
+              name: normalized.name,
+              projectId: project.id,
+              projectName: project.name,
+              updatedAt: normalized.updatedAt,
+              folderPath: normalized.folderPath,
+            });
           }
         }
         console.log("[DEBUG] openWorkflow completed successfully", { workflowId });
@@ -370,6 +394,76 @@ function App() {
       workflowData: workflow as Record<string, unknown>,
     });
   };
+
+  // Handler for navigating directly to a workflow from dashboard widgets
+  const handleNavigateToWorkflow = useCallback(async (projectId: string, workflowId: string) => {
+    const projectState = useProjectStore.getState();
+    let project: Project | undefined = projectState.projects.find(p => p.id === projectId);
+    if (!project) {
+      const fetchedProject = await projectState.getProject(projectId);
+      project = fetchedProject ?? undefined;
+    }
+    if (project) {
+      await openWorkflow(project, workflowId);
+    }
+  }, [openWorkflow]);
+
+  // Handler for viewing an execution from dashboard widgets
+  const handleViewExecution = useCallback(async (executionId: string, workflowId: string) => {
+    // Load the execution details
+    await loadExecution(executionId);
+
+    // Find the workflow's project and navigate to the workflow view
+    const workflowsResponse = await fetch(`/api/v1/workflows/${workflowId}`);
+    if (workflowsResponse.ok) {
+      const workflowData = await workflowsResponse.json();
+      const projectId = workflowData.project_id ?? workflowData.projectId;
+      if (projectId) {
+        await handleNavigateToWorkflow(projectId, workflowId);
+      }
+    }
+  }, [loadExecution, handleNavigateToWorkflow]);
+
+  // Handler for AI workflow generation from dashboard
+  const handleDashboardAIGenerate = useCallback(async (prompt: string) => {
+    // If no project exists, create one first
+    if (projects.length === 0) {
+      try {
+        const project = await useProjectStore.getState().createProject({
+          name: 'My Automations',
+          description: 'Automated workflows',
+          folder_path: '/automations',
+        });
+        setCurrentProject(project);
+        // Then open AI modal with the prompt
+        setShowAIModal(true);
+        // Store the prompt in session storage for the AI modal to use
+        sessionStorage.setItem('pendingAIPrompt', prompt);
+      } catch (error) {
+        logger.error('Failed to create default project', { component: 'App', action: 'handleDashboardAIGenerate' }, error);
+        toast.error('Failed to create project. Please try again.');
+      }
+    } else {
+      // Use first project or current project
+      const targetProject = currentProject ?? projects[0];
+      setCurrentProject(targetProject);
+      openProject(targetProject);
+      // Store the prompt and open AI modal after navigation
+      sessionStorage.setItem('pendingAIPrompt', prompt);
+      setShowAIModal(true);
+    }
+  }, [projects, currentProject, setCurrentProject, openProject]);
+
+  // Handler for running a workflow from dashboard
+  const handleRunWorkflow = useCallback(async (workflowId: string) => {
+    try {
+      await startExecution(workflowId);
+      toast.success('Workflow execution started');
+    } catch (error) {
+      logger.error('Failed to start workflow execution', { component: 'App', action: 'handleRunWorkflow', workflowId }, error);
+      toast.error('Failed to start workflow');
+    }
+  }, [startExecution]);
 
   const handleBackToDashboard = () => {
     navigateToDashboard();
@@ -724,6 +818,10 @@ function App() {
             onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
             onOpenSettings={navigateToSettings}
             onOpenTutorial={openTour}
+            onNavigateToWorkflow={handleNavigateToWorkflow}
+            onViewExecution={handleViewExecution}
+            onAIGenerateWorkflow={handleDashboardAIGenerate}
+            onRunWorkflow={handleRunWorkflow}
           />
         </Suspense>
 

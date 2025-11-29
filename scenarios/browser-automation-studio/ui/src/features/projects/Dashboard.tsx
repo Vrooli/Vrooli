@@ -21,11 +21,22 @@ import {
   HelpCircle,
   Trash2,
   MoreVertical,
+  Command,
 } from "lucide-react";
 import { useProjectStore, Project } from "@stores/projectStore";
+import { useDashboardStore } from "@stores/dashboardStore";
 import { openCalendar } from "@utils/vrooli";
 import { selectors } from "@constants/selectors";
 import { getModifierKey } from "@hooks/useKeyboardShortcuts";
+import {
+  ContinueEditingBanner,
+  RecentWorkflowsWidget,
+  RecentExecutionsWidget,
+  QuickStartWidget,
+  GlobalSearchModal,
+  RunningIndicator,
+  TemplatesGallery,
+} from "@features/dashboard";
 
 interface DashboardProps {
   onProjectSelect: (project: Project) => void;
@@ -33,9 +44,25 @@ interface DashboardProps {
   onShowKeyboardShortcuts?: () => void;
   onOpenSettings?: () => void;
   onOpenTutorial?: () => void;
+  onNavigateToWorkflow?: (projectId: string, workflowId: string) => void;
+  onViewExecution?: (executionId: string, workflowId: string) => void;
+  onAIGenerateWorkflow?: (prompt: string) => void;
+  onRunWorkflow?: (workflowId: string) => void;
+  isGeneratingWorkflow?: boolean;
 }
 
-function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts, onOpenSettings, onOpenTutorial }: DashboardProps) {
+function Dashboard({
+  onProjectSelect,
+  onCreateProject,
+  onShowKeyboardShortcuts,
+  onOpenSettings,
+  onOpenTutorial,
+  onNavigateToWorkflow,
+  onViewExecution,
+  onAIGenerateWorkflow,
+  onRunWorkflow,
+  isGeneratingWorkflow = false,
+}: DashboardProps) {
   const {
     projects,
     isLoading,
@@ -46,13 +73,68 @@ function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts, 
     clearError,
     deleteProject,
   } = useProjectStore();
+  const { fetchRecentWorkflows, fetchRecentExecutions } = useDashboardStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [showActionsFor, setShowActionsFor] = useState<string | null>(null);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
   useEffect(() => {
     fetchProjects();
-  }, [fetchProjects]);
+    fetchRecentWorkflows();
+    fetchRecentExecutions();
+  }, [fetchProjects, fetchRecentWorkflows, fetchRecentExecutions]);
+
+  // Global keyboard shortcut for Cmd+K search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchModalOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleNavigateToWorkflow = useCallback((projectId: string, workflowId: string) => {
+    if (onNavigateToWorkflow) {
+      onNavigateToWorkflow(projectId, workflowId);
+    }
+  }, [onNavigateToWorkflow]);
+
+  const handleViewExecution = useCallback((executionId: string, workflowId: string) => {
+    if (onViewExecution) {
+      onViewExecution(executionId, workflowId);
+    }
+  }, [onViewExecution]);
+
+  const handleAIGenerate = useCallback((prompt: string) => {
+    if (onAIGenerateWorkflow) {
+      onAIGenerateWorkflow(prompt);
+    }
+  }, [onAIGenerateWorkflow]);
+
+  const handleUseTemplate = useCallback((prompt: string, _templateName: string) => {
+    if (onAIGenerateWorkflow) {
+      onAIGenerateWorkflow(prompt);
+    }
+  }, [onAIGenerateWorkflow]);
+
+  const handleRunWorkflow = useCallback((workflowId: string) => {
+    if (onRunWorkflow) {
+      onRunWorkflow(workflowId);
+    }
+  }, [onRunWorkflow]);
+
+  const handleViewAllWorkflows = useCallback(() => {
+    // For now, just select the first project or create one
+    if (projects.length > 0) {
+      onProjectSelect(projects[0]);
+    } else {
+      onCreateProject();
+    }
+  }, [projects, onProjectSelect, onCreateProject]);
 
   const normalizedSearch = searchTerm.toLowerCase();
   const filteredProjects = projects.filter((project) => {
@@ -200,6 +282,23 @@ function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts, 
               </p>
             </div>
             <div className="hidden md:flex items-center gap-2">
+              {/* Running Executions Indicator */}
+              <RunningIndicator onViewExecution={handleViewExecution} />
+
+              {/* Global Search Button */}
+              <button
+                onClick={() => setIsSearchModalOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 text-gray-400 hover:text-white bg-gray-800/50 hover:bg-gray-700 border border-gray-700 rounded-lg transition-colors"
+                title={`Search (${getModifierKey()}+K)`}
+                aria-label="Open search"
+              >
+                <Search size={14} />
+                <span className="text-sm">Search</span>
+                <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs text-gray-500 bg-gray-800 border border-gray-700 rounded">
+                  <Command size={10} />K
+                </kbd>
+              </button>
+
               {onOpenTutorial && (
                 <button
                   onClick={onOpenTutorial}
@@ -435,13 +534,50 @@ function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts, 
             </div>
           </div>
         ) : (
-          <div
-            id="projects-content"
-            className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-            data-testid={selectors.projects.grid}
-            role="region"
-            aria-label="Projects list"
-          >
+          <div id="projects-content" role="region" aria-label="Dashboard">
+            {/* Dashboard Widgets Section */}
+            <div className="space-y-6 mb-8">
+              {/* Continue Editing Banner */}
+              <ContinueEditingBanner onNavigate={handleNavigateToWorkflow} />
+
+              {/* Quick Start - AI Workflow Generation */}
+              {onAIGenerateWorkflow && (
+                <QuickStartWidget
+                  onAIGenerate={handleAIGenerate}
+                  onCreateManual={onCreateProject}
+                  isGenerating={isGeneratingWorkflow}
+                />
+              )}
+
+              {/* Recent Items Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <RecentWorkflowsWidget
+                  onNavigate={handleNavigateToWorkflow}
+                  onViewAll={handleViewAllWorkflows}
+                />
+                <RecentExecutionsWidget
+                  onViewExecution={handleViewExecution}
+                  onViewAll={handleViewAllWorkflows}
+                />
+              </div>
+
+              {/* Templates Gallery */}
+              {onAIGenerateWorkflow && (
+                <TemplatesGallery onUseTemplate={handleUseTemplate} />
+              )}
+            </div>
+
+            {/* Projects Section Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-white">Your Projects</h2>
+              <span className="text-sm text-gray-500">{filteredProjects.length} project{filteredProjects.length !== 1 ? 's' : ''}</span>
+            </div>
+
+            {/* Projects Grid */}
+            <div
+              className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              data-testid={selectors.projects.grid}
+            >
             {filteredProjects.map((project) => {
               const isDeleting = deletingProjectId === project.id;
               const isActionsOpen = showActionsFor === project.id;
@@ -596,6 +732,7 @@ function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts, 
                 </div>
               );
             })}
+            </div>
           </div>
         )}
       </div>
@@ -609,6 +746,19 @@ function Dashboard({ onProjectSelect, onCreateProject, onShowKeyboardShortcuts, 
       >
         <Plus size={24} />
       </button>
+
+      {/* Global Search Modal */}
+      <GlobalSearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        onSelectWorkflow={handleNavigateToWorkflow}
+        onSelectProject={(projectId) => {
+          const project = projects.find(p => p.id === projectId);
+          if (project) onProjectSelect(project);
+        }}
+        onSelectExecution={handleViewExecution}
+        onRunWorkflow={handleRunWorkflow}
+      />
     </div>
   );
 }
