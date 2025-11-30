@@ -29,6 +29,7 @@ scenario::logs::view() {
     local step_name=""
     local show_lifecycle=false
     local show_runtime=false
+    local show_previous=false
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --follow|-f)
@@ -51,6 +52,10 @@ scenario::logs::view() {
                 show_runtime=true
                 shift
                 ;;
+            --previous)
+                show_previous=true
+                shift
+                ;;
             --force-follow)
                 follow=true
                 force_follow=true
@@ -70,7 +75,7 @@ scenario::logs::view() {
 
     # Show specific step log if requested
     if [[ -n "$step_name" ]]; then
-        scenario::logs::show_step "$scenario_name" "$step_name" "$follow" "$force_follow"
+        scenario::logs::show_step "$scenario_name" "$step_name" "$follow" "$force_follow" "$show_previous"
         return $?
     fi
 
@@ -128,13 +133,20 @@ scenario::logs::show_step() {
     local step_name="$2"
     local follow="$3"
     local force_follow="${4:-false}"
+    local show_previous="${5:-false}"
     
     local logs_dir="${HOME}/.vrooli/logs/scenarios/${scenario_name}"
     
+    # Determine the log file suffix
+    local log_suffix=".log"
+    if [[ "$show_previous" == "true" ]]; then
+        log_suffix=".log.bak"
+    fi
+
     # Find log files matching the step name
     local step_log=""
     shopt -s nullglob
-    for log_file in "$logs_dir"/vrooli.*."${scenario_name}"."${step_name}".log; do
+    for log_file in "$logs_dir"/vrooli.*."${scenario_name}"."${step_name}"${log_suffix}; do
         if [[ -f "$log_file" ]]; then
             step_log="$log_file"
             break
@@ -143,6 +155,11 @@ scenario::logs::show_step() {
     shopt -u nullglob
     
     if [[ -z "$step_log" ]]; then
+        if [[ "$show_previous" == "true" ]]; then
+            log::error "No previous log found for step '$step_name'"
+            log::info "A backup is only created when a scenario is started/restarted."
+            return 1
+        fi
         log::error "No log found for step '$step_name'"
         log::info "This could mean:"
         log::info "  • The step hasn't been reached yet (check earlier steps)"

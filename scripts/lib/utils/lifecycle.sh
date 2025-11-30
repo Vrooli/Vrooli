@@ -186,6 +186,15 @@ lifecycle::start_tracked_process() {
     
     # Ensure directories exist
     mkdir -p "$process_dir" "$HOME/.vrooli/logs/scenarios/${app_name}"
+
+    # Back up previous log file if it exists
+    local bak_file="${log_file}.bak"
+    if [[ -f "$log_file" ]]; then
+        mv -f "$log_file" "$bak_file"
+        local log_filename
+        log_filename=$(basename "$log_file")
+        log::info "Previous log saved. View with: vrooli scenario logs ${app_name} --step ${step_name} --previous"
+    fi
     
     # Extract port from environment if available
     local port=""
