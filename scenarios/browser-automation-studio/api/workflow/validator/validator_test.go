@@ -434,3 +434,1411 @@ func assertWarning(warnings []Issue, code string) bool {
 	}
 	return false
 }
+
+// ============================================================================
+// Node Type Validation Tests
+// ============================================================================
+
+func TestValidatorClickRequiresSelector(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":       "click-missing",
+				"type":     "click",
+				"position": map[string]any{"x": 0, "y": 0},
+				"data":     map[string]any{"label": "Click something"},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected click without selector to fail")
+	}
+	assertIssue(t, res.Errors, "WF_NODE_FIELD_REQUIRED")
+}
+
+func TestValidatorHoverRequiresSelector(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":       "hover-missing",
+				"type":     "hover",
+				"position": map[string]any{"x": 0, "y": 0},
+				"data":     map[string]any{},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected hover without selector to fail")
+	}
+	assertIssue(t, res.Errors, "WF_NODE_FIELD_REQUIRED")
+}
+
+func TestValidatorFocusRequiresSelector(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":       "focus-missing",
+				"type":     "focus",
+				"position": map[string]any{"x": 0, "y": 0},
+				"data":     map[string]any{},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected focus without selector to fail")
+	}
+	assertIssue(t, res.Errors, "WF_NODE_FIELD_REQUIRED")
+}
+
+func TestValidatorBlurRequiresSelector(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "blur-missing",
+				"type": "blur",
+				"data": map[string]any{},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected blur without selector to fail")
+	}
+	assertIssue(t, res.Errors, "WF_NODE_FIELD_REQUIRED")
+}
+
+func TestValidatorDragDropValidation(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	tests := []struct {
+		name          string
+		data          map[string]any
+		expectValid   bool
+		expectedCodes []string
+	}{
+		{
+			name:        "missing both source options and target",
+			data:        map[string]any{},
+			expectValid: false,
+			expectedCodes: []string{
+				"WF_NODE_FIELD_ONE_OF",
+				"WF_NODE_FIELD_REQUIRED",
+			},
+		},
+		{
+			name: "has sourceSelector but missing target",
+			data: map[string]any{
+				"sourceSelector": "#drag-source",
+			},
+			expectValid:   false,
+			expectedCodes: []string{"WF_NODE_FIELD_REQUIRED"},
+		},
+		{
+			name: "has sourceCoordinates but missing target",
+			data: map[string]any{
+				"sourceCoordinates": map[string]any{"x": 100, "y": 100},
+			},
+			expectValid:   false,
+			expectedCodes: []string{"WF_NODE_FIELD_REQUIRED"},
+		},
+		{
+			name: "valid with sourceSelector and targetSelector",
+			data: map[string]any{
+				"sourceSelector": "#drag-source",
+				"targetSelector": "#drop-target",
+			},
+			expectValid: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			workflow := map[string]any{
+				"nodes": []any{
+					map[string]any{
+						"id":   "drag",
+						"type": "dragDrop",
+						"data": tc.data,
+					},
+				},
+				"edges": []any{},
+			}
+
+			res, err := v.Validate(context.Background(), workflow, Options{})
+			if err != nil {
+				t.Fatalf("validation returned error: %v", err)
+			}
+			if res.Valid != tc.expectValid {
+				t.Fatalf("expected valid=%v, got valid=%v, errors=%+v", tc.expectValid, res.Valid, res.Errors)
+			}
+			for _, code := range tc.expectedCodes {
+				found := false
+				for _, issue := range res.Errors {
+					if issue.Code == code {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected error code %s, not found in %+v", code, res.Errors)
+				}
+			}
+		})
+	}
+}
+
+func TestValidatorTypeNodeValidation(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	tests := []struct {
+		name        string
+		data        map[string]any
+		expectValid bool
+		errorCode   string
+	}{
+		{
+			name:        "missing selector and text",
+			data:        map[string]any{},
+			expectValid: false,
+			errorCode:   "WF_NODE_FIELD_REQUIRED",
+		},
+		{
+			name: "has selector but no text/value/variable",
+			data: map[string]any{
+				"selector": "#input",
+			},
+			expectValid: false,
+			errorCode:   "WF_TYPE_INPUT_REQUIRED",
+		},
+		{
+			name: "valid with selector and text",
+			data: map[string]any{
+				"selector": "#input",
+				"text":     "hello world",
+			},
+			expectValid: true,
+		},
+		{
+			name: "valid with selector and value",
+			data: map[string]any{
+				"selector": "#input",
+				"value":    "some value",
+			},
+			expectValid: true,
+		},
+		{
+			name: "valid with selector and variable",
+			data: map[string]any{
+				"selector": "#input",
+				"variable": "myVar",
+			},
+			expectValid: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			workflow := map[string]any{
+				"nodes": []any{
+					map[string]any{
+						"id":   "type-node",
+						"type": "type",
+						"data": tc.data,
+					},
+				},
+				"edges": []any{},
+			}
+
+			res, err := v.Validate(context.Background(), workflow, Options{})
+			if err != nil {
+				t.Fatalf("validation returned error: %v", err)
+			}
+			if res.Valid != tc.expectValid {
+				t.Fatalf("expected valid=%v, got valid=%v, errors=%+v", tc.expectValid, res.Valid, res.Errors)
+			}
+			if !tc.expectValid && tc.errorCode != "" {
+				found := false
+				for _, issue := range res.Errors {
+					if issue.Code == tc.errorCode {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected error code %s, not found in %+v", tc.errorCode, res.Errors)
+				}
+			}
+		})
+	}
+}
+
+func TestValidatorKeyboardNodeValidation(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	tests := []struct {
+		name        string
+		data        map[string]any
+		expectValid bool
+		errorCode   string
+		warningCode string
+	}{
+		{
+			name:        "missing keys and sequence",
+			data:        map[string]any{},
+			expectValid: false,
+			errorCode:   "WF_KEYBOARD_INPUT_REQUIRED",
+		},
+		{
+			name: "deprecated key field",
+			data: map[string]any{
+				"key": "Enter",
+			},
+			expectValid: true,
+			warningCode: "WF_KEYBOARD_KEY_FIELD",
+		},
+		{
+			name: "valid with keys array",
+			data: map[string]any{
+				"keys": []any{"Enter"},
+			},
+			expectValid: true,
+		},
+		{
+			name: "valid with sequence",
+			data: map[string]any{
+				"sequence": "Hello",
+			},
+			expectValid: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			workflow := map[string]any{
+				"nodes": []any{
+					map[string]any{
+						"id":   "keyboard-node",
+						"type": "keyboard",
+						"data": tc.data,
+					},
+				},
+				"edges": []any{},
+			}
+
+			res, err := v.Validate(context.Background(), workflow, Options{})
+			if err != nil {
+				t.Fatalf("validation returned error: %v", err)
+			}
+			if res.Valid != tc.expectValid {
+				t.Fatalf("expected valid=%v, got valid=%v, errors=%+v", tc.expectValid, res.Valid, res.Errors)
+			}
+			if tc.errorCode != "" {
+				found := false
+				for _, issue := range res.Errors {
+					if issue.Code == tc.errorCode {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected error code %s, not found in %+v", tc.errorCode, res.Errors)
+				}
+			}
+			if tc.warningCode != "" {
+				found := false
+				for _, warn := range res.Warnings {
+					if warn.Code == tc.warningCode {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected warning code %s, not found in %+v", tc.warningCode, res.Warnings)
+				}
+			}
+		})
+	}
+}
+
+func TestValidatorShortcutRequiresKeys(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "shortcut-missing",
+				"type": "shortcut",
+				"data": map[string]any{},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected shortcut without keys to fail")
+	}
+	assertIssue(t, res.Errors, "WF_NODE_FIELD_REQUIRED")
+}
+
+func TestValidatorSelectNodeValidation(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	tests := []struct {
+		name        string
+		data        map[string]any
+		expectValid bool
+		errorCodes  []string
+	}{
+		{
+			name:        "missing everything",
+			data:        map[string]any{},
+			expectValid: false,
+			errorCodes:  []string{"WF_NODE_FIELD_REQUIRED", "WF_NODE_FIELD_ONE_OF"},
+		},
+		{
+			name: "has selector but missing option selection",
+			data: map[string]any{
+				"selector": "#dropdown",
+			},
+			expectValid: false,
+			errorCodes:  []string{"WF_NODE_FIELD_ONE_OF"},
+		},
+		{
+			name: "valid with selector and optionText",
+			data: map[string]any{
+				"selector":   "#dropdown",
+				"optionText": "Option 1",
+			},
+			expectValid: true,
+		},
+		{
+			name: "valid with selector and optionValue",
+			data: map[string]any{
+				"selector":    "#dropdown",
+				"optionValue": "opt1",
+			},
+			expectValid: true,
+		},
+		{
+			name: "valid with selector and optionIndex",
+			data: map[string]any{
+				"selector":    "#dropdown",
+				"optionIndex": "0",
+			},
+			expectValid: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			workflow := map[string]any{
+				"nodes": []any{
+					map[string]any{
+						"id":   "select-node",
+						"type": "select",
+						"data": tc.data,
+					},
+				},
+				"edges": []any{},
+			}
+
+			res, err := v.Validate(context.Background(), workflow, Options{})
+			if err != nil {
+				t.Fatalf("validation returned error: %v", err)
+			}
+			if res.Valid != tc.expectValid {
+				t.Fatalf("expected valid=%v, got valid=%v, errors=%+v", tc.expectValid, res.Valid, res.Errors)
+			}
+			for _, code := range tc.errorCodes {
+				found := false
+				for _, issue := range res.Errors {
+					if issue.Code == code {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected error code %s, not found in %+v", code, res.Errors)
+				}
+			}
+		})
+	}
+}
+
+func TestValidatorWaitNodeValidation(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	tests := []struct {
+		name        string
+		data        map[string]any
+		expectValid bool
+		errorCode   string
+		warningCode string
+	}{
+		{
+			name: "element wait missing selector",
+			data: map[string]any{
+				"waitType": "element",
+			},
+			expectValid: false,
+			errorCode:   "WF_WAIT_SELECTOR_REQUIRED",
+		},
+		{
+			name: "duration wait with zero duration",
+			data: map[string]any{
+				"waitType":   "duration",
+				"durationMs": 0,
+			},
+			expectValid: false,
+			errorCode:   "WF_WAIT_DURATION_REQUIRED",
+		},
+		{
+			name: "duration wait with negative duration",
+			data: map[string]any{
+				"waitType":   "duration",
+				"durationMs": -100,
+			},
+			expectValid: false,
+			errorCode:   "WF_WAIT_DURATION_REQUIRED",
+		},
+		{
+			name: "duration wait with excessive duration",
+			data: map[string]any{
+				"waitType":   "duration",
+				"durationMs": 120000,
+			},
+			expectValid: true,
+			warningCode: "WF_WAIT_DURATION_LONG",
+		},
+		{
+			name: "unknown wait type",
+			data: map[string]any{
+				"waitType": "unknown-type",
+			},
+			// Schema validation rejects unknown wait types before lint warning
+			expectValid: false,
+			errorCode:   "WF_SCHEMA_INVALID",
+		},
+		{
+			name: "valid element wait",
+			data: map[string]any{
+				"waitType": "element",
+				"selector": "#loading-done",
+			},
+			expectValid: true,
+		},
+		{
+			name: "valid duration wait",
+			data: map[string]any{
+				"waitType":   "duration",
+				"durationMs": 1000,
+			},
+			expectValid: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			workflow := map[string]any{
+				"nodes": []any{
+					map[string]any{
+						"id":   "wait-node",
+						"type": "wait",
+						"data": tc.data,
+					},
+				},
+				"edges": []any{},
+			}
+
+			res, err := v.Validate(context.Background(), workflow, Options{})
+			if err != nil {
+				t.Fatalf("validation returned error: %v", err)
+			}
+			if res.Valid != tc.expectValid {
+				t.Fatalf("expected valid=%v, got valid=%v, errors=%+v, warnings=%+v",
+					tc.expectValid, res.Valid, res.Errors, res.Warnings)
+			}
+			if tc.errorCode != "" {
+				found := false
+				for _, issue := range res.Errors {
+					if issue.Code == tc.errorCode {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected error code %s, not found in %+v", tc.errorCode, res.Errors)
+				}
+			}
+			if tc.warningCode != "" {
+				found := false
+				for _, warn := range res.Warnings {
+					if warn.Code == tc.warningCode {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected warning code %s, not found in %+v", tc.warningCode, res.Warnings)
+				}
+			}
+		})
+	}
+}
+
+func TestValidatorExtractRequiresSelector(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "extract-missing",
+				"type": "extract",
+				"data": map[string]any{},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected extract without selector to fail")
+	}
+	assertIssue(t, res.Errors, "WF_NODE_FIELD_REQUIRED")
+}
+
+func TestValidatorAssertNodeValidation(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	tests := []struct {
+		name       string
+		data       map[string]any
+		errorCodes []string
+	}{
+		{
+			name:       "missing everything",
+			data:       map[string]any{},
+			errorCodes: []string{"WF_NODE_FIELD_REQUIRED"},
+		},
+		{
+			name: "text_equals missing expectedValue",
+			data: map[string]any{
+				"selector":   "#element",
+				"assertMode": "text_equals",
+			},
+			errorCodes: []string{"WF_ASSERT_EXPECTED_VALUE"},
+		},
+		{
+			name: "attribute_equals missing expectedValue and attributeName",
+			data: map[string]any{
+				"selector":   "#element",
+				"assertMode": "attribute_equals",
+			},
+			errorCodes: []string{"WF_ASSERT_EXPECTED_VALUE", "WF_ASSERT_ATTRIBUTE_NAME"},
+		},
+		{
+			name: "attribute_contains missing attributeName",
+			data: map[string]any{
+				"selector":      "#element",
+				"assertMode":    "attribute_contains",
+				"expectedValue": "some-value",
+			},
+			errorCodes: []string{"WF_ASSERT_ATTRIBUTE_NAME"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			workflow := map[string]any{
+				"nodes": []any{
+					map[string]any{
+						"id":   "assert-node",
+						"type": "assert",
+						"data": tc.data,
+					},
+				},
+				"edges": []any{},
+			}
+
+			res, err := v.Validate(context.Background(), workflow, Options{})
+			if err != nil {
+				t.Fatalf("validation returned error: %v", err)
+			}
+			if res.Valid {
+				t.Fatalf("expected validation to fail, got valid=true")
+			}
+			for _, code := range tc.errorCodes {
+				found := false
+				for _, issue := range res.Errors {
+					if issue.Code == code {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected error code %s, not found in %+v", code, res.Errors)
+				}
+			}
+		})
+	}
+}
+
+func TestValidatorNavigateNodeValidation(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	tests := []struct {
+		name        string
+		data        map[string]any
+		expectValid bool
+		errorCode   string
+		warningCode string
+	}{
+		{
+			name: "url type missing url",
+			data: map[string]any{
+				"destinationType": "url",
+			},
+			expectValid: false,
+			errorCode:   "WF_NAVIGATE_URL_REQUIRED",
+		},
+		{
+			name: "scenario type missing scenario",
+			data: map[string]any{
+				"destinationType": "scenario",
+			},
+			expectValid: false,
+			errorCode:   "WF_NAVIGATE_SCENARIO_REQUIRED",
+		},
+		{
+			name: "scenario type missing scenarioPath",
+			data: map[string]any{
+				"destinationType": "scenario",
+				"scenario":        "browser-automation-studio",
+			},
+			expectValid: true,
+			warningCode: "WF_NAVIGATE_SCENARIO_PATH",
+		},
+		{
+			name: "unknown destination type",
+			data: map[string]any{
+				"destinationType": "unknown",
+			},
+			// Schema validation rejects unknown destination types before lint warning
+			expectValid: false,
+			errorCode:   "WF_SCHEMA_INVALID",
+		},
+		{
+			name: "valid url navigation",
+			data: map[string]any{
+				"destinationType": "url",
+				"url":             "https://example.com",
+			},
+			expectValid: true,
+		},
+		{
+			name: "valid scenario navigation",
+			data: map[string]any{
+				"destinationType": "scenario",
+				"scenario":        "browser-automation-studio",
+				"scenarioPath":    "/workflows",
+			},
+			expectValid: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			workflow := map[string]any{
+				"nodes": []any{
+					map[string]any{
+						"id":   "navigate-node",
+						"type": "navigate",
+						"data": tc.data,
+					},
+				},
+				"edges": []any{},
+			}
+
+			res, err := v.Validate(context.Background(), workflow, Options{})
+			if err != nil {
+				t.Fatalf("validation returned error: %v", err)
+			}
+			if res.Valid != tc.expectValid {
+				t.Fatalf("expected valid=%v, got valid=%v, errors=%+v", tc.expectValid, res.Valid, res.Errors)
+			}
+			if tc.errorCode != "" {
+				found := false
+				for _, issue := range res.Errors {
+					if issue.Code == tc.errorCode {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected error code %s, not found in %+v", tc.errorCode, res.Errors)
+				}
+			}
+			if tc.warningCode != "" {
+				found := false
+				for _, warn := range res.Warnings {
+					if warn.Code == tc.warningCode {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected warning code %s, not found in %+v", tc.warningCode, res.Warnings)
+				}
+			}
+		})
+	}
+}
+
+func TestValidatorLoopRequiresLoopType(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "loop-missing",
+				"type": "loop",
+				"data": map[string]any{},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected loop without loopType to fail")
+	}
+	assertIssue(t, res.Errors, "WF_NODE_FIELD_REQUIRED")
+}
+
+func TestValidatorSubflowNodeValidation(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	tests := []struct {
+		name       string
+		data       map[string]any
+		errorCodes []string
+	}{
+		{
+			name:       "missing workflowId and workflowDefinition",
+			data:       map[string]any{},
+			errorCodes: []string{"WF_SUBFLOW_TARGET"},
+		},
+		{
+			name: "inline definition with empty nodes",
+			data: map[string]any{
+				"workflowDefinition": map[string]any{
+					"nodes": []any{},
+					"edges": []any{},
+				},
+			},
+			errorCodes: []string{"WF_SUBFLOW_INLINE_NODES"},
+		},
+		{
+			name: "inline definition missing edges",
+			data: map[string]any{
+				"workflowDefinition": map[string]any{
+					"nodes": []any{
+						map[string]any{"id": "n1", "type": "wait"},
+					},
+				},
+			},
+			errorCodes: []string{"WF_SUBFLOW_INLINE_EDGES"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			workflow := map[string]any{
+				"nodes": []any{
+					map[string]any{
+						"id":   "subflow-node",
+						"type": "subflow",
+						"data": tc.data,
+					},
+				},
+				"edges": []any{},
+			}
+
+			res, err := v.Validate(context.Background(), workflow, Options{})
+			if err != nil {
+				t.Fatalf("validation returned error: %v", err)
+			}
+			if res.Valid {
+				t.Fatalf("expected validation to fail, got valid=true")
+			}
+			for _, code := range tc.errorCodes {
+				found := false
+				for _, issue := range res.Errors {
+					if issue.Code == code {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected error code %s, not found in %+v", code, res.Errors)
+				}
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Edge Validation Tests
+// ============================================================================
+
+func TestValidatorEdgeSelfReference(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "self-loop",
+				"type": "wait",
+				"data": map[string]any{"waitType": "duration", "durationMs": 1000},
+			},
+		},
+		"edges": []any{
+			map[string]any{
+				"id":     "self-edge",
+				"source": "self-loop",
+				"target": "self-loop",
+			},
+		},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected self-referencing edge to fail validation")
+	}
+	assertIssue(t, res.Errors, "WF_EDGE_CYCLE_SELF")
+}
+
+func TestValidatorEdgeUnknownSource(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "valid-node",
+				"type": "wait",
+				"data": map[string]any{"waitType": "duration", "durationMs": 1000},
+			},
+		},
+		"edges": []any{
+			map[string]any{
+				"id":     "bad-edge",
+				"source": "nonexistent",
+				"target": "valid-node",
+			},
+		},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected edge with unknown source to fail validation")
+	}
+	assertIssue(t, res.Errors, "WF_EDGE_SOURCE_UNKNOWN")
+}
+
+func TestValidatorEdgeUnknownTarget(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "valid-node",
+				"type": "wait",
+				"data": map[string]any{"waitType": "duration", "durationMs": 1000},
+			},
+		},
+		"edges": []any{
+			map[string]any{
+				"id":     "bad-edge",
+				"source": "valid-node",
+				"target": "nonexistent",
+			},
+		},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected edge with unknown target to fail validation")
+	}
+	assertIssue(t, res.Errors, "WF_EDGE_TARGET_UNKNOWN")
+}
+
+func TestValidatorEdgeMissingEndpoints(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "node",
+				"type": "wait",
+				"data": map[string]any{"waitType": "duration", "durationMs": 1000},
+			},
+		},
+		"edges": []any{
+			map[string]any{
+				"id": "incomplete-edge",
+			},
+		},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected edge without source/target to fail validation")
+	}
+	assertIssue(t, res.Errors, "WF_EDGE_ENDPOINT_MISSING")
+}
+
+// ============================================================================
+// Node Structural Tests
+// ============================================================================
+
+func TestValidatorDuplicateNodeIDs(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "duplicate-id",
+				"type": "wait",
+				"data": map[string]any{"waitType": "duration", "durationMs": 1000},
+			},
+			map[string]any{
+				"id":   "duplicate-id",
+				"type": "wait",
+				"data": map[string]any{"waitType": "duration", "durationMs": 500},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected duplicate node IDs to fail validation")
+	}
+	assertIssue(t, res.Errors, "WF_NODE_ID_DUPLICATE")
+}
+
+func TestValidatorMissingNodeID(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"type": "wait",
+				"data": map[string]any{"waitType": "duration", "durationMs": 1000},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected missing node ID to fail validation")
+	}
+	assertIssue(t, res.Errors, "WF_NODE_ID_MISSING")
+}
+
+func TestValidatorMissingNodeType(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "no-type",
+				"data": map[string]any{},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected missing node type to fail validation")
+	}
+	assertIssue(t, res.Errors, "WF_NODE_TYPE_MISSING")
+}
+
+// ============================================================================
+// Settings and Stats Tests
+// ============================================================================
+
+func TestValidatorViewportSizeWarning(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "node",
+				"type": "wait",
+				"data": map[string]any{"waitType": "duration", "durationMs": 1000},
+			},
+		},
+		"edges": []any{},
+		"settings": map[string]any{
+			"executionViewport": map[string]any{
+				"width":  100,
+				"height": 100,
+			},
+		},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if !assertWarning(res.Warnings, "WF_VIEWPORT_SMALL") {
+		t.Fatalf("expected WF_VIEWPORT_SMALL warning, got %+v", res.Warnings)
+	}
+	if !res.Stats.HasExecutionViewport {
+		t.Fatalf("expected HasExecutionViewport to be true")
+	}
+}
+
+func TestValidatorEdgeSparsityWarning(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "node1",
+				"type": "wait",
+				"data": map[string]any{"waitType": "duration", "durationMs": 1000},
+			},
+			map[string]any{
+				"id":   "node2",
+				"type": "wait",
+				"data": map[string]any{"waitType": "duration", "durationMs": 1000},
+			},
+			map[string]any{
+				"id":   "node3",
+				"type": "wait",
+				"data": map[string]any{"waitType": "duration", "durationMs": 1000},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if !assertWarning(res.Warnings, "WF_EDGE_SPARSITY") {
+		t.Fatalf("expected WF_EDGE_SPARSITY warning for 3 nodes with 0 edges, got %+v", res.Warnings)
+	}
+}
+
+func TestValidatorStatsComputation(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"metadata": map[string]any{
+			"description": "test workflow",
+		},
+		"nodes": []any{
+			map[string]any{
+				"id":   "click1",
+				"type": "click",
+				"data": map[string]any{"selector": "#button1"},
+			},
+			map[string]any{
+				"id":   "click2",
+				"type": "click",
+				"data": map[string]any{"selector": "#button2"},
+			},
+			map[string]any{
+				"id":   "click3",
+				"type": "click",
+				"data": map[string]any{"selector": "#button1"}, // duplicate selector
+			},
+			map[string]any{
+				"id":   "wait1",
+				"type": "wait",
+				"data": map[string]any{"waitType": "element", "selector": "#loaded"},
+			},
+		},
+		"edges": []any{
+			map[string]any{"id": "e1", "source": "click1", "target": "click2"},
+			map[string]any{"id": "e2", "source": "click2", "target": "click3"},
+			map[string]any{"id": "e3", "source": "click3", "target": "wait1"},
+		},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+
+	if res.Stats.NodeCount != 4 {
+		t.Errorf("expected NodeCount=4, got %d", res.Stats.NodeCount)
+	}
+	if res.Stats.EdgeCount != 3 {
+		t.Errorf("expected EdgeCount=3, got %d", res.Stats.EdgeCount)
+	}
+	if res.Stats.SelectorCount != 4 {
+		t.Errorf("expected SelectorCount=4 (including wait selector), got %d", res.Stats.SelectorCount)
+	}
+	if res.Stats.UniqueSelectorCount != 3 {
+		t.Errorf("expected UniqueSelectorCount=3, got %d", res.Stats.UniqueSelectorCount)
+	}
+	if res.Stats.ElementWaitCount != 1 {
+		t.Errorf("expected ElementWaitCount=1, got %d", res.Stats.ElementWaitCount)
+	}
+	if !res.Stats.HasMetadata {
+		t.Error("expected HasMetadata=true")
+	}
+}
+
+func TestValidatorSelectorDuplicatesWarning(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "click1",
+				"type": "click",
+				"data": map[string]any{"selector": "#same-selector"},
+			},
+			map[string]any{
+				"id":   "click2",
+				"type": "click",
+				"data": map[string]any{"selector": "#same-selector"},
+			},
+		},
+		"edges": []any{
+			map[string]any{"id": "e1", "source": "click1", "target": "click2"},
+		},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if !assertWarning(res.Warnings, "WF_SELECTOR_DUPLICATES") {
+		t.Fatalf("expected WF_SELECTOR_DUPLICATES warning, got %+v", res.Warnings)
+	}
+}
+
+// ============================================================================
+// Context Cancellation Test
+// ============================================================================
+
+func TestValidatorContextCancellation(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	workflow := map[string]any{
+		"nodes": []any{},
+		"edges": []any{},
+	}
+
+	_, err = v.Validate(ctx, workflow, Options{})
+	if err == nil {
+		t.Fatalf("expected error from cancelled context")
+	}
+	if err != context.Canceled {
+		t.Fatalf("expected context.Canceled error, got %v", err)
+	}
+}
+
+// ============================================================================
+// Nil/Empty Input Tests
+// ============================================================================
+
+func TestValidatorNilDefinition(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	res, err := v.Validate(context.Background(), nil, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	// nil definition should be treated as empty workflow
+	if res.Valid {
+		t.Fatalf("expected empty workflow to be invalid")
+	}
+}
+
+// ============================================================================
+// SortIssues Test
+// ============================================================================
+
+func TestSortIssues(t *testing.T) {
+	issues := []Issue{
+		{Severity: SeverityWarning, Code: "WF_B", NodeID: "n2", Message: "msg2"},
+		{Severity: SeverityError, Code: "WF_A", NodeID: "n1", Message: "msg1"},
+		{Severity: SeverityError, Code: "WF_A", NodeID: "n1", Message: "msg0"},
+		{Severity: SeverityWarning, Code: "WF_A", NodeID: "n1", Message: "msg3"},
+	}
+
+	SortIssues(issues)
+
+	// After sorting: errors before warnings, then by code, then by nodeID, then by message
+	if issues[0].Severity != SeverityError || issues[0].Message != "msg0" {
+		t.Errorf("expected first issue to be error with msg0, got %+v", issues[0])
+	}
+	if issues[1].Severity != SeverityError || issues[1].Message != "msg1" {
+		t.Errorf("expected second issue to be error with msg1, got %+v", issues[1])
+	}
+	if issues[2].Severity != SeverityWarning || issues[2].Code != "WF_A" {
+		t.Errorf("expected third issue to be warning WF_A, got %+v", issues[2])
+	}
+	if issues[3].Severity != SeverityWarning || issues[3].Code != "WF_B" {
+		t.Errorf("expected fourth issue to be warning WF_B, got %+v", issues[3])
+	}
+}

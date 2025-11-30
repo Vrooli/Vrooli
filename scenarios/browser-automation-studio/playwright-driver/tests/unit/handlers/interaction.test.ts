@@ -1,7 +1,6 @@
-import { createTestInstruction } from '../../helpers';
+import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { InteractionHandler } from '../../../src/handlers/interaction';
-import type { CompiledInstruction, HandlerContext } from '../../../src/types';
-import { createMockPage, createTestConfig } from '../../helpers';
+import type { HandlerContext } from '../../../src/types';
 import { logger, metrics } from '../../../src/utils';
 
 describe('InteractionHandler', () => {
@@ -25,10 +24,10 @@ describe('InteractionHandler', () => {
   });
 
   describe('getSupportedTypes', () => {
-    it('should support click, hover, and type instructions', () => {
+    it('should support click, hover, type, focus, and blur instructions', () => {
       const types = handler.getSupportedTypes();
 
-      expect(types).toEqual(['click', 'hover', 'type']);
+      expect(types).toEqual(['click', 'hover', 'type', 'focus', 'blur']);
     });
   });
 
@@ -93,7 +92,7 @@ describe('InteractionHandler', () => {
   });
 
   describe('execute - type', () => {
-    it('should type text into element', async () => {
+    it('should fill text into element', async () => {
       const instruction = createTestInstruction({
         type: 'type',
         params: { selector: '#input', text: 'Hello World' },
@@ -102,24 +101,21 @@ describe('InteractionHandler', () => {
 
       const result = await handler.execute(instruction, context);
 
-      expect(mockPage.type).toHaveBeenCalledWith('#input', 'Hello World', expect.any(Object));
+      expect(mockPage.fill).toHaveBeenCalledWith('#input', 'Hello World', expect.any(Object));
       expect(result.success).toBe(true);
     });
 
-    it('should use custom delay for typing', async () => {
+    it('should fill with value param when text not provided', async () => {
       const instruction = createTestInstruction({
         type: 'type',
-        params: { selector: '#input', text: 'Test', delayMs: 100 },
+        params: { selector: '#input', value: 'Test' },
         node_id: 'node-1',
       });
 
-      await handler.execute(instruction, context);
+      const result = await handler.execute(instruction, context);
 
-      expect(mockPage.type).toHaveBeenCalledWith(
-        '#input',
-        'Test',
-        expect.objectContaining({ delay: 100 })
-      );
+      expect(mockPage.fill).toHaveBeenCalledWith('#input', 'Test', expect.any(Object));
+      expect(result.success).toBe(true);
     });
   });
 });

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -108,6 +110,14 @@ func main() {
 	// Initialize handlers
 	handler := handlers.NewHandler(repo, hub, log, corsCfg.AllowAll, corsCfg.AllowedOrigins)
 
+	// Startup health check - validate critical dependencies before accepting requests
+	// This prevents the scenario where the API starts but all workflow executions fail
+	if err := performStartupHealthCheck(log); err != nil {
+		log.WithError(err).Warn("⚠️  Startup health check failed - some features may be unavailable")
+		// Continue startup but log the warning - this allows the API to serve health endpoints
+		// and provide diagnostic information even when the automation engine is unavailable
+	}
+
 	// Get port configuration - required from lifecycle system
 	port := os.Getenv("API_PORT")
 	if port == "" {
@@ -213,6 +223,14 @@ func main() {
 		corsPolicy = strings.Join(corsCfg.AllowedOrigins, ",")
 	}
 
+	// Check if port is available before attempting to bind
+	if err := checkPortAvailable(port); err != nil {
+		log.WithFields(logrus.Fields{
+			"port":  port,
+			"error": err.Error(),
+		}).Fatal("❌ Port unavailable - another process may be using it")
+	}
+
 	log.WithFields(logrus.Fields{
 		"api_port":    port,
 		"api_host":    apiHost,
@@ -225,4 +243,65 @@ func main() {
 	}
 }
 
-// Test change for auto-rebuild validation
+// checkPortAvailable verifies a port is not already in use before binding.
+// Returns nil if port is available, error if port is in use or check fails.
+func checkPortAvailable(port string) error {
+	addr := "127.0.0.1:" + port
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		// Port is in use or some other error
+		return fmt.Errorf("port %s is unavailable: %w (hint: check if another instance is running with 'lsof -i :%s' or 'ss -tlnp | grep %s')", port, err, port, port)
+	}
+	// Successfully bound, port is available - close immediately so actual server can bind
+	listener.Close()
+	return nil
+}
+
+// performStartupHealthCheck validates critical dependencies are available before accepting requests.
+// This catches configuration issues early rather than having workflows fail at runtime.
+func performStartupHealthCheck(log *logrus.Logger) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var errors []string
+
+	// Check 1: Playwright driver health
+	playwrightURL := os.Getenv("PLAYWRIGHT_DRIVER_URL")
+	if playwrightURL == "" {
+		playwrightURL = "http://127.0.0.1:39400"
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, playwrightURL+"/health", nil)
+	if err != nil {
+		errors = append(errors, fmt.Sprintf("playwright driver: failed to create request: %v", err))
+	} else {
+		client := &http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("playwright driver at %s: %v (ensure playwright-driver is running)", playwrightURL, err))
+		} else {
+			resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				errors = append(errors, fmt.Sprintf("playwright driver at %s: unhealthy (status %d)", playwrightURL, resp.StatusCode))
+			} else {
+				log.WithField("url", playwrightURL).Info("✅ Playwright driver healthy")
+			}
+		}
+	}
+
+	// Check 2: MinIO storage health (if configured)
+	minioEndpoint := os.Getenv("MINIO_ENDPOINT")
+	if minioEndpoint != "" {
+		// MinIO health check is optional - storage issues are handled gracefully at runtime
+		log.WithField("endpoint", minioEndpoint).Info("✅ MinIO endpoint configured")
+	}
+
+	if len(errors) > 0 {
+		for _, e := range errors {
+			log.Warn("⚠️  " + e)
+		}
+		return fmt.Errorf("%d startup health check(s) failed", len(errors))
+	}
+
+	return nil
+}

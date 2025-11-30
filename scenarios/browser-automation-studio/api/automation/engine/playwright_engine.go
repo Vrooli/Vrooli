@@ -100,22 +100,73 @@ func (e *PlaywrightEngine) Capabilities(_ context.Context) (contracts.EngineCapa
 // health ensures the driver is reachable.
 func (e *PlaywrightEngine) health(ctx context.Context) error {
 	if e == nil || e.httpClient == nil {
-		return fmt.Errorf("playwright engine not configured")
+		return &PlaywrightDriverError{
+			Op:      "health",
+			URL:     "",
+			Message: "playwright engine not configured",
+			Hint:    "ensure NewPlaywrightEngine() was called successfully",
+		}
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, e.driverURL+"/health", http.NoBody)
 	if err != nil {
-		return err
+		return &PlaywrightDriverError{
+			Op:      "health",
+			URL:     e.driverURL,
+			Message: "failed to create health check request",
+			Cause:   err,
+		}
 	}
 	resp, err := e.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("playwright driver health check failed: %w", err)
+		return &PlaywrightDriverError{
+			Op:      "health",
+			URL:     e.driverURL,
+			Message: "playwright driver is not responding",
+			Cause:   err,
+			Hint:    "ensure playwright-driver is running (check 'make start' or lifecycle status)",
+		}
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		return fmt.Errorf("playwright driver unhealthy: %s", strings.TrimSpace(string(body)))
+		return &PlaywrightDriverError{
+			Op:      "health",
+			URL:     e.driverURL,
+			Message: fmt.Sprintf("playwright driver returned unhealthy status %d: %s", resp.StatusCode, strings.TrimSpace(string(body))),
+			Hint:    "check playwright-driver logs for errors",
+		}
 	}
 	return nil
+}
+
+// PlaywrightDriverError provides structured error information for driver issues.
+// This helps users troubleshoot common configuration and connectivity problems.
+type PlaywrightDriverError struct {
+	Op      string // operation that failed (health, start_session, run, etc.)
+	URL     string // driver URL that was contacted
+	Message string // human-readable error message
+	Cause   error  // underlying error if any
+	Hint    string // troubleshooting suggestion
+}
+
+func (e *PlaywrightDriverError) Error() string {
+	var parts []string
+	parts = append(parts, fmt.Sprintf("playwright driver %s failed", e.Op))
+	if e.URL != "" {
+		parts = append(parts, fmt.Sprintf("at %s", e.URL))
+	}
+	parts = append(parts, fmt.Sprintf(": %s", e.Message))
+	if e.Cause != nil {
+		parts = append(parts, fmt.Sprintf(" (%v)", e.Cause))
+	}
+	if e.Hint != "" {
+		parts = append(parts, fmt.Sprintf(" [hint: %s]", e.Hint))
+	}
+	return strings.Join(parts, "")
+}
+
+func (e *PlaywrightDriverError) Unwrap() error {
+	return e.Cause
 }
 
 // StartSession asks the driver to create a new browser/context/page tuple.
@@ -162,19 +213,48 @@ func (e *PlaywrightEngine) StartSession(ctx context.Context, spec SessionSpec) (
 
 	resp, err := e.httpClient.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("start session: %w", err)
+		return nil, &PlaywrightDriverError{
+			Op:      "start_session",
+			URL:     e.driverURL,
+			Message: "failed to connect to playwright driver",
+			Cause:   err,
+			Hint:    "verify playwright-driver is running and PLAYWRIGHT_DRIVER_URL is correct",
+		}
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
-		return nil, fmt.Errorf("start session failed: %s", strings.TrimSpace(string(body)))
+		bodyStr := strings.TrimSpace(string(body))
+		hint := "check playwright-driver logs for details"
+		if strings.Contains(bodyStr, "Maximum concurrent sessions") {
+			hint = "too many concurrent sessions - wait for other executions to complete or increase session limit"
+		} else if strings.Contains(bodyStr, "browser") && strings.Contains(bodyStr, "launch") {
+			hint = "browser failed to launch - check chromium installation and system resources"
+		}
+		return nil, &PlaywrightDriverError{
+			Op:      "start_session",
+			URL:     e.driverURL,
+			Message: fmt.Sprintf("driver returned status %d: %s", resp.StatusCode, bodyStr),
+			Hint:    hint,
+		}
 	}
 	var parsed startSessionResponse
 	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
-		return nil, fmt.Errorf("decode start session response: %w", err)
+		return nil, &PlaywrightDriverError{
+			Op:      "start_session",
+			URL:     e.driverURL,
+			Message: "invalid response from driver (JSON decode failed)",
+			Cause:   err,
+			Hint:    "driver may have returned HTML error page instead of JSON",
+		}
 	}
 	if strings.TrimSpace(parsed.SessionID) == "" {
-		return nil, fmt.Errorf("start session failed: missing session_id")
+		return nil, &PlaywrightDriverError{
+			Op:      "start_session",
+			URL:     e.driverURL,
+			Message: "driver returned empty session_id",
+			Hint:    "driver may be overloaded or encountered an internal error",
+		}
 	}
 	return &playwrightSession{
 		sessionID: parsed.SessionID,

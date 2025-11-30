@@ -1482,3 +1482,308 @@ func (s *subflowPlanCompiler) Compile(ctx context.Context, executionID uuid.UUID
 	}
 	return contracts.ExecutionPlan{}, nil, errors.New("plan not found")
 }
+
+// TestValidateSubflowResolver verifies that the executor correctly validates
+// WorkflowResolver presence when subflow instructions reference external workflows.
+func TestValidateSubflowResolver(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+	childWorkflowID := uuid.New()
+
+	factory := &fakeEngineFactory{session: &fakeSession{outcome: contracts.StepOutcome{Success: true}}}
+	rec := &memoryRecorder{}
+	sink := events.NewMemorySink(contracts.DefaultEventBufferLimits)
+
+	tests := []struct {
+		name        string
+		instructions []contracts.CompiledInstruction
+		resolver    WorkflowResolver
+		expectError bool
+		errorContains string
+	}{
+		{
+			name: "no subflow - no resolver required",
+			instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "nav-1", Type: "navigate", Params: map[string]any{"url": "https://example.com"}},
+			},
+			resolver:    nil,
+			expectError: false,
+		},
+		{
+			name: "inline subflow - no resolver required",
+			instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "subflow-inline", Type: "subflow", Params: map[string]any{
+					"workflowDefinition": map[string]any{
+						"nodes": []any{},
+						"edges": []any{},
+					},
+				}},
+			},
+			resolver:    nil,
+			expectError: false,
+		},
+		{
+			name: "external subflow without resolver - error",
+			instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "subflow-ext", Type: "subflow", Params: map[string]any{
+					"workflowId": childWorkflowID.String(),
+				}},
+			},
+			resolver:      nil,
+			expectError:   true,
+			errorContains: "WorkflowResolver is required",
+		},
+		{
+			name: "external subflow with resolver - ok",
+			instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "subflow-ext", Type: "subflow", Params: map[string]any{
+					"workflowId": childWorkflowID.String(),
+				}},
+			},
+			resolver:    &stubWorkflowResolver{workflows: map[uuid.UUID]*database.Workflow{childWorkflowID: {ID: childWorkflowID}}},
+			expectError: false,
+		},
+		{
+			name: "subflow with both workflowId and workflowDefinition (inline takes precedence) - ok",
+			instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "subflow-both", Type: "subflow", Params: map[string]any{
+					"workflowId": childWorkflowID.String(),
+					"workflowDefinition": map[string]any{
+						"nodes": []any{},
+						"edges": []any{},
+					},
+				}},
+			},
+			resolver:    nil,
+			expectError: false,
+		},
+		{
+			name: "empty workflowId string - no resolver required",
+			instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "subflow-empty", Type: "subflow", Params: map[string]any{
+					"workflowId": "",
+				}},
+			},
+			resolver:    nil,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := Request{
+				Plan: contracts.ExecutionPlan{
+					SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
+					PayloadVersion: contracts.PayloadVersion,
+					ExecutionID:    execID,
+					WorkflowID:     workflowID,
+					Instructions:   tt.instructions,
+					CreatedAt:      time.Now().UTC(),
+				},
+				EngineName:       "browserless",
+				EngineFactory:    factory,
+				Recorder:         rec,
+				EventSink:        sink,
+				WorkflowResolver: tt.resolver,
+			}
+
+			executor := NewSimpleExecutor(nil)
+			err := executor.Execute(context.Background(), req)
+
+			if tt.expectError {
+				if err == nil {
+					t.Fatalf("expected error containing %q, got nil", tt.errorContains)
+				}
+				if !strings.Contains(err.Error(), tt.errorContains) {
+					t.Fatalf("expected error containing %q, got %q", tt.errorContains, err.Error())
+				}
+			} else if err != nil && strings.Contains(err.Error(), "WorkflowResolver") {
+				// If we got a resolver error but didn't expect one, that's a test failure
+				t.Fatalf("unexpected WorkflowResolver error: %v", err)
+			}
+			// Note: other errors (like execution failures) are ok since we're only testing validation
+		})
+	}
+}
+
+// TestComputeDynamicTimeout verifies the dynamic timeout calculation based on step count.
+func TestComputeDynamicTimeout(t *testing.T) {
+	tests := []struct {
+		name         string
+		instructions []contracts.CompiledInstruction
+		wantMin      time.Duration
+		wantMax      time.Duration
+	}{
+		{
+			name:         "empty instructions - returns minimum",
+			instructions: []contracts.CompiledInstruction{},
+			wantMin:      90 * time.Second,
+			wantMax:      90 * time.Second,
+		},
+		{
+			name: "1 step - returns minimum (30s base + 10s = 40s < 90s min)",
+			instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "n1", Type: "click"},
+			},
+			wantMin: 90 * time.Second,
+			wantMax: 90 * time.Second,
+		},
+		{
+			name: "6 steps - still returns minimum (30s + 60s = 90s = min)",
+			instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "n1", Type: "click"},
+				{Index: 1, NodeID: "n2", Type: "click"},
+				{Index: 2, NodeID: "n3", Type: "click"},
+				{Index: 3, NodeID: "n4", Type: "click"},
+				{Index: 4, NodeID: "n5", Type: "click"},
+				{Index: 5, NodeID: "n6", Type: "click"},
+			},
+			wantMin: 90 * time.Second,
+			wantMax: 90 * time.Second,
+		},
+		{
+			name: "10 steps simple workflow - 30s base + 100s = 130s",
+			instructions: func() []contracts.CompiledInstruction {
+				var instrs []contracts.CompiledInstruction
+				for i := 0; i < 10; i++ {
+					instrs = append(instrs, contracts.CompiledInstruction{Index: i, NodeID: "n", Type: "click"})
+				}
+				return instrs
+			}(),
+			wantMin: 130 * time.Second,
+			wantMax: 130 * time.Second,
+		},
+		{
+			name: "10 steps with subflow - 30s base + 150s = 180s",
+			instructions: func() []contracts.CompiledInstruction {
+				var instrs []contracts.CompiledInstruction
+				for i := 0; i < 9; i++ {
+					instrs = append(instrs, contracts.CompiledInstruction{Index: i, NodeID: "n", Type: "click"})
+				}
+				instrs = append(instrs, contracts.CompiledInstruction{Index: 9, NodeID: "sf", Type: "subflow"})
+				return instrs
+			}(),
+			wantMin: 180 * time.Second,
+			wantMax: 180 * time.Second,
+		},
+		{
+			name: "25 steps - hits maximum (30s + 250s = 280s > 270s max)",
+			instructions: func() []contracts.CompiledInstruction {
+				var instrs []contracts.CompiledInstruction
+				for i := 0; i < 25; i++ {
+					instrs = append(instrs, contracts.CompiledInstruction{Index: i, NodeID: "n", Type: "click"})
+				}
+				return instrs
+			}(),
+			wantMin: 270 * time.Second,
+			wantMax: 270 * time.Second,
+		},
+		{
+			name: "50 steps - capped at maximum",
+			instructions: func() []contracts.CompiledInstruction {
+				var instrs []contracts.CompiledInstruction
+				for i := 0; i < 50; i++ {
+					instrs = append(instrs, contracts.CompiledInstruction{Index: i, NodeID: "n", Type: "navigate"})
+				}
+				return instrs
+			}(),
+			wantMin: 270 * time.Second,
+			wantMax: 270 * time.Second,
+		},
+		{
+			name: "subflow type case insensitive - SUBFLOW",
+			instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "n1", Type: "click"},
+				{Index: 1, NodeID: "n2", Type: "click"},
+				{Index: 2, NodeID: "n3", Type: "click"},
+				{Index: 3, NodeID: "n4", Type: "click"},
+				{Index: 4, NodeID: "sf", Type: "SUBFLOW"},
+				{Index: 5, NodeID: "n5", Type: "click"},
+			},
+			// 6 steps * 15s + 30s base = 120s > 90s min
+			wantMin: 120 * time.Second,
+			wantMax: 120 * time.Second,
+		},
+		{
+			name: "subflow type with whitespace - ' subflow '",
+			instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "n1", Type: "click"},
+				{Index: 1, NodeID: "n2", Type: "click"},
+				{Index: 2, NodeID: "n3", Type: "click"},
+				{Index: 3, NodeID: "n4", Type: "click"},
+				{Index: 4, NodeID: "sf", Type: " subflow "},
+				{Index: 5, NodeID: "n5", Type: "click"},
+			},
+			// 6 steps * 15s + 30s base = 120s > 90s min
+			wantMin: 120 * time.Second,
+			wantMax: 120 * time.Second,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			plan := contracts.ExecutionPlan{
+				Instructions: tt.instructions,
+			}
+			got := computeDynamicTimeout(plan)
+			if got < tt.wantMin || got > tt.wantMax {
+				t.Errorf("computeDynamicTimeout() = %v, want between %v and %v", got, tt.wantMin, tt.wantMax)
+			}
+		})
+	}
+}
+
+// TestExecutionTimeoutWithExplicitValue verifies explicit timeout in metadata takes precedence.
+func TestExecutionTimeoutWithExplicitValue(t *testing.T) {
+	tests := []struct {
+		name     string
+		metadata map[string]any
+		want     time.Duration
+	}{
+		{
+			name:     "int value",
+			metadata: map[string]any{"executionTimeoutMs": 5000},
+			want:     5 * time.Second,
+		},
+		{
+			name:     "int64 value",
+			metadata: map[string]any{"executionTimeoutMs": int64(10000)},
+			want:     10 * time.Second,
+		},
+		{
+			name:     "float64 value",
+			metadata: map[string]any{"executionTimeoutMs": float64(15000)},
+			want:     15 * time.Second,
+		},
+		{
+			name:     "zero value falls back to dynamic",
+			metadata: map[string]any{"executionTimeoutMs": 0},
+			want:     90 * time.Second, // minimum for 0-1 step workflow
+		},
+		{
+			name:     "negative value falls back to dynamic",
+			metadata: map[string]any{"executionTimeoutMs": -1000},
+			want:     90 * time.Second,
+		},
+		{
+			name:     "nil metadata falls back to dynamic",
+			metadata: nil,
+			want:     90 * time.Second,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			plan := contracts.ExecutionPlan{
+				Metadata: tt.metadata,
+				Instructions: []contracts.CompiledInstruction{
+					{Index: 0, NodeID: "n1", Type: "click"},
+				},
+			}
+			got := executionTimeout(plan)
+			if got != tt.want {
+				t.Errorf("executionTimeout() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

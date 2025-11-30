@@ -8,6 +8,7 @@ export class Metrics {
   public instructionErrors: Counter<'type' | 'error_kind'>;
   public screenshotSize: Histogram<never>;
   public sessionDuration: Histogram<never>;
+  public cleanupFailures: Counter<'operation'>;
 
   constructor() {
     this.registry = new Registry();
@@ -45,6 +46,13 @@ export class Metrics {
       name: 'playwright_driver_session_duration_ms',
       help: 'Session lifetime duration in milliseconds',
       buckets: [1000, 5000, 10000, 30000, 60000, 300000, 600000],
+      registers: [this.registry],
+    });
+
+    this.cleanupFailures = new Counter({
+      name: 'playwright_driver_cleanup_failures_total',
+      help: 'Total number of cleanup failures by operation type (page_close, context_close, tracing_stop, browser_close)',
+      labelNames: ['operation'] as const,
       registers: [this.registry],
     });
   }

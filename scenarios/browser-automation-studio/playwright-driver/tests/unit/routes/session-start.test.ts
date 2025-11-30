@@ -1,6 +1,6 @@
 import { handleSessionStart } from '../../../src/routes/session-start';
 import { SessionManager } from '../../../src/session/manager';
-import { createMockRequest, createMockResponse, waitForResponse, createTestConfig } from '../../helpers';
+import { createMockHttpRequest, createMockHttpResponse, waitForResponse, createTestConfig } from '../../helpers';
 
 // Mock playwright
 jest.mock('playwright', () => ({
@@ -8,12 +8,13 @@ jest.mock('playwright', () => ({
     launch: jest.fn().mockResolvedValue({
       newContext: jest.fn().mockResolvedValue({
         newPage: jest.fn().mockResolvedValue({ on: jest.fn() }),
-        clearCookies: jest.fn(),
-        clearPermissions: jest.fn(),
-        close: jest.fn(),
+        clearCookies: jest.fn().mockResolvedValue(undefined),
+        clearPermissions: jest.fn().mockResolvedValue(undefined),
+        close: jest.fn().mockResolvedValue(undefined),
       }),
-      close: jest.fn(),
+      close: jest.fn().mockResolvedValue(undefined),
       isConnected: jest.fn().mockReturnValue(true),
+      version: jest.fn().mockReturnValue('mock-version'),
     }),
   },
 }));
@@ -34,14 +35,15 @@ describe('Session Start Route', () => {
   it('should create new session', async () => {
     const body = {
       execution_id: 'exec-123',
+      workflow_id: 'workflow-123',
       base_url: 'https://example.com',
       viewport: { width: 1280, height: 720 },
       reuse_mode: 'fresh',
       required_capabilities: {},
     };
 
-    const mockReq = createMockRequest({ method: 'POST', url: '/session/start', body });
-    const mockRes = createMockResponse();
+    const mockReq = createMockHttpRequest({ method: 'POST', url: '/session/start', body });
+    const mockRes = createMockHttpResponse();
 
     await handleSessionStart(mockReq, mockRes, sessionManager, config);
     await waitForResponse(mockRes);
@@ -53,8 +55,8 @@ describe('Session Start Route', () => {
   });
 
   it('should return error for invalid body', async () => {
-    const mockReq = createMockRequest({ method: 'POST', url: '/session/start', body: { invalid: 'data' } });
-    const mockRes = createMockResponse();
+    const mockReq = createMockHttpRequest({ method: 'POST', url: '/session/start', body: { invalid: 'data' } });
+    const mockRes = createMockHttpResponse();
 
     await handleSessionStart(mockReq, mockRes, sessionManager, config);
     await waitForResponse(mockRes);
@@ -64,13 +66,14 @@ describe('Session Start Route', () => {
 
   it('should handle resource limit errors', async () => {
     const limitedConfig = createTestConfig({
-      session: { maxConcurrent: 1, idleTimeoutMs: 300000, cleanupIntervalMs: 60000 },
+      session: { maxConcurrent: 1, idleTimeoutMs: 300000, poolSize: 5, cleanupIntervalMs: 60000 },
     });
     const limitedManager = new SessionManager(limitedConfig);
 
     // Create first session (max reached)
     await limitedManager.startSession({
       execution_id: 'exec-1',
+      workflow_id: 'workflow-1',
       base_url: 'https://example.com',
       viewport: { width: 1280, height: 720 },
       reuse_mode: 'fresh',
@@ -80,14 +83,15 @@ describe('Session Start Route', () => {
     // Try to create second session
     const body = {
       execution_id: 'exec-2',
+      workflow_id: 'workflow-2',
       base_url: 'https://example.com',
       viewport: { width: 1280, height: 720 },
       reuse_mode: 'fresh',
       required_capabilities: {},
     };
 
-    const mockReq = createMockRequest({ method: 'POST', url: '/session/start', body });
-    const mockRes = createMockResponse();
+    const mockReq = createMockHttpRequest({ method: 'POST', url: '/session/start', body });
+    const mockRes = createMockHttpResponse();
 
     await handleSessionStart(mockReq, mockRes, limitedManager, limitedConfig);
     await waitForResponse(mockRes);

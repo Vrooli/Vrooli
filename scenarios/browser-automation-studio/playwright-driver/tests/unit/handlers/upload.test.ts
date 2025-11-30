@@ -1,7 +1,6 @@
-import { createTestInstruction } from '../../helpers';
+import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { UploadHandler } from '../../../src/handlers/upload';
-import type { CompiledInstruction, HandlerContext } from '../../../src/types';
-import { createMockPage, createTestConfig } from '../../helpers';
+import type { HandlerContext } from '../../../src/types';
 import { logger, metrics } from '../../../src/utils';
 
 describe('UploadHandler', () => {
@@ -27,7 +26,7 @@ describe('UploadHandler', () => {
       type: 'uploadfile',
       params: { selector: '#file-input', filePath: '/path/to/file.txt' },
       node_id: 'node-1',
-    };
+    });
 
     const result = await handler.execute(instruction, context);
 
@@ -40,7 +39,7 @@ describe('UploadHandler', () => {
       type: 'uploadfile',
       params: { selector: '#file-input', filePath: ['/file1.txt', '/file2.txt'] },
       node_id: 'node-1',
-    };
+    });
 
     const result = await handler.execute(instruction, context);
 

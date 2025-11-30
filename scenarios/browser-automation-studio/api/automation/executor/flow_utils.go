@@ -632,23 +632,123 @@ func stringValue(m map[string]any, key string) string {
 	return ""
 }
 
+// intValue safely extracts an integer from params, supporting int, int64, float64, float32, and string types.
+// Returns 0 if the key is missing or the value cannot be coerced.
 func intValue(m map[string]any, key string) int {
 	if m == nil {
 		return 0
 	}
-	if v, ok := m[key]; ok {
-		switch t := v.(type) {
-		case int:
-			return t
-		case int64:
-			return int(t)
-		case float64:
-			return int(t)
-		case float32:
-			return int(t)
+	v, ok := m[key]
+	if !ok {
+		return 0
+	}
+	return coerceToInt(v)
+}
+
+// coerceToInt converts various types to int, handling JSON's float64 numbers and strings.
+// This is the central type coercion for integer params, addressing assumption A8 in ASSUMPTION_MAPPING.md.
+func coerceToInt(v any) int {
+	switch t := v.(type) {
+	case int:
+		return t
+	case int8:
+		return int(t)
+	case int16:
+		return int(t)
+	case int32:
+		return int(t)
+	case int64:
+		return int(t)
+	case uint:
+		return int(t)
+	case uint8:
+		return int(t)
+	case uint16:
+		return int(t)
+	case uint32:
+		return int(t)
+	case uint64:
+		return int(t)
+	case float32:
+		return int(t)
+	case float64:
+		return int(t)
+	case string:
+		// Support string-encoded numbers (e.g., "1000" from form data)
+		if i, err := strconv.Atoi(t); err == nil {
+			return i
+		}
+		// Try parsing as float then truncating (e.g., "1.5" -> 1)
+		if f, err := strconv.ParseFloat(t, 64); err == nil {
+			return int(f)
+		}
+	case json.Number:
+		if i, err := t.Int64(); err == nil {
+			return int(i)
 		}
 	}
 	return 0
+}
+
+// floatValue safely extracts a float64 from params.
+func floatValue(m map[string]any, key string) float64 {
+	if m == nil {
+		return 0
+	}
+	v, ok := m[key]
+	if !ok {
+		return 0
+	}
+	f, _ := coerceToFloat(v)
+	return f
+}
+
+// coerceToFloat converts various types to float64.
+func coerceToFloat(v any) (float64, bool) {
+	switch t := v.(type) {
+	case float64:
+		return t, true
+	case float32:
+		return float64(t), true
+	case int:
+		return float64(t), true
+	case int64:
+		return float64(t), true
+	case int32:
+		return float64(t), true
+	case string:
+		if f, err := strconv.ParseFloat(t, 64); err == nil {
+			return f, true
+		}
+	case json.Number:
+		if f, err := t.Float64(); err == nil {
+			return f, true
+		}
+	}
+	return 0, false
+}
+
+// boolValue safely extracts a boolean from params.
+func boolValue(m map[string]any, key string) bool {
+	if m == nil {
+		return false
+	}
+	v, ok := m[key]
+	if !ok {
+		return false
+	}
+	switch t := v.(type) {
+	case bool:
+		return t
+	case string:
+		b, _ := strconv.ParseBool(t)
+		return b
+	case int:
+		return t != 0
+	case float64:
+		return t != 0
+	}
+	return false
 }
 
 func intPtr(v int) *int {

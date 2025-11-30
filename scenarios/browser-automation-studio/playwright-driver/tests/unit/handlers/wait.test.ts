@@ -1,7 +1,6 @@
-import { createTestInstruction } from '../../helpers';
+import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { WaitHandler } from '../../../src/handlers/wait';
-import type { CompiledInstruction, HandlerContext } from '../../../src/types';
-import { createMockPage, createTestConfig } from '../../helpers';
+import type { HandlerContext } from '../../../src/types';
 import { logger, metrics } from '../../../src/utils';
 
 describe('WaitHandler', () => {
@@ -27,7 +26,7 @@ describe('WaitHandler', () => {
       type: 'wait',
       params: { selector: '#element' },
       node_id: 'node-1',
-    };
+    });
 
     const result = await handler.execute(instruction, context);
 
@@ -40,7 +39,7 @@ describe('WaitHandler', () => {
       type: 'wait',
       params: { timeoutMs: 1000 },
       node_id: 'node-1',
-    };
+    });
 
     const result = await handler.execute(instruction, context);
 

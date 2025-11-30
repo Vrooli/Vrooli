@@ -10,16 +10,26 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     hover: jest.fn().mockResolvedValue(undefined),
     type: jest.fn().mockResolvedValue(undefined),
     fill: jest.fn().mockResolvedValue(undefined),
+    textContent: jest.fn().mockResolvedValue('test text'),
+    focus: jest.fn().mockResolvedValue(undefined),
+    waitForEvent: jest.fn().mockResolvedValue(null),
     waitForSelector: jest.fn().mockResolvedValue(null),
     waitForTimeout: jest.fn().mockResolvedValue(undefined),
     screenshot: jest.fn().mockResolvedValue(Buffer.from('fake-screenshot')),
     content: jest.fn().mockResolvedValue('<html><body>Test</body></html>'),
-    locator: jest.fn().mockReturnValue({
-      boundingBox: jest.fn().mockResolvedValue({ x: 0, y: 0, width: 100, height: 50 }),
-      textContent: jest.fn().mockResolvedValue('test text'),
-      getAttribute: jest.fn().mockResolvedValue('test-value'),
-      isVisible: jest.fn().mockResolvedValue(true),
-      count: jest.fn().mockResolvedValue(1),
+    locator: jest.fn().mockImplementation(() => {
+      const mockLocator = {
+        boundingBox: jest.fn().mockResolvedValue({ x: 0, y: 0, width: 100, height: 50 }),
+        textContent: jest.fn().mockResolvedValue('test text'),
+        getAttribute: jest.fn().mockResolvedValue('test-value'),
+        isVisible: jest.fn().mockResolvedValue(true),
+        count: jest.fn().mockResolvedValue(1),
+        innerHTML: jest.fn().mockResolvedValue('<span>inner content</span>'),
+        first: jest.fn().mockReturnValue({
+          innerHTML: jest.fn().mockResolvedValue('<span>inner content</span>'),
+        }),
+      };
+      return mockLocator;
     }),
     evaluate: jest.fn().mockResolvedValue({ result: 'test' }),
     setInputFiles: jest.fn().mockResolvedValue(undefined),
@@ -30,6 +40,7 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     url: jest.fn().mockReturnValue('https://example.com'),
     title: jest.fn().mockResolvedValue('Test Page'),
     viewport: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
+    viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
     context: jest.fn(),
     frames: jest.fn().mockReturnValue([]),
     mainFrame: jest.fn(),

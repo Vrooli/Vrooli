@@ -54,11 +54,11 @@ type Position struct {
 
 // CompileWorkflow converts a stored workflow definition into an execution plan.
 func CompileWorkflow(workflow *database.Workflow) (*ExecutionPlan, error) {
-	log.Printf("[COMPILER_DEBUG] CompileWorkflow called for workflow: %s (ID: %s)", workflow.Name, workflow.ID)
-
 	if workflow == nil {
 		return nil, errors.New("workflow is nil")
 	}
+
+	log.Printf("[COMPILER_DEBUG] CompileWorkflow called for workflow: %s (ID: %s)", workflow.Name, workflow.ID)
 
 	if workflow.FlowDefinition == nil {
 		return nil, errors.New("workflow has no flow_definition")

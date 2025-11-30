@@ -1,6 +1,6 @@
 import { ConsoleLogCollector, NetworkCollector } from '../../../src/telemetry/collector';
-import { createMockPage, createMockRequest, createMockResponse } from '../../helpers';
-import type { ConsoleMessage } from 'playwright';
+import { createMockPage } from '../../helpers';
+import type { ConsoleMessage, Request, Response } from 'playwright';
 
 describe('ConsoleLogCollector', () => {
   let mockPage: ReturnType<typeof createMockPage>;
@@ -23,7 +23,8 @@ describe('ConsoleLogCollector', () => {
       const mockMessage = {
         type: () => 'log',
         text: () => 'Test message',
-      } as ConsoleMessage;
+        location: () => ({ url: '', lineNumber: 0, columnNumber: 0 }),
+      } as unknown as ConsoleMessage;
 
       const listener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'console')?.[1];
       listener(mockMessage);
@@ -31,18 +32,18 @@ describe('ConsoleLogCollector', () => {
       const logs = collector.getLogs();
 
       expect(logs).toHaveLength(1);
-      expect(logs[0].level).toBe('log');
+      expect(logs[0].type).toBe('log'); // Note: 'type' not 'level'
       expect(logs[0].text).toBe('Test message');
       expect(logs[0].timestamp).toBeDefined();
     });
 
-    it('should collect multiple log levels', () => {
+    it('should collect multiple log types', () => {
       const messages = [
-        { type: () => 'log', text: () => 'Log message' },
-        { type: () => 'error', text: () => 'Error message' },
-        { type: () => 'warning', text: () => 'Warning message' },
-        { type: () => 'info', text: () => 'Info message' },
-      ] as ConsoleMessage[];
+        { type: () => 'log', text: () => 'Log message', location: () => ({}) },
+        { type: () => 'error', text: () => 'Error message', location: () => ({}) },
+        { type: () => 'warning', text: () => 'Warning message', location: () => ({}) },
+        { type: () => 'info', text: () => 'Info message', location: () => ({}) },
+      ] as unknown as ConsoleMessage[];
 
       const listener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'console')?.[1];
       messages.forEach((msg) => listener(msg));
@@ -50,20 +51,26 @@ describe('ConsoleLogCollector', () => {
       const logs = collector.getLogs();
 
       expect(logs).toHaveLength(4);
-      expect(logs[0].level).toBe('log');
-      expect(logs[1].level).toBe('error');
-      expect(logs[2].level).toBe('warning');
-      expect(logs[3].level).toBe('info');
+      expect(logs[0].type).toBe('log');
+      expect(logs[1].type).toBe('error');
+      expect(logs[2].type).toBe('warn'); // 'warning' maps to 'warn'
+      expect(logs[3].type).toBe('info');
     });
 
     it('should respect max entries limit', () => {
-      const smallCollector = new ConsoleLogCollector(mockPage, 3);
+      // Create fresh mock page for this test to isolate listeners
+      const freshMockPage = createMockPage();
+      const smallCollector = new ConsoleLogCollector(freshMockPage, 3);
 
-      const listener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'console')?.[1];
+      const listener = (freshMockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'console')?.[1];
 
       // Add 5 messages (exceeds limit of 3)
       for (let i = 0; i < 5; i++) {
-        listener({ type: () => 'log', text: () => `Message ${i}` } as ConsoleMessage);
+        listener({
+          type: () => 'log',
+          text: () => `Message ${i}`,
+          location: () => ({}),
+        } as unknown as ConsoleMessage);
       }
 
       const logs = smallCollector.getLogs();
@@ -77,7 +84,8 @@ describe('ConsoleLogCollector', () => {
       const mockMessage = {
         type: () => 'log',
         text: () => 'Test message',
-      } as ConsoleMessage;
+        location: () => ({}),
+      } as unknown as ConsoleMessage;
 
       const before = new Date().toISOString();
       const listener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'console')?.[1];
@@ -90,31 +98,57 @@ describe('ConsoleLogCollector', () => {
       expect(logs[0].timestamp >= before).toBe(true);
       expect(logs[0].timestamp <= after).toBe(true);
     });
+
+    it('should include location when available', () => {
+      const mockMessage = {
+        type: () => 'log',
+        text: () => 'Test message',
+        location: () => ({ url: 'https://example.com/script.js', lineNumber: 10, columnNumber: 5 }),
+      } as unknown as ConsoleMessage;
+
+      const listener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'console')?.[1];
+      listener(mockMessage);
+
+      const logs = collector.getLogs();
+
+      expect(logs[0].location).toBe('https://example.com/script.js:10:5');
+    });
   });
 
-  describe('reset', () => {
+  describe('clear', () => {
     it('should clear all logs', () => {
       const mockMessage = {
         type: () => 'log',
         text: () => 'Test message',
-      } as ConsoleMessage;
+        location: () => ({}),
+      } as unknown as ConsoleMessage;
 
       const listener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'console')?.[1];
       listener(mockMessage);
       listener(mockMessage);
 
-      collector.reset();
+      collector.clear();
 
       const logs = collector.getLogs();
       expect(logs).toHaveLength(0);
     });
   });
 
-  describe('cleanup', () => {
-    it('should remove listener', () => {
-      collector.cleanup();
+  describe('getAndClear', () => {
+    it('should return logs and clear', () => {
+      const mockMessage = {
+        type: () => 'log',
+        text: () => 'Test message',
+        location: () => ({}),
+      } as unknown as ConsoleMessage;
 
-      expect(mockPage.removeListener).toHaveBeenCalledWith('console', expect.any(Function));
+      const listener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'console')?.[1];
+      listener(mockMessage);
+
+      const logs = collector.getAndClear();
+
+      expect(logs).toHaveLength(1);
+      expect(collector.getLogs()).toHaveLength(0);
     });
   });
 });
@@ -143,41 +177,28 @@ describe('NetworkCollector', () => {
   });
 
   describe('event collection', () => {
-    it('should collect request events', () => {
-      const mockRequest = createMockRequest({
+    it('should collect response events after request', () => {
+      // First trigger a request
+      const requestListener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'request')?.[1];
+      const responseListener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'response')?.[1];
+
+      const mockRequest = {
         url: () => 'https://example.com/api',
         method: () => 'GET',
-        headers: () => ({ 'User-Agent': 'test' }),
         resourceType: () => 'xhr',
-      });
+      } as unknown as Request;
 
-      const listener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'request')?.[1];
-      listener(mockRequest);
+      requestListener(mockRequest);
 
-      const events = collector.getEvents();
-
-      expect(events).toHaveLength(1);
-      expect(events[0].type).toBe('request');
-      expect(events[0].url).toBe('https://example.com/api');
-      expect(events[0].method).toBe('GET');
-      expect(events[0].resource_type).toBe('xhr');
-    });
-
-    it('should collect response events', () => {
-      const mockRequest = createMockRequest({
+      // Then trigger the response
+      const mockResponse = {
         url: () => 'https://example.com/api',
-        method: () => 'GET',
-      });
-
-      const mockResponse = createMockResponse({
         status: () => 200,
-        statusText: () => 'OK',
-        url: () => 'https://example.com/api',
+        ok: () => true,
         request: () => mockRequest,
-      } as any);
+      } as unknown as Response;
 
-      const listener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'response')?.[1];
-      listener(mockResponse);
+      responseListener(mockResponse);
 
       const events = collector.getEvents();
 
@@ -185,38 +206,57 @@ describe('NetworkCollector', () => {
       expect(events[0].type).toBe('response');
       expect(events[0].url).toBe('https://example.com/api');
       expect(events[0].status).toBe(200);
+      expect(events[0].ok).toBe(true);
     });
 
     it('should collect request failure events', () => {
-      const mockRequest = createMockRequest({
+      const requestListener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'request')?.[1];
+      const failedListener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'requestfailed')?.[1];
+
+      const mockRequest = {
         url: () => 'https://example.com/api',
         method: () => 'GET',
+        resourceType: () => 'xhr',
         failure: () => ({ errorText: 'net::ERR_CONNECTION_REFUSED' }),
-      } as any);
+      } as unknown as Request;
 
-      const listener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'requestfailed')?.[1];
-      listener(mockRequest);
+      requestListener(mockRequest);
+      failedListener(mockRequest);
 
       const events = collector.getEvents();
 
       expect(events).toHaveLength(1);
-      expect(events[0].type).toBe('failed');
+      expect(events[0].type).toBe('failure'); // Note: 'failure' not 'failed'
       expect(events[0].url).toBe('https://example.com/api');
-      expect(events[0].error).toBe('net::ERR_CONNECTION_REFUSED');
+      expect(events[0].failure).toBe('net::ERR_CONNECTION_REFUSED'); // Note: 'failure' not 'error'
     });
 
-    it('should respect max entries limit', () => {
-      const smallCollector = new NetworkCollector(mockPage, 3);
+    it('should respect max events limit', () => {
+      // Create fresh mock page for this test to isolate listeners
+      const freshMockPage = createMockPage();
+      const smallCollector = new NetworkCollector(freshMockPage, 3);
 
-      const requestListener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'request')?.[1];
+      const requestListener = (freshMockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'request')?.[1];
+      const responseListener = (freshMockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'response')?.[1];
 
-      // Add 5 requests (exceeds limit of 3)
+      // Add 5 request/response pairs (exceeds limit of 3)
       for (let i = 0; i < 5; i++) {
-        const req = createMockRequest({
+        const mockRequest = {
           url: () => `https://example.com/api/${i}`,
           method: () => 'GET',
-        });
-        requestListener(req);
+          resourceType: () => 'xhr',
+        } as unknown as Request;
+
+        requestListener(mockRequest);
+
+        const mockResponse = {
+          url: () => `https://example.com/api/${i}`,
+          status: () => 200,
+          ok: () => true,
+          request: () => mockRequest,
+        } as unknown as Response;
+
+        responseListener(mockResponse);
       }
 
       const events = smallCollector.getEvents();
@@ -226,16 +266,28 @@ describe('NetworkCollector', () => {
       expect(events[2].url).toBe('https://example.com/api/4'); // Newest
     });
 
-    it('should include timestamps', () => {
-      const mockRequest = createMockRequest({
+    it('should include timestamps from request time', () => {
+      const requestListener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'request')?.[1];
+      const responseListener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'response')?.[1];
+
+      const mockRequest = {
         url: () => 'https://example.com/api',
         method: () => 'GET',
-      });
+        resourceType: () => 'xhr',
+      } as unknown as Request;
 
       const before = new Date().toISOString();
-      const listener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'request')?.[1];
-      listener(mockRequest);
+      requestListener(mockRequest);
       const after = new Date().toISOString();
+
+      const mockResponse = {
+        url: () => 'https://example.com/api',
+        status: () => 200,
+        ok: () => true,
+        request: () => mockRequest,
+      } as unknown as Response;
+
+      responseListener(mockResponse);
 
       const events = collector.getEvents();
 
@@ -245,31 +297,61 @@ describe('NetworkCollector', () => {
     });
   });
 
-  describe('reset', () => {
+  describe('clear', () => {
     it('should clear all events', () => {
-      const mockRequest = createMockRequest({
+      const requestListener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'request')?.[1];
+      const responseListener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'response')?.[1];
+
+      const mockRequest = {
         url: () => 'https://example.com/api',
         method: () => 'GET',
-      });
+        resourceType: () => 'xhr',
+      } as unknown as Request;
 
-      const listener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'request')?.[1];
-      listener(mockRequest);
-      listener(mockRequest);
+      requestListener(mockRequest);
 
-      collector.reset();
+      const mockResponse = {
+        url: () => 'https://example.com/api',
+        status: () => 200,
+        ok: () => true,
+        request: () => mockRequest,
+      } as unknown as Response;
+
+      responseListener(mockResponse);
+
+      collector.clear();
 
       const events = collector.getEvents();
       expect(events).toHaveLength(0);
     });
   });
 
-  describe('cleanup', () => {
-    it('should remove all listeners', () => {
-      collector.cleanup();
+  describe('getAndClear', () => {
+    it('should return events and clear', () => {
+      const requestListener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'request')?.[1];
+      const responseListener = (mockPage.on as jest.Mock).mock.calls.find((call) => call[0] === 'response')?.[1];
 
-      expect(mockPage.removeListener).toHaveBeenCalledWith('request', expect.any(Function));
-      expect(mockPage.removeListener).toHaveBeenCalledWith('response', expect.any(Function));
-      expect(mockPage.removeListener).toHaveBeenCalledWith('requestfailed', expect.any(Function));
+      const mockRequest = {
+        url: () => 'https://example.com/api',
+        method: () => 'GET',
+        resourceType: () => 'xhr',
+      } as unknown as Request;
+
+      requestListener(mockRequest);
+
+      const mockResponse = {
+        url: () => 'https://example.com/api',
+        status: () => 200,
+        ok: () => true,
+        request: () => mockRequest,
+      } as unknown as Response;
+
+      responseListener(mockResponse);
+
+      const events = collector.getAndClear();
+
+      expect(events).toHaveLength(1);
+      expect(collector.getEvents()).toHaveLength(0);
     });
   });
 });

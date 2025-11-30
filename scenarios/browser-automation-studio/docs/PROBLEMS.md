@@ -214,6 +214,120 @@ The jq fix unblocked the real test failures which are now visible:
 - **Priority 6**: Address Lighthouse performance issues (3/4 pages below 75% threshold, UI bundle 1128KB exceeds 1000KB limit)
 - **Priority 7**: Address Lighthouse accessibility issues (3/4 pages at 89% below 90% threshold)
 
+## Chromium Launch Issues
+
+### Common Failure Patterns
+
+The playwright-driver performs browser launch verification on startup. If Chromium fails to launch, the health endpoint will report `status: "error"` and all session creation will fail. Here are common causes and solutions:
+
+#### 1. Missing Chromium Binary
+
+**Symptoms:**
+- Error: `browserType.launch: Executable doesn't exist at /path/to/chromium`
+- Health check returns: `"browser": {"healthy": false, "error": "browserType.launch: Executable doesn't exist..."}`
+
+**Solutions:**
+```bash
+# Install Playwright with browsers
+cd playwright-driver
+pnpm exec playwright install chromium
+
+# Or install system dependencies too
+pnpm exec playwright install --with-deps chromium
+```
+
+#### 2. Sandbox Permission Issues (Linux)
+
+**Symptoms:**
+- Error: `[20:58:44] Running as root without --no-sandbox is not supported`
+- Error: `namespace sandbox is not enabled`
+
+**Solutions:**
+```bash
+# Option 1: Disable sandbox (development only, not recommended for production)
+# Set in config.ts or environment:
+export PLAYWRIGHT_CHROMIUM_SANDBOX=false
+
+# Option 2: Enable user namespaces (recommended for production)
+sudo sysctl -w kernel.unprivileged_userns_clone=1
+# Make permanent:
+echo "kernel.unprivileged_userns_clone=1" | sudo tee /etc/sysctl.d/userns.conf
+```
+
+#### 3. Missing System Libraries (Linux)
+
+**Symptoms:**
+- Error: `error while loading shared libraries: libX11.so.6`
+- Error: `cannot open shared object file: No such file or directory`
+
+**Solutions:**
+```bash
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install -y libx11-6 libx11-xcb1 libxcb1 libxcomposite1 \
+    libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 \
+    libxrender1 libxss1 libxtst6 libnss3 libatk1.0-0 libatk-bridge2.0-0 \
+    libcups2 libdrm2 libgbm1 libasound2
+
+# Or use Playwright's install script
+pnpm exec playwright install-deps chromium
+```
+
+#### 4. Display/X Server Issues (Headless)
+
+**Symptoms:**
+- Error: `Cannot open display`
+- Chromium window appears but then crashes
+
+**Solutions:**
+```bash
+# Ensure headless mode is enabled (default in config.ts)
+# The config already defaults headless: true
+
+# For headed mode on servers, use Xvfb:
+Xvfb :99 -screen 0 1920x1080x24 &
+export DISPLAY=:99
+```
+
+#### 5. Insufficient Memory
+
+**Symptoms:**
+- Error: `Killed` (OOM killer)
+- Browser crashes after starting
+- System becomes unresponsive during launch
+
+**Solutions:**
+- Ensure at least 2GB RAM available for browser
+- Limit concurrent sessions via `session.maxConcurrent` in config
+- Use `--disable-dev-shm-usage` arg (already set in default config)
+
+### Debugging Chromium Issues
+
+1. **Check health endpoint:**
+   ```bash
+   curl http://localhost:39400/health
+   # Look for browser.healthy and browser.error fields
+   ```
+
+2. **Check playwright-driver logs:**
+   ```bash
+   make logs  # or check pm2/lifecycle logs
+   # Look for "Browser launch verification failed" message
+   ```
+
+3. **Test browser launch manually:**
+   ```bash
+   cd playwright-driver
+   pnpm exec playwright launch chromium
+   # Or run the driver with DEBUG=pw:browser
+   DEBUG=pw:browser pnpm start
+   ```
+
+4. **Verify Chromium installation:**
+   ```bash
+   pnpm exec playwright show-browsers
+   ```
+
 ## Resource Dependencies
 
 ### Missing Resources

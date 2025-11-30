@@ -2,12 +2,15 @@ package recorder
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 )
@@ -622,4 +625,553 @@ func (m *recorderTestRepo) GetFolder(ctx context.Context, path string) (*databas
 }
 func (m *recorderTestRepo) ListFolders(ctx context.Context) ([]*database.WorkflowFolder, error) {
 	return nil, nil
+}
+
+// =============================================================================
+// Nil/Empty Input Tests
+// =============================================================================
+
+func TestRecordStepOutcome_NilRecorder(t *testing.T) {
+	var rec *DBRecorder
+	result, err := rec.RecordStepOutcome(context.Background(), contracts.ExecutionPlan{}, contracts.StepOutcome{})
+	require.NoError(t, err)
+	assert.Empty(t, result.StepID)
+}
+
+func TestRecordStepOutcome_NilRepo(t *testing.T) {
+	rec := &DBRecorder{repo: nil}
+	result, err := rec.RecordStepOutcome(context.Background(), contracts.ExecutionPlan{}, contracts.StepOutcome{})
+	require.NoError(t, err)
+	assert.Empty(t, result.StepID)
+}
+
+func TestRecordTelemetry_NilRecorder(t *testing.T) {
+	var rec *DBRecorder
+	err := rec.RecordTelemetry(context.Background(), contracts.ExecutionPlan{}, contracts.StepTelemetry{})
+	require.NoError(t, err)
+}
+
+func TestRecordTelemetry_NilRepo(t *testing.T) {
+	rec := &DBRecorder{repo: nil}
+	err := rec.RecordTelemetry(context.Background(), contracts.ExecutionPlan{}, contracts.StepTelemetry{})
+	require.NoError(t, err)
+}
+
+func TestMarkCrash_NilRecorder(t *testing.T) {
+	var rec *DBRecorder
+	err := rec.MarkCrash(context.Background(), uuid.New(), contracts.StepFailure{})
+	require.NoError(t, err)
+}
+
+func TestMarkCrash_NilRepo(t *testing.T) {
+	rec := &DBRecorder{repo: nil}
+	err := rec.MarkCrash(context.Background(), uuid.New(), contracts.StepFailure{})
+	require.NoError(t, err)
+}
+
+// =============================================================================
+// RecordTelemetry Tests
+// =============================================================================
+
+func TestRecordTelemetry_PersistsArtifact(t *testing.T) {
+	repo := newRecorderTestRepo()
+	rec := NewDBRecorder(repo, nil, nil)
+
+	now := time.Now().UTC()
+	execID := uuid.New()
+
+	plan := contracts.ExecutionPlan{
+		ExecutionID: execID,
+		WorkflowID:  uuid.New(),
+		CreatedAt:   now,
+	}
+
+	telemetry := contracts.StepTelemetry{
+		SchemaVersion:  contracts.TelemetrySchemaVersion,
+		PayloadVersion: contracts.PayloadVersion,
+		ExecutionID:    execID,
+		StepIndex:      0,
+		Attempt:        1,
+		Kind:           contracts.TelemetryKindHeartbeat,
+		Timestamp:      now,
+		ElapsedMs:      500,
+		Heartbeat: &contracts.HeartbeatTelemetry{
+			Progress: 50,
+			Message:  "Waiting for element...",
+		},
+	}
+
+	err := rec.RecordTelemetry(context.Background(), plan, telemetry)
+	require.NoError(t, err)
+
+	// Verify artifact was created
+	require.Len(t, repo.executionArtifacts, 1)
+	artifact := repo.executionArtifacts[0]
+	assert.Equal(t, execID, artifact.ExecutionID)
+	assert.Equal(t, "telemetry", artifact.ArtifactType)
+	assert.NotNil(t, artifact.Payload["telemetry"])
+}
+
+// =============================================================================
+// MarkCrash Tests
+// =============================================================================
+
+func TestMarkCrash_CreatesFailedStep(t *testing.T) {
+	repo := newRecorderTestRepo()
+	rec := NewDBRecorder(repo, nil, nil)
+
+	execID := uuid.New()
+	failure := contracts.StepFailure{
+		Kind:    contracts.FailureKindEngine,
+		Message: "Browser process crashed unexpectedly",
+	}
+
+	err := rec.MarkCrash(context.Background(), execID, failure)
+	require.NoError(t, err)
+
+	require.Len(t, repo.executionSteps, 1)
+	step := repo.executionSteps[0]
+	assert.Equal(t, execID, step.ExecutionID)
+	assert.Equal(t, -1, step.StepIndex)
+	assert.Equal(t, "crash", step.NodeID)
+	assert.Equal(t, "crash", step.StepType)
+	assert.Equal(t, "failed", step.Status)
+	assert.Equal(t, "Browser process crashed unexpectedly", step.Error)
+	assert.Equal(t, true, step.Metadata["partial"])
+}
+
+// =============================================================================
+// Helper Function Tests
+// =============================================================================
+
+func TestStatusFromOutcome(t *testing.T) {
+	tests := []struct {
+		name     string
+		outcome  contracts.StepOutcome
+		expected string
+	}{
+		{
+			name:     "success returns completed",
+			outcome:  contracts.StepOutcome{Success: true},
+			expected: "completed",
+		},
+		{
+			name:     "failure returns failed",
+			outcome:  contracts.StepOutcome{Success: false},
+			expected: "failed",
+		},
+		{
+			name: "cancelled failure returns failed",
+			outcome: contracts.StepOutcome{
+				Success: false,
+				Failure: &contracts.StepFailure{Kind: contracts.FailureKindCancelled},
+			},
+			expected: "failed",
+		},
+		{
+			name: "engine failure returns failed",
+			outcome: contracts.StepOutcome{
+				Success: false,
+				Failure: &contracts.StepFailure{Kind: contracts.FailureKindEngine},
+			},
+			expected: "failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := statusFromOutcome(tt.outcome)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestDeriveStepLabel(t *testing.T) {
+	tests := []struct {
+		name     string
+		outcome  contracts.StepOutcome
+		expected string
+	}{
+		{
+			name:     "uses nodeID when present",
+			outcome:  contracts.StepOutcome{NodeID: "click-btn-1", StepIndex: 0},
+			expected: "click-btn-1",
+		},
+		{
+			name:     "uses step index when nodeID empty",
+			outcome:  contracts.StepOutcome{NodeID: "", StepIndex: 5},
+			expected: "step-5",
+		},
+		{
+			name:     "uses step index when nodeID whitespace",
+			outcome:  contracts.StepOutcome{NodeID: "  ", StepIndex: 3},
+			expected: "step-3",
+		},
+		{
+			name:     "uses step for negative index and empty nodeID",
+			outcome:  contracts.StepOutcome{NodeID: "", StepIndex: -1},
+			expected: "step",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := deriveStepLabel(tt.outcome)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestTruncateRunes(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		limit    int
+		expected string
+	}{
+		{"normal string within limit", "hello", 10, "hello"},
+		{"normal string at limit", "hello", 5, "hello"},
+		{"normal string exceeds limit", "hello", 3, "hel"},
+		{"empty string", "", 5, ""},
+		{"zero limit", "hello", 0, ""},
+		{"negative limit", "hello", -1, ""},
+		{"unicode string within limit", "日本語", 5, "日本語"},
+		{"unicode string at limit", "日本語", 3, "日本語"},
+		{"unicode string exceeds limit", "日本語", 2, "日本"},
+		{"mixed unicode truncated correctly", "hello日本語", 7, "hello日本"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := truncateRunes(tt.input, tt.limit)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestHashString(t *testing.T) {
+	hash1 := hashString("test content")
+	hash2 := hashString("test content")
+	hash3 := hashString("different content")
+
+	// Same input produces same hash
+	assert.Equal(t, hash1, hash2)
+	// Different input produces different hash
+	assert.NotEqual(t, hash1, hash3)
+	// Hash is a valid hex string (64 chars for SHA-256)
+	assert.Len(t, hash1, 64)
+}
+
+func TestAppendHash(t *testing.T) {
+	tests := []struct {
+		name     string
+		location string
+		hash     string
+		expected string
+	}{
+		{
+			name:     "empty location gets hash prefix",
+			location: "",
+			hash:     "abc123",
+			expected: "hash:abc123",
+		},
+		{
+			name:     "existing location gets hash appended",
+			location: "file.js:10:5",
+			hash:     "abc123",
+			expected: "file.js:10:5 hash:abc123",
+		},
+		{
+			name:     "empty hash returns location unchanged",
+			location: "file.js:10:5",
+			hash:     "",
+			expected: "file.js:10:5",
+		},
+		{
+			name:     "whitespace hash returns location unchanged",
+			location: "file.js:10:5",
+			hash:     "   ",
+			expected: "file.js:10:5",
+		},
+		{
+			name:     "both empty returns empty",
+			location: "",
+			hash:     "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := appendHash(tt.location, tt.hash)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestToStringIDs(t *testing.T) {
+	id1 := uuid.New()
+	id2 := uuid.New()
+
+	result := toStringIDs([]uuid.UUID{id1, id2})
+	require.Len(t, result, 2)
+	assert.Equal(t, id1.String(), result[0])
+	assert.Equal(t, id2.String(), result[1])
+
+	// Empty input
+	result = toStringIDs([]uuid.UUID{})
+	assert.Empty(t, result)
+}
+
+// =============================================================================
+// Edge Cases for Sanitization
+// =============================================================================
+
+func TestSanitizeOutcome_EmptyOutcome(t *testing.T) {
+	out := sanitizeOutcome(contracts.StepOutcome{})
+	assert.NotNil(t, out.Notes, "Notes should be initialized")
+}
+
+func TestSanitizeOutcome_NilNotesInitialized(t *testing.T) {
+	out := sanitizeOutcome(contracts.StepOutcome{Notes: nil})
+	require.NotNil(t, out.Notes)
+	assert.Empty(t, out.Notes)
+}
+
+func TestSanitizeOutcome_PreservesExistingNotes(t *testing.T) {
+	out := sanitizeOutcome(contracts.StepOutcome{
+		Notes: map[string]string{"key": "value"},
+	})
+	assert.Equal(t, "value", out.Notes["key"])
+}
+
+func TestSanitizeOutcome_ConsoleLogsLimitEnforced(t *testing.T) {
+	// Create many console logs to test the limit
+	logs := make([]contracts.ConsoleLogEntry, contracts.ConsoleEntryMaxBytes+10)
+	for i := range logs {
+		logs[i] = contracts.ConsoleLogEntry{
+			Type:      "log",
+			Text:      "message",
+			Timestamp: time.Now(),
+		}
+	}
+
+	out := sanitizeOutcome(contracts.StepOutcome{ConsoleLogs: logs})
+	// Should be limited
+	assert.LessOrEqual(t, len(out.ConsoleLogs), contracts.ConsoleEntryMaxBytes+1)
+}
+
+func TestSanitizeOutcome_NetworkEventsLimitEnforced(t *testing.T) {
+	// Create many network events to test the limit
+	events := make([]contracts.NetworkEvent, contracts.NetworkPayloadPreviewMaxBytes+10)
+	for i := range events {
+		events[i] = contracts.NetworkEvent{
+			Type:      "request",
+			URL:       "https://example.com",
+			Timestamp: time.Now(),
+		}
+	}
+
+	out := sanitizeOutcome(contracts.StepOutcome{Network: events})
+	// Should be limited
+	assert.LessOrEqual(t, len(out.Network), contracts.NetworkPayloadPreviewMaxBytes+1)
+}
+
+func TestSanitizeOutcome_ScreenshotDefaults(t *testing.T) {
+	out := sanitizeOutcome(contracts.StepOutcome{
+		Screenshot: &contracts.Screenshot{
+			Data: []byte{0x01, 0x02},
+			// No MediaType, Width, or Height set
+		},
+	})
+
+	require.NotNil(t, out.Screenshot)
+	assert.Equal(t, "image/png", out.Screenshot.MediaType)
+	assert.Equal(t, contracts.DefaultScreenshotWidth, out.Screenshot.Width)
+	assert.Equal(t, contracts.DefaultScreenshotHeight, out.Screenshot.Height)
+}
+
+// =============================================================================
+// Error Recovery Tests
+// =============================================================================
+
+func TestNewDBRecorder(t *testing.T) {
+	repo := newRecorderTestRepo()
+	rec := NewDBRecorder(repo, nil, nil)
+	require.NotNil(t, rec)
+	assert.Equal(t, repo, rec.repo)
+}
+
+// errorTestRepo is a test repository that can simulate errors
+type errorTestRepo struct {
+	*recorderTestRepo
+	createStepErr     error
+	createArtifactErr error
+}
+
+func newErrorTestRepo() *errorTestRepo {
+	return &errorTestRepo{
+		recorderTestRepo: newRecorderTestRepo(),
+	}
+}
+
+func (e *errorTestRepo) CreateExecutionStep(ctx context.Context, step *database.ExecutionStep) error {
+	if e.createStepErr != nil {
+		return e.createStepErr
+	}
+	return e.recorderTestRepo.CreateExecutionStep(ctx, step)
+}
+
+func (e *errorTestRepo) CreateExecutionArtifact(ctx context.Context, artifact *database.ExecutionArtifact) error {
+	if e.createArtifactErr != nil {
+		return e.createArtifactErr
+	}
+	return e.recorderTestRepo.CreateExecutionArtifact(ctx, artifact)
+}
+
+func TestRecordStepOutcome_CreateStepError(t *testing.T) {
+	repo := newErrorTestRepo()
+	repo.createStepErr = errors.New("database connection lost")
+	rec := NewDBRecorder(repo, nil, nil)
+
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		CreatedAt:   time.Now().UTC(),
+	}
+	outcome := contracts.StepOutcome{
+		StepIndex: 0,
+		NodeID:    "test-node",
+		StepType:  "click",
+		Success:   true,
+	}
+
+	_, err := rec.RecordStepOutcome(context.Background(), plan, outcome)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "database connection lost")
+}
+
+func TestRecordStepOutcome_ArtifactErrorNonFatal(t *testing.T) {
+	repo := newErrorTestRepo()
+	repo.createArtifactErr = errors.New("artifact storage failed")
+	rec := NewDBRecorder(repo, nil, nil)
+
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		CreatedAt:   time.Now().UTC(),
+	}
+	outcome := contracts.StepOutcome{
+		StepIndex: 0,
+		NodeID:    "test-node",
+		StepType:  "click",
+		Success:   true,
+	}
+
+	// Artifact errors should be non-fatal
+	_, err := rec.RecordStepOutcome(context.Background(), plan, outcome)
+	require.NoError(t, err)
+
+	// Step should still be created
+	assert.Len(t, repo.executionSteps, 1)
+}
+
+// =============================================================================
+// BuildTimelinePayload Tests
+// =============================================================================
+
+func TestBuildTimelinePayload_MinimalOutcome(t *testing.T) {
+	outcome := contracts.StepOutcome{
+		StepIndex: 0,
+		NodeID:    "nav-1",
+		StepType:  "navigate",
+		Success:   true,
+	}
+
+	payload := buildTimelinePayload(outcome, "", nil, nil, "", nil)
+	assert.Equal(t, 0, payload["stepIndex"])
+	assert.Equal(t, "nav-1", payload["nodeId"])
+	assert.Equal(t, "navigate", payload["stepType"])
+	assert.Equal(t, true, payload["success"])
+}
+
+func TestBuildTimelinePayload_FailureIncludesError(t *testing.T) {
+	outcome := contracts.StepOutcome{
+		StepIndex: 1,
+		NodeID:    "click-1",
+		StepType:  "click",
+		Success:   false,
+		Failure: &contracts.StepFailure{
+			Kind:    contracts.FailureKindTimeout,
+			Message: "Element not found within timeout",
+		},
+	}
+
+	payload := buildTimelinePayload(outcome, "", nil, nil, "", nil)
+	assert.Equal(t, true, payload["partial"])
+	assert.Equal(t, "Element not found within timeout", payload["error"])
+}
+
+func TestBuildTimelinePayload_AllOptionalFields(t *testing.T) {
+	now := time.Now().UTC()
+	screenshotID := uuid.New()
+	domID := uuid.New()
+
+	outcome := contracts.StepOutcome{
+		StepIndex:   2,
+		NodeID:      "assert-1",
+		StepType:    "assert",
+		Success:     true,
+		Attempt:     1,
+		DurationMs:  250,
+		StartedAt:   now,
+		CompletedAt: &now,
+		FinalURL:    "https://example.com/page",
+		ElementBoundingBox: &contracts.BoundingBox{
+			X: 100, Y: 200, Width: 50, Height: 30,
+		},
+		ClickPosition: &contracts.Point{X: 125, Y: 215},
+		FocusedElement: &contracts.ElementFocus{
+			Selector: "#target",
+		},
+		HighlightRegions: []contracts.HighlightRegion{
+			{Selector: ".highlight", Color: "#ff0000"},
+		},
+		MaskRegions: []contracts.MaskRegion{
+			{Selector: ".mask", Opacity: 0.5},
+		},
+		ZoomFactor: 1.5,
+		ExtractedData: map[string]any{
+			"value": "extracted",
+		},
+		Assertion: &contracts.AssertionOutcome{
+			Success: true,
+			Message: "Assertion passed",
+		},
+		ConsoleLogs: []contracts.ConsoleLogEntry{{Type: "log", Text: "test"}},
+		Network:     []contracts.NetworkEvent{{Type: "request", URL: "https://api.example.com"}},
+		CursorTrail: []contracts.CursorPosition{{ElapsedMs: 10}},
+	}
+
+	artifactIDs := []uuid.UUID{uuid.New(), uuid.New()}
+	payload := buildTimelinePayload(outcome, "s3://bucket/screenshot.png", &screenshotID, &domID, "<html>preview</html>", artifactIDs)
+
+	// Verify all fields are populated
+	assert.Equal(t, "s3://bucket/screenshot.png", payload["screenshotUrl"])
+	assert.Equal(t, screenshotID.String(), payload["screenshotArtifactId"])
+	assert.Equal(t, domID.String(), payload["domSnapshotArtifactId"])
+	assert.Equal(t, "<html>preview</html>", payload["domSnapshotPreview"])
+	assert.Equal(t, "https://example.com/page", payload["finalUrl"])
+	assert.NotNil(t, payload["elementBoundingBox"])
+	assert.NotNil(t, payload["clickPosition"])
+	assert.NotNil(t, payload["focusedElement"])
+	assert.NotNil(t, payload["highlightRegions"])
+	assert.NotNil(t, payload["maskRegions"])
+	assert.Equal(t, 1.5, payload["zoomFactor"])
+	assert.NotNil(t, payload["extractedDataPreview"])
+	assert.NotNil(t, payload["assertion"])
+	assert.Equal(t, 1, payload["consoleLogCount"])
+	assert.Equal(t, 1, payload["networkEventCount"])
+	assert.NotNil(t, payload["cursorTrail"])
+	assert.Len(t, payload["artifactIds"], 2)
 }

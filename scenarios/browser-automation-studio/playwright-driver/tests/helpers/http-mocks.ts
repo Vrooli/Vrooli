@@ -45,18 +45,25 @@ export function createMockResponse(): jest.Mocked<ServerResponse> {
   res.removeHeader = jest.fn();
   res.writeHead = jest.fn();
   res.write = jest.fn();
-  res.end = jest.fn((data?: unknown) => {
+
+  // ServerResponse.end has complex overloads - use Object.defineProperty to bypass TypeScript
+  const endMock = jest.fn((data?: unknown) => {
     if (data) {
       res.write(data);
     }
     res.emit('finish');
     return res;
   });
+  Object.defineProperty(res, 'end', {
+    value: endMock,
+    writable: true,
+    configurable: true,
+  });
 
   // Helper to get response body
   (res as any).getBody = (): string => {
     const calls = (res.write as jest.Mock).mock.calls;
-    return calls.map(call => call[0]).join('');
+    return calls.map((call) => call[0]).join('');
   };
 
   // Helper to get response JSON

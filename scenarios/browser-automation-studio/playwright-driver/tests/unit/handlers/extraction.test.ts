@@ -1,7 +1,6 @@
-import { createTestInstruction } from '../../helpers';
+import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { ExtractionHandler } from '../../../src/handlers/extraction';
-import type { CompiledInstruction, HandlerContext } from '../../../src/types';
-import { createMockPage, createTestConfig } from '../../helpers';
+import type { HandlerContext } from '../../../src/types';
 import { logger, metrics } from '../../../src/utils';
 
 describe('ExtractionHandler', () => {
@@ -25,37 +24,32 @@ describe('ExtractionHandler', () => {
   it('should extract text from element', async () => {
     const instruction = createTestInstruction({
       type: 'extract',
-      params: { selector: '#content', attribute: 'text' },
+      params: { selector: '#content' },
       node_id: 'node-1',
-    };
+    });
 
-    const mockLocator = {
-      textContent: jest.fn().mockResolvedValue('Extracted text'),
-    };
-    mockPage.locator.mockReturnValue(mockLocator as any);
+    mockPage.textContent.mockResolvedValue('Extracted text');
 
     const result = await handler.execute(instruction, context);
 
+    expect(mockPage.textContent).toHaveBeenCalledWith('#content', expect.any(Object));
     expect(result.success).toBe(true);
-    expect(result.extracted_data).toEqual({ value: 'Extracted text' });
+    expect(result.extracted_data).toEqual({ '#content': 'Extracted text' });
   });
 
-  it('should extract attribute value', async () => {
+  it('should handle empty text content', async () => {
     const instruction = createTestInstruction({
       type: 'extract',
-      params: { selector: '#link', attribute: 'href' },
+      params: { selector: '#empty' },
       node_id: 'node-1',
-    };
+    });
 
-    const mockLocator = {
-      getAttribute: jest.fn().mockResolvedValue('https://example.com'),
-    };
-    mockPage.locator.mockReturnValue(mockLocator as any);
+    mockPage.textContent.mockResolvedValue(null);
 
     const result = await handler.execute(instruction, context);
 
     expect(result.success).toBe(true);
-    expect(result.extracted_data).toEqual({ value: 'https://example.com' });
+    expect(result.extracted_data).toEqual({ '#empty': '' });
   });
 
   it('should evaluate JavaScript', async () => {
@@ -63,7 +57,7 @@ describe('ExtractionHandler', () => {
       type: 'evaluate',
       params: { script: 'return document.title' },
       node_id: 'node-1',
-    };
+    });
 
     mockPage.evaluate.mockResolvedValue('Page Title');
 

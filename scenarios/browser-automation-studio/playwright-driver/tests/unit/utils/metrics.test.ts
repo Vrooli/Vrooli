@@ -14,6 +14,7 @@ describe('Metrics', () => {
       expect(testMetrics.instructionErrors).toBeDefined();
       expect(testMetrics.screenshotSize).toBeDefined();
       expect(testMetrics.sessionDuration).toBeDefined();
+      expect(testMetrics.cleanupFailures).toBeDefined();
     });
 
     it('should have registry', () => {
@@ -25,14 +26,14 @@ describe('Metrics', () => {
     it('should track active sessions', () => {
       testMetrics.sessionCount.set({ state: 'active' }, 5);
 
-      const metrics_output = testMetrics.getRegistry().getSingleMetric('playwright_sessions_total');
+      const metrics_output = testMetrics.getRegistry().getSingleMetric('playwright_driver_sessions');
       expect(metrics_output).toBeDefined();
     });
 
     it('should track idle sessions', () => {
       testMetrics.sessionCount.set({ state: 'idle' }, 3);
 
-      const metrics_output = testMetrics.getRegistry().getSingleMetric('playwright_sessions_total');
+      const metrics_output = testMetrics.getRegistry().getSingleMetric('playwright_driver_sessions');
       expect(metrics_output).toBeDefined();
     });
 
@@ -50,17 +51,18 @@ describe('Metrics', () => {
 
   describe('instructionDuration histogram', () => {
     it('should observe instruction durations', () => {
-      testMetrics.instructionDuration.observe({ type: 'navigate', success: 'true' }, 0.5);
-      testMetrics.instructionDuration.observe({ type: 'click', success: 'true' }, 0.1);
+      // Note: values are in milliseconds now, not seconds
+      testMetrics.instructionDuration.observe({ type: 'navigate', success: 'true' }, 500);
+      testMetrics.instructionDuration.observe({ type: 'click', success: 'true' }, 100);
 
-      const metrics_output = testMetrics.getRegistry().getSingleMetric('playwright_instruction_duration_seconds');
+      const metrics_output = testMetrics.getRegistry().getSingleMetric('playwright_driver_instruction_duration_ms');
       expect(metrics_output).toBeDefined();
     });
 
     it('should track failed instructions', () => {
-      testMetrics.instructionDuration.observe({ type: 'navigate', success: 'false' }, 1.5);
+      testMetrics.instructionDuration.observe({ type: 'navigate', success: 'false' }, 1500);
 
-      expect(() => testMetrics.instructionDuration.observe({ type: 'navigate', success: 'false' }, 1.5)).not.toThrow();
+      expect(() => testMetrics.instructionDuration.observe({ type: 'navigate', success: 'false' }, 1500)).not.toThrow();
     });
   });
 
@@ -69,7 +71,7 @@ describe('Metrics', () => {
       testMetrics.instructionErrors.inc({ type: 'navigate', error_kind: 'timeout' });
       testMetrics.instructionErrors.inc({ type: 'click', error_kind: 'selector_not_found' });
 
-      const metrics_output = testMetrics.getRegistry().getSingleMetric('playwright_instruction_errors_total');
+      const metrics_output = testMetrics.getRegistry().getSingleMetric('playwright_driver_instruction_errors_total');
       expect(metrics_output).toBeDefined();
     });
 
@@ -82,24 +84,45 @@ describe('Metrics', () => {
     });
   });
 
+  describe('cleanupFailures counter', () => {
+    it('should count cleanup failures by operation type', () => {
+      testMetrics.cleanupFailures.inc({ operation: 'page_close' });
+      testMetrics.cleanupFailures.inc({ operation: 'context_close' });
+      testMetrics.cleanupFailures.inc({ operation: 'tracing_stop' });
+      testMetrics.cleanupFailures.inc({ operation: 'browser_close' });
+
+      const metrics_output = testMetrics.getRegistry().getSingleMetric('playwright_driver_cleanup_failures_total');
+      expect(metrics_output).toBeDefined();
+    });
+
+    it('should track multiple failures of the same operation', () => {
+      testMetrics.cleanupFailures.inc({ operation: 'page_close' });
+      testMetrics.cleanupFailures.inc({ operation: 'page_close' });
+      testMetrics.cleanupFailures.inc({ operation: 'page_close' });
+
+      expect(() => testMetrics.cleanupFailures.inc({ operation: 'page_close' })).not.toThrow();
+    });
+  });
+
   describe('screenshotSize histogram', () => {
     it('should observe screenshot sizes', () => {
       testMetrics.screenshotSize.observe(1024); // 1KB
       testMetrics.screenshotSize.observe(1024 * 1024); // 1MB
       testMetrics.screenshotSize.observe(512); // 512B
 
-      const metrics_output = testMetrics.getRegistry().getSingleMetric('playwright_screenshot_size_bytes');
+      const metrics_output = testMetrics.getRegistry().getSingleMetric('playwright_driver_screenshot_size_bytes');
       expect(metrics_output).toBeDefined();
     });
   });
 
   describe('sessionDuration histogram', () => {
     it('should observe session durations', () => {
-      testMetrics.sessionDuration.observe(10); // 10 seconds
-      testMetrics.sessionDuration.observe(120); // 2 minutes
-      testMetrics.sessionDuration.observe(3600); // 1 hour
+      // Note: values are in milliseconds now, not seconds
+      testMetrics.sessionDuration.observe(10000); // 10 seconds
+      testMetrics.sessionDuration.observe(120000); // 2 minutes
+      testMetrics.sessionDuration.observe(3600000); // 1 hour
 
-      const metrics_output = testMetrics.getRegistry().getSingleMetric('playwright_session_duration_seconds');
+      const metrics_output = testMetrics.getRegistry().getSingleMetric('playwright_driver_session_duration_ms');
       expect(metrics_output).toBeDefined();
     });
   });
@@ -107,13 +130,13 @@ describe('Metrics', () => {
   describe('getMetrics', () => {
     it('should return Prometheus-formatted metrics', async () => {
       testMetrics.sessionCount.set({ state: 'active' }, 5);
-      testMetrics.instructionDuration.observe({ type: 'navigate', success: 'true' }, 0.5);
+      testMetrics.instructionDuration.observe({ type: 'navigate', success: 'true' }, 500);
 
       const output = await testMetrics.getMetrics();
 
       expect(output).toBeDefined();
       expect(typeof output).toBe('string');
-      expect(output).toContain('playwright_sessions_total');
+      expect(output).toContain('playwright_driver_sessions');
     });
   });
 
@@ -128,6 +151,7 @@ describe('Metrics', () => {
       expect(metrics.instructionErrors).toBeDefined();
       expect(metrics.screenshotSize).toBeDefined();
       expect(metrics.sessionDuration).toBeDefined();
+      expect(metrics.cleanupFailures).toBeDefined();
     });
   });
 
@@ -140,7 +164,7 @@ describe('Metrics', () => {
     });
 
     it('should get single metric', () => {
-      const metric = testMetrics.getRegistry().getSingleMetric('playwright_sessions_total');
+      const metric = testMetrics.getRegistry().getSingleMetric('playwright_driver_sessions');
 
       expect(metric).toBeDefined();
     });

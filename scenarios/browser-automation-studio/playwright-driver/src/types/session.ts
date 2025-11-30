@@ -96,4 +96,9 @@ export interface HealthResponse {
   timestamp: string;
   sessions: number;
   version?: string;
+  browser?: {
+    healthy: boolean;
+    version?: string;
+    error?: string;
+  };
 }

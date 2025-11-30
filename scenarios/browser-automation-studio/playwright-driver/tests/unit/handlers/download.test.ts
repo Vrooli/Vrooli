@@ -1,7 +1,6 @@
-import { createTestInstruction } from '../../helpers';
+import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { DownloadHandler } from '../../../src/handlers/download';
-import type { CompiledInstruction, HandlerContext } from '../../../src/types';
-import { createMockPage, createTestConfig } from '../../helpers';
+import type { HandlerContext } from '../../../src/types';
 import { logger, metrics } from '../../../src/utils';
 
 describe('DownloadHandler', () => {
@@ -27,11 +26,12 @@ describe('DownloadHandler', () => {
       type: 'download',
       params: { selector: '#download-link' },
       node_id: 'node-1',
-    };
+    });
 
     const mockDownload = {
-      path: jest.fn().mockResolvedValue('/tmp/download.pdf'),
       suggestedFilename: jest.fn().mockReturnValue('file.pdf'),
+      saveAs: jest.fn().mockResolvedValue(undefined),
+      url: jest.fn().mockReturnValue('https://example.com/file.pdf'),
     };
 
     mockPage.waitForEvent = jest.fn().mockResolvedValue(mockDownload);
@@ -39,6 +39,7 @@ describe('DownloadHandler', () => {
     const result = await handler.execute(instruction, context);
 
     expect(result.success).toBe(true);
-    expect(result.extracted_data?.downloadPath).toBe('/tmp/download.pdf');
+    expect(result.extracted_data?.download_path).toBeDefined();
+    expect(result.extracted_data?.filename).toBe('file.pdf');
   });
 });

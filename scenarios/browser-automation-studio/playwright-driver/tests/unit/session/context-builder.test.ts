@@ -13,6 +13,7 @@ describe('ContextBuilder', () => {
 
     sessionSpec = {
       execution_id: 'exec-123',
+      workflow_id: 'workflow-123',
       base_url: 'https://example.com',
       viewport: { width: 1280, height: 720 },
       reuse_mode: 'fresh',

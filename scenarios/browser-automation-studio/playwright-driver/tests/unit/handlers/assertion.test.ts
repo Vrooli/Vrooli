@@ -1,7 +1,6 @@
-import { createTestInstruction } from '../../helpers';
+import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { AssertionHandler } from '../../../src/handlers/assertion';
-import type { CompiledInstruction, HandlerContext } from '../../../src/types';
-import { createMockPage, createTestConfig } from '../../helpers';
+import type { HandlerContext } from '../../../src/types';
 import { logger, metrics } from '../../../src/utils';
 
 describe('AssertionHandler', () => {
@@ -32,7 +31,7 @@ describe('AssertionHandler', () => {
 
       const mockLocator = {
         count: jest.fn().mockResolvedValue(1),
-      });
+      };
       mockPage.locator.mockReturnValue(mockLocator as any);
 
       const result = await handler.execute(instruction, context);
@@ -50,7 +49,7 @@ describe('AssertionHandler', () => {
 
       const mockLocator = {
         count: jest.fn().mockResolvedValue(0),
-      });
+      };
       mockPage.locator.mockReturnValue(mockLocator as any);
 
       const result = await handler.execute(instruction, context);
@@ -71,7 +70,7 @@ describe('AssertionHandler', () => {
 
       const mockLocator = {
         isVisible: jest.fn().mockResolvedValue(true),
-      });
+      };
       mockPage.locator.mockReturnValue(mockLocator as any);
 
       const result = await handler.execute(instruction, context);
@@ -91,7 +90,7 @@ describe('AssertionHandler', () => {
 
       const mockLocator = {
         textContent: jest.fn().mockResolvedValue('Hello'),
-      });
+      };
       mockPage.locator.mockReturnValue(mockLocator as any);
 
       const result = await handler.execute(instruction, context);
@@ -109,7 +108,7 @@ describe('AssertionHandler', () => {
 
       const mockLocator = {
         textContent: jest.fn().mockResolvedValue('Hello World'),
-      });
+      };
       mockPage.locator.mockReturnValue(mockLocator as any);
 
       const result = await handler.execute(instruction, context);

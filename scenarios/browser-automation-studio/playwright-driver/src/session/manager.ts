@@ -20,8 +20,77 @@ export class SessionManager {
   private browser: Browser | null = null;
   private config: Config;
 
+  private browserVerified = false;
+  private browserError: string | null = null;
+
   constructor(config: Config) {
     this.config = config;
+  }
+
+  /**
+   * Verify that the browser can be launched.
+   * Called during startup to catch Chromium issues early.
+   * Returns null on success, error message on failure.
+   */
+  async verifyBrowserLaunch(): Promise<string | null> {
+    if (this.browserVerified) {
+      return this.browserError;
+    }
+
+    try {
+      logger.info('Verifying browser launch capability...');
+      const browser = await this.getBrowser();
+
+      // Verify we can create a context and page
+      const context = await browser.newContext();
+      const page = await context.newPage();
+
+      // Verify basic navigation works
+      await page.goto('about:blank');
+
+      // Cleanup verification resources
+      await page.close();
+      await context.close();
+
+      this.browserVerified = true;
+      this.browserError = null;
+
+      logger.info('Browser launch verification successful', {
+        version: browser.version(),
+      });
+
+      return null;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.browserError = errorMessage;
+      this.browserVerified = true; // Mark as verified (we checked, it failed)
+
+      logger.error('Browser launch verification failed', {
+        error: errorMessage,
+        hint: 'Check that Chromium is installed and sandbox settings are correct',
+      });
+
+      return errorMessage;
+    }
+  }
+
+  /**
+   * Get browser health status for health endpoint
+   */
+  getBrowserStatus(): { healthy: boolean; error?: string; version?: string } {
+    if (!this.browserVerified) {
+      return { healthy: false, error: 'Browser not yet verified' };
+    }
+
+    if (this.browserError) {
+      return { healthy: false, error: this.browserError };
+    }
+
+    if (this.browser && this.browser.isConnected()) {
+      return { healthy: true, version: this.browser.version() };
+    }
+
+    return { healthy: true };
   }
 
   /**
@@ -198,6 +267,7 @@ export class SessionManager {
       for (const page of extraPages) {
         await page.close().catch((err) => {
           logger.warn('Failed to close page during reset', { sessionId, error: err.message });
+          metrics.cleanupFailures.inc({ operation: 'page_close' });
         });
       }
       session.pages = [session.page];
@@ -231,6 +301,7 @@ export class SessionManager {
       if (session.tracing && session.tracePath) {
         await session.context.tracing.stop({ path: session.tracePath }).catch((err) => {
           logger.warn('Failed to stop tracing', { sessionId, error: err.message });
+          metrics.cleanupFailures.inc({ operation: 'tracing_stop' });
         });
       }
 
@@ -238,12 +309,14 @@ export class SessionManager {
       for (const page of session.pages) {
         await page.close().catch((err) => {
           logger.warn('Failed to close page', { sessionId, error: err.message });
+          metrics.cleanupFailures.inc({ operation: 'page_close' });
         });
       }
 
       // Close context
       await session.context.close().catch((err) => {
         logger.warn('Failed to close context', { sessionId, error: err.message });
+        metrics.cleanupFailures.inc({ operation: 'context_close' });
       });
 
       const duration = Date.now() - startTime;
@@ -364,6 +437,7 @@ export class SessionManager {
     if (this.browser) {
       await this.browser.close().catch((err) => {
         logger.warn('Failed to close browser', { error: err.message });
+        metrics.cleanupFailures.inc({ operation: 'browser_close' });
       });
       this.browser = null;
     }

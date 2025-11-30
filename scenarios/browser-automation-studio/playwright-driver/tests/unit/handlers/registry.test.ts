@@ -2,7 +2,6 @@ import { createTestInstruction } from '../../helpers';
 import { handlerRegistry } from '../../../src/handlers/registry';
 import { NavigationHandler, InteractionHandler, WaitHandler } from '../../../src/handlers';
 import { UnsupportedInstructionError } from '../../../src/utils/errors';
-import type { CompiledInstruction } from '../../../src/types';
 
 describe('HandlerRegistry', () => {
   beforeEach(() => {
@@ -163,11 +162,11 @@ describe('HandlerRegistry', () => {
       handlerRegistry.register(new NavigationHandler()); // 1 type
       expect(handlerRegistry.getHandlerCount()).toBe(1);
 
-      handlerRegistry.register(new InteractionHandler()); // 3 types (click, hover, type)
-      expect(handlerRegistry.getHandlerCount()).toBe(4);
+      handlerRegistry.register(new InteractionHandler()); // 5 types (click, hover, type, focus, blur)
+      expect(handlerRegistry.getHandlerCount()).toBe(6);
 
       handlerRegistry.register(new WaitHandler()); // 1 type
-      expect(handlerRegistry.getHandlerCount()).toBe(5);
+      expect(handlerRegistry.getHandlerCount()).toBe(7);
     });
   });
 });

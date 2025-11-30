@@ -1,14 +1,39 @@
 package ai
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 )
+
+// =============================================================================
+// Mock Automation Runner
+// =============================================================================
+
+type mockAutomationRunner struct {
+	runFunc func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error)
+}
+
+func (m *mockAutomationRunner) Run(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+	if m.runFunc != nil {
+		return m.runFunc(ctx, width, height, instructions)
+	}
+	return nil, nil, nil
+}
+
+// =============================================================================
+// NewDOMHandler Tests
+// =============================================================================
 
 func TestNewDOMHandler(t *testing.T) {
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] creates handler with logger", func(t *testing.T) {
@@ -17,203 +42,548 @@ func TestNewDOMHandler(t *testing.T) {
 
 		handler := NewDOMHandler(log)
 
-		assert.NotNil(t, handler)
-		assert.Equal(t, log, handler.log)
+		require.NotNil(t, handler, "handler should not be nil")
+		assert.Equal(t, log, handler.log, "handler should store the logger")
+	})
+
+	t.Run("creates handler with nil logger", func(t *testing.T) {
+		handler := NewDOMHandler(nil)
+
+		require.NotNil(t, handler, "handler should not be nil even with nil logger")
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] accepts custom runner option", func(t *testing.T) {
+		log := logrus.New()
+		log.SetOutput(os.Stderr)
+
+		mockRunner := &mockAutomationRunner{}
+		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
+
+		require.NotNil(t, handler)
+		assert.Equal(t, mockRunner, handler.runner, "handler should use provided runner")
 	})
 }
 
-func TestExtractDOMTree_URLNormalization(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
+// =============================================================================
+// ExtractDOMTree URL Normalization Tests
+// =============================================================================
 
+func TestExtractDOMTree_URLNormalization(t *testing.T) {
 	log := logrus.New()
 	log.SetOutput(os.Stderr)
-	handler := NewDOMHandler(log)
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] adds https:// to bare domain", func(t *testing.T) {
-		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-			t.Skip("Skipping integration test - PLAYWRIGHT_DRIVER_URL not set")
+		var capturedInstructions []autocontracts.CompiledInstruction
+
+		mockRunner := &mockAutomationRunner{
+			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+				capturedInstructions = instructions
+				return []autocontracts.StepOutcome{
+					{
+						NodeID:        "dom.extract",
+						Success:       true,
+						ExtractedData: map[string]any{"value": map[string]any{"tagName": "BODY"}},
+					},
+				}, nil, nil
+			},
 		}
 
-		ctx := context.Background()
+		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
+		_, err := handler.ExtractDOMTree(context.Background(), "example.com")
 
-		// This will attempt to navigate to https://example.com
-		// In unit test env without browserless, this will fail, but we can verify
-		// the URL normalization happens by checking the error message
+		require.NoError(t, err)
+		require.NotEmpty(t, capturedInstructions)
 
-		_, err := handler.ExtractDOMTree(ctx, "example.com")
-
-		// Expected to fail without browserless running, or potentially succeed if browserless is available
-		if err != nil {
-			// The error should be related to extraction or connection, not URL validation
-			assert.NotContains(t, err.Error(), "invalid URL")
-		}
+		// Verify URL was normalized
+		navigateParams := capturedInstructions[0].Params
+		assert.Equal(t, "https://example.com", navigateParams["url"])
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] preserves http:// URLs", func(t *testing.T) {
-		ctx := context.Background()
+		var capturedInstructions []autocontracts.CompiledInstruction
 
-		_, err := handler.ExtractDOMTree(ctx, "http://example.com")
-
-		if err != nil {
-			assert.NotContains(t, err.Error(), "invalid URL")
+		mockRunner := &mockAutomationRunner{
+			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+				capturedInstructions = instructions
+				return []autocontracts.StepOutcome{
+					{
+						NodeID:        "dom.extract",
+						Success:       true,
+						ExtractedData: map[string]any{"value": map[string]any{"tagName": "BODY"}},
+					},
+				}, nil, nil
+			},
 		}
+
+		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
+		_, err := handler.ExtractDOMTree(context.Background(), "http://example.com")
+
+		require.NoError(t, err)
+		require.NotEmpty(t, capturedInstructions)
+
+		navigateParams := capturedInstructions[0].Params
+		assert.Equal(t, "http://example.com", navigateParams["url"])
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] preserves https:// URLs", func(t *testing.T) {
-		ctx := context.Background()
+		var capturedInstructions []autocontracts.CompiledInstruction
 
-		_, err := handler.ExtractDOMTree(ctx, "https://example.com")
-
-		if err != nil {
-			assert.NotContains(t, err.Error(), "invalid URL")
+		mockRunner := &mockAutomationRunner{
+			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+				capturedInstructions = instructions
+				return []autocontracts.StepOutcome{
+					{
+						NodeID:        "dom.extract",
+						Success:       true,
+						ExtractedData: map[string]any{"value": map[string]any{"tagName": "BODY"}},
+					},
+				}, nil, nil
+			},
 		}
+
+		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
+		_, err := handler.ExtractDOMTree(context.Background(), "https://example.com")
+
+		require.NoError(t, err)
+		require.NotEmpty(t, capturedInstructions)
+
+		navigateParams := capturedInstructions[0].Params
+		assert.Equal(t, "https://example.com", navigateParams["url"])
 	})
 }
 
-func TestExtractDOMTree_ScriptGeneration(t *testing.T) {
+// =============================================================================
+// ExtractDOMTree Error Handling Tests
+// =============================================================================
+
+func TestExtractDOMTree_ErrorHandling(t *testing.T) {
 	log := logrus.New()
 	log.SetOutput(os.Stderr)
-	handler := NewDOMHandler(log)
 
 	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles context cancellation", func(t *testing.T) {
+		mockRunner := &mockAutomationRunner{
+			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+				return nil, nil, ctx.Err()
+			},
+		}
+
+		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
+
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel immediately
 
 		_, err := handler.ExtractDOMTree(ctx, "https://example.com")
 
 		assert.Error(t, err)
-		// Should get context cancelled error or similar
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles runner error", func(t *testing.T) {
+		mockRunner := &mockAutomationRunner{
+			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+				return nil, nil, errors.New("runner failed")
+			},
+		}
+
+		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
+		_, err := handler.ExtractDOMTree(context.Background(), "https://example.com")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "automation run failed")
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles extraction failure", func(t *testing.T) {
+		mockRunner := &mockAutomationRunner{
+			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+				return []autocontracts.StepOutcome{
+					{
+						NodeID:  "dom.extract",
+						Success: false,
+						Failure: &autocontracts.StepFailure{Message: "extraction failed"},
+					},
+				}, nil, nil
+			},
+		}
+
+		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
+		_, err := handler.ExtractDOMTree(context.Background(), "https://example.com")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "dom extraction failed")
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles nil extracted data", func(t *testing.T) {
+		mockRunner := &mockAutomationRunner{
+			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+				return []autocontracts.StepOutcome{
+					{
+						NodeID:        "dom.extract",
+						Success:       true,
+						ExtractedData: nil,
+					},
+				}, nil, nil
+			},
+		}
+
+		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
+		_, err := handler.ExtractDOMTree(context.Background(), "https://example.com")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "returned no data")
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles missing value payload", func(t *testing.T) {
+		mockRunner := &mockAutomationRunner{
+			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+				return []autocontracts.StepOutcome{
+					{
+						NodeID:        "dom.extract",
+						Success:       true,
+						ExtractedData: map[string]any{"other": "data"},
+					},
+				}, nil, nil
+			},
+		}
+
+		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
+		_, err := handler.ExtractDOMTree(context.Background(), "https://example.com")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "missing value payload")
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles no matching outcome", func(t *testing.T) {
+		mockRunner := &mockAutomationRunner{
+			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+				return []autocontracts.StepOutcome{
+					{
+						NodeID:  "other.node",
+						Success: true,
+					},
+				}, nil, nil
+			},
+		}
+
+		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
+		_, err := handler.ExtractDOMTree(context.Background(), "https://example.com")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no dom extraction outcome")
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles nil runner", func(t *testing.T) {
+		handler := &DOMHandler{log: log, runner: nil}
+		_, err := handler.ExtractDOMTree(context.Background(), "https://example.com")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not configured")
 	})
 }
 
-func TestExtractDOMTree_Integration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
+// =============================================================================
+// ExtractDOMTree Success Tests
+// =============================================================================
 
-	// Check if Playwright driver is available
-	// We need to set proper env vars for this test
-	originalURL := os.Getenv("PLAYWRIGHT_DRIVER_URL")
-	defer func() {
-		os.Setenv("PLAYWRIGHT_DRIVER_URL", originalURL)
-	}()
-
-	// Try to detect Playwright driver
-	driverURL := os.Getenv("PLAYWRIGHT_DRIVER_URL")
-	if driverURL == "" {
-		driverURL = "http://127.0.0.1:39400"
-	}
-
+func TestExtractDOMTree_Success(t *testing.T) {
 	log := logrus.New()
 	log.SetOutput(os.Stderr)
-	handler := NewDOMHandler(log)
 
-	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] extracts DOM from real page", func(t *testing.T) {
-		ctx := context.Background()
-
-		// Use a simple, fast-loading page
-		domTree, err := handler.ExtractDOMTree(ctx, "https://example.com")
-
-		if err != nil {
-			// Playwright driver not available, skip this test
-			t.Skipf("Playwright driver not available at %s: %v", driverURL, err)
-			return
+	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] returns JSON encoded DOM tree", func(t *testing.T) {
+		mockRunner := &mockAutomationRunner{
+			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+				return []autocontracts.StepOutcome{
+					{
+						NodeID:  "dom.extract",
+						Success: true,
+						ExtractedData: map[string]any{
+							"value": map[string]any{
+								"tagName":  "BODY",
+								"id":       "main",
+								"children": []any{},
+							},
+						},
+					},
+				}, nil, nil
+			},
 		}
 
+		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
+		result, err := handler.ExtractDOMTree(context.Background(), "https://example.com")
+
 		require.NoError(t, err)
-		assert.NotEmpty(t, domTree)
+		assert.Contains(t, result, "tagName")
+		assert.Contains(t, result, "BODY")
+		assert.Contains(t, result, "main")
 
 		// Verify it's valid JSON
-		assert.Contains(t, domTree, "tagName", "DOM tree should contain tagName field")
-
-		// Should contain some recognizable structure
-		assert.Contains(t, domTree, "BODY")
+		var parsed map[string]any
+		err = json.Unmarshal([]byte(result), &parsed)
+		require.NoError(t, err)
+		assert.Equal(t, "BODY", parsed["tagName"])
 	})
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles invalid URL", func(t *testing.T) {
-		ctx := context.Background()
+	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] passes correct viewport dimensions", func(t *testing.T) {
+		var capturedWidth, capturedHeight int
 
-		_, err := handler.ExtractDOMTree(ctx, "https://this-domain-definitely-does-not-exist-12345.com")
-
-		// Should get an error (navigation timeout or DNS failure)
-		assert.Error(t, err)
-	})
-
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles malformed URL", func(t *testing.T) {
-		ctx := context.Background()
-
-		_, err := handler.ExtractDOMTree(ctx, "not a url at all")
-
-		// Should either fail at browserless or normalize and fail at navigation
-		assert.Error(t, err)
-	})
-
-	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] limits DOM tree depth and size", func(t *testing.T) {
-		ctx := context.Background()
-
-		// Use a complex page
-		domTree, err := handler.ExtractDOMTree(ctx, "https://www.wikipedia.org")
-
-		if err != nil {
-			t.Skipf("Playwright driver not available: %v", err)
-			return
+		mockRunner := &mockAutomationRunner{
+			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+				capturedWidth = width
+				capturedHeight = height
+				return []autocontracts.StepOutcome{
+					{
+						NodeID:        "dom.extract",
+						Success:       true,
+						ExtractedData: map[string]any{"value": map[string]any{}},
+					},
+				}, nil, nil
+			},
 		}
 
+		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
+		_, err := handler.ExtractDOMTree(context.Background(), "https://example.com")
+
 		require.NoError(t, err)
-		assert.NotEmpty(t, domTree)
+		// Should use preview default viewport
+		assert.Equal(t, previewDefaultViewportWidth, capturedWidth)
+		assert.Equal(t, previewDefaultViewportHeight, capturedHeight)
+	})
 
-		// DOM tree should be limited (not megabytes of data)
-		assert.Less(t, len(domTree), 1024*1024, "DOM tree should be less than 1MB")
+	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] generates correct instruction sequence", func(t *testing.T) {
+		var capturedInstructions []autocontracts.CompiledInstruction
 
-		// Should not include script/style tags
-		assert.NotContains(t, domTree, "tagName\":\"SCRIPT")
-		assert.NotContains(t, domTree, "tagName\":\"STYLE")
+		mockRunner := &mockAutomationRunner{
+			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+				capturedInstructions = instructions
+				return []autocontracts.StepOutcome{
+					{
+						NodeID:        "dom.extract",
+						Success:       true,
+						ExtractedData: map[string]any{"value": map[string]any{}},
+					},
+				}, nil, nil
+			},
+		}
+
+		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
+		_, err := handler.ExtractDOMTree(context.Background(), "https://example.com")
+
+		require.NoError(t, err)
+		require.Len(t, capturedInstructions, 3)
+
+		// Verify instruction sequence
+		assert.Equal(t, "navigate", capturedInstructions[0].Type)
+		assert.Equal(t, "dom.navigate", capturedInstructions[0].NodeID)
+
+		assert.Equal(t, "wait", capturedInstructions[1].Type)
+		assert.Equal(t, "dom.wait", capturedInstructions[1].NodeID)
+
+		assert.Equal(t, "evaluate", capturedInstructions[2].Type)
+		assert.Equal(t, "dom.extract", capturedInstructions[2].NodeID)
 	})
 }
 
-func TestExtractDOMTree_JavaScriptLimits(t *testing.T) {
-	// These are unit tests validating the JavaScript extraction logic
-	// by examining what would be generated
+// =============================================================================
+// GetDOMTree HTTP Handler Tests
+// =============================================================================
 
-	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] script enforces MAX_DEPTH constant", func(t *testing.T) {
-		log := logrus.New()
-		log.SetOutput(os.Stderr)
+func TestGetDOMTree_HTTPHandler(t *testing.T) {
+	log := logrus.New()
+	log.SetOutput(os.Stderr)
+
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects invalid JSON", func(t *testing.T) {
 		handler := NewDOMHandler(log)
 
-		// The script is embedded in the handler
-		// We can verify the constants are reasonable
-		assert.NotNil(t, handler)
+		req := httptest.NewRequest("POST", "/api/v1/dom-tree", bytes.NewBufferString("invalid json"))
+		w := httptest.NewRecorder()
 
-		// The script should define MAX_DEPTH = 6
-		// This is a sanity check that the handler exists
+		handler.GetDOMTree(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var response APIError
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
+		assert.Equal(t, "INVALID_REQUEST", response.Code)
 	})
 
-	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] script enforces MAX_CHILDREN_PER_NODE", func(t *testing.T) {
-		log := logrus.New()
-		log.SetOutput(os.Stderr)
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects missing URL", func(t *testing.T) {
 		handler := NewDOMHandler(log)
 
-		assert.NotNil(t, handler)
-		// The embedded script limits children per node to 12
+		reqBody := map[string]string{}
+		body, _ := json.Marshal(reqBody)
+		req := httptest.NewRequest("POST", "/api/v1/dom-tree", bytes.NewBuffer(body))
+		w := httptest.NewRecorder()
+
+		handler.GetDOMTree(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var response APIError
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
+		assert.Equal(t, "MISSING_REQUIRED_FIELD", response.Code)
+
+		detailsMap, ok := response.Details.(map[string]interface{})
+		require.True(t, ok)
+		assert.Equal(t, "url", detailsMap["field"])
 	})
 
-	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] script enforces MAX_TOTAL_NODES", func(t *testing.T) {
-		log := logrus.New()
-		log.SetOutput(os.Stderr)
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects empty URL", func(t *testing.T) {
 		handler := NewDOMHandler(log)
 
-		assert.NotNil(t, handler)
-		// The embedded script limits total nodes to 800
+		reqBody := map[string]string{"url": ""}
+		body, _ := json.Marshal(reqBody)
+		req := httptest.NewRequest("POST", "/api/v1/dom-tree", bytes.NewBuffer(body))
+		w := httptest.NewRecorder()
+
+		handler.GetDOMTree(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
-	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] script enforces TEXT_LIMIT", func(t *testing.T) {
-		log := logrus.New()
-		log.SetOutput(os.Stderr)
-		handler := NewDOMHandler(log)
+	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] returns DOM tree on success", func(t *testing.T) {
+		mockRunner := &mockAutomationRunner{
+			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+				return []autocontracts.StepOutcome{
+					{
+						NodeID:  "dom.extract",
+						Success: true,
+						ExtractedData: map[string]any{
+							"value": map[string]any{
+								"tagName": "BODY",
+								"id":      "root",
+							},
+						},
+					},
+				}, nil, nil
+			},
+		}
 
-		assert.NotNil(t, handler)
-		// The embedded script limits text content to 120 characters
+		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
+
+		reqBody := map[string]string{"url": "https://example.com"}
+		body, _ := json.Marshal(reqBody)
+		req := httptest.NewRequest("POST", "/api/v1/dom-tree", bytes.NewBuffer(body))
+		w := httptest.NewRecorder()
+
+		handler.GetDOMTree(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+
+		var result map[string]any
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&result))
+		assert.Equal(t, "BODY", result["tagName"])
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] returns error on extraction failure", func(t *testing.T) {
+		mockRunner := &mockAutomationRunner{
+			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+				return nil, nil, errors.New("driver not available")
+			},
+		}
+
+		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
+
+		reqBody := map[string]string{"url": "https://example.com"}
+		body, _ := json.Marshal(reqBody)
+		req := httptest.NewRequest("POST", "/api/v1/dom-tree", bytes.NewBuffer(body))
+		w := httptest.NewRecorder()
+
+		handler.GetDOMTree(w, req)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+		var response APIError
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
+		assert.Equal(t, "INTERNAL_SERVER_ERROR", response.Code)
+	})
+}
+
+// =============================================================================
+// failureMessage Helper Tests
+// =============================================================================
+
+func TestFailureMessage(t *testing.T) {
+	t.Run("returns message when present", func(t *testing.T) {
+		failure := &autocontracts.StepFailure{Message: "specific error message"}
+		result := failureMessage(failure)
+		assert.Equal(t, "specific error message", result)
+	})
+
+	t.Run("trims whitespace from message", func(t *testing.T) {
+		failure := &autocontracts.StepFailure{Message: "  error with whitespace  "}
+		result := failureMessage(failure)
+		assert.Equal(t, "error with whitespace", result)
+	})
+
+	t.Run("returns kind when message is empty", func(t *testing.T) {
+		failure := &autocontracts.StepFailure{Kind: autocontracts.FailureKindTimeout}
+		result := failureMessage(failure)
+		assert.Equal(t, string(autocontracts.FailureKindTimeout), result)
+	})
+
+	t.Run("returns kind when message is whitespace-only", func(t *testing.T) {
+		failure := &autocontracts.StepFailure{Message: "   ", Kind: autocontracts.FailureKindEngine}
+		result := failureMessage(failure)
+		assert.Equal(t, string(autocontracts.FailureKindEngine), result)
+	})
+
+	t.Run("returns unknown for nil failure", func(t *testing.T) {
+		result := failureMessage(nil)
+		assert.Equal(t, "unknown failure", result)
+	})
+
+	t.Run("returns unknown when both message and kind are empty", func(t *testing.T) {
+		failure := &autocontracts.StepFailure{}
+		result := failureMessage(failure)
+		assert.Equal(t, "unknown failure", result)
+	})
+}
+
+// =============================================================================
+// DOM Extraction Expression Validation Tests
+// =============================================================================
+
+func TestDOMExtractionExpression(t *testing.T) {
+	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] expression contains MAX_DEPTH limit", func(t *testing.T) {
+		assert.Contains(t, domExtractionExpression, "MAX_DEPTH = 6")
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] expression contains MAX_CHILDREN_PER_NODE limit", func(t *testing.T) {
+		assert.Contains(t, domExtractionExpression, "MAX_CHILDREN_PER_NODE = 12")
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] expression contains MAX_TOTAL_NODES limit", func(t *testing.T) {
+		assert.Contains(t, domExtractionExpression, "MAX_TOTAL_NODES = 800")
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] expression contains TEXT_LIMIT", func(t *testing.T) {
+		assert.Contains(t, domExtractionExpression, "TEXT_LIMIT = 120")
+	})
+
+	t.Run("expression skips unwanted tags", func(t *testing.T) {
+		assert.Contains(t, domExtractionExpression, "'script'")
+		assert.Contains(t, domExtractionExpression, "'style'")
+		assert.Contains(t, domExtractionExpression, "'noscript'")
+	})
+
+	t.Run("expression is a valid IIFE", func(t *testing.T) {
+		assert.True(t, len(domExtractionExpression) > 0)
+		assert.Contains(t, domExtractionExpression, "(function()")
+		assert.Contains(t, domExtractionExpression, ")()")
+	})
+}
+
+// =============================================================================
+// Constants Tests
+// =============================================================================
+
+func TestDOMHandlerConstants(t *testing.T) {
+	t.Run("domExtractionNodeID is set", func(t *testing.T) {
+		assert.Equal(t, "dom.extract", domExtractionNodeID)
+	})
+
+	t.Run("defaultDomExtractionWaitMs is reasonable", func(t *testing.T) {
+		assert.Equal(t, 750, defaultDomExtractionWaitMs)
+		assert.Greater(t, defaultDomExtractionWaitMs, 0)
+		assert.Less(t, defaultDomExtractionWaitMs, 10000)
 	})
 }

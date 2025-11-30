@@ -53,11 +53,15 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 		ctx = context.Background()
 	}
 
-	// DEBUG: Check if context has a deadline
+	// Log context deadline for debugging timeout issues
 	if deadline, ok := ctx.Deadline(); ok {
-		fmt.Printf("[EXECUTOR_DEBUG] Execute called with context deadline: %v (in %v)\n", deadline, time.Until(deadline))
+		logrus.WithFields(logrus.Fields{
+			"execution_id":   req.Plan.ExecutionID,
+			"deadline":       deadline,
+			"time_remaining": time.Until(deadline).String(),
+		}).Debug("Execute called with context deadline")
 	} else {
-		fmt.Printf("[EXECUTOR_DEBUG] Execute called with NO context deadline\n")
+		logrus.WithField("execution_id", req.Plan.ExecutionID).Debug("Execute called without context deadline")
 	}
 
 	if err := e.validateRequest(req); err != nil {
@@ -68,9 +72,12 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
-		fmt.Printf("[EXECUTOR_DEBUG] Set execution timeout: %v\n", timeout)
+		logrus.WithFields(logrus.Fields{
+			"execution_id": req.Plan.ExecutionID,
+			"timeout":      timeout.String(),
+		}).Debug("Set execution timeout")
 	} else {
-		fmt.Printf("[EXECUTOR_DEBUG] No execution timeout set (executionTimeout returned 0)\n")
+		logrus.WithField("execution_id", req.Plan.ExecutionID).Debug("No execution timeout set")
 	}
 
 	engineName := req.EngineName
@@ -98,16 +105,26 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 	// Capabilities are fetched up front to allow callers to validate or log.
 	caps := req.EngineCaps
 	if caps == nil {
-		fmt.Printf("[EXECUTOR_DEBUG] About to fetch engine capabilities\n")
-		if deadline, ok := ctx.Deadline(); ok {
-			fmt.Printf("[EXECUTOR_DEBUG] ctx has deadline before Capabilities call: %v (in %v)\n", deadline, time.Until(deadline))
+		fields := logrus.Fields{
+			"execution_id": req.Plan.ExecutionID,
+			"engine":       engineName,
 		}
+		if deadline, ok := ctx.Deadline(); ok {
+			fields["deadline"] = deadline
+			fields["time_remaining"] = time.Until(deadline).String()
+		}
+		logrus.WithFields(fields).Debug("Fetching engine capabilities")
+
 		descriptor, err := eng.Capabilities(ctx)
 		if err != nil {
-			fmt.Printf("[EXECUTOR_DEBUG] eng.Capabilities FAILED: %v\n", err)
+			logrus.WithFields(logrus.Fields{
+				"execution_id": req.Plan.ExecutionID,
+				"engine":       engineName,
+				"error":        err.Error(),
+			}).Debug("Engine capabilities fetch failed")
 			return fmt.Errorf("engine capabilities: %w", err)
 		}
-		fmt.Printf("[EXECUTOR_DEBUG] Engine capabilities fetched successfully\n")
+		logrus.WithField("execution_id", req.Plan.ExecutionID).Debug("Engine capabilities fetched successfully")
 		caps = &descriptor
 	}
 	if err := caps.Validate(); err != nil {
@@ -253,7 +270,10 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 
 		normalized := e.normalizeOutcome(req.Plan, instruction, attempt, startedAt, outcome, runErr)
 
-		recordResult, recordErr := req.Recorder.RecordStepOutcome(ctx, req.Plan, normalized)
+		// Use WithoutCancel to ensure outcomes are persisted even when context is cancelled.
+		// This is critical for debugging and audit trails when executions are cancelled mid-flight.
+		persistCtx := context.WithoutCancel(ctx)
+		recordResult, recordErr := req.Recorder.RecordStepOutcome(persistCtx, req.Plan, normalized)
 		if recordErr != nil {
 			return session, fmt.Errorf("record step outcome: %w", recordErr)
 		}
@@ -270,7 +290,7 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 		if !normalized.Success {
 			eventKind = contracts.EventKindStepFailed
 		}
-		e.emitEvent(ctx, req, eventKind, &instruction.Index, &attempt, payload)
+		e.emitEvent(persistCtx, req, eventKind, &instruction.Index, &attempt, payload)
 
 		// Store extracted data to flowState if storeResult is specified
 		if normalized.Success && normalized.ExtractedData != nil {
@@ -315,6 +335,56 @@ func (e *SimpleExecutor) validateRequest(req Request) error {
 	case req.Plan.PayloadVersion != "" && req.Plan.PayloadVersion != contracts.PayloadVersion:
 		return fmt.Errorf("plan payload_version mismatch: got %s want %s", req.Plan.PayloadVersion, contracts.PayloadVersion)
 	}
+
+	// Validate WorkflowResolver is provided if plan contains external subflow references
+	if err := e.validateSubflowResolver(req); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateSubflowResolver checks that WorkflowResolver is provided if any subflow
+// instruction references an external workflowId (as opposed to inline workflowDefinition).
+// This catches configuration errors early with a clear message.
+func (e *SimpleExecutor) validateSubflowResolver(req Request) error {
+	if req.WorkflowResolver != nil {
+		return nil // Resolver present, no validation needed
+	}
+
+	// Check compiled instructions
+	for _, instr := range req.Plan.Instructions {
+		if !strings.EqualFold(strings.TrimSpace(instr.Type), "subflow") {
+			continue
+		}
+
+		// Check if this subflow references an external workflow (has workflowId)
+		// vs inline definition (has workflowDefinition)
+		if instr.Params == nil {
+			continue
+		}
+
+		hasWorkflowID := false
+		hasInlineDefinition := false
+
+		if wfID, ok := instr.Params["workflowId"]; ok && wfID != nil && wfID != "" {
+			hasWorkflowID = true
+		}
+		if wfDef, ok := instr.Params["workflowDefinition"]; ok && wfDef != nil {
+			hasInlineDefinition = true
+		}
+
+		// If workflowId is specified without inline definition, resolver is required
+		if hasWorkflowID && !hasInlineDefinition {
+			return fmt.Errorf(
+				"WorkflowResolver is required: subflow node %q references external workflow %v - "+
+					"provide a WorkflowResolver in the execution request to resolve external workflow references",
+				instr.NodeID,
+				instr.Params["workflowId"],
+			)
+		}
+	}
+
 	return nil
 }
 
@@ -460,7 +530,11 @@ func (e *SimpleExecutor) maybeRunEntrypointProbe(ctx context.Context, plan contr
 
 func entrySelectorFromPlan(plan contracts.ExecutionPlan) (string, int) {
 	if selector, ok := readString(plan.Metadata, "entrySelector"); ok {
-		fmt.Fprintf(os.Stderr, "[ENTRY_PROBE] Using explicit entrySelector from metadata: %q\n", selector)
+		logrus.WithFields(logrus.Fields{
+			"execution_id": plan.ExecutionID,
+			"selector":     selector,
+			"source":       "metadata",
+		}).Debug("Using explicit entrySelector from metadata")
 		return selector, readInt(plan.Metadata, "entrySelectorTimeoutMs", "entryTimeoutMs")
 	}
 
@@ -472,13 +546,18 @@ func entrySelectorFromPlan(plan contracts.ExecutionPlan) (string, int) {
 			return sorted[i].Index < sorted[j].Index
 		})
 		if sorted[0].Type == "navigate" {
-			fmt.Fprintf(os.Stderr, "[ENTRY_PROBE] Skipping entry probe - workflow starts with navigate\n")
+			logrus.WithField("execution_id", plan.ExecutionID).Debug("Skipping entry probe - workflow starts with navigate")
 			return "", 0
 		}
 	}
 
 	selector := firstSelectorFromInstructions(plan.Instructions)
-	fmt.Fprintf(os.Stderr, "[ENTRY_PROBE] Extracted selector from instructions (%d total): %q\n", len(plan.Instructions), selector)
+	logrus.WithFields(logrus.Fields{
+		"execution_id":      plan.ExecutionID,
+		"selector":          selector,
+		"instruction_count": len(plan.Instructions),
+		"source":            "instructions",
+	}).Debug("Extracted entry selector from instructions")
 	return selector, readInt(plan.Metadata, "entrySelectorTimeoutMs", "entryTimeoutMs")
 }
 
@@ -894,9 +973,26 @@ func instructionTimeout(plan contracts.ExecutionPlan, instruction contracts.Comp
 	return time.Duration(ms) * time.Millisecond
 }
 
+// Timeout configuration constants for dynamic timeout calculation.
+// These can be adjusted based on operational experience.
+const (
+	// baseExecutionTimeout is the minimum overhead for session setup, network round-trips, etc.
+	baseExecutionTimeout = 30 * time.Second
+	// perStepTimeout is the additional time allocated per instruction in a simple workflow.
+	perStepTimeout = 10 * time.Second
+	// perStepTimeoutWithSubflows increases per-step allocation for workflows with nested execution.
+	perStepTimeoutWithSubflows = 15 * time.Second
+	// minExecutionTimeout prevents unreasonably short timeouts for small workflows.
+	minExecutionTimeout = 90 * time.Second
+	// maxExecutionTimeout prevents timeouts from exceeding the HTTP client timeout (5 minutes).
+	// The 30-second buffer accounts for network overhead and response processing.
+	maxExecutionTimeout = 270 * time.Second // 4.5 minutes
+)
+
 // executionTimeout reads the execution-level timeout (ms) from plan metadata.
+// If not explicitly set, it calculates a dynamic timeout based on step count.
 func executionTimeout(plan contracts.ExecutionPlan) time.Duration {
-	// Check for explicit timeout in metadata
+	// Check for explicit timeout in metadata (takes precedence)
 	if plan.Metadata != nil {
 		if v, ok := plan.Metadata["executionTimeoutMs"]; ok {
 			switch t := v.(type) {
@@ -916,22 +1012,47 @@ func executionTimeout(plan contracts.ExecutionPlan) time.Duration {
 		}
 	}
 
-	// Default timeout: 120 seconds for workflows with subflows, 90 seconds otherwise
-	// This prevents infinite loops while allowing complex workflows to complete
+	// Calculate dynamic timeout based on step count and complexity
+	return computeDynamicTimeout(plan)
+}
+
+// computeDynamicTimeout calculates execution timeout based on the number and type of instructions.
+// Formula: base + (stepCount * perStepTimeout), clamped to [min, max]
+// This ensures complex workflows get proportionally more time while preventing unbounded timeouts.
+func computeDynamicTimeout(plan contracts.ExecutionPlan) time.Duration {
+	stepCount := len(plan.Instructions)
+	if stepCount == 0 {
+		return minExecutionTimeout
+	}
+
+	// Determine if workflow has subflows (which need more time per step)
 	hasSubflows := false
-	if plan.Instructions != nil {
-		for _, instr := range plan.Instructions {
-			if instr.Type == "subflow" {
-				hasSubflows = true
-				break
-			}
+	for _, instr := range plan.Instructions {
+		if strings.EqualFold(strings.TrimSpace(instr.Type), "subflow") {
+			hasSubflows = true
+			break
 		}
 	}
 
+	// Calculate timeout based on step count
+	var perStep time.Duration
 	if hasSubflows {
-		return 120 * time.Second
+		perStep = perStepTimeoutWithSubflows
+	} else {
+		perStep = perStepTimeout
 	}
-	return 90 * time.Second
+
+	// Dynamic timeout: base + (stepCount * perStep)
+	timeout := baseExecutionTimeout + time.Duration(stepCount)*perStep
+
+	// Clamp to valid range
+	if timeout < minExecutionTimeout {
+		return minExecutionTimeout
+	}
+	if timeout > maxExecutionTimeout {
+		return maxExecutionTimeout
+	}
+	return timeout
 }
 
 // recordTerminatedStep best-effort persists an outcome when execution is cancelled or times out,

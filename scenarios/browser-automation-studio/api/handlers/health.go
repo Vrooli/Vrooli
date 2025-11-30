@@ -49,7 +49,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Check browserless health
+	// Check automation engine health
 	var automationHealthy bool
 	var automationError map[string]any
 
@@ -73,6 +73,36 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Check storage health (MinIO)
+	var storageHealthy bool
+	var storageLatency float64
+	var storageError map[string]any
+
+	storageStart := time.Now()
+	if h.storage != nil {
+		if err := h.storage.HealthCheck(ctx); err != nil {
+			storageLatency = float64(time.Since(storageStart).Nanoseconds()) / 1e6
+			storageHealthy = false
+			storageError = map[string]any{
+				"code":      "STORAGE_CONNECTION_ERROR",
+				"message":   fmt.Sprintf("Storage health check failed: %v", err),
+				"category":  "resource",
+				"retryable": true,
+			}
+		} else {
+			storageLatency = float64(time.Since(storageStart).Nanoseconds()) / 1e6
+			storageHealthy = true
+		}
+	} else {
+		storageHealthy = false
+		storageError = map[string]any{
+			"code":      "STORAGE_NOT_INITIALIZED",
+			"message":   "Storage client not initialized - screenshot/artifact storage unavailable",
+			"category":  "internal",
+			"retryable": false,
+		}
+	}
+
 	// Overall service status
 	status := "healthy"
 	readiness := true
@@ -80,7 +110,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	if !databaseHealthy {
 		status = "unhealthy"
 		readiness = false
-	} else if !automationHealthy {
+	} else if !automationHealthy || !storageHealthy {
 		status = "degraded"
 		// Keep readiness true for degraded state - we can still serve some requests
 	}
@@ -90,6 +120,11 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		"database": map[string]any{
 			"connected":  databaseHealthy,
 			"latency_ms": databaseLatency,
+			"error":      nil,
+		},
+		"storage": map[string]any{
+			"connected":  storageHealthy,
+			"latency_ms": storageLatency,
 			"error":      nil,
 		},
 		"external_services": []map[string]any{
@@ -104,6 +139,9 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	// Add errors if present
 	if databaseError != nil {
 		dependencies["database"].(map[string]any)["error"] = databaseError
+	}
+	if storageError != nil {
+		dependencies["storage"].(map[string]any)["error"] = storageError
 	}
 	if automationError != nil {
 		dependencies["external_services"].([]map[string]any)[0]["error"] = automationError

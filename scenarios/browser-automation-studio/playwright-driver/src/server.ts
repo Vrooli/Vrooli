@@ -59,6 +59,17 @@ async function main() {
   const cleanup = new SessionCleanup(sessionManager, config);
   cleanup.start();
 
+  // Verify browser can launch (P0 hardening - catch Chromium issues early)
+  const browserError = await sessionManager.verifyBrowserLaunch();
+  if (browserError) {
+    logger.error('⚠️  Browser launch verification failed - sessions will fail', {
+      error: browserError,
+      hint: 'Common causes: missing Chromium, sandbox issues, insufficient memory',
+    });
+    // Continue running - health endpoint will report error state
+    // This allows operators to diagnose via /health without restart loops
+  }
+
   // Register handlers
   registerHandlers();
 

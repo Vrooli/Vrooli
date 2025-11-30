@@ -1,6 +1,6 @@
 import { handleHealth } from '../../../src/routes/health';
 import { SessionManager } from '../../../src/session/manager';
-import { createMockRequest, createMockResponse, waitForResponse, createTestConfig } from '../../helpers';
+import { createMockHttpRequest, createMockHttpResponse, waitForResponse, createTestConfig } from '../../helpers';
 
 // Mock playwright
 jest.mock('playwright', () => ({
@@ -10,10 +10,11 @@ jest.mock('playwright', () => ({
         newPage: jest.fn().mockResolvedValue({ on: jest.fn() }),
         clearCookies: jest.fn(),
         clearPermissions: jest.fn(),
-        close: jest.fn(),
+        close: jest.fn().mockResolvedValue(undefined),
       }),
-      close: jest.fn(),
+      close: jest.fn().mockResolvedValue(undefined),
       isConnected: jest.fn().mockReturnValue(true),
+      version: jest.fn().mockReturnValue('mock-version'),
     }),
   },
 }));
@@ -31,8 +32,8 @@ describe('Health Route', () => {
   });
 
   it('should return 200 OK', async () => {
-    const mockReq = createMockRequest({ method: 'GET', url: '/health' });
-    const mockRes = createMockResponse();
+    const mockReq = createMockHttpRequest({ method: 'GET', url: '/health' });
+    const mockRes = createMockHttpResponse();
 
     await handleHealth(mockReq, mockRes, sessionManager);
     await waitForResponse(mockRes);
@@ -41,8 +42,8 @@ describe('Health Route', () => {
   });
 
   it('should return status and active sessions count', async () => {
-    const mockReq = createMockRequest({ method: 'GET', url: '/health' });
-    const mockRes = createMockResponse();
+    const mockReq = createMockHttpRequest({ method: 'GET', url: '/health' });
+    const mockRes = createMockHttpResponse();
 
     await handleHealth(mockReq, mockRes, sessionManager);
     await waitForResponse(mockRes);
@@ -56,14 +57,15 @@ describe('Health Route', () => {
     // Create a session
     await sessionManager.startSession({
       execution_id: 'exec-123',
+      workflow_id: 'workflow-123',
       base_url: 'https://example.com',
       viewport: { width: 1280, height: 720 },
       reuse_mode: 'fresh',
       required_capabilities: {},
     });
 
-    const mockReq = createMockRequest({ method: 'GET', url: '/health' });
-    const mockRes = createMockResponse();
+    const mockReq = createMockHttpRequest({ method: 'GET', url: '/health' });
+    const mockRes = createMockHttpResponse();
 
     await handleHealth(mockReq, mockRes, sessionManager);
     await waitForResponse(mockRes);

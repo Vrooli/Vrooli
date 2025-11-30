@@ -1,19 +1,20 @@
 import { handleSessionClose } from '../../../src/routes/session-close';
 import { SessionManager } from '../../../src/session/manager';
-import { createMockRequest, createMockResponse, waitForResponse, createTestConfig } from '../../helpers';
+import { createMockHttpRequest, createMockHttpResponse, waitForResponse, createTestConfig } from '../../helpers';
 
 // Mock playwright
 jest.mock('playwright', () => ({
   chromium: {
     launch: jest.fn().mockResolvedValue({
       newContext: jest.fn().mockResolvedValue({
-        newPage: jest.fn().mockResolvedValue({ on: jest.fn() }),
+        newPage: jest.fn().mockResolvedValue({ on: jest.fn(), close: jest.fn().mockResolvedValue(undefined) }),
         clearCookies: jest.fn(),
         clearPermissions: jest.fn(),
-        close: jest.fn(),
+        close: jest.fn().mockResolvedValue(undefined),
       }),
-      close: jest.fn(),
+      close: jest.fn().mockResolvedValue(undefined),
       isConnected: jest.fn().mockReturnValue(true),
+      version: jest.fn().mockReturnValue('mock-version'),
     }),
   },
 }));
@@ -34,14 +35,15 @@ describe('Session Close Route', () => {
     // Create session first
     const sessionId = await sessionManager.startSession({
       execution_id: 'exec-123',
+      workflow_id: 'workflow-123',
       base_url: 'https://example.com',
       viewport: { width: 1280, height: 720 },
       reuse_mode: 'fresh',
       required_capabilities: {},
     });
 
-    const mockReq = createMockRequest({ method: 'POST', url: `/session/${sessionId}/close` });
-    const mockRes = createMockResponse();
+    const mockReq = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/close` });
+    const mockRes = createMockHttpResponse();
 
     await handleSessionClose(mockReq, mockRes, sessionId, sessionManager);
     await waitForResponse(mockRes);
@@ -52,8 +54,8 @@ describe('Session Close Route', () => {
   });
 
   it('should return 404 for non-existent session', async () => {
-    const mockReq = createMockRequest({ method: 'POST', url: '/session/non-existent/close' });
-    const mockRes = createMockResponse();
+    const mockReq = createMockHttpRequest({ method: 'POST', url: '/session/non-existent/close' });
+    const mockRes = createMockHttpResponse();
 
     await handleSessionClose(mockReq, mockRes, 'non-existent', sessionManager);
     await waitForResponse(mockRes);
@@ -65,14 +67,15 @@ describe('Session Close Route', () => {
     // Create session first
     const sessionId = await sessionManager.startSession({
       execution_id: 'exec-123',
+      workflow_id: 'workflow-123',
       base_url: 'https://example.com',
       viewport: { width: 1280, height: 720 },
       reuse_mode: 'fresh',
       required_capabilities: {},
     });
 
-    const mockReq = createMockRequest({ method: 'POST', url: `/session/${sessionId}/close` });
-    const mockRes = createMockResponse();
+    const mockReq = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/close` });
+    const mockRes = createMockHttpResponse();
 
     await handleSessionClose(mockReq, mockRes, sessionId, sessionManager);
     await waitForResponse(mockRes);

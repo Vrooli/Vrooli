@@ -1,7 +1,6 @@
-import { createTestInstruction } from '../../helpers';
+import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { NavigationHandler } from '../../../src/handlers/navigation';
-import type { CompiledInstruction, HandlerContext } from '../../../src/types';
-import { createMockPage, createTestConfig } from '../../helpers';
+import type { HandlerContext } from '../../../src/types';
 import { logger, metrics } from '../../../src/utils';
 
 describe('NavigationHandler', () => {
@@ -51,9 +50,7 @@ describe('NavigationHandler', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should use current URL when url not provided', async () => {
-      mockPage.url.mockReturnValue('https://current-page.com');
-
+    it('should return error when url not provided', async () => {
       const instruction = createTestInstruction({
         type: 'navigate',
         params: {},
@@ -62,11 +59,8 @@ describe('NavigationHandler', () => {
 
       const result = await handler.execute(instruction, context);
 
-      expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://current-page.com',
-        expect.any(Object)
-      );
-      expect(result.success).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('MISSING_PARAM');
     });
 
     it('should use custom timeout when provided', async () => {

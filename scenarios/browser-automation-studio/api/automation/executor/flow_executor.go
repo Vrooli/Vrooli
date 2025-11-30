@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/database"
@@ -67,23 +68,35 @@ func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, execCtx 
 }
 
 func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, state *flowState, reuseMode engine.SessionReuseMode) (contracts.StepOutcome, engine.EngineSession, error) {
-	fmt.Printf("[EXECUTOR_DEBUG] executePlanStep: nodeID=%s, type=%s, isSubflow=%v\n", step.NodeID, step.Type, isSubflowStep(step.Type))
+	logrus.WithFields(logrus.Fields{
+		"execution_id": req.Plan.ExecutionID,
+		"node_id":      step.NodeID,
+		"step_type":    step.Type,
+		"is_subflow":   isSubflowStep(step.Type),
+	}).Debug("Executing plan step")
 
 	if strings.EqualFold(strings.TrimSpace(step.Type), "workflowcall") {
 		return contracts.StepOutcome{}, session, fmt.Errorf("workflowCall nodes are no longer supported; use subflow instead")
 	}
 	if isSubflowStep(step.Type) {
-		fmt.Printf("[EXECUTOR_DEBUG] executePlanStep: calling executeSubflow for nodeID=%s\n", step.NodeID)
+		logrus.WithFields(logrus.Fields{
+			"execution_id": req.Plan.ExecutionID,
+			"node_id":      step.NodeID,
+		}).Debug("Executing subflow")
 		return e.executeSubflow(ctx, req, execCtx, eng, spec, session, step, state, reuseMode)
 	}
 
 	if session == nil {
-		// DEBUG: Check context deadline before StartSession
-		if deadline, ok := ctx.Deadline(); ok {
-			fmt.Printf("[EXECUTOR_DEBUG] StartSession called with deadline: %v (in %v)\n", deadline, time.Until(deadline))
-		} else {
-			fmt.Printf("[EXECUTOR_DEBUG] StartSession called with NO deadline\n")
+		fields := logrus.Fields{
+			"execution_id": req.Plan.ExecutionID,
+			"node_id":      step.NodeID,
 		}
+		if deadline, ok := ctx.Deadline(); ok {
+			fields["deadline"] = deadline
+			fields["time_remaining"] = time.Until(deadline).String()
+		}
+		logrus.WithFields(fields).Debug("Starting new session")
+
 		newSession, err := eng.StartSession(ctx, spec)
 		if err != nil {
 			return contracts.StepOutcome{}, session, fmt.Errorf("start session: %w", err)
@@ -350,12 +363,17 @@ func (e *SimpleExecutor) executeSubflow(ctx context.Context, req Request, execCt
 }
 
 func (e *SimpleExecutor) runSubflow(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, state *flowState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
-	fmt.Printf("[EXECUTOR_DEBUG] runSubflow ENTER: depth=%d/%d, nodeID=%s\n", len(execCtx.callStack), execCtx.maxDepth, step.NodeID)
-	if deadline, ok := ctx.Deadline(); ok {
-		fmt.Printf("[EXECUTOR_DEBUG] runSubflow context deadline: %v (in %v)\n", deadline, time.Until(deadline))
-	} else {
-		fmt.Printf("[EXECUTOR_DEBUG] runSubflow context has NO deadline\n")
+	fields := logrus.Fields{
+		"execution_id":  req.Plan.ExecutionID,
+		"node_id":       step.NodeID,
+		"current_depth": len(execCtx.callStack),
+		"max_depth":     execCtx.maxDepth,
 	}
+	if deadline, ok := ctx.Deadline(); ok {
+		fields["deadline"] = deadline
+		fields["time_remaining"] = time.Until(deadline).String()
+	}
+	logrus.WithFields(fields).Debug("Entering subflow")
 
 	if execCtx.maxDepth > 0 && len(execCtx.callStack) >= execCtx.maxDepth {
 		return session, fmt.Errorf("subflow depth exceeded (max %d)", execCtx.maxDepth)
@@ -365,7 +383,10 @@ func (e *SimpleExecutor) runSubflow(ctx context.Context, req Request, execCtx ex
 	if err != nil {
 		return session, err
 	}
-	fmt.Printf("[EXECUTOR_DEBUG] runSubflow: parsed spec for nodeID=%s\n", step.NodeID)
+	logrus.WithFields(logrus.Fields{
+		"execution_id": req.Plan.ExecutionID,
+		"node_id":      step.NodeID,
+	}).Debug("Parsed subflow spec")
 
 	// Detect reference loops.
 	if specData.workflowID != nil {
@@ -378,17 +399,33 @@ func (e *SimpleExecutor) runSubflow(ctx context.Context, req Request, execCtx ex
 
 	childWorkflow, childWorkflowID, err := resolveSubflowWorkflow(ctx, req, specData)
 	if err != nil {
-		fmt.Printf("[EXECUTOR_DEBUG] runSubflow: FAILED to resolve workflow: %v\n", err)
+		logrus.WithFields(logrus.Fields{
+			"execution_id": req.Plan.ExecutionID,
+			"node_id":      step.NodeID,
+			"error":        err.Error(),
+		}).Debug("Failed to resolve subflow workflow")
 		return session, err
 	}
-	fmt.Printf("[EXECUTOR_DEBUG] runSubflow: resolved childWorkflowID=%s\n", childWorkflowID)
+	logrus.WithFields(logrus.Fields{
+		"execution_id":      req.Plan.ExecutionID,
+		"node_id":           step.NodeID,
+		"child_workflow_id": childWorkflowID,
+	}).Debug("Resolved subflow workflow")
 
 	childPlan, _, err := BuildContractsPlanWithCompiler(ctx, req.Plan.ExecutionID, childWorkflow, execCtx.compiler)
 	if err != nil {
-		fmt.Printf("[EXECUTOR_DEBUG] runSubflow: FAILED to compile: %v\n", err)
+		logrus.WithFields(logrus.Fields{
+			"execution_id":      req.Plan.ExecutionID,
+			"child_workflow_id": childWorkflowID,
+			"error":             err.Error(),
+		}).Debug("Failed to compile subflow")
 		return session, fmt.Errorf("compile subflow %s: %w", childWorkflowID.String(), err)
 	}
-	fmt.Printf("[EXECUTOR_DEBUG] runSubflow: compiled childPlan with %d steps\n", len(childPlan.Instructions))
+	logrus.WithFields(logrus.Fields{
+		"execution_id":      req.Plan.ExecutionID,
+		"child_workflow_id": childWorkflowID,
+		"step_count":        len(childPlan.Instructions),
+	}).Debug("Compiled subflow plan")
 
 	childCount := planStepCount(childPlan)
 	baseIndex := state.allocateIndexRange(childCount)
@@ -412,9 +449,23 @@ func (e *SimpleExecutor) runSubflow(ctx context.Context, req Request, execCtx ex
 	childCtx := execCtx
 	childCtx.callStack = childReq.SubflowStack
 
-	fmt.Printf("[EXECUTOR_DEBUG] runSubflow: about to call runPlan recursively for childWorkflowID=%s\n", childWorkflowID)
+	logrus.WithFields(logrus.Fields{
+		"execution_id":      req.Plan.ExecutionID,
+		"child_workflow_id": childWorkflowID,
+	}).Debug("Executing subflow plan recursively")
+
 	updatedSession, err := e.runPlan(ctx, childReq, childCtx, eng, spec, session, childState, reuseMode)
-	fmt.Printf("[EXECUTOR_DEBUG] runSubflow: runPlan returned for childWorkflowID=%s, err=%v\n", childWorkflowID, err)
+
+	logFields := logrus.Fields{
+		"execution_id":      req.Plan.ExecutionID,
+		"child_workflow_id": childWorkflowID,
+		"success":           err == nil,
+	}
+	if err != nil {
+		logFields["error"] = err.Error()
+	}
+	logrus.WithFields(logFields).Debug("Subflow execution completed")
+
 	state.merge(childState.vars)
 	return updatedSession, err
 }

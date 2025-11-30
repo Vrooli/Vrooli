@@ -3,14 +3,13 @@ import {
   SessionNotFoundError,
   SelectorNotFoundError,
   FrameNotFoundError,
-  TabNotFoundError,
-  InvalidParameterError,
+  InvalidInstructionError,
   UnsupportedInstructionError,
-  AssertionFailedError,
   ResourceLimitError,
   TimeoutError,
-  NetworkError,
-  ValidationError,
+  NavigationError,
+  ConfigurationError,
+  normalizeError,
 } from '../../../src/utils/errors';
 
 describe('Errors', () => {
@@ -31,6 +30,12 @@ describe('Errors', () => {
       expect(error.kind).toBe('timeout');
       expect(error.retryable).toBe(true);
     });
+
+    it('should accept details', () => {
+      const error = new PlaywrightDriverError('Test error', 'TEST_ERROR', 'engine', false, { foo: 'bar' });
+
+      expect(error.details).toEqual({ foo: 'bar' });
+    });
   });
 
   describe('SessionNotFoundError', () => {
@@ -39,7 +44,7 @@ describe('Errors', () => {
 
       expect(error.message).toBe('Session not found: session-123');
       expect(error.code).toBe('SESSION_NOT_FOUND');
-      expect(error.kind).toBe('user');
+      expect(error.kind).toBe('engine');
       expect(error.retryable).toBe(false);
       expect(error.name).toBe('SessionNotFoundError');
     });
@@ -51,8 +56,8 @@ describe('Errors', () => {
 
       expect(error.message).toBe('Selector not found: #test-selector');
       expect(error.code).toBe('SELECTOR_NOT_FOUND');
-      expect(error.kind).toBe('user');
-      expect(error.retryable).toBe(false);
+      expect(error.kind).toBe('engine');
+      expect(error.retryable).toBe(true);
       expect(error.name).toBe('SelectorNotFoundError');
     });
 
@@ -67,31 +72,33 @@ describe('Errors', () => {
     it('should create frame not found error with selector', () => {
       const error = new FrameNotFoundError('iframe#test');
 
-      expect(error.message).toBe('Frame not found: iframe#test');
+      expect(error.message).toContain('Frame not found');
+      expect(error.message).toContain('selector=iframe#test');
       expect(error.code).toBe('FRAME_NOT_FOUND');
-      expect(error.kind).toBe('user');
-      expect(error.retryable).toBe(false);
+      expect(error.kind).toBe('engine');
+      expect(error.retryable).toBe(true);
+    });
+
+    it('should create frame not found error with frameId', () => {
+      const error = new FrameNotFoundError(undefined, 'frame-123');
+
+      expect(error.message).toContain('frameId=frame-123');
+    });
+
+    it('should create frame not found error with frameUrl', () => {
+      const error = new FrameNotFoundError(undefined, undefined, 'https://example.com/frame');
+
+      expect(error.message).toContain('url=https://example.com/frame');
     });
   });
 
-  describe('TabNotFoundError', () => {
-    it('should create tab not found error', () => {
-      const error = new TabNotFoundError('tab-123');
+  describe('InvalidInstructionError', () => {
+    it('should create invalid instruction error', () => {
+      const error = new InvalidInstructionError('Missing selector parameter');
 
-      expect(error.message).toBe('Tab not found: tab-123');
-      expect(error.code).toBe('TAB_NOT_FOUND');
-      expect(error.kind).toBe('user');
-      expect(error.retryable).toBe(false);
-    });
-  });
-
-  describe('InvalidParameterError', () => {
-    it('should create invalid parameter error', () => {
-      const error = new InvalidParameterError('timeout', 'must be positive');
-
-      expect(error.message).toBe('Invalid parameter "timeout": must be positive');
-      expect(error.code).toBe('INVALID_PARAMETER');
-      expect(error.kind).toBe('user');
+      expect(error.message).toBe('Missing selector parameter');
+      expect(error.code).toBe('INVALID_INSTRUCTION');
+      expect(error.kind).toBe('orchestration');
       expect(error.retryable).toBe(false);
     });
   });
@@ -102,65 +109,111 @@ describe('Errors', () => {
 
       expect(error.message).toBe('Unsupported instruction type: custom-action');
       expect(error.code).toBe('UNSUPPORTED_INSTRUCTION');
-      expect(error.kind).toBe('user');
+      expect(error.kind).toBe('orchestration');
       expect(error.retryable).toBe(false);
-    });
-  });
-
-  describe('AssertionFailedError', () => {
-    it('should create assertion failed error with expected and actual', () => {
-      const error = new AssertionFailedError('Element should be visible', 'visible', 'hidden');
-
-      expect(error.message).toBe('Element should be visible');
-      expect(error.code).toBe('ASSERTION_FAILED');
-      expect(error.kind).toBe('user');
-      expect(error.retryable).toBe(false);
-      expect(error.expected).toBe('visible');
-      expect(error.actual).toBe('hidden');
     });
   });
 
   describe('ResourceLimitError', () => {
     it('should create resource limit error', () => {
-      const error = new ResourceLimitError('sessions', 10);
+      const error = new ResourceLimitError('Too many sessions', { limit: 10, current: 10 });
 
-      expect(error.message).toBe('Resource limit exceeded for sessions (limit: 10)');
-      expect(error.code).toBe('RESOURCE_LIMIT_EXCEEDED');
+      expect(error.message).toBe('Too many sessions');
+      expect(error.code).toBe('RESOURCE_LIMIT');
       expect(error.kind).toBe('infra');
-      expect(error.retryable).toBe(true);
+      expect(error.retryable).toBe(false);
+      expect(error.details).toEqual({ limit: 10, current: 10 });
     });
   });
 
   describe('TimeoutError', () => {
-    it('should create timeout error with operation and duration', () => {
-      const error = new TimeoutError('navigation', 30000);
+    it('should create timeout error with message and timeout', () => {
+      const error = new TimeoutError('Navigation timed out', 30000);
 
-      expect(error.message).toBe('Operation timed out: navigation (30000ms)');
+      expect(error.message).toBe('Navigation timed out');
       expect(error.code).toBe('TIMEOUT');
       expect(error.kind).toBe('timeout');
       expect(error.retryable).toBe(true);
+      expect(error.details).toEqual({ timeout: 30000 });
     });
   });
 
-  describe('NetworkError', () => {
-    it('should create network error', () => {
-      const error = new NetworkError('Failed to connect to server');
+  describe('NavigationError', () => {
+    it('should create navigation error', () => {
+      const error = new NavigationError('Page load failed', 'https://example.com');
 
-      expect(error.message).toBe('Failed to connect to server');
-      expect(error.code).toBe('NETWORK_ERROR');
-      expect(error.kind).toBe('infra');
+      expect(error.message).toBe('Page load failed');
+      expect(error.code).toBe('NAVIGATION_ERROR');
+      expect(error.kind).toBe('engine');
       expect(error.retryable).toBe(true);
+      expect(error.details).toEqual({ url: 'https://example.com' });
     });
   });
 
-  describe('ValidationError', () => {
-    it('should create validation error', () => {
-      const error = new ValidationError('Invalid instruction format');
+  describe('ConfigurationError', () => {
+    it('should create configuration error', () => {
+      const error = new ConfigurationError('Invalid browser config', { option: 'headless' });
 
-      expect(error.message).toBe('Invalid instruction format');
-      expect(error.code).toBe('VALIDATION_ERROR');
-      expect(error.kind).toBe('user');
+      expect(error.message).toBe('Invalid browser config');
+      expect(error.code).toBe('CONFIGURATION_ERROR');
+      expect(error.kind).toBe('orchestration');
       expect(error.retryable).toBe(false);
+    });
+  });
+
+  describe('normalizeError', () => {
+    it('should return PlaywrightDriverError unchanged', () => {
+      const original = new SelectorNotFoundError('#test');
+      const result = normalizeError(original);
+
+      expect(result).toBe(original);
+    });
+
+    it('should convert timeout errors', () => {
+      const original = new Error('Timeout 30000ms exceeded');
+      const result = normalizeError(original);
+
+      expect(result).toBeInstanceOf(TimeoutError);
+      expect(result.code).toBe('TIMEOUT');
+    });
+
+    it('should convert selector errors', () => {
+      const original = new Error('Element not found for selector');
+      const result = normalizeError(original);
+
+      expect(result).toBeInstanceOf(SelectorNotFoundError);
+      expect(result.code).toBe('SELECTOR_NOT_FOUND');
+    });
+
+    it('should convert navigation errors', () => {
+      const original = new Error('Navigation failed');
+      const result = normalizeError(original);
+
+      expect(result).toBeInstanceOf(NavigationError);
+      expect(result.code).toBe('NAVIGATION_ERROR');
+    });
+
+    it('should convert frame errors', () => {
+      const original = new Error('Frame not found');
+      const result = normalizeError(original);
+
+      expect(result).toBeInstanceOf(FrameNotFoundError);
+      expect(result.code).toBe('FRAME_NOT_FOUND');
+    });
+
+    it('should create generic error for unknown errors', () => {
+      const original = new Error('Something unexpected happened');
+      const result = normalizeError(original);
+
+      expect(result).toBeInstanceOf(PlaywrightDriverError);
+      expect(result.code).toBe('PLAYWRIGHT_ERROR');
+    });
+
+    it('should handle non-Error objects', () => {
+      const result = normalizeError('string error');
+
+      expect(result).toBeInstanceOf(PlaywrightDriverError);
+      expect(result.code).toBe('UNKNOWN_ERROR');
     });
   });
 

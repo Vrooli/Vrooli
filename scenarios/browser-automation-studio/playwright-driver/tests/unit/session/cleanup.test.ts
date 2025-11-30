@@ -10,13 +10,15 @@ jest.mock('playwright', () => ({
         newPage: jest.fn().mockResolvedValue({
           on: jest.fn(),
           goto: jest.fn(),
+          close: jest.fn().mockResolvedValue(undefined),
         }),
-        clearCookies: jest.fn(),
-        clearPermissions: jest.fn(),
-        close: jest.fn(),
+        clearCookies: jest.fn().mockResolvedValue(undefined),
+        clearPermissions: jest.fn().mockResolvedValue(undefined),
+        close: jest.fn().mockResolvedValue(undefined),
       }),
-      close: jest.fn(),
+      close: jest.fn().mockResolvedValue(undefined),
       isConnected: jest.fn().mockReturnValue(true),
+      version: jest.fn().mockReturnValue('mock-version'),
     }),
   },
 }));
@@ -31,6 +33,7 @@ describe('SessionCleanup', () => {
       session: {
         maxConcurrent: 10,
         idleTimeoutMs: 100,
+        poolSize: 5,
         cleanupIntervalMs: 50,
       },
     });
@@ -147,6 +150,7 @@ describe('SessionCleanup', () => {
         session: {
           maxConcurrent: 10,
           idleTimeoutMs: 50,
+          poolSize: 5,
           cleanupIntervalMs: 25,
         },
       });
@@ -156,6 +160,7 @@ describe('SessionCleanup', () => {
       // Create a session
       const sessionId = await realManager.startSession({
         execution_id: 'exec-123',
+        workflow_id: 'workflow-123',
         base_url: 'https://example.com',
         viewport: { width: 1280, height: 720 },
         reuse_mode: 'fresh',

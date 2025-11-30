@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -546,6 +547,226 @@ func assertEvents(t *testing.T, events []contracts.EventEnvelope, executionID uu
 		}
 	}
 }
+
+// TestContextCancellationPersistsFailure verifies that when a context is cancelled
+// mid-execution, the executor:
+// 1. Returns context.Canceled error
+// 2. Records a step outcome with FailureKindCancelled
+// 3. Emits a StepFailed event with proper failure taxonomy
+// 4. Uses context.WithoutCancel for cleanup persistence (A15)
+func TestContextCancellationPersistsFailure(t *testing.T) {
+	if testDBHandle == nil {
+		t.Skip("test database not initialized")
+	}
+
+	repo, db, cleanup := setupRepo(t)
+	defer cleanup()
+
+	executionID := uuid.New()
+	workflowID := uuid.New()
+
+	log := logrus.New()
+	log.SetOutput(io.Discard)
+
+	createWorkflowFixture(t, repo, db, workflowID, executionID)
+
+	plan := contracts.ExecutionPlan{
+		SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
+		PayloadVersion: contracts.PayloadVersion,
+		ExecutionID:    executionID,
+		WorkflowID:     workflowID,
+		Instructions: []contracts.CompiledInstruction{
+			{Index: 0, NodeID: "slow-nav", Type: "navigate", Params: map[string]any{"url": "https://slow.example.test"}},
+		},
+		CreatedAt: time.Now().UTC(),
+	}
+
+	memSink := events.NewMemorySink(contracts.DefaultEventBufferLimits)
+	rec := recorder.NewDBRecorder(repo, nil, log)
+
+	// Signal channel to know when the slow step has started
+	stepStarted := make(chan struct{})
+
+	// Use a slow session that will be cancelled mid-execution
+	slowStub := &slowCancellableEngineWithSignal{
+		delay:     500 * time.Millisecond,
+		onRunStep: func() { close(stepStarted) },
+	}
+
+	exec := NewSimpleExecutor(nil)
+	req := Request{
+		Plan:              plan,
+		EngineName:        slowStub.Name(),
+		EngineFactory:     engine.NewStaticFactory(slowStub),
+		Recorder:          rec,
+		EventSink:         memSink,
+		HeartbeatInterval: 0,
+	}
+
+	// Create a context that will be cancelled during execution
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Cancel after the step has started but before it completes
+	go func() {
+		<-stepStarted // Wait for step to actually start
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+
+	err := exec.Execute(ctx, req)
+
+	// 1. Verify we get a cancellation error
+	if err == nil {
+		t.Fatal("expected context cancellation error, got nil")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled error, got: %v", err)
+	}
+
+	// 2. Verify events were emitted (check events first since they're in-memory)
+	evs := memSink.Events()
+	var foundFailedEvent bool
+
+	for _, ev := range evs {
+		if ev.Kind == contracts.EventKindStepFailed {
+			foundFailedEvent = true
+			payload, ok := ev.Payload.(map[string]any)
+			if !ok {
+				t.Fatalf("step_failed event has wrong payload type: %T", ev.Payload)
+			}
+			outcome, ok := payload["outcome"].(contracts.StepOutcome)
+			if !ok {
+				t.Fatalf("step_failed event payload outcome is not StepOutcome: %T", payload["outcome"])
+			}
+			if outcome.Failure == nil {
+				t.Error("step_failed event outcome should have failure")
+			} else {
+				if outcome.Failure.Kind != contracts.FailureKindCancelled {
+					t.Errorf("expected cancelled failure kind, got %q", outcome.Failure.Kind)
+				}
+				if outcome.Failure.Retryable {
+					t.Error("cancelled failure should not be retryable")
+				}
+				if outcome.Failure.Source != contracts.FailureSourceExecutor {
+					t.Errorf("expected executor failure source, got %q", outcome.Failure.Source)
+				}
+			}
+			break
+		}
+	}
+
+	if !foundFailedEvent {
+		t.Error("expected step_failed event to be emitted on cancellation")
+	}
+
+	// 3. Verify the failure was persisted to the database
+	ctx2 := context.Background()
+	artifacts, dbErr := repo.ListExecutionArtifacts(ctx2, executionID)
+	if dbErr != nil {
+		t.Fatalf("failed to list execution artifacts: %v", dbErr)
+	}
+
+	// Should have recorded at least one step outcome artifact
+	var foundCancelledOutcome bool
+	for _, art := range artifacts {
+		if art.ArtifactType == "step_outcome" {
+			payload, ok := art.Payload["outcome"].(map[string]any)
+			if !ok {
+				continue
+			}
+			failure, ok := payload["failure"].(map[string]any)
+			if !ok {
+				continue
+			}
+			if kind, ok := failure["kind"].(string); ok && kind == "cancelled" {
+				foundCancelledOutcome = true
+				// Verify failure taxonomy
+				if retryable, ok := failure["retryable"].(bool); ok && retryable {
+					t.Error("cancelled failure should not be retryable")
+				}
+				if source, ok := failure["source"].(string); ok && source != "executor" {
+					t.Errorf("cancelled failure source should be 'executor', got %q", source)
+				}
+				break
+			}
+		}
+	}
+
+	if !foundCancelledOutcome {
+		t.Error("expected step_outcome artifact with cancelled failure kind")
+	}
+}
+
+// slowCancellableEngineWithSignal is a test engine that signals when a step starts
+// and introduces delay to simulate slow operations, allowing for controlled cancellation testing.
+type slowCancellableEngineWithSignal struct {
+	delay     time.Duration
+	onRunStep func() // Called when a non-probe step starts
+}
+
+func (e *slowCancellableEngineWithSignal) Name() string { return "slow-cancellable-engine" }
+
+func (e *slowCancellableEngineWithSignal) Capabilities(context.Context) (contracts.EngineCapabilities, error) {
+	return contracts.EngineCapabilities{
+		SchemaVersion:         contracts.CapabilitiesSchemaVersion,
+		Engine:                e.Name(),
+		MaxConcurrentSessions: 1,
+	}, nil
+}
+
+func (e *slowCancellableEngineWithSignal) StartSession(context.Context, engine.SessionSpec) (engine.EngineSession, error) {
+	return &slowCancellableSessionWithSignal{delay: e.delay, onRunStep: e.onRunStep}, nil
+}
+
+type slowCancellableSessionWithSignal struct {
+	delay       time.Duration
+	onRunStep   func()
+	signalFired bool
+}
+
+func (s *slowCancellableSessionWithSignal) Run(ctx context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+	// Handle entry probe immediately
+	if instruction.Index == -1 || instruction.NodeID == entryProbeNodeID {
+		now := time.Now().UTC()
+		return contracts.StepOutcome{
+			SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			StepIndex:      instruction.Index,
+			NodeID:         instruction.NodeID,
+			StepType:       instruction.Type,
+			Success:        true,
+			StartedAt:      now,
+			CompletedAt:    &now,
+		}, nil
+	}
+
+	// Signal that the step has started (only once)
+	if s.onRunStep != nil && !s.signalFired {
+		s.signalFired = true
+		s.onRunStep()
+	}
+
+	// Wait for the delay, checking for context cancellation
+	select {
+	case <-ctx.Done():
+		return contracts.StepOutcome{}, ctx.Err()
+	case <-time.After(s.delay):
+		now := time.Now().UTC()
+		return contracts.StepOutcome{
+			SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			StepIndex:      instruction.Index,
+			NodeID:         instruction.NodeID,
+			StepType:       instruction.Type,
+			Success:        true,
+			StartedAt:      now,
+			CompletedAt:    &now,
+		}, nil
+	}
+}
+
+func (s *slowCancellableSessionWithSignal) Reset(context.Context) error { return nil }
+func (s *slowCancellableSessionWithSignal) Close(context.Context) error { return nil }
 
 func groupArtifactsByStep(artifacts []*database.ExecutionArtifact) map[int][]*database.ExecutionArtifact {
 	out := make(map[int][]*database.ExecutionArtifact)

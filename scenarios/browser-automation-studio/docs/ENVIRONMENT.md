@@ -82,6 +82,65 @@ export UI_HOST="ui.browser-automation.local"
 export ALLOWED_ORIGINS="https://app.example.com,https://dashboard.example.com"
 ```
 
+## Timeout Hierarchy
+
+Understanding the timeout relationships between components is critical for debugging "context deadline exceeded" errors and ensuring long-running operations complete successfully.
+
+### Timeout Stack (outer to inner)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Go API HTTP Client Timeout: 5 minutes                      │
+│   (playwright_engine.go:48)                                 │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │ Playwright Driver Request Timeout: 5 minutes       │   │
+│   │   (playwright-driver/src/config.ts:7)              │   │
+│   │   ┌─────────────────────────────────────────────┐   │   │
+│   │   │ Workflow Execution Timeout:                 │   │   │
+│   │   │   - 90s for simple workflows (default)      │   │   │
+│   │   │   - 120s for workflows with subflows        │   │   │
+│   │   │   - Configurable via executionTimeoutMs     │   │   │
+│   │   │   (simple_executor.go:918-935)              │   │   │
+│   │   │   ┌─────────────────────────────────────┐   │   │   │
+│   │   │   │ Step Timeout: per-instruction      │   │   │   │
+│   │   │   │   - Uses workflow execution timeout│   │   │   │
+│   │   │   │   - Plus 2s HTTP buffer            │   │   │   │
+│   │   │   │   (simple_executor.go:783-784)     │   │   │   │
+│   │   │   └─────────────────────────────────────┘   │   │   │
+│   │   └─────────────────────────────────────────────┘   │   │
+│   └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Key Timeout Values
+
+| Component | Timeout | Location | Notes |
+|-----------|---------|----------|-------|
+| Go HTTP Client | 5 min | `playwright_engine.go:48` | Outer bound for all driver calls |
+| Driver Request | 5 min | `config.ts:7` | Must be <= Go HTTP timeout |
+| Workflow Execution | 90-120s | `simple_executor.go:918-935` | Configurable via metadata |
+| Step + HTTP Buffer | timeout + 2s | `simple_executor.go:783-784` | Prevents network overhead from causing step timeouts |
+| Health Check | 5s | `main.go:performStartupHealthCheck` | Startup-only |
+
+### Best Practices
+
+1. **Inner timeouts should be smaller than outer timeouts** to ensure errors are reported correctly:
+   - Workflow timeout < Driver timeout < HTTP Client timeout
+
+2. **Use `executionTimeoutMs` in workflow metadata** to customize timeout for long-running workflows:
+   ```json
+   {
+     "metadata": {
+       "executionTimeoutMs": 180000
+     }
+   }
+   ```
+
+3. **Debug "context deadline exceeded"**:
+   - If from Go API: Check workflow timeout vs step complexity
+   - If from driver: Check Playwright operation timeout vs page load times
+   - If from HTTP layer: Network issues between API and driver
+
 ## Important Notes
 
 1. **No Fallbacks**: This scenario follows a fail-fast philosophy. If required environment variables are missing, services will exit with clear error messages rather than using fallback values.

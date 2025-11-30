@@ -1,4 +1,4 @@
-import { captureScreenshot } from '../../../src/telemetry/screenshot';
+import { captureScreenshot, captureCompressedScreenshot } from '../../../src/telemetry/screenshot';
 import { createMockPage, createTestConfig } from '../../helpers';
 
 describe('Screenshot', () => {
@@ -11,41 +11,16 @@ describe('Screenshot', () => {
   });
 
   describe('captureScreenshot', () => {
-    it('should capture PNG screenshot by default', async () => {
+    it('should capture PNG screenshot', async () => {
       const screenshot = await captureScreenshot(mockPage, config);
 
       expect(mockPage.screenshot).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'png',
-          fullPage: false,
         })
       );
       expect(screenshot).toBeDefined();
-      expect(screenshot?.format).toBe('png');
-    });
-
-    it('should capture JPEG screenshot when configured', async () => {
-      const configJPEG = createTestConfig({
-        telemetry: {
-          screenshot: {
-            enabled: true,
-            format: 'jpeg',
-            quality: 80,
-            fullPage: false,
-            maxSizeBytes: 5 * 1024 * 1024,
-          },
-        },
-      });
-
-      const screenshot = await captureScreenshot(mockPage, configJPEG);
-
-      expect(mockPage.screenshot).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'jpeg',
-          quality: 80,
-        })
-      );
-      expect(screenshot?.format).toBe('jpeg');
+      expect(screenshot?.media_type).toBe('image/png');
     });
 
     it('should capture full page when configured', async () => {
@@ -53,11 +28,16 @@ describe('Screenshot', () => {
         telemetry: {
           screenshot: {
             enabled: true,
-            format: 'png',
-            quality: 80,
             fullPage: true,
+            quality: 80,
             maxSizeBytes: 5 * 1024 * 1024,
           },
+          video: { enabled: false },
+          dom: { enabled: true, maxSizeBytes: 1 * 1024 * 1024 },
+          console: { enabled: true, maxEntries: 100 },
+          network: { enabled: true, maxEvents: 500 },
+          har: { enabled: false },
+          tracing: { enabled: false },
         },
       });
 
@@ -76,16 +56,16 @@ describe('Screenshot', () => {
 
       const screenshot = await captureScreenshot(mockPage, config);
 
-      expect(screenshot?.data).toBe(mockBuffer.toString('base64'));
+      expect(screenshot?.base64).toBe(mockBuffer.toString('base64'));
     });
 
     it('should include viewport dimensions', async () => {
-      mockPage.viewport.mockReturnValue({ width: 1920, height: 1080 });
+      mockPage.viewportSize.mockReturnValue({ width: 1920, height: 1080 });
 
       const screenshot = await captureScreenshot(mockPage, config);
 
-      expect(screenshot?.viewport_width).toBe(1920);
-      expect(screenshot?.viewport_height).toBe(1080);
+      expect(screenshot?.width).toBe(1920);
+      expect(screenshot?.height).toBe(1080);
     });
 
     it('should handle viewport-only screenshot when full page too large', async () => {
@@ -93,11 +73,16 @@ describe('Screenshot', () => {
         telemetry: {
           screenshot: {
             enabled: true,
-            format: 'png',
-            quality: 80,
             fullPage: true,
+            quality: 80,
             maxSizeBytes: 100, // Very small limit
           },
+          video: { enabled: false },
+          dom: { enabled: true, maxSizeBytes: 1 * 1024 * 1024 },
+          console: { enabled: true, maxEntries: 100 },
+          network: { enabled: true, maxEvents: 500 },
+          har: { enabled: false },
+          tracing: { enabled: false },
         },
       });
 
@@ -119,7 +104,7 @@ describe('Screenshot', () => {
         2,
         expect.objectContaining({ fullPage: false })
       );
-      expect(screenshot?.data).toBe(smallBuffer.toString('base64'));
+      expect(screenshot?.base64).toBe(smallBuffer.toString('base64'));
     });
 
     it('should return undefined when screenshot exceeds size limit', async () => {
@@ -127,11 +112,16 @@ describe('Screenshot', () => {
         telemetry: {
           screenshot: {
             enabled: true,
-            format: 'png',
-            quality: 80,
             fullPage: false,
+            quality: 80,
             maxSizeBytes: 100,
           },
+          video: { enabled: false },
+          dom: { enabled: true, maxSizeBytes: 1 * 1024 * 1024 },
+          console: { enabled: true, maxEntries: 100 },
+          network: { enabled: true, maxEvents: 500 },
+          har: { enabled: false },
+          tracing: { enabled: false },
         },
       });
 
@@ -148,11 +138,16 @@ describe('Screenshot', () => {
         telemetry: {
           screenshot: {
             enabled: false,
-            format: 'png',
-            quality: 80,
             fullPage: false,
+            quality: 80,
             maxSizeBytes: 5 * 1024 * 1024,
           },
+          video: { enabled: false },
+          dom: { enabled: true, maxSizeBytes: 1 * 1024 * 1024 },
+          console: { enabled: true, maxEntries: 100 },
+          network: { enabled: true, maxEvents: 500 },
+          har: { enabled: false },
+          tracing: { enabled: false },
         },
       });
 
@@ -171,53 +166,53 @@ describe('Screenshot', () => {
     });
 
     it('should handle page with no viewport', async () => {
-      mockPage.viewport.mockReturnValue(null);
+      mockPage.viewportSize.mockReturnValue(null);
 
       const screenshot = await captureScreenshot(mockPage, config);
 
-      expect(screenshot?.viewport_width).toBe(0);
-      expect(screenshot?.viewport_height).toBe(0);
+      expect(screenshot?.width).toBe(0);
+      expect(screenshot?.height).toBe(0);
     });
+  });
 
-    it('should apply quality setting for JPEG', async () => {
-      const configQuality = createTestConfig({
-        telemetry: {
-          screenshot: {
-            enabled: true,
-            format: 'jpeg',
-            quality: 90,
-            fullPage: false,
-            maxSizeBytes: 5 * 1024 * 1024,
-          },
-        },
-      });
+  describe('captureCompressedScreenshot', () => {
+    it('should capture JPEG screenshot', async () => {
+      const mockBuffer = Buffer.from('jpeg-screenshot');
+      mockPage.screenshot.mockResolvedValue(mockBuffer);
 
-      await captureScreenshot(mockPage, configQuality);
+      const screenshot = await captureCompressedScreenshot(mockPage, 80, false);
 
       expect(mockPage.screenshot).toHaveBeenCalledWith(
         expect.objectContaining({
-          quality: 90,
+          type: 'jpeg',
+          quality: 80,
         })
       );
+      expect(screenshot?.media_type).toBe('image/jpeg');
     });
 
-    it('should not include quality for PNG', async () => {
-      const configPNG = createTestConfig({
-        telemetry: {
-          screenshot: {
-            enabled: true,
-            format: 'png',
-            quality: 80,
-            fullPage: false,
-            maxSizeBytes: 5 * 1024 * 1024,
-          },
-        },
-      });
+    it('should reduce quality when screenshot too large', async () => {
+      const largeBuffer = Buffer.alloc(200);
+      const smallBuffer = Buffer.from('small');
 
-      await captureScreenshot(mockPage, configPNG);
+      mockPage.screenshot
+        .mockResolvedValueOnce(largeBuffer) // First call with quality 80
+        .mockResolvedValueOnce(smallBuffer); // Second call with quality 60
 
-      const call = (mockPage.screenshot as jest.Mock).mock.calls[0][0];
-      expect(call.quality).toBeUndefined();
+      const screenshot = await captureCompressedScreenshot(mockPage, 80, false, 100);
+
+      expect(mockPage.screenshot).toHaveBeenCalledTimes(2);
+      expect(screenshot?.base64).toBe(smallBuffer.toString('base64'));
+    });
+
+    it('should return undefined when still too large after quality reduction', async () => {
+      const largeBuffer = Buffer.alloc(200);
+
+      mockPage.screenshot.mockResolvedValue(largeBuffer);
+
+      const screenshot = await captureCompressedScreenshot(mockPage, 50, false, 100);
+
+      expect(screenshot).toBeUndefined();
     });
   });
 });

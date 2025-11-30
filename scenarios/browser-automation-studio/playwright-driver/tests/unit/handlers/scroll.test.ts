@@ -1,7 +1,6 @@
-import { createTestInstruction } from '../../helpers';
+import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { ScrollHandler } from '../../../src/handlers/scroll';
-import type { CompiledInstruction, HandlerContext } from '../../../src/types';
-import { createMockPage, createTestConfig } from '../../helpers';
+import type { HandlerContext } from '../../../src/types';
 import { logger, metrics } from '../../../src/utils';
 
 describe('ScrollHandler', () => {
@@ -27,7 +26,7 @@ describe('ScrollHandler', () => {
       type: 'scroll',
       params: { selector: '#target' },
       node_id: 'node-1',
-    };
+    });
 
     const mockLocator = {
       scrollIntoViewIfNeeded: jest.fn().mockResolvedValue(undefined),
@@ -45,7 +44,7 @@ describe('ScrollHandler', () => {
       type: 'scroll',
       params: { x: 0, y: 500 },
       node_id: 'node-1',
-    };
+    });
 
     mockPage.evaluate.mockResolvedValue(undefined);
 

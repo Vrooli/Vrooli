@@ -8,24 +8,31 @@ export function createTestConfig(overrides?: Partial<Config>): Config {
     server: {
       port: 39400,
       host: '127.0.0.1',
+      requestTimeout: 300000,
+      maxRequestSize: 5 * 1024 * 1024,
     },
     browser: {
       headless: true,
       executablePath: undefined,
+      args: [],
       ignoreHTTPSErrors: false,
     },
     session: {
       maxConcurrent: 10,
       idleTimeoutMs: 300000,
+      poolSize: 5,
       cleanupIntervalMs: 60000,
     },
     telemetry: {
       screenshot: {
         enabled: true,
-        format: 'png',
+        fullPage: true,
         quality: 80,
-        fullPage: false,
-        maxSizeBytes: 5 * 1024 * 1024,
+        maxSizeBytes: 512000,
+      },
+      dom: {
+        enabled: true,
+        maxSizeBytes: 524288,
       },
       console: {
         enabled: true,
@@ -33,11 +40,7 @@ export function createTestConfig(overrides?: Partial<Config>): Config {
       },
       network: {
         enabled: true,
-        maxEntries: 100,
-      },
-      dom: {
-        enabled: true,
-        maxSizeBytes: 1 * 1024 * 1024,
+        maxEvents: 200,
       },
       har: {
         enabled: false,

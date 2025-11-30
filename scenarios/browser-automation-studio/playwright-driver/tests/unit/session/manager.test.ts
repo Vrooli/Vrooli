@@ -40,6 +40,7 @@ describe('SessionManager', () => {
   describe('startSession', () => {
     const sessionSpec: SessionSpec = {
       execution_id: 'exec-123',
+      workflow_id: 'workflow-123',
       base_url: 'https://example.com',
       viewport: { width: 1280, height: 720 },
       reuse_mode: 'fresh',
@@ -78,23 +79,9 @@ describe('SessionManager', () => {
       expect(mockContext.newPage).toHaveBeenCalled();
     });
 
-    it('should setup console collector', async () => {
-      const sessionId = await manager.startSession(sessionSpec);
-      const session = manager.getSession(sessionId);
-
-      expect(session.consoleCollector).toBeDefined();
-    });
-
-    it('should setup network collector', async () => {
-      const sessionId = await manager.startSession(sessionSpec);
-      const session = manager.getSession(sessionId);
-
-      expect(session.networkCollector).toBeDefined();
-    });
-
     it('should throw error when max sessions reached', async () => {
       const configLimited = createTestConfig({
-        session: { maxConcurrent: 2, idleTimeoutMs: 300000, cleanupIntervalMs: 60000 },
+        session: { maxConcurrent: 2, idleTimeoutMs: 300000, poolSize: 5, cleanupIntervalMs: 60000 },
       });
       const limitedManager = new SessionManager(configLimited);
 
@@ -147,14 +134,14 @@ describe('SessionManager', () => {
       expect(mockContext.clearCookies).toHaveBeenCalled();
     });
 
-    it('should update last activity time on creation', async () => {
+    it('should set creation time on session', async () => {
       const before = Date.now();
       const sessionId = await manager.startSession(sessionSpec);
       const after = Date.now();
 
       const session = manager.getSession(sessionId);
-      expect(session.lastActivity.getTime()).toBeGreaterThanOrEqual(before);
-      expect(session.lastActivity.getTime()).toBeLessThanOrEqual(after);
+      expect(session.createdAt.getTime()).toBeGreaterThanOrEqual(before);
+      expect(session.createdAt.getTime()).toBeLessThanOrEqual(after);
     });
   });
 
@@ -162,6 +149,7 @@ describe('SessionManager', () => {
     it('should return session by ID', async () => {
       const spec: SessionSpec = {
         execution_id: 'exec-123',
+        workflow_id: 'workflow-123',
         base_url: 'https://example.com',
         viewport: { width: 1280, height: 720 },
         reuse_mode: 'fresh',
@@ -184,6 +172,7 @@ describe('SessionManager', () => {
     it('should clear cookies and permissions', async () => {
       const spec: SessionSpec = {
         execution_id: 'exec-123',
+        workflow_id: 'workflow-123',
         base_url: 'https://example.com',
         viewport: { width: 1280, height: 720 },
         reuse_mode: 'fresh',
@@ -197,43 +186,10 @@ describe('SessionManager', () => {
       expect(mockContext.clearPermissions).toHaveBeenCalled();
     });
 
-    it('should reset console collector', async () => {
+    it('should update last used time', async () => {
       const spec: SessionSpec = {
         execution_id: 'exec-123',
-        base_url: 'https://example.com',
-        viewport: { width: 1280, height: 720 },
-        reuse_mode: 'fresh',
-        required_capabilities: {},
-      };
-      const sessionId = await manager.startSession(spec);
-      const session = manager.getSession(sessionId);
-      const resetSpy = jest.spyOn(session.consoleCollector, 'reset');
-
-      await manager.resetSession(sessionId);
-
-      expect(resetSpy).toHaveBeenCalled();
-    });
-
-    it('should reset network collector', async () => {
-      const spec: SessionSpec = {
-        execution_id: 'exec-123',
-        base_url: 'https://example.com',
-        viewport: { width: 1280, height: 720 },
-        reuse_mode: 'fresh',
-        required_capabilities: {},
-      };
-      const sessionId = await manager.startSession(spec);
-      const session = manager.getSession(sessionId);
-      const resetSpy = jest.spyOn(session.networkCollector, 'reset');
-
-      await manager.resetSession(sessionId);
-
-      expect(resetSpy).toHaveBeenCalled();
-    });
-
-    it('should update last activity time', async () => {
-      const spec: SessionSpec = {
-        execution_id: 'exec-123',
+        workflow_id: 'workflow-123',
         base_url: 'https://example.com',
         viewport: { width: 1280, height: 720 },
         reuse_mode: 'fresh',
@@ -249,8 +205,8 @@ describe('SessionManager', () => {
       const after = Date.now();
 
       const session = manager.getSession(sessionId);
-      expect(session.lastActivity.getTime()).toBeGreaterThanOrEqual(before);
-      expect(session.lastActivity.getTime()).toBeLessThanOrEqual(after);
+      expect(session.lastUsedAt.getTime()).toBeGreaterThanOrEqual(before);
+      expect(session.lastUsedAt.getTime()).toBeLessThanOrEqual(after);
     });
 
     it('should throw error for non-existent session', async () => {
@@ -262,6 +218,7 @@ describe('SessionManager', () => {
     it('should close session and remove from map', async () => {
       const spec: SessionSpec = {
         execution_id: 'exec-123',
+        workflow_id: 'workflow-123',
         base_url: 'https://example.com',
         viewport: { width: 1280, height: 720 },
         reuse_mode: 'fresh',
@@ -277,6 +234,7 @@ describe('SessionManager', () => {
     it('should close page', async () => {
       const spec: SessionSpec = {
         execution_id: 'exec-123',
+        workflow_id: 'workflow-123',
         base_url: 'https://example.com',
         viewport: { width: 1280, height: 720 },
         reuse_mode: 'fresh',
@@ -292,6 +250,7 @@ describe('SessionManager', () => {
     it('should close context', async () => {
       const spec: SessionSpec = {
         execution_id: 'exec-123',
+        workflow_id: 'workflow-123',
         base_url: 'https://example.com',
         viewport: { width: 1280, height: 720 },
         reuse_mode: 'fresh',
@@ -311,6 +270,7 @@ describe('SessionManager', () => {
     it('should handle already closed page gracefully', async () => {
       const spec: SessionSpec = {
         execution_id: 'exec-123',
+        workflow_id: 'workflow-123',
         base_url: 'https://example.com',
         viewport: { width: 1280, height: 720 },
         reuse_mode: 'fresh',
@@ -327,12 +287,13 @@ describe('SessionManager', () => {
   describe('cleanupIdleSessions', () => {
     it('should close idle sessions', async () => {
       const configShortIdle = createTestConfig({
-        session: { maxConcurrent: 10, idleTimeoutMs: 100, cleanupIntervalMs: 50 },
+        session: { maxConcurrent: 10, idleTimeoutMs: 100, poolSize: 5, cleanupIntervalMs: 50 },
       });
       const managerShortIdle = new SessionManager(configShortIdle);
 
       const spec: SessionSpec = {
         execution_id: 'exec-123',
+        workflow_id: 'workflow-123',
         base_url: 'https://example.com',
         viewport: { width: 1280, height: 720 },
         reuse_mode: 'fresh',
@@ -353,6 +314,7 @@ describe('SessionManager', () => {
     it('should not close active sessions', async () => {
       const spec: SessionSpec = {
         execution_id: 'exec-123',
+        workflow_id: 'workflow-123',
         base_url: 'https://example.com',
         viewport: { width: 1280, height: 720 },
         reuse_mode: 'fresh',
@@ -370,6 +332,7 @@ describe('SessionManager', () => {
     it('should close all sessions', async () => {
       const spec1: SessionSpec = {
         execution_id: 'exec-1',
+        workflow_id: 'workflow-1',
         base_url: 'https://example.com',
         viewport: { width: 1280, height: 720 },
         reuse_mode: 'fresh',
@@ -377,6 +340,7 @@ describe('SessionManager', () => {
       };
       const spec2: SessionSpec = {
         execution_id: 'exec-2',
+        workflow_id: 'workflow-2',
         base_url: 'https://example.com',
         viewport: { width: 1280, height: 720 },
         reuse_mode: 'fresh',
@@ -395,6 +359,7 @@ describe('SessionManager', () => {
     it('should close browser', async () => {
       const spec: SessionSpec = {
         execution_id: 'exec-123',
+        workflow_id: 'workflow-123',
         base_url: 'https://example.com',
         viewport: { width: 1280, height: 720 },
         reuse_mode: 'fresh',
@@ -414,9 +379,10 @@ describe('SessionManager', () => {
   });
 
   describe('updateActivity', () => {
-    it('should update last activity time', async () => {
+    it('should update last used time', async () => {
       const spec: SessionSpec = {
         execution_id: 'exec-123',
+        workflow_id: 'workflow-123',
         base_url: 'https://example.com',
         viewport: { width: 1280, height: 720 },
         reuse_mode: 'fresh',
@@ -432,8 +398,8 @@ describe('SessionManager', () => {
       const after = Date.now();
 
       const session = manager.getSession(sessionId);
-      expect(session.lastActivity.getTime()).toBeGreaterThanOrEqual(before);
-      expect(session.lastActivity.getTime()).toBeLessThanOrEqual(after);
+      expect(session.lastUsedAt.getTime()).toBeGreaterThanOrEqual(before);
+      expect(session.lastUsedAt.getTime()).toBeLessThanOrEqual(after);
     });
 
     it('should not throw for non-existent session', () => {
