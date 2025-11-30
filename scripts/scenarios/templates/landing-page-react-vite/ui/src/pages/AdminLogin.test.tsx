@@ -51,8 +51,8 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
   it('[REQ:ADMIN-AUTH] should render login form with email and password fields', () => {
     renderWithRouter(<AdminLogin />);
 
-    expect(screen.getByLabelText('Email')).toBeInTheDocument();
-    expect(screen.getByLabelText('Password')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Email Address/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
     expect(screen.getByTestId('admin-login-submit')).toBeInTheDocument();
   });
 
@@ -193,7 +193,7 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
     renderWithRouter(<AdminLogin />);
 
     expect(
-      screen.getByText(/Admin portal protected by email\/password authentication with bcrypt hashing/)
+      screen.getByText(/Secured with bcrypt password hashing and httpOnly cookies/i)
     ).toBeInTheDocument();
   });
 

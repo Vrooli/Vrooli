@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { VariantProvider, useVariant } from './VariantContext';
+import { getFallbackLandingConfig } from '../lib/fallbackLandingConfig';
 import type { ReactNode } from 'react';
 
 // Mock fetch globally
@@ -67,6 +68,7 @@ describe('VariantContext [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
   const wrapper = ({ children }: { children: ReactNode }) => (
     <VariantProvider>{children}</VariantProvider>
   );
+  const bakedFallback = getFallbackLandingConfig();
 
   it('[REQ:AB-URL] should fetch variant from URL parameter', async () => {
     setLocationSearch('?variant=test-variant');
@@ -170,7 +172,7 @@ describe('VariantContext [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
     expect(result.current.variant?.slug).toEqual('url-variant');
   });
 
-  it('should handle API errors gracefully', async () => {
+  it('should fall back to baked config when API errors occur', async () => {
     (global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
 
     const { result } = renderHook(() => useVariant(), { wrapper });
@@ -180,11 +182,12 @@ describe('VariantContext [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.variant).toBe(null);
-    expect(result.current.error).toBe('Network error');
+    expect(result.current.variant?.slug).toEqual(bakedFallback.variant.slug);
+    expect(result.current.config?.fallback).toBe(true);
+    expect(result.current.error).toBe(null);
   });
 
-  it('should handle 404 errors for invalid variant slugs', async () => {
+  it('should use fallback config for invalid variant slugs', async () => {
     setLocationSearch('?variant=invalid-slug');
 
     (global.fetch as any).mockResolvedValueOnce({
@@ -200,8 +203,9 @@ describe('VariantContext [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.variant).toBe(null);
-    expect(result.current.error).toContain('404');
+    expect(result.current.variant?.slug).toEqual(bakedFallback.variant.slug);
+    expect(result.current.config?.fallback).toBe(true);
+    expect(result.current.error).toBe(null);
   });
 
   it('should support variant_slug parameter for backwards compatibility', async () => {

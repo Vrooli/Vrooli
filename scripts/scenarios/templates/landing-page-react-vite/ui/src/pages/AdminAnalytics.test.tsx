@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { AdminAnalytics } from './AdminAnalytics';
 import { AuthProvider } from '../contexts/AuthContext';
@@ -9,6 +9,7 @@ vi.mock('../lib/api');
 
 const mockSummary = {
   total_visitors: 1250,
+  total_downloads: 125,
   top_cta: 'Get Started Free',
   top_cta_ctr: 12.5,
   variant_stats: [
@@ -19,6 +20,7 @@ const mockSummary = {
       views: 500,
       cta_clicks: 50,
       conversions: 25,
+      downloads: 12,
       conversion_rate: 5.0,
       trend: 'up' as const,
     },
@@ -29,6 +31,7 @@ const mockSummary = {
       views: 750,
       cta_clicks: 90,
       conversions: 45,
+      downloads: 8,
       conversion_rate: 6.0,
       trend: 'stable' as const,
     },
@@ -91,6 +94,16 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
     });
   });
 
+  it('[REQ:METRIC-SUMMARY] should display downloads metric', async () => {
+    renderWithRouter(<AdminAnalytics />);
+
+    await waitFor(() => {
+      const downloadsCard = screen.getByTestId('analytics-total-downloads');
+      expect(downloadsCard).toBeInTheDocument();
+      expect(within(downloadsCard).getByText('125')).toBeInTheDocument();
+    });
+  });
+
   it('[REQ:METRIC-DETAIL] should display variant performance table', async () => {
     renderWithRouter(<AdminAnalytics />);
 
@@ -100,6 +113,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
       expect(screen.getByText('Variant A')).toBeInTheDocument();
       expect(screen.getByText('500')).toBeInTheDocument();
       expect(screen.getByText('750')).toBeInTheDocument();
+      expect(screen.getByTestId('analytics-downloads-v1')).toHaveTextContent('12');
     });
   });
 

@@ -405,7 +405,7 @@ func ensureSchema(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS metrics_events (
 			id SERIAL PRIMARY KEY,
 			variant_id INTEGER REFERENCES variants(id),
-			event_type VARCHAR(50) NOT NULL CHECK (event_type IN ('page_view', 'scroll_depth', 'click', 'form_submit', 'conversion')),
+			event_type VARCHAR(50) NOT NULL CHECK (event_type IN ('page_view', 'scroll_depth', 'click', 'form_submit', 'conversion', 'download')),
 			event_data JSONB,
 			session_id VARCHAR(255),
 			visitor_id VARCHAR(255),
@@ -415,6 +415,8 @@ func ensureSchema(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_metrics_events_type ON metrics_events(event_type);`,
 		`CREATE INDEX IF NOT EXISTS idx_metrics_events_created ON metrics_events(created_at);`,
 		`CREATE INDEX IF NOT EXISTS idx_metrics_events_session ON metrics_events(session_id);`,
+		`ALTER TABLE metrics_events DROP CONSTRAINT IF EXISTS metrics_events_event_type_check;`,
+		`ALTER TABLE metrics_events ADD CONSTRAINT metrics_events_event_type_check CHECK (event_type IN ('page_view', 'scroll_depth', 'click', 'form_submit', 'conversion', 'download'));`,
 		`CREATE TABLE IF NOT EXISTS checkout_sessions (
 			id SERIAL PRIMARY KEY,
 			session_id VARCHAR(255) UNIQUE NOT NULL,

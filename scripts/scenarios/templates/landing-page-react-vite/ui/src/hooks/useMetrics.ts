@@ -22,7 +22,7 @@ function getVisitorID(): string {
 }
 
 interface MetricEvent {
-  event_type: 'page_view' | 'scroll_depth' | 'click' | 'form_submit' | 'conversion';
+  event_type: 'page_view' | 'scroll_depth' | 'click' | 'form_submit' | 'conversion' | 'download';
   variant_id: number;
   event_data?: Record<string, unknown>;
   session_id: string;
@@ -128,10 +128,15 @@ export function useMetrics() {
     trackEvent('conversion', conversionData);
   };
 
+  const trackDownload = (downloadData?: Record<string, unknown>) => {
+    trackEvent('download', downloadData);
+  };
+
   return {
     trackCTAClick,
     trackFormSubmit,
     trackConversion,
+    trackDownload,
     trackEvent, // Generic event tracker
   };
 }

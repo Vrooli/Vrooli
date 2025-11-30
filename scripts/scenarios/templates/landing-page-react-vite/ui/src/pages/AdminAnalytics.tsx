@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BarChart3, TrendingUp, Users, MousePointerClick, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
+import { BarChart3, TrendingUp, Users, MousePointerClick, DownloadCloud, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 import { AdminLayout } from "../components/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -139,7 +139,7 @@ export function AdminAnalytics() {
         </div>
 
         {/* Summary cards - OT-P0-023 */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid md:grid-cols-4 gap-6 mb-8">
           <Card className="bg-white/5 border-white/10" data-testid="analytics-total-visitors">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-slate-300">Total Visitors</CardTitle>
@@ -148,6 +148,19 @@ export function AdminAnalytics() {
             <CardContent>
               <div className="text-3xl font-bold">{summary?.total_visitors.toLocaleString() ?? 0}</div>
               <p className="text-xs text-slate-400 mt-1">Unique visitors in selected period</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/5 border-white/10" data-testid="analytics-total-downloads">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-slate-300">Downloads</CardTitle>
+              <DownloadCloud className="h-4 w-4 text-slate-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">
+                {(summary?.total_downloads ?? 0).toLocaleString()}
+              </div>
+              <p className="text-xs text-slate-400 mt-1">Verified download events</p>
             </CardContent>
           </Card>
 
@@ -206,6 +219,7 @@ export function AdminAnalytics() {
                       <th className="text-right py-3 px-4">Views</th>
                       <th className="text-right py-3 px-4">CTA Clicks</th>
                       <th className="text-right py-3 px-4">Conversions</th>
+                      <th className="text-right py-3 px-4">Downloads</th>
                       <th className="text-right py-3 px-4">Conv. Rate</th>
                       <th className="text-right py-3 px-4">Trend</th>
                       <th className="text-right py-3 px-4"></th>
@@ -225,6 +239,12 @@ export function AdminAnalytics() {
                         <td className="text-right py-4 px-4">{variant.views.toLocaleString()}</td>
                         <td className="text-right py-4 px-4">{variant.cta_clicks.toLocaleString()}</td>
                         <td className="text-right py-4 px-4">{variant.conversions.toLocaleString()}</td>
+                        <td
+                          className="text-right py-4 px-4"
+                          data-testid={`analytics-downloads-${variant.variant_id}`}
+                        >
+                          {variant.downloads.toLocaleString()}
+                        </td>
                         <td className="text-right py-4 px-4">
                           <span className={variant.conversion_rate > 5 ? "text-green-400 font-semibold" : "text-slate-300"}>
                             {variant.conversion_rate.toFixed(2)}%
@@ -276,7 +296,7 @@ export function AdminAnalytics() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid md:grid-cols-4 gap-6">
+              <div className="grid md:grid-cols-5 gap-6">
                 <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
                   <div className="text-sm text-slate-400 mb-1">Views</div>
                   <div className="text-2xl font-bold">{variantDetails[0]?.views.toLocaleString() ?? 0}</div>
@@ -292,6 +312,10 @@ export function AdminAnalytics() {
                 <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
                   <div className="text-sm text-slate-400 mb-1">Conversion Rate</div>
                   <div className="text-2xl font-bold">{variantDetails[0]?.conversion_rate.toFixed(2) ?? 0}%</div>
+                </div>
+                <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  <div className="text-sm text-slate-400 mb-1">Downloads</div>
+                  <div className="text-2xl font-bold">{variantDetails[0]?.downloads.toLocaleString() ?? 0}</div>
                 </div>
               </div>
 

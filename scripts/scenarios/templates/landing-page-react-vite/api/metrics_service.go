@@ -21,31 +21,35 @@ func NewMetricsService(db *sql.DB) *MetricsService {
 
 // MetricEvent represents an analytics event
 type MetricEvent struct {
-	EventType  string                 `json:"event_type"`
-	VariantID  int                    `json:"variant_id"`
-	EventData  map[string]interface{} `json:"event_data,omitempty"`
-	SessionID  string                 `json:"session_id"`
-	VisitorID  string                 `json:"visitor_id,omitempty"`
-	EventID    string                 `json:"event_id,omitempty"` // Client-generated unique ID for idempotency
+	EventType string                 `json:"event_type"`
+	VariantID int                    `json:"variant_id"`
+	EventData map[string]interface{} `json:"event_data,omitempty"`
+	SessionID string                 `json:"session_id"`
+	VisitorID string                 `json:"visitor_id,omitempty"`
+	EventID   string                 `json:"event_id,omitempty"` // Client-generated unique ID for idempotency
 }
 
 // VariantStats represents aggregated stats for a variant
 type VariantStats struct {
-	VariantID       int     `json:"variant_id"`
-	VariantSlug     string  `json:"variant_slug"`
-	VariantName     string  `json:"variant_name"`
-	Views           int64   `json:"views"`
-	CTAClicks       int64   `json:"cta_clicks"`
-	Conversions     int64   `json:"conversions"`
-	ConversionRate  float64 `json:"conversion_rate"`
+	VariantID      int     `json:"variant_id"`
+	VariantSlug    string  `json:"variant_slug"`
+	VariantName    string  `json:"variant_name"`
+	Views          int64   `json:"views"`
+	CTAClicks      int64   `json:"cta_clicks"`
+	Conversions    int64   `json:"conversions"`
+	Downloads      int64   `json:"downloads"`
+	ConversionRate float64 `json:"conversion_rate"`
+	Trend          string  `json:"trend,omitempty"`
+	AvgScrollDepth float64 `json:"avg_scroll_depth,omitempty"`
 }
 
 // AnalyticsSummary represents the analytics dashboard summary
 type AnalyticsSummary struct {
-	TotalVisitors   int64          `json:"total_visitors"`
-	VariantStats    []VariantStats `json:"variant_stats"`
-	TopCTA          string         `json:"top_cta,omitempty"`
-	TopCTACTR       float64        `json:"top_cta_ctr,omitempty"`
+	TotalVisitors  int64          `json:"total_visitors"`
+	TotalDownloads int64          `json:"total_downloads"`
+	VariantStats   []VariantStats `json:"variant_stats"`
+	TopCTA         string         `json:"top_cta,omitempty"`
+	TopCTACTR      float64        `json:"top_cta_ctr,omitempty"`
 }
 
 // TrackEvent records an analytics event with idempotency support
@@ -53,7 +57,7 @@ func (s *MetricsService) TrackEvent(event MetricEvent) error {
 	// Validate event type
 	validTypes := map[string]bool{
 		"page_view": true, "scroll_depth": true, "click": true,
-		"form_submit": true, "conversion": true,
+		"form_submit": true, "conversion": true, "download": true,
 	}
 	if !validTypes[event.EventType] {
 		return fmt.Errorf("invalid event_type: %s", event.EventType)
@@ -123,9 +127,10 @@ func (s *MetricsService) GetVariantStats(startDate, endDate time.Time, variantSl
 			v.id as variant_id,
 			v.slug as variant_slug,
 			v.name as variant_name,
-			COALESCE(SUM(CASE WHEN m.event_type = 'page_view' THEN 1 ELSE 0 END), 0) as views,
-			COALESCE(SUM(CASE WHEN m.event_type = 'click' AND m.event_data->>'element_type' = 'cta' THEN 1 ELSE 0 END), 0) as cta_clicks,
-			COALESCE(SUM(CASE WHEN m.event_type = 'conversion' THEN 1 ELSE 0 END), 0) as conversions
+		COALESCE(SUM(CASE WHEN m.event_type = 'page_view' THEN 1 ELSE 0 END), 0) as views,
+		COALESCE(SUM(CASE WHEN m.event_type = 'click' AND m.event_data->>'element_type' = 'cta' THEN 1 ELSE 0 END), 0) as cta_clicks,
+		COALESCE(SUM(CASE WHEN m.event_type = 'conversion' THEN 1 ELSE 0 END), 0) as conversions,
+		COALESCE(SUM(CASE WHEN m.event_type = 'download' THEN 1 ELSE 0 END), 0) as downloads
 		FROM variants v
 		LEFT JOIN metrics_events m ON v.id = m.variant_id
 			AND m.created_at >= $1
@@ -159,6 +164,7 @@ func (s *MetricsService) GetVariantStats(startDate, endDate time.Time, variantSl
 			&stat.Views,
 			&stat.CTAClicks,
 			&stat.Conversions,
+			&stat.Downloads,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan variant stats: %w", err)
@@ -197,6 +203,17 @@ func (s *MetricsService) GetAnalyticsSummary(startDate, endDate time.Time) (*Ana
 		return nil, fmt.Errorf("failed to count visitors: %w", err)
 	}
 
+	var totalDownloads int64
+	downloadQuery := `
+		SELECT COUNT(*) FROM metrics_events
+		WHERE event_type = 'download'
+			AND created_at >= $1
+			AND created_at <= $2
+	`
+	if err := s.db.QueryRow(downloadQuery, startDate, endDate).Scan(&totalDownloads); err != nil {
+		return nil, fmt.Errorf("failed to count downloads: %w", err)
+	}
+
 	// Find top CTA by CTR
 	topCTAQuery := `
 		SELECT
@@ -226,10 +243,11 @@ func (s *MetricsService) GetAnalyticsSummary(startDate, endDate time.Time) (*Ana
 	}
 
 	summary := &AnalyticsSummary{
-		TotalVisitors: totalVisitors,
-		VariantStats:  stats,
-		TopCTA:        topCTA,
-		TopCTACTR:     topCTACTR,
+		TotalVisitors:  totalVisitors,
+		TotalDownloads: totalDownloads,
+		VariantStats:   stats,
+		TopCTA:         topCTA,
+		TopCTACTR:      topCTACTR,
 	}
 
 	return summary, nil

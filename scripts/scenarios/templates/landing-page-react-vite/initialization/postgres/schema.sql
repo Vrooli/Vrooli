@@ -46,7 +46,7 @@ CREATE INDEX idx_variant_axes_axis ON variant_axes(axis_id);
 CREATE TABLE IF NOT EXISTS metrics_events (
     id SERIAL PRIMARY KEY,
     variant_id INTEGER REFERENCES variants(id),
-    event_type VARCHAR(50) NOT NULL CHECK (event_type IN ('page_view', 'scroll_depth', 'click', 'form_submit', 'conversion')),
+    event_type VARCHAR(50) NOT NULL CHECK (event_type IN ('page_view', 'scroll_depth', 'click', 'form_submit', 'conversion', 'download')),
     event_data JSONB,
     session_id VARCHAR(255),
     visitor_id VARCHAR(255),

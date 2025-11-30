@@ -142,7 +142,7 @@ export interface LandingConfigResponse {
 }
 
 export interface MetricEvent {
-  event_type: 'page_view' | 'scroll_depth' | 'click' | 'form_submit' | 'conversion';
+  event_type: 'page_view' | 'scroll_depth' | 'click' | 'form_submit' | 'conversion' | 'download';
   variant_id: number;
   session_id: string;
   visitor_id?: string;
@@ -151,6 +151,7 @@ export interface MetricEvent {
 
 export interface AnalyticsSummary {
   total_visitors: number;
+  total_downloads?: number;
   variant_stats: VariantStats[];
   top_cta?: string;
   top_cta_ctr?: number;
@@ -163,6 +164,7 @@ export interface VariantStats {
   views: number;
   cta_clicks: number;
   conversions: number;
+  downloads: number;
   conversion_rate: number;
   avg_scroll_depth?: number;
   trend?: 'up' | 'down' | 'stable';
@@ -241,8 +243,13 @@ export async function getCreditInfo() {
   return apiCall<CreditInfo>('/me/credits');
 }
 
-export async function getEntitlements() {
-  return apiCall<EntitlementPayload>('/entitlements');
+export async function getEntitlements(userEmail?: string) {
+  const params = new URLSearchParams();
+  if (userEmail?.trim()) {
+    params.set('user', userEmail.trim());
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiCall<EntitlementPayload>(`/entitlements${query}`);
 }
 
 export async function requestDownload(platform: string, user?: string) {

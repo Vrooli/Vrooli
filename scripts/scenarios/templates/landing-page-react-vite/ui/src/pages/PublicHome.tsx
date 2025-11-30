@@ -9,6 +9,7 @@ import { TestimonialsSection } from '../components/sections/TestimonialsSection'
 import { FAQSection } from '../components/sections/FAQSection';
 import { FooterSection } from '../components/sections/FooterSection';
 import { VideoSection } from '../components/sections/VideoSection';
+import { DownloadSection } from '../components/sections/DownloadSection';
 
 /**
  * Public Landing Page
@@ -23,6 +24,7 @@ import { VideoSection } from '../components/sections/VideoSection';
  */
 export default function PublicHome() {
   const { variant, config, loading: configLoading, error: configError } = useVariant();
+  const fallbackActive = Boolean(config?.fallback);
 
   const sections = useMemo(() => {
     const incoming = config?.sections ?? [];
@@ -42,7 +44,7 @@ export default function PublicHome() {
     );
   }
 
-  if (configError) {
+  if (configError && !fallbackActive) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
         <div className="max-w-md w-full rounded-2xl border border-red-500/20 bg-red-500/10 p-8 text-center space-y-4">
@@ -93,7 +95,7 @@ export default function PublicHome() {
       case 'features':
         return <FeaturesSection {...commonProps} />;
       case 'pricing':
-        return <PricingSection {...commonProps} />;
+        return <PricingSection {...commonProps} pricingOverview={config?.pricing} />;
       case 'cta':
         return <CTASection {...commonProps} />;
       case 'testimonials':
@@ -112,6 +114,12 @@ export default function PublicHome() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
+      {fallbackActive && (
+        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-100 text-sm py-3 px-4 text-center">
+          Offline-safe fallback variant is active. Live analytics, pricing, and downloads may be outdated until the API recovers.
+        </div>
+      )}
+
       {/* Debug info in dev mode (only visible with ?debug=1) */}
       {new URLSearchParams(window.location.search).get('debug') === '1' && (
         <div className="fixed top-4 right-4 z-50 max-w-xs rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-4 text-xs backdrop-blur">
@@ -120,7 +128,7 @@ export default function PublicHome() {
             <div>Variant: {variant.name} ({variant.slug})</div>
             <div>Sections: {sections.length}</div>
             <div>Status: {variant.status}</div>
-            {config?.fallback && <div>Fallback Variant Active</div>}
+            {fallbackActive && <div>Fallback Variant Active</div>}
           </div>
         </div>
       )}
@@ -138,6 +146,15 @@ export default function PublicHome() {
             </p>
           </div>
         </div>
+      )}
+      {config?.downloads && config.downloads.length > 0 && (
+        <DownloadSection
+          downloads={config.downloads}
+          content={{
+            title: 'Download Browser Automation Studio',
+            subtitle: 'Install on Windows, macOS, or Linux while we verify your subscription entitlements.',
+          }}
+        />
       )}
     </div>
   );

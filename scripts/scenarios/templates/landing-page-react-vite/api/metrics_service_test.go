@@ -114,6 +114,7 @@ func TestGetVariantStats(t *testing.T) {
 		{EventType: "page_view", VariantID: 1, SessionID: "session2", EventID: "evt2"},
 		{EventType: "click", VariantID: 1, SessionID: "session1", EventID: "evt3", EventData: map[string]interface{}{"element_type": "cta"}},
 		{EventType: "conversion", VariantID: 1, SessionID: "session1", EventID: "evt4"},
+		{EventType: "download", VariantID: 1, SessionID: "session1", EventID: "evt_download", EventData: map[string]interface{}{"platform": "windows"}},
 		{EventType: "page_view", VariantID: 2, SessionID: "session3", EventID: "evt5"},
 	}
 
@@ -155,6 +156,9 @@ func TestGetVariantStats(t *testing.T) {
 	}
 	if variant1Stats.Conversions != 1 {
 		t.Errorf("Expected 1 conversion for variant 1, got %d", variant1Stats.Conversions)
+	}
+	if variant1Stats.Downloads != 1 {
+		t.Errorf("Expected 1 download for variant 1, got %d", variant1Stats.Downloads)
 	}
 	if variant1Stats.ConversionRate != 50.0 {
 		t.Errorf("Expected 50%% conversion rate, got %.2f", variant1Stats.ConversionRate)
@@ -203,6 +207,7 @@ func TestGetAnalyticsSummary(t *testing.T) {
 		{EventType: "click", VariantID: 1, SessionID: "session1", EventID: "sum3", EventData: map[string]interface{}{"element_id": "hero-cta", "element_type": "cta"}},
 		{EventType: "click", VariantID: 1, SessionID: "session2", EventID: "sum4", EventData: map[string]interface{}{"element_id": "hero-cta", "element_type": "cta"}},
 		{EventType: "conversion", VariantID: 1, SessionID: "session1", EventID: "sum5"},
+		{EventType: "download", VariantID: 1, SessionID: "session1", EventID: "sum6"},
 	}
 
 	for _, evt := range events {
@@ -232,6 +237,9 @@ func TestGetAnalyticsSummary(t *testing.T) {
 
 	if len(summary.VariantStats) == 0 {
 		t.Error("Expected variant stats in summary, got none")
+	}
+	if summary.TotalDownloads != 1 {
+		t.Errorf("Expected 1 download, got %d", summary.TotalDownloads)
 	}
 }
 

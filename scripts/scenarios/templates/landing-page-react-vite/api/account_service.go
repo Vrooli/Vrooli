@@ -2,7 +2,10 @@ package main
 
 import (
 	"database/sql"
+	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -11,6 +14,9 @@ type AccountService struct {
 	db          *sql.DB
 	planService *PlanService
 	bundleKey   string
+	cacheTTL    time.Duration
+	cacheMutex  sync.RWMutex
+	cache       map[string]subscriptionCacheEntry
 }
 
 // SubscriptionInfo describes the user's plan/subscription status.
@@ -43,17 +49,44 @@ type EntitlementPayload struct {
 	Subscription *SubscriptionInfo `json:"subscription,omitempty"`
 }
 
+type subscriptionCacheEntry struct {
+	info      *SubscriptionInfo
+	expiresAt time.Time
+}
+
 func NewAccountService(db *sql.DB, planService *PlanService) *AccountService {
 	return &AccountService{
 		db:          db,
 		planService: planService,
 		bundleKey:   planService.BundleKey(),
+		cacheTTL:    loadCacheTTL(),
+		cache:       make(map[string]subscriptionCacheEntry),
 	}
 }
 
+func loadCacheTTL() time.Duration {
+	const defaultTTL = 60 * time.Second
+	value := strings.TrimSpace(os.Getenv("SUBSCRIPTION_CACHE_TTL_SECONDS"))
+	if value == "" {
+		return defaultTTL
+	}
+
+	seconds, err := strconv.Atoi(value)
+	if err != nil || seconds <= 0 {
+		return defaultTTL
+	}
+
+	return time.Duration(seconds) * time.Second
+}
+
 func (s *AccountService) GetSubscription(userIdentity string) (*SubscriptionInfo, error) {
-	if strings.TrimSpace(userIdentity) == "" {
+	user := strings.TrimSpace(userIdentity)
+	if user == "" {
 		return &SubscriptionInfo{Status: "inactive"}, nil
+	}
+
+	if cached, ok := s.getCachedSubscription(user); ok {
+		return cached, nil
 	}
 
 	query := `
@@ -64,7 +97,7 @@ func (s *AccountService) GetSubscription(userIdentity string) (*SubscriptionInfo
 		LIMIT 1
 	`
 
-	row := s.db.QueryRow(query, userIdentity)
+	row := s.db.QueryRow(query, user)
 	var info SubscriptionInfo
 	if err := row.Scan(
 		&info.SubscriptionID,
@@ -86,6 +119,9 @@ func (s *AccountService) GetSubscription(userIdentity string) (*SubscriptionInfo
 			info.PlanTier = plan.PlanTier
 		}
 	}
+
+	info.CustomerEmail = user
+	s.cacheSubscription(user, &info)
 
 	return &info, nil
 }
@@ -171,4 +207,41 @@ func (s *AccountService) GetEntitlements(userIdentity string) (*EntitlementPaylo
 	}
 
 	return payload, nil
+}
+
+func (s *AccountService) getCachedSubscription(user string) (*SubscriptionInfo, bool) {
+	s.cacheMutex.RLock()
+	entry, ok := s.cache[user]
+	if !ok {
+		s.cacheMutex.RUnlock()
+		return nil, false
+	}
+
+	if time.Now().After(entry.expiresAt) {
+		s.cacheMutex.RUnlock()
+		s.cacheMutex.Lock()
+		delete(s.cache, user)
+		s.cacheMutex.Unlock()
+		return nil, false
+	}
+
+	cached := *entry.info
+	s.cacheMutex.RUnlock()
+	return &cached, true
+}
+
+func (s *AccountService) cacheSubscription(user string, info *SubscriptionInfo) {
+	if info == nil || s.cacheTTL <= 0 {
+		return
+	}
+
+	entry := subscriptionCacheEntry{
+		info:      &SubscriptionInfo{},
+		expiresAt: time.Now().Add(s.cacheTTL),
+	}
+	*entry.info = *info
+
+	s.cacheMutex.Lock()
+	s.cache[user] = entry
+	s.cacheMutex.Unlock()
 }

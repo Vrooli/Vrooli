@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { getLandingConfig, type LandingConfigResponse } from '../lib/api';
+import { getFallbackLandingConfig } from '../lib/fallbackLandingConfig';
 
 export interface Variant {
   id?: number;
@@ -52,6 +53,27 @@ export function VariantProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    function applyConfig(nextConfig: LandingConfigResponse | null) {
+      setConfig(nextConfig);
+
+      if (nextConfig?.variant) {
+        const status = nextConfig.fallback ? 'fallback' : 'active';
+        setVariant({
+          id: nextConfig.variant.id,
+          slug: nextConfig.variant.slug,
+          name: nextConfig.variant.name,
+          description: nextConfig.variant.description,
+          status,
+        });
+
+        if (!nextConfig.fallback && nextConfig.variant.slug) {
+          storeVariantSlug(nextConfig.variant.slug);
+        }
+      } else {
+        setVariant(null);
+      }
+    }
+
     async function loadVariant() {
       try {
         setLoading(true);
@@ -62,27 +84,22 @@ export function VariantProvider({ children }: { children: ReactNode }) {
         const slugToUse = urlSlug || storedSlug || undefined;
 
         const landingConfig = await getLandingConfig(slugToUse);
-        setConfig(landingConfig);
-
-        if (landingConfig.variant?.slug) {
-          storeVariantSlug(landingConfig.variant.slug);
+        if (!landingConfig?.variant?.slug) {
+          throw new Error('Landing config missing variant');
         }
 
-        if (landingConfig.variant) {
-          setVariant({
-            id: landingConfig.variant.id,
-            slug: landingConfig.variant.slug,
-            name: landingConfig.variant.name,
-            description: landingConfig.variant.description,
-            status: landingConfig.fallback ? 'fallback' : 'active',
-          });
-        } else {
-          setVariant(null);
-        }
+        applyConfig(landingConfig);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         console.error('Failed to load variant:', message);
-        setError(message);
+
+        try {
+          const fallbackConfig = getFallbackLandingConfig();
+          applyConfig(fallbackConfig);
+        } catch (fallbackErr) {
+          console.error('Failed to load fallback landing config:', fallbackErr);
+          setError(message);
+        }
       } finally {
         setLoading(false);
       }
