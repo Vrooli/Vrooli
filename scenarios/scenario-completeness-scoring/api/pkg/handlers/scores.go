@@ -13,11 +13,19 @@ import (
 
 	"scenario-completeness-scoring/pkg/config"
 	apierrors "scenario-completeness-scoring/pkg/errors"
+	"scenario-completeness-scoring/pkg/history"
 	"scenario-completeness-scoring/pkg/scoring"
 	"scenario-completeness-scoring/pkg/validators"
 
 	"github.com/gorilla/mux"
 )
+
+// CalculateRequest represents the optional request body for score calculation
+// Allows callers to specify source and tags for history correlation
+type CalculateRequest struct {
+	Source string   `json:"source,omitempty"` // Source system (e.g., "ecosystem-manager", "cli")
+	Tags   []string `json:"tags,omitempty"`   // Tags for filtering (e.g., ["task:abc123", "iteration:5"])
+}
 
 // HandleListScores returns a list of all scenarios with their scores
 // [REQ:SCS-CORE-002] Score retrieval API endpoint
@@ -250,6 +258,12 @@ func (ctx *Context) HandleGetScore(w http.ResponseWriter, r *http.Request) {
 // HandleCalculateScore forces recalculation of score for a scenario
 // [REQ:SCS-CORE-002] Score retrieval API endpoint
 // [REQ:SCS-HIST-001] Save score snapshot to history
+// Accepts optional JSON body with source and tags for history correlation:
+//
+//	{
+//	  "source": "ecosystem-manager",
+//	  "tags": ["task:abc123", "iteration:5"]
+//	}
 func (ctx *Context) HandleCalculateScore(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	scenarioName := vars["scenario"]
@@ -268,6 +282,23 @@ func (ctx *Context) HandleCalculateScore(w http.ResponseWriter, r *http.Request)
 			"Maximum length is 64 characters",
 		), http.StatusBadRequest)
 		return
+	}
+
+	// Parse optional request body for source/tags
+	// Empty body is valid - source and tags are optional
+	var calcReq CalculateRequest
+	if r.Body != nil && r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&calcReq); err != nil {
+			writeAPIError(w, apierrors.NewAPIError(
+				apierrors.ErrCodeValidationFailed,
+				"Invalid request body",
+				apierrors.CategoryValidation,
+			).WithDetails(err.Error()).WithNextSteps(
+				"Request body must be valid JSON",
+				"Example: {\"source\": \"ecosystem-manager\", \"tags\": [\"task:abc123\"]}",
+			), http.StatusBadRequest)
+			return
+		}
 	}
 
 	// Force recalculation by collecting fresh metrics
@@ -297,14 +328,22 @@ func (ctx *Context) HandleCalculateScore(w http.ResponseWriter, r *http.Request)
 	breakdown := scoring.CalculateCompletenessScoreWithOptions(*metrics, thresholds, 0, scoringOpts)
 	recommendations := scoring.GenerateRecommendations(breakdown, thresholds)
 
-	// Save snapshot to history [REQ:SCS-HIST-001]
+	// Save snapshot to history with source/tags for correlation [REQ:SCS-HIST-001]
 	var snapshotID int64
+	var snapshotSource string
+	var snapshotTags []string
 	if ctx.HistoryRepo != nil {
-		snapshot, err := ctx.HistoryRepo.Save(scenarioName, &breakdown, nil)
+		saveOpts := history.SaveOptions{
+			Source: calcReq.Source,
+			Tags:   calcReq.Tags,
+		}
+		snapshot, err := ctx.HistoryRepo.SaveWithOptions(scenarioName, &breakdown, saveOpts)
 		if err != nil {
 			log.Printf("Warning: failed to save history snapshot: %v", err)
 		} else if snapshot != nil {
 			snapshotID = snapshot.ID
+			snapshotSource = snapshot.Source
+			snapshotTags = snapshot.Tags
 		}
 	}
 
@@ -319,6 +358,14 @@ func (ctx *Context) HandleCalculateScore(w http.ResponseWriter, r *http.Request)
 		"calculated_at":   time.Now().UTC().Format(time.RFC3339),
 		"recalculated":    true,
 		"snapshot_id":     snapshotID,
+	}
+
+	// Include source/tags in response if provided
+	if snapshotSource != "" {
+		response["source"] = snapshotSource
+	}
+	if len(snapshotTags) > 0 {
+		response["tags"] = snapshotTags
 	}
 
 	w.Header().Set("Content-Type", "application/json")

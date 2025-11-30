@@ -309,18 +309,55 @@ export function ScenarioDetail({ scenario, onBack, onOpenConfig }: ScenarioDetai
             </div>
           </div>
 
-          {/* History Sparkline */}
-          <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+          {/* History Panel */}
+          <div className="rounded-xl border border-white/10 bg-white/5 p-6" data-testid="history-panel">
             <h3 className="text-sm font-medium text-slate-400 mb-3 flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              History (last 20)
+              Score History
             </h3>
-            <div className="flex items-center justify-center h-24">
-              <Sparkline data={historyScores} width={180} height={64} />
+            {/* Sparkline */}
+            <div className="flex items-center justify-center h-16 mb-3">
+              <Sparkline data={historyScores} width={180} height={48} />
             </div>
-            {historyData && historyData.count > 0 && (
-              <p className="text-xs text-slate-500 text-center mt-3">
-                {historyData.total} total snapshots
+            {/* Recent snapshots list */}
+            {historyData && historyData.snapshots && historyData.snapshots.length > 0 ? (
+              <div className="space-y-2 max-h-40 overflow-y-auto" data-testid="history-snapshot-list">
+                {historyData.snapshots.slice(0, 5).map((snapshot, idx) => {
+                  const prevSnapshot = historyData.snapshots[idx + 1];
+                  const delta = prevSnapshot ? snapshot.score - prevSnapshot.score : 0;
+                  return (
+                    <div
+                      key={snapshot.id}
+                      className="flex items-center justify-between text-xs p-2 rounded bg-white/5"
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-slate-300 font-medium">
+                          {snapshot.score}/100
+                        </span>
+                        <span className="text-slate-500 text-[10px]">
+                          {new Date(snapshot.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {delta !== 0 && (
+                          <span className={`font-medium ${delta > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                            {delta > 0 ? "+" : ""}{delta}
+                          </span>
+                        )}
+                        <span className="text-slate-500 text-[10px] max-w-[60px] truncate">
+                          {snapshot.classification.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 text-center">No history yet</p>
+            )}
+            {historyData && historyData.total > 5 && (
+              <p className="text-xs text-slate-500 text-center mt-2">
+                +{historyData.total - 5} more snapshots
               </p>
             )}
           </div>

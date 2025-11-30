@@ -84,8 +84,16 @@
       "description": "Interactive UI for simulating changes and seeing impact",
       "prd_ref": "OT-P2-003",
       "criticality": "P2",
-      "status": "pending",
-      "validation": []
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/pages/ScenarioDetail.tsx::WhatIfAnalysis",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "WhatIfAnalysis component with interactive checkboxes, select all/clear, projected score calculation, and classification display"
+        }
+      ]
     },
     {
       "id": "SCS-UI-005",

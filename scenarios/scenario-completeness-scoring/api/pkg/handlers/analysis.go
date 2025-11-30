@@ -6,10 +6,12 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"scenario-completeness-scoring/pkg/analysis"
 	apierrors "scenario-completeness-scoring/pkg/errors"
+	"scenario-completeness-scoring/pkg/history"
 
 	"github.com/gorilla/mux"
 )
@@ -23,6 +25,11 @@ const maxLimitDefault = 1000
 // [REQ:SCS-HIST-001] Score history storage
 // [REQ:SCS-HIST-004] History API endpoint
 // [REQ:SCS-CORE-003] Structured error responses with actionable guidance
+//
+// Query parameters:
+//   - limit: Max number of snapshots (default 30, max 1000)
+//   - source: Filter by source system (e.g., "ecosystem-manager")
+//   - tag: Filter by tag (can be repeated for AND logic, e.g., ?tag=task:abc&tag=iteration:5)
 func (ctx *Context) HandleGetHistory(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	scenarioName := vars["scenario"]
@@ -53,7 +60,14 @@ func (ctx *Context) HandleGetHistory(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	history, err := ctx.HistoryRepo.GetHistory(scenarioName, limit)
+	// Parse source and tags for filtering
+	filter := history.HistoryFilter{
+		Limit:  limit,
+		Source: r.URL.Query().Get("source"),
+		Tags:   parseTags(r),
+	}
+
+	historyData, err := ctx.HistoryRepo.GetHistoryWithFilter(scenarioName, filter)
 	if err != nil {
 		writeAPIError(w, apierrors.NewAPIError(
 			apierrors.ErrCodeDatabaseError,
@@ -67,24 +81,62 @@ func (ctx *Context) HandleGetHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	count, _ := ctx.HistoryRepo.Count(scenarioName)
+	// Get counts (filtered vs total)
+	filteredCount, _ := ctx.HistoryRepo.CountWithFilter(scenarioName, filter)
+	totalCount, _ := ctx.HistoryRepo.Count(scenarioName)
 
 	response := map[string]interface{}{
 		"scenario":   scenarioName,
-		"snapshots":  history,
-		"count":      len(history),
-		"total":      count,
+		"snapshots":  historyData,
+		"count":      len(historyData),
+		"filtered":   filteredCount,
+		"total":      totalCount,
 		"limit":      limit,
 		"fetched_at": time.Now().UTC().Format(time.RFC3339),
+	}
+
+	// Include filter info in response if filters were applied
+	if filter.Source != "" || len(filter.Tags) > 0 {
+		filterInfo := map[string]interface{}{}
+		if filter.Source != "" {
+			filterInfo["source"] = filter.Source
+		}
+		if len(filter.Tags) > 0 {
+			filterInfo["tags"] = filter.Tags
+		}
+		response["filter"] = filterInfo
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
+// parseTags extracts tag values from query string (supports multiple ?tag=X&tag=Y)
+func parseTags(r *http.Request) []string {
+	// First try the standard multi-value approach
+	tags := r.URL.Query()["tag"]
+
+	// Also support comma-separated tags in a single parameter
+	if tagsStr := r.URL.Query().Get("tags"); tagsStr != "" {
+		for _, t := range strings.Split(tagsStr, ",") {
+			t = strings.TrimSpace(t)
+			if t != "" {
+				tags = append(tags, t)
+			}
+		}
+	}
+
+	return tags
+}
+
 // HandleGetTrends returns trend analysis for a scenario
 // [REQ:SCS-HIST-003] Trend detection
 // [REQ:SCS-CORE-003] Structured error responses with actionable guidance
+//
+// Query parameters:
+//   - limit: Max number of snapshots to analyze (default 30, max 1000)
+//   - source: Filter by source system (e.g., "ecosystem-manager")
+//   - tag: Filter by tag (can be repeated for AND logic)
 func (ctx *Context) HandleGetTrends(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	scenarioName := vars["scenario"]
@@ -115,7 +167,14 @@ func (ctx *Context) HandleGetTrends(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	trendAnalysis, err := ctx.TrendAnalyzer.Analyze(scenarioName, limit)
+	// Parse source and tags for filtering
+	filter := history.HistoryFilter{
+		Limit:  limit,
+		Source: r.URL.Query().Get("source"),
+		Tags:   parseTags(r),
+	}
+
+	trendAnalysis, err := ctx.TrendAnalyzer.AnalyzeWithFilter(scenarioName, filter)
 	if err != nil {
 		writeAPIError(w, apierrors.NewAPIError(
 			apierrors.ErrCodeDatabaseError,
@@ -133,6 +192,18 @@ func (ctx *Context) HandleGetTrends(w http.ResponseWriter, r *http.Request) {
 		"scenario":    scenarioName,
 		"analysis":    trendAnalysis,
 		"analyzed_at": time.Now().UTC().Format(time.RFC3339),
+	}
+
+	// Include filter info in response if filters were applied
+	if filter.Source != "" || len(filter.Tags) > 0 {
+		filterInfo := map[string]interface{}{}
+		if filter.Source != "" {
+			filterInfo["source"] = filter.Source
+		}
+		if len(filter.Tags) > 0 {
+			filterInfo["tags"] = filter.Tags
+		}
+		response["filter"] = filterInfo
 	}
 
 	w.Header().Set("Content-Type", "application/json")

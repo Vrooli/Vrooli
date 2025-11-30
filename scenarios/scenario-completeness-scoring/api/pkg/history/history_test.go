@@ -484,3 +484,338 @@ func TestDBPath(t *testing.T) {
 		t.Errorf("expected path %s, got %s", expectedPath, db.Path())
 	}
 }
+
+// TestSaveWithSourceAndTags verifies source/tags storage
+func TestSaveWithSourceAndTags(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewRepository(db)
+
+	breakdown := &scoring.ScoreBreakdown{
+		Score:          75,
+		Classification: "mostly_complete",
+	}
+
+	opts := SaveOptions{
+		Source: "ecosystem-manager",
+		Tags:   []string{"task:abc123", "iteration:5", "phase:ux"},
+	}
+
+	snapshot, err := repo.SaveWithOptions("test-scenario", breakdown, opts)
+	if err != nil {
+		t.Fatalf("failed to save snapshot: %v", err)
+	}
+
+	if snapshot.Source != "ecosystem-manager" {
+		t.Errorf("expected source 'ecosystem-manager', got %s", snapshot.Source)
+	}
+	if len(snapshot.Tags) != 3 {
+		t.Errorf("expected 3 tags, got %d", len(snapshot.Tags))
+	}
+	if snapshot.Tags[0] != "task:abc123" {
+		t.Errorf("expected first tag 'task:abc123', got %s", snapshot.Tags[0])
+	}
+}
+
+// TestGetHistoryWithSourceFilter verifies filtering by source
+func TestGetHistoryWithSourceFilter(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewRepository(db)
+
+	// Save snapshots from different sources
+	for i := 1; i <= 3; i++ {
+		breakdown := &scoring.ScoreBreakdown{Score: i * 10, Classification: "test"}
+		repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{Source: "ecosystem-manager"})
+	}
+	for i := 1; i <= 2; i++ {
+		breakdown := &scoring.ScoreBreakdown{Score: i * 20, Classification: "test"}
+		repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{Source: "cli"})
+	}
+
+	// Filter by ecosystem-manager
+	filter := HistoryFilter{Source: "ecosystem-manager", Limit: 10}
+	history, err := repo.GetHistoryWithFilter("test-scenario", filter)
+	if err != nil {
+		t.Fatalf("failed to get filtered history: %v", err)
+	}
+
+	if len(history) != 3 {
+		t.Errorf("expected 3 snapshots from ecosystem-manager, got %d", len(history))
+	}
+
+	// Verify all snapshots have correct source
+	for _, snap := range history {
+		if snap.Source != "ecosystem-manager" {
+			t.Errorf("expected source 'ecosystem-manager', got %s", snap.Source)
+		}
+	}
+}
+
+// TestGetHistoryWithTagFilter verifies filtering by tags
+func TestGetHistoryWithTagFilter(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewRepository(db)
+
+	// Save snapshots with different tags
+	breakdown := &scoring.ScoreBreakdown{Score: 50, Classification: "test"}
+	repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{
+		Source: "ecosystem-manager",
+		Tags:   []string{"task:abc123", "iteration:1"},
+	})
+	repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{
+		Source: "ecosystem-manager",
+		Tags:   []string{"task:abc123", "iteration:2"},
+	})
+	repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{
+		Source: "ecosystem-manager",
+		Tags:   []string{"task:def456", "iteration:1"},
+	})
+
+	// Filter by task:abc123
+	filter := HistoryFilter{Tags: []string{"task:abc123"}, Limit: 10}
+	history, err := repo.GetHistoryWithFilter("test-scenario", filter)
+	if err != nil {
+		t.Fatalf("failed to get filtered history: %v", err)
+	}
+
+	if len(history) != 2 {
+		t.Errorf("expected 2 snapshots with task:abc123, got %d", len(history))
+	}
+}
+
+// TestGetHistoryWithMultipleTagFilters verifies AND logic for multiple tags
+func TestGetHistoryWithMultipleTagFilters(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewRepository(db)
+
+	// Save snapshots with different tag combinations
+	breakdown := &scoring.ScoreBreakdown{Score: 50, Classification: "test"}
+	repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{
+		Tags: []string{"task:abc123", "phase:ux"},
+	})
+	repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{
+		Tags: []string{"task:abc123", "phase:test"},
+	})
+	repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{
+		Tags: []string{"task:def456", "phase:ux"},
+	})
+
+	// Filter by both task:abc123 AND phase:ux (AND logic)
+	filter := HistoryFilter{Tags: []string{"task:abc123", "phase:ux"}, Limit: 10}
+	history, err := repo.GetHistoryWithFilter("test-scenario", filter)
+	if err != nil {
+		t.Fatalf("failed to get filtered history: %v", err)
+	}
+
+	if len(history) != 1 {
+		t.Errorf("expected 1 snapshot matching both tags, got %d", len(history))
+	}
+}
+
+// TestGetHistoryWithSourceAndTagFilter verifies combined filtering
+func TestGetHistoryWithSourceAndTagFilter(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewRepository(db)
+
+	// Save snapshots with different source/tag combinations
+	breakdown := &scoring.ScoreBreakdown{Score: 50, Classification: "test"}
+	repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{
+		Source: "ecosystem-manager",
+		Tags:   []string{"task:abc123"},
+	})
+	repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{
+		Source: "cli",
+		Tags:   []string{"task:abc123"},
+	})
+	repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{
+		Source: "ecosystem-manager",
+		Tags:   []string{"task:def456"},
+	})
+
+	// Filter by ecosystem-manager AND task:abc123
+	filter := HistoryFilter{
+		Source: "ecosystem-manager",
+		Tags:   []string{"task:abc123"},
+		Limit:  10,
+	}
+	history, err := repo.GetHistoryWithFilter("test-scenario", filter)
+	if err != nil {
+		t.Fatalf("failed to get filtered history: %v", err)
+	}
+
+	if len(history) != 1 {
+		t.Errorf("expected 1 snapshot matching source and tag, got %d", len(history))
+	}
+}
+
+// TestCountWithFilter verifies filtered count
+func TestCountWithFilter(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewRepository(db)
+
+	// Save snapshots from different sources
+	breakdown := &scoring.ScoreBreakdown{Score: 50, Classification: "test"}
+	for i := 0; i < 5; i++ {
+		repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{Source: "ecosystem-manager"})
+	}
+	for i := 0; i < 3; i++ {
+		repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{Source: "cli"})
+	}
+
+	// Count with filter
+	filter := HistoryFilter{Source: "ecosystem-manager"}
+	count, err := repo.CountWithFilter("test-scenario", filter)
+	if err != nil {
+		t.Fatalf("failed to count: %v", err)
+	}
+
+	if count != 5 {
+		t.Errorf("expected 5 snapshots from ecosystem-manager, got %d", count)
+	}
+}
+
+// TestGetDistinctSources verifies source enumeration
+func TestGetDistinctSources(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewRepository(db)
+
+	// Save snapshots from different sources
+	breakdown := &scoring.ScoreBreakdown{Score: 50, Classification: "test"}
+	repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{Source: "ecosystem-manager"})
+	repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{Source: "cli"})
+	repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{Source: "ci"})
+	repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{}) // No source
+
+	sources, err := repo.GetDistinctSources()
+	if err != nil {
+		t.Fatalf("failed to get distinct sources: %v", err)
+	}
+
+	if len(sources) != 3 {
+		t.Errorf("expected 3 distinct sources, got %d", len(sources))
+	}
+}
+
+// TestGetLatestWithFilter verifies filtered latest retrieval
+func TestGetLatestWithFilter(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewRepository(db)
+
+	// Save snapshots from different sources
+	for i := 1; i <= 3; i++ {
+		breakdown := &scoring.ScoreBreakdown{Score: i * 10, Classification: "test"}
+		repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{Source: "ecosystem-manager"})
+		time.Sleep(10 * time.Millisecond)
+	}
+	// Save a newer one from CLI
+	breakdown := &scoring.ScoreBreakdown{Score: 100, Classification: "test"}
+	repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{Source: "cli"})
+
+	// Get latest from ecosystem-manager only
+	filter := HistoryFilter{Source: "ecosystem-manager"}
+	latest, err := repo.GetLatestWithFilter("test-scenario", filter)
+	if err != nil {
+		t.Fatalf("failed to get latest: %v", err)
+	}
+
+	if latest == nil {
+		t.Fatal("expected latest snapshot")
+	}
+	if latest.Score != 30 {
+		t.Errorf("expected score 30 (latest from ecosystem-manager), got %d", latest.Score)
+	}
+}
+
+// TestAnalyzeWithFilter verifies filtered trend analysis
+func TestAnalyzeWithFilter(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewRepository(db)
+	analyzer := NewTrendAnalyzer(repo, 3)
+
+	// Save improving trend from ecosystem-manager
+	for _, score := range []int{50, 55, 60, 65, 70} {
+		breakdown := &scoring.ScoreBreakdown{Score: score, Classification: "test"}
+		repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{
+			Source: "ecosystem-manager",
+			Tags:   []string{"task:abc123"},
+		})
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Save some noise from CLI
+	for _, score := range []int{10, 20, 30} {
+		breakdown := &scoring.ScoreBreakdown{Score: score, Classification: "test"}
+		repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{Source: "cli"})
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Analyze only ecosystem-manager snapshots
+	filter := HistoryFilter{Source: "ecosystem-manager", Tags: []string{"task:abc123"}, Limit: 10}
+	analysis, err := analyzer.AnalyzeWithFilter("test-scenario", filter)
+	if err != nil {
+		t.Fatalf("failed to analyze: %v", err)
+	}
+
+	if analysis.CurrentScore != 70 {
+		t.Errorf("expected current score 70, got %d", analysis.CurrentScore)
+	}
+	if analysis.Direction != TrendImproving {
+		t.Errorf("expected improving trend, got %s", analysis.Direction)
+	}
+	if analysis.SnapshotsAnalyzed != 5 {
+		t.Errorf("expected 5 snapshots analyzed (from ecosystem-manager), got %d", analysis.SnapshotsAnalyzed)
+	}
+}
+
+// TestStallDetectionWithFilter verifies stall detection scoped to specific task
+func TestStallDetectionWithFilter(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewRepository(db)
+	analyzer := NewTrendAnalyzer(repo, 3) // Stall after 3 unchanged
+
+	// Save stalled snapshots for task:abc123
+	for i := 0; i < 5; i++ {
+		breakdown := &scoring.ScoreBreakdown{Score: 50, Classification: "test"}
+		repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{
+			Source: "ecosystem-manager",
+			Tags:   []string{"task:abc123"},
+		})
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Save improving snapshots for task:def456
+	for _, score := range []int{50, 55, 60} {
+		breakdown := &scoring.ScoreBreakdown{Score: score, Classification: "test"}
+		repo.SaveWithOptions("test-scenario", breakdown, SaveOptions{
+			Source: "ecosystem-manager",
+			Tags:   []string{"task:def456"},
+		})
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Analyze task:abc123 only - should be stalled
+	filterABC := HistoryFilter{Tags: []string{"task:abc123"}, Limit: 10}
+	analysisABC, _ := analyzer.AnalyzeWithFilter("test-scenario", filterABC)
+	if !analysisABC.IsStalled {
+		t.Error("expected task:abc123 to be stalled")
+	}
+
+	// Analyze task:def456 only - should be improving
+	filterDEF := HistoryFilter{Tags: []string{"task:def456"}, Limit: 10}
+	analysisDEF, _ := analyzer.AnalyzeWithFilter("test-scenario", filterDEF)
+	if analysisDEF.IsStalled {
+		t.Error("expected task:def456 to NOT be stalled")
+	}
+	if analysisDEF.Direction != TrendImproving {
+		t.Errorf("expected task:def456 to be improving, got %s", analysisDEF.Direction)
+	}
+}

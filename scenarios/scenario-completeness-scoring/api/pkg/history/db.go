@@ -77,8 +77,63 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_snapshots_scenario_time ON score_snapshots(scenario, created_at DESC);
 	`
 
-	_, err := db.conn.Exec(schema)
-	return err
+	if _, err := db.conn.Exec(schema); err != nil {
+		return err
+	}
+
+	// Migration v2: Add source and tags columns for ecosystem-manager correlation
+	// These enable filtering history by source system and arbitrary tags
+	migrations := []string{
+		// Add source column (e.g., "ecosystem-manager", "cli", "ci")
+		`ALTER TABLE score_snapshots ADD COLUMN source TEXT`,
+		// Add tags column (JSON array of strings, e.g., ["task:abc123", "iteration:5"])
+		`ALTER TABLE score_snapshots ADD COLUMN tags JSON`,
+		// Index for filtering by source
+		`CREATE INDEX IF NOT EXISTS idx_snapshots_source ON score_snapshots(source)`,
+		// Compound index for source + scenario queries
+		`CREATE INDEX IF NOT EXISTS idx_snapshots_scenario_source ON score_snapshots(scenario, source)`,
+	}
+
+	for _, migration := range migrations {
+		// SQLite returns error if column already exists, which is fine
+		_, err := db.conn.Exec(migration)
+		if err != nil && !isColumnExistsError(err) && !isIndexExistsError(err) {
+			return fmt.Errorf("migration failed: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// isColumnExistsError checks if error is due to column already existing
+func isColumnExistsError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return contains(errStr, "duplicate column name") || contains(errStr, "already exists")
+}
+
+// isIndexExistsError checks if error is due to index already existing
+func isIndexExistsError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return contains(err.Error(), "index") && contains(err.Error(), "already exists")
+}
+
+// contains checks if s contains substr (simple helper to avoid strings import)
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsAt(s, substr))
+}
+
+func containsAt(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
 
 // Close closes the database connection

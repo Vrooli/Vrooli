@@ -288,6 +288,8 @@ const literalSelectors: LiteralSelectorTree = {
     scoreBarDetails: "score-bar-details",
     configTip: "config-tip",
     partialDataBanner: "partial-data-banner",
+    historyPanel: "history-panel",
+    historySnapshotList: "history-snapshot-list",
   },
   configuration: {
     root: "configuration-panel",

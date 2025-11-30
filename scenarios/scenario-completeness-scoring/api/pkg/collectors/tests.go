@@ -69,9 +69,13 @@ func loadPhaseBasedResults(scenarioRoot string) *TestResults {
 		if len(phaseData.Requirements) > 0 {
 			hasResults = true
 			for _, req := range phaseData.Requirements {
-				totalTests++
+				// Only count actual test runs (passed or failed)
+				// Skip "skipped", "not_run", "unknown" - these aren't actual test executions
 				if req.Status == "passed" {
+					totalTests++
 					totalPassing++
+				} else if req.Status == "failed" {
+					totalTests++
 				}
 			}
 

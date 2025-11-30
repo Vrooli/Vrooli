@@ -28,13 +28,23 @@ var templateSignatures = []string{
 	"TEMPLATE_PLACEHOLDER",
 }
 
-// API endpoint patterns
+// API endpoint patterns - matches various ways API endpoints are referenced in UI code
 var apiPatterns = []*regexp.Regexp{
+	// Pattern 1: Direct fetch/axios with string literal URL
 	regexp.MustCompile(`fetch\s*\(\s*["'\x60]([^"'\x60]+)["'\x60]`),
 	regexp.MustCompile(`axios\.[a-z]+\s*\(\s*["'\x60]([^"'\x60]+)["'\x60]`),
 	regexp.MustCompile(`api\.[a-z]+\s*\(\s*["'\x60]([^"'\x60]+)["'\x60]`),
+	// Pattern 2: Simple quoted /api/ paths
 	regexp.MustCompile(`["'\x60](/api/[^"'\x60\s]+)["'\x60]`),
 	regexp.MustCompile(`["'\x60](/health)["'\x60]`),
+	// Pattern 3: Wrapper function calls like buildApiUrl('/path'), apiClient('/path')
+	regexp.MustCompile(`(?:buildApiUrl|apiClient|getApiUrl|buildUrl)\s*\(\s*["'\x60]([^"'\x60]+)["'\x60]`),
+	// Pattern 4: Config-based URL concatenation like config.API_URL + '/path'
+	regexp.MustCompile(`(?:config\.API_URL|API_BASE|API_URL|BASE_URL|getApiBase\(\))\s*(?:\+\s*)?["'\x60]([^"'\x60]+)["'\x60]`),
+	// Pattern 5: Template literal with variable base like `${API_BASE}/path`
+	regexp.MustCompile(`\x60\$\{(?:config\.API_URL|API_BASE|API_URL|BASE_URL|getApiBase\(\)|this\.apiBase)\}([^\x60]+)\x60`),
+	// Pattern 6: this.apiBase concatenation
+	regexp.MustCompile(`this\.apiBase\s*\+\s*["'\x60]([^"'\x60]+)["'\x60]`),
 }
 
 // Routing patterns

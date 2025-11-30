@@ -97,7 +97,7 @@
       "path": "/api/v1/scores/{scenario}/calculate",
       "method": "POST",
       "summary": "Force score recalculation",
-      "description": "Forces a fresh calculation of the scenario's completeness score",
+      "description": "Forces a fresh calculation of the scenario's completeness score. Optionally accepts source and tags for history correlation, enabling ecosystem-manager to track iterations separately from CLI/CI usage.",
       "category": "scoring",
       "parameters": [
         {
@@ -106,6 +106,26 @@
           "required": true,
           "type": "string",
           "description": "Scenario name"
+        }
+      ],
+      "request_body": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "Source system identifier (e.g., 'ecosystem-manager', 'cli', 'ci')"
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Tags for filtering history (e.g., ['task:abc123', 'iteration:5'])"
+          }
+        }
+      },
+      "examples": [
+        {
+          "name": "Calculate with source/tags",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/scores/my-scenario/calculate -H 'Content-Type: application/json' -d '{\"source\": \"ecosystem-manager\", \"tags\": [\"task:abc123\", \"iteration:5\"]}'"
         }
       ],
       "cli_mapping": {
@@ -117,7 +137,7 @@
       "path": "/api/v1/scores/{scenario}/history",
       "method": "GET",
       "summary": "Get score history",
-      "description": "Returns historical score snapshots for trend analysis",
+      "description": "Returns historical score snapshots for trend analysis. Supports filtering by source and tags to isolate ecosystem-manager iterations from CLI/CI usage.",
       "category": "scoring",
       "parameters": [
         {
@@ -131,11 +151,77 @@
           "in": "query",
           "required": false,
           "type": "number",
-          "description": "Maximum number of history entries to return"
+          "description": "Maximum number of history entries to return (default 30, max 1000)"
+        },
+        {
+          "name": "source",
+          "in": "query",
+          "required": false,
+          "type": "string",
+          "description": "Filter by source system (e.g., 'ecosystem-manager')"
+        },
+        {
+          "name": "tag",
+          "in": "query",
+          "required": false,
+          "type": "string",
+          "description": "Filter by tag (can be repeated for AND logic, e.g., ?tag=task:abc123&tag=iteration:5)"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get filtered history",
+          "curl": "curl 'http://localhost:${API_PORT}/api/v1/scores/my-scenario/history?source=ecosystem-manager&tag=task:abc123'"
         }
       ],
       "cli_mapping": {
         "command": "scenario-completeness-scoring history {scenario}"
+      }
+    },
+    {
+      "id": "get-trends",
+      "path": "/api/v1/scores/{scenario}/trends",
+      "method": "GET",
+      "summary": "Get trend analysis",
+      "description": "Returns trend analysis for a scenario including direction (improving/declining/stalled), stall detection, and statistics. Supports filtering by source and tags.",
+      "category": "analysis",
+      "parameters": [
+        {
+          "name": "scenario",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "type": "number",
+          "description": "Number of snapshots to analyze (default 30, max 1000)"
+        },
+        {
+          "name": "source",
+          "in": "query",
+          "required": false,
+          "type": "string",
+          "description": "Filter by source system (e.g., 'ecosystem-manager')"
+        },
+        {
+          "name": "tag",
+          "in": "query",
+          "required": false,
+          "type": "string",
+          "description": "Filter by tag (can be repeated for AND logic)"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get filtered trends",
+          "curl": "curl 'http://localhost:${API_PORT}/api/v1/scores/my-scenario/trends?source=ecosystem-manager&tag=task:abc123'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring trends {scenario}"
       }
     },
     {

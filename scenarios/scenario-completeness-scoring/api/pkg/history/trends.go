@@ -57,11 +57,18 @@ func NewTrendAnalyzer(repo *Repository, stallThreshold int) *TrendAnalyzer {
 // Analyze performs trend analysis for a scenario
 // [REQ:SCS-HIST-003] Detect score improvements/regressions and stalls
 func (a *TrendAnalyzer) Analyze(scenario string, snapshotLimit int) (*TrendAnalysis, error) {
-	if snapshotLimit <= 0 {
-		snapshotLimit = 30
+	return a.AnalyzeWithFilter(scenario, HistoryFilter{Limit: snapshotLimit})
+}
+
+// AnalyzeWithFilter performs trend analysis for a scenario with filtering
+// This allows ecosystem-manager to analyze trends only for its own iterations
+// [REQ:SCS-HIST-003] Detect score improvements/regressions and stalls
+func (a *TrendAnalyzer) AnalyzeWithFilter(scenario string, filter HistoryFilter) (*TrendAnalysis, error) {
+	if filter.Limit <= 0 {
+		filter.Limit = 30
 	}
 
-	snapshots, err := a.repo.GetHistory(scenario, snapshotLimit)
+	snapshots, err := a.repo.GetHistoryWithFilter(scenario, filter)
 	if err != nil {
 		return nil, err
 	}
