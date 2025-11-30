@@ -11,6 +11,10 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
+	"landing-manager/handlers"
+	"landing-manager/services"
+	"landing-manager/util"
 )
 
 func TestHealthEndpoint(t *testing.T) {
@@ -73,10 +77,20 @@ func TestHandleTemplateList(t *testing.T) {
 		// Create a temporary templates directory with test data
 		tmpDir := t.TempDir()
 
-		// Create test server with mock template service
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistryWithDir(tmpDir)
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(tmpDir)
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: &TemplateService{templatesDir: tmpDir},
+			router:  mux.NewRouter(),
+			handler: h,
 		}
 		srv.setupRoutes()
 
@@ -95,10 +109,21 @@ func TestHandleTemplateList(t *testing.T) {
 	})
 
 	t.Run("error when directory not readable", func(t *testing.T) {
+		db := setupTestDB(t)
+		defer db.Close()
+
 		// Use an invalid path to trigger error
+		registry := services.NewTemplateRegistryWithDir("/nonexistent/path/that/does/not/exist")
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService("/nonexistent")
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: &TemplateService{templatesDir: "/nonexistent/path/that/does/not/exist"},
+			router:  mux.NewRouter(),
+			handler: h,
 		}
 		srv.setupRoutes()
 
@@ -116,9 +141,20 @@ func TestHandleTemplateList(t *testing.T) {
 func TestHandleTemplateShow(t *testing.T) {
 	tmpDir := t.TempDir()
 
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistryWithDir(tmpDir)
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(tmpDir)
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: &TemplateService{templatesDir: tmpDir},
+		router:  mux.NewRouter(),
+		handler: h,
 	}
 	srv.setupRoutes()
 
@@ -177,12 +213,12 @@ func TestResolveDatabaseURL(t *testing.T) {
 
 func TestLogStructured(t *testing.T) {
 	// Test structured logging (output validation is complex, just ensure no panic)
-	logStructured("test_event", map[string]interface{}{
+	util.LogStructured("test_event", map[string]interface{}{
 		"key":   "value",
 		"count": 42,
 	})
 
-	logStructured("test_event_no_fields", nil)
+	util.LogStructured("test_event_no_fields", nil)
 }
 
 func TestHandleGenerate(t *testing.T) {
@@ -212,11 +248,22 @@ func TestHandleGenerate(t *testing.T) {
 	os.WriteFile(payloadDir+"/.vrooli/service.json", []byte(`{"name":"template"}`), 0644)
 	os.WriteFile(payloadDir+"/test.txt", []byte("test"), 0644)
 
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistryWithDir(tmpTemplatesDir)
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(tmpTemplatesDir)
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: &TemplateService{templatesDir: tmpTemplatesDir},
+		router:  mux.NewRouter(),
+		handler: h,
 	}
-	srv.router.HandleFunc("/api/v1/generate", srv.handleGenerate).Methods("POST")
+	srv.router.HandleFunc("/api/v1/generate", srv.handler.HandleGenerate).Methods("POST")
 
 	t.Run("dry run mode", func(t *testing.T) {
 		req := httptest.NewRequest("POST", "/api/v1/generate",
@@ -262,11 +309,22 @@ func TestHandleGeneratedList(t *testing.T) {
 		serviceJSON := `{"name": "Test Scenario", "slug": "test-scenario"}`
 		os.WriteFile(scenarioDir+"/.vrooli/service.json", []byte(serviceJSON), 0644)
 
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: &TemplateService{},
+			router:  mux.NewRouter(),
+			handler: h,
 		}
-		srv.router.HandleFunc("/api/v1/generated", srv.handleGeneratedList).Methods("GET")
+		srv.router.HandleFunc("/api/v1/generated", srv.handler.HandleGeneratedList).Methods("GET")
 
 		req := httptest.NewRequest("GET", "/api/v1/generated", nil)
 		w := httptest.NewRecorder()
@@ -277,7 +335,7 @@ func TestHandleGeneratedList(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 
-		var scenarios []GeneratedScenario
+		var scenarios []services.GeneratedScenario
 		if err := json.Unmarshal(w.Body.Bytes(), &scenarios); err != nil {
 			t.Fatalf("Failed to parse response: %v", err)
 		}
@@ -292,11 +350,22 @@ func TestHandleGeneratedList(t *testing.T) {
 		os.Setenv("GEN_OUTPUT_DIR", "/nonexistent/path/that/does/not/exist")
 		defer os.Unsetenv("GEN_OUTPUT_DIR")
 
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: &TemplateService{},
+			router:  mux.NewRouter(),
+			handler: h,
 		}
-		srv.router.HandleFunc("/api/v1/generated", srv.handleGeneratedList).Methods("GET")
+		srv.router.HandleFunc("/api/v1/generated", srv.handler.HandleGeneratedList).Methods("GET")
 
 		req := httptest.NewRequest("GET", "/api/v1/generated", nil)
 		w := httptest.NewRecorder()
@@ -308,7 +377,7 @@ func TestHandleGeneratedList(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 
-		var scenarios []GeneratedScenario
+		var scenarios []services.GeneratedScenario
 		if err := json.Unmarshal(w.Body.Bytes(), &scenarios); err != nil {
 			t.Fatalf("Failed to parse response: %v", err)
 		}
@@ -349,12 +418,23 @@ func TestHandleCustomizeCreatesIssue(t *testing.T) {
 		os.Setenv("APP_ISSUE_TRACKER_API_BASE", mockTracker.URL)
 		defer os.Unsetenv("APP_ISSUE_TRACKER_API_BASE")
 
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandlerWithHTTPClient(db, registry, generator, personaService, previewService, analyticsService,
+			&http.Client{Timeout: 5 * time.Second})
+
 		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
-			httpClient:      &http.Client{Timeout: 5 * time.Second},
+			router:  mux.NewRouter(),
+			handler: h,
 		}
-		srv.router.HandleFunc("/api/v1/customize", srv.handleCustomize).Methods("POST")
+		srv.router.HandleFunc("/api/v1/customize", srv.handler.HandleCustomize).Methods("POST")
 
 		req := httptest.NewRequest("POST", "/api/v1/customize", strings.NewReader(`{"scenario_id":"demo","brief":"make it bold","assets":["logo.svg"],"preview":true}`))
 		w := httptest.NewRecorder()
@@ -380,12 +460,23 @@ func TestHandleCustomizeCreatesIssue(t *testing.T) {
 	})
 
 	t.Run("invalid request body", func(t *testing.T) {
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandlerWithHTTPClient(db, registry, generator, personaService, previewService, analyticsService,
+			&http.Client{Timeout: 5 * time.Second})
+
 		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
-			httpClient:      &http.Client{Timeout: 5 * time.Second},
+			router:  mux.NewRouter(),
+			handler: h,
 		}
-		srv.router.HandleFunc("/api/v1/customize", srv.handleCustomize).Methods("POST")
+		srv.router.HandleFunc("/api/v1/customize", srv.handler.HandleCustomize).Methods("POST")
 
 		req := httptest.NewRequest("POST", "/api/v1/customize", strings.NewReader(`{invalid json`))
 		w := httptest.NewRecorder()
@@ -401,12 +492,23 @@ func TestHandleCustomizeCreatesIssue(t *testing.T) {
 		// Unset issue tracker base URL to trigger error
 		os.Unsetenv("APP_ISSUE_TRACKER_API_BASE")
 
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandlerWithHTTPClient(db, registry, generator, personaService, previewService, analyticsService,
+			&http.Client{Timeout: 5 * time.Second})
+
 		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
-			httpClient:      &http.Client{Timeout: 5 * time.Second},
+			router:  mux.NewRouter(),
+			handler: h,
 		}
-		srv.router.HandleFunc("/api/v1/customize", srv.handleCustomize).Methods("POST")
+		srv.router.HandleFunc("/api/v1/customize", srv.handler.HandleCustomize).Methods("POST")
 
 		req := httptest.NewRequest("POST", "/api/v1/customize", strings.NewReader(`{"scenario_id":"demo","brief":"make it bold"}`))
 		w := httptest.NewRecorder()
@@ -431,12 +533,23 @@ func TestHandleCustomizeCreatesIssue(t *testing.T) {
 		os.Setenv("APP_ISSUE_TRACKER_API_BASE", mockTracker.URL)
 		defer os.Unsetenv("APP_ISSUE_TRACKER_API_BASE")
 
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandlerWithHTTPClient(db, registry, generator, personaService, previewService, analyticsService,
+			&http.Client{Timeout: 5 * time.Second})
+
 		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
-			httpClient:      &http.Client{Timeout: 5 * time.Second},
+			router:  mux.NewRouter(),
+			handler: h,
 		}
-		srv.router.HandleFunc("/api/v1/customize", srv.handleCustomize).Methods("POST")
+		srv.router.HandleFunc("/api/v1/customize", srv.handler.HandleCustomize).Methods("POST")
 
 		req := httptest.NewRequest("POST", "/api/v1/customize", strings.NewReader(`{"scenario_id":"demo","brief":"make it bold"}`))
 		w := httptest.NewRecorder()
@@ -469,12 +582,23 @@ func TestHandleCustomizeCreatesIssue(t *testing.T) {
 		os.Setenv("APP_ISSUE_TRACKER_API_BASE", mockTracker.URL)
 		defer os.Unsetenv("APP_ISSUE_TRACKER_API_BASE")
 
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandlerWithHTTPClient(db, registry, generator, personaService, previewService, analyticsService,
+			&http.Client{Timeout: 5 * time.Second})
+
 		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
-			httpClient:      &http.Client{Timeout: 5 * time.Second},
+			router:  mux.NewRouter(),
+			handler: h,
 		}
-		srv.router.HandleFunc("/api/v1/customize", srv.handleCustomize).Methods("POST")
+		srv.router.HandleFunc("/api/v1/customize", srv.handler.HandleCustomize).Methods("POST")
 
 		req := httptest.NewRequest("POST", "/api/v1/customize", strings.NewReader(`{"scenario_id":"demo","brief":"make it bold","persona_id":"minimal-design"}`))
 		w := httptest.NewRecorder()
@@ -490,9 +614,20 @@ func TestHandleCustomizeCreatesIssue(t *testing.T) {
 // [REQ:TMPL-AGENT-PROFILES] Test persona listing endpoint
 func TestHandlePersonaList(t *testing.T) {
 	t.Run("REQ:TMPL-AGENT-PROFILES", func(t *testing.T) {
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
+			router:  mux.NewRouter(),
+			handler: h,
 		}
 		srv.setupRoutes()
 
@@ -509,7 +644,7 @@ func TestHandlePersonaList(t *testing.T) {
 			t.Errorf("Expected Content-Type application/json, got %s", contentType)
 		}
 
-		var personas []Persona
+		var personas []services.Persona
 		if err := json.Unmarshal(w.Body.Bytes(), &personas); err != nil {
 			t.Fatalf("Failed to parse response: %v", err)
 		}
@@ -524,9 +659,20 @@ func TestHandlePersonaList(t *testing.T) {
 // [REQ:TMPL-AGENT-PROFILES] Test persona show endpoint
 func TestHandlePersonaShow(t *testing.T) {
 	t.Run("REQ:TMPL-AGENT-PROFILES", func(t *testing.T) {
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
+			router:  mux.NewRouter(),
+			handler: h,
 		}
 		srv.setupRoutes()
 
@@ -540,7 +686,7 @@ func TestHandlePersonaShow(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 
-		var persona Persona
+		var persona services.Persona
 		if err := json.Unmarshal(w.Body.Bytes(), &persona); err != nil {
 			t.Fatalf("Failed to parse response: %v", err)
 		}
@@ -588,9 +734,20 @@ func TestHandlePreviewLinks(t *testing.T) {
 		}`
 		os.WriteFile(scenarioDir+"/.vrooli/service.json", []byte(serviceJSON), 0644)
 
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
+			router:  mux.NewRouter(),
+			handler: h,
 		}
 		srv.setupRoutes()
 

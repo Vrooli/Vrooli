@@ -6,13 +6,16 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"landing-manager/services"
 )
 
 // [REQ:TMPL-PROVENANCE]
 func TestTMPL_PROVENANCE_ProvenanceStamping(t *testing.T) {
-	ts, outputDir := setupGenerationTest(t)
+	registry, outputDir := setupGenerationTest(t)
+	generator := services.NewScenarioGenerator(registry)
 
-	_, err := ts.GenerateScenario("test-template", "Provenance Test", "prov-test", nil)
+	_, err := generator.GenerateScenario("test-template", "Provenance Test", "prov-test", nil)
 	if err != nil {
 		t.Fatalf("GenerateScenario() returned error: %v", err)
 	}

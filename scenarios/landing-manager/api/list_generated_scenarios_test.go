@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"landing-manager/services"
 )
 
 // [REQ:TMPL-LIFECYCLE] Comprehensive test suite for ListGeneratedScenarios
@@ -48,9 +50,10 @@ func TestListGeneratedScenarios_WithProvenanceAndServiceMetadata(t *testing.T) {
 		t.Fatalf("Failed to write service.json: %v", err)
 	}
 
-	ts := NewTemplateService()
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
 
-	scenarios, err := ts.ListGeneratedScenarios()
+	scenarios, err := generator.ListGeneratedScenarios()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -115,9 +118,10 @@ func TestListGeneratedScenarios_WithProvenanceOnly(t *testing.T) {
 		t.Fatalf("Failed to write template.json: %v", err)
 	}
 
-	ts := NewTemplateService()
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
 
-	scenarios, err := ts.ListGeneratedScenarios()
+	scenarios, err := generator.ListGeneratedScenarios()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -167,9 +171,10 @@ func TestListGeneratedScenarios_WithServiceMetadataOnly(t *testing.T) {
 		t.Fatalf("Failed to write service.json: %v", err)
 	}
 
-	ts := NewTemplateService()
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
 
-	scenarios, err := ts.ListGeneratedScenarios()
+	scenarios, err := generator.ListGeneratedScenarios()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -211,9 +216,10 @@ func TestListGeneratedScenarios_MinimalScenario(t *testing.T) {
 		t.Fatalf("Failed to create scenario directory: %v", err)
 	}
 
-	ts := NewTemplateService()
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
 
-	scenarios, err := ts.ListGeneratedScenarios()
+	scenarios, err := generator.ListGeneratedScenarios()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -267,9 +273,10 @@ func TestListGeneratedScenarios_EmptyDisplayName(t *testing.T) {
 		t.Fatalf("Failed to write service.json: %v", err)
 	}
 
-	ts := NewTemplateService()
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
 
-	scenarios, err := ts.ListGeneratedScenarios()
+	scenarios, err := generator.ListGeneratedScenarios()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -305,9 +312,10 @@ func TestListGeneratedScenarios_MalformedJSON(t *testing.T) {
 		t.Fatalf("Failed to write service.json: %v", err)
 	}
 
-	ts := NewTemplateService()
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
 
-	scenarios, err := ts.ListGeneratedScenarios()
+	scenarios, err := generator.ListGeneratedScenarios()
 	if err != nil {
 		t.Fatalf("Expected no error (malformed JSON should be ignored), got %v", err)
 	}
@@ -350,9 +358,10 @@ func TestListGeneratedScenarios_SkipsNonDirectories(t *testing.T) {
 		t.Fatalf("Failed to create scenario directory: %v", err)
 	}
 
-	ts := NewTemplateService()
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
 
-	scenarios, err := ts.ListGeneratedScenarios()
+	scenarios, err := generator.ListGeneratedScenarios()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -374,7 +383,6 @@ func TestListGeneratedScenarios_MultipleScenariosSorted(t *testing.T) {
 	os.Setenv("GEN_OUTPUT_DIR", genDir)
 	defer os.Unsetenv("GEN_OUTPUT_DIR")
 
-
 	// Create scenarios in non-alphabetical order
 	for _, name := range []string{"charlie", "alpha", "bravo", "delta"} {
 		scenarioPath := filepath.Join(genDir, name)
@@ -383,9 +391,10 @@ func TestListGeneratedScenarios_MultipleScenariosSorted(t *testing.T) {
 		}
 	}
 
-	ts := NewTemplateService()
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
 
-	scenarios, err := ts.ListGeneratedScenarios()
+	scenarios, err := generator.ListGeneratedScenarios()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -426,9 +435,10 @@ func TestListGeneratedScenarios_PartialProvenance(t *testing.T) {
 		t.Fatalf("Failed to write template.json: %v", err)
 	}
 
-	ts := NewTemplateService()
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
 
-	scenarios, err := ts.ListGeneratedScenarios()
+	scenarios, err := generator.ListGeneratedScenarios()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}

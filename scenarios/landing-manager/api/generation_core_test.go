@@ -2,13 +2,16 @@ package main
 
 import (
 	"testing"
+
+	"landing-manager/services"
 )
 
 // [REQ:TMPL-GENERATION]
 func TestTMPL_GENERATION_BasicGeneration(t *testing.T) {
-	ts, _ := setupGenerationTest(t)
+	registry, _ := setupGenerationTest(t)
+	generator := services.NewScenarioGenerator(registry)
 
-	result, err := ts.GenerateScenario("test-template", "My Landing Page", "my-landing", nil)
+	result, err := generator.GenerateScenario("test-template", "My Landing Page", "my-landing", nil)
 	if err != nil {
 		t.Errorf("GenerateScenario() returned error: %v", err)
 	}
@@ -35,7 +38,8 @@ func TestTMPL_GENERATION_BasicGeneration(t *testing.T) {
 
 // [REQ:TMPL-GENERATION]
 func TestTMPL_GENERATION_ErrorHandling(t *testing.T) {
-	ts, _ := setupGenerationTest(t)
+	registry, _ := setupGenerationTest(t)
+	generator := services.NewScenarioGenerator(registry)
 
 	tests := []struct {
 		name        string
@@ -69,7 +73,7 @@ func TestTMPL_GENERATION_ErrorHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ts.GenerateScenario(tt.templateID, tt.displayName, tt.slug, nil)
+			_, err := generator.GenerateScenario(tt.templateID, tt.displayName, tt.slug, nil)
 			if tt.wantErr {
 				if err == nil {
 					t.Error("Expected error but got nil")

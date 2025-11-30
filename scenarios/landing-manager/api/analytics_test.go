@@ -4,6 +4,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"landing-manager/services"
 )
 
 // [REQ:TMPL-GENERATION-ANALYTICS] Unit tests for analytics service
@@ -19,7 +21,7 @@ func TestAnalyticsService_RecordGeneration(t *testing.T) {
 	os.Setenv("ANALYTICS_DATA_DIR", tmpDir)
 	defer os.Unsetenv("ANALYTICS_DATA_DIR")
 
-	as := NewAnalyticsService()
+	as := services.NewAnalyticsService()
 
 	// Record a successful generation
 	as.RecordGeneration("saas-landing-page", "my-landing", false, true, "", 100)
@@ -59,7 +61,7 @@ func TestAnalyticsService_RecordDryRun(t *testing.T) {
 	os.Setenv("ANALYTICS_DATA_DIR", tmpDir)
 	defer os.Unsetenv("ANALYTICS_DATA_DIR")
 
-	as := NewAnalyticsService()
+	as := services.NewAnalyticsService()
 
 	// Record a dry-run generation
 	as.RecordGeneration("saas-landing-page", "test-dry", true, true, "", 50)
@@ -86,7 +88,7 @@ func TestAnalyticsService_RecordFailedGeneration(t *testing.T) {
 	os.Setenv("ANALYTICS_DATA_DIR", tmpDir)
 	defer os.Unsetenv("ANALYTICS_DATA_DIR")
 
-	as := NewAnalyticsService()
+	as := services.NewAnalyticsService()
 
 	// Record a failed generation
 	as.RecordGeneration("invalid-template", "failed-landing", false, false, "template not found", 10)
@@ -117,7 +119,7 @@ func TestAnalyticsService_GetSummary(t *testing.T) {
 	os.Setenv("ANALYTICS_DATA_DIR", tmpDir)
 	defer os.Unsetenv("ANALYTICS_DATA_DIR")
 
-	as := NewAnalyticsService()
+	as := services.NewAnalyticsService()
 
 	// Record multiple generations
 	as.RecordGeneration("saas-landing-page", "landing-1", false, true, "", 100)
@@ -169,7 +171,7 @@ func TestAnalyticsService_EmptySummary(t *testing.T) {
 	os.Setenv("ANALYTICS_DATA_DIR", tmpDir)
 	defer os.Unsetenv("ANALYTICS_DATA_DIR")
 
-	as := NewAnalyticsService()
+	as := services.NewAnalyticsService()
 
 	summary := as.GetSummary()
 
@@ -192,7 +194,7 @@ func TestAnalyticsService_RecentEventsLimit(t *testing.T) {
 	os.Setenv("ANALYTICS_DATA_DIR", tmpDir)
 	defer os.Unsetenv("ANALYTICS_DATA_DIR")
 
-	as := NewAnalyticsService()
+	as := services.NewAnalyticsService()
 
 	// Record 15 generations
 	for i := 0; i < 15; i++ {
@@ -225,7 +227,7 @@ func TestAnalyticsService_Persistence(t *testing.T) {
 	defer os.Unsetenv("ANALYTICS_DATA_DIR")
 
 	// Create first service and record events
-	as1 := NewAnalyticsService()
+	as1 := services.NewAnalyticsService()
 	as1.RecordGeneration("saas-landing-page", "persisted-1", false, true, "", 100)
 	as1.RecordGeneration("saas-landing-page", "persisted-2", false, true, "", 150)
 
@@ -233,7 +235,7 @@ func TestAnalyticsService_Persistence(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	// Create new service instance - should load persisted events
-	as2 := NewAnalyticsService()
+	as2 := services.NewAnalyticsService()
 
 	events := as2.GetEvents()
 	if len(events) != 2 {
@@ -255,7 +257,7 @@ func TestAnalyticsService_AverageDuration(t *testing.T) {
 	os.Setenv("ANALYTICS_DATA_DIR", tmpDir)
 	defer os.Unsetenv("ANALYTICS_DATA_DIR")
 
-	as := NewAnalyticsService()
+	as := services.NewAnalyticsService()
 
 	// Record with known durations: 100, 200, 300 -> average = 200
 	as.RecordGeneration("test", "t1", false, true, "", 100)

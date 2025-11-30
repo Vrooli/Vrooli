@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"landing-manager/services"
 )
 
 // [REQ:TMPL-PREVIEW-LINKS]
@@ -15,7 +17,7 @@ func TestGetPreviewLinks_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("GEN_OUTPUT_DIR", tmpDir)
 
-	ts := &TemplateService{templatesDir: t.TempDir()}
+	ps := services.NewPreviewService()
 
 	t.Run("REQ:TMPL-PREVIEW-LINKS/success-get-preview-links", func(t *testing.T) {
 		// Create a mock generated scenario with service.json
@@ -42,7 +44,7 @@ func TestGetPreviewLinks_Success(t *testing.T) {
 		}
 
 		// Get preview links
-		result, err := ts.GetPreviewLinks(scenarioID)
+		result, err := ps.GetPreviewLinks(scenarioID)
 		if err != nil {
 			t.Fatalf("GetPreviewLinks() returned error: %v", err)
 		}
@@ -114,7 +116,7 @@ func TestGetPreviewLinks_Success(t *testing.T) {
 			t.Fatalf("Failed to write service.json: %v", err)
 		}
 
-		result, err := ts.GetPreviewLinks(scenarioID)
+		result, err := ps.GetPreviewLinks(scenarioID)
 		if err != nil {
 			t.Fatalf("GetPreviewLinks() returned error: %v", err)
 		}
@@ -145,10 +147,10 @@ func TestGetPreviewLinks_ErrorHandling(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("GEN_OUTPUT_DIR", tmpDir)
 
-	ts := &TemplateService{templatesDir: t.TempDir()}
+	ps := services.NewPreviewService()
 
 	t.Run("scenario not found", func(t *testing.T) {
-		_, err := ts.GetPreviewLinks("non-existent-scenario")
+		_, err := ps.GetPreviewLinks("non-existent-scenario")
 		if err == nil {
 			t.Error("Expected error for non-existent scenario, got nil")
 		}
@@ -162,7 +164,7 @@ func TestGetPreviewLinks_ErrorHandling(t *testing.T) {
 			t.Fatalf("Failed to create scenario directory: %v", err)
 		}
 
-		_, err := ts.GetPreviewLinks(scenarioID)
+		_, err := ps.GetPreviewLinks(scenarioID)
 		if err == nil {
 			t.Error("Expected error for missing service.json, got nil")
 		}
@@ -190,7 +192,7 @@ func TestGetPreviewLinks_ErrorHandling(t *testing.T) {
 			t.Fatalf("Failed to write service.json: %v", err)
 		}
 
-		_, err := ts.GetPreviewLinks(scenarioID)
+		_, err := ps.GetPreviewLinks(scenarioID)
 		if err == nil {
 			t.Error("Expected error for missing UI_PORT, got nil")
 		}
@@ -209,7 +211,7 @@ func TestGetPreviewLinks_ErrorHandling(t *testing.T) {
 			t.Fatalf("Failed to write invalid service.json: %v", err)
 		}
 
-		_, err := ts.GetPreviewLinks(scenarioID)
+		_, err := ps.GetPreviewLinks(scenarioID)
 		if err == nil {
 			t.Error("Expected error for invalid service.json, got nil")
 		}
@@ -223,7 +225,7 @@ func TestGetPreviewLinks_ErrorHandling(t *testing.T) {
 			t.Fatalf("Failed to create scenario directory: %v", err)
 		}
 
-		_, err := ts.GetPreviewLinks(scenarioID)
+		_, err := ps.GetPreviewLinks(scenarioID)
 		if err == nil {
 			t.Error("Expected error for empty scenario directory, got nil")
 		}
@@ -238,7 +240,7 @@ func TestGetPreviewLinks_LinkFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("GEN_OUTPUT_DIR", tmpDir)
 
-	ts := &TemplateService{templatesDir: t.TempDir()}
+	ps := services.NewPreviewService()
 
 	t.Run("verify link format and completeness", func(t *testing.T) {
 		scenarioID := "link-format-test"
@@ -260,7 +262,7 @@ func TestGetPreviewLinks_LinkFormat(t *testing.T) {
 			t.Fatalf("Failed to write service.json: %v", err)
 		}
 
-		result, err := ts.GetPreviewLinks(scenarioID)
+		result, err := ps.GetPreviewLinks(scenarioID)
 		if err != nil {
 			t.Fatalf("GetPreviewLinks() returned error: %v", err)
 		}

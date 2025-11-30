@@ -33,6 +33,8 @@ export interface CustomizeResult {
   agent?: string;
   run_id?: string;
   message?: string;
+  /** Warning if investigation could not be triggered */
+  warning?: string;
 }
 
 export interface GeneratedScenario {

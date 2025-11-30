@@ -8,17 +8,30 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+
+	"landing-manager/handlers"
+	"landing-manager/services"
 )
 
 // TestHandleScenarioStart_MissingScenarioID tests error handling for empty scenario_id
 func TestHandleScenarioStart_MissingScenarioID(t *testing.T) {
-	server := &Server{}
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 	// Use empty string as scenario_id to simulate missing/empty path parameter
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/lifecycle/start", nil)
 	req = mux.SetURLVars(req, map[string]string{"scenario_id": ""})
 	w := httptest.NewRecorder()
 
-	server.handleScenarioStart(w, req)
+	h.HandleScenarioStart(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400 for empty scenario_id, got %d", w.Code)
@@ -27,12 +40,22 @@ func TestHandleScenarioStart_MissingScenarioID(t *testing.T) {
 
 // TestHandleScenarioStop_MissingScenarioID tests error handling for empty scenario_id
 func TestHandleScenarioStop_MissingScenarioID(t *testing.T) {
-	server := &Server{}
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/lifecycle/stop", nil)
 	req = mux.SetURLVars(req, map[string]string{"scenario_id": ""})
 	w := httptest.NewRecorder()
 
-	server.handleScenarioStop(w, req)
+	h.HandleScenarioStop(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400 for empty scenario_id, got %d", w.Code)
@@ -41,12 +64,22 @@ func TestHandleScenarioStop_MissingScenarioID(t *testing.T) {
 
 // TestHandleScenarioRestart_MissingScenarioID tests error handling for empty scenario_id
 func TestHandleScenarioRestart_MissingScenarioID(t *testing.T) {
-	server := &Server{}
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/lifecycle/restart", nil)
 	req = mux.SetURLVars(req, map[string]string{"scenario_id": ""})
 	w := httptest.NewRecorder()
 
-	server.handleScenarioRestart(w, req)
+	h.HandleScenarioRestart(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400 for empty scenario_id, got %d", w.Code)
@@ -55,12 +88,22 @@ func TestHandleScenarioRestart_MissingScenarioID(t *testing.T) {
 
 // TestHandleScenarioStatus_MissingScenarioID tests error handling for empty scenario_id
 func TestHandleScenarioStatus_MissingScenarioID(t *testing.T) {
-	server := &Server{}
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/lifecycle/status", nil)
 	req = mux.SetURLVars(req, map[string]string{"scenario_id": ""})
 	w := httptest.NewRecorder()
 
-	server.handleScenarioStatus(w, req)
+	h.HandleScenarioStatus(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400 for empty scenario_id, got %d", w.Code)
@@ -69,12 +112,22 @@ func TestHandleScenarioStatus_MissingScenarioID(t *testing.T) {
 
 // TestHandleScenarioLogs_MissingScenarioID tests error handling for empty scenario_id
 func TestHandleScenarioLogs_MissingScenarioID(t *testing.T) {
-	server := &Server{}
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/lifecycle/logs", nil)
 	req = mux.SetURLVars(req, map[string]string{"scenario_id": ""})
 	w := httptest.NewRecorder()
 
-	server.handleScenarioLogs(w, req)
+	h.HandleScenarioLogs(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400 for empty scenario_id, got %d", w.Code)
@@ -83,12 +136,22 @@ func TestHandleScenarioLogs_MissingScenarioID(t *testing.T) {
 
 // TestHandleScenarioStart_NonexistentScenario tests behavior when scenario doesn't exist
 func TestHandleScenarioStart_NonexistentScenario(t *testing.T) {
-	server := &Server{}
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/lifecycle/nonexistent-scenario-999/start", nil)
 	w := httptest.NewRecorder()
 
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/start", server.handleScenarioStart).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/start", h.HandleScenarioStart).Methods(http.MethodPost)
 	router.ServeHTTP(w, req)
 
 	// Should return 404 when scenario not found in staging or production
@@ -114,12 +177,22 @@ func TestHandleScenarioStart_NonexistentScenario(t *testing.T) {
 // TestHandleScenarioStop_NonexistentScenario tests behavior when scenario doesn't exist
 // Note: vrooli scenario stop is idempotent - it succeeds even if scenario doesn't exist or isn't running
 func TestHandleScenarioStop_NonexistentScenario(t *testing.T) {
-	server := &Server{}
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/lifecycle/nonexistent-scenario-999/stop", nil)
 	w := httptest.NewRecorder()
 
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/stop", server.handleScenarioStop).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/stop", h.HandleScenarioStop).Methods(http.MethodPost)
 	router.ServeHTTP(w, req)
 
 	// Stop is idempotent - should succeed even if scenario doesn't exist
@@ -139,12 +212,22 @@ func TestHandleScenarioStop_NonexistentScenario(t *testing.T) {
 
 // TestHandleScenarioRestart_NonexistentScenario tests behavior when scenario doesn't exist
 func TestHandleScenarioRestart_NonexistentScenario(t *testing.T) {
-	server := &Server{}
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/lifecycle/nonexistent-scenario-999/restart", nil)
 	w := httptest.NewRecorder()
 
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/restart", server.handleScenarioRestart).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/restart", h.HandleScenarioRestart).Methods(http.MethodPost)
 	router.ServeHTTP(w, req)
 
 	// Should return 404 when scenario not found
@@ -166,13 +249,11 @@ func TestHandleScenarioRestart_NonexistentScenario(t *testing.T) {
 func TestListGeneratedScenarios_ErrorPaths(t *testing.T) {
 	t.Run("nonexistent_generated_directory", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		ts := &TemplateService{
-			templatesDir: tmpDir, // valid templates dir
-			// generatedDir will be derived from executable path but won't exist
-		}
+		registry := services.NewTemplateRegistryWithDir(tmpDir)
+		generator := services.NewScenarioGenerator(registry)
 
 		// Should return empty list if generated directory doesn't exist
-		scenarios, err := ts.ListGeneratedScenarios()
+		scenarios, err := generator.ListGeneratedScenarios()
 		if err != nil {
 			t.Errorf("Expected no error for missing generated dir, got: %v", err)
 		}
@@ -184,17 +265,11 @@ func TestListGeneratedScenarios_ErrorPaths(t *testing.T) {
 	t.Run("scenario_without_service_json", func(t *testing.T) {
 		tmpDir := t.TempDir()
 
-		// Create template directory with test template
-		templatesDir := tmpDir + "/templates"
-		if err := os.MkdirAll(templatesDir, 0o755); err != nil {
-			t.Fatalf("Failed to create templates dir: %v", err)
-		}
-
 		// Override GEN_OUTPUT_DIR to use tmpDir
 		t.Setenv("GEN_OUTPUT_DIR", tmpDir+"/generated")
 
-		ts := NewTemplateService()
-		ts.templatesDir = templatesDir
+		registry := services.NewTemplateRegistryWithDir(tmpDir + "/templates")
+		generator := services.NewScenarioGenerator(registry)
 
 		// Create a scenario directory WITHOUT .vrooli/service.json but with a dummy file
 		scenarioDir := tmpDir + "/generated/incomplete-scenario"
@@ -208,7 +283,7 @@ func TestListGeneratedScenarios_ErrorPaths(t *testing.T) {
 		}
 
 		// ListGeneratedScenarios returns all directories, even without service.json (defensive coding)
-		scenarios, err := ts.ListGeneratedScenarios()
+		scenarios, err := generator.ListGeneratedScenarios()
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -234,15 +309,11 @@ func TestListGeneratedScenarios_ErrorPaths(t *testing.T) {
 
 	t.Run("scenario_with_invalid_service_json", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		templatesDir := tmpDir + "/templates"
-		if err := os.MkdirAll(templatesDir, 0o755); err != nil {
-			t.Fatalf("Failed to create templates dir: %v", err)
-		}
 
 		t.Setenv("GEN_OUTPUT_DIR", tmpDir+"/generated")
 
-		ts := NewTemplateService()
-		ts.templatesDir = templatesDir
+		registry := services.NewTemplateRegistryWithDir(tmpDir + "/templates")
+		generator := services.NewScenarioGenerator(registry)
 
 		// Create scenario with invalid JSON in service.json
 		scenarioDir := tmpDir + "/generated/invalid-json"
@@ -258,7 +329,7 @@ func TestListGeneratedScenarios_ErrorPaths(t *testing.T) {
 		}
 
 		// Should handle gracefully - use scenario ID as name
-		scenarios, err := ts.ListGeneratedScenarios()
+		scenarios, err := generator.ListGeneratedScenarios()
 		if err != nil {
 			t.Errorf("Expected no error with invalid JSON, got: %v", err)
 		}
@@ -280,15 +351,11 @@ func TestListGeneratedScenarios_ErrorPaths(t *testing.T) {
 
 	t.Run("non_directory_entries_ignored", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		templatesDir := tmpDir + "/templates"
-		if err := os.MkdirAll(templatesDir, 0o755); err != nil {
-			t.Fatalf("Failed to create templates dir: %v", err)
-		}
 
 		t.Setenv("GEN_OUTPUT_DIR", tmpDir+"/generated")
 
-		ts := NewTemplateService()
-		ts.templatesDir = templatesDir
+		registry := services.NewTemplateRegistryWithDir(tmpDir + "/templates")
+		generator := services.NewScenarioGenerator(registry)
 
 		// Create generated directory with files and directories
 		genDir := tmpDir + "/generated"
@@ -307,7 +374,7 @@ func TestListGeneratedScenarios_ErrorPaths(t *testing.T) {
 			t.Fatalf("Failed to create valid scenario dir: %v", err)
 		}
 
-		scenarios, err := ts.ListGeneratedScenarios()
+		scenarios, err := generator.ListGeneratedScenarios()
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -324,15 +391,11 @@ func TestListGeneratedScenarios_ErrorPaths(t *testing.T) {
 
 	t.Run("scenario_with_invalid_template_json", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		templatesDir := tmpDir + "/templates"
-		if err := os.MkdirAll(templatesDir, 0o755); err != nil {
-			t.Fatalf("Failed to create templates dir: %v", err)
-		}
 
 		t.Setenv("GEN_OUTPUT_DIR", tmpDir+"/generated")
 
-		ts := NewTemplateService()
-		ts.templatesDir = templatesDir
+		registry := services.NewTemplateRegistryWithDir(tmpDir + "/templates")
+		generator := services.NewScenarioGenerator(registry)
 
 		// Create scenario with invalid template.json
 		scenarioDir := tmpDir + "/generated/invalid-template"
@@ -348,7 +411,7 @@ func TestListGeneratedScenarios_ErrorPaths(t *testing.T) {
 		}
 
 		// Should handle gracefully - scenario without template info
-		scenarios, err := ts.ListGeneratedScenarios()
+		scenarios, err := generator.ListGeneratedScenarios()
 		if err != nil {
 			t.Errorf("Expected no error with invalid template.json, got: %v", err)
 		}
@@ -372,10 +435,11 @@ func TestListGeneratedScenarios_ErrorPaths(t *testing.T) {
 // TestGenerateScenario_EdgeCases tests edge cases in generation
 func TestGenerateScenario_EdgeCases(t *testing.T) {
 	t.Run("empty_options_map", func(t *testing.T) {
-		ts, _ := setupGenerationTest(t)
+		registry, _ := setupGenerationTest(t)
+		generator := services.NewScenarioGenerator(registry)
 
 		// Passing nil options should work
-		result, err := ts.GenerateScenario("test-template", "Test", "test", nil)
+		result, err := generator.GenerateScenario("test-template", "Test", "test", nil)
 		if err != nil {
 			t.Errorf("Expected no error with nil options, got: %v", err)
 		}
@@ -385,7 +449,8 @@ func TestGenerateScenario_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("options_with_unexpected_types", func(t *testing.T) {
-		ts, _ := setupGenerationTest(t)
+		registry, _ := setupGenerationTest(t)
+		generator := services.NewScenarioGenerator(registry)
 
 		// Options with unexpected values should be handled gracefully
 		opts := map[string]interface{}{
@@ -393,7 +458,7 @@ func TestGenerateScenario_EdgeCases(t *testing.T) {
 			"numeric_value":  12345,
 		}
 
-		result, err := ts.GenerateScenario("test-template", "Test", "test", opts)
+		result, err := generator.GenerateScenario("test-template", "Test", "test", opts)
 		if err != nil {
 			t.Errorf("Expected no error with unexpected options, got: %v", err)
 		}

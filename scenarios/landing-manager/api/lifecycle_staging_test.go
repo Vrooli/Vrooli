@@ -10,6 +10,9 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+
+	"landing-manager/handlers"
+	"landing-manager/services"
 )
 
 // [REQ:TMPL-LIFECYCLE] Test staging area scenario path resolution
@@ -74,13 +77,21 @@ func TestStagingAreaPathResolution(t *testing.T) {
 				os.MkdirAll(prodPath, 0755)
 			}
 
+			db := setupTestDB(t)
+			defer db.Close()
+
+			registry := services.NewTemplateRegistry()
+			generator := services.NewScenarioGenerator(registry)
+			personaService := services.NewPersonaService(registry.GetTemplatesDir())
+			previewService := services.NewPreviewService()
+			analyticsService := services.NewAnalyticsService()
+
+			h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
 			// Test handleScenarioStatus
 			t.Run("handleScenarioStatus", func(t *testing.T) {
-				srv := &Server{
-					router:          mux.NewRouter(),
-					templateService: NewTemplateService(),
-				}
-				srv.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", srv.handleScenarioStatus).Methods("GET")
+				router := mux.NewRouter()
+				router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", h.HandleScenarioStatus).Methods("GET")
 
 				req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/lifecycle/%s/status", tt.scenarioID), nil)
 				w := httptest.NewRecorder()
@@ -107,7 +118,7 @@ func TestStagingAreaPathResolution(t *testing.T) {
 
 				// Execute request - will fail because vrooli CLI is not mocked
 				// but we can verify the path resolution by checking filesystem
-				srv.router.ServeHTTP(w, req)
+				router.ServeHTTP(w, req)
 
 				// Note: We expect non-200 status because CLI execution fails in tests
 				// The important part is that the path resolution logic is correct
@@ -115,16 +126,13 @@ func TestStagingAreaPathResolution(t *testing.T) {
 
 			// Test handleScenarioLogs
 			t.Run("handleScenarioLogs", func(t *testing.T) {
-				srv := &Server{
-					router:          mux.NewRouter(),
-					templateService: NewTemplateService(),
-				}
-				srv.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/logs", srv.handleScenarioLogs).Methods("GET")
+				router := mux.NewRouter()
+				router.HandleFunc("/api/v1/lifecycle/{scenario_id}/logs", h.HandleScenarioLogs).Methods("GET")
 
 				req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/lifecycle/%s/logs?tail=10", tt.scenarioID), nil)
 				w := httptest.NewRecorder()
 
-				srv.router.ServeHTTP(w, req)
+				router.ServeHTTP(w, req)
 
 				// Verify 404 for missing scenarios
 				if !tt.createStaging && !tt.createProd {
@@ -136,16 +144,13 @@ func TestStagingAreaPathResolution(t *testing.T) {
 
 			// Test handleScenarioStop
 			t.Run("handleScenarioStop", func(t *testing.T) {
-				srv := &Server{
-					router:          mux.NewRouter(),
-					templateService: NewTemplateService(),
-				}
-				srv.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/stop", srv.handleScenarioStop).Methods("POST")
+				router := mux.NewRouter()
+				router.HandleFunc("/api/v1/lifecycle/{scenario_id}/stop", h.HandleScenarioStop).Methods("POST")
 
 				req := httptest.NewRequest("POST", fmt.Sprintf("/api/v1/lifecycle/%s/stop", tt.scenarioID), nil)
 				w := httptest.NewRecorder()
 
-				srv.router.ServeHTTP(w, req)
+				router.ServeHTTP(w, req)
 
 				// Stop is idempotent - should always return success (200 OK)
 				// even if scenario doesn't exist or isn't running
@@ -168,16 +173,24 @@ func TestHandleScenarioStatus_StagingArea(t *testing.T) {
 	stagingPath := filepath.Join(tmpRoot, "scenarios", "landing-manager", "generated", scenarioID)
 	os.MkdirAll(stagingPath, 0755)
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-	}
-	srv.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", srv.handleScenarioStatus).Methods("GET")
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", h.HandleScenarioStatus).Methods("GET")
 
 	req := httptest.NewRequest("GET", "/api/v1/lifecycle/test-dry/status", nil)
 	w := httptest.NewRecorder()
 
-	srv.router.ServeHTTP(w, req)
+	router.ServeHTTP(w, req)
 
 	// Should not return 404 (scenario directory exists)
 	// Will return 500 or other error due to CLI failure, but not 404
@@ -201,11 +214,19 @@ func TestHandleScenarioLogs_StagingArea(t *testing.T) {
 	stagingPath := filepath.Join(tmpRoot, "scenarios", "landing-manager", "generated", scenarioID)
 	os.MkdirAll(stagingPath, 0755)
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-	}
-	srv.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/logs", srv.handleScenarioLogs).Methods("GET")
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/logs", h.HandleScenarioLogs).Methods("GET")
 
 	tests := []struct {
 		name        string
@@ -227,7 +248,7 @@ func TestHandleScenarioLogs_StagingArea(t *testing.T) {
 			req := httptest.NewRequest("GET", url, nil)
 			w := httptest.NewRecorder()
 
-			srv.router.ServeHTTP(w, req)
+			router.ServeHTTP(w, req)
 
 			// Should not return 404 (scenario directory exists)
 			if w.Code == http.StatusNotFound {
@@ -248,16 +269,24 @@ func TestHandleScenarioStop_StagingArea(t *testing.T) {
 	stagingPath := filepath.Join(tmpRoot, "scenarios", "landing-manager", "generated", scenarioID)
 	os.MkdirAll(stagingPath, 0755)
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-	}
-	srv.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/stop", srv.handleScenarioStop).Methods("POST")
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/stop", h.HandleScenarioStop).Methods("POST")
 
 	req := httptest.NewRequest("POST", "/api/v1/lifecycle/test-dry/stop", nil)
 	w := httptest.NewRecorder()
 
-	srv.router.ServeHTTP(w, req)
+	router.ServeHTTP(w, req)
 
 	// Should not return 404 (scenario directory exists)
 	if w.Code == http.StatusNotFound {
@@ -270,11 +299,11 @@ func TestHandleScenarioStop_StagingArea(t *testing.T) {
 // [REQ:TMPL-LIFECYCLE] Test VROOLI_ROOT environment variable handling
 func TestVrooliRootEnvVar(t *testing.T) {
 	tests := []struct {
-		name        string
-		setEnv      bool
-		envValue    string
-		expectHome  bool
-		scenarioID  string
+		name       string
+		setEnv     bool
+		envValue   string
+		expectHome bool
+		scenarioID string
 	}{
 		{
 			name:       "VROOLI_ROOT set",
@@ -330,16 +359,24 @@ func TestVrooliRootEnvVar(t *testing.T) {
 				defer os.Unsetenv("HOME")
 			}
 
-			srv := &Server{
-				router:          mux.NewRouter(),
-				templateService: NewTemplateService(),
-			}
-			srv.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", srv.handleScenarioStatus).Methods("GET")
+			db := setupTestDB(t)
+			defer db.Close()
+
+			registry := services.NewTemplateRegistry()
+			generator := services.NewScenarioGenerator(registry)
+			personaService := services.NewPersonaService(registry.GetTemplatesDir())
+			previewService := services.NewPreviewService()
+			analyticsService := services.NewAnalyticsService()
+
+			h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
+			router := mux.NewRouter()
+			router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", h.HandleScenarioStatus).Methods("GET")
 
 			req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/lifecycle/%s/status", tt.scenarioID), nil)
 			w := httptest.NewRecorder()
 
-			srv.router.ServeHTTP(w, req)
+			router.ServeHTTP(w, req)
 
 			// Should return 404 since scenario doesn't exist (but validates env var handling)
 			if w.Code != http.StatusNotFound {
@@ -355,77 +392,70 @@ func TestMissingScenarioReturns404(t *testing.T) {
 	os.Setenv("VROOLI_ROOT", tmpRoot)
 	defer os.Unsetenv("VROOLI_ROOT")
 
-	handlers := []struct {
-		name            string
-		method          string
-		path            string
-		handler         func(*Server) http.HandlerFunc
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
+	handlerTests := []struct {
+		name             string
+		method           string
+		path             string
+		handlerFunc      func(http.ResponseWriter, *http.Request)
+		actualPath       string
 		expectIdempotent bool // For operations like stop that succeed even if scenario doesn't exist
 	}{
 		{
-			name:   "handleScenarioStatus",
-			method: "GET",
-			path:   "/api/v1/lifecycle/{scenario_id}/status",
-			handler: func(s *Server) http.HandlerFunc {
-				return s.handleScenarioStatus
-			},
+			name:             "HandleScenarioStatus",
+			method:           "GET",
+			path:             "/api/v1/lifecycle/{scenario_id}/status",
+			handlerFunc:      h.HandleScenarioStatus,
+			actualPath:       "/api/v1/lifecycle/nonexistent-scenario/status",
 			expectIdempotent: false,
 		},
 		{
-			name:   "handleScenarioLogs",
-			method: "GET",
-			path:   "/api/v1/lifecycle/{scenario_id}/logs",
-			handler: func(s *Server) http.HandlerFunc {
-				return s.handleScenarioLogs
-			},
+			name:             "HandleScenarioLogs",
+			method:           "GET",
+			path:             "/api/v1/lifecycle/{scenario_id}/logs",
+			handlerFunc:      h.HandleScenarioLogs,
+			actualPath:       "/api/v1/lifecycle/nonexistent-scenario/logs",
 			expectIdempotent: false,
 		},
 		{
-			name:   "handleScenarioStop",
-			method: "POST",
-			path:   "/api/v1/lifecycle/{scenario_id}/stop",
-			handler: func(s *Server) http.HandlerFunc {
-				return s.handleScenarioStop
-			},
+			name:             "HandleScenarioStop",
+			method:           "POST",
+			path:             "/api/v1/lifecycle/{scenario_id}/stop",
+			handlerFunc:      h.HandleScenarioStop,
+			actualPath:       "/api/v1/lifecycle/nonexistent-scenario/stop",
 			expectIdempotent: true, // Stop is idempotent
 		},
 		{
-			name:   "handleScenarioStart",
-			method: "POST",
-			path:   "/api/v1/lifecycle/{scenario_id}/start",
-			handler: func(s *Server) http.HandlerFunc {
-				return s.handleScenarioStart
-			},
+			name:             "HandleScenarioStart",
+			method:           "POST",
+			path:             "/api/v1/lifecycle/{scenario_id}/start",
+			handlerFunc:      h.HandleScenarioStart,
+			actualPath:       "/api/v1/lifecycle/nonexistent-scenario/start",
 			expectIdempotent: false,
 		},
 	}
 
-	for _, h := range handlers {
-		t.Run(h.name, func(t *testing.T) {
-			srv := &Server{
-				router:          mux.NewRouter(),
-				templateService: NewTemplateService(),
-			}
-			srv.router.HandleFunc(h.path, h.handler(srv)).Methods(h.method)
+	for _, ht := range handlerTests {
+		t.Run(ht.name, func(t *testing.T) {
+			router := mux.NewRouter()
+			router.HandleFunc(ht.path, ht.handlerFunc).Methods(ht.method)
 
-			// Construct path based on handler
-			var actualPath string
-			if h.name == "handleScenarioStatus" {
-				actualPath = "/api/v1/lifecycle/nonexistent-scenario/status"
-			} else if h.name == "handleScenarioLogs" {
-				actualPath = "/api/v1/lifecycle/nonexistent-scenario/logs"
-			} else if h.name == "handleScenarioStop" {
-				actualPath = "/api/v1/lifecycle/nonexistent-scenario/stop"
-			} else if h.name == "handleScenarioStart" {
-				actualPath = "/api/v1/lifecycle/nonexistent-scenario/start"
-			}
-
-			req := httptest.NewRequest(h.method, actualPath, nil)
+			req := httptest.NewRequest(ht.method, ht.actualPath, nil)
 			w := httptest.NewRecorder()
 
-			srv.router.ServeHTTP(w, req)
+			router.ServeHTTP(w, req)
 
-			if h.expectIdempotent {
+			if ht.expectIdempotent {
 				// Idempotent operations should return success even for missing scenarios
 				if w.Code != http.StatusOK {
 					t.Logf("Idempotent operation returned status %d (expected 200)", w.Code)

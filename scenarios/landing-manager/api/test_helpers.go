@@ -6,6 +6,9 @@ import (
 	"testing"
 
 	_ "github.com/lib/pq"
+
+	"landing-manager/handlers"
+	"landing-manager/services"
 )
 
 // setupTestDB creates a test database connection
@@ -51,12 +54,19 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 	}
 
 	// Initialize all services
-	templateService := NewTemplateService()
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	// Create handler with all dependencies
+	handler := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 	server := &Server{
-		config:          config,
-		db:              db,
-		templateService: templateService,
+		config:  config,
+		db:      db,
+		handler: handler,
 	}
 
 	cleanup := func() {

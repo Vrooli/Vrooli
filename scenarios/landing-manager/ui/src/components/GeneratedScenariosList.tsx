@@ -28,6 +28,7 @@ import {
 import { type GeneratedScenario, listGeneratedScenarios } from '../lib/api';
 import { Tooltip } from './Tooltip';
 import { LandingPreviewView } from './LandingPreviewView';
+import { ErrorDisplay, parseApiError, type StructuredError } from './ErrorDisplay';
 
 interface GeneratedScenariosListProps {
   generated: GeneratedScenario[];
@@ -189,10 +190,12 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
       </div>
 
       {generatedError && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-200 text-sm flex items-start gap-3">
-          <AlertCircle className="h-4 w-4 mt-0.5" />
-          <div>{generatedError}</div>
-        </div>
+        <ErrorDisplay
+          error={parseApiError(generatedError)}
+          onRetry={handleRefresh}
+          onDismiss={() => onRefresh(generated, null, false)}
+          testId="generated-scenarios-error"
+        />
       )}
 
       {loadingGenerated && (

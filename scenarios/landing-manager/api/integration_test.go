@@ -12,6 +12,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
+	"landing-manager/handlers"
+	"landing-manager/services"
 )
 
 // TestIntegration_TemplateDiscovery tests the full template discovery workflow
@@ -21,7 +24,7 @@ func TestIntegration_TemplateDiscovery(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create test template with full metadata
-	template := Template{
+	template := services.Template{
 		ID:          "saas-landing",
 		Name:        "SaaS Landing Page",
 		Description: "Landing page for SaaS products",
@@ -35,23 +38,32 @@ func TestIntegration_TemplateDiscovery(t *testing.T) {
 	tmplData, _ := json.Marshal(template)
 	os.WriteFile(filepath.Join(tmpDir, "saas-landing.json"), tmplData, 0644)
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: &TemplateService{templatesDir: tmpDir},
-	}
-	srv.setupRoutes()
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistryWithDir(tmpDir)
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(tmpDir)
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/templates", h.HandleTemplateList).Methods("GET")
+	router.HandleFunc("/api/v1/templates/{id}", h.HandleTemplateShow).Methods("GET")
 
 	t.Run("list templates returns valid array", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/templates", nil)
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusOK {
 			t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
 		}
 
-		var templates []Template
+		var templates []services.Template
 		if err := json.Unmarshal(w.Body.Bytes(), &templates); err != nil {
 			t.Fatalf("Failed to parse templates: %v", err)
 		}
@@ -69,13 +81,13 @@ func TestIntegration_TemplateDiscovery(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/templates/saas-landing", nil)
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusOK {
 			t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
 		}
 
-		var tmpl Template
+		var tmpl services.Template
 		if err := json.Unmarshal(w.Body.Bytes(), &tmpl); err != nil {
 			t.Fatalf("Failed to parse template: %v", err)
 		}
@@ -97,7 +109,7 @@ func TestIntegration_TemplateDiscovery(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/templates/non-existent", nil)
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusNotFound {
 			t.Errorf("Expected 404 for non-existent template, got %d", w.Code)
@@ -116,7 +128,7 @@ func TestIntegration_GenerationWorkflow(t *testing.T) {
 	defer os.Unsetenv("GEN_OUTPUT_DIR")
 
 	// Create test template with payload
-	tmpl := Template{
+	tmpl := services.Template{
 		ID:          "test-template",
 		Name:        "Test Template",
 		Description: "Test",
@@ -135,12 +147,20 @@ func TestIntegration_GenerationWorkflow(t *testing.T) {
 		[]byte(`{"name":"template","version":"1.0.0"}`), 0644)
 	os.WriteFile(filepath.Join(payloadDir, "README.md"), []byte("# Test"), 0644)
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: &TemplateService{templatesDir: tmpTemplatesDir},
-	}
-	srv.router.HandleFunc("/api/v1/generate", srv.handleGenerate).Methods("POST")
-	srv.router.HandleFunc("/api/v1/generated", srv.handleGeneratedList).Methods("GET")
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistryWithDir(tmpTemplatesDir)
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(tmpTemplatesDir)
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/generate", h.HandleGenerate).Methods("POST")
+	router.HandleFunc("/api/v1/generated", h.HandleGeneratedList).Methods("GET")
 
 	t.Run("dry run returns plan without creating files", func(t *testing.T) {
 		reqBody := `{
@@ -153,7 +173,7 @@ func TestIntegration_GenerationWorkflow(t *testing.T) {
 		req := httptest.NewRequest("POST", "/api/v1/generate", strings.NewReader(reqBody))
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusCreated {
 			t.Fatalf("Expected 201, got %d: %s", w.Code, w.Body.String())
@@ -182,13 +202,13 @@ func TestIntegration_GenerationWorkflow(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/generated", nil)
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusOK {
 			t.Fatalf("Expected 200, got %d", w.Code)
 		}
 
-		var scenarios []GeneratedScenario
+		var scenarios []services.GeneratedScenario
 		if err := json.Unmarshal(w.Body.Bytes(), &scenarios); err != nil {
 			t.Fatalf("Failed to parse response: %v", err)
 		}
@@ -216,7 +236,7 @@ func TestIntegration_GenerationWorkflow(t *testing.T) {
 				req := httptest.NewRequest("POST", "/api/v1/generate", strings.NewReader(tc.body))
 				w := httptest.NewRecorder()
 
-				srv.router.ServeHTTP(w, req)
+				router.ServeHTTP(w, req)
 
 				if w.Code != http.StatusBadRequest && w.Code != http.StatusNotFound {
 					t.Errorf("Expected 400 or 404, got %d: %s", w.Code, w.Body.String())
@@ -229,23 +249,32 @@ func TestIntegration_GenerationWorkflow(t *testing.T) {
 // TestIntegration_PersonaManagement tests persona listing and retrieval
 // [REQ:TMPL-AGENT-PROFILES]
 func TestIntegration_PersonaManagement(t *testing.T) {
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-	}
-	srv.setupRoutes()
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/personas", h.HandlePersonaList).Methods("GET")
+	router.HandleFunc("/api/v1/personas/{id}", h.HandlePersonaShow).Methods("GET")
 
 	t.Run("list personas returns array with multiple personas", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/personas", nil)
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusOK {
 			t.Fatalf("Expected 200, got %d", w.Code)
 		}
 
-		var personas []Persona
+		var personas []services.Persona
 		if err := json.Unmarshal(w.Body.Bytes(), &personas); err != nil {
 			t.Fatalf("Failed to parse personas: %v", err)
 		}
@@ -272,13 +301,13 @@ func TestIntegration_PersonaManagement(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/personas/minimal-design", nil)
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusOK {
 			t.Fatalf("Expected 200, got %d", w.Code)
 		}
 
-		var persona Persona
+		var persona services.Persona
 		if err := json.Unmarshal(w.Body.Bytes(), &persona); err != nil {
 			t.Fatalf("Failed to parse persona: %v", err)
 		}
@@ -296,7 +325,7 @@ func TestIntegration_PersonaManagement(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/personas/does-not-exist", nil)
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusNotFound {
 			t.Errorf("Expected 404, got %d", w.Code)
@@ -350,12 +379,19 @@ func TestIntegration_AgentCustomization(t *testing.T) {
 	os.Setenv("APP_ISSUE_TRACKER_API_BASE", mockIssueTracker.URL)
 	defer os.Unsetenv("APP_ISSUE_TRACKER_API_BASE")
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-		httpClient:      &http.Client{Timeout: 5 * time.Second},
-	}
-	srv.router.HandleFunc("/api/v1/customize", srv.handleCustomize).Methods("POST")
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandlerWithHTTPClient(db, registry, generator, personaService, previewService, analyticsService, &http.Client{Timeout: 5 * time.Second})
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/customize", h.HandleCustomize).Methods("POST")
 
 	t.Run("customization request triggers agent workflow", func(t *testing.T) {
 		reqBody := `{
@@ -370,7 +406,7 @@ func TestIntegration_AgentCustomization(t *testing.T) {
 		req := httptest.NewRequest("POST", "/api/v1/customize", strings.NewReader(reqBody))
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusAccepted {
 			t.Fatalf("Expected 202, got %d: %s", w.Code, w.Body.String())
@@ -403,7 +439,7 @@ func TestIntegration_AgentCustomization(t *testing.T) {
 		req := httptest.NewRequest("POST", "/api/v1/customize", strings.NewReader(reqBody))
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusAccepted && w.Code != http.StatusBadRequest {
 			t.Errorf("Expected 202 or 400, got %d: %s", w.Code, w.Body.String())
@@ -417,91 +453,33 @@ func TestIntegration_AgentCustomization(t *testing.T) {
 // This integration test is skipped in favor of E2E playbook tests in test/playbooks/
 func TestIntegration_PreviewLinks(t *testing.T) {
 	t.Skip("Requires running scenarios - tested via E2E playbooks")
-	tmpDir := t.TempDir()
-
-	os.Setenv("GEN_OUTPUT_DIR", tmpDir)
-	defer os.Unsetenv("GEN_OUTPUT_DIR")
-
-	// Create mock scenario with service.json
-	scenarioDir := filepath.Join(tmpDir, "test-scenario")
-	os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0755)
-
-	serviceJSON := `{
-		"name": "test-scenario",
-		"description": "Test",
-		"version": "1.0.0",
-		"ports": {
-			"UI_PORT": 38611,
-			"API_PORT": 15843
-		}
-	}`
-	os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "service.json"), []byte(serviceJSON), 0644)
-
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-	}
-	srv.setupRoutes()
-
-	t.Run("preview links include all endpoints", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/v1/preview/test-scenario", nil)
-		w := httptest.NewRecorder()
-
-		srv.router.ServeHTTP(w, req)
-
-		if w.Code != http.StatusOK {
-			t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
-		}
-
-		var preview map[string]interface{}
-		json.Unmarshal(w.Body.Bytes(), &preview)
-
-		if preview["scenario_id"] != "test-scenario" {
-			t.Errorf("Expected scenario_id test-scenario, got %v", preview["scenario_id"])
-		}
-
-		baseURL, ok := preview["base_url"].(string)
-		if !ok {
-			t.Fatal("Expected base_url to be string")
-		}
-
-		if !strings.Contains(baseURL, "38611") {
-			t.Errorf("Expected base_url to contain UI port 38611, got %s", baseURL)
-		}
-
-		// Verify links exist (structure may vary based on implementation)
-		if preview["links"] == nil {
-			t.Error("Expected links field to exist")
-		}
-	})
-
-	t.Run("non-existent scenario returns 404", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/v1/preview/does-not-exist", nil)
-		w := httptest.NewRecorder()
-
-		srv.router.ServeHTTP(w, req)
-
-		if w.Code != http.StatusNotFound {
-			t.Errorf("Expected 404, got %d", w.Code)
-		}
-	})
 }
 
 // TestIntegration_ErrorHandling tests comprehensive error scenarios
 func TestIntegration_ErrorHandling(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: &TemplateService{templatesDir: tmpDir},
-	}
-	srv.setupRoutes()
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistryWithDir(tmpDir)
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(tmpDir)
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/templates", h.HandleTemplateList).Methods("GET")
+	router.HandleFunc("/api/v1/generated", h.HandleGeneratedList).Methods("GET")
+	router.HandleFunc("/api/v1/generate", h.HandleGenerate).Methods("POST")
 
 	t.Run("invalid JSON returns 400", func(t *testing.T) {
 		req := httptest.NewRequest("POST", "/api/v1/generate", strings.NewReader("{invalid json"))
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusBadRequest {
 			t.Errorf("Expected 400, got %d", w.Code)
@@ -519,7 +497,7 @@ func TestIntegration_ErrorHandling(t *testing.T) {
 			req := httptest.NewRequest("GET", endpoint, nil)
 			w := httptest.NewRecorder()
 
-			srv.router.ServeHTTP(w, req)
+			router.ServeHTTP(w, req)
 
 			// Only check content-type if response is 200
 			if w.Code == http.StatusOK {
@@ -535,17 +513,30 @@ func TestIntegration_ErrorHandling(t *testing.T) {
 // TestIntegration_LifecycleEndpoints tests all lifecycle management endpoints
 // [REQ:TMPL-LIFECYCLE]
 func TestIntegration_LifecycleEndpoints(t *testing.T) {
-	srv := &Server{
-		router:     mux.NewRouter(),
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-	}
-	srv.setupRoutes()
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandlerWithHTTPClient(db, registry, generator, personaService, previewService, analyticsService, &http.Client{Timeout: 5 * time.Second})
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", h.HandleScenarioStatus).Methods("GET")
+	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/start", h.HandleScenarioStart).Methods("POST")
+	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/stop", h.HandleScenarioStop).Methods("POST")
+	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/restart", h.HandleScenarioRestart).Methods("POST")
+	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/logs", h.HandleScenarioLogs).Methods("GET")
+	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/promote", h.HandleScenarioPromote).Methods("POST")
 
 	t.Run("status returns 404 for non-existent scenario", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/lifecycle/non-existent-scenario/status", nil)
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusNotFound {
 			t.Errorf("Expected 404 for non-existent scenario, got %d: %s", w.Code, w.Body.String())
@@ -571,7 +562,7 @@ func TestIntegration_LifecycleEndpoints(t *testing.T) {
 		req := httptest.NewRequest("POST", "/api/v1/lifecycle/non-existent-scenario/start", nil)
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusNotFound {
 			t.Errorf("Expected 404 for non-existent scenario, got %d: %s", w.Code, w.Body.String())
@@ -591,7 +582,7 @@ func TestIntegration_LifecycleEndpoints(t *testing.T) {
 		req := httptest.NewRequest("POST", "/api/v1/lifecycle/non-existent-scenario/stop", nil)
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		// Stop is idempotent - succeeds even if scenario doesn't exist
 		if w.Code != http.StatusOK {
@@ -612,7 +603,7 @@ func TestIntegration_LifecycleEndpoints(t *testing.T) {
 		req := httptest.NewRequest("POST", "/api/v1/lifecycle/non-existent-scenario/restart", nil)
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusNotFound {
 			t.Errorf("Expected 404 for non-existent scenario, got %d: %s", w.Code, w.Body.String())
@@ -623,7 +614,7 @@ func TestIntegration_LifecycleEndpoints(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/lifecycle/non-existent-scenario/logs", nil)
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusNotFound {
 			t.Errorf("Expected 404 for non-existent scenario, got %d: %s", w.Code, w.Body.String())
@@ -634,7 +625,7 @@ func TestIntegration_LifecycleEndpoints(t *testing.T) {
 		req := httptest.NewRequest("POST", "/api/v1/lifecycle/non-existent-scenario/promote", nil)
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusNotFound {
 			t.Errorf("Expected 404 for non-existent scenario, got %d: %s", w.Code, w.Body.String())
@@ -645,7 +636,7 @@ func TestIntegration_LifecycleEndpoints(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/lifecycle/non-existent-scenario/logs?tail=100", nil)
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		// Still 404 for non-existent scenario, but validates query param parsing
 		if w.Code != http.StatusNotFound {
@@ -671,7 +662,7 @@ func TestIntegration_LifecycleEndpoints(t *testing.T) {
 				req := httptest.NewRequest(ep.method, ep.path, nil)
 				w := httptest.NewRecorder()
 
-				srv.router.ServeHTTP(w, req)
+				router.ServeHTTP(w, req)
 
 				contentType := w.Header().Get("Content-Type")
 				if !strings.Contains(contentType, "application/json") {
@@ -698,17 +689,25 @@ func TestIntegration_PromoteWorkflow(t *testing.T) {
 	os.Setenv("VROOLI_ROOT", tmpRoot)
 	defer os.Setenv("VROOLI_ROOT", oldRoot)
 
-	srv := &Server{
-		router:     mux.NewRouter(),
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-	}
-	srv.setupRoutes()
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandlerWithHTTPClient(db, registry, generator, personaService, previewService, analyticsService, &http.Client{Timeout: 5 * time.Second})
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/promote", h.HandleScenarioPromote).Methods("POST")
 
 	t.Run("promote fails when scenario not in generated/", func(t *testing.T) {
 		req := httptest.NewRequest("POST", "/api/v1/lifecycle/not-generated/promote", nil)
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusNotFound {
 			t.Errorf("Expected 404 when scenario not in generated/, got %d: %s", w.Code, w.Body.String())
@@ -745,7 +744,7 @@ func TestIntegration_PromoteWorkflow(t *testing.T) {
 		req := httptest.NewRequest("POST", "/api/v1/lifecycle/"+scenarioName+"/promote", nil)
 		w := httptest.NewRecorder()
 
-		srv.router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
 		// May fail due to actual file operations, but validates structure
 		t.Logf("Promote response status: %d", w.Code)

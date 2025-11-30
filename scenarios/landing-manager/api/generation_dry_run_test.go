@@ -1,17 +1,20 @@
 package main
 
 import (
-	"path/filepath"
 	"os"
+	"path/filepath"
 	"testing"
+
+	"landing-manager/services"
 )
 
 // [REQ:TMPL-DRY-RUN]
 func TestTMPL_DRY_RUN_DryRunMode(t *testing.T) {
-	ts, outputDir := setupGenerationTest(t)
+	registry, outputDir := setupGenerationTest(t)
+	generator := services.NewScenarioGenerator(registry)
 
 	opts := map[string]interface{}{"dry_run": true}
-	result, err := ts.GenerateScenario("test-template", "Test Landing", "test-landing", opts)
+	result, err := generator.GenerateScenario("test-template", "Test Landing", "test-landing", opts)
 	if err != nil {
 		t.Errorf("GenerateScenario() in dry-run mode returned error: %v", err)
 	}
@@ -50,7 +53,8 @@ func TestTMPL_DRY_RUN_DryRunMode(t *testing.T) {
 
 // [REQ:TMPL-DRY-RUN]
 func TestTMPL_DRY_RUN_ValidationStillApplies(t *testing.T) {
-	ts, _ := setupGenerationTest(t)
+	registry, _ := setupGenerationTest(t)
+	generator := services.NewScenarioGenerator(registry)
 
 	opts := map[string]interface{}{"dry_run": true}
 
@@ -82,7 +86,7 @@ func TestTMPL_DRY_RUN_ValidationStillApplies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ts.GenerateScenario(tt.templateID, tt.displayName, tt.slug, opts)
+			_, err := generator.GenerateScenario(tt.templateID, tt.displayName, tt.slug, opts)
 			if err == nil {
 				t.Errorf("Expected error for %s in dry-run mode", tt.name)
 			}

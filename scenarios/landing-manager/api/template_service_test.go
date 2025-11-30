@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"landing-manager/services"
 )
 
 // [REQ:TMPL-AVAILABILITY][REQ:TMPL-METADATA]
@@ -14,7 +16,7 @@ func TestTemplateService_ListTemplates(t *testing.T) {
 		tmpDir := t.TempDir()
 		templatePath := filepath.Join(tmpDir, "test-template.json")
 
-		testTemplate := Template{
+		testTemplate := services.Template{
 			ID:          "test-template",
 			Name:        "Test Template",
 			Description: "A test template",
@@ -33,8 +35,8 @@ func TestTemplateService_ListTemplates(t *testing.T) {
 			t.Fatalf("Failed to write test template: %v", err)
 		}
 
-		ts := &TemplateService{templatesDir: tmpDir}
-		templates, err := ts.ListTemplates()
+		tr := services.NewTemplateRegistryWithDir(tmpDir)
+		templates, err := tr.ListTemplates()
 
 		if err != nil {
 			t.Errorf("ListTemplates() returned error: %v", err)
@@ -54,7 +56,7 @@ func TestTemplateService_ListTemplates(t *testing.T) {
 		tmpDir := t.TempDir()
 		templatePath := filepath.Join(tmpDir, "test-template.json")
 
-		testTemplate := Template{
+		testTemplate := services.Template{
 			ID:          "test-template",
 			Name:        "Test Template",
 			Description: "A test template",
@@ -73,8 +75,8 @@ func TestTemplateService_ListTemplates(t *testing.T) {
 			t.Fatalf("Failed to write test template: %v", err)
 		}
 
-		ts := &TemplateService{templatesDir: tmpDir}
-		templates, err := ts.ListTemplates()
+		tr := services.NewTemplateRegistryWithDir(tmpDir)
+		templates, err := tr.ListTemplates()
 
 		if err != nil {
 			t.Errorf("ListTemplates() returned error: %v", err)
@@ -89,8 +91,8 @@ func TestTemplateService_ListTemplates(t *testing.T) {
 
 	t.Run("empty directory", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		ts := &TemplateService{templatesDir: tmpDir}
-		templates, err := ts.ListTemplates()
+		tr := services.NewTemplateRegistryWithDir(tmpDir)
+		templates, err := tr.ListTemplates()
 
 		if err != nil {
 			t.Errorf("ListTemplates() returned error: %v", err)
@@ -109,8 +111,8 @@ func TestTemplateService_ListTemplates(t *testing.T) {
 			t.Fatalf("Failed to write text file: %v", err)
 		}
 
-		ts := &TemplateService{templatesDir: tmpDir}
-		templates, err := ts.ListTemplates()
+		tr := services.NewTemplateRegistryWithDir(tmpDir)
+		templates, err := tr.ListTemplates()
 
 		if err != nil {
 			t.Errorf("ListTemplates() returned error: %v", err)
@@ -129,7 +131,7 @@ func TestTemplateService_ListMultipleTemplates(t *testing.T) {
 		tmpDir := t.TempDir()
 
 		// Create first template
-		template1 := Template{
+		template1 := services.Template{
 			ID:          "saas-landing",
 			Name:        "SaaS Landing Page",
 			Description: "SaaS product landing page",
@@ -145,7 +147,7 @@ func TestTemplateService_ListMultipleTemplates(t *testing.T) {
 		}
 
 		// Create second template
-		template2 := Template{
+		template2 := services.Template{
 			ID:          "lead-magnet",
 			Name:        "Lead Magnet",
 			Description: "Lead capture landing page",
@@ -160,8 +162,8 @@ func TestTemplateService_ListMultipleTemplates(t *testing.T) {
 			t.Fatalf("Failed to write second template: %v", err)
 		}
 
-		ts := &TemplateService{templatesDir: tmpDir}
-		templates, err := ts.ListTemplates()
+		tr := services.NewTemplateRegistryWithDir(tmpDir)
+		templates, err := tr.ListTemplates()
 
 		if err != nil {
 			t.Errorf("ListTemplates() returned error: %v", err)
@@ -202,7 +204,7 @@ func TestTemplateService_ListMultipleTemplates(t *testing.T) {
 	t.Run("three templates", func(t *testing.T) {
 		tmpDir := t.TempDir()
 
-		templates := []Template{
+		templates := []services.Template{
 			{ID: "template-1", Name: "Template 1", Description: "First", Version: "1.0.0"},
 			{ID: "template-2", Name: "Template 2", Description: "Second", Version: "1.0.0"},
 			{ID: "template-3", Name: "Template 3", Description: "Third", Version: "1.0.0"},
@@ -215,8 +217,8 @@ func TestTemplateService_ListMultipleTemplates(t *testing.T) {
 			}
 		}
 
-		ts := &TemplateService{templatesDir: tmpDir}
-		result, err := ts.ListTemplates()
+		tr := services.NewTemplateRegistryWithDir(tmpDir)
+		result, err := tr.ListTemplates()
 
 		if err != nil {
 			t.Errorf("ListTemplates() returned error: %v", err)
@@ -233,7 +235,7 @@ func TestTemplateService_GetTemplate(t *testing.T) {
 	tmpDir := t.TempDir()
 	templatePath := filepath.Join(tmpDir, "test-template.json")
 
-	testTemplate := Template{
+	testTemplate := services.Template{
 		ID:          "test-template",
 		Name:        "Test Template",
 		Description: "A test template",
@@ -249,10 +251,10 @@ func TestTemplateService_GetTemplate(t *testing.T) {
 		t.Fatalf("Failed to write test template: %v", err)
 	}
 
-	ts := &TemplateService{templatesDir: tmpDir}
+	tr := services.NewTemplateRegistryWithDir(tmpDir)
 
 	t.Run("REQ:TMPL-AVAILABILITY/existing-template", func(t *testing.T) {
-		template, err := ts.GetTemplate("test-template")
+		template, err := tr.GetTemplate("test-template")
 		if err != nil {
 			t.Errorf("GetTemplate() returned error: %v", err)
 		}
@@ -265,7 +267,7 @@ func TestTemplateService_GetTemplate(t *testing.T) {
 	})
 
 	t.Run("REQ:TMPL-AVAILABILITY/non-existing-template", func(t *testing.T) {
-		template, err := ts.GetTemplate("non-existing")
+		template, err := tr.GetTemplate("non-existing")
 		if err == nil {
 			t.Error("GetTemplate() should return error for non-existing template")
 		}
@@ -275,7 +277,7 @@ func TestTemplateService_GetTemplate(t *testing.T) {
 	})
 
 	t.Run("REQ:TMPL-METADATA/template-fields", func(t *testing.T) {
-		template, err := ts.GetTemplate("test-template")
+		template, err := tr.GetTemplate("test-template")
 		if err != nil {
 			t.Fatalf("GetTemplate() returned error: %v", err)
 		}
@@ -292,7 +294,7 @@ func TestTemplateService_GetTemplate(t *testing.T) {
 	})
 
 	t.Run("empty template ID", func(t *testing.T) {
-		_, err := ts.GetTemplate("")
+		_, err := tr.GetTemplate("")
 		if err == nil {
 			t.Error("GetTemplate() should return error for empty template ID")
 		}

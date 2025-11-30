@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"landing-manager/services"
 )
 
 // [REQ:TMPL-AGENT-PROFILES]
@@ -17,8 +19,8 @@ func TestGetPersonas_ListAll(t *testing.T) {
 	}
 
 	// Create test persona catalog
-	catalog := PersonaCatalog{
-		Personas: []Persona{
+	catalog := services.PersonaCatalog{
+		Personas: []services.Persona{
 			{
 				ID:          "test-persona",
 				Name:        "Test Persona",
@@ -51,16 +53,16 @@ func TestGetPersonas_ListAll(t *testing.T) {
 		t.Fatalf("Failed to write catalog: %v", err)
 	}
 
-	ts := &TemplateService{
-		templatesDir: filepath.Join(tmpDir, "templates"),
-	}
 	// Create templates dir so persona path resolution works
-	if err := os.MkdirAll(ts.templatesDir, 0o755); err != nil {
+	templatesDir := filepath.Join(tmpDir, "templates")
+	if err := os.MkdirAll(templatesDir, 0o755); err != nil {
 		t.Fatalf("Failed to create templates directory: %v", err)
 	}
 
+	ps := services.NewPersonaService(templatesDir)
+
 	t.Run("REQ:TMPL-AGENT-PROFILES/list-all-personas", func(t *testing.T) {
-		personas, err := ts.GetPersonas()
+		personas, err := ps.GetPersonas()
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -87,7 +89,7 @@ func TestGetPersonas_ListAll(t *testing.T) {
 	})
 
 	t.Run("REQ:TMPL-AGENT-PROFILES/verify-all-fields", func(t *testing.T) {
-		personas, err := ts.GetPersonas()
+		personas, err := ps.GetPersonas()
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -123,8 +125,8 @@ func TestGetPersona_SpecificPersona(t *testing.T) {
 		t.Fatalf("Failed to create personas directory: %v", err)
 	}
 
-	catalog := PersonaCatalog{
-		Personas: []Persona{
+	catalog := services.PersonaCatalog{
+		Personas: []services.Persona{
 			{
 				ID:          "test-persona",
 				Name:        "Test Persona",
@@ -157,15 +159,15 @@ func TestGetPersona_SpecificPersona(t *testing.T) {
 		t.Fatalf("Failed to write catalog: %v", err)
 	}
 
-	ts := &TemplateService{
-		templatesDir: filepath.Join(tmpDir, "templates"),
-	}
-	if err := os.MkdirAll(ts.templatesDir, 0o755); err != nil {
+	templatesDir := filepath.Join(tmpDir, "templates")
+	if err := os.MkdirAll(templatesDir, 0o755); err != nil {
 		t.Fatalf("Failed to create templates directory: %v", err)
 	}
 
+	ps := services.NewPersonaService(templatesDir)
+
 	t.Run("REQ:TMPL-AGENT-PROFILES/get-specific-persona", func(t *testing.T) {
-		persona, err := ts.GetPersona("test-persona")
+		persona, err := ps.GetPersona("test-persona")
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -188,7 +190,7 @@ func TestGetPersona_SpecificPersona(t *testing.T) {
 	})
 
 	t.Run("REQ:TMPL-AGENT-PROFILES/get-second-persona", func(t *testing.T) {
-		persona, err := ts.GetPersona("another-persona")
+		persona, err := ps.GetPersona("another-persona")
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -211,8 +213,8 @@ func TestGetPersona_ErrorHandling(t *testing.T) {
 		t.Fatalf("Failed to create personas directory: %v", err)
 	}
 
-	catalog := PersonaCatalog{
-		Personas: []Persona{
+	catalog := services.PersonaCatalog{
+		Personas: []services.Persona{
 			{
 				ID:          "exists",
 				Name:        "Exists",
@@ -237,15 +239,15 @@ func TestGetPersona_ErrorHandling(t *testing.T) {
 		t.Fatalf("Failed to write catalog: %v", err)
 	}
 
-	ts := &TemplateService{
-		templatesDir: filepath.Join(tmpDir, "templates"),
-	}
-	if err := os.MkdirAll(ts.templatesDir, 0o755); err != nil {
+	templatesDir := filepath.Join(tmpDir, "templates")
+	if err := os.MkdirAll(templatesDir, 0o755); err != nil {
 		t.Fatalf("Failed to create templates directory: %v", err)
 	}
 
+	ps := services.NewPersonaService(templatesDir)
+
 	t.Run("non-existent persona", func(t *testing.T) {
-		_, err := ts.GetPersona("non-existent")
+		_, err := ps.GetPersona("non-existent")
 		if err == nil {
 			t.Error("Expected error for non-existent persona, got nil")
 		}
@@ -256,7 +258,7 @@ func TestGetPersona_ErrorHandling(t *testing.T) {
 	})
 
 	t.Run("empty persona ID", func(t *testing.T) {
-		_, err := ts.GetPersona("")
+		_, err := ps.GetPersona("")
 		if err == nil {
 			t.Error("Expected error for empty persona ID, got nil")
 		}
@@ -268,7 +270,7 @@ func TestGetPersona_ErrorHandling(t *testing.T) {
 			t.Fatalf("Failed to remove catalog: %v", err)
 		}
 
-		_, err := ts.GetPersonas()
+		_, err := ps.GetPersonas()
 		if err == nil {
 			t.Error("Expected error for missing catalog, got nil")
 		}
@@ -280,7 +282,7 @@ func TestGetPersona_ErrorHandling(t *testing.T) {
 			t.Fatalf("Failed to write invalid catalog: %v", err)
 		}
 
-		_, err := ts.GetPersonas()
+		_, err := ps.GetPersonas()
 		if err == nil {
 			t.Error("Expected error for invalid JSON, got nil")
 		}
@@ -296,8 +298,8 @@ func TestPersonaCatalog_Structure(t *testing.T) {
 	}
 
 	t.Run("catalog with metadata", func(t *testing.T) {
-		catalog := PersonaCatalog{
-			Personas: []Persona{
+		catalog := services.PersonaCatalog{
+			Personas: []services.Persona{
 				{
 					ID:          "test",
 					Name:        "Test",
@@ -325,14 +327,14 @@ func TestPersonaCatalog_Structure(t *testing.T) {
 			t.Fatalf("Failed to write catalog: %v", err)
 		}
 
-		ts := &TemplateService{
-			templatesDir: filepath.Join(tmpDir, "templates"),
-		}
-		if err := os.MkdirAll(ts.templatesDir, 0o755); err != nil {
+		templatesDir := filepath.Join(tmpDir, "templates")
+		if err := os.MkdirAll(templatesDir, 0o755); err != nil {
 			t.Fatalf("Failed to create templates directory: %v", err)
 		}
 
-		personas, err := ts.GetPersonas()
+		ps := services.NewPersonaService(templatesDir)
+
+		personas, err := ps.GetPersonas()
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -343,8 +345,8 @@ func TestPersonaCatalog_Structure(t *testing.T) {
 	})
 
 	t.Run("empty persona list", func(t *testing.T) {
-		catalog := PersonaCatalog{
-			Personas: []Persona{},
+		catalog := services.PersonaCatalog{
+			Personas: []services.Persona{},
 			Metadata: map[string]interface{}{
 				"version": "1.0.0",
 			},
@@ -360,14 +362,14 @@ func TestPersonaCatalog_Structure(t *testing.T) {
 			t.Fatalf("Failed to write catalog: %v", err)
 		}
 
-		ts := &TemplateService{
-			templatesDir: filepath.Join(tmpDir, "templates"),
-		}
-		if err := os.MkdirAll(ts.templatesDir, 0o755); err != nil {
+		templatesDir := filepath.Join(tmpDir, "templates")
+		if err := os.MkdirAll(templatesDir, 0o755); err != nil {
 			t.Fatalf("Failed to create templates directory: %v", err)
 		}
 
-		personas, err := ts.GetPersonas()
+		ps := services.NewPersonaService(templatesDir)
+
+		personas, err := ps.GetPersonas()
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -379,9 +381,9 @@ func TestPersonaCatalog_Structure(t *testing.T) {
 
 	t.Run("large persona catalog", func(t *testing.T) {
 		// Create a catalog with many personas
-		personas := make([]Persona, 50)
+		personas := make([]services.Persona, 50)
 		for i := 0; i < 50; i++ {
-			personas[i] = Persona{
+			personas[i] = services.Persona{
 				ID:          string(rune('a' + i)),
 				Name:        string(rune('A' + i)),
 				Description: "Test persona " + string(rune('0'+i)),
@@ -391,7 +393,7 @@ func TestPersonaCatalog_Structure(t *testing.T) {
 			}
 		}
 
-		catalog := PersonaCatalog{
+		catalog := services.PersonaCatalog{
 			Personas: personas,
 			Metadata: map[string]interface{}{
 				"version": "1.0.0",
@@ -408,14 +410,14 @@ func TestPersonaCatalog_Structure(t *testing.T) {
 			t.Fatalf("Failed to write catalog: %v", err)
 		}
 
-		ts := &TemplateService{
-			templatesDir: filepath.Join(tmpDir, "templates"),
-		}
-		if err := os.MkdirAll(ts.templatesDir, 0o755); err != nil {
+		templatesDir := filepath.Join(tmpDir, "templates")
+		if err := os.MkdirAll(templatesDir, 0o755); err != nil {
 			t.Fatalf("Failed to create templates directory: %v", err)
 		}
 
-		loadedPersonas, err := ts.GetPersonas()
+		ps := services.NewPersonaService(templatesDir)
+
+		loadedPersonas, err := ps.GetPersonas()
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}

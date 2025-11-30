@@ -10,6 +10,9 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+
+	"landing-manager/handlers"
+	"landing-manager/services"
 )
 
 // [REQ:TMPL-LIFECYCLE] Test handleScenarioStatus process checking for staging scenarios
@@ -28,11 +31,19 @@ func TestHandleScenarioStatus_ProcessChecking(t *testing.T) {
 	processDir := filepath.Join(tmpHome, ".vrooli", "processes", "scenarios", scenarioID)
 	os.MkdirAll(processDir, 0755)
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-	}
-	srv.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", srv.handleScenarioStatus).Methods("GET")
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", h.HandleScenarioStatus).Methods("GET")
 
 	tests := []struct {
 		name            string
@@ -87,7 +98,7 @@ func TestHandleScenarioStatus_ProcessChecking(t *testing.T) {
 			req := httptest.NewRequest("GET", "/api/v1/lifecycle/"+scenarioID+"/status", nil)
 			w := httptest.NewRecorder()
 
-			srv.router.ServeHTTP(w, req)
+			router.ServeHTTP(w, req)
 
 			if w.Code != http.StatusOK {
 				t.Errorf("Expected status OK, got %d", w.Code)
@@ -142,16 +153,24 @@ func TestHandleScenarioStatus_ProductionScenario(t *testing.T) {
 	prodPath := filepath.Join(tmpRoot, "scenarios", scenarioID)
 	os.MkdirAll(prodPath, 0755)
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-	}
-	srv.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", srv.handleScenarioStatus).Methods("GET")
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", h.HandleScenarioStatus).Methods("GET")
 
 	req := httptest.NewRequest("GET", "/api/v1/lifecycle/"+scenarioID+"/status", nil)
 	w := httptest.NewRecorder()
 
-	srv.router.ServeHTTP(w, req)
+	router.ServeHTTP(w, req)
 
 	// Production scenarios use vrooli CLI which will fail in test, but should not be 404
 	// since the directory exists
@@ -178,16 +197,24 @@ func TestHandleScenarioStatus_MissingScenario(t *testing.T) {
 	os.Setenv("VROOLI_ROOT", tmpRoot)
 	defer os.Unsetenv("VROOLI_ROOT")
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-	}
-	srv.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", srv.handleScenarioStatus).Methods("GET")
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", h.HandleScenarioStatus).Methods("GET")
 
 	req := httptest.NewRequest("GET", "/api/v1/lifecycle/nonexistent/status", nil)
 	w := httptest.NewRecorder()
 
-	srv.router.ServeHTTP(w, req)
+	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
 		t.Errorf("Expected 404 for missing scenario, got %d", w.Code)

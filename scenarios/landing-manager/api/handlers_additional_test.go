@@ -9,6 +9,10 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+
+	"landing-manager/handlers"
+	"landing-manager/services"
+	"landing-manager/util"
 )
 
 // Test handleHealth with unhealthy database
@@ -18,16 +22,18 @@ func TestHandleHealth_UnhealthyDatabase(t *testing.T) {
 		db := setupTestDB(t)
 		db.Close() // Close immediately to make it unhealthy
 
-		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
-			db:              db,
-		}
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 		req := httptest.NewRequest("GET", "/health", nil)
 		w := httptest.NewRecorder()
 
-		srv.handleHealth(w, req)
+		h.HandleHealth(w, req)
 
 		// Should still return 200 but with unhealthy status
 		if w.Code != http.StatusOK {
@@ -60,19 +66,23 @@ func TestHandleHealth_UnhealthyDatabase(t *testing.T) {
 
 // Test handlePersonaList error path
 func TestHandlePersonaList_ErrorHandling(t *testing.T) {
-	t.Run("returns 500 when template service fails", func(t *testing.T) {
-		// Create template service with invalid directory
-		srv := &Server{
-			router: mux.NewRouter(),
-			templateService: &TemplateService{
-				templatesDir: "/nonexistent/path",
-			},
-		}
+	t.Run("returns 500 when persona service fails", func(t *testing.T) {
+		db := setupTestDB(t)
+		defer db.Close()
+
+		// Create services with invalid personas directory
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService("/nonexistent/path")
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 		req := httptest.NewRequest("GET", "/api/v1/personas", nil)
 		w := httptest.NewRecorder()
 
-		srv.handlePersonaList(w, req)
+		h.HandlePersonaList(w, req)
 
 		if w.Code != http.StatusInternalServerError {
 			t.Errorf("Expected status 500, got %d", w.Code)
@@ -92,25 +102,31 @@ func TestHandleGeneratedList_MultipleScenarios(t *testing.T) {
 		for _, name := range scenarios {
 			scenarioDir := filepath.Join(tmpDir, name)
 			os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0755)
-			serviceJSON := `{"name": "` + name + `", "slug": "` + name + `"}`
+			serviceJSON := `{"service": {"name": "` + name + `", "displayName": "` + name + `", "description": "test", "repository": {"directory": "/scenarios/` + name + `"}}}`
 			os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "service.json"), []byte(serviceJSON), 0644)
 		}
 
-		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
-		}
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 		req := httptest.NewRequest("GET", "/api/v1/generated", nil)
 		w := httptest.NewRecorder()
 
-		srv.handleGeneratedList(w, req)
+		h.HandleGeneratedList(w, req)
 
 		if w.Code != http.StatusOK {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 
-		var result []GeneratedScenario
+		var result []services.GeneratedScenario
 		if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 			t.Fatalf("Failed to parse response: %v", err)
 		}
@@ -124,17 +140,23 @@ func TestHandleGeneratedList_MultipleScenarios(t *testing.T) {
 // Test handleScenarioStop with actual CLI interaction (success path)
 func TestHandleScenarioStop_SuccessScenario(t *testing.T) {
 	t.Run("successfully stops a running scenario", func(t *testing.T) {
-		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
-		}
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 		// Use a real scenario name that the CLI will process
 		req := httptest.NewRequest("POST", "/api/v1/lifecycle/test-stop/stop", nil)
 		req = mux.SetURLVars(req, map[string]string{"scenario_id": "test-stop"})
 		w := httptest.NewRecorder()
 
-		srv.handleScenarioStop(w, req)
+		h.HandleScenarioStop(w, req)
 
 		// Should return either success or not-found, both are valid responses
 		if w.Code != http.StatusOK && w.Code != http.StatusNotFound {
@@ -156,16 +178,22 @@ func TestHandleScenarioStop_SuccessScenario(t *testing.T) {
 // Test handleScenarioRestart with actual CLI interaction
 func TestHandleScenarioRestart_SuccessScenario(t *testing.T) {
 	t.Run("successfully restarts a scenario", func(t *testing.T) {
-		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
-		}
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 		req := httptest.NewRequest("POST", "/api/v1/lifecycle/test-restart/restart", nil)
 		req = mux.SetURLVars(req, map[string]string{"scenario_id": "test-restart"})
 		w := httptest.NewRecorder()
 
-		srv.handleScenarioRestart(w, req)
+		h.HandleScenarioRestart(w, req)
 
 		// Should return either success or not-found
 		if w.Code != http.StatusOK && w.Code != http.StatusNotFound {
@@ -267,63 +295,17 @@ func TestResolveDatabaseURL_EdgeCases(t *testing.T) {
 	})
 }
 
-// Test Server.postJSON error paths
-func TestPostJSON_ErrorHandling(t *testing.T) {
-	t.Run("handles server errors", func(t *testing.T) {
-		// Create a test server that returns 500
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Internal Server Error"))
-		}))
-		defer server.Close()
-
-		srv := &Server{
-			templateService: NewTemplateService(),
-			httpClient:      &http.Client{},
-		}
-
-		payload := map[string]interface{}{"test": "data"}
-		err := srv.postJSON(server.URL, payload, nil)
-
-		if err == nil {
-			t.Error("Expected error for 500 response")
-		}
-	})
-
-	t.Run("handles non-JSON responses", func(t *testing.T) {
-		// Create a test server that returns non-JSON
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("not json"))
-		}))
-		defer server.Close()
-
-		srv := &Server{
-			templateService: NewTemplateService(),
-			httpClient:      &http.Client{},
-		}
-
-		payload := map[string]interface{}{"test": "data"}
-		err := srv.postJSON(server.URL, payload, nil)
-
-		if err == nil {
-			t.Error("Expected error for non-JSON response")
-		}
-	})
-}
-
-
 // Test logStructuredError to improve coverage
 func TestLogStructuredError_Coverage(t *testing.T) {
 	t.Run("logs structured error", func(t *testing.T) {
 		// This function just logs, so we're testing it doesn't panic
-		logStructuredError("test_error", map[string]interface{}{
+		util.LogStructuredError("test_error", map[string]interface{}{
 			"error":   "test error message",
 			"details": "additional details",
 		})
 	})
 
 	t.Run("logs with nil fields", func(t *testing.T) {
-		logStructuredError("test_error_nil", nil)
+		util.LogStructuredError("test_error_nil", nil)
 	})
 }

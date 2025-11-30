@@ -9,6 +9,9 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+
+	"landing-manager/handlers"
+	"landing-manager/services"
 )
 
 // [REQ:TMPL-LIFECYCLE] Test handleGeneratedList error path when service fails
@@ -19,22 +22,28 @@ func TestHandleGeneratedList_ErrorPath(t *testing.T) {
 		os.Setenv("GEN_OUTPUT_DIR", filepath.Join(tmpDir, "nonexistent"))
 		defer os.Unsetenv("GEN_OUTPUT_DIR")
 
-		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
-		}
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 		req := httptest.NewRequest("GET", "/api/v1/generated", nil)
 		w := httptest.NewRecorder()
 
-		srv.handleGeneratedList(w, req)
+		h.HandleGeneratedList(w, req)
 
 		// Should return 200 with empty list when directory doesn't exist
 		if w.Code != http.StatusOK {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 
-		var scenarios []GeneratedScenario
+		var scenarios []services.GeneratedScenario
 		if err := json.Unmarshal(w.Body.Bytes(), &scenarios); err != nil {
 			t.Fatalf("Failed to parse response: %v", err)
 		}
@@ -50,17 +59,23 @@ func TestHandleScenarioStop_SuccessPath(t *testing.T) {
 	// Note: This test validates the structure but can't easily mock CLI success
 	// Real CLI testing is done in integration tests
 	t.Run("validates request structure", func(t *testing.T) {
-		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
-		}
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 		// Test with valid scenario_id parameter (will fail on CLI but validates handler)
 		req := httptest.NewRequest("POST", "/api/v1/lifecycle/test-scenario/stop", nil)
 		req = mux.SetURLVars(req, map[string]string{"scenario_id": "test-scenario"})
 		w := httptest.NewRecorder()
 
-		srv.handleScenarioStop(w, req)
+		h.HandleScenarioStop(w, req)
 
 		// Will fail because CLI isn't mocked, but ensures handler processes the request
 		// Success paths are validated in integration tests
@@ -73,16 +88,22 @@ func TestHandleScenarioStop_SuccessPath(t *testing.T) {
 // Test handleScenarioRestart success path
 func TestHandleScenarioRestart_SuccessPath(t *testing.T) {
 	t.Run("validates request structure", func(t *testing.T) {
-		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
-		}
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 		req := httptest.NewRequest("POST", "/api/v1/lifecycle/test-scenario/restart", nil)
 		req = mux.SetURLVars(req, map[string]string{"scenario_id": "test-scenario"})
 		w := httptest.NewRecorder()
 
-		srv.handleScenarioRestart(w, req)
+		h.HandleScenarioRestart(w, req)
 
 		// Validates handler processes the request
 		if w.Code != http.StatusOK && w.Code != http.StatusNotFound && w.Code != http.StatusInternalServerError {
@@ -98,22 +119,29 @@ func TestHandleScenarioPromote_ProductionConflict(t *testing.T) {
 		os.Setenv("VROOLI_ROOT", tmpRoot)
 		defer os.Unsetenv("VROOLI_ROOT")
 
-		// Create both generated and production directories
-		generatedDir := filepath.Join(tmpRoot, "scenarios", "generated", "test-scenario")
+		// Create both staging and production directories
+		// Note: Staging path is scenarios/landing-manager/generated/{id}
+		stagingDir := filepath.Join(tmpRoot, "scenarios", "landing-manager", "generated", "test-scenario")
 		productionDir := filepath.Join(tmpRoot, "scenarios", "test-scenario")
-		os.MkdirAll(generatedDir, 0755)
+		os.MkdirAll(stagingDir, 0755)
 		os.MkdirAll(productionDir, 0755)
 
-		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
-		}
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 		req := httptest.NewRequest("POST", "/api/v1/lifecycle/test-scenario/promote", nil)
 		req = mux.SetURLVars(req, map[string]string{"scenario_id": "test-scenario"})
 		w := httptest.NewRecorder()
 
-		srv.handleScenarioPromote(w, req)
+		h.HandleScenarioPromote(w, req)
 
 		if w.Code != http.StatusConflict {
 			t.Errorf("Expected status 409, got %d: %s", w.Code, w.Body.String())
@@ -139,24 +167,31 @@ func TestHandleScenarioPromote_MoveFailure(t *testing.T) {
 		os.Setenv("VROOLI_ROOT", tmpRoot)
 		defer os.Unsetenv("VROOLI_ROOT")
 
-		generatedDir := filepath.Join(tmpRoot, "scenarios", "generated", "test-scenario")
-		os.MkdirAll(generatedDir, 0755)
+		// Note: Staging path is scenarios/landing-manager/generated/{id}
+		stagingDir := filepath.Join(tmpRoot, "scenarios", "landing-manager", "generated", "test-scenario")
+		os.MkdirAll(stagingDir, 0755)
 
 		// Make the scenarios directory read-only to cause move failure
 		scenariosDir := filepath.Join(tmpRoot, "scenarios")
 		os.Chmod(scenariosDir, 0555)
 		defer os.Chmod(scenariosDir, 0755) // Restore for cleanup
 
-		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
-		}
+		db := setupTestDB(t)
+		defer db.Close()
+
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 		req := httptest.NewRequest("POST", "/api/v1/lifecycle/test-scenario/promote", nil)
 		req = mux.SetURLVars(req, map[string]string{"scenario_id": "test-scenario"})
 		w := httptest.NewRecorder()
 
-		srv.handleScenarioPromote(w, req)
+		h.HandleScenarioPromote(w, req)
 
 		// May succeed on systems where permissions work differently, or fail as expected
 		if w.Code == http.StatusInternalServerError {
@@ -176,16 +211,18 @@ func TestHandleHealth_WithDatabase(t *testing.T) {
 		db := setupTestDB(t)
 		defer db.Close()
 
-		srv := &Server{
-			router:          mux.NewRouter(),
-			templateService: NewTemplateService(),
-			db:              db,
-		}
+		registry := services.NewTemplateRegistry()
+		generator := services.NewScenarioGenerator(registry)
+		personaService := services.NewPersonaService(registry.GetTemplatesDir())
+		previewService := services.NewPreviewService()
+		analyticsService := services.NewAnalyticsService()
+
+		h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 		req := httptest.NewRequest("GET", "/health", nil)
 		w := httptest.NewRecorder()
 
-		srv.handleHealth(w, req)
+		h.HandleHealth(w, req)
 
 		if w.Code != http.StatusOK {
 			t.Errorf("Expected status 200, got %d", w.Code)
@@ -205,7 +242,6 @@ func TestHandleHealth_WithDatabase(t *testing.T) {
 		}
 	})
 }
-
 
 // Test seedDefaultData (it's a no-op, but let's ensure it doesn't panic)
 func TestSeedDefaultData(t *testing.T) {

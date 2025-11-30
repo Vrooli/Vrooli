@@ -1,82 +1,26 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"os/signal"
-	"regexp"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/gorilla/handlers"
+	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+
+	"landing-manager/handlers"
+	"landing-manager/services"
+	"landing-manager/util"
 )
-
-// Security: Validation patterns
-var (
-	templateIDPattern = regexp.MustCompile(`^[a-z0-9_-]{1,64}$`)
-	scenarioNamePattern = regexp.MustCompile(`^[a-zA-Z0-9_\s-]{1,128}$`)
-	scenarioSlugPattern = regexp.MustCompile(`^[a-z0-9_-]{1,64}$`)
-	personaIDPattern = regexp.MustCompile(`^[a-z0-9_-]{1,64}$`)
-)
-
-// validateTemplateID ensures the template ID is safe
-func validateTemplateID(id string) error {
-	if id == "" {
-		return fmt.Errorf("template_id is required")
-	}
-	if !templateIDPattern.MatchString(id) {
-		return fmt.Errorf("invalid template_id format")
-	}
-	return nil
-}
-
-// validateScenarioName validates scenario name input
-func validateScenarioName(name string) error {
-	if name == "" {
-		return fmt.Errorf("name is required")
-	}
-	if len(name) > 128 {
-		return fmt.Errorf("name too long (max 128 characters)")
-	}
-	if !scenarioNamePattern.MatchString(name) {
-		return fmt.Errorf("invalid name: must contain only letters, numbers, spaces, hyphens, and underscores")
-	}
-	return nil
-}
-
-// validateScenarioSlug validates scenario slug input
-func validateScenarioSlug(slug string) error {
-	if slug == "" {
-		return fmt.Errorf("slug is required")
-	}
-	if !scenarioSlugPattern.MatchString(slug) {
-		return fmt.Errorf("invalid slug: must contain only lowercase letters, numbers, hyphens, and underscores (1-64 chars)")
-	}
-	return nil
-}
-
-// validatePersonaID validates persona ID input
-func validatePersonaID(id string) error {
-	if id == "" {
-		return nil // persona_id is optional
-	}
-	if !personaIDPattern.MatchString(id) {
-		return fmt.Errorf("invalid persona_id format")
-	}
-	return nil
-}
 
 // Config holds minimal runtime configuration
 type Config struct {
@@ -84,17 +28,15 @@ type Config struct {
 	DatabaseURL string
 }
 
-// Server wires the HTTP router and database connection
+// Server wires the HTTP router and dependencies
 type Server struct {
-	config           *Config
-	db               *sql.DB
-	router           *mux.Router
-	templateService  *TemplateService
-	analyticsService *AnalyticsService
-	httpClient       *http.Client
+	config  *Config
+	db      *sql.DB
+	router  *mux.Router
+	handler *handlers.Handler
 }
 
-// NewServer initializes configuration, database, and routes
+// NewServer initializes configuration, database, services, and routes
 func NewServer() (*Server, error) {
 	dbURL, err := resolveDatabaseURL()
 	if err != nil {
@@ -115,17 +57,21 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	if err := seedDefaultData(db); err != nil {
-		return nil, fmt.Errorf("failed to seed default data: %w", err)
-	}
+	// Initialize services
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	// Create handler with all dependencies
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 	srv := &Server{
-		config:           cfg,
-		db:               db,
-		router:           mux.NewRouter(),
-		templateService:  NewTemplateService(),
-		analyticsService: NewAnalyticsService(),
-		httpClient:       &http.Client{Timeout: 15 * time.Second},
+		config:  cfg,
+		db:      db,
+		router:  mux.NewRouter(),
+		handler: h,
 	}
 
 	srv.setupRoutes()
@@ -133,78 +79,77 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) setupRoutes() {
-	s.router.Use(loggingMiddleware)
-	s.router.Use(requestSizeLimitMiddleware) // Security: limit request body size
-	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
-	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
+	s.router.Use(handlers.LoggingMiddleware)
+	s.router.Use(handlers.RequestSizeLimitMiddleware)
 
-	// Template management endpoints
-	s.router.HandleFunc("/api/v1/templates", s.handleTemplateList).Methods("GET")
-	s.router.HandleFunc("/api/v1/templates/{id}", s.handleTemplateShow).Methods("GET")
-	s.router.HandleFunc("/api/v1/generate", s.handleGenerate).Methods("POST")
-	s.router.HandleFunc("/api/v1/customize", s.handleCustomize).Methods("POST")
-	s.router.HandleFunc("/api/v1/generated", s.handleGeneratedList).Methods("GET")
-	s.router.HandleFunc("/api/v1/preview/{scenario_id}", s.handlePreviewLinks).Methods("GET")
-	s.router.HandleFunc("/api/v1/personas", s.handlePersonaList).Methods("GET")
-	s.router.HandleFunc("/api/v1/personas/{id}", s.handlePersonaShow).Methods("GET")
+	// Health endpoints
+	s.router.HandleFunc("/health", s.handler.HandleHealth).Methods("GET")
+	s.router.HandleFunc("/api/v1/health", s.handler.HandleHealth).Methods("GET")
 
-	// Factory-level analytics endpoints (OT-P2-001 / TMPL-GENERATION-ANALYTICS)
-	s.router.HandleFunc("/api/v1/analytics/summary", s.handleAnalyticsSummary).Methods("GET")
-	s.router.HandleFunc("/api/v1/analytics/events", s.handleAnalyticsEvents).Methods("GET")
+	// Template management
+	s.router.HandleFunc("/api/v1/templates", s.handler.HandleTemplateList).Methods("GET")
+	s.router.HandleFunc("/api/v1/templates/{id}", s.handler.HandleTemplateShow).Methods("GET")
+	s.router.HandleFunc("/api/v1/generate", s.handler.HandleGenerate).Methods("POST")
+	s.router.HandleFunc("/api/v1/customize", s.handler.HandleCustomize).Methods("POST")
+	s.router.HandleFunc("/api/v1/generated", s.handler.HandleGeneratedList).Methods("GET")
+	s.router.HandleFunc("/api/v1/preview/{scenario_id}", s.handler.HandlePreviewLinks).Methods("GET")
 
-	// Admin authentication endpoints (OT-P0-008)
-	s.router.HandleFunc("/api/v1/admin/login", handleTemplateOnly("admin authentication")).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/logout", handleTemplateOnly("admin authentication")).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/session", handleTemplateOnly("admin authentication")).Methods("GET")
+	// Personas
+	s.router.HandleFunc("/api/v1/personas", s.handler.HandlePersonaList).Methods("GET")
+	s.router.HandleFunc("/api/v1/personas/{id}", s.handler.HandlePersonaShow).Methods("GET")
 
-	// A/B Testing variant endpoints (OT-P0-014 through OT-P0-018)
-	s.router.HandleFunc("/api/v1/variants/select", handleTemplateOnly("variant selection")).Methods("GET")
-	s.router.HandleFunc("/api/v1/variants", handleTemplateOnly("variant management")).Methods("GET")
-	s.router.HandleFunc("/api/v1/variants", handleTemplateOnly("variant management")).Methods("POST")
-	s.router.HandleFunc("/api/v1/variants/{slug}", handleTemplateOnly("variant management")).Methods("GET")
-	s.router.HandleFunc("/api/v1/variants/{slug}", handleTemplateOnly("variant management")).Methods("PATCH")
-	s.router.HandleFunc("/api/v1/variants/{slug}/archive", handleTemplateOnly("variant management")).Methods("POST")
-	s.router.HandleFunc("/api/v1/variants/{slug}", handleTemplateOnly("variant management")).Methods("DELETE")
+	// Analytics
+	s.router.HandleFunc("/api/v1/analytics/summary", s.handler.HandleAnalyticsSummary).Methods("GET")
+	s.router.HandleFunc("/api/v1/analytics/events", s.handler.HandleAnalyticsEvents).Methods("GET")
 
-	// Metrics & Analytics endpoints (OT-P0-019 through OT-P0-024)
-	s.router.HandleFunc("/api/v1/metrics/track", handleTemplateOnly("metrics tracking")).Methods("POST")
-	s.router.HandleFunc("/api/v1/metrics/summary", handleTemplateOnly("metrics summary")).Methods("GET")
-	s.router.HandleFunc("/api/v1/metrics/variants", handleTemplateOnly("metrics variant stats")).Methods("GET")
+	// Template-only placeholders (features that belong to generated scenarios)
+	s.router.HandleFunc("/api/v1/admin/login", handlers.HandleTemplateOnly("admin authentication")).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/logout", handlers.HandleTemplateOnly("admin authentication")).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/session", handlers.HandleTemplateOnly("admin authentication")).Methods("GET")
 
-	// Stripe Payment endpoints (OT-P0-025 through OT-P0-030)
-	s.router.HandleFunc("/api/v1/checkout/create", handleTemplateOnly("checkout")).Methods("POST")
-	s.router.HandleFunc("/api/v1/webhooks/stripe", handleTemplateOnly("Stripe webhooks")).Methods("POST")
-	s.router.HandleFunc("/api/v1/subscription/verify", handleTemplateOnly("subscription verification")).Methods("GET")
-	s.router.HandleFunc("/api/v1/subscription/cancel", handleTemplateOnly("subscription cancel")).Methods("POST")
+	s.router.HandleFunc("/api/v1/variants/select", handlers.HandleTemplateOnly("variant selection")).Methods("GET")
+	s.router.HandleFunc("/api/v1/variants", handlers.HandleTemplateOnly("variant management")).Methods("GET")
+	s.router.HandleFunc("/api/v1/variants", handlers.HandleTemplateOnly("variant management")).Methods("POST")
+	s.router.HandleFunc("/api/v1/variants/{slug}", handlers.HandleTemplateOnly("variant management")).Methods("GET")
+	s.router.HandleFunc("/api/v1/variants/{slug}", handlers.HandleTemplateOnly("variant management")).Methods("PATCH")
+	s.router.HandleFunc("/api/v1/variants/{slug}/archive", handlers.HandleTemplateOnly("variant management")).Methods("POST")
+	s.router.HandleFunc("/api/v1/variants/{slug}", handlers.HandleTemplateOnly("variant management")).Methods("DELETE")
 
-	// Content Customization endpoints (OT-P0-012, OT-P0-013: CUSTOM-SPLIT, CUSTOM-LIVE)
-	s.router.HandleFunc("/api/v1/variants/{variant_id}/sections", handleTemplateOnly("section listing")).Methods("GET")
-	s.router.HandleFunc("/api/v1/sections/{id}", handleTemplateOnly("section detail")).Methods("GET")
-	s.router.HandleFunc("/api/v1/sections/{id}", handleTemplateOnly("section update")).Methods("PATCH")
-	s.router.HandleFunc("/api/v1/sections", handleTemplateOnly("section creation")).Methods("POST")
-	s.router.HandleFunc("/api/v1/sections/{id}", handleTemplateOnly("section delete")).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/metrics/track", handlers.HandleTemplateOnly("metrics tracking")).Methods("POST")
+	s.router.HandleFunc("/api/v1/metrics/summary", handlers.HandleTemplateOnly("metrics summary")).Methods("GET")
+	s.router.HandleFunc("/api/v1/metrics/variants", handlers.HandleTemplateOnly("metrics variant stats")).Methods("GET")
 
-	// Lifecycle management endpoints for generated scenarios
-	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/start", s.handleScenarioStart).Methods("POST")
-	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/stop", s.handleScenarioStop).Methods("POST")
-	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/restart", s.handleScenarioRestart).Methods("POST")
-	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", s.handleScenarioStatus).Methods("GET")
-	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/logs", s.handleScenarioLogs).Methods("GET")
-	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/promote", s.handleScenarioPromote).Methods("POST")
-	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}", s.handleScenarioDelete).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/checkout/create", handlers.HandleTemplateOnly("checkout")).Methods("POST")
+	s.router.HandleFunc("/api/v1/webhooks/stripe", handlers.HandleTemplateOnly("Stripe webhooks")).Methods("POST")
+	s.router.HandleFunc("/api/v1/subscription/verify", handlers.HandleTemplateOnly("subscription verification")).Methods("GET")
+	s.router.HandleFunc("/api/v1/subscription/cancel", handlers.HandleTemplateOnly("subscription cancel")).Methods("POST")
+
+	s.router.HandleFunc("/api/v1/variants/{variant_id}/sections", handlers.HandleTemplateOnly("section listing")).Methods("GET")
+	s.router.HandleFunc("/api/v1/sections/{id}", handlers.HandleTemplateOnly("section detail")).Methods("GET")
+	s.router.HandleFunc("/api/v1/sections/{id}", handlers.HandleTemplateOnly("section update")).Methods("PATCH")
+	s.router.HandleFunc("/api/v1/sections", handlers.HandleTemplateOnly("section creation")).Methods("POST")
+	s.router.HandleFunc("/api/v1/sections/{id}", handlers.HandleTemplateOnly("section delete")).Methods("DELETE")
+
+	// Lifecycle management for generated scenarios
+	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/start", s.handler.HandleScenarioStart).Methods("POST")
+	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/stop", s.handler.HandleScenarioStop).Methods("POST")
+	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/restart", s.handler.HandleScenarioRestart).Methods("POST")
+	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/status", s.handler.HandleScenarioStatus).Methods("GET")
+	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/logs", s.handler.HandleScenarioLogs).Methods("GET")
+	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}/promote", s.handler.HandleScenarioPromote).Methods("POST")
+	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}", s.handler.HandleScenarioDelete).Methods("DELETE")
 }
 
 // Start launches the HTTP server with graceful shutdown
 func (s *Server) Start() error {
-	s.log("starting server", map[string]interface{}{
+	util.LogStructured("starting server", map[string]interface{}{
 		"service": "landing-manager-api",
 		"port":    s.config.Port,
 	})
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", s.config.Port),
-		Handler:      handlers.RecoveryHandler()(s.router),
+		Handler:      gorillahandlers.RecoveryHandler()(s.router),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -212,7 +157,7 @@ func (s *Server) Start() error {
 
 	go func() {
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			s.log("server startup failed", map[string]interface{}{"error": err.Error()})
+			util.LogStructuredError("server startup failed", map[string]interface{}{"error": err.Error()})
 			log.Fatal(err)
 		}
 	}()
@@ -228,440 +173,8 @@ func (s *Server) Start() error {
 		return fmt.Errorf("server shutdown failed: %w", err)
 	}
 
-	s.log("server stopped", nil)
+	util.LogStructured("server stopped", nil)
 	return nil
-}
-
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	status := "healthy"
-	dbStatus := "connected"
-
-	if err := s.db.PingContext(r.Context()); err != nil {
-		status = "unhealthy"
-		dbStatus = "disconnected"
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   "Landing Manager API",
-		"version":   "1.0.0",
-		"readiness": status == "healthy",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"dependencies": map[string]string{
-			"database": dbStatus,
-		},
-	}
-
-	s.respondJSON(w, http.StatusOK, response)
-}
-
-// seedDefaultData is a no-op in factory mode; template data lives in generated scenarios.
-func seedDefaultData(db *sql.DB) error {
-	logStructured("seed_default_data_skipped", map[string]interface{}{
-		"reason": "factory_mode",
-	})
-	return nil
-}
-
-func (s *Server) handleTemplateList(w http.ResponseWriter, r *http.Request) {
-	templates, err := s.templateService.ListTemplates()
-	if err != nil {
-		s.log("failed to list templates", map[string]interface{}{"error": err.Error()})
-		http.Error(w, "Failed to list templates", http.StatusInternalServerError)
-		return
-	}
-
-	s.respondJSON(w, http.StatusOK, templates)
-}
-
-func (s *Server) handleTemplateShow(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	// Security: Validate template ID
-	if err := validateTemplateID(id); err != nil {
-		s.respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	template, err := s.templateService.GetTemplate(id)
-	if err != nil {
-		s.log("failed to get template", map[string]interface{}{"id": id, "error": err.Error()})
-		s.respondError(w, http.StatusNotFound, "Template not found")
-		return
-	}
-
-	s.respondJSON(w, http.StatusOK, template)
-}
-
-func (s *Server) handleGenerate(w http.ResponseWriter, r *http.Request) {
-	startTime := time.Now()
-	var req struct {
-		TemplateID string                 `json:"template_id"`
-		Name       string                 `json:"name"`
-		Slug       string                 `json:"slug"`
-		Options    map[string]interface{} `json:"options"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.respondError(w, http.StatusBadRequest, "Invalid request body")
-		return
-	}
-
-	// Security: Validate all inputs
-	if err := validateTemplateID(req.TemplateID); err != nil {
-		s.respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if err := validateScenarioName(req.Name); err != nil {
-		s.respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if err := validateScenarioSlug(req.Slug); err != nil {
-		s.respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	response, err := s.templateService.GenerateScenario(req.TemplateID, req.Name, req.Slug, req.Options)
-	durationMs := time.Since(startTime).Milliseconds()
-
-	// Determine if this was a dry-run
-	isDryRun := false
-	if req.Options != nil {
-		if dr, ok := req.Options["dry_run"].(bool); ok {
-			isDryRun = dr
-		}
-	}
-
-	if err != nil {
-		// [REQ:TMPL-GENERATION-ANALYTICS] Record failed generation
-		if s.analyticsService != nil {
-			s.analyticsService.RecordGeneration(req.TemplateID, req.Slug, isDryRun, false, err.Error(), durationMs)
-		}
-		s.log("failed to generate scenario", map[string]interface{}{
-			"template_id": req.TemplateID,
-			"name":        req.Name,
-			"error":       err.Error(),
-		})
-		s.respondError(w, http.StatusBadRequest, "Failed to generate scenario")
-		return
-	}
-
-	// [REQ:TMPL-GENERATION-ANALYTICS] Record successful generation
-	if s.analyticsService != nil {
-		s.analyticsService.RecordGeneration(req.TemplateID, req.Slug, isDryRun, true, "", durationMs)
-	}
-
-	s.respondJSON(w, http.StatusCreated, response)
-}
-
-func (s *Server) handleGeneratedList(w http.ResponseWriter, r *http.Request) {
-	scenarios, err := s.templateService.ListGeneratedScenarios()
-	if err != nil {
-		s.log("failed to list generated scenarios", map[string]interface{}{"error": err.Error()})
-		http.Error(w, "Failed to list generated scenarios", http.StatusInternalServerError)
-		return
-	}
-
-	s.respondJSON(w, http.StatusOK, scenarios)
-}
-
-func (s *Server) handlePreviewLinks(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	scenarioID := vars["scenario_id"]
-
-	// Security: Validate scenario ID (reuse slug pattern)
-	if err := validateScenarioSlug(scenarioID); err != nil {
-		s.respondError(w, http.StatusBadRequest, "invalid scenario_id format")
-		return
-	}
-
-	preview, err := s.templateService.GetPreviewLinks(scenarioID)
-	if err != nil {
-		s.log("failed to get preview links", map[string]interface{}{
-			"scenario_id": scenarioID,
-			"error":       err.Error(),
-		})
-		s.respondError(w, http.StatusNotFound, "Failed to get preview links")
-		return
-	}
-
-	s.respondJSON(w, http.StatusOK, preview)
-}
-
-func (s *Server) handleCustomize(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		ScenarioID string   `json:"scenario_id"`
-		Brief      string   `json:"brief"`
-		Assets     []string `json:"assets"`
-		Preview    bool     `json:"preview"`
-		PersonaID  string   `json:"persona_id,omitempty"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.respondError(w, http.StatusBadRequest, "Invalid request body")
-		return
-	}
-
-	// Security: Validate inputs
-	if req.ScenarioID == "" {
-		s.respondError(w, http.StatusBadRequest, "scenario_id is required")
-		return
-	}
-	if err := validateScenarioSlug(req.ScenarioID); err != nil { // scenario_id follows slug format
-		s.respondError(w, http.StatusBadRequest, "invalid scenario_id format")
-		return
-	}
-	if len(req.Brief) > 10000 {
-		s.respondError(w, http.StatusBadRequest, "brief too long (max 10000 characters)")
-		return
-	}
-	if err := validatePersonaID(req.PersonaID); err != nil {
-		s.respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	issueTrackerBase, err := s.resolveIssueTrackerBase()
-	if err != nil {
-		// Security: Don't leak internal error details
-		s.respondError(w, http.StatusBadGateway, "Issue tracker unavailable")
-		return
-	}
-
-	issueTitle := fmt.Sprintf("Customize landing page scenario: %s", strings.TrimSpace(req.ScenarioID))
-	if strings.TrimSpace(req.ScenarioID) == "" {
-		issueTitle = "Customize landing page scenario (unnamed)"
-	}
-
-	// Build description with persona prompt if provided
-	personaPrompt := ""
-	if req.PersonaID != "" {
-		persona, err := s.templateService.GetPersona(req.PersonaID)
-		if err == nil {
-			personaPrompt = fmt.Sprintf("\n\nPersona: %s\nGuidance:\n%s", persona.Name, persona.Prompt)
-		}
-	}
-
-	description := fmt.Sprintf(
-		"Requested customization for landing page scenario.\n\nScenario: %s\nBrief:\n%s\nAssets: %v\nPreview: %t%s\nSource: landing-manager factory\nTimestamp: %s\n\nExpected deliverables:\n- Apply brief to template-safe areas (content, design tokens, imagery)\n- Run A/B variant setup if applicable\n- Regenerate preview links and summarize changes\n- Return next steps and validation status.",
-		req.ScenarioID, req.Brief, req.Assets, req.Preview, personaPrompt, time.Now().UTC().Format(time.RFC3339),
-	)
-
-	issuePayload := map[string]interface{}{
-		"title":       issueTitle,
-		"description": description,
-		"type":        "feature",
-		"priority":    "high",
-		"app_id":      "landing-manager",
-		"tags":        []string{"landing-manager", "landing-page", "customization", "automation"},
-		"environment": map[string]interface{}{
-			"scenario_id":  req.ScenarioID,
-			"template_id":  "saas-landing-page",
-			"requested_by": "landing-manager",
-			"preview_mode": req.Preview,
-			"asset_hints":  req.Assets,
-		},
-	}
-
-	issueResp := struct {
-		Success bool                   `json:"success"`
-		Message string                 `json:"message"`
-		Data    map[string]interface{} `json:"data"`
-	}{}
-
-	if err := s.postJSON(issueTrackerBase+"/issues", issuePayload, &issueResp); err != nil {
-		s.log("issue_tracker_create_failed", map[string]interface{}{"error": err.Error()})
-		s.respondError(w, http.StatusBadGateway, "Failed to file issue")
-		return
-	}
-
-	issueID := ""
-	if issueResp.Data != nil {
-		if v, ok := issueResp.Data["issue_id"].(string); ok {
-			issueID = v
-		}
-		if issueID == "" {
-			if nested, ok := issueResp.Data["issue"].(map[string]interface{}); ok {
-				if v, ok := nested["id"].(string); ok {
-					issueID = v
-				}
-			}
-		}
-	}
-
-	// Trigger investigation to kick off the agent workflow
-	investigation := struct {
-		RunID   string `json:"run_id,omitempty"`
-		Status  string `json:"status,omitempty"`
-		AgentID string `json:"agent_id,omitempty"`
-	}{}
-
-	if issueID != "" {
-		investigatePayload := map[string]interface{}{
-			"issue_id": issueID,
-			"priority": "high",
-		}
-		investigateResp := struct {
-			Success bool                   `json:"success"`
-			Data    map[string]interface{} `json:"data"`
-		}{}
-		if err := s.postJSON(issueTrackerBase+"/investigate", investigatePayload, &investigateResp); err == nil && investigateResp.Data != nil {
-			if v, ok := investigateResp.Data["run_id"].(string); ok {
-				investigation.RunID = v
-			}
-			if v, ok := investigateResp.Data["status"].(string); ok {
-				investigation.Status = v
-			}
-			if v, ok := investigateResp.Data["agent_id"].(string); ok {
-				investigation.AgentID = v
-			}
-		} else if err != nil {
-			s.log("issue_tracker_investigate_failed", map[string]interface{}{"error": err.Error(), "issue_id": issueID})
-		}
-	}
-
-	response := map[string]interface{}{
-		"status":      "queued",
-		"issue_id":    issueID,
-		"tracker_url": issueTrackerBase,
-		"agent":       investigation.AgentID,
-		"run_id":      investigation.RunID,
-		"message":     issueResp.Message,
-	}
-
-	s.respondJSON(w, http.StatusAccepted, response)
-}
-
-func (s *Server) handlePersonaList(w http.ResponseWriter, r *http.Request) {
-	personas, err := s.templateService.GetPersonas()
-	if err != nil {
-		s.log("failed to list personas", map[string]interface{}{"error": err.Error()})
-		http.Error(w, "Failed to list personas", http.StatusInternalServerError)
-		return
-	}
-
-	s.respondJSON(w, http.StatusOK, personas)
-}
-
-func (s *Server) handlePersonaShow(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	// Security: Validate persona ID
-	if err := validatePersonaID(id); err != nil {
-		s.respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	persona, err := s.templateService.GetPersona(id)
-	if err != nil {
-		s.log("failed to get persona", map[string]interface{}{"id": id, "error": err.Error()})
-		s.respondError(w, http.StatusNotFound, "Persona not found")
-		return
-	}
-
-	s.respondJSON(w, http.StatusOK, persona)
-}
-
-// handleAnalyticsSummary returns aggregate generation analytics
-// [REQ:TMPL-GENERATION-ANALYTICS] API endpoint for factory-level analytics summary
-func (s *Server) handleAnalyticsSummary(w http.ResponseWriter, r *http.Request) {
-	if s.analyticsService == nil {
-		s.respondError(w, http.StatusServiceUnavailable, "Analytics service not available")
-		return
-	}
-
-	summary := s.analyticsService.GetSummary()
-	s.respondJSON(w, http.StatusOK, summary)
-}
-
-// handleAnalyticsEvents returns detailed generation event history
-// [REQ:TMPL-GENERATION-ANALYTICS] API endpoint for detailed analytics events
-func (s *Server) handleAnalyticsEvents(w http.ResponseWriter, r *http.Request) {
-	if s.analyticsService == nil {
-		s.respondError(w, http.StatusServiceUnavailable, "Analytics service not available")
-		return
-	}
-
-	events := s.analyticsService.GetEvents()
-	s.respondJSON(w, http.StatusOK, events)
-}
-
-// loggingMiddleware prints structured request logs
-func loggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		next.ServeHTTP(w, r)
-		fields := map[string]interface{}{
-			"method":   r.Method,
-			"path":     r.RequestURI,
-			"duration": time.Since(start).String(),
-		}
-		logStructured("request_completed", fields)
-	})
-}
-
-// requestSizeLimitMiddleware limits request body size to prevent DoS attacks
-func requestSizeLimitMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Security: Limit request body to 10MB to prevent memory exhaustion
-		r.Body = http.MaxBytesReader(w, r.Body, 10*1024*1024)
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (s *Server) log(msg string, fields map[string]interface{}) {
-	logStructured(msg, fields)
-}
-
-// respondJSON writes a JSON response with the given status code
-func (s *Server) respondJSON(w http.ResponseWriter, statusCode int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		s.log("json_encode_failed", map[string]interface{}{"error": err.Error()})
-	}
-}
-
-// respondError writes a JSON error response with consistent structure
-func (s *Server) respondError(w http.ResponseWriter, statusCode int, message string) {
-	s.respondJSON(w, statusCode, map[string]interface{}{
-		"success": false,
-		"message": message,
-	})
-}
-
-// logWithLevel writes a structured log entry at the specified level
-func logWithLevel(level, msg string, fields map[string]interface{}) {
-	timestamp := time.Now().UTC().Format(time.RFC3339)
-	if len(fields) == 0 {
-		log.Printf(`{"level":"%s","message":"%s","timestamp":"%s"}`, level, msg, timestamp)
-		return
-	}
-	fieldsJSON, _ := json.Marshal(fields)
-	log.Printf(`{"level":"%s","message":"%s","fields":%s,"timestamp":"%s"}`, level, msg, fieldsJSON, timestamp)
-}
-
-func logStructured(msg string, fields map[string]interface{}) {
-	logWithLevel("info", msg, fields)
-}
-
-func logStructuredError(msg string, fields map[string]interface{}) {
-	logWithLevel("error", msg, fields)
-}
-
-// handleTemplateOnly makes clear that specific capabilities belong to generated landing scenarios, not the factory.
-func handleTemplateOnly(feature string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotImplemented)
-		response := map[string]string{
-			"status":  "template_only",
-			"feature": feature,
-			"message": "Use a generated landing scenario to access this capability; the landing-manager factory only creates templates and scenarios.",
-		}
-		_ = json.NewEncoder(w).Encode(response)
-	}
 }
 
 func requireEnv(key string) string {
@@ -704,79 +217,10 @@ func buildPostgresURL(host, port, user, password, dbName string) (string, error)
 	return pgURL.String(), nil
 }
 
-func (s *Server) resolveIssueTrackerBase() (string, error) {
-	// Try explicit base URL first
-	if raw := strings.TrimSpace(os.Getenv("APP_ISSUE_TRACKER_API_BASE")); raw != "" {
-		return strings.TrimSuffix(raw, "/"), nil
-	}
-
-	// Try explicit port second
-	if port := strings.TrimSpace(os.Getenv("APP_ISSUE_TRACKER_API_PORT")); port != "" {
-		return formatAPIBaseURL(port), nil
-	}
-
-	// Fallback: discover via CLI
-	port, err := discoverScenarioPort("app-issue-tracker", "API_PORT")
-	if err != nil {
-		return "", err
-	}
-	return formatAPIBaseURL(port), nil
-}
-
-func formatAPIBaseURL(port string) string {
-	return fmt.Sprintf("http://localhost:%s/api/v1", port)
-}
-
-func discoverScenarioPort(scenarioName, portName string) (string, error) {
-	cmd := execCommandContext(context.Background(), "vrooli", "scenario", "port", scenarioName, portName)
-	out, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("unable to resolve %s %s port", scenarioName, portName)
-	}
-	port := strings.TrimSpace(string(out))
-	if port == "" {
-		return "", fmt.Errorf("%s %s port not available", scenarioName, portName)
-	}
-	return port, nil
-}
-
-// execCommandContext is wrapped for testability
-var execCommandContext = func(ctx context.Context, name string, args ...string) *exec.Cmd {
-	return exec.CommandContext(ctx, name, args...)
-}
-
-func (s *Server) postJSON(url string, payload interface{}, out interface{}) error {
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("marshal payload: %w", err)
-	}
-
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
-	if err != nil {
-		return fmt.Errorf("build request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("issue tracker request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("issue tracker responded %d: %s", resp.StatusCode, string(body))
-	}
-
-	if out != nil {
-		if err := json.Unmarshal(body, out); err != nil {
-			return fmt.Errorf("decode response: %w", err)
-		}
-	}
+// seedDefaultData is a no-op placeholder for database seeding
+// kept for test compatibility
+func seedDefaultData(db *sql.DB) error {
+	// No default data to seed - this is intentionally a no-op
 	return nil
 }
 

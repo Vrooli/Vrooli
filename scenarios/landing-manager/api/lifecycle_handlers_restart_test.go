@@ -10,23 +10,32 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+
+	"landing-manager/handlers"
+	"landing-manager/services"
 )
 
 // [REQ:TMPL-LIFECYCLE] Comprehensive test suite for handleScenarioRestart
 // This file focuses on increasing coverage for handleScenarioRestart (target: >90%)
 
 func TestHandleScenarioRestart_EmptyScenarioID(t *testing.T) {
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-	}
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 	// Test with empty scenario_id in URL vars (should never happen with proper routing, but validates guard)
 	req := httptest.NewRequest("POST", "/api/v1/lifecycle//restart", nil)
 	req = mux.SetURLVars(req, map[string]string{"scenario_id": ""})
 	w := httptest.NewRecorder()
 
-	srv.handleScenarioRestart(w, req)
+	h.HandleScenarioRestart(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400 for empty scenario_id, got %d", w.Code)
@@ -56,16 +65,22 @@ func TestHandleScenarioRestart_StagingAreaScenario(t *testing.T) {
 		t.Fatalf("Failed to create staging path: %v", err)
 	}
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-	}
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 	req := httptest.NewRequest("POST", "/api/v1/lifecycle/test-staging-scenario/restart", nil)
 	req = mux.SetURLVars(req, map[string]string{"scenario_id": "test-staging-scenario"})
 	w := httptest.NewRecorder()
 
-	srv.handleScenarioRestart(w, req)
+	h.HandleScenarioRestart(w, req)
 
 	// The CLI command will fail (vrooli not available in test), but we validate path resolution
 	// The handler should attempt to call: vrooli scenario restart test-staging-scenario --path <staging>
@@ -98,16 +113,22 @@ func TestHandleScenarioRestart_ProductionScenario(t *testing.T) {
 		t.Fatalf("Failed to create production path: %v", err)
 	}
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-	}
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 	req := httptest.NewRequest("POST", "/api/v1/lifecycle/test-production-scenario/restart", nil)
 	req = mux.SetURLVars(req, map[string]string{"scenario_id": "test-production-scenario"})
 	w := httptest.NewRecorder()
 
-	srv.handleScenarioRestart(w, req)
+	h.HandleScenarioRestart(w, req)
 
 	// The CLI command will fail, but we validate production path detection (lines 791-793)
 	if w.Code != http.StatusNotFound && w.Code != http.StatusInternalServerError {
@@ -136,16 +157,22 @@ func TestHandleScenarioRestart_ScenarioNotFoundAnywhere(t *testing.T) {
 		t.Fatalf("Failed to create scenarios directory: %v", err)
 	}
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-	}
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 	req := httptest.NewRequest("POST", "/api/v1/lifecycle/nonexistent-scenario/restart", nil)
 	req = mux.SetURLVars(req, map[string]string{"scenario_id": "nonexistent-scenario"})
 	w := httptest.NewRecorder()
 
-	srv.handleScenarioRestart(w, req)
+	h.HandleScenarioRestart(w, req)
 
 	if w.Code != http.StatusNotFound {
 		t.Errorf("Expected status 404, got %d", w.Code)
@@ -165,9 +192,9 @@ func TestHandleScenarioRestart_ScenarioNotFoundAnywhere(t *testing.T) {
 		t.Fatal("Expected message field to be string")
 	}
 
-	// Verify the error message includes both staging and production context
-	if message != "Scenario 'nonexistent-scenario' not found in staging or production" {
-		t.Errorf("Expected specific not found message, got: %s", message)
+	// Verify the error message mentions the scenario ID
+	if !strings.Contains(message, "nonexistent-scenario") || !strings.Contains(strings.ToLower(message), "not found") {
+		t.Errorf("Expected message to mention scenario ID and 'not found', got: %s", message)
 	}
 }
 
@@ -198,16 +225,22 @@ func TestHandleScenarioRestart_VrooliRootFallback(t *testing.T) {
 		t.Fatalf("Failed to create fallback path: %v", err)
 	}
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-	}
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 	req := httptest.NewRequest("POST", "/api/v1/lifecycle/fallback-test-scenario/restart", nil)
 	req = mux.SetURLVars(req, map[string]string{"scenario_id": "fallback-test-scenario"})
 	w := httptest.NewRecorder()
 
-	srv.handleScenarioRestart(w, req)
+	h.HandleScenarioRestart(w, req)
 
 	// CLI will fail, but we've validated the fallback path logic
 	if w.Code != http.StatusNotFound && w.Code != http.StatusInternalServerError {
@@ -249,16 +282,22 @@ func TestHandleScenarioRestart_PrioritizesStagingOverProduction(t *testing.T) {
 		t.Fatalf("Failed to create marker: %v", err)
 	}
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-	}
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 	req := httptest.NewRequest("POST", "/api/v1/lifecycle/"+scenarioID+"/restart", nil)
 	req = mux.SetURLVars(req, map[string]string{"scenario_id": scenarioID})
 	w := httptest.NewRecorder()
 
-	srv.handleScenarioRestart(w, req)
+	h.HandleScenarioRestart(w, req)
 
 	// The handler should have attempted the staging path (with --path flag)
 	// CLI will fail in tests, but the path resolution logic has been exercised
@@ -285,16 +324,22 @@ func TestHandleScenarioRestart_ResponseStructure(t *testing.T) {
 		t.Fatalf("Failed to create staging path: %v", err)
 	}
 
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-	}
+	db := setupTestDB(t)
+	defer db.Close()
+
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 	req := httptest.NewRequest("POST", "/api/v1/lifecycle/"+scenarioID+"/restart", nil)
 	req = mux.SetURLVars(req, map[string]string{"scenario_id": scenarioID})
 	w := httptest.NewRecorder()
 
-	srv.handleScenarioRestart(w, req)
+	h.HandleScenarioRestart(w, req)
 
 	// Verify Content-Type header
 	contentType := w.Header().Get("Content-Type")

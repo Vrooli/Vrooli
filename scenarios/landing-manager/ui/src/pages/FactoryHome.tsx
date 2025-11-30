@@ -21,6 +21,7 @@ import { GeneratedScenariosList } from '../components/GeneratedScenariosList';
 import { CreateScenarioDialog } from '../components/CreateScenarioDialog';
 import { AgentCustomizationDialog } from '../components/AgentCustomizationDialog';
 import { FloatingCreateButton } from '../components/FloatingCreateButton';
+import { ErrorDisplay } from '../components/ErrorDisplay';
 import { useScenarioLifecycle } from '../hooks/useScenarioLifecycle';
 
 export default function FactoryHome() {
@@ -42,7 +43,7 @@ export default function FactoryHome() {
 
   // Lifecycle management using custom hook
   const lifecycle = useScenarioLifecycle();
-  const { statuses: scenarioStatuses, previewLinks, showLogs, logs: scenarioLogs } = lifecycle;
+  const { statuses: scenarioStatuses, previewLinks, showLogs, logs: scenarioLogs, lifecycleError, clearError } = lifecycle;
 
   // For StatsOverview - show first template as selected example
   const selectedTemplate = useMemo(() => templates?.[0] ?? null, [templates]);
@@ -234,6 +235,18 @@ export default function FactoryHome() {
               </svg>
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Lifecycle error toast notification */}
+      {lifecycleError && (
+        <div className="fixed top-4 right-4 z-50 max-w-md animate-slide-up">
+          <ErrorDisplay
+            error={lifecycleError}
+            onDismiss={clearError}
+            size="sm"
+            testId="lifecycle-error-toast"
+          />
         </div>
       )}
 

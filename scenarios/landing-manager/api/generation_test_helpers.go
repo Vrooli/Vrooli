@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"landing-manager/services"
 )
 
 // createMinimalPayload creates a minimal template payload for testing
@@ -13,13 +15,13 @@ func createMinimalPayload(t *testing.T) string {
 	payload := t.TempDir()
 
 	minimalFiles := map[string]string{
-		filepath.Join(payload, "api", "main.go"):                          "package main",
-		filepath.Join(payload, "ui", "src", "App.tsx"):                    "// React app",
-		filepath.Join(payload, "requirements", "index.json"):              "{}",
+		filepath.Join(payload, "api", "main.go"):                                "package main",
+		filepath.Join(payload, "ui", "src", "App.tsx"):                          "// React app",
+		filepath.Join(payload, "requirements", "index.json"):                    "{}",
 		filepath.Join(payload, "initialization", "configuration", "config.env"): "",
-		filepath.Join(payload, "Makefile"):                                "all:\n\techo test",
-		filepath.Join(payload, "PRD.md"):                                  "# PRD",
-		filepath.Join(payload, ".vrooli", "service.json"):                 `{"service": {"name": "stub", "displayName": "Stub", "description": "stub", "repository": {"directory": "/scenarios/stub"}}, "lifecycle": {"develop": {"steps": [{"name": "start-api", "run": ""}]}}}`,
+		filepath.Join(payload, "Makefile"):                                      "all:\n\techo test",
+		filepath.Join(payload, "PRD.md"):                                        "# PRD",
+		filepath.Join(payload, ".vrooli", "service.json"):                       `{"service": {"name": "stub", "displayName": "Stub", "description": "stub", "repository": {"directory": "/scenarios/stub"}}, "lifecycle": {"develop": {"steps": [{"name": "start-api", "run": ""}]}}}`,
 	}
 
 	for p, content := range minimalFiles {
@@ -34,13 +36,13 @@ func createMinimalPayload(t *testing.T) string {
 	return payload
 }
 
-// createTestTemplate creates a test template and returns the service
-func createTestTemplate(t *testing.T, id, name, version string) (*TemplateService, string) {
+// createTestTemplate creates a test template and returns the registry
+func createTestTemplate(t *testing.T, id, name, version string) (*services.TemplateRegistry, string) {
 	t.Helper()
 	tmpDir := t.TempDir()
 	templatePath := filepath.Join(tmpDir, id+".json")
 
-	testTemplate := Template{
+	testTemplate := services.Template{
 		ID:          id,
 		Name:        name,
 		Description: "Test template for " + name,
@@ -56,18 +58,21 @@ func createTestTemplate(t *testing.T, id, name, version string) (*TemplateServic
 		t.Fatalf("Failed to write test template: %v", err)
 	}
 
-	return &TemplateService{templatesDir: tmpDir}, tmpDir
+	// Set TEMPLATES_DIR so the registry uses our test directory
+	t.Setenv("TEMPLATES_DIR", tmpDir)
+
+	return services.NewTemplateRegistry(), tmpDir
 }
 
 // setupGenerationTest sets up a test environment with template, payload, and output dir
-func setupGenerationTest(t *testing.T) (*TemplateService, string) {
+func setupGenerationTest(t *testing.T) (*services.TemplateRegistry, string) {
 	t.Helper()
-	ts, _ := createTestTemplate(t, "test-template", "Test Template", "1.0.0")
+	registry, _ := createTestTemplate(t, "test-template", "Test Template", "1.0.0")
 	payload := createMinimalPayload(t)
 	outputDir := t.TempDir()
 
 	t.Setenv("TEMPLATE_PAYLOAD_DIR", payload)
 	t.Setenv("GEN_OUTPUT_DIR", outputDir)
 
-	return ts, outputDir
+	return registry, outputDir
 }

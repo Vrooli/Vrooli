@@ -5,13 +5,16 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"landing-manager/services"
 )
 
 // [REQ:TMPL-OUTPUT-VALIDATION]
 func TestTMPL_OUTPUT_VALIDATION_GeneratedStructure(t *testing.T) {
-	ts, outputDir := setupGenerationTest(t)
+	registry, outputDir := setupGenerationTest(t)
+	generator := services.NewScenarioGenerator(registry)
 
-	result, err := ts.GenerateScenario("test-template", "Test App", "test-app", nil)
+	result, err := generator.GenerateScenario("test-template", "Test App", "test-app", nil)
 	if err != nil {
 		t.Fatalf("GenerateScenario() returned error: %v", err)
 	}
