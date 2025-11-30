@@ -16,6 +16,7 @@ scenario::logs::view() {
         log::info "  --runtime           View all background process logs"
         log::info "  --lifecycle         View lifecycle log (default behavior)"
         log::info "  --force-follow      Stream even in non-interactive environments"
+        log::info "  --clean             Remove orphaned log files"
         log::info ""
         log::info "Available scenarios with logs:"
         ls -1 "${HOME}/.vrooli/logs/scenarios/" 2>/dev/null || echo "  (none found)"
@@ -30,6 +31,7 @@ scenario::logs::view() {
     local show_lifecycle=false
     local show_runtime=false
     local show_previous=false
+    local clean_logs=false
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --follow|-f)
@@ -61,11 +63,20 @@ scenario::logs::view() {
                 force_follow=true
                 shift
                 ;;
+            --clean)
+                clean_logs=true
+                shift
+                ;;
             *)
                 shift
                 ;;
         esac
     done
+
+    if [[ "$clean_logs" == "true" ]]; then
+        scenario::logs::clean_orphaned_logs "$scenario_name"
+        return $?
+    fi
     
     # Show runtime logs if requested
     if [[ "$show_runtime" == "true" ]]; then
@@ -82,6 +93,80 @@ scenario::logs::view() {
     # Default behavior: show lifecycle log with discovery information
     scenario::logs::show_lifecycle "$scenario_name" "$follow" "$force_follow"
 }
+
+# Clean orphaned logs
+scenario::logs::clean_orphaned_logs() {
+    local scenario_name="$1"
+    log::info "Searching for orphaned logs for scenario: ${scenario_name}..."
+
+    local logs_dir="${HOME}/.vrooli/logs/scenarios/${scenario_name}"
+    if [[ ! -d "$logs_dir" ]]; then
+        log::info "No log directory found for scenario: $scenario_name. Nothing to clean."
+        return 0
+    fi
+
+    # Find service.json
+    local service_json=""
+    if [[ -f "${APP_ROOT}/scenarios/${scenario_name}/.vrooli/service.json" ]]; then
+        service_json="${APP_ROOT}/scenarios/${scenario_name}/.vrooli/service.json"
+    elif [[ -f "${APP_ROOT}/scenarios/${scenario_name}/service.json" ]]; then
+        service_json="${APP_ROOT}/scenarios/${scenario_name}/service.json"
+    fi
+
+    local expected_steps_str=""
+    if [[ -n "$service_json" ]] && [[ -f "$service_json" ]] && command -v jq >/dev/null 2>&1; then
+        expected_steps_str=$(jq -r '
+            .lifecycle |
+            to_entries[] |
+            select(.value | type == "object") |
+            select(.value.steps) |
+            .key as $phase |
+            .value.steps[]? |
+            select(.background == true) |
+            "\(.name):\($phase)"
+        ' "$service_json" 2>/dev/null || true)
+    fi
+
+    local orphaned_logs=()
+    shopt -s nullglob
+    for log_file in "$logs_dir"/vrooli.*.log; do
+        local basename
+        basename=$(basename "$log_file")
+        if [[ "$basename" =~ vrooli\.([^.]+)\.${scenario_name}\.(.+)\.log ]]; then
+            local phase="${BASH_REMATCH[1]}"
+            local step="${BASH_REMATCH[2]}"
+            local step_id="${step}:${phase}"
+            
+            if [[ -n "$expected_steps_str" ]] && grep -q -x -F "$step_id" <<< "$expected_steps_str"; then
+                : # valid
+            else
+                orphaned_logs+=("$log_file")
+            fi
+        else
+            # File doesn't match naming convention, consider it orphaned
+            orphaned_logs+=("$log_file")
+        fi
+    done
+    shopt -u nullglob
+
+    if [[ ${#orphaned_logs[@]} -eq 0 ]]; then
+        log::success "No orphaned logs found."
+        return 0
+    fi
+
+    log::info "Found ${#orphaned_logs[@]} orphaned log(s). Removing..."
+    for log_file in "${orphaned_logs[@]}"; do
+        # Also remove .bak file if it exists
+        if rm -f "$log_file" "${log_file}.bak"; then
+            log::info "  - Removed $(basename "$log_file") (and backup)"
+        else
+            log::warn "  - Failed to remove $(basename "$log_file")"
+        fi
+    done
+
+    log::success "Orphaned log cleanup complete."
+}
+
 
 # Show runtime logs for a scenario
 scenario::logs::show_runtime() {
@@ -259,42 +344,118 @@ scenario::logs::warn_snapshot_fallback() {
 scenario::logs::show_discovery() {
     local scenario_name="$1"
     local logs_dir="${HOME}/.vrooli/logs/scenarios/${scenario_name}"
-    
+
     echo "────────────────────────────────────────────────────────"
     echo "📋 BACKGROUND STEP LOGS AVAILABLE:"
     echo ""
-    
-    # Find service.json to determine expected background steps
+
+    # Find service.json
     local service_json=""
     if [[ -f "${APP_ROOT}/scenarios/${scenario_name}/.vrooli/service.json" ]]; then
         service_json="${APP_ROOT}/scenarios/${scenario_name}/.vrooli/service.json"
     elif [[ -f "${APP_ROOT}/scenarios/${scenario_name}/service.json" ]]; then
         service_json="${APP_ROOT}/scenarios/${scenario_name}/service.json"
     fi
-    
-    # List available logs with step extraction
-    local found_steps=()
+
+    local expected_steps_str=""
+    declare -A expected_steps_map=()
+    if [[ -n "$service_json" ]] && [[ -f "$service_json" ]] && command -v jq >/dev/null 2>&1; then
+        expected_steps_str=$(jq -r '
+            .lifecycle |
+            to_entries[] |
+            select(.value | type == "object") |
+            select(.value.steps) |
+            .key as $phase |
+            .value.steps[]? |
+            select(.background == true) |
+            "\(.name):\($phase)"
+        ' "$service_json" 2>/dev/null || true)
+        
+        while IFS= read -r line; do
+            [[ -n "$line" ]] && expected_steps_map["$line"]=1
+        done <<< "$expected_steps_str"
+    fi
+
+    declare -A found_steps_map=()
+    local orphaned_logs=()
+    local valid_logs=()
+    local has_logs=false
+
+    shopt -s nullglob
     for log_file in "$logs_dir"/vrooli.*.log; do
-        if [[ -f "$log_file" ]]; then
-            local basename=$(basename "$log_file")
-            # Extract phase and step from log filename (format: vrooli.phase.scenario.step.log)
+        has_logs=true
+        local basename
+        basename=$(basename "$log_file")
+        if [[ "$basename" =~ vrooli\.([^.]+)\.${scenario_name}\.(.+)\.log ]]; then
+            local phase="${BASH_REMATCH[1]}"
+            local step="${BASH_REMATCH[2]}"
+            local step_id="${step}:${phase}"
+            
+            found_steps_map["$step_id"]=1
+
+            if [[ -n "${expected_steps_map[$step_id]:-}" ]]; then
+                valid_logs+=("$log_file")
+            else
+                orphaned_logs+=("$log_file")
+            fi
+        else
+            orphaned_logs+=("$log_file")
+        fi
+    done
+    shopt -u nullglob
+
+    if ! $has_logs; then
+        echo "  (no background step logs found)"
+    fi
+
+    for log_file in "${valid_logs[@]}"; do
+        local basename
+        basename=$(basename "$log_file")
+        if [[ "$basename" =~ vrooli\.([^.]+)\.${scenario_name}\.(.+)\.log ]]; then
+            local phase="${BASH_REMATCH[1]}"
+            local step="${BASH_REMATCH[2]}"
+            echo "  ✅ ${step} (${phase})"
+            echo "     View: vrooli scenario logs ${scenario_name} --step ${step}"
+            echo ""
+        fi
+    done
+
+    if [[ -n "$expected_steps_str" ]]; then
+        while IFS= read -r expected; do
+            if [[ -n "$expected" ]] && [[ -z "${found_steps_map[$expected]:-}" ]]; then
+                IFS=':' read -r step phase <<< "$expected"
+                echo "  ⚠️  ${step} (${phase}) - [NOT FOUND]"
+                echo "     Expected but missing - step may not have been reached"
+                echo "     Would view with: vrooli scenario logs ${scenario_name} --step ${step}"
+                echo ""
+            fi
+        done <<< "$expected_steps_str"
+    fi
+
+    if [[ ${#orphaned_logs[@]} -gt 0 ]]; then
+        echo "────────────────────────────────────────────────────────"
+        echo "🗑️  ORPHANED BACKGROUND STEP LOGS:"
+        echo ""
+        for log_file in "${orphaned_logs[@]}"; do
+            local basename
+            basename=$(basename "$log_file")
+            local extracted_step=""
             if [[ "$basename" =~ vrooli\.([^.]+)\.${scenario_name}\.(.+)\.log ]]; then
                 local phase="${BASH_REMATCH[1]}"
                 local step="${BASH_REMATCH[2]}"
-                found_steps+=("${step}:${phase}")
-                echo "  ✅ ${step} (${phase})"
-                echo "     View: vrooli scenario logs ${scenario_name} --step ${step}"
-                echo ""
+                extracted_step="$step"
+                echo "  🚫 ${step} (${phase}) - [ORPHANED]"
+                echo "     This step is not defined as a background task in service.json"
+            else
+                extracted_step=$(echo "$basename" | sed -E "s/vrooli\.[^.]+\.${scenario_name}\.(.+)\.log/\1/")
+                echo "  🚫 $(basename "$log_file") - [ORPHANED-NAMING]"
+                echo "     Log file does not match expected naming convention"
             fi
-        fi
-    done
-    
-    # Parse service.json to find expected background steps if possible
-    if [[ -n "$service_json" ]] && [[ -f "$service_json" ]] && command -v jq >/dev/null 2>&1; then
-        scenario::logs::check_expected_steps "$scenario_name" "$service_json" found_steps
-    else
-        # If we can't parse service.json, just note common missing steps
-        scenario::logs::check_common_missing_steps "$scenario_name" "$logs_dir"
+            echo "     View: vrooli scenario logs ${scenario_name} --step ${extracted_step}"
+            echo ""
+        done
+        echo "💡 Tip: Clean up orphaned logs with: vrooli scenario logs ${scenario_name} --clean"
+        echo ""
     fi
     
     echo "💡 Tips:"
@@ -303,60 +464,6 @@ scenario::logs::show_discovery() {
     echo "  • Use --follow or -f to watch logs in real-time"
     echo "  • Missing logs usually mean the step wasn't reached"
     echo "  • The lifecycle log above shows the complete execution sequence"
-}
-
-# Check for expected background steps from service.json
-scenario::logs::check_expected_steps() {
-    local scenario_name="$1"
-    local service_json="$2"
-    local -n found_steps_ref=$3
-    
-    # Look for background steps in all lifecycle phases
-    local expected_steps=$(jq -r '
-        .lifecycle | 
-        to_entries[] | 
-        select(.value | type == "object") |
-        select(.value.steps) |
-        .key as $phase |
-        .value.steps[]? | 
-        select(.background == true) | 
-        "\(.name):\($phase)"
-    ' "$service_json" 2>/dev/null || true)
-    
-    # Check for missing expected steps
-    if [[ -n "$expected_steps" ]]; then
-        while IFS= read -r expected; do
-            local found=false
-            for fs in "${found_steps_ref[@]}"; do
-                if [[ "$fs" == "$expected" ]]; then
-                    found=true
-                    break
-                fi
-            done
-            
-            if [[ "$found" == "false" ]]; then
-                IFS=':' read -r step phase <<< "$expected"
-                echo "  ⚠️  ${step} (${phase}) - [NOT FOUND]"
-                echo "     Expected but missing - step may not have been reached"
-                echo "     Would view with: vrooli scenario logs ${scenario_name} --step ${step}"
-                echo ""
-            fi
-        done <<< "$expected_steps"
-    fi
-}
-
-# Check for common missing steps
-scenario::logs::check_common_missing_steps() {
-    local scenario_name="$1"
-    local logs_dir="$2"
-    
-    if [[ ! -f "${logs_dir}/vrooli.develop.${scenario_name}.start-ui.log" ]] && \
-       [[ -f "${logs_dir}/vrooli.develop.${scenario_name}.start-api.log" ]]; then
-        echo "  ⚠️  start-ui (develop) - [NOT FOUND]"
-        echo "     Expected but missing - step may not have been reached"
-        echo "     Would view with: vrooli scenario logs ${scenario_name} --step start-ui"
-        echo ""
-    fi
 }
 
 # List available step logs for a scenario
