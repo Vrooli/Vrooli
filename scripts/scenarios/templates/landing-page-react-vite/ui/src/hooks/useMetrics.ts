@@ -53,7 +53,7 @@ export function useMetrics() {
 
     const event: MetricEvent = {
       event_type: eventType,
-      variant_id: parseInt(variant.id),
+      variant_id: variant.id ?? 0,
       session_id: sessionID.current,
       visitor_id: visitorID.current,
       event_data: eventData,

@@ -44,15 +44,24 @@ describe('VariantContext [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
     vi.restoreAllMocks();
   });
 
-  const mockVariant = {
-    id: 'test-id',
-    slug: 'test-variant',
-    name: 'Test Variant',
-    description: 'Test description',
-    weight: 50,
-    status: 'active',
-    created_at: '2025-01-01T00:00:00Z',
-    updated_at: '2025-01-01T00:00:00Z',
+  const mockConfig = {
+    variant: {
+      id: 101,
+      slug: 'test-variant',
+      name: 'Test Variant',
+      description: 'Test description',
+      axes: {
+        persona: 'ops_leader',
+        jtbd: 'launch_bundle',
+        conversionStyle: 'demo_led',
+      },
+    },
+    sections: [
+      { id: 1, section_type: 'hero', content: {}, order: 1, enabled: true },
+    ],
+    pricing: undefined,
+    downloads: [],
+    fallback: false,
   };
 
   const wrapper = ({ children }: { children: ReactNode }) => (
@@ -64,7 +73,7 @@ describe('VariantContext [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
 
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
-      json: async () => mockVariant,
+      json: async () => mockConfig,
     });
 
     const { result } = renderHook(() => useVariant(), { wrapper });
@@ -78,27 +87,27 @@ describe('VariantContext [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    // Should have fetched variant by slug from URL
     expect(global.fetch).toHaveBeenCalledWith(
-      '/api/v1/variants/test-variant',
-      expect.objectContaining({
-        headers: { 'Content-Type': 'application/json' },
-      })
+      expect.stringContaining('/api/v1/landing-config?variant=test-variant'),
+      expect.any(Object)
     );
 
-    expect(result.current.variant).toEqual(mockVariant);
+    expect(result.current.variant?.slug).toEqual('test-variant');
+    expect(result.current.config?.variant.slug).toEqual('test-variant');
     expect(result.current.error).toBe(null);
 
-    // Should have stored variant in localStorage
-    const stored = JSON.parse(
-      localStorageMock.getItem('landing_manager_variant') || '{}'
-    );
-    expect(stored).toEqual(mockVariant);
+    // Should have stored slug
+    const stored = localStorageMock.getItem('landing_manager_variant_slug');
+    expect(stored).toEqual('test-variant');
   });
 
   it('[REQ:AB-STORAGE] should use stored variant from localStorage', async () => {
-    // Store variant in localStorage
-    localStorageMock.setItem('landing_manager_variant', JSON.stringify(mockVariant));
+    localStorageMock.setItem('landing_manager_variant_slug', 'stored-variant');
+
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ...mockConfig, variant: { ...mockConfig.variant, slug: 'stored-variant' } }),
+    });
 
     const { result } = renderHook(() => useVariant(), { wrapper });
 
@@ -107,18 +116,19 @@ describe('VariantContext [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    // Should NOT have called API (used localStorage)
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/landing-config?variant=stored-variant'),
+      expect.any(Object)
+    );
 
-    // Should have loaded variant from localStorage
-    expect(result.current.variant).toEqual(mockVariant);
+    expect(result.current.variant?.slug).toEqual('stored-variant');
     expect(result.current.error).toBe(null);
   });
 
   it('[REQ:AB-API] should select variant via API when no URL or localStorage', async () => {
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
-      json: async () => mockVariant,
+      json: async () => mockConfig,
     });
 
     const { result } = renderHook(() => useVariant(), { wrapper });
@@ -128,36 +138,21 @@ describe('VariantContext [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    // Should have called API select endpoint
-    expect(global.fetch).toHaveBeenCalledWith(
-      '/api/v1/variants/select',
-      expect.objectContaining({
-        headers: { 'Content-Type': 'application/json' },
-      })
-    );
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/v1/landing-config'), expect.any(Object));
 
-    expect(result.current.variant).toEqual(mockVariant);
+    expect(result.current.variant?.slug).toEqual('test-variant');
     expect(result.current.error).toBe(null);
-
-    // Should have stored variant in localStorage
-    const stored = JSON.parse(
-      localStorageMock.getItem('landing_manager_variant') || '{}'
-    );
-    expect(stored).toEqual(mockVariant);
+    expect(localStorageMock.getItem('landing_manager_variant_slug')).toEqual('test-variant');
   });
 
   it('[REQ:AB-URL] should prioritize URL parameter over localStorage', async () => {
-    // Store different variant in localStorage
-    const storedVariant = { ...mockVariant, slug: 'stored-variant' };
-    localStorageMock.setItem('landing_manager_variant', JSON.stringify(storedVariant));
+    localStorageMock.setItem('landing_manager_variant_slug', 'stored-variant');
 
-    // Set URL parameter
     setLocationSearch('?variant=url-variant');
 
-    const urlVariant = { ...mockVariant, slug: 'url-variant' };
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
-      json: async () => urlVariant,
+      json: async () => ({ ...mockConfig, variant: { ...mockConfig.variant, slug: 'url-variant' } }),
     });
 
     const { result } = renderHook(() => useVariant(), { wrapper });
@@ -167,13 +162,12 @@ describe('VariantContext [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    // Should have fetched from URL (not used localStorage)
     expect(global.fetch).toHaveBeenCalledWith(
-      '/api/v1/variants/url-variant',
+      expect.stringContaining('/api/v1/landing-config?variant=url-variant'),
       expect.any(Object)
     );
 
-    expect(result.current.variant).toEqual(urlVariant);
+    expect(result.current.variant?.slug).toEqual('url-variant');
   });
 
   it('should handle API errors gracefully', async () => {
@@ -196,6 +190,7 @@ describe('VariantContext [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
     (global.fetch as any).mockResolvedValueOnce({
       ok: false,
       status: 404,
+      text: async () => 'Not found',
     });
 
     const { result } = renderHook(() => useVariant(), { wrapper });
@@ -214,7 +209,7 @@ describe('VariantContext [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
 
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
-      json: async () => mockVariant,
+      json: async () => mockConfig,
     });
 
     const { result } = renderHook(() => useVariant(), { wrapper });
@@ -224,8 +219,9 @@ describe('VariantContext [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
-      '/api/v1/variants/test-variant',
+      expect.stringContaining('/api/v1/landing-config?variant=test-variant'),
       expect.any(Object)
     );
+    expect(result.current.variant?.slug).toEqual('test-variant');
   });
 });

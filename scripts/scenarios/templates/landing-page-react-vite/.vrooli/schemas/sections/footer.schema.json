@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Footer Section Content",
+  "type": "object",
+  "properties": {
+    "company_name": { "type": "string" },
+    "tagline": { "type": "string" },
+    "columns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title", "links"],
+        "properties": {
+          "title": { "type": "string" },
+          "links": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["label", "url"],
+              "properties": {
+                "label": { "type": "string" },
+                "url": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "social_links": {
+      "type": "object",
+      "properties": {
+        "github": { "type": "string" },
+        "twitter": { "type": "string" },
+        "linkedin": { "type": "string" },
+        "email": { "type": "string" }
+      }
+    },
+    "copyright": { "type": "string" }
+  },
+  "additionalProperties": false
+}

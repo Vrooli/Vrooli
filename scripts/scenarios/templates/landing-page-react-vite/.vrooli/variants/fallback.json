@@ -1,0 +1,299 @@
+{
+  "variant": {
+    "id": 0,
+    "slug": "fallback",
+    "name": "Browser Automation Studio",
+    "description": "Offline-safe fallback rendered when live APIs fail."
+  },
+  "axes": {
+    "persona": "ops_leader",
+    "jtbd": "launch_bundle",
+    "conversionStyle": "demo_led"
+  },
+  "sections": [
+    {
+      "section_type": "hero",
+      "order": 1,
+      "enabled": true,
+      "content": {
+        "title": "Launch Browser Automation Studio Instantly",
+        "subtitle": "Ship complex automation workflows with human-in-the-loop controls, Stripe-ready subscriptions, and admin analytics baked in.",
+        "cta_text": "Get Started",
+        "cta_url": "/checkout?plan=pro",
+        "image_url": "/assets/fallback/hero.png"
+      }
+    },
+    {
+      "section_type": "features",
+      "order": 2,
+      "enabled": true,
+      "content": {
+        "title": "Everything you need to sell automation bundles",
+        "subtitle": "Variants, analytics, download gating, and entitlement checks all live in one repo.",
+        "features": [
+          {
+            "title": "A/B-tested landing pages",
+            "description": "Variants, analytics, and agent customization in one template.",
+            "icon": "zap"
+          },
+          {
+            "title": "Subscription awareness",
+            "description": "Pricing auto-syncs from Stripe metadata and intro offers.",
+            "icon": "shield"
+          },
+          {
+            "title": "Bundle downloads",
+            "description": "Gate Windows, macOS, and Linux installers behind entitlements.",
+            "icon": "sparkles"
+          }
+        ]
+      }
+    },
+    {
+      "section_type": "pricing",
+      "order": 3,
+      "enabled": true,
+      "content": {
+        "title": "Simple, transparent pricing",
+        "subtitle": "Bundled credit packs for Browser Automation Studio.",
+        "tiers": [
+          {
+            "name": "Solo",
+            "price": "$49",
+            "description": "1 workspace, 5M included credits, email support",
+            "features": [
+              "Solo workspace",
+              "5M included credits",
+              "Email support"
+            ],
+            "cta_text": "Start for $1",
+            "cta_url": "/checkout?plan=solo"
+          },
+          {
+            "name": "Pro",
+            "price": "$149",
+            "description": "3 workspaces, priority support, desktop bundle downloads",
+            "features": [
+              "Team workflows",
+              "Priority support",
+              "Desktop bundle downloads"
+            ],
+            "cta_text": "Upgrade",
+            "cta_url": "/checkout?plan=pro",
+            "highlighted": true
+          },
+          {
+            "name": "Studio",
+            "price": "$349",
+            "description": "Unlimited automations, dedicated architect, enterprise compliance",
+            "features": [
+              "Unlimited automations",
+              "Dedicated architect",
+              "Enterprise compliance"
+            ],
+            "cta_text": "Talk to sales",
+            "cta_url": "/contact"
+          }
+        ]
+      }
+    },
+    {
+      "section_type": "cta",
+      "order": 4,
+      "enabled": true,
+      "content": {
+        "title": "Deploy Browser Automation Studio in under an hour",
+        "subtitle": "Vrooli landing system manages subscriptions, download gating, and future upgrades.",
+        "cta_text": "Book a live demo",
+        "cta_url": "/contact"
+      }
+    }
+  ],
+  "pricing": {
+    "bundle": {
+      "id": 0,
+      "bundle_key": "business_suite",
+      "name": "Vrooli Business Suite",
+      "stripe_product_id": "prod_business_suite",
+      "credits_per_usd": 1000000,
+      "display_credits_multiplier": 0.001,
+      "display_credits_label": "credits",
+      "environment": "production"
+    },
+    "monthly": [
+      {
+        "plan_name": "Solo Monthly",
+        "plan_tier": "solo",
+        "billing_interval": "month",
+        "amount_cents": 4900,
+        "currency": "usd",
+        "intro_enabled": true,
+        "intro_type": "flat_amount",
+        "intro_amount_cents": 100,
+        "intro_periods": 1,
+        "intro_price_lookup_key": "solo_monthly_intro",
+        "stripe_price_id": "price_solo_monthly",
+        "monthly_included_credits": 5000000,
+        "one_time_bonus_credits": 0,
+        "plan_rank": 1,
+        "bonus_type": "none",
+        "display_weight": 30,
+        "metadata": {
+          "features": [
+            "Solo workspace",
+            "5M included credits",
+            "Email support"
+          ]
+        }
+      },
+      {
+        "plan_name": "Pro Monthly",
+        "plan_tier": "pro",
+        "billing_interval": "month",
+        "amount_cents": 14900,
+        "currency": "usd",
+        "intro_enabled": true,
+        "intro_type": "flat_amount",
+        "intro_amount_cents": 100,
+        "intro_periods": 1,
+        "intro_price_lookup_key": "pro_monthly_intro",
+        "stripe_price_id": "price_pro_monthly",
+        "monthly_included_credits": 25000000,
+        "one_time_bonus_credits": 0,
+        "plan_rank": 2,
+        "bonus_type": "none",
+        "display_weight": 40,
+        "metadata": {
+          "features": [
+            "Team workflows",
+            "Priority support",
+            "Desktop bundle downloads"
+          ]
+        }
+      },
+      {
+        "plan_name": "Studio Monthly",
+        "plan_tier": "studio",
+        "billing_interval": "month",
+        "amount_cents": 34900,
+        "currency": "usd",
+        "intro_enabled": true,
+        "intro_type": "flat_amount",
+        "intro_amount_cents": 100,
+        "intro_periods": 1,
+        "intro_price_lookup_key": "studio_monthly_intro",
+        "stripe_price_id": "price_studio_monthly",
+        "monthly_included_credits": 75000000,
+        "one_time_bonus_credits": 0,
+        "plan_rank": 3,
+        "bonus_type": "none",
+        "display_weight": 50,
+        "metadata": {
+          "features": [
+            "Unlimited automations",
+            "Dedicated architect",
+            "Enterprise compliance"
+          ]
+        }
+      }
+    ],
+    "yearly": [
+      {
+        "plan_name": "Solo Yearly",
+        "plan_tier": "solo",
+        "billing_interval": "year",
+        "amount_cents": 49900,
+        "currency": "usd",
+        "intro_enabled": false,
+        "stripe_price_id": "price_solo_yearly",
+        "monthly_included_credits": 60000000,
+        "one_time_bonus_credits": 5000000,
+        "plan_rank": 1,
+        "bonus_type": "yearly_bonus",
+        "display_weight": 10,
+        "metadata": {
+          "features": [
+            "2 months free equivalent",
+            "Bonus credits"
+          ]
+        }
+      },
+      {
+        "plan_name": "Pro Yearly",
+        "plan_tier": "pro",
+        "billing_interval": "year",
+        "amount_cents": 149900,
+        "currency": "usd",
+        "intro_enabled": false,
+        "stripe_price_id": "price_pro_yearly",
+        "monthly_included_credits": 320000000,
+        "one_time_bonus_credits": 20000000,
+        "plan_rank": 2,
+        "bonus_type": "yearly_bonus",
+        "display_weight": 20,
+        "metadata": {
+          "features": [
+            "Advanced automations",
+            "Dedicated success"
+          ]
+        }
+      },
+      {
+        "plan_name": "Studio Yearly",
+        "plan_tier": "studio",
+        "billing_interval": "year",
+        "amount_cents": 349900,
+        "currency": "usd",
+        "intro_enabled": false,
+        "stripe_price_id": "price_studio_yearly",
+        "monthly_included_credits": 900000000,
+        "one_time_bonus_credits": 50000000,
+        "plan_rank": 3,
+        "bonus_type": "yearly_bonus",
+        "display_weight": 30,
+        "metadata": {
+          "features": [
+            "Enterprise integrations",
+            "VIP onboarding"
+          ]
+        }
+      }
+    ],
+    "updated_at": "2025-01-01T00:00:00Z"
+  },
+  "downloads": [
+    {
+      "bundle_key": "business_suite",
+      "platform": "windows",
+      "artifact_url": "https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe",
+      "release_version": "1.0.0",
+      "release_notes": "Initial GA release with Browser Automation Studio.",
+      "requires_entitlement": true,
+      "metadata": {
+        "size_mb": 210
+      }
+    },
+    {
+      "bundle_key": "business_suite",
+      "platform": "mac",
+      "artifact_url": "https://downloads.vrooli.local/business-suite/mac/VrooliBusinessSuite.dmg",
+      "release_version": "1.0.0",
+      "release_notes": "Universal build for Apple Silicon and Intel.",
+      "requires_entitlement": true,
+      "metadata": {
+        "size_mb": 190
+      }
+    },
+    {
+      "bundle_key": "business_suite",
+      "platform": "linux",
+      "artifact_url": "https://downloads.vrooli.local/business-suite/linux/vrooli-business-suite.tar.gz",
+      "release_version": "1.0.0",
+      "release_notes": "AppImage bundle tested on Ubuntu/Debian.",
+      "requires_entitlement": true,
+      "metadata": {
+        "size_mb": 205
+      }
+    }
+  ]
+}

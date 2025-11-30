@@ -155,6 +155,15 @@ export function Customization() {
                     )}
                   </CardHeader>
                   <CardContent>
+                    {variant.axes && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {Object.entries(variant.axes).map(([axisId, axisValue]) => (
+                          <span key={axisId} className="text-xs px-2 py-1 rounded-full bg-blue-500/15 text-blue-200">
+                            {axisId}: {axisValue}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
@@ -208,6 +217,15 @@ export function Customization() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
+                    {variant.axes && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {Object.entries(variant.axes).map(([axisId, axisValue]) => (
+                          <span key={axisId} className="text-xs px-2 py-1 rounded-full bg-slate-700/60 text-slate-200">
+                            {axisId}: {axisValue}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"

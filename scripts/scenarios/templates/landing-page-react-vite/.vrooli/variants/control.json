@@ -1,0 +1,192 @@
+{
+  "variant": {
+    "slug": "control",
+    "name": "Control (Original)",
+    "description": "Baseline Browser Automation Studio positioning",
+    "weight": 50,
+    "status": "active"
+  },
+  "axes": {
+    "persona": "ops_leader",
+    "jtbd": "launch_bundle",
+    "conversionStyle": "demo_led"
+  },
+  "sections": [
+    {
+      "section_type": "hero",
+      "order": 1,
+      "enabled": true,
+      "content": {
+        "title": "Launch Browser Automation Studio in Minutes",
+        "subtitle": "Bundle Stripe-ready subscriptions, download gating, and analytics in a single landing system.",
+        "cta_text": "Book a live demo",
+        "cta_url": "/contact",
+        "image_url": "/assets/hero/browser-automation.png"
+      }
+    },
+    {
+      "section_type": "features",
+      "order": 2,
+      "enabled": true,
+      "content": {
+        "title": "Everything agents need to sell automation",
+        "subtitle": "Sections stay identical across variants because they share one schema. Copy and weights change per test.",
+        "features": [
+          {
+            "title": "A/B variants without code",
+            "description": "Create, clone, and archive variants directly from the admin UI.",
+            "icon": "zap"
+          },
+          {
+            "title": "Metrics with attribution",
+            "description": "Every event is tagged with the variant_id so dashboards stay trustworthy.",
+            "icon": "sparkles"
+          },
+          {
+            "title": "Stripe-aware pricing",
+            "description": "Plan cards sync from bundle metadata and intro offers.",
+            "icon": "shield"
+          }
+        ]
+      }
+    },
+    {
+      "section_type": "pricing",
+      "order": 3,
+      "enabled": true,
+      "content": {
+        "title": "Simple, transparent plans",
+        "subtitle": "Pick the workspace tier that matches your deployment schedule.",
+        "tiers": [
+          {
+            "name": "Solo",
+            "price": "$49",
+            "description": "Launch Browser Automation Studio for a single operator",
+            "features": [
+              "1 workspace",
+              "5M included credits",
+              "Email support"
+            ],
+            "cta_text": "Start for $1",
+            "cta_url": "/checkout?plan=solo"
+          },
+          {
+            "name": "Pro",
+            "price": "$149",
+            "description": "Bundle automations for growing agencies",
+            "features": [
+              "3 workspaces",
+              "Priority support",
+              "Desktop bundle downloads"
+            ],
+            "cta_text": "Upgrade",
+            "cta_url": "/checkout?plan=pro",
+            "highlighted": true
+          },
+          {
+            "name": "Studio",
+            "price": "$349",
+            "description": "Full bundle with dedicated architect",
+            "features": [
+              "Unlimited automations",
+              "Dedicated architect",
+              "Enterprise compliance"
+            ],
+            "cta_text": "Talk to sales",
+            "cta_url": "/contact"
+          }
+        ]
+      }
+    },
+    {
+      "section_type": "testimonials",
+      "order": 4,
+      "enabled": true,
+      "content": {
+        "title": "Loved by launch-ready teams",
+        "subtitle": "Operators, agencies, and founders rely on landing-manager for fast GTM.",
+        "testimonials": [
+          {
+            "name": "Jessie Patel",
+            "role": "Agency Founder",
+            "company": "FlowPilot",
+            "content": "We spun up two bundles and hit profitability in week one. Variant analytics told us exactly where to focus.",
+            "rating": 5
+          },
+          {
+            "name": "Marco Lu",
+            "role": "Automation Lead",
+            "company": "Northstack",
+            "content": "The template kept our downloads, entitlements, and variants perfectly in sync across releases.",
+            "rating": 5
+          }
+        ]
+      }
+    },
+    {
+      "section_type": "faq",
+      "order": 5,
+      "enabled": true,
+      "content": {
+        "title": "Questions teams ask",
+        "subtitle": "Configuration and process guardrails built into the template.",
+        "faqs": [
+          {
+            "question": "Do variants stay sticky per visitor?",
+            "answer": "Yes. The VariantProvider respects URL overrides, then localStorage so visitors keep the same experience."
+          },
+          {
+            "question": "What if the API is down?",
+            "answer": "The fallback variant in .vrooli/variants/fallback.json renders instantly with baked sections + pricing."
+          },
+          {
+            "question": "Can I gate downloads per plan?",
+            "answer": "Download buttons stay disabled until entitlements confirm an active subscription."
+          }
+        ]
+      }
+    },
+    {
+      "section_type": "cta",
+      "order": 6,
+      "enabled": true,
+      "content": {
+        "title": "Deploy Browser Automation Studio today",
+        "subtitle": "Landing-manager orchestrates content, billing, downloads, and analytics in one repo.",
+        "cta_text": "Schedule onboarding",
+        "cta_url": "/contact"
+      }
+    },
+    {
+      "section_type": "footer",
+      "order": 7,
+      "enabled": true,
+      "content": {
+        "company_name": "Vrooli Landing System",
+        "tagline": "A/B tested landing pages with recursive improvement baked in.",
+        "columns": [
+          {
+            "title": "Product",
+            "links": [
+              { "label": "Features", "url": "#features" },
+              { "label": "Pricing", "url": "#pricing" },
+              { "label": "Downloads", "url": "#downloads" }
+            ]
+          },
+          {
+            "title": "Resources",
+            "links": [
+              { "label": "Docs", "url": "/docs" },
+              { "label": "Changelog", "url": "/changelog" },
+              { "label": "Status", "url": "/status" }
+            ]
+          }
+        ],
+        "social_links": {
+          "github": "https://github.com/vrooli",
+          "twitter": "https://x.com/vrooli"
+        }
+      }
+    }
+  ]
+}

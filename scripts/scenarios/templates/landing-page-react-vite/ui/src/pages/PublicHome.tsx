@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { useVariant } from '../contexts/VariantContext';
-import { getSections, type ContentSection } from '../lib/api';
+import type { LandingSection } from '../lib/api';
 import { HeroSection } from '../components/sections/HeroSection';
 import { FeaturesSection } from '../components/sections/FeaturesSection';
 import { PricingSection } from '../components/sections/PricingSection';
@@ -22,41 +22,16 @@ import { VideoSection } from '../components/sections/VideoSection';
  * - OT-P0-021: Minimum event coverage (page_view, scroll, clicks)
  */
 export default function PublicHome() {
-  const { variant, loading: variantLoading, error: variantError } = useVariant();
-  const [sections, setSections] = useState<ContentSection[]>([]);
-  const [sectionsLoading, setSectionsLoading] = useState(true);
-  const [sectionsError, setSectionsError] = useState<string | null>(null);
+  const { variant, config, loading: configLoading, error: configError } = useVariant();
 
-  useEffect(() => {
-    async function fetchSections() {
-      if (!variant) {
-        setSectionsLoading(false);
-        return;
-      }
+  const sections = useMemo(() => {
+    const incoming = config?.sections ?? [];
+    return incoming
+      .filter((section) => section.enabled !== false)
+      .sort((a, b) => a.order - b.order);
+  }, [config]);
 
-      try {
-        setSectionsLoading(true);
-        const data = await getSections(variant.id);
-        // Sort by order and filter enabled sections (handle null/undefined gracefully)
-        const sectionsList = data.sections ?? [];
-        const enabledSections = sectionsList
-          .filter((s) => s.enabled)
-          .sort((a, b) => a.order - b.order);
-        setSections(enabledSections);
-        setSectionsError(null);
-      } catch (err) {
-        console.error('Failed to fetch sections:', err);
-        setSectionsError(err instanceof Error ? err.message : 'Unknown error');
-      } finally {
-        setSectionsLoading(false);
-      }
-    }
-
-    fetchSections();
-  }, [variant?.id]);
-
-  // Loading state
-  if (variantLoading || sectionsLoading) {
+  if (configLoading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -67,8 +42,7 @@ export default function PublicHome() {
     );
   }
 
-  // Error state
-  if (variantError) {
+  if (configError) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
         <div className="max-w-md w-full rounded-2xl border border-red-500/20 bg-red-500/10 p-8 text-center space-y-4">
@@ -78,7 +52,7 @@ export default function PublicHome() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-red-400">Failed to Load Variant</h1>
-          <p className="text-red-300">{variantError}</p>
+          <p className="text-red-300">{configError}</p>
           <button
             onClick={() => window.location.reload()}
             className="px-6 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors text-red-300"
@@ -90,8 +64,7 @@ export default function PublicHome() {
     );
   }
 
-  // No variant state
-  if (!variant) {
+  if (!variant || !config) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
         <div className="max-w-md w-full rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-8 text-center space-y-4">
@@ -107,23 +80,10 @@ export default function PublicHome() {
     );
   }
 
-  // Sections error state
-  if (sectionsError) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
-        <div className="max-w-md w-full rounded-2xl border border-orange-500/20 bg-orange-500/10 p-8 text-center space-y-4">
-          <h1 className="text-2xl font-bold text-orange-400">Failed to Load Sections</h1>
-          <p className="text-orange-300">{sectionsError}</p>
-          <p className="text-sm text-orange-200">Using variant: {variant.name}</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Render sections
-  const renderSection = (section: ContentSection) => {
+  const renderSection = (section: LandingSection) => {
+    const key = section.id ?? `${section.section_type}-${section.order}`;
     const commonProps = {
-      key: section.id,
+      key,
       content: section.content,
     };
 
@@ -160,6 +120,7 @@ export default function PublicHome() {
             <div>Variant: {variant.name} ({variant.slug})</div>
             <div>Sections: {sections.length}</div>
             <div>Status: {variant.status}</div>
+            {config?.fallback && <div>Fallback Variant Active</div>}
           </div>
         </div>
       )}

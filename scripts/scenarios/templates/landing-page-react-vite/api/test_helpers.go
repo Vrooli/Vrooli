@@ -33,6 +33,14 @@ func setupTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("Failed to ping test database: %v", err)
 	}
 
+	if err := ensureSchema(db); err != nil {
+		t.Fatalf("Failed to ensure schema: %v", err)
+	}
+
+	if err := seedDefaultData(db); err != nil {
+		t.Fatalf("Failed to seed default data: %v", err)
+	}
+
 	return db
 }
 
@@ -52,20 +60,19 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 	}
 
 	// Initialize all services
-	templateService := NewTemplateService()
-	variantService := NewVariantService(db)
+	variantService := NewVariantService(db, defaultVariantSpace)
 	metricsService := NewMetricsService(db)
 	stripeService := NewStripeService(db)
 	contentService := NewContentService(db)
 
 	server := &Server{
-		config:          config,
-		db:              db,
-		templateService: templateService,
-		variantService:  variantService,
-		metricsService:  metricsService,
-		stripeService:   stripeService,
-		contentService:  contentService,
+		config:         config,
+		db:             db,
+		variantSpace:   defaultVariantSpace,
+		variantService: variantService,
+		metricsService: metricsService,
+		stripeService:  stripeService,
+		contentService: contentService,
 	}
 
 	cleanup := func() {

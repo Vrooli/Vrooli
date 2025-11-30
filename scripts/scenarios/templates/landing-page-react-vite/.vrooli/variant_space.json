@@ -1,0 +1,145 @@
+{
+  "_name": "landingPageVariantSpace",
+  "_schemaVersion": 1,
+  "_note": "Axis definitions for persona, jobs-to-be-done, and conversion style. Authoritative source for AI agents when generating landing variants.",
+  "_agentGuidelines": [
+    "Pick exactly one variant per axis when proposing a new landing page.",
+    "Use the descriptions + example copy to keep tone consistent with the selected combination.",
+    "Avoid disallowed combinations unless the constraints file is explicitly updated."
+  ],
+  "axes": {
+    "persona": {
+      "_note": "Primary buyer persona that the copy should target.",
+      "variants": [
+        {
+          "id": "ops_leader",
+          "label": "Operations Leader",
+          "description": "Director/VP of Operations running multi-scenario deployments.",
+          "examples": {
+            "headline": "Standardize automation launches across every team",
+            "tagline": "Ops can spin up bundles with governance already baked in."
+          },
+          "defaultWeight": 0.4,
+          "tags": ["b2b", "enterprise"],
+          "status": "active",
+          "agentHints": [
+            "Emphasize governance, repeatability, and compliance.",
+            "Connect variant performance to reduced launch risk."
+          ]
+        },
+        {
+          "id": "automation_freelancer",
+          "label": "Automation Freelancer",
+          "description": "Solo builders packaging services into SaaS offerings.",
+          "examples": {
+            "headline": "Turn client automations into recurring revenue",
+            "tagline": "Sell bundles with pricing, licensing, and downloads ready."
+          },
+          "defaultWeight": 0.35,
+          "tags": ["solo", "agency"],
+          "status": "active",
+          "agentHints": [
+            "Focus on time-to-value and prebuilt monetization.",
+            "Highlight starter bundles and hands-on onboarding."
+          ]
+        },
+        {
+          "id": "product_marketer",
+          "label": "Product Marketer",
+          "description": "Go-to-market lead validating new scenario bundles.",
+          "examples": {
+            "headline": "Launch a GTM experiment in hours",
+            "tagline": "Bundle-ready templates collect metrics and feed next launch."
+          },
+          "defaultWeight": 0.25,
+          "tags": ["gtm", "experimentation"],
+          "status": "experimental",
+          "agentHints": [
+            "Tie messaging to campaign velocity and analytics.",
+            "CTA should bias toward demo or live workshop."
+          ]
+        }
+      ]
+    },
+    "jtbd": {
+      "_note": "Jobs-to-be-done that the visitor expects to accomplish.",
+      "variants": [
+        {
+          "id": "launch_bundle",
+          "label": "Launch New Bundle",
+          "description": "Standing up the first production deployment of a scenario suite.",
+          "agentHints": [
+            "Call out blueprinting, templated PRDs, and review workflows."
+          ]
+        },
+        {
+          "id": "scale_services",
+          "label": "Scale Agency Services",
+          "description": "Turn bespoke automations into repeatable products with metered subscriptions.",
+          "agentHints": [
+            "Highlight subscription gating, download entitlements, and reporting."
+          ]
+        },
+        {
+          "id": "improve_conversions",
+          "label": "Improve Conversions",
+          "description": "Optimize an existing landing flow via experimentation + analytics.",
+          "status": "experimental",
+          "agentHints": [
+            "Lean on analytics, variant testing, and insights automation."
+          ]
+        }
+      ]
+    },
+    "conversionStyle": {
+      "_note": "Conversion motion emphasized on the page.",
+      "variants": [
+        {
+          "id": "self_serve",
+          "label": "Self-Serve Checkout",
+          "description": "Visitors purchase bundles immediately via pricing cards.",
+          "agentHints": [
+            "Ensure hero CTA goes to pricing or checkout.",
+            "Use social proof + ROI bullets."
+          ]
+        },
+        {
+          "id": "demo_led",
+          "label": "Demo-Led",
+          "description": "Drive towards booking a live walkthrough with an architect.",
+          "examples": {
+            "headline": "See Browser Automation Studio in action",
+            "tagline": "Schedule a live build session with the factory team."
+          },
+          "agentHints": [
+            "Hero CTA should be demo booking.",
+            "Include bulletproofing for enterprise objections."
+          ]
+        },
+        {
+          "id": "founder_led",
+          "label": "Founder/Operator Call",
+          "description": "Warm leads into a founder conversation or waitlist.",
+          "status": "experimental",
+          "agentHints": [
+            "Tone can be more personal; mention operator playbooks."
+          ]
+        }
+      ]
+    }
+  },
+  "constraints": {
+    "_note": "Keep freelancers on self-serve funnels and ops leads on demo flows.",
+    "disallowedCombinations": [
+      {
+        "persona": "ops_leader",
+        "conversionStyle": "self_serve"
+      },
+      {
+        "persona": "automation_freelancer",
+        "conversionStyle": "demo_led",
+        "jtbd": "improve_conversions"
+      }
+    ]
+  }
+}

@@ -4,7 +4,17 @@ import { Save, ArrowLeft, Plus } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { getVariant, createVariant, updateVariant, getAdminSections, type Variant, type ContentSection } from '../lib/api';
+import {
+  getVariant,
+  createVariant,
+  updateVariant,
+  getAdminSections,
+  getVariantSpace,
+  type Variant,
+  type ContentSection,
+  type VariantSpace,
+  type VariantAxes,
+} from '../lib/api';
 
 /**
  * Variant Editor - Create or edit a variant and its sections
@@ -22,6 +32,25 @@ export function VariantEditor() {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [variantSpace, setVariantSpace] = useState<VariantSpace | null>(null);
+  const [axesSelection, setAxesSelection] = useState<VariantAxes>({});
+  const [axesSeeded, setAxesSeeded] = useState(false);
+
+  const buildAxesSelection = (space: VariantSpace, existing?: VariantAxes): VariantAxes => {
+    const selection: VariantAxes = {};
+    Object.entries(space.axes).forEach(([axisId, axisDef]) => {
+      const fallbackValue = axisDef.variants[0]?.id ?? '';
+      const candidate = existing?.[axisId] ?? fallbackValue;
+      if (candidate) {
+        selection[axisId] = candidate;
+      }
+    });
+    return selection;
+  };
+
+  const applyAxesSelection = (space: VariantSpace, existing?: VariantAxes) => {
+    setAxesSelection(buildAxesSelection(space, existing));
+  };
 
   // Form state
   const [name, setName] = useState('');
@@ -35,17 +64,49 @@ export function VariantEditor() {
     }
   }, [slug]);
 
+  useEffect(() => {
+    const fetchVariantSpaceData = async () => {
+      try {
+        const space = await getVariantSpace();
+        setVariantSpace(space);
+      } catch (err) {
+        console.error('Variant space fetch error:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load variant axes');
+      }
+    };
+    fetchVariantSpaceData();
+  }, []);
+
+  useEffect(() => {
+    if (!variantSpace || axesSeeded) {
+      return;
+    }
+
+    if (isNew) {
+      applyAxesSelection(variantSpace);
+      setAxesSeeded(true);
+      return;
+    }
+
+    if (variant?.axes) {
+      applyAxesSelection(variantSpace, variant.axes);
+      setAxesSeeded(true);
+    }
+  }, [variantSpace, variant, isNew, axesSeeded]);
+
   const fetchVariant = async () => {
     if (!slug) return;
 
     try {
       setLoading(true);
       const variantData = await getVariant(slug);
+      setAxesSeeded(false);
       setVariant(variantData);
       setName(variantData.name);
       setVariantSlug(variantData.slug);
       setDescription(variantData.description || '');
       setWeight(variantData.weight);
+      setAxesSelection(variantData.axes || {});
 
       // Fetch sections (admin endpoint - includes disabled sections)
       const sectionsData = await getAdminSections(variantData.id);
@@ -65,6 +126,17 @@ export function VariantEditor() {
       return;
     }
 
+    if (!variantSpace) {
+      alert('Variant axes registry not loaded yet');
+      return;
+    }
+
+    const missingAxis = Object.keys(variantSpace.axes).find((axisId) => !axesSelection[axisId]);
+    if (missingAxis) {
+      alert(`Select a value for the ${missingAxis} axis`);
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -74,6 +146,7 @@ export function VariantEditor() {
           slug: variantSlug.trim(),
           description: description.trim() || undefined,
           weight,
+          axes: axesSelection,
         });
         navigate(`/admin/customization/variants/${newVariant.slug}`);
       } else if (slug) {
@@ -81,6 +154,7 @@ export function VariantEditor() {
           name: name.trim(),
           description: description.trim() || undefined,
           weight,
+          axes: axesSelection,
         });
         await fetchVariant();
       }
@@ -198,6 +272,49 @@ export function VariantEditor() {
                 data-testid="variant-description-input"
               />
             </div>
+
+            {variantSpace && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-slate-300">Variant Axes</label>
+                  <span className="text-xs text-slate-500">Persona • Jobs-to-be-done • Conversion style</span>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {Object.entries(variantSpace.axes).map(([axisId, axisDef]) => {
+                    const selectedValue = axesSelection[axisId] || '';
+                    const selectedVariant = axisDef.variants.find((v) => v.id === selectedValue);
+                    return (
+                      <div key={axisId} className="bg-slate-900/60 border border-white/10 rounded-lg p-4">
+                        <label className="block text-sm font-medium text-slate-200 mb-2 capitalize">
+                          {axisId}
+                        </label>
+                        <select
+                          className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
+                          value={selectedValue}
+                          onChange={(e) =>
+                            setAxesSelection((prev) => ({
+                              ...prev,
+                              [axisId]: e.target.value,
+                            }))
+                          }
+                        >
+                          {axisDef.variants.map((axisVariant) => (
+                            <option key={axisVariant.id} value={axisVariant.id}>
+                              {axisVariant.label}
+                            </option>
+                          ))}
+                        </select>
+                        {(selectedVariant?.description || axisDef._note) && (
+                          <p className="text-xs text-slate-400 mt-2">
+                            {selectedVariant?.description || axisDef._note}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div>
               <label htmlFor="weight" className="block text-sm font-medium text-slate-300 mb-2">

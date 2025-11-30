@@ -3,16 +3,91 @@ import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
 const API_BASE = resolveApiBase({ appendSuffix: true });
 
 // Type definitions
+export type VariantAxes = Record<string, string>;
+
+export interface VariantSpaceAxisVariant {
+  id: string;
+  label: string;
+  description?: string;
+  examples?: Record<string, string>;
+  defaultWeight?: number;
+  tags?: string[];
+  status?: 'active' | 'experimental' | 'deprecated';
+  agentHints?: string[];
+}
+
+export interface VariantSpaceAxis {
+  _note?: string;
+  variants: VariantSpaceAxisVariant[];
+}
+
+export interface VariantSpaceConstraints {
+  _note?: string;
+  disallowedCombinations?: Record<string, string>[];
+}
+
+export interface VariantSpace {
+  _name: string;
+  _schemaVersion: number;
+  _note?: string;
+  _agentGuidelines?: string[];
+  axes: Record<string, VariantSpaceAxis>;
+  constraints?: VariantSpaceConstraints;
+}
+
 export interface Variant {
-  id: number;
+  id?: number;
   slug: string;
   name: string;
   description?: string;
-  weight: number;
-  status: 'active' | 'archived' | 'deleted';
-  created_at: string;
-  updated_at: string;
+  weight?: number;
+  status?: 'active' | 'archived' | 'deleted' | 'fallback';
+  created_at?: string;
+  updated_at?: string;
   archived_at?: string;
+  axes?: VariantAxes;
+}
+
+export interface BundleProduct {
+  bundle_key: string;
+  name: string;
+  stripe_product_id: string;
+  credits_per_usd: number;
+  display_credits_multiplier: number;
+  display_credits_label: string;
+}
+
+export interface PlanOption {
+  plan_name: string;
+  plan_tier: string;
+  billing_interval: 'month' | 'year';
+  amount_cents: number;
+  currency: string;
+  intro_enabled: boolean;
+  intro_amount_cents?: number;
+  intro_periods?: number;
+  intro_price_lookup_key?: string;
+  stripe_price_id: string;
+  monthly_included_credits: number;
+  one_time_bonus_credits: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface PricingOverview {
+  bundle: BundleProduct;
+  monthly: PlanOption[];
+  yearly: PlanOption[];
+  updated_at: string;
+}
+
+export interface DownloadAsset {
+  bundle_key: string;
+  platform: string;
+  artifact_url: string;
+  release_version: string;
+  release_notes?: string;
+  requires_entitlement: boolean;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -21,7 +96,7 @@ export interface Variant {
  * 1. Create component in components/sections/{Name}Section.tsx
  * 2. Add switch case in pages/PublicHome.tsx
  * 3. Add CHECK constraint in initialization/postgres/schema.sql
- * 4. Create schema in scenarios/landing-manager/api/templates/sections/{id}.json
+ * 4. Create schema in .vrooli/schemas/sections/{id}.schema.json
  */
 export type SectionType =
   | 'hero'
@@ -42,6 +117,28 @@ export interface ContentSection {
   enabled: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface LandingSection {
+  id?: number;
+  section_type: string;
+  content: Record<string, unknown>;
+  order: number;
+  enabled?: boolean;
+}
+
+export interface LandingConfigResponse {
+  variant: {
+    id?: number;
+    slug: string;
+    name: string;
+    description?: string;
+    axes?: VariantAxes;
+  };
+  sections: LandingSection[];
+  pricing?: PricingOverview;
+  downloads: DownloadAsset[];
+  fallback: boolean;
 }
 
 export interface MetricEvent {
@@ -71,6 +168,33 @@ export interface VariantStats {
   trend?: 'up' | 'down' | 'stable';
 }
 
+export interface SubscriptionInfo {
+  status: string;
+  subscription_id?: string;
+  customer_email?: string;
+  plan_tier?: string;
+  price_id?: string;
+  bundle_key?: string;
+  updated_at?: string;
+}
+
+export interface CreditInfo {
+  customer_email: string;
+  balance_credits: number;
+  bonus_credits: number;
+  display_credits_label: string;
+  display_credits_multiplier: number;
+}
+
+export interface EntitlementPayload {
+  status: string;
+  plan_tier?: string;
+  price_id?: string;
+  features?: string[];
+  credits?: CreditInfo;
+  subscription?: SubscriptionInfo;
+}
+
 // Helper for API calls
 async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = buildApiUrl(endpoint, { baseUrl: API_BASE });
@@ -94,6 +218,39 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
 // Health check
 export async function fetchHealth() {
   return apiCall<{ status: string; service: string; timestamp: string }>('/health');
+}
+
+export async function getLandingConfig(variantSlug?: string) {
+  const params = new URLSearchParams();
+  if (variantSlug) {
+    params.set('variant', variantSlug);
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiCall<LandingConfigResponse>(`/landing-config${query}`);
+}
+
+export async function getPlans() {
+  return apiCall<PricingOverview>('/plans');
+}
+
+export async function getSubscriptionInfo() {
+  return apiCall<SubscriptionInfo>('/me/subscription');
+}
+
+export async function getCreditInfo() {
+  return apiCall<CreditInfo>('/me/credits');
+}
+
+export async function getEntitlements() {
+  return apiCall<EntitlementPayload>('/entitlements');
+}
+
+export async function requestDownload(platform: string, user?: string) {
+  const params = new URLSearchParams({ platform });
+  if (user) {
+    params.set('user', user);
+  }
+  return apiCall<DownloadAsset>(`/downloads?${params.toString()}`);
 }
 
 // Authentication
@@ -128,14 +285,29 @@ export async function getVariant(slug: string) {
   return apiCall<Variant>(`/variants/${slug}`);
 }
 
-export async function createVariant(data: { name: string; slug: string; description?: string; weight?: number }) {
+export interface VariantCreatePayload {
+  name: string;
+  slug: string;
+  description?: string;
+  weight?: number;
+  axes: VariantAxes;
+}
+
+export interface VariantUpdatePayload {
+  name?: string;
+  description?: string;
+  weight?: number;
+  axes?: VariantAxes;
+}
+
+export async function createVariant(data: VariantCreatePayload) {
   return apiCall<Variant>('/variants', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export async function updateVariant(slug: string, data: Partial<Variant>) {
+export async function updateVariant(slug: string, data: VariantUpdatePayload) {
   return apiCall<Variant>(`/variants/${slug}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
@@ -157,6 +329,10 @@ export async function deleteVariant(slug: string) {
 export async function selectVariant(variantSlug?: string) {
   const query = variantSlug ? `?variant_slug=${variantSlug}` : '';
   return apiCall<Variant>(`/variants/select${query}`);
+}
+
+export async function getVariantSpace() {
+  return apiCall<VariantSpace>('/variant-space');
 }
 
 // Content Sections - Public (no auth required for landing page display)

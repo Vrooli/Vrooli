@@ -14,6 +14,10 @@ landing-page-react-vite/
 │   ├── main.go              # API entry point
 │   ├── *_service.go         # Business logic services
 │   └── *_handlers.go        # HTTP handlers
+├── .vrooli/                  # Scenario-level configs (copied to generated/.vrooli)
+│   ├── variants/            # Runtime-ready variant configs + fallback
+│   ├── schemas/             # JSON Schemas for variants + sections + styling
+│   └── styling.json         # Brand/tone/style guardrails for agents
 ├── ui/                       # React frontend (copied to generated/*/ui/)
 │   └── src/
 │       ├── components/
@@ -56,11 +60,11 @@ To add a new section type (e.g., "countdown"):
 4. **Update database schema** in `initialization/postgres/schema.sql`
    - Add 'countdown' to the CHECK constraint on `section_type`
 
-5. **Create JSON schema** in `scenarios/landing-manager/api/templates/sections/countdown.json`
-   - Define the content fields for admin customization
+5. **Create JSON schema** in `.vrooli/schemas/sections/countdown.schema.json`
+   - Define the content fields for admin customization and validation
 
-6. **Update section registry** in `scenarios/landing-manager/api/templates/sections/_index.json`
-   - Add the new section entry
+6. **Update variant schema references** in `.vrooli/schemas/variant.schema.json`
+   - Add new `section_type` enum entry + condition so validation passes
 
 ### Section Component Pattern
 
@@ -97,7 +101,7 @@ export function {Name}Section({ content }: {Name}SectionProps) {
 
 ### Implemented vs Schema-Only Sections
 
-Check `scenarios/landing-manager/api/templates/sections/_index.json` for status:
+Check `.vrooli/schemas/sections/` for status:
 
 **Implemented** (have both schema + component):
 - hero, features, pricing, cta, testimonials, faq, footer, video

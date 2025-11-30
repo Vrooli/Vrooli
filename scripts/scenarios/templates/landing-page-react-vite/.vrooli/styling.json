@@ -1,0 +1,101 @@
+{
+  "brand": {
+    "product_name": "Browser Automation Studio",
+    "tagline": "Self-improving automation bundles",
+    "logo_usage": "Use wordmark only; monochrome gradient is acceptable on dark backgrounds."
+  },
+  "palette": {
+    "background": "#020617",
+    "gradients": ["#a855f7", "#2563eb"],
+    "supporting": ["#38bdf8", "#22c55e", "#facc15"],
+    "text_primary": "#f8fafc",
+    "text_secondary": "#cbd5f5"
+  },
+  "typography": {
+    "headline": {
+      "font": "Sora",
+      "weight": 700,
+      "tracking": "tight",
+      "case": "Sentence"
+    },
+    "body": {
+      "font": "Inter",
+      "weight": 400,
+      "size": "18px",
+      "line_height": "1.7"
+    },
+    "cta": {
+      "font": "Inter",
+      "weight": 600,
+      "transform": "none"
+    }
+  },
+  "tone": {
+    "voice": "Practical futurist",
+    "keywords": [
+      "agent-ready",
+      "bundle",
+      "variant",
+      "entitlement",
+      "launch",
+      "self-improving"
+    ],
+    "avoid": [
+      "hype",
+      "vague 'AI magic' claims",
+      "feature dumps without outcomes"
+    ],
+    "sentence_rules": [
+      "Lead with the business outcome, then the capability.",
+      "Reference resources (Postgres, Stripe, downloads) to reinforce seriousness.",
+      "Highlight recursive improvement loop at least once per page."
+    ]
+  },
+  "components": {
+    "buttons": {
+      "primary": {
+        "style": "Gradient from purple to blue",
+        "icon": "ArrowRight",
+        "padding": "px-8 py-6"
+      },
+      "secondary": {
+        "style": "Border-white/20, transparent background",
+        "usage": "Preview or low-friction CTAs"
+      }
+    },
+    "cards": {
+      "border": "1px solid rgba(255,255,255,0.1)",
+      "hover": "border-purple-500/50, scale 1.01"
+    },
+    "icons": {
+      "set": "Lucide",
+      "default_color": "#c084fc",
+      "size": 24
+    }
+  },
+  "variant_guidance": {
+    "control": {
+      "promise": "Launch automation bundle",
+      "primary_cta": "Book a live demo",
+      "secondary_cta": "Download bundle",
+      "notes": [
+        "Keep hero CTA pointing to human-assisted flow",
+        "Mention analytics + download gating in features"
+      ]
+    },
+    "variant-a": {
+      "promise": "Educate cohorts",
+      "primary_cta": "Download starter kit",
+      "secondary_cta": "Request cohort",
+      "notes": [
+        "Emphasize enablement, not pricing",
+        "Answer FAQ with scheduling / cohort logistics"
+      ]
+    }
+  },
+  "usage_notes": [
+    "Keep gradients subtle: opacity <= 0.3 for background blobs.",
+    "Always include at least one screenshot placeholder or mention downloads.",
+    "Never mix light and dark backgrounds within the same section variant."
+  ]
+}

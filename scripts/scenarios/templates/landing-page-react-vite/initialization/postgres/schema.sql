@@ -29,6 +29,18 @@ CREATE TABLE IF NOT EXISTS variants (
 CREATE INDEX idx_variants_slug ON variants(slug);
 CREATE INDEX idx_variants_status ON variants(status);
 
+-- Variant Axes Table - stores axis selections per variant for persona/JTBD/conversion style targeting
+CREATE TABLE IF NOT EXISTS variant_axes (
+    variant_id INTEGER REFERENCES variants(id) ON DELETE CASCADE,
+    axis_id VARCHAR(100) NOT NULL,
+    variant_value VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (variant_id, axis_id)
+);
+
+CREATE INDEX idx_variant_axes_axis ON variant_axes(axis_id);
+
 -- Metrics Events Table (OT-P0-019 through OT-P0-022)
 -- Stores analytics events tagged with variant_id
 CREATE TABLE IF NOT EXISTS metrics_events (
@@ -79,6 +91,9 @@ CREATE INDEX idx_subscriptions_subscription_id ON subscriptions(subscription_id)
 CREATE INDEX idx_subscriptions_customer_email ON subscriptions(customer_email);
 CREATE INDEX idx_subscriptions_customer_id ON subscriptions(customer_id);
 CREATE INDEX idx_subscriptions_status ON subscriptions(status);
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan_tier VARCHAR(50);
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS price_id VARCHAR(255);
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS bundle_key VARCHAR(100);
 
 -- Content Sections Table (OT-P0-012, OT-P0-013: CUSTOM-SPLIT, CUSTOM-LIVE)
 -- Stores customizable landing page sections for live preview editing
@@ -96,3 +111,86 @@ CREATE TABLE IF NOT EXISTS content_sections (
 CREATE INDEX idx_content_sections_variant ON content_sections(variant_id);
 CREATE INDEX idx_content_sections_type ON content_sections(section_type);
 CREATE INDEX idx_content_sections_order ON content_sections("order");
+
+-- Bundle products (Stripe metadata)
+CREATE TABLE IF NOT EXISTS bundle_products (
+    id SERIAL PRIMARY KEY,
+    bundle_key VARCHAR(100) UNIQUE NOT NULL,
+    bundle_name VARCHAR(255) NOT NULL,
+    stripe_product_id VARCHAR(255) UNIQUE NOT NULL,
+    credits_per_usd BIGINT NOT NULL,
+    display_credits_multiplier NUMERIC(12,6) DEFAULT 1.0,
+    display_credits_label VARCHAR(50) DEFAULT 'credits',
+    environment VARCHAR(50) DEFAULT 'production',
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_bundle_products_env ON bundle_products(environment);
+
+-- Bundle prices (Stripe price metadata)
+CREATE TABLE IF NOT EXISTS bundle_prices (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER REFERENCES bundle_products(id) ON DELETE CASCADE,
+    stripe_price_id VARCHAR(255) UNIQUE NOT NULL,
+    plan_name VARCHAR(100) NOT NULL,
+    plan_tier VARCHAR(50) NOT NULL CHECK (plan_tier IN ('solo','pro','studio','business')),
+    billing_interval VARCHAR(20) NOT NULL CHECK (billing_interval IN ('month','year')),
+    amount_cents INTEGER NOT NULL,
+    currency VARCHAR(10) DEFAULT 'usd',
+    intro_enabled BOOLEAN DEFAULT FALSE,
+    intro_type VARCHAR(50),
+    intro_amount_cents INTEGER,
+    intro_periods INTEGER DEFAULT 0,
+    intro_price_lookup_key VARCHAR(255),
+    monthly_included_credits INTEGER DEFAULT 0,
+    one_time_bonus_credits INTEGER DEFAULT 0,
+    plan_rank INTEGER DEFAULT 0,
+    bonus_type VARCHAR(50),
+    metadata JSONB DEFAULT '{}'::jsonb,
+    display_weight INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_bundle_prices_tier ON bundle_prices(plan_tier);
+CREATE INDEX idx_bundle_prices_interval ON bundle_prices(billing_interval);
+
+-- Download assets for bundled apps
+CREATE TABLE IF NOT EXISTS download_assets (
+    id SERIAL PRIMARY KEY,
+    bundle_key VARCHAR(100) NOT NULL,
+    platform VARCHAR(50) NOT NULL CHECK (platform IN ('windows','mac','linux')),
+    artifact_url TEXT NOT NULL,
+    release_version VARCHAR(50) NOT NULL,
+    release_notes TEXT,
+    checksum VARCHAR(255),
+    requires_entitlement BOOLEAN DEFAULT TRUE,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX idx_download_assets_bundle_platform ON download_assets(bundle_key, platform);
+
+-- Credit wallets and transactions
+CREATE TABLE IF NOT EXISTS credit_wallets (
+    id SERIAL PRIMARY KEY,
+    customer_email VARCHAR(255) UNIQUE NOT NULL,
+    balance_credits BIGINT DEFAULT 0,
+    bonus_credits BIGINT DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS credit_transactions (
+    id SERIAL PRIMARY KEY,
+    customer_email VARCHAR(255) NOT NULL,
+    amount_credits BIGINT NOT NULL,
+    transaction_type VARCHAR(50) NOT NULL,
+    source VARCHAR(100),
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_credit_transactions_customer ON credit_transactions(customer_email);

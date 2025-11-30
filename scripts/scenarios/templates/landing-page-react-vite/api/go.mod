@@ -1,4 +1,4 @@
-module {{SCENARIO_ID}}
+module landing-page-react-vite-api
 
 go 1.24.0
 

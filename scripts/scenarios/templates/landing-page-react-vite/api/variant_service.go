@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"time"
@@ -20,16 +21,21 @@ type Variant struct {
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	ArchivedAt  *time.Time `json:"archived_at,omitempty"`
+	Axes        map[string]string `json:"axes,omitempty"`
 }
 
 // VariantService handles A/B testing variant operations
 type VariantService struct {
-	db *sql.DB
+	db    *sql.DB
+	space *VariantSpace
 }
 
 // NewVariantService creates a new variant service
-func NewVariantService(db *sql.DB) *VariantService {
-	return &VariantService{db: db}
+func NewVariantService(db *sql.DB, space *VariantSpace) *VariantService {
+	if space == nil {
+		space = defaultVariantSpace
+	}
+	return &VariantService{db: db, space: space}
 }
 
 // SelectVariant implements weighted random variant selection (OT-P0-016: AB-API)
@@ -99,6 +105,12 @@ func (vs *VariantService) GetVariantBySlug(slug string) (*Variant, error) {
 		v.ArchivedAt = &archivedAt.Time
 	}
 
+	axes, err := vs.getVariantAxes(v.ID)
+	if err != nil {
+		return nil, err
+	}
+	v.Axes = axes
+
 	return &v, nil
 }
 
@@ -143,14 +155,34 @@ func (vs *VariantService) ListVariants(statusFilter string) ([]Variant, error) {
 		variants = append(variants, v)
 	}
 
+	for i := range variants {
+		axes, err := vs.getVariantAxes(variants[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		variants[i].Axes = axes
+	}
+
 	return variants, nil
 }
 
 // CreateVariant creates a new variant (OT-P0-017: AB-CRUD)
-func (vs *VariantService) CreateVariant(slug, name, description string, weight int) (*Variant, error) {
+func (vs *VariantService) CreateVariant(slug, name, description string, weight int, axes map[string]string) (*Variant, error) {
 	if weight < 0 || weight > 100 {
 		return nil, errors.New("weight must be between 0 and 100")
 	}
+	if len(axes) == 0 {
+		return nil, errors.New("axes selection is required")
+	}
+	if err := vs.space.ValidateSelection(axes); err != nil {
+		return nil, err
+	}
+
+	tx, err := vs.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback()
 
 	query := `
 		INSERT INTO variants (slug, name, description, weight, status)
@@ -159,7 +191,7 @@ func (vs *VariantService) CreateVariant(slug, name, description string, weight i
 	`
 
 	var v Variant
-	err := vs.db.QueryRow(query, slug, name, description, weight).Scan(
+	err = tx.QueryRow(query, slug, name, description, weight).Scan(
 		&v.ID, &v.Slug, &v.Name, &v.Description, &v.Weight,
 		&v.Status, &v.CreatedAt, &v.UpdatedAt,
 	)
@@ -168,11 +200,21 @@ func (vs *VariantService) CreateVariant(slug, name, description string, weight i
 		return nil, err
 	}
 
+	if err := vs.saveVariantAxesTx(tx, v.ID, axes); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit transaction: %w", err)
+	}
+
+	v.Axes = axes
+
 	return &v, nil
 }
 
 // UpdateVariant updates variant weight and/or name (OT-P0-017: AB-CRUD)
-func (vs *VariantService) UpdateVariant(slug string, name *string, description *string, weight *int) (*Variant, error) {
+func (vs *VariantService) UpdateVariant(slug string, name *string, description *string, weight *int, axes map[string]string) (*Variant, error) {
 	if weight != nil && (*weight < 0 || *weight > 100) {
 		return nil, errors.New("weight must be between 0 and 100")
 	}
@@ -183,31 +225,37 @@ func (vs *VariantService) UpdateVariant(slug string, name *string, description *
 	argIndex := 1
 
 	if name != nil {
-		query += ", name = $" + string(rune('0'+argIndex))
+		query += fmt.Sprintf(", name = $%d", argIndex)
 		args = append(args, *name)
 		argIndex++
 	}
 
 	if description != nil {
-		query += ", description = $" + string(rune('0'+argIndex))
+		query += fmt.Sprintf(", description = $%d", argIndex)
 		args = append(args, *description)
 		argIndex++
 	}
 
 	if weight != nil {
-		query += ", weight = $" + string(rune('0'+argIndex))
+		query += fmt.Sprintf(", weight = $%d", argIndex)
 		args = append(args, *weight)
 		argIndex++
 	}
 
-	query += " WHERE slug = $" + string(rune('0'+argIndex))
+	query += fmt.Sprintf(" WHERE slug = $%d", argIndex)
 	args = append(args, slug)
 
 	query += " RETURNING id, slug, name, description, weight, status, created_at, updated_at, archived_at"
 
 	var v Variant
 	var archivedAt sql.NullTime
-	err := vs.db.QueryRow(query, args...).Scan(
+	tx, err := vs.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	err = tx.QueryRow(query, args...).Scan(
 		&v.ID, &v.Slug, &v.Name, &v.Description, &v.Weight,
 		&v.Status, &v.CreatedAt, &v.UpdatedAt, &archivedAt,
 	)
@@ -221,6 +269,25 @@ func (vs *VariantService) UpdateVariant(slug string, name *string, description *
 
 	if archivedAt.Valid {
 		v.ArchivedAt = &archivedAt.Time
+	}
+
+	if axes != nil {
+		if err := vs.saveVariantAxesTx(tx, v.ID, axes); err != nil {
+			return nil, err
+		}
+		v.Axes = axes
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit transaction: %w", err)
+	}
+
+	if axes == nil {
+		axesMap, err := vs.getVariantAxes(v.ID)
+		if err != nil {
+			return nil, err
+		}
+		v.Axes = axesMap
 	}
 
 	return &v, nil
@@ -272,6 +339,51 @@ func (vs *VariantService) DeleteVariant(slug string) error {
 
 	if rows == 0 {
 		return errors.New("variant not found")
+	}
+
+	return nil
+}
+
+func (vs *VariantService) getVariantAxes(variantID int) (map[string]string, error) {
+	rows, err := vs.db.Query(`SELECT axis_id, variant_value FROM variant_axes WHERE variant_id = $1`, variantID)
+	if err != nil {
+		return nil, fmt.Errorf("query variant axes: %w", err)
+	}
+	defer rows.Close()
+
+	axes := map[string]string{}
+	for rows.Next() {
+		var axisID, value string
+		if err := rows.Scan(&axisID, &value); err != nil {
+			return nil, fmt.Errorf("scan variant axis: %w", err)
+		}
+		axes[axisID] = value
+	}
+
+	return axes, nil
+}
+
+func (vs *VariantService) saveVariantAxesTx(tx *sql.Tx, variantID int, axes map[string]string) error {
+	if len(axes) == 0 {
+		return errors.New("axes selection is required")
+	}
+	if err := vs.space.ValidateSelection(axes); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(`DELETE FROM variant_axes WHERE variant_id = $1`, variantID); err != nil {
+		return fmt.Errorf("clear variant axes: %w", err)
+	}
+
+	for axisID, value := range axes {
+		if _, err := tx.Exec(`
+			INSERT INTO variant_axes (variant_id, axis_id, variant_value, created_at, updated_at)
+			VALUES ($1, $2, $3, NOW(), NOW())
+			ON CONFLICT (variant_id, axis_id)
+			DO UPDATE SET variant_value = EXCLUDED.variant_value, updated_at = NOW()
+		`, variantID, axisID, value); err != nil {
+			return fmt.Errorf("insert variant axis %s: %w", axisID, err)
+		}
 	}
 
 	return nil
@@ -373,7 +485,9 @@ func handleVariantsList(vs *VariantService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(variants)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"variants": variants,
+		})
 	}
 }
 
@@ -387,10 +501,11 @@ func handleVariantCreate(vs *VariantService) http.HandlerFunc {
 		}
 
 		var req struct {
-			Slug        string `json:"slug"`
-			Name        string `json:"name"`
-			Description string `json:"description"`
-			Weight      int    `json:"weight"`
+			Slug        string            `json:"slug"`
+			Name        string            `json:"name"`
+			Description string            `json:"description"`
+			Weight      int               `json:"weight"`
+			Axes        map[string]string `json:"axes"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -403,7 +518,12 @@ func handleVariantCreate(vs *VariantService) http.HandlerFunc {
 			return
 		}
 
-		variant, err := vs.CreateVariant(req.Slug, req.Name, req.Description, req.Weight)
+		if len(req.Axes) == 0 {
+			http.Error(w, "axes selection is required", http.StatusBadRequest)
+			return
+		}
+
+		variant, err := vs.CreateVariant(req.Slug, req.Name, req.Description, req.Weight, req.Axes)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -424,10 +544,11 @@ func handleVariantCreateWithSections(vs *VariantService, cs *ContentService) htt
 		}
 
 		var req struct {
-			Slug        string `json:"slug"`
-			Name        string `json:"name"`
-			Description string `json:"description"`
-			Weight      int    `json:"weight"`
+			Slug        string            `json:"slug"`
+			Name        string            `json:"name"`
+			Description string            `json:"description"`
+			Weight      int               `json:"weight"`
+			Axes        map[string]string `json:"axes"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -440,7 +561,12 @@ func handleVariantCreateWithSections(vs *VariantService, cs *ContentService) htt
 			return
 		}
 
-		variant, err := vs.CreateVariant(req.Slug, req.Name, req.Description, req.Weight)
+		if len(req.Axes) == 0 {
+			http.Error(w, "axes selection is required", http.StatusBadRequest)
+			return
+		}
+
+		variant, err := vs.CreateVariant(req.Slug, req.Name, req.Description, req.Weight, req.Axes)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -477,9 +603,10 @@ func handleVariantUpdate(vs *VariantService) http.HandlerFunc {
 		}
 
 		var req struct {
-			Name        *string `json:"name,omitempty"`
-			Description *string `json:"description,omitempty"`
-			Weight      *int    `json:"weight,omitempty"`
+			Name        *string           `json:"name,omitempty"`
+			Description *string           `json:"description,omitempty"`
+			Weight      *int              `json:"weight,omitempty"`
+			Axes        map[string]string `json:"axes,omitempty"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -487,7 +614,7 @@ func handleVariantUpdate(vs *VariantService) http.HandlerFunc {
 			return
 		}
 
-		variant, err := vs.UpdateVariant(slug, req.Name, req.Description, req.Weight)
+		variant, err := vs.UpdateVariant(slug, req.Name, req.Description, req.Weight, req.Axes)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

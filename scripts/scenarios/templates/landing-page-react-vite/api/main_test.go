@@ -5,8 +5,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
-
-	"github.com/gorilla/mux"
 )
 
 func TestHealthEndpoint(t *testing.T) {
@@ -60,52 +58,6 @@ func TestRequireEnv(t *testing.T) {
 		result := requireEnv("TEST_VAR_WS")
 		if result != "trimmed" {
 			t.Errorf("Expected trimmed, got '%s'", result)
-		}
-	})
-}
-
-func TestHandleTemplateList(t *testing.T) {
-	// Create a temporary templates directory with test data
-	tmpDir := t.TempDir()
-
-	// Create test server with mock template service
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: &TemplateService{templatesDir: tmpDir},
-	}
-	srv.setupRoutes()
-
-	req := httptest.NewRequest("GET", "/api/v1/templates", nil)
-	w := httptest.NewRecorder()
-
-	srv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", w.Code)
-	}
-
-	if contentType := w.Header().Get("Content-Type"); contentType != "application/json" {
-		t.Errorf("Expected Content-Type application/json, got %s", contentType)
-	}
-}
-
-func TestHandleTemplateShow(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	srv := &Server{
-		router:          mux.NewRouter(),
-		templateService: &TemplateService{templatesDir: tmpDir},
-	}
-	srv.setupRoutes()
-
-	t.Run("non-existing template returns error", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/v1/templates/non-existing", nil)
-		w := httptest.NewRecorder()
-
-		srv.router.ServeHTTP(w, req)
-
-		if w.Code != http.StatusNotFound {
-			t.Errorf("Expected status 404, got %d", w.Code)
 		}
 	})
 }

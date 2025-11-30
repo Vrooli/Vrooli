@@ -5,6 +5,15 @@
   "description": "Whole-page A/B variant selection, management, and archival",
   "requirements": [
     {
+      "id": "AB-FALLBACK",
+      "title": "Baked fallback variant",
+      "prd_ref": "OT-P0-031",
+      "description": "Ship a static fallback variant (hero/features/pricing/cta/download copy) that the UI renders whenever variant selection or section fetches fail, ensuring visitors always see a safe configuration even if the API is unavailable.",
+      "validation": [],
+      "status": "planned",
+      "notes": "Spec: TODO_IMPLEMENTATION_PLAN.md §1.1. Frontend must detect select/sections failures and render fallback; backend must embed fallback config within build artifacts."
+    },
+    {
       "id": "AB-URL",
       "title": "URL variant selection",
       "prd_ref": "OT-P0-014",

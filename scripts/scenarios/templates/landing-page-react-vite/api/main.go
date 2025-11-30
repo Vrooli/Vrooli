@@ -27,14 +27,18 @@ type Config struct {
 
 // Server wires the HTTP router and database connection
 type Server struct {
-	config          *Config
-	db              *sql.DB
-	router          *mux.Router
-	templateService *TemplateService
-	variantService  *VariantService
-	metricsService  *MetricsService
-	stripeService   *StripeService
-	contentService  *ContentService
+	config               *Config
+	db                   *sql.DB
+	router               *mux.Router
+	variantSpace         *VariantSpace
+	variantService       *VariantService
+	metricsService       *MetricsService
+	stripeService        *StripeService
+	contentService       *ContentService
+	planService          *PlanService
+	downloadService      *DownloadService
+	accountService       *AccountService
+	landingConfigService *LandingConfigService
 }
 
 // NewServer initializes configuration, database, and routes
@@ -62,15 +66,26 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to seed default data: %w", err)
 	}
 
+	variantSpace := defaultVariantSpace
+	variantService := NewVariantService(db, variantSpace)
+	contentService := NewContentService(db)
+	planService := NewPlanService(db)
+	downloadService := NewDownloadService(db)
+	accountService := NewAccountService(db, planService)
+
 	srv := &Server{
-		config:          cfg,
-		db:              db,
-		router:          mux.NewRouter(),
-		templateService: NewTemplateService(),
-		variantService:  NewVariantService(db),
-		metricsService:  NewMetricsService(db),
-		stripeService:   NewStripeService(db),
-		contentService:  NewContentService(db),
+		config:               cfg,
+		db:                   db,
+		router:               mux.NewRouter(),
+		variantSpace:         variantSpace,
+		variantService:       variantService,
+		metricsService:       NewMetricsService(db),
+		stripeService:        NewStripeService(db),
+		contentService:       contentService,
+		planService:          planService,
+		downloadService:      downloadService,
+		accountService:       accountService,
+		landingConfigService: NewLandingConfigService(variantService, contentService, planService, downloadService),
 	}
 
 	// Initialize session store for authentication
@@ -86,10 +101,22 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
 
-	// Template management endpoints
-	s.router.HandleFunc("/api/v1/templates", s.handleTemplateList).Methods("GET")
-	s.router.HandleFunc("/api/v1/templates/{id}", s.handleTemplateShow).Methods("GET")
-	s.router.HandleFunc("/api/v1/generate", s.handleGenerate).Methods("POST")
+	// Landing config + plans
+	s.router.HandleFunc("/api/v1/landing-config", handleLandingConfig(s.landingConfigService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/plans", handlePlans(s.planService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/variant-space", handleVariantSpaceRoute(s.variantSpace)).Methods("GET")
+
+	// Billing APIs
+	s.router.HandleFunc("/api/v1/billing/create-checkout-session", handleBillingCreateCheckoutSession(s.stripeService)).Methods("POST")
+	s.router.HandleFunc("/api/v1/billing/create-credits-checkout-session", handleBillingCreateCreditsSession(s.stripeService)).Methods("POST")
+	s.router.HandleFunc("/api/v1/billing/portal-url", handleBillingPortalURL()).Methods("GET")
+
+	// Account endpoints
+	s.router.HandleFunc("/api/v1/me/subscription", handleMeSubscription(s.accountService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/me/credits", handleMeCredits(s.accountService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/entitlements", handleEntitlements(s.accountService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/downloads", handleDownloads(s.downloadService, s.accountService, s.planService)).Methods("GET")
+
 	s.router.HandleFunc("/api/v1/customize", s.handleCustomize).Methods("POST")
 
 	// Admin authentication endpoints (OT-P0-008)
@@ -129,6 +156,17 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/sections/{id}", s.requireAdmin(handleUpdateSection(s.contentService))).Methods("PATCH")
 	s.router.HandleFunc("/api/v1/sections", s.requireAdmin(handleCreateSection(s.contentService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/sections/{id}", s.requireAdmin(handleDeleteSection(s.contentService))).Methods("DELETE")
+}
+
+func handleVariantSpaceRoute(space *VariantSpace) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(space.JSONBytes())
+	}
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -220,6 +258,21 @@ func seedDefaultData(db *sql.DB) error {
 		return err
 	}
 
+	if err := upsertVariantAxesBySlug(db, "control", map[string]string{
+		"persona":         "ops_leader",
+		"jtbd":            "launch_bundle",
+		"conversionStyle": "demo_led",
+	}); err != nil {
+		return err
+	}
+	if err := upsertVariantAxesBySlug(db, "variant-a", map[string]string{
+		"persona":         "automation_freelancer",
+		"jtbd":            "scale_services",
+		"conversionStyle": "self_serve",
+	}); err != nil {
+		return err
+	}
+
 	// Seed sections for control if none exist
 	var sectionCount int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM content_sections WHERE variant_id = $1`, controlID).Scan(&sectionCount); err != nil {
@@ -243,6 +296,10 @@ func seedDefaultData(db *sql.DB) error {
 		}
 	}
 
+	if err := ensureVariantAxesDefaults(db, defaultVariantSpace); err != nil {
+		return fmt.Errorf("failed to seed variant axes defaults: %w", err)
+	}
+
 	return nil
 }
 
@@ -259,6 +316,57 @@ func upsertVariant(db *sql.DB, slug, name, description string, weight int) (int,
 		return 0, fmt.Errorf("failed to upsert variant %s: %w", slug, err)
 	}
 	return id, nil
+}
+
+func ensureVariantAxesDefaults(db *sql.DB, space *VariantSpace) error {
+	if space == nil {
+		space = defaultVariantSpace
+	}
+
+	for axisID, axis := range space.Axes {
+		if axis == nil || len(axis.Variants) == 0 {
+			continue
+		}
+		defaultValue := axis.Variants[0].ID
+		if strings.TrimSpace(defaultValue) == "" {
+			continue
+		}
+		if _, err := db.Exec(`
+			INSERT INTO variant_axes (variant_id, axis_id, variant_value, created_at, updated_at)
+			SELECT id, $1, $2, NOW(), NOW()
+			FROM variants
+			WHERE NOT EXISTS (
+				SELECT 1 FROM variant_axes WHERE variant_axes.variant_id = variants.id AND axis_id = $3
+			)
+		`, axisID, defaultValue, axisID); err != nil {
+			return fmt.Errorf("failed to seed default axis %s: %w", axisID, err)
+		}
+	}
+
+	return nil
+}
+
+func upsertVariantAxesBySlug(db *sql.DB, slug string, axes map[string]string) error {
+	if len(axes) == 0 {
+		return nil
+	}
+	var variantID int
+	if err := db.QueryRow(`SELECT id FROM variants WHERE slug = $1`, slug).Scan(&variantID); err != nil {
+		return fmt.Errorf("variant %s not found for axes assignment: %w", slug, err)
+	}
+
+	for axisID, value := range axes {
+		if _, err := db.Exec(`
+			INSERT INTO variant_axes (variant_id, axis_id, variant_value, created_at, updated_at)
+			VALUES ($1, $2, $3, NOW(), NOW())
+			ON CONFLICT (variant_id, axis_id)
+			DO UPDATE SET variant_value = EXCLUDED.variant_value, updated_at = NOW()
+		`, variantID, axisID, value); err != nil {
+			return fmt.Errorf("failed to upsert axis %s for %s: %w", axisID, slug, err)
+		}
+	}
+
+	return nil
 }
 
 // ensureSchema creates required tables if they do not exist (runtime guard when psql is unavailable)
@@ -285,6 +393,15 @@ func ensureSchema(db *sql.DB) error {
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_variants_slug ON variants(slug);`,
 		`CREATE INDEX IF NOT EXISTS idx_variants_status ON variants(status);`,
+		`CREATE TABLE IF NOT EXISTS variant_axes (
+			variant_id INTEGER REFERENCES variants(id) ON DELETE CASCADE,
+			axis_id VARCHAR(100) NOT NULL,
+			variant_value VARCHAR(100) NOT NULL,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW(),
+			PRIMARY KEY (variant_id, axis_id)
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_variant_axes_axis ON variant_axes(axis_id);`,
 		`CREATE TABLE IF NOT EXISTS metrics_events (
 			id SERIAL PRIMARY KEY,
 			variant_id INTEGER REFERENCES variants(id),
@@ -347,62 +464,6 @@ func ensureSchema(db *sql.DB) error {
 	return nil
 }
 
-func (s *Server) handleTemplateList(w http.ResponseWriter, r *http.Request) {
-	templates, err := s.templateService.ListTemplates()
-	if err != nil {
-		s.log("failed to list templates", map[string]interface{}{"error": err.Error()})
-		http.Error(w, "Failed to list templates", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(templates)
-}
-
-func (s *Server) handleTemplateShow(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	template, err := s.templateService.GetTemplate(id)
-	if err != nil {
-		s.log("failed to get template", map[string]interface{}{"id": id, "error": err.Error()})
-		http.Error(w, "Template not found", http.StatusNotFound)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(template)
-}
-
-func (s *Server) handleGenerate(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		TemplateID string                 `json:"template_id"`
-		Name       string                 `json:"name"`
-		Slug       string                 `json:"slug"`
-		Options    map[string]interface{} `json:"options"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	response, err := s.templateService.GenerateScenario(req.TemplateID, req.Name, req.Slug, req.Options)
-	if err != nil {
-		s.log("failed to generate scenario", map[string]interface{}{
-			"template_id": req.TemplateID,
-			"name":        req.Name,
-			"error":       err.Error(),
-		})
-		http.Error(w, fmt.Sprintf("Failed to generate scenario: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
-}
-
 func (s *Server) handleCustomize(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ScenarioID string   `json:"scenario_id"`
@@ -453,20 +514,6 @@ func logStructured(msg string, fields map[string]interface{}) {
 	}
 	fieldsJSON, _ := json.Marshal(fields)
 	log.Printf(`{"level":"info","message":"%s","fields":%s,"timestamp":"%s"}`, msg, fieldsJSON, time.Now().UTC().Format(time.RFC3339))
-}
-
-// handleTemplateOnly makes clear that specific capabilities belong to generated landing scenarios, not the factory.
-func handleTemplateOnly(feature string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotImplemented)
-		response := map[string]string{
-			"status":  "template_only",
-			"feature": feature,
-			"message": "Use a generated landing scenario to access this capability; the landing-manager factory only creates templates and scenarios.",
-		}
-		_ = json.NewEncoder(w).Encode(response)
-	}
 }
 
 func logStructuredError(msg string, fields map[string]interface{}) {

@@ -4,6 +4,22 @@ import (
 	"testing"
 )
 
+func defaultAxesSelection() map[string]string {
+	return map[string]string{
+		"persona":         "automation_freelancer",
+		"jtbd":            "scale_services",
+		"conversionStyle": "self_serve",
+	}
+}
+
+func altAxesSelection() map[string]string {
+	return map[string]string{
+		"persona":         "ops_leader",
+		"jtbd":            "launch_bundle",
+		"conversionStyle": "demo_led",
+	}
+}
+
 func TestSelectVariant(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
@@ -11,7 +27,7 @@ func TestSelectVariant(t *testing.T) {
 	// Clean up test data
 	db.Exec("DELETE FROM variants WHERE slug LIKE 'test-%'")
 
-	vs := NewVariantService(db)
+	vs := NewVariantService(db, defaultVariantSpace)
 
 	// Test that SelectVariant returns a variant
 	variant, err := vs.SelectVariant()
@@ -36,7 +52,7 @@ func TestGetVariantBySlug(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	vs := NewVariantService(db)
+	vs := NewVariantService(db, defaultVariantSpace)
 
 	// Test getting existing variant
 	variant, err := vs.GetVariantBySlug("control")
@@ -59,10 +75,10 @@ func TestCreateVariant(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	vs := NewVariantService(db)
+	vs := NewVariantService(db, defaultVariantSpace)
 
 	// Test creating a new variant
-	variant, err := vs.CreateVariant("test-variant", "Test Variant", "Test description", 30)
+	variant, err := vs.CreateVariant("test-variant", "Test Variant", "Test description", 30, defaultAxesSelection())
 	if err != nil {
 		t.Fatalf("CreateVariant failed: %v", err)
 	}
@@ -79,8 +95,12 @@ func TestCreateVariant(t *testing.T) {
 		t.Errorf("Created variant has status %s, expected active", variant.Status)
 	}
 
+	if variant.Axes["persona"] != "automation_freelancer" {
+		t.Errorf("Variant axes not persisted: %+v", variant.Axes)
+	}
+
 	// Test invalid weight
-	_, err = vs.CreateVariant("test-invalid", "Invalid", "Invalid weight", 150)
+	_, err = vs.CreateVariant("test-invalid", "Invalid", "Invalid weight", 150, defaultAxesSelection())
 	if err == nil {
 		t.Error("CreateVariant should fail for weight > 100")
 	}
@@ -93,17 +113,17 @@ func TestUpdateVariant(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	vs := NewVariantService(db)
+	vs := NewVariantService(db, defaultVariantSpace)
 
 	// Create a test variant
-	_, err := vs.CreateVariant("test-update", "Update Test", "Test update", 50)
+	_, err := vs.CreateVariant("test-update", "Update Test", "Test update", 50, defaultAxesSelection())
 	if err != nil {
 		t.Fatalf("Failed to create test variant: %v", err)
 	}
 
 	// Test updating weight
 	newWeight := 70
-	updated, err := vs.UpdateVariant("test-update", nil, nil, &newWeight)
+	updated, err := vs.UpdateVariant("test-update", nil, nil, &newWeight, nil)
 	if err != nil {
 		t.Fatalf("UpdateVariant failed: %v", err)
 	}
@@ -114,7 +134,7 @@ func TestUpdateVariant(t *testing.T) {
 
 	// Test updating name
 	newName := "Updated Name"
-	updated, err = vs.UpdateVariant("test-update", &newName, nil, nil)
+	updated, err = vs.UpdateVariant("test-update", &newName, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("UpdateVariant name failed: %v", err)
 	}
@@ -125,9 +145,20 @@ func TestUpdateVariant(t *testing.T) {
 
 	// Test invalid weight
 	invalidWeight := 150
-	_, err = vs.UpdateVariant("test-update", nil, nil, &invalidWeight)
+	_, err = vs.UpdateVariant("test-update", nil, nil, &invalidWeight, nil)
 	if err == nil {
 		t.Error("UpdateVariant should fail for weight > 100")
+	}
+
+	// Test updating axes
+	newAxes := altAxesSelection()
+	updated, err = vs.UpdateVariant("test-update", nil, nil, nil, newAxes)
+	if err != nil {
+		t.Fatalf("UpdateVariant axes failed: %v", err)
+	}
+
+	if updated.Axes["persona"] != "ops_leader" {
+		t.Errorf("Expected persona to change, got %+v", updated.Axes)
 	}
 
 	// Clean up
@@ -138,10 +169,10 @@ func TestArchiveVariant(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	vs := NewVariantService(db)
+	vs := NewVariantService(db, defaultVariantSpace)
 
 	// Create a test variant
-	_, err := vs.CreateVariant("test-archive", "Archive Test", "Test archive", 50)
+	_, err := vs.CreateVariant("test-archive", "Archive Test", "Test archive", 50, defaultAxesSelection())
 	if err != nil {
 		t.Fatalf("Failed to create test variant: %v", err)
 	}
@@ -187,10 +218,10 @@ func TestDeleteVariant(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	vs := NewVariantService(db)
+	vs := NewVariantService(db, defaultVariantSpace)
 
 	// Create a test variant
-	_, err := vs.CreateVariant("test-delete", "Delete Test", "Test delete", 50)
+	_, err := vs.CreateVariant("test-delete", "Delete Test", "Test delete", 50, defaultAxesSelection())
 	if err != nil {
 		t.Fatalf("Failed to create test variant: %v", err)
 	}
@@ -219,7 +250,7 @@ func TestListVariants(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	vs := NewVariantService(db)
+	vs := NewVariantService(db, defaultVariantSpace)
 
 	// Test listing all non-deleted variants
 	variants, err := vs.ListVariants("")
@@ -241,6 +272,10 @@ func TestListVariants(t *testing.T) {
 		if v.Status != "active" {
 			t.Errorf("ListVariants(active) returned variant with status %s", v.Status)
 		}
+
+		if len(v.Axes) == 0 {
+			t.Errorf("Variant %s missing axes metadata", v.Slug)
+		}
 	}
 }
 
@@ -248,15 +283,15 @@ func TestWeightedSelection(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	vs := NewVariantService(db)
+	vs := NewVariantService(db, defaultVariantSpace)
 
 	// Create test variants with different weights
-	_, err := vs.CreateVariant("test-heavy", "Heavy Weight", "High weight variant", 90)
+	_, err := vs.CreateVariant("test-heavy", "Heavy Weight", "High weight variant", 90, defaultAxesSelection())
 	if err != nil {
 		t.Fatalf("Failed to create heavy variant: %v", err)
 	}
 
-	_, err = vs.CreateVariant("test-light", "Light Weight", "Low weight variant", 10)
+	_, err = vs.CreateVariant("test-light", "Light Weight", "Low weight variant", 10, altAxesSelection())
 	if err != nil {
 		t.Fatalf("Failed to create light variant: %v", err)
 	}
@@ -293,4 +328,16 @@ func TestWeightedSelection(t *testing.T) {
 
 	// Clean up
 	db.Exec("DELETE FROM variants WHERE slug LIKE 'test-%'")
+}
+
+func TestCreateVariantRequiresAxes(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	vs := NewVariantService(db, defaultVariantSpace)
+
+	_, err := vs.CreateVariant("axes-missing", "Missing Axes", "No axes provided", 40, nil)
+	if err == nil {
+		t.Fatal("expected error when creating variant without axes")
+	}
 }

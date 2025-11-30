@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.dev/schemas/styling.json",
+  "title": "Landing Styling Guide",
+  "type": "object",
+  "required": ["brand", "palette", "typography", "tone", "components", "usage_notes"],
+  "properties": {
+    "brand": {
+      "type": "object",
+      "required": ["product_name", "tagline"],
+      "properties": {
+        "product_name": { "type": "string", "minLength": 1 },
+        "tagline": { "type": "string", "minLength": 1 },
+        "logo_usage": { "type": "string" }
+      }
+    },
+    "palette": {
+      "type": "object",
+      "required": ["background", "gradients", "supporting", "text_primary", "text_secondary"],
+      "properties": {
+        "background": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" },
+        "gradients": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" }
+        },
+        "supporting": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" }
+        },
+        "text_primary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" },
+        "text_secondary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" }
+      }
+    },
+    "typography": {
+      "type": "object",
+      "required": ["headline", "body"],
+      "properties": {
+        "headline": {
+          "type": "object",
+          "required": ["font", "weight"],
+          "properties": {
+            "font": { "type": "string" },
+            "weight": { "type": "integer" },
+            "tracking": { "type": "string" },
+            "case": { "type": "string" }
+          }
+        },
+        "body": {
+          "type": "object",
+          "required": ["font", "weight", "size"],
+          "properties": {
+            "font": { "type": "string" },
+            "weight": { "type": "integer" },
+            "size": { "type": "string" },
+            "line_height": { "type": "string" }
+          }
+        },
+        "cta": {
+          "type": "object",
+          "properties": {
+            "font": { "type": "string" },
+            "weight": { "type": "integer" },
+            "transform": { "type": "string" }
+          }
+        }
+      }
+    },
+    "tone": {
+      "type": "object",
+      "required": ["voice", "keywords", "avoid"],
+      "properties": {
+        "voice": { "type": "string" },
+        "keywords": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "avoid": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "sentence_rules": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "components": {
+      "type": "object",
+      "properties": {
+        "buttons": {
+          "type": "object",
+          "properties": {
+            "primary": { "type": "object" },
+            "secondary": { "type": "object" }
+          }
+        },
+        "cards": { "type": "object" },
+        "icons": { "type": "object" }
+      }
+    },
+    "variant_guidance": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["promise", "primary_cta"],
+        "properties": {
+          "promise": { "type": "string" },
+          "primary_cta": { "type": "string" },
+          "secondary_cta": { "type": "string" },
+          "notes": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "usage_notes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}
