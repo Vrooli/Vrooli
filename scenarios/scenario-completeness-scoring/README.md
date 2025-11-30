@@ -4,7 +4,7 @@ A configurable health observatory for measuring and tracking scenario completene
 
 ## Overview
 
-This scenario replaces the JavaScript-based completeness scoring in `scripts/scenarios/lib/` with a proper Go API and React UI that can be:
+This scenario replaces the legacy JavaScript-based completeness scoring (formerly under `scripts/scenarios/lib/`, now removed) with a proper Go API and React UI that can be:
 - Deployed alongside ecosystem-manager
 - Packaged for desktop app deployment
 - Configured without code changes
@@ -326,6 +326,7 @@ cd ui && pnpm format
 
 ## References
 
-- Current JS implementation: `scripts/scenarios/lib/completeness.js`
-- Current config: `scripts/scenarios/lib/completeness-config.json`
+- Current Go implementation: `api/pkg/scoring`, `api/pkg/collectors`, `api/pkg/config`
+- Legacy JS implementation (archived, removed after migration): `scripts/scenarios/lib/completeness.js`
+- Legacy configuration file (archived): `scripts/scenarios/lib/completeness-config.json`
 - Ecosystem-manager metrics: `scenarios/ecosystem-manager/api/pkg/autosteer/metrics*.go`

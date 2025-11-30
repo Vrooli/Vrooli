@@ -4,9 +4,9 @@ This document provides a structured implementation plan for scenario-completenes
 
 ## Overview
 
-**Goal**: Replace the JS-based completeness scoring (`scripts/scenarios/lib/completeness.js`) with a configurable Go API that provides resilience through circuit breakers and enables UI-based configuration.
+**Goal**: Document how we replaced the legacy JS-based completeness scoring (`scripts/scenarios/lib/completeness.js`, now archived) with a configurable Go API that provides resilience through circuit breakers and enables UI-based configuration.
 
-**Reference Implementation**: `scripts/scenarios/lib/completeness.js` (~550 lines)
+**Reference Implementation**: `scenarios/scenario-completeness-scoring/api/pkg/scoring` (historically compared against the archived `scripts/scenarios/lib/completeness.js`)
 
 ---
 
@@ -27,7 +27,7 @@ This document provides a structured implementation plan for scenario-completenes
 - [ ] Implement `CalculateCompletenessScore()` - aggregate all dimensions
 - [ ] Port classification logic (`classifyScore()`)
 
-**Reference**: `scripts/scenarios/lib/completeness.js` lines 47-338
+**Reference**: `scenarios/scenario-completeness-scoring/api/pkg/scoring/calculator.go` (logic originally compared with the archived `scripts/scenarios/lib/completeness.js`)
 
 #### 1.2 Create Metric Collectors
 - [ ] Create `api/pkg/collectors/interface.go` - Collector interface
@@ -36,7 +36,7 @@ This document provides a structured implementation plan for scenario-completenes
 - [ ] Create `api/pkg/collectors/tests.go` - Load test results
 - [ ] Create `api/pkg/collectors/ui.go` - Analyze UI metrics (file count, LOC, etc.)
 
-**Reference**: `scripts/scenarios/lib/completeness-data.js`
+**Reference**: `scenarios/scenario-completeness-scoring/api/pkg/collectors` (original JS data collection at `scripts/scenarios/lib/completeness-data.js` was used as parity guidance)
 
 #### 1.3 Implement Score API Endpoints
 - [ ] `GET /api/scores` - List all scenario scores
@@ -369,27 +369,26 @@ type MetricChange struct {
 After all phases complete:
 
 1. **Parallel Validation**
-   - Run both JS and Go scoring on same scenarios
-   - Compare outputs, fix discrepancies
+   - Verified Go scores matched the archived JS outputs for ecosystem-manager and other high-impact scenarios
+   - Captured any discrepancies in the replacement-readiness notes
 
 2. **Update Ecosystem-Manager**
    - Replace `pkg/autosteer/metrics*.go` with API calls
-   - Update autosteer to use this scenario's API
+   - Point autosteer at this scenario's API
 
 3. **Update CLI**
-   - Modify `vrooli scenario completeness` to call API
-   - Fall back to JS if API unavailable
+   - Completed: `vrooli scenario completeness` now calls the scenario's CLI directly and no longer falls back to JS
 
 4. **Deprecate JS**
-   - Remove `scripts/scenarios/lib/completeness*.js`
-   - Update documentation
+   - Legacy `scripts/scenarios/lib/completeness*.js` files removed (confirmed)
+   - Documentation updated to reference the Go implementation
 
 ---
 
 ## Notes for Agents
 
 1. **Start with Phase 1** - Core scoring must work before anything else
-2. **Reference the JS** - The existing implementation is well-documented
+2. **Reference the Go validators** - The current scoring logic lives under `api/pkg/validators` and `api/pkg/scoring`; the legacy JS implementation has been archived and removed
 3. **Test early** - Add tests as you implement, don't batch them
 4. **Check parity** - Compare Go output with JS output frequently
 5. **Use the PRD** - UX mockups show expected behavior

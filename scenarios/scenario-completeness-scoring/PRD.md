@@ -7,7 +7,7 @@
 
 ## 🎯 Overview
 
-- **Purpose**: Provide a configurable, resilient health observatory for measuring and tracking scenario completeness scores across the Vrooli ecosystem. Replaces the current JS-based scoring in `scripts/scenarios/lib/` with a proper scenario that can be deployed alongside ecosystem-manager.
+- **Purpose**: Provide a configurable, resilient health observatory for measuring and tracking scenario completeness scores across the Vrooli ecosystem. Replaced the legacy JS-based scoring (formerly under `scripts/scenarios/lib/`) with this scenario; the legacy directory has now been removed after the migration.
 - **Primary users/verticals**:
   - Ecosystem-manager (programmatic API consumer for autosteer decisions)
   - Human developers (understanding why scenarios score as they do)
@@ -92,10 +92,10 @@
   - Circuit breaker thresholds need tuning based on real-world failure patterns
 - **Launch sequencing**:
   1. P0: Core API with scoring and configuration
-  2. Validation: Run parallel to existing JS system, compare results
+  2. Validation: Compare outputs against the archived JS datasets to confirm parity before the JS implementation was retired
   3. P1: UI and history tracking
   4. Integration: Update ecosystem-manager to use this API
-  5. Deprecation: Remove `scripts/scenarios/lib/completeness*.js`
+  5. Deprecation: Legacy JS scoring removed; CLI now routes to this scenario instead
 
 ## 🎨 UX & Branding
 
@@ -281,7 +281,9 @@
 5. If retry succeeds, reset failure counter and re-enable
 6. Expose status via `/api/health/circuit-breaker`
 
-### References
-- Current JS implementation: `scripts/scenarios/lib/completeness.js`
-- Current config: `scripts/scenarios/lib/completeness-config.json`
+-### References
+- Current Go implementation: `scenarios/scenario-completeness-scoring/api/pkg/scoring`
+- Configuration data: `scenarios/scenario-completeness-scoring/api/pkg/config` + `.vrooli/scoring-config.json`
+- Legacy JS implementation (removed after migration): `scripts/scenarios/lib/completeness.js`
+- Legacy configuration file (removed after migration): `scripts/scenarios/lib/completeness-config.json`
 - Ecosystem-manager metrics: `scenarios/ecosystem-manager/api/pkg/autosteer/metrics*.go`

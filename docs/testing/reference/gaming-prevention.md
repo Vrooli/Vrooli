@@ -2,10 +2,12 @@
 
 **Status**: Active
 **Last Updated**: 2025-11-22
-**Module**: `scripts/scenarios/lib/gaming-detection.js`
+**Module**: `scenarios/scenario-completeness-scoring/api/pkg/validators`
 **Audience**: System developers, maintainers
 
 ---
+
+> **Note**: The Go packages listed above now own the gaming prevention logic, which was originally implemented in the legacy `scripts/scenarios/lib` directory. That directory has been removed after the migration; use the Go files below for current behavior and the snippets in this document only for historical reference.
 
 ## Overview
 
@@ -20,24 +22,18 @@ The gaming prevention system detects and prevents common patterns where requirem
 ### Module Structure
 
 ```
-scripts/scenarios/lib/
-├── validators/              # Focused validation modules (60-150 LOC each)
-│   ├── component-detector.js      # Detects API/UI components
-│   ├── layer-detector.js          # Multi-layer validation detection
-│   ├── test-quality-analyzer.js   # Test file quality heuristics
-│   ├── duplicate-detector.js      # Duplicate test ref detection
-│   └── target-grouping-validator.js  # OT grouping validation
-├── analyzers/              # Metric calculators
-│   ├── requirement-analyzer.js    # Requirement pass with diversity
-│   ├── target-analyzer.js
-│   └── ui-analyzer.js
-├── loaders/                # Data loading
-│   ├── service-loader.js
-│   ├── requirements-loader.js
-│   └── sync-loader.js
-├── gaming-detection.js     # Orchestrator (all 7 patterns)
-├── completeness-data.js    # Metrics collection orchestrator
-└── completeness.js         # Score calculator + warnings
+scenarios/scenario-completeness-scoring/api/pkg/
+├── validators/              # Focused detection modules (Go equivalents of the old JS validators)
+│   ├── component_detector.go    # Detects API/UI components (records available layers)
+│   ├── layer_detector.go        # Multi-layer validation detection and criticality inference
+│   ├── test_quality.go          # Test file quality heuristics (monolithic/empty tests)
+│   ├── duplicate_detector.go    # Duplicate test ref detection
+│   └── target_grouping.go       # Operational target grouping enforcement
+├── analyzers/                # Quality analysis helpers (historical analog of requirement/target/ui analyzers)
+├── scoring/                  # Completeness score calculator / classification helpers
+├── collectors/               # Data loaders (requirements, tests, config, UI metrics)
+├── handlers/                 # HTTP handlers that expose scores, config and analysis APIs
+└── api/pkg/handlers/scores.go # Orchestrates the validators and scoring logic for completeness outputs
 ```
 
 ### Design Principles
@@ -200,7 +196,7 @@ validSources.push('test/playbooks/**/*.{json,yaml} (e2e automation)');
 
 ### Detection Logic
 
-**File**: `validators/duplicate-detector.js:12-42`
+**File**: `scenarios/scenario-completeness-scoring/api/pkg/validators/duplicate_detector.go` (legacy JS logic shown below)
 
 ```javascript
 function analyzeTestRefUsage(requirements) {
@@ -269,7 +265,7 @@ One test file shouldn't validate many requirements because:
 
 ### Detection Logic
 
-**File**: `validators/target-grouping-validator.js:14-62`
+**File**: `scenarios/scenario-completeness-scoring/api/pkg/validators/target_grouping.go` (legacy JS logic shown below)
 
 ```javascript
 function analyzeTargetGrouping(targets, requirements) {
@@ -399,7 +395,7 @@ if (diversityIssues.length > 0) {
 
 ### Component-Aware Detection
 
-**1. Detect scenario components** (`validators/component-detector.js`):
+**1. Detect scenario components** (`scenarios/scenario-completeness-scoring/api/pkg/validators/component_detector.go` - legacy JS excerpt shown below):
 ```javascript
 function detectScenarioComponents(scenarioRoot) {
   const components = new Set();
@@ -434,7 +430,7 @@ function getApplicableLayers(components) {
 }
 ```
 
-**3. Detect validation layers per requirement** (`validators/layer-detector.js`):
+**3. Detect validation layers per requirement** (`scenarios/scenario-completeness-scoring/api/pkg/validators/layer_detector.go` - legacy JS excerpt shown below):
 ```javascript
 function detectValidationLayers(requirement, scenarioRoot) {
   const automatedLayers = new Set();
@@ -513,7 +509,7 @@ Critical requirements (P0/P1) need robust validation across multiple test layers
 
 ### Detection Logic
 
-**File**: `validators/test-quality-analyzer.js:16-77`
+**File**: `scenarios/scenario-completeness-scoring/api/pkg/validators/test_quality.go` (legacy JS logic shown below)
 
 ```javascript
 function analyzeTestFileQuality(testFilePath, scenarioRoot) {
@@ -798,18 +794,11 @@ Manual validations are acceptable as temporary measures, but problematic when:
 
 ### Unit Tests
 
-Each validator has dedicated unit tests:
+Each validator is covered by Go tests in `scenarios/scenario-completeness-scoring/api/pkg/validators`:
 
 ```bash
-# Run validator tests
-node scripts/scenarios/lib/validators/__tests__/component-detector.test.js
-node scripts/scenarios/lib/validators/__tests__/layer-detector.test.js
-node scripts/scenarios/lib/validators/__tests__/test-quality-analyzer.test.js
-node scripts/scenarios/lib/validators/__tests__/duplicate-detector.test.js
-node scripts/scenarios/lib/validators/__tests__/target-grouping-validator.test.js
-
-# Run gaming detection tests
-node scripts/scenarios/lib/__tests__/gaming-detection.test.js
+# Run all validator tests
+go test ./scenarios/scenario-completeness-scoring/api/pkg/validators
 ```
 
 ### Integration Tests

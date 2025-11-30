@@ -6,7 +6,7 @@ This scenario was created to address limitations in the existing completeness sc
 
 ### Problem Statement
 
-The existing JavaScript-based scoring in `scripts/scenarios/lib/completeness.js`:
+The legacy JavaScript-based scoring (formerly in `scripts/scenarios/lib/completeness.js`, now archived):
 1. Has no configurability - all components are hardcoded
 2. Fails entirely if any collector fails (no graceful degradation)
 3. Can't disable broken infrastructure (e.g., browser-automation-studio)
@@ -31,12 +31,12 @@ Searched for similar functionality in the repo:
 rg -l 'completeness' scenarios/
 ```
 
-**Related files found:**
-- `scripts/scenarios/lib/completeness.js` - Current JS implementation (to be replaced)
-- `scripts/scenarios/lib/completeness-config.json` - Current config
+-**Related files found:**
+- `scripts/scenarios/lib/completeness.js` - Archived JS implementation (replaced by this scenario)
+- `scripts/scenarios/lib/completeness-config.json` - Archived configuration data (superseded by the Go config loader)
 - `scenarios/ecosystem-manager/api/pkg/autosteer/metrics*.go` - Duplicate metrics code in ecosystem-manager
 
-**Conclusion**: No existing scenario provides this functionality. The JS implementation and ecosystem-manager's internal metrics code will eventually be deprecated in favor of this scenario.
+**Conclusion**: No existing scenario provides this functionality. The JS implementation and ecosystem-manager's internal metrics code have been deprecated in favor of this scenario.
 
 ## Related Scenarios/Resources
 

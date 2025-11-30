@@ -1,5 +1,5 @@
 // Package scoring provides completeness score calculation for Vrooli scenarios.
-// It implements the same algorithm as scripts/scenarios/lib/completeness.js
+// It re-implements the algorithm that used to live in the archived scripts/scenarios/lib/completeness.js.
 package scoring
 
 // ScoreBreakdown represents the complete score calculation result

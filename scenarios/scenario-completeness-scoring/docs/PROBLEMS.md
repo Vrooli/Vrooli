@@ -11,7 +11,7 @@
    - **Date Identified**: 2025-11-29
 
 ### Medium Priority
-1. **JS to Go Migration Complexity**: The existing `scripts/scenarios/lib/completeness.js` has ~550 lines of logic to port. Need to ensure parity during migration.
+1. **JS to Go Migration Complexity**: The legacy `scripts/scenarios/lib/completeness.js` (~550 lines) was ported to Go and validated; the current implementation lives under `api/pkg/scoring/`, and the old JS file has been retired.
 
 2. **Circuit Breaker Threshold Tuning**: Default threshold of 3 failures may need adjustment based on real-world collector behavior. Consider making this configurable per-collector.
 
