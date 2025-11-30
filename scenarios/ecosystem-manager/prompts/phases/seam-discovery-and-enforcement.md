@@ -112,7 +112,18 @@ If you detect a seam that **should** exist but requires a major redesign, docume
 
 ---
 
-### **8. Output Expectations**
+### **8. Documentation**
+
+Update `docs/SEAMS.md` to reflect your findings:
+
+* The code is the source of truth, not the document. Verify claims in existing documentation against actual code before extending or preserving them.
+* If the file exists, correct any inaccuracies and extend with your findings.
+* If a SEAMS.md exists at the scenario root, consolidate into `docs/SEAMS.md` and remove the duplicate.
+* Create the `docs/` directory if needed.
+
+---
+
+### **9. Output Expectations**
 
 By the end of this loop, the scenario should:
 

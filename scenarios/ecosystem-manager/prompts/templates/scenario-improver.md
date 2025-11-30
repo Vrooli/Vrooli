@@ -6,13 +6,13 @@ You are executing a **scenario improvement** task for the Ecosystem Manager.
 
 ## Before You Start (self-orientation)
 - Run `vrooli scenario status {{TARGET}}` to see failing checks and remediation hints.
-- Run `vrooli scenario completeness {{TARGET}}` (json or plain) to understand current quality/coverage and recommendations.
+- Run `scenario-completeness-scoring score {{TARGET}}` (or with `--json`) to understand current quality/coverage and recommendations.
 - Read the latest execution output if available: `{{LATEST_OUTPUT_PATH}}` (skip if not available). Use it to understand what the last run did and any errors.
 
 ## Quick Validation Loop (repeat until green)
 1. `vrooli scenario status {{TARGET}}`
    - Shows failing checks, missing files, stale ports, and remediation hints. Use it to prioritize work and verify progress before handoff.
-2. `vrooli scenario completeness {{TARGET}}`
+2. `scenario-completeness-scoring score {{TARGET}}`
    - Shows objective quality score (0-100) with breakdown of quality, coverage, quantity, and UI metrics. Review recommendations to identify gaps (missing tests, template UI, low routing complexity, etc.). Re-run after changes to verify improvements. Target 80+ for production readiness.
 3. `scenario-auditor audit {{TARGET}} --timeout 240`
    - Capture the JSON (or summary) and explain any remaining security/standards violations.

@@ -230,6 +230,19 @@ CREATE TABLE IF NOT EXISTS profile_execution_state (
     last_updated TIMESTAMP DEFAULT NOW()
 );
 
+-- Execution feedback annotations for completed runs
+CREATE TABLE IF NOT EXISTS execution_feedback_entries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    execution_task_id VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    severity VARCHAR(20) NOT NULL,
+    suggested_action TEXT,
+    comments TEXT,
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_execution_feedback_entries_task_id ON execution_feedback_entries(execution_task_id);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_profile_executions_profile_id ON profile_executions(profile_id);
 CREATE INDEX IF NOT EXISTS idx_profile_executions_scenario ON profile_executions(scenario_name);

@@ -150,13 +150,6 @@
   },
   "dependencies": {
     "resources": {},
-    "scenarios": {
-      "ecosystem-manager": {
-        "type": "scenario",
-        "enabled": false,
-        "required": false,
-        "description": "Primary consumer of this API for autosteer metrics"
-      }
-    }
+    "scenarios": {}
   }
 }

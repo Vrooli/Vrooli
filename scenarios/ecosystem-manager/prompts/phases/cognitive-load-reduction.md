@@ -1,4 +1,4 @@
-## Steer focus: Cognitive Load Reduction**
+## Steer focus: Cognitive Load Reduction
 
 Prioritize **making the code easier to understand, reason about, and safely modify**.
 

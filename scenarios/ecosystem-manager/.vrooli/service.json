@@ -267,6 +267,13 @@
         "description": "Auto-detected via analyzer (heuristic)"
       }
     },
-    "scenarios": {}
+    "scenarios": {
+      "scenario-completeness-scoring": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Provides completeness scoring API for autosteer metrics"
+      }
+    }
   }
 }
