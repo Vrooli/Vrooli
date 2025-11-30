@@ -34,6 +34,7 @@ import { api } from '@/lib/api';
 import { markdownToHtml } from '@/lib/markdown';
 import { queryKeys } from '@/lib/queryKeys';
 import { ExecutionDetailCard } from '@/components/executions/ExecutionDetailCard';
+import { ExecutionFeedbackDialog } from '@/components/executions/ExecutionFeedbackPanel';
 import { SteerFocusBadge, getExecutionSteerFocus } from '@/components/steer/SteerFocusBadge';
 import type { SteerFocusInfo } from '@/components/steer/SteerFocusBadge';
 import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfileEditorModal';
@@ -309,6 +310,13 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const latestExecution = sortedExecutions[0] ?? null;
   const selectedExecution = sortedExecutions.find(exec => exec.id === selectedExecutionId) || null;
   const canSeekAutoSteer = Boolean(task && autoSteerState);
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [feedbackDialogExecutionId, setFeedbackDialogExecutionId] = useState<string | null>(null);
+  const openFeedbackDialog = (executionId?: string | null) => {
+    if (!executionId) return;
+    setFeedbackDialogExecutionId(executionId);
+    setFeedbackDialogOpen(true);
+  };
 
   // Initialize form when the task identity changes (avoid clobbering in-flight edits)
   useEffect(() => {
@@ -1100,12 +1108,12 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                             : 'border-border hover:bg-slate-800/40'
                         }`}
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-white line-clamp-2">
-                              {summaryLabel}
-                            </div>
-                            <div className="text-xs text-slate-400">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-white line-clamp-2">
+                                {summaryLabel}
+                              </div>
+                              <div className="text-xs text-slate-400">
                               Started: {formatDateTime(exec.start_time)}
                               {exec.end_time && <> • Ended: {formatDateTime(exec.end_time)}</>}
                             </div>
@@ -1113,8 +1121,22 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                               Duration: {formatExecutionDuration(exec)}{exec.timeout_allowed ? ` • Timeout: ${exec.timeout_allowed}` : ''}
                             </div>
                           </div>
-                          <div className={`text-sm font-semibold ${getStatusTone(exec.status)}`}>
-                            {exec.status}
+                          <div className="flex items-center gap-2">
+                            <div className={`text-sm font-semibold ${getStatusTone(exec.status)}`}>
+                              {exec.status}
+                            </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="p-1 text-slate-300 hover:text-slate-100"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openFeedbackDialog(exec.id);
+                                }}
+                                aria-label="Report execution issue"
+                              >
+                              <AlertCircle className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
                         {(steerFocus.autoSteerProfileName || steerFocus.manualSteerMode) && (
@@ -1139,6 +1161,18 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                   isLoadingPrompt={isLoadingSelectedPrompt}
                   isLoadingOutput={isLoadingSelectedOutput}
                 />
+                {selectedExecution && (
+                  <div className="flex justify-end mt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openFeedbackDialog(selectedExecution.id)}
+                    >
+                      <AlertCircle className="h-4 w-4 mr-2" />
+                      Report issue
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </TabsContent>
@@ -1153,6 +1187,16 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
             <CampaignsTab task={task} />
           </TabsContent>
         </Tabs>
+        <ExecutionFeedbackDialog
+          executionId={feedbackDialogExecutionId}
+          open={feedbackDialogOpen}
+          onOpenChange={(value) => {
+            setFeedbackDialogOpen(value);
+            if (!value) {
+              setFeedbackDialogExecutionId(null);
+            }
+          }}
+        />
 
         <DialogFooter className="gap-2">
           <Button

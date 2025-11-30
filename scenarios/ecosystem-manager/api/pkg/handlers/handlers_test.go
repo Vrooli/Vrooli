@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -237,6 +238,14 @@ func (f *fakeProcessor) GenerateInsightReportForTask(taskID string, limit int, s
 	return nil, nil
 }
 
+func (f *fakeProcessor) BuildInsightPrompt(taskID string, limit int, statusFilter string) (string, error) {
+	return "", nil
+}
+
+func (f *fakeProcessor) GenerateInsightReportWithCustomPrompt(taskID string, limit int, statusFilter string, customPrompt string) (*queue.InsightReport, error) {
+	return nil, nil
+}
+
 func (f *fakeProcessor) GenerateSystemInsightReport(sinceTime time.Time) (*queue.SystemInsightReport, error) {
 	return nil, nil
 }
@@ -344,6 +353,51 @@ func TestHealthCheckHandler_WithDatabaseConnected(t *testing.T) {
 	}
 	if errVal := dbDep["error"]; errVal != nil {
 		t.Fatalf("expected nil database error, got %v", errVal)
+	}
+}
+
+func TestHealthEndpointHTTPServer(t *testing.T) {
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	_, _, healthHandlers, _, _ := createTestHandlers(t, tempDir)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/health", healthHandlers.HealthCheckHandler).Methods("GET")
+
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/health")
+	if err != nil {
+		t.Fatalf("failed to call /health: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var payload map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if payload["status"] != "healthy" {
+		t.Fatalf("expected status healthy, got %v", payload["status"])
+	}
+
+	deps, ok := payload["dependencies"].(map[string]any)
+	if !ok {
+		t.Fatalf("dependencies missing or invalid type")
+	}
+
+	storage, ok := deps["storage"].(map[string]any)
+	if !ok {
+		t.Fatalf("storage dependency missing")
+	}
+	if connected, _ := storage["connected"].(bool); !connected {
+		t.Fatalf("expected storage connected=true, got %v", storage["connected"])
 	}
 }
 
@@ -789,6 +843,56 @@ func TestTaskHandlers_UpdateTaskStatus_BackwardsTransition(t *testing.T) {
 	}
 	if updated.CurrentPhase == "archived" {
 		t.Fatalf("current phase should not be archived on backwards transition")
+	}
+}
+
+func TestTaskHandlers_UpdateTaskStatus_CooldownConflict(t *testing.T) {
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	queueDir := filepath.Join(tempDir, "queue")
+	promptsDir := filepath.Join(tempDir, "prompts")
+	storage := tasks.NewStorage(queueDir)
+	assembler, err := prompts.NewAssembler(promptsDir, tempDir)
+	if err != nil {
+		t.Fatalf("Failed to create assembler: %v", err)
+	}
+
+	wsManager := websocket.NewManager()
+	handler := NewTaskHandlers(storage, assembler, &fakeProcessor{}, wsManager, nil, nil)
+
+	future := time.Now().Add(10 * time.Minute).Format(time.RFC3339)
+	task := mustSaveTask(t, storage, "failed", tasks.TaskItem{
+		ID:            "cooldown-task",
+		Type:          "scenario",
+		Operation:     "improver",
+		Target:        "landing-manager",
+		Status:        "failed",
+		CooldownUntil: future,
+	})
+
+	body := map[string]any{"status": "pending"}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("PUT", "/api/tasks/cooldown-task/status", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": task.ID})
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.UpdateTaskStatusHandler(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected %d, got %d: %s", http.StatusConflict, w.Code, w.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	errMsg, _ := resp["error"].(string)
+	if !strings.Contains(strings.ToLower(errMsg), "cool") {
+		t.Fatalf("expected cooldown error, got: %s", errMsg)
 	}
 }
 

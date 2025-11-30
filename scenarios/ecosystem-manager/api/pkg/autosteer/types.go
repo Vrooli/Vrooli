@@ -386,17 +386,18 @@ type PhasePerformance struct {
 
 // ProfilePerformance represents historical performance data for a completed execution
 type ProfilePerformance struct {
-	ID              string             `json:"id"`
-	ProfileID       string             `json:"profile_id"`
-	ScenarioName    string             `json:"scenario_name"`
-	ExecutionID     string             `json:"execution_id"`
-	StartMetrics    MetricsSnapshot    `json:"start_metrics"`
-	EndMetrics      MetricsSnapshot    `json:"end_metrics"`
-	PhaseBreakdown  []PhasePerformance `json:"phase_breakdown"`
-	TotalIterations int                `json:"total_iterations"`
-	TotalDuration   int64              `json:"total_duration"` // milliseconds
-	UserFeedback    *UserFeedback      `json:"user_feedback,omitempty"`
-	ExecutedAt      time.Time          `json:"executed_at"`
+	ID              string                   `json:"id"`
+	ProfileID       string                   `json:"profile_id"`
+	ScenarioName    string                   `json:"scenario_name"`
+	ExecutionID     string                   `json:"execution_id"`
+	StartMetrics    MetricsSnapshot          `json:"start_metrics"`
+	EndMetrics      MetricsSnapshot          `json:"end_metrics"`
+	PhaseBreakdown  []PhasePerformance       `json:"phase_breakdown"`
+	TotalIterations int                      `json:"total_iterations"`
+	TotalDuration   int64                    `json:"total_duration"` // milliseconds
+	UserFeedback    *UserFeedback            `json:"user_feedback,omitempty"`
+	FeedbackEntries []ExecutionFeedbackEntry `json:"feedback_entries,omitempty"`
+	ExecutedAt      time.Time                `json:"executed_at"`
 }
 
 // UserFeedback represents user rating and comments for an execution
@@ -404,6 +405,26 @@ type UserFeedback struct {
 	Rating      int       `json:"rating"` // 1-5
 	Comments    string    `json:"comments"`
 	SubmittedAt time.Time `json:"submitted_at"`
+}
+
+// ExecutionFeedbackEntry represents structured feedback attached to an Auto Steer execution.
+type ExecutionFeedbackEntry struct {
+	ID              string         `json:"id"`
+	Category        string         `json:"category"`
+	Severity        string         `json:"severity"`
+	SuggestedAction string         `json:"suggested_action,omitempty"`
+	Comments        string         `json:"comments,omitempty"`
+	Metadata        map[string]any `json:"metadata,omitempty"`
+	CreatedAt       time.Time      `json:"created_at"`
+}
+
+// ExecutionFeedbackRequest defines the payload used when submitting structured execution feedback.
+type ExecutionFeedbackRequest struct {
+	Category        string         `json:"category"`
+	Severity        string         `json:"severity"`
+	SuggestedAction string         `json:"suggested_action,omitempty"`
+	Comments        string         `json:"comments,omitempty"`
+	Metadata        map[string]any `json:"metadata,omitempty"`
 }
 
 // IterationEvaluation represents the result of evaluating iteration conditions

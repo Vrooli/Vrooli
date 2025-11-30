@@ -155,11 +155,11 @@ func (lc *Lifecycle) ApplyTransition(req TransitionRequest) (*TransitionOutcome,
 	rules := lifecycleRules(lc)
 	rule, ok := rules[toStatus]
 	if !ok {
-		return nil, fmt.Errorf("unsupported transition to %s", toStatus)
+		return nil, newTransitionError(TransitionErrorCodeUnsupported, "unsupported transition to %s", toStatus)
 	}
 	if len(rule.allowedFrom) > 0 {
 		if _, allowed := rule.allowedFrom[fromStatus]; !allowed {
-			return nil, fmt.Errorf("cannot move %s from %s", toStatus, fromStatus)
+			return nil, newTransitionError(TransitionErrorCodeConflict, "cannot move %s from %s", toStatus, fromStatus)
 		}
 	}
 
@@ -219,10 +219,10 @@ func lifecycleRules(lc *Lifecycle) map[string]transitionRule {
 
 				// Enforce lock unless leaving terminal state (which re-enables auto-requeue) or explicitly overridden.
 				if !isTerminalStatus(fromStatus) && !task.ProcessorAutoRequeue && !req.allowsLockOverride() {
-					return effects, fmt.Errorf("auto-requeue disabled; cannot move %s to pending", req.TaskID)
+					return effects, newTransitionError(TransitionErrorCodeConflict, "auto-requeue disabled; cannot move %s to pending", req.TaskID)
 				}
 				if remaining := cooldownRemaining(task); remaining > 0 && !req.allowsCooldownOverride() {
-					return effects, fmt.Errorf("task %s still cooling down (%v remaining)", req.TaskID, remaining)
+					return effects, newTransitionError(TransitionErrorCodeConflict, "task %s still cooling down (%v remaining)", req.TaskID, remaining)
 				}
 				if isTerminalStatus(fromStatus) {
 					task.ProcessorAutoRequeue = true

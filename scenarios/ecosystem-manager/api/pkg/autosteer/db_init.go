@@ -12,6 +12,11 @@ func EnsureTablesExist(db *sql.DB) error {
 		"auto_steer_profiles",
 		"profile_executions",
 		"profile_execution_state",
+		"execution_feedback_entries",
+	}
+
+	if err := ensureExecutionFeedbackEntriesTable(db); err != nil {
+		return fmt.Errorf("failed to ensure execution feedback entries table: %w", err)
 	}
 
 	for _, table := range tables {
@@ -116,6 +121,46 @@ func ensureProfileExecutionStateTrigger(db *sql.DB) error {
 
 	if _, err := db.Exec(query); err != nil {
 		return fmt.Errorf("failed to ensure trigger trigger_profile_execution_state_updated: %w", err)
+	}
+
+	return nil
+}
+
+func ensureExecutionFeedbackEntriesTable(db *sql.DB) error {
+	query := `
+	CREATE TABLE IF NOT EXISTS execution_feedback_entries (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		execution_task_id VARCHAR(255) NOT NULL,
+		category VARCHAR(100) NOT NULL,
+		severity VARCHAR(20) NOT NULL,
+		suggested_action TEXT,
+		comments TEXT,
+		metadata JSONB,
+		created_at TIMESTAMP DEFAULT NOW()
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_execution_feedback_entries_task_id ON execution_feedback_entries(execution_task_id);
+	`
+
+	if _, err := db.Exec(query); err != nil {
+		return fmt.Errorf("failed to ensure execution_feedback_entries table: %w", err)
+	}
+
+	_, err := db.Exec(`
+	DO $$
+	BEGIN
+		IF EXISTS (
+			SELECT 1
+			FROM pg_constraint
+			WHERE conname = 'execution_feedback_entries_execution_task_id_fkey'
+		) THEN
+			ALTER TABLE execution_feedback_entries DROP CONSTRAINT execution_feedback_entries_execution_task_id_fkey;
+		END IF;
+	END
+	$$;
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to drop legacy execution feedback foreign key: %w", err)
 	}
 
 	return nil

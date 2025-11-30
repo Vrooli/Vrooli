@@ -40,6 +40,7 @@ type HistoryServiceAPI interface {
 	GetHistory(filters HistoryFilters) ([]ProfilePerformance, error)
 	GetExecution(executionID string) (*ProfilePerformance, error)
 	SubmitFeedback(executionID string, rating int, comments string) error
+	SubmitFeedbackEntry(executionID string, req ExecutionFeedbackRequest) (*ExecutionFeedbackEntry, error)
 	GetProfileAnalytics(profileID string) (*ProfileAnalytics, error)
 }
 
@@ -266,8 +267,8 @@ func (h *AutoSteerHandlers) ResetExecution(w http.ResponseWriter, r *http.Reques
 func (h *AutoSteerHandlers) SeekExecution(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		TaskID         string `json:"task_id"`
-		ProfileID      string `json:"profile_id,omitempty"`       // Optional: for initialization if no state exists
-		ScenarioName   string `json:"scenario_name,omitempty"`    // Optional: for initialization if no state exists
+		ProfileID      string `json:"profile_id,omitempty"`    // Optional: for initialization if no state exists
+		ScenarioName   string `json:"scenario_name,omitempty"` // Optional: for initialization if no state exists
 		PhaseIndex     int    `json:"phase_index"`
 		PhaseIteration int    `json:"phase_iteration"`
 	}
@@ -419,6 +420,25 @@ func (h *AutoSteerHandlers) SubmitFeedback(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// SubmitFeedbackEntry records structured feedback for an execution.
+func (h *AutoSteerHandlers) SubmitFeedbackEntry(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	executionID := vars["executionId"]
+
+	var req ExecutionFeedbackRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid feedback payload: "+err.Error())
+		return
+	}
+	entry, err := h.historyService.SubmitFeedbackEntry(executionID, req)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to submit feedback entry: "+err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, entry)
 }
 
 // GetProfileAnalytics handles GET /api/auto-steer/analytics/:profileId

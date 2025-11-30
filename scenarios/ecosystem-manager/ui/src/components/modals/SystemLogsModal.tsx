@@ -8,10 +8,12 @@ import { useQuery } from '@tanstack/react-query';
 import { Activity, ChevronsDown, Clock3, History, LineChart, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
+import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Input } from '../ui/input';
 import { ExecutionDetailCard } from '../executions/ExecutionDetailCard';
+import { ExecutionFeedbackPanel } from '@/components/executions/ExecutionFeedbackPanel';
 import { SystemInsightsTab } from '../insights';
 import { useSystemLogs } from '@/hooks/useSystemLogs';
 import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
@@ -818,6 +820,13 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                         </div>
                       )}
                     </div>
+                    <ExecutionFeedbackPanel
+                      executionId={selectedPerformance.execution_id}
+                      entries={selectedPerformance.feedback_entries ?? []}
+                      onSubmitted={() => {
+                        refetchPerformance();
+                      }}
+                    />
                   </div>
                 )}
               </div>

@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -39,6 +40,26 @@ type TaskHandlers struct {
 	autoSteerProfiles *autosteer.ProfileService
 	coordinator       *tasks.Coordinator
 	lifecycle         *tasks.Lifecycle
+}
+
+func writeTransitionError(w http.ResponseWriter, prefix string, err error) bool {
+	var terr *tasks.TransitionError
+	if !errors.As(err, &terr) {
+		return false
+	}
+
+	status := http.StatusConflict
+	if terr.Code == tasks.TransitionErrorCodeUnsupported {
+		status = http.StatusBadRequest
+	}
+
+	message := terr.Error()
+	if prefix != "" {
+		message = fmt.Sprintf("%s: %s", prefix, message)
+	}
+
+	writeError(w, message, status)
+	return true
 }
 
 // taskWithRuntime decorates a task with live execution metadata without mutating persisted files.
@@ -797,6 +818,9 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		ForceResave:    true,
 	})
 	if err != nil {
+		if writeTransitionError(w, "Failed to apply status transition", err) {
+			return
+		}
 		writeError(w, fmt.Sprintf("Failed to apply status transition: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -890,6 +914,9 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 		ForceResave:    true,
 	})
 	if err != nil {
+		if writeTransitionError(w, "Failed to apply status transition", err) {
+			return
+		}
 		writeError(w, fmt.Sprintf("Failed to apply status transition: %v", err), http.StatusInternalServerError)
 		return
 	}

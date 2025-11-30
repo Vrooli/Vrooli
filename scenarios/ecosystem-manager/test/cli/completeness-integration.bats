@@ -29,8 +29,8 @@
 @test "completeness outputs human-readable text by default" {
   run vrooli scenario completeness deployment-manager
   [ "$status" -eq 0 ]
-  [[ "$output" == *"Scenario: deployment-manager"* ]]
-  [[ "$output" == *"Completeness Score:"* ]]
+  # The scenario-completeness-scoring CLI outputs in uppercase
+  [[ "$output" == *"COMPLETENESS SCORE:"* ]]
   [[ "$output" == *"Quality Metrics"* ]]
   [[ "$output" == *"Coverage Metrics"* ]]
   [[ "$output" == *"Quantity Metrics"* ]]
@@ -75,11 +75,20 @@
   [ "$status" -eq 0 ]
 
   total=$(echo "$output" | jq -r '.score')
+  base_score=$(echo "$output" | jq -r '.base_score // .breakdown.base_score // 0')
+  validation_penalty=$(echo "$output" | jq -r '.validation_penalty // .breakdown.validation_penalty // 0')
   quality=$(echo "$output" | jq -r '.breakdown.quality.score')
   coverage=$(echo "$output" | jq -r '.breakdown.coverage.score')
   quantity=$(echo "$output" | jq -r '.breakdown.quantity.score')
+  ui=$(echo "$output" | jq -r '.breakdown.ui.score // 0')
 
-  computed_total=$((quality + coverage + quantity))
+  # base_score = quality + coverage + quantity + ui
+  computed_base=$((quality + coverage + quantity + ui))
+  [ "$computed_base" -eq "$base_score" ]
+
+  # final score = base_score - validation_penalty (capped at 0)
+  computed_total=$((base_score - validation_penalty))
+  [ "$computed_total" -lt 0 ] && computed_total=0
   [ "$computed_total" -eq "$total" ]
 }
 

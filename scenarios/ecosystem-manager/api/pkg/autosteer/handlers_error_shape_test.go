@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 type stubProfileService struct {
@@ -58,6 +59,17 @@ func (s *stubHistoryService) GetExecution(executionID string) (*ProfilePerforman
 }
 func (s *stubHistoryService) SubmitFeedback(executionID string, rating int, comments string) error {
 	return nil
+}
+func (s *stubHistoryService) SubmitFeedbackEntry(executionID string, req ExecutionFeedbackRequest) (*ExecutionFeedbackEntry, error) {
+	return &ExecutionFeedbackEntry{
+		ID:              executionID,
+		Category:        req.Category,
+		Severity:        req.Severity,
+		SuggestedAction: req.SuggestedAction,
+		Comments:        req.Comments,
+		Metadata:        req.Metadata,
+		CreatedAt:       time.Now().UTC(),
+	}, nil
 }
 func (s *stubHistoryService) GetProfileAnalytics(profileID string) (*ProfileAnalytics, error) {
 	return nil, nil

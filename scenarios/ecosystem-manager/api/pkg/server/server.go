@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -131,16 +132,23 @@ func (a *Application) Run(ctx context.Context) error {
 	systemlog.Info(fmt.Sprintf("HTTP server listening on port %s", a.port))
 
 	server := &http.Server{
-		Addr:         ":" + a.port,
 		Handler:      router,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
+	listener, err := net.Listen("tcp", ":"+a.port)
+	if err != nil {
+		a.shutdown()
+		return fmt.Errorf("failed to bind API port %s: %w", a.port, err)
+	}
+
+	log.Printf("✅ Ecosystem Manager API listening on port %s", a.port)
+
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- server.ListenAndServe()
+		errCh <- server.Serve(listener)
 	}()
 
 	select {
@@ -517,6 +525,7 @@ func (a *Application) registerAutoSteerRoutes(api *mux.Router) {
 	api.HandleFunc("/auto-steer/history", a.autoSteerHandlers.GetHistory).Methods("GET")
 	api.HandleFunc("/auto-steer/history/{executionId}", a.autoSteerHandlers.GetExecution).Methods("GET")
 	api.HandleFunc("/auto-steer/history/{executionId}/feedback", a.autoSteerHandlers.SubmitFeedback).Methods("POST")
+	api.HandleFunc("/auto-steer/history/{executionId}/feedback/entries", a.autoSteerHandlers.SubmitFeedbackEntry).Methods("POST")
 
 	api.HandleFunc("/auto-steer/analytics/{profileId}", a.autoSteerHandlers.GetProfileAnalytics).Methods("GET")
 }

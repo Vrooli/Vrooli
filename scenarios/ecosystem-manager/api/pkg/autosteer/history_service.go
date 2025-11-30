@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -115,13 +116,21 @@ func (s *HistoryService) GetHistory(filters HistoryFilters) ([]ProfilePerformanc
 			return nil, fmt.Errorf("failed to unmarshal phase breakdown: %w", err)
 		}
 
-		// Handle user feedback
+		// Handle structured feedback entries
 		if userRating.Valid {
 			perf.UserFeedback = &UserFeedback{
 				Rating:      int(userRating.Int64),
 				Comments:    userComments.String,
 				SubmittedAt: userFeedbackAt.Time,
 			}
+		}
+
+		if perf.ExecutionID != "" {
+			entries, err := s.loadFeedbackEntries(perf.ExecutionID)
+			if err != nil {
+				return nil, err
+			}
+			perf.FeedbackEntries = entries
 		}
 
 		history = append(history, perf)
@@ -132,6 +141,68 @@ func (s *HistoryService) GetHistory(filters HistoryFilters) ([]ProfilePerformanc
 	}
 
 	return history, nil
+}
+
+func (s *HistoryService) loadFeedbackEntries(executionID string) ([]ExecutionFeedbackEntry, error) {
+	if strings.TrimSpace(executionID) == "" {
+		return nil, nil
+	}
+
+	query := `
+		SELECT id, category, severity, suggested_action, comments, metadata, created_at
+		FROM execution_feedback_entries
+		WHERE execution_task_id = $1
+		ORDER BY created_at DESC
+	`
+
+	rows, err := s.db.Query(query, executionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query feedback entries: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []ExecutionFeedbackEntry
+	for rows.Next() {
+		var entry ExecutionFeedbackEntry
+		var metadataJSON []byte
+		var suggestedAction sql.NullString
+		var comments sql.NullString
+
+		if err := rows.Scan(
+			&entry.ID,
+			&entry.Category,
+			&entry.Severity,
+			&suggestedAction,
+			&comments,
+			&metadataJSON,
+			&entry.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan feedback row: %w", err)
+		}
+
+		if suggestedAction.Valid {
+			entry.SuggestedAction = suggestedAction.String
+		}
+		if comments.Valid {
+			entry.Comments = comments.String
+		}
+
+		if len(metadataJSON) > 0 {
+			var metadata map[string]any
+			if err := json.Unmarshal(metadataJSON, &metadata); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal feedback metadata: %w", err)
+			}
+			entry.Metadata = metadata
+		}
+
+		entries = append(entries, entry)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating feedback rows: %w", err)
+	}
+
+	return entries, nil
 }
 
 // GetExecution retrieves a specific execution by ID
@@ -186,13 +257,21 @@ func (s *HistoryService) GetExecution(executionID string) (*ProfilePerformance, 
 		return nil, fmt.Errorf("failed to unmarshal phase breakdown: %w", err)
 	}
 
-	// Handle user feedback
+	// Handle structured feedback entries
 	if userRating.Valid {
 		perf.UserFeedback = &UserFeedback{
 			Rating:      int(userRating.Int64),
 			Comments:    userComments.String,
 			SubmittedAt: userFeedbackAt.Time,
 		}
+	}
+
+	if perf.ExecutionID != "" {
+		entries, err := s.loadFeedbackEntries(perf.ExecutionID)
+		if err != nil {
+			return nil, err
+		}
+		perf.FeedbackEntries = entries
 	}
 
 	return &perf, nil
@@ -221,6 +300,54 @@ func (s *HistoryService) SubmitFeedback(executionID string, rating int, comments
 	}
 
 	return nil
+}
+
+// SubmitFeedbackEntry records structured feedback for an execution.
+func (s *HistoryService) SubmitFeedbackEntry(executionID string, req ExecutionFeedbackRequest) (*ExecutionFeedbackEntry, error) {
+	execID := strings.TrimSpace(executionID)
+	if execID == "" {
+		return nil, fmt.Errorf("execution ID is required")
+	}
+
+	category := strings.TrimSpace(req.Category)
+	if category == "" {
+		return nil, fmt.Errorf("category is required")
+	}
+
+	severity := strings.TrimSpace(req.Severity)
+	if severity == "" {
+		return nil, fmt.Errorf("severity is required")
+	}
+
+	var metadataValue interface{}
+	if len(req.Metadata) > 0 {
+		payload, err := json.Marshal(req.Metadata)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal metadata: %w", err)
+		}
+		metadataValue = string(payload)
+	}
+
+	var entry ExecutionFeedbackEntry
+	err := s.db.QueryRow(`
+		INSERT INTO execution_feedback_entries (
+			execution_task_id, category, severity, suggested_action, comments, metadata
+		) VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, created_at
+	`, execID, category, severity, req.SuggestedAction, req.Comments, metadataValue).Scan(&entry.ID, &entry.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert feedback entry: %w", err)
+	}
+
+	entry.Category = category
+	entry.Severity = severity
+	entry.SuggestedAction = req.SuggestedAction
+	entry.Comments = req.Comments
+	if len(req.Metadata) > 0 {
+		entry.Metadata = req.Metadata
+	}
+
+	return &entry, nil
 }
 
 // ProfileAnalytics represents aggregated analytics for a profile

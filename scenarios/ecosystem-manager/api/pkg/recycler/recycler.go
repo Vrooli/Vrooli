@@ -101,8 +101,8 @@ func (r *Recycler) wakeProcessor(taskID string) {
 // Start launches the background loop if not already running.
 func (r *Recycler) Start() {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	if r.active {
+		r.mu.Unlock()
 		return
 	}
 
@@ -114,8 +114,12 @@ func (r *Recycler) Start() {
 	r.cooldownTimers = make(map[string]struct{})
 	r.active = true
 
+	r.mu.Unlock()
+
+	log.Println("ℹ️  Recycler seeding existing queue items")
 	// Seed initial work if enabled; ignore errors to avoid blocking startup
 	r.seedFromQueues()
+	log.Println("ℹ️  Recycler seeding complete")
 
 	go r.loop()
 }

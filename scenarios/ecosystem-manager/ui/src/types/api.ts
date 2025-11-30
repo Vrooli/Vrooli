@@ -291,6 +291,25 @@ export interface ProfilePerformance {
   total_duration: number;
   user_feedback?: UserFeedback;
   executed_at: string;
+  feedback_entries?: ExecutionFeedbackEntry[];
+}
+
+export interface ExecutionFeedbackEntry {
+  id: string;
+  category: string;
+  severity: 'low' | 'medium' | 'high' | 'critical' | string;
+  suggested_action?: string;
+  comments?: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface ExecutionFeedbackEntryPayload {
+  category: string;
+  severity: 'low' | 'medium' | 'high' | 'critical' | string;
+  suggested_action?: string;
+  comments?: string;
+  metadata?: Record<string, unknown>;
 }
 
 // ==================== Discovery Types ====================

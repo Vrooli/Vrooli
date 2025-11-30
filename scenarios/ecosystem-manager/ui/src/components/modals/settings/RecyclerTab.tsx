@@ -64,7 +64,7 @@ export function RecyclerTab({ settings, onChange }: RecyclerTabProps) {
             net.
           </p>
           <p>
-            It pairs a lightweight LLM summary with `vrooli scenario completeness &lt;scenario&gt;`
+            It pairs a lightweight LLM summary with `scenario-completeness-scoring score &lt;scenario&gt;`
             so recycling decisions come from the same scoring pipeline used across scenarios. Retry
             and backoff controls keep recycling from thrashing when a task is unhealthy.
           </p>
