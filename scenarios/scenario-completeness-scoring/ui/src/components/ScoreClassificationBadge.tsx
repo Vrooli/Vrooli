@@ -4,13 +4,26 @@ interface ScoreClassificationBadgeProps {
   classification: string;
   score?: number;
   className?: string;
+  /** Show tooltip with classification description on hover */
+  showTooltip?: boolean;
 }
+
+// Classification descriptions to help first-time users understand what each level means
+const classificationDescriptions: Record<string, string> = {
+  production_ready: "96-100 — Ready for production deployment with comprehensive coverage",
+  nearly_ready: "81-95 — Almost complete, minor gaps to address before production",
+  mostly_complete: "66-80 — Core functionality works, needs testing and polish",
+  functional_incomplete: "51-65 — Basic functionality present, significant gaps remain",
+  foundation_laid: "26-50 — Initial structure in place, major work still needed",
+  early_stage: "0-25 — Early development, fundamental features not yet implemented",
+};
 
 // Color coding based on classification
 export function ScoreClassificationBadge({
   classification,
   score,
   className,
+  showTooltip = true,
 }: ScoreClassificationBadgeProps) {
   const normalizedClass = classification.toLowerCase().replace(/[_\s]+/g, "_");
 
@@ -48,6 +61,7 @@ export function ScoreClassificationBadge({
   };
 
   const { color, bg, emoji } = config[normalizedClass] || config.early_stage;
+  const description = showTooltip ? (classificationDescriptions[normalizedClass] || classificationDescriptions.early_stage) : undefined;
 
   const displayName = classification.replace(/_/g, " ");
 
@@ -60,6 +74,7 @@ export function ScoreClassificationBadge({
         className
       )}
       data-testid="score-classification-badge"
+      title={description}
     >
       <span>{emoji}</span>
       <span>{displayName}</span>

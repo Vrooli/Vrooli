@@ -7,8 +7,11 @@ import (
 	"strings"
 )
 
-// MetricCounts represents basic metric counts for validation analysis
-type MetricCounts struct {
+// ValidationInputCounts provides the aggregate counts needed for validation analysis.
+// This is distinct from scoring.MetricCounts which tracks passing/total for score calculation.
+// ValidationInputCounts captures the total counts of requirements and tests to analyze
+// ratios and patterns in the validation approach (e.g., suspicious 1:1 test-to-requirement ratios).
+type ValidationInputCounts struct {
 	RequirementsTotal int
 	TestsTotal        int
 }
@@ -16,7 +19,7 @@ type MetricCounts struct {
 // AnalyzeValidationQuality performs comprehensive validation quality analysis
 // This is the main entry point that detects all 7 anti-patterns
 func AnalyzeValidationQuality(
-	metrics MetricCounts,
+	metrics ValidationInputCounts,
 	requirements []Requirement,
 	targets []OperationalTarget,
 	scenarioRoot string,
@@ -25,12 +28,12 @@ func AnalyzeValidationQuality(
 	patterns := make(map[string]interface{})
 	totalPenalty := 0
 
-	penaltyConfigs := DefaultPenaltyConfigs()
+	penaltyParams := DefaultPenaltyParameters()
 	validationConfig := DefaultValidationConfig()
 	components := DetectScenarioComponents(scenarioRoot)
 
 	// Issue 1: Insufficient test coverage (suspicious 1:1 ratio)
-	issue1, penalty1 := analyzeInsufficientTestCoverage(metrics, requirements, penaltyConfigs, validationConfig)
+	issue1, penalty1 := analyzeInsufficientTestCoverage(metrics, requirements, penaltyParams, validationConfig)
 	if issue1 != nil {
 		issues = append(issues, *issue1)
 		patterns["insufficient_test_coverage"] = issue1
@@ -38,7 +41,7 @@ func AnalyzeValidationQuality(
 	}
 
 	// Issue 2: Invalid test location
-	issue2, penalty2 := analyzeInvalidTestLocations(requirements, metrics, scenarioRoot, components, penaltyConfigs)
+	issue2, penalty2 := analyzeInvalidTestLocations(requirements, metrics, scenarioRoot, components, penaltyParams)
 	if issue2 != nil {
 		issues = append(issues, *issue2)
 		patterns["invalid_test_location"] = issue2
@@ -46,7 +49,7 @@ func AnalyzeValidationQuality(
 	}
 
 	// Issue 3: Monolithic test files
-	issue3, penalty3 := analyzeMonolithicTestFiles(requirements, penaltyConfigs)
+	issue3, penalty3 := analyzeMonolithicTestFiles(requirements, penaltyParams)
 	if issue3 != nil {
 		issues = append(issues, *issue3)
 		patterns["monolithic_test_files"] = issue3
@@ -54,7 +57,7 @@ func AnalyzeValidationQuality(
 	}
 
 	// Issue 4: Ungrouped operational targets
-	issue4, penalty4 := analyzeUngroupedTargets(targets, requirements, penaltyConfigs, validationConfig)
+	issue4, penalty4 := analyzeUngroupedTargets(targets, requirements, penaltyParams, validationConfig)
 	if issue4 != nil {
 		issues = append(issues, *issue4)
 		patterns["ungrouped_operational_targets"] = issue4
@@ -62,7 +65,7 @@ func AnalyzeValidationQuality(
 	}
 
 	// Issue 5: Insufficient validation layers
-	issue5, penalty5 := analyzeInsufficientLayers(requirements, scenarioRoot, components, penaltyConfigs, validationConfig)
+	issue5, penalty5 := analyzeInsufficientLayers(requirements, scenarioRoot, components, penaltyParams, validationConfig)
 	if issue5 != nil {
 		issues = append(issues, *issue5)
 		patterns["insufficient_validation_layers"] = issue5
@@ -70,7 +73,7 @@ func AnalyzeValidationQuality(
 	}
 
 	// Issue 6: Superficial test implementation
-	issue6, penalty6 := analyzeSuperficialTests(requirements, scenarioRoot, penaltyConfigs)
+	issue6, penalty6 := analyzeSuperficialTests(requirements, scenarioRoot, penaltyParams)
 	if issue6 != nil {
 		issues = append(issues, *issue6)
 		patterns["superficial_test_implementation"] = issue6
@@ -78,7 +81,7 @@ func AnalyzeValidationQuality(
 	}
 
 	// Issue 7: Missing test automation
-	issue7, penalty7 := analyzeMissingAutomation(requirements, penaltyConfigs, validationConfig)
+	issue7, penalty7 := analyzeMissingAutomation(requirements, penaltyParams, validationConfig)
 	if issue7 != nil {
 		issues = append(issues, *issue7)
 		patterns["missing_test_automation"] = issue7
@@ -106,12 +109,12 @@ func AnalyzeValidationQuality(
 
 // analyzeInsufficientTestCoverage detects suspicious 1:1 test-to-requirement ratio
 func analyzeInsufficientTestCoverage(
-	metrics MetricCounts,
+	metrics ValidationInputCounts,
 	requirements []Requirement,
-	penaltyConfigs map[string]PenaltyConfig,
+	penaltyParams map[string]PenaltyParameters,
 	validationConfig ValidationConfig,
 ) (*ValidationIssue, int) {
-	config := penaltyConfigs["insufficient_test_coverage"]
+	config := penaltyParams["insufficient_test_coverage"]
 
 	if metrics.RequirementsTotal == 0 {
 		return nil, 0
@@ -143,12 +146,12 @@ func analyzeInsufficientTestCoverage(
 // analyzeInvalidTestLocations detects requirements referencing unsupported test/ directories
 func analyzeInvalidTestLocations(
 	requirements []Requirement,
-	metrics MetricCounts,
+	metrics ValidationInputCounts,
 	scenarioRoot string,
 	components ScenarioComponents,
-	penaltyConfigs map[string]PenaltyConfig,
+	penaltyParams map[string]PenaltyParameters,
 ) (*ValidationIssue, int) {
-	config := penaltyConfigs["invalid_test_location"]
+	config := penaltyParams["invalid_test_location"]
 
 	// Count requirements with unsupported test refs
 	var invalidPaths []InvalidPathInfo
@@ -224,9 +227,9 @@ func analyzeInvalidTestLocations(
 // analyzeMonolithicTestFiles detects test files that validate too many requirements
 func analyzeMonolithicTestFiles(
 	requirements []Requirement,
-	penaltyConfigs map[string]PenaltyConfig,
+	penaltyParams map[string]PenaltyParameters,
 ) (*ValidationIssue, int) {
-	config := penaltyConfigs["monolithic_test_files"]
+	config := penaltyParams["monolithic_test_files"]
 
 	analysis := AnalyzeTestRefUsage(requirements)
 
@@ -272,10 +275,10 @@ func analyzeMonolithicTestFiles(
 func analyzeUngroupedTargets(
 	targets []OperationalTarget,
 	requirements []Requirement,
-	penaltyConfigs map[string]PenaltyConfig,
+	penaltyParams map[string]PenaltyParameters,
 	validationConfig ValidationConfig,
 ) (*ValidationIssue, int) {
-	config := penaltyConfigs["ungrouped_operational_targets"]
+	config := penaltyParams["ungrouped_operational_targets"]
 
 	analysis := AnalyzeTargetGrouping(targets, requirements)
 
@@ -311,10 +314,10 @@ func analyzeInsufficientLayers(
 	requirements []Requirement,
 	scenarioRoot string,
 	components ScenarioComponents,
-	penaltyConfigs map[string]PenaltyConfig,
+	penaltyParams map[string]PenaltyParameters,
 	validationConfig ValidationConfig,
 ) (*ValidationIssue, int) {
-	config := penaltyConfigs["insufficient_validation_layers"]
+	config := penaltyParams["insufficient_validation_layers"]
 	applicableLayers := GetApplicableLayers(components)
 
 	var diversityIssues []AffectedRequirement
@@ -419,9 +422,9 @@ func analyzeInsufficientLayers(
 func analyzeSuperficialTests(
 	requirements []Requirement,
 	scenarioRoot string,
-	penaltyConfigs map[string]PenaltyConfig,
+	penaltyParams map[string]PenaltyParameters,
 ) (*ValidationIssue, int) {
-	config := penaltyConfigs["superficial_test_implementation"]
+	config := penaltyParams["superficial_test_implementation"]
 
 	lowQualityTests := FindLowQualityTests(requirements, scenarioRoot)
 
@@ -460,10 +463,10 @@ func analyzeSuperficialTests(
 // analyzeMissingAutomation detects excessive manual validation usage
 func analyzeMissingAutomation(
 	requirements []Requirement,
-	penaltyConfigs map[string]PenaltyConfig,
+	penaltyParams map[string]PenaltyParameters,
 	validationConfig ValidationConfig,
 ) (*ValidationIssue, int) {
-	config := penaltyConfigs["missing_test_automation"]
+	config := penaltyParams["missing_test_automation"]
 
 	// Count total and manual validations
 	totalValidations := 0

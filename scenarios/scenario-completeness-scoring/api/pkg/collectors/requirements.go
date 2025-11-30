@@ -120,9 +120,9 @@ func loadSyncMetadata(scenarioRoot string) *SyncMetadata {
 
 // calculateRequirementPass calculates requirement pass rate
 // [REQ:SCS-CORE-001A] Requirement pass rate calculation
-func calculateRequirementPass(requirements []Requirement, syncData *SyncMetadata) PassMetrics {
+func calculateRequirementPass(requirements []Requirement, syncData *SyncMetadata) scoring.MetricCounts {
 	if len(requirements) == 0 {
-		return PassMetrics{Total: 0, Passing: 0}
+		return scoring.MetricCounts{Total: 0, Passing: 0}
 	}
 
 	total := 0
@@ -153,13 +153,13 @@ func calculateRequirementPass(requirements []Requirement, syncData *SyncMetadata
 		}
 	}
 
-	return PassMetrics{Total: total, Passing: passing}
+	return scoring.MetricCounts{Total: total, Passing: passing}
 }
 
 // calculateTargetPass calculates operational target pass rate
 // [REQ:SCS-CORE-001A] Target pass rate calculation
 // Uses sync metadata operational_targets when available (matches JS behavior)
-func calculateTargetPass(requirements []Requirement, syncData *SyncMetadata) PassMetrics {
+func calculateTargetPass(requirements []Requirement, syncData *SyncMetadata) scoring.MetricCounts {
 	// First, check if sync metadata has operational_targets (preferred source)
 	if syncData != nil && len(syncData.OperationalTargets) > 0 {
 		return calculateTargetPassFromSyncMetadata(syncData)
@@ -211,12 +211,12 @@ func calculateTargetPass(requirements []Requirement, syncData *SyncMetadata) Pas
 		}
 	}
 
-	return PassMetrics{Total: total, Passing: passing}
+	return scoring.MetricCounts{Total: total, Passing: passing}
 }
 
 // calculateTargetPassFromSyncMetadata uses pre-computed operational targets from sync metadata
 // This matches the JS behavior which prioritizes sync metadata operational_targets
-func calculateTargetPassFromSyncMetadata(syncData *SyncMetadata) PassMetrics {
+func calculateTargetPassFromSyncMetadata(syncData *SyncMetadata) scoring.MetricCounts {
 	total := len(syncData.OperationalTargets)
 	passing := 0
 
@@ -240,7 +240,7 @@ func calculateTargetPassFromSyncMetadata(syncData *SyncMetadata) PassMetrics {
 		}
 	}
 
-	return PassMetrics{Total: total, Passing: passing}
+	return scoring.MetricCounts{Total: total, Passing: passing}
 }
 
 // extractTargetFromPrdRef extracts OT-P0-001 style target IDs from prd_ref field
@@ -257,7 +257,7 @@ func extractTargetFromPrdRef(prdRef string) string {
 }
 
 // countPriorityRequirements counts P0/P1 requirements as proxy for targets
-func countPriorityRequirements(requirements []Requirement, syncData *SyncMetadata) PassMetrics {
+func countPriorityRequirements(requirements []Requirement, syncData *SyncMetadata) scoring.MetricCounts {
 	total := 0
 	passing := 0
 
@@ -278,7 +278,7 @@ func countPriorityRequirements(requirements []Requirement, syncData *SyncMetadat
 		}
 	}
 
-	return PassMetrics{Total: total, Passing: passing}
+	return scoring.MetricCounts{Total: total, Passing: passing}
 }
 
 // buildRequirementTrees builds requirement trees for depth calculation

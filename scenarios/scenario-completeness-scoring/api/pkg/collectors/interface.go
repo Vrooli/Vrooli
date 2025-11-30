@@ -128,19 +128,10 @@ func (c *MetricsCollector) CollectWithPartialResults(scenarioName string) (*Coll
 	if c.shouldCollect(CollectorRequirements) {
 		requirements := loadRequirements(scenarioRoot)
 		syncData := loadSyncMetadata(scenarioRoot)
-		reqPass := calculateRequirementPass(requirements, syncData)
-		targetPass := calculateTargetPass(requirements, syncData)
-		reqTrees := buildRequirementTrees(requirements)
-
-		metrics.Requirements = scoring.MetricCounts{
-			Total:   reqPass.Total,
-			Passing: reqPass.Passing,
-		}
-		metrics.Targets = scoring.MetricCounts{
-			Total:   targetPass.Total,
-			Passing: targetPass.Passing,
-		}
-		metrics.Requirements_ = reqTrees
+		// Functions now return scoring.MetricCounts directly (domain compression)
+		metrics.Requirements = calculateRequirementPass(requirements, syncData)
+		metrics.Targets = calculateTargetPass(requirements, syncData)
+		metrics.Requirements_ = buildRequirementTrees(requirements)
 
 		partial.MarkAvailable(CollectorRequirements)
 		c.recordSuccess(CollectorRequirements)
@@ -236,11 +227,9 @@ func (c *MetricsCollector) LoadRequirements(scenarioName string) []domain.Requir
 	return loadRequirements(scenarioRoot)
 }
 
-// PassMetrics holds pass/fail counts for scoring calculations
-type PassMetrics struct {
-	Total   int
-	Passing int
-}
+// NOTE: PassMetrics type was removed in domain compression.
+// Use scoring.MetricCounts directly - it has the same structure (Total, Passing int)
+// and is the canonical type for pass/fail counts used in score calculation.
 
 // Type aliases for backward compatibility - these delegate to domain types
 // to maintain a clean transition while avoiding breaking changes.

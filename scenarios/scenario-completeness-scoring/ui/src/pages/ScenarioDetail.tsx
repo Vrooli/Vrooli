@@ -10,6 +10,7 @@ import {
   Beaker,
   Check,
   AlertTriangle,
+  Lightbulb,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { ScoreBar } from "../components/ScoreBar";
@@ -385,6 +386,7 @@ export function ScenarioDetail({ scenario, onBack, onOpenConfig }: ScenarioDetai
             recommendations={recommendations ?? []}
             selections={whatIfSelections}
             onSelectionChange={setWhatIfSelections}
+            onOpenConfig={onOpenConfig}
           />
         </div>
 
@@ -424,11 +426,13 @@ function WhatIfAnalysis({
   recommendations,
   selections,
   onSelectionChange,
+  onOpenConfig,
 }: {
   currentScore: number;
   recommendations: Recommendation[];
   selections: Record<string, boolean>;
   onSelectionChange: (s: Record<string, boolean>) => void;
+  onOpenConfig?: () => void;
 }) {
   // Calculate projected score based on selections
   const projectedScore = useMemo(() => {
@@ -569,6 +573,27 @@ function WhatIfAnalysis({
           )}
         </div>
       </div>
+
+      {/* Configuration tip - shown when user has selections */}
+      {selectedCount > 0 && onOpenConfig && (
+        <div className="mt-4 p-3 rounded-lg border border-blue-500/20 bg-blue-500/5" data-testid="config-tip">
+          <div className="flex items-start gap-2">
+            <Lightbulb className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-xs text-blue-300/80">
+                Some scoring components can be adjusted via configuration. Use presets like "Skip E2E" if certain collectors are unavailable.
+              </p>
+              <button
+                onClick={onOpenConfig}
+                className="mt-2 text-xs text-blue-400 hover:text-blue-300 underline underline-offset-2"
+                type="button"
+              >
+                Open Configuration →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

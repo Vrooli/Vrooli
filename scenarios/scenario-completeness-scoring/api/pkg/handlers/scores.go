@@ -202,7 +202,7 @@ func (ctx *Context) HandleGetScore(w http.ResponseWriter, r *http.Request) {
 	requirements := ctx.Collector.LoadRequirements(scenarioName)
 
 	validationAnalysis := validators.AnalyzeValidationQuality(
-		validators.MetricCounts{
+		validators.ValidationInputCounts{
 			RequirementsTotal: metrics.Requirements.Total,
 			TestsTotal:        metrics.Tests.Total,
 		},
@@ -366,7 +366,7 @@ func (ctx *Context) HandleValidationAnalysis(w http.ResponseWriter, r *http.Requ
 	requirements := ctx.Collector.LoadRequirements(scenarioName)
 
 	analysis := validators.AnalyzeValidationQuality(
-		validators.MetricCounts{
+		validators.ValidationInputCounts{
 			RequirementsTotal: metrics.Requirements.Total,
 			TestsTotal:        metrics.Tests.Total,
 		},

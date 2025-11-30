@@ -136,8 +136,10 @@ type ValidationLayerAnalysis struct {
 	HasManual       bool     `json:"has_manual"`
 }
 
-// PenaltyConfig holds penalty configuration for an issue type
-type PenaltyConfig struct {
+// PenaltyParameters holds penalty calculation parameters for an issue type.
+// This is distinct from config.PenaltyConfig which controls which penalties are enabled/disabled.
+// PenaltyParameters defines HOW penalties are calculated (values, multipliers, thresholds).
+type PenaltyParameters struct {
 	Description       string  `json:"description"`
 	BasePenalty       int     `json:"base_penalty,omitempty"`
 	Multiplier        int     `json:"multiplier,omitempty"`
@@ -178,9 +180,9 @@ type ValidationConfig struct {
 	} `json:"playbook_quality"`
 }
 
-// DefaultPenaltyConfigs returns the default penalty configurations
-func DefaultPenaltyConfigs() map[string]PenaltyConfig {
-	return map[string]PenaltyConfig{
+// DefaultPenaltyParameters returns the default penalty calculation parameters
+func DefaultPenaltyParameters() map[string]PenaltyParameters {
+	return map[string]PenaltyParameters{
 		"insufficient_test_coverage": {
 			Description: "Suspicious 1:1 test-to-requirement ratio",
 			BasePenalty: 5,

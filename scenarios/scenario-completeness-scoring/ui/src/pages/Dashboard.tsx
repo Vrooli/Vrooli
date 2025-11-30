@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, Settings, AlertCircle, ExternalLink, Search, Activity, CheckCircle2, AlertTriangle, XCircle, Clock, TrendingDown, Zap, Sparkles } from "lucide-react";
+import { RefreshCw, Settings, AlertCircle, ExternalLink, Search, Activity, CheckCircle2, AlertTriangle, XCircle, Clock, TrendingDown, TrendingUp, Minus, Zap, Sparkles } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { ScoreClassificationBadge } from "../components/ScoreClassificationBadge";
 import { HealthBadge } from "../components/HealthBadge";
@@ -10,19 +10,42 @@ import {
   fetchScores,
   fetchCollectorHealth,
   refreshAllScores,
+  calculateScore,
   type ScenarioScore,
 } from "../lib/api";
 
 interface DashboardProps {
   onSelectScenario: (scenario: string) => void;
   onOpenConfig: () => void;
+  /** Controlled search query - persisted by parent */
+  searchQuery?: string;
+  /** Callback when search query changes */
+  onSearchChange?: (query: string) => void;
+  /** Controlled category filter - persisted by parent */
+  categoryFilter?: string;
+  /** Callback when category filter changes */
+  onCategoryChange?: (category: string) => void;
 }
 
 // [REQ:SCS-UI-001] Dashboard overview with all scenarios
-export function Dashboard({ onSelectScenario, onOpenConfig }: DashboardProps) {
+export function Dashboard({
+  onSelectScenario,
+  onOpenConfig,
+  searchQuery: controlledSearchQuery,
+  onSearchChange,
+  categoryFilter: controlledCategoryFilter,
+  onCategoryChange,
+}: DashboardProps) {
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  // Use controlled state if provided, otherwise fall back to local state
+  const [localSearchQuery, setLocalSearchQuery] = useState("");
+  const [localCategoryFilter, setLocalCategoryFilter] = useState<string>("all");
+
+  const searchQuery = controlledSearchQuery ?? localSearchQuery;
+  const setSearchQuery = onSearchChange ?? setLocalSearchQuery;
+  const categoryFilter = controlledCategoryFilter ?? localCategoryFilter;
+  const setCategoryFilter = onCategoryChange ?? setLocalCategoryFilter;
+
   const { recentScenarios, markViewed, updateScenarioData } = useRecentScenarios();
 
   const {
@@ -39,6 +62,17 @@ export function Dashboard({ onSelectScenario, onOpenConfig }: DashboardProps) {
   // Bulk refresh mutation for ops users
   const bulkRefreshMutation = useMutation({
     mutationFn: refreshAllScores,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scores"] });
+    },
+  });
+
+  // Single scenario recalculate mutation (for quick actions)
+  const [recalculating, setRecalculating] = useState<string | null>(null);
+  const recalculateMutation = useMutation({
+    mutationFn: (scenario: string) => calculateScore(scenario),
+    onMutate: (scenario) => setRecalculating(scenario),
+    onSettled: () => setRecalculating(null),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scores"] });
     },
@@ -222,30 +256,60 @@ export function Dashboard({ onSelectScenario, onOpenConfig }: DashboardProps) {
                   Continue where you left off
                 </h3>
                 <div className="space-y-2">
-                  {recentScenarios.map((recent) => (
-                    <button
-                      key={recent.name}
-                      onClick={() => handleSelectScenario(recent.name)}
-                      className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors text-left"
-                    >
-                      <span className="font-medium text-slate-200 truncate">
-                        {recent.name}
-                      </span>
-                      {recent.score !== undefined && (
-                        <span
-                          className={`text-sm font-bold ${
-                            recent.score >= 80
-                              ? "text-emerald-400"
-                              : recent.score >= 50
-                              ? "text-amber-400"
-                              : "text-red-400"
-                          }`}
-                        >
-                          {recent.score}
+                  {recentScenarios.map((recent) => {
+                    // Calculate delta if we have both current and previous scores
+                    const delta = recent.score !== undefined && recent.previousScore !== undefined
+                      ? recent.score - recent.previousScore
+                      : undefined;
+                    return (
+                      <button
+                        key={recent.name}
+                        onClick={() => handleSelectScenario(recent.name)}
+                        className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors text-left"
+                      >
+                        <span className="font-medium text-slate-200 truncate">
+                          {recent.name}
                         </span>
-                      )}
-                    </button>
-                  ))}
+                        <div className="flex items-center gap-2">
+                          {/* Score delta indicator */}
+                          {delta !== undefined && delta !== 0 && (
+                            <span
+                              className={`flex items-center text-xs ${
+                                delta > 0 ? "text-emerald-400" : "text-red-400"
+                              }`}
+                              title={`${delta > 0 ? "+" : ""}${delta} since last visit`}
+                            >
+                              {delta > 0 ? (
+                                <TrendingUp className="h-3 w-3 mr-0.5" />
+                              ) : (
+                                <TrendingDown className="h-3 w-3 mr-0.5" />
+                              )}
+                              {delta > 0 ? `+${delta}` : delta}
+                            </span>
+                          )}
+                          {delta === 0 && (
+                            <span className="flex items-center text-xs text-slate-500" title="No change since last visit">
+                              <Minus className="h-3 w-3" />
+                            </span>
+                          )}
+                          {/* Current score */}
+                          {recent.score !== undefined && (
+                            <span
+                              className={`text-sm font-bold ${
+                                recent.score >= 80
+                                  ? "text-emerald-400"
+                                  : recent.score >= 50
+                                  ? "text-amber-400"
+                                  : "text-red-400"
+                              }`}
+                            >
+                              {recent.score}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -258,20 +322,46 @@ export function Dashboard({ onSelectScenario, onOpenConfig }: DashboardProps) {
                   Needs attention
                 </h3>
                 <div className="space-y-2">
-                  {needsAttentionScenarios.map((scenario) => (
-                    <button
-                      key={scenario.scenario}
-                      onClick={() => handleSelectScenario(scenario.scenario)}
-                      className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors text-left"
-                    >
-                      <span className="font-medium text-slate-200 truncate">
-                        {scenario.scenario}
-                      </span>
-                      <span className="text-sm font-bold text-red-400">
-                        {scenario.score}
-                      </span>
-                    </button>
-                  ))}
+                  {needsAttentionScenarios.map((scenario) => {
+                    const isRecalculating = recalculating === scenario.scenario;
+                    return (
+                      <div
+                        key={scenario.scenario}
+                        className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors"
+                      >
+                        <button
+                          onClick={() => handleSelectScenario(scenario.scenario)}
+                          className="flex-1 flex items-center text-left"
+                        >
+                          <span className="font-medium text-slate-200 truncate">
+                            {scenario.scenario}
+                          </span>
+                        </button>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-red-400">
+                            {scenario.score}
+                          </span>
+                          {/* Quick recalculate action */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              recalculateMutation.mutate(scenario.scenario);
+                            }}
+                            disabled={isRecalculating}
+                            className="p-1 rounded hover:bg-white/10 transition-colors"
+                            title="Recalculate score"
+                            data-testid={`recalculate-${scenario.scenario}`}
+                          >
+                            <RefreshCw
+                              className={`h-3.5 w-3.5 text-slate-400 hover:text-slate-300 ${
+                                isRecalculating ? "animate-spin" : ""
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

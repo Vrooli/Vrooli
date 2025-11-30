@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
 import { cn } from "../lib/utils";
 
 interface ScoreBarProps {
@@ -10,11 +10,24 @@ interface ScoreBarProps {
   details?: Record<string, number>;
 }
 
+// Dimension explanations to help first-time users understand scoring
+const dimensionDescriptions: Record<string, string> = {
+  quality: "Measures how many requirements, operational targets, and tests are passing. Higher is better.",
+  coverage: "Evaluates test-to-requirement ratio and requirement depth. Shows how thoroughly code is tested.",
+  quantity: "Counts absolute numbers of requirements, targets, and tests against thresholds.",
+  ui: "Assesses UI sophistication: custom vs template, component count, API integration, routing complexity.",
+  penalties: "Deductions for validation issues like missing test coverage or monolithic test files.",
+};
+
 // [REQ:SCS-UI-005] Score progress bars for each dimension with expandable details
 export function ScoreBar({ label, value, max, className, details }: ScoreBarProps) {
   const [expanded, setExpanded] = useState(false);
   const percentage = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   const hasDetails = details && Object.keys(details).length > 0;
+
+  // Get dimension description for tooltip
+  const dimensionKey = label.toLowerCase().replace(/\s+/g, "-");
+  const description = dimensionDescriptions[dimensionKey];
 
   const getBarColor = () => {
     if (percentage >= 80) return "bg-emerald-500";
@@ -41,6 +54,15 @@ export function ScoreBar({ label, value, max, className, details }: ScoreBarProp
       >
         <span className="text-slate-300 flex items-center gap-1">
           {label}
+          {description && (
+            <span
+              className="inline-flex items-center cursor-help"
+              title={description}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <HelpCircle className="h-3.5 w-3.5 text-slate-500 hover:text-slate-400" />
+            </span>
+          )}
           {hasDetails && (
             expanded ? (
               <ChevronUp className="h-3.5 w-3.5 text-slate-500" />

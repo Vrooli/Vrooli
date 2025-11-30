@@ -26,7 +26,6 @@ func loadTestResults(scenarioRoot string) TestResults {
 	return TestResults{
 		Total:   0,
 		Passing: 0,
-		Failing: 0,
 		LastRun: "",
 	}
 }
@@ -41,7 +40,7 @@ func loadPhaseBasedResults(scenarioRoot string) *TestResults {
 	}
 
 	totalPassing := 0
-	totalFailing := 0
+	totalTests := 0
 	var latestTimestamp time.Time
 	hasResults := false
 
@@ -70,11 +69,9 @@ func loadPhaseBasedResults(scenarioRoot string) *TestResults {
 		if len(phaseData.Requirements) > 0 {
 			hasResults = true
 			for _, req := range phaseData.Requirements {
-				switch req.Status {
-				case "passed":
+				totalTests++
+				if req.Status == "passed" {
 					totalPassing++
-				case "failed":
-					totalFailing++
 				}
 			}
 
@@ -98,9 +95,8 @@ func loadPhaseBasedResults(scenarioRoot string) *TestResults {
 	}
 
 	return &TestResults{
-		Total:   totalPassing + totalFailing,
+		Total:   totalTests,
 		Passing: totalPassing,
-		Failing: totalFailing,
 		LastRun: lastRun,
 	}
 }
@@ -127,7 +123,6 @@ func loadSingleFileResults(scenarioRoot string) *TestResults {
 	return &TestResults{
 		Total:   results.Passed + results.Failed,
 		Passing: results.Passed,
-		Failing: results.Failed,
 		LastRun: results.Timestamp,
 	}
 }

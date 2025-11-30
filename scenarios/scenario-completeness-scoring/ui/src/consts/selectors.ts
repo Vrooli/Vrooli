@@ -277,6 +277,8 @@ const literalSelectors: LiteralSelectorTree = {
     quickAccessSection: "quick-access-section",
     recentScenarios: "recent-scenarios",
     needsAttention: "needs-attention",
+    welcomeGuidance: "welcome-guidance",
+    bulkRefreshButton: "bulk-refresh-button",
   },
   scenarioDetail: {
     root: "scenario-detail",
@@ -284,11 +286,14 @@ const literalSelectors: LiteralSelectorTree = {
     configureButton: "configure-button",
     whatIfSection: "what-if-section",
     scoreBarDetails: "score-bar-details",
+    configTip: "config-tip",
+    partialDataBanner: "partial-data-banner",
   },
   configuration: {
     root: "configuration-panel",
     presetsList: "presets-list",
     trippedBreakersAlert: "tripped-breakers-alert",
+    scenarioContextIndicator: "scenario-context-indicator",
   },
   components: {
     trendIndicator: "trend-indicator",
@@ -304,6 +309,11 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
     scenarioRow: defineDynamicSelector({
       description: "Scenario row by name",
       testIdPattern: "scenario-row-${name}",
+      params: { name: { type: "string" } },
+    }),
+    recalculateButton: defineDynamicSelector({
+      description: "Recalculate button by scenario name",
+      testIdPattern: "recalculate-${name}",
       params: { name: { type: "string" } },
     }),
   },

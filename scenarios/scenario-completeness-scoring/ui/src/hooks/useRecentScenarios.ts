@@ -3,21 +3,37 @@ import { useState, useEffect, useCallback } from "react";
 const STORAGE_KEY = "scs-recent-scenarios";
 const MAX_RECENT = 5;
 
-interface RecentScenario {
+export interface RecentScenario {
   name: string;
   lastViewed: number;
   score?: number;
   classification?: string;
+  /** Previous score from last visit - used to show delta */
+  previousScore?: number;
 }
 
 /**
  * Check if localStorage is available (fails in sandboxed iframes, incognito, etc.)
+ * HARDENED: Guards against SecurityError when accessing window.localStorage property itself
+ * in sandboxed iframes where storage access is completely denied. Some browsers throw
+ * when even accessing the localStorage property, not just when calling methods on it.
  */
 function isLocalStorageAvailable(): boolean {
+  // First check if we're in a browser context
+  if (typeof window === "undefined") {
+    return false;
+  }
+
   try {
-    const testKey = "__storage_test__";
-    window.localStorage.setItem(testKey, testKey);
-    window.localStorage.removeItem(testKey);
+    // In strict sandboxed iframes, even accessing window.localStorage throws
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    const storage = window.localStorage;
+    if (!storage) {
+      return false;
+    }
+    const testKey = "__scs_storage_test__";
+    storage.setItem(testKey, testKey);
+    storage.removeItem(testKey);
     return true;
   } catch {
     return false;
@@ -52,12 +68,17 @@ export function useRecentScenarios() {
   // Mark a scenario as recently viewed
   const markViewed = useCallback((name: string, score?: number, classification?: string) => {
     setRecentScenarios((prev) => {
-      // Remove existing entry for this scenario
+      // Find existing entry to preserve previous score
+      const existing = prev.find((s) => s.name === name);
       const filtered = prev.filter((s) => s.name !== name);
 
-      // Add to front
+      // Capture previous score for delta tracking
+      // If we have an existing entry with a score, that becomes the previousScore
+      const previousScore = existing?.score;
+
+      // Add to front with previous score tracking
       const updated: RecentScenario[] = [
-        { name, lastViewed: Date.now(), score, classification },
+        { name, lastViewed: Date.now(), score, classification, previousScore },
         ...filtered,
       ].slice(0, MAX_RECENT);
 

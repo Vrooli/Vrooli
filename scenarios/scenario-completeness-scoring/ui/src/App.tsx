@@ -9,6 +9,9 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 export default function App() {
   const [selectedScenario, setSelectedScenario] = useState<string | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
+  // Persist search/filter state when navigating between views
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
   const handleOpenConfig = () => setConfigOpen(true);
 
@@ -25,7 +28,10 @@ export default function App() {
         </ErrorBoundary>
         {configOpen && (
           <ErrorBoundary context="Configuration">
-            <Configuration onClose={() => setConfigOpen(false)} />
+            <Configuration
+              onClose={() => setConfigOpen(false)}
+              scenarioContext={selectedScenario}
+            />
           </ErrorBoundary>
         )}
       </>
@@ -39,6 +45,10 @@ export default function App() {
         <Dashboard
           onSelectScenario={setSelectedScenario}
           onOpenConfig={handleOpenConfig}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          categoryFilter={categoryFilter}
+          onCategoryChange={setCategoryFilter}
         />
       </ErrorBoundary>
       {configOpen && (

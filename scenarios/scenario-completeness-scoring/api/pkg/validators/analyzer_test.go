@@ -6,7 +6,7 @@ import (
 
 func TestAnalyzeValidationQuality_NoIssues(t *testing.T) {
 	// Setup: Scenario with good test structure - 2:1 ratio avoids suspicious ratio penalty
-	metrics := MetricCounts{
+	metrics := ValidationInputCounts{
 		RequirementsTotal: 10,
 		TestsTotal:        20, // 2:1 ratio is good (avoids suspicious 1:1 penalty)
 	}
@@ -41,7 +41,7 @@ func TestAnalyzeValidationQuality_NoIssues(t *testing.T) {
 
 func TestAnalyzeValidationQuality_SuspiciousRatio(t *testing.T) {
 	// Setup: Scenario with suspicious 1:1 test-to-requirement ratio
-	metrics := MetricCounts{
+	metrics := ValidationInputCounts{
 		RequirementsTotal: 10,
 		TestsTotal:        10, // Exactly 1:1
 	}
@@ -225,8 +225,8 @@ func TestDetectValidationLayersBasic(t *testing.T) {
 	}
 }
 
-func TestDefaultPenaltyConfigs(t *testing.T) {
-	configs := DefaultPenaltyConfigs()
+func TestDefaultPenaltyParameters(t *testing.T) {
+	configs := DefaultPenaltyParameters()
 
 	expectedTypes := []string{
 		"insufficient_test_coverage",

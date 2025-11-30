@@ -9,6 +9,8 @@
 
 package scoring
 
+import "math"
+
 // =============================================================================
 // SCORE CLASSIFICATION DECISIONS
 // =============================================================================
@@ -259,7 +261,7 @@ func DecideTestCoveragePoints(testCount, requirementCount int) (points int, rati
 	ratio = float64(testCount) / float64(requirementCount)
 	cappedRatio := min(ratio, OptimalTestToRequirementRatio)
 	normalizedRatio := cappedRatio / OptimalTestToRequirementRatio
-	points = int(roundHalf(normalizedRatio * float64(MaxTestCoveragePoints)))
+	points = int(math.Round(normalizedRatio * float64(MaxTestCoveragePoints)))
 
 	return points, ratio
 }
@@ -269,7 +271,7 @@ func DecideTestCoveragePoints(testCount, requirementCount int) (points int, rati
 // Rationale: Encourages hierarchical requirement decomposition.
 func DecideDepthPoints(avgDepth float64) int {
 	cappedDepth := min(avgDepth/OptimalRequirementDepth, 1.0)
-	return int(roundHalf(cappedDepth * float64(MaxDepthPoints)))
+	return int(math.Round(cappedDepth * float64(MaxDepthPoints)))
 }
 
 // =============================================================================
@@ -296,7 +298,7 @@ func DecidePassRatePoints(passing, total, maxPoints int) (points int, rate float
 		return 0, 0.0
 	}
 	rate = float64(passing) / float64(total)
-	points = int(roundHalf(rate * float64(maxPoints)))
+	points = int(math.Round(rate * float64(maxPoints)))
 	return points, rate
 }
 
@@ -325,7 +327,7 @@ func DecideQuantityPoints(count, goodThreshold, maxPoints int) int {
 		return 0
 	}
 	ratio := min(float64(count)/float64(goodThreshold), 1.0)
-	return int(roundHalf(ratio * float64(maxPoints)))
+	return int(math.Round(ratio * float64(maxPoints)))
 }
 
 // =============================================================================
@@ -379,20 +381,7 @@ func ShouldRecommendBetterCoverage(ratio float64) bool {
 	return ratio < OptimalTestToRequirementRatio
 }
 
-// =============================================================================
-// HELPER FUNCTIONS
-// =============================================================================
-
-// roundHalf rounds a float to the nearest integer using standard rounding.
-// Go's math.Round already does this, but we name it explicitly for clarity.
-func roundHalf(x float64) float64 {
-	return float64(int(x + 0.5))
-}
-
-// min returns the minimum of two float64 values.
-func min(a, b float64) float64 {
-	if a < b {
-		return a
-	}
-	return b
-}
+// NOTE: This file previously defined custom roundHalf and min helper functions.
+// These were removed in favor of Go built-in functions:
+// - roundHalf -> math.Round (standard library, handles edge cases correctly)
+// - min -> built-in min (Go 1.21+, works with any ordered types including float64)

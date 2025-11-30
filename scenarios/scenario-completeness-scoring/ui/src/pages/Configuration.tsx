@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, RefreshCw, Check, AlertTriangle, Settings2 } from "lucide-react";
+import { X, RefreshCw, Check, AlertTriangle, Settings2, Info } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { HealthBadge } from "../components/HealthBadge";
 import {
@@ -13,10 +13,12 @@ import {
 
 interface ConfigurationProps {
   onClose: () => void;
+  /** If provided, shows context about which scenario triggered the config panel */
+  scenarioContext?: string;
 }
 
 // [REQ:SCS-UI-002] Configuration UI with toggles and presets
-export function Configuration({ onClose }: ConfigurationProps) {
+export function Configuration({ onClose, scenarioContext }: ConfigurationProps) {
   const queryClient = useQueryClient();
 
   const { data: presetsData, isLoading: presetsLoading } = useQuery({
@@ -72,6 +74,18 @@ export function Configuration({ onClose }: ConfigurationProps) {
         </div>
 
         <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6">
+          {/* Scenario Context Indicator */}
+          {scenarioContext && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm" data-testid="scenario-context-indicator">
+              <Info className="h-4 w-4 text-blue-400 flex-shrink-0" />
+              <span className="text-blue-300/80">
+                Viewing from: <span className="font-medium text-blue-200">{scenarioContext}</span>
+              </span>
+              <span className="text-blue-300/60 text-xs">
+                — Changes apply globally unless you configure scenario-specific overrides via the API
+              </span>
+            </div>
+          )}
           {/* Presets Section */}
           <section>
             <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-3">
