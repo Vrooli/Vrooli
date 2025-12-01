@@ -1,5 +1,5 @@
 import { apiCall } from './common';
-import type { DownloadAsset, LandingConfigResponse, PricingOverview } from './types';
+import type { LandingConfigResponse, PricingOverview } from './types';
 
 export function getLandingConfig(variantSlug?: string) {
   const params = new URLSearchParams();
@@ -12,12 +12,4 @@ export function getLandingConfig(variantSlug?: string) {
 
 export function getPlans() {
   return apiCall<PricingOverview>('/plans');
-}
-
-export function requestDownload(platform: string, user?: string) {
-  const params = new URLSearchParams({ platform });
-  if (user) {
-    params.set('user', user);
-  }
-  return apiCall<DownloadAsset>(`/downloads?${params.toString()}`);
 }

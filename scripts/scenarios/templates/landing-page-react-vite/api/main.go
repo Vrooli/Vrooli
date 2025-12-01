@@ -37,6 +37,7 @@ type Server struct {
 	contentService       *ContentService
 	planService          *PlanService
 	downloadService      *DownloadService
+	downloadAuthorizer   *DownloadAuthorizer
 	accountService       *AccountService
 	landingConfigService *LandingConfigService
 }
@@ -72,6 +73,7 @@ func NewServer() (*Server, error) {
 	planService := NewPlanService(db)
 	downloadService := NewDownloadService(db)
 	accountService := NewAccountService(db, planService)
+	downloadAuthorizer := NewDownloadAuthorizer(downloadService, accountService, planService.BundleKey())
 
 	srv := &Server{
 		config:               cfg,
@@ -84,6 +86,7 @@ func NewServer() (*Server, error) {
 		contentService:       contentService,
 		planService:          planService,
 		downloadService:      downloadService,
+		downloadAuthorizer:   downloadAuthorizer,
 		accountService:       accountService,
 		landingConfigService: NewLandingConfigService(variantService, contentService, planService, downloadService),
 	}
@@ -115,7 +118,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/me/subscription", handleMeSubscription(s.accountService)).Methods("GET")
 	s.router.HandleFunc("/api/v1/me/credits", handleMeCredits(s.accountService)).Methods("GET")
 	s.router.HandleFunc("/api/v1/entitlements", handleEntitlements(s.accountService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/downloads", handleDownloads(s.downloadService, s.accountService, s.planService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/downloads", handleDownloads(s.downloadAuthorizer)).Methods("GET")
 
 	s.router.HandleFunc("/api/v1/customize", s.handleCustomize).Methods("POST")
 
@@ -443,6 +446,9 @@ func ensureSchema(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_subscriptions_customer_email ON subscriptions(customer_email);`,
 		`CREATE INDEX IF NOT EXISTS idx_subscriptions_customer_id ON subscriptions(customer_id);`,
 		`CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);`,
+		`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan_tier VARCHAR(50);`,
+		`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS price_id VARCHAR(255);`,
+		`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS bundle_key VARCHAR(100);`,
 		`CREATE TABLE IF NOT EXISTS content_sections (
 			id SERIAL PRIMARY KEY,
 			variant_id INTEGER REFERENCES variants(id) ON DELETE CASCADE,

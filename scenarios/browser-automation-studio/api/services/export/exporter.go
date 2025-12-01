@@ -248,8 +248,20 @@ func BuildReplayMovieSpec(
 	if execution == nil {
 		return nil, fmt.Errorf("execution is required for export")
 	}
+	if workflow == nil {
+		return nil, fmt.Errorf("workflow context is required for export")
+	}
 	if timeline == nil {
 		return nil, fmt.Errorf("execution timeline is required for export")
+	}
+	if timeline.ExecutionID != uuid.Nil && timeline.ExecutionID != execution.ID {
+		return nil, fmt.Errorf("timeline execution id %s does not match execution %s", timeline.ExecutionID, execution.ID)
+	}
+	if timeline.WorkflowID != uuid.Nil && timeline.WorkflowID != workflow.ID {
+		return nil, fmt.Errorf("timeline workflow id %s does not match workflow %s", timeline.WorkflowID, workflow.ID)
+	}
+	if len(timeline.Frames) == 0 {
+		return nil, fmt.Errorf("execution timeline missing frames")
 	}
 
 	frames := make([]ExportFrame, 0, len(timeline.Frames))

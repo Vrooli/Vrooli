@@ -1,26 +1,15 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, ArrowLeft, Eye } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Button } from '../../../shared/ui/button';
-import { getSection, updateSection, createSection, type ContentSection } from '../../../shared/api';
-
-// Debounce hook for live preview updates (OT-P0-013: 300ms)
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-}
+import type { ContentSection } from '../../../shared/api';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
+import {
+  loadSectionEditor,
+  persistExistingSectionContent,
+  type SectionEditorState,
+} from '../controllers/sectionEditorController';
 
 /**
  * Section Editor - Split-screen form + live preview
@@ -33,6 +22,8 @@ export function SectionEditor() {
   const navigate = useNavigate();
   const { variantSlug, sectionId } = useParams<{ variantSlug: string; sectionId: string }>();
   const isNew = sectionId === 'new';
+  const parsedSectionId = !isNew && sectionId ? Number(sectionId) : NaN;
+  const numericSectionId = Number.isNaN(parsedSectionId) ? null : parsedSectionId;
 
   const [section, setSection] = useState<ContentSection | null>(null);
   const [loading, setLoading] = useState(!isNew);
@@ -54,22 +45,28 @@ export function SectionEditor() {
   const debouncedContent = useDebounce(content, 300);
 
   useEffect(() => {
-    if (!isNew && sectionId) {
+    if (!isNew && numericSectionId !== null) {
       fetchSection();
     }
-  }, [sectionId]);
+  }, [isNew, numericSectionId]);
+
+  const applySectionState = (state: SectionEditorState) => {
+    setSection(state.section);
+    setSectionType(state.form.sectionType);
+    setEnabled(state.form.enabled);
+    setOrder(state.form.order);
+    setContent(state.form.content);
+  };
 
   const fetchSection = async () => {
-    if (!sectionId || isNew) return;
+    if (isNew || numericSectionId === null) {
+      return;
+    }
 
     try {
       setLoading(true);
-      const sectionData = await getSection(parseInt(sectionId));
-      setSection(sectionData);
-      setSectionType(sectionData.section_type);
-      setEnabled(sectionData.enabled);
-      setOrder(sectionData.order);
-      setContent(sectionData.content);
+      const state = await loadSectionEditor(numericSectionId);
+      applySectionState(state);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load section');
@@ -93,11 +90,15 @@ export function SectionEditor() {
         // For now, we'll assume variant ID is stored or fetched separately
         alert('Creating new sections requires variant ID. This is a placeholder.');
         return;
-      } else if (sectionId) {
-        await updateSection(parseInt(sectionId), content);
-        await fetchSection();
       }
 
+      if (numericSectionId === null) {
+        setError('Section ID is missing.');
+        return;
+      }
+
+      const state = await persistExistingSectionContent(numericSectionId, content);
+      applySectionState(state);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save section');

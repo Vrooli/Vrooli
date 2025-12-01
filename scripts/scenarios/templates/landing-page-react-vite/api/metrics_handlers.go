@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -17,22 +19,13 @@ func handleMetricsTrack(service *MetricsService) http.HandlerFunc {
 			return
 		}
 
-		// Validate required fields
-		if event.EventType == "" {
-			http.Error(w, `{"error": "event_type is required"}`, http.StatusBadRequest)
-			return
-		}
-		if event.VariantID == 0 {
-			http.Error(w, `{"error": "variant_id is required"}`, http.StatusBadRequest)
-			return
-		}
-		if event.SessionID == "" {
-			http.Error(w, `{"error": "session_id is required"}`, http.StatusBadRequest)
-			return
-		}
-
 		// Track event (idempotent)
 		if err := service.TrackEvent(event); err != nil {
+			var validationErr *MetricValidationError
+			if errors.As(err, &validationErr) {
+				http.Error(w, fmt.Sprintf(`{"error": "%s"}`, validationErr.Reason), http.StatusBadRequest)
+				return
+			}
 			http.Error(w, `{"error": "Failed to track event"}`, http.StatusInternalServerError)
 			return
 		}

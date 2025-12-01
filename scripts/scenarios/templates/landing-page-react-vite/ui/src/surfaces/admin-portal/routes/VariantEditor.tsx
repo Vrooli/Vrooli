@@ -4,17 +4,17 @@ import { Save, ArrowLeft, Plus } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
+import { type Variant, type ContentSection, type VariantSpace, type VariantAxes } from '../../../shared/api';
 import {
-  getVariant,
-  createVariant,
-  updateVariant,
-  getAdminSections,
-  getVariantSpace,
-  type Variant,
-  type ContentSection,
-  type VariantSpace,
-  type VariantAxes,
-} from '../../../shared/api';
+  buildAxesSelection,
+  hydrateFormFromVariant,
+  loadVariantEditorData,
+  loadVariantSpaceDefinition,
+  persistVariant,
+  sanitizeSlugInput,
+  validateVariantForm,
+  type VariantFormState,
+} from '../controllers/variantEditorController';
 
 /**
  * Variant Editor - Create or edit a variant and its sections
@@ -35,28 +35,23 @@ export function VariantEditor() {
   const [variantSpace, setVariantSpace] = useState<VariantSpace | null>(null);
   const [axesSelection, setAxesSelection] = useState<VariantAxes>({});
   const [axesSeeded, setAxesSeeded] = useState(false);
-
-  const buildAxesSelection = (space: VariantSpace, existing?: VariantAxes): VariantAxes => {
-    const selection: VariantAxes = {};
-    Object.entries(space.axes).forEach(([axisId, axisDef]) => {
-      const fallbackValue = axisDef.variants[0]?.id ?? '';
-      const candidate = existing?.[axisId] ?? fallbackValue;
-      if (candidate) {
-        selection[axisId] = candidate;
-      }
-    });
-    return selection;
-  };
+  const [form, setForm] = useState<VariantFormState>({
+    name: '',
+    slug: '',
+    description: '',
+    weight: 50,
+  });
 
   const applyAxesSelection = (space: VariantSpace, existing?: VariantAxes) => {
     setAxesSelection(buildAxesSelection(space, existing));
   };
 
-  // Form state
-  const [name, setName] = useState('');
-  const [variantSlug, setVariantSlug] = useState('');
-  const [description, setDescription] = useState('');
-  const [weight, setWeight] = useState(50);
+  const updateFormField = <K extends keyof VariantFormState>(field: K, value: VariantFormState[K]) => {
+    setForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
   useEffect(() => {
     if (!isNew && slug) {
@@ -67,7 +62,7 @@ export function VariantEditor() {
   useEffect(() => {
     const fetchVariantSpaceData = async () => {
       try {
-        const space = await getVariantSpace();
+        const space = await loadVariantSpaceDefinition();
         setVariantSpace(space);
       } catch (err) {
         console.error('Variant space fetch error:', err);
@@ -99,18 +94,12 @@ export function VariantEditor() {
 
     try {
       setLoading(true);
-      const variantData = await getVariant(slug);
+      const data = await loadVariantEditorData(slug);
       setAxesSeeded(false);
-      setVariant(variantData);
-      setName(variantData.name);
-      setVariantSlug(variantData.slug);
-      setDescription(variantData.description || '');
-      setWeight(variantData.weight);
-      setAxesSelection(variantData.axes || {});
-
-      // Fetch sections (admin endpoint - includes disabled sections)
-      const sectionsData = await getAdminSections(variantData.id);
-      setSections(sectionsData.sections);
+      setVariant(data.variant);
+      setForm(hydrateFormFromVariant(data.variant));
+      setAxesSelection(data.variant.axes || {});
+      setSections(data.sections);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load variant');
@@ -121,41 +110,31 @@ export function VariantEditor() {
   };
 
   const handleSave = async () => {
-    if (!name.trim() || !variantSlug.trim()) {
-      alert('Name and slug are required');
-      return;
-    }
+    const validationMessage = validateVariantForm({
+      form,
+      variantSpace,
+      axesSelection,
+      requireSlug: isNew,
+    });
 
-    if (!variantSpace) {
-      alert('Variant axes registry not loaded yet');
-      return;
-    }
-
-    const missingAxis = Object.keys(variantSpace.axes).find((axisId) => !axesSelection[axisId]);
-    if (missingAxis) {
-      alert(`Select a value for the ${missingAxis} axis`);
+    if (validationMessage) {
+      alert(validationMessage);
       return;
     }
 
     try {
       setSaving(true);
 
-      if (isNew) {
-        const newVariant = await createVariant({
-          name: name.trim(),
-          slug: variantSlug.trim(),
-          description: description.trim() || undefined,
-          weight,
-          axes: axesSelection,
-        });
-        navigate(`/admin/customization/variants/${newVariant.slug}`);
+      const saved = await persistVariant({
+        isNew,
+        slugFromRoute: slug,
+        form,
+        axesSelection,
+      });
+
+      if (saved && isNew) {
+        navigate(`/admin/customization/variants/${saved.slug}`);
       } else if (slug) {
-        await updateVariant(slug, {
-          name: name.trim(),
-          description: description.trim() || undefined,
-          weight,
-          axes: axesSelection,
-        });
         await fetchVariant();
       }
 
@@ -231,8 +210,8 @@ export function VariantEditor() {
               <input
                 id="name"
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={form.name}
+                onChange={(e) => updateFormField('name', e.target.value)}
                 className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
                 placeholder="e.g., Variant A"
                 data-testid="variant-name-input"
@@ -246,15 +225,15 @@ export function VariantEditor() {
               <input
                 id="slug"
                 type="text"
-                value={variantSlug}
-                onChange={(e) => setVariantSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                value={form.slug}
+                onChange={(e) => updateFormField('slug', sanitizeSlugInput(e.target.value))}
                 disabled={!isNew}
                 className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="e.g., variant-a"
                 data-testid="variant-slug-input"
               />
               <p className="text-xs text-slate-500 mt-1">
-                Used in URLs: /?variant={variantSlug || 'slug'}
+                Used in URLs: /?variant={form.slug || 'slug'}
               </p>
             </div>
 
@@ -264,8 +243,8 @@ export function VariantEditor() {
               </label>
               <textarea
                 id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                value={form.description}
+                onChange={(e) => updateFormField('description', e.target.value)}
                 className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
                 rows={3}
                 placeholder="Brief description of this variant's purpose"
@@ -318,15 +297,15 @@ export function VariantEditor() {
 
             <div>
               <label htmlFor="weight" className="block text-sm font-medium text-slate-300 mb-2">
-                A/B Testing Weight: {weight}%
+                A/B Testing Weight: {form.weight}%
               </label>
               <input
                 id="weight"
                 type="range"
                 min="0"
                 max="100"
-                value={weight}
-                onChange={(e) => setWeight(parseInt(e.target.value))}
+                value={form.weight}
+                onChange={(e) => updateFormField('weight', parseInt(e.target.value, 10))}
                 className="w-full"
                 data-testid="variant-weight-input"
               />

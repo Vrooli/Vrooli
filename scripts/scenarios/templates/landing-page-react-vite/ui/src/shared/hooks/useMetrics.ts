@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useLandingVariant } from '../../app/providers/LandingVariantProvider';
-import { trackMetric, type MetricEvent } from '../api';
+import { trackMetric, type MetricEvent as APIMetricEvent } from '../api';
 
 // Generate session ID (persisted in sessionStorage)
 function getSessionID(): string {
@@ -22,14 +22,9 @@ function getVisitorID(): string {
   return visitorID;
 }
 
-interface MetricEvent {
-  event_type: 'page_view' | 'scroll_depth' | 'click' | 'form_submit' | 'conversion' | 'download';
-  variant_id: number;
-  event_data?: Record<string, unknown>;
-  session_id: string;
-  visitor_id?: string;
+type MetricEventPayload = APIMetricEvent & {
   event_id?: string;
-}
+};
 
 /**
  * Hook to track analytics events with variant tagging
@@ -44,7 +39,7 @@ export function useMetrics() {
 
   // Track event to API
   const trackEvent = async (
-    eventType: MetricEvent['event_type'],
+    eventType: APIMetricEvent['event_type'],
     eventData?: Record<string, unknown>
   ) => {
     if (!variant) {
@@ -52,7 +47,7 @@ export function useMetrics() {
       return;
     }
 
-    const event: MetricEvent = {
+    const event: MetricEventPayload = {
       event_type: eventType,
       variant_id: variant.id ?? 0,
       session_id: sessionID.current,

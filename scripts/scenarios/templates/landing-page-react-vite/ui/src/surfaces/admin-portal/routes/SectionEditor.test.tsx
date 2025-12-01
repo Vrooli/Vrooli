@@ -2,13 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { SectionEditor } from './SectionEditor';
-import * as api from '../../../shared/api';
+import * as controller from '../controllers/sectionEditorController';
 
-// Mock the API module
-vi.mock('../../../shared/api', () => ({
-  getSection: vi.fn(),
-  updateSection: vi.fn(),
-  createSection: vi.fn(),
+// Mock the controller module
+vi.mock('../controllers/sectionEditorController', () => ({
+  loadSectionEditor: vi.fn(),
+  persistExistingSectionContent: vi.fn(),
 }));
 
 // Mock useParams
@@ -36,10 +35,20 @@ const mockSection = {
   updated_at: new Date().toISOString(),
 };
 
+const mockControllerState = {
+  section: mockSection,
+  form: {
+    sectionType: mockSection.section_type,
+    enabled: mockSection.enabled,
+    order: mockSection.order,
+    content: mockSection.content,
+  },
+};
+
 describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(api.getSection).mockResolvedValue(mockSection);
+    vi.mocked(controller.loadSectionEditor).mockResolvedValue(mockControllerState);
   });
 
   const renderEditor = () => {
@@ -118,7 +127,7 @@ describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
     renderEditor();
 
     await waitFor(() => {
-      expect(api.getSection).toHaveBeenCalledWith(1);
+      expect(controller.loadSectionEditor).toHaveBeenCalledWith(1);
     });
 
     // Verify form fields are populated
@@ -164,7 +173,15 @@ describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
 
   it('should show disabled indicator when section is disabled', async () => {
     const disabledSection = { ...mockSection, enabled: false };
-    vi.mocked(api.getSection).mockResolvedValue(disabledSection);
+    vi.mocked(controller.loadSectionEditor).mockResolvedValue({
+      section: disabledSection,
+      form: {
+        sectionType: disabledSection.section_type,
+        enabled: disabledSection.enabled,
+        order: disabledSection.order,
+        content: disabledSection.content,
+      },
+    });
 
     renderEditor();
 

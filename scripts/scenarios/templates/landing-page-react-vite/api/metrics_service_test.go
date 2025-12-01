@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -98,8 +99,27 @@ func TestTrackEvent_InvalidEventType(t *testing.T) {
 	}
 
 	err := service.TrackEvent(event)
-	if err == nil {
-		t.Error("Expected error for invalid event_type, got nil")
+	var validationErr *MetricValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected MetricValidationError, got %v", err)
+	}
+	if validationErr.Field != "event_type" {
+		t.Fatalf("expected field event_type, got %s", validationErr.Field)
+	}
+}
+
+func TestTrackEvent_MissingRequiredFields(t *testing.T) {
+	_, service := setupMetricsTestDB(t)
+
+	event := MetricEvent{
+		EventType: "page_view",
+		VariantID: 0,
+		SessionID: "",
+	}
+
+	var validationErr *MetricValidationError
+	if err := service.TrackEvent(event); !errors.As(err, &validationErr) {
+		t.Fatalf("expected MetricValidationError, got %v", err)
 	}
 }
 

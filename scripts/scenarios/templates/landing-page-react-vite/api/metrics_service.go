@@ -6,12 +6,35 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
 // MetricsService handles event tracking and analytics
 type MetricsService struct {
 	db *sql.DB
+}
+
+var validEventTypes = map[string]struct{}{
+	"page_view":    {},
+	"scroll_depth": {},
+	"click":        {},
+	"form_submit":  {},
+	"conversion":   {},
+	"download":     {},
+}
+
+// MetricValidationError indicates a bad request level failure for metrics collection.
+type MetricValidationError struct {
+	Field  string
+	Reason string
+}
+
+func (e *MetricValidationError) Error() string {
+	if e == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s: %s", e.Field, e.Reason)
 }
 
 // NewMetricsService creates a new metrics service
@@ -54,13 +77,8 @@ type AnalyticsSummary struct {
 
 // TrackEvent records an analytics event with idempotency support
 func (s *MetricsService) TrackEvent(event MetricEvent) error {
-	// Validate event type
-	validTypes := map[string]bool{
-		"page_view": true, "scroll_depth": true, "click": true,
-		"form_submit": true, "conversion": true, "download": true,
-	}
-	if !validTypes[event.EventType] {
-		return fmt.Errorf("invalid event_type: %s", event.EventType)
+	if err := validateMetricEvent(event); err != nil {
+		return err
 	}
 
 	// Generate event_id if not provided (for idempotency)
@@ -108,6 +126,22 @@ func (s *MetricsService) TrackEvent(event MetricEvent) error {
 		return fmt.Errorf("failed to insert event: %w", err)
 	}
 
+	return nil
+}
+
+func validateMetricEvent(event MetricEvent) error {
+	if strings.TrimSpace(event.EventType) == "" {
+		return &MetricValidationError{Field: "event_type", Reason: "event_type is required"}
+	}
+	if _, ok := validEventTypes[event.EventType]; !ok {
+		return &MetricValidationError{Field: "event_type", Reason: fmt.Sprintf("invalid event_type: %s", event.EventType)}
+	}
+	if event.VariantID <= 0 {
+		return &MetricValidationError{Field: "variant_id", Reason: "variant_id is required"}
+	}
+	if strings.TrimSpace(event.SessionID) == "" {
+		return &MetricValidationError{Field: "session_id", Reason: "session_id is required"}
+	}
 	return nil
 }
 

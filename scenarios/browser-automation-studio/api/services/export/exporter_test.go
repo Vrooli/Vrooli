@@ -171,3 +171,139 @@ func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
 		}
 	})
 }
+
+func TestBuildReplayMovieSpecValidatesInput(t *testing.T) {
+	t.Run("errors when timeline missing frames", func(t *testing.T) {
+		exec := &database.Execution{
+			ID:         uuid.New(),
+			WorkflowID: uuid.New(),
+			Status:     "completed",
+			StartedAt:  time.Now().Add(-time.Minute),
+			CompletedAt: func() *time.Time {
+				ts := time.Now()
+				return &ts
+			}(),
+		}
+		workflow := &database.Workflow{
+			ID:   exec.WorkflowID,
+			Name: "Missing Frames Workflow",
+		}
+		timeline := &ExecutionTimeline{
+			ExecutionID: exec.ID,
+			WorkflowID:  exec.WorkflowID,
+			Status:      "completed",
+			Frames:      nil,
+		}
+
+		_, err := BuildReplayMovieSpec(exec, workflow, timeline)
+		if err == nil {
+			t.Fatalf("expected error when timeline has no frames")
+		}
+	})
+
+	t.Run("errors when execution and timeline mismatch", func(t *testing.T) {
+		exec := &database.Execution{
+			ID:         uuid.New(),
+			WorkflowID: uuid.New(),
+			Status:     "completed",
+			StartedAt:  time.Now().Add(-time.Minute),
+		}
+		workflow := &database.Workflow{
+			ID:   exec.WorkflowID,
+			Name: "Mismatch Workflow",
+		}
+		timeline := &ExecutionTimeline{
+			ExecutionID: uuid.New(),
+			WorkflowID:  uuid.New(),
+			Status:      "completed",
+			Frames:      []TimelineFrame{{StepIndex: 0, NodeID: "node-1", StepType: "navigate", Status: "completed"}},
+		}
+
+		_, err := BuildReplayMovieSpec(exec, workflow, timeline)
+		if err == nil {
+			t.Fatalf("expected error due to execution/timeline mismatch")
+		}
+	})
+}
+
+func TestBuildReplayMovieSpecHandlesScreenshotAssets(t *testing.T) {
+	t.Run("[REQ:BAS-REPLAY-EXPORT-BUNDLE] deduplicates screenshot assets", func(t *testing.T) {
+		exec := &database.Execution{
+			ID:         uuid.New(),
+			WorkflowID: uuid.New(),
+			Status:     "completed",
+			StartedAt:  time.Now().Add(-time.Minute),
+		}
+		workflow := &database.Workflow{ID: exec.WorkflowID, Name: "Asset Workflow"}
+
+		frame := TimelineFrame{
+			StepIndex: 0,
+			NodeID:    "node-1",
+			Status:    "completed",
+			Screenshot: &TimelineScreenshot{
+				ArtifactID: "shot-shared",
+				URL:        "https://cdn.example.com/shared.png",
+				Width:      800,
+				Height:     600,
+			},
+		}
+		timeline := &ExecutionTimeline{
+			ExecutionID: exec.ID,
+			WorkflowID:  exec.WorkflowID,
+			Status:      "completed",
+			Frames:      []TimelineFrame{frame, frame},
+		}
+
+		pkg, err := BuildReplayMovieSpec(exec, workflow, timeline)
+		if err != nil {
+			t.Fatalf("BuildReplayMovieSpec returned error: %v", err)
+		}
+		if len(pkg.Assets) != 1 {
+			t.Fatalf("expected screenshot assets to be deduplicated, got %d entries", len(pkg.Assets))
+		}
+		if pkg.Summary.ScreenshotCount != 1 {
+			t.Errorf("expected screenshot summary count 1, got %d", pkg.Summary.ScreenshotCount)
+		}
+	})
+
+	t.Run("[REQ:BAS-REPLAY-EXPORT-BUNDLE] generates asset IDs when missing", func(t *testing.T) {
+		exec := &database.Execution{
+			ID:         uuid.New(),
+			WorkflowID: uuid.New(),
+			Status:     "completed",
+			StartedAt:  time.Now().Add(-time.Minute),
+		}
+		workflow := &database.Workflow{ID: exec.WorkflowID, Name: "Fallback Asset Workflow"}
+
+		timeline := &ExecutionTimeline{
+			ExecutionID: exec.ID,
+			WorkflowID:  exec.WorkflowID,
+			Status:      "completed",
+			Frames: []TimelineFrame{
+				{
+					StepIndex: 0,
+					NodeID:    "node-1",
+					Status:    "completed",
+					Screenshot: &TimelineScreenshot{
+						ArtifactID: "",
+						URL:        "https://cdn.example.com/fallback.png",
+					},
+				},
+			},
+		}
+
+		pkg, err := BuildReplayMovieSpec(exec, workflow, timeline)
+		if err != nil {
+			t.Fatalf("BuildReplayMovieSpec returned error: %v", err)
+		}
+		if len(pkg.Assets) != 1 {
+			t.Fatalf("expected one generated asset entry, got %d", len(pkg.Assets))
+		}
+		if pkg.Assets[0].ID == "" {
+			t.Fatalf("expected generated screenshot asset id when none provided")
+		}
+		if pkg.Assets[0].Source != "https://cdn.example.com/fallback.png" {
+			t.Fatalf("expected asset source to match screenshot URL, got %s", pkg.Assets[0].Source)
+		}
+	})
+}

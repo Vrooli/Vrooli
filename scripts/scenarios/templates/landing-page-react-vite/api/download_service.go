@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -10,6 +11,13 @@ import (
 type DownloadService struct {
 	db *sql.DB
 }
+
+var (
+	// ErrDownloadNotFound indicates the requested artifact is not configured.
+	ErrDownloadNotFound = errors.New("download not found")
+	// ErrDownloadRequiresActiveSubscription indicates a gated download without active access.
+	ErrDownloadRequiresActiveSubscription = errors.New("active subscription required for downloads")
+)
 
 // DownloadAsset represents a gated downloadable artifact.
 type DownloadAsset struct {
@@ -99,8 +107,8 @@ func (s *DownloadService) GetAsset(bundleKey, platform string) (*DownloadAsset, 
 		&asset.RequiresEntitlement,
 		&metadataBytes,
 	); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("download not found for %s/%s", bundleKey, platform)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("%w: %s/%s", ErrDownloadNotFound, bundleKey, platform)
 		}
 		return nil, err
 	}
@@ -113,4 +121,52 @@ func (s *DownloadService) GetAsset(bundleKey, platform string) (*DownloadAsset, 
 	}
 
 	return &asset, nil
+}
+
+type downloadAssetLookup interface {
+	GetAsset(bundleKey, platform string) (*DownloadAsset, error)
+}
+
+type entitlementProvider interface {
+	GetEntitlements(userIdentity string) (*EntitlementPayload, error)
+}
+
+// DownloadAuthorizer coordinates entitlement checks before returning assets.
+type DownloadAuthorizer struct {
+	downloads    downloadAssetLookup
+	entitlements entitlementProvider
+	bundleKey    string
+}
+
+// NewDownloadAuthorizer wires the dependencies required for download gating.
+func NewDownloadAuthorizer(downloads downloadAssetLookup, entitlements entitlementProvider, bundleKey string) *DownloadAuthorizer {
+	return &DownloadAuthorizer{
+		downloads:    downloads,
+		entitlements: entitlements,
+		bundleKey:    bundleKey,
+	}
+}
+
+// Authorize ensures the caller can access the requested download asset.
+func (a *DownloadAuthorizer) Authorize(platform string, userIdentity string) (*DownloadAsset, error) {
+	asset, err := a.downloads.GetAsset(a.bundleKey, platform)
+	if err != nil {
+		return nil, err
+	}
+
+	if !asset.RequiresEntitlement {
+		return asset, nil
+	}
+
+	entitlements, err := a.entitlements.GetEntitlements(userIdentity)
+	if err != nil {
+		return nil, fmt.Errorf("retrieve entitlements: %w", err)
+	}
+
+	status := entitlements.Status
+	if status != "active" && status != "trialing" {
+		return nil, ErrDownloadRequiresActiveSubscription
+	}
+
+	return asset, nil
 }

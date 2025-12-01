@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 )
 
@@ -65,7 +66,7 @@ func handleEntitlements(accountService *AccountService) http.HandlerFunc {
 	}
 }
 
-func handleDownloads(downloadService *DownloadService, accountService *AccountService, planService *PlanService) http.HandlerFunc {
+func handleDownloads(authorizer *DownloadAuthorizer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		platform := r.URL.Query().Get("platform")
 		if platform == "" {
@@ -75,22 +76,17 @@ func handleDownloads(downloadService *DownloadService, accountService *AccountSe
 
 		user := resolveUserIdentity(r)
 
-		asset, err := downloadService.GetAsset(planService.BundleKey(), platform)
+		asset, err := authorizer.Authorize(platform, user)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-
-		if asset.RequiresEntitlement {
-			entitlements, err := accountService.GetEntitlements(user)
-			if err != nil {
+			switch {
+			case errors.Is(err, ErrDownloadNotFound):
+				http.Error(w, err.Error(), http.StatusNotFound)
+			case errors.Is(err, ErrDownloadRequiresActiveSubscription):
+				http.Error(w, err.Error(), http.StatusForbidden)
+			default:
 				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
 			}
-			if entitlements.Status != "active" && entitlements.Status != "trialing" {
-				http.Error(w, "active subscription required for downloads", http.StatusForbidden)
-				return
-			}
+			return
 		}
 
 		writeJSON(w, asset)

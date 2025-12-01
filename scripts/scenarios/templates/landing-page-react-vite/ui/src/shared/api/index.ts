@@ -2,6 +2,7 @@ export * from './types';
 export * from './common';
 export * from './health';
 export * from './landing';
+export * from './downloads';
 export * from './account';
 export * from './auth';
 export * from './variants';

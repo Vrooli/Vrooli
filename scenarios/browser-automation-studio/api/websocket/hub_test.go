@@ -2,6 +2,10 @@ package websocket
 
 import (
 	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -181,6 +185,228 @@ func TestBroadcastEnvelopeRawWhenLegacyDisabled(t *testing.T) {
 	}
 	if payload.Kind != env.Kind || payload.ExecutionID != env.ExecutionID {
 		t.Fatalf("envelope payload mismatch: %+v", payload)
+	}
+}
+
+func TestHubCloseExecutionNoop(t *testing.T) {
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] close execution does not drop clients", func(t *testing.T) {
+		hub := newTestHub(t)
+
+		client := &Client{
+			ID:   uuid.New(),
+			Send: make(chan any, 4),
+			Hub:  hub,
+		}
+		hub.register <- client
+		_ = waitForMessage(t, client.Send) // welcome
+
+		hub.CloseExecution(uuid.New())
+
+		update := contracts.EventEnvelope{
+			SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			Kind:           contracts.EventKindExecutionProgress,
+			ExecutionID:    uuid.New(),
+			WorkflowID:     uuid.New(),
+			Sequence:       99,
+		}
+
+		hub.BroadcastEnvelope(update)
+
+		msg := waitForMessage(t, client.Send)
+		env, ok := msg.(contracts.EventEnvelope)
+		if !ok {
+			t.Fatalf("expected envelope after CloseExecution, got %T", msg)
+		}
+		if env.Sequence != update.Sequence {
+			t.Fatalf("expected sequence %d, got %d", update.Sequence, env.Sequence)
+		}
+	})
+}
+
+func TestHubDropsUnresponsiveClient(t *testing.T) {
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] removes clients that cannot receive updates", func(t *testing.T) {
+		hub := newTestHub(t)
+
+		client := &Client{
+			ID:   uuid.New(),
+			Send: make(chan any, 1), // intentionally tiny buffer
+			Hub:  hub,
+		}
+
+		hub.register <- client
+		time.Sleep(50 * time.Millisecond) // allow welcome message to fill buffer
+
+		blockedUpdate := contracts.EventEnvelope{
+			SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			Kind:           contracts.EventKindExecutionProgress,
+			ExecutionID:    uuid.New(),
+			WorkflowID:     uuid.New(),
+			Sequence:       1,
+		}
+
+		hub.BroadcastEnvelope(blockedUpdate)
+		time.Sleep(50 * time.Millisecond) // allow hub to process removal
+
+		if count := hub.GetClientCount(); count != 0 {
+			t.Fatalf("expected hub to drop unresponsive client, still have %d", count)
+		}
+
+		select {
+		case _, ok := <-client.Send:
+			if !ok {
+				return // channel closed as expected
+			}
+		default:
+			t.Fatalf("expected client channel to be closed after removal")
+		}
+	})
+}
+
+func TestServeWSSubscribeFiltersMessages(t *testing.T) {
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] websocket subscription filters non-matching executions", func(t *testing.T) {
+		hub := newTestHub(t)
+		server := startTestWebSocketServer(t, hub)
+		defer server.Close()
+
+		conn := dialTestWebSocket(t, server)
+		defer conn.Close()
+
+		drainWelcomeMessage(t, conn)
+
+		executionID := uuid.New()
+		if err := conn.WriteJSON(map[string]any{
+			"type":         "subscribe",
+			"execution_id": executionID.String(),
+		}); err != nil {
+			t.Fatalf("failed to send subscribe message: %v", err)
+		}
+		time.Sleep(50 * time.Millisecond)
+
+		matching := contracts.EventEnvelope{
+			SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			Kind:           contracts.EventKindExecutionProgress,
+			ExecutionID:    executionID,
+			WorkflowID:     uuid.New(),
+			Sequence:       10,
+		}
+		hub.BroadcastEnvelope(matching)
+
+		var received contracts.EventEnvelope
+		if err := conn.ReadJSON(&received); err != nil {
+			t.Fatalf("expected matching envelope, read error: %v", err)
+		}
+		if received.ExecutionID != executionID {
+			t.Fatalf("expected execution %s, got %s", executionID, received.ExecutionID)
+		}
+
+		nonMatching := contracts.EventEnvelope{
+			SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			Kind:           contracts.EventKindExecutionProgress,
+			ExecutionID:    uuid.New(),
+			WorkflowID:     uuid.New(),
+			Sequence:       11,
+		}
+
+		hub.BroadcastEnvelope(nonMatching)
+
+		_ = conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+		var unexpected contracts.EventEnvelope
+		if err := conn.ReadJSON(&unexpected); err == nil {
+			t.Fatalf("expected filtered event to be dropped, but received %+v", unexpected)
+		} else if ne, ok := err.(net.Error); !ok || !ne.Timeout() {
+			t.Fatalf("expected timeout waiting for filtered message, got %v", err)
+		}
+		_ = conn.SetReadDeadline(time.Time{})
+	})
+}
+
+func TestServeWSUnsubscribeRestoresBroadcasts(t *testing.T) {
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] unsubscribe removes execution filter", func(t *testing.T) {
+		hub := newTestHub(t)
+		server := startTestWebSocketServer(t, hub)
+		defer server.Close()
+
+		conn := dialTestWebSocket(t, server)
+		defer conn.Close()
+
+		drainWelcomeMessage(t, conn)
+
+		executionID := uuid.New()
+		if err := conn.WriteJSON(map[string]any{
+			"type":         "subscribe",
+			"execution_id": executionID.String(),
+		}); err != nil {
+			t.Fatalf("failed to send subscribe message: %v", err)
+		}
+		time.Sleep(50 * time.Millisecond)
+
+		if err := conn.WriteJSON(map[string]any{"type": "unsubscribe"}); err != nil {
+			t.Fatalf("failed to send unsubscribe message: %v", err)
+		}
+		time.Sleep(50 * time.Millisecond)
+
+		event := contracts.EventEnvelope{
+			SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			Kind:           contracts.EventKindExecutionProgress,
+			ExecutionID:    uuid.New(),
+			WorkflowID:     uuid.New(),
+			Sequence:       20,
+		}
+
+		hub.BroadcastEnvelope(event)
+
+		var received contracts.EventEnvelope
+		if err := conn.ReadJSON(&received); err != nil {
+			t.Fatalf("expected envelope after unsubscribe, got error: %v", err)
+		}
+		if received.Sequence != event.Sequence {
+			t.Fatalf("expected sequence %d after unsubscribe, got %d", event.Sequence, received.Sequence)
+		}
+	})
+}
+
+var testUpgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
+
+func startTestWebSocketServer(t *testing.T, hub *Hub) *httptest.Server {
+	t.Helper()
+
+	handler := http.NewServeMux()
+	handler.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		conn, err := testUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Logf("websocket upgrade failed: %v", err)
+			return
+		}
+		hub.ServeWS(conn, nil)
+	})
+
+	return httptest.NewServer(handler)
+}
+
+func dialTestWebSocket(t *testing.T, server *httptest.Server) *websocket.Conn {
+	t.Helper()
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws"
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("failed to dial websocket server: %v", err)
+	}
+	return conn
+}
+
+func drainWelcomeMessage(t *testing.T, conn *websocket.Conn) {
+	t.Helper()
+
+	var welcome map[string]any
+	if err := conn.ReadJSON(&welcome); err != nil {
+		t.Fatalf("expected welcome message, got error: %v", err)
 	}
 }
 

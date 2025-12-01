@@ -5,18 +5,13 @@ import { AdminLayout } from "../components/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../shared/ui/card";
 import { Button } from "../../../shared/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/ui/select";
-import { getMetricsSummary, getVariantMetrics, type AnalyticsSummary, type VariantStats } from "../../../shared/api";
+import { type AnalyticsSummary, type VariantStats } from "../../../shared/api";
+import { buildDateRange, fetchAnalyticsSummary, fetchVariantAnalytics } from "../controllers/analyticsController";
 
 const getTrendIcon = (trend?: 'up' | 'down' | 'stable') => {
   if (trend === 'up') return <ArrowUpRight className="h-4 w-4 text-green-400" />;
   if (trend === 'down') return <ArrowDownRight className="h-4 w-4 text-red-400" />;
   return <Minus className="h-4 w-4 text-slate-400" />;
-};
-
-const formatDate = (daysAgo: number): string => {
-  const date = new Date();
-  date.setDate(date.getDate() - daysAgo);
-  return date.toISOString().split('T')[0];
 };
 
 /**
@@ -52,10 +47,9 @@ export function AdminAnalytics() {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const days = parseInt(timeRange);
-      const endDate = formatDate(0);
-      const startDate = formatDate(days);
-      const data = await getMetricsSummary(startDate, endDate);
+      const days = parseInt(timeRange, 10);
+      const range = buildDateRange(days);
+      const data = await fetchAnalyticsSummary(range);
       setSummary(data);
       setError(null);
     } catch (err) {
@@ -68,11 +62,9 @@ export function AdminAnalytics() {
 
   const fetchVariantDetails = async (variantSlug: string) => {
     try {
-      const days = parseInt(timeRange);
-      const endDate = formatDate(0);
-      const startDate = formatDate(days);
-      const data = await getVariantMetrics(variantSlug, startDate, endDate);
-      setVariantDetails(data.stats);
+      const range = buildDateRange(parseInt(timeRange, 10));
+      const stats = await fetchVariantAnalytics(variantSlug, range);
+      setVariantDetails(stats);
     } catch (err) {
       console.error("Failed to load variant details:", err);
       setVariantDetails([]);
