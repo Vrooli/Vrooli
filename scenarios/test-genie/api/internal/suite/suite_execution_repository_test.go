@@ -8,6 +8,8 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
+
+	"test-genie/internal/orchestrator/phases"
 )
 
 func TestSuiteExecutionRepositoryCreate(t *testing.T) {
@@ -27,7 +29,7 @@ func TestSuiteExecutionRepositoryCreate(t *testing.T) {
 		ScenarioName:   "demo",
 		PresetUsed:     "quick",
 		Success:        true,
-		Phases: []PhaseExecutionResult{
+		Phases: []phases.ExecutionResult{
 			{Name: "structure", Status: "passed", DurationSeconds: 1},
 		},
 		StartedAt:   now.Add(-time.Minute),

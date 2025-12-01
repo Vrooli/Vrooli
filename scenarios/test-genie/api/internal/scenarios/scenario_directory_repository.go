@@ -11,31 +11,31 @@ import (
 	"github.com/google/uuid"
 	pq "github.com/lib/pq"
 
-	"test-genie/internal/suite"
+	"test-genie/internal/orchestrator"
 )
 
 // ScenarioSummary aggregates queue + execution telemetry for a single scenario.
 type ScenarioSummary struct {
-	ScenarioName              string                 `json:"scenarioName"`
-	ScenarioDescription       string                 `json:"scenarioDescription,omitempty"`
-	ScenarioStatus            string                 `json:"scenarioStatus,omitempty"`
-	ScenarioTags              []string               `json:"scenarioTags,omitempty"`
-	PendingRequests           int                    `json:"pendingRequests"`
-	TotalRequests             int                    `json:"totalRequests"`
-	LastRequestAt             *time.Time             `json:"lastRequestAt,omitempty"`
-	LastRequestPriority       string                 `json:"lastRequestPriority,omitempty"`
-	LastRequestStatus         string                 `json:"lastRequestStatus,omitempty"`
-	LastRequestNotes          string                 `json:"lastRequestNotes,omitempty"`
-	LastRequestCoverageTarget *int                   `json:"lastRequestCoverageTarget,omitempty"`
-	LastRequestTypes          []string               `json:"lastRequestTypes,omitempty"`
-	TotalExecutions           int                    `json:"totalExecutions"`
-	LastExecutionAt           *time.Time             `json:"lastExecutionAt,omitempty"`
-	LastExecutionID           *uuid.UUID             `json:"lastExecutionId,omitempty"`
-	LastExecutionPreset       string                 `json:"lastExecutionPreset,omitempty"`
-	LastExecutionSuccess      *bool                  `json:"lastExecutionSuccess,omitempty"`
-	LastExecutionPhases       []suite.PhaseExecutionResult `json:"lastExecutionPhases,omitempty"`
-	LastExecutionPhaseSummary *suite.PhaseSummary          `json:"lastExecutionPhaseSummary,omitempty"`
-	LastFailureAt             *time.Time             `json:"lastFailureAt,omitempty"`
+	ScenarioName              string                              `json:"scenarioName"`
+	ScenarioDescription       string                              `json:"scenarioDescription,omitempty"`
+	ScenarioStatus            string                              `json:"scenarioStatus,omitempty"`
+	ScenarioTags              []string                            `json:"scenarioTags,omitempty"`
+	PendingRequests           int                                 `json:"pendingRequests"`
+	TotalRequests             int                                 `json:"totalRequests"`
+	LastRequestAt             *time.Time                          `json:"lastRequestAt,omitempty"`
+	LastRequestPriority       string                              `json:"lastRequestPriority,omitempty"`
+	LastRequestStatus         string                              `json:"lastRequestStatus,omitempty"`
+	LastRequestNotes          string                              `json:"lastRequestNotes,omitempty"`
+	LastRequestCoverageTarget *int                                `json:"lastRequestCoverageTarget,omitempty"`
+	LastRequestTypes          []string                            `json:"lastRequestTypes,omitempty"`
+	TotalExecutions           int                                 `json:"totalExecutions"`
+	LastExecutionAt           *time.Time                          `json:"lastExecutionAt,omitempty"`
+	LastExecutionID           *uuid.UUID                          `json:"lastExecutionId,omitempty"`
+	LastExecutionPreset       string                              `json:"lastExecutionPreset,omitempty"`
+	LastExecutionSuccess      *bool                               `json:"lastExecutionSuccess,omitempty"`
+	LastExecutionPhases       []orchestrator.PhaseExecutionResult `json:"lastExecutionPhases,omitempty"`
+	LastExecutionPhaseSummary *orchestrator.PhaseSummary          `json:"lastExecutionPhaseSummary,omitempty"`
+	LastFailureAt             *time.Time                          `json:"lastFailureAt,omitempty"`
 }
 
 type rowScanner interface {
@@ -246,11 +246,11 @@ func scanScenarioSummary(scanner rowScanner) (ScenarioSummary, error) {
 		summary.LastExecutionSuccess = &val
 	}
 	if len(lastExecutionPhases) > 0 {
-		var phases []suite.PhaseExecutionResult
+		var phases []orchestrator.PhaseExecutionResult
 		if err := json.Unmarshal(lastExecutionPhases, &phases); err == nil {
 			summary.LastExecutionPhases = phases
 			if len(phases) > 0 {
-				summaryValue := suite.SummarizePhases(phases)
+				summaryValue := orchestrator.SummarizePhases(phases)
 				summary.LastExecutionPhaseSummary = &summaryValue
 			}
 		}

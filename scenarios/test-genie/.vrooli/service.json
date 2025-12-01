@@ -106,7 +106,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o test-genie-api .",
+          "run": "cd api && go mod download && go build -o test-genie-api ./cmd/test-genie-api",
           "description": "Compile Go API server binary (test-genie-api)"
         },
         {

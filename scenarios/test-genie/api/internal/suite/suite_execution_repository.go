@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"test-genie/internal/orchestrator"
+	"test-genie/internal/orchestrator/phases"
 )
 
 // SuiteExecutionRecord captures a persisted execution outcome.
@@ -18,7 +21,7 @@ type SuiteExecutionRecord struct {
 	ScenarioName   string
 	PresetUsed     string
 	Success        bool
-	Phases         []PhaseExecutionResult
+	Phases         []phases.ExecutionResult
 	StartedAt      time.Time
 	CompletedAt    time.Time
 }
@@ -73,8 +76,8 @@ INSERT INTO suite_executions (
 }
 
 func (r *SuiteExecutionRepository) ListRecent(ctx context.Context, scenario string, limit int, offset int) ([]SuiteExecutionRecord, error) {
-	if limit <= 0 || limit > MaxExecutionHistory {
-		limit = MaxExecutionHistory
+	if limit <= 0 || limit > orchestrator.MaxExecutionHistory {
+		limit = orchestrator.MaxExecutionHistory
 	}
 	if offset < 0 {
 		offset = 0

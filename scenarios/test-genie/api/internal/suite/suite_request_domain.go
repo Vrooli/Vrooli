@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+
+	"test-genie/internal/shared"
 )
 
 const (
@@ -115,21 +116,8 @@ func (sl *stringList) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("expected string or array of strings for requestedTypes")
 }
 
-type ValidationError struct {
-	msg string
-}
-
-func (e ValidationError) Error() string {
-	return e.msg
-}
-
-func NewValidationError(message string) error {
-	return ValidationError{msg: message}
-}
-
 func isValidationError(err error) bool {
-	var target ValidationError
-	return errors.As(err, &target)
+	return shared.IsValidationError(err)
 }
 
 // SuiteRequestRepository exposes persistence operations for the domain service.
@@ -179,7 +167,7 @@ func (s *SuiteRequestService) Get(ctx context.Context, id uuid.UUID) (*SuiteRequ
 // UpdateStatus transitions a request to a new state when orchestration progresses.
 func (s *SuiteRequestService) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
 	if _, ok := allowedSuiteStatuses[status]; !ok {
-		return NewValidationError(fmt.Sprintf("status '%s' is not supported", status))
+		return shared.NewValidationError(fmt.Sprintf("status '%s' is not supported", status))
 	}
 	return s.repo.UpdateStatus(ctx, id, status)
 }
@@ -192,7 +180,7 @@ func (s *SuiteRequestService) StatusSnapshot(ctx context.Context) (SuiteRequestS
 func buildSuiteRequest(payload QueueSuiteRequestInput) (*SuiteRequest, error) {
 	scenario := strings.TrimSpace(payload.ScenarioName)
 	if scenario == "" {
-		return nil, NewValidationError("scenarioName is required")
+		return nil, shared.NewValidationError("scenarioName is required")
 	}
 
 	types, err := normalizeSuiteTypes([]string(payload.RequestedTypes))
@@ -205,7 +193,7 @@ func buildSuiteRequest(payload QueueSuiteRequestInput) (*SuiteRequest, error) {
 		coverage = 95
 	}
 	if coverage < 1 || coverage > 100 {
-		return nil, NewValidationError("coverageTarget must be between 1 and 100")
+		return nil, shared.NewValidationError("coverageTarget must be between 1 and 100")
 	}
 
 	priority, err := normalizePriority(payload.Priority)
@@ -241,7 +229,7 @@ func normalizeSuiteTypes(values []string) ([]string, error) {
 			continue
 		}
 		if _, ok := allowedSuiteTypes[trimmed]; !ok {
-			return nil, NewValidationError(fmt.Sprintf("requested type '%s' is not supported", value))
+			return nil, shared.NewValidationError(fmt.Sprintf("requested type '%s' is not supported", value))
 		}
 		if _, dup := seen[trimmed]; dup {
 			continue
@@ -263,7 +251,7 @@ func normalizePriority(value string) (string, error) {
 		return suitePriorityNormal, nil
 	}
 	if _, ok := allowedPriorities[trimmed]; !ok {
-		return "", NewValidationError(fmt.Sprintf("priority '%s' is not supported", value))
+		return "", shared.NewValidationError(fmt.Sprintf("priority '%s' is not supported", value))
 	}
 	return trimmed, nil
 }

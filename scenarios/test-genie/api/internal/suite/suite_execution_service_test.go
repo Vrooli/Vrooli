@@ -9,6 +9,9 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
+
+	"test-genie/internal/orchestrator"
+	"test-genie/internal/shared"
 )
 
 func TestSuiteExecutionService_ExecuteWithoutLinkedRequest(t *testing.T) {
@@ -32,7 +35,7 @@ func TestSuiteExecutionService_ExecuteWithoutLinkedRequest(t *testing.T) {
 		).WillReturnResult(sqlmock.NewResult(1, 1))
 
 	engine := &stubExecutionEngine{
-		result: &SuiteExecutionResult{
+		result: &orchestrator.SuiteExecutionResult{
 			ScenarioName: "demo",
 			StartedAt:    time.Now().Add(-time.Minute),
 			CompletedAt:  time.Now(),
@@ -47,7 +50,7 @@ func TestSuiteExecutionService_ExecuteWithoutLinkedRequest(t *testing.T) {
 	)
 
 	output, err := service.Execute(ctx, SuiteExecutionInput{
-		Request: SuiteExecutionRequest{ScenarioName: "demo"},
+		Request: orchestrator.SuiteExecutionRequest{ScenarioName: "demo"},
 	})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -89,13 +92,13 @@ func TestSuiteExecutionService_RejectsMismatchedSuiteRequest(t *testing.T) {
 	)
 
 	_, err = service.Execute(ctx, SuiteExecutionInput{
-		Request:        SuiteExecutionRequest{ScenarioName: "test-genie"},
+		Request:        orchestrator.SuiteExecutionRequest{ScenarioName: "test-genie"},
 		SuiteRequestID: &suiteID,
 	})
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-	var vErr ValidationError
+	var vErr shared.ValidationError
 	if !errors.As(err, &vErr) {
 		t.Fatalf("expected validation error, got %v", err)
 	}
@@ -133,7 +136,7 @@ func TestSuiteExecutionService_MarksSuiteRequestFailedOnRunnerError(t *testing.T
 	)
 
 	_, err = service.Execute(ctx, SuiteExecutionInput{
-		Request:        SuiteExecutionRequest{ScenarioName: "demo"},
+		Request:        orchestrator.SuiteExecutionRequest{ScenarioName: "demo"},
 		SuiteRequestID: &suiteID,
 	})
 	if err == nil {
@@ -155,11 +158,11 @@ func TestSuiteExecutionService_MarksSuiteRequestFailedOnRunnerError(t *testing.T
 }
 
 type stubExecutionEngine struct {
-	result *SuiteExecutionResult
+	result *orchestrator.SuiteExecutionResult
 	err    error
 }
 
-func (s *stubExecutionEngine) Execute(ctx context.Context, req SuiteExecutionRequest) (*SuiteExecutionResult, error) {
+func (s *stubExecutionEngine) Execute(ctx context.Context, req orchestrator.SuiteExecutionRequest) (*orchestrator.SuiteExecutionResult, error) {
 	return s.result, s.err
 }
 

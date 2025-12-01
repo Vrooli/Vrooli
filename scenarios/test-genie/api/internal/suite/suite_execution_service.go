@@ -8,17 +8,21 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+
+	"test-genie/internal/orchestrator"
+	"test-genie/internal/orchestrator/phases"
+	"test-genie/internal/shared"
 )
 
 var ErrSuiteRequestNotFound = errors.New("suite request not found")
 
 type suiteExecutionEngine interface {
-	Execute(ctx context.Context, req SuiteExecutionRequest) (*SuiteExecutionResult, error)
+	Execute(ctx context.Context, req orchestrator.SuiteExecutionRequest) (*orchestrator.SuiteExecutionResult, error)
 }
 
 // SuiteExecutionInput encapsulates the orchestration request plus optional linkage to a queued suite.
 type SuiteExecutionInput struct {
-	Request        SuiteExecutionRequest
+	Request        orchestrator.SuiteExecutionRequest
 	SuiteRequestID *uuid.UUID
 }
 
@@ -38,7 +42,7 @@ func NewSuiteExecutionService(engine suiteExecutionEngine, executions *SuiteExec
 }
 
 // Execute runs the suite, persists the result, and keeps queue state in sync.
-func (s *SuiteExecutionService) Execute(ctx context.Context, input SuiteExecutionInput) (*SuiteExecutionResult, error) {
+func (s *SuiteExecutionService) Execute(ctx context.Context, input SuiteExecutionInput) (*orchestrator.SuiteExecutionResult, error) {
 	if s.engine == nil {
 		return nil, fmt.Errorf("suite execution engine is not configured")
 	}
@@ -70,7 +74,7 @@ func (s *SuiteExecutionService) Execute(ctx context.Context, input SuiteExecutio
 		ScenarioName:   result.ScenarioName,
 		PresetUsed:     result.PresetUsed,
 		Success:        result.Success,
-		Phases:         append([]PhaseExecutionResult(nil), result.Phases...),
+		Phases:         append([]phases.ExecutionResult(nil), result.Phases...),
 		StartedAt:      result.StartedAt,
 		CompletedAt:    result.CompletedAt,
 	}
@@ -103,7 +107,7 @@ func (s *SuiteExecutionService) loadAndMarkSuiteRequest(ctx context.Context, sui
 		return err
 	}
 	if !strings.EqualFold(req.ScenarioName, scenario) {
-		return NewValidationError("suiteRequestId does not match scenarioName")
+		return shared.NewValidationError("suiteRequestId does not match scenarioName")
 	}
 	if err := s.suiteRequests.UpdateStatus(ctx, suiteID, suiteStatusRunning); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
