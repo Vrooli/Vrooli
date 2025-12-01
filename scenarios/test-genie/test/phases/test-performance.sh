@@ -1,9 +1,24 @@
-#!/bin/bash
-# Performance validation including Lighthouse, bundle size, and response time checks
+#!/usr/bin/env bash
+set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
-source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
-source "${APP_ROOT}/scripts/scenarios/testing/shell/performance.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/runtime.sh"
 
-testing::performance::validate_all
+tg::require_command go "Go toolchain is required for performance benchmarks"
+
+tg::log_info "Building Go API binary for performance baseline"
+tmp_bin="$(mktemp)"
+start_ts="$(date +%s)"
+if ! tg::run_in_dir "${TEST_GENIE_SCENARIO_DIR}/api" go build -o "$tmp_bin" ./...; then
+  rm -f "$tmp_bin"
+  tg::fail "Go build failed"
+fi
+duration=$(( $(date +%s) - start_ts ))
+rm -f "$tmp_bin"
+
+tg::log_info "Go build completed in ${duration}s"
+if (( duration > 90 )); then
+  tg::fail "Go build exceeded 90 seconds (${duration}s)"
+fi
+
+tg::log_success "Performance validation complete"

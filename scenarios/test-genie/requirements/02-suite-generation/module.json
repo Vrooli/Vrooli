@@ -1,0 +1,41 @@
+{
+  "_metadata": {
+    "module_name": "AI Suite Generation Parity",
+    "description": "Restore the delegated AI test suite generation pipeline.",
+    "prd_ref": "OT-P0-002",
+    "priority": "P0"
+  },
+  "requirements": [
+    {
+      "id": "TESTGENIE-SUITE-P0",
+      "title": "AI suite generation + delegation restored",
+      "description": "Rebuild CLI/API endpoints that analyze codebases, call App Issue Tracker, and emit deterministic local suites when delegation is unavailable.",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/test/test-genie-generate.bats",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "CLI acceptance tests exercise the suite generation workflow"
+        },
+        {
+          "type": "test",
+          "ref": "api/generate_suite_integration_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "API integration tests verify suite persistence plus deterministic fallback defaults"
+        },
+        {
+          "type": "test",
+          "ref": "api/suite_requests_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers suite request payload validation + persistence and query helpers"
+        }
+      ]
+    }
+  ]
+}

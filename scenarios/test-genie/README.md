@@ -1,6 +1,8 @@
 # 🧪 Test Genie - AI-Powered Comprehensive Test Management
 
 > **Transforming Testing from Manual Labor to Intelligent Automation**
+>
+> **2025-12 Rebuild:** This scenario has been reinitialized on the React + Vite template so we can replace the bash-heavy legacy implementation. The original Go/CLI stack still lives in `scenarios/test-genie-old/` for reference, while all new development happens here.
 
 Test Genie is a revolutionary AI-powered platform that automatically generates, executes, and manages comprehensive test suites for any scenario, resource, or system component within Vrooli. It eliminates the pain of manual test creation while ensuring exceptional quality and coverage.
 
@@ -26,28 +28,30 @@ Test Genie is a revolutionary AI-powered platform that automatically generates, 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **PostgreSQL** (for test data storage)
-- **App Issue Tracker scenario** running through the Vrooli lifecycle (handles delegated test generation)
-- **Node.js 16+** (for the dashboard UI)
+- **PostgreSQL** (test metadata + orchestrator state)
+- **App Issue Tracker scenario** (handles delegated AI test generation)
+- **Node.js 18+ / pnpm** (for the React dashboard)
 
-### Installation
+### Lifecycle-Aligned Startup
+```bash
+# Install dependencies (one-time; pnpm + go modules)
+cd scenarios/test-genie
+corepack pnpm install --dir ui
+cd api && go mod tidy && cd ..
 
-1. **Install the CLI**
-   ```bash
-   cd cli && ./install.sh
-   ```
+# Start through lifecycle (preferred)
+make start         # or: vrooli scenario start test-genie
+make logs          # stream API/UI logs
 
-2. **Start the API Server**
-   ```bash
-   cd api && go run main.go
-   ```
+# Stop when done
+make stop          # or: vrooli scenario stop test-genie
+```
 
-3. **Launch the Dashboard** *(Optional)*
-   ```bash
-   cd ui && npm install && npm start
-   ```
+> **Legacy manual commands** (`cd api && go run main.go`, `cd ui && npm start`) are preserved in `scenarios/test-genie-old/` for historical reference only.
 
 ### Generate Your First Test Suite
+
+_Interfaces below describe the parity target for the rewrite. `test-genie generate` is already wired into the rebuilt API and queues suite requests locally, while execute/coverage commands still reference the legacy implementation until OT-P0-002 is complete._
 
 ```bash
 # Generate comprehensive tests for your scenario
@@ -64,6 +68,26 @@ test-genie vault my-scenario --phases setup,develop,test,deploy
 ```
 
 > **Note:** `test-genie generate` now returns a request summary with an App Issue Tracker issue ID. Test suites appear in the dashboard once that issue is completed. If the tracker cannot be reached, Test Genie falls back to shipping deterministic local templates immediately.
+
+### API: Queue Suite Requests Today
+
+The rebuild now exposes stable REST endpoints so other scenarios (or your CLI scripts) can begin storing suite-generation intents **inside** Test Genie again:
+
+```bash
+API_PORT=$(vrooli scenario port test-genie API_PORT)
+
+curl -s "http://localhost:${API_PORT}/api/v1/suite-requests" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "scenarioName": "ecosystem-manager",
+        "requestedTypes": ["unit","integration","performance"],
+        "coverageTarget": 92,
+        "priority": "high",
+        "notes": "Kick off analysis for OT-P0-002 parity"
+      }'
+```
+
+Follow-up calls to `GET /api/v1/suite-requests` or `/api/v1/suite-requests/<id>` report queue state, deterministic fallback metadata, and the coverage target that was requested.
 
 ## 🔥 Core Features
 
@@ -138,6 +162,11 @@ cd ui && npm start
 - **PostgreSQL Integration** for persistent test data storage
 - **Delegation Engine** that raises work orders in App Issue Tracker for automated generation
 - **Real-time WebSocket** support for live execution monitoring
+
+### **Internal Test Orchestrator (Rebuild Target)**
+- Re-implements structure/dependency/unit/performance validation directly inside the scenario
+- Provides typed runners for Go, Node/Vitest, and Python suites (no reliance on `scripts/scenarios/testing/`)
+- Ships APIs + CLI hooks so other scenarios can invoke the orchestration service remotely
 
 ### **CLI Tool** (`/cli`)
 - **Comprehensive Command Set** for all testing operations

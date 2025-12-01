@@ -1,0 +1,13 @@
+{
+  "_metadata": {
+    "module": "test-genie.requirements",
+    "description": "Operational targets for the Test Genie rebuild",
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-internal-orchestrator/module.json",
+    "02-suite-generation/module.json",
+    "03-vault-coverage/module.json"
+  ],
+  "requirements": []
+}

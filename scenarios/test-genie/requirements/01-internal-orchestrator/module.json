@@ -1,0 +1,41 @@
+{
+  "_metadata": {
+    "module_name": "Internal Test Orchestrator",
+    "description": "Scenario-local orchestration pipeline replacing scripts/scenarios/testing/",
+    "prd_ref": "OT-P0-001",
+    "priority": "P0"
+  },
+  "requirements": [
+    {
+      "id": "TESTGENIE-ORCH-P0",
+      "title": "Scenario-local orchestrator replaces scripts/scenarios/testing",
+      "description": "Implement structure, dependency, unit, integration, and performance runners directly inside the scenario, exposing CLI + API triggers.",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/run-tests.sh",
+          "phase": "structure",
+          "status": "implemented",
+          "notes": "Scenario-local orchestrator drives phased suite without relying on scripts/scenarios/testing"
+        },
+        {
+          "type": "test",
+          "ref": "test/lib/orchestrator.sh",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Bash-driven runner powers structure/dependency/unit/performance phases"
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-integration.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Integration phase asserts CLI + orchestrator workflows"
+        }
+      ]
+    }
+  ]
+}

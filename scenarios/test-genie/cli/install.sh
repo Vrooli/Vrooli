@@ -6,10 +6,3 @@ CLI_DIR="${APP_ROOT}/scenarios/test-genie/cli"
 source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
 install_cli "$CLI_DIR/test-genie" "test-genie"
-
-case "${OSTYPE:-}" in
-    msys*|cygwin*)
-        install_cli "$CLI_DIR/test-genie" "test-genie.exe"
-        ;;
-    *) ;;
-esac

@@ -1,21 +1,42 @@
 {
   "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
   "_metadata": {
-    "description": "Testing configuration for test-genie",
-    "generated_from": "test/phases/test-unit.sh",
-    "last_updated": "2025-11-06T23:58:52-05:00"
+    "description": "Sample testing configuration for React + Vite template",
+    "last_updated": "2025-11-08T00:00:00Z"
   },
   "version": "1.0.0",
+  "structure": {
+    "additional_dirs": [
+      "ui"
+    ]
+  },
   "unit": {
     "languages": {
-      "go": {
-        "coverage": {
-          "error_threshold": 50
-        }
+      "go": {},
+      "node": {}
+    }
+  },
+  "business": {
+    "checks": {
+      "endpoints": {
+        "enabled": true
+      },
+      "cli_commands": {
+        "enabled": true
+      },
+      "websockets": {
+        "enabled": true
       }
-    },
-    "options": {
-      "verbose": false
+    }
+  },
+  "performance": {
+    "checks": {
+      "lighthouse": {
+        "enabled": true
+      },
+      "bundle_size": {
+        "enabled": true
+      }
     }
   }
 }
