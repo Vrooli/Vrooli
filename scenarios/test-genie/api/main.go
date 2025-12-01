@@ -39,6 +39,7 @@ type Server struct {
 	executions    *SuiteExecutionRepository
 	orchestrator  *SuiteOrchestrator
 	executionSvc  *SuiteExecutionService
+	scenarios     *ScenarioDirectoryService
 }
 
 type suiteExecutionPayload struct {
@@ -83,6 +84,9 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to initialize orchestrator: %w", err)
 	}
 
+	scenarioRepo := NewScenarioDirectoryRepository(db)
+	scenarioLister := NewVrooliScenarioLister()
+
 	srv := &Server{
 		config:        cfg,
 		db:            db,
@@ -90,6 +94,7 @@ func NewServer() (*Server, error) {
 		suiteRequests: NewSuiteRequestService(NewPostgresSuiteRequestRepository(db)),
 		executions:    NewSuiteExecutionRepository(db),
 		orchestrator:  orchestrator,
+		scenarios:     NewScenarioDirectoryService(scenarioRepo, scenarioLister),
 	}
 	srv.executionSvc = NewSuiteExecutionService(srv.orchestrator, srv.executions, srv.suiteRequests)
 
@@ -110,6 +115,8 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/executions", s.handleExecuteSuite).Methods("POST")
 	apiRouter.HandleFunc("/executions", s.handleListExecutions).Methods("GET")
 	apiRouter.HandleFunc("/executions/{id}", s.handleGetExecution).Methods("GET")
+	apiRouter.HandleFunc("/scenarios", s.handleListScenarios).Methods("GET")
+	apiRouter.HandleFunc("/scenarios/{name}", s.handleGetScenario).Methods("GET")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -261,6 +268,49 @@ func (s *Server) handleGetSuiteRequest(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, req)
 }
 
+func (s *Server) handleListScenarios(w http.ResponseWriter, r *http.Request) {
+	if s.scenarios == nil {
+		s.writeError(w, http.StatusInternalServerError, "scenario directory service unavailable")
+		return
+	}
+	summaries, err := s.scenarios.ListSummaries(r.Context())
+	if err != nil {
+		s.log("listing scenarios failed", map[string]interface{}{"error": err.Error()})
+		s.writeError(w, http.StatusInternalServerError, "failed to load scenarios")
+		return
+	}
+	s.writeJSON(w, http.StatusOK, map[string]interface{}{
+		"items": summaries,
+		"count": len(summaries),
+	})
+}
+
+func (s *Server) handleGetScenario(w http.ResponseWriter, r *http.Request) {
+	if s.scenarios == nil {
+		s.writeError(w, http.StatusInternalServerError, "scenario directory service unavailable")
+		return
+	}
+	params := mux.Vars(r)
+	name := strings.TrimSpace(params["name"])
+	if name == "" {
+		s.writeError(w, http.StatusBadRequest, "scenario name is required")
+		return
+	}
+
+	summary, err := s.scenarios.GetSummary(r.Context(), name)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			s.writeError(w, http.StatusNotFound, "scenario not found")
+			return
+		}
+		s.log("fetching scenario failed", map[string]interface{}{"error": err.Error()})
+		s.writeError(w, http.StatusInternalServerError, "failed to load scenario")
+		return
+	}
+
+	s.writeJSON(w, http.StatusOK, summary)
+}
+
 func (s *Server) handleListExecutions(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 	scenario := strings.TrimSpace(params.Get("scenario"))
@@ -270,8 +320,14 @@ func (s *Server) handleListExecutions(w http.ResponseWriter, r *http.Request) {
 			limit = parsed
 		}
 	}
+	offset := 0
+	if raw := strings.TrimSpace(params.Get("offset")); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
 
-	records, err := s.executions.ListRecent(r.Context(), scenario, limit)
+	records, err := s.executions.ListRecent(r.Context(), scenario, limit, offset)
 	if err != nil {
 		s.log("listing executions failed", map[string]interface{}{"error": err.Error()})
 		s.writeError(w, http.StatusInternalServerError, "failed to load execution history")

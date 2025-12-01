@@ -115,6 +115,29 @@ export interface ExecuteSuiteInput {
   suiteRequestId?: string;
 }
 
+export interface ScenarioSummary {
+  scenarioName: string;
+  scenarioDescription?: string;
+  scenarioStatus?: string;
+  scenarioTags?: string[];
+  pendingRequests: number;
+  totalRequests: number;
+  lastRequestAt?: string;
+  lastRequestPriority?: string;
+  lastRequestStatus?: string;
+  lastRequestNotes?: string;
+  lastRequestCoverageTarget?: number;
+  lastRequestTypes?: string[];
+  totalExecutions: number;
+  lastExecutionAt?: string;
+  lastExecutionId?: string;
+  lastExecutionPreset?: string;
+  lastExecutionSuccess?: boolean;
+  lastExecutionPhases?: PhaseExecutionResult[];
+  lastExecutionPhaseSummary?: PhaseSummary;
+  lastFailureAt?: string;
+}
+
 export async function fetchHealth(): Promise<ApiHealthResponse> {
   const url = buildApiUrl("/health", { baseUrl: API_BASE });
   const res = await fetch(url, {
@@ -137,6 +160,7 @@ export async function fetchSuiteRequests(): Promise<SuiteRequest[]> {
 export async function fetchExecutionHistory(params?: {
   scenario?: string;
   limit?: number;
+  offset?: number;
 }): Promise<SuiteExecutionResult[]> {
   const query = new URLSearchParams();
   if (params?.scenario) {
@@ -144,6 +168,9 @@ export async function fetchExecutionHistory(params?: {
   }
   if (params?.limit) {
     query.set("limit", String(params.limit));
+  }
+  if (typeof params?.offset === "number" && params.offset > 0) {
+    query.set("offset", String(params.offset));
   }
   const queryString = query.toString();
   const baseUrl = buildApiUrl("/executions", { baseUrl: API_BASE });
@@ -175,4 +202,29 @@ export async function triggerSuiteExecution(input: ExecuteSuiteInput): Promise<S
     body: JSON.stringify(input)
   });
   return parseResponse<SuiteExecutionResult>(res);
+}
+
+export async function fetchScenarioSummaries(): Promise<ScenarioSummary[]> {
+  const url = buildApiUrl("/scenarios", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  const payload = await parseResponse<{ items: ScenarioSummary[]; count: number }>(res);
+  return payload.items ?? [];
+}
+
+export async function fetchScenarioSummary(name: string): Promise<ScenarioSummary | null> {
+  if (!name.trim()) {
+    return null;
+  }
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(name.trim())}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  if (res.status === 404) {
+    return null;
+  }
+  return parseResponse<ScenarioSummary>(res);
 }

@@ -1,4 +1,5 @@
-import { useCallback, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, ArrowUpRight, Info, Search } from "lucide-react";
 import { selectors } from "./consts/selectors";
@@ -6,10 +7,12 @@ import { Button } from "./components/ui/button";
 import {
   fetchExecutionHistory,
   fetchHealth,
+  fetchScenarioSummaries,
   fetchSuiteRequests,
   queueSuiteRequest,
   triggerSuiteExecution,
   type ApiHealthResponse,
+  type ScenarioSummary,
   type SuiteExecutionResult,
   type SuiteRequest
 } from "./lib/api";
@@ -22,10 +25,15 @@ const DEFAULT_REQUEST_TYPES = ["unit", "integration"];
 const SECTION_ANCHORS = {
   scenarioFocus: "scenario-focus-section",
   scenarioDirectory: "scenario-directory-section",
+  catalogOverview: "scenario-catalog-overview",
+  scenarioCoverage: "scenario-coverage-section",
   queueForm: "queue-form-section",
   executionForm: "execution-form-section",
   suiteRequests: "suite-requests-section",
-  executionHistory: "execution-history-section"
+  executionHistory: "execution-history-section",
+  signalHighlights: "signal-highlights-section",
+  queueMetrics: "queue-metrics-section",
+  latestExecution: "latest-execution-section"
 } as const;
 
 const relativeFormatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -33,7 +41,8 @@ const relativeFormatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" })
 const DASHBOARD_TABS = [
   { key: "overview", label: "Overview", description: "Intent + persona guides" },
   { key: "operate", label: "Operate", description: "Focus, queue, and run suites" },
-  { key: "signals", label: "Signals", description: "Backlog and execution health" }
+  { key: "signals", label: "Signals", description: "Backlog and execution health" },
+  { key: "catalog", label: "Catalog", description: "Scenario directory + portfolio status" }
 ] as const;
 
 const HERO_OUTCOMES = [
@@ -125,6 +134,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<DashboardTabKey>("overview");
   const [activeQuickRunId, setActiveQuickRunId] = useState<string | null>(null);
   const [scenarioSearch, setScenarioSearch] = useState("");
+  const [historyScenario, setHistoryScenario] = useState<string | null>(null);
   const scrollToSection = useCallback((sectionId: string) => {
     if (typeof window === "undefined") {
       return;
@@ -162,6 +172,21 @@ export default function App() {
     queryFn: () => fetchExecutionHistory({ limit: 6 }),
     refetchInterval: 12000
   });
+
+  const scenarioSummariesQuery = useQuery<ScenarioSummary[]>({
+    queryKey: ["scenario-summaries"],
+    queryFn: fetchScenarioSummaries,
+    refetchInterval: 15000
+  });
+
+  const scenarioHistoryQuery = useQuery<SuiteExecutionResult[]>({
+    queryKey: ["scenario-history", historyScenario],
+    queryFn: () =>
+      historyScenario ? fetchExecutionHistory({ scenario: historyScenario, limit: 20 }) : Promise.resolve([]),
+    enabled: Boolean(historyScenario)
+  });
+  const scenarioSummaries = scenarioSummariesQuery.data ?? [];
+  const historyExecutions = historyScenario ? scenarioHistoryQuery.data ?? [] : [];
 
   const applyFocusScenario = (value: string) => {
     const trimmed = value.trim();
@@ -273,6 +298,9 @@ export default function App() {
     };
 
     const collected = new Map<string, Entry>();
+    scenarioSummaries.forEach((summary) =>
+      register(collected, summary.scenarioName, summary.lastExecutionAt ?? summary.lastRequestAt)
+    );
     requests.forEach((req) => register(collected, req.scenarioName, req.updatedAt ?? req.createdAt));
     executions.forEach((execution) => register(collected, execution.scenarioName, execution.completedAt ?? execution.startedAt));
     register(collected, queueForm.scenarioName);
@@ -281,7 +309,7 @@ export default function App() {
     return Array.from(collected.values())
       .sort((a, b) => b.timestamp - a.timestamp)
       .map((entry) => entry.label);
-  }, [executionForm.scenarioName, executions, queueForm.scenarioName, requests]);
+  }, [executionForm.scenarioName, executions, queueForm.scenarioName, requests, scenarioSummaries]);
 
   const filteredRequests = useMemo(() => {
     if (!focusActive) {
@@ -344,72 +372,19 @@ export default function App() {
   }, [filteredExecutions, filteredRequests, focusActive]);
 
   const scenarioDirectoryEntries = useMemo(() => {
-    type DirectoryEntry = {
-      name: string;
-      pendingCount: number;
-      totalRequests: number;
-      lastRequest?: SuiteRequest;
-      lastExecution?: SuiteExecutionResult;
-      lastActivity: number;
-    };
-    const map = new Map<string, DirectoryEntry>();
-    const ensureEntry = (name?: string) => {
-      const trimmed = name?.trim();
-      if (!trimmed) {
-        return null;
-      }
-      const existing = map.get(trimmed);
-      if (existing) {
-        return existing;
-      }
-      const entry: DirectoryEntry = {
-        name: trimmed,
-        pendingCount: 0,
-        totalRequests: 0,
-        lastActivity: 0
-      };
-      map.set(trimmed, entry);
-      return entry;
-    };
-
-    requests.forEach((req) => {
-      const entry = ensureEntry(req.scenarioName);
-      if (!entry) {
-        return;
-      }
-      entry.totalRequests += 1;
-      if (isActionableRequest(req.status)) {
-        entry.pendingCount += 1;
-      }
-      const requestTimestamp = parseTimestamp(req.updatedAt ?? req.createdAt);
-      if (!entry.lastRequest) {
-        entry.lastRequest = req;
-      } else if (requestTimestamp > parseTimestamp(entry.lastRequest.updatedAt ?? entry.lastRequest.createdAt)) {
-        entry.lastRequest = req;
-      }
-      entry.lastActivity = Math.max(entry.lastActivity, requestTimestamp);
-    });
-
-    executions.forEach((execution) => {
-      const entry = ensureEntry(execution.scenarioName);
-      if (!entry) {
-        return;
-      }
-      const execTimestamp = parseTimestamp(execution.completedAt ?? execution.startedAt);
-      if (!entry.lastExecution || execTimestamp > parseTimestamp(entry.lastExecution.completedAt ?? entry.lastExecution.startedAt)) {
-        entry.lastExecution = execution;
-      }
-      entry.lastActivity = Math.max(entry.lastActivity, execTimestamp);
-    });
-
-    return Array.from(map.values()).sort((a, b) => {
-      const diff = b.lastActivity - a.lastActivity;
-      if (diff !== 0) {
-        return diff;
-      }
-      return a.name.localeCompare(b.name);
-    });
-  }, [executions, requests]);
+    if (scenarioSummaries.length === 0) {
+      return [] as Array<ScenarioSummary & { lastActivity: number }>;
+    }
+    return scenarioSummaries
+      .map((summary) => {
+        const lastActivity = Math.max(
+          timestampOrZero(summary.lastExecutionAt),
+          timestampOrZero(summary.lastRequestAt)
+        );
+        return { ...summary, lastActivity };
+      })
+      .sort((a, b) => b.lastActivity - a.lastActivity);
+  }, [scenarioSummaries]);
 
   const filteredScenarioDirectory = useMemo(() => {
     const trimmed = scenarioSearch.trim().toLowerCase();
@@ -417,9 +392,22 @@ export default function App() {
       return scenarioDirectoryEntries;
     }
     return scenarioDirectoryEntries.filter((entry) =>
-      entry.name.toLowerCase().includes(trimmed)
+      entry.scenarioName.toLowerCase().includes(trimmed)
     );
   }, [scenarioDirectoryEntries, scenarioSearch]);
+  const scenarioStatusRows = scenarioDirectoryEntries;
+  const catalogStats = useMemo(() => {
+    if (scenarioDirectoryEntries.length === 0) {
+      return { tracked: 0, pending: 0, failing: 0, idle: 0 };
+    }
+    const tracked = scenarioDirectoryEntries.length;
+    const pending = scenarioDirectoryEntries.filter((entry) => entry.pendingRequests > 0).length;
+    const failing = scenarioDirectoryEntries.filter((entry) => entry.lastExecutionSuccess === false).length;
+    const idle = scenarioDirectoryEntries.filter(
+      (entry) => entry.pendingRequests === 0 && !entry.lastExecutionAt
+    ).length;
+    return { tracked, pending, failing, idle };
+  }, [scenarioDirectoryEntries]);
 
   const queuePendingCount = useMemo(
     () => requests.filter((req) => isActionableRequest(req.status)).length,
@@ -430,6 +418,29 @@ export default function App() {
     () => DASHBOARD_TABS.find((tab) => tab.key === activeTab) ?? DASHBOARD_TABS[0],
     [activeTab]
   );
+
+  const selectedHistorySummary = useMemo(() => {
+    if (!historyScenario) {
+      return null;
+    }
+    return (
+      scenarioDirectoryEntries.find(
+        (entry) => entry.scenarioName.toLowerCase() === historyScenario.toLowerCase()
+      ) ?? null
+    );
+  }, [historyScenario, scenarioDirectoryEntries]);
+
+  useEffect(() => {
+    if (!historyScenario) {
+      return;
+    }
+    const exists = scenarioDirectoryEntries.some(
+      (entry) => entry.scenarioName.toLowerCase() === historyScenario.toLowerCase()
+    );
+    if (!exists) {
+      setHistoryScenario(null);
+    }
+  }, [historyScenario, scenarioDirectoryEntries]);
 
   const quickNavItems = [
     {
@@ -443,7 +454,7 @@ export default function App() {
           : "No history yet",
       statLabel: scenarioDirectoryEntries.length > 0 ? "Auto-tracked" : "Populates after first run",
       actionLabel: "Open directory",
-      onClick: () => navigateToSection("operate", SECTION_ANCHORS.scenarioDirectory)
+      onClick: () => navigateToSection("catalog", SECTION_ANCHORS.scenarioDirectory)
     },
     {
       key: "focus",
@@ -508,7 +519,15 @@ export default function App() {
     }
   ];
 
-  const handleQueueSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
+  const signalNavItems = [
+    { key: "highlights", label: "Highlights", anchor: SECTION_ANCHORS.signalHighlights },
+    { key: "queue", label: "Queue health", anchor: SECTION_ANCHORS.queueMetrics },
+    { key: "latest", label: "Latest run", anchor: SECTION_ANCHORS.latestExecution },
+    { key: "requests", label: "Queue table", anchor: SECTION_ANCHORS.suiteRequests },
+    { key: "history", label: "Execution history", anchor: SECTION_ANCHORS.executionHistory }
+  ];
+
+  const handleQueueSubmit = (evt: FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
     if (!queueForm.scenarioName.trim()) {
       setQueueFeedback("Scenario name is required");
@@ -525,7 +544,7 @@ export default function App() {
     });
   };
 
-  const handleExecutionSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
+  const handleExecutionSubmit = (evt: FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
     if (!executionForm.scenarioName.trim()) {
       setExecutionFeedback("Scenario name is required");
@@ -572,6 +591,33 @@ export default function App() {
       scenarioName: execution.scenarioName,
       preset: execution.preset ?? prev.preset,
       suiteRequestId: execution.suiteRequestId ?? ""
+    }));
+  };
+
+  const prefillFromSummary = (summary: ScenarioSummary) => {
+    applyFocusScenario(summary.scenarioName);
+    setQueueForm((prev) => ({
+      ...prev,
+      scenarioName: summary.scenarioName,
+      requestedTypes:
+        summary.lastRequestTypes && summary.lastRequestTypes.length > 0
+          ? summary.lastRequestTypes
+          : prev.requestedTypes.length > 0
+          ? prev.requestedTypes
+          : DEFAULT_REQUEST_TYPES,
+      coverageTarget: summary.lastRequestCoverageTarget ?? prev.coverageTarget ?? 95,
+      priority: summary.lastRequestPriority ?? prev.priority,
+      notes: summary.lastRequestNotes ?? prev.notes
+    }));
+  };
+
+  const prefillRunnerFromSummary = (summary: ScenarioSummary) => {
+    applyFocusScenario(summary.scenarioName);
+    setExecutionForm((prev) => ({
+      ...prev,
+      scenarioName: summary.scenarioName,
+      preset: summary.lastExecutionPreset || prev.preset,
+      suiteRequestId: ""
     }));
   };
 
@@ -713,7 +759,7 @@ export default function App() {
                   onClick={() =>
                     actionableRequest
                       ? (prefillFromRequest(actionableRequest), navigateToSection("operate", SECTION_ANCHORS.queueForm))
-                      : navigateToSection("operate", SECTION_ANCHORS.scenarioDirectory)
+                      : navigateToSection("catalog", SECTION_ANCHORS.scenarioDirectory)
                   }
                 >
                   {actionableRequest ? "Prefill priority suite" : "Open directory"}
@@ -794,7 +840,7 @@ export default function App() {
                       prefillFromRequest(actionableRequest);
                       navigateToSection("operate", SECTION_ANCHORS.queueForm);
                     } else if (scenarioDirectoryEntries.length > 0) {
-                      applyFocusScenario(scenarioDirectoryEntries[0].name);
+                      applyFocusScenario(scenarioDirectoryEntries[0].scenarioName);
                       navigateToSection("operate", SECTION_ANCHORS.scenarioFocus);
                     } else {
                       navigateToSection("operate", SECTION_ANCHORS.queueForm);
@@ -828,6 +874,7 @@ export default function App() {
 
         {activeTab === "signals" && (
           <section
+            id={SECTION_ANCHORS.signalHighlights}
             className="rounded-2xl border border-white/10 bg-white/[0.04] p-6"
             data-testid={selectors.dashboard.flowHighlights}
           >
@@ -852,6 +899,18 @@ export default function App() {
               Refresh signals
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {signalNavItems.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => navigateToSection("signals", item.anchor)}
+                className="rounded-full border border-white/20 bg-transparent px-4 py-1.5 text-sm text-slate-300 transition hover:border-white/50 hover:text-white"
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             <article
@@ -1115,134 +1174,356 @@ export default function App() {
           </section>
         )}
 
-        {activeTab === "operate" && (
-          <section
-            id={SECTION_ANCHORS.scenarioDirectory}
-            className="rounded-2xl border border-white/10 bg-white/[0.02] p-6"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Scenario Directory</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <h2 className="text-2xl font-semibold">Browse everything in scope</h2>
-                  <InfoTip
-                    title="Scenario directory"
-                    description="Search and compare every scenario the API has seen, then jump directly into focus, queue, or rerun actions without leaving this page."
-                  />
+        {activeTab === "catalog" && (
+          <>
+            <section
+              id={SECTION_ANCHORS.catalogOverview}
+              className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Scenario catalog</p>
+                  <h2 className="mt-2 text-2xl font-semibold">Portfolio radar</h2>
+                  <p className="mt-2 text-sm text-slate-300">
+                    Use this tab when you need a bird&apos;s-eye view of every tracked scenario before deciding
+                    where to focus, queue suites, or rerun presets.
+                  </p>
                 </div>
-                <p className="mt-2 text-sm text-slate-300">
-                  Each card combines queue signals and the latest execution so you can decide whether to
-                  focus, queue a fresh suite, or rerun a failure in seconds.
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                  <input
-                    className="w-64 rounded-full border border-white/10 bg-black/40 pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                    placeholder="Search scenario names…"
-                    value={scenarioSearch}
-                    onChange={(evt) => setScenarioSearch(evt.target.value)}
-                  />
-                </div>
-                {scenarioSearch && (
-                  <Button variant="outline" size="sm" onClick={() => setScenarioSearch("")}>
-                    Clear
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigateToSection("operate", SECTION_ANCHORS.scenarioFocus)}
+                  >
+                    Go to focus
                   </Button>
-                )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigateToSection("operate", SECTION_ANCHORS.queueForm)}
+                  >
+                    Queue coverage
+                  </Button>
+                </div>
               </div>
-            </div>
-            {scenarioDirectoryEntries.length === 0 && (
-              <p className="mt-6 text-sm text-slate-400">
-                Queue a suite or run a preset to populate this directory automatically.
-              </p>
-            )}
-            {scenarioDirectoryEntries.length > 0 && filteredScenarioDirectory.length === 0 && (
-              <p className="mt-6 text-sm text-slate-400">
-                No scenarios match “{scenarioSearch}”. Clear the search to see all tracked workstreams.
-              </p>
-            )}
-            {filteredScenarioDirectory.length > 0 && (
-              <div className="mt-6 grid gap-4 lg:grid-cols-2">
+              <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <article className="rounded-2xl border border-white/5 bg-black/30 p-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Tracked</p>
+                  <p className="mt-2 text-3xl font-semibold">
+                    {catalogStats.tracked.toString().padStart(2, "0")}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-300">
+                    {catalogStats.tracked > 0 ? "Scenarios with queue or execution history." : "Activity populates automatically after your first run."}
+                  </p>
+                </article>
+                <article className="rounded-2xl border border-white/5 bg-black/30 p-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Pending</p>
+                  <p className="mt-2 text-3xl font-semibold">
+                    {catalogStats.pending.toString().padStart(2, "0")}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-300">Scenarios waiting for an inline run.</p>
+                </article>
+                <article className="rounded-2xl border border-white/5 bg-black/30 p-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Failing</p>
+                  <p className="mt-2 text-3xl font-semibold">
+                    {catalogStats.failing.toString().padStart(2, "0")}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-300">Scenarios whose last run failed inside the Go runner.</p>
+                </article>
+                <article className="rounded-2xl border border-white/5 bg-black/30 p-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Idle</p>
+                  <p className="mt-2 text-3xl font-semibold">
+                    {catalogStats.idle.toString().padStart(2, "0")}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-300">Tracked scenarios with no recorded run yet.</p>
+                </article>
+              </div>
+            </section>
+
+            <section
+              id={SECTION_ANCHORS.scenarioDirectory}
+              className="rounded-2xl border border-white/10 bg-white/[0.02] p-6"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Scenario Directory</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <h2 className="text-2xl font-semibold">Browse everything in scope</h2>
+                    <InfoTip
+                      title="Scenario directory"
+                      description="Search and compare every scenario the API has seen, then jump directly into focus, queue, or rerun actions without leaving this page."
+                    />
+                  </div>
+                  <p className="mt-2 text-sm text-slate-300">
+                    Each card combines queue signals and the latest execution so you can decide whether to
+                    focus, queue a fresh suite, or rerun a failure in seconds.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                    <input
+                      className="w-64 rounded-full border border-white/10 bg-black/40 pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                      placeholder="Search scenario names…"
+                      value={scenarioSearch}
+                      onChange={(evt) => setScenarioSearch(evt.target.value)}
+                    />
+                  </div>
+                  {scenarioSearch && (
+                    <Button variant="outline" size="sm" onClick={() => setScenarioSearch("")}>
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {scenarioDirectoryEntries.length === 0 && (
+                <p className="mt-6 text-sm text-slate-400">
+                  Queue a suite or run a preset to populate this directory automatically.
+                </p>
+              )}
+              {scenarioDirectoryEntries.length > 0 && filteredScenarioDirectory.length === 0 && (
+                <p className="mt-6 text-sm text-slate-400">
+                  No scenarios match “{scenarioSearch}”. Clear the search to see all tracked workstreams.
+                </p>
+              )}
+              {filteredScenarioDirectory.length > 0 && (
+                <div className="mt-6 grid gap-4 lg:grid-cols-2">
                 {filteredScenarioDirectory.map((entry) => {
-                  const status = entry.pendingCount > 0
-                    ? "queued"
-                    : entry.lastExecution
-                    ? entry.lastExecution.success
-                      ? "completed"
-                      : "failed"
-                    : "idle";
-                  const queueSummary =
-                    entry.pendingCount > 0
-                      ? `${entry.pendingCount} request${entry.pendingCount === 1 ? "" : "s"} waiting for a run`
-                      : entry.totalRequests > 0
-                      ? "No pending requests"
-                      : "Queue a request to start tracking";
-                  const executionSummary = entry.lastExecution
-                    ? `${entry.lastExecution.success ? "Passed" : "Failed"} ${formatRelative(entry.lastExecution.completedAt)}`
-                    : "No runs recorded";
-                  const latestRequest = entry.lastRequest;
-                  const latestExecution = entry.lastExecution;
-                  const requestDetail = latestRequest
-                    ? `Last request ${formatRelative(latestRequest.updatedAt ?? latestRequest.createdAt)} · ${latestRequest.priority} priority`
-                    : "";
+                  const status =
+                    entry.pendingRequests > 0
+                      ? "queued"
+                      : entry.lastExecutionSuccess === false
+                        ? "failed"
+                        : entry.lastExecutionSuccess === true
+                        ? "completed"
+                        : "idle";
+                    const queueSummary =
+                      entry.pendingRequests > 0
+                        ? `${entry.pendingRequests} request${entry.pendingRequests === 1 ? "" : "s"} waiting for a run`
+                        : entry.totalRequests > 0
+                        ? "No pending requests"
+                        : "Queue a request to start tracking";
+                    const executionSummary = entry.lastExecutionAt
+                      ? `${entry.lastExecutionSuccess ? "Passed" : "Failed"} ${formatRelative(entry.lastExecutionAt)}`
+                      : "No runs recorded";
+                    const requestDetail = entry.lastRequestPriority
+                      ? `Last request ${entry.lastRequestAt ? formatRelative(entry.lastRequestAt) : "—"} · ${entry.lastRequestPriority} priority`
+                      : "";
+                  const scenarioStatus = entry.scenarioStatus || "unknown";
+                  const tags = entry.scenarioTags?.slice(0, 4) ?? [];
                   return (
-                    <article key={entry.name} className="rounded-2xl border border-white/5 bg-black/30 p-5">
+                    <article key={entry.scenarioName} className="rounded-2xl border border-white/5 bg-black/30 p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{queueSummary}</p>
-                          <h3 className="mt-1 text-xl font-semibold">{entry.name}</h3>
+                          <h3 className="mt-1 text-xl font-semibold">{entry.scenarioName}</h3>
                         </div>
-                        <StatusPill status={status} />
+                        <div className="flex flex-col items-end gap-2 text-right">
+                          <StatusPill status={status} />
+                          <div className="text-xs text-slate-400">Scenario: {scenarioStatus}</div>
+                        </div>
                       </div>
+                      {entry.scenarioDescription && (
+                        <p className="mt-3 text-sm text-slate-400">{entry.scenarioDescription}</p>
+                      )}
                       <p className="mt-3 text-sm text-slate-300">{executionSummary}</p>
                       {requestDetail && <p className="mt-1 text-xs text-slate-500">{requestDetail}</p>}
+                      {tags.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {tags.map((tag) => (
+                            <span key={`${entry.scenarioName}-${tag}`} className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-wide text-slate-300">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       <div className="mt-4 flex flex-wrap gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => {
-                            applyFocusScenario(entry.name);
-                            navigateToSection("operate", SECTION_ANCHORS.scenarioFocus);
-                          }}
-                        >
-                          Focus
-                        </Button>
-                        {latestRequest && (
+                            onClick={() => {
+                              applyFocusScenario(entry.scenarioName);
+                              navigateToSection("operate", SECTION_ANCHORS.scenarioFocus);
+                            }}
+                          >
+                            Focus
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => {
-                              prefillFromRequest(latestRequest);
+                              prefillFromSummary(entry);
                               navigateToSection("operate", SECTION_ANCHORS.queueForm);
                             }}
                           >
                             Prefill queue
                           </Button>
-                        )}
-                        {latestExecution && (
                           <Button
                             size="sm"
                             onClick={() => {
-                              prefillFromExecution(latestExecution);
+                              prefillRunnerFromSummary(entry);
                               navigateToSection("operate", SECTION_ANCHORS.executionForm);
                             }}
-                          >
-                            Prefill rerun
-                          </Button>
-                        )}
+                            disabled={!entry.lastExecutionAt}
+                        >
+                          Prefill rerun
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-transparent text-slate-200 hover:border-white/40"
+                          onClick={() => {
+                            applyFocusScenario(entry.scenarioName);
+                            navigateToSection("signals", SECTION_ANCHORS.signalHighlights);
+                          }}
+                        >
+                          View signals
+                        </Button>
                       </div>
                     </article>
                   );
                 })}
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6" id={SECTION_ANCHORS.scenarioCoverage}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Scenario coverage status</p>
+                  <h2 className="mt-2 text-2xl font-semibold">All scenarios at a glance</h2>
+                  <p className="mt-2 text-sm text-slate-300">
+                    Review every scenario the orchestrator has seen, check pending queues, and jump straight into
+                    focus, queue, rerun, or history views.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={() => scrollToSection(SECTION_ANCHORS.scenarioDirectory)}>
+                    Open directory
+                  </Button>
+                </div>
               </div>
-            )}
-          </section>
+              <div className="mt-4 overflow-x-auto rounded-2xl border border-white/5">
+                <table className="w-full min-w-[600px] text-left text-sm text-slate-200">
+                  <thead className="bg-white/5 text-xs uppercase tracking-wide text-slate-400">
+                    <tr>
+                      <th className="px-4 py-3">Scenario</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Pending</th>
+                      <th className="px-4 py-3">Last run</th>
+                      <th className="px-4 py-3">Last failure</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scenarioSummariesQuery.isLoading && scenarioStatusRows.length === 0 && (
+                      <tr>
+                        <td className="px-4 py-4 text-sm text-slate-400" colSpan={6}>
+                          Loading scenario catalog…
+                        </td>
+                      </tr>
+                    )}
+                    {!scenarioSummariesQuery.isLoading && scenarioStatusRows.length === 0 && (
+                      <tr>
+                        <td className="px-4 py-4 text-sm text-slate-400" colSpan={6}>
+                          No scenarios have queued or executed suites yet. Queue a request to populate this table.
+                        </td>
+                      </tr>
+                    )}
+                    {scenarioStatusRows.map((entry) => (
+                      <tr key={`status-${entry.scenarioName}`} className="border-t border-white/5">
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-white">{entry.scenarioName}</div>
+                          <p className="text-xs text-slate-400">
+                            Last activity{" "}
+                            {entry.lastExecutionAt
+                              ? formatRelative(entry.lastExecutionAt)
+                              : entry.lastRequestAt
+                              ? formatRelative(entry.lastRequestAt)
+                              : "—"}
+                          </p>
+                        </td>
+                      <td className="px-4 py-3">
+                        {entry.scenarioStatus ? (
+                          <StatusPill status={entry.scenarioStatus} />
+                        ) : (
+                          <span className="text-xs text-slate-400">Unknown</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {entry.pendingRequests > 0 ? (
+                          <span className="rounded-full bg-amber-400/20 px-3 py-1 text-xs text-amber-100">
+                            {entry.pendingRequests} pending
+                          </span>
+                        ) : (
+                            <span className="text-xs text-slate-400">None</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-slate-300">
+                          {entry.lastExecutionAt
+                            ? `${entry.lastExecutionSuccess ? "Passed" : "Failed"} ${formatRelative(entry.lastExecutionAt)}`
+                            : "No runs"}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-slate-300">
+                          {entry.lastFailureAt ? formatRelative(entry.lastFailureAt) : "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                applyFocusScenario(entry.scenarioName);
+                                navigateToSection("operate", SECTION_ANCHORS.scenarioFocus);
+                              }}
+                            >
+                              Focus
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                prefillFromSummary(entry);
+                                navigateToSection("operate", SECTION_ANCHORS.queueForm);
+                              }}
+                            >
+                              Queue
+                            </Button>
+                            <Button
+                              size="sm"
+                              disabled={!entry.lastExecutionAt}
+                              onClick={() => {
+                                prefillRunnerFromSummary(entry);
+                                navigateToSection("operate", SECTION_ANCHORS.executionForm);
+                              }}
+                            >
+                              Rerun
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setHistoryScenario(entry.scenarioName);
+                                setActiveTab("signals");
+                              }}
+                            >
+                              History
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </>
         )}
 
         {activeTab === "signals" && (
           <div className="grid gap-6 lg:grid-cols-2">
             <section
+              id={SECTION_ANCHORS.queueMetrics}
               className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
               data-testid={selectors.dashboard.queueMetrics}
             >
@@ -1291,6 +1572,7 @@ export default function App() {
             </section>
 
             <section
+              id={SECTION_ANCHORS.latestExecution}
               className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
               data-testid={selectors.dashboard.lastExecution}
             >
@@ -1326,6 +1608,7 @@ export default function App() {
             </section>
           </div>
         )}
+
 
         {activeTab === "operate" && (
           <div className="grid gap-6 lg:grid-cols-2">
@@ -1817,6 +2100,94 @@ export default function App() {
             </section>
           </div>
         )}
+
+        {activeTab === "signals" && historyScenario && (
+          <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">History</p>
+                <h2 className="mt-2 text-2xl font-semibold">Recent runs for {historyScenario}</h2>
+                <p className="mt-2 text-sm text-slate-300">
+                  {selectedHistorySummary
+                    ? `${selectedHistorySummary.pendingRequests} pending / ${selectedHistorySummary.totalExecutions} recorded`
+                    : "Loading scenario details…"}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setHistoryScenario(null)}
+                >
+                  Close
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigateToSection("operate", SECTION_ANCHORS.executionForm)}
+                >
+                  Go to runner
+                </Button>
+              </div>
+            </div>
+            {scenarioHistoryQuery.isLoading && (
+              <p className="mt-4 text-sm text-slate-400">Loading execution history…</p>
+            )}
+            {!scenarioHistoryQuery.isLoading && historyExecutions.length === 0 && (
+              <p className="mt-4 text-sm text-slate-400">
+                No executions recorded for {historyScenario}. Run a preset to establish a baseline.
+              </p>
+            )}
+            {historyExecutions.length > 0 && (
+              <div className="mt-4 space-y-4">
+                {historyExecutions.map((execution) => (
+                  <article key={`history-${execution.executionId}`} className="rounded-2xl border border-white/5 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-slate-400">
+                          {execution.preset ? `${execution.preset} preset` : "Custom phases"}
+                        </p>
+                        <h3 className="text-lg font-semibold text-white">
+                          {execution.phaseSummary.passed}/{execution.phaseSummary.total} phases ·{" "}
+                          {formatRelative(execution.completedAt)}
+                        </h3>
+                      </div>
+                      <StatusPill status={execution.success ? "completed" : "failed"} />
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-400">
+                      <span>Duration {formatDuration(execution.phaseSummary.durationSeconds)}</span>
+                      {execution.phaseSummary.observationCount > 0 && (
+                        <span>{execution.phaseSummary.observationCount} observation(s)</span>
+                      )}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          prefillFromExecution(execution);
+                          navigateToSection("operate", SECTION_ANCHORS.executionForm);
+                        }}
+                      >
+                        Prefill rerun
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          applyFocusScenario(execution.scenarioName);
+                          setHistoryScenario(execution.scenarioName);
+                        }}
+                      >
+                        Focus scenario
+                      </Button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
       </div>
     </div>
   );
@@ -1980,6 +2351,14 @@ function parseTimestamp(value?: string) {
   }
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
+}
+
+function timestampOrZero(value?: string) {
+  if (!value) {
+    return 0;
+  }
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function priorityWeight(priority: string) {

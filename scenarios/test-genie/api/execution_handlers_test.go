@@ -46,7 +46,7 @@ func TestServer_handleListExecutions(t *testing.T) {
 	)
 
 	mock.ExpectQuery("SELECT\\s+id,\\s+suite_request_id").
-		WithArgs("demo", 5).
+		WithArgs("demo", 5, 0).
 		WillReturnRows(rows)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/executions?scenario=demo&limit=5", nil)

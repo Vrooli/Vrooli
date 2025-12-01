@@ -72,9 +72,12 @@ INSERT INTO suite_executions (
 	return err
 }
 
-func (r *SuiteExecutionRepository) ListRecent(ctx context.Context, scenario string, limit int) ([]SuiteExecutionRecord, error) {
+func (r *SuiteExecutionRepository) ListRecent(ctx context.Context, scenario string, limit int, offset int) ([]SuiteExecutionRecord, error) {
 	if limit <= 0 || limit > maxExecutionHistory {
 		limit = maxExecutionHistory
+	}
+	if offset < 0 {
+		offset = 0
 	}
 	baseQuery := `
 SELECT
@@ -96,6 +99,9 @@ FROM suite_executions`
 	}
 	baseQuery += fmt.Sprintf(" ORDER BY completed_at DESC LIMIT $%d", argPos)
 	args = append(args, limit)
+	argPos++
+	baseQuery += fmt.Sprintf(" OFFSET $%d", argPos)
+	args = append(args, offset)
 
 	rows, err := r.db.QueryContext(ctx, baseQuery, args...)
 	if err != nil {
@@ -140,7 +146,7 @@ WHERE id = $1
 }
 
 func (r *SuiteExecutionRepository) Latest(ctx context.Context) (*SuiteExecutionRecord, error) {
-	records, err := r.ListRecent(ctx, "", 1)
+	records, err := r.ListRecent(ctx, "", 1, 0)
 	if err != nil {
 		return nil, err
 	}

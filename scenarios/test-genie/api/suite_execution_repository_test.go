@@ -86,10 +86,10 @@ func TestSuiteExecutionRepositoryListRecent(t *testing.T) {
 	)
 
 	mock.ExpectQuery("SELECT\\s+id,\\s+suite_request_id").
-		WithArgs("demo", 5).
+		WithArgs("demo", 5, 0).
 		WillReturnRows(rows)
 
-	results, err := repo.ListRecent(context.Background(), "demo", 5)
+	results, err := repo.ListRecent(context.Background(), "demo", 5, 0)
 	if err != nil {
 		t.Fatalf("expected list to succeed: %v", err)
 	}
