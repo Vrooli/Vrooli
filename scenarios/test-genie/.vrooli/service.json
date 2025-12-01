@@ -53,10 +53,14 @@
     "version": "2.0.0",
     "health": {
       "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
       "startup_grace_period": 15000,
       "checks": [
         {
-          "name": "api",
+          "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "timeout": 10000,
@@ -64,7 +68,7 @@
           "critical": true
         },
         {
-          "name": "ui",
+          "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
@@ -75,6 +79,25 @@
     },
     "setup": {
       "description": "Build API & UI, install CLI",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/test-genie-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "test-genie"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
       "steps": [
         {
           "name": "install-cli",
@@ -84,10 +107,10 @@
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o test-genie-api .",
-          "description": "Compile Go API server"
+          "description": "Compile Go API server binary (test-genie-api)"
         },
         {
-          "name": "install-ui",
+          "name": "install-ui-deps",
           "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies"
         },
@@ -95,6 +118,11 @@
           "name": "build-ui",
           "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
           "description": "Build production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🧪 Test Genie ready!\\n  🌐 API: http://localhost:${API_PORT}\\n  🖥️  UI: http://localhost:${UI_PORT}\\n  🛠️ CLI: test-genie --help\\n  📦 Queue Postgres URL: ${DATABASE_URL}'",
+          "description": "Display service entrypoints after setup completes"
         }
       ]
     },
@@ -118,6 +146,11 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Test Genie running:\\n  🌐 API: http://localhost:${API_PORT}\\n  🖥️  UI: http://localhost:${UI_PORT}\\n  🧪 Execute suites via: curl -X POST http://localhost:${API_PORT}/api/v1/executions'",
+          "description": "Display scenario URLs for operators"
         }
       ]
     },

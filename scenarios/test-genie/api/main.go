@@ -38,6 +38,7 @@ type Server struct {
 	suiteRequests *SuiteRequestService
 	executions    *SuiteExecutionRepository
 	orchestrator  *SuiteOrchestrator
+	executionSvc  *SuiteExecutionService
 }
 
 type suiteExecutionPayload struct {
@@ -90,6 +91,7 @@ func NewServer() (*Server, error) {
 		executions:    NewSuiteExecutionRepository(db),
 		orchestrator:  orchestrator,
 	}
+	srv.executionSvc = NewSuiteExecutionService(srv.orchestrator, srv.executions, srv.suiteRequests)
 
 	srv.setupRoutes()
 	return srv, nil
@@ -344,38 +346,22 @@ func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, http.StatusBadRequest, "suiteRequestId must be a valid UUID")
 			return
 		}
-		req, err := s.suiteRequests.Get(r.Context(), parsed)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				s.writeError(w, http.StatusNotFound, "suite request not found")
-				return
-			}
-			s.log("failed to load suite request for execution", map[string]interface{}{"error": err.Error()})
-			s.writeError(w, http.StatusInternalServerError, "unable to load suite request")
-			return
-		}
-		if !strings.EqualFold(req.ScenarioName, scenario) {
-			s.writeError(w, http.StatusBadRequest, "suiteRequestId does not match scenarioName")
-			return
-		}
 		suiteRequestID = &parsed
-		if err := s.suiteRequests.UpdateStatus(r.Context(), parsed, suiteStatusRunning); err != nil {
-			if err == sql.ErrNoRows {
-				s.writeError(w, http.StatusNotFound, "suite request not found")
-				return
-			}
-			s.log("failed to mark suite request running", map[string]interface{}{"error": err.Error()})
-			s.writeError(w, http.StatusInternalServerError, "unable to mark suite request running")
-			return
-		}
 	}
 
-	result, err := s.orchestrator.Execute(r.Context(), execRequest)
+	if s.executionSvc == nil {
+		s.writeError(w, http.StatusInternalServerError, "execution service unavailable")
+		return
+	}
+
+	result, err := s.executionSvc.Execute(r.Context(), SuiteExecutionInput{
+		Request:        execRequest,
+		SuiteRequestID: suiteRequestID,
+	})
 	if err != nil {
-		if suiteRequestID != nil {
-			if updateErr := s.suiteRequests.UpdateStatus(r.Context(), *suiteRequestID, suiteStatusFailed); updateErr != nil {
-				s.log("failed to revert suite request on execution error", map[string]interface{}{"error": updateErr.Error()})
-			}
+		if errors.Is(err, errSuiteRequestNotFound) {
+			s.writeError(w, http.StatusNotFound, "suite request not found")
+			return
 		}
 		var vErr validationError
 		if errors.As(err, &vErr) {
@@ -386,36 +372,6 @@ func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, "suite execution failed")
 		return
 	}
-
-	record := &SuiteExecutionRecord{
-		ID:             uuid.New(),
-		SuiteRequestID: suiteRequestID,
-		ScenarioName:   result.ScenarioName,
-		PresetUsed:     result.PresetUsed,
-		Success:        result.Success,
-		Phases:         result.Phases,
-		StartedAt:      result.StartedAt,
-		CompletedAt:    result.CompletedAt,
-	}
-	if err := s.executions.Create(r.Context(), record); err != nil {
-		s.log("persisting suite execution failed", map[string]interface{}{"error": err.Error()})
-		s.writeError(w, http.StatusInternalServerError, "failed to persist execution record")
-		return
-	}
-
-	if suiteRequestID != nil {
-		nextStatus := suiteStatusCompleted
-		if !result.Success {
-			nextStatus = suiteStatusFailed
-		}
-		if err := s.suiteRequests.UpdateStatus(r.Context(), *suiteRequestID, nextStatus); err != nil {
-			s.log("failed to finalize suite request status", map[string]interface{}{"error": err.Error()})
-			s.writeError(w, http.StatusInternalServerError, "failed to finalize suite request status")
-			return
-		}
-		result.SuiteRequestID = suiteRequestID
-	}
-	result.ExecutionID = record.ID
 
 	s.writeJSON(w, http.StatusOK, result)
 }

@@ -1,6 +1,6 @@
 import { useCallback, useId, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Info, Search } from "lucide-react";
 import { selectors } from "./consts/selectors";
 import { Button } from "./components/ui/button";
 import {
@@ -21,6 +21,7 @@ const EXECUTION_PRESETS = ["quick", "smoke", "comprehensive"] as const;
 const DEFAULT_REQUEST_TYPES = ["unit", "integration"];
 const SECTION_ANCHORS = {
   scenarioFocus: "scenario-focus-section",
+  scenarioDirectory: "scenario-directory-section",
   queueForm: "queue-form-section",
   executionForm: "execution-form-section",
   suiteRequests: "suite-requests-section",
@@ -33,6 +34,21 @@ const DASHBOARD_TABS = [
   { key: "overview", label: "Overview", description: "Intent + persona guides" },
   { key: "operate", label: "Operate", description: "Focus, queue, and run suites" },
   { key: "signals", label: "Signals", description: "Backlog and execution health" }
+] as const;
+
+const HERO_OUTCOMES = [
+  {
+    title: "Plan coverage",
+    description: "Pick or search for a scenario, then focus everything around that workstream."
+  },
+  {
+    title: "Queue suites",
+    description: "Tell Test Genie what coverage you need and let it delegate or fall back instantly."
+  },
+  {
+    title: "Review signals",
+    description: "See backlog pressure, failures, and shortcuts without scanning multiple tools."
+  }
 ] as const;
 
 type DashboardTabKey = (typeof DASHBOARD_TABS)[number]["key"];
@@ -108,6 +124,7 @@ export default function App() {
   const [focusScenario, setFocusScenario] = useState("");
   const [activeTab, setActiveTab] = useState<DashboardTabKey>("overview");
   const [activeQuickRunId, setActiveQuickRunId] = useState<string | null>(null);
+  const [scenarioSearch, setScenarioSearch] = useState("");
   const scrollToSection = useCallback((sectionId: string) => {
     if (typeof window === "undefined") {
       return;
@@ -326,6 +343,84 @@ export default function App() {
     };
   }, [filteredExecutions, filteredRequests, focusActive]);
 
+  const scenarioDirectoryEntries = useMemo(() => {
+    type DirectoryEntry = {
+      name: string;
+      pendingCount: number;
+      totalRequests: number;
+      lastRequest?: SuiteRequest;
+      lastExecution?: SuiteExecutionResult;
+      lastActivity: number;
+    };
+    const map = new Map<string, DirectoryEntry>();
+    const ensureEntry = (name?: string) => {
+      const trimmed = name?.trim();
+      if (!trimmed) {
+        return null;
+      }
+      const existing = map.get(trimmed);
+      if (existing) {
+        return existing;
+      }
+      const entry: DirectoryEntry = {
+        name: trimmed,
+        pendingCount: 0,
+        totalRequests: 0,
+        lastActivity: 0
+      };
+      map.set(trimmed, entry);
+      return entry;
+    };
+
+    requests.forEach((req) => {
+      const entry = ensureEntry(req.scenarioName);
+      if (!entry) {
+        return;
+      }
+      entry.totalRequests += 1;
+      if (isActionableRequest(req.status)) {
+        entry.pendingCount += 1;
+      }
+      const requestTimestamp = parseTimestamp(req.updatedAt ?? req.createdAt);
+      if (!entry.lastRequest) {
+        entry.lastRequest = req;
+      } else if (requestTimestamp > parseTimestamp(entry.lastRequest.updatedAt ?? entry.lastRequest.createdAt)) {
+        entry.lastRequest = req;
+      }
+      entry.lastActivity = Math.max(entry.lastActivity, requestTimestamp);
+    });
+
+    executions.forEach((execution) => {
+      const entry = ensureEntry(execution.scenarioName);
+      if (!entry) {
+        return;
+      }
+      const execTimestamp = parseTimestamp(execution.completedAt ?? execution.startedAt);
+      if (!entry.lastExecution || execTimestamp > parseTimestamp(entry.lastExecution.completedAt ?? entry.lastExecution.startedAt)) {
+        entry.lastExecution = execution;
+      }
+      entry.lastActivity = Math.max(entry.lastActivity, execTimestamp);
+    });
+
+    return Array.from(map.values()).sort((a, b) => {
+      const diff = b.lastActivity - a.lastActivity;
+      if (diff !== 0) {
+        return diff;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [executions, requests]);
+
+  const filteredScenarioDirectory = useMemo(() => {
+    const trimmed = scenarioSearch.trim().toLowerCase();
+    if (!trimmed) {
+      return scenarioDirectoryEntries;
+    }
+    return scenarioDirectoryEntries.filter((entry) =>
+      entry.name.toLowerCase().includes(trimmed)
+    );
+  }, [scenarioDirectoryEntries, scenarioSearch]);
+
   const queuePendingCount = useMemo(
     () => requests.filter((req) => isActionableRequest(req.status)).length,
     [requests]
@@ -338,10 +433,23 @@ export default function App() {
 
   const quickNavItems = [
     {
+      key: "directory",
+      eyebrow: "Shortcut",
+      title: "Browse scenario directory",
+      description: "Search every tracked scenario and jump straight into queue or rerun actions.",
+      statValue:
+        scenarioDirectoryEntries.length > 0
+          ? `${scenarioDirectoryEntries.length} tracked`
+          : "No history yet",
+      statLabel: scenarioDirectoryEntries.length > 0 ? "Auto-tracked" : "Populates after first run",
+      actionLabel: "Open directory",
+      onClick: () => navigateToSection("operate", SECTION_ANCHORS.scenarioDirectory)
+    },
+    {
       key: "focus",
       eyebrow: "Step 1",
       title: "Focus a scenario",
-      description: "Prefill both forms + filter the queue/history tables around one scenario.",
+      description: "Set the intent once so every section filters to the same scenario.",
       statValue: focusActive ? focusScenario : "Not set",
       statLabel: focusActive ? "Active focus" : "Needed for shortcuts",
       actionLabel: focusActive ? "Adjust focus" : "Set focus",
@@ -356,7 +464,7 @@ export default function App() {
       key: "queue",
       eyebrow: "Step 2",
       title: "Queue AI coverage",
-      description: "Send intent to App Issue Tracker or deterministic fallbacks via the Go API.",
+      description: "Describe the coverage outcome you need; the UI handles API + delegation wiring.",
       statValue: `${queuePendingCount} pending`,
       statLabel: `${requests.length} total`,
       actionLabel: "Open queue form",
@@ -365,8 +473,8 @@ export default function App() {
     {
       key: "run",
       eyebrow: "Step 3",
-      title: "Run with the Go orchestrator",
-      description: "Trigger scenario-local runners without calling scripts/scenarios/testing/.",
+      title: "Run a curated preset",
+      description: "Trigger scenario-local runners without touching scripts or bash wrappers.",
       statValue: heroExecution
         ? heroExecution.success
           ? "Last run passed"
@@ -380,7 +488,7 @@ export default function App() {
       key: "investigate",
       eyebrow: "Signal",
       title: "Investigate backlog/failures",
-      description: "Jump to the right table to clear the riskiest request or rerun.",
+      description: "Jump to queue or history views from the riskiest request or failure.",
       statValue: lastFailedExecution
         ? lastFailedExecution.scenarioName
         : actionableRequest
@@ -487,12 +595,26 @@ export default function App() {
           data-testid={selectors.dashboard.hero}
         >
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Test Genie</p>
-          <h1 className="mt-3 text-3xl font-semibold">Scenario-native test orchestration</h1>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <h1 className="text-3xl font-semibold">Coverage control room</h1>
+            <InfoTip
+              title="Why this view exists"
+              description="Keep your intent on the outcomes—plan coverage, run suites, and clear risks—while the UI translates each action into Go-native orchestration calls."
+            />
+          </div>
           <p className="mt-4 text-base text-slate-300">
-            Queue AI-generated suites, run orchestration inside the Go API, and spot backlog risks
-            without leaving the dashboard. Every control on this screen maps to the native API so we
-            can retire the bash runner and keep flows cross-platform.
+            Queue AI-generated suites, run curated presets, and spot backlog risks without memorizing API
+            terminology. This dashboard speaks the Go runner&apos;s language for you so you only
+            decide what scenario to protect next.
           </p>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            {HERO_OUTCOMES.map((outcome) => (
+              <article key={outcome.title} className="rounded-2xl border border-white/5 bg-black/30 p-4">
+                <p className="text-sm font-semibold text-white">{outcome.title}</p>
+                <p className="mt-2 text-xs text-slate-300">{outcome.description}</p>
+              </article>
+            ))}
+          </div>
         </header>
         <nav className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -560,107 +682,142 @@ export default function App() {
         </section>
         <section
           className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-white/[0.01] p-6"
-          data-testid={selectors.dashboard.experienceNavigator}
         >
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Experience map</p>
-              <h2 className="mt-2 text-2xl font-semibold">Guide every persona to the next step</h2>
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Status at a glance</p>
+              <h2 className="mt-2 text-2xl font-semibold">Know where to act next</h2>
               <p className="mt-2 text-sm text-slate-300">
-                First-time builders, returning operators, and failure responders all start with different
-                jobs. Use the shortcuts below to jump straight to the UI surface that completes that job.
+                Summaries below pull directly from queue telemetry and the Go runner so you can
+                immediately jump to the right CTA—queue a suite, rerun a preset, or review history.
               </p>
             </div>
             <p className="text-xs text-slate-400">
-              Tip: set a focus scenario once and these flows prefill the queue + Go runner forms automatically.
+              Data refreshes automatically; click the CTAs to land in the right tab.
             </p>
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <article className="rounded-2xl border border-white/5 bg-black/30 p-5">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">First-time builder</p>
-              <h3 className="mt-2 text-xl font-semibold">Pick a scenario and queue AI coverage</h3>
-              <p className="mt-2 text-sm text-slate-300">
-                Set a focus once, then jump directly into the suite request form so deterministic fallbacks
-                or App Issue Tracker delegation can start working immediately.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    if (!focusScenario && scenarioOptions.length > 0) {
-                      applyFocusScenario(scenarioOptions[0]);
-                    }
-                    navigateToSection("operate", SECTION_ANCHORS.queueForm);
-                  }}
-                >
-                  Focus &amp; queue
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigateToSection("operate", SECTION_ANCHORS.scenarioFocus)}
-                >
-                  Go to Scenario Focus
-                </Button>
-              </div>
-            </article>
-            <article className="rounded-2xl border border-white/5 bg-black/30 p-5">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Returning operator</p>
-              <h3 className="mt-2 text-xl font-semibold">Triage backlog pressure</h3>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Queue health</p>
+              <h3 className="mt-2 text-xl font-semibold">
+                {queuePendingCount > 0 ? `${queuePendingCount} pending` : "No pending suites"}
+              </h3>
               <p className="mt-2 text-sm text-slate-300">
                 {actionableRequest
-                  ? `${actionableRequest.scenarioName} is waiting with ${actionableRequest.priority} priority. Prefill the forms below or inspect the queue before running.`
-                  : "No queued or delegated requests need attention. Keep this tab handy to jump into the queue view whenever new suites arrive."}
+                  ? `${actionableRequest.scenarioName} (${actionableRequest.priority}) is waiting. Prefill forms or review the queue before it blocks progress.`
+                  : "The queue is clear; queue new AI coverage or browse the scenario directory to pick your next target."}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
                   size="sm"
-                  disabled={!actionableRequest}
-                  onClick={() => {
-                    if (actionableRequest) {
-                      prefillFromRequest(actionableRequest);
-                    }
-                    navigateToSection("operate", SECTION_ANCHORS.queueForm);
-                  }}
+                  onClick={() =>
+                    actionableRequest
+                      ? (prefillFromRequest(actionableRequest), navigateToSection("operate", SECTION_ANCHORS.queueForm))
+                      : navigateToSection("operate", SECTION_ANCHORS.scenarioDirectory)
+                  }
                 >
-                  Prefill highest priority
+                  {actionableRequest ? "Prefill priority suite" : "Open directory"}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => navigateToSection("signals", SECTION_ANCHORS.suiteRequests)}
                 >
-                  Review queue
+                  View queue
                 </Button>
               </div>
             </article>
             <article className="rounded-2xl border border-white/5 bg-black/30 p-5">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Failure responder</p>
-              <h3 className="mt-2 text-xl font-semibold">Resume the last failed run</h3>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Last execution</p>
+              <h3 className="mt-2 text-xl font-semibold">
+                {heroExecution
+                  ? heroExecution.success
+                    ? `${heroExecution.scenarioName} passed`
+                    : `${heroExecution.scenarioName} failed`
+                  : "No runs recorded"}
+              </h3>
               <p className="mt-2 text-sm text-slate-300">
-                {lastFailedExecution
-                  ? `${lastFailedExecution.scenarioName} failed ${formatRelative(lastFailedExecution.completedAt)}. Prefill the rerun controls with one click.`
-                  : "The most recent executions have passed. When a failure occurs, this card highlights it immediately and links to the runner + history views."}
+                {heroExecution
+                  ? `${heroExecution.phaseSummary.passed}/${heroExecution.phaseSummary.total} phases · ${formatRelative(heroExecution.completedAt)}`
+                  : "Kick off a preset to establish baseline telemetry without the legacy bash runner."}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
                   size="sm"
-                  disabled={!lastFailedExecution}
                   onClick={() => {
-                    if (lastFailedExecution) {
-                      prefillFromExecution(lastFailedExecution);
+                    if (heroExecution) {
+                      prefillFromExecution(heroExecution);
                     }
                     navigateToSection("operate", SECTION_ANCHORS.executionForm);
                   }}
                 >
-                  Prefill rerun
+                  {heroExecution ? "Prefill rerun" : "Open runner"}
+                </Button>
+                {heroExecution && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      applyFocusScenario(heroExecution.scenarioName);
+                      navigateToSection("operate", SECTION_ANCHORS.scenarioFocus);
+                    }}
+                  >
+                    Focus scenario
+                  </Button>
+                )}
+              </div>
+            </article>
+            <article className="rounded-2xl border border-white/5 bg-black/30 p-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Priority signal</p>
+              <h3 className="mt-2 text-xl font-semibold">
+                {lastFailedExecution
+                  ? "Failure needs attention"
+                  : actionableRequest
+                  ? "Queued work pending"
+                  : "All clear"}
+              </h3>
+              <p className="mt-2 text-sm text-slate-300">
+                {lastFailedExecution
+                  ? `${lastFailedExecution.scenarioName} failed ${formatRelative(lastFailedExecution.completedAt)}. Resume the preset or inspect history.`
+                  : actionableRequest
+                  ? `${actionableRequest.scenarioName} is ready to run (${actionableRequest.priority}).`
+                  : "No failures or queued suites demand action. Continue generating coverage from the directory."}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (lastFailedExecution) {
+                      prefillFromExecution(lastFailedExecution);
+                      navigateToSection("operate", SECTION_ANCHORS.executionForm);
+                    } else if (actionableRequest) {
+                      prefillFromRequest(actionableRequest);
+                      navigateToSection("operate", SECTION_ANCHORS.queueForm);
+                    } else if (scenarioDirectoryEntries.length > 0) {
+                      applyFocusScenario(scenarioDirectoryEntries[0].name);
+                      navigateToSection("operate", SECTION_ANCHORS.scenarioFocus);
+                    } else {
+                      navigateToSection("operate", SECTION_ANCHORS.queueForm);
+                    }
+                  }}
+                >
+                  {lastFailedExecution
+                    ? "Resume failed run"
+                    : actionableRequest
+                    ? "Prefill queued suite"
+                    : "Set focus"}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigateToSection("signals", SECTION_ANCHORS.executionHistory)}
+                  onClick={() =>
+                    navigateToSection(
+                      "signals",
+                      lastFailedExecution ? SECTION_ANCHORS.executionHistory : SECTION_ANCHORS.suiteRequests
+                    )
+                  }
                 >
-                  View history
+                  {lastFailedExecution ? "View history" : "Review signals"}
                 </Button>
               </div>
             </article>
@@ -794,7 +951,13 @@ export default function App() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Scenario Focus</p>
-              <h2 className="mt-2 text-2xl font-semibold">Work on a single scenario faster</h2>
+              <div className="mt-2 flex items-center gap-2">
+                <h2 className="text-2xl font-semibold">Work on a single scenario faster</h2>
+                <InfoTip
+                  title="Focus"
+                  description="Focus ties forms, tables, and shortcuts to one scenario so you can alternate between delegation and execution without retyping names."
+                />
+              </div>
               <p className="mt-2 text-sm text-slate-300">
                 Set a focus once to prefill queue + runner forms and filter tables to the same scenario so you
                 can bounce between delegation and execution without retyping names.
@@ -952,6 +1115,131 @@ export default function App() {
           </section>
         )}
 
+        {activeTab === "operate" && (
+          <section
+            id={SECTION_ANCHORS.scenarioDirectory}
+            className="rounded-2xl border border-white/10 bg-white/[0.02] p-6"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Scenario Directory</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <h2 className="text-2xl font-semibold">Browse everything in scope</h2>
+                  <InfoTip
+                    title="Scenario directory"
+                    description="Search and compare every scenario the API has seen, then jump directly into focus, queue, or rerun actions without leaving this page."
+                  />
+                </div>
+                <p className="mt-2 text-sm text-slate-300">
+                  Each card combines queue signals and the latest execution so you can decide whether to
+                  focus, queue a fresh suite, or rerun a failure in seconds.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <input
+                    className="w-64 rounded-full border border-white/10 bg-black/40 pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                    placeholder="Search scenario names…"
+                    value={scenarioSearch}
+                    onChange={(evt) => setScenarioSearch(evt.target.value)}
+                  />
+                </div>
+                {scenarioSearch && (
+                  <Button variant="outline" size="sm" onClick={() => setScenarioSearch("")}>
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
+            {scenarioDirectoryEntries.length === 0 && (
+              <p className="mt-6 text-sm text-slate-400">
+                Queue a suite or run a preset to populate this directory automatically.
+              </p>
+            )}
+            {scenarioDirectoryEntries.length > 0 && filteredScenarioDirectory.length === 0 && (
+              <p className="mt-6 text-sm text-slate-400">
+                No scenarios match “{scenarioSearch}”. Clear the search to see all tracked workstreams.
+              </p>
+            )}
+            {filteredScenarioDirectory.length > 0 && (
+              <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                {filteredScenarioDirectory.map((entry) => {
+                  const status = entry.pendingCount > 0
+                    ? "queued"
+                    : entry.lastExecution
+                    ? entry.lastExecution.success
+                      ? "completed"
+                      : "failed"
+                    : "idle";
+                  const queueSummary =
+                    entry.pendingCount > 0
+                      ? `${entry.pendingCount} request${entry.pendingCount === 1 ? "" : "s"} waiting for a run`
+                      : entry.totalRequests > 0
+                      ? "No pending requests"
+                      : "Queue a request to start tracking";
+                  const executionSummary = entry.lastExecution
+                    ? `${entry.lastExecution.success ? "Passed" : "Failed"} ${formatRelative(entry.lastExecution.completedAt)}`
+                    : "No runs recorded";
+                  const latestRequest = entry.lastRequest;
+                  const latestExecution = entry.lastExecution;
+                  const requestDetail = latestRequest
+                    ? `Last request ${formatRelative(latestRequest.updatedAt ?? latestRequest.createdAt)} · ${latestRequest.priority} priority`
+                    : "";
+                  return (
+                    <article key={entry.name} className="rounded-2xl border border-white/5 bg-black/30 p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{queueSummary}</p>
+                          <h3 className="mt-1 text-xl font-semibold">{entry.name}</h3>
+                        </div>
+                        <StatusPill status={status} />
+                      </div>
+                      <p className="mt-3 text-sm text-slate-300">{executionSummary}</p>
+                      {requestDetail && <p className="mt-1 text-xs text-slate-500">{requestDetail}</p>}
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            applyFocusScenario(entry.name);
+                            navigateToSection("operate", SECTION_ANCHORS.scenarioFocus);
+                          }}
+                        >
+                          Focus
+                        </Button>
+                        {latestRequest && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              prefillFromRequest(latestRequest);
+                              navigateToSection("operate", SECTION_ANCHORS.queueForm);
+                            }}
+                          >
+                            Prefill queue
+                          </Button>
+                        )}
+                        {latestExecution && (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              prefillFromExecution(latestExecution);
+                              navigateToSection("operate", SECTION_ANCHORS.executionForm);
+                            }}
+                          >
+                            Prefill rerun
+                          </Button>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
         {activeTab === "signals" && (
           <div className="grid gap-6 lg:grid-cols-2">
             <section
@@ -1049,7 +1337,16 @@ export default function App() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-slate-400">AI Delegation</p>
-                <h2 className="mt-2 text-2xl font-semibold">Queue a suite request</h2>
+                <div className="mt-2 flex items-center gap-2">
+                  <h2 className="text-2xl font-semibold">Queue a suite request</h2>
+                  <InfoTip
+                    title="Queue"
+                    description="Tell Test Genie the scenario, coverage target, and desired test types. The API/CLI wiring happens behind the scenes."
+                  />
+                </div>
+                <p className="mt-2 text-sm text-slate-400">
+                  Describe the coverage outcome you need; Test Genie will either delegate to AI agents or ship deterministic templates immediately.
+                </p>
               </div>
               <Button
                 variant="outline"
@@ -1164,7 +1461,16 @@ export default function App() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Go Runner</p>
-                <h2 className="mt-2 text-2xl font-semibold">Run a suite inside the API</h2>
+                <div className="mt-2 flex items-center gap-2">
+                  <h2 className="text-2xl font-semibold">Run a suite inside the API</h2>
+                  <InfoTip
+                    title="Run"
+                    description="Pick a preset to decide how deep the orchestrator goes (structure, integration, performance, etc.) without remembering bash-era scripts."
+                  />
+                </div>
+                <p className="mt-2 text-sm text-slate-400">
+                  Presets map to Go-native runners, so whatever you trigger here works the same on macOS, Linux, or Windows.
+                </p>
               </div>
               <Button
                 variant="outline"
@@ -1525,6 +1831,8 @@ function StatusPill({ status }: { status: string }) {
       ? "bg-cyan-500/20 text-cyan-200"
       : normalized === "queued" || normalized === "delegated"
       ? "bg-amber-400/20 text-amber-200"
+      : normalized === "idle"
+      ? "bg-white/10 text-slate-200"
       : "bg-red-500/20 text-red-200";
   return (
     <span className={cn("rounded-full px-3 py-1 text-xs uppercase tracking-wide", style)}>
@@ -1588,6 +1896,39 @@ function ExecutionSummaryCard({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function InfoTip({ title, description }: { title: string; description: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div
+      className="relative inline-flex"
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button
+        type="button"
+        className="flex h-7 w-7 items-center justify-center rounded-full border border-white/20 text-slate-300 transition hover:border-cyan-400 hover:text-white"
+        onMouseEnter={() => setIsOpen(true)}
+        onFocus={() => setIsOpen(true)}
+        onBlur={() => setIsOpen(false)}
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+        aria-label={`More about ${title}`}
+      >
+        <Info className="h-4 w-4" />
+      </button>
+      <div
+        className={cn(
+          "absolute right-0 top-9 z-20 w-64 rounded-2xl border border-white/10 bg-slate-900/95 p-4 text-left text-xs text-slate-200 shadow-2xl transition",
+          isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+        )}
+        role="status"
+      >
+        <p className="font-semibold text-white">{title}</p>
+        <p className="mt-1 leading-relaxed">{description}</p>
+      </div>
     </div>
   );
 }
