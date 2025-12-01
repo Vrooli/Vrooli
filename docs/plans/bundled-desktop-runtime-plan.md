@@ -10,6 +10,108 @@ Goal: deliver true offline/portable desktop bundles (UI + API + resources + secr
 - Secrets: no infra secrets in bundles; per-install secrets are generated or prompted on first run and persisted locally.
 - Minimal CLI shim: only mirrors essential `vrooli` commands (status/ports/log tail) backed by the runtime’s control API and registry.
 
+## Implementation Contracts (concrete, to avoid guessing)
+- Manifest schema (to be formalized in JSON Schema v0.1)
+  - Field types, required/optional, defaults.
+  - Provide two full examples under `docs/deployment/examples/manifests/`: `desktop-happy.json` (UI+API+SQLite, no GPU) and `desktop-playwright.json` (adds Playwright driver, Chromium vendored or Electron path reuse, GPU optional flag).
+  - Validate in deployment-manager; scenario-to-desktop consumes only validated manifests.
+- Runtime control API (baseline spec)
+  - Routes:
+    - `GET /healthz` → `{status: "ok"|"degraded"|"failed"}`.
+    - `GET /readyz` → `{ready: bool, details: {serviceId: {ready: bool, reason?: string}}}`.
+    - `GET /ports` → `{services: {serviceId: {portName: number}}, apiBase?: string}`.
+    - `GET /logs/tail?serviceId=&lines=` → text/JSON stream of last N lines.
+    - `POST /shutdown` → `{status: "stopping"}`.
+    - `POST /secrets` → accepts `{secrets: {id: value}}` for first-run/user-prompt entries.
+    - `GET /telemetry` → returns path/status for `deployment-telemetry.jsonl`.
+  - Auth: bearer token in header; bind to loopback. Token persisted in app data.
+  - Log format: per-service log files under app data log dir; tail endpoint reads from there.
+  - Telemetry record shape (JSONL): `{"ts": "...", "event": "app_start|ready|dependency_unreachable|restart|shutdown|asset_missing|migration_failed", "service_id": "...", "details": {...}}`.
+- Secrets storage/hand-off
+  - Store per-install secrets in app data under `secrets.json` (0600 perms). Infra secrets never appear.
+  - Runtime injects secrets as env vars or temp files per manifest instructions (`secrets[].target`: `env` | `file:path`).
+  - First-run wizard collects `user_prompt` secrets; runtime generates `per_install_generated`; both persisted; subsequent launches reuse without prompting unless validation fails.
+- Migrations/versioning
+  - Manifest carries `app.version` and per-service `migrations` with `version` and `command`.
+  - Runtime tracks applied versions in app data (e.g., `migrations.json`), runs missing ones in order; on failure, stop startup and emit telemetry `migration_failed`.
+  - No rollback automation initially; document manual recovery guidance.
+- Test plan locations
+  - scenario-to-desktop: integration tests under `scenarios/scenario-to-desktop/test/` using sample manifests; e2e harness to launch runtime and assert ready/logs/ports/telemetry.
+  - deployment-manager: schema validation + export tests under its test suite; fixtures using sample manifests.
+  - scenario-dependency-analyzer: unit tests for DAG/swaps and manifest skeleton generation.
+  - secrets-manager: tests for classification, generation hooks, and manifest export blocking infra secrets.
+
+## Interfaces and Handoffs
+- scenario-dependency-analyzer → deployment-manager: DAG + fitness + swap options + manifest skeleton (with service/resource metadata, health, migrations, ports).
+- secrets-manager → deployment-manager: per-install secret plan (class, generation rules, prompt schema, storage guidance) per tier.
+- deployment-manager → scenario-to-desktop: versioned `bundle.json` (validated, signed) with all binaries/assets resolved and secrets plan embedded as placeholders/validation rules.
+- scenario-to-desktop → deployment-manager: telemetry uploads (`deployment-telemetry.jsonl`) and build status for visibility/feedback loops.
+
+## Draft Manifest Schema (v0.1 outline)
+- `schema_version`: string.
+- `app`: name, version, description, tier (`desktop`), electron/runtime versions pinned.
+- `services`: array of entries with:
+  - `id`, `type` (`api-binary` | `ui-bundle` | `worker` | `resource`), `os`/`arch` binary paths, `args`, `env` (templated), `cwd`, `data_dirs`, `log_dir`.
+  - `ports`: `preferred_range`, `requires_socket` (bool), exported names.
+  - `health`: `type` (`http`, `tcp`, `command`), `path`/`port`/`command`, `timeout`, `interval`, `retries`.
+  - `readiness`: condition (`health_success` | `log_match` | `port_open`).
+  - `dependencies`: IDs for startup ordering.
+  - `migrations`: list with `version`, `command`, `args`, `env`, `run_on` (`first_install` | `upgrade` | `always`).
+  - `gpu`: `requirement` (`required` | `optional_with_cpu_fallback` | `optional_but_warn`).
+  - `assets`: bundled files/blobs required pre-run (checksums, sizes).
+- `swaps`: original resource → bundled alternative (e.g., Postgres → SQLite), rationale, limits.
+- `secrets`: entries with `id`, `class` (`infrastructure` | `per_install_generated` | `user_prompt` | `remote_fetch`), `format`/validation, storage hint, prompt copy.
+- `ipc`: control API host/port, auth token placeholder, allowed callers.
+- `telemetry`: local path for `deployment-telemetry.jsonl`, endpoints for upload.
+- `ports`: global ranges and exclusions.
+- `playwright`: driver entry (`node driver/server.js`), env (`PLAYWRIGHT_DRIVER_PORT=0`, `PLAYWRIGHT_CHROMIUM_PATH` optional), assets (vendored Chromium path), readiness check.
+
+## Acceptance Criteria by Scenario
+- scenario-to-desktop
+  - Consumes a sample `bundle.json`, packages runtime + services, launches runtime, waits for readiness, serves UI, and CLI shim returns ports/status/logs.
+  - First-run wizard prompts for `user_prompt` secrets; generated secrets persisted; rerun is non-interactive.
+  - Telemetry emitted and uploadable; missing asset or health failure blocks launch with clear UI.
+- deployment-manager
+  - Generates `bundle.json` for a sample scenario with swaps applied; validates against schema; refuses export if assets/secrets unresolved.
+  - Renders secret plan UI; exports prompt/generation rules into manifest.
+  - Ingests telemetry and surfaces failures (dependency_unreachable, swap_missing_asset).
+- scenario-dependency-analyzer
+  - Produces DAG + fitness + swap suggestions; emits manifest skeleton with health/migration hints and port ranges.
+  - Flags non-bundle-safe resources and suggests alternatives.
+- secrets-manager
+  - Returns per-install secret plan per tier; blocks infra secrets from manifest; provides validation rules consumed by runtime/UI.
+
+## Work Breakdown (parallelizable)
+- Shared
+  - Finalize `bundle.json` schema v0.1 and sample manifests (desktop happy path, GPU optional, Playwright).
+- scenario-to-desktop
+  - Implement runtime launcher + control API client; wire UI/CLI to control surface.
+  - Build first-run wizard + health/log/telemetry panels.
+  - Package Playwright driver + Chromium or Electron-path reuse; set env.
+  - CLI shim implementation + docs.
+- deployment-manager
+  - Schema validation and manifest export; swap selection UI; secret plan integration.
+  - Telemetry ingestion UI with filters for common failures.
+- scenario-dependency-analyzer
+  - DAG + fitness scoring with swap suggestions; manifest skeleton generator; health/migration metadata extraction.
+- secrets-manager
+  - Secret classification extension; generation hooks; API for bundle export; validation rule definitions.
+
+## Shared Artifacts and Samples
+- Location for sample manifests: `docs/deployment/examples/manifests/` (create with desktop examples: baseline, GPU-optional, Playwright-enabled).
+- Reusable assets: bundled SQLite seed example, small model blob example, Playwright driver + Chromium vendored path notes.
+- Reference test scenario: choose an existing lightweight scenario (e.g., picker-wheel) for end-to-end fixture.
+
+## Risks and Assumptions
+- Size constraints: model/browser assets may bloat installers; need size budgets and warnings.
+- GPU availability variance; must honor `gpu_optional_*` flags and degrade gracefully.
+- Electron/Playwright version pinning to avoid Chromium mismatches.
+- Asset licensing for bundled models/browsers.
+- Windows/macOS sandbox quirks (path lengths, gatekeeper) need validation.
+
+## Doc Alignment
+- Keep aligned with: `docs/deployment/tiers/tier-2-desktop.md`, `docs/deployment/guides/packaging-matrix.md`, `docs/deployment/guides/secrets-management.md`, `docs/deployment/examples/picker-wheel-desktop.md`, `resources/playwright/README.md`.
+
 ## scenario-to-desktop
 - Implement runtime packaging
   - Embed per-OS runtime binary and all service/resource binaries/assets referenced in `bundle.json`.
