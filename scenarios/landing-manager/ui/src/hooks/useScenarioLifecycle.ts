@@ -20,8 +20,8 @@ export interface ScenarioStatus {
 export interface UseScenarioLifecycleReturn {
   statuses: Record<string, ScenarioStatus>;
   previewLinks: Record<string, PreviewLinks>;
-  showLogs: Record<string, boolean>;
   logs: Record<string, string>;
+  logsLoading: Record<string, boolean>;
   /** Global error for lifecycle operations */
   lifecycleError: StructuredError | null;
   /** Clear the global lifecycle error */
@@ -29,7 +29,7 @@ export interface UseScenarioLifecycleReturn {
   startScenario: (scenarioId: string) => Promise<void>;
   stopScenario: (scenarioId: string) => Promise<void>;
   restartScenario: (scenarioId: string) => Promise<void>;
-  toggleLogs: (scenarioId: string) => Promise<void>;
+  loadLogs: (scenarioId: string, options?: { force?: boolean; tail?: number }) => Promise<void>;
   loadStatuses: (scenarioIds: string[]) => Promise<void>;
 }
 
@@ -45,15 +45,15 @@ export interface UseScenarioLifecycleReturn {
 export function useScenarioLifecycle(): UseScenarioLifecycleReturn {
   const [statuses, setStatuses] = useState<Record<string, ScenarioStatus>>({});
   const [previewLinks, setPreviewLinks] = useState<Record<string, PreviewLinks>>({});
-  const [showLogs, setShowLogs] = useState<Record<string, boolean>>({});
   const [logs, setLogs] = useState<Record<string, string>>({});
+  const [logsLoading, setLogsLoading] = useState<Record<string, boolean>>({});
   const [lifecycleError, setLifecycleError] = useState<StructuredError | null>(null);
 
   const clearError = useCallback(() => {
     setLifecycleError(null);
   }, []);
 
-  const updateStatus = useCallback(async (scenarioId: string, operation: () => Promise<void>) => {
+  const updateStatus = useCallback(async (scenarioId: string, operation: () => Promise<unknown>) => {
     try {
       // Clear any previous error for this scenario
       setStatuses((prev) => ({
@@ -133,17 +133,22 @@ export function useScenarioLifecycle(): UseScenarioLifecycleReturn {
     [updateStatus, fetchPreviewLinks],
   );
 
-  const handleToggleLogs = useCallback(async (scenarioId: string) => {
-    const show = !showLogs[scenarioId];
-    setShowLogs((prev) => ({ ...prev, [scenarioId]: show }));
+  const loadLogs = useCallback(
+    async (scenarioId: string, options?: { force?: boolean; tail?: number }) => {
+      if (logsLoading[scenarioId]) {
+        return;
+      }
+      if (!options?.force && logs[scenarioId]) {
+        return;
+      }
 
-    if (show && !logs[scenarioId]) {
+      setLogsLoading((prev) => ({ ...prev, [scenarioId]: true }));
+
       try {
-        const result = await getScenarioLogs(scenarioId, 100);
+        const result = await getScenarioLogs(scenarioId, options?.tail ?? 100);
         setLogs((prev) => ({ ...prev, [scenarioId]: result.logs }));
       } catch (err) {
         console.error('Failed to load logs:', err);
-        // Provide actionable feedback instead of generic error
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         let logError = '--- Failed to load logs ---\n\n';
         if (errorMessage.includes('not found')) {
@@ -154,9 +159,12 @@ export function useScenarioLifecycle(): UseScenarioLifecycleReturn {
           logError += `Error: ${errorMessage}\n\nTry restarting the scenario or check the API logs.`;
         }
         setLogs((prev) => ({ ...prev, [scenarioId]: logError }));
+      } finally {
+        setLogsLoading((prev) => ({ ...prev, [scenarioId]: false }));
       }
-    }
-  }, [showLogs, logs]);
+    },
+    [logs, logsLoading],
+  );
 
   const loadStatuses = useCallback(async (scenarioIds: string[]) => {
     // Parallelize all status checks instead of sequential loop
@@ -201,14 +209,14 @@ export function useScenarioLifecycle(): UseScenarioLifecycleReturn {
   return {
     statuses,
     previewLinks,
-    showLogs,
     logs,
+    logsLoading,
     lifecycleError,
     clearError,
     startScenario: handleStart,
     stopScenario: handleStop,
     restartScenario: handleRestart,
-    toggleLogs: handleToggleLogs,
+    loadLogs,
     loadStatuses,
   };
 }

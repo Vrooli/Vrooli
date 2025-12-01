@@ -139,22 +139,49 @@
       }
     },
     {
-      "id": "click-logs",
+      "id": "open-preview",
       "type": "click",
       "data": {
-        "label": "Click show logs button",
-        "selector": "@selector/lifecycleLogsButton(scenarioId=lifecycle-test)",
+        "label": "Open preview for running scenario",
+        "selector": "@selector/previewButton(scenarioId=lifecycle-test)",
         "timeoutMs": 5000
       }
     },
     {
-      "id": "wait-for-logs",
+      "id": "wait-for-preview-view",
       "type": "wait",
       "data": {
-        "label": "Wait for logs to appear",
-        "selector": "@selector/scenarioLogsDisplay(scenarioId=lifecycle-test)",
-        "timeoutMs": 5000,
-        "waitForMs": 500,
+        "label": "Wait for preview workspace to load",
+        "selector": "@selector/landing-preview-view",
+        "timeoutMs": 15000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "open-info-panel",
+      "type": "click",
+      "data": {
+        "label": "Open scenario info panel",
+        "selector": "@selector/preview-info-toggle",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "view-logs-tab",
+      "type": "click",
+      "data": {
+        "label": "Switch to Logs tab",
+        "selector": "@selector/scenario-info-tab-logs",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-for-logs-output",
+      "type": "wait",
+      "data": {
+        "label": "Wait for logs output container",
+        "selector": "@selector/scenario-info-logs-output",
+        "timeoutMs": 15000,
         "waitType": "element"
       }
     },
@@ -162,11 +189,30 @@
       "id": "assert-logs-visible",
       "type": "assert",
       "data": {
-        "label": "Assert logs are displayed",
-        "selector": "@selector/scenarioLogsDisplay(scenarioId=lifecycle-test)",
+        "label": "Assert logs content is visible",
+        "selector": "@selector/scenario-info-logs-text",
         "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Logs display should be visible after clicking show logs"
+        "timeoutMs": 15000,
+        "failureMessage": "Logs content should render inside the info panel"
+      }
+    },
+    {
+      "id": "return-to-factory",
+      "type": "click",
+      "data": {
+        "label": "Return to factory dashboard",
+        "selector": "@selector/preview-back-button",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-for-factory",
+      "type": "wait",
+      "data": {
+        "label": "Wait for factory list to reappear",
+        "selector": "@selector/generated-scenarios-list",
+        "timeoutMs": 15000,
+        "waitType": "element"
       }
     },
     {

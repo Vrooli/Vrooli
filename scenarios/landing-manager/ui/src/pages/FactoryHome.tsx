@@ -43,7 +43,7 @@ export default function FactoryHome() {
 
   // Lifecycle management using custom hook
   const lifecycle = useScenarioLifecycle();
-  const { statuses: scenarioStatuses, previewLinks, showLogs, logs: scenarioLogs, lifecycleError, clearError } = lifecycle;
+  const { statuses: scenarioStatuses, lifecycleError, clearError } = lifecycle;
 
   // For StatsOverview - show first template as selected example
   const selectedTemplate = useMemo(() => templates?.[0] ?? null, [templates]);
@@ -138,7 +138,6 @@ export default function FactoryHome() {
   const handleStartScenario = lifecycle.startScenario;
   const handleStopScenario = lifecycle.stopScenario;
   const handleRestartScenario = lifecycle.restartScenario;
-  const handleToggleLogs = lifecycle.toggleLogs;
 
   const handlePromoteScenario = async (scenarioId: string) => {
     setPromoteDialogScenario(scenarioId);
@@ -297,9 +296,6 @@ export default function FactoryHome() {
           loadingGenerated={loadingGenerated}
           generatedError={generatedError}
           scenarioStatuses={scenarioStatuses}
-          previewLinks={previewLinks}
-          showLogs={showLogs}
-          scenarioLogs={scenarioLogs}
           onRefresh={(scenarios, error, loading) => {
             setGenerated(scenarios);
             setGeneratedError(error);
@@ -308,12 +304,10 @@ export default function FactoryHome() {
           onStartScenario={handleStartScenario}
           onStopScenario={handleStopScenario}
           onRestartScenario={handleRestartScenario}
-          onToggleLogs={handleToggleLogs}
           onPromoteScenario={handlePromoteScenario}
           onDeleteScenario={handleDeleteScenario}
           onSelectScenario={() => {}} // No longer needed for scrolling
           onCreateClick={handleOpenCreateDialog}
-          onCustomizeClick={handleOpenCustomizeDialog}
         />
 
         {/* Promotion Confirmation Dialog */}

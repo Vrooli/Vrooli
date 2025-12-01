@@ -19,6 +19,9 @@ export interface LandingPreviewViewProps {
   onRestartScenario?: (scenarioId: string) => void;
   lifecycleLoading?: boolean;
   enableInfoPanel?: boolean;
+  scenarioLogs?: string;
+  logsLoading?: boolean;
+  onLoadLogs?: (scenarioId: string, options?: { force?: boolean; tail?: number }) => void;
 }
 
 /**
@@ -64,6 +67,9 @@ export const LandingPreviewView = memo(function LandingPreviewView({
   onRestartScenario,
   lifecycleLoading = false,
   enableInfoPanel = false,
+  scenarioLogs,
+  logsLoading,
+  onLoadLogs,
 }: LandingPreviewViewProps) {
   const [viewType, setViewType] = useState<PreviewViewType>(initialView);
   const [isLoading, setIsLoading] = useState(true);
@@ -293,6 +299,9 @@ export const LandingPreviewView = memo(function LandingPreviewView({
           scenario={scenario}
           previewLinks={previewLinks}
           lifecycleControls={lifecycleControls}
+          logs={scenarioLogs}
+          logsLoading={logsLoading}
+          onLoadLogs={onLoadLogs}
         />
       )}
     </div>

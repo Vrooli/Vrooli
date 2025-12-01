@@ -188,6 +188,7 @@ export const LandingPreviewToolbar = memo(function LandingPreviewToolbar({
             aria-pressed={infoPanelOpen}
             aria-label="Toggle scenario information"
             title="Scenario info"
+            data-testid="preview-info-toggle"
           >
             <Info size={18} />
           </button>

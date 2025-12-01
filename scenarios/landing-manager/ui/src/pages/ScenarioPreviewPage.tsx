@@ -13,12 +13,15 @@ export function ScenarioPreviewPage() {
   const {
     statuses,
     previewLinks,
+    logs: lifecycleLogs,
+    logsLoading,
     lifecycleError,
     clearError,
     startScenario,
     stopScenario,
     restartScenario,
     loadStatuses,
+    loadLogs,
   } = useScenarioLifecycle();
 
   const [scenario, setScenario] = useState<GeneratedScenario | null>(null);
@@ -97,6 +100,7 @@ export function ScenarioPreviewPage() {
           <button
             onClick={handleBack}
             className="inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white transition-colors"
+            data-testid="preview-back-button"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Factory
@@ -160,6 +164,9 @@ export function ScenarioPreviewPage() {
               initialView={initialView}
               lifecycleLoading={isBusy}
               enableInfoPanel
+              scenarioLogs={lifecycleLogs[scenario.scenario_id]}
+              logsLoading={logsLoading[scenario.scenario_id]}
+              onLoadLogs={loadLogs}
             />
           </div>
         )}

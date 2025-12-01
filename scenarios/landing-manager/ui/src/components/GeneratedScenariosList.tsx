@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useMemo, useState, type MouseEvent } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
@@ -7,49 +7,38 @@ import {
   CheckCircle,
   Copy,
   Eye,
-  ExternalLink,
   FileOutput,
   FileText,
-  Globe,
   HelpCircle,
   Loader2,
   Play,
   RefreshCcw,
   Rocket,
   RotateCw,
-  Settings,
-  Sparkles,
   Square,
+  Sparkles,
   Trash2,
-  Wand2,
   X,
   Zap,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { type GeneratedScenario, type PreviewLinks, listGeneratedScenarios } from '../lib/api';
+import { useNavigate } from 'react-router-dom';
+import { type GeneratedScenario, listGeneratedScenarios } from '../lib/api';
 import { Tooltip } from './Tooltip';
-import { LandingPreviewView } from './LandingPreviewView';
 import { ErrorDisplay, parseApiError, type StructuredError } from './ErrorDisplay';
-import { AdminCredentialsHint } from './AdminCredentialsHint';
 
 interface GeneratedScenariosListProps {
   generated: GeneratedScenario[];
   loadingGenerated: boolean;
   generatedError: string | null;
   scenarioStatuses: Record<string, { running: boolean; loading: boolean }>;
-  previewLinks: Record<string, PreviewLinks>;
-  showLogs: Record<string, boolean>;
-  scenarioLogs: Record<string, string>;
   onRefresh: (scenarios: GeneratedScenario[], error: string | null, loading: boolean) => void;
   onStartScenario: (scenarioId: string) => void;
   onStopScenario: (scenarioId: string) => void;
   onRestartScenario: (scenarioId: string) => void;
-  onToggleLogs: (scenarioId: string) => void;
   onPromoteScenario: (scenarioId: string) => void;
   onDeleteScenario: (scenarioId: string) => void;
   onSelectScenario: (slug: string) => void;
   onCreateClick: () => void;
-  onCustomizeClick: (scenario: GeneratedScenario) => void;
 }
 
 export const GeneratedScenariosList = memo(function GeneratedScenariosList({
@@ -57,31 +46,20 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
   loadingGenerated,
   generatedError,
   scenarioStatuses,
-  previewLinks,
-  showLogs,
-  scenarioLogs,
   onRefresh,
   onStartScenario,
   onStopScenario,
   onRestartScenario,
-  onToggleLogs,
   onPromoteScenario,
   onDeleteScenario,
   onSelectScenario,
   onCreateClick,
-  onCustomizeClick,
 }: GeneratedScenariosListProps) {
-  const [copiedSlug, setCopiedSlug] = useState(false);
+  const [copiedPath, setCopiedPath] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [previewScenario, setPreviewScenario] = useState<GeneratedScenario | null>(null);
+  const navigate = useNavigate();
 
-  const handleOpenPreview = (scenario: GeneratedScenario) => {
-    setPreviewScenario(scenario);
-  };
-
-  const handleClosePreview = () => {
-    setPreviewScenario(null);
-  };
+  const interactiveSelector = useMemo(() => 'button, a, input, textarea, select, [data-card-stop]', []);
 
   const handleDeleteClick = (scenarioId: string) => {
     setDeleteConfirm(scenarioId);
@@ -108,11 +86,23 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
     }
   };
 
-  const handleCopySlug = (slug: string) => {
-    onSelectScenario(slug);
-    navigator.clipboard.writeText(slug);
-    setCopiedSlug(true);
-    setTimeout(() => setCopiedSlug(false), 2000);
+  const handleCopyPath = (scenario: GeneratedScenario) => {
+    onSelectScenario(scenario.scenario_id);
+    navigator.clipboard.writeText(scenario.path);
+    setCopiedPath(true);
+    setTimeout(() => setCopiedPath(false), 2000);
+  };
+
+  const handleCardClick = (scenario: GeneratedScenario) => (event: MouseEvent<HTMLElement>) => {
+    const element = event.target as HTMLElement | null;
+    if (element && element.closest(interactiveSelector)) {
+      return;
+    }
+    navigate(`/scenarios/${scenario.scenario_id}/preview`);
+  };
+
+  const handlePreviewClick = (scenario: GeneratedScenario) => {
+    navigate(`/scenarios/${scenario.scenario_id}/preview`);
   };
 
   return (
@@ -254,14 +244,14 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
         <div className="grid gap-4" data-testid="generated-scenarios-list" role="list" aria-label="Generated scenarios">
           {generated.map((scenario) => {
             const status = scenarioStatuses[scenario.scenario_id] || { running: false, loading: false };
-            const previewInfo = previewLinks[scenario.scenario_id];
 
             return (
               <article
                 key={scenario.scenario_id}
-                className="rounded-xl border border-white/10 bg-slate-900/40 p-4 sm:p-5 hover:border-white/20 transition-colors"
+                className="rounded-xl border border-white/10 bg-slate-900/40 p-4 sm:p-5 hover:border-white/20 transition-colors cursor-pointer"
                 data-testid={`generated-scenario-${scenario.scenario_id}`}
                 role="listitem"
+                onClick={handleCardClick(scenario)}
               >
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
@@ -273,31 +263,23 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
                       {scenario.name}
                     </h3>
                     <div className="flex items-center gap-2 mt-1">
-                      <p className="text-xs text-slate-400" data-testid={`generated-scenario-slug-${scenario.scenario_id}`}>
-                        Slug: <code className="px-1 py-0.5 rounded bg-slate-800 font-mono">{scenario.scenario_id}</code>
+                      <p className="text-xs text-slate-400 font-mono" data-testid={`generated-scenario-slug-${scenario.scenario_id}`}>
+                        {scenario.scenario_id}
                       </p>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2 text-xs text-slate-400">
+                      <span>Location:</span>
+                      <code className="px-1 py-0.5 rounded bg-slate-800 font-mono text-[10px]">{scenario.path}</code>
                       <button
-                        onClick={() => handleCopySlug(scenario.scenario_id)}
-                        className="inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded border border-slate-500/30 bg-slate-500/10 text-slate-400 hover:text-slate-300 hover:bg-slate-500/20 transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        title="Copy slug to clipboard"
-                        aria-label={`Copy slug ${scenario.scenario_id}`}
+                        onClick={() => handleCopyPath(scenario)}
+                        data-card-stop
+                        className="inline-flex items-center justify-center rounded-md border border-slate-500/30 bg-slate-500/10 p-1 text-slate-400 hover:text-white hover:bg-slate-500/30 transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        aria-label={`Copy path ${scenario.path}`}
+                        title="Copy scenario path"
                       >
-                        {copiedSlug ? <Check className="h-2.5 w-2.5" aria-hidden="true" /> : <Copy className="h-2.5 w-2.5" aria-hidden="true" />}
-                        <span className="hidden sm:inline">{copiedSlug ? 'Copied!' : 'Copy'}</span>
-                      </button>
-                      <button
-                        onClick={() => onCustomizeClick(scenario)}
-                        className="inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded border border-purple-500/30 bg-purple-500/10 text-purple-300 hover:text-purple-200 hover:bg-purple-500/20 transition-colors focus:outline-none focus:ring-1 focus:ring-purple-500"
-                        title="Customize with AI"
-                        aria-label={`Customize ${scenario.name} with AI`}
-                      >
-                        <Wand2 className="h-2.5 w-2.5" aria-hidden="true" />
-                        <span className="hidden sm:inline">Customize</span>
+                        {copiedPath ? <Check className="h-3 w-3" aria-hidden="true" /> : <Copy className="h-3 w-3" aria-hidden="true" />}
                       </button>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">
-                      Location: <code className="px-1 py-0.5 rounded bg-slate-800 font-mono text-[10px]">{scenario.path}</code>
-                    </p>
                   </div>
                   <div className="flex flex-col gap-2 flex-shrink-0">
                     <span
@@ -356,6 +338,7 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
                     <div className="flex gap-2" role="group" aria-label="Lifecycle controls">
                       <button
                         onClick={() => onStartScenario(scenario.scenario_id)}
+                        data-card-stop
                         disabled={status.loading || status.running}
                         className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         aria-label="Start scenario"
@@ -368,6 +351,7 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
                       </button>
                       <button
                         onClick={() => onStopScenario(scenario.scenario_id)}
+                        data-card-stop
                         disabled={status.loading || !status.running}
                         className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:border-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-red-500"
                         aria-label="Stop scenario"
@@ -380,6 +364,7 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
                       </button>
                       <button
                         onClick={() => onRestartScenario(scenario.scenario_id)}
+                        data-card-stop
                         disabled={status.loading || !status.running}
                         className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 hover:border-blue-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
                         aria-label="Restart scenario"
@@ -393,20 +378,21 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
                     </div>
                     <div className="flex gap-2 flex-1 sm:flex-none">
                       <button
-                        onClick={() => onToggleLogs(scenario.scenario_id)}
-                        className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-slate-500/30 bg-slate-500/10 text-slate-300 hover:bg-slate-500/20 hover:border-slate-400 transition-all focus:outline-none focus:ring-2 focus:ring-slate-500"
-                        aria-label={showLogs[scenario.scenario_id] ? 'Hide logs' : 'Show logs'}
-                        title={showLogs[scenario.scenario_id] ? 'Hide scenario logs' : 'View scenario logs'}
-                        data-testid={`lifecycle-logs-button-${scenario.scenario_id}`}
-                        data-lifecycle-logs-button
+                        onClick={() => handlePreviewClick(scenario)}
+                        data-card-stop
+                        className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 hover:border-blue-400 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        aria-label="Preview scenario"
+                        title="Open preview for this landing page"
+                        data-testid={`preview-button-${scenario.scenario_id}`}
                       >
-                        <FileOutput className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>{showLogs[scenario.scenario_id] ? 'Hide' : 'Show'} Logs</span>
+                        <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Preview</span>
                       </button>
                       {!status.running && !status.loading && (
                         <>
                           <button
                             onClick={() => onPromoteScenario(scenario.scenario_id)}
+                            data-card-stop
                             className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border-2 border-purple-500/60 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-200 hover:from-purple-500/30 hover:to-pink-500/30 hover:border-purple-400 transition-all shadow-lg shadow-purple-500/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
                             aria-label="Promote to production"
                             title="Move this scenario from staging (generated/) to production (scenarios/)"
@@ -418,6 +404,7 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
                           </button>
                           <button
                             onClick={() => handleDeleteClick(scenario.scenario_id)}
+                            data-card-stop
                             className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:border-red-400 transition-all focus:outline-none focus:ring-2 focus:ring-red-500"
                             aria-label="Delete scenario"
                             title="Permanently delete this scenario from staging"
@@ -432,133 +419,12 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
                     </div>
                   </div>
 
-                  {/* Logs Display */}
-                  {showLogs[scenario.scenario_id] && (
-                    <div className="rounded-lg border border-white/10 bg-slate-900/60 p-3" data-testid={`scenario-logs-display-${scenario.scenario_id}`} data-scenario-logs-display>
-                      <div className="text-xs font-medium text-slate-400 mb-2">Recent Logs</div>
-                      <pre className="text-[10px] text-slate-300 bg-slate-950 border border-white/10 rounded p-2 overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto">
-                        {scenarioLogs[scenario.scenario_id] || 'Loading logs...'}
-                      </pre>
-                    </div>
-                  )}
-
-                  {/* Access Links - shown when running */}
-                  {status.running && previewInfo && (
-                    <div className="rounded-xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/15 to-blue-500/15 p-4 space-y-3 shadow-lg shadow-emerald-500/10">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2.5 w-2.5 bg-emerald-400 rounded-full animate-pulse" aria-hidden="true" />
-                          <div className="text-sm font-bold text-emerald-200 uppercase tracking-wide flex items-center gap-1.5">
-                            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                            Live & Ready
-                          </div>
-                        </div>
-                        <span className="text-xs text-emerald-300/70 font-medium">Preview or open in new tab</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2.5">
-                        {/* Preview button - opens inline preview */}
-                        <button
-                          type="button"
-                          onClick={() => handleOpenPreview(scenario)}
-                          className="flex-1 group flex items-center justify-center gap-2 text-sm font-bold text-white bg-gradient-to-r from-emerald-600/80 to-blue-600/80 hover:from-emerald-500 hover:to-blue-500 border-2 border-emerald-400/60 hover:border-emerald-300 rounded-lg px-4 py-3 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:scale-102"
-                          data-testid="scenario-preview-button"
-                        >
-                          <Eye className="h-4 w-4" aria-hidden="true" />
-                          Preview
-                        </button>
-                        {previewInfo.links.public && (
-                          <a
-                            href={previewInfo.links.public}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group flex items-center justify-center gap-2 text-sm font-semibold text-emerald-100 bg-emerald-900/40 hover:bg-emerald-900/60 border-2 border-emerald-500/40 hover:border-emerald-400/60 rounded-lg px-4 py-3 transition-all shadow-md hover:shadow-lg hover:shadow-emerald-500/20 hover:scale-102"
-                            data-testid="scenario-public-link"
-                            title="Open public landing in new tab"
-                          >
-                            <Globe className="h-4 w-4" aria-hidden="true" />
-                            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                          </a>
-                        )}
-                        {previewInfo.links.admin && (
-                          <a
-                            href={previewInfo.links.admin}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group flex items-center justify-center gap-2 text-sm font-semibold text-blue-100 bg-blue-900/40 hover:bg-blue-900/60 border-2 border-blue-500/40 hover:border-blue-400/60 rounded-lg px-4 py-3 transition-all shadow-md hover:shadow-lg hover:shadow-blue-500/20 hover:scale-102"
-                            data-testid="scenario-admin-link"
-                            title="Open admin dashboard in new tab"
-                          >
-                            <Settings className="h-4 w-4" aria-hidden="true" />
-                            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                          </a>
-                        )}
-                      </div>
-                      <p className="text-xs text-center text-emerald-200/70 pt-1">
-                        Your landing page is fully operational. Make changes, then click Restart to see updates.
-                      </p>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <AdminCredentialsHint compact className="bg-slate-900/60 border-white/10" />
-                        <Link
-                          to={`/scenarios/${scenario.scenario_id}/preview`}
-                          className="flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        >
-                          <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                          Open Full Preview Route
-                        </Link>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Staging Info - shown when not running */}
-                  {!status.running && (
-                    <div className="rounded-xl border border-blue-500/30 bg-gradient-to-br from-blue-500/10 to-slate-800/20 p-4 space-y-3">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
-                          <Zap className="h-4 w-4 text-blue-300" aria-hidden="true" />
-                        </div>
-                        <div className="flex-1 space-y-2">
-                          <p className="text-sm text-blue-100 font-semibold">Ready to Launch</p>
-                          <p className="text-xs text-blue-200/80 leading-relaxed">
-                            Click{' '}
-                            <strong className="text-blue-100 bg-blue-500/20 px-1.5 py-0.5 rounded">Start</strong> above to
-                            launch. You'll instantly see access links to your live landing page and admin dashboard.
-                          </p>
-                          <div className="pt-2 border-t border-blue-500/20">
-                            <p className="text-xs text-blue-300/70 leading-relaxed flex items-start gap-1.5">
-                              <Zap className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-blue-300" aria-hidden="true" />
-                              <span>
-                                <strong className="text-blue-200">Testing zone:</strong> Lives in{' '}
-                                <code className="px-1 py-0.5 rounded bg-slate-900/60 text-emerald-300 font-mono text-[10px]">
-                                  {scenario.path}
-                                </code>
-                              </span>
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <AdminCredentialsHint compact className="bg-slate-900/60 border-white/10" />
-                    </div>
-                  )}
                 </div>
               </article>
             );
           })}
         </div>
       )}
-
-      {/* Landing Preview View */}
-      {previewScenario && (
-            <div className="mt-6">
-              <LandingPreviewView
-                scenario={previewScenario}
-                isRunning={scenarioStatuses[previewScenario.scenario_id]?.running ?? false}
-                onClose={handleClosePreview}
-                onCustomize={onCustomizeClick}
-                onStartScenario={onStartScenario}
-                previewLinks={previewLinks[previewScenario.scenario_id]}
-              />
-            </div>
-          )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (

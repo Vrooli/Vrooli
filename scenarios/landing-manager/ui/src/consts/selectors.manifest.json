@@ -151,10 +151,6 @@
       "testId": "[data-lifecycle-restart-button]",
       "selector": "[data-testid=\"[data-lifecycle-restart-button]\"]"
     },
-    "lifecycle-logs-button-any": {
-      "testId": "[data-lifecycle-logs-button]",
-      "selector": "[data-testid=\"[data-lifecycle-logs-button]\"]"
-    },
     "lifecycle-promote-button-any": {
       "testId": "[data-lifecycle-promote-button]",
       "selector": "[data-testid=\"[data-lifecycle-promote-button]\"]"
@@ -163,10 +159,6 @@
       "testId": "[data-scenario-status-badge]",
       "selector": "[data-testid=\"[data-scenario-status-badge]\"]"
     },
-    "scenario-logs-display-any": {
-      "testId": "[data-scenario-logs-display]",
-      "selector": "[data-testid=\"[data-scenario-logs-display]\"]"
-    },
     "scenario-public-link": {
       "testId": "scenario-public-link",
       "selector": "[data-testid=\"scenario-public-link\"]"
@@ -174,6 +166,38 @@
     "scenario-admin-link": {
       "testId": "scenario-admin-link",
       "selector": "[data-testid=\"scenario-admin-link\"]"
+    },
+    "preview-info-toggle": {
+      "testId": "preview-info-toggle",
+      "selector": "[data-testid=\"preview-info-toggle\"]"
+    },
+    "scenario-info-tab-details": {
+      "testId": "scenario-info-tab-details",
+      "selector": "[data-testid=\"scenario-info-tab-details\"]"
+    },
+    "scenario-info-tab-logs": {
+      "testId": "scenario-info-tab-logs",
+      "selector": "[data-testid=\"scenario-info-tab-logs\"]"
+    },
+    "scenario-info-logs-refresh": {
+      "testId": "scenario-info-logs-refresh",
+      "selector": "[data-testid=\"scenario-info-logs-refresh\"]"
+    },
+    "scenario-info-logs-output": {
+      "testId": "scenario-info-logs-output",
+      "selector": "[data-testid=\"scenario-info-logs-output\"]"
+    },
+    "scenario-info-logs-text": {
+      "testId": "scenario-info-logs-text",
+      "selector": "[data-testid=\"scenario-info-logs-text\"]"
+    },
+    "landing-preview-view": {
+      "testId": "landing-preview-view",
+      "selector": "[data-testid=\"landing-preview-view\"]"
+    },
+    "preview-back-button": {
+      "testId": "preview-back-button",
+      "selector": "[data-testid=\"preview-back-button\"]"
     }
   },
   "dynamicSelectors": {
@@ -221,17 +245,6 @@
         }
       ]
     },
-    "lifecycleLogsButton": {
-      "description": "Logs button for a specific scenario by ID",
-      "selectorPattern": "[data-testid=\"lifecycle-logs-button-${scenarioId}\"]",
-      "testIdPattern": "lifecycle-logs-button-${scenarioId}",
-      "params": [
-        {
-          "name": "scenarioId",
-          "type": "string"
-        }
-      ]
-    },
     "lifecyclePromoteButton": {
       "description": "Promote button for a specific scenario by ID",
       "selectorPattern": "[data-testid=\"lifecycle-promote-button-${scenarioId}\"]",
@@ -243,10 +256,10 @@
         }
       ]
     },
-    "scenarioLogsDisplay": {
-      "description": "Logs display for a specific scenario by ID",
-      "selectorPattern": "[data-testid=\"scenario-logs-display-${scenarioId}\"]",
-      "testIdPattern": "scenario-logs-display-${scenarioId}",
+    "previewButton": {
+      "description": "Preview button for a specific scenario by ID",
+      "selectorPattern": "[data-testid=\"preview-button-${scenarioId}\"]",
+      "testIdPattern": "preview-button-${scenarioId}",
       "params": [
         {
           "name": "scenarioId",

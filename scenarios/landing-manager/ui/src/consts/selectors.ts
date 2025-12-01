@@ -313,12 +313,18 @@ const literalSelectors: LiteralSelectorTree = {
   'lifecycle-start-button-any': '[data-lifecycle-start-button]',
   'lifecycle-stop-button-any': '[data-lifecycle-stop-button]',
   'lifecycle-restart-button-any': '[data-lifecycle-restart-button]',
-  'lifecycle-logs-button-any': '[data-lifecycle-logs-button]',
   'lifecycle-promote-button-any': '[data-lifecycle-promote-button]',
   'scenario-status-badge-any': '[data-scenario-status-badge]',
-  'scenario-logs-display-any': '[data-scenario-logs-display]',
   'scenario-public-link': 'scenario-public-link',
   'scenario-admin-link': 'scenario-admin-link',
+  'preview-info-toggle': 'preview-info-toggle',
+  'scenario-info-tab-details': 'scenario-info-tab-details',
+  'scenario-info-tab-logs': 'scenario-info-tab-logs',
+  'scenario-info-logs-refresh': 'scenario-info-logs-refresh',
+  'scenario-info-logs-output': 'scenario-info-logs-output',
+  'scenario-info-logs-text': 'scenario-info-logs-text',
+  'landing-preview-view': 'landing-preview-view',
+  'preview-back-button': 'preview-back-button',
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {
@@ -343,19 +349,14 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
     testIdPattern: 'lifecycle-restart-button-${scenarioId}',
     params: { scenarioId: { type: 'string' } },
   }),
-  lifecycleLogsButton: defineDynamicSelector({
-    description: 'Logs button for a specific scenario by ID',
-    testIdPattern: 'lifecycle-logs-button-${scenarioId}',
-    params: { scenarioId: { type: 'string' } },
-  }),
   lifecyclePromoteButton: defineDynamicSelector({
     description: 'Promote button for a specific scenario by ID',
     testIdPattern: 'lifecycle-promote-button-${scenarioId}',
     params: { scenarioId: { type: 'string' } },
   }),
-  scenarioLogsDisplay: defineDynamicSelector({
-    description: 'Logs display for a specific scenario by ID',
-    testIdPattern: 'scenario-logs-display-${scenarioId}',
+  previewButton: defineDynamicSelector({
+    description: 'Preview button for a specific scenario by ID',
+    testIdPattern: 'preview-button-${scenarioId}',
     params: { scenarioId: { type: 'string' } },
   }),
   generatedScenario: defineDynamicSelector({
