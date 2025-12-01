@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -101,6 +102,23 @@ func TestConfigFileLoadSave(t *testing.T) {
 	}
 	if loaded != expected {
 		t.Fatalf("loaded mismatch: %+v", loaded)
+	}
+
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(cfg.Path)
+		if err != nil {
+			t.Fatalf("stat config: %v", err)
+		}
+		if info.Mode().Perm() != 0o600 {
+			t.Fatalf("expected config file permissions 600, got %v", info.Mode().Perm())
+		}
+		dirInfo, err := os.Stat(filepath.Dir(cfg.Path))
+		if err != nil {
+			t.Fatalf("stat config dir: %v", err)
+		}
+		if dirInfo.Mode().Perm() != 0o700 {
+			t.Fatalf("expected config dir permissions 700, got %v", dirInfo.Mode().Perm())
+		}
 	}
 }
 

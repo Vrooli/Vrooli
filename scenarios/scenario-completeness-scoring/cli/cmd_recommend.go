@@ -18,7 +18,7 @@ func (a *App) cmdRecommend(args []string) error {
 	}
 	scenarioName := fs.Arg(0)
 	path := fmt.Sprintf("/api/v1/recommendations/%s", scenarioName)
-	body, err := a.apiGet(path, nil)
+	body, err := a.api.Get(path, nil)
 	if err != nil {
 		return err
 	}

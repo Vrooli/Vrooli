@@ -74,7 +74,7 @@ func (c *StaleChecker) CheckAndMaybeRebuild() bool {
 }
 
 func (c *StaleChecker) autoRebuild(srcRoot, currentFingerprint string) bool {
-	if !c.canAutoRebuild(srcRoot) {
+	if _, err := c.lookPath()("go"); err != nil {
 		return false
 	}
 
@@ -107,16 +107,6 @@ func (c *StaleChecker) autoRebuild(srcRoot, currentFingerprint string) bool {
 	c.log("%s CLI rebuilt from current sources (fingerprint %s); restarting command...\n", c.appLabel(), currentFingerprint)
 	if err := c.reexec()(executable, c.ReexecArgs); err != nil {
 		c.log("Warning: unable to restart CLI after rebuild: %v\n", err)
-	}
-	return true
-}
-
-func (c *StaleChecker) canAutoRebuild(srcRoot string) bool {
-	if _, err := c.lookPath()("go"); err != nil {
-		return false
-	}
-	if !strings.Contains(srcRoot, string(os.PathSeparator)+"scenarios"+string(os.PathSeparator)) {
-		return false
 	}
 	return true
 }

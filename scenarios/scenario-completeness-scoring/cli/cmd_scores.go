@@ -59,7 +59,7 @@ func (a *App) cmdScore(args []string) error {
 	scenarioName := fs.Arg(0)
 	a.warnIfBinaryStale()
 	path := fmt.Sprintf("/api/v1/scores/%s", scenarioName)
-	body, err := a.apiGet(path, nil)
+	body, err := a.api.Get(path, nil)
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ type scoresListResponse struct {
 }
 
 func (a *App) fetchScoresList() ([]byte, scoresListResponse, error) {
-	body, err := a.apiGet("/api/v1/scores", nil)
+	body, err := a.api.Get("/api/v1/scores", nil)
 	if err != nil {
 		return nil, scoresListResponse{}, err
 	}
@@ -139,7 +139,7 @@ func (a *App) cmdCalculate(args []string) error {
 		payload["tags"] = []string(tags)
 	}
 	path := fmt.Sprintf("/api/v1/scores/%s/calculate", scenarioName)
-	body, err := a.apiRequest(http.MethodPost, path, nil, payload)
+	body, err := a.api.Request(http.MethodPost, path, nil, payload)
 	if err != nil {
 		return err
 	}
@@ -177,7 +177,7 @@ func (a *App) cmdHistory(args []string) error {
 		query.Add("tag", tag)
 	}
 	path := fmt.Sprintf("/api/v1/scores/%s/history", scenarioName)
-	body, err := a.apiGet(path, query)
+	body, err := a.api.Get(path, query)
 	if err != nil {
 		return err
 	}
@@ -214,7 +214,7 @@ func (a *App) cmdTrends(args []string) error {
 		query.Add("tag", tag)
 	}
 	path := fmt.Sprintf("/api/v1/scores/%s/trends", scenarioName)
-	body, err := a.apiGet(path, query)
+	body, err := a.api.Get(path, query)
 	if err != nil {
 		return err
 	}
@@ -250,7 +250,7 @@ func (a *App) cmdWhatIf(args []string) error {
 		}
 	}
 	path := fmt.Sprintf("/api/v1/scores/%s/what-if", scenarioName)
-	body, err := a.apiRequest(http.MethodPost, path, nil, payload)
+	body, err := a.api.Request(http.MethodPost, path, nil, payload)
 	if err != nil {
 		return err
 	}

@@ -17,7 +17,7 @@ type ConfigFile struct {
 
 func NewConfigFile(path string) (*ConfigFile, error) {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("create config directory: %w", err)
 	}
 	return &ConfigFile{Path: path}, nil
@@ -45,7 +45,7 @@ func (c *ConfigFile) Save(value interface{}) error {
 	if err != nil {
 		return fmt.Errorf("encode config: %w", err)
 	}
-	if err := os.WriteFile(c.Path, payload, 0o644); err != nil {
+	if err := os.WriteFile(c.Path, payload, 0o600); err != nil {
 		return fmt.Errorf("write config: %w", err)
 	}
 	return nil

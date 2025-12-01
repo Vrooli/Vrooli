@@ -9,7 +9,7 @@ import (
 )
 
 func (a *App) cmdStatus() error {
-	body, err := a.apiGet("/health", nil)
+	body, err := a.api.Get("/health", nil)
 	if err != nil {
 		return err
 	}
@@ -32,7 +32,7 @@ func (a *App) cmdStatus() error {
 }
 
 func (a *App) cmdCollectors() error {
-	body, err := a.apiGet("/api/v1/health/collectors", nil)
+	body, err := a.api.Get("/api/v1/health/collectors", nil)
 	if err != nil {
 		return err
 	}
@@ -42,14 +42,14 @@ func (a *App) cmdCollectors() error {
 
 func (a *App) cmdCircuitBreaker(args []string) error {
 	if len(args) > 0 && args[0] == "reset" {
-		body, err := a.apiRequest(http.MethodPost, "/api/v1/health/circuit-breaker/reset", nil, map[string]interface{}{})
+		body, err := a.api.Request(http.MethodPost, "/api/v1/health/circuit-breaker/reset", nil, map[string]interface{}{})
 		if err != nil {
 			return err
 		}
 		cliutil.PrintJSON(body)
 		return nil
 	}
-	body, err := a.apiGet("/api/v1/health/circuit-breaker", nil)
+	body, err := a.api.Get("/api/v1/health/circuit-breaker", nil)
 	if err != nil {
 		return err
 	}

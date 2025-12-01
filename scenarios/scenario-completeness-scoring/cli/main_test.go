@@ -2,11 +2,17 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/cli-core/cliutil"
+	"scenario-completeness-scoring/cli/format"
 )
 
 func TestHelpCommand(t *testing.T) {
@@ -94,6 +100,59 @@ func TestGlobalFlagApiBaseMissingValue(t *testing.T) {
 	_, err := app.consumeGlobalFlags([]string{"--api-base"})
 	if err == nil || !strings.Contains(err.Error(), "missing value") {
 		t.Fatalf("expected missing value error, got %v", err)
+	}
+}
+
+func TestBuildAPIBaseOptionsUsesPortEnv(t *testing.T) {
+	app := newTestApp(t)
+	t.Setenv("API_PORT", "4321")
+	base := cliutil.DetermineAPIBase(app.buildAPIBaseOptions())
+	if base != "http://localhost:4321" {
+		t.Fatalf("expected API base from port env, got %s", base)
+	}
+}
+
+func TestNoColorFlagDisablesColor(t *testing.T) {
+	format.SetColorEnabled(true)
+	t.Cleanup(func() { format.SetColorEnabled(true) })
+	app := newTestApp(t)
+	if err := app.Run([]string{"--no-color", "help"}); err != nil {
+		t.Fatalf("help with no-color failed: %v", err)
+	}
+	if format.ColorEnabled() {
+		t.Fatalf("expected colors to be disabled after --no-color")
+	}
+}
+
+func TestScoreCommandRunsStaleCheckViaDispatcher(t *testing.T) {
+	format.SetColorEnabled(false)
+	t.Cleanup(func() { format.SetColorEnabled(true) })
+	app := newTestApp(t)
+	called := false
+	app.staleChecker = &cliutil.StaleChecker{
+		BuildFingerprint: "fp",
+		BuildSourceRoot:  t.TempDir(),
+		FingerprintFunc: func(root string, skip ...string) (string, error) {
+			called = true
+			return "fp", nil
+		},
+		LookPathFunc: func(file string) (string, error) {
+			return "/usr/bin/go", nil
+		},
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"scenario":"demo","category":"","score":0,"base_score":0,"validation_penalty":0,"classification":"","breakdown":{},"metrics":{},"validation_analysis":{"has_issues":false,"issue_count":0,"issues":[],"total_penalty":0},"recommendations":[],"partial_result":{},"calculated_at":""}`)
+	}))
+	defer server.Close()
+	t.Setenv("SCENARIO_COMPLETENESS_SCORING_API_BASE", server.URL)
+
+	if err := app.Run([]string{"score", "demo"}); err != nil {
+		t.Fatalf("score command failed: %v", err)
+	}
+	if !called {
+		t.Fatalf("expected stale checker to run for score command")
 	}
 }
 

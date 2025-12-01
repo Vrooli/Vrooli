@@ -7,11 +7,12 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"scenario-completeness-scoring/cli/format"
 )
 
 const (
 	appVersion     = "0.1.0"
-	defaultAPIBase = "http://localhost:17777"
+	defaultAPIBase = ""
 
 	genericSourceRootEnvVar = "VROOLI_CLI_SOURCE_ROOT"
 	legacySourceRootEnvVar  = "SCENARIO_COMPLETENESS_SCORING_CLI_SOURCE_ROOT"
@@ -33,8 +34,63 @@ type App struct {
 	config          Config
 	apiOverride     string
 	client          *cliutil.HTTPClient
+	api             *APIClient
 	configDirectory string
 	staleChecker    *cliutil.StaleChecker
+	commands        []commandDefinition
+	commandGroups   []commandGroup
+	colorEnabled    bool
+}
+
+type commandDefinition struct {
+	Name     string
+	Aliases  []string
+	NeedsAPI bool
+	Handler  func([]string) error
+}
+
+type commandGroup struct {
+	Title    string
+	Commands []commandDefinition
+}
+
+func (a *App) describeCommand(name string) string {
+	switch name {
+	case "help":
+		return "Show this help message"
+	case "version":
+		return "Show CLI version"
+	case "configure":
+		return "View or update local CLI settings (api_base, token)"
+	case "status":
+		return "Check API & collector health"
+	case "collectors":
+		return "Show collector health status"
+	case "circuit-breaker":
+		return "View or reset the circuit breaker status"
+	case "scores":
+		return "List completeness scores for all scenarios"
+	case "score":
+		return "Show detailed score for a scenario"
+	case "calculate":
+		return "Force score recalculation and save history"
+	case "history":
+		return "View score history"
+	case "trends":
+		return "View trend analysis for a scenario"
+	case "what-if":
+		return "Run hypothetical improvement analysis"
+	case "recommend":
+		return "Get prioritized improvement recommendations"
+	case "config":
+		return "Show server scoring configuration"
+	case "presets":
+		return "List configuration presets"
+	case "preset":
+		return "Apply a configuration preset"
+	default:
+		return ""
+	}
 }
 
 func main() {
@@ -63,18 +119,87 @@ func NewApp() (*App, error) {
 	if err := configStore.Load(&cfg); err != nil {
 		return nil, err
 	}
-	return &App{
+	colorEnabled := os.Getenv("NO_COLOR") == ""
+	app := &App{
 		configStore:     configStore,
 		config:          cfg,
 		apiOverride:     "",
-		client:          cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}),
-		configDirectory: configDir,
-		staleChecker:    cliutil.NewStaleChecker("scenario-completeness-scoring", buildFingerprint, buildTimestamp, buildSourceRoot, genericSourceRootEnvVar, legacySourceRootEnvVar),
-	}, nil
+	client:          cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}),
+	configDirectory: configDir,
+	staleChecker:    cliutil.NewStaleChecker("scenario-completeness-scoring", buildFingerprint, buildTimestamp, buildSourceRoot, genericSourceRootEnvVar, legacySourceRootEnvVar),
+	colorEnabled:    colorEnabled,
+}
+app.api = NewAPIClient(app.client, app.buildAPIBaseOptions, func() string { return app.config.Token })
+app.commandGroups, app.commands = app.registerCommands()
+return app, nil
 }
 
 func (a *App) saveConfig() error {
 	return a.configStore.Save(a.config)
+}
+
+func (a *App) registerCommands() ([]commandGroup, []commandDefinition) {
+	health := []commandDefinition{
+		{Name: "status", NeedsAPI: true, Handler: func(args []string) error { return a.cmdStatus() }},
+		{Name: "collectors", NeedsAPI: true, Handler: func(args []string) error { return a.cmdCollectors() }},
+		{Name: "circuit-breaker", NeedsAPI: true, Handler: a.cmdCircuitBreaker},
+	}
+	scoring := []commandDefinition{
+		{Name: "scores", NeedsAPI: true, Handler: a.cmdScores},
+		{Name: "score", NeedsAPI: true, Handler: a.cmdScore},
+		{Name: "calculate", NeedsAPI: true, Handler: a.cmdCalculate},
+		{Name: "history", NeedsAPI: true, Handler: a.cmdHistory},
+		{Name: "trends", NeedsAPI: true, Handler: a.cmdTrends},
+		{Name: "what-if", NeedsAPI: true, Handler: a.cmdWhatIf},
+		{Name: "recommend", NeedsAPI: true, Handler: a.cmdRecommend},
+	}
+	config := []commandDefinition{
+		{Name: "config", NeedsAPI: true, Handler: a.cmdConfig},
+		{Name: "presets", NeedsAPI: true, Handler: func(args []string) error { return a.cmdPresets() }},
+		{Name: "preset", NeedsAPI: true, Handler: a.cmdPreset},
+		{Name: "configure", NeedsAPI: false, Handler: a.cmdConfigure},
+	}
+	meta := []commandDefinition{
+		{Name: "help", Aliases: []string{"--help", "-h"}, NeedsAPI: false, Handler: func(args []string) error {
+			a.printHelp()
+			return nil
+		}},
+		{Name: "version", Aliases: []string{"--version", "-v"}, NeedsAPI: false, Handler: func(args []string) error {
+			fmt.Printf("scenario-completeness-scoring CLI version %s\n", appVersion)
+			return nil
+		}},
+	}
+
+	var all []commandDefinition
+	appendAll := func(cmds []commandDefinition) {
+		all = append(all, cmds...)
+	}
+	appendAll(meta)
+	appendAll(health)
+	appendAll(scoring)
+	appendAll(config)
+
+	groups := []commandGroup{
+		{Title: "Meta", Commands: meta},
+		{Title: "Health", Commands: health},
+		{Title: "Scoring", Commands: scoring},
+		{Title: "Configuration", Commands: config},
+	}
+	return groups, all
+}
+
+func (a *App) findCommand(name string) (commandDefinition, bool) {
+	for _, cmd := range a.commands {
+		if cmd.Name == name {
+			return cmd, true
+		}
+		for _, alias := range cmd.Aliases {
+			if alias == name {
+				return cmd, true
+			}
+		}
+	}
+	return commandDefinition{}, false
 }
 
 func (a *App) Run(args []string) error {
@@ -86,60 +211,19 @@ func (a *App) Run(args []string) error {
 	if err != nil {
 		return err
 	}
+	format.SetColorEnabled(a.colorEnabled)
 	if len(remaining) == 0 {
 		a.printHelp()
 		return nil
 	}
-	switch remaining[0] {
-	case "help", "--help", "-h":
-		a.printHelp()
-		return nil
-	case "version", "--version", "-v":
-		fmt.Printf("scenario-completeness-scoring CLI version %s\n", appVersion)
-		return nil
-	case "configure":
-		return a.cmdConfigure(remaining[1:])
-	case "status":
-		a.warnIfBinaryStale()
-		return a.cmdStatus()
-	case "scores":
-		a.warnIfBinaryStale()
-		return a.cmdScores(remaining[1:])
-	case "score":
-		return a.cmdScore(remaining[1:])
-	case "calculate":
-		a.warnIfBinaryStale()
-		return a.cmdCalculate(remaining[1:])
-	case "history":
-		a.warnIfBinaryStale()
-		return a.cmdHistory(remaining[1:])
-	case "trends":
-		a.warnIfBinaryStale()
-		return a.cmdTrends(remaining[1:])
-	case "what-if":
-		a.warnIfBinaryStale()
-		return a.cmdWhatIf(remaining[1:])
-	case "config":
-		a.warnIfBinaryStale()
-		return a.cmdConfig(remaining[1:])
-	case "presets":
-		a.warnIfBinaryStale()
-		return a.cmdPresets()
-	case "preset":
-		a.warnIfBinaryStale()
-		return a.cmdPreset(remaining[1:])
-	case "collectors":
-		a.warnIfBinaryStale()
-		return a.cmdCollectors()
-	case "circuit-breaker":
-		a.warnIfBinaryStale()
-		return a.cmdCircuitBreaker(remaining[1:])
-	case "recommend":
-		a.warnIfBinaryStale()
-		return a.cmdRecommend(remaining[1:])
-	default:
+	cmd, ok := a.findCommand(remaining[0])
+	if !ok {
 		return fmt.Errorf("Unknown command: %s", remaining[0])
 	}
+	if cmd.NeedsAPI {
+		a.warnIfBinaryStale()
+	}
+	return cmd.Handler(remaining[1:])
 }
 
 func (a *App) consumeGlobalFlags(args []string) ([]string, error) {
@@ -151,6 +235,14 @@ func (a *App) consumeGlobalFlags(args []string) ([]string, error) {
 			}
 			a.apiOverride = args[i+1]
 			i++
+			continue
+		}
+		if args[i] == "--no-color" {
+			a.colorEnabled = false
+			continue
+		}
+		if args[i] == "--color" {
+			a.colorEnabled = true
 			continue
 		}
 		remaining = append(remaining, args[i])
@@ -166,36 +258,23 @@ Usage:
 
 Global Options:
   --api-base <url>   Override API base URL (default: auto-detected)
+  --no-color         Disable ANSI color output (or set NO_COLOR)
 
 Commands:
-  help                         Show this help message
-  version                      Show CLI version
-  configure [key value]        View or update local CLI settings (api_base, token)
-  status                       Check API & collector health
-  scores [--json]              List completeness scores for all scenarios
-  score <scenario> [--json --verbose --metrics]
-                               Show detailed score for a scenario
-  calculate <scenario> [--source name] [--tag value] [--json]
-                               Force score recalculation and save history
-  history <scenario> [--limit N] [--source name] [--tag value] [--json]
-                               View score history
-  trends <scenario> [options]  View trend analysis for a scenario
-  what-if <scenario> [--file path] [--json]
-                               Run hypothetical improvement analysis
-  config                       Show server scoring configuration
-  config set --file path|--json '{...}'
-                               Update server configuration
-  presets                      List configuration presets
-  preset apply <name>          Apply a configuration preset
-  collectors                   Show collector health status
-  circuit-breaker [reset]      View or reset the circuit breaker status
-  recommend <scenario> [--json]
-                               Get prioritized improvement recommendations
+`)
+	for _, group := range a.commandGroups {
+		fmt.Printf("  %s\n", group.Title)
+		for _, cmd := range group.Commands {
+			fmt.Printf("    %-28s %s\n", cmd.Name, a.describeCommand(cmd.Name))
+		}
+		fmt.Println()
+	}
 
-Environment:
+	fmt.Print(`Environment:
   VROOLI_CLI_SOURCE_ROOT       Override the source path used for stale-build detection
   SCENARIO_COMPLETENESS_SCORING_CLI_SOURCE_ROOT
                                Legacy override for stale-build detection
+  NO_COLOR                     Disable ANSI color output
 `)
 }
 

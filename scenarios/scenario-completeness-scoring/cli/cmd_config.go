@@ -40,7 +40,7 @@ func (a *App) cmdConfig(args []string) error {
 	if len(args) > 0 && args[0] == "set" {
 		return a.cmdConfigSet(args[1:])
 	}
-	body, err := a.apiGet("/api/v1/config", nil)
+	body, err := a.api.Get("/api/v1/config", nil)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (a *App) cmdConfigSet(args []string) error {
 	default:
 		return fmt.Errorf("config set requires --file or --json")
 	}
-	body, err := a.apiRequest(http.MethodPut, "/api/v1/config", nil, payload)
+	body, err := a.api.Request(http.MethodPut, "/api/v1/config", nil, payload)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func (a *App) cmdConfigSet(args []string) error {
 }
 
 func (a *App) cmdPresets() error {
-	body, err := a.apiGet("/api/v1/config/presets", nil)
+	body, err := a.api.Get("/api/v1/config/presets", nil)
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func (a *App) cmdPreset(args []string) error {
 	}
 	name := args[1]
 	path := fmt.Sprintf("/api/v1/config/presets/%s/apply", name)
-	body, err := a.apiRequest(http.MethodPost, path, nil, map[string]interface{}{})
+	body, err := a.api.Request(http.MethodPost, path, nil, map[string]interface{}{})
 	if err != nil {
 		return err
 	}

@@ -10,24 +10,41 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
-func (a *App) apiGet(path string, query url.Values) ([]byte, error) {
-	return a.apiRequest("GET", path, query, nil)
+type APIClient struct {
+	client       *cliutil.HTTPClient
+	baseResolver func() cliutil.APIBaseOptions
+	tokenSource  func() string
 }
 
-func (a *App) apiRequest(method, path string, query url.Values, body interface{}) ([]byte, error) {
-	a.client.SetBaseOptions(a.buildAPIBaseOptions())
-	a.client.SetToken(a.config.Token)
-	return a.client.Do(method, path, query, body)
+func NewAPIClient(client *cliutil.HTTPClient, baseResolver func() cliutil.APIBaseOptions, tokenSource func() string) *APIClient {
+	return &APIClient{
+		client:       client,
+		baseResolver: baseResolver,
+		tokenSource:  tokenSource,
+	}
+}
+
+func (c *APIClient) Get(path string, query url.Values) ([]byte, error) {
+	return c.Request("GET", path, query, nil)
+}
+
+func (c *APIClient) Request(method, path string, query url.Values, body interface{}) ([]byte, error) {
+	c.client.SetBaseOptions(c.baseResolver())
+	c.client.SetToken(c.tokenSource())
+	return c.client.Do(method, path, query, body)
 }
 
 func (a *App) buildAPIBaseOptions() cliutil.APIBaseOptions {
 	return cliutil.APIBaseOptions{
-		Override:   a.apiOverride,
-		EnvVars:    []string{"SCORING_API_BASE"},
+		Override: a.apiOverride,
+		EnvVars: []string{
+			"SCENARIO_COMPLETENESS_SCORING_API_BASE",
+			"SCORING_API_BASE",
+		},
 		ConfigBase: a.config.APIBase,
 		PortEnvVars: []string{
 			"API_PORT",
-			"SCENARIO_COMPLETENESS_PORT",
+			"SCENARIO_COMPLETENESS_SCORING_API_PORT",
 		},
 		PortDetector: a.detectPortFromVrooli,
 		DefaultBase:  defaultAPIBase,
