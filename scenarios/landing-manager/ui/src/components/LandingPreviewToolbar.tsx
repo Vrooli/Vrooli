@@ -1,17 +1,23 @@
-import { memo } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
   ExternalLink,
   Globe,
+  Info,
   Loader2,
   Maximize2,
   Minimize2,
+  Play,
   RefreshCw,
+  RotateCw,
+  Square,
   Settings,
+  SlidersHorizontal,
   Wand2,
   X,
 } from 'lucide-react';
+import { type LifecycleControlConfig } from './types';
 
 export type PreviewViewType = 'public' | 'admin';
 
@@ -31,6 +37,10 @@ export interface LandingPreviewToolbarProps {
   canGoForward?: boolean;
   onGoBack?: () => void;
   onGoForward?: () => void;
+  showInfoButton?: boolean;
+  infoPanelOpen?: boolean;
+  onToggleInfoPanel?: () => void;
+  lifecycleControls?: LifecycleControlConfig | null;
 }
 
 export const LandingPreviewToolbar = memo(function LandingPreviewToolbar({
@@ -49,7 +59,59 @@ export const LandingPreviewToolbar = memo(function LandingPreviewToolbar({
   canGoForward = false,
   onGoBack,
   onGoForward,
+  showInfoButton = false,
+  infoPanelOpen = false,
+  onToggleInfoPanel,
+  lifecycleControls,
 }: LandingPreviewToolbarProps) {
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const actionsRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!actionsOpen) return;
+
+    const handleClick = (event: MouseEvent) => {
+      if (!actionsRef.current?.contains(event.target as Node)) {
+        setActionsOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setActionsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [actionsOpen]);
+
+  const toggleActionsMenu = () => {
+    if (!lifecycleControls) return;
+    setActionsOpen((prev) => !prev);
+  };
+
+  const handleStart = () => {
+    lifecycleControls?.onStart();
+    setActionsOpen(false);
+  };
+
+  const handleStop = () => {
+    lifecycleControls?.onStop?.();
+    setActionsOpen(false);
+  };
+
+  const handleRestart = () => {
+    lifecycleControls?.onRestart?.();
+    setActionsOpen(false);
+  };
+
+  const lifecycleButtonDisabled = lifecycleControls?.loading;
+
   return (
     <div className="landing-preview-toolbar">
       <div className="landing-preview-toolbar__left">
@@ -118,6 +180,69 @@ export const LandingPreviewToolbar = memo(function LandingPreviewToolbar({
       </div>
 
       <div className="landing-preview-toolbar__right">
+        {showInfoButton && (
+          <button
+            type="button"
+            className={`landing-preview-toolbar__icon-btn ${infoPanelOpen ? 'landing-preview-toolbar__icon-btn--active' : ''}`}
+            onClick={onToggleInfoPanel}
+            aria-pressed={infoPanelOpen}
+            aria-label="Toggle scenario information"
+            title="Scenario info"
+          >
+            <Info size={18} />
+          </button>
+        )}
+
+        {lifecycleControls && (
+          <div className="landing-preview-toolbar__actions" ref={actionsRef}>
+            <button
+              type="button"
+              className={`landing-preview-toolbar__icon-btn ${actionsOpen ? 'landing-preview-toolbar__icon-btn--active' : ''}`}
+              onClick={toggleActionsMenu}
+              aria-haspopup="true"
+              aria-expanded={actionsOpen}
+              aria-label="Lifecycle actions"
+              title="Lifecycle actions"
+            >
+              <SlidersHorizontal size={18} />
+            </button>
+            {actionsOpen && (
+              <div className="landing-preview-toolbar__actions-menu" role="menu">
+                <button
+                  type="button"
+                  onClick={handleStart}
+                  className="landing-preview-toolbar__actions-menu-btn"
+                  disabled={lifecycleButtonDisabled || lifecycleControls.running}
+                  role="menuitem"
+                >
+                  <Play size={14} />
+                  Start
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStop}
+                  className="landing-preview-toolbar__actions-menu-btn"
+                  disabled={lifecycleButtonDisabled || !lifecycleControls.onStop || !lifecycleControls.running}
+                  role="menuitem"
+                >
+                  <Square size={14} />
+                  Stop
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRestart}
+                  className="landing-preview-toolbar__actions-menu-btn"
+                  disabled={lifecycleButtonDisabled || !lifecycleControls.onRestart || !lifecycleControls.running}
+                  role="menuitem"
+                >
+                  <RotateCw size={14} />
+                  Restart
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* AI Customize button */}
         <button
           type="button"

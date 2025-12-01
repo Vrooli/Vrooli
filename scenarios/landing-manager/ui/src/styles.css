@@ -234,13 +234,23 @@ body.landing-preview-immersive {
 .landing-preview-view {
   display: flex;
   flex-direction: column;
-  height: 600px;
-  max-height: 70vh;
+  flex: 1;
+  height: min(600px, 70vh);
   border-radius: var(--radius-xl);
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgb(15 23 42);
   overflow: hidden;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.landing-preview-view--immersive {
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+  flex: 1;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
 }
 
 .landing-preview-view--fullscreen {
@@ -256,6 +266,7 @@ body.landing-preview-immersive {
 /* Preview Content Area */
 .landing-preview-view__content {
   flex: 1;
+  min-height: 0;
   position: relative;
   overflow: hidden;
   background: rgb(2 6 23);
@@ -362,6 +373,11 @@ body.landing-preview-immersive {
   color: rgb(248 250 252);
 }
 
+.landing-preview-toolbar__icon-btn--active {
+  background: rgba(248, 250, 252, 0.18);
+  color: rgb(248 250 252);
+}
+
 .landing-preview-toolbar__icon-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -436,6 +452,47 @@ body.landing-preview-immersive {
   color: rgb(196, 181, 253);
 }
 
+.landing-preview-toolbar__actions {
+  position: relative;
+}
+
+.landing-preview-toolbar__actions-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  min-width: 10rem;
+  padding: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgb(15 23 42);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+  z-index: 30;
+}
+
+.landing-preview-toolbar__actions-menu-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: rgb(226 232 240);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.landing-preview-toolbar__actions-menu-btn:hover:not(:disabled) {
+  background: rgba(248, 250, 252, 0.08);
+}
+
+.landing-preview-toolbar__actions-menu-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .landing-preview-toolbar {
@@ -459,6 +516,196 @@ body.landing-preview-immersive {
 
   .landing-preview-view {
     height: 400px;
+  }
+}
+
+/* Scenario Info Drawer */
+.scenario-info-panel__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.65);
+  z-index: 90;
+}
+
+.scenario-info-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: min(420px, 95vw);
+  background: rgb(15 23 42);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: -15px 0 45px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  z-index: 95;
+}
+
+.scenario-info-panel__header {
+  display: flex;
+  justify-content: space-between;
+  padding: 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 1rem;
+}
+
+.scenario-info-panel__eyebrow {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgb(148 163 184);
+}
+
+.scenario-info-panel__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 0.2rem;
+}
+
+.scenario-info-panel__slug {
+  font-family: var(--font-mono, 'Ubuntu Mono', monospace);
+  font-size: 0.8rem;
+  color: rgb(148 163 184);
+  margin-top: 0.2rem;
+  overflow-wrap: anywhere;
+}
+
+.scenario-info-panel__close-btn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  cursor: pointer;
+}
+
+.scenario-info-panel__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.scenario-info-panel__section h3 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgb(148 163 184);
+  margin-bottom: 0.75rem;
+}
+
+.scenario-info-panel__section dl {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.scenario-info-panel__section dt {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgb(148 163 184);
+}
+
+.scenario-info-panel__section dd {
+  font-size: 0.9rem;
+  color: rgb(248 250 252);
+}
+
+.scenario-info-panel__section dd code {
+  display: inline-block;
+  padding: 0.25rem 0.4rem;
+  border-radius: 0.4rem;
+  background: rgba(15, 23, 42, 0.85);
+  font-size: 0.8rem;
+}
+
+.scenario-info-panel__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: rgb(226 232 240);
+}
+
+.scenario-info-panel__links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.scenario-info-panel__links a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.scenario-info-panel__links a:hover {
+  background: rgba(248, 250, 252, 0.07);
+}
+
+.scenario-info-panel__empty {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: rgb(148 163 184);
+  font-size: 0.85rem;
+}
+
+.scenario-info-panel__footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1rem;
+  background: rgba(2, 6, 23, 0.85);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.scenario-info-panel__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  color: rgb(248 250 252);
+}
+
+.scenario-info-panel__footer-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.scenario-info-panel__footer-actions button {
+  flex: 1;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(248, 250, 252, 0.08);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.scenario-info-panel__footer-actions button:hover:not(:disabled) {
+  background: rgba(248, 250, 252, 0.18);
+}
+
+.scenario-info-panel__footer-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .scenario-info-panel {
+    width: 100%;
   }
 }
 

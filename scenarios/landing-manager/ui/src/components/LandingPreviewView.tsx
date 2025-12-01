@@ -4,6 +4,8 @@ import { type GeneratedScenario, type PreviewLinks } from '../lib/api';
 import { useFullscreenMode } from '../hooks/useFullscreenMode';
 import { useIframeBridge } from '../hooks/useIframeBridge';
 import { LandingPreviewToolbar, type PreviewViewType } from './LandingPreviewToolbar';
+import { ScenarioInfoPanel } from './ScenarioInfoPanel';
+import { type LifecycleControlConfig } from './types';
 
 export interface LandingPreviewViewProps {
   scenario: GeneratedScenario;
@@ -13,6 +15,10 @@ export interface LandingPreviewViewProps {
   onStartScenario: (scenarioId: string) => void;
   previewLinks?: PreviewLinks;
   initialView?: PreviewViewType;
+  onStopScenario?: (scenarioId: string) => void;
+  onRestartScenario?: (scenarioId: string) => void;
+  lifecycleLoading?: boolean;
+  enableInfoPanel?: boolean;
 }
 
 /**
@@ -54,12 +60,17 @@ export const LandingPreviewView = memo(function LandingPreviewView({
   onStartScenario,
   previewLinks,
   initialView = 'public',
+  onStopScenario,
+  onRestartScenario,
+  lifecycleLoading = false,
+  enableInfoPanel = false,
 }: LandingPreviewViewProps) {
   const [viewType, setViewType] = useState<PreviewViewType>(initialView);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const lastInitialViewRef = useRef<PreviewViewType>(initialView);
+  const [isInfoPanelOpen, setIsInfoPanelOpen] = useState(false);
 
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -77,6 +88,23 @@ export const LandingPreviewView = memo(function LandingPreviewView({
   const previewUrl = useMemo(() => {
     return resolvePreviewUrl(scenario.scenario_id, viewType, isRunning, previewLinks);
   }, [scenario.scenario_id, viewType, isRunning, previewLinks]);
+
+  useEffect(() => {
+    if (!enableInfoPanel) {
+      setIsInfoPanelOpen(false);
+    }
+  }, [enableInfoPanel, scenario.scenario_id]);
+
+  const lifecycleControls: LifecycleControlConfig | null = useMemo(() => {
+    if (!enableInfoPanel) return null;
+    return {
+      running: isRunning,
+      loading: lifecycleLoading,
+      onStart: () => onStartScenario(scenario.scenario_id),
+      onStop: onStopScenario ? () => onStopScenario(scenario.scenario_id) : undefined,
+      onRestart: onRestartScenario ? () => onRestartScenario(scenario.scenario_id) : undefined,
+    };
+  }, [enableInfoPanel, isRunning, lifecycleLoading, onStartScenario, onStopScenario, onRestartScenario, scenario.scenario_id]);
 
   // Iframe bridge for navigation
   const {
@@ -170,7 +198,7 @@ export const LandingPreviewView = memo(function LandingPreviewView({
   return (
     <div
       ref={previewContainerRef}
-      className={`landing-preview-view ${isAnyFullscreen ? 'landing-preview-view--fullscreen' : ''}`}
+      className={`landing-preview-view ${isAnyFullscreen ? 'landing-preview-view--fullscreen' : ''} ${enableInfoPanel ? 'landing-preview-view--immersive' : ''}`}
       data-testid="landing-preview-view"
     >
       <LandingPreviewToolbar
@@ -189,6 +217,10 @@ export const LandingPreviewView = memo(function LandingPreviewView({
         canGoForward={bridgeState.canGoForward}
         onGoBack={handleGoBack}
         onGoForward={handleGoForward}
+        showInfoButton={enableInfoPanel}
+        infoPanelOpen={isInfoPanelOpen}
+        onToggleInfoPanel={enableInfoPanel ? () => setIsInfoPanelOpen((prev) => !prev) : undefined}
+        lifecycleControls={lifecycleControls}
       />
 
       <div className="landing-preview-view__content">
@@ -254,6 +286,15 @@ export const LandingPreviewView = memo(function LandingPreviewView({
           </>
         )}
       </div>
+      {enableInfoPanel && (
+        <ScenarioInfoPanel
+          open={isInfoPanelOpen}
+          onClose={() => setIsInfoPanelOpen(false)}
+          scenario={scenario}
+          previewLinks={previewLinks}
+          lifecycleControls={lifecycleControls}
+        />
+      )}
     </div>
   );
 });
