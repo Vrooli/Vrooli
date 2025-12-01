@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { AdminHome } from './AdminHome';
 import { AdminAuthProvider } from '../../../app/providers/AdminAuthProvider';
+import { listVariants, checkAdminSession } from '../../../shared/api';
+import * as analyticsController from '../controllers/analyticsController';
 
 const mockNavigate = vi.fn();
 
@@ -18,6 +21,79 @@ vi.mock('react-router-dom', async () => {
 vi.mock('../components/RuntimeSignalStrip', () => ({
   RuntimeSignalStrip: () => <div data-testid="runtime-signal-mock" />,
 }));
+vi.mock('../../../shared/api', async () => {
+  const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
+  return {
+    ...actual,
+    listVariants: vi.fn(),
+    checkAdminSession: vi.fn(),
+  };
+});
+vi.mock('../../../app/providers/LandingVariantProvider', () => ({
+  useLandingVariant: () => ({
+    variant: { slug: 'control', name: 'Control Variant' },
+    config: null,
+    loading: false,
+    error: null,
+    resolution: 'api_select',
+    statusNote: 'Serving weighted traffic',
+    lastUpdated: Date.now(),
+    refresh: vi.fn(),
+  }),
+  LandingVariantProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+const mockedListVariants = vi.mocked(listVariants);
+const mockedCheckAdminSession = vi.mocked(checkAdminSession);
+const mockVariantsResponse = {
+  variants: [
+    {
+      id: 1,
+      slug: 'control',
+      name: 'Control Variant',
+      status: 'active' as const,
+      weight: 70,
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 2,
+      slug: 'beta',
+      name: 'Beta Variant',
+      status: 'active' as const,
+      weight: 30,
+      updated_at: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+  ],
+};
+
+const mockAnalyticsSummary = {
+  total_visitors: 1000,
+  total_downloads: 80,
+  variant_stats: [
+    {
+      variant_id: 1,
+      variant_slug: 'control',
+      variant_name: 'Control Variant',
+      views: 700,
+      cta_clicks: 200,
+      conversions: 120,
+      downloads: 50,
+      conversion_rate: 17.14,
+      trend: 'up' as const,
+    },
+    {
+      variant_id: 2,
+      variant_slug: 'beta',
+      variant_name: 'Beta Variant',
+      views: 300,
+      cta_clicks: 40,
+      conversions: 12,
+      downloads: 30,
+      conversion_rate: 4,
+      trend: 'down' as const,
+    },
+  ],
+};
 
 const renderWithRouter = (component: React.ReactElement) => {
   return render(
@@ -32,6 +108,7 @@ const renderWithRouter = (component: React.ReactElement) => {
 describe('AdminHome [REQ:ADMIN-MODES]', () => {
   const originalFetch = global.fetch;
   const originalLocation = window.location;
+  let fetchAnalyticsSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -39,12 +116,16 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
     delete (window as { location?: Location }).location;
     window.location = { ...originalLocation, pathname: '/admin' };
     window.localStorage.clear();
+    mockedListVariants.mockResolvedValue(mockVariantsResponse);
+    mockedCheckAdminSession.mockResolvedValue({ authenticated: true, email: 'ops@vrooli.dev' });
+    fetchAnalyticsSpy = vi.spyOn(analyticsController, 'fetchAnalyticsSummary').mockResolvedValue(mockAnalyticsSummary);
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
     window.location = originalLocation;
     window.localStorage.clear();
+    fetchAnalyticsSpy.mockRestore();
   });
 
   it('[REQ:ADMIN-MODES] should display exactly two modes: Analytics and Customization', () => {
@@ -87,6 +168,18 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
     expect(screen.getByText(/Customize landing page content, trigger agent-based/)).toBeInTheDocument();
   });
 
+  it('renders the experience guide with preview affordance', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+    const user = userEvent.setup();
+    renderWithRouter(<AdminHome />);
+
+    expect(screen.getByTestId('admin-experience-guide')).toBeInTheDocument();
+    await user.click(screen.getByTestId('admin-guide-preview'));
+
+    expect(openSpy).toHaveBeenCalledWith('/', '_blank', 'noopener,noreferrer');
+    openSpy.mockRestore();
+  });
+
   it('should surface quick resume panel when recents exist', async () => {
     window.localStorage.setItem(
       'landing_admin_experience',
@@ -112,5 +205,24 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
     expect(await screen.findByTestId('admin-resume-panel')).toBeInTheDocument();
     expect(screen.getByTestId('admin-resume-customization')).toBeInTheDocument();
     expect(screen.getByTestId('admin-resume-analytics')).toBeInTheDocument();
+  });
+
+  it('renders experience health digest with attention summary', async () => {
+    renderWithRouter(<AdminHome />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('admin-health-digest')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('admin-health-attention-card')).toHaveTextContent('Beta Variant');
+  });
+
+  it('navigates to focused customization from health digest', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<AdminHome />);
+
+    const reviewButton = await screen.findByTestId('admin-health-review');
+    await user.click(reviewButton);
+
+    expect(mockNavigate).toHaveBeenCalledWith('/admin/customization?focus=beta&focusSectionType=hero');
   });
 });

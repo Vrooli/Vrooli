@@ -1,11 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Archive, Trash2, Sparkles, Eye, AlertTriangle, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Plus, Edit, Archive, Trash2, Sparkles, Eye, AlertTriangle, ArrowUpRight, ArrowDownRight, Minus, Search } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { listVariants, archiveVariant, deleteVariant, type Variant, type AnalyticsSummary, type VariantStats } from '../../../shared/api';
 import { buildDateRange, fetchAnalyticsSummary } from '../controllers/analyticsController';
+import { loadVariantEditorData } from '../controllers/variantEditorController';
+
+const STALE_VARIANT_DAYS = 10;
+const SNAPSHOT_DAYS = 7;
+const DAY_MS = 24 * 60 * 60 * 1000;
+type WeightStatus = 'empty' | 'balanced' | 'under' | 'over';
 
 const getTrendGlyph = (trend?: VariantStats['trend']) => {
   if (trend === 'up') return <ArrowUpRight className="h-3 w-3 text-emerald-300" />;
@@ -21,12 +27,22 @@ const getTrendGlyph = (trend?: VariantStats['trend']) => {
  */
 export function Customization() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [variants, setVariants] = useState<Variant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [variantQuery, setVariantQuery] = useState('');
+  const [attentionOnly, setAttentionOnly] = useState(false);
+  const variantListRef = useRef<HTMLDivElement | null>(null);
+  const [appliedFocusSlug, setAppliedFocusSlug] = useState<string | null>(null);
+  const [appliedSectionFocusSlug, setAppliedSectionFocusSlug] = useState<string | null>(null);
+  const focusSlug = searchParams.get('focus');
+  const focusSectionIdParam = searchParams.get('focusSectionId');
+  const focusSectionType = searchParams.get('focusSectionType');
+  const focusSectionId = focusSectionIdParam ? Number(focusSectionIdParam) : null;
 
   useEffect(() => {
     fetchVariants();
@@ -76,7 +92,7 @@ export function Customization() {
   const fetchAnalyticsSnapshot = async () => {
     try {
       setAnalyticsLoading(true);
-      const range = buildDateRange(7);
+      const range = buildDateRange(SNAPSHOT_DAYS);
       const data = await fetchAnalyticsSummary(range);
       setAnalytics(data);
       setAnalyticsError(null);
@@ -95,6 +111,195 @@ export function Customization() {
     analytics?.variant_stats.forEach((stat) => map.set(stat.variant_slug, stat));
     return map;
   }, [analytics]);
+  const totalAssignedWeight = activeVariants.reduce((sum, variant) => sum + (variant.weight ?? 0), 0);
+  const weightStatus: WeightStatus = activeVariants.length === 0
+    ? 'empty'
+    : totalAssignedWeight === 100
+      ? 'balanced'
+      : totalAssignedWeight > 100
+        ? 'over'
+        : 'under';
+  const staleVariants = useMemo(() => {
+    const now = Date.now();
+    return activeVariants
+      .map((variant) => {
+        if (!variant.updated_at) {
+          return null;
+        }
+        const updatedAt = new Date(variant.updated_at);
+        if (Number.isNaN(updatedAt.getTime())) {
+          return null;
+        }
+        const daysSinceUpdate = Math.floor((now - updatedAt.getTime()) / DAY_MS);
+        if (daysSinceUpdate < STALE_VARIANT_DAYS) {
+          return null;
+        }
+        return { variant, daysSinceUpdate };
+      })
+      .filter((entry): entry is { variant: Variant; daysSinceUpdate: number } => Boolean(entry))
+      .sort((a, b) => b.daysSinceUpdate - a.daysSinceUpdate)
+      .slice(0, 3);
+  }, [activeVariants]);
+  const neverUpdatedVariants = useMemo(
+    () => activeVariants.filter((variant) => !variant.updated_at),
+    [activeVariants]
+  );
+  const underperformingStat = useMemo(() => {
+    if (!analytics?.variant_stats?.length || activeVariants.length === 0) {
+      return null;
+    }
+    const activeSlugs = new Set(activeVariants.map((variant) => variant.slug));
+    const relevant = analytics.variant_stats.filter((stat) => activeSlugs.has(stat.variant_slug));
+    if (relevant.length === 0) {
+      return null;
+    }
+    return relevant.reduce<VariantStats | null>((worst, stat) => {
+      if (!worst) {
+        return stat;
+      }
+      return stat.conversion_rate < worst.conversion_rate ? stat : worst;
+    }, null);
+  }, [analytics, activeVariants]);
+  const underperformingVariant = underperformingStat
+    ? activeVariants.find((variant) => variant.slug === underperformingStat.variant_slug)
+    : undefined;
+  const attentionCandidateSlugs = useMemo(() => {
+    const slugs = new Set<string>();
+    staleVariants.forEach(({ variant }) => slugs.add(variant.slug));
+    neverUpdatedVariants.forEach((variant) => slugs.add(variant.slug));
+    if (underperformingStat) {
+      slugs.add(underperformingStat.variant_slug);
+    }
+    return slugs;
+  }, [staleVariants, neverUpdatedVariants, underperformingStat]);
+  const variantAttentionReasons = useMemo(() => {
+    const map = new Map<string, string[]>();
+    const pushReason = (slug: string, reason: string) => {
+      map.set(slug, [...(map.get(slug) ?? []), reason]);
+    };
+    staleVariants.forEach(({ variant, daysSinceUpdate }) => {
+      pushReason(variant.slug, `Stale · ${daysSinceUpdate}d`);
+    });
+    neverUpdatedVariants.forEach((variant) => {
+      pushReason(variant.slug, 'Never customized');
+    });
+    if (underperformingStat?.variant_slug) {
+      pushReason(underperformingStat.variant_slug, 'Lowest conversion');
+    }
+    return map;
+  }, [staleVariants, neverUpdatedVariants, underperformingStat]);
+  const filteredActiveVariants = useMemo(() => {
+    const normalized = variantQuery.trim().toLowerCase();
+    return activeVariants.filter((variant) => {
+      const matchesQuery = !normalized
+        || variant.name?.toLowerCase().includes(normalized)
+        || variant.slug.toLowerCase().includes(normalized);
+      const matchesAttention = !attentionOnly || attentionCandidateSlugs.has(variant.slug);
+      return matchesQuery && matchesAttention;
+    });
+  }, [activeVariants, attentionOnly, attentionCandidateSlugs, variantQuery]);
+
+  const highlightVariantInList = useCallback((slug?: string) => {
+    if (!slug) return;
+    setAttentionOnly(true);
+    setVariantQuery(slug);
+    requestAnimationFrame(() => {
+      variantListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, []);
+
+  const clearSectionFocusParams = useCallback(() => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('focusSectionId');
+    next.delete('focusSectionType');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const navigateToSectionEditor = useCallback(async (slug: string, options?: { sectionId?: number; sectionType?: string }) => {
+    try {
+      if (options?.sectionId) {
+        navigate(`/admin/customization/variants/${slug}/sections/${options.sectionId}`);
+        return true;
+      }
+
+      const desiredType = options?.sectionType;
+      const data = await loadVariantEditorData(slug);
+      const target = desiredType
+        ? data.sections.find((section) => section.section_type === desiredType)
+        : data.sections[0];
+
+      if (target?.id) {
+        navigate(`/admin/customization/variants/${slug}/sections/${target.id}`);
+        return true;
+      }
+
+      navigate(`/admin/customization/variants/${slug}`);
+      return false;
+    } catch (error) {
+      console.error('Failed to resolve section editor for variant', slug, error);
+      navigate(`/admin/customization/variants/${slug}`);
+      return false;
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!focusSlug || variants.length === 0 || focusSlug === appliedFocusSlug) {
+      return;
+    }
+    highlightVariantInList(focusSlug);
+    setAppliedFocusSlug(focusSlug);
+    const next = new URLSearchParams(searchParams);
+    next.delete('focus');
+    setSearchParams(next, { replace: true });
+  }, [focusSlug, appliedFocusSlug, variants.length, highlightVariantInList, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!focusSlug || !variants.length) {
+      setAppliedFocusSlug(null);
+      setAppliedSectionFocusSlug(null);
+      return;
+    }
+
+    if ((!focusSectionId && !focusSectionType) || appliedSectionFocusSlug === focusSlug) {
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      const success = await navigateToSectionEditor(focusSlug, {
+        sectionId: focusSectionId ?? undefined,
+        sectionType: focusSectionType ?? undefined,
+      });
+      if (!cancelled && success) {
+        setAppliedSectionFocusSlug(focusSlug);
+        clearSectionFocusParams();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    focusSlug,
+    focusSectionId,
+    focusSectionType,
+    appliedSectionFocusSlug,
+    variants.length,
+    navigateToSectionEditor,
+    clearSectionFocusParams,
+  ]);
+
+  useEffect(() => {
+    if (!focusSlug) {
+      setAppliedFocusSlug(null);
+      setAppliedSectionFocusSlug(null);
+    }
+  }, [focusSlug]);
+
+  const clearVariantFilters = () => {
+    setAttentionOnly(false);
+    setVariantQuery('');
+  };
 
   if (loading) {
     return (
@@ -149,6 +354,37 @@ export function Customization() {
           </div>
         </div>
 
+        <VariantFilterBar
+          query={variantQuery}
+          onQueryChange={setVariantQuery}
+          attentionOnly={attentionOnly}
+          onAttentionToggle={() => setAttentionOnly((prev) => !prev)}
+          hasFilters={Boolean(variantQuery) || attentionOnly}
+          onClearFilters={clearVariantFilters}
+        />
+
+      <ExperienceOpsPanel
+        totalWeight={totalAssignedWeight}
+        variantCount={activeVariants.length}
+        weightStatus={weightStatus}
+        staleVariants={staleVariants}
+        neverUpdatedVariants={neverUpdatedVariants}
+        underperforming={underperformingStat ? { stats: underperformingStat, variant: underperformingVariant } : null}
+        analyticsRangeDays={SNAPSHOT_DAYS}
+        onEditVariant={(slug) => navigate(`/admin/customization/variants/${slug}`)}
+        onViewAnalytics={(slug) => navigate(`/admin/analytics?variant=${slug}`)}
+        onHighlightVariant={highlightVariantInList}
+        onEditSection={(slug, options) => navigateToSectionEditor(slug, options)}
+      />
+
+      <VariantListSummary
+        activeCount={activeVariants.length}
+        archivedCount={archivedVariants.length}
+        attentionCount={attentionCandidateSlugs.size}
+        totalWeight={totalAssignedWeight}
+        weightStatus={weightStatus}
+      />
+
         {analyticsError && (
           <div className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 flex items-center gap-3 text-sm text-amber-100">
             <AlertTriangle className="h-4 w-4 text-amber-300" />
@@ -157,8 +393,13 @@ export function Customization() {
         )}
 
         {/* Active Variants */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">Active Variants</h2>
+        <div className="mb-8" ref={variantListRef}>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xl font-semibold">Active Variants</h2>
+            {(variantQuery || attentionOnly) && (
+              <p className="text-xs text-slate-500">Showing {filteredActiveVariants.length} of {activeVariants.length}</p>
+            )}
+          </div>
           {activeVariants.length === 0 ? (
             <Card className="bg-white/5 border-white/10">
               <CardContent className="text-center py-12">
@@ -168,9 +409,18 @@ export function Customization() {
                 </Button>
               </CardContent>
             </Card>
+          ) : filteredActiveVariants.length === 0 ? (
+            <Card className="bg-white/5 border-white/10">
+              <CardContent className="text-center py-12 space-y-3">
+                <p className="text-slate-400">No variants match your filters.</p>
+                <Button variant="outline" size="sm" onClick={clearVariantFilters} data-testid="clear-variant-filters">
+                  Reset filters
+                </Button>
+              </CardContent>
+            </Card>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {activeVariants.map((variant) => (
+              {filteredActiveVariants.map((variant) => (
                 <Card
                   key={variant.id}
                   className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors"
@@ -193,6 +443,11 @@ export function Customization() {
                     )}
                   </CardHeader>
                   <CardContent>
+                    <VariantStatusBadges
+                      slug={variant.slug}
+                      lastUpdatedLabel={formatVariantUpdatedLabel(variant.updated_at)}
+                      attentionReasons={variantAttentionReasons.get(variant.slug) ?? []}
+                    />
                     <VariantPerformanceSummary
                       slug={variant.slug}
                       stats={statsBySlug.get(variant.slug)}
@@ -298,6 +553,251 @@ export function Customization() {
   );
 }
 
+interface VariantFilterBarProps {
+  query: string;
+  onQueryChange: (value: string) => void;
+  attentionOnly: boolean;
+  onAttentionToggle: () => void;
+  hasFilters: boolean;
+  onClearFilters: () => void;
+}
+
+function VariantFilterBar({ query, onQueryChange, attentionOnly, onAttentionToggle, hasFilters, onClearFilters }: VariantFilterBarProps) {
+  return (
+    <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-4" data-testid="variant-filter-bar">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center">
+        <label className="relative flex-1" aria-label="Search variants">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          <input
+            type="text"
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            placeholder="Search by name or slug"
+            className="w-full rounded-full border border-white/10 bg-slate-950/60 py-3 pl-11 pr-4 text-sm focus:border-blue-500 focus:outline-none"
+            data-testid="variant-search-input"
+          />
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant={attentionOnly ? 'default' : 'outline'}
+            onClick={onAttentionToggle}
+            data-testid="variant-attention-filter"
+          >
+            Needs attention only
+          </Button>
+          {hasFilters && (
+            <Button size="sm" variant="ghost" onClick={onClearFilters}>
+              Clear filters
+            </Button>
+          )}
+        </div>
+      </div>
+      <p className="mt-3 text-xs text-slate-500">Filters apply to the Active Variants grid. Use them to jump directly to stale or underperforming experiments.</p>
+    </div>
+  );
+}
+
+interface VariantListSummaryProps {
+  activeCount: number;
+  archivedCount: number;
+  attentionCount: number;
+  totalWeight: number;
+  weightStatus: WeightStatus;
+}
+
+function VariantListSummary({ activeCount, archivedCount, attentionCount, totalWeight, weightStatus }: VariantListSummaryProps) {
+  const weightCopy = (() => {
+    if (activeCount === 0) {
+      return 'No active variants are routing traffic. Create one to light up the public landing.';
+    }
+    if (weightStatus === 'balanced') {
+      return 'Traffic is fully allocated across variants.';
+    }
+    if (weightStatus === 'under') {
+      return `${100 - totalWeight}% of visitors are idle because weights total less than 100%.`;
+    }
+    if (weightStatus === 'over') {
+      return `Weights exceed 100% by ${totalWeight - 100}%. Adjust them to match your intent.`;
+    }
+    return 'Assign weights to control where visitors land.';
+  })();
+
+  return (
+    <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4" data-testid="variant-list-summary">
+      <div className="grid gap-4 text-center sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Active</p>
+          <p className="text-2xl font-semibold text-white">{activeCount}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Attention</p>
+          <p className="text-2xl font-semibold text-amber-300">{attentionCount}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Archived</p>
+          <p className="text-2xl font-semibold text-slate-300">{archivedCount}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Traffic assigned</p>
+          <p className="text-2xl font-semibold text-white">{Math.max(0, totalWeight).toFixed(0)}%</p>
+        </div>
+      </div>
+      <p className="mt-4 text-xs text-slate-500 text-center">{weightCopy}</p>
+    </div>
+  );
+}
+
+interface ExperienceOpsPanelProps {
+  totalWeight: number;
+  variantCount: number;
+  weightStatus: WeightStatus;
+  staleVariants: { variant: Variant; daysSinceUpdate: number }[];
+  neverUpdatedVariants: Variant[];
+  underperforming: { stats: VariantStats; variant?: Variant } | null;
+  analyticsRangeDays: number;
+  onEditVariant: (slug: string) => void;
+  onViewAnalytics: (slug: string) => void;
+  onHighlightVariant?: (slug?: string) => void;
+  onEditSection?: (slug: string, options?: { sectionId?: number; sectionType?: string }) => void;
+}
+
+function ExperienceOpsPanel({
+  totalWeight,
+  variantCount,
+  weightStatus,
+  staleVariants,
+  neverUpdatedVariants,
+  underperforming,
+  analyticsRangeDays,
+  onEditVariant,
+  onViewAnalytics,
+  onHighlightVariant,
+  onEditSection,
+}: ExperienceOpsPanelProps) {
+  const progressWidth = Math.max(0, Math.min(totalWeight, 100));
+  const remainder = Math.max(0, Math.abs(100 - totalWeight));
+  const weightMessage = (() => {
+    if (variantCount === 0) {
+      return 'No active variants are routing traffic. Create one to render the public landing page.';
+    }
+    if (weightStatus === 'balanced') {
+      return 'All visitor traffic is allocated. Keep experimenting but weights already sum to 100%.';
+    }
+    if (weightStatus === 'under') {
+      return `Only ${totalWeight}% of visitors are assigned to active variants. Allocate the remaining ${remainder}% to avoid idle traffic.`;
+    }
+    return `${totalWeight}% of traffic is assigned, exceeding 100% by ${remainder}%. Adjust weights so the API can honor intended splits.`;
+  })();
+  const neverTouchedNames = neverUpdatedVariants.map((variant) => variant.name || variant.slug);
+  const underperformingSlug = underperforming?.stats.variant_slug;
+  const underperformingName = underperforming?.variant?.name ?? underperformingSlug;
+
+  return (
+    <Card className="mb-8 bg-white/5 border-white/10" data-testid="experience-ops-panel">
+      <CardHeader>
+        <CardTitle>Experiment Ops Snapshot</CardTitle>
+        <CardDescription className="text-slate-400">
+          Align traffic, freshness, and optimization actions so customization and analytics flows stay connected.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-slate-200">Traffic Allocation</p>
+            <div className="text-3xl font-bold">{Math.max(0, totalWeight).toFixed(0)}%</div>
+            <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+              <div
+                className={`h-2 ${weightStatus === 'balanced' ? 'bg-emerald-400' : 'bg-amber-400'} transition-all`}
+                style={{ width: `${progressWidth}%` }}
+              />
+            </div>
+            <p className="text-sm text-slate-400">{weightMessage}</p>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-slate-200">Content Freshness</p>
+            {staleVariants.length === 0 && neverTouchedNames.length === 0 ? (
+              <p className="text-sm text-slate-400">All active variants have been edited within the last {STALE_VARIANT_DAYS} days.</p>
+            ) : (
+              <div className="space-y-2">
+                {staleVariants.map(({ variant, daysSinceUpdate }) => (
+                  <div key={variant.slug} className="flex items-center justify-between bg-slate-900/60 border border-white/10 rounded-lg px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium text-white">{variant.name ?? variant.slug}</p>
+                      <p className="text-xs text-slate-400">Updated {daysSinceUpdate} day{daysSinceUpdate === 1 ? '' : 's'} ago</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        onEditSection
+                          ? onEditSection(variant.slug, { sectionType: 'hero' })
+                          : onEditVariant(variant.slug)
+                      }
+                    >
+                      Refresh copy
+                    </Button>
+                  </div>
+                ))}
+                {neverTouchedNames.length > 0 && (
+                  <div className="text-xs text-amber-200 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                    Never customized: {neverTouchedNames.join(', ')}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-slate-200">Needs Attention</p>
+            {underperforming && underperformingSlug ? (
+              <div className="rounded-xl border border-white/10 bg-slate-900/60 p-4 space-y-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Lowest conversion</p>
+                  <p className="text-xl font-semibold text-white">{underperformingName}</p>
+                  <p className="text-2xl font-bold text-rose-300">
+                    {underperforming.stats.conversion_rate.toFixed(2)}%
+                    <span className="text-xs text-slate-400 ml-2">last {analyticsRangeDays} day{analyticsRangeDays === 1 ? '' : 's'}</span>
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Button size="sm" className="gap-2" onClick={() => onViewAnalytics(underperformingSlug)}>
+                    Inspect analytics
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      onEditSection
+                        ? onEditSection(underperformingSlug, { sectionType: 'hero' })
+                        : onEditVariant(underperformingSlug)
+                    }
+                  >
+                    Tune copy
+                  </Button>
+                  {onHighlightVariant && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onHighlightVariant(underperformingSlug)}
+                      data-testid="needs-attention-focus"
+                    >
+                      Highlight in list
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400">Drive traffic to gather enough data before surfacing experiment insights.</p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 interface VariantPerformanceSummaryProps {
   slug: string;
   stats?: VariantStats;
@@ -341,6 +841,44 @@ function VariantPerformanceSummary({ slug, stats, loading }: VariantPerformanceS
           <span className="font-semibold text-white">{stats.conversion_rate.toFixed(2)}%</span> CVR
         </div>
       </div>
+    </div>
+  );
+}
+
+function formatVariantUpdatedLabel(updatedAt?: string | null) {
+  if (!updatedAt) {
+    return 'Never customized';
+  }
+  const parsed = new Date(updatedAt);
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Last updated date unavailable';
+  }
+  const diffMs = Date.now() - parsed.getTime();
+  const diffDays = Math.max(0, Math.floor(diffMs / DAY_MS));
+  if (diffDays === 0) {
+    return 'Updated today';
+  }
+  if (diffDays === 1) {
+    return 'Updated yesterday';
+  }
+  return `Updated ${diffDays} days ago`;
+}
+
+interface VariantStatusBadgesProps {
+  slug: string;
+  lastUpdatedLabel: string;
+  attentionReasons: string[];
+}
+
+function VariantStatusBadges({ slug, lastUpdatedLabel, attentionReasons }: VariantStatusBadgesProps) {
+  return (
+    <div className="mb-4 flex flex-wrap gap-2 text-xs" data-testid={`variant-status-${slug}`}>
+      <span className="rounded-full border border-white/10 bg-slate-900/60 px-3 py-1 text-slate-300">{lastUpdatedLabel}</span>
+      {attentionReasons.map((reason) => (
+        <span key={`${slug}-${reason}`} className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-amber-200">
+          {reason}
+        </span>
+      ))}
     </div>
   );
 }

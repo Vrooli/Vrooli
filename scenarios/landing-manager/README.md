@@ -103,6 +103,10 @@ No switch statements, no manual type updates - it's all auto-derived from the re
 
 See [PRD.md](./PRD.md) for detailed operational targets.
 
+## Specification alignment & Browser Automation Studio
+
+The canonical landing runtime spec now lives directly in the landing-page template PRD at `scripts/scenarios/templates/landing-page-react-vite/PRD.md`; both CLI help and this README point to that document so teams can confirm runtime expectations (landing config, Stripe billing, credits, entitlements, downloads) before generating templates. Browser Automation Studio (and other bundled apps) should follow the offline/TTL guidance documented in [`docs/bundled-app-entitlements.md`](./docs/bundled-app-entitlements.md) before gating downloads. The Browser Automation Studio landing experience is hosted in the generated `scenarios/browser-automation-studio` scenario—run `make start` from that directory instead of regenerating templates until the checklist and implementation match.
+
 ## 📁 Project Structure
 
 ```

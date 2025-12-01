@@ -123,3 +123,36 @@ Key takeaways:
 - Update `styling.json` when adjusting typography, CTA proportions, or iconography so both admin tools and AI instructions stay synchronized.  
 - Touch `variant_space.json` when you introduce a new axis or need to disable a combination. Admin axes selectors + tests rely on those IDs—avoid hard-coding them elsewhere.  
 - The fallback config loader (`ui/src/shared/lib/fallbackLandingConfig.ts`) normalizes `.vrooli/variants/fallback.json`, guaranteeing deterministic ordering and enabled flags even offline. Extend that helper instead of duplicating normalization logic inside components.
+
+## Experience Architecture Audit – Landing Page React Vite Template
+
+**Purpose statement**: Landing Manager’s runtime lets marketers spot conversion signals and react without touching the factory—Analytics explains what’s happening, Customization lets them adjust variants/sections, and the public landing should guide prospects directly to a CTA or download.
+
+### Personas & key jobs
+- **Experiment Operator (ops/marketing)** – check live traffic source, find red/yellow variants, open analytics for the right time range.
+- **Content Author** – locate the variant or section that needs edits, update copy/weighting, preview updates on the public landing.
+- **Prospect/Visitor** – skim the public page, jump to the section they care about (features, pricing, downloads), and click the hero CTA.
+
+### Flow insights (current vs. ideal)
+- Ops users previously landed on `/admin` with two vague buttons. They needed to guess that “Analytics” tells them what happened and “Customization” fixes it. The ideal home screen should state the two jobs explicitly and give a preview link to validate the public experience.
+- Content authors had to scan dozens of variant cards; stale or underperforming variants were only hinted at in Experience Ops. Ideal flow lets them filter the grid down to the problematic experiments directly from the same signals.
+- Visitors on `/` had no navigation guidance—they had to scroll from hero → features → pricing manually, and admins couldn’t see runtime health without dev tools. Ideal landing flow provides a sticky header that surfaces runtime state, anchor links, and a persistent CTA.
+- Once an ops user filtered analytics to a variant/time range, there was no persistent indicator tying that view back to runtime state. Ideal flow keeps the “what am I looking at?” context in the viewport and links straight to customization/preview.
+- Variant cards didn’t show *why* a variant needed attention—just that filters existed. Ideal flow explains the reason (stale copy, never customized, lowest conversion) inline so the author knows the next edit to ship.
+
+### Changes implemented this loop
+- **Admin Experience Guide (AdminHome)** – Added a purpose banner plus three quick flows (audit performance, ship a variant, preview landing) with direct buttons so first-time admins know exactly where to start.
+- **Variant filters + needs-attention focus (Customization)** – Introduced a search/attention filter bar, applied counts to the active grid, and wired the Needs Attention panel to focus the list, shrinking the “find the broken experiment” loop to one click. Added `highlight variant` and `clear filters` selectors for automation.
+- **Section-focused deep links** – Customization now resolves `focusSectionId` / `focusSectionType` query params so AdminHome, Analytics, and Ops widgets can jump straight into the Section Editor (defaulting to hero) without forcing users to hunt for the right block.
+- **Public landing navigation rail** – Inserted `LandingExperienceHeader` with runtime pills, anchor navigation (desktop + mobile), and a sticky hero CTA button so visitors, operators, and agents can jump to sections instantly while seeing whether fallback copy is active.
+- **Analytics focus rail** – Added `AnalyticsFocusBanner` so ops users always know which variant/time range they’re analyzing, how it compares to the live runtime, and can reset filters or jump to customization/preview without scrolling.
+- **Variant status storytelling** – Added `VariantListSummary` plus inline badges on each variant card that call out last edit time and attention reasons (“Stale · 12d”, “Lowest conversion”). This turns the Customization grid into a to-do list instead of an undifferentiated catalog.
+- **Download CTA surfacing** – The sticky landing header now includes a dedicated download button (when assets exist) so end-users chasing installers don’t need to scroll through the marketing narrative to reach entitlements.
+- **Admin health digest (AdminHome)** – Snapshot panel now fetches variant and analytics data to surface live runtime state, traffic allocation, and the highest-priority attention variant with direct actions (“Open analytics”, “Review in customization”, “Adjust weights”) so ops personas can triage before diving into a mode.
+- **Cross-surface deep links** – Customization accepts `?focus=<slug>` to auto-filter and scroll to that variant, letting AdminHome (and future surfaces) highlight the broken experiment in one click instead of forcing users to reapply filters manually.
+
+### Opportunities for future loops
+1. **Customization > Section intent signals** – Surface which section triggered an alert (hero vs. pricing vs. download rail) so deep links can target that block instead of defaulting to hero when context is missing.
+2. **Analytics > Saved views** – Persist filter presets (e.g., “Last 30 days · Variant Bravo”) and surface them on AdminHome to eliminate the repeated query building for ops personas.
+3. **Public landing trust rails** – Add lightweight trust indicators (customer logos, uptime badges) to the sticky header or hero so prospects see proof before scrolling.
+4. **Health event log** – Capture recent runtime events (traffic allocation changes, fallback activation, agent jobs) in the AdminHome digest so follow-up actions can be audited without leaving the portal.

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { ReactNode } from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { AdminAnalytics } from './AdminAnalytics';
@@ -8,6 +9,19 @@ import * as api from '../../../shared/api';
 vi.mock('../../../shared/api');
 vi.mock('../components/RuntimeSignalStrip', () => ({
   RuntimeSignalStrip: () => <div data-testid="runtime-signal-mock" />,
+}));
+vi.mock('../../../app/providers/LandingVariantProvider', () => ({
+  useLandingVariant: () => ({
+    variant: { slug: 'control', name: 'Control' },
+    config: { sections: [], downloads: [], fallback: false },
+    loading: false,
+    error: null,
+    resolution: 'api_select',
+    statusNote: null,
+    lastUpdated: Date.now(),
+    refresh: vi.fn(),
+  }),
+  LandingVariantProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 const mockSummary = {
@@ -63,6 +77,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
     window.localStorage.clear();
 
     vi.mocked(api.getMetricsSummary).mockResolvedValue(mockSummary);
+    vi.mocked(api.checkAdminSession).mockResolvedValue({ authenticated: true, email: 'ops@vrooli.dev' });
   });
 
   afterEach(() => {
@@ -114,10 +129,10 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-variant-performance')).toBeInTheDocument();
-      expect(screen.getByText('Control')).toBeInTheDocument();
-      expect(screen.getByText('Variant A')).toBeInTheDocument();
-      expect(screen.getByText('500')).toBeInTheDocument();
-      expect(screen.getByText('750')).toBeInTheDocument();
+      expect(within(screen.getByTestId('analytics-variant-row-v1')).getByText('Control')).toBeInTheDocument();
+      expect(within(screen.getByTestId('analytics-variant-row-v2')).getByText('Variant A')).toBeInTheDocument();
+      expect(within(screen.getByTestId('analytics-variant-row-v1')).getByText('500')).toBeInTheDocument();
+      expect(within(screen.getByTestId('analytics-variant-row-v2')).getByText('750')).toBeInTheDocument();
       expect(screen.getByTestId('analytics-downloads-v1')).toHaveTextContent('12');
     });
   });
@@ -147,6 +162,25 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
       expect(raw).toBeTruthy();
       const snapshot = JSON.parse(raw ?? '{}');
       expect(snapshot.lastAnalytics).toBeTruthy();
+    });
+  });
+
+  it('surfaces focus banner with current view context', async () => {
+    renderWithRouter(<AdminAnalytics />);
+
+    await waitFor(() => {
+      const banner = screen.getByTestId('analytics-focus-banner');
+      expect(banner).toBeInTheDocument();
+      expect(within(banner).getByText(/Analyzing all variants/i)).toBeInTheDocument();
+      expect(within(banner).getByText(/Time range: Last 7 days/)).toBeInTheDocument();
+    });
+  });
+
+  it('provides hero edit actions from analytics table', async () => {
+    renderWithRouter(<AdminAnalytics />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('analytics-edit-hero-v1')).toBeInTheDocument();
     });
   });
 });

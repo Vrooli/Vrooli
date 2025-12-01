@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { type AnalyticsSummary, type VariantStats } from "../../../shared/api";
 import { buildDateRange, fetchAnalyticsSummary, fetchVariantAnalytics } from "../controllers/analyticsController";
 import { getAdminExperienceSnapshot, rememberAnalyticsFilters } from "../../../shared/lib/adminExperience";
+import { useLandingVariant, type VariantResolution } from "../../../app/providers/LandingVariantProvider";
 
 const getTrendIcon = (trend?: 'up' | 'down' | 'stable') => {
   if (trend === 'up') return <ArrowUpRight className="h-4 w-4 text-green-400" />;
@@ -17,6 +18,19 @@ const getTrendIcon = (trend?: 'up' | 'down' | 'stable') => {
 
 const VALID_TIME_RANGES = new Set(['1', '7', '30', '90']);
 const DEFAULT_TIME_RANGE = '7';
+const TIME_RANGE_LABELS: Record<string, string> = {
+  '1': 'Last 24 hours',
+  '7': 'Last 7 days',
+  '30': 'Last 30 days',
+  '90': 'Last 90 days',
+};
+const RESOLUTION_LABELS: Record<VariantResolution, string> = {
+  url_param: 'URL parameter',
+  local_storage: 'Stored visitor assignment',
+  api_select: 'Weighted API selection',
+  fallback: 'Fallback payload',
+  unknown: 'Unknown strategy',
+};
 
 /**
  * Admin Analytics Dashboard - implements OT-P0-023 and OT-P0-024
@@ -30,6 +44,7 @@ const DEFAULT_TIME_RANGE = '7';
 export function AdminAnalytics() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { variant: liveVariant, resolution: liveResolution, statusNote: liveStatusNote } = useLandingVariant();
   const adminExperience = useMemo(() => getAdminExperienceSnapshot(), []);
   const initialVariant = searchParams.get('variant') ?? adminExperience.lastAnalytics?.variantSlug ?? 'all';
   const initialTimeRangeFromUrl = searchParams.get('range');
@@ -48,6 +63,8 @@ export function AdminAnalytics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const searchSignature = searchParams.toString();
+  const filtersChanged = selectedVariant !== 'all' || timeRange !== DEFAULT_TIME_RANGE;
+  const selectedTimeRangeLabel = TIME_RANGE_LABELS[timeRange] ?? TIME_RANGE_LABELS[DEFAULT_TIME_RANGE];
 
   useEffect(() => {
     fetchAnalytics();
@@ -142,6 +159,16 @@ export function AdminAnalytics() {
     syncFiltersToUrl(selectedVariant, value);
   };
 
+  const handleResetFilters = () => {
+    setSelectedVariant('all');
+    setTimeRange(DEFAULT_TIME_RANGE);
+    syncFiltersToUrl('all', DEFAULT_TIME_RANGE);
+  };
+  const navigateToHeroSection = (slug: string) => {
+    const params = new URLSearchParams({ focus: slug, focusSectionType: 'hero' });
+    navigate(`/admin/customization?${params.toString()}`);
+  };
+
   const variantNameLookup = useMemo(() => {
     const map = new Map<string, string>();
     summary?.variant_stats.forEach((stat) => map.set(stat.variant_slug, stat.variant_name));
@@ -151,6 +178,28 @@ export function AdminAnalytics() {
   const selectedVariantName = selectedVariant !== 'all'
     ? variantNameLookup.get(selectedVariant) ?? selectedVariant
     : null;
+  const bestVariantStat = useMemo(() => {
+    if (!summary?.variant_stats?.length) {
+      return null;
+    }
+    return summary.variant_stats.reduce<VariantStats | null>((best, stat) => {
+      if (!best) {
+        return stat;
+      }
+      return stat.conversion_rate > best.conversion_rate ? stat : best;
+    }, null);
+  }, [summary]);
+  const weakestVariantStat = useMemo(() => {
+    if (!summary?.variant_stats?.length) {
+      return null;
+    }
+    return summary.variant_stats.reduce<VariantStats | null>((worst, stat) => {
+      if (!worst) {
+        return stat;
+      }
+      return stat.conversion_rate < worst.conversion_rate ? stat : worst;
+    }, null);
+  }, [summary]);
 
   if (loading) {
     return (
@@ -210,6 +259,35 @@ export function AdminAnalytics() {
             </Select>
           </div>
         </div>
+
+        <AnalyticsFocusBanner
+          selectedVariantSlug={selectedVariant === 'all' ? null : selectedVariant}
+          selectedVariantName={selectedVariantName}
+          timeRangeLabel={selectedTimeRangeLabel}
+          filtersChanged={filtersChanged}
+          onResetFilters={filtersChanged ? handleResetFilters : undefined}
+          onCustomizeVariant={selectedVariant !== 'all' ? () => navigate(`/admin/customization/variants/${selectedVariant}`) : undefined}
+          onPreviewVariant={selectedVariant !== 'all' ? () => window.open(`/?variant=${selectedVariant}`, '_blank') : undefined}
+          liveVariant={liveVariant}
+          liveResolution={liveResolution}
+          liveStatusNote={liveStatusNote}
+        />
+
+        <AnalyticsShortcutsCard
+          liveVariant={liveVariant}
+          liveResolution={liveResolution}
+          liveStatusNote={liveStatusNote}
+          onFocusLiveVariant={() => {
+            if (liveVariant?.slug) {
+              handleVariantChange(liveVariant.slug);
+            }
+          }}
+          bestVariant={bestVariantStat}
+          weakestVariant={weakestVariantStat}
+          onFocusVariant={(slug) => handleVariantChange(slug)}
+          onCustomizeVariant={(slug) => navigate(`/admin/customization/variants/${slug}`)}
+          timeRangeDays={parseInt(timeRange, 10)}
+        />
 
         {/* Summary cards - OT-P0-023 */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
@@ -347,6 +425,14 @@ export function AdminAnalytics() {
                             >
                               Customize
                             </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigateToHeroSection(variant.variant_slug)}
+                              data-testid={`analytics-edit-hero-${variant.variant_id}`}
+                            >
+                              Edit hero
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -435,6 +521,17 @@ export function AdminAnalytics() {
                     Preview pinned variant
                   </Button>
                 </div>
+                <div className="mt-3 flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => navigateToHeroSection(selectedVariant)}
+                    data-testid="analytics-variant-edit-hero"
+                  >
+                    Jump to hero section
+                  </Button>
+                </div>
                 <p className="text-xs text-slate-500 mt-2">
                   Apply changes in Customization, then refresh this detail view to confirm the next experiment run.
                 </p>
@@ -444,5 +541,190 @@ export function AdminAnalytics() {
         )}
       </div>
     </AdminLayout>
+  );
+}
+
+interface AnalyticsShortcutsCardProps {
+  liveVariant: { slug: string; name: string } | null;
+  liveResolution: VariantResolution;
+  liveStatusNote: string | null;
+  onFocusLiveVariant: () => void;
+  bestVariant: VariantStats | null;
+  weakestVariant: VariantStats | null;
+  onFocusVariant: (slug: string) => void;
+  onCustomizeVariant: (slug: string) => void;
+  timeRangeDays: number;
+}
+
+interface AnalyticsFocusBannerProps {
+  selectedVariantSlug: string | null;
+  selectedVariantName: string | null;
+  timeRangeLabel: string;
+  filtersChanged: boolean;
+  onResetFilters?: () => void;
+  onCustomizeVariant?: () => void;
+  onPreviewVariant?: () => void;
+  liveVariant: { slug: string; name: string } | null;
+  liveResolution: VariantResolution;
+  liveStatusNote: string | null;
+}
+
+function AnalyticsFocusBanner({
+  selectedVariantSlug,
+  selectedVariantName,
+  timeRangeLabel,
+  filtersChanged,
+  onResetFilters,
+  onCustomizeVariant,
+  onPreviewVariant,
+  liveVariant,
+  liveResolution,
+  liveStatusNote,
+}: AnalyticsFocusBannerProps) {
+  const focusHeading = selectedVariantSlug
+    ? `Analyzing ${selectedVariantName ?? selectedVariantSlug}`
+    : 'Analyzing all variants';
+  const runtimeVariantLabel = liveVariant?.name ?? liveVariant?.slug ?? 'runtime variant not resolved yet';
+  const resolutionLabel = RESOLUTION_LABELS[liveResolution] ?? RESOLUTION_LABELS.unknown;
+  let runtimeMessage = liveVariant?.slug
+    ? `Live runtime is serving ${runtimeVariantLabel} via ${resolutionLabel}.`
+    : 'Live runtime has not selected a variant yet.';
+
+  if (selectedVariantSlug && liveVariant?.slug && liveVariant.slug !== selectedVariantSlug) {
+    runtimeMessage += ` You are exploring ${selectedVariantName ?? selectedVariantSlug} while visitors currently see ${runtimeVariantLabel}. Use this to compare performance.`;
+  }
+
+  if (selectedVariantSlug && liveVariant?.slug && liveVariant.slug === selectedVariantSlug) {
+    runtimeMessage += ' This matches the variant currently in rotation.';
+  }
+
+  if (liveStatusNote) {
+    runtimeMessage += ` ${liveStatusNote}`;
+  }
+
+  return (
+    <Card className="mb-6 bg-white/5 border-white/10" data-testid="analytics-focus-banner">
+      <CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Current view</p>
+          <h2 className="text-xl font-semibold text-white mt-2">{focusHeading}</h2>
+          <p className="text-sm text-slate-400">Time range: {timeRangeLabel}</p>
+          <p className="text-xs text-slate-500 mt-2">{runtimeMessage}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {onResetFilters && filtersChanged && (
+            <Button size="sm" variant="outline" onClick={onResetFilters} data-testid="analytics-reset-filters">
+              Reset filters
+            </Button>
+          )}
+          {onCustomizeVariant && selectedVariantSlug && (
+            <Button size="sm" onClick={onCustomizeVariant} data-testid="analytics-focus-customize">
+              Customize variant
+            </Button>
+          )}
+          {onPreviewVariant && selectedVariantSlug && (
+            <Button size="sm" variant="outline" onClick={onPreviewVariant} data-testid="analytics-focus-preview">
+              Preview
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AnalyticsShortcutsCard({
+  liveVariant,
+  liveResolution,
+  liveStatusNote,
+  onFocusLiveVariant,
+  bestVariant,
+  weakestVariant,
+  onFocusVariant,
+  onCustomizeVariant,
+  timeRangeDays,
+}: AnalyticsShortcutsCardProps) {
+  if (!liveVariant && !bestVariant && !weakestVariant) {
+    return null;
+  }
+  const bestIsWeakest = Boolean(bestVariant && weakestVariant && bestVariant.variant_slug === weakestVariant.variant_slug);
+  const showNeedsAttention = weakestVariant && !bestIsWeakest;
+
+  return (
+    <Card className="mb-8 bg-white/5 border-white/10" data-testid="analytics-shortcuts">
+      <CardHeader>
+        <CardTitle>Experience Shortcuts</CardTitle>
+        <CardDescription className="text-slate-400">
+          Jump from observed traffic to the right optimization workflow in a single click.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-xl border border-white/10 bg-slate-900/40 p-4 space-y-2">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Live traffic</p>
+            {liveVariant ? (
+              <>
+                <p className="text-xl font-semibold text-white">{liveVariant.name ?? liveVariant.slug}</p>
+                <p className="text-xs text-slate-400">Source: {RESOLUTION_LABELS[liveResolution]}</p>
+                {liveStatusNote && <p className="text-xs text-slate-500">{liveStatusNote}</p>}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2"
+                  onClick={onFocusLiveVariant}
+                  disabled={!liveVariant.slug}
+                >
+                  Focus analytics
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-slate-400">Landing runtime hasn’t selected a variant yet.</p>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-slate-900/40 p-4 space-y-2">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Top performer</p>
+            {bestVariant ? (
+              <>
+                <p className="text-xl font-semibold text-white">{bestVariant.variant_name}</p>
+                <p className="text-3xl font-bold text-emerald-300">{bestVariant.conversion_rate.toFixed(2)}%</p>
+                <p className="text-xs text-slate-500">Last {timeRangeDays} day{timeRangeDays === 1 ? '' : 's'}</p>
+                <div className="flex gap-2 mt-2">
+                  <Button size="sm" onClick={() => onFocusVariant(bestVariant.variant_slug)}>
+                    View breakdown
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => onCustomizeVariant(bestVariant.variant_slug)}>
+                    Tune messaging
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-slate-400">Collect events to identify a leading variant.</p>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-slate-900/40 p-4 space-y-2">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Needs attention</p>
+            {showNeedsAttention ? (
+              <>
+                <p className="text-xl font-semibold text-white">{weakestVariant!.variant_name}</p>
+                <p className="text-3xl font-bold text-rose-300">{weakestVariant!.conversion_rate.toFixed(2)}%</p>
+                <p className="text-xs text-slate-500">Slowest performer right now</p>
+                <div className="flex gap-2 mt-2">
+                  <Button size="sm" onClick={() => onFocusVariant(weakestVariant!.variant_slug)}>
+                    Inspect metrics
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => onCustomizeVariant(weakestVariant!.variant_slug)}>
+                    Edit variant
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-slate-400">No variant stands out as underperforming yet.</p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

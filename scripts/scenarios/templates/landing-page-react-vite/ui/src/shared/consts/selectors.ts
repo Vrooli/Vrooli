@@ -286,6 +286,10 @@ const literalSelectors: LiteralSelectorTree = {
       resumeAnalytics: 'admin-resume-analytics',
       resumeCard: 'admin-resume-card',
       resumeAnalyticsCard: 'admin-resume-analytics-card',
+      experienceGuide: 'admin-experience-guide',
+      guideAnalytics: 'admin-guide-analytics',
+      guideCustomization: 'admin-guide-customization',
+      guidePreview: 'admin-guide-preview',
     },
     mode: {
       analytics: 'admin-mode-analytics',
@@ -295,6 +299,10 @@ const literalSelectors: LiteralSelectorTree = {
       filters: 'analytics-filters',
       timeRange: 'analytics-time-range',
       variantFilter: 'analytics-variant-filter',
+      focusBanner: 'analytics-focus-banner',
+      resetFilters: 'analytics-reset-filters',
+      focusCustomize: 'analytics-focus-customize',
+      focusPreview: 'analytics-focus-preview',
       totalVisitors: 'analytics-total-visitors',
       conversionRate: 'analytics-conversion-rate',
       topCta: 'analytics-top-cta',
@@ -306,6 +314,12 @@ const literalSelectors: LiteralSelectorTree = {
       triggerAgent: 'trigger-agent-customization',
       createVariant: 'create-variant',
       addSection: 'add-section',
+      filterBar: 'variant-filter-bar',
+      filterSearch: 'variant-search-input',
+      filterAttentionToggle: 'variant-attention-filter',
+      clearFilters: 'clear-variant-filters',
+      needsAttentionFocus: 'needs-attention-focus',
+      variantListSummary: 'variant-list-summary',
     },
     variant: {
       nameInput: 'variant-name-input',
@@ -335,6 +349,12 @@ const literalSelectors: LiteralSelectorTree = {
       previewInput: 'agent-preview-input',
       submit: 'agent-submit',
     },
+  },
+  publicLanding: {
+    experienceHeader: 'landing-experience-header',
+    navCta: 'landing-nav-cta',
+    navMobile: 'landing-nav-mobile',
+    navDownload: 'landing-nav-download',
   },
 };
 
@@ -386,6 +406,11 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
       variantPerformance: defineDynamicSelector({
         description: 'Variant performance summary block',
         testIdPattern: 'variant-performance-${slug}',
+        params: { slug: { type: 'string' } },
+      }),
+      variantStatus: defineDynamicSelector({
+        description: 'Variant status badges block',
+        testIdPattern: 'variant-status-${slug}',
         params: { slug: { type: 'string' } },
       }),
       deleteVariant: defineDynamicSelector({

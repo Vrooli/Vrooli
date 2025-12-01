@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ReactNode } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { SectionEditor } from './SectionEditor';
@@ -9,6 +10,20 @@ vi.mock('../controllers/sectionEditorController', () => ({
   loadSectionEditor: vi.fn(),
   persistExistingSectionContent: vi.fn(),
   loadVariantContext: vi.fn(),
+}));
+
+vi.mock('../../../app/providers/LandingVariantProvider', () => ({
+  useLandingVariant: () => ({
+    variant: { slug: 'control', name: 'Control' },
+    config: { sections: [], downloads: [], fallback: false },
+    loading: false,
+    error: null,
+    resolution: 'api_select',
+    statusNote: null,
+    lastUpdated: Date.now(),
+    refresh: vi.fn(),
+  }),
+  LandingVariantProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 // Mock useParams

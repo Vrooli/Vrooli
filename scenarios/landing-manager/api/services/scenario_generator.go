@@ -364,26 +364,26 @@ Admin:  http://localhost:<UI_PORT>/admin
 
 func writeLandingApp(path string) error {
 	content := `import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import { VariantProvider } from './contexts/VariantContext';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { AdminLogin } from './pages/AdminLogin';
-import { AdminHome } from './pages/AdminHome';
-import { AdminAnalytics } from './pages/AdminAnalytics';
-import { Customization } from './pages/Customization';
-import { VariantEditor } from './pages/VariantEditor';
-import { SectionEditor } from './pages/SectionEditor';
-import { AgentCustomization } from './pages/AgentCustomization';
-import PublicHome from './pages/PublicHome';
+import { AdminAuthProvider } from './app/providers/AdminAuthProvider';
+import { LandingVariantProvider } from './app/providers/LandingVariantProvider';
+import { ProtectedRoute } from './surfaces/admin-portal/components/ProtectedRoute';
+import { AdminLogin } from './surfaces/admin-portal/routes/AdminLogin';
+import { AdminHome } from './surfaces/admin-portal/routes/AdminHome';
+import { AdminAnalytics } from './surfaces/admin-portal/routes/AdminAnalytics';
+import { Customization } from './surfaces/admin-portal/routes/Customization';
+import { VariantEditor } from './surfaces/admin-portal/routes/VariantEditor';
+import { SectionEditor } from './surfaces/admin-portal/routes/SectionEditor';
+import { AgentCustomization } from './surfaces/admin-portal/routes/AgentCustomization';
+import { PublicLanding } from './surfaces/public-landing/routes/PublicLanding';
 
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <VariantProvider>
+      <AdminAuthProvider>
+        <LandingVariantProvider>
           <Routes>
-            <Route path="/" element={<PublicHome />} />
-            <Route path="/health" element={<PublicHome />} />
+            <Route path="/" element={<PublicLanding />} />
+            <Route path="/health" element={<PublicLanding />} />
 
             <Route path="/admin/login" element={<AdminLogin />} />
 
@@ -448,8 +448,8 @@ export default function App() {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </VariantProvider>
-      </AuthProvider>
+        </LandingVariantProvider>
+      </AdminAuthProvider>
     </BrowserRouter>
   );
 }

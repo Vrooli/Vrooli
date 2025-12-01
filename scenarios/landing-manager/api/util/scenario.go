@@ -7,6 +7,9 @@ import (
 	"strings"
 )
 
+// executablePath is overridable in tests to control os.Executable behavior.
+var executablePath = os.Executable
+
 // ============================================================================
 // Scenario Location Decisions
 // ============================================================================
@@ -54,10 +57,25 @@ func (loc ScenarioLocation) RequiresPathArg() bool {
 //  1. VROOLI_ROOT environment variable (explicit override)
 //  2. Default: ~/Vrooli (standard installation location)
 func GetVrooliRoot() string {
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
 		return root
 	}
-	return filepath.Join(os.Getenv("HOME"), "Vrooli")
+
+	if scenarioRoot, err := ResolveScenarioRoot(); err == nil {
+		if candidate := strings.TrimSpace(GetVrooliRootFromScenario(scenarioRoot)); candidate != "" && candidate != string(filepath.Separator) {
+			return candidate
+		}
+	}
+
+	if home := strings.TrimSpace(os.Getenv("HOME")); home != "" {
+		return filepath.Join(home, "Vrooli")
+	}
+
+	if cwd, err := os.Getwd(); err == nil {
+		return cwd
+	}
+
+	return "."
 }
 
 // ResolveScenarioPath finds a scenario in staging or production.
@@ -103,21 +121,20 @@ func ProductionPath(scenarioID string) string {
 // ============================================================================
 // These functions classify CLI command output to determine what happened.
 
-// NotFoundIndicators are the strings that indicate a scenario doesn't exist.
-// If CLI output matches any of these, the scenario is considered not found.
-var NotFoundIndicators = []string{
-	"not found",
-	"does not exist",
-	"No such scenario",
-	"No lifecycle log found",
+// scenarioNotFoundPatterns capture CLI output that specifically indicates a scenario is missing.
+var scenarioNotFoundPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)scenario[^\n]*not found`),
+	regexp.MustCompile(`(?i)no such scenario`),
+	regexp.MustCompile(`(?i)no lifecycle log found`),
+	regexp.MustCompile(`(?i)scenario[^\n]*does not exist`),
 }
 
 // IsScenarioNotFound checks if a command error indicates a missing scenario.
 // Decision: Returns true if the output contains any known "not found" indicator.
 // This is used to distinguish "not found" errors from other failure modes.
 func IsScenarioNotFound(output string) bool {
-	for _, indicator := range NotFoundIndicators {
-		if strings.Contains(output, indicator) {
+	for _, pattern := range scenarioNotFoundPatterns {
+		if pattern.MatchString(output) {
 			return true
 		}
 	}
@@ -154,7 +171,7 @@ func SanitizeCommandOutput(output string) string {
 // Decision: Assumes binary resides in /scenarios/landing-manager/api,
 // so the scenario root is one directory up from the executable.
 func ResolveScenarioRoot() (string, error) {
-	execPath, err := os.Executable()
+	execPath, err := executablePath()
 	if err != nil {
 		return "", err
 	}

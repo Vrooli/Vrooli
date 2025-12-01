@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
-import { useLandingVariant } from '../../../app/providers/LandingVariantProvider';
+import { ArrowRight } from 'lucide-react';
+import { Button } from '../../../shared/ui/button';
+import { useLandingVariant, type VariantResolution } from '../../../app/providers/LandingVariantProvider';
 import type { LandingConfigResponse, LandingSection } from '../../../shared/api';
 import { HeroSection } from '../sections/HeroSection';
 import { FeaturesSection } from '../sections/FeaturesSection';
@@ -13,29 +15,74 @@ import { DownloadSection } from '../sections/DownloadSection';
 
 interface SectionRendererContext {
   section: LandingSection;
-  key: string;
   config: LandingConfigResponse | null;
 }
 
 type SectionRenderer = (context: SectionRendererContext) => JSX.Element | null;
 
+interface NavItem {
+  id: string;
+  label: string;
+}
+
+const SECTION_NAV_ORDER = ['hero', 'video', 'features', 'pricing', 'testimonials', 'faq', 'cta', 'footer'] as const;
+const SECTION_NAV_LABELS: Record<string, string> = {
+  hero: 'Overview',
+  video: 'Demo',
+  features: 'Features',
+  pricing: 'Pricing',
+  testimonials: 'Proof',
+  faq: 'FAQ',
+  cta: 'Call to Action',
+  footer: 'More',
+};
+const DOWNLOAD_ANCHOR_ID = 'downloads-section';
+const RESOLUTION_LABELS: Record<VariantResolution, string> = {
+  url_param: 'URL parameter',
+  local_storage: 'Stored assignment',
+  api_select: 'Weighted API',
+  fallback: 'Offline fallback',
+  unknown: 'Unknown source',
+};
+
 // Map section types declared in variant schemas to their React implementations.
 // Add new entries here when introducing a new section so renderers stay centralized.
 const SECTION_COMPONENTS: Record<string, SectionRenderer> = {
-  hero: ({ key, section }) => <HeroSection key={key} content={section.content} />,
-  features: ({ key, section }) => <FeaturesSection key={key} content={section.content} />,
-  pricing: ({ key, section, config }) => (
-    <PricingSection key={key} content={section.content} pricingOverview={config?.pricing} />
+  hero: ({ section }) => <HeroSection content={section.content} />,
+  features: ({ section }) => <FeaturesSection content={section.content} />,
+  pricing: ({ section, config }) => (
+    <PricingSection content={section.content} pricingOverview={config?.pricing} />
   ),
-  cta: ({ key, section }) => <CTASection key={key} content={section.content} />,
-  testimonials: ({ key, section }) => <TestimonialsSection key={key} content={section.content} />,
-  faq: ({ key, section }) => <FAQSection key={key} content={section.content} />,
-  footer: ({ key, section }) => <FooterSection key={key} content={section.content} />,
-  video: ({ key, section }) => <VideoSection key={key} content={section.content} />,
+  cta: ({ section }) => <CTASection content={section.content} />,
+  testimonials: ({ section }) => <TestimonialsSection content={section.content} />,
+  faq: ({ section }) => <FAQSection content={section.content} />,
+  footer: ({ section }) => <FooterSection content={section.content} />,
+  video: ({ section }) => <VideoSection content={section.content} />,
 };
 
 function getSectionKey(section: LandingSection) {
   return section.id ?? `${section.section_type}-${section.order}`;
+}
+
+function getSectionAnchorId(section: LandingSection) {
+  const base = section.section_type.replace(/_/g, '-');
+  const suffix = section.id ?? section.order;
+  return `${base}-${suffix}`;
+}
+
+function buildNavItems(sections: LandingSection[], includeDownloads: boolean): NavItem[] {
+  const items: NavItem[] = [];
+  for (const type of SECTION_NAV_ORDER) {
+    const match = sections.find((section) => section.section_type === type);
+    if (!match) {
+      continue;
+    }
+    items.push({ id: getSectionAnchorId(match), label: SECTION_NAV_LABELS[type] ?? type });
+  }
+  if (includeDownloads) {
+    items.push({ id: DOWNLOAD_ANCHOR_ID, label: 'Downloads' });
+  }
+  return items;
 }
 
 /**
@@ -68,6 +115,31 @@ export function PublicLanding() {
       .filter((section) => section.enabled !== false)
       .sort((a, b) => a.order - b.order);
   }, [config]);
+  const downloads = config?.downloads ?? [];
+  const hasDownloads = downloads.length > 0;
+  const navItems = useMemo(() => buildNavItems(sections, hasDownloads), [sections, hasDownloads]);
+  const heroSection = sections.find((section) => section.section_type === 'hero');
+  const heroCTAContent = heroSection?.content as { cta_text?: string; cta_url?: string } | undefined;
+  const heroCtaText = typeof heroCTAContent?.cta_text === 'string' ? heroCTAContent.cta_text : undefined;
+  const heroCtaUrl = typeof heroCTAContent?.cta_url === 'string' ? heroCTAContent.cta_url : undefined;
+  const variantLabel = variant?.name ?? variant?.slug ?? 'Variant not resolved';
+  const resolutionLabel = RESOLUTION_LABELS[resolution] ?? RESOLUTION_LABELS.unknown;
+  const downloadButtonLabel = useMemo(() => {
+    if (downloads.length === 0) {
+      return 'Downloads';
+    }
+    if (downloads.length === 1) {
+      const single = downloads[0];
+      if (single?.label) {
+        return `Download ${single.label}`;
+      }
+      if (single?.platform) {
+        return `Download ${single.platform}`;
+      }
+      return 'Download';
+    }
+    return 'View downloads';
+  }, [downloads]);
 
   if (configLoading) {
     return (
@@ -125,15 +197,30 @@ export function PublicLanding() {
       return null;
     }
 
-    return renderer({
-      section,
-      key: getSectionKey(section),
-      config,
-    });
+    return (
+      <div key={getSectionKey(section)} id={getSectionAnchorId(section)} className="scroll-mt-28">
+        {renderer({
+          section,
+          config,
+        })}
+      </div>
+    );
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
+      <LandingExperienceHeader
+        navItems={navItems}
+        ctaText={heroCtaText}
+        ctaUrl={heroCtaUrl}
+        variantLabel={variantLabel}
+        resolutionLabel={resolutionLabel}
+        fallbackActive={fallbackActive}
+        statusNote={statusNote}
+        downloadsAvailable={hasDownloads}
+        downloadAnchorId={DOWNLOAD_ANCHOR_ID}
+        downloadButtonLabel={downloadButtonLabel}
+      />
       {variantPinnedViaParam && (
         <div className="bg-blue-500/10 border border-blue-500/30 text-blue-100 text-sm py-3 px-4 text-center" data-testid="variant-source-banner">
           Variant <strong>{variant?.name ?? variant?.slug}</strong> is pinned via URL parameter. Remove the <code>?variant=</code> query to resume weighted traffic allocation.
@@ -180,14 +267,109 @@ export function PublicLanding() {
           </div>
         </div>
       )}
-      {config?.downloads && config.downloads.length > 0 && (
-        <DownloadSection
-          downloads={config.downloads}
-          content={{
-            title: 'Download Browser Automation Studio',
-            subtitle: 'Install on Windows, macOS, or Linux while we verify your subscription entitlements.',
-          }}
-        />
+      {hasDownloads && config?.downloads && (
+        <div id={DOWNLOAD_ANCHOR_ID} className="scroll-mt-28">
+          <DownloadSection
+            downloads={config.downloads}
+            content={{
+              title: 'Download Browser Automation Studio',
+              subtitle: 'Install on Windows, macOS, or Linux while we verify your subscription entitlements.',
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface LandingExperienceHeaderProps {
+  navItems: NavItem[];
+  ctaText?: string;
+  ctaUrl?: string;
+  variantLabel: string;
+  resolutionLabel: string;
+  fallbackActive: boolean;
+  statusNote: string | null;
+  downloadsAvailable: boolean;
+  downloadAnchorId?: string;
+  downloadButtonLabel?: string;
+}
+
+function LandingExperienceHeader({
+  navItems,
+  ctaText,
+  ctaUrl,
+  variantLabel,
+  resolutionLabel,
+  fallbackActive,
+  statusNote,
+  downloadsAvailable,
+  downloadAnchorId,
+  downloadButtonLabel,
+}: LandingExperienceHeaderProps) {
+  const hasNav = navItems.length > 0;
+  const configClass = fallbackActive
+    ? 'border-amber-500/40 bg-amber-500/10 text-amber-100'
+    : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100';
+
+  return (
+    <div className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/90 backdrop-blur" data-testid="landing-experience-header">
+      <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Landing runtime</p>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs font-medium">
+            <span className={`rounded-full border px-3 py-1 ${configClass}`}>
+              {fallbackActive ? 'Fallback copy active' : 'Live API config'}
+            </span>
+            <span className="rounded-full border border-white/10 px-3 py-1 text-slate-100">{variantLabel}</span>
+            <span className="rounded-full border border-white/10 px-3 py-1 text-slate-400">Source: {resolutionLabel}</span>
+          </div>
+          {statusNote && <p className="mt-1 text-xs text-slate-500">{statusNote}</p>}
+        </div>
+        {hasNav && (
+          <nav className="hidden items-center gap-4 text-sm text-slate-300 md:flex">
+            {navItems.map((item) => (
+              <a key={item.id} href={`#${item.id}`} className="transition-colors hover:text-white">
+                {item.label}
+              </a>
+            ))}
+          </nav>
+        )}
+        {(ctaText && ctaUrl) || (downloadsAvailable && downloadAnchorId) ? (
+          <div className="flex flex-wrap gap-2">
+            {ctaText && ctaUrl && (
+              <Button asChild size="sm" className="gap-1 whitespace-nowrap" data-testid="landing-nav-cta">
+                <a href={ctaUrl}>
+                  {ctaText}
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </a>
+              </Button>
+            )}
+            {downloadsAvailable && downloadAnchorId && (
+              <Button
+                asChild
+                size="sm"
+                variant="outline"
+                className="gap-1 whitespace-nowrap"
+                data-testid="landing-nav-download"
+              >
+                <a href={`#${downloadAnchorId}`}>
+                  {downloadButtonLabel ?? 'Downloads'}
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </a>
+              </Button>
+            )}
+          </div>
+        ) : null}
+      </div>
+      {hasNav && (
+        <div className="flex gap-3 overflow-x-auto px-6 pb-3 text-xs text-slate-400 md:hidden" data-testid="landing-nav-mobile">
+          {navItems.map((item) => (
+            <a key={item.id} href={`#${item.id}`} className="whitespace-nowrap rounded-full border border-white/10 px-3 py-1">
+              {item.label}
+            </a>
+          ))}
+        </div>
       )}
     </div>
   );

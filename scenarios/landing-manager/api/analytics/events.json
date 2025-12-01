@@ -377,5 +377,50 @@
     "success": true,
     "timestamp": "2025-11-29T10:37:23.601742681-05:00",
     "duration_ms": 30
+  },
+  {
+    "event_id": "20251201-015424.626",
+    "template_id": "saas-landing-page",
+    "scenario_id": "sassy",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-12-01T01:54:24.626808211-05:00",
+    "duration_ms": 37
+  },
+  {
+    "event_id": "20251201-020120.966",
+    "template_id": "lead-magnet",
+    "scenario_id": "sassy",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-12-01T02:01:20.966470411-05:00",
+    "duration_ms": 31
+  },
+  {
+    "event_id": "20251201-092658.996",
+    "template_id": "lead-magnet",
+    "scenario_id": "sassy",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-12-01T09:26:58.996758603-05:00",
+    "duration_ms": 32
+  },
+  {
+    "event_id": "20251201-094306.529",
+    "template_id": "lead-magnet",
+    "scenario_id": "sassy",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-12-01T09:43:06.529546382-05:00",
+    "duration_ms": 31
+  },
+  {
+    "event_id": "20251201-094338.308",
+    "template_id": "lead-magnet",
+    "scenario_id": "sassy",
+    "is_dry_run": false,
+    "success": true,
+    "timestamp": "2025-12-01T09:43:38.308295666-05:00",
+    "duration_ms": 30
   }
 ]

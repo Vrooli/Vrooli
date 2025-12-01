@@ -390,6 +390,13 @@ func (h *Handler) HandleScenarioDelete(w http.ResponseWriter, r *http.Request) {
 // Helper functions
 
 func (h *Handler) respondNotFound(w http.ResponseWriter, scenarioID, reason string) {
+	h.Log("scenario_not_found", map[string]interface{}{
+		"scenario_id":     scenarioID,
+		"reason":          reason,
+		"vrooli_root":     util.GetVrooliRoot(),
+		"staging_path":    util.StagingPath(scenarioID),
+		"production_path": util.ProductionPath(scenarioID),
+	})
 	appErr := errors.NewNotFoundError("scenario", scenarioID)
 	appErr.Details = reason
 	appErr.Suggestion = "Check that the scenario exists in staging (generated/) or production (/scenarios/)"
