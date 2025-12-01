@@ -42,7 +42,7 @@ type Logger interface {
 type Dependencies struct {
 	DB           *sql.DB
 	SuiteQueue   suiteRequestQueue
-	Executions   suiteExecutionStore
+	Executions   suite.ExecutionHistory
 	ExecutionSvc suiteExecutor
 	Scenarios    scenarioDirectory
 	PhaseCatalog phaseCatalog
@@ -54,12 +54,6 @@ type suiteRequestQueue interface {
 	List(ctx context.Context, limit int) ([]suite.SuiteRequest, error)
 	Get(ctx context.Context, id uuid.UUID) (*suite.SuiteRequest, error)
 	StatusSnapshot(ctx context.Context) (suite.SuiteRequestSnapshot, error)
-}
-
-type suiteExecutionStore interface {
-	ListRecent(ctx context.Context, scenario string, limit int, offset int) ([]suite.SuiteExecutionRecord, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*suite.SuiteExecutionRecord, error)
-	Latest(ctx context.Context) (*suite.SuiteExecutionRecord, error)
 }
 
 type suiteExecutor interface {
@@ -77,15 +71,15 @@ type phaseCatalog interface {
 
 // Server wires the HTTP router, configuration, and service dependencies behind intentional seams.
 type Server struct {
-	config        Config
-	db            *sql.DB
-	router        *mux.Router
-	suiteRequests suiteRequestQueue
-	executions    suiteExecutionStore
-	executionSvc  suiteExecutor
-	scenarios     scenarioDirectory
-	phaseCatalog  phaseCatalog
-	logger        Logger
+	config           Config
+	db               *sql.DB
+	router           *mux.Router
+	suiteRequests    suiteRequestQueue
+	executionHistory suite.ExecutionHistory
+	executionSvc     suiteExecutor
+	scenarios        scenarioDirectory
+	phaseCatalog     phaseCatalog
+	logger           Logger
 }
 
 type suiteExecutionPayload struct {
@@ -109,7 +103,7 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		return nil, fmt.Errorf("suite request service is required")
 	}
 	if deps.Executions == nil {
-		return nil, fmt.Errorf("execution repository is required")
+		return nil, fmt.Errorf("execution history service is required")
 	}
 	if deps.ExecutionSvc == nil {
 		return nil, fmt.Errorf("execution service is required")
@@ -127,15 +121,15 @@ func New(config Config, deps Dependencies) (*Server, error) {
 	}
 
 	srv := &Server{
-		config:        config,
-		db:            deps.DB,
-		router:        mux.NewRouter(),
-		suiteRequests: deps.SuiteQueue,
-		executions:    deps.Executions,
-		executionSvc:  deps.ExecutionSvc,
-		scenarios:     deps.Scenarios,
-		phaseCatalog:  deps.PhaseCatalog,
-		logger:        logger,
+		config:           config,
+		db:               deps.DB,
+		router:           mux.NewRouter(),
+		suiteRequests:    deps.SuiteQueue,
+		executionHistory: deps.Executions,
+		executionSvc:     deps.ExecutionSvc,
+		scenarios:        deps.Scenarios,
+		phaseCatalog:     deps.PhaseCatalog,
+		logger:           logger,
 	}
 
 	srv.setupRoutes()
@@ -219,10 +213,10 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 			s.log("queue snapshot failed", map[string]interface{}{"error": err.Error()})
 		}
 	}
-	if s.executions != nil {
-		if latest, err := s.executions.Latest(r.Context()); err == nil && latest != nil {
-			operations["lastExecution"] = executionSummaryPayload(*latest)
-		} else if err != nil && err != sql.ErrNoRows {
+	if s.executionHistory != nil {
+		if latest, err := s.executionHistory.Latest(r.Context()); err == nil && latest != nil {
+			operations["lastExecution"] = executionSummaryPayload(latest)
+		} else if err != nil {
 			s.log("latest execution lookup failed", map[string]interface{}{"error": err.Error()})
 		}
 	}
@@ -386,22 +380,16 @@ func (s *Server) handleListExecutions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	records, err := s.executions.ListRecent(r.Context(), scenario, limit, offset)
+	executions, err := s.executionHistory.List(r.Context(), scenario, limit, offset)
 	if err != nil {
 		s.log("listing executions failed", map[string]interface{}{"error": err.Error()})
 		s.writeError(w, http.StatusInternalServerError, "failed to load execution history")
 		return
 	}
 
-	items := make([]orchestrator.SuiteExecutionResult, 0, len(records))
-	for i := range records {
-		result := executionRecordToResult(&records[i])
-		items = append(items, *result)
-	}
-
 	s.writeJSON(w, http.StatusOK, map[string]interface{}{
-		"items": items,
-		"count": len(items),
+		"items": executions,
+		"count": len(executions),
 	})
 }
 
@@ -418,7 +406,7 @@ func (s *Server) handleGetExecution(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	record, err := s.executions.GetByID(r.Context(), executionID)
+	result, err := s.executionHistory.Get(r.Context(), executionID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			s.writeError(w, http.StatusNotFound, "execution not found")
@@ -429,7 +417,7 @@ func (s *Server) handleGetExecution(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.writeJSON(w, http.StatusOK, executionRecordToResult(record))
+	s.writeJSON(w, http.StatusOK, result)
 }
 
 func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
@@ -550,8 +538,10 @@ func queueSnapshotPayload(snapshot suite.SuiteRequestSnapshot) map[string]interf
 	return payload
 }
 
-func executionSummaryPayload(record suite.SuiteExecutionRecord) map[string]interface{} {
-	result := executionRecordToResult(&record)
+func executionSummaryPayload(result *orchestrator.SuiteExecutionResult) map[string]interface{} {
+	if result == nil {
+		return nil
+	}
 	return map[string]interface{}{
 		"executionId":  result.ExecutionID,
 		"scenario":     result.ScenarioName,
@@ -561,28 +551,6 @@ func executionSummaryPayload(record suite.SuiteExecutionRecord) map[string]inter
 		"phaseSummary": result.PhaseSummary,
 		"preset":       result.PresetUsed,
 	}
-}
-
-func executionRecordToResult(record *suite.SuiteExecutionRecord) *orchestrator.SuiteExecutionResult {
-	if record == nil {
-		return nil
-	}
-	var phases []orchestrator.PhaseExecutionResult
-	if len(record.Phases) > 0 {
-		phases = append(phases, record.Phases...)
-	}
-	res := &orchestrator.SuiteExecutionResult{
-		ExecutionID:    record.ID,
-		SuiteRequestID: record.SuiteRequestID,
-		ScenarioName:   record.ScenarioName,
-		StartedAt:      record.StartedAt,
-		CompletedAt:    record.CompletedAt,
-		Success:        record.Success,
-		PresetUsed:     record.PresetUsed,
-		Phases:         phases,
-	}
-	res.PhaseSummary = orchestrator.SummarizePhases(res.Phases)
-	return res
 }
 
 func (s *Server) serviceName() string {

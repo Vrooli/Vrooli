@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"io"
 	"log"
 	"net/http"
@@ -8,53 +9,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
-	"test-genie/internal/suite"
+	"test-genie/internal/orchestrator"
 )
 
 func TestServer_handleListExecutions(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("failed to create sqlmock: %v", err)
+	history := &fakeExecutionHistory{
+		listResults: []orchestrator.SuiteExecutionResult{
+			{
+				ExecutionID:  uuid.New(),
+				ScenarioName: "demo",
+				Success:      true,
+			},
+		},
 	}
-	defer db.Close()
-
 	srv := &Server{
-		config:        Config{Port: "0", ServiceName: "Test Genie API"},
-		db:            db,
-		router:        mux.NewRouter(),
-		suiteRequests: suite.NewSuiteRequestService(suite.NewPostgresSuiteRequestRepository(db)),
-		executions:    suite.NewSuiteExecutionRepository(db),
-		logger:        log.New(io.Discard, "", 0),
+		config:           Config{Port: "0", ServiceName: "Test Genie API"},
+		router:           mux.NewRouter(),
+		executionHistory: history,
+		logger:           log.New(io.Discard, "", 0),
 	}
-
-	now := time.Now().UTC()
-	rows := sqlmock.NewRows([]string{
-		"id",
-		"suite_request_id",
-		"scenario_name",
-		"preset_used",
-		"success",
-		"phases",
-		"started_at",
-		"completed_at",
-	}).AddRow(
-		"11111111-1111-1111-1111-111111111111",
-		nil,
-		"demo",
-		nil,
-		true,
-		[]byte(`[{"name":"structure","status":"passed","durationSeconds":1}]`),
-		now.Add(-time.Minute),
-		now,
-	)
-
-	mock.ExpectQuery("SELECT\\s+id,\\s+suite_request_id").
-		WithArgs("demo", 5, 0).
-		WillReturnRows(rows)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/executions?scenario=demo&limit=5", nil)
 	w := httptest.NewRecorder()
@@ -64,53 +40,28 @@ func TestServer_handleListExecutions(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", w.Code)
 	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatalf("unmet expectations: %v", err)
+	if history.lastScenario != "demo" {
+		t.Fatalf("expected scenario filter to propagate, got %s", history.lastScenario)
 	}
 }
 
 func TestServer_handleGetExecution(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("failed to create sqlmock: %v", err)
-	}
-	defer db.Close()
-
-	srv := &Server{
-		config:        Config{Port: "0", ServiceName: "Test Genie API"},
-		db:            db,
-		router:        mux.NewRouter(),
-		suiteRequests: suite.NewSuiteRequestService(suite.NewPostgresSuiteRequestRepository(db)),
-		executions:    suite.NewSuiteExecutionRepository(db),
-		logger:        log.New(io.Discard, "", 0),
-	}
-
-	now := time.Now().UTC()
 	executionID := uuid.MustParse("99999999-9999-9999-9999-999999999999")
-	rows := sqlmock.NewRows([]string{
-		"id",
-		"suite_request_id",
-		"scenario_name",
-		"preset_used",
-		"success",
-		"phases",
-		"started_at",
-		"completed_at",
-	}).AddRow(
-		executionID.String(),
-		nil,
-		"demo",
-		nil,
-		false,
-		[]byte(`[{"name":"structure","status":"failed","durationSeconds":2}]`),
-		now.Add(-time.Minute),
-		now,
-	)
-
-	mock.ExpectQuery("SELECT\\s+id,\\s+suite_request_id").
-		WithArgs(executionID).
-		WillReturnRows(rows)
+	history := &fakeExecutionHistory{
+		getResult: &orchestrator.SuiteExecutionResult{
+			ExecutionID:  executionID,
+			ScenarioName: "demo",
+			StartedAt:    time.Now().Add(-time.Minute),
+			CompletedAt:  time.Now(),
+			Success:      false,
+		},
+	}
+	srv := &Server{
+		config:           Config{Port: "0", ServiceName: "Test Genie API"},
+		router:           mux.NewRouter(),
+		executionHistory: history,
+		logger:           log.New(io.Discard, "", 0),
+	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/executions/"+executionID.String(), nil)
 	req = mux.SetURLVars(req, map[string]string{"id": executionID.String()})
@@ -121,8 +72,29 @@ func TestServer_handleGetExecution(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", w.Code)
 	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatalf("unmet expectations: %v", err)
+	if history.lastGet != executionID {
+		t.Fatalf("expected handler to request execution %s, got %s", executionID, history.lastGet)
 	}
+}
+
+type fakeExecutionHistory struct {
+	listResults  []orchestrator.SuiteExecutionResult
+	getResult    *orchestrator.SuiteExecutionResult
+	latest       *orchestrator.SuiteExecutionResult
+	lastScenario string
+	lastGet      uuid.UUID
+}
+
+func (f *fakeExecutionHistory) List(ctx context.Context, scenario string, limit int, offset int) ([]orchestrator.SuiteExecutionResult, error) {
+	f.lastScenario = scenario
+	return f.listResults, nil
+}
+
+func (f *fakeExecutionHistory) Get(ctx context.Context, id uuid.UUID) (*orchestrator.SuiteExecutionResult, error) {
+	f.lastGet = id
+	return f.getResult, nil
+}
+
+func (f *fakeExecutionHistory) Latest(ctx context.Context) (*orchestrator.SuiteExecutionResult, error) {
+	return f.latest, nil
 }

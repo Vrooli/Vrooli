@@ -12,6 +12,7 @@ import (
 
 	phasespkg "test-genie/internal/orchestrator/phases"
 	reqsync "test-genie/internal/orchestrator/requirements"
+	workspacepkg "test-genie/internal/orchestrator/workspace"
 )
 
 type stubRequirementsSyncer struct {
@@ -452,33 +453,60 @@ func TestSuiteOrchestratorRespectsPhaseTimeoutOverrides(t *testing.T) {
 	})
 }
 
-func TestShouldSyncRequirements(t *testing.T) {
+func TestRequirementsSyncDecision(t *testing.T) {
 	defs := []phaseDefinition{{Name: PhaseStructure}, {Name: PhaseUnit}}
 	selected := append([]phaseDefinition(nil), defs...)
-	phaseResults := []PhaseExecutionResult{
+	fullPlan := &phasePlan{
+		Definitions: defs,
+		Selected:    selected,
+	}
+	results := []PhaseExecutionResult{
 		{Name: "structure", Status: "passed"},
-		{Name: "unit", Status: "passed"},
+		{Name: "unit", Status: "failed"},
 	}
 
-	req := SuiteExecutionRequest{ScenarioName: "demo"}
-	if !shouldSyncRequirements(req, defs, selected, phaseResults, true) {
-		t.Fatalf("expected sync eligibility for full pass")
-	}
+	t.Run("[REQ:TESTGENIE-ORCH-P0] full suite attempts sync even on failure", func(t *testing.T) {
+		t.Setenv("TESTING_REQUIREMENTS_SYNC", "")
+		decision := newRequirementsSyncDecision(nil, fullPlan, results)
+		if !decision.Execute {
+			t.Fatalf("expected sync decision to allow execution: %+v", decision)
+		}
+	})
 
-	req.Preset = "quick"
-	if shouldSyncRequirements(req, defs, selected, phaseResults, true) {
-		t.Fatalf("expected preset run to skip sync")
-	}
-	req.Preset = ""
-	if shouldSyncRequirements(req, defs, selected[:1], phaseResults, true) {
-		t.Fatalf("expected partial phase selection to skip sync")
-	}
-	if shouldSyncRequirements(SuiteExecutionRequest{ScenarioName: "demo"}, defs, selected, phaseResults[:1], true) {
-		t.Fatalf("expected when not all phases recorded to skip sync")
-	}
-	if shouldSyncRequirements(SuiteExecutionRequest{ScenarioName: "demo"}, defs, selected, phaseResults, false) {
-		t.Fatalf("expected failed suite to skip sync")
-	}
+	t.Run("[REQ:TESTGENIE-ORCH-P0] config flag disables sync", func(t *testing.T) {
+		cfg := &workspacepkg.Config{
+			Requirements: workspacepkg.RequirementSettings{
+				Sync: boolPtr(false),
+			},
+		}
+		if decision := newRequirementsSyncDecision(cfg, fullPlan, results); decision.Execute {
+			t.Fatalf("expected config-disabled sync to be skipped")
+		}
+	})
+
+	t.Run("[REQ:TESTGENIE-ORCH-P0] env flag disables sync", func(t *testing.T) {
+		t.Setenv("TESTING_REQUIREMENTS_SYNC", "0")
+		if decision := newRequirementsSyncDecision(nil, fullPlan, results); decision.Execute {
+			t.Fatalf("expected env-disabled sync to be skipped")
+		}
+	})
+
+	t.Run("[REQ:TESTGENIE-ORCH-P0] missing required phases block sync", func(t *testing.T) {
+		t.Setenv("TESTING_REQUIREMENTS_SYNC", "")
+		partialResults := results[:1]
+		if decision := newRequirementsSyncDecision(nil, fullPlan, partialResults); decision.Execute {
+			t.Fatalf("expected missing phases to skip sync")
+		}
+	})
+
+	t.Run("[REQ:TESTGENIE-ORCH-P0] force flag overrides missing phases", func(t *testing.T) {
+		t.Setenv("TESTING_REQUIREMENTS_SYNC_FORCE", "1")
+		partialResults := results[:1]
+		decision := newRequirementsSyncDecision(nil, fullPlan, partialResults)
+		if !decision.Execute || !decision.Forced {
+			t.Fatalf("expected forced sync to execute: %+v", decision)
+		}
+	})
 }
 
 func TestBuildCommandHistory(t *testing.T) {
@@ -488,15 +516,79 @@ func TestBuildCommandHistory(t *testing.T) {
 		Skip:         []string{"unit"},
 		FailFast:     true,
 	}
-	selected := []phaseDefinition{{Name: PhaseStructure}, {Name: PhaseDependencies}}
+	plan := &phasePlan{
+		PresetUsed: "quick",
+		Selected:   []phaseDefinition{{Name: PhaseStructure}, {Name: PhaseDependencies}},
+	}
 
-	history := buildCommandHistory(req, "quick", selected)
+	history := buildCommandHistory(req, plan)
 	if len(history) != 2 {
 		t.Fatalf("expected two history entries, got %d", len(history))
 	}
 	if history[0] == "" || history[1] == "" {
 		t.Fatalf("history entries should not be empty: %#v", history)
 	}
+}
+
+func TestSelectPhases(t *testing.T) {
+	defs := []phaseDefinition{
+		{Name: PhaseStructure},
+		{Name: PhaseDependencies},
+		{Name: PhaseUnit},
+	}
+	presets := map[string][]string{
+		"quick": {"structure", "unit"},
+	}
+
+	t.Run("defaults to all phases when no hints provided", func(t *testing.T) {
+		selected, preset, err := selectPhases(defs, presets, SuiteExecutionRequest{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if preset != "" {
+			t.Fatalf("expected empty preset usage, got %s", preset)
+		}
+		if len(selected) != len(defs) {
+			t.Fatalf("expected %d phases, got %d", len(defs), len(selected))
+		}
+	})
+
+	t.Run("resolves presets case-insensitively", func(t *testing.T) {
+		selected, preset, err := selectPhases(defs, presets, SuiteExecutionRequest{Preset: "Quick"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if preset != "quick" {
+			t.Fatalf("expected preset quick, got %s", preset)
+		}
+		if len(selected) != 2 || selected[0].Name != PhaseStructure || selected[1].Name != PhaseUnit {
+			t.Fatalf("unexpected preset selection: %#v", selected)
+		}
+	})
+
+	t.Run("errors when requested phase missing", func(t *testing.T) {
+		_, _, err := selectPhases(defs, presets, SuiteExecutionRequest{Phases: []string{"structure", "invalid"}})
+		if err == nil {
+			t.Fatalf("expected error for invalid phase selection")
+		}
+	})
+
+	t.Run("applies skip list", func(t *testing.T) {
+		selected, _, err := selectPhases(defs, presets, SuiteExecutionRequest{Skip: []string{"dependencies"}})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		for _, def := range selected {
+			if def.Name == PhaseDependencies {
+				t.Fatalf("dependency phase should have been skipped")
+			}
+		}
+	})
+}
+
+func boolPtr(value bool) *bool {
+	v := value
+	return &v
 }
 
 func stubCommandLookup(t *testing.T, fn func(string) (string, error)) {

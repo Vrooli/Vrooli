@@ -15,6 +15,7 @@ type Bootstrapped struct {
 	DB               *sql.DB
 	SuiteRequests    *suite.SuiteRequestService
 	ExecutionRepo    *suite.SuiteExecutionRepository
+	ExecutionHistory suite.ExecutionHistory
 	ExecutionService *suite.SuiteExecutionService
 	ScenarioService  *scenarios.ScenarioDirectoryService
 	PhaseCatalog     phaseCatalogProvider
@@ -48,6 +49,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	suiteRequestRepo := suite.NewPostgresSuiteRequestRepository(db)
 	suiteRequestService := suite.NewSuiteRequestService(suiteRequestRepo)
 	executionRepo := suite.NewSuiteExecutionRepository(db)
+	executionHistory := suite.NewExecutionHistoryService(executionRepo)
 	scenarioRepo := scenarios.NewScenarioDirectoryRepository(db)
 	scenarioLister := scenarios.NewVrooliScenarioLister()
 	scenarioService := scenarios.NewScenarioDirectoryService(scenarioRepo, scenarioLister)
@@ -58,6 +60,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		DB:               db,
 		SuiteRequests:    suiteRequestService,
 		ExecutionRepo:    executionRepo,
+		ExecutionHistory: executionHistory,
 		ExecutionService: executionSvc,
 		ScenarioService:  scenarioService,
 		PhaseCatalog:     runner,

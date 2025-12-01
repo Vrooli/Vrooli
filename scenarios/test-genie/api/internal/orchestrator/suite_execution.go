@@ -156,40 +156,80 @@ func (o *SuiteOrchestrator) Execute(ctx context.Context, req SuiteExecutionReque
 		StartedAt:    time.Now().UTC(),
 		PresetUsed:   plan.PresetUsed,
 	}
-	var phaseResults []PhaseExecutionResult
-	anyFailure := false
 
-	for _, phase := range plan.Selected {
-		phaseResult := o.runPhase(ctx, env, artifactDir, phase)
-		if phaseResult.Status != "passed" {
-			anyFailure = true
-		}
-		phaseResults = append(phaseResults, phaseResult)
-		if req.FailFast && phaseResult.Status == "failed" {
-			break
-		}
-	}
+	phaseResults, anyFailure := o.runSelectedPhases(ctx, env, artifactDir, plan.Selected, req.FailFast)
 
 	result.CompletedAt = time.Now().UTC()
 	result.Success = !anyFailure
 	result.Phases = phaseResults
 	result.PhaseSummary = SummarizePhases(phaseResults)
 
-	if o.requirements != nil && shouldSyncRequirements(req, plan.Definitions, plan.Selected, phaseResults, result.Success) {
-		history := buildCommandHistory(req, plan.PresetUsed, plan.Selected)
-		input := requirements.SyncInput{
-			ScenarioName:     env.ScenarioName,
-			ScenarioDir:      env.ScenarioDir,
-			PhaseDefinitions: plan.Definitions,
-			PhaseResults:     phaseResults,
-			CommandHistory:   history,
-		}
-		if err := o.requirements.Sync(ctx, input); err != nil {
-			log.Printf("requirements sync skipped: %v", err)
-		}
-	}
+	o.syncRequirementsIfNeeded(ctx, env, config, req, plan, phaseResults)
 
 	return result, nil
+}
+
+func (o *SuiteOrchestrator) runSelectedPhases(
+	ctx context.Context,
+	env workspacepkg.Environment,
+	artifactDir string,
+	defs []phases.Definition,
+	failFast bool,
+) ([]PhaseExecutionResult, bool) {
+	if len(defs) == 0 {
+		return nil, false
+	}
+	results := make([]PhaseExecutionResult, 0, len(defs))
+	anyFailure := false
+	for _, phase := range defs {
+		phaseResult := o.runPhase(ctx, env, artifactDir, phase)
+		if phaseResult.Status != "passed" {
+			anyFailure = true
+		}
+		results = append(results, phaseResult)
+		if failFast && phaseResult.Status == "failed" {
+			break
+		}
+	}
+	return results, anyFailure
+}
+
+func (o *SuiteOrchestrator) syncRequirementsIfNeeded(
+	ctx context.Context,
+	env workspacepkg.Environment,
+	cfg *workspacepkg.Config,
+	req SuiteExecutionRequest,
+	plan *phasePlan,
+	phaseResults []PhaseExecutionResult,
+) {
+	if o.requirements == nil {
+		return
+	}
+	decision := newRequirementsSyncDecision(cfg, plan, phaseResults)
+	if !decision.Execute {
+		if decision.Reason != "" {
+			log.Printf("requirements sync skipped: %s", decision.Reason)
+		}
+		return
+	}
+	if decision.Forced && decision.Reason != "" {
+		log.Printf("forcing requirements sync despite: %s", decision.Reason)
+	}
+	if len(phaseResults) != len(plan.Selected) {
+		log.Printf("requirements sync skipped: recorded %d phase results but expected %d", len(phaseResults), len(plan.Selected))
+		return
+	}
+	history := buildCommandHistory(req, plan)
+	input := requirements.SyncInput{
+		ScenarioName:     env.ScenarioName,
+		ScenarioDir:      env.ScenarioDir,
+		PhaseDefinitions: plan.Definitions,
+		PhaseResults:     phaseResults,
+		CommandHistory:   history,
+	}
+	if err := o.requirements.Sync(ctx, input); err != nil {
+		log.Printf("requirements sync skipped: %v", err)
+	}
 }
 
 func (o *SuiteOrchestrator) discoverPhaseDefinitions(env workspacepkg.Environment) ([]phases.Definition, error) {
@@ -247,67 +287,37 @@ func (o *SuiteOrchestrator) discoverPhaseDefinitions(env workspacepkg.Environmen
 }
 
 func selectPhases(defs []phases.Definition, presets map[string][]string, req SuiteExecutionRequest) ([]phases.Definition, string, error) {
-	order := make(map[string]phases.Definition, len(defs))
+	if len(defs) == 0 {
+		return nil, "", nil
+	}
+	index := make(map[string]phases.Definition, len(defs))
 	for _, def := range defs {
-		order[def.Name.Key()] = def
+		index[def.Name.Key()] = def
 	}
 
-	var presetUsed string
-	var desired []string
-	if len(req.Phases) > 0 {
-		desired = req.Phases
-	} else if req.Preset != "" {
-		if presetList, ok := presets[strings.ToLower(req.Preset)]; ok {
-			desired = presetList
-			presetUsed = strings.ToLower(req.Preset)
-		} else {
-			return nil, "", shared.NewValidationError(fmt.Sprintf("preset '%s' is not defined", req.Preset))
-		}
+	desired, presetUsed, err := resolveDesiredPhaseList(req, presets)
+	if err != nil {
+		return nil, "", err
 	}
 
 	var resolved []phases.Definition
-	allowed := map[string]struct{}{}
-	for _, def := range defs {
-		allowed[def.Name.Key()] = struct{}{}
-	}
-
-	// Determine base run list
-	if len(desired) > 0 {
+	if len(desired) == 0 {
+		resolved = append(resolved, defs...)
+	} else {
 		for _, phase := range desired {
-			normalized := strings.ToLower(strings.TrimSpace(phase))
+			normalized := normalizePhaseName(phase)
 			if normalized == "" {
 				continue
 			}
-			def, ok := order[normalized]
+			def, ok := index[normalized]
 			if !ok {
 				return nil, "", shared.NewValidationError(fmt.Sprintf("phase '%s' is not defined", phase))
 			}
 			resolved = append(resolved, def)
 		}
-	} else {
-		resolved = append(resolved, defs...)
 	}
 
-	// Handle skip list
-	if len(req.Skip) > 0 {
-		skipSet := make(map[string]struct{}, len(req.Skip))
-		for _, phase := range req.Skip {
-			normalized := strings.ToLower(strings.TrimSpace(phase))
-			if normalized != "" {
-				skipSet[normalized] = struct{}{}
-			}
-		}
-		var filtered []phases.Definition
-		for _, def := range resolved {
-			if _, skip := skipSet[def.Name.Key()]; skip {
-				continue
-			}
-			filtered = append(filtered, def)
-		}
-		resolved = filtered
-	}
-
-	return resolved, presetUsed, nil
+	return applySkipFilters(resolved, req.Skip), presetUsed, nil
 }
 
 func (o *SuiteOrchestrator) scriptPhaseRunner(scriptPath string) phases.Runner {
@@ -429,42 +439,38 @@ func phaseSortValue(name phases.Name, catalog *phases.Catalog) int {
 func (o *SuiteOrchestrator) loadPresets(testDir string, cfg *workspacepkg.Config, allowed map[string]struct{}) map[string][]string {
 	presets := make(map[string][]string)
 	configPath := filepath.Join(testDir, "presets.json")
+	applyPresets := func(source map[string][]string, allowDelete bool, replace bool) {
+		for key, phases := range source {
+			name := normalizePhaseName(key)
+			if name == "" {
+				continue
+			}
+			filtered := filterPresetPhases(phases, allowed)
+			if len(filtered) == 0 {
+				if allowDelete {
+					delete(presets, name)
+				}
+				continue
+			}
+			if _, exists := presets[name]; exists && !replace {
+				continue
+			}
+			presets[name] = filtered
+		}
+	}
+
 	if raw, err := os.ReadFile(configPath); err == nil {
 		var parsed map[string][]string
 		if err := json.Unmarshal(raw, &parsed); err == nil {
-			for key, phases := range parsed {
-				name := strings.ToLower(strings.TrimSpace(key))
-				if name == "" {
-					continue
-				}
-				filtered := filterPresetPhases(phases, allowed)
-				if len(filtered) > 0 {
-					presets[name] = filtered
-				}
-			}
+			applyPresets(parsed, false, true)
 		}
 	}
 
-	if cfg != nil {
-		for key, phases := range cfg.Presets {
-			filtered := filterPresetPhases(phases, allowed)
-			if len(filtered) == 0 {
-				delete(presets, key)
-				continue
-			}
-			presets[key] = filtered
-		}
+	if cfg != nil && len(cfg.Presets) > 0 {
+		applyPresets(cfg.Presets, true, true)
 	}
 
-	for key, phases := range defaultExecutionPresets {
-		if _, exists := presets[key]; exists {
-			continue
-		}
-		filtered := filterPresetPhases(phases, allowed)
-		if len(filtered) > 0 {
-			presets[key] = filtered
-		}
-	}
+	applyPresets(defaultExecutionPresets, false, false)
 
 	return presets
 }
@@ -503,9 +509,9 @@ func filterPresetPhases(phases []string, allowed map[string]struct{}) []string {
 		return nil
 	}
 	var filtered []string
-	seen := make(map[string]struct{})
+	seen := make(map[string]struct{}, len(phases))
 	for _, phase := range phases {
-		normalized := strings.ToLower(strings.TrimSpace(phase))
+		normalized := normalizePhaseName(phase)
 		if normalized == "" {
 			continue
 		}
@@ -521,33 +527,14 @@ func filterPresetPhases(phases []string, allowed map[string]struct{}) []string {
 	return filtered
 }
 
-func shouldSyncRequirements(req SuiteExecutionRequest, defs []phases.Definition, selected []phases.Definition, phases []PhaseExecutionResult, success bool) bool {
-	if len(defs) == 0 || len(selected) == 0 {
-		return false
-	}
-	if req.Preset != "" || len(req.Phases) > 0 || len(req.Skip) > 0 {
-		return false
-	}
-	if len(selected) != len(defs) {
-		return false
-	}
-	if len(phases) != len(selected) {
-		return false
-	}
-	if !success {
-		return false
-	}
-	return true
-}
-
-func buildCommandHistory(req SuiteExecutionRequest, presetUsed string, selected []phases.Definition) []string {
+func buildCommandHistory(req SuiteExecutionRequest, plan *phasePlan) []string {
 	var history []string
 	var descriptor []string
 	if req.ScenarioName != "" {
 		descriptor = append(descriptor, fmt.Sprintf("scenario=%s", req.ScenarioName))
 	}
-	if presetUsed != "" {
-		descriptor = append(descriptor, fmt.Sprintf("preset=%s", presetUsed))
+	if plan != nil && plan.PresetUsed != "" {
+		descriptor = append(descriptor, fmt.Sprintf("preset=%s", plan.PresetUsed))
 	}
 	if len(req.Phases) > 0 {
 		descriptor = append(descriptor, fmt.Sprintf("phases=%s", strings.Join(req.Phases, ",")))
@@ -561,9 +548,9 @@ func buildCommandHistory(req SuiteExecutionRequest, presetUsed string, selected 
 	if len(descriptor) > 0 {
 		history = append(history, strings.Join(descriptor, " "))
 	}
-	if len(selected) > 0 {
+	if plan != nil && len(plan.Selected) > 0 {
 		var names []string
-		for _, def := range selected {
+		for _, def := range plan.Selected {
 			if def.Name.IsZero() {
 				continue
 			}
@@ -574,4 +561,46 @@ func buildCommandHistory(req SuiteExecutionRequest, presetUsed string, selected 
 		}
 	}
 	return history
+}
+
+func normalizePhaseName(raw string) string {
+	return strings.ToLower(strings.TrimSpace(raw))
+}
+
+func resolveDesiredPhaseList(req SuiteExecutionRequest, presets map[string][]string) ([]string, string, error) {
+	if len(req.Phases) > 0 {
+		return req.Phases, "", nil
+	}
+	if req.Preset == "" {
+		return nil, "", nil
+	}
+	name := normalizePhaseName(req.Preset)
+	if name == "" {
+		return nil, "", shared.NewValidationError(fmt.Sprintf("preset '%s' is not defined", req.Preset))
+	}
+	phases, ok := presets[name]
+	if !ok {
+		return nil, "", shared.NewValidationError(fmt.Sprintf("preset '%s' is not defined", req.Preset))
+	}
+	return phases, name, nil
+}
+
+func applySkipFilters(selected []phases.Definition, skip []string) []phases.Definition {
+	if len(selected) == 0 || len(skip) == 0 {
+		return selected
+	}
+	skipSet := make(map[string]struct{}, len(skip))
+	for _, phase := range skip {
+		if normalized := normalizePhaseName(phase); normalized != "" {
+			skipSet[normalized] = struct{}{}
+		}
+	}
+	var filtered []phases.Definition
+	for _, def := range selected {
+		if _, skip := skipSet[def.Name.Key()]; skip {
+			continue
+		}
+		filtered = append(filtered, def)
+	}
+	return filtered
 }

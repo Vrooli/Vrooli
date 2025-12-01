@@ -15,8 +15,9 @@ import (
 var timeoutPattern = regexp.MustCompile(`^([0-9]+)([smh]?)$`)
 
 type Config struct {
-	Phases  map[string]PhaseSettings
-	Presets map[string][]string
+	Phases       map[string]PhaseSettings
+	Presets      map[string][]string
+	Requirements RequirementSettings
 }
 
 type PhaseSettings struct {
@@ -24,14 +25,27 @@ type PhaseSettings struct {
 	Timeout time.Duration
 }
 
+// RequirementSettings mirrors the legacy bash orchestrator flags so the Go
+// runner can make the same sync decisions without shell scripts.
+type RequirementSettings struct {
+	Enforce *bool
+	Sync    *bool
+}
+
 type rawTestingConfig struct {
-	Phases  map[string]rawPhaseSettings `json:"phases"`
-	Presets map[string][]string         `json:"presets"`
+	Phases       map[string]rawPhaseSettings `json:"phases"`
+	Presets      map[string][]string         `json:"presets"`
+	Requirements rawRequirementSettings      `json:"requirements"`
 }
 
 type rawPhaseSettings struct {
 	Enabled *bool  `json:"enabled"`
 	Timeout string `json:"timeout"`
+}
+
+type rawRequirementSettings struct {
+	Enforce *bool `json:"enforce"`
+	Sync    *bool `json:"sync"`
 }
 
 func LoadTestingConfig(scenarioDir string) (*Config, error) {
@@ -50,8 +64,9 @@ func LoadTestingConfig(scenarioDir string) (*Config, error) {
 	}
 
 	cfg := &Config{
-		Phases:  map[string]PhaseSettings{},
-		Presets: map[string][]string{},
+		Phases:       map[string]PhaseSettings{},
+		Presets:      map[string][]string{},
+		Requirements: RequirementSettings{},
 	}
 
 	for name, phase := range raw.Phases {
@@ -81,7 +96,12 @@ func LoadTestingConfig(scenarioDir string) (*Config, error) {
 		cfg.Presets[normalized] = filtered
 	}
 
-	if len(cfg.Phases) == 0 && len(cfg.Presets) == 0 {
+	cfg.Requirements = RequirementSettings{
+		Enforce: raw.Requirements.Enforce,
+		Sync:    raw.Requirements.Sync,
+	}
+
+	if len(cfg.Phases) == 0 && len(cfg.Presets) == 0 && cfg.Requirements.Enforce == nil && cfg.Requirements.Sync == nil {
 		return nil, nil
 	}
 	return cfg, nil

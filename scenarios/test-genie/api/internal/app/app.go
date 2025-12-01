@@ -27,7 +27,7 @@ func NewServer() (*httpserver.Server, error) {
 	httpDeps := httpserver.Dependencies{
 		DB:           deps.DB,
 		SuiteQueue:   deps.SuiteRequests,
-		Executions:   deps.ExecutionRepo,
+		Executions:   deps.ExecutionHistory,
 		ExecutionSvc: deps.ExecutionService,
 		Scenarios:    deps.ScenarioService,
 		PhaseCatalog: deps.PhaseCatalog,

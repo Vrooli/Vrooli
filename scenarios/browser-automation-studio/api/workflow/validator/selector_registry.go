@@ -79,13 +79,15 @@ func searchSelectorManifestFrom(start string) string {
 			break
 		}
 		visited[dir] = struct{}{}
-		candidate := filepath.Join(dir, "ui", "src", "consts", manifestFilename)
-		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
-			return candidate
-		}
-		scenarioCandidate := filepath.Join(dir, "scenarios", "browser-automation-studio", "ui", "src", "consts", manifestFilename)
-		if info, err := os.Stat(scenarioCandidate); err == nil && !info.IsDir() {
-			return scenarioCandidate
+		for _, subdir := range []string{"consts", "constants"} {
+			candidate := filepath.Join(dir, "ui", "src", subdir, manifestFilename)
+			if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+				return candidate
+			}
+			scenarioCandidate := filepath.Join(dir, "scenarios", "browser-automation-studio", "ui", "src", subdir, manifestFilename)
+			if info, err := os.Stat(scenarioCandidate); err == nil && !info.IsDir() {
+				return scenarioCandidate
+			}
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {

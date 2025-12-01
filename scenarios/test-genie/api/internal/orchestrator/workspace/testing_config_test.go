@@ -22,6 +22,10 @@ func TestLoadTestingConfigParsesSettings(t *testing.T) {
   },
   "presets": {
     "focused": ["Unit", " integration "]
+  },
+  "requirements": {
+    "enforce": true,
+    "sync": false
   }
 }`
 		if err := os.WriteFile(filepath.Join(configDir, "testing.json"), []byte(payload), 0o644); err != nil {
@@ -58,6 +62,13 @@ func TestLoadTestingConfigParsesSettings(t *testing.T) {
 		expectedPreset := []string{"unit", "integration"}
 		if got := cfg.Presets["focused"]; !reflect.DeepEqual(expectedPreset, got) {
 			t.Fatalf("unexpected preset phases: %v", got)
+		}
+
+		if cfg.Requirements.Enforce == nil || !*cfg.Requirements.Enforce {
+			t.Fatalf("expected requirements.enforce flag to be true")
+		}
+		if cfg.Requirements.Sync == nil || *cfg.Requirements.Sync {
+			t.Fatalf("expected requirements.sync flag to be false")
 		}
 	})
 }
