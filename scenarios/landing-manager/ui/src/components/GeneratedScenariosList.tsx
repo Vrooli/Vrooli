@@ -25,17 +25,19 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { type GeneratedScenario, listGeneratedScenarios } from '../lib/api';
+import { Link } from 'react-router-dom';
+import { type GeneratedScenario, type PreviewLinks, listGeneratedScenarios } from '../lib/api';
 import { Tooltip } from './Tooltip';
 import { LandingPreviewView } from './LandingPreviewView';
 import { ErrorDisplay, parseApiError, type StructuredError } from './ErrorDisplay';
+import { AdminCredentialsHint } from './AdminCredentialsHint';
 
 interface GeneratedScenariosListProps {
   generated: GeneratedScenario[];
   loadingGenerated: boolean;
   generatedError: string | null;
   scenarioStatuses: Record<string, { running: boolean; loading: boolean }>;
-  previewLinks: Record<string, { links: { public?: string; admin?: string } }>;
+  previewLinks: Record<string, PreviewLinks>;
   showLogs: Record<string, boolean>;
   scenarioLogs: Record<string, string>;
   onRefresh: (scenarios: GeneratedScenario[], error: string | null, loading: boolean) => void;
@@ -252,7 +254,7 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
         <div className="grid gap-4" data-testid="generated-scenarios-list" role="list" aria-label="Generated scenarios">
           {generated.map((scenario) => {
             const status = scenarioStatuses[scenario.scenario_id] || { running: false, loading: false };
-            const links = previewLinks[scenario.scenario_id];
+            const previewInfo = previewLinks[scenario.scenario_id];
 
             return (
               <article
@@ -441,7 +443,7 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
                   )}
 
                   {/* Access Links - shown when running */}
-                  {status.running && links && (
+                  {status.running && previewInfo && (
                     <div className="rounded-xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/15 to-blue-500/15 p-4 space-y-3 shadow-lg shadow-emerald-500/10">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -464,9 +466,9 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
                           <Eye className="h-4 w-4" aria-hidden="true" />
                           Preview
                         </button>
-                        {links.links.public && (
+                        {previewInfo.links.public && (
                           <a
-                            href={links.links.public}
+                            href={previewInfo.links.public}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="group flex items-center justify-center gap-2 text-sm font-semibold text-emerald-100 bg-emerald-900/40 hover:bg-emerald-900/60 border-2 border-emerald-500/40 hover:border-emerald-400/60 rounded-lg px-4 py-3 transition-all shadow-md hover:shadow-lg hover:shadow-emerald-500/20 hover:scale-102"
@@ -477,9 +479,9 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
                             <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                           </a>
                         )}
-                        {links.links.admin && (
+                        {previewInfo.links.admin && (
                           <a
-                            href={links.links.admin}
+                            href={previewInfo.links.admin}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="group flex items-center justify-center gap-2 text-sm font-semibold text-blue-100 bg-blue-900/40 hover:bg-blue-900/60 border-2 border-blue-500/40 hover:border-blue-400/60 rounded-lg px-4 py-3 transition-all shadow-md hover:shadow-lg hover:shadow-blue-500/20 hover:scale-102"
@@ -494,6 +496,16 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
                       <p className="text-xs text-center text-emerald-200/70 pt-1">
                         Your landing page is fully operational. Make changes, then click Restart to see updates.
                       </p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <AdminCredentialsHint compact className="bg-slate-900/60 border-white/10" />
+                        <Link
+                          to={`/scenarios/${scenario.scenario_id}/preview`}
+                          className="flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        >
+                          <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                          Open Full Preview Route
+                        </Link>
+                      </div>
                     </div>
                   )}
 
@@ -524,6 +536,7 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
                           </div>
                         </div>
                       </div>
+                      <AdminCredentialsHint compact className="bg-slate-900/60 border-white/10" />
                     </div>
                   )}
                 </div>
@@ -535,16 +548,17 @@ export const GeneratedScenariosList = memo(function GeneratedScenariosList({
 
       {/* Landing Preview View */}
       {previewScenario && (
-        <div className="mt-6">
-          <LandingPreviewView
-            scenario={previewScenario}
-            isRunning={scenarioStatuses[previewScenario.scenario_id]?.running ?? false}
-            onClose={handleClosePreview}
-            onCustomize={onCustomizeClick}
-            onStartScenario={onStartScenario}
-          />
-        </div>
-      )}
+            <div className="mt-6">
+              <LandingPreviewView
+                scenario={previewScenario}
+                isRunning={scenarioStatuses[previewScenario.scenario_id]?.running ?? false}
+                onClose={handleClosePreview}
+                onCustomize={onCustomizeClick}
+                onStartScenario={onStartScenario}
+                previewLinks={previewLinks[previewScenario.scenario_id]}
+              />
+            </div>
+          )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (

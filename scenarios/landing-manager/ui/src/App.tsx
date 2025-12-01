@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import FactoryHome from './pages/FactoryHome';
+import ScenarioPreviewPage from './pages/ScenarioPreviewPage';
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         {/* Factory home (default entrypoint) */}
         <Route path="/" element={<FactoryHome />} />
         <Route path="/health" element={<SimpleHealth />} />
+        <Route path="/scenarios/:scenarioId/preview" element={<ScenarioPreviewPage />} />
 
         {/* Preview disabled inside factory to avoid scope drift */}
         <Route path="/preview/*" element={<PreviewPlaceholder />} />

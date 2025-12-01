@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
-import { type GeneratedScenario } from '../lib/api';
+import { type GeneratedScenario, type PreviewLinks } from '../lib/api';
 import { useFullscreenMode } from '../hooks/useFullscreenMode';
 import { useIframeBridge } from '../hooks/useIframeBridge';
 import { LandingPreviewToolbar, type PreviewViewType } from './LandingPreviewToolbar';
@@ -9,8 +9,10 @@ export interface LandingPreviewViewProps {
   scenario: GeneratedScenario;
   isRunning: boolean;
   onClose: () => void;
-  onCustomize: (scenario: GeneratedScenario) => void;
+  onCustomize?: (scenario: GeneratedScenario) => void;
   onStartScenario: (scenarioId: string) => void;
+  previewLinks?: PreviewLinks;
+  initialView?: PreviewViewType;
 }
 
 /**
@@ -22,17 +24,42 @@ function buildProxyPreviewUrl(scenarioId: string, viewType: PreviewViewType): st
   return `/landing/${encodeURIComponent(scenarioId)}/proxy${path}`;
 }
 
+function resolvePreviewUrl(
+  scenarioId: string,
+  viewType: PreviewViewType,
+  isRunning: boolean,
+  links?: PreviewLinks,
+): string | null {
+  if (!isRunning) return null;
+
+  const linkSet = links?.links;
+  if (linkSet) {
+    if (viewType === 'admin') {
+      if (linkSet.admin) return linkSet.admin;
+      if (linkSet.admin_login) return linkSet.admin_login;
+      if (linkSet.public) return `${linkSet.public.replace(/\/$/, '')}/admin`;
+      return buildProxyPreviewUrl(scenarioId, viewType);
+    }
+    return linkSet.public ?? linkSet.admin ?? buildProxyPreviewUrl(scenarioId, viewType);
+  }
+
+  return buildProxyPreviewUrl(scenarioId, viewType);
+}
+
 export const LandingPreviewView = memo(function LandingPreviewView({
   scenario,
   isRunning,
   onClose,
   onCustomize,
   onStartScenario,
+  previewLinks,
+  initialView = 'public',
 }: LandingPreviewViewProps) {
-  const [viewType, setViewType] = useState<PreviewViewType>('public');
+  const [viewType, setViewType] = useState<PreviewViewType>(initialView);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const lastInitialViewRef = useRef<PreviewViewType>(initialView);
 
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -48,9 +75,8 @@ export const LandingPreviewView = memo(function LandingPreviewView({
 
   // Build preview URL
   const previewUrl = useMemo(() => {
-    if (!isRunning) return null;
-    return buildProxyPreviewUrl(scenario.scenario_id, viewType);
-  }, [scenario.scenario_id, viewType, isRunning]);
+    return resolvePreviewUrl(scenario.scenario_id, viewType, isRunning, previewLinks);
+  }, [scenario.scenario_id, viewType, isRunning, previewLinks]);
 
   // Iframe bridge for navigation
   const {
@@ -67,6 +93,13 @@ export const LandingPreviewView = memo(function LandingPreviewView({
     setIsLoading(false);
     setLoadError(null);
   }, []);
+
+  useEffect(() => {
+    if (initialView !== lastInitialViewRef.current && initialView) {
+      lastInitialViewRef.current = initialView;
+      setViewType(initialView);
+    }
+  }, [initialView]);
 
   // Handle iframe error
   const handleIframeError = useCallback(() => {
@@ -100,7 +133,7 @@ export const LandingPreviewView = memo(function LandingPreviewView({
 
   // Handle customize
   const handleCustomize = useCallback(() => {
-    onCustomize(scenario);
+    onCustomize?.(scenario);
   }, [onCustomize, scenario]);
 
   // Navigation handlers

@@ -1,4 +1,5 @@
 import { memo, useCallback, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
   ArrowLeft,
@@ -44,6 +45,7 @@ export const CreateScenarioDialog = memo(function CreateScenarioDialog({
   onGenerate,
   onStartScenario,
 }: CreateScenarioDialogProps) {
+  const navigate = useNavigate();
   const [step, setStep] = useState<DialogStep>('template');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -53,6 +55,8 @@ export const CreateScenarioDialog = memo(function CreateScenarioDialog({
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<{ dryRun: boolean; result: GenerationResult } | null>(null);
+  const [launching, setLaunching] = useState(false);
+  const [launchError, setLaunchError] = useState<string | null>(null);
 
   const selectedTemplate = templates?.find((t) => t?.id === selectedId) ?? templates?.[0] ?? null;
 
@@ -66,6 +70,8 @@ export const CreateScenarioDialog = memo(function CreateScenarioDialog({
       setNameError(null);
       setSlugError(null);
       setGenerating(false);
+      setLaunching(false);
+      setLaunchError(null);
       setGenerateError(null);
       setLastResult(null);
     }
@@ -147,10 +153,18 @@ export const CreateScenarioDialog = memo(function CreateScenarioDialog({
   };
 
   const handleStartAndClose = async () => {
-    if (lastResult?.result.scenario_id) {
+    if (!lastResult?.result.scenario_id) return;
+    try {
+      setLaunching(true);
+      setLaunchError(null);
       await onStartScenario(lastResult.result.scenario_id);
+      onClose();
+      navigate(`/scenarios/${lastResult.result.scenario_id}/preview`);
+    } catch (err) {
+      setLaunchError(err instanceof Error ? err.message : 'Failed to start scenario');
+    } finally {
+      setLaunching(false);
     }
-    onClose();
   };
 
   const handleCreateAnother = () => {
@@ -159,6 +173,7 @@ export const CreateScenarioDialog = memo(function CreateScenarioDialog({
     setSlug('');
     setLastResult(null);
     setGenerateError(null);
+    setLaunchError(null);
   };
 
   const canProceedToGenerate = selectedTemplate !== null;
@@ -539,13 +554,22 @@ export const CreateScenarioDialog = memo(function CreateScenarioDialog({
                 >
                   Close
                 </button>
-                <button
-                  onClick={handleStartAndClose}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold bg-gradient-to-r from-emerald-500/30 to-blue-500/30 border-2 border-emerald-500/60 text-emerald-100 rounded-lg hover:from-emerald-500/40 hover:to-blue-500/40 transition-all shadow-lg shadow-emerald-500/20"
-                >
-                  <Play className="h-4 w-4" />
-                  Start & View
-                </button>
+                <div className="flex flex-col items-end gap-2">
+                  <button
+                    onClick={handleStartAndClose}
+                    disabled={launching}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold bg-gradient-to-r from-emerald-500/30 to-blue-500/30 border-2 border-emerald-500/60 text-emerald-100 rounded-lg hover:from-emerald-500/40 hover:to-blue-500/40 transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {launching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                    {launching ? 'Starting...' : 'Start & View'}
+                  </button>
+                  {launchError && (
+                    <p className="text-xs text-red-300 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {launchError}
+                    </p>
+                  )}
+                </div>
               </div>
             </>
           )}
