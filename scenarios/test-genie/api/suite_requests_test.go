@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,11 +12,12 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/google/uuid"
 	pq "github.com/lib/pq"
 )
 
 func TestBuildSuiteRequestDefaults(t *testing.T) {
-	req, err := buildSuiteRequest(suiteRequestPayload{
+	req, err := buildSuiteRequest(QueueSuiteRequestInput{
 		ScenarioName: "document-manager",
 	})
 	if err != nil {
@@ -45,7 +47,7 @@ func TestBuildSuiteRequestDefaults(t *testing.T) {
 }
 
 func TestBuildSuiteRequestInvalidType(t *testing.T) {
-	_, err := buildSuiteRequest(suiteRequestPayload{
+	_, err := buildSuiteRequest(QueueSuiteRequestInput{
 		ScenarioName:   "document-manager",
 		RequestedTypes: stringList{"invalid"},
 	})
@@ -62,7 +64,8 @@ func TestServer_handleCreateSuiteRequest(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		db: db,
+		db:            db,
+		suiteRequests: NewSuiteRequestService(NewPostgresSuiteRequestRepository(db)),
 	}
 
 	mock.ExpectQuery("INSERT INTO suite_requests").
@@ -123,7 +126,10 @@ func TestServer_handleListSuiteRequests(t *testing.T) {
 	}
 	defer db.Close()
 
-	srv := &Server{db: db}
+	srv := &Server{
+		db:            db,
+		suiteRequests: NewSuiteRequestService(NewPostgresSuiteRequestRepository(db)),
+	}
 
 	now := time.Now()
 	rows := sqlmock.NewRows([]string{
@@ -191,7 +197,10 @@ func TestServer_handleCreateSuiteRequestInvalidPayload(t *testing.T) {
 	}
 	defer db.Close()
 
-	srv := &Server{db: db}
+	srv := &Server{
+		db:            db,
+		suiteRequests: NewSuiteRequestService(NewPostgresSuiteRequestRepository(db)),
+	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/suite-requests", bytes.NewBufferString(`{}`))
 	w := httptest.NewRecorder()
@@ -199,5 +208,66 @@ func TestServer_handleCreateSuiteRequestInvalidPayload(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestSuiteRequestRepositoryUpdateStatus(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create sqlmock: %v", err)
+	}
+	defer db.Close()
+
+	repo := NewPostgresSuiteRequestRepository(db)
+	id := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+
+	mock.ExpectExec("UPDATE suite_requests").
+		WithArgs(suiteStatusRunning, id).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	if err := repo.UpdateStatus(context.Background(), id, suiteStatusRunning); err != nil {
+		t.Fatalf("expected update to succeed: %v", err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+func TestSuiteRequestRepositoryStatusSnapshot(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create sqlmock: %v", err)
+	}
+	defer db.Close()
+
+	repo := NewPostgresSuiteRequestRepository(db)
+	now := time.Now().UTC()
+
+	countRows := sqlmock.NewRows([]string{"status", "count"}).
+		AddRow(suiteStatusQueued, 2).
+		AddRow(suiteStatusRunning, 1).
+		AddRow(suiteStatusFailed, 1)
+
+	mock.ExpectQuery("SELECT status, COUNT").
+		WillReturnRows(countRows)
+
+	mock.ExpectQuery("SELECT created_at FROM suite_requests").
+		WithArgs(suiteStatusQueued, suiteStatusDelegated).
+		WillReturnRows(sqlmock.NewRows([]string{"created_at"}).AddRow(now.Add(-2 * time.Minute)))
+
+	snapshot, err := repo.StatusSnapshot(context.Background())
+	if err != nil {
+		t.Fatalf("expected snapshot to succeed: %v", err)
+	}
+	if snapshot.Queued != 2 || snapshot.Running != 1 || snapshot.Failed != 1 {
+		t.Fatalf("unexpected snapshot counts: %#v", snapshot)
+	}
+	if snapshot.OldestQueuedAt == nil {
+		t.Fatal("expected oldest queued timestamp to be populated")
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
 	}
 }

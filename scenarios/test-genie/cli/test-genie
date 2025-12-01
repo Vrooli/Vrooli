@@ -155,6 +155,34 @@ cmd_status() {
         "  Version: \(.version // "unknown")",
         "  Database: \(.dependencies.database // "unknown")"
     ' 2>/dev/null || true
+
+    queue_json=$(echo "$response" | jq -c '.operations.queue // empty' 2>/dev/null || echo "")
+    if [[ -n "$queue_json" && "$queue_json" != "null" ]]; then
+        pending=$(echo "$queue_json" | jq -r '.pending // 0')
+        queued=$(echo "$queue_json" | jq -r '.queued // 0')
+        delegated=$(echo "$queue_json" | jq -r '.delegated // 0')
+        running=$(echo "$queue_json" | jq -r '.running // 0')
+        failed=$(echo "$queue_json" | jq -r '.failed // 0')
+        echo "  Queue: pending=${pending} (queued=${queued}, delegated=${delegated}, running=${running}, failed=${failed})"
+        oldest_age=$(echo "$queue_json" | jq -r '.oldestQueuedAgeSeconds // empty' 2>/dev/null || echo "")
+        if [[ -n "$oldest_age" && "$oldest_age" != "null" ]]; then
+            echo "         Oldest pending request age: ${oldest_age}s"
+        fi
+    fi
+
+    last_exec=$(echo "$response" | jq -c '.operations.lastExecution // empty' 2>/dev/null || echo "")
+    if [[ -n "$last_exec" && "$last_exec" != "null" ]]; then
+        scenario=$(echo "$last_exec" | jq -r '.scenario // "unknown"')
+        success=$(echo "$last_exec" | jq -r '.success // false')
+        completed=$(echo "$last_exec" | jq -r '.completedAt // "n/a"')
+        phases=$(echo "$last_exec" | jq -r '.phaseSummary.total // 0')
+        failed_phases=$(echo "$last_exec" | jq -r '.phaseSummary.failed // 0')
+        icon="${GREEN}✓${NC}"
+        if [[ "$success" != "true" ]]; then
+            icon="${RED}✗${NC}"
+        fi
+        echo -e "  Last execution: ${icon} ${scenario} (phases=${phases}, failed=${failed_phases}) completed ${completed}"
+    fi
 }
 
 cmd_configure() {
@@ -202,6 +230,7 @@ Usage: test-genie <command>
 
 Commands:
     generate        Queue AI-powered test suite generation for a scenario
+    execute         Run scenario test phases through the Go orchestrator
     status          Check API and dependency health
     configure       View or update CLI configuration
     version         Show CLI version
@@ -213,6 +242,15 @@ parse_types_argument() {
     local value="$1"
     if [[ -z "$value" ]]; then
         echo "null"
+        return 0
+    fi
+    printf '%s' "$value" | jq -R '[ split(",")[] | gsub("^\\s+|\\s+$"; "") | select(length>0) ]'
+}
+
+parse_list_argument() {
+    local value="$1"
+    if [[ -z "$value" ]]; then
+        echo "[]"
         return 0
     fi
     printf '%s' "$value" | jq -R '[ split(",")[] | gsub("^\\s+|\\s+$"; "") | select(length>0) ]'
@@ -378,6 +416,170 @@ cmd_generate() {
     fi
 }
 
+cmd_execute() {
+    local scenario="${1:-}"
+    if [[ -z "$scenario" ]]; then
+        echo -e "${RED}✗${NC} Scenario name is required. Usage: $CLI_NAME execute <scenario> [options]"
+        return 1
+    fi
+    shift || true
+
+    local preset=""
+    local phases_arg=""
+    local skip_arg=""
+    local fail_fast=false
+    local output_json=false
+    local suite_request_id=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --preset)
+                preset="${2:-}"
+                shift
+                ;;
+            --phases|--only)
+                phases_arg="${2:-}"
+                shift
+                ;;
+            --skip)
+                skip_arg="${2:-}"
+                shift
+                ;;
+            --request-id)
+                suite_request_id="${2:-}"
+                shift
+                ;;
+            --fail-fast)
+                fail_fast=true
+                ;;
+            --json|--raw)
+                output_json=true
+                ;;
+            --help|-h)
+                echo "Usage: $CLI_NAME execute <scenario> [--preset quick] [--phases structure,unit] [--skip performance] [--request-id <suite-id>] [--fail-fast] [--json]"
+                return 0
+                ;;
+            *)
+                echo -e "${RED}✗${NC} Unknown execute option: $1"
+                return 1
+                ;;
+        esac
+        shift || true
+    done
+
+    local phases_json skip_json
+    if ! phases_json=$(parse_list_argument "$phases_arg"); then
+        echo -e "${RED}✗${NC} Unable to parse phases."
+        return 1
+    fi
+    if ! skip_json=$(parse_list_argument "$skip_arg"); then
+        echo -e "${RED}✗${NC} Unable to parse skip phases."
+        return 1
+    fi
+
+    local payload
+    payload=$(jq -n \
+        --arg scenario "$scenario" \
+        --arg preset "$preset" \
+        --argjson phases "$phases_json" \
+        --argjson skip "$skip_json" \
+        --arg failFast "$fail_fast" \
+        --arg suiteRequestId "$suite_request_id" '
+        {scenarioName: $scenario, failFast: ($failFast == "true")}
+        + (if ($preset | length) > 0 then {preset: $preset} else {} end)
+        + (if ($phases | length) > 0 then {phases: $phases} else {} end)
+        + (if ($skip | length) > 0 then {skip: $skip} else {} end)
+        + (if ($suiteRequestId | length) > 0 then {suiteRequestId: $suiteRequestId} else {} end)
+    ')
+
+    ensure_api_base "execute scenario tests"
+    local response
+    if ! response=$(api_request POST "/executions" "$payload"); then
+        echo -e "${RED}✗${NC} Failed to reach Test Genie API."
+        return 1
+    fi
+
+    local parsed_ok=true
+    echo "$response" | jq '.' >/dev/null 2>&1 || parsed_ok=false
+    if [[ "$parsed_ok" = false ]]; then
+        echo -e "${RED}✗${NC} API returned a non-JSON response:"
+        echo "$response"
+        return 1
+    fi
+
+    local error_message
+    error_message=$(echo "$response" | jq -r '.error // empty')
+    if [[ -n "$error_message" ]]; then
+        echo -e "${RED}✗${NC} API error: $error_message"
+        return 1
+    fi
+
+    if [[ "$output_json" = true ]]; then
+        echo "$response" | jq '.'
+        return 0
+    fi
+
+    local success
+    success=$(echo "$response" | jq -r '.success // false')
+    local preset_used
+    preset_used=$(echo "$response" | jq -r '.presetUsed // empty')
+    local started completed
+    started=$(echo "$response" | jq -r '.startedAt // empty')
+    completed=$(echo "$response" | jq -r '.completedAt // empty')
+    local execution_id linked_request
+    execution_id=$(echo "$response" | jq -r '.executionId // empty')
+    linked_request=$(echo "$response" | jq -r '.suiteRequestId // empty')
+
+    if [[ "$success" == "true" ]]; then
+        echo -e "${GREEN}✓${NC} Suite executed successfully for ${scenario}"
+    else
+        echo -e "${YELLOW}⚠${NC} Suite execution completed with failures for ${scenario}"
+    fi
+    if [[ -n "$execution_id" && "$execution_id" != "null" ]]; then
+        echo "  Execution : ${execution_id}"
+    fi
+    if [[ -n "$linked_request" && "$linked_request" != "null" ]]; then
+        echo "  Request   : ${linked_request}"
+    fi
+    if [[ -n "$preset_used" ]]; then
+        echo "  Preset   : ${preset_used}"
+    fi
+    if [[ -n "$started" ]]; then
+        echo "  Started  : ${started}"
+    fi
+    if [[ -n "$completed" ]]; then
+        echo "  Finished : ${completed}"
+    fi
+
+    echo ""
+    echo "Phase results:"
+    echo "$response" | jq -c '.phases // [] | .[]' | while IFS= read -r row; do
+        local name status duration log error
+        name=$(echo "$row" | jq -r '.name')
+        status=$(echo "$row" | jq -r '.status')
+        duration=$(echo "$row" | jq -r '.durationSeconds // 0')
+        log=$(echo "$row" | jq -r '.logPath // empty')
+        error=$(echo "$row" | jq -r '.error // empty')
+
+        local icon="$GREEN✓${NC}"
+        if [[ "$status" != "passed" ]]; then
+            icon="${RED}✗${NC}"
+        fi
+        printf "  %b %-12s status=%-6s duration=%ss\n" "$icon" "$name" "$status" "$duration"
+        if [[ -n "$log" && "$log" != "null" ]]; then
+            echo "      log: $log"
+        fi
+        if [[ -n "$error" && "$error" != "null" ]]; then
+            echo "      error: $error"
+        fi
+    done
+
+    if [[ "$success" == "true" ]]; then
+        return 0
+    fi
+    return 1
+}
+
 main() {
     init_config
     load_config
@@ -404,6 +606,9 @@ main() {
     case "$command" in
         generate)
             cmd_generate "$@"
+            ;;
+        execute|run|test)
+            cmd_execute "$@"
             ;;
         status)
             cmd_status

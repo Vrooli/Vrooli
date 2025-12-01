@@ -1,16 +1,18 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -18,7 +20,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	pq "github.com/lib/pq"
 )
 
 // Config holds minimal runtime configuration
@@ -29,92 +30,21 @@ type Config struct {
 
 // Server wires the HTTP router and database connection
 type Server struct {
-	config *Config
-	db     *sql.DB
-	router *mux.Router
+	config        *Config
+	db            *sql.DB
+	router        *mux.Router
+	suiteRequests *SuiteRequestService
+	executions    *SuiteExecutionRepository
+	orchestrator  *SuiteOrchestrator
 }
 
-const (
-	suiteStatusQueued    = "queued"
-	suiteStatusDelegated = "delegated"
-	suiteStatusCompleted = "completed"
-	suiteStatusFailed    = "failed"
-
-	suitePriorityLow    = "low"
-	suitePriorityNormal = "normal"
-	suitePriorityHigh   = "high"
-	suitePriorityUrgent = "urgent"
-
-	maxSuiteListPage = 50
-)
-
-var (
-	allowedSuiteTypes = map[string]struct{}{
-		"unit":        {},
-		"integration": {},
-		"performance": {},
-		"vault":       {},
-		"regression":  {},
-	}
-	defaultSuiteTypes = []string{"unit", "integration"}
-	allowedPriorities = map[string]struct{}{
-		suitePriorityLow:    {},
-		suitePriorityNormal: {},
-		suitePriorityHigh:   {},
-		suitePriorityUrgent: {},
-	}
-)
-
-// SuiteRequest represents a queued generation job that may be delegated to downstream agents.
-type SuiteRequest struct {
-	ID                 uuid.UUID `json:"id"`
-	ScenarioName       string    `json:"scenarioName"`
-	RequestedTypes     []string  `json:"requestedTypes"`
-	CoverageTarget     int       `json:"coverageTarget"`
-	Priority           string    `json:"priority"`
-	Status             string    `json:"status"`
-	Notes              string    `json:"notes,omitempty"`
-	DelegationIssueID  *string   `json:"delegationIssueId,omitempty"`
-	CreatedAt          time.Time `json:"createdAt"`
-	UpdatedAt          time.Time `json:"updatedAt"`
-	EstimatedQueueTime int       `json:"estimatedQueueTimeSeconds,omitempty"`
-}
-
-type suiteRequestPayload struct {
-	ScenarioName   string     `json:"scenarioName"`
-	RequestedTypes stringList `json:"requestedTypes"`
-	CoverageTarget int        `json:"coverageTarget"`
-	Priority       string     `json:"priority"`
-	Notes          string     `json:"notes"`
-}
-
-type stringList []string
-
-func (sl *stringList) UnmarshalJSON(data []byte) error {
-	if len(data) == 0 {
-		*sl = nil
-		return nil
-	}
-
-	trimmed := bytes.TrimSpace(data)
-	if bytes.Equal(trimmed, []byte("null")) {
-		*sl = nil
-		return nil
-	}
-
-	var arr []string
-	if err := json.Unmarshal(trimmed, &arr); err == nil {
-		*sl = arr
-		return nil
-	}
-
-	var single string
-	if err := json.Unmarshal(trimmed, &single); err == nil {
-		*sl = []string{single}
-		return nil
-	}
-
-	return fmt.Errorf("expected string or array of strings for requestedTypes")
+type suiteExecutionPayload struct {
+	ScenarioName   string   `json:"scenarioName"`
+	SuiteRequestID string   `json:"suiteRequestId"`
+	Preset         string   `json:"preset"`
+	Phases         []string `json:"phases"`
+	Skip           []string `json:"skip"`
+	FailFast       bool     `json:"failFast"`
 }
 
 // NewServer initializes configuration, database, and routes
@@ -138,10 +68,22 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
+	scenariosRoot, err := resolveScenariosRoot()
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve scenarios root: %w", err)
+	}
+	orchestrator, err := NewSuiteOrchestrator(scenariosRoot)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize orchestrator: %w", err)
+	}
+
 	srv := &Server{
-		config: cfg,
-		db:     db,
-		router: mux.NewRouter(),
+		config:        cfg,
+		db:            db,
+		router:        mux.NewRouter(),
+		suiteRequests: NewSuiteRequestService(NewPostgresSuiteRequestRepository(db)),
+		executions:    NewSuiteExecutionRepository(db),
+		orchestrator:  orchestrator,
 	}
 
 	srv.setupRoutes()
@@ -158,6 +100,9 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/suite-requests", s.handleCreateSuiteRequest).Methods("POST")
 	apiRouter.HandleFunc("/suite-requests", s.handleListSuiteRequests).Methods("GET")
 	apiRouter.HandleFunc("/suite-requests/{id}", s.handleGetSuiteRequest).Methods("GET")
+	apiRouter.HandleFunc("/executions", s.handleExecuteSuite).Methods("POST")
+	apiRouter.HandleFunc("/executions", s.handleListExecutions).Methods("GET")
+	apiRouter.HandleFunc("/executions/{id}", s.handleGetExecution).Methods("GET")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -206,6 +151,22 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		dbStatus = "disconnected"
 	}
 
+	operations := map[string]interface{}{}
+	if s.suiteRequests != nil {
+		if snapshot, err := s.suiteRequests.StatusSnapshot(r.Context()); err == nil {
+			operations["queue"] = queueSnapshotPayload(snapshot)
+		} else if err != nil {
+			s.log("queue snapshot failed", map[string]interface{}{"error": err.Error()})
+		}
+	}
+	if s.executions != nil {
+		if latest, err := s.executions.Latest(r.Context()); err == nil && latest != nil {
+			operations["lastExecution"] = executionSummaryPayload(*latest)
+		} else if err != nil && err != sql.ErrNoRows {
+			s.log("latest execution lookup failed", map[string]interface{}{"error": err.Error()})
+		}
+	}
+
 	response := map[string]interface{}{
 		"status":    status,
 		"service":   "Test Genie API",
@@ -215,6 +176,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"dependencies": map[string]string{
 			"database": dbStatus,
 		},
+		"operations": operations,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -223,22 +185,20 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleCreateSuiteRequest(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	var payload suiteRequestPayload
+	var payload QueueSuiteRequestInput
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		s.writeError(w, http.StatusBadRequest, "invalid JSON payload")
 		return
 	}
 
-	req, err := buildSuiteRequest(payload)
+	req, err := s.suiteRequests.Queue(r.Context(), payload)
 	if err != nil {
-		s.writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	if err := s.insertSuiteRequest(r.Context(), req); err != nil {
-		s.log("suite request insert failed", map[string]interface{}{
-			"error": err.Error(),
-		})
+		var vErr validationError
+		if errors.As(err, &vErr) {
+			s.writeError(w, http.StatusBadRequest, vErr.Error())
+			return
+		}
+		s.log("suite request insert failed", map[string]interface{}{"error": err.Error()})
 		s.writeError(w, http.StatusInternalServerError, "failed to persist suite request")
 		return
 	}
@@ -252,7 +212,7 @@ func (s *Server) handleCreateSuiteRequest(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) handleListSuiteRequests(w http.ResponseWriter, r *http.Request) {
-	suites, err := s.fetchSuiteRequests(r.Context())
+	suites, err := s.suiteRequests.List(r.Context(), maxSuiteListPage)
 	if err != nil {
 		s.log("listing suite requests failed", map[string]interface{}{"error": err.Error()})
 		s.writeError(w, http.StatusInternalServerError, "failed to load suite requests")
@@ -280,7 +240,7 @@ func (s *Server) handleGetSuiteRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, err := s.fetchSuiteRequestByID(r.Context(), requestID)
+	req, err := s.suiteRequests.Get(r.Context(), requestID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			s.writeError(w, http.StatusNotFound, "suite request not found")
@@ -294,229 +254,165 @@ func (s *Server) handleGetSuiteRequest(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, req)
 }
 
-func (s *Server) insertSuiteRequest(ctx context.Context, req *SuiteRequest) error {
-	const q = `
-INSERT INTO suite_requests (
-	id, scenario_name, requested_types, coverage_target, priority, status, notes, delegation_issue_id
-) VALUES (
-	$1, $2, $3, $4, $5, $6, $7, $8
-)
-RETURNING created_at, updated_at
-`
-	var note sql.NullString
-	if req.Notes != "" {
-		note = sql.NullString{String: req.Notes, Valid: true}
-	}
-
-	var delegation sql.NullString
-	if req.DelegationIssueID != nil && *req.DelegationIssueID != "" {
-		delegation = sql.NullString{String: *req.DelegationIssueID, Valid: true}
-	}
-
-	return s.db.QueryRowContext(
-		ctx,
-		q,
-		req.ID,
-		req.ScenarioName,
-		pq.Array(req.RequestedTypes),
-		req.CoverageTarget,
-		req.Priority,
-		req.Status,
-		note,
-		delegation,
-	).Scan(&req.CreatedAt, &req.UpdatedAt)
-}
-
-type rowScanner interface {
-	Scan(dest ...interface{}) error
-}
-
-func scanSuiteRequest(scanner rowScanner) (SuiteRequest, error) {
-	var req SuiteRequest
-	var rawTypes pq.StringArray
-	var note sql.NullString
-	var delegation sql.NullString
-
-	if err := scanner.Scan(
-		&req.ID,
-		&req.ScenarioName,
-		&rawTypes,
-		&req.CoverageTarget,
-		&req.Priority,
-		&req.Status,
-		&note,
-		&delegation,
-		&req.CreatedAt,
-		&req.UpdatedAt,
-	); err != nil {
-		return req, err
-	}
-
-	req.RequestedTypes = append([]string(nil), rawTypes...)
-	if note.Valid {
-		req.Notes = note.String
-	}
-	if delegation.Valid {
-		req.DelegationIssueID = strPtr(delegation.String)
-	}
-	req.EstimatedQueueTime = estimateQueueSeconds(len(req.RequestedTypes), req.CoverageTarget)
-	return req, nil
-}
-
-func (s *Server) fetchSuiteRequests(ctx context.Context) ([]SuiteRequest, error) {
-	const q = `
-SELECT
-	id,
-	scenario_name,
-	requested_types,
-	coverage_target,
-	priority,
-	status,
-	notes,
-	delegation_issue_id,
-	created_at,
-	updated_at
-FROM suite_requests
-ORDER BY created_at DESC
-LIMIT $1
-`
-	rows, err := s.db.QueryContext(ctx, q, maxSuiteListPage)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var suites []SuiteRequest
-	for rows.Next() {
-		req, err := scanSuiteRequest(rows)
-		if err != nil {
-			return nil, err
+func (s *Server) handleListExecutions(w http.ResponseWriter, r *http.Request) {
+	params := r.URL.Query()
+	scenario := strings.TrimSpace(params.Get("scenario"))
+	limit := maxExecutionHistory
+	if raw := strings.TrimSpace(params.Get("limit")); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			limit = parsed
 		}
-		suites = append(suites, req)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return suites, nil
-}
 
-func (s *Server) fetchSuiteRequestByID(ctx context.Context, id uuid.UUID) (*SuiteRequest, error) {
-	const q = `
-SELECT
-	id,
-	scenario_name,
-	requested_types,
-	coverage_target,
-	priority,
-	status,
-	notes,
-	delegation_issue_id,
-	created_at,
-	updated_at
-FROM suite_requests
-WHERE id = $1
-`
-	row := s.db.QueryRowContext(ctx, q, id)
-	req, err := scanSuiteRequest(row)
+	records, err := s.executions.ListRecent(r.Context(), scenario, limit)
 	if err != nil {
-		return nil, err
+		s.log("listing executions failed", map[string]interface{}{"error": err.Error()})
+		s.writeError(w, http.StatusInternalServerError, "failed to load execution history")
+		return
 	}
-	return &req, nil
+
+	items := make([]SuiteExecutionResult, 0, len(records))
+	for i := range records {
+		result := executionRecordToResult(&records[i])
+		items = append(items, *result)
+	}
+
+	s.writeJSON(w, http.StatusOK, map[string]interface{}{
+		"items": items,
+		"count": len(items),
+	})
 }
 
-func buildSuiteRequest(payload suiteRequestPayload) (*SuiteRequest, error) {
+func (s *Server) handleGetExecution(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	rawID := strings.TrimSpace(params["id"])
+	if rawID == "" {
+		s.writeError(w, http.StatusBadRequest, "execution id is required")
+		return
+	}
+	executionID, err := uuid.Parse(rawID)
+	if err != nil {
+		s.writeError(w, http.StatusBadRequest, "execution id must be a valid UUID")
+		return
+	}
+
+	record, err := s.executions.GetByID(r.Context(), executionID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			s.writeError(w, http.StatusNotFound, "execution not found")
+			return
+		}
+		s.log("fetching execution failed", map[string]interface{}{"error": err.Error()})
+		s.writeError(w, http.StatusInternalServerError, "failed to load execution")
+		return
+	}
+
+	s.writeJSON(w, http.StatusOK, executionRecordToResult(record))
+}
+
+func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var payload suiteExecutionPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, "invalid JSON payload")
+		return
+	}
+
 	scenario := strings.TrimSpace(payload.ScenarioName)
 	if scenario == "" {
-		return nil, fmt.Errorf("scenarioName is required")
+		s.writeError(w, http.StatusBadRequest, "scenarioName is required")
+		return
 	}
 
-	types, err := normalizeSuiteTypes([]string(payload.RequestedTypes))
+	execRequest := SuiteExecutionRequest{
+		ScenarioName: scenario,
+		Preset:       strings.TrimSpace(payload.Preset),
+		Phases:       payload.Phases,
+		Skip:         payload.Skip,
+		FailFast:     payload.FailFast,
+	}
+
+	var suiteRequestID *uuid.UUID
+	if id := strings.TrimSpace(payload.SuiteRequestID); id != "" {
+		parsed, err := uuid.Parse(id)
+		if err != nil {
+			s.writeError(w, http.StatusBadRequest, "suiteRequestId must be a valid UUID")
+			return
+		}
+		req, err := s.suiteRequests.Get(r.Context(), parsed)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				s.writeError(w, http.StatusNotFound, "suite request not found")
+				return
+			}
+			s.log("failed to load suite request for execution", map[string]interface{}{"error": err.Error()})
+			s.writeError(w, http.StatusInternalServerError, "unable to load suite request")
+			return
+		}
+		if !strings.EqualFold(req.ScenarioName, scenario) {
+			s.writeError(w, http.StatusBadRequest, "suiteRequestId does not match scenarioName")
+			return
+		}
+		suiteRequestID = &parsed
+		if err := s.suiteRequests.UpdateStatus(r.Context(), parsed, suiteStatusRunning); err != nil {
+			if err == sql.ErrNoRows {
+				s.writeError(w, http.StatusNotFound, "suite request not found")
+				return
+			}
+			s.log("failed to mark suite request running", map[string]interface{}{"error": err.Error()})
+			s.writeError(w, http.StatusInternalServerError, "unable to mark suite request running")
+			return
+		}
+	}
+
+	result, err := s.orchestrator.Execute(r.Context(), execRequest)
 	if err != nil {
-		return nil, err
+		if suiteRequestID != nil {
+			if updateErr := s.suiteRequests.UpdateStatus(r.Context(), *suiteRequestID, suiteStatusFailed); updateErr != nil {
+				s.log("failed to revert suite request on execution error", map[string]interface{}{"error": updateErr.Error()})
+			}
+		}
+		var vErr validationError
+		if errors.As(err, &vErr) {
+			s.writeError(w, http.StatusBadRequest, vErr.Error())
+			return
+		}
+		s.log("suite execution failed", map[string]interface{}{"error": err.Error()})
+		s.writeError(w, http.StatusInternalServerError, "suite execution failed")
+		return
 	}
 
-	coverage := payload.CoverageTarget
-	if coverage == 0 {
-		coverage = 95
-	}
-	if coverage < 1 || coverage > 100 {
-		return nil, fmt.Errorf("coverageTarget must be between 1 and 100")
-	}
-
-	priority, err := normalizePriority(payload.Priority)
-	if err != nil {
-		return nil, err
-	}
-
-	notes := strings.TrimSpace(payload.Notes)
-
-	req := &SuiteRequest{
+	record := &SuiteExecutionRecord{
 		ID:             uuid.New(),
-		ScenarioName:   scenario,
-		RequestedTypes: types,
-		CoverageTarget: coverage,
-		Priority:       priority,
-		Status:         suiteStatusQueued,
-		Notes:          notes,
+		SuiteRequestID: suiteRequestID,
+		ScenarioName:   result.ScenarioName,
+		PresetUsed:     result.PresetUsed,
+		Success:        result.Success,
+		Phases:         result.Phases,
+		StartedAt:      result.StartedAt,
+		CompletedAt:    result.CompletedAt,
 	}
-	req.EstimatedQueueTime = estimateQueueSeconds(len(req.RequestedTypes), req.CoverageTarget)
-	return req, nil
-}
-
-func normalizeSuiteTypes(values []string) ([]string, error) {
-	if len(values) == 0 {
-		return append([]string(nil), defaultSuiteTypes...), nil
+	if err := s.executions.Create(r.Context(), record); err != nil {
+		s.log("persisting suite execution failed", map[string]interface{}{"error": err.Error()})
+		s.writeError(w, http.StatusInternalServerError, "failed to persist execution record")
+		return
 	}
 
-	seen := make(map[string]struct{}, len(values))
-	var sanitized []string
-	for _, value := range values {
-		trimmed := strings.ToLower(strings.TrimSpace(value))
-		if trimmed == "" {
-			continue
+	if suiteRequestID != nil {
+		nextStatus := suiteStatusCompleted
+		if !result.Success {
+			nextStatus = suiteStatusFailed
 		}
-		if _, ok := allowedSuiteTypes[trimmed]; !ok {
-			return nil, fmt.Errorf("requested type '%s' is not supported", value)
+		if err := s.suiteRequests.UpdateStatus(r.Context(), *suiteRequestID, nextStatus); err != nil {
+			s.log("failed to finalize suite request status", map[string]interface{}{"error": err.Error()})
+			s.writeError(w, http.StatusInternalServerError, "failed to finalize suite request status")
+			return
 		}
-		if _, dup := seen[trimmed]; dup {
-			continue
-		}
-		seen[trimmed] = struct{}{}
-		sanitized = append(sanitized, trimmed)
+		result.SuiteRequestID = suiteRequestID
 	}
+	result.ExecutionID = record.ID
 
-	if len(sanitized) == 0 {
-		return append([]string(nil), defaultSuiteTypes...), nil
-	}
-
-	return sanitized, nil
-}
-
-func normalizePriority(value string) (string, error) {
-	trimmed := strings.ToLower(strings.TrimSpace(value))
-	if trimmed == "" {
-		return suitePriorityNormal, nil
-	}
-	if _, ok := allowedPriorities[trimmed]; !ok {
-		return "", fmt.Errorf("priority '%s' is not supported", value)
-	}
-	return trimmed, nil
-}
-
-func estimateQueueSeconds(typeCount, coverage int) int {
-	if typeCount <= 0 {
-		typeCount = len(defaultSuiteTypes)
-	}
-	if coverage <= 0 {
-		coverage = 95
-	}
-	// Deterministic heuristic: weight coverage target plus workload per type
-	return (typeCount * 30) + coverage
-}
-
-func strPtr(value string) *string {
-	v := value
-	return &v
+	s.writeJSON(w, http.StatusOK, result)
 }
 
 func (s *Server) writeJSON(w http.ResponseWriter, statusCode int, payload interface{}) {
@@ -553,6 +449,63 @@ func (s *Server) log(msg string, fields map[string]interface{}) {
 	log.Printf("%s | %v", msg, fields)
 }
 
+func queueSnapshotPayload(snapshot SuiteRequestSnapshot) map[string]interface{} {
+	payload := map[string]interface{}{
+		"total":     snapshot.Total,
+		"queued":    snapshot.Queued,
+		"delegated": snapshot.Delegated,
+		"running":   snapshot.Running,
+		"completed": snapshot.Completed,
+		"failed":    snapshot.Failed,
+		"pending":   snapshot.Queued + snapshot.Delegated,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	}
+	if snapshot.OldestQueuedAt != nil {
+		payload["oldestQueuedAt"] = snapshot.OldestQueuedAt.Format(time.RFC3339)
+		age := time.Since(*snapshot.OldestQueuedAt).Seconds()
+		if age < 0 {
+			age = 0
+		}
+		payload["oldestQueuedAgeSeconds"] = int(age)
+	}
+	return payload
+}
+
+func executionSummaryPayload(record SuiteExecutionRecord) map[string]interface{} {
+	result := executionRecordToResult(&record)
+	return map[string]interface{}{
+		"executionId":  result.ExecutionID,
+		"scenario":     result.ScenarioName,
+		"success":      result.Success,
+		"completedAt":  result.CompletedAt.Format(time.RFC3339),
+		"startedAt":    result.StartedAt.Format(time.RFC3339),
+		"phaseSummary": result.PhaseSummary,
+		"preset":       result.PresetUsed,
+	}
+}
+
+func executionRecordToResult(record *SuiteExecutionRecord) *SuiteExecutionResult {
+	if record == nil {
+		return nil
+	}
+	var phases []PhaseExecutionResult
+	if len(record.Phases) > 0 {
+		phases = append(phases, record.Phases...)
+	}
+	res := &SuiteExecutionResult{
+		ExecutionID:    record.ID,
+		SuiteRequestID: record.SuiteRequestID,
+		ScenarioName:   record.ScenarioName,
+		StartedAt:      record.StartedAt,
+		CompletedAt:    record.CompletedAt,
+		Success:        record.Success,
+		PresetUsed:     record.PresetUsed,
+		Phases:         phases,
+	}
+	res.PhaseSummary = summarizePhases(res.Phases)
+	return res
+}
+
 func requireEnv(key string) string {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -587,6 +540,19 @@ func resolveDatabaseURL() (string, error) {
 	pgURL.RawQuery = values.Encode()
 
 	return pgURL.String(), nil
+}
+
+func resolveScenariosRoot() (string, error) {
+	if raw := strings.TrimSpace(os.Getenv("SCENARIOS_ROOT")); raw != "" {
+		return filepath.Abs(raw)
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to determine working directory: %w", err)
+	}
+	scenarioDir := filepath.Dir(wd)
+	root := filepath.Dir(scenarioDir)
+	return root, nil
 }
 
 func main() {

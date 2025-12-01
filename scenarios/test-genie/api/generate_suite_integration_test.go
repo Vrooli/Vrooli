@@ -22,8 +22,9 @@ func newTestServer(t *testing.T, db *sql.DB) *Server {
 			Port:        "0",
 			DatabaseURL: "postgres://test-genie",
 		},
-		db:     db,
-		router: mux.NewRouter(),
+		db:            db,
+		router:        mux.NewRouter(),
+		suiteRequests: NewSuiteRequestService(NewPostgresSuiteRequestRepository(db)),
 	}
 	srv.setupRoutes()
 	return srv

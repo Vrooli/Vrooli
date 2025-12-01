@@ -57,8 +57,11 @@ _Interfaces below describe the parity target for the rewrite. `test-genie genera
 # Generate comprehensive tests for your scenario
 test-genie generate my-scenario --types unit,integration,performance
 
-# Execute the generated tests
-test-genie execute [suite-id] --type full --environment local
+# Execute scenario tests through the Go orchestrator
+test-genie execute my-scenario --preset comprehensive --fail-fast
+
+# Attach execution to a queued suite request so status auto-updates
+test-genie execute my-scenario --request-id 123e4567-e89b-12d3-a456-426614174000
 
 # Analyze test coverage
 test-genie coverage my-scenario --depth comprehensive --report
@@ -88,6 +91,15 @@ curl -s "http://localhost:${API_PORT}/api/v1/suite-requests" \
 ```
 
 Follow-up calls to `GET /api/v1/suite-requests` or `/api/v1/suite-requests/<id>` report queue state, deterministic fallback metadata, and the coverage target that was requested.
+
+### Execution History & Telemetry Surfaces
+
+Signals now flow through the API so operators can understand orchestration health at a glance:
+
+- `GET /api/v1/executions?scenario=<name>&limit=10` – returns the most recent suite executions (including per-phase logs, failure classifications, and aggregate phase summaries).
+- `GET /api/v1/executions/<id>` – fetch a single execution record with its phase breakdown and linked suite request id.
+- `/health` – still reports infrastructure readiness, but now embeds queue depth, pending/failed counts, and the age of the oldest waiting request under `operations.queue`, plus the most recent execution summary under `operations.lastExecution`.
+- `test-genie status` surfaces the same telemetry in the CLI so agents immediately know if suites are piling up or failing without digging through logs.
 
 ## 🔥 Core Features
 
@@ -167,6 +179,7 @@ cd ui && npm start
 - Re-implements structure/dependency/unit/performance validation directly inside the scenario
 - Provides typed runners for Go, Node/Vitest, and Python suites (no reliance on `scripts/scenarios/testing/`)
 - Ships APIs + CLI hooks so other scenarios can invoke the orchestration service remotely
+- ✅ Structure validation now runs as a native Go phase inside the API, with a registry that lets us migrate other bash phases incrementally.
 
 ### **CLI Tool** (`/cli`)
 - **Comprehensive Command Set** for all testing operations
