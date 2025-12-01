@@ -1,0 +1,147 @@
+package cliutil
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+// ConfigFile manages loading and saving JSON config files and ensures the parent
+// directory exists.
+type ConfigFile struct {
+	Path string
+}
+
+func NewConfigFile(path string) (*ConfigFile, error) {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, fmt.Errorf("create config directory: %w", err)
+	}
+	return &ConfigFile{Path: path}, nil
+}
+
+func (c *ConfigFile) Load(target interface{}) error {
+	data, err := os.ReadFile(c.Path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read config file: %w", err)
+	}
+	if len(data) == 0 {
+		return nil
+	}
+	if err := json.Unmarshal(data, target); err != nil {
+		return fmt.Errorf("parse config: %w", err)
+	}
+	return nil
+}
+
+func (c *ConfigFile) Save(value interface{}) error {
+	payload, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode config: %w", err)
+	}
+	if err := os.WriteFile(c.Path, payload, 0o644); err != nil {
+		return fmt.Errorf("write config: %w", err)
+	}
+	return nil
+}
+
+type APIBaseOptions struct {
+	Override     string
+	EnvVars      []string
+	ConfigBase   string
+	PortEnvVars  []string
+	PortDetector func() string
+	DefaultBase  string
+}
+
+// DetermineAPIBase resolves the API base URL from override flags, environment,
+// config, port hints, and a default.
+func DetermineAPIBase(opts APIBaseOptions) string {
+	trim := func(val string) string {
+		return strings.TrimRight(strings.TrimSpace(val), "/")
+	}
+
+	if base := trim(opts.Override); base != "" {
+		return base
+	}
+	for _, env := range opts.EnvVars {
+		if val := trim(os.Getenv(env)); val != "" {
+			return val
+		}
+	}
+	if base := trim(opts.ConfigBase); base != "" {
+		return base
+	}
+	for _, env := range opts.PortEnvVars {
+		if port := strings.TrimSpace(os.Getenv(env)); port != "" {
+			return fmt.Sprintf("http://localhost:%s", port)
+		}
+	}
+	if opts.PortDetector != nil {
+		if port := strings.TrimSpace(opts.PortDetector()); port != "" {
+			return fmt.Sprintf("http://localhost:%s", port)
+		}
+	}
+	return trim(opts.DefaultBase)
+}
+
+// ResolveSourceRoot returns the first existing directory from the provided
+// env vars and buildSourceRoot.
+func ResolveSourceRoot(buildSourceRoot string, envVars ...string) string {
+	var candidates []string
+	for _, env := range envVars {
+		value := strings.TrimSpace(os.Getenv(env))
+		if value != "" {
+			candidates = append(candidates, value)
+		}
+	}
+	candidates = append(candidates, buildSourceRoot)
+
+	for _, candidate := range candidates {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" || candidate == "unknown" {
+			continue
+		}
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			return candidate
+		}
+	}
+	return ""
+}
+
+func PrintJSON(data []byte) {
+	var pretty bytes.Buffer
+	if err := json.Indent(&pretty, data, "", "  "); err != nil {
+		fmt.Println(string(data))
+		return
+	}
+	fmt.Println(pretty.String())
+}
+
+func PrintJSONMap(m map[string]interface{}, indent int) {
+	if len(m) == 0 {
+		fmt.Printf("%s(none)\n", strings.Repeat(" ", indent))
+		return
+	}
+	prefix := strings.Repeat(" ", indent)
+	for key, value := range m {
+		switch v := value.(type) {
+		case map[string]interface{}:
+			fmt.Printf("%s%s:\n", prefix, key)
+			PrintJSONMap(v, indent+2)
+		default:
+			jsonVal, err := json.Marshal(v)
+			if err != nil {
+				fmt.Printf("%s%s: %v\n", prefix, key, v)
+				continue
+			}
+			fmt.Printf("%s%s: %s\n", prefix, key, string(jsonVal))
+		}
+	}
+}

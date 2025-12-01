@@ -68,7 +68,13 @@ func run() error {
 	}
 
 	timestamp := time.Now().UTC().Format(time.RFC3339)
-	flags := fmt.Sprintf("-X main.buildFingerprint=%s -X main.buildTimestamp=%s", fingerprint, timestamp)
+	sourceRoot := filepath.ToSlash(modulePath)
+	flags := fmt.Sprintf(
+		"-X main.buildFingerprint=%s -X main.buildTimestamp=%s -X main.buildSourceRoot=%s",
+		fingerprint,
+		timestamp,
+		escapeLdflagValue(sourceRoot),
+	)
 
 	tmpFile, err := os.CreateTemp("", "cli-build-*")
 	if err != nil {
@@ -184,4 +190,10 @@ func ensurePathHint(binaryPath string) {
 	}
 
 	fmt.Printf("⚠️  Add to PATH: export PATH=\"%s:$PATH\"\n", installDir)
+}
+
+func escapeLdflagValue(value string) string {
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	value = strings.ReplaceAll(value, " ", `\ `)
+	return value
 }

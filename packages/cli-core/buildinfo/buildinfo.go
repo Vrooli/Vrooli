@@ -22,13 +22,12 @@ var skipDirs = []string{
 }
 
 var skipFiles = []string{
-	"scenario-completeness-scoring",
 	"build.meta",
 }
 
 // ComputeFingerprint walks the provided root directory and returns a deterministic
 // fingerprint derived from each file's relative path, size, and modification time.
-func ComputeFingerprint(root string) (string, error) {
+func ComputeFingerprint(root string, extraSkipFiles ...string) (string, error) {
 	var entries []fileEntry
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -52,7 +51,7 @@ func ComputeFingerprint(root string) (string, error) {
 			return nil
 		}
 
-		if skipFile(rel) {
+		if skipFile(rel, extraSkipFiles) {
 			return nil
 		}
 
@@ -94,8 +93,13 @@ func skipDir(path string) bool {
 	return false
 }
 
-func skipFile(path string) bool {
+func skipFile(path string, extra []string) bool {
 	for _, skip := range skipFiles {
+		if path == skip || strings.HasPrefix(path, skip+"/") {
+			return true
+		}
+	}
+	for _, skip := range extra {
 		if path == skip || strings.HasPrefix(path, skip+"/") {
 			return true
 		}
