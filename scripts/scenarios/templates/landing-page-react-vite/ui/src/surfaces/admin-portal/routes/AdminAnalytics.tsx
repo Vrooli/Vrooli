@@ -297,7 +297,7 @@ export function AdminAnalytics() {
               <Users className="h-4 w-4 text-slate-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{summary?.total_visitors.toLocaleString() ?? 0}</div>
+              <div className="text-3xl font-bold">{(summary?.total_visitors ?? 0).toLocaleString()}</div>
               <p className="text-xs text-slate-400 mt-1">Unique visitors in selected period</p>
             </CardContent>
           </Card>

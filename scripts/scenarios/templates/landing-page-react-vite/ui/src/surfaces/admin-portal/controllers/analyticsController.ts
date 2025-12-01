@@ -18,11 +18,19 @@ export function buildDateRange(days: number): AnalyticsDateRange {
   };
 }
 
-export function fetchAnalyticsSummary(range: AnalyticsDateRange) {
-  return getMetricsSummary(range.startDate, range.endDate);
+function normalizeVariantStats(stats: VariantStats[] | null | undefined): VariantStats[] {
+  return Array.isArray(stats) ? stats : [];
+}
+
+export async function fetchAnalyticsSummary(range: AnalyticsDateRange): Promise<AnalyticsSummary> {
+  const data = await getMetricsSummary(range.startDate, range.endDate);
+  return {
+    ...data,
+    variant_stats: normalizeVariantStats(data.variant_stats),
+  };
 }
 
 export async function fetchVariantAnalytics(variantSlug: string, range: AnalyticsDateRange): Promise<VariantStats[]> {
   const data = await getVariantMetrics(variantSlug, range.startDate, range.endDate);
-  return data.stats;
+  return normalizeVariantStats(data.stats);
 }
