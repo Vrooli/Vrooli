@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
 	"sort"
 	"time"
 
@@ -73,6 +75,34 @@ type VulnerabilityHighlight struct {
 	Severity string `json:"severity"`
 	Count    int    `json:"count"`
 	Message  string `json:"message"`
+}
+
+type OrientationHandlers struct {
+	builder *OrientationBuilder
+}
+
+func NewOrientationHandlers(builder *OrientationBuilder) *OrientationHandlers {
+	return &OrientationHandlers{builder: builder}
+}
+
+func (s *APIServer) orientationSummaryHandler(w http.ResponseWriter, r *http.Request) {
+	s.handlers.orientation.Summary(w, r)
+}
+
+func (h *OrientationHandlers) Summary(w http.ResponseWriter, r *http.Request) {
+	if h.builder == nil {
+		http.Error(w, "orientation summary unavailable: database not initialized", http.StatusServiceUnavailable)
+		return
+	}
+
+	summary, err := h.builder.Build(r.Context())
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to build orientation summary: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(summary)
 }
 
 type OrientationBuilder struct {

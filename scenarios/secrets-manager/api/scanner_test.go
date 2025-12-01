@@ -487,8 +487,8 @@ func TestScannerEdgeCases(t *testing.T) {
 
 	t.Run("SpecialCharactersInFilenames", func(t *testing.T) {
 		resourceFiles := map[string]string{
-			"file with spaces.env":   "KEY1=value\n",
-			"file-with-dashes.env":   "KEY2=value\n",
+			"file with spaces.env":      "KEY1=value\n",
+			"file-with-dashes.env":      "KEY2=value\n",
 			"file_with_underscores.env": "KEY3=value\n",
 		}
 
@@ -675,10 +675,10 @@ func TestFindResourceFiles(t *testing.T) {
 
 		// Create various config files
 		testFiles := map[string]string{
-			"config.env":     "API_KEY=test",
-			".env":           "SECRET=value",
-			"settings.yaml":  "key: value",
-			"README.md":      "# Resource",
+			"config.env":    "API_KEY=test",
+			".env":          "SECRET=value",
+			"settings.yaml": "key: value",
+			"README.md":     "# Resource",
 		}
 
 		for filename, content := range testFiles {
@@ -738,7 +738,6 @@ func TestFindResourceFiles(t *testing.T) {
 	})
 }
 
-
 // TestDetermineSecretType tests secret type determination
 // [REQ:SEC-SCAN-001] Secret pattern detection
 func TestDetermineSecretType(t *testing.T) {
@@ -768,7 +767,6 @@ func TestDetermineSecretType(t *testing.T) {
 	}
 }
 
-
 // TestStoreResourceSecret tests resource secret storage
 // [REQ:SEC-DATA-001] Secret storage and retrieval
 func TestStoreResourceSecret(t *testing.T) {
@@ -788,8 +786,6 @@ func TestStoreResourceSecret(t *testing.T) {
 		t.Errorf("storeResourceSecret() with nil DB should not error, got: %v", err)
 	}
 }
-
-
 
 // TestGetScanHistory tests scan history retrieval
 func TestGetScanHistory(t *testing.T) {

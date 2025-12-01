@@ -25,77 +25,77 @@ var (
 
 var vulnerabilityPatterns = []VulnerabilityPattern{
 	{
-		Type:        "http_body_leak",
-		Severity:    "critical",
-		Pattern:     `(http\.(Get|Post|Put|Delete|Head)|client\.(Get|Post|Do))\([^)]+\)`,
-		Description: "HTTP request without corresponding defer resp.Body.Close()",
-		Title:       "HTTP Response Body Leak",
+		Type:           "http_body_leak",
+		Severity:       "critical",
+		Pattern:        `(http\.(Get|Post|Put|Delete|Head)|client\.(Get|Post|Do))\([^)]+\)`,
+		Description:    "HTTP request without corresponding defer resp.Body.Close()",
+		Title:          "HTTP Response Body Leak",
 		Recommendation: "Always add 'defer resp.Body.Close()' after HTTP requests",
-		CanAutoFix:  true,
+		CanAutoFix:     true,
 	},
 	{
-		Type:        "hardcoded_secret",
-		Severity:    "critical",
-		Pattern:     `(password|secret|key|token|api_key)\s*[:=]\s*["'](?!.*env|.*getenv)[^"']{8,}["']`,
-		Description: "Hardcoded secret or credential found",
-		Title:       "Hardcoded Secret",
+		Type:           "hardcoded_secret",
+		Severity:       "critical",
+		Pattern:        `(password|secret|key|token|api_key)\s*[:=]\s*["'](?!.*env|.*getenv)[^"']{8,}["']`,
+		Description:    "Hardcoded secret or credential found",
+		Title:          "Hardcoded Secret",
 		Recommendation: "Move secrets to vault or environment variables",
-		CanAutoFix:  false,
+		CanAutoFix:     false,
 	},
 	{
-		Type:        "sql_injection",
-		Severity:    "high",
-		Pattern:     `(fmt\.Sprintf.*%.*sql|Query.*\+.*%|QueryRow.*fmt\.Sprintf)`,
-		Description: "Potential SQL injection vulnerability",
-		Title:       "SQL Injection Risk",
+		Type:           "sql_injection",
+		Severity:       "high",
+		Pattern:        `(fmt\.Sprintf.*%.*sql|Query.*\+.*%|QueryRow.*fmt\.Sprintf)`,
+		Description:    "Potential SQL injection vulnerability",
+		Title:          "SQL Injection Risk",
 		Recommendation: "Use parameterized queries with placeholders ($1, $2, etc.)",
-		CanAutoFix:  false,
+		CanAutoFix:     false,
 	},
 	{
-		Type:        "cors_wildcard",
-		Severity:    "high",
+		Type:     "cors_wildcard",
+		Severity: "high",
 		// DETECTION RULE - Uses pre-constructed pattern to avoid self-detection
-		Pattern:     corsWildcardPattern,
-		Description: "CORS configured to allow all origins",
-		Title:       "CORS Misconfiguration",
+		Pattern:        corsWildcardPattern,
+		Description:    "CORS configured to allow all origins",
+		Title:          "CORS Misconfiguration",
 		Recommendation: "Restrict CORS to specific trusted origins",
-		CanAutoFix:  false,
+		CanAutoFix:     false,
 	},
 	{
-		Type:        "missing_input_validation",
-		Severity:    "high",
-		Pattern:     `mux\.Vars\([^)]*\).*Query|QueryRow.*mux\.Vars`,
-		Description: "URL parameters used directly in database queries",
-		Title:       "Missing Input Validation",
+		Type:           "missing_input_validation",
+		Severity:       "high",
+		Pattern:        `mux\.Vars\([^)]*\).*Query|QueryRow.*mux\.Vars`,
+		Description:    "URL parameters used directly in database queries",
+		Title:          "Missing Input Validation",
 		Recommendation: "Validate and sanitize all user inputs before database queries",
-		CanAutoFix:  false,
+		CanAutoFix:     false,
 	},
 	{
-		Type:        "info_disclosure",
-		Severity:    "medium",
-		Pattern:     `http\.Error.*err\.Error|json.*Encode.*err\.Error`,
-		Description: "Internal error details exposed to client",
-		Title:       "Information Disclosure",
+		Type:           "info_disclosure",
+		Severity:       "medium",
+		Pattern:        `http\.Error.*err\.Error|json.*Encode.*err\.Error`,
+		Description:    "Internal error details exposed to client",
+		Title:          "Information Disclosure",
 		Recommendation: "Return generic error messages to clients, log detailed errors server-side",
-		CanAutoFix:  false,
+		CanAutoFix:     false,
 	},
 	{
-		Type:        "missing_timeouts",
-		Severity:    "low",
-		Pattern:     `http\.Client\{\}|http\.(Get|Post).*without.*Timeout`,
-		Description: "HTTP client without timeout configuration",
-		Title:       "Missing HTTP Timeouts",
+		Type:           "missing_timeouts",
+		Severity:       "low",
+		Pattern:        `http\.Client\{\}|http\.(Get|Post).*without.*Timeout`,
+		Description:    "HTTP client without timeout configuration",
+		Title:          "Missing HTTP Timeouts",
 		Recommendation: "Configure timeouts for HTTP clients to prevent hanging connections",
-		CanAutoFix:  true,
+		CanAutoFix:     true,
 	},
 	{
-		Type:        "debug_code",
-		Severity:    "low",
-		Pattern:     `TODO|FIXME|DEBUG|fmt\.Print(?!f)|log\.Print.*debug`,
-		Description: "Debug code or TODO comments in production",
-		Title:       "Debug Code in Production",
+		Type:           "debug_code",
+		Severity:       "low",
+		Pattern:        `TODO|FIXME|DEBUG|fmt\.Print(?!f)|log\.Print.*debug`,
+		Description:    "Debug code or TODO comments in production",
+		Title:          "Debug Code in Production",
 		Recommendation: "Remove debug code and TODO comments before deployment",
-		CanAutoFix:  false,
+		CanAutoFix:     false,
 	},
 }
 
@@ -118,7 +118,7 @@ func scanFileForVulnerabilities(filePath, componentType, componentName string) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
-	
+
 	contentStr := string(content)
 	lines := strings.Split(contentStr, "\n")
 
@@ -133,26 +133,26 @@ func scanFileForVulnerabilities(filePath, componentType, componentName string) (
 		for _, match := range matches {
 			// Find line number
 			lineNum := findLineNumber(contentStr, match[0])
-			
+
 			// Extract code snippet
 			codeSnippet := extractCodeSnippet(lines, lineNum-1, 2)
-			
+
 			vulnerability := SecurityVulnerability{
-				ID:           uuid.New().String(),
-				ComponentType: componentType,
-				ComponentName: componentName,
-				FilePath:     filePath,
-				LineNumber:   lineNum,
-				Severity:     pattern.Severity,
-				Type:         pattern.Type,
-				Title:        pattern.Title,
-				Description:  pattern.Description,
-				Code:         codeSnippet,
+				ID:             uuid.New().String(),
+				ComponentType:  componentType,
+				ComponentName:  componentName,
+				FilePath:       filePath,
+				LineNumber:     lineNum,
+				Severity:       pattern.Severity,
+				Type:           pattern.Type,
+				Title:          pattern.Title,
+				Description:    pattern.Description,
+				Code:           codeSnippet,
 				Recommendation: pattern.Recommendation,
-				CanAutoFix:   pattern.CanAutoFix,
-				DiscoveredAt: time.Now(),
+				CanAutoFix:     pattern.CanAutoFix,
+				DiscoveredAt:   time.Now(),
 			}
-			
+
 			vulnerabilities = append(vulnerabilities, vulnerability)
 		}
 	}
@@ -200,25 +200,25 @@ func scanFileWithAST(filePath, componentType, componentName, content string) ([]
 func checkHTTPCall(call *ast.CallExpr, fset *token.FileSet, componentName, filePath string) *SecurityVulnerability {
 	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
 		if ident, ok := sel.X.(*ast.Ident); ok {
-			if (ident.Name == "http" && isHTTPMethod(sel.Sel.Name)) || 
-			   (ident.Name == "client" && isClientMethod(sel.Sel.Name)) {
-				
+			if (ident.Name == "http" && isHTTPMethod(sel.Sel.Name)) ||
+				(ident.Name == "client" && isClientMethod(sel.Sel.Name)) {
+
 				pos := fset.Position(call.Pos())
-				
+
 				return &SecurityVulnerability{
-					ID:           uuid.New().String(),
-					ComponentType: "scenario",
-					ComponentName: componentName,
-					FilePath:     filePath,
-					LineNumber:   pos.Line,
-					Severity:     "critical",
-					Type:         "http_body_leak",
-					Title:        "Potential HTTP Response Body Leak",
-					Description:  "HTTP request call detected - ensure response body is closed",
-					Code:         extractLineFromFile(filePath, pos.Line),
+					ID:             uuid.New().String(),
+					ComponentType:  "scenario",
+					ComponentName:  componentName,
+					FilePath:       filePath,
+					LineNumber:     pos.Line,
+					Severity:       "critical",
+					Type:           "http_body_leak",
+					Title:          "Potential HTTP Response Body Leak",
+					Description:    "HTTP request call detected - ensure response body is closed",
+					Code:           extractLineFromFile(filePath, pos.Line),
 					Recommendation: "Add 'defer resp.Body.Close()' after the HTTP request",
-					CanAutoFix:   true,
-					DiscoveredAt: time.Now(),
+					CanAutoFix:     true,
+					DiscoveredAt:   time.Now(),
 				}
 			}
 		}
@@ -236,21 +236,21 @@ func checkHardcodedSecrets(assign *ast.AssignStmt, fset *token.FileSet, componen
 					// Check if it's a hardcoded value (not an env var call)
 					if !strings.Contains(lit.Value, "os.Getenv") && !strings.Contains(lit.Value, "env.") {
 						pos := fset.Position(assign.Pos())
-						
+
 						return &SecurityVulnerability{
-							ID:           uuid.New().String(),
-							ComponentType: "scenario",
-					ComponentName: componentName,
-							FilePath:     filePath,
-							LineNumber:   pos.Line,
-							Severity:     "critical",
-							Type:         "hardcoded_secret",
-							Title:        "Hardcoded Secret Detected",
-							Description:  fmt.Sprintf("Variable '%s' appears to contain a hardcoded secret", ident.Name),
-							Code:         extractLineFromFile(filePath, pos.Line),
+							ID:             uuid.New().String(),
+							ComponentType:  "scenario",
+							ComponentName:  componentName,
+							FilePath:       filePath,
+							LineNumber:     pos.Line,
+							Severity:       "critical",
+							Type:           "hardcoded_secret",
+							Title:          "Hardcoded Secret Detected",
+							Description:    fmt.Sprintf("Variable '%s' appears to contain a hardcoded secret", ident.Name),
+							Code:           extractLineFromFile(filePath, pos.Line),
 							Recommendation: "Move secret to vault or environment variable",
-							CanAutoFix:   false,
-							DiscoveredAt: time.Now(),
+							CanAutoFix:     false,
+							DiscoveredAt:   time.Now(),
 						}
 					}
 				}
@@ -298,7 +298,7 @@ func findLineNumber(content string, pos int) int {
 func extractCodeSnippet(lines []string, centerLine, context int) string {
 	start := max(0, centerLine-context)
 	end := min(len(lines), centerLine+context+1)
-	
+
 	snippet := strings.Join(lines[start:end], "\n")
 	return snippet
 }
@@ -309,17 +309,17 @@ func extractLineFromFile(filePath string, lineNum int) string {
 		return ""
 	}
 	defer file.Close()
-	
+
 	scanner := bufio.NewScanner(file)
 	currentLine := 1
-	
+
 	for scanner.Scan() {
 		if currentLine == lineNum {
 			return scanner.Text()
 		}
 		currentLine++
 	}
-	
+
 	return ""
 }
 
@@ -342,7 +342,7 @@ func calculateRiskScore(vulnerabilities []SecurityVulnerability) int {
 	if len(vulnerabilities) == 0 {
 		return 0
 	}
-	
+
 	score := 0
 	for _, vuln := range vulnerabilities {
 		switch vuln.Severity {
@@ -356,32 +356,32 @@ func calculateRiskScore(vulnerabilities []SecurityVulnerability) int {
 			score += 3
 		}
 	}
-	
+
 	// Cap at 100
 	if score > 100 {
 		score = 100
 	}
-	
+
 	return score
 }
 
 // Generate remediation suggestions
 func generateRemediationSuggestions(vulnerabilities []SecurityVulnerability) []RemediationSuggestion {
 	suggestions := make(map[string]RemediationSuggestion)
-	
+
 	for _, vuln := range vulnerabilities {
 		if _, exists := suggestions[vuln.Type]; !exists {
 			priority := "medium"
 			if vuln.Severity == "critical" || vuln.Severity == "high" {
 				priority = "high"
 			}
-			
+
 			suggestion := RemediationSuggestion{
 				VulnerabilityType: vuln.Type,
 				Priority:          priority,
 				Description:       vuln.Recommendation,
 			}
-			
+
 			// Add specific fix commands for auto-fixable issues
 			switch vuln.Type {
 			case "http_body_leak":
@@ -391,15 +391,15 @@ func generateRemediationSuggestions(vulnerabilities []SecurityVulnerability) []R
 			case "debug_code":
 				suggestion.FixCommand = "Remove TODO/FIXME comments and debug prints"
 			}
-			
+
 			suggestions[vuln.Type] = suggestion
 		}
 	}
-	
+
 	var result []RemediationSuggestion
 	for _, suggestion := range suggestions {
 		result = append(result, suggestion)
 	}
-	
+
 	return result
 }

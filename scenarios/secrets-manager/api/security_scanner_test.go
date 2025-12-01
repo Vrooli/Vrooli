@@ -100,11 +100,11 @@ func TestFindLineNumber(t *testing.T) {
 		pos      int
 		expected int
 	}{
-		{0, 1},     // Start of line1
-		{6, 2},     // Start of line2
-		{12, 3},    // Start of line3
-		{18, 4},    // Start of line4
-		{20, 4},    // Middle of line4
+		{0, 1},  // Start of line1
+		{6, 2},  // Start of line2
+		{12, 3}, // Start of line3
+		{18, 4}, // Start of line4
+		{20, 4}, // Middle of line4
 	}
 
 	for _, tc := range testCases {
@@ -186,10 +186,10 @@ func TestExtractLineFromFile(t *testing.T) {
 // [REQ:SEC-SCAN-001] Security scanning framework
 func TestMaxMin(t *testing.T) {
 	testCases := []struct {
-		a        int
-		b        int
-		maxVal   int
-		minVal   int
+		a      int
+		b      int
+		maxVal int
+		minVal int
 	}{
 		{5, 10, 10, 5},
 		{10, 5, 10, 5},
@@ -211,10 +211,10 @@ func TestMaxMin(t *testing.T) {
 // [REQ:SEC-SCAN-004] Remediation suggestions
 func TestGenerateRemediationSuggestions(t *testing.T) {
 	testCases := []struct {
-		name           string
-		vulns          []SecurityVulnerability
-		expectedCount  int
-		expectedTypes  []string
+		name          string
+		vulns         []SecurityVulnerability
+		expectedCount int
+		expectedTypes []string
 	}{
 		{
 			name:          "NoVulnerabilities",

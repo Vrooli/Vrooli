@@ -24,7 +24,17 @@ type scenarioListPayload struct {
 	Scenarios []scenarioSummary `json:"scenarios"`
 }
 
+type ScenarioHandlers struct{}
+
+func NewScenarioHandlers() *ScenarioHandlers {
+	return &ScenarioHandlers{}
+}
+
 func (s *APIServer) scenarioListHandler(w http.ResponseWriter, r *http.Request) {
+	s.handlers.scenarios.ScenarioList(w, r)
+}
+
+func (h *ScenarioHandlers) ScenarioList(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 

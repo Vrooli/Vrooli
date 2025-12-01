@@ -60,7 +60,7 @@ func (s *SecretScanner) getScanConfig(scanType string) ScanConfig {
 			FileExtensions: []string{".sh", ".yml", ".yaml", ".env", ".json"},
 		},
 	}
-	
+
 	if config, exists := configs[scanType]; exists {
 		return config
 	}
@@ -74,12 +74,12 @@ func (s *SecretScanner) getSecretPatterns() []SecretPattern {
 		{Pattern: `\$\{([A-Z_]+[A-Z0-9_]*)\}`, Type: "env_var", Description: "Environment variable reference ${VAR}"},
 		{Pattern: `\$([A-Z_]+[A-Z0-9_]*)`, Type: "env_var", Description: "Environment variable reference $VAR"},
 		{Pattern: `([A-Z_]+[A-Z0-9_]*)=`, Type: "env_var", Description: "Environment variable assignment"},
-		
+
 		// Function calls
 		{Pattern: `getenv\("([A-Z_]+[A-Z0-9_]*)"\)`, Type: "env_var", Description: "getenv() call"},
 		{Pattern: `os\.Getenv\("([A-Z_]+[A-Z0-9_]*)"\)`, Type: "env_var", Description: "Go os.Getenv() call"},
 		{Pattern: `process\.env\.([A-Z_]+[A-Z0-9_]*)`, Type: "env_var", Description: "Node.js process.env access"},
-		
+
 		// Configuration file patterns
 		{Pattern: `env\s*:\s*([A-Z_]+[A-Z0-9_]*)`, Type: "env_var", Description: "YAML env field"},
 		{Pattern: `"([A-Z_]+[A-Z0-9_]*)"s*:`, Type: "env_var", Description: "JSON environment key"},
@@ -99,43 +99,43 @@ func (s *SecretScanner) getSecretKeywords() []string {
 func (s *SecretScanner) ScanResources(request ScanRequest) (*ScanResponse, error) {
 	scanID := uuid.New().String()
 	startTime := time.Now()
-	
+
 	s.logger.Info(fmt.Sprintf("Starting %s scan (ID: %s)", request.ScanType, scanID))
-	
+
 	// Get scan configuration
 	scanConfig := s.getScanConfig(request.ScanType)
 	patterns := s.getSecretPatterns()
 	keywords := s.getSecretKeywords()
-	
+
 	// Find files to scan
 	files, err := s.findResourceFiles(request.Resources, scanConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find resource files: %w", err)
 	}
-	
+
 	// Scan files for secrets
 	discoveredSecrets := []ResourceSecret{}
 	resourcesScanned := map[string]bool{}
-	
+
 	for _, filePath := range files {
 		secrets, resourceName, err := s.scanFile(filePath, patterns, keywords)
 		if err != nil {
 			s.logger.Error(fmt.Sprintf("Failed to scan file %s", filePath), err)
 			continue
 		}
-		
+
 		discoveredSecrets = append(discoveredSecrets, secrets...)
 		if resourceName != "" {
 			resourcesScanned[resourceName] = true
 		}
 	}
-	
+
 	// Convert map to slice
 	var scannedResources []string
 	for resource := range resourcesScanned {
 		scannedResources = append(scannedResources, resource)
 	}
-	
+
 	// Store scan results in database
 	scanRecord := SecretScan{
 		ID:                uuid.New().String(),
@@ -146,35 +146,35 @@ func (s *SecretScanner) ScanResources(request ScanRequest) (*ScanResponse, error
 		ScanTimestamp:     startTime,
 		ScanStatus:        "completed",
 	}
-	
+
 	if err := s.storeScanRecord(scanRecord); err != nil {
 		s.logger.Error("Failed to store scan record", err)
 		// Continue anyway - don't fail the entire scan
 	}
-	
+
 	// Store discovered secrets
 	for _, secret := range discoveredSecrets {
 		if err := s.storeResourceSecret(secret); err != nil {
 			s.logger.Error(fmt.Sprintf("Failed to store secret %s", secret.SecretKey), err)
 		}
 	}
-	
+
 	response := &ScanResponse{
 		ScanID:            scanID,
 		DiscoveredSecrets: discoveredSecrets,
 		ScanDurationMs:    int(time.Since(startTime).Milliseconds()),
 		ResourcesScanned:  scannedResources,
 	}
-	
+
 	s.logger.Info(fmt.Sprintf("Scan completed: %d secrets found in %d resources", len(discoveredSecrets), len(scannedResources)))
-	
+
 	return response, nil
 }
 
 // findResourceFiles finds files to scan based on configuration
 func (s *SecretScanner) findResourceFiles(targetResources []string, config ScanConfig) ([]string, error) {
 	var files []string
-	
+
 	// Get VROOLI_ROOT or fallback to HOME/Vrooli
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
@@ -184,49 +184,49 @@ func (s *SecretScanner) findResourceFiles(targetResources []string, config ScanC
 		}
 		vrooliRoot = filepath.Join(home, "Vrooli")
 	}
-	
+
 	resourcesDir := filepath.Join(vrooliRoot, "resources")
-	
+
 	// Check if resources directory exists
 	if _, err := os.Stat(resourcesDir); os.IsNotExist(err) {
 		return nil, fmt.Errorf("resources directory not found at %s", resourcesDir)
 	}
-	
+
 	// Build file extension filter
 	extMap := make(map[string]bool)
 	for _, ext := range config.FileExtensions {
 		extMap[ext] = true
 	}
-	
+
 	// Walk through resources directory
 	err := filepath.WalkDir(resourcesDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil // Skip files we can't access
 		}
-		
+
 		if d.IsDir() {
 			return nil
 		}
-		
+
 		// Check file extension
 		ext := filepath.Ext(path)
 		if !extMap[ext] {
 			return nil
 		}
-		
+
 		// Extract resource name from path
 		relPath, err := filepath.Rel(resourcesDir, path)
 		if err != nil {
 			return nil
 		}
-		
+
 		pathParts := strings.Split(relPath, string(filepath.Separator))
 		if len(pathParts) == 0 {
 			return nil
 		}
-		
+
 		resourceName := pathParts[0]
-		
+
 		// Filter by target resources if specified
 		if len(targetResources) > 0 {
 			found := false
@@ -240,20 +240,20 @@ func (s *SecretScanner) findResourceFiles(targetResources []string, config ScanC
 				return nil
 			}
 		}
-		
+
 		files = append(files, path)
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to walk resources directory: %w", err)
 	}
-	
+
 	// Limit number of files based on configuration
 	if len(files) > config.MaxResources*10 { // Assume ~10 files per resource on average
 		files = files[:config.MaxResources*10]
 	}
-	
+
 	return files, nil
 }
 
@@ -265,54 +265,54 @@ func (s *SecretScanner) scanFile(filePath string, patterns []SecretPattern, keyw
 		home, _ := os.UserHomeDir()
 		vrooliRoot = filepath.Join(home, "Vrooli")
 	}
-	
+
 	resourcesDir := filepath.Join(vrooliRoot, "resources")
 	relPath, err := filepath.Rel(resourcesDir, filePath)
 	if err != nil {
 		return nil, "", err
 	}
-	
+
 	pathParts := strings.Split(relPath, string(filepath.Separator))
 	if len(pathParts) == 0 {
 		return nil, "", fmt.Errorf("invalid path structure")
 	}
-	
+
 	resourceName := pathParts[0]
-	
+
 	// Read file content (with size limit for safety)
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, resourceName, err
 	}
 	defer file.Close()
-	
+
 	// Read file with size limit (100KB)
 	const maxFileSize = 100 * 1024
 	content := make([]byte, maxFileSize)
 	n, _ := file.Read(content)
 	contentStr := string(content[:n])
-	
+
 	var discoveredSecrets []ResourceSecret
 	foundSecrets := make(map[string]bool) // Prevent duplicates
-	
+
 	// Search for secret patterns
 	for _, pattern := range patterns {
 		regex, err := regexp.Compile(pattern.Pattern)
 		if err != nil {
 			continue // Skip invalid patterns
 		}
-		
+
 		matches := regex.FindAllStringSubmatch(contentStr, -1)
 		for _, match := range matches {
 			if len(match) < 2 {
 				continue
 			}
-			
+
 			secretKey := match[1]
 			if secretKey == "" {
 				continue
 			}
-			
+
 			// Check if this looks like a secret based on keywords
 			upperKey := strings.ToUpper(secretKey)
 			isSecret := false
@@ -322,26 +322,26 @@ func (s *SecretScanner) scanFile(filePath string, patterns []SecretPattern, keyw
 					break
 				}
 			}
-			
+
 			if !isSecret {
 				continue
 			}
-			
+
 			// Prevent duplicates
 			secretId := resourceName + ":" + secretKey
 			if foundSecrets[secretId] {
 				continue
 			}
 			foundSecrets[secretId] = true
-			
+
 			// Determine secret type
 			secretType := s.determineSecretType(upperKey)
-			
+
 			// Determine if likely required
 			isRequired := s.isLikelyRequired(upperKey)
-			
+
 			description := fmt.Sprintf("Found in %s - %s", filepath.Base(filePath), pattern.Description)
-			
+
 			secret := ResourceSecret{
 				ID:           uuid.New().String(),
 				ResourceName: resourceName,
@@ -352,11 +352,11 @@ func (s *SecretScanner) scanFile(filePath string, patterns []SecretPattern, keyw
 				CreatedAt:    time.Now(),
 				UpdatedAt:    time.Now(),
 			}
-			
+
 			discoveredSecrets = append(discoveredSecrets, secret)
 		}
 	}
-	
+
 	return discoveredSecrets, resourceName, nil
 }
 
@@ -392,9 +392,9 @@ func (s *SecretScanner) storeScanRecord(scan SecretScan) error {
 	if s.db == nil {
 		return nil // Skip if no database connection
 	}
-	
+
 	resourcesJSON, _ := json.Marshal(scan.ResourcesScanned)
-	
+
 	query := `
 		INSERT INTO secret_scans (
 			id, scan_type, resources_scanned, secrets_discovered, 
@@ -405,12 +405,12 @@ func (s *SecretScanner) storeScanRecord(scan SecretScan) error {
 			scan_duration_ms = EXCLUDED.scan_duration_ms,
 			scan_status = EXCLUDED.scan_status
 	`
-	
+
 	_, err := s.db.Exec(query,
 		scan.ID, scan.ScanType, resourcesJSON, scan.SecretsDiscovered,
 		scan.ScanDurationMs, scan.ScanTimestamp, scan.ScanStatus,
 	)
-	
+
 	return err
 }
 
@@ -419,7 +419,7 @@ func (s *SecretScanner) storeResourceSecret(secret ResourceSecret) error {
 	if s.db == nil {
 		return nil // Skip if no database connection
 	}
-	
+
 	query := `
 		INSERT INTO resource_secrets (
 			id, resource_name, secret_key, secret_type, required,
@@ -431,12 +431,12 @@ func (s *SecretScanner) storeResourceSecret(secret ResourceSecret) error {
 			description = EXCLUDED.description,
 			updated_at = EXCLUDED.updated_at
 	`
-	
+
 	_, err := s.db.Exec(query,
 		secret.ID, secret.ResourceName, secret.SecretKey, secret.SecretType,
 		secret.Required, secret.Description, secret.CreatedAt, secret.UpdatedAt,
 	)
-	
+
 	return err
 }
 
@@ -445,7 +445,7 @@ func (s *SecretScanner) GetScanHistory(limit int) ([]SecretScan, error) {
 	if s.db == nil {
 		return []SecretScan{}, nil
 	}
-	
+
 	query := `
 		SELECT id, scan_type, resources_scanned, secrets_discovered,
 		       scan_duration_ms, scan_timestamp, scan_status
@@ -453,18 +453,18 @@ func (s *SecretScanner) GetScanHistory(limit int) ([]SecretScan, error) {
 		ORDER BY scan_timestamp DESC
 		LIMIT $1
 	`
-	
+
 	rows, err := s.db.Query(query, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var scans []SecretScan
 	for rows.Next() {
 		var scan SecretScan
 		var resourcesJSON []byte
-		
+
 		err := rows.Scan(
 			&scan.ID, &scan.ScanType, &resourcesJSON, &scan.SecretsDiscovered,
 			&scan.ScanDurationMs, &scan.ScanTimestamp, &scan.ScanStatus,
@@ -472,10 +472,10 @@ func (s *SecretScanner) GetScanHistory(limit int) ([]SecretScan, error) {
 		if err != nil {
 			continue
 		}
-		
+
 		json.Unmarshal(resourcesJSON, &scan.ResourcesScanned)
 		scans = append(scans, scan)
 	}
-	
+
 	return scans, nil
 }

@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func fetchResourceDetail(ctx context.Context, resourceName string) (*ResourceDetail, error) {
+func fetchResourceDetail(ctx context.Context, db *sql.DB, resourceName string) (*ResourceDetail, error) {
 	resourceName = strings.TrimSpace(resourceName)
 	if resourceName == "" {
 		return nil, fmt.Errorf("resource name is required")
@@ -177,7 +177,7 @@ func nullBytes(value []byte) interface{} {
 	return value
 }
 
-func fetchSingleSecretDetail(ctx context.Context, resourceName, secretKey string) (*ResourceSecretDetail, error) {
+func fetchSingleSecretDetail(ctx context.Context, db *sql.DB, resourceName, secretKey string) (*ResourceSecretDetail, error) {
 	if db == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
@@ -234,7 +234,7 @@ func fetchSingleSecretDetail(ctx context.Context, resourceName, secretKey string
 	return secret, nil
 }
 
-func getResourceSecretID(ctx context.Context, resourceName, secretKey string) (string, error) {
+func getResourceSecretID(ctx context.Context, db *sql.DB, resourceName, secretKey string) (string, error) {
 	if db == nil {
 		return "", fmt.Errorf("database not initialized")
 	}

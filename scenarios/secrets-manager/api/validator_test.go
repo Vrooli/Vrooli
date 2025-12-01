@@ -269,10 +269,10 @@ func TestStoreValidationResult(t *testing.T) {
 		validator := NewSecretValidator(nil)
 
 		validation := SecretValidation{
-			ID:                  "test-id",
-			ResourceSecretID:    "secret-id",
-			ValidationStatus:    "valid",
-			ValidationMethod:    "env",
+			ID:               "test-id",
+			ResourceSecretID: "secret-id",
+			ValidationStatus: "valid",
+			ValidationMethod: "env",
 		}
 
 		// Should not error with nil DB

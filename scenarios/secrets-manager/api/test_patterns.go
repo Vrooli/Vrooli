@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -81,9 +82,9 @@ func (b *TestScenarioBuilder) AddInvalidJSON(urlPath string) *TestScenarioBuilde
 		ExpectedStatus: http.StatusBadRequest,
 		Execute: func(t *testing.T, setupData interface{}) *HTTPTestRequest {
 			return &HTTPTestRequest{
-				Method:  "POST",
-				Path:    urlPath,
-				Body:    "invalid-json-content",
+				Method: "POST",
+				Path:   urlPath,
+				Body:   "invalid-json-content",
 			}
 		},
 	})
@@ -155,7 +156,7 @@ func (b *TestScenarioBuilder) AddInvalidValidationStatus(urlPath string) *TestSc
 				Method: "POST",
 				Path:   urlPath,
 				Body: map[string]interface{}{
-					"validation_status": "invalid_status",
+					"validation_status":  "invalid_status",
 					"resource_secret_id": uuid.New().String(),
 				},
 			}
@@ -171,9 +172,9 @@ func (b *TestScenarioBuilder) Build() []ErrorTestPattern {
 
 // HandlerTestSuite provides a comprehensive test framework for HTTP handlers
 type HandlerTestSuite struct {
-	HandlerName    string
-	Handler        http.HandlerFunc
-	BaseURL        string
+	HandlerName     string
+	Handler         http.HandlerFunc
+	BaseURL         string
 	RequiredURLVars []string
 }
 
