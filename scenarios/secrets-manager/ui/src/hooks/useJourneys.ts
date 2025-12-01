@@ -170,6 +170,19 @@ export const useJourneys = (options: UseJourneysOptions) => {
     handleJourneySelect,
     handleJourneyExit,
     handleJourneyNext,
-    handleJourneyBack
+    handleJourneyBack,
+    deploymentFlow: {
+      scenario: deploymentScenario,
+      tier: deploymentTier,
+      resourcesInput: resourceInput,
+      manifestData: manifestMutation.data,
+      manifestIsLoading: manifestMutation.isPending,
+      manifestIsError: manifestMutation.isError,
+      manifestError: manifestMutation.error ?? undefined,
+      onSetScenario: setDeploymentScenario,
+      onSetTier: setDeploymentTier,
+      onSetResourcesInput: setResourceInput,
+      onGenerateManifest: handleManifestRequest
+    }
   };
 };

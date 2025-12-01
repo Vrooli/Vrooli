@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { RefreshCcw } from "lucide-react";
 import { Header } from "./sections/Header";
 import { OrientationHub } from "./sections/OrientationHub";
-import { TierReadiness } from "./sections/TierReadiness";
+import { DeploymentReadinessPanel, TierReadiness } from "./sections/TierReadiness";
 import { ResourceWorkbench } from "./sections/ResourceWorkbench";
 import { StatusGrid } from "./sections/StatusGrid";
 import { ComplianceOverview } from "./sections/ComplianceOverview";
@@ -15,25 +15,7 @@ import { useJourneys } from "./hooks/useJourneys";
 import type { JourneyId } from "./features/journeys/journeySteps";
 
 export default function App() {
-  type ExperienceTab = "overview" | "readiness" | "compliance";
-
-  const tabs: Array<{ id: ExperienceTab; label: string; description: string }> = [
-    {
-      id: "overview",
-      label: "Orientation",
-      description: "Journeys and live status signals"
-    },
-    {
-      id: "readiness",
-      label: "Readiness",
-      description: "Deployment coverage and workbench"
-    },
-    {
-      id: "compliance",
-      label: "Compliance",
-      description: "Vulnerability and policy posture"
-    }
-  ];
+  type ExperienceTab = "overview" | "readiness" | "scenario" | "compliance";
 
   const [activeTab, setActiveTab] = useState<ExperienceTab>("overview");
   const {
@@ -98,7 +80,8 @@ export default function App() {
     handleJourneySelect,
     handleJourneyExit,
     handleJourneyNext,
-    handleJourneyBack
+    handleJourneyBack,
+    deploymentFlow
   } = useJourneys({
     heroStats,
     orientationData,
@@ -123,11 +106,56 @@ export default function App() {
   const prioritySecretKey = topMissingSecret?.secret_name;
   const priorityMissingCount = heroStats?.missing_secrets ?? missingSecrets.length;
 
+  const blockedTiers = tierReadiness.filter((tier) => tier.ready_percent < 100 || tier.strategized < tier.total);
+  const readinessBadge =
+    blockedTiers.length > 0
+      ? `${blockedTiers.length} tier${blockedTiers.length === 1 ? "" : "s"} need strategies`
+      : priorityMissingCount > 0
+        ? `${priorityMissingCount} missing secret${priorityMissingCount === 1 ? "" : "s"}`
+        : undefined;
+  const complianceBadge =
+    vulnerabilitySummary.critical + vulnerabilitySummary.high + vulnerabilitySummary.medium + vulnerabilitySummary.low > 0
+      ? `${vulnerabilitySummary.critical + vulnerabilitySummary.high + vulnerabilitySummary.medium + vulnerabilitySummary.low} findings`
+      : undefined;
+
   const activeJourneyCard = journeyCards.find((card) => card.id === activeJourney);
 
   const handleJourneySelectTyped = (journeyId: JourneyId) => {
     handleJourneySelect(journeyId);
   };
+
+  const startPrepDeploymentJourney = () => {
+    setActiveTab("overview");
+    handleJourneySelectTyped("prep-deployment");
+  };
+
+  const tabs: Array<{ id: ExperienceTab; label: string; description: string; badge?: string }> = [
+    {
+      id: "overview",
+      label: "Orientation",
+      description: "Journeys and live status signals"
+    },
+    {
+      id: "readiness",
+      label: "Resource Readiness",
+      description: "Deployment coverage by resource",
+      badge: readinessBadge
+    },
+    {
+      id: "scenario",
+      label: "Scenario Readiness",
+      description: "Manifest readiness by scenario",
+      badge: readinessBadge
+    },
+    {
+      id: "compliance",
+      label: "Compliance",
+      description: "Vulnerability and policy posture",
+      badge: complianceBadge
+    }
+  ];
+
+  const showReadinessTab = () => setActiveTab("readiness");
 
   return (
     <div className="relative min-h-screen bg-slate-950 text-slate-50">
@@ -159,21 +187,28 @@ export default function App() {
         <div className="rounded-3xl border border-white/10 bg-white/5 p-2">
           <div className="grid gap-2 sm:grid-cols-3">
             {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`rounded-2xl border px-4 py-3 text-left transition ${
-                  activeTab === tab.id
-                    ? "border-emerald-400 bg-emerald-500/10 text-white shadow-[0_10px_40px_-15px_rgba(16,185,129,0.4)]"
-                    : "border-white/10 bg-black/20 text-white/70 hover:border-white/30 hover:text-white"
-                }`}
-              >
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`rounded-2xl border px-4 py-3 text-left transition ${
+                activeTab === tab.id
+                  ? "border-emerald-400 bg-emerald-500/10 text-white shadow-[0_10px_40px_-15px_rgba(16,185,129,0.4)]"
+                  : "border-white/10 bg-black/20 text-white/70 hover:border-white/30 hover:text-white"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
                 <p className="text-[11px] uppercase tracking-[0.25em]">{tab.label}</p>
-                <p className="mt-1 text-sm">{tab.description}</p>
-              </button>
-            ))}
-          </div>
+                {tab.badge ? (
+                  <span className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2 py-[2px] text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-100">
+                    {tab.badge}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 text-sm">{tab.description}</p>
+            </button>
+          ))}
         </div>
+      </div>
 
         <div className="space-y-8">
           {activeTab === "overview" && (
@@ -196,6 +231,8 @@ export default function App() {
                 onJourneyExit={handleJourneyExit}
                 onJourneyNext={handleJourneyNext}
                 onJourneyBack={handleJourneyBack}
+                tierReadiness={tierReadiness}
+                onShowReadiness={showReadinessTab}
               />
 
               <StatusGrid
@@ -218,14 +255,26 @@ export default function App() {
                 isLoading={orientationQuery.isLoading}
                 onOpenResource={openResourcePanel}
                 resourceInsights={resourceInsights}
+                resourceStatuses={resourceStatuses}
               />
 
               <ResourceWorkbench
                 resourceInsights={resourceInsights}
+                resourceStatuses={resourceStatuses}
                 isLoading={orientationQuery.isLoading}
                 onOpenResource={openResourcePanel}
               />
             </>
+          )}
+
+          {activeTab === "scenario" && (
+            <DeploymentReadinessPanel
+              tierReadiness={tierReadiness}
+              resourceInsights={resourceInsights}
+              manifestState={deploymentFlow}
+              onOpenResource={openResourcePanel}
+              onStartJourney={startPrepDeploymentJourney}
+            />
           )}
 
           {activeTab === "compliance" && (
