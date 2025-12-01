@@ -162,6 +162,7 @@ func TestScanForScenarioDependenciesFiltersNoise(t *testing.T) {
 	defer cliScenario.Cleanup()
 	ignored := createTestScenario(t, env, "ignored-scenario", map[string]types.Resource{})
 	defer ignored.Cleanup()
+	refreshDependencyCatalogs()
 
 	subjectPath := filepath.Join(env.ScenariosDir, "subject")
 	os.MkdirAll(subjectPath, 0755)
@@ -175,7 +176,7 @@ vrooli scenario run totally-fake
 	os.WriteFile(mainFile, []byte(content), 0644)
 
 	cliFile := filepath.Join(subjectPath, "cli.sh")
-	os.WriteFile(cliFile, []byte("browser-automation-studio analyze"), 0644)
+	os.WriteFile(cliFile, []byte("browser-automation-studio-cli analyze"), 0644)
 
 	nodeModules := filepath.Join(subjectPath, "node_modules", "pkg")
 	os.MkdirAll(nodeModules, 0755)

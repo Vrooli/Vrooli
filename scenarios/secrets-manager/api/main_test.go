@@ -1062,3 +1062,84 @@ func TestValidateSingleSecretFunction(t *testing.T) {
 		}
 	})
 }
+
+func TestDeriveBundleSecretPlans(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	entries := []DeploymentSecretEntry{
+		{
+			ID:                "abc-123",
+			ResourceName:      "api",
+			SecretKey:         "API_TOKEN",
+			Required:          true,
+			Classification:    "service",
+			HandlingStrategy:  "prompt",
+			RequiresUserInput: true,
+			Prompt: &PromptMetadata{
+				Label:       "API token",
+				Description: "Paste the API token from your Tier 1 server.",
+			},
+			BundleHints: map[string]interface{}{
+				"target_type": "env",
+				"target_name": "API_TOKEN",
+			},
+		},
+		{
+			ID:               "def-456",
+			ResourceName:     "api",
+			SecretKey:        "JWT_SECRET",
+			Required:         true,
+			Classification:   "service",
+			HandlingStrategy: "generate",
+			GeneratorTemplate: map[string]interface{}{
+				"type":    "random",
+				"length":  48,
+				"charset": "alnum",
+			},
+		},
+		{
+			ID:               "infra-1",
+			ResourceName:     "postgres",
+			SecretKey:        "POSTGRES_PASSWORD",
+			Required:         true,
+			Classification:   "infrastructure",
+			HandlingStrategy: "strip",
+		},
+	}
+
+	plans := deriveBundleSecretPlans(entries)
+	if len(plans) != 2 {
+		t.Fatalf("expected 2 bundle secrets, got %d", len(plans))
+	}
+
+	userPrompt := findBundleSecret(t, plans, "abc-123")
+	if userPrompt.Class != "user_prompt" {
+		t.Fatalf("expected class user_prompt, got %s", userPrompt.Class)
+	}
+	if userPrompt.Prompt == nil || userPrompt.Prompt.Label == "" {
+		t.Fatalf("expected prompt metadata to be populated")
+	}
+	if userPrompt.Target.Type != "env" || userPrompt.Target.Name != "API_TOKEN" {
+		t.Fatalf("unexpected target: %+v", userPrompt.Target)
+	}
+
+	generated := findBundleSecret(t, plans, "def-456")
+	if generated.Class != "per_install_generated" {
+		t.Fatalf("expected per_install_generated class, got %s", generated.Class)
+	}
+	if generated.Generator == nil || generated.Generator["type"] != "random" {
+		t.Fatalf("generator hints should be preserved")
+	}
+}
+
+func findBundleSecret(t *testing.T, plans []BundleSecretPlan, id string) BundleSecretPlan {
+	t.Helper()
+	for _, plan := range plans {
+		if plan.ID == id {
+			return plan
+		}
+	}
+	t.Fatalf("secret with id %s not found", id)
+	return BundleSecretPlan{}
+}

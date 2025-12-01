@@ -133,6 +133,7 @@ type DeploymentManifest struct {
 	GeneratedAt         time.Time                    `json:"generated_at"`
 	Resources           []string                     `json:"resources"`
 	Secrets             []DeploymentSecretEntry      `json:"secrets"`
+	BundleSecrets       []BundleSecretPlan           `json:"bundle_secrets,omitempty"`
 	Summary             DeploymentSummary            `json:"summary"`
 	Dependencies        []DependencyInsight          `json:"dependencies,omitempty"`
 	TierAggregates      map[string]TierAggregateView `json:"tier_aggregates,omitempty"`
@@ -150,12 +151,14 @@ type DeploymentSummary struct {
 }
 
 type DeploymentSecretEntry struct {
+	ID                string                 `json:"id,omitempty"`
 	ResourceName      string                 `json:"resource_name"`
 	SecretKey         string                 `json:"secret_key"`
 	SecretType        string                 `json:"secret_type"`
 	Required          bool                   `json:"required"`
 	Classification    string                 `json:"classification"`
 	Description       string                 `json:"description,omitempty"`
+	ValidationPattern string                 `json:"validation_pattern,omitempty"`
 	OwnerTeam         string                 `json:"owner_team,omitempty"`
 	OwnerContact      string                 `json:"owner_contact,omitempty"`
 	HandlingStrategy  string                 `json:"handling_strategy"`
@@ -165,6 +168,22 @@ type DeploymentSecretEntry struct {
 	GeneratorTemplate map[string]interface{} `json:"generator_template,omitempty"`
 	BundleHints       map[string]interface{} `json:"bundle_hints,omitempty"`
 	TierStrategies    map[string]string      `json:"tier_strategies,omitempty"`
+}
+
+type BundleSecretPlan struct {
+	ID          string                 `json:"id"`
+	Class       string                 `json:"class"`
+	Required    bool                   `json:"required"`
+	Description string                 `json:"description,omitempty"`
+	Format      string                 `json:"format,omitempty"`
+	Target      BundleSecretTarget     `json:"target"`
+	Prompt      *PromptMetadata        `json:"prompt,omitempty"`
+	Generator   map[string]interface{} `json:"generator,omitempty"`
+}
+
+type BundleSecretTarget struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
 }
 
 type DependencyInsight struct {
@@ -2838,6 +2857,7 @@ func generateDeploymentManifest(ctx context.Context, req DeploymentManifestReque
 			rs.resource_name,
 			rs.secret_key,
 			rs.secret_type,
+			COALESCE(rs.validation_pattern, '') as validation_pattern,
 			rs.required,
 			COALESCE(rs.description, '') as description,
 			COALESCE(rs.classification, 'service') as classification,
@@ -2888,38 +2908,41 @@ func generateDeploymentManifest(ctx context.Context, req DeploymentManifestReque
 
 	for rows.Next() {
 		var (
-			secretID         string
-			resourceName     string
-			secretKey        string
-			secretType       string
-			required         bool
-			description      string
-			classification   string
-			ownerTeam        string
-			ownerContact     string
-			handlingStrategy string
-			fallbackStrategy string
-			requiresUser     bool
-			promptLabel      string
-			promptDesc       string
-			generatorJSON    []byte
-			bundleJSON       []byte
-			tierMapJSON      []byte
+			secretID          string
+			resourceName      string
+			secretKey         string
+			secretType        string
+			validationPattern string
+			required          bool
+			description       string
+			classification    string
+			ownerTeam         string
+			ownerContact      string
+			handlingStrategy  string
+			fallbackStrategy  string
+			requiresUser      bool
+			promptLabel       string
+			promptDesc        string
+			generatorJSON     []byte
+			bundleJSON        []byte
+			tierMapJSON       []byte
 		)
 
-		if err := rows.Scan(&secretID, &resourceName, &secretKey, &secretType, &required, &description, &classification,
+		if err := rows.Scan(&secretID, &resourceName, &secretKey, &secretType, &validationPattern, &required, &description, &classification,
 			&ownerTeam, &ownerContact, &handlingStrategy, &fallbackStrategy, &requiresUser,
 			&promptLabel, &promptDesc, &generatorJSON, &bundleJSON, &tierMapJSON); err != nil {
 			return nil, err
 		}
 
 		entry := DeploymentSecretEntry{
+			ID:                secretID,
 			ResourceName:      resourceName,
 			SecretKey:         secretKey,
 			SecretType:        secretType,
 			Required:          required,
 			Classification:    classification,
 			Description:       description,
+			ValidationPattern: validationPattern,
 			OwnerTeam:         ownerTeam,
 			OwnerContact:      ownerContact,
 			HandlingStrategy:  handlingStrategy,
@@ -3011,6 +3034,8 @@ func generateDeploymentManifest(ctx context.Context, req DeploymentManifestReque
 		manifest.AnalyzerGeneratedAt = &reportTime
 	}
 
+	manifest.BundleSecrets = deriveBundleSecretPlans(entries)
+
 	if payload, err := json.Marshal(manifest); err == nil {
 		if _, insertErr := db.ExecContext(ctx, `INSERT INTO deployment_manifests (scenario_name, tier, manifest) VALUES ($1, $2, $3)`, scenario, tier, payload); insertErr != nil {
 			logger.Info("failed to persist deployment manifest telemetry: %v", insertErr)
@@ -3064,7 +3089,135 @@ func buildFallbackManifest(scenario, tier string, resources []string) *Deploymen
 		Secrets:     entries,
 		Summary:     summary,
 	}
+	manifest.BundleSecrets = deriveBundleSecretPlans(entries)
 	return manifest
+}
+
+func deriveBundleSecretPlans(entries []DeploymentSecretEntry) []BundleSecretPlan {
+	plans := make([]BundleSecretPlan, 0, len(entries))
+	for _, entry := range entries {
+		if plan := bundleSecretFromEntry(entry); plan != nil {
+			plans = append(plans, *plan)
+		}
+	}
+	return plans
+}
+
+func bundleSecretFromEntry(entry DeploymentSecretEntry) *BundleSecretPlan {
+	class := deriveSecretClass(entry)
+	// Do not emit infrastructure secrets into bundle plans
+	if class == "infrastructure" {
+		return nil
+	}
+
+	plan := &BundleSecretPlan{
+		ID:          deriveSecretID(entry),
+		Class:       class,
+		Required:    entry.Required,
+		Description: entry.Description,
+		Format:      entry.ValidationPattern,
+		Target:      deriveBundleTarget(entry),
+	}
+
+	if class == "user_prompt" {
+		plan.Prompt = derivePrompt(entry)
+	}
+
+	if class == "per_install_generated" {
+		if entry.GeneratorTemplate != nil && len(entry.GeneratorTemplate) > 0 {
+			plan.Generator = entry.GeneratorTemplate
+		} else {
+			plan.Generator = map[string]interface{}{
+				"type":    "random",
+				"length":  32,
+				"charset": "alnum",
+			}
+		}
+	}
+
+	return plan
+}
+
+func deriveSecretClass(entry DeploymentSecretEntry) string {
+	if strings.EqualFold(entry.Classification, "infrastructure") {
+		return "infrastructure"
+	}
+
+	switch strings.ToLower(entry.HandlingStrategy) {
+	case "prompt":
+		return "user_prompt"
+	case "generate":
+		return "per_install_generated"
+	case "delegate":
+		return "remote_fetch"
+	case "strip":
+		return "infrastructure"
+	}
+
+	if entry.RequiresUserInput {
+		return "user_prompt"
+	}
+
+	return "per_install_generated"
+}
+
+func deriveSecretID(entry DeploymentSecretEntry) string {
+	if strings.TrimSpace(entry.ID) != "" {
+		return entry.ID
+	}
+	key := strings.TrimSpace(entry.SecretKey)
+	resource := strings.TrimSpace(entry.ResourceName)
+	if key == "" && resource == "" {
+		return "secret"
+	}
+	if resource == "" {
+		return strings.ToLower(key)
+	}
+	if key == "" {
+		return strings.ToLower(resource)
+	}
+	return strings.ToLower(fmt.Sprintf("%s_%s", resource, key))
+}
+
+func deriveBundleTarget(entry DeploymentSecretEntry) BundleSecretTarget {
+	targetType := "env"
+	targetName := strings.ToUpper(entry.SecretKey)
+
+	if entry.BundleHints != nil {
+		if v, ok := entry.BundleHints["target_type"].(string); ok && strings.TrimSpace(v) != "" {
+			targetType = strings.TrimSpace(v)
+		}
+		if v, ok := entry.BundleHints["target_name"].(string); ok && strings.TrimSpace(v) != "" {
+			targetName = strings.TrimSpace(v)
+		} else if v, ok := entry.BundleHints["file_path"].(string); ok && strings.TrimSpace(v) != "" {
+			targetType = "file"
+			targetName = strings.TrimSpace(v)
+		}
+	}
+
+	return BundleSecretTarget{
+		Type: targetType,
+		Name: targetName,
+	}
+}
+
+func derivePrompt(entry DeploymentSecretEntry) *PromptMetadata {
+	if entry.Prompt != nil && (strings.TrimSpace(entry.Prompt.Label) != "" || strings.TrimSpace(entry.Prompt.Description) != "") {
+		return entry.Prompt
+	}
+
+	label := strings.TrimSpace(entry.SecretKey)
+	if label == "" {
+		label = "Provide secret"
+	}
+	description := entry.Description
+	if strings.TrimSpace(description) == "" {
+		description = "Enter the value for this bundled secret."
+	}
+	return &PromptMetadata{
+		Label:       label,
+		Description: description,
+	}
 }
 
 func loadAnalyzerDeploymentReport(scenario string) (*analyzerDeploymentReport, error) {

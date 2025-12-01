@@ -1,0 +1,228 @@
+package app
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+)
+
+// desktopBundleManifest mirrors the v0.1 desktop bundle schema enough for
+// lightweight validation without pulling in external schema validators.
+type desktopBundleManifest struct {
+	SchemaVersion string                 `json:"schema_version"`
+	Target        string                 `json:"target"`
+	App           manifestApp            `json:"app"`
+	IPC           manifestIPC            `json:"ipc"`
+	Telemetry     manifestTelemetry      `json:"telemetry"`
+	Ports         *manifestPorts         `json:"ports,omitempty"`
+	Swaps         []manifestSwap         `json:"swaps,omitempty"`
+	Secrets       []manifestSecret       `json:"secrets,omitempty"`
+	Services      []manifestServiceEntry `json:"services"`
+}
+
+type manifestApp struct {
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	Description string `json:"description"`
+}
+
+type manifestIPC struct {
+	Mode          string `json:"mode"`
+	Host          string `json:"host"`
+	Port          int    `json:"port"`
+	AuthTokenPath string `json:"auth_token_path"`
+}
+
+type manifestTelemetry struct {
+	File      string `json:"file"`
+	UploadURL string `json:"upload_url"`
+}
+
+type manifestPorts struct {
+	DefaultRange manifestPortRange `json:"default_range"`
+	Reserved     []int             `json:"reserved"`
+}
+
+type manifestPortRange struct {
+	Min int `json:"min"`
+	Max int `json:"max"`
+}
+
+type manifestSwap struct {
+	Original    string `json:"original"`
+	Replacement string `json:"replacement"`
+	Reason      string `json:"reason"`
+	Limitations string `json:"limitations"`
+}
+
+type manifestSecret struct {
+	ID          string                 `json:"id"`
+	Class       string                 `json:"class"`
+	Description string                 `json:"description"`
+	Format      string                 `json:"format"`
+	Required    *bool                  `json:"required"`
+	Prompt      *manifestSecretPrompt  `json:"prompt"`
+	Generator   map[string]interface{} `json:"generator"`
+	Target      manifestSecretTarget   `json:"target"`
+}
+
+type manifestSecretPrompt struct {
+	Label       string `json:"label"`
+	Description string `json:"description"`
+}
+
+type manifestSecretTarget struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
+}
+
+type manifestServiceEntry struct {
+	ID           string                           `json:"id"`
+	Type         string                           `json:"type"`
+	Description  string                           `json:"description"`
+	Binaries     map[string]manifestServiceBinary `json:"binaries"`
+	Env          map[string]string                `json:"env"`
+	Secrets      []string                         `json:"secrets"`
+	DataDirs     []string                         `json:"data_dirs"`
+	LogDir       string                           `json:"log_dir"`
+	Ports        *manifestServicePorts            `json:"ports"`
+	Health       manifestHealth                   `json:"health"`
+	Readiness    manifestReadiness                `json:"readiness"`
+	Dependencies []string                         `json:"dependencies"`
+	Migrations   []manifestMigration              `json:"migrations"`
+	Assets       []manifestAsset                  `json:"assets"`
+	GPU          *manifestGPU                     `json:"gpu"`
+	Critical     *bool                            `json:"critical"`
+}
+
+type manifestServiceBinary struct {
+	Path string            `json:"path"`
+	Args []string          `json:"args"`
+	Env  map[string]string `json:"env"`
+	Cwd  string            `json:"cwd"`
+}
+
+type manifestServicePorts struct {
+	Requested []manifestRequestedPort `json:"requested"`
+}
+
+type manifestRequestedPort struct {
+	Name           string            `json:"name"`
+	Range          manifestPortRange `json:"range"`
+	RequiresSocket bool              `json:"requires_socket"`
+}
+
+type manifestHealth struct {
+	Type     string   `json:"type"`
+	Path     string   `json:"path"`
+	PortName string   `json:"port_name"`
+	Command  []string `json:"command"`
+	Interval int      `json:"interval_ms"`
+	Timeout  int      `json:"timeout_ms"`
+	Retries  int      `json:"retries"`
+}
+
+type manifestReadiness struct {
+	Type     string `json:"type"`
+	PortName string `json:"port_name"`
+	Pattern  string `json:"pattern"`
+	Timeout  int    `json:"timeout_ms"`
+}
+
+type manifestMigration struct {
+	Version string            `json:"version"`
+	Command []string          `json:"command"`
+	Env     map[string]string `json:"env"`
+	RunOn   string            `json:"run_on"`
+}
+
+type manifestAsset struct {
+	Path      string `json:"path"`
+	SHA256    string `json:"sha256"`
+	SizeBytes int64  `json:"size_bytes"`
+}
+
+type manifestGPU struct {
+	Requirement string `json:"requirement"`
+}
+
+// validateDesktopBundleManifestBytes performs a lightweight structural validation.
+func validateDesktopBundleManifestBytes(data []byte) error {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+
+	var manifest desktopBundleManifest
+	if err := dec.Decode(&manifest); err != nil {
+		return fmt.Errorf("invalid JSON or unexpected fields: %w", err)
+	}
+
+	if manifest.SchemaVersion != "v0.1" {
+		return fmt.Errorf("schema_version must be v0.1")
+	}
+	if manifest.Target != "desktop" {
+		return fmt.Errorf("target must be desktop")
+	}
+	if manifest.App.Name == "" || manifest.App.Version == "" {
+		return fmt.Errorf("app.name and app.version are required")
+	}
+	if manifest.IPC.Mode != "loopback-http" || manifest.IPC.Host == "" || manifest.IPC.Port == 0 || manifest.IPC.AuthTokenPath == "" {
+		return fmt.Errorf("ipc must define loopback-http host, port, and auth_token_path")
+	}
+	if manifest.Telemetry.File == "" {
+		return fmt.Errorf("telemetry.file is required")
+	}
+	if len(manifest.Services) == 0 {
+		return fmt.Errorf("at least one service is required")
+	}
+
+	for _, secret := range manifest.Secrets {
+		if err := validateSecret(secret); err != nil {
+			return fmt.Errorf("secret %s: %w", secret.ID, err)
+		}
+	}
+
+	for _, svc := range manifest.Services {
+		if err := validateService(svc); err != nil {
+			return fmt.Errorf("service %s: %w", svc.ID, err)
+		}
+	}
+	return nil
+}
+
+func validateSecret(secret manifestSecret) error {
+	switch secret.Class {
+	case "", "per_install_generated", "user_prompt", "remote_fetch", "infrastructure":
+	default:
+		return fmt.Errorf("unsupported class %q", secret.Class)
+	}
+	if secret.Target.Type == "" || secret.Target.Name == "" {
+		return fmt.Errorf("target.type and target.name are required")
+	}
+	return nil
+}
+
+func validateService(svc manifestServiceEntry) error {
+	if svc.ID == "" {
+		return fmt.Errorf("id is required")
+	}
+	switch svc.Type {
+	case "ui-bundle", "api-binary", "worker", "resource":
+	default:
+		return fmt.Errorf("type %q is not supported", svc.Type)
+	}
+	if len(svc.Binaries) == 0 {
+		return fmt.Errorf("at least one platform binary is required")
+	}
+	for platform, bin := range svc.Binaries {
+		if bin.Path == "" {
+			return fmt.Errorf("binary path is required for platform %s", platform)
+		}
+	}
+	if svc.Health.Type == "" {
+		return fmt.Errorf("health.type is required")
+	}
+	if svc.Readiness.Type == "" {
+		return fmt.Errorf("readiness.type is required")
+	}
+	return nil
+}
