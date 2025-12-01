@@ -47,6 +47,9 @@ type PlanOption struct {
 	OneTimeBonusCredits    int64                  `json:"one_time_bonus_credits"`
 	PlanRank               int                    `json:"plan_rank"`
 	BonusType              string                 `json:"bonus_type,omitempty"`
+	Kind                   string                 `json:"kind,omitempty"`
+	IsVariableAmount       bool                   `json:"is_variable_amount,omitempty"`
+	BundleKey              string                 `json:"bundle_key,omitempty"`
 	DisplayWeight          int                    `json:"display_weight"`
 	Metadata               map[string]interface{} `json:"metadata,omitempty"`
 }
@@ -130,8 +133,10 @@ func (s *PlanService) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 		       bp.amount_cents, bp.currency, bp.intro_enabled, bp.intro_type,
 		       bp.intro_amount_cents, bp.intro_periods, bp.intro_price_lookup_key,
 		       bp.monthly_included_credits, bp.one_time_bonus_credits, bp.plan_rank,
-		       bp.bonus_type, bp.metadata, bp.display_weight
+		       bp.bonus_type, bp.kind, bp.is_variable_amount, b.bundle_key,
+		       bp.metadata, bp.display_weight
 		FROM bundle_prices bp
+		JOIN bundle_products b ON bp.product_id = b.id
 		WHERE bp.stripe_price_id = $1
 	`
 
@@ -155,6 +160,9 @@ func (s *PlanService) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 		&option.OneTimeBonusCredits,
 		&option.PlanRank,
 		&option.BonusType,
+		&option.Kind,
+		&option.IsVariableAmount,
+		&option.BundleKey,
 		&metadataBytes,
 		&option.DisplayWeight,
 	)
@@ -218,13 +226,15 @@ func (s *PlanService) loadBundleProduct(bundleKey string) (*BundleProduct, error
 
 func (s *PlanService) loadBundlePrices(productID int64) ([]PlanOption, error) {
 	query := `
-		SELECT stripe_price_id, plan_name, plan_tier, billing_interval,
-		       amount_cents, currency, intro_enabled, intro_type, intro_amount_cents,
-		       intro_periods, intro_price_lookup_key, monthly_included_credits,
-		       one_time_bonus_credits, plan_rank, bonus_type, metadata, display_weight
-		FROM bundle_prices
-		WHERE product_id = $1
-		ORDER BY display_weight DESC, plan_rank ASC
+		SELECT bp.stripe_price_id, bp.plan_name, bp.plan_tier, bp.billing_interval,
+		       bp.amount_cents, bp.currency, bp.intro_enabled, bp.intro_type, bp.intro_amount_cents,
+		       bp.intro_periods, bp.intro_price_lookup_key, bp.monthly_included_credits,
+		       bp.one_time_bonus_credits, bp.plan_rank, bp.bonus_type, bp.kind, bp.is_variable_amount, b.bundle_key,
+		       bp.metadata, bp.display_weight
+		FROM bundle_prices bp
+		JOIN bundle_products b ON bp.product_id = b.id
+		WHERE bp.product_id = $1
+		ORDER BY bp.display_weight DESC, bp.plan_rank ASC
 	`
 
 	rows, err := s.db.Query(query, productID)
@@ -254,6 +264,9 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]PlanOption, error) {
 			&option.OneTimeBonusCredits,
 			&option.PlanRank,
 			&option.BonusType,
+			&option.Kind,
+			&option.IsVariableAmount,
+			&option.BundleKey,
 			&metadataBytes,
 			&option.DisplayWeight,
 		); err != nil {
@@ -276,4 +289,9 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]PlanOption, error) {
 	}
 
 	return options, nil
+}
+
+// GetBundleProduct returns the configured bundle product metadata.
+func (s *PlanService) GetBundleProduct() (*BundleProduct, error) {
+	return s.loadBundleProduct(s.defaultBundle)
 }

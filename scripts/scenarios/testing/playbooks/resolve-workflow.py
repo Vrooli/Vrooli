@@ -27,6 +27,7 @@ SEED_STATE_RELATIVE_PATH = Path("test") / "artifacts" / "runtime" / "seed-state.
 # Only two reset levels are valid for BAS playbooks: shared state ("none") or full reseed ("full")
 RESET_LEVELS = {"none": 0, "full": 1}
 DEFAULT_RESET_LEVEL = "none"
+SELECTOR_DIR_NAMES = ("consts", "constants")
 
 
 @dataclass(frozen=True)
@@ -534,9 +535,43 @@ def resolve_definition(
     metadata["reset"] = final_reset
 
 
+def _selector_dir_candidates(scenario_dir: Path) -> List[Path]:
+    candidates: List[Path] = []
+    ui_src = scenario_dir / "ui" / "src"
+    for name in SELECTOR_DIR_NAMES:
+        candidates.append(ui_src / name)
+    return candidates
+
+
+def _resolve_selector_path(scenario_dir: Path, filename: str) -> Tuple[Path, bool]:
+    """
+    Returns a tuple of (path, exists_flag) for files that may live under either
+    ui/src/consts or ui/src/constants. Preference order:
+      1. Existing file
+      2. Existing directory (even if file missing)
+      3. Legacy consts path
+    """
+    fallback: Optional[Path] = None
+    fallback_existing_dir: Optional[Path] = None
+    for dir_path in _selector_dir_candidates(scenario_dir):
+        candidate = dir_path / filename
+        if fallback is None:
+            fallback = candidate
+        if candidate.exists():
+            return candidate, True
+        if dir_path.is_dir() and fallback_existing_dir is None:
+            fallback_existing_dir = candidate
+    if fallback_existing_dir is not None:
+        return fallback_existing_dir, False
+    if fallback is None:
+        # Should not happen, but provide deterministic path
+        fallback = scenario_dir / "ui" / "src" / SELECTOR_DIR_NAMES[0] / filename
+    return fallback, False
+
+
 def load_selector_registry(scenario_dir: Path) -> Dict[str, Any]:
-    manifest_path = scenario_dir / "ui" / "src" / "consts" / MANIFEST_FILENAME
-    if not manifest_path.exists():
+    manifest_path, exists = _resolve_selector_path(scenario_dir, MANIFEST_FILENAME)
+    if not exists:
         return {}
     cache_key = str(manifest_path)
     mtime = manifest_path.stat().st_mtime_ns
@@ -847,7 +882,7 @@ def inject_selector_references(
                     ))
 
                     # Get UI source path (where selectors are defined)
-                    selectors_ts_path = scenario_dir / "ui" / "src" / "consts" / "selectors.ts"
+                    selectors_ts_path, _ = _resolve_selector_path(scenario_dir, "selectors.ts")
 
                     error_msg = (
                         f"\n{'='*80}\n"
@@ -881,7 +916,7 @@ def inject_selector_references(
                         f"        }}\n"
                         f"      }}\n\n"
                         f"   2. Import and use it in your UI component:\n"
-                        f"      import {{ selectors }} from '@/consts/selectors';\n"
+                        f"      import {{ selectors }} from '@/consts/selectors';  // or '@constants/selectors'\n"
                         f"      <div data-testid={{selectors.myCategory.myElement}}>...</div>\n\n"
                         f"   3. Re-run your tests:\n"
                         f"      The manifest will be automatically regenerated on next run.\n\n"
@@ -923,7 +958,11 @@ def main() -> None:
     selector_registry = load_selector_registry(scenario_dir)
     if selector_registry:
         manifest = selector_registry.get("manifest") or {}
-        manifest_path = Path(selector_registry.get("path", "")) or scenario_dir / "ui" / "src" / "consts" / MANIFEST_FILENAME
+        manifest_path_str = selector_registry.get("path", "")
+        if manifest_path_str:
+            manifest_path = Path(manifest_path_str)
+        else:
+            manifest_path, _ = _resolve_selector_path(scenario_dir, MANIFEST_FILENAME)
         workflow = inject_selector_references(workflow, manifest, manifest_path)
     json.dump(workflow, sys.stdout, indent=2)
     sys.stdout.write("\n")

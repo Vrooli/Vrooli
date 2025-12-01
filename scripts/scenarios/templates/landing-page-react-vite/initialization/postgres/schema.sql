@@ -67,12 +67,17 @@ CREATE TABLE IF NOT EXISTS checkout_sessions (
     price_id VARCHAR(255),
     subscription_id VARCHAR(255),
     status VARCHAR(50) NOT NULL,
+    session_type VARCHAR(50) NOT NULL DEFAULT 'subscription',
+    amount_cents INTEGER,
+    schedule_id VARCHAR(255),
+    metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX idx_checkout_sessions_session_id ON checkout_sessions(session_id);
 CREATE INDEX idx_checkout_sessions_status ON checkout_sessions(status);
+CREATE INDEX idx_checkout_sessions_type ON checkout_sessions(session_type);
 
 -- Subscriptions Table (OT-P0-028, OT-P0-029, OT-P0-030: SUB-VERIFY, SUB-CACHE, SUB-CANCEL)
 -- Stores Stripe subscription status for verification and caching
@@ -94,6 +99,26 @@ CREATE INDEX idx_subscriptions_status ON subscriptions(status);
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan_tier VARCHAR(50);
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS price_id VARCHAR(255);
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS bundle_key VARCHAR(100);
+
+CREATE TABLE IF NOT EXISTS subscription_schedules (
+    id SERIAL PRIMARY KEY,
+    schedule_id VARCHAR(255) UNIQUE NOT NULL,
+    subscription_id VARCHAR(255),
+    price_id VARCHAR(255) NOT NULL,
+    billing_interval VARCHAR(20) NOT NULL CHECK (billing_interval IN ('month','year','one_time')),
+    intro_enabled BOOLEAN DEFAULT FALSE,
+    intro_amount_cents INTEGER,
+    intro_periods INTEGER DEFAULT 0,
+    normal_amount_cents INTEGER,
+    next_billing_at TIMESTAMP,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_subscription_schedules_schedule_id ON subscription_schedules(schedule_id);
+CREATE INDEX idx_subscription_schedules_subscription_id ON subscription_schedules(subscription_id);
 
 -- Content Sections Table (OT-P0-012, OT-P0-013: CUSTOM-SPLIT, CUSTOM-LIVE)
 -- Stores customizable landing page sections for live preview editing
@@ -135,8 +160,8 @@ CREATE TABLE IF NOT EXISTS bundle_prices (
     product_id INTEGER REFERENCES bundle_products(id) ON DELETE CASCADE,
     stripe_price_id VARCHAR(255) UNIQUE NOT NULL,
     plan_name VARCHAR(100) NOT NULL,
-    plan_tier VARCHAR(50) NOT NULL CHECK (plan_tier IN ('solo','pro','studio','business')),
-    billing_interval VARCHAR(20) NOT NULL CHECK (billing_interval IN ('month','year')),
+    plan_tier VARCHAR(50) NOT NULL CHECK (plan_tier IN ('solo','pro','studio','business','credits','donation')),
+    billing_interval VARCHAR(20) NOT NULL CHECK (billing_interval IN ('month','year','one_time')),
     amount_cents INTEGER NOT NULL,
     currency VARCHAR(10) DEFAULT 'usd',
     intro_enabled BOOLEAN DEFAULT FALSE,
@@ -148,6 +173,8 @@ CREATE TABLE IF NOT EXISTS bundle_prices (
     one_time_bonus_credits INTEGER DEFAULT 0,
     plan_rank INTEGER DEFAULT 0,
     bonus_type VARCHAR(50),
+    kind VARCHAR(50) DEFAULT 'subscription',
+    is_variable_amount BOOLEAN DEFAULT FALSE,
     metadata JSONB DEFAULT '{}'::jsonb,
     display_weight INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW(),

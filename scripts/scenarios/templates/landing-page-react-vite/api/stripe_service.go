@@ -7,7 +7,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -15,14 +17,22 @@ import (
 // StripeService handles Stripe payment integration
 type StripeService struct {
 	db               *sql.DB
+	planService      *PlanService
 	publishableKey   string
 	secretKey        string
 	webhookSecret    string
 	checkoutCacheTTL time.Duration
 }
 
+const (
+	sessionTypeSubscription          = "subscription"
+	sessionTypeCreditsTopup          = "credits_topup"
+	sessionTypeSupporterContribution = "supporter_contribution"
+)
+
 // NewStripeService creates a new Stripe service instance
 func NewStripeService(db *sql.DB) *StripeService {
+	planService := NewPlanService(db)
 	publishableKey := os.Getenv("STRIPE_PUBLISHABLE_KEY")
 	secretKey := os.Getenv("STRIPE_SECRET_KEY")
 	webhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
@@ -51,6 +61,7 @@ func NewStripeService(db *sql.DB) *StripeService {
 
 	return &StripeService{
 		db:               db,
+		planService:      planService,
 		publishableKey:   publishableKey,
 		secretKey:        secretKey,
 		webhookSecret:    webhookSecret,
@@ -194,38 +205,283 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}) erro
 	customerEmail, _ := obj["customer_email"].(string)
 	subscriptionID, _ := obj["subscription"].(string)
 
-	// Update checkout session status
-	_, err := s.db.Exec(`
-		UPDATE checkout_sessions
-		SET status = $1, subscription_id = $2, updated_at = $3
-		WHERE session_id = $4
-	`, "complete", subscriptionID, time.Now(), sessionID)
-
+	sessionRec, err := s.loadCheckoutSession(sessionID)
 	if err != nil {
 		return err
 	}
 
-	// Create or update subscription record
-	if subscriptionID != "" {
-		_, err = s.db.Exec(`
-			INSERT INTO subscriptions (subscription_id, customer_email, status, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5)
-			ON CONFLICT (subscription_id) DO UPDATE
-			SET status = $3, updated_at = $5
-		`, subscriptionID, customerEmail, "active", time.Now(), time.Now())
+	if sessionRec.Status == "complete" {
+		logStructured("checkout.session.completed ignored (duplicate)", map[string]interface{}{
+			"session_id": sessionID,
+		})
+		return nil
+	}
 
+	if _, err := s.db.Exec(`
+		UPDATE checkout_sessions
+		SET status = $1, subscription_id = $2, updated_at = $3
+		WHERE session_id = $4
+	`, "complete", subscriptionID, time.Now(), sessionID); err != nil {
+		return err
+	}
+
+	var plan *PlanOption
+	if sessionRec.PriceID.Valid {
+		if p, planErr := s.planService.GetPlanByPriceID(sessionRec.PriceID.String); planErr == nil {
+			plan = p
+		} else {
+			logStructured("plan metadata missing during checkout completion", map[string]interface{}{
+				"price_id": sessionRec.PriceID.String,
+				"error":    planErr.Error(),
+			})
+		}
+	}
+
+	amountCents := s.extractAmount(obj, sessionRec)
+
+	switch {
+	case plan != nil && plan.Kind == sessionTypeCreditsTopup:
+		return s.handleCreditTopup(customerEmail, amountCents, plan, map[string]interface{}{
+			"session_id": sessionID,
+		})
+	case plan != nil && plan.Kind == sessionTypeSupporterContribution:
+		logStructured("supporter contribution received", map[string]interface{}{
+			"session_id": sessionID,
+			"email":      customerEmail,
+			"amount":     amountCents,
+		})
+		return nil
+	default:
+		return s.handleSubscriptionCompletion(subscriptionID, customerEmail, plan, sessionRec, amountCents)
+	}
+}
+
+type checkoutSessionRecord struct {
+	SessionID   string
+	Status      string
+	PriceID     sql.NullString
+	SessionType sql.NullString
+	AmountCents sql.NullInt64
+	ScheduleID  sql.NullString
+}
+
+func (s *StripeService) loadCheckoutSession(sessionID string) (*checkoutSessionRecord, error) {
+	record := &checkoutSessionRecord{}
+	err := s.db.QueryRow(`
+		SELECT session_id, status, price_id, session_type, amount_cents, schedule_id
+		FROM checkout_sessions
+		WHERE session_id = $1
+	`, sessionID).Scan(
+		&record.SessionID,
+		&record.Status,
+		&record.PriceID,
+		&record.SessionType,
+		&record.AmountCents,
+		&record.ScheduleID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return record, nil
+}
+
+func (s *StripeService) extractAmount(obj map[string]interface{}, session *checkoutSessionRecord) int64 {
+	if amount := s.parseStripeAmount(obj["amount_total"]); amount != 0 {
+		return amount
+	}
+	if amount := s.parseStripeAmount(obj["amount"]); amount != 0 {
+		return amount
+	}
+	if session != nil && session.AmountCents.Valid {
+		return session.AmountCents.Int64
+	}
+	return 0
+}
+
+func (s *StripeService) parseStripeAmount(value interface{}) int64 {
+	switch v := value.(type) {
+	case float64:
+		return int64(v)
+	case int64:
+		return v
+	case json.Number:
+		if parsed, err := v.Int64(); err == nil {
+			return parsed
+		}
+	case string:
+		if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
+			return parsed
+		}
+	}
+	return 0
+}
+
+func (s *StripeService) handleSubscriptionCompletion(subscriptionID, customerEmail string, plan *PlanOption, session *checkoutSessionRecord, amountCents int64) error {
+	if plan == nil {
+		// Without plan metadata we cannot create enriched entries
+		return nil
+	}
+
+	if subscriptionID == "" {
+		return errors.New("subscription id required for subscription completion")
+	}
+
+	if amountCents == 0 {
+		amountCents = plan.AmountCents
+	}
+
+	now := time.Now()
+	_, err := s.db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_email, status, plan_tier, price_id, bundle_key, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		ON CONFLICT (subscription_id) DO UPDATE
+		SET status = $3, customer_email = $2, plan_tier = $4, price_id = $5, bundle_key = $6, updated_at = $8
+	`, subscriptionID, customerEmail, "active", plan.PlanTier, plan.StripePriceID, plan.BundleKey, now, now)
+	if err != nil {
+		return err
+	}
+
+	if plan.IntroEnabled && plan.BillingInterval == "month" {
+		scheduleID, err := s.createSubscriptionSchedule(subscriptionID, plan, amountCents)
 		if err != nil {
 			return err
+		}
+		if scheduleID != "" && session != nil {
+			if _, err := s.db.Exec(`
+				UPDATE checkout_sessions
+				SET schedule_id = $1
+				WHERE session_id = $2
+			`, scheduleID, session.SessionID); err != nil {
+				return err
+			}
 		}
 	}
 
 	logStructured("Checkout session completed", map[string]interface{}{
-		"session_id":      sessionID,
+		"session_id":      session.SessionID,
 		"customer_email":  customerEmail,
 		"subscription_id": subscriptionID,
+		"plan_tier":       plan.PlanTier,
+		"price_id":        plan.StripePriceID,
+		"session_type":    sessionTypeSubscription,
 	})
 
 	return nil
+}
+
+func (s *StripeService) createSubscriptionSchedule(subscriptionID string, plan *PlanOption, amountCents int64) (string, error) {
+	if plan == nil || subscriptionID == "" {
+		return "", nil
+	}
+
+	if amountCents == 0 {
+		amountCents = plan.AmountCents
+	}
+
+	scheduleID := fmt.Sprintf("sched_%d", time.Now().UnixNano())
+	nextBilling := time.Now().Add(s.billingIntervalDuration(plan.BillingInterval))
+
+	meta := map[string]interface{}{
+		"plan_rank":          plan.PlanRank,
+		"intro_enabled":      plan.IntroEnabled,
+		"intro_periods":      plan.IntroPeriods,
+		"billing_interval":   plan.BillingInterval,
+		"subscription_price": plan.AmountCents,
+	}
+	metaBytes, _ := json.Marshal(meta)
+
+	_, err := s.db.Exec(`
+		INSERT INTO subscription_schedules (
+			schedule_id, subscription_id, price_id, billing_interval,
+			intro_enabled, intro_amount_cents, intro_periods, normal_amount_cents,
+			next_billing_at, status, metadata, created_at, updated_at
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'active',$10,NOW(),NOW())
+		ON CONFLICT (schedule_id) DO UPDATE SET
+			subscription_id = EXCLUDED.subscription_id,
+			price_id = EXCLUDED.price_id,
+			billing_interval = EXCLUDED.billing_interval,
+			intro_enabled = EXCLUDED.intro_enabled,
+			intro_amount_cents = EXCLUDED.intro_amount_cents,
+			intro_periods = EXCLUDED.intro_periods,
+			normal_amount_cents = EXCLUDED.normal_amount_cents,
+			next_billing_at = EXCLUDED.next_billing_at,
+			status = 'active',
+			metadata = EXCLUDED.metadata,
+			updated_at = NOW()
+	`, scheduleID, subscriptionID, plan.StripePriceID, plan.BillingInterval,
+		plan.IntroEnabled, plan.IntroAmountCents, plan.IntroPeriods, amountCents,
+		nextBilling, string(metaBytes))
+	if err != nil {
+		return "", err
+	}
+
+	return scheduleID, nil
+}
+
+func (s *StripeService) billingIntervalDuration(interval string) time.Duration {
+	switch interval {
+	case "year":
+		return 365 * 24 * time.Hour
+	case "month":
+		return 30 * 24 * time.Hour
+	default:
+		return 30 * 24 * time.Hour
+	}
+}
+
+func (s *StripeService) handleCreditTopup(customerEmail string, amountCents int64, plan *PlanOption, metadata map[string]interface{}) error {
+	if customerEmail == "" {
+		return errors.New("customer email required for credit top-up")
+	}
+
+	if amountCents == 0 {
+		amountCents = plan.AmountCents
+	}
+
+	bundle, err := s.planService.GetBundleProduct()
+	if err != nil {
+		return err
+	}
+
+	if amountCents == 0 || bundle == nil {
+		return nil
+	}
+
+	credits := (bundle.CreditsPerUSD * amountCents) / 100
+	if credits <= 0 {
+		return nil
+	}
+
+	if metadata == nil {
+		metadata = make(map[string]interface{})
+	}
+	metadata["price_id"] = plan.StripePriceID
+	metadata["session_type"] = sessionTypeCreditsTopup
+
+	return s.addCredits(customerEmail, credits, "credit_topup", metadata)
+}
+
+func (s *StripeService) addCredits(customerEmail string, amount int64, txnType string, metadata map[string]interface{}) error {
+	if customerEmail == "" || amount <= 0 {
+		return nil
+	}
+
+	_, err := s.db.Exec(`
+		INSERT INTO credit_wallets (customer_email, balance_credits, updated_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (customer_email) DO UPDATE
+		SET balance_credits = credit_wallets.balance_credits + $2, updated_at = NOW()
+	`, customerEmail, amount)
+	if err != nil {
+		return err
+	}
+
+	metaBytes, _ := json.Marshal(metadata)
+	_, err = s.db.Exec(`
+		INSERT INTO credit_transactions (customer_email, amount_credits, transaction_type, metadata, created_at)
+		VALUES ($1, $2, $3, $4, NOW())
+	`, customerEmail, amount, txnType, string(metaBytes))
+	return err
 }
 
 func (s *StripeService) handleSubscriptionCreated(obj map[string]interface{}) error {

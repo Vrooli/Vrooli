@@ -3,22 +3,31 @@ const fs = require('fs');
 const path = require('path');
 
 const MANIFEST_FILENAME = 'selectors.manifest.json';
+const SELECTOR_DIR_CANDIDATES = ['consts', 'constants'];
 
 const resolveManifestPath = (scenarioDir) => {
   if (!scenarioDir) {
     throw new Error('Scenario directory is required');
   }
-  const manifestPath = path.resolve(
-    scenarioDir,
-    'ui',
-    'src',
-    'consts',
-    MANIFEST_FILENAME,
-  );
-  if (!fs.existsSync(manifestPath)) {
-    throw new Error(`Selector manifest not found at ${manifestPath}`);
+  const tried = [];
+  for (const dirName of SELECTOR_DIR_CANDIDATES) {
+    const manifestPath = path.resolve(
+      scenarioDir,
+      'ui',
+      'src',
+      dirName,
+      MANIFEST_FILENAME,
+    );
+    tried.push(manifestPath);
+    if (fs.existsSync(manifestPath)) {
+      return manifestPath;
+    }
   }
-  return manifestPath;
+  throw new Error(
+    `Selector manifest not found. Tried:\n${tried
+      .map((candidate) => `  - ${candidate}`)
+      .join('\n')}`,
+  );
 };
 
 const loadManifest = (manifestPath) => {

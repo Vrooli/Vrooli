@@ -559,17 +559,29 @@ _validate_playbook_requirement_metadata() {
 
 _validate_selector_registry() {
   local scenario_dir="$1"
-  local selectors_file="$scenario_dir/ui/src/consts/selectors.ts"
-  local manifest_file="$scenario_dir/ui/src/consts/selectors.manifest.json"
+  local selectors_file=""
+  local manifest_file=""
+  local selector_dirs=(
+    "$scenario_dir/ui/src/consts"
+    "$scenario_dir/ui/src/constants"
+  )
 
-  if [ ! -f "$selectors_file" ]; then
+  for dir in "${selector_dirs[@]}"; do
+    if [ -f "$dir/selectors.ts" ]; then
+      selectors_file="$dir/selectors.ts"
+      manifest_file="$dir/selectors.manifest.json"
+      break
+    fi
+  done
+
+  if [ -z "$selectors_file" ]; then
     log::success "✅ Selector registry not found (skipping registry validation)"
     testing::phase::add_test passed
     return 0
   fi
 
-  if [ ! -f "$manifest_file" ]; then
-    testing::phase::add_error "Selector manifest missing at $manifest_file"
+  if [ -z "$manifest_file" ] || [ ! -f "$manifest_file" ]; then
+    testing::phase::add_error "Selector manifest missing at ${manifest_file:-unknown} (selectors.ts at $selectors_file)"
     testing::phase::add_test failed
     return 1
   fi
