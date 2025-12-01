@@ -174,8 +174,6 @@ func (m *Manifest) Validate(targetOS, targetArch string) error {
 		return errors.New("services must not be empty")
 	}
 
-	platformKey := PlatformKey(targetOS, targetArch)
-
 	for _, svc := range m.Services {
 		if svc.ID == "" {
 			return errors.New("service.id is required")
@@ -186,9 +184,16 @@ func (m *Manifest) Validate(targetOS, targetArch string) error {
 		if len(svc.Binaries) == 0 {
 			return fmt.Errorf("service %s missing binaries", svc.ID)
 		}
-		bin, ok := svc.Binaries[platformKey]
-		if !ok || bin.Path == "" {
-			return fmt.Errorf("service %s missing binary for platform %s", svc.ID, platformKey)
+		keys := PlatformKeys(targetOS, targetArch)
+		found := false
+		for _, key := range keys {
+			if bin, ok := svc.Binaries[key]; ok && bin.Path != "" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("service %s missing binary for platform %s", svc.ID, keys[0])
 		}
 	}
 
@@ -204,11 +209,41 @@ func PlatformKey(goos, goarch string) string {
 	return fmt.Sprintf("%s-%s", goos, arch)
 }
 
+// PlatformKeys returns the canonical platform key plus any aliases (win/windows, mac/darwin).
+func PlatformKeys(goos, goarch string) []string {
+	primary := PlatformKey(goos, goarch)
+	keys := []string{primary}
+	if alias := platformAlias(primary); alias != "" && alias != primary {
+		keys = append(keys, alias)
+	}
+	return keys
+}
+
+func platformAlias(key string) string {
+	if strings.HasPrefix(key, "windows-") {
+		return "win-" + strings.TrimPrefix(key, "windows-")
+	}
+	if strings.HasPrefix(key, "win-") {
+		return "windows-" + strings.TrimPrefix(key, "win-")
+	}
+	if strings.HasPrefix(key, "darwin-") {
+		return "mac-" + strings.TrimPrefix(key, "darwin-")
+	}
+	if strings.HasPrefix(key, "mac-") {
+		return "darwin-" + strings.TrimPrefix(key, "mac-")
+	}
+	return ""
+}
+
 // ResolveBinary returns the binary config for the current platform.
 func (m *Manifest) ResolveBinary(svc Service) (Binary, bool) {
-	key := PlatformKey(runtime.GOOS, runtime.GOARCH)
-	bin, ok := svc.Binaries[key]
-	return bin, ok
+	keys := PlatformKeys(runtime.GOOS, runtime.GOARCH)
+	for _, key := range keys {
+		if bin, ok := svc.Binaries[key]; ok {
+			return bin, true
+		}
+	}
+	return Binary{}, false
 }
 
 // ResolvePath resolves a bundle-relative path to an absolute path rooted at bundleDir.

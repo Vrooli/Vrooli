@@ -460,7 +460,8 @@ func (s *Supervisor) handleSecrets(w http.ResponseWriter, r *http.Request) {
 
 func (s *Supervisor) handleTelemetry(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, map[string]interface{}{
-		"path": s.telemetryPath,
+		"path":       s.telemetryPath,
+		"upload_url": s.opts.Manifest.Telemetry.UploadTo,
 	})
 }
 
@@ -751,6 +752,9 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 		return err
 	}
 	if err := s.applySecrets(envMap, svc); err != nil {
+		return err
+	}
+	if err := s.applyPlaywrightConventions(svc, envMap); err != nil {
 		return err
 	}
 	if err := s.ensureAssets(svc); err != nil {
@@ -1163,6 +1167,279 @@ func (s *Supervisor) applySecrets(env map[string]string, svc manifest.Service) e
 		}
 	}
 	return nil
+}
+
+func (s *Supervisor) applyPlaywrightConventions(svc manifest.Service, env map[string]string) error {
+	if !serviceUsesPlaywright(svc) {
+		return nil
+	}
+
+	if _, ok := env["PLAYWRIGHT_DRIVER_PORT"]; !ok {
+		if port, err := s.resolvePort(svc.ID, "http"); err == nil {
+			env["PLAYWRIGHT_DRIVER_PORT"] = strconv.Itoa(port)
+		}
+	}
+	if _, ok := env["PLAYWRIGHT_DRIVER_URL"]; !ok {
+		if port, err := s.resolvePort(svc.ID, "http"); err == nil {
+			env["PLAYWRIGHT_DRIVER_URL"] = fmt.Sprintf("http://127.0.0.1:%d", port)
+		}
+	}
+	if _, ok := env["ENGINE"]; !ok {
+		env["ENGINE"] = "playwright"
+	}
+
+	chromePath := strings.TrimSpace(env["PLAYWRIGHT_CHROMIUM_PATH"])
+	if chromePath == "" {
+		if fallback := strings.TrimSpace(os.Getenv("ELECTRON_CHROMIUM_PATH")); fallback != "" {
+			env["PLAYWRIGHT_CHROMIUM_PATH"] = fallback
+			_ = s.recordTelemetry("playwright_chromium_fallback", map[string]interface{}{
+				"service_id": svc.ID,
+				"fallback":   fallback,
+			})
+		}
+		return nil
+	}
+
+	resolved := manifest.ResolvePath(s.opts.BundlePath, chromePath)
+	env["PLAYWRIGHT_CHROMIUM_PATH"] = resolved
+	if _, err := os.Stat(resolved); err == nil {
+		return nil
+	}
+
+	if fallback := strings.TrimSpace(os.Getenv("ELECTRON_CHROMIUM_PATH")); fallback != "" {
+		env["PLAYWRIGHT_CHROMIUM_PATH"] = fallback
+		_ = s.recordTelemetry("playwright_chromium_fallback", map[string]interface{}{
+			"service_id": svc.ID,
+			"missing":    resolved,
+			"fallback":   fallback,
+		})
+		return nil
+	}
+
+	_ = s.recordTelemetry("asset_missing", map[string]interface{}{
+		"service_id": svc.ID,
+		"path":       resolved,
+		"reason":     "playwright_chromium",
+	})
+	return fmt.Errorf("playwright chromium missing for %s: %s", svc.ID, resolved)
+}
+
+func (s *Supervisor) runMigrations(ctx context.Context, svc manifest.Service, bin manifest.Binary, baseEnv map[string]string) error {
+	if len(svc.Migrations) == 0 {
+		return s.ensureAppVersionRecorded()
+	}
+
+	phase := s.installPhase()
+	state := s.migrations
+	appliedSet := make(map[string]bool)
+	for _, v := range state.Applied[svc.ID] {
+		appliedSet[v] = true
+	}
+	envBase := copyStringMap(baseEnv)
+
+	for _, m := range svc.Migrations {
+		if m.Version == "" {
+			return fmt.Errorf("migration for service %s missing version", svc.ID)
+		}
+		if appliedSet[m.Version] {
+			continue
+		}
+		runOn := strings.TrimSpace(m.RunOn)
+		if runOn == "" {
+			runOn = "always"
+		}
+		switch runOn {
+		case "always":
+		case "first_install":
+			if phase != "first_install" {
+				continue
+			}
+		case "upgrade":
+			if phase != "upgrade" {
+				continue
+			}
+		default:
+			return fmt.Errorf("migration %s has unsupported run_on=%s", m.Version, runOn)
+		}
+
+		if len(m.Command) == 0 {
+			return fmt.Errorf("migration %s has no command", m.Version)
+		}
+
+		env := copyStringMap(envBase)
+		for k, v := range m.Env {
+			env[k] = s.renderValue(v)
+		}
+
+		if err := s.executeMigration(ctx, svc, m, bin, env); err != nil {
+			_ = s.recordTelemetry("migration_failed", map[string]interface{}{"service_id": svc.ID, "version": m.Version, "error": err.Error()})
+			return err
+		}
+
+		appliedSet[m.Version] = true
+		if state.Applied[svc.ID] == nil {
+			state.Applied[svc.ID] = []string{}
+		}
+		state.Applied[svc.ID] = append(state.Applied[svc.ID], m.Version)
+		_ = s.recordTelemetry("migration_applied", map[string]interface{}{"service_id": svc.ID, "version": m.Version})
+		if err := s.persistMigrations(state); err != nil {
+			return err
+		}
+	}
+
+	state.AppVersion = s.opts.Manifest.App.Version
+	s.migrations = state
+	return s.persistMigrations(state)
+}
+
+func (s *Supervisor) executeMigration(ctx context.Context, svc manifest.Service, m manifest.Migration, bin manifest.Binary, env map[string]string) error {
+	cmdArgs := s.renderArgs(m.Command)
+	cmdPath := manifest.ResolvePath(s.opts.BundlePath, cmdArgs[0])
+	args := cmdArgs[1:]
+
+	_ = s.recordTelemetry("migration_start", map[string]interface{}{"service_id": svc.ID, "version": m.Version})
+
+	cmd := exec.CommandContext(ctx, cmdPath, args...)
+	cmd.Env = envMapToList(env)
+	if bin.CWD != "" {
+		cmd.Dir = manifest.ResolvePath(s.opts.BundlePath, bin.CWD)
+	} else {
+		cmd.Dir = s.opts.BundlePath
+	}
+
+	logWriter, _, err := s.logWriter(svc)
+	if err != nil {
+		return err
+	}
+	if logWriter != nil {
+		defer logWriter.Close()
+		cmd.Stdout = logWriter
+		cmd.Stderr = logWriter
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("start migration %s: %w", m.Version, err)
+	}
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("migration %s failed: %w", m.Version, err)
+	}
+	return nil
+}
+
+func (s *Supervisor) ensureAssets(svc manifest.Service) error {
+	for _, asset := range svc.Assets {
+		path := manifest.ResolvePath(s.opts.BundlePath, asset.Path)
+		info, err := os.Stat(path)
+		if err != nil {
+			_ = s.recordTelemetry("asset_missing", map[string]interface{}{"service_id": svc.ID, "path": asset.Path})
+			return fmt.Errorf("asset missing for service %s: %s", svc.ID, asset.Path)
+		}
+		if info.IsDir() {
+			_ = s.recordTelemetry("asset_missing", map[string]interface{}{"service_id": svc.ID, "path": asset.Path, "reason": "expected file"})
+			return fmt.Errorf("asset path is a directory: %s", asset.Path)
+		}
+		if asset.SizeBytes > 0 {
+			if err := s.checkAssetSizeBudget(svc, asset, info.Size()); err != nil {
+				return err
+			}
+		}
+		if asset.SHA256 != "" {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return fmt.Errorf("read asset %s: %w", asset.Path, err)
+			}
+			sum := fmt.Sprintf("%x", sha256.Sum256(data))
+			if !strings.EqualFold(sum, asset.SHA256) {
+				return fmt.Errorf("asset %s checksum mismatch", asset.Path)
+			}
+		}
+	}
+	return nil
+}
+
+func (s *Supervisor) ensureAppVersionRecorded() error {
+	state := s.migrations
+	if state.AppVersion == s.opts.Manifest.App.Version {
+		return nil
+	}
+	state.AppVersion = s.opts.Manifest.App.Version
+	s.migrations = state
+	return s.persistMigrations(state)
+}
+
+func (s *Supervisor) installPhase() string {
+	if s.migrations.AppVersion == "" {
+		return "first_install"
+	}
+	if s.migrations.AppVersion != s.opts.Manifest.App.Version {
+		return "upgrade"
+	}
+	return "current"
+}
+
+func copyStringMap(in map[string]string) map[string]string {
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}
+
+func serviceUsesPlaywright(svc manifest.Service) bool {
+	if strings.Contains(strings.ToLower(svc.ID), "playwright") {
+		return true
+	}
+	for k := range svc.Env {
+		if strings.HasPrefix(k, "PLAYWRIGHT_") {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Supervisor) checkAssetSizeBudget(svc manifest.Service, asset manifest.Asset, actual int64) error {
+	expected := asset.SizeBytes
+	slack := sizeBudgetSlack(expected)
+	if actual > expected+slack {
+		_ = s.recordTelemetry("asset_size_exceeded", map[string]interface{}{
+			"service_id":     svc.ID,
+			"path":           asset.Path,
+			"expected_bytes": expected,
+			"actual_bytes":   actual,
+			"slack_bytes":    slack,
+		})
+		return fmt.Errorf("asset %s exceeds size budget: got %d bytes, budget %d (+%d slack)", asset.Path, actual, expected, slack)
+	}
+	if actual < expected/2 {
+		_ = s.recordTelemetry("asset_size_suspicious", map[string]interface{}{
+			"service_id":     svc.ID,
+			"path":           asset.Path,
+			"expected_bytes": expected,
+			"actual_bytes":   actual,
+		})
+		return fmt.Errorf("asset %s is smaller than expected (%d bytes vs %d)", asset.Path, actual, expected)
+	}
+	if actual > expected {
+		_ = s.recordTelemetry("asset_size_warning", map[string]interface{}{
+			"service_id":     svc.ID,
+			"path":           asset.Path,
+			"expected_bytes": expected,
+			"actual_bytes":   actual,
+		})
+	}
+	return nil
+}
+
+func sizeBudgetSlack(expected int64) int64 {
+	if expected <= 0 {
+		return 0
+	}
+	percent := expected / 20 // 5%
+	const minSlack = int64(1 * 1024 * 1024)
+	if percent < minSlack {
+		return minSlack
+	}
+	return percent
 }
 
 func (s *Supervisor) logWriter(svc manifest.Service) (*os.File, string, error) {

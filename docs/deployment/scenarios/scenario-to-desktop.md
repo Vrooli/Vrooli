@@ -4,7 +4,6 @@
 
 - Generates Electron apps per scenario.
 - Bundles UI production assets and Electron shell UI features (menus, notifications, file system access).
-- Bundled mode consumes a bundle manifest (from dependency-analyzer/secrets-manager), stages the payload, and launches a bundled runtime command; manifest quality determines completeness.
 - Requires a running Tier 1 Vrooli instance; the desktop app simply proxies to it.
 - Can optionally auto-bootstrap Tier 1: if `AUTO_MANAGE_TIER1` is enabled and `DEPLOYMENT_MODE` is `external-server`, the app now looks for the `vrooli` CLI, runs `vrooli setup --yes yes --skip-sudo yes`, starts `vrooli scenario start <name>` on launch, and stops it on exit.
 
@@ -17,15 +16,18 @@
 ## Long-Term Vision (v2+)
 
 - Accept bundle manifests from deployment-manager describing binaries/resources/secrets to include.
-- Package runtime dependencies (SQLite, lightweight vector DBs, offline models) alongside the UI + API.
-- Run local services via background processes or embedded servers launched by the Electron main process.
-- Provide first-run configuration wizard for user secrets (OpenRouter key, remote server selection, etc.).
+- Ship a cross-platform **scenario runtime** executable that owns lifecycle (start/stop/restart, health, logs, telemetry), allocates ports from a private range, and exposes a localhost control API that Electron talks to; Electron never spawns services directly.
+- Package bundleable runtime dependencies (SQLite/duckdb, in-process caches, bundled Playwright driver + Chromium, packaged models) alongside the UI + API. Heavy/shared services must be swapped before bundling.
+- Include a minimal `vrooli`-compatible shim in PATH for essentials like `scenario status/port`, backed by the runtime’s registry—no global CLI install assumed.
+- Provide a first-run configuration wizard for secrets flagged by the manifest (generate vs prompt vs remote) and persist them under the app data root.
+- Run schema migrations/seed data for swapped stores idempotently on first run and upgrade; store data/logs under OS-specific app data dirs.
+- Aggregate logs + deployment telemetry (`deployment-telemetry.jsonl`) for deployment-manager ingestion; keep upgrade-safe versioned data dirs.
 - Support auto-update channels and differential patches.
 
 ## Blocking Issues
 
 - No way to bundle heavy dependencies yet (Ollama, Postgres) — requires dependency swapping.
-- Secrets must be re-architected to avoid leaking infrastructure credentials.
+- Bundle manifest schema must formalize DAG, swaps, per-OS assets, env templates, health/readiness, ports, data dirs, and secrets strategy.
 - Need cross-platform installers (MSI, DMG, AppImage) once bundling works.
 
 ## Milestones

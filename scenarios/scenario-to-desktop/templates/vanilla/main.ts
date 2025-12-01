@@ -1,4 +1,4 @@
-import { app, BrowserWindow, net, shell, Menu, ipcMain, dialog, Tray, nativeImage } from "electron";
+import { app, BrowserWindow, net, shell, Menu, ipcMain, dialog, Tray, nativeImage, clipboard } from "electron";
 import { type ChildProcess, fork, spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -83,6 +83,22 @@ const shouldBootstrapLocalVrooli = APP_CONFIG.DEPLOYMENT_MODE === "external-serv
     && Boolean(LOCAL_VROOLI_BOOTSTRAP.SCENARIO_NAME);
 const isBundledMode = APP_CONFIG.DEPLOYMENT_MODE === "bundled";
 
+const runtimeControlEnabled = (isBundledMode && BUNDLED_RUNTIME.SUPPORTED) || Boolean(
+    process.env.RUNTIME_CONTROL_HOST ||
+    process.env.RUNTIME_CONTROL_PORT ||
+    process.env.RUNTIME_CONTROL_TOKEN_PATH ||
+    process.env.RUNTIME_TELEMETRY_UPLOAD_URL
+);
+
+const RUNTIME_CONTROL = {
+    ENABLED: runtimeControlEnabled,
+    HOST: process.env.RUNTIME_CONTROL_HOST || "127.0.0.1",
+    PORT: Number(process.env.RUNTIME_CONTROL_PORT || 47710),
+    TOKEN_PATH_ENV: process.env.RUNTIME_CONTROL_TOKEN_PATH || "",
+    TELEMETRY_UPLOAD_URL: process.env.RUNTIME_TELEMETRY_UPLOAD_URL || "",
+    LOG_LINES: Number(process.env.RUNTIME_CONTROL_LOG_LINES || 200),
+};
+
 async function initializeTelemetry() {
     try {
         const userData = app.getPath("userData");
@@ -109,6 +125,142 @@ async function recordTelemetry(event: string, details: TelemetryDetails = {}): P
         await fs.appendFile(telemetryFilePath, JSON.stringify(payload) + "\n");
     } catch (error) {
         console.warn("[Desktop App] Failed to write telemetry entry:", error);
+    }
+}
+
+async function resolveRuntimeTokenPath(): Promise<string | null> {
+    if (!RUNTIME_CONTROL.ENABLED) return null;
+    if (RUNTIME_CONTROL.TOKEN_PATH_ENV) {
+        return RUNTIME_CONTROL.TOKEN_PATH_ENV;
+    }
+    if (!app.isReady()) {
+        await app.whenReady();
+    }
+    return path.join(app.getPath("userData"), "runtime", "auth-token");
+}
+
+async function runtimeRequest<T = unknown>(endpoint: string, opts?: { expectText?: boolean }): Promise<T | string> {
+    if (!RUNTIME_CONTROL.ENABLED) {
+        throw new Error("runtime control not enabled");
+    }
+    const tokenPath = await resolveRuntimeTokenPath();
+    let token = "";
+    if (tokenPath) {
+        try {
+            token = (await fs.readFile(tokenPath, "utf-8")).trim();
+        } catch {
+            // best-effort: runtime may still be starting
+        }
+    }
+
+    const url = `http://${RUNTIME_CONTROL.HOST}:${RUNTIME_CONTROL.PORT}${endpoint}`;
+    const headers: Record<string, string> = {};
+    if (token && endpoint !== "/healthz") {
+        headers.Authorization = `Bearer ${token}`;
+    }
+
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`runtime request failed (${res.status}): ${text || res.statusText}`);
+    }
+    if (opts?.expectText) {
+        return res.text();
+    }
+    return res.json();
+}
+
+async function showRuntimeDiagnostics(): Promise<void> {
+    if (!RUNTIME_CONTROL.ENABLED) {
+        await dialog.showMessageBox({
+            type: "info",
+            title: "Runtime diagnostics unavailable",
+            message: "Runtime control is disabled for this build.",
+        });
+        return;
+    }
+
+    try {
+        const ready = await runtimeRequest<{ ready: boolean; details: Record<string, { ready: boolean; message?: string }> }>("/readyz");
+        const ports = await runtimeRequest<{ services: Record<string, Record<string, number>> }>("/ports");
+        const telemetryInfo = await runtimeRequest<{ path?: string; upload_url?: string }>("/telemetry");
+
+        const serviceId = Object.keys((ports as any).services || {})[0] || Object.keys((ready as any).details || {})[0];
+        let logSnippet = "";
+        if (serviceId) {
+            const logData = await runtimeRequest<string>(`/logs/tail?serviceId=${encodeURIComponent(serviceId)}&lines=${RUNTIME_CONTROL.LOG_LINES}`, { expectText: true });
+            if (typeof logData === "string") {
+                logSnippet = logData;
+            }
+        }
+
+        const messageLines = [
+            `Ready: ${(ready as any).ready ? "yes" : "no"}`,
+            `Services: ${Object.keys((ready as any).details || {}).length || Object.keys((ports as any).services || {}).length}`,
+        ];
+        if ((ports as any).services) {
+            messageLines.push("Ports:");
+            for (const [svc, svcPorts] of Object.entries((ports as any).services)) {
+                const portList = Object.entries(svcPorts as Record<string, number>).map(([name, value]) => `${name}=${value}`).join(", ");
+                messageLines.push(`  - ${svc}: ${portList}`);
+            }
+        }
+
+        const buttons: string[] = ["Close"];
+        const uploadURL = RUNTIME_CONTROL.TELEMETRY_UPLOAD_URL || (telemetryInfo as any).upload_url || "";
+        if ((telemetryInfo as any).path) {
+            buttons.unshift("Copy telemetry path");
+        }
+        if (uploadURL && (telemetryInfo as any).path) {
+            buttons.unshift("Upload telemetry");
+        }
+
+        const result = await dialog.showMessageBox({
+            type: (ready as any).ready ? "info" : "warning",
+            title: "Bundled runtime diagnostics",
+            message: messageLines.join("\n"),
+            detail: logSnippet ? `Log tail (${serviceId || "unknown"}):\n${logSnippet}` : undefined,
+            buttons,
+            defaultId: buttons.length - 1,
+        });
+
+        const picked = buttons[result.response];
+        if (picked === "Copy telemetry path" && (telemetryInfo as any).path) {
+            clipboard.writeText((telemetryInfo as any).path);
+            void recordTelemetry("runtime_diag_copy_path", { path: telemetryInfo });
+        } else if (picked === "Upload telemetry" && (telemetryInfo as any).path) {
+            try {
+                const body = await fs.readFile((telemetryInfo as any).path, "utf-8");
+                const resp = await fetch(uploadURL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/jsonl" },
+                    body,
+                });
+                if (!resp.ok) {
+                    const text = await resp.text();
+                    throw new Error(text || resp.statusText);
+                }
+                void recordTelemetry("runtime_diag_upload_success", { uploadURL });
+                await dialog.showMessageBox({
+                    type: "info",
+                    title: "Telemetry uploaded",
+                    message: "Runtime telemetry uploaded successfully.",
+                });
+            } catch (error) {
+                void recordTelemetry("runtime_diag_upload_failed", { error: String(error) });
+                await dialog.showMessageBox({
+                    type: "error",
+                    title: "Telemetry upload failed",
+                    message: String(error),
+                });
+            }
+        }
+    } catch (error) {
+        await dialog.showMessageBox({
+            type: "error",
+            title: "Runtime diagnostics",
+            message: `Failed to query runtime: ${error}`,
+        });
     }
 }
 
@@ -630,7 +782,16 @@ function createApplicationMenu() {
                 { role: "zoomIn" },
                 { role: "zoomOut" },
                 { type: "separator" },
-                { role: "togglefullscreen" }
+                { role: "togglefullscreen" },
+                ...(RUNTIME_CONTROL.ENABLED ? [
+                    { type: "separator" },
+                    {
+                        label: "Runtime Diagnostics",
+                        click: () => {
+                            void showRuntimeDiagnostics();
+                        }
+                    }
+                ] : [])
             ]
         },
         {

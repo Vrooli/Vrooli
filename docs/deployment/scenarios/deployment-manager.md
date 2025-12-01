@@ -30,6 +30,11 @@ Provide an orchestration UI + API that turns "I want scenario X on platform Y" i
   - `bundle.json` describing chosen dependencies, versions, requirements, secrets, configuration.
   - `swap-decisions.json` for issue tracking.
 
+### Bundle Schema
+
+- Desktop bundle exports must validate against `docs/deployment/bundle-schema.desktop.v0.1.json` before they are handed to packagers.
+- Reference manifests (baseline SQLite + API, Playwright-enabled) live in `docs/deployment/examples/manifests/` and should be used in tests/fixtures until deployment-manager emits its own.
+
 ## Roadmap
 
 1. Build read-only dashboard (no swaps) to replace spreadsheets.

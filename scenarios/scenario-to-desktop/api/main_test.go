@@ -1,16 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	manifest "scenario-to-desktop-runtime/manifest"
 )
 
 // TestHealthHandler tests the health check endpoint comprehensively
@@ -649,11 +653,66 @@ func TestPackageDesktopHandler(t *testing.T) {
 
 	server := NewServer(0)
 
-	t.Run("MicrosoftStore", func(t *testing.T) {
+	t.Run("PackagesBundleArtifacts", func(t *testing.T) {
+		appDir := t.TempDir()
+		manifestDir := t.TempDir()
+
+		platformKey := manifest.PlatformKey(runtime.GOOS, runtime.GOARCH)
+
+		pkgJSON := map[string]interface{}{
+			"name":    "bundle-test",
+			"version": "0.0.1",
+			"build": map[string]interface{}{
+				"extraResources": []interface{}{},
+			},
+		}
+		pkgBytes, _ := json.MarshalIndent(pkgJSON, "", "  ")
+		requireNoError(t, os.WriteFile(filepath.Join(appDir, "package.json"), pkgBytes, 0o644))
+
+		binRel := filepath.Join("services", "api", platformKey, "api-bin")
+		assetRel := filepath.Join("assets", "seed.txt")
+
+		requireNoError(t, os.MkdirAll(filepath.Join(manifestDir, filepath.Dir(binRel)), 0o755))
+		requireNoError(t, os.MkdirAll(filepath.Join(manifestDir, filepath.Dir(assetRel)), 0o755))
+
+		requireNoError(t, os.WriteFile(filepath.Join(manifestDir, binRel), []byte("binary"), 0o755))
+		requireNoError(t, os.WriteFile(filepath.Join(manifestDir, assetRel), []byte("asset"), 0o644))
+
+		m := manifest.Manifest{
+			SchemaVersion: "v0.1",
+			Target:        "desktop",
+			App: manifest.App{
+				Name:    "bundle-test",
+				Version: "0.0.1",
+			},
+			IPC: bundlemanifestIPC(),
+			Telemetry: manifest.Telemetry{
+				File: "telemetry/deployment-telemetry.jsonl",
+			},
+			Services: []manifest.Service{
+				{
+					ID:   "api",
+					Type: "api-binary",
+					Binaries: map[string]manifest.Binary{
+						platformKey: {Path: filepath.ToSlash(binRel)},
+					},
+					Health:    manifest.HealthCheck{Type: "command", Command: []string{"noop"}},
+					Readiness: manifest.ReadinessCheck{Type: "health_success"},
+					Assets: []manifest.Asset{
+						{Path: filepath.ToSlash(assetRel)},
+					},
+				},
+			},
+		}
+
+		manifestPath := filepath.Join(manifestDir, "bundle.json")
+		encoded, _ := json.MarshalIndent(m, "", "  ")
+		requireNoError(t, os.WriteFile(manifestPath, encoded, 0o644))
+
 		body := map[string]interface{}{
-			"app_path":   "/tmp/test-app",
-			"store":      "microsoft",
-			"enterprise": false,
+			"app_path":             appDir,
+			"bundle_manifest_path": manifestPath,
+			"platforms":            []string{platformKey},
 		}
 
 		req := createJSONRequest("POST", "/api/v1/desktop/package", body)
@@ -662,41 +721,26 @@ func TestPackageDesktopHandler(t *testing.T) {
 		server.packageDesktopHandler(w, req)
 
 		response := assertJSONResponse(t, w, http.StatusOK)
-		assertFieldExists(t, response, "status")
-		assertFieldExists(t, response, "packages")
-		assertFieldExists(t, response, "timestamp")
-	})
+		assertFieldExists(t, response, "bundle_dir")
+		assertFieldExists(t, response, "runtime_binaries")
 
-	t.Run("MacAppStore", func(t *testing.T) {
-		body := map[string]interface{}{
-			"app_path":   "/tmp/test-app-mac",
-			"store":      "mac",
-			"enterprise": false,
+		bundleDir := filepath.Join(appDir, "bundle")
+		if _, err := os.Stat(filepath.Join(bundleDir, "bundle.json")); err != nil {
+			t.Fatalf("bundle.json not staged: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(bundleDir, binRel)); err != nil {
+			t.Fatalf("service binary not staged: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(bundleDir, assetRel)); err != nil {
+			t.Fatalf("asset not staged: %v", err)
 		}
 
-		req := createJSONRequest("POST", "/api/v1/desktop/package", body)
-		w := httptest.NewRecorder()
-
-		server.packageDesktopHandler(w, req)
-
-		if w.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d", w.Code)
+		runtimePath := filepath.Join(bundleDir, "runtime", platformKey, runtimeBinaryName(runtime.GOOS))
+		if runtime.GOOS == "windows" {
+			runtimePath = filepath.Join(bundleDir, "runtime", platformKey, "runtime.exe")
 		}
-	})
-
-	t.Run("EnterprisePackaging", func(t *testing.T) {
-		body := map[string]interface{}{
-			"app_path":   "/tmp/test-app-enterprise",
-			"enterprise": true,
-		}
-
-		req := createJSONRequest("POST", "/api/v1/desktop/package", body)
-		w := httptest.NewRecorder()
-
-		server.packageDesktopHandler(w, req)
-
-		if w.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d", w.Code)
+		if _, err := os.Stat(runtimePath); err != nil {
+			t.Fatalf("runtime binary missing: %v", err)
 		}
 	})
 
@@ -1291,4 +1335,20 @@ func TestPerformDesktopGeneration(t *testing.T) {
 			t.Log("Generation completed (status may be failed due to missing tools)")
 		}
 	})
+}
+
+func bundlemanifestIPC() manifest.IPC {
+	return manifest.IPC{
+		Mode:         "loopback-http",
+		Host:         "127.0.0.1",
+		Port:         47710,
+		AuthTokenRel: "runtime/auth-token",
+	}
+}
+
+func requireNoError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }

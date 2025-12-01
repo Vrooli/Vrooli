@@ -98,7 +98,7 @@ Goal: deliver true offline/portable desktop bundles (UI + API + resources + secr
   - Secret classification extension; generation hooks; API for bundle export; validation rule definitions.
 
 ## Shared Artifacts and Samples
-- Location for sample manifests: `docs/deployment/examples/manifests/` (create with desktop examples: baseline, GPU-optional, Playwright-enabled).
+- Location for sample manifests: `docs/deployment/examples/manifests/` (baseline SQLite + API bundle, and Playwright-enabled variant seeded).
 - Reusable assets: bundled SQLite seed example, small model blob example, Playwright driver + Chromium vendored path notes.
 - Reference test scenario: choose an existing lightweight scenario (e.g., picker-wheel) for end-to-end fixture.
 
@@ -179,3 +179,15 @@ Goal: deliver true offline/portable desktop bundles (UI + API + resources + secr
 - Token storage: App data directory alongside telemetry.
 - Ports: Manifest-specified ranges; runtime allocates sequentially and exposes map.
 - Assets/swaps: Hard fail with clear error/telemetry if required asset is missing; downloads happen before packaging, not at runtime.
+
+## Progress
+- [x] Schema + samples: Added `docs/deployment/bundle-schema.desktop.v0.1.json` and sample manifests (`desktop-happy.json`, `desktop-playwright.json`) to anchor validation and fixtures.
+- [x] Integrations: Wire schema validation into deployment-manager exports and scenario-dependency-analyzer outputs; add fixture tests.
+- [x] Secrets plan: Bundle schema + manifests now carry prompt/generator directives; secrets-manager emits bundle-ready secret plans for deployment-manager to consume.
+- [x] Runtime wiring: scenario-to-desktop runtime + CLI shim consuming validated manifests.
+- [x] Process supervision: runtime starts/stops binaries from manifest, enforces readiness/health, and tears down in dependency order.
+- [x] Secrets/runtime bridge: Electron first-run wizard -> `/secrets` handoff, runtime injects `secrets.target` into env/files before launches, persists with validation.
+- [x] Migrations/data dirs: runtime tracks applied migrations, runs pending ones, and seeds data/assets declared in manifest before service start.
+- [x] Telemetry/logs UX: Electron surfaces `/readyz`/`/ports`/`/logs` and upload to deployment-manager; CLI shim maps to `status/port/logs`.
+- [x] Packaging: scenario-to-desktop bundles per-OS runtime binaries + manifest + service/resource artifacts into platforms/electron output; validates bundle.json prebuild.
+- [x] Playwright/model assets: bundle driver/Chromium or Electron path reuse, set env (`PLAYWRIGHT_*`), and warn/fail on missing large assets with size budgets.

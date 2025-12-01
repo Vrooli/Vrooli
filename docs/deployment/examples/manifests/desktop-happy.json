@@ -1,0 +1,176 @@
+{
+  "schema_version": "v0.1",
+  "target": "desktop",
+  "app": {
+    "name": "picker-wheel",
+    "version": "1.2.3",
+    "description": "Offline picker wheel with bundled API and SQLite store"
+  },
+  "ipc": {
+    "mode": "loopback-http",
+    "host": "127.0.0.1",
+    "port": 47710,
+    "auth_token_path": "runtime/auth-token"
+  },
+  "telemetry": {
+    "file": "telemetry/deployment-telemetry.jsonl"
+  },
+  "ports": {
+    "default_range": { "min": 47000, "max": 47999 },
+    "reserved": [47100]
+  },
+  "swaps": [
+    {
+      "original": "postgres",
+      "replacement": "sqlite",
+      "reason": "Bundle-safe storage",
+      "limitations": "Single-user file store; no replication"
+    }
+  ],
+  "secrets": [
+    {
+      "id": "session_secret",
+      "class": "user_prompt",
+      "description": "Secret for signing cookies and sessions",
+      "format": "^[A-Za-z0-9]{32,}$",
+      "prompt": {
+        "label": "Session secret",
+        "description": "Enter a 32+ character random string for signing cookies."
+      },
+      "target": { "type": "env", "name": "SESSION_SECRET" }
+    },
+    {
+      "id": "jwt_secret",
+      "class": "per_install_generated",
+      "description": "JWT signing key",
+      "format": "^[A-Za-z0-9]{32,}$",
+      "generator": {
+        "type": "random",
+        "length": 32,
+        "charset": "alnum"
+      },
+      "target": { "type": "env", "name": "JWT_SECRET" }
+    }
+  ],
+  "services": [
+    {
+      "id": "ui-server",
+      "type": "ui-bundle",
+      "description": "Serves the built UI bundle over HTTP",
+      "binaries": {
+        "darwin-arm64": { "path": "services/ui-server/macos-arm64/ui-server" },
+        "darwin-x64": { "path": "services/ui-server/macos-x64/ui-server" },
+        "linux-x64": { "path": "services/ui-server/linux-x64/ui-server" },
+        "win-x64": { "path": "services\\ui-server\\windows-x64\\ui-server.exe" }
+      },
+      "env": {
+        "STATIC_DIR": "ui/dist",
+        "API_BASE_URL": "http://127.0.0.1:${api.http}"
+      },
+      "ports": {
+        "requested": [
+          { "name": "http", "range": { "min": 47010, "max": 47030 } }
+        ]
+      },
+      "health": {
+        "type": "http",
+        "path": "/healthz",
+        "port_name": "http",
+        "interval_ms": 500,
+        "timeout_ms": 2000,
+        "retries": 5
+      },
+      "readiness": {
+        "type": "dependencies_ready",
+        "timeout_ms": 30000
+      },
+      "dependencies": ["api"],
+      "critical": false
+    },
+    {
+      "id": "api",
+      "type": "api-binary",
+      "description": "Picker Wheel API with embedded SQLite",
+      "binaries": {
+        "darwin-arm64": { "path": "services/api/macos-arm64/picker-wheel-api" },
+        "darwin-x64": { "path": "services/api/macos-x64/picker-wheel-api" },
+        "linux-x64": { "path": "services/api/linux-x64/picker-wheel-api" },
+        "win-x64": { "path": "services\\api\\windows-x64\\picker-wheel-api.exe" }
+      },
+      "env": {
+        "HTTP_PORT": "${api.http}",
+        "DATABASE_URL": "file:${data}/picker-wheel.db",
+        "LOG_LEVEL": "info"
+      },
+      "secrets": ["session_secret", "jwt_secret"],
+      "data_dirs": ["data/picker-wheel"],
+      "log_dir": "logs/api",
+      "ports": {
+        "requested": [
+          { "name": "http", "range": { "min": 47040, "max": 47060 } }
+        ]
+      },
+      "health": {
+        "type": "http",
+        "path": "/healthz",
+        "port_name": "http",
+        "interval_ms": 500,
+        "timeout_ms": 2000,
+        "retries": 5
+      },
+      "readiness": {
+        "type": "health_success",
+        "timeout_ms": 30000
+      },
+      "dependencies": ["sqlite"],
+      "migrations": [
+        {
+          "version": "2025-01-01T00:00:00Z",
+          "command": ["./picker-wheel-api", "migrate", "--dsn", "file:${data}/picker-wheel.db"],
+          "run_on": "upgrade"
+        }
+      ],
+      "critical": true
+    },
+    {
+      "id": "sqlite",
+      "type": "resource",
+      "description": "Embedded SQLite process for picker-wheel",
+      "binaries": {
+        "darwin-arm64": { "path": "resources/sqlite/macos-arm64/sqlite-server" },
+        "darwin-x64": { "path": "resources/sqlite/macos-x64/sqlite-server" },
+        "linux-x64": { "path": "resources/sqlite/linux-x64/sqlite-server" },
+        "win-x64": { "path": "resources\\sqlite\\windows-x64\\sqlite-server.exe" }
+      },
+      "env": {
+        "DB_FILE": "data/picker-wheel/picker-wheel.db"
+      },
+      "data_dirs": ["data/picker-wheel"],
+      "ports": {
+        "requested": [
+          { "name": "sql", "range": { "min": 47080, "max": 47095 } }
+        ]
+      },
+      "assets": [
+        {
+          "path": "data/picker-wheel/seed.sql",
+          "sha256": "PLACEHOLDER_SEED_HASH",
+          "size_bytes": 2048
+        }
+      ],
+      "health": {
+        "type": "tcp",
+        "port_name": "sql",
+        "interval_ms": 500,
+        "timeout_ms": 2000,
+        "retries": 5
+      },
+      "readiness": {
+        "type": "port_open",
+        "port_name": "sql",
+        "timeout_ms": 20000
+      },
+      "critical": true
+    }
+  ]
+}

@@ -16,6 +16,18 @@ When we shipped the Picker Wheel Electron build we discovered:
 2. Even if we bundled the API binary, its dependencies (Postgres, Redis, etc.) were still missing.
 3. The CLI + resource lifecycle (`vrooli` scripts, port registry, secrets) were assumed to exist globally.
 
+## What v2 Bundling Must Do
+
+- **Self-contained per platform** — Ship a single runtime binary per OS/arch plus any scenario/resource binaries; avoid shell scripts, systemd, Docker, and external tooling assumptions.
+- **Manifest-driven** — Consume a `bundle.json` produced by deployment-manager + scenario-dependency-analyzer that encodes the full DAG (scenarios + resources), swaps (e.g., Postgres→SQLite), per-OS assets, env templates, port ranges, health checks, readiness signals, data directories, and secrets treatment (generate vs prompt vs remote).
+- **Mandatory dependency swapping** — Heavy/shared services (Postgres, Redis, Ollama, browserless) are replaced with bundleable equivalents (SQLite/duckdb, in-process cache, packaged model files, bundled Playwright driver/Chromium) and the manifest records the chosen swap + artifacts.
+- **Runtime-owned lifecycle** — A cross-platform “scenario runtime” executable supervises every bundled process, allocates ports, exposes a small control/health API, tracks logs/telemetry, and handles clean shutdown. Electron only launches the runtime and talks to it over a local channel (localhost HTTP/pipe), never spawning individual services itself.
+- **Minimal vrooli shim** — Include a tiny `vrooli`-compatible CLI in PATH that proxies the runtime for essentials like `scenario status/port`; no global CLI install is expected.
+- **Data + migrations** — Bundles carry schema migrations/seed data for swapped stores (e.g., SQLite). Runtime applies them idempotently on first run and upgrade.
+- **Secrets hygiene** — No infrastructure secrets inside bundles. Manifest flags which secrets to generate locally, which to prompt the user for (first-run wizard), and which remain remote.
+- **Logging + telemetry** — Runtime aggregates logs per service and emits deployment telemetry (`deployment-telemetry.jsonl`) for deployment-manager ingestion.
+- **Upgrade safety** — Use versioned data directories under the OS app data root; runtime must survive restart/upgrade and re-run migrations as needed.
+
 ## Required Capabilities for v2
 
 | Capability | Source Scenario | Notes |
@@ -41,3 +53,4 @@ When we shipped the Picker Wheel Electron build we discovered:
 - Document tier 2 projects honestly (see [Picker Wheel Desktop](../examples/picker-wheel-desktop.md)).
 - When delivering thin clients, include instructions for connecting to a Tier 1 environment.
 - Track every missing dependency as a deployment-manager issue so we never repeat the surprise.
+- When experimenting with bundled automation, embed the Playwright driver + browser: start it from Electron main with `PLAYWRIGHT_DRIVER_PORT=0`, read the chosen port, set `PLAYWRIGHT_DRIVER_URL`/`ENGINE=playwright` for the bundled API, and reuse Electron’s Chromium via `PLAYWRIGHT_CHROMIUM_PATH` or ship `@playwright/browser-chromium` to stay offline.

@@ -218,7 +218,7 @@ BAS uses a **centralized selector registry** to eliminate hardcoded CSS selector
 
 ### How It Works
 
-**Single Source of Truth**: All selectors are defined in `ui/src/consts/selectors.ts`:
+**Single Source of Truth**: All selectors are defined in `ui/src/consts/selectors.ts` (or `ui/src/constants/selectors.ts` for scenarios that follow the BAS alias):
 
 ```typescript
 const literalSelectors = {
@@ -235,7 +235,7 @@ const literalSelectors = {
 **In UI Components**: Import and use the selector:
 
 ```typescript
-import { selectors } from '@/consts/selectors';
+import { selectors } from '@/consts/selectors'; // or '@constants/selectors'
 
 <button data-testid={selectors.dashboard.newProjectButton}>
   New Project
@@ -262,7 +262,7 @@ import { selectors } from '@/consts/selectors';
 
 ### Auto-Regeneration
 
-The selector manifest (`ui/src/consts/selectors.manifest.json`) is automatically regenerated when tests detect it's stale. **You never need to manually regenerate it.**
+The selector manifest (`ui/src/consts/selectors.manifest.json` or `ui/src/constants/selectors.manifest.json`) is automatically regenerated when tests detect it's stale. **You never need to manually regenerate it.**
 
 **Workflow:**
 
@@ -790,7 +790,7 @@ The error message will automatically tell you:
 2. Similar selectors you might have meant
 3. Exact steps to register a new selector
 
-**Solution**: Register the selector in `ui/src/consts/selectors.ts` first:
+**Solution**: Register the selector in `ui/src/consts/selectors.ts` (or `ui/src/constants/selectors.ts`) first:
 
 ```typescript
 const literalSelectors = {
@@ -803,7 +803,7 @@ const literalSelectors = {
 Then import and use it in your UI:
 
 ```typescript
-import { selectors } from '@/consts/selectors';
+import { selectors } from '@/consts/selectors'; // or '@constants/selectors' for BAS
 
 <button data-testid={selectors.myFeature.submitButton}>Submit</button>
 ```

@@ -630,9 +630,11 @@ func (s *Server) testDesktopHandler(w http.ResponseWriter, r *http.Request) {
 // Package desktop application handler
 func (s *Server) packageDesktopHandler(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		AppPath    string `json:"app_path"`
-		Store      string `json:"store"`
-		Enterprise bool   `json:"enterprise"`
+		AppPath            string   `json:"app_path"`
+		BundleManifestPath string   `json:"bundle_manifest_path"`
+		Platforms          []string `json:"platforms"`
+		Store              string   `json:"store"`
+		Enterprise         bool     `json:"enterprise"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -640,11 +642,19 @@ func (s *Server) packageDesktopHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Placeholder for packaging logic
+	result, err := packageBundle(request.AppPath, request.BundleManifestPath, request.Platforms)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to package bundle: %v", err), http.StatusBadRequest)
+		return
+	}
+
 	response := map[string]interface{}{
-		"status":    "completed",
-		"packages":  []string{},
-		"timestamp": time.Now(),
+		"status":           "completed",
+		"bundle_dir":       result.BundleDir,
+		"manifest":         result.ManifestPath,
+		"runtime_binaries": result.RuntimeBinaries,
+		"artifacts":        result.CopiedArtifacts,
+		"timestamp":        time.Now(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
