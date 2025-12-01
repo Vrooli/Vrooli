@@ -81,6 +81,13 @@ function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle']
   };
 }
 
+function getTierFeatures(tier: PricingTier): string[] {
+  if (Array.isArray(tier.features)) {
+    return tier.features;
+  }
+  return [];
+}
+
 export function PricingSection({ content, pricingOverview }: PricingSectionProps) {
   const { trackCTAClick } = useMetrics();
 
@@ -134,7 +141,7 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
           </Button>
 
           <ul className="space-y-3">
-            {tier.features.map((feature, featureIndex) => (
+            {getTierFeatures(tier).map((feature, featureIndex) => (
               <li key={`${feature}-${featureIndex}`} className="flex items-start gap-3">
                 <Check className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
                 <span className="text-slate-300">{feature}</span>
@@ -159,7 +166,7 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
         )
       : [];
 
-  const fallbackTiers = content.tiers || [
+  const fallbackTiers = (content.tiers || [
     {
       name: 'Starter',
       price: '$29',
@@ -186,7 +193,10 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
       cta_text: 'Contact Sales',
       cta_url: '/contact',
     },
-  ];
+  ]).map((tier) => ({
+    ...tier,
+    features: getTierFeatures(tier),
+  }));
 
   return (
     <section className="py-24 bg-slate-950 relative overflow-hidden">

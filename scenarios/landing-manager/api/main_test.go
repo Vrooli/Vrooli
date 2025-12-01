@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -390,6 +391,11 @@ func TestHandleGeneratedList(t *testing.T) {
 
 // [REQ:AGENT-TRIGGER] Test agent customization trigger
 func TestHandleCustomizeCreatesIssue(t *testing.T) {
+	if wd, err := os.Getwd(); err == nil {
+		repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(wd)))
+		t.Setenv("VROOLI_ROOT", repoRoot)
+	}
+
 	t.Run("REQ:AGENT-TRIGGER", func(t *testing.T) {
 		issueCalled := false
 		investigateCalled := false

@@ -248,6 +248,23 @@
       "notes": "Multi-layer validation: API unit tests (Go), UI unit tests (React). Persona catalog created with 10 predefined personas. API endpoints /api/v1/personas (list) and /api/v1/personas/{id} (show) implemented. CLI commands: landing-manager personas list/show. Customize endpoint accepts optional persona_id parameter. Unit tests verify catalog loading, persona retrieval, and error handling."
     },
     {
+      "id": "TMPL-RUNTIME-ALIGNMENT",
+      "title": "Template runtime spec alignment",
+      "operational_target_id": "OT-P0-004",
+      "prd_ref": "OT-P0-004",
+      "description": "Keep the landing-page template PRD reference visible in README, CLI help, and the factory PRD so runtime expectations stay synchronized before generating new scenarios",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/runtime_alignment_test.go"
+        }
+      ],
+      "status": "complete",
+      "notes": "Covers README, CLI help, and factory PRD references to `scripts/scenarios/templates/landing-page-react-vite/PRD.md` so the runtime spec stays visible in every handoff."
+    },
+    {
       "id": "TMPL-LIFECYCLE",
       "title": "UI-based lifecycle management",
       "operational_target_id": "OT-P1-001",

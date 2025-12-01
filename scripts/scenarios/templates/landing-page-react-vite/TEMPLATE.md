@@ -29,7 +29,7 @@ landing-page-react-vite/
 | File | Why it matters |
 | --- | --- |
 | `.vrooli/variant_space.json` | Defines personas, JTBD, and conversion-style axes. Admin UI reads this file to populate controls, and AI agents must pick one variant per axis. |
-| `.vrooli/styling.json` | Establishes voice, palette, CTA patterns, and component guardrails. React surfaces lean on these rules for default props/variants. |
+| `.vrooli/styling.json` | Establishes voice, palette, CTA patterns, and component guardrails. React surfaces lean on these rules for default props/variants. See `docs/DESIGN_SYSTEM.md` for the full schema + Clause pack briefing. |
 | `.vrooli/variants/*.json` | Control and fallback payloads the public surface can render with zero API calls. |
 | `ui/src/shared/lib/fallbackLandingConfig.ts` | Explains how fallback JSON becomes a runtime-safe config and how sections/pricing/downloads are normalized. |
 | `ui/src/surfaces/public-landing/routes/PublicLanding.tsx` | Main renderer for landing sections + download rail. |
@@ -40,7 +40,7 @@ Read those five files together before attempting copy or styling overrides. They
 
 1. **Pick axes + styling context**  
    - Update (or reference) `.vrooli/variant_space.json` to confirm persona/JTBD/conversion style constraints.  
-   - Align tone and palette with `.vrooli/styling.json`. Add new guidance there instead of sprinkling constants through components.
+   - Align tone and palette with `.vrooli/styling.json`. If you need a different look, copy a pack from `.vrooli/style-packs/` or author a new one using the schema described in `docs/DESIGN_SYSTEM.md`.
 
 2. **Author or tweak variant payloads**  
    - Control edits go in `.vrooli/variants/control.json`.  
@@ -121,6 +121,7 @@ These files are the only place agents should encode tone, CTA pairings, and pers
 Key takeaways:
 
 - Update `styling.json` when adjusting typography, CTA proportions, or iconography so both admin tools and AI instructions stay synchronized.  
+- When swapping design languages, capture the entire pack under `.vrooli/style-packs/` and describe the intent (mood, artifacts, imagery slots) in `docs/DESIGN_SYSTEM.md` so landing-manager can cite it in its prompts.  
 - Touch `variant_space.json` when you introduce a new axis or need to disable a combination. Admin axes selectors + tests rely on those IDs—avoid hard-coding them elsewhere.  
 - The fallback config loader (`ui/src/shared/lib/fallbackLandingConfig.ts`) normalizes `.vrooli/variants/fallback.json`, guaranteeing deterministic ordering and enabled flags even offline. Extend that helper instead of duplicating normalization logic inside components.
 

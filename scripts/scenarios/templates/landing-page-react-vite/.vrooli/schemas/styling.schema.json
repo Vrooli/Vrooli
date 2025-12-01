@@ -5,6 +5,21 @@
   "type": "object",
   "required": ["brand", "palette", "typography", "tone", "components", "usage_notes"],
   "properties": {
+    "style_id": {
+      "type": "string",
+      "minLength": 3,
+      "description": "Stable identifier for the current styling pack"
+    },
+    "influences": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Reference inspiration sources (design systems, art movements, case studies)"
+    },
+    "mood": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Three-to-five descriptive adjectives for the desired emotional feel"
+    },
     "brand": {
       "type": "object",
       "required": ["product_name", "tagline"],
@@ -30,7 +45,18 @@
           "items": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" }
         },
         "text_primary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" },
-        "text_secondary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" }
+        "text_secondary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" },
+        "surface_primary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" },
+        "surface_muted": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" },
+        "surface_alt": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" },
+        "card_border": { "type": "string" },
+        "accent_primary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" },
+        "accent_secondary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" },
+        "accent_alert": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" },
+        "neutral_scale": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" }
+        }
       }
     },
     "typography": {
@@ -64,6 +90,11 @@
             "weight": { "type": "integer" },
             "transform": { "type": "string" }
           }
+        },
+        "scale": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Semantic typography scale (e.g., h1, h2, eyebrow, body)"
         }
       }
     },
@@ -86,6 +117,63 @@
         }
       }
     },
+    "layout": {
+      "type": "object",
+      "properties": {
+        "container_max_width": { "type": "string" },
+        "grid": {
+          "type": "object",
+          "properties": {
+            "columns": { "type": "integer", "minimum": 1 },
+            "gutter": { "type": "string" }
+          }
+        },
+        "section_spacing": { "type": "string" },
+        "hero": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string" },
+            "columns": { "type": "integer" },
+            "includes_process_diagram": { "type": "boolean" },
+            "ui_focus": { "type": "string" }
+          }
+        },
+        "section_sequence": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "depth": {
+      "type": "object",
+      "properties": {
+        "surface_finish": { "type": "string" },
+        "shadow_tokens": { "type": "string" },
+        "border_radius": { "type": "string" }
+      }
+    },
+    "motion": {
+      "type": "object",
+      "properties": {
+        "usage": { "type": "string" },
+        "duration": { "type": "string" },
+        "easing": { "type": "string" }
+      }
+    },
+    "imagery": {
+      "type": "object",
+      "properties": {
+        "device_frames": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "screenshot_rules": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "texture_usage": { "type": "string" }
+      }
+    },
     "components": {
       "type": "object",
       "properties": {
@@ -97,7 +185,35 @@
           }
         },
         "cards": { "type": "object" },
-        "icons": { "type": "object" }
+        "icons": { "type": "object" },
+        "panels": { "type": "object" },
+        "nav": { "type": "object" },
+        "brand_strip": { "type": "object" }
+      }
+    },
+    "component_kits": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "description": "Detailed specifications for hero, nav, cards, panels, stats, etc."
+    },
+    "imagery_slots": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "description": { "type": "string" },
+          "preferred_ratio": { "type": "string" }
+        }
+      }
+    },
+    "section_variants": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true
       }
     },
     "variant_guidance": {
@@ -109,6 +225,11 @@
           "promise": { "type": "string" },
           "primary_cta": { "type": "string" },
           "secondary_cta": { "type": "string" },
+          "color_story": { "type": "string" },
+          "recommended_components": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
           "notes": {
             "type": "array",
             "items": { "type": "string" }
@@ -120,6 +241,20 @@
       "type": "array",
       "minItems": 1,
       "items": { "type": "string", "minLength": 1 }
+    },
+    "randomization": {
+      "type": "object",
+      "properties": {
+        "family": { "type": "string" },
+        "pairings": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "allowed_styles": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
     }
   }
 }

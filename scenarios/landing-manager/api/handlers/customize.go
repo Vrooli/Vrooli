@@ -7,10 +7,12 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"landing-manager/errors"
+	"landing-manager/util"
 	"landing-manager/validation"
 )
 
@@ -79,8 +81,8 @@ func (h *Handler) HandleCustomize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	description := fmt.Sprintf(
-		"Requested customization for landing page scenario.\n\nScenario: %s\nBrief:\n%s\nAssets: %v\nPreview: %t%s\nSource: landing-manager factory\nTimestamp: %s\n\nExpected deliverables:\n- Apply brief to template-safe areas (content, design tokens, imagery)\n- Run A/B variant setup if applicable\n- Regenerate preview links and summarize changes\n- Return next steps and validation status.",
-		req.ScenarioID, req.Brief, req.Assets, req.Preview, personaPrompt, time.Now().UTC().Format(time.RFC3339),
+		"Requested customization for landing page scenario.\n\nScenario: %s\nBrief:\n%s\nAssets: %v\nPreview: %t%s\nSource: landing-manager factory\nTimestamp: %s\n\nExpected deliverables:\n- Apply brief to template-safe areas (content, design tokens, imagery)\n- Run A/B variant setup if applicable\n- Regenerate preview links and summarize changes\n- Return next steps and validation status.%s",
+		req.ScenarioID, req.Brief, req.Assets, req.Preview, personaPrompt, time.Now().UTC().Format(time.RFC3339), buildStylingAppendix(req.ScenarioID),
 	)
 
 	issuePayload := map[string]interface{}{
@@ -229,4 +231,85 @@ func (h *Handler) postJSON(url string, payload interface{}, out interface{}) err
 		}
 	}
 	return nil
+}
+
+const stylingSnippetLimit = 6000
+
+var antiSlopChecklist = []string{
+	"Use the palette tokens exactly as defined (background, surface_primary, accent_primary) — no ad-hoc gradients or rainbow glass.",
+	"Hero and story sections must include real artifacts (layered UI panels, brand strips, wireframes, download previews) instead of abstract blobs.",
+	"Reuse the provided component kits (hero panels, process timeline, brand guidelines strip) to keep the layout coherent.",
+	"CTA buttons stay pill-shaped, solid, and paired with outline/text variants. No dual-gradient fills.",
+	"Alternate dense UI clusters with whitespace per layout.section_sequence to preserve the case-study cadence.",
+	"Respect the typography scale pairings (Space Grotesk + Inter) unless you also update `typography.scale` and explain why.",
+}
+
+func buildStylingAppendix(scenarioID string) string {
+	snippet, source := loadStylingSnippet(scenarioID)
+	var b strings.Builder
+
+	if snippet != "" {
+		ref := source
+		if ref == "" {
+			ref = ".vrooli/styling.json"
+		}
+		b.WriteString("\n\nStyling guardrail (")
+		b.WriteString(ref)
+		b.WriteString("):\n```json\n")
+		b.WriteString(snippet)
+		b.WriteString("\n```\n")
+	} else {
+		b.WriteString("\n\nStyling guardrail: .vrooli/styling.json could not be attached automatically. Instruct the agent to read it from the scenario root.\n")
+	}
+
+	b.WriteString("Anti-slop checklist:\n")
+	for _, item := range antiSlopChecklist {
+		b.WriteString("- ")
+		b.WriteString(item)
+		b.WriteString("\n")
+	}
+	b.WriteString("Reference docs: scripts/scenarios/templates/landing-page-react-vite/docs/DESIGN_SYSTEM.md\n")
+	return b.String()
+}
+
+func loadStylingSnippet(scenarioID string) (string, string) {
+	for _, candidate := range candidateStylingPaths(scenarioID) {
+		if candidate == "" {
+			continue
+		}
+
+		data, err := os.ReadFile(candidate)
+		if err != nil {
+			continue
+		}
+		trimmed := strings.TrimSpace(string(bytes.TrimSpace(data)))
+		if trimmed == "" {
+			continue
+		}
+		if len(trimmed) > stylingSnippetLimit {
+			return trimmed[:stylingSnippetLimit] + "\n... (truncated)", candidate
+		}
+		return trimmed, candidate
+	}
+	return "", ""
+}
+
+func candidateStylingPaths(scenarioID string) []string {
+	var paths []string
+	if scenarioID != "" {
+		if loc := util.ResolveScenarioPath(scenarioID); loc.Found {
+			paths = append(paths, filepath.Join(loc.Path, ".vrooli", "styling.json"))
+		}
+	}
+
+	vrooliRoot := strings.TrimSpace(util.GetVrooliRoot())
+	if vrooliRoot != "" {
+		templateRoot := filepath.Join(vrooliRoot, "scripts", "scenarios", "templates", "landing-page-react-vite", ".vrooli")
+		paths = append(paths,
+			filepath.Join(templateRoot, "styling.json"),
+			filepath.Join(templateRoot, "style-packs", "clause-case-study.json"),
+		)
+	}
+
+	return paths
 }
