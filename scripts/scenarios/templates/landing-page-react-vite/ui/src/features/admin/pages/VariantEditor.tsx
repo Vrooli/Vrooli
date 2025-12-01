@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, ArrowLeft, Plus } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
+import { Button } from '../../../components/ui/button';
 import {
   getVariant,
   createVariant,
@@ -14,7 +14,7 @@ import {
   type ContentSection,
   type VariantSpace,
   type VariantAxes,
-} from '../lib/api';
+} from '../../../services/api';
 
 /**
  * Variant Editor - Create or edit a variant and its sections

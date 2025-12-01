@@ -1,8 +1,8 @@
 import { ReactNode } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Home, BarChart3, Palette, LogOut, ChevronRight } from 'lucide-react';
-import { Button } from './ui/button';
-import { adminLogout } from '../lib/api';
+import { Button } from '../../../components/ui/button';
+import { adminLogout } from '../../../services/api';
 
 interface AdminLayoutProps {
   children: ReactNode;

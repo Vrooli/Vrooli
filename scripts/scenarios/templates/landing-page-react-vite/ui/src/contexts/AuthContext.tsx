@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { adminLogin, adminLogout, checkAdminSession } from '../services/api';
 
 interface AuthContextValue {
   isAuthenticated: boolean;
@@ -23,45 +24,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const checkSession = async () => {
       try {
-        const response = await fetch('/api/v1/admin/session', {
-          credentials: 'include',
-        });
-
-        if (response.ok) {
-          const userData = await response.json();
-          setIsAuthenticated(true);
-          setUser(userData);
-        }
+        const session = await checkAdminSession();
+        setIsAuthenticated(session.authenticated);
+        setUser(session.authenticated && session.email ? { email: session.email } : null);
       } catch (e) {
         console.error('Session check failed:', e);
+        setIsAuthenticated(false);
+        setUser(null);
       }
     };
     checkSession();
   }, []);
 
   const login = async (email: string, password: string) => {
-    const response = await fetch('/api/v1/admin/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error('Login failed');
-    }
-
-    const userData = await response.json();
+    await adminLogin(email, password);
     setIsAuthenticated(true);
-    setUser(userData);
+    setUser({ email });
   };
 
   const logout = async () => {
     try {
-      await fetch('/api/v1/admin/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await adminLogout();
     } catch (e) {
       console.error('Logout failed:', e);
     }

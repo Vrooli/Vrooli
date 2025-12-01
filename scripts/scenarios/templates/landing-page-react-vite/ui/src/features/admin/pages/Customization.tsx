@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Archive, Trash2, Sparkles, Eye } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { listVariants, archiveVariant, deleteVariant, type Variant } from '../lib/api';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
+import { Button } from '../../../components/ui/button';
+import { listVariants, archiveVariant, deleteVariant, type Variant } from '../../../services/api';
 
 /**
  * Customization home page - implements OT-P0-010 (≤ 3 clicks to any customization card)

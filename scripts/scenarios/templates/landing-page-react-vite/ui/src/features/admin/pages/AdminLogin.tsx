@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail } from 'lucide-react';
-import { Button } from '../components/ui/button';
-import { useAuth } from '../contexts/AuthContext';
+import { Button } from '../../../components/ui/button';
+import { useAuth } from '../../../contexts/AuthContext';
 
 /**
  * Admin login page - implements ADMIN-AUTH requirement (OT-P0-008)

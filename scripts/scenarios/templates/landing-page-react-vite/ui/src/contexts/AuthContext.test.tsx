@@ -55,7 +55,7 @@ describe('AuthContext [REQ:ADMIN-AUTH]', () => {
   });
 
   it('[REQ:ADMIN-AUTH] should check session on mount for admin routes', async () => {
-    const mockSessionData = { email: 'admin@example.com' };
+    const mockSessionData = { authenticated: true, email: 'admin@example.com' };
 
     vi.mocked(global.fetch).mockResolvedValue({
       ok: true,
@@ -69,9 +69,13 @@ describe('AuthContext [REQ:ADMIN-AUTH]', () => {
     );
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/v1/admin/session', {
-        credentials: 'include',
-      });
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/admin/session'),
+        expect.objectContaining({
+          credentials: 'include',
+          headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+        })
+      );
     });
 
     await waitFor(() => {
@@ -126,12 +130,15 @@ describe('AuthContext [REQ:ADMIN-AUTH]', () => {
     loginBtn.click();
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/v1/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'test@example.com', password: 'password' }),
-        credentials: 'include',
-      });
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/admin/login'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'test@example.com', password: 'password' }),
+          credentials: 'include',
+        })
+      );
     });
 
     await waitFor(() => {
@@ -190,12 +197,15 @@ describe('AuthContext [REQ:ADMIN-AUTH]', () => {
 
     // Wait for fetch to be called with login endpoint
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/v1/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'test@example.com', password: 'password' }),
-        credentials: 'include',
-      });
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/admin/login'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'test@example.com', password: 'password' }),
+          credentials: 'include',
+        })
+      );
     });
 
     // Should remain unauthenticated after failed login
@@ -231,10 +241,14 @@ describe('AuthContext [REQ:ADMIN-AUTH]', () => {
     logoutBtn.click();
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/v1/admin/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/admin/logout'),
+        expect.objectContaining({
+          method: 'POST',
+          credentials: 'include',
+          headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+        })
+      );
     });
 
     await waitFor(() => {

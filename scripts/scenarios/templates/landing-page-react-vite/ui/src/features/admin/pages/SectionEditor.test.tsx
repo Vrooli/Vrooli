@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { SectionEditor } from './SectionEditor';
-import * as api from '../lib/api';
+import * as api from '../../../services/api';
 
 // Mock the API module
-vi.mock('../lib/api', () => ({
+vi.mock('../../../services/api', () => ({
   getSection: vi.fn(),
   updateSection: vi.fn(),
   createSection: vi.fn(),

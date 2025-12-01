@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { AdminAnalytics } from './AdminAnalytics';
-import { AuthProvider } from '../contexts/AuthContext';
-import * as api from '../lib/api';
+import { AuthProvider } from '../../../contexts/AuthContext';
+import * as api from '../../../services/api';
 
-vi.mock('../lib/api');
+vi.mock('../../../services/api');
 
 const mockSummary = {
   total_visitors: 1250,

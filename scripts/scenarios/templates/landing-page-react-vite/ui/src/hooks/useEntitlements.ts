@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getEntitlements, type EntitlementPayload } from '../lib/api';
+import { getEntitlements, type EntitlementPayload } from '../services/api';
 
 const STORAGE_KEY = 'landing_entitlement_email';
 

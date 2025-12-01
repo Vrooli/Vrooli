@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { AdminLogin } from './AdminLogin';
-import { AuthProvider } from '../contexts/AuthContext';
+import { AuthProvider } from '../../../contexts/AuthContext';
 
 const mockNavigate = vi.fn();
 
@@ -77,10 +77,12 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
 
     await waitFor(() => {
       expect(mockLoginFetch).toHaveBeenCalledWith(
-        '/api/v1/admin/login',
+        expect.stringContaining('/api/v1/admin/login'),
         expect.objectContaining({
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: 'admin@test.com', password: 'password123' }),
+          credentials: 'include',
         })
       );
     });

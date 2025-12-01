@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Button } from '../ui/button';
-import { useMetrics } from '../../hooks/useMetrics';
-import { useEntitlements } from '../../hooks/useEntitlements';
-import type { DownloadAsset } from '../../lib/api';
-import { requestDownload } from '../../lib/api';
+import { Button } from '../../../components/ui/button';
+import { useMetrics } from '../../../hooks/useMetrics';
+import { useEntitlements } from '../../../hooks/useEntitlements';
+import type { DownloadAsset } from '../../../services/api';
+import { requestDownload } from '../../../services/api';
 
 interface DownloadSectionProps {
   content?: {

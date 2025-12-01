@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useVariant } from '../contexts/VariantContext';
+import { trackMetric, type MetricEvent } from '../services/api';
 
 // Generate session ID (persisted in sessionStorage)
 function getSessionID(): string {
@@ -60,15 +61,7 @@ export function useMetrics() {
     };
 
     try {
-      const response = await fetch('/api/v1/metrics/track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(event),
-      });
-
-      if (!response.ok) {
-        console.error('[useMetrics] Failed to track event:', response.statusText);
-      }
+      await trackMetric(event);
     } catch (error) {
       console.error('[useMetrics] Error tracking event:', error);
     }

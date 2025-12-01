@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react';
-import { Button } from '../ui/button';
-import { useMetrics } from '../../hooks/useMetrics';
-import type { PlanOption, PricingOverview } from '../../lib/api';
+import { Button } from '../../../components/ui/button';
+import { useMetrics } from '../../../hooks/useMetrics';
+import type { PlanOption, PricingOverview } from '../../../services/api';
 
 interface PricingTier {
   name: string;

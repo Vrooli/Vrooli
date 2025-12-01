@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { getLandingConfig, type LandingConfigResponse } from '../lib/api';
+import { getLandingConfig, type LandingConfigResponse } from '../services/api';
 import { getFallbackLandingConfig } from '../lib/fallbackLandingConfig';
 
 export interface Variant {

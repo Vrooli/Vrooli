@@ -3,9 +3,9 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { AdminLayout } from './AdminLayout';
-import * as api from '../lib/api';
+import * as api from '../../../services/api';
 
-vi.mock('../lib/api', () => ({
+vi.mock('../../../services/api', () => ({
   adminLogout: vi.fn(),
 }));
 

@@ -1,15 +1,15 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { VariantProvider } from './contexts/VariantContext';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { AdminLogin } from './pages/AdminLogin';
-import { AdminHome } from './pages/AdminHome';
-import { AdminAnalytics } from './pages/AdminAnalytics';
-import { Customization } from './pages/Customization';
-import { VariantEditor } from './pages/VariantEditor';
-import { SectionEditor } from './pages/SectionEditor';
-import { AgentCustomization } from './pages/AgentCustomization';
-import PublicHome from './pages/PublicHome';
+import { ProtectedRoute } from './features/admin/components/ProtectedRoute';
+import { AdminLogin } from './features/admin/pages/AdminLogin';
+import { AdminHome } from './features/admin/pages/AdminHome';
+import { AdminAnalytics } from './features/admin/pages/AdminAnalytics';
+import { Customization } from './features/admin/pages/Customization';
+import { VariantEditor } from './features/admin/pages/VariantEditor';
+import { SectionEditor } from './features/admin/pages/SectionEditor';
+import { AgentCustomization } from './features/admin/pages/AgentCustomization';
+import PublicHome from './features/landing/pages/PublicHome';
 
 export default function App() {
   return (

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { fetchHealth } from "./api";
+import { fetchHealth } from "./health";
 
 describe("API utilities", () => {
   beforeEach(() => {

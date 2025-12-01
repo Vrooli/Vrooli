@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "../components/AdminLayout";
-import { Button } from "../components/ui/button";
+import { Button } from "../../../components/ui/button";
 import { BarChart3, Palette } from "lucide-react";
 
 /**

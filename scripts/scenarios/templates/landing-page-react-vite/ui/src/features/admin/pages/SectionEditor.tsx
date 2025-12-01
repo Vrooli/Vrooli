@@ -2,8 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, ArrowLeft, Eye } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
-import { Button } from '../components/ui/button';
-import { getSection, updateSection, createSection, type ContentSection } from '../lib/api';
+import { Button } from '../../../components/ui/button';
+import { getSection, updateSection, createSection, type ContentSection } from '../../../services/api';
 
 // Debounce hook for live preview updates (OT-P0-013: 300ms)
 function useDebounce<T>(value: T, delay: number): T {

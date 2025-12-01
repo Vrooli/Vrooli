@@ -1,15 +1,15 @@
 import { useMemo } from 'react';
-import { useVariant } from '../contexts/VariantContext';
-import type { LandingSection } from '../lib/api';
-import { HeroSection } from '../components/sections/HeroSection';
-import { FeaturesSection } from '../components/sections/FeaturesSection';
-import { PricingSection } from '../components/sections/PricingSection';
-import { CTASection } from '../components/sections/CTASection';
-import { TestimonialsSection } from '../components/sections/TestimonialsSection';
-import { FAQSection } from '../components/sections/FAQSection';
-import { FooterSection } from '../components/sections/FooterSection';
-import { VideoSection } from '../components/sections/VideoSection';
-import { DownloadSection } from '../components/sections/DownloadSection';
+import { useVariant } from '../../../contexts/VariantContext';
+import type { LandingSection } from '../../../services/api';
+import { HeroSection } from '../sections/HeroSection';
+import { FeaturesSection } from '../sections/FeaturesSection';
+import { PricingSection } from '../sections/PricingSection';
+import { CTASection } from '../sections/CTASection';
+import { TestimonialsSection } from '../sections/TestimonialsSection';
+import { FAQSection } from '../sections/FAQSection';
+import { FooterSection } from '../sections/FooterSection';
+import { VideoSection } from '../sections/VideoSection';
+import { DownloadSection } from '../sections/DownloadSection';
 
 /**
  * Public Landing Page
