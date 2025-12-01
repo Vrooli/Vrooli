@@ -101,38 +101,40 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
       window.location.href = tier.cta_url;
     };
 
+    const highlight = tier.highlighted;
     return (
       <div
         key={`${tier.name}-${tier.price}-${index}`}
-        className={`relative rounded-2xl border p-8 transition-all duration-300 ${
-          tier.highlighted
-            ? 'border-purple-500 bg-gradient-to-br from-purple-500/10 to-blue-500/10 scale-105 shadow-2xl shadow-purple-500/25'
-            : 'border-white/10 bg-white/5 hover:border-purple-500/50 hover:bg-white/10'
+        className={`relative rounded-3xl border p-8 transition-all duration-300 ${
+          highlight
+            ? 'border-[#F97316]/40 bg-[#0F172A] text-white shadow-2xl shadow-[#F97316]/20'
+            : 'border-slate-200 bg-white text-slate-900 hover:-translate-y-1'
         }`}
         data-testid={`pricing-tier-${index}`}
       >
         {tier.badge && (
-          <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full text-sm font-semibold">
+          <div className={`absolute -top-4 left-1/2 -translate-x-1/2 rounded-full px-4 py-1 text-sm font-semibold ${highlight ? 'bg-white/10 text-white' : 'bg-[#0F172A] text-white'}`}>
             {tier.badge}
           </div>
         )}
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-2xl font-bold text-white mb-2">{tier.name}</h3>
-            {tier.subtitle && <p className="text-xs text-purple-300 uppercase tracking-wider mb-2">{tier.subtitle}</p>}
-            <p className="text-slate-400 text-sm mb-4">{tier.description}</p>
+            <h3 className={`text-2xl font-bold ${highlight ? 'text-white' : 'text-slate-900'} mb-2`}>{tier.name}</h3>
+            {tier.subtitle && (
+              <p className={`text-xs uppercase tracking-wider mb-2 ${highlight ? 'text-[#F97316]' : 'text-slate-500'}`}>
+                {tier.subtitle}
+              </p>
+            )}
+            <p className={`${highlight ? 'text-slate-300' : 'text-slate-500'} text-sm mb-4`}>{tier.description}</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-5xl font-bold text-white">{tier.price}</span>
+              <span className={`text-5xl font-bold ${highlight ? 'text-white' : 'text-slate-900'}`}>{tier.price}</span>
             </div>
           </div>
 
           <Button
-            className={`w-full ${
-              tier.highlighted
-                ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500'
-                : 'bg-white/10 hover:bg-white/20'
-            }`}
+            variant={highlight ? 'default' : 'ghost'}
+            className={`w-full ${highlight ? '' : 'bg-slate-900/5 text-slate-900 hover:bg-slate-900/10'}`}
             size="lg"
             onClick={handleClick}
             data-testid={`pricing-cta-${tier.name.toLowerCase().replace(/\s+/g, '-')}`}
@@ -143,8 +145,8 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
           <ul className="space-y-3">
             {getTierFeatures(tier).map((feature, featureIndex) => (
               <li key={`${feature}-${featureIndex}`} className="flex items-start gap-3">
-                <Check className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
-                <span className="text-slate-300">{feature}</span>
+                <Check className={`w-5 h-5 flex-shrink-0 mt-0.5 ${highlight ? 'text-[#10B981]' : 'text-[#F97316]'}`} />
+                <span className={highlight ? 'text-slate-200' : 'text-slate-600'}>{feature}</span>
               </li>
             ))}
           </ul>
@@ -153,17 +155,19 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
     );
   };
 
+  const bundle = pricingOverview?.bundle;
+  const monthlyPlansRaw = pricingOverview?.monthly;
+  const yearlyPlansRaw = pricingOverview?.yearly;
+  const monthlyPlans = Array.isArray(monthlyPlansRaw) ? monthlyPlansRaw : [];
+  const yearlyPlans = Array.isArray(yearlyPlansRaw) ? yearlyPlansRaw : [];
+
   const monthlyTiers =
-    pricingOverview && pricingOverview.bundle
-      ? pricingOverview.monthly.map((option, index) =>
-          buildTierFromPlan(option, pricingOverview.bundle, index === 0)
-        )
+    bundle && monthlyPlans.length > 0
+      ? monthlyPlans.map((option, index) => buildTierFromPlan(option, bundle, index === 0))
       : [];
   const yearlyTiers =
-    pricingOverview && pricingOverview.bundle
-      ? pricingOverview.yearly.map((option, index) =>
-          buildTierFromPlan(option, pricingOverview.bundle, index === 0)
-        )
+    bundle && yearlyPlans.length > 0
+      ? yearlyPlans.map((option, index) => buildTierFromPlan(option, bundle, index === 0))
       : [];
 
   const fallbackTiers = (content.tiers || [
@@ -199,46 +203,29 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
   }));
 
   return (
-    <section className="py-24 bg-slate-950 relative overflow-hidden">
-      <div className="absolute top-1/2 left-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
-      <div className="absolute top-1/2 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"></div>
+    <section className="bg-[#F6F5F2] py-24 text-slate-900">
+      <div className="container mx-auto px-6">
+        <div className="max-w-4xl space-y-4 text-left">
+          <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Pricing</p>
+          <h2 className="text-4xl font-semibold">{content.title || 'Built to scale from demo to production'}</h2>
+          <p className="text-lg text-slate-600">
+            {content.subtitle ||
+              'Every plan inherits the Clause-grade styling pack, download governance, and analytics instrumentation. Seats scale, guardrails stay intact.'}
+          </p>
+        </div>
 
-      <div className="container relative z-10 mx-auto px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16 space-y-4">
-            <h2 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-              {content.title || 'Simple, Transparent Pricing'}
-            </h2>
-            <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-              {content.subtitle || 'Choose the plan that fits your needs. No hidden fees, cancel anytime.'}
-            </p>
-          </div>
-
-          {pricingOverview && monthlyTiers.length > 0 ? (
-            <>
-              <div className="mb-8 text-center">
-                <span className="text-sm uppercase tracking-[0.3em] text-slate-500">Monthly</span>
-              </div>
-              <div className="grid md:grid-cols-3 gap-8 items-start mb-14">
-                {monthlyTiers.map((tier, index) => renderTier(tier, index))}
-              </div>
-              {yearlyTiers.length > 0 && (
-                <>
-                  <div className="mb-8 text-center">
-                    <span className="text-sm uppercase tracking-[0.3em] text-slate-500">Yearly</span>
-                  </div>
-                  <div className="grid md:grid-cols-3 gap-8 items-start">
-                    {yearlyTiers.map((tier, index) => renderTier(tier, index))}
-                  </div>
-                </>
-              )}
-            </>
-          ) : (
-            <div className="grid md:grid-cols-3 gap-8 items-start">
-              {fallbackTiers.map((tier, index) => renderTier(tier, index))}
-            </div>
+        <div className="mt-12 grid items-start gap-8 md:grid-cols-3">
+          {(pricingOverview && monthlyTiers.length > 0 ? monthlyTiers : fallbackTiers).map((tier, index) =>
+            renderTier(tier, index)
           )}
         </div>
+
+        {yearlyTiers.length > 0 && (
+          <div className="mt-12 rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+            Yearly billing available on request — includes white-glove promotion support and export of the entire style
+            pack for compliance archives.
+          </div>
+        )}
       </div>
     </section>
   );

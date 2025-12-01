@@ -43,73 +43,48 @@ export function TestimonialsSection({ content }: TestimonialsSectionProps) {
   ];
 
   return (
-    <section className="py-24 bg-slate-950/80 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
-
-      <div className="container relative z-10 mx-auto px-6">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-16 space-y-4">
-            <h2 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-              {content.title || 'Loved by Teams Everywhere'}
-            </h2>
-            <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-              {content.subtitle || 'See what our customers have to say about their experience.'}
-            </p>
-          </div>
-
-          {/* Testimonials Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <div
-                key={index}
-                className="group relative rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-8 hover:border-purple-500/50 hover:bg-white/10 transition-all duration-300"
-                data-testid={`testimonial-${index}`}
-              >
-                {/* Quote icon */}
-                <Quote className="absolute top-6 right-6 w-8 h-8 text-purple-500/20 group-hover:text-purple-500/40 transition-colors" />
-
-                <div className="relative space-y-4">
-                  {/* Rating */}
-                  {testimonial.rating && (
-                    <div className="flex gap-1">
-                      {Array.from({ length: testimonial.rating }).map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Content */}
-                  <p className="text-slate-300 leading-relaxed italic">
-                    "{testimonial.content}"
-                  </p>
-
-                  {/* Author */}
-                  <div className="flex items-center gap-4 pt-4 border-t border-white/10">
-                    {testimonial.avatar_url ? (
-                      <img
-                        src={testimonial.avatar_url}
-                        alt={testimonial.name}
-                        className="w-12 h-12 rounded-full"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-semibold">
-                        {testimonial.name.charAt(0)}
-                      </div>
-                    )}
-                    <div>
-                      <div className="font-semibold text-white">{testimonial.name}</div>
-                      <div className="text-sm text-slate-400">
-                        {testimonial.role} at {testimonial.company}
-                      </div>
-                    </div>
+    <section className="border-y border-white/5 bg-[#07090F] py-24">
+      <div className="container mx-auto px-6">
+        <div className="max-w-4xl text-left">
+          <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Operators on record</p>
+          <h2 className="mt-3 text-4xl font-semibold text-white">{content.title || 'Proof from the factory floor'}</h2>
+          <p className="mt-3 text-lg text-slate-300">
+            {content.subtitle || 'Teams treat this template like a case-study-ready deliverable. Here is what they highlight in handoffs.'}
+          </p>
+        </div>
+        <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          {testimonials.map((testimonial, index) => (
+            <article
+              key={index}
+              className="relative rounded-[28px] border border-white/8 bg-[#0F172A] p-8 shadow-[0_25px_50px_rgba(0,0,0,0.35)]"
+              data-testid={`testimonial-${index}`}
+            >
+              <Quote className="absolute right-6 top-6 h-8 w-8 text-[#F97316]/30" />
+              {testimonial.rating && (
+                <div className="mb-4 flex gap-1">
+                  {Array.from({ length: testimonial.rating }).map((_, i) => (
+                    <Star key={i} className="h-4 w-4 fill-[#FBBF24] text-[#FBBF24]" />
+                  ))}
+                </div>
+              )}
+              <p className="text-base leading-relaxed text-slate-200">“{testimonial.content}”</p>
+              <div className="mt-6 flex items-center gap-4 border-t border-white/10 pt-4">
+                {testimonial.avatar_url ? (
+                  <img src={testimonial.avatar_url} alt={testimonial.name} className="h-12 w-12 rounded-full object-cover" />
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-lg font-semibold text-white">
+                    {testimonial.name.charAt(0)}
                   </div>
+                )}
+                <div>
+                  <p className="font-semibold text-white">{testimonial.name}</p>
+                  <p className="text-sm text-slate-400">
+                    {testimonial.role} at {testimonial.company}
+                  </p>
                 </div>
               </div>
-            ))}
-          </div>
+            </article>
+          ))}
         </div>
       </div>
     </section>

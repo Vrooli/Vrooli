@@ -41,57 +41,45 @@ export function FAQSection({ content }: FAQSectionProps) {
   ];
 
   return (
-    <section className="py-24 bg-slate-950 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-500/5 rounded-full blur-3xl"></div>
+    <section className="bg-[#07090F] py-24">
+      <div className="container mx-auto px-6">
+        <div className="max-w-3xl">
+          <p className="text-xs uppercase tracking-[0.35em] text-slate-500">FAQ</p>
+          <h2 className="mt-3 text-4xl font-semibold text-white">
+            {content.title || 'Guardrails teams ask about before launch'}
+          </h2>
+          <p className="mt-3 text-lg text-slate-300">
+            {content.subtitle || 'From staging folders to download gating, here are the answers ops leaders reference most often.'}
+          </p>
+        </div>
 
-      <div className="container relative z-10 mx-auto px-6">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-16 space-y-4">
-            <h2 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-              {content.title || 'Frequently Asked Questions'}
-            </h2>
-            <p className="text-xl text-slate-400">
-              {content.subtitle || 'Everything you need to know about our platform.'}
-            </p>
-          </div>
-
-          {/* FAQ Accordion */}
-          <div className="space-y-4">
-            {faqs.map((faq, index) => (
-              <div
-                key={index}
-                className="rounded-xl border border-white/10 bg-white/5 overflow-hidden transition-all duration-300 hover:border-purple-500/50"
-                data-testid={`faq-${index}`}
+        <div className="mt-10 space-y-4">
+          {faqs.map((faq, index) => (
+            <div
+              key={index}
+              className="rounded-2xl border border-white/10 bg-[#0F172A] transition-all duration-200"
+              data-testid={`faq-${index}`}
+            >
+              <button
+                onClick={() => setOpenIndex(openIndex === index ? null : index)}
+                className="flex w-full items-center justify-between px-6 py-5 text-left"
+                data-testid={`faq-question-${index}`}
               >
-                <button
-                  onClick={() => setOpenIndex(openIndex === index ? null : index)}
-                  className="w-full flex items-center justify-between p-6 text-left hover:bg-white/5 transition-colors"
-                  data-testid={`faq-question-${index}`}
-                >
-                  <span className="text-lg font-semibold text-white pr-8">
-                    {faq.question}
-                  </span>
-                  <ChevronDown
-                    className={`w-5 h-5 text-purple-400 flex-shrink-0 transition-transform duration-300 ${
-                      openIndex === index ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
-                <div
-                  className={`overflow-hidden transition-all duration-300 ${
-                    openIndex === index ? 'max-h-96' : 'max-h-0'
-                  }`}
-                  data-testid={`faq-answer-${index}`}
-                >
-                  <div className="px-6 pb-6 pt-2 text-slate-300 leading-relaxed">
-                    {faq.answer}
-                  </div>
-                </div>
+                <span className="pr-8 text-lg font-semibold text-white">{faq.question}</span>
+                <ChevronDown
+                  className={`h-5 w-5 text-[#F97316] transition-transform ${openIndex === index ? 'rotate-180' : ''}`}
+                />
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-300 ${
+                  openIndex === index ? 'max-h-96' : 'max-h-0'
+                }`}
+                data-testid={`faq-answer-${index}`}
+              >
+                <div className="px-6 pb-6 text-sm text-slate-300">{faq.answer}</div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>

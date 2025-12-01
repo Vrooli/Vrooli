@@ -56,29 +56,27 @@ export function VideoSection({ title, videoUrl, thumbnailUrl, caption }: VideoSe
   }
 
   return (
-    <section className="py-16 px-6">
-      <div className="max-w-5xl mx-auto">
+    <section className="bg-[#07090F] py-20 px-6">
+      <div className="mx-auto max-w-5xl">
         {title && (
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-8 text-slate-900 dark:text-slate-50">
-            {title}
-          </h2>
+          <h2 className="mb-8 text-center text-3xl font-semibold text-white md:text-4xl">{title}</h2>
         )}
 
-        <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl">
+        <div className="relative aspect-video overflow-hidden rounded-[32px] border border-white/10 bg-[#0F172A] shadow-[0_25px_50px_rgba(0,0,0,0.45)]">
           {!isPlaying && thumbnailUrl ? (
             <button
               onClick={() => setIsPlaying(true)}
-              className="relative w-full h-full group cursor-pointer"
+              className="group relative h-full w-full cursor-pointer"
               aria-label="Play video"
             >
               <img
                 src={thumbnailUrl}
                 alt="Video thumbnail"
-                className="w-full h-full object-cover"
+                className="h-full w-full object-cover"
               />
-              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors flex items-center justify-center">
-                <div className="w-20 h-20 rounded-full bg-white/90 group-hover:bg-white group-hover:scale-110 transition-all flex items-center justify-center shadow-xl">
-                  <Play className="w-10 h-10 text-slate-900 ml-1" fill="currentColor" />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 transition-colors group-hover:bg-black/60">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white text-slate-900 shadow-2xl transition-transform group-hover:scale-110">
+                  <Play className="ml-1 h-10 w-10" fill="currentColor" />
                 </div>
               </div>
             </button>
@@ -94,9 +92,7 @@ export function VideoSection({ title, videoUrl, thumbnailUrl, caption }: VideoSe
         </div>
 
         {caption && (
-          <p className="mt-6 text-center text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-            {caption}
-          </p>
+          <p className="mx-auto mt-6 max-w-2xl text-center text-sm text-slate-300">{caption}</p>
         )}
       </div>
     </section>

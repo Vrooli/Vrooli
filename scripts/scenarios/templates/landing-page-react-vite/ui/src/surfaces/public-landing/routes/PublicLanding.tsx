@@ -115,6 +115,10 @@ export function PublicLanding() {
       .filter((section) => section.enabled !== false)
       .sort((a, b) => a.order - b.order);
   }, [config]);
+  const debugSectionTypes: string[] | null = null;
+  const sectionsToRender = debugSectionTypes
+    ? sections.filter((section) => debugSectionTypes.includes(section.section_type))
+    : sections;
   const downloads = config?.downloads ?? [];
   const hasDownloads = downloads.length > 0;
   const navItems = useMemo(() => buildNavItems(sections, hasDownloads), [sections, hasDownloads]);
@@ -208,7 +212,7 @@ export function PublicLanding() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50">
+    <div className="min-h-screen bg-[#07090F] text-slate-50">
       <LandingExperienceHeader
         navItems={navItems}
         ctaText={heroCtaText}
@@ -222,13 +226,13 @@ export function PublicLanding() {
         downloadButtonLabel={downloadButtonLabel}
       />
       {variantPinnedViaParam && (
-        <div className="bg-blue-500/10 border border-blue-500/30 text-blue-100 text-sm py-3 px-4 text-center" data-testid="variant-source-banner">
+        <div className="border border-[#38BDF8]/30 bg-[#38BDF8]/10 py-3 px-4 text-center text-sm text-[#d3f2ff]" data-testid="variant-source-banner">
           Variant <strong>{variant?.name ?? variant?.slug}</strong> is pinned via URL parameter. Remove the <code>?variant=</code> query to resume weighted traffic allocation.
         </div>
       )}
 
       {fallbackActive && (
-        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-100 text-sm py-3 px-4 text-center" data-testid="fallback-signal-banner">
+        <div className="border border-[#F97316]/30 bg-[#F97316]/10 py-3 px-4 text-center text-sm text-[#ffd3b5]" data-testid="fallback-signal-banner">
           Offline-safe fallback variant is active. {statusNote && <span>{statusNote}. </span>}
           Live analytics, pricing, and downloads may be outdated until the API recovers.
           {lastUpdated && (
@@ -254,8 +258,8 @@ export function PublicLanding() {
       )}
 
       {/* Render all sections in order */}
-      {sections.length > 0 ? (
-        sections.map(renderSection)
+      {sectionsToRender.length > 0 ? (
+        sectionsToRender.map(renderSection)
       ) : (
         <div className="min-h-screen flex items-center justify-center px-6">
           <div className="max-w-md w-full rounded-2xl border border-white/10 bg-white/5 p-8 text-center space-y-4">
@@ -309,11 +313,11 @@ function LandingExperienceHeader({
 }: LandingExperienceHeaderProps) {
   const hasNav = navItems.length > 0;
   const configClass = fallbackActive
-    ? 'border-amber-500/40 bg-amber-500/10 text-amber-100'
-    : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100';
+    ? 'border-[#F97316]/40 bg-[#F97316]/10 text-[#ffd3b5]'
+    : 'border-[#10B981]/40 bg-[#10B981]/10 text-[#c5f4df]';
 
   return (
-    <div className="sticky top-0 z-30 border-b border-white/5 bg-slate-950/90 backdrop-blur" data-testid="landing-experience-header">
+    <div className="sticky top-0 z-30 border-b border-white/10 bg-[#07090F]/95 backdrop-blur" data-testid="landing-experience-header">
       <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-4 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Landing runtime</p>
@@ -349,8 +353,8 @@ function LandingExperienceHeader({
               <Button
                 asChild
                 size="sm"
-                variant="outline"
-                className="gap-1 whitespace-nowrap"
+                variant="ghost"
+                className="gap-1 whitespace-nowrap bg-white/5 text-white hover:bg-white/10"
                 data-testid="landing-nav-download"
               >
                 <a href={`#${downloadAnchorId}`}>

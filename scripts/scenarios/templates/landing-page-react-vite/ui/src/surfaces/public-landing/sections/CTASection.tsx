@@ -26,51 +26,36 @@ export function CTASection({ content }: CTASectionProps) {
   };
 
   return (
-    <section className="py-24 bg-gradient-to-br from-purple-900/30 via-slate-950 to-blue-900/30 relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-      </div>
-
-      <div className="container relative z-10 mx-auto px-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="rounded-3xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-12 lg:p-16 backdrop-blur shadow-2xl">
-            <div className="text-center space-y-8">
-              <h2 className="text-4xl lg:text-5xl xl:text-6xl font-bold leading-tight bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-transparent">
-                {content.title || 'Ready to Get Started?'}
+    <section className="bg-[#0F172A] py-20 text-white">
+      <div className="container mx-auto px-6">
+        <div className="rounded-[32px] border border-white/10 bg-[#07090F] p-10 lg:p-14">
+          <div className="flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-4">
+              <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Next step</p>
+              <h2 className="text-4xl font-semibold leading-tight">
+                {content.title || 'Book a live review of your variant stack'}
               </h2>
-              <p className="text-xl lg:text-2xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
-                {content.subtitle || 'Join thousands of teams building better landing pages with our platform.'}
+              <p className="text-lg text-slate-300">
+                {content.subtitle ||
+                  'Walk through analytics, styling.json guardrails, and staged downloads with an operator who ships Clause-grade experiences every week.'}
               </p>
-              {content.cta_text && (
-                <div className="pt-4">
-                  <Button
-                    size="lg"
-                    onClick={handleCTAClick}
-                    className="text-lg px-10 py-7 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 shadow-xl shadow-purple-500/25 transform hover:scale-105 transition-all duration-300"
-                    data-testid="cta-button"
-                  >
-                    {content.cta_text}
-                    <ArrowRight className="ml-2 h-6 w-6" />
-                  </Button>
-                </div>
-              )}
-              <div className="flex flex-wrap items-center justify-center gap-8 text-sm text-slate-400 pt-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                  <span>14-day free trial</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                  <span>No credit card required</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                  <span>Cancel anytime</span>
-                </div>
-              </div>
             </div>
+            {content.cta_text && (
+              <div className="flex flex-col gap-3">
+                <Button
+                  size="default"
+                  onClick={handleCTAClick}
+                  className="gap-2 px-10 py-4"
+                  data-testid="cta-button"
+                >
+                  {content.cta_text}
+                  <ArrowRight className="h-5 w-5" />
+                </Button>
+                <p className="text-sm text-slate-400">
+                  Includes a full style-pack export, variant audit, and download entitlement verification.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

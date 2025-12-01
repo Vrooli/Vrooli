@@ -1,6 +1,9 @@
-import { Check, Zap, Shield, Sparkles } from 'lucide-react';
+import { Check, Layers, Target, Database, Zap, Shield, Sparkles } from 'lucide-react';
 
 const iconMap = {
+  layers: Layers,
+  target: Target,
+  database: Database,
   zap: Zap,
   shield: Shield,
   sparkles: Sparkles,
@@ -24,66 +27,60 @@ interface FeaturesSectionProps {
 export function FeaturesSection({ content }: FeaturesSectionProps) {
   const features = content.features || [
     {
-      title: 'Lightning Fast',
-      description: 'Built for speed with optimized performance and minimal bundle size.',
-      icon: 'zap' as const,
+      title: 'Layered UI primitives',
+      description: 'Hero panels, brand guidelines strip, and download rails share a single design system.',
+      icon: 'layers' as const,
     },
     {
-      title: 'Secure by Default',
-      description: 'Industry-standard security practices built into every feature.',
-      icon: 'shield' as const,
+      title: 'Persona-aware variants',
+      description: 'Variant axes feed copy, CTA priorities, and layout tweaks for every test.',
+      icon: 'target' as const,
     },
     {
-      title: 'AI-Powered',
-      description: 'Smart customization and optimization powered by advanced AI.',
-      icon: 'sparkles' as const,
+      title: 'Entitlement-backed downloads',
+      description: 'Download cards verify plan tier + credit balance before presenting installers.',
+      icon: 'database' as const,
     },
   ];
 
   return (
-    <section className="py-24 bg-slate-950/50 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
+    <section className="border-y border-white/5 bg-[#0F172A] py-24 text-white">
+      <div className="container mx-auto px-6">
+        <div className="max-w-4xl space-y-4">
+          <p className="text-xs uppercase tracking-[0.35em] text-slate-500">System features</p>
+          <h2 className="text-4xl font-semibold">
+            {content.title || 'One landing runtime, multiple Clause-grade building blocks'}
+          </h2>
+          <p className="text-lg text-slate-300">
+            {content.subtitle ||
+              'Every section and CTA is locked to the styling.json contract so agents can swap personas without breaking the artifact-driven layout.'}
+          </p>
+        </div>
 
-      <div className="container relative z-10 mx-auto px-6">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-16 space-y-4">
-            <h2 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-              {content.title || 'Powerful Features'}
-            </h2>
-            <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-              {content.subtitle || 'Everything you need to build, launch, and optimize your landing pages.'}
-            </p>
-          </div>
-
-          {/* Features Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => {
-              const IconComponent = feature.icon ? iconMap[feature.icon] : Check;
-              return (
-                <div
-                  key={index}
-                  className="group relative rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-8 hover:border-purple-500/50 hover:bg-white/10 transition-all duration-300"
-                  data-testid={`feature-${index}`}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-blue-500/0 group-hover:from-purple-500/10 group-hover:to-blue-500/10 rounded-2xl transition-all duration-300"></div>
-                  <div className="relative">
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                      <IconComponent className="w-7 h-7 text-purple-400" />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-3 text-white">
-                      {feature.title}
-                    </h3>
-                    <p className="text-slate-400 leading-relaxed">
-                      {feature.description}
-                    </p>
-                  </div>
+        <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          {features.map((feature, index) => {
+            const IconComponent = feature.icon ? iconMap[feature.icon] ?? Check : Check;
+            return (
+              <article
+                key={feature.title + index}
+                className="rounded-3xl border border-white/5 bg-[#1E2433] p-6 text-left transition-transform duration-200 hover:-translate-y-1"
+                data-testid={`feature-${index}`}
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-[#F97316]">
+                  <IconComponent className="h-5 w-5" />
                 </div>
-              );
-            })}
-          </div>
+                <h3 className="mt-6 text-xl font-semibold text-white">{feature.title}</h3>
+                <p className="mt-3 text-sm text-slate-300">{feature.description}</p>
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="mt-12 rounded-3xl border border-white/5 bg-white/5 p-6 text-sm text-slate-300">
+          <p>
+            Clause-style styling packs live under <code className="text-white">.vrooli/style-packs/</code>. Admins can regenerate
+            them via landing-manager, ensuring every generated scenario inherits the same professional case-study polish.
+          </p>
         </div>
       </div>
     </section>

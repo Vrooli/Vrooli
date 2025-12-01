@@ -186,62 +186,58 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
   };
 
   return (
-    <section className="py-20 bg-slate-950 text-white">
+    <section className="border-t border-white/5 bg-[#0F172A] py-24 text-white">
       <div className="container mx-auto px-6">
-        <div className="max-w-4xl mx-auto text-center mb-12 space-y-3">
-          <p className="text-sm uppercase tracking-[0.5em] text-slate-500">Downloads</p>
-          <h2 className="text-4xl font-bold">{title}</h2>
-          <p className="text-slate-400">{subtitle}</p>
+        <div className="mb-12 max-w-3xl space-y-3">
+          <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Downloads</p>
+          <h2 className="text-4xl font-semibold">{title}</h2>
+          <p className="text-slate-300">{subtitle}</p>
         </div>
 
         {entitlementsRequired && (
-          <div className="max-w-3xl mx-auto mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 text-left space-y-4">
-            <p className="text-sm text-slate-300 mb-2">
+          <div className="mx-auto mb-8 max-w-3xl space-y-4 rounded-3xl border border-white/10 bg-[#07090F] p-6 text-left">
+            <p className="text-sm text-slate-300">
               Entitlement gated downloads require an active subscription. Provide the email tied to your plan and we'll verify your access before allowing the download.
             </p>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center">
               <input
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
-                className="flex-1 px-4 py-3 bg-slate-900 border border-white/10 rounded-xl focus:border-blue-500 focus:outline-none"
+                placeholder="you@company.com"
+                className="flex-1 rounded-xl border border-white/10 bg-[#07090F] px-4 py-3 text-white placeholder-slate-500 focus:border-[#F97316] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
               />
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className="whitespace-nowrap"
+                className="whitespace-nowrap bg-white/5 text-white hover:bg-white/10"
                 onClick={refresh}
                 disabled={!trimmedEmail || entitlementsLoading}
               >
-                {entitlementsLoading ? 'Checking status...' : 'Refresh status'}
+                {entitlementsLoading ? 'Checking status…' : 'Refresh status'}
               </Button>
             </div>
-            <p className="text-xs text-slate-400">Stored locally on this device only.</p>
-            {entitlementsError && (
-              <p className="text-xs text-rose-400">{entitlementsError}</p>
-            )}
+            <p className="text-xs text-slate-500">Stored locally on this device only.</p>
+            {entitlementsError && <p className="text-xs text-rose-400">{entitlementsError}</p>}
             {showEntitlementSummary && (
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-xl border border-white/10 bg-slate-900/60 p-4">
+                <div className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
                   <p className="text-xs text-slate-400 uppercase tracking-[0.3em]">Subscription</p>
                   <p className="text-lg font-semibold text-white">{entitlementStatus}</p>
-                  <p className="text-xs text-slate-500 mt-1">Plan tier: {planTier}</p>
+                  <p className="mt-1 text-xs text-slate-500">Plan tier: {planTier}</p>
                   {entitlements?.subscription?.subscription_id && (
-                    <p className="text-xs text-slate-500 mt-1">ID: {entitlements.subscription.subscription_id}</p>
+                    <p className="mt-1 text-xs text-slate-500">ID: {entitlements.subscription.subscription_id}</p>
                   )}
                 </div>
-                <div className="rounded-xl border border-white/10 bg-slate-900/60 p-4">
+                <div className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
                   <p className="text-xs text-slate-400 uppercase tracking-[0.3em]">Credits</p>
                   <p className="text-lg font-semibold text-white">{balanceDisplay}</p>
-                  <p className="text-xs text-slate-500 mt-1">Bonus: {bonusDisplay}</p>
+                  <p className="mt-1 text-xs text-slate-500">Bonus: {bonusDisplay}</p>
                 </div>
-                <div className="rounded-xl border border-white/10 bg-slate-900/60 p-4">
+                <div className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
                   <p className="text-xs text-slate-400 uppercase tracking-[0.3em]">Pricing</p>
-                  <p className="text-lg font-semibold text-white">
-                    {entitlements?.price_id ?? 'Unknown price'}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-lg font-semibold text-white">{entitlements?.price_id ?? 'Unknown price'}</p>
+                  <p className="mt-1 text-xs text-slate-500">
                     Updated {entitlements?.subscription?.updated_at ?? 'recently'}
                   </p>
                 </div>
@@ -250,7 +246,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
           </div>
         )}
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid gap-6 md:grid-cols-3">
           {downloads.map((download) => {
             const assetKey = getDownloadAssetKey(download);
             const status = downloadStatus[assetKey];
@@ -259,39 +255,37 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
             return (
               <div
                 key={assetKey}
-                className="rounded-3xl border border-white/10 bg-white/5 p-6 space-y-4"
+                className="space-y-4 rounded-3xl border border-white/10 bg-[#07090F] p-6"
                 data-testid={`download-card-${assetKey}`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs uppercase tracking-[0.3em] text-slate-500">{download.platform}</span>
                   <span className="text-xs text-slate-400">{download.release_version}</span>
                 </div>
-                <p className="text-sm text-slate-300 min-h-[3rem]">
+                <p className="min-h-[3rem] text-sm text-slate-300">
                   {download.release_notes || 'Release notes coming soon.'}
                 </p>
-                <div className="text-xs text-slate-400 flex flex-wrap gap-2">
-                  <span>
-                    {download.requires_entitlement ? 'Entitlement required' : 'Free download'}
-                  </span>
-                  {download.metadata?.size_mb && (
-                    <span>{download.metadata.size_mb} MB download</span>
-                  )}
+                <div className="flex flex-wrap gap-2 text-xs text-slate-400">
+                  <span>{download.requires_entitlement ? 'Entitlement required' : 'Free download'}</span>
+                  {download.metadata?.size_mb && <span>{download.metadata.size_mb} MB download</span>}
                 </div>
                 <Button
-                  variant="outline"
+                  variant="default"
                   size="lg"
                   onClick={() => handleDownload(download, assetKey)}
                   disabled={status?.loading}
-                  className="w-full"
+                  className={`w-full ${download.requires_entitlement ? '' : 'bg-[#F97316]'}`}
                 >
-                  {status?.loading ? 'Preparing...' : buttonLabel}
+                  {status?.loading ? 'Preparing…' : buttonLabel}
                 </Button>
-                {status?.message && (
-                  <p className="text-xs text-slate-400">{status.message}</p>
-                )}
+                {status?.message && <p className="text-xs text-slate-400">{status.message}</p>}
               </div>
             );
           })}
+        </div>
+
+        <div className="mx-auto mt-12 max-w-4xl rounded-3xl border border-white/10 bg-[#07090F] p-6 text-center text-sm text-slate-300">
+          Download access is tied to your Browser Automation Studio entitlements. Need additional access? Contact support to add more seats or credits.
         </div>
       </div>
     </section>

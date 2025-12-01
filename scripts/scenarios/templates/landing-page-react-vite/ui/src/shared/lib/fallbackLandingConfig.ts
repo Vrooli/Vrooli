@@ -3,16 +3,18 @@ import rawFallback from '../../../../.vrooli/variants/fallback.json';
 
 interface FallbackPayload {
   variant: LandingConfigResponse['variant'];
-  sections?: LandingSection[];
+  sections?: LandingSection[] | null;
   pricing?: PricingOverview;
   downloads?: DownloadAsset[];
   axes?: VariantAxes;
 }
 
-function normalizeSections(sections: LandingSection[] = []): LandingSection[] {
+function normalizeSections(sectionsInput?: LandingSection[] | null): LandingSection[] {
+  const sections = Array.isArray(sectionsInput) ? sectionsInput : [];
+
   return sections.map((section, index) => ({
     ...section,
-    order: section.order ?? index + 1,
+    order: typeof section.order === 'number' && Number.isFinite(section.order) ? section.order : index + 1,
     enabled: section.enabled ?? true,
   }));
 }

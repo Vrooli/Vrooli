@@ -71,6 +71,23 @@ describe('Button Component', () => {
     expect(screen.getByTestId('test-button')).toBeDefined();
   });
 
+  it('defaults native buttons to type="button"', () => {
+    render(<Button>Native</Button>);
+    const button = screen.getByText('Native') as HTMLButtonElement;
+    expect(button.type).toBe('button');
+  });
+
+  it('renders anchors when asChild is true', () => {
+    const { container } = render(
+      <Button asChild>
+        <a href="/test">Link CTA</a>
+      </Button>
+    );
+    const anchor = container.querySelector('a');
+    expect(anchor).not.toBeNull();
+    expect(anchor?.getAttribute('href')).toBe('/test');
+  });
+
   it('should have accessible focus styles', () => {
     const { container } = render(<Button>Focus me</Button>);
     const button = container.querySelector('button');
