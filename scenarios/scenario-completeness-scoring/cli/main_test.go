@@ -73,6 +73,30 @@ func TestConfigDirectoryCreated(t *testing.T) {
 	}
 }
 
+func TestGlobalFlagApiBaseAcceptedAnywhere(t *testing.T) {
+	app := newTestApp(t)
+	args := []string{"score", "demo", "--api-base", "http://example.com"}
+	remaining, err := app.consumeGlobalFlags(args)
+	if err != nil {
+		t.Fatalf("consumeGlobalFlags: %v", err)
+	}
+	if app.apiOverride != "http://example.com" {
+		t.Fatalf("expected apiOverride to be set, got %q", app.apiOverride)
+	}
+	expectedRemaining := []string{"score", "demo"}
+	if strings.Join(remaining, ",") != strings.Join(expectedRemaining, ",") {
+		t.Fatalf("unexpected remaining args: %v", remaining)
+	}
+}
+
+func TestGlobalFlagApiBaseMissingValue(t *testing.T) {
+	app := newTestApp(t)
+	_, err := app.consumeGlobalFlags([]string{"--api-base"})
+	if err == nil || !strings.Contains(err.Error(), "missing value") {
+		t.Fatalf("expected missing value error, got %v", err)
+	}
+}
+
 func newTestApp(t *testing.T) *App {
 	t.Helper()
 	tempHome := t.TempDir()

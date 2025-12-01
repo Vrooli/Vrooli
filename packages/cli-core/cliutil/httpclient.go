@@ -51,7 +51,13 @@ func (h *HTTPClient) BaseURL() string {
 
 // Do performs an HTTP request with JSON encoding and standard error handling.
 func (h *HTTPClient) Do(method, path string, query url.Values, body interface{}) ([]byte, error) {
-	base := h.BaseURL()
+	base := strings.TrimSpace(h.BaseURL())
+	if base == "" {
+		return nil, fmt.Errorf("api base URL is empty; configure an API base or set an API port")
+	}
+	if parsed, err := url.Parse(base); err != nil || parsed.Scheme == "" {
+		return nil, fmt.Errorf("invalid api base URL %q", base)
+	}
 	endpoint := strings.TrimRight(base, "/") + path
 	if query != nil && len(query) > 0 {
 		endpoint += "?" + query.Encode()

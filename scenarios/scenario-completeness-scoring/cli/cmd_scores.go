@@ -18,7 +18,7 @@ func (a *App) cmdScores(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	body, err := a.apiGet("/api/v1/scores", nil)
+	body, parsed, err := a.fetchScoresList()
 	if err != nil {
 		return err
 	}
@@ -26,24 +26,11 @@ func (a *App) cmdScores(args []string) error {
 		cliutil.PrintJSON(body)
 		return nil
 	}
-	var resp struct {
-		Scenarios []struct {
-			Scenario       string  `json:"scenario"`
-			Category       string  `json:"category"`
-			Score          float64 `json:"score"`
-			Classification string  `json:"classification"`
-			Partial        bool    `json:"partial"`
-		} `json:"scenarios"`
-		Total int `json:"total"`
-	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return fmt.Errorf("parse response: %w", err)
-	}
-	if len(resp.Scenarios) == 0 {
+	if len(parsed.Scenarios) == 0 {
 		fmt.Println("No scenarios found.")
 		return nil
 	}
-	for _, item := range resp.Scenarios {
+	for _, item := range parsed.Scenarios {
 		partial := ""
 		if item.Partial {
 			partial = " (partial)"
@@ -80,9 +67,9 @@ func (a *App) cmdScore(args []string) error {
 		cliutil.PrintJSON(body)
 		return nil
 	}
-	var resp format.ScoreResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return fmt.Errorf("parse response: %w", err)
+	resp, err := a.parseScore(body)
+	if err != nil {
+		return err
 	}
 
 	format.FormatValidationIssues(resp.ValidationAnalysis, *verbose)
@@ -98,6 +85,37 @@ func (a *App) cmdScore(args []string) error {
 
 	format.FormatComparisonContext(resp.ValidationAnalysis, resp.Score)
 	return nil
+}
+
+type scoresListResponse struct {
+	Scenarios []struct {
+		Scenario       string  `json:"scenario"`
+		Category       string  `json:"category"`
+		Score          float64 `json:"score"`
+		Classification string  `json:"classification"`
+		Partial        bool    `json:"partial"`
+	} `json:"scenarios"`
+	Total int `json:"total"`
+}
+
+func (a *App) fetchScoresList() ([]byte, scoresListResponse, error) {
+	body, err := a.apiGet("/api/v1/scores", nil)
+	if err != nil {
+		return nil, scoresListResponse{}, err
+	}
+	var resp scoresListResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return body, scoresListResponse{}, fmt.Errorf("parse response: %w", err)
+	}
+	return body, resp, nil
+}
+
+func (a *App) parseScore(body []byte) (format.ScoreResponse, error) {
+	var resp format.ScoreResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return resp, fmt.Errorf("parse response: %w", err)
+	}
+	return resp, nil
 }
 
 func (a *App) cmdCalculate(args []string) error {

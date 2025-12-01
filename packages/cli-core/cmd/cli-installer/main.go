@@ -4,7 +4,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -76,7 +75,7 @@ func run() error {
 		escapeLdflagValue(sourceRoot),
 	)
 
-	tmpFile, err := os.CreateTemp("", "cli-build-*")
+	tmpFile, err := os.CreateTemp(filepath.Dir(dst), "cli-build-*")
 	if err != nil {
 		return fmt.Errorf("create temporary binary: %w", err)
 	}
@@ -94,14 +93,8 @@ func run() error {
 		return fmt.Errorf("go build failed: %w", err)
 	}
 
-	if err := copyExecutable(tmpPath, dst); err != nil {
+	if err := replaceBinary(tmpPath, dst); err != nil {
 		return fmt.Errorf("install binary: %w", err)
-	}
-
-	if runtime.GOOS != "windows" {
-		if err := os.Chmod(dst, 0o755); err != nil {
-			return fmt.Errorf("set executable mode: %w", err)
-		}
 	}
 
 	fmt.Printf("✅ installed CLI to %s\n", dst)
@@ -157,24 +150,19 @@ func defaultInstallDir() string {
 	return "."
 }
 
-func copyExecutable(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
+func replaceBinary(src, dst string) error {
+	if err := os.Rename(src, dst); err == nil {
+		return nil
 	}
-	defer in.Close()
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
+	renameErr := os.Rename(src, dst)
+	if runtime.GOOS == "windows" {
+		_ = os.Remove(dst)
+		renameErr = os.Rename(src, dst)
 	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, in); err != nil {
-		return err
+	if renameErr == nil {
+		return nil
 	}
-
-	return out.Sync()
+	return fmt.Errorf("replace binary: %w", renameErr)
 }
 
 func ensurePathHint(binaryPath string) {

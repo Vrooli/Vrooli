@@ -34,6 +34,7 @@ type App struct {
 	apiOverride     string
 	client          *cliutil.HTTPClient
 	configDirectory string
+	staleChecker    *cliutil.StaleChecker
 }
 
 func main() {
@@ -68,6 +69,7 @@ func NewApp() (*App, error) {
 		apiOverride:     "",
 		client:          cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}),
 		configDirectory: configDir,
+		staleChecker:    cliutil.NewStaleChecker("scenario-completeness-scoring", buildFingerprint, buildTimestamp, buildSourceRoot, genericSourceRootEnvVar, legacySourceRootEnvVar),
 	}, nil
 }
 
@@ -80,7 +82,10 @@ func (a *App) Run(args []string) error {
 		a.printHelp()
 		return nil
 	}
-	remaining := a.consumeGlobalFlags(args)
+	remaining, err := a.consumeGlobalFlags(args)
+	if err != nil {
+		return err
+	}
 	if len(remaining) == 0 {
 		a.printHelp()
 		return nil
@@ -95,51 +100,62 @@ func (a *App) Run(args []string) error {
 	case "configure":
 		return a.cmdConfigure(remaining[1:])
 	case "status":
+		a.warnIfBinaryStale()
 		return a.cmdStatus()
 	case "scores":
+		a.warnIfBinaryStale()
 		return a.cmdScores(remaining[1:])
 	case "score":
 		return a.cmdScore(remaining[1:])
 	case "calculate":
+		a.warnIfBinaryStale()
 		return a.cmdCalculate(remaining[1:])
 	case "history":
+		a.warnIfBinaryStale()
 		return a.cmdHistory(remaining[1:])
 	case "trends":
+		a.warnIfBinaryStale()
 		return a.cmdTrends(remaining[1:])
 	case "what-if":
+		a.warnIfBinaryStale()
 		return a.cmdWhatIf(remaining[1:])
 	case "config":
+		a.warnIfBinaryStale()
 		return a.cmdConfig(remaining[1:])
 	case "presets":
+		a.warnIfBinaryStale()
 		return a.cmdPresets()
 	case "preset":
+		a.warnIfBinaryStale()
 		return a.cmdPreset(remaining[1:])
 	case "collectors":
+		a.warnIfBinaryStale()
 		return a.cmdCollectors()
 	case "circuit-breaker":
+		a.warnIfBinaryStale()
 		return a.cmdCircuitBreaker(remaining[1:])
 	case "recommend":
+		a.warnIfBinaryStale()
 		return a.cmdRecommend(remaining[1:])
 	default:
 		return fmt.Errorf("Unknown command: %s", remaining[0])
 	}
 }
 
-func (a *App) consumeGlobalFlags(args []string) []string {
-	var rest []string
+func (a *App) consumeGlobalFlags(args []string) ([]string, error) {
+	remaining := make([]string, 0, len(args))
 	for i := 0; i < len(args); i++ {
-		if args[i] == "--api-base" && i+1 < len(args) {
+		if args[i] == "--api-base" {
+			if i+1 >= len(args) {
+				return nil, fmt.Errorf("missing value for --api-base")
+			}
 			a.apiOverride = args[i+1]
 			i++
 			continue
 		}
-		rest = args[i:]
-		break
+		remaining = append(remaining, args[i])
 	}
-	if rest == nil {
-		return []string{}
-	}
-	return rest
+	return remaining, nil
 }
 
 func (a *App) printHelp() {

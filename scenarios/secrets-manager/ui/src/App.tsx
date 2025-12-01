@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { RefreshCcw } from "lucide-react";
 import { Header } from "./sections/Header";
 import { OrientationHub } from "./sections/OrientationHub";
@@ -15,6 +15,27 @@ import { useJourneys } from "./hooks/useJourneys";
 import type { JourneyId } from "./features/journeys/journeySteps";
 
 export default function App() {
+  type ExperienceTab = "overview" | "readiness" | "compliance";
+
+  const tabs: Array<{ id: ExperienceTab; label: string; description: string }> = [
+    {
+      id: "overview",
+      label: "Orientation",
+      description: "Journeys and live status signals"
+    },
+    {
+      id: "readiness",
+      label: "Readiness",
+      description: "Deployment coverage and workbench"
+    },
+    {
+      id: "compliance",
+      label: "Compliance",
+      description: "Vulnerability and policy posture"
+    }
+  ];
+
+  const [activeTab, setActiveTab] = useState<ExperienceTab>("overview");
   const {
     healthQuery,
     vaultQuery,
@@ -135,79 +156,112 @@ export default function App() {
           onRefresh={refreshAll}
         />
 
-        <OrientationHub
-          heroStats={heroStats}
-          vulnerabilityInsights={orientationData?.vulnerability_insights ?? []}
-          journeyCards={journeyCards}
-          activeJourneyCard={activeJourneyCard}
-          activeJourney={activeJourney}
-          journeySteps={journeySteps}
-          journeyStep={journeyStep}
-          updatedAt={orientationData?.updated_at}
-          isLoading={orientationQuery.isLoading}
-          priorityResource={priorityResource}
-          prioritySecretKey={prioritySecretKey}
-          missingCount={priorityMissingCount}
-          onOpenResource={openResourcePanel}
-          onJourneySelect={handleJourneySelectTyped}
-          onJourneyExit={handleJourneyExit}
-          onJourneyNext={handleJourneyNext}
-          onJourneyBack={handleJourneyBack}
-        />
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-2">
+          <div className="grid gap-2 sm:grid-cols-3">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`rounded-2xl border px-4 py-3 text-left transition ${
+                  activeTab === tab.id
+                    ? "border-emerald-400 bg-emerald-500/10 text-white shadow-[0_10px_40px_-15px_rgba(16,185,129,0.4)]"
+                    : "border-white/10 bg-black/20 text-white/70 hover:border-white/30 hover:text-white"
+                }`}
+              >
+                <p className="text-[11px] uppercase tracking-[0.25em]">{tab.label}</p>
+                <p className="mt-1 text-sm">{tab.description}</p>
+              </button>
+            ))}
+          </div>
+        </div>
 
-        <TierReadiness
-          tierReadiness={tierReadiness}
-          isLoading={orientationQuery.isLoading}
-          onOpenResource={openResourcePanel}
-          resourceInsights={resourceInsights}
-        />
+        <div className="space-y-8">
+          {activeTab === "overview" && (
+            <>
+              <OrientationHub
+                heroStats={heroStats}
+                vulnerabilityInsights={orientationData?.vulnerability_insights ?? []}
+                journeyCards={journeyCards}
+                activeJourneyCard={activeJourneyCard}
+                activeJourney={activeJourney}
+                journeySteps={journeySteps}
+                journeyStep={journeyStep}
+                updatedAt={orientationData?.updated_at}
+                isLoading={orientationQuery.isLoading}
+                priorityResource={priorityResource}
+                prioritySecretKey={prioritySecretKey}
+                missingCount={priorityMissingCount}
+                onOpenResource={openResourcePanel}
+                onJourneySelect={handleJourneySelectTyped}
+                onJourneyExit={handleJourneyExit}
+                onJourneyNext={handleJourneyNext}
+                onJourneyBack={handleJourneyBack}
+              />
 
-        <ResourceWorkbench
-          resourceInsights={resourceInsights}
-          isLoading={orientationQuery.isLoading}
-          onOpenResource={openResourcePanel}
-        />
+              <StatusGrid
+                healthData={healthQuery.data}
+                vaultData={vaultQuery.data}
+                complianceData={complianceQuery.data}
+                vulnerabilityData={vulnerabilityQuery.data}
+                isHealthLoading={healthQuery.isLoading}
+                isVaultLoading={vaultQuery.isLoading}
+                isComplianceLoading={complianceQuery.isLoading}
+                isVulnerabilityLoading={vulnerabilityQuery.isLoading}
+              />
+            </>
+          )}
 
-        <StatusGrid
-          healthData={healthQuery.data}
-          vaultData={vaultQuery.data}
-          complianceData={complianceQuery.data}
-          vulnerabilityData={vulnerabilityQuery.data}
-          isHealthLoading={healthQuery.isLoading}
-          isVaultLoading={vaultQuery.isLoading}
-          isComplianceLoading={complianceQuery.isLoading}
-          isVulnerabilityLoading={vulnerabilityQuery.isLoading}
-        />
+          {activeTab === "readiness" && (
+            <>
+              <TierReadiness
+                tierReadiness={tierReadiness}
+                isLoading={orientationQuery.isLoading}
+                onOpenResource={openResourcePanel}
+                resourceInsights={resourceInsights}
+              />
 
-        <ComplianceOverview
-          overallScore={complianceQuery.data?.overall_score}
-          configuredComponents={complianceQuery.data?.configured_components}
-          securityScore={complianceQuery.data?.remediation_progress?.security_score}
-          vaultHealth={complianceQuery.data?.vault_secrets_health}
-          vulnerabilitySummary={vulnerabilitySummary}
-          missingSecrets={missingSecrets}
-          isComplianceLoading={complianceQuery.isLoading}
-          isVaultLoading={vaultQuery.isLoading}
-          onOpenResource={openResourcePanel}
-        />
+              <ResourceWorkbench
+                resourceInsights={resourceInsights}
+                isLoading={orientationQuery.isLoading}
+                onOpenResource={openResourcePanel}
+              />
+            </>
+          )}
 
-        <SecurityTables
-          resourceStatuses={resourceStatuses}
-          vulnerabilities={vulnerabilities}
-          isVaultLoading={vaultQuery.isLoading}
-          isVulnerabilityLoading={vulnerabilityQuery.isLoading}
-          componentType={componentType}
-          componentFilter={componentFilter}
-          severityFilter={severityFilter}
-          componentOptions={componentOptions}
-          scanId={vulnerabilityQuery.data?.scan_id}
-          riskScore={vulnerabilityQuery.data?.risk_score}
-          scanDuration={vulnerabilityQuery.data?.scan_duration}
-          onOpenResource={openResourcePanel}
-          onComponentTypeChange={setComponentType}
-          onComponentFilterChange={setComponentFilter}
-          onSeverityFilterChange={setSeverityFilter}
-        />
+          {activeTab === "compliance" && (
+            <>
+              <ComplianceOverview
+                overallScore={complianceQuery.data?.overall_score}
+                configuredComponents={complianceQuery.data?.configured_components}
+                securityScore={complianceQuery.data?.remediation_progress?.security_score}
+                vaultHealth={complianceQuery.data?.vault_secrets_health}
+                vulnerabilitySummary={vulnerabilitySummary}
+                missingSecrets={missingSecrets}
+                isComplianceLoading={complianceQuery.isLoading}
+                isVaultLoading={vaultQuery.isLoading}
+                onOpenResource={openResourcePanel}
+              />
+
+              <SecurityTables
+                resourceStatuses={resourceStatuses}
+                vulnerabilities={vulnerabilities}
+                isVaultLoading={vaultQuery.isLoading}
+                isVulnerabilityLoading={vulnerabilityQuery.isLoading}
+                componentType={componentType}
+                componentFilter={componentFilter}
+                severityFilter={severityFilter}
+                componentOptions={componentOptions}
+                scanId={vulnerabilityQuery.data?.scan_id}
+                riskScore={vulnerabilityQuery.data?.risk_score}
+                scanDuration={vulnerabilityQuery.data?.scan_duration}
+                onOpenResource={openResourcePanel}
+                onComponentTypeChange={setComponentType}
+                onComponentFilterChange={setComponentFilter}
+                onSeverityFilterChange={setSeverityFilter}
+              />
+            </>
+          )}
+        </div>
 
         <footer className="pb-6 text-center text-xs text-white/40">
           Powered by the Vrooli lifecycle · API base: {import.meta.env.VITE_API_BASE_URL || "lifecycle-managed"}
