@@ -11,14 +11,15 @@ import (
 
 // DesktopConnectionConfig captures the operator-provided connection info for a scenario's desktop build.
 type DesktopConnectionConfig struct {
-	ProxyURL         string    `json:"proxy_url,omitempty"`
-	ServerURL        string    `json:"server_url,omitempty"`
-	APIURL           string    `json:"api_url,omitempty"`
-	DeploymentMode   string    `json:"deployment_mode,omitempty"`
-	AutoManageVrooli bool      `json:"auto_manage_vrooli"`
-	VrooliBinary     string    `json:"vrooli_binary_path,omitempty"`
-	ServerType       string    `json:"server_type,omitempty"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ProxyURL           string    `json:"proxy_url,omitempty"`
+	ServerURL          string    `json:"server_url,omitempty"`
+	APIURL             string    `json:"api_url,omitempty"`
+	DeploymentMode     string    `json:"deployment_mode,omitempty"`
+	AutoManageVrooli   bool      `json:"auto_manage_vrooli"`
+	VrooliBinary       string    `json:"vrooli_binary_path,omitempty"`
+	ServerType         string    `json:"server_type,omitempty"`
+	BundleManifestPath string    `json:"bundle_manifest_path,omitempty"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 func desktopConfigPath(scenarioRoot string) string {

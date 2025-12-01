@@ -7,11 +7,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	bundlemanifest "scenario-to-desktop-runtime/manifest"
 )
 
 // Quick generate desktop handler - auto-detects scenario configuration
@@ -25,6 +27,7 @@ func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Requ
 		ProxyURL         string `json:"proxy_url"`
 		LegacyServerURL  string `json:"server_url"`
 		LegacyAPIURL     string `json:"api_url"`
+		BundleManifest   string `json:"bundle_manifest_path"`
 		VrooliBinary     string `json:"vrooli_binary_path"`
 	}
 
@@ -116,6 +119,11 @@ func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Requ
 	} else if savedConfig != nil && savedConfig.DeploymentMode != "" {
 		config.DeploymentMode = savedConfig.DeploymentMode
 	}
+	if request.BundleManifest != "" {
+		config.BundleManifestPath = request.BundleManifest
+	} else if savedConfig != nil && savedConfig.BundleManifestPath != "" {
+		config.BundleManifestPath = savedConfig.BundleManifestPath
+	}
 	if request.AutoManageVrooli != nil {
 		config.AutoManageVrooli = *request.AutoManageVrooli
 	} else if request.LegacyAutoManage != nil {
@@ -130,6 +138,13 @@ func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Requ
 	if err := s.validateDesktopConfig(config); err != nil {
 		http.Error(w, fmt.Sprintf("Configuration validation failed: %s", err), http.StatusBadRequest)
 		return
+	}
+
+	if config.DeploymentMode == "bundled" {
+		if _, err := s.prepareBundledConfig(config); err != nil {
+			http.Error(w, fmt.Sprintf("Bundle validation failed: %s", err), http.StatusBadRequest)
+			return
+		}
 	}
 
 	s.persistDesktopConfig(metadata.ScenarioPath, config)
@@ -209,6 +224,13 @@ func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) 
 	if err := s.validateDesktopConfig(config); err != nil {
 		http.Error(w, fmt.Sprintf("Configuration validation failed: %s", err), http.StatusBadRequest)
 		return
+	}
+
+	if config.DeploymentMode == "bundled" {
+		if _, err := s.prepareBundledConfig(config); err != nil {
+			http.Error(w, fmt.Sprintf("Bundle validation failed: %s", err), http.StatusBadRequest)
+			return
+		}
 	}
 
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
@@ -530,6 +552,91 @@ func (s *Server) deleteDesktopHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (s *Server) prepareBundledConfig(config *DesktopConfig) (*bundlemanifest.Manifest, error) {
+	if config.BundleManifestPath == "" {
+		return nil, fmt.Errorf("bundle_manifest_path is required when deployment_mode is 'bundled'")
+	}
+
+	manifestPath, err := filepath.Abs(config.BundleManifestPath)
+	if err != nil {
+		return nil, fmt.Errorf("resolve bundle_manifest_path: %w", err)
+	}
+
+	m, err := bundlemanifest.LoadManifest(manifestPath)
+	if err != nil {
+		return nil, fmt.Errorf("load bundle manifest: %w", err)
+	}
+	if err := m.Validate(runtime.GOOS, runtime.GOARCH); err != nil {
+		return nil, fmt.Errorf("validate bundle manifest: %w", err)
+	}
+
+	config.BundleManifestPath = manifestPath
+	if config.BundleRuntimeRoot == "" {
+		config.BundleRuntimeRoot = "bundle"
+	}
+	if config.BundleIPC == nil {
+		config.BundleIPC = &BundleIPCConfig{}
+	}
+	if config.BundleIPC.Host == "" {
+		config.BundleIPC.Host = m.IPC.Host
+	}
+	if config.BundleIPC.Port == 0 {
+		config.BundleIPC.Port = m.IPC.Port
+	}
+	if config.BundleIPC.AuthTokenRel == "" {
+		config.BundleIPC.AuthTokenRel = m.IPC.AuthTokenRel
+	}
+	if config.BundleTelemetryUploadURL == "" {
+		config.BundleTelemetryUploadURL = m.Telemetry.UploadTo
+	}
+
+	uiService, uiPort := inferUISurface(m, config.BundleUIPortName)
+	if config.BundleUISvcID == "" {
+		config.BundleUISvcID = uiService
+	}
+	if config.BundleUIPortName == "" {
+		config.BundleUIPortName = uiPort
+	}
+
+	return m, nil
+}
+
+func inferUISurface(m *bundlemanifest.Manifest, preferredPort string) (string, string) {
+	portName := preferredPort
+	var uiService string
+	for _, svc := range m.Services {
+		if svc.Type == "ui-bundle" {
+			uiService = svc.ID
+			if portName == "" {
+				portName = firstPortName(svc)
+			}
+			break
+		}
+	}
+
+	if uiService == "" && len(m.Services) > 0 {
+		uiService = m.Services[0].ID
+		if portName == "" {
+			portName = firstPortName(m.Services[0])
+		}
+	}
+
+	if portName == "" {
+		portName = "http"
+	}
+
+	return uiService, portName
+}
+
+func firstPortName(svc bundlemanifest.Service) string {
+	if svc.Ports != nil && len(svc.Ports.Requested) > 0 {
+		if svc.Ports.Requested[0].Name != "" {
+			return svc.Ports.Requested[0].Name
+		}
+	}
+	return "http"
+}
+
 func (s *Server) persistDesktopConfig(scenarioRoot string, config *DesktopConfig) {
 	if config == nil || scenarioRoot == "" {
 		return
@@ -539,13 +646,14 @@ func (s *Server) persistDesktopConfig(scenarioRoot string, config *DesktopConfig
 	}
 
 	conn := &DesktopConnectionConfig{
-		ProxyURL:         config.ProxyURL,
-		ServerURL:        config.ExternalServerURL,
-		APIURL:           config.ExternalAPIURL,
-		DeploymentMode:   config.DeploymentMode,
-		AutoManageVrooli: config.AutoManageVrooli,
-		VrooliBinary:     config.VrooliBinaryPath,
-		ServerType:       config.ServerType,
+		ProxyURL:           config.ProxyURL,
+		ServerURL:          config.ExternalServerURL,
+		APIURL:             config.ExternalAPIURL,
+		DeploymentMode:     config.DeploymentMode,
+		AutoManageVrooli:   config.AutoManageVrooli,
+		VrooliBinary:       config.VrooliBinaryPath,
+		ServerType:         config.ServerType,
+		BundleManifestPath: config.BundleManifestPath,
 	}
 
 	if err := saveDesktopConnectionConfig(scenarioRoot, conn); err != nil {

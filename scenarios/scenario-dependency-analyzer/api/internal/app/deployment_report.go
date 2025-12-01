@@ -27,7 +27,7 @@ func buildDeploymentReport(scenarioName, scenarioPath, scenariosDir string, cfg 
 	visited[normalizeName(scenarioName)] = struct{}{}
 	nodes := buildDependencyNodeList(scenariosDir, scenarioName, cfg, visited)
 	aggregates := computeTierAggregates(nodes)
-	manifest := buildBundleManifest(scenarioName, scenarioPath, generatedAt, nodes)
+	manifest := buildBundleManifest(scenarioName, scenarioPath, generatedAt, nodes, cfg)
 
 	// Extract known tiers from aggregates
 	knownTiers := make([]string, 0, len(aggregates))

@@ -68,6 +68,17 @@ func (s *Server) performDesktopGeneration(buildID string, config *DesktopConfig)
 		status.Status = "ready"
 		status.Artifacts["config_path"] = configPath
 		status.Artifacts["output_path"] = config.OutputPath
+		if config.DeploymentMode == "bundled" && config.BundleManifestPath != "" {
+			pkgResult, pkgErr := packageBundle(config.OutputPath, config.BundleManifestPath, config.Platforms)
+			if pkgErr != nil {
+				status.Status = "failed"
+				status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Bundle packaging failed: %v", pkgErr))
+			} else {
+				status.Metadata["bundle_dir"] = pkgResult.BundleDir
+				status.Metadata["bundle_manifest"] = pkgResult.ManifestPath
+				status.Metadata["runtime_binaries"] = pkgResult.RuntimeBinaries
+			}
+		}
 	}
 
 	now := time.Now()

@@ -46,11 +46,19 @@ const LOCAL_VROOLI_BOOTSTRAP = {
     VROOLI_BINARY: "{{VROOLI_BINARY_PATH}}",
 };
 const BUNDLED_RUNTIME = {
-    SUPPORTED: false,
-    DOCS_URL: "docs/deployment/tiers/tier-2-desktop.md",
+	SUPPORTED: {{BUNDLED_RUNTIME_SUPPORTED}},
+	ROOT: "{{BUNDLED_RUNTIME_ROOT}}",
+	IPC_HOST: "{{BUNDLED_RUNTIME_IPC_HOST}}",
+	IPC_PORT: {{BUNDLED_RUNTIME_IPC_PORT}},
+	TOKEN_REL: "{{BUNDLED_RUNTIME_TOKEN_PATH}}",
+	UI_SERVICE: "{{BUNDLED_RUNTIME_UI_SERVICE}}",
+	UI_PORT_NAME: "{{BUNDLED_RUNTIME_UI_PORT_NAME}}",
+	TELEMETRY_UPLOAD_URL: "{{BUNDLED_RUNTIME_TELEMETRY_UPLOAD_URL}}",
+	DOCS_URL: "docs/deployment/tiers/tier-2-desktop.md",
 };
 
 let serverProcess: ChildProcess | null = null;
+let runtimeProcess: ChildProcess | null = null;
 let mainWindow: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -84,19 +92,38 @@ const shouldBootstrapLocalVrooli = APP_CONFIG.DEPLOYMENT_MODE === "external-serv
 const isBundledMode = APP_CONFIG.DEPLOYMENT_MODE === "bundled";
 
 const runtimeControlEnabled = (isBundledMode && BUNDLED_RUNTIME.SUPPORTED) || Boolean(
-    process.env.RUNTIME_CONTROL_HOST ||
-    process.env.RUNTIME_CONTROL_PORT ||
-    process.env.RUNTIME_CONTROL_TOKEN_PATH ||
-    process.env.RUNTIME_TELEMETRY_UPLOAD_URL
+	process.env.RUNTIME_CONTROL_HOST ||
+	process.env.RUNTIME_CONTROL_PORT ||
+	process.env.RUNTIME_CONTROL_TOKEN_PATH ||
+	process.env.RUNTIME_TELEMETRY_UPLOAD_URL
 );
 
 const RUNTIME_CONTROL = {
-    ENABLED: runtimeControlEnabled,
-    HOST: process.env.RUNTIME_CONTROL_HOST || "127.0.0.1",
-    PORT: Number(process.env.RUNTIME_CONTROL_PORT || 47710),
-    TOKEN_PATH_ENV: process.env.RUNTIME_CONTROL_TOKEN_PATH || "",
-    TELEMETRY_UPLOAD_URL: process.env.RUNTIME_TELEMETRY_UPLOAD_URL || "",
-    LOG_LINES: Number(process.env.RUNTIME_CONTROL_LOG_LINES || 200),
+	ENABLED: runtimeControlEnabled,
+	HOST: process.env.RUNTIME_CONTROL_HOST || BUNDLED_RUNTIME.IPC_HOST || "127.0.0.1",
+	PORT: Number(process.env.RUNTIME_CONTROL_PORT || BUNDLED_RUNTIME.IPC_PORT || 47710),
+	TOKEN_PATH_ENV: process.env.RUNTIME_CONTROL_TOKEN_PATH || "",
+	TELEMETRY_UPLOAD_URL: process.env.RUNTIME_TELEMETRY_UPLOAD_URL || BUNDLED_RUNTIME.TELEMETRY_UPLOAD_URL || "",
+	LOG_LINES: Number(process.env.RUNTIME_CONTROL_LOG_LINES || 200),
+};
+
+type RuntimeSecret = {
+    id: string;
+    class: string;
+    required: boolean;
+    has_value: boolean;
+    description?: string;
+    prompt?: Record<string, string>;
+};
+
+type RuntimeSecretsResponse = {
+    secrets: RuntimeSecret[];
+};
+
+type RuntimeRequestOptions = {
+    expectText?: boolean;
+    method?: string;
+    body?: unknown;
 };
 
 async function initializeTelemetry() {
@@ -129,17 +156,18 @@ async function recordTelemetry(event: string, details: TelemetryDetails = {}): P
 }
 
 async function resolveRuntimeTokenPath(): Promise<string | null> {
-    if (!RUNTIME_CONTROL.ENABLED) return null;
-    if (RUNTIME_CONTROL.TOKEN_PATH_ENV) {
-        return RUNTIME_CONTROL.TOKEN_PATH_ENV;
-    }
-    if (!app.isReady()) {
-        await app.whenReady();
-    }
-    return path.join(app.getPath("userData"), "runtime", "auth-token");
+	if (!RUNTIME_CONTROL.ENABLED) return null;
+	if (RUNTIME_CONTROL.TOKEN_PATH_ENV) {
+		return RUNTIME_CONTROL.TOKEN_PATH_ENV;
+	}
+	if (!app.isReady()) {
+		await app.whenReady();
+	}
+	const rel = BUNDLED_RUNTIME.TOKEN_REL || "runtime/auth-token";
+	return path.join(app.getPath("userData"), rel);
 }
 
-async function runtimeRequest<T = unknown>(endpoint: string, opts?: { expectText?: boolean }): Promise<T | string> {
+async function runtimeRequest<T = unknown>(endpoint: string, opts?: RuntimeRequestOptions): Promise<T | string> {
     if (!RUNTIME_CONTROL.ENABLED) {
         throw new Error("runtime control not enabled");
     }
@@ -159,7 +187,16 @@ async function runtimeRequest<T = unknown>(endpoint: string, opts?: { expectText
         headers.Authorization = `Bearer ${token}`;
     }
 
-    const res = await fetch(url, { headers });
+    const requestInit: RequestInit = {
+        method: opts?.method || "GET",
+        headers,
+    };
+    if (opts?.body !== undefined) {
+        headers["Content-Type"] = "application/json";
+        requestInit.body = JSON.stringify(opts.body);
+    }
+
+    const res = await fetch(url, requestInit);
     if (!res.ok) {
         const text = await res.text();
         throw new Error(`runtime request failed (${res.status}): ${text || res.statusText}`);
@@ -194,10 +231,10 @@ async function showRuntimeDiagnostics(): Promise<void> {
             }
         }
 
-        const messageLines = [
-            `Ready: ${(ready as any).ready ? "yes" : "no"}`,
-            `Services: ${Object.keys((ready as any).details || {}).length || Object.keys((ports as any).services || {}).length}`,
-        ];
+    const messageLines = [
+        `Ready: ${(ready as any).ready ? "yes" : "no"}`,
+        `Services: ${Object.keys((ready as any).details || {}).length || Object.keys((ports as any).services || {}).length}`,
+    ];
         if ((ports as any).services) {
             messageLines.push("Ports:");
             for (const [svc, svcPorts] of Object.entries((ports as any).services)) {
@@ -261,6 +298,127 @@ async function showRuntimeDiagnostics(): Promise<void> {
             title: "Runtime diagnostics",
             message: `Failed to query runtime: ${error}`,
         });
+    }
+}
+
+function escapeHTML(input: string): string {
+    return input.replace(/[&<>"']/g, (char) => {
+        switch (char) {
+            case "&":
+                return "&amp;";
+            case "<":
+                return "&lt;";
+            case ">":
+                return "&gt;";
+            case '"':
+                return "&quot;";
+            case "'":
+                return "&#39;";
+            default:
+                return char;
+        }
+    });
+}
+
+async function promptForSecretValue(secret: RuntimeSecret): Promise<string | null> {
+    const channel = `secret-submit-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const parent = mainWindow ?? undefined;
+    const modal = new BrowserWindow({
+        parent,
+        modal: true,
+        width: 460,
+        height: 320,
+        resizable: false,
+        minimizable: false,
+        maximizable: false,
+        title: `Configure ${APP_CONFIG.APP_DISPLAY_NAME}`,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false,
+        },
+        show: false,
+    });
+
+    const label = escapeHTML(secret.prompt?.label || secret.id);
+    const description = escapeHTML(secret.prompt?.description || secret.description || "Enter a value for this secret.");
+    const body = `
+<!doctype html>
+<html>
+<body style="font-family: sans-serif; padding: 16px; background: #0f172a; color: #e2e8f0;">
+  <h2 style="margin-top: 0;">${label}</h2>
+  <p style="margin-bottom: 12px;">${description}</p>
+  <form id="secret-form" style="display: flex; flex-direction: column; gap: 12px;">
+    <input id="secret-value" type="password" placeholder="Value" autofocus
+      style="padding: 10px 12px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0;">
+    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+      <button type="button" id="cancel" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0;">Cancel</button>
+      <button type="submit" style="padding: 8px 12px; border-radius: 6px; border: none; background: #10b981; color: #0f172a; font-weight: 600;">Save</button>
+    </div>
+  </form>
+  <script>
+    const { ipcRenderer } = require('electron');
+    const form = document.getElementById('secret-form');
+    const input = document.getElementById('secret-value');
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      ipcRenderer.send('${channel}', input.value);
+    });
+    document.getElementById('cancel').addEventListener('click', () => {
+      ipcRenderer.send('${channel}', null);
+    });
+  </script>
+</body>
+</html>
+    `;
+
+    await modal.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(body)}`);
+    modal.once("ready-to-show", () => modal.show());
+
+    return await new Promise<string | null>((resolve) => {
+        let settled = false;
+        const finish = (value: string | null) => {
+            if (settled) return;
+            settled = true;
+            ipcMain.removeAllListeners(channel);
+            if (!modal.isDestroyed()) {
+                modal.close();
+            }
+            resolve(value);
+        };
+        ipcMain.once(channel, (_event, value: string | null) => finish(value));
+        modal.on("closed", () => finish(null));
+    });
+}
+
+async function ensureRuntimeSecretsIfNeeded(): Promise<void> {
+    if (!RUNTIME_CONTROL.ENABLED) return;
+    try {
+        const status = await runtimeRequest<RuntimeSecretsResponse>("/secrets");
+        const secrets = (status as RuntimeSecretsResponse | undefined)?.secrets || [];
+        const missing = secrets.filter(
+            (sec) => sec.class === "user_prompt" && sec.required && !sec.has_value,
+        );
+        if (missing.length === 0) {
+            return;
+        }
+
+        const collected: Record<string, string> = {};
+        for (const secret of missing) {
+            const value = await promptForSecretValue(secret);
+            if (value && value.trim() !== "") {
+                collected[secret.id] = value.trim();
+            }
+        }
+
+        if (Object.keys(collected).length === 0) {
+            dialog.showErrorBox("Missing secrets", "Secrets are required to start the bundled runtime.");
+            return;
+        }
+
+        await runtimeRequest("/secrets", { method: "POST", body: { secrets: collected } });
+    } catch (error) {
+        console.error("[Desktop App] Failed to sync runtime secrets:", error);
+        dialog.showErrorBox("Secrets error", String(error));
     }
 }
 
@@ -823,6 +981,137 @@ function createApplicationMenu() {
     Menu.setApplicationMenu(menu);
 }
 
+function runtimePlatformKey(): string {
+	const arch = process.arch === "x64" ? "x64" : process.arch;
+	const os = process.platform === "darwin" ? "mac" : process.platform === "win32" ? "win" : "linux";
+	return `${os}-${arch}`;
+}
+
+async function resolveBundleRoot(): Promise<string | null> {
+	const bundleRoot = BUNDLED_RUNTIME.ROOT || "bundle";
+	const candidates = [
+		path.join(process.resourcesPath, bundleRoot),
+		path.join(app.getAppPath(), bundleRoot),
+	];
+
+	for (const candidate of candidates) {
+		if (await pathExists(candidate)) {
+			return candidate;
+		}
+	}
+
+	return null;
+}
+
+async function waitForFile(filePath: string, timeoutMs = 15000): Promise<void> {
+	const deadline = Date.now() + timeoutMs;
+	while (Date.now() < deadline) {
+		if (await pathExists(filePath)) {
+			return;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 150));
+	}
+	throw new Error(`file not found within timeout: ${filePath}`);
+}
+
+async function startBundledRuntime(): Promise<string> {
+	const bundleRoot = await resolveBundleRoot();
+	if (!bundleRoot) {
+		throw new Error("Bundled payload is missing. Regenerate or reinstall the desktop app.");
+	}
+
+	const manifestPath = path.join(bundleRoot, "bundle.json");
+	if (!(await pathExists(manifestPath))) {
+		throw new Error(`Bundled manifest missing at ${manifestPath}`);
+	}
+
+	const runtimePath = path.join(
+		bundleRoot,
+		"runtime",
+		runtimePlatformKey(),
+		process.platform === "win32" ? "runtime.exe" : "runtime",
+	);
+	if (!(await pathExists(runtimePath))) {
+		throw new Error(`Bundled runtime binary not found for this platform (${runtimePath})`);
+	}
+
+	const appData = path.join(app.getPath("userData"), "runtime");
+	await fs.mkdir(appData, { recursive: true });
+
+	const tokenRel = BUNDLED_RUNTIME.TOKEN_REL || "runtime/auth-token";
+	const tokenPath = path.join(appData, tokenRel);
+	RUNTIME_CONTROL.TOKEN_PATH_ENV = tokenPath;
+
+	const args = [
+		"--manifest",
+		manifestPath,
+		"--bundle-root",
+		bundleRoot,
+		"--app-data",
+		appData,
+		"--dry-run=false",
+	];
+
+	runtimeProcess = spawn(runtimePath, args, {
+		stdio: "inherit",
+		env: { ...process.env },
+	});
+	runtimeProcess.on("exit", (code, signal) => {
+		void recordTelemetry("bundled_runtime_exit", { code, signal });
+	});
+
+	await waitForFile(tokenPath, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+
+	const readyDeadline = Date.now() + APP_CONFIG.SERVER_CHECK_TIMEOUT_MS;
+	while (Date.now() < readyDeadline) {
+		try {
+			const ready = await runtimeRequest<{ ready: boolean }>("/readyz");
+			if ((ready as any)?.ready) {
+				break;
+			}
+		} catch {
+			// runtime may still be starting
+		}
+		await new Promise((resolve) => setTimeout(resolve, 350));
+	}
+
+	const ports = await runtimeRequest<{ services: Record<string, Record<string, number>> }>("/ports");
+	const serviceId = BUNDLED_RUNTIME.UI_SERVICE || Object.keys((ports as any).services || {})[0];
+	const portName = BUNDLED_RUNTIME.UI_PORT_NAME || "http";
+	const svcPorts = (ports as any).services?.[serviceId];
+	const port = svcPorts?.[portName];
+	if (!serviceId || !port) {
+		throw new Error("Bundled runtime started but did not expose a UI port");
+	}
+
+	const url = `http://127.0.0.1:${port}/`;
+	await recordTelemetry("bundled_runtime_ready", {
+		bundleRoot,
+		serviceId,
+		portName,
+		port,
+	});
+	return url;
+}
+
+async function shutdownRuntime(): Promise<void> {
+	if (RUNTIME_CONTROL.ENABLED) {
+		try {
+			await runtimeRequest("/shutdown", { method: "POST" });
+		} catch (error) {
+			console.warn("[Desktop App] Failed to request runtime shutdown", error);
+		}
+	}
+	if (runtimeProcess) {
+		try {
+			runtimeProcess.kill();
+		} catch {
+			// ignore
+		}
+		runtimeProcess = null;
+	}
+}
+
 async function startScenarioServer() {
     if (APP_CONFIG.SERVER_TYPE === "external") {
         console.log(`[Desktop App] Using external server: ${APP_CONFIG.SERVER_PATH}`);
@@ -1032,38 +1321,57 @@ app.whenReady().then(async () => {
             deploymentMode: APP_CONFIG.DEPLOYMENT_MODE,
         });
 
-        if (isBundledMode && !BUNDLED_RUNTIME.SUPPORTED) {
-            const message = `Offline/bundled builds are not available yet. Regenerate with DEPLOYMENT_MODE=external-server to connect to your existing Vrooli server. Roadmap: ${BUNDLED_RUNTIME.DOCS_URL}`;
-            dialog.showErrorBox("Bundled Mode Unavailable", message);
-            void recordTelemetry("bundled_mode_blocked", {
-                docsUrl: BUNDLED_RUNTIME.DOCS_URL,
-            });
-            app.quit();
-            return;
-        }
+		let targetUrl = SERVER_URL;
 
-        if (shouldBootstrapLocalVrooli) {
-            await ensureLocalVrooliReady();
-        }
+		if (isBundledMode) {
+			if (!BUNDLED_RUNTIME.SUPPORTED) {
+				const message = `Bundled builds require a bundle.json payload. Regenerate with DEPLOYMENT_MODE=external-server if you intended a thin client. Docs: ${BUNDLED_RUNTIME.DOCS_URL}`;
+				dialog.showErrorBox("Bundled Mode Unavailable", message);
+				void recordTelemetry("bundled_mode_blocked", {
+					docsUrl: BUNDLED_RUNTIME.DOCS_URL,
+				});
+				app.quit();
+				return;
+			}
 
-        // Start scenario server
-        await startScenarioServer();
-        
-        // Create main window
-        await createMainWindow();
-        
-        // Wait for server to be ready
-        if (APP_CONFIG.SERVER_TYPE !== "static") {
-            await checkServerReady(SERVER_URL, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
-        }
-        
-        // Load the application
-        if (APP_CONFIG.SERVER_TYPE === "static") {
-            const staticPath = path.resolve(app.getAppPath(), APP_CONFIG.SERVER_PATH);
-            await mainWindow!.loadFile(staticPath);
-        } else {
-            await mainWindow!.loadURL(SERVER_URL);
-        }
+			try {
+				targetUrl = await startBundledRuntime();
+				await ensureRuntimeSecretsIfNeeded();
+			} catch (startupError) {
+				console.error("[Desktop App] Bundled runtime failed to start", startupError);
+				await recordTelemetry("bundled_runtime_failed", { error: String(startupError) });
+				dialog.showErrorBox("Bundled Startup Error", String(startupError));
+				await shutdownRuntime();
+				app.quit();
+				return;
+			}
+		} else {
+			if (shouldBootstrapLocalVrooli) {
+				await ensureLocalVrooliReady();
+			}
+
+			// Start scenario server (thin client / embedded server modes)
+			await startScenarioServer();
+			if (RUNTIME_CONTROL.ENABLED) {
+				await ensureRuntimeSecretsIfNeeded();
+			}
+		}
+
+		// Create main window
+		await createMainWindow();
+
+		// Wait for server/runtime to be ready
+		if (APP_CONFIG.SERVER_TYPE !== "static" || isBundledMode) {
+			await checkServerReady(targetUrl, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+		}
+
+		// Load the application
+		if (APP_CONFIG.SERVER_TYPE === "static" && !isBundledMode) {
+			const staticPath = path.resolve(app.getAppPath(), APP_CONFIG.SERVER_PATH);
+			await mainWindow!.loadFile(staticPath);
+		} else {
+			await mainWindow!.loadURL(targetUrl);
+		}
         
         // Close splash and show main window
         if (splashWindow) {
@@ -1072,20 +1380,28 @@ app.whenReady().then(async () => {
         mainWindow!.show();
         mainWindow!.focus();
         
-        console.log(`[Desktop App] ${APP_CONFIG.APP_DISPLAY_NAME} ready!`);
-        void recordTelemetry("app_ready", {
-            serverUrl: SERVER_URL,
-        });
+		console.log(`[Desktop App] ${APP_CONFIG.APP_DISPLAY_NAME} ready!`);
+		void recordTelemetry("app_ready", {
+			serverUrl: targetUrl,
+			bundled: isBundledMode,
+		});
         
-    } catch (error) {
-        console.error("[Desktop App] Startup error:", error);
-        if (splashWindow) {
-            splashWindow.close();
-        }
-        dialog.showErrorBox("Startup Error", `Failed to start ${APP_CONFIG.APP_DISPLAY_NAME}: ${error}`);
-        void recordTelemetry("startup_error", {
-            message: String(error),
-        });
+	} catch (error) {
+		console.error("[Desktop App] Startup error:", error);
+		if (splashWindow) {
+			splashWindow.close();
+		}
+		if (runtimeProcess) {
+			await shutdownRuntime();
+		}
+		if (serverProcess) {
+			serverProcess.kill();
+			serverProcess = null;
+		}
+		dialog.showErrorBox("Startup Error", `Failed to start ${APP_CONFIG.APP_DISPLAY_NAME}: ${error}`);
+		void recordTelemetry("startup_error", {
+			message: String(error),
+		});
         app.quit();
     }
 });
@@ -1105,6 +1421,9 @@ app.on("activate", async () => {
 });
 
 app.on("before-quit", () => {
+    if (runtimeProcess) {
+        void shutdownRuntime();
+    }
     // Clean up server process
     if (serverProcess) {
         console.log("[Desktop App] Terminating server process...");

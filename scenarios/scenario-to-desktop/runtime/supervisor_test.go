@@ -1,6 +1,9 @@
 package bundleruntime
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -95,4 +98,61 @@ func TestApplyPlaywrightConventionsFallback(t *testing.T) {
 	if got := env["ENGINE"]; got != "playwright" {
 		t.Fatalf("expected ENGINE=playwright, got %q", got)
 	}
+}
+
+func TestHandleSecretsGetReturnsStatus(t *testing.T) {
+	manifestData := &manifest.Manifest{
+		App: manifest.App{Name: "demo", Version: "1.0.0"},
+		IPC: manifest.IPC{Host: "127.0.0.1", Port: 48000, AuthTokenRel: "runtime/token"},
+		Services: []manifest.Service{
+			{ID: "api", Health: manifest.HealthCheck{Type: "tcp"}, Readiness: manifest.ReadinessCheck{Type: "tcp"}},
+		},
+		Secrets: []manifest.Secret{
+			{ID: "API_KEY", Class: "user_prompt", Description: "API key", Required: ptrBool(true), Prompt: map[string]string{"label": "API key"}},
+			{ID: "OPTIONAL_HINT", Class: "per_install_generated", Required: ptrBool(false)},
+		},
+	}
+	s := &Supervisor{
+		opts:    Options{Manifest: manifestData},
+		secrets: map[string]string{"OPTIONAL_HINT": "seed"},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/secrets", nil)
+	rr := httptest.NewRecorder()
+
+	s.handleSecrets(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp struct {
+		Secrets []struct {
+			ID       string `json:"id"`
+			HasValue bool   `json:"has_value"`
+			Required bool   `json:"required"`
+		} `json:"secrets"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Secrets) != 2 {
+		t.Fatalf("expected 2 secrets, got %d", len(resp.Secrets))
+	}
+	foundMissing := false
+	for _, sec := range resp.Secrets {
+		if sec.ID == "API_KEY" && (!sec.HasValue && sec.Required) {
+			foundMissing = true
+		}
+		if sec.ID == "OPTIONAL_HINT" && !sec.HasValue {
+			t.Fatalf("expected OPTIONAL_HINT to be marked present")
+		}
+	}
+	if !foundMissing {
+		t.Fatalf("expected to flag missing required API_KEY")
+	}
+}
+
+func ptrBool(v bool) *bool {
+	return &v
 }

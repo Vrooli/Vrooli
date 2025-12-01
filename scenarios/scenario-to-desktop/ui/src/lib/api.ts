@@ -55,6 +55,7 @@ export interface DesktopConfig {
   proxy_url?: string;
   external_server_url?: string;
   external_api_url?: string;
+  bundle_manifest_path?: string;
 }
 
 export interface PlatformBuildResult {

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 )
 
 // validateDesktopConfig validates desktop configuration
@@ -38,7 +39,11 @@ func (s *Server) validateDesktopConfig(config *DesktopConfig) error {
 		config.License = "MIT"
 	}
 	if len(config.Platforms) == 0 {
-		config.Platforms = []string{"win", "mac", "linux"}
+		if isBundled {
+			config.Platforms = []string{defaultPlatformKey()}
+		} else {
+			config.Platforms = []string{"win", "mac", "linux"}
+		}
 	}
 	if config.ServerPort == 0 && (config.ServerType == "node" || config.ServerType == "executable") {
 		config.ServerPort = 3000
@@ -47,15 +52,40 @@ func (s *Server) validateDesktopConfig(config *DesktopConfig) error {
 	if config.ServerType == "" {
 		config.ServerType = "external"
 	}
+	isBundled := config.DeploymentMode == "bundled"
 	if config.DeploymentMode == "" {
 		config.DeploymentMode = "external-server"
+		isBundled = false
 	}
 	validDeploymentModes := []string{"external-server", "cloud-api", "bundled"}
 	if !contains(validDeploymentModes, config.DeploymentMode) {
 		return fmt.Errorf("invalid deployment_mode: %s", config.DeploymentMode)
 	}
+	if isBundled && config.BundleManifestPath == "" {
+		return fmt.Errorf("bundle_manifest_path is required when deployment_mode is 'bundled'")
+	}
 
-	if config.ServerType == "external" {
+	if isBundled {
+		// Bundled builds run against the packaged runtime; avoid strict proxy requirements.
+		if config.ServerType != "external" {
+			config.ServerType = "external"
+		}
+		if config.ServerPath == "" {
+			config.ServerPath = "http://127.0.0.1"
+		}
+		if config.ProxyURL == "" {
+			config.ProxyURL = config.ServerPath
+		}
+		if config.ExternalServerURL == "" {
+			config.ExternalServerURL = config.ServerPath
+		}
+		if config.APIEndpoint == "" {
+			config.APIEndpoint = config.ServerPath
+		}
+		if config.ExternalAPIURL == "" {
+			config.ExternalAPIURL = config.APIEndpoint
+		}
+	} else if config.ServerType == "external" {
 		proxyURL := config.ProxyURL
 		if proxyURL == "" {
 			proxyURL = config.ExternalServerURL
@@ -88,6 +118,9 @@ func (s *Server) validateDesktopConfig(config *DesktopConfig) error {
 	}
 	if config.AutoManageVrooli && config.ServerType != "external" {
 		return fmt.Errorf("auto_manage_vrooli is only supported when server_type is 'external'")
+	}
+	if config.APIEndpoint == "" {
+		config.APIEndpoint = "http://127.0.0.1"
 	}
 
 	return nil
@@ -137,4 +170,15 @@ func (s *Server) testDependencies(appPath string) bool {
 	cmd.Dir = appPath
 	err := cmd.Run()
 	return err == nil
+}
+
+func defaultPlatformKey() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "mac"
+	case "windows":
+		return "win"
+	default:
+		return "linux"
+	}
 }

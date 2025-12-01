@@ -48,6 +48,21 @@ type DesktopConfig struct {
 
 	// Styling
 	Styling map[string]interface{} `json:"styling"`
+
+	// Bundled runtime configuration (optional; required for deployment_mode=bundled)
+	BundleManifestPath       string           `json:"bundle_manifest_path,omitempty"`
+	BundleRuntimeRoot        string           `json:"bundle_runtime_root,omitempty"`
+	BundleIPC                *BundleIPCConfig `json:"bundle_ipc,omitempty"`
+	BundleUISvcID            string           `json:"bundle_ui_service_id,omitempty"`
+	BundleUIPortName         string           `json:"bundle_ui_port_name,omitempty"`
+	BundleTelemetryUploadURL string           `json:"bundle_telemetry_upload_url,omitempty"`
+}
+
+// BundleIPCConfig captures runtime control surface hints derived from bundle.json.
+type BundleIPCConfig struct {
+	Host         string `json:"host,omitempty"`
+	Port         int    `json:"port,omitempty"`
+	AuthTokenRel string `json:"auth_token_path,omitempty"`
 }
 
 // PlatformBuildResult represents the result of building for a specific platform

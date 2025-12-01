@@ -28,6 +28,7 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
   const [proxyUrl, setProxyUrl] = useState(saved?.proxy_url ?? saved?.server_url ?? "");
   const [autoManageVrooli, setAutoManageVrooli] = useState(saved?.auto_manage_vrooli ?? false);
   const [vrooliBinaryPath, setVrooliBinaryPath] = useState(saved?.vrooli_binary_path ?? "vrooli");
+  const [bundleManifestPath, setBundleManifestPath] = useState(saved?.bundle_manifest_path ?? "");
   const [connectionResult, setConnectionResult] = useState<ProbeResponse | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const selectedDeployment = useMemo(
@@ -37,11 +38,11 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
 
   const generateMutation = useMutation({
     mutationFn: async () => {
-      if (deploymentMode !== "external-server") {
-        throw new Error("Only the 'Connect to existing Vrooli instance' option works right now.");
-      }
-      if (!proxyUrl) {
+      if (deploymentMode === "external-server" && !proxyUrl) {
         throw new Error("Provide the proxy URL you use in the browser.");
+      }
+      if (deploymentMode === "bundled" && !bundleManifestPath) {
+        throw new Error("Provide the bundle_manifest_path exported by deployment-manager.");
       }
       const res = await fetch(buildUrl('/desktop/generate/quick'), {
         method: 'POST',
@@ -51,6 +52,7 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
           template_type: 'universal',
           deployment_mode: deploymentMode,
           proxy_url: proxyUrl,
+          bundle_manifest_path: bundleManifestPath || undefined,
           auto_manage_vrooli: autoManageVrooli,
           vrooli_binary_path: vrooliBinaryPath
         })
@@ -103,6 +105,7 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
     setProxyUrl(cfg.proxy_url ?? cfg.server_url ?? "");
     setAutoManageVrooli(cfg.auto_manage_vrooli ?? false);
     setVrooliBinaryPath(cfg.vrooli_binary_path ?? "vrooli");
+    setBundleManifestPath(cfg.bundle_manifest_path ?? "");
   }, [scenario.connection_config?.updated_at, scenario.connection_config, scenario.name]);
 
   const connectionMutation = useMutation({
@@ -227,7 +230,7 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
               className="mt-1"
             >
               {DEPLOYMENT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value} disabled={option.value !== "external-server"}>
+                <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
@@ -247,59 +250,76 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
             </p>
           </div>
 
-          <div>
-            <Label htmlFor={`proxyUrl-${scenario.name}`}>Proxy URL</Label>
-            <p className="mb-1 text-xs text-slate-400">
-              Paste the Cloudflare/app-monitor link you already use (for example <code>https://app-monitor.example.com/apps/{scenario.name}/proxy/</code>).
-            </p>
-            <Input
-              id={`proxyUrl-${scenario.name}`}
-              value={proxyUrl}
-              onChange={(e) => setProxyUrl(e.target.value)}
-              placeholder="https://app-monitor.example.dev/apps/picker-wheel/proxy/"
-              className="mt-1"
-            />
-
-            <div className="mt-2 flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => connectionMutation.mutate()}
-                disabled={connectionMutation.isPending || !proxyUrl}
-              >
-                {connectionMutation.isPending ? "Testing..." : "Test connection"}
-              </Button>
-              {connectionResult && connectionResult.server.status === "ok" && connectionResult.api.status === "ok" && (
-                <span className="text-xs text-green-300">Proxy responded ✔</span>
-              )}
-              {connectionError && <span className="text-xs text-red-300">{connectionError}</span>}
+          {deploymentMode === "bundled" ? (
+            <div className="space-y-2">
+              <Label htmlFor={`bundleManifest-${scenario.name}`}>bundle_manifest_path</Label>
+              <Input
+                id={`bundleManifest-${scenario.name}`}
+                value={bundleManifestPath}
+                onChange={(e) => setBundleManifestPath(e.target.value)}
+                placeholder="/home/you/Vrooli/docs/deployment/examples/manifests/desktop-happy.json"
+              />
+              <p className="text-xs text-emerald-200/80">
+                Stages the manifest + bundled binaries into the desktop app so the packaged runtime can start offline.
+              </p>
             </div>
-            {(connectionResult?.server || connectionResult?.api) && (
-              <div className="mt-2 space-y-1 rounded border border-slate-800 bg-black/20 p-2 text-xs text-slate-200">
-                <p className="font-semibold text-slate-100">Connectivity snapshot</p>
-                <p>UI URL: {connectionResult?.server.status === "ok" ? "reachable" : connectionResult?.server.message || "no response"}</p>
-                <p>API URL: {connectionResult?.api.status === "ok" ? "reachable" : connectionResult?.api.message || "no response"}</p>
-              </div>
-            )}
-          </div>
+          ) : (
+            <>
+              <div>
+                <Label htmlFor={`proxyUrl-${scenario.name}`}>Proxy URL</Label>
+                <p className="mb-1 text-xs text-slate-400">
+                  Paste the Cloudflare/app-monitor link you already use (for example <code>https://app-monitor.example.com/apps/{scenario.name}/proxy/</code>).
+                </p>
+                <Input
+                  id={`proxyUrl-${scenario.name}`}
+                  value={proxyUrl}
+                  onChange={(e) => setProxyUrl(e.target.value)}
+                  placeholder="https://app-monitor.example.dev/apps/picker-wheel/proxy/"
+                  className="mt-1"
+                />
 
-          <div className="space-y-2">
-            <Checkbox
-              checked={autoManageVrooli}
-              onChange={(e) => setAutoManageVrooli(e.target.checked)}
-              label="Let the desktop build run the scenario locally (vrooli setup/start)"
-            />
-            <Input
-              value={vrooliBinaryPath}
-              onChange={(e) => setVrooliBinaryPath(e.target.value)}
-              disabled={!autoManageVrooli}
-              placeholder="vrooli"
-            />
-            <p className="text-xs text-slate-400">
-              This runs `vrooli setup/start/stop` on the user's machine. Enable only when they expect to host the scenario locally.
-            </p>
-          </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => connectionMutation.mutate()}
+                    disabled={connectionMutation.isPending || !proxyUrl}
+                  >
+                    {connectionMutation.isPending ? "Testing..." : "Test connection"}
+                  </Button>
+                  {connectionResult && connectionResult.server.status === "ok" && connectionResult.api.status === "ok" && (
+                    <span className="text-xs text-green-300">Proxy responded ✔</span>
+                  )}
+                  {connectionError && <span className="text-xs text-red-300">{connectionError}</span>}
+                </div>
+                {(connectionResult?.server || connectionResult?.api) && (
+                  <div className="mt-2 space-y-1 rounded border border-slate-800 bg-black/20 p-2 text-xs text-slate-200">
+                    <p className="font-semibold text-slate-100">Connectivity snapshot</p>
+                    <p>UI URL: {connectionResult?.server.status === "ok" ? "reachable" : connectionResult?.server.message || "no response"}</p>
+                    <p>API URL: {connectionResult?.api.status === "ok" ? "reachable" : connectionResult?.api.message || "no response"}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Checkbox
+                  checked={autoManageVrooli}
+                  onChange={(e) => setAutoManageVrooli(e.target.checked)}
+                  label="Let the desktop build run the scenario locally (vrooli setup/start)"
+                />
+                <Input
+                  value={vrooliBinaryPath}
+                  onChange={(e) => setVrooliBinaryPath(e.target.value)}
+                  disabled={!autoManageVrooli}
+                  placeholder="vrooli"
+                />
+                <p className="text-xs text-slate-400">
+                  This runs `vrooli setup/start/stop` on the user's machine. Enable only when they expect to host the scenario locally.
+                </p>
+              </div>
+            </>
+          )}
 
           <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" className="gap-2" disabled={generateMutation.isPending}>
@@ -323,6 +343,7 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
                 setConnectionResult(null);
                 setConnectionError(null);
                 setVrooliBinaryPath("vrooli");
+                setBundleManifestPath("");
               }}
             >
               Reset
@@ -350,8 +371,8 @@ const DEPLOYMENT_OPTIONS = [
   },
   {
     value: "bundled",
-    label: "Offline bundle (coming soon)",
-    description: "Future option: ship APIs/resources next to the UI so everything runs on the desktop.",
+    label: "Offline bundle (bundle.json)",
+    description: "Ship APIs/resources next to the UI using a bundle.json manifest so everything runs locally.",
     docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
   }
 ];

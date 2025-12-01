@@ -289,6 +289,7 @@ type BundleManifest struct {
 	GeneratedAt  time.Time               `json:"generated_at"`
 	Files        []BundleFileEntry       `json:"files"`
 	Dependencies []BundleDependencyEntry `json:"dependencies"`
+	Skeleton     *DesktopBundleSkeleton  `json:"skeleton,omitempty"`
 }
 
 // BundleFileEntry documents a file included in deployment bundle.
@@ -306,6 +307,147 @@ type BundleDependencyEntry struct {
 	ResourceType string                        `json:"resource_type,omitempty"`
 	TierSupport  map[string]TierSupportSummary `json:"tier_support,omitempty"`
 	Alternatives []string                      `json:"alternatives,omitempty"`
+}
+
+// DesktopBundleSkeleton approximates the full bundle.json consumed by the runtime.
+// It is intentionally conservative: defaults are portable, and values are placeholders
+// that deployment-manager can refine.
+type DesktopBundleSkeleton struct {
+	SchemaVersion string                      `json:"schema_version"`
+	Target        string                      `json:"target"`
+	App           BundleSkeletonApp           `json:"app"`
+	IPC           BundleSkeletonIPC           `json:"ipc"`
+	Telemetry     BundleSkeletonTelemetry     `json:"telemetry"`
+	Ports         BundleSkeletonPorts         `json:"ports"`
+	Swaps         []BundleSkeletonSwap        `json:"swaps,omitempty"`
+	Secrets       []BundleSkeletonSecret      `json:"secrets,omitempty"`
+	Services      []BundleSkeletonService     `json:"services"`
+}
+
+type BundleSkeletonApp struct {
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	Description string `json:"description,omitempty"`
+}
+
+type BundleSkeletonIPC struct {
+	Mode         string `json:"mode"`
+	Host         string `json:"host"`
+	Port         int    `json:"port"`
+	AuthTokenPath string `json:"auth_token_path"`
+}
+
+type BundleSkeletonTelemetry struct {
+	File      string `json:"file"`
+	UploadURL string `json:"upload_url,omitempty"`
+}
+
+type BundleSkeletonPorts struct {
+	DefaultRange BundleSkeletonPortRange `json:"default_range"`
+	Reserved     []int                   `json:"reserved,omitempty"`
+}
+
+type BundleSkeletonPortRange struct {
+	Min int `json:"min"`
+	Max int `json:"max"`
+}
+
+type BundleSkeletonSwap struct {
+	Original    string `json:"original"`
+	Replacement string `json:"replacement"`
+	Reason      string `json:"reason,omitempty"`
+	Limitations string `json:"limitations,omitempty"`
+}
+
+type BundleSkeletonSecret struct {
+	ID          string                      `json:"id"`
+	Class       string                      `json:"class"`
+	Description string                      `json:"description,omitempty"`
+	Format      string                      `json:"format,omitempty"`
+	Required    *bool                       `json:"required,omitempty"`
+	Prompt      *BundleSkeletonSecretPrompt `json:"prompt,omitempty"`
+	Generator   map[string]interface{}      `json:"generator,omitempty"`
+	Target      BundleSkeletonSecretTarget  `json:"target"`
+}
+
+type BundleSkeletonSecretPrompt struct {
+	Label       string `json:"label,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+type BundleSkeletonSecretTarget struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
+}
+
+type BundleSkeletonService struct {
+	ID           string                                 `json:"id"`
+	Type         string                                 `json:"type"`
+	Description  string                                 `json:"description,omitempty"`
+	Binaries     map[string]BundleSkeletonServiceBinary `json:"binaries"`
+	Env          map[string]string                      `json:"env,omitempty"`
+	Secrets      []string                               `json:"secrets,omitempty"`
+	DataDirs     []string                               `json:"data_dirs,omitempty"`
+	LogDir       string                                 `json:"log_dir,omitempty"`
+	Ports        *BundleSkeletonServicePorts            `json:"ports,omitempty"`
+	Health       BundleSkeletonHealth                   `json:"health"`
+	Readiness    BundleSkeletonReadiness                `json:"readiness"`
+	Dependencies []string                               `json:"dependencies,omitempty"`
+	Migrations   []BundleSkeletonMigration              `json:"migrations,omitempty"`
+	Assets       []BundleSkeletonAsset                  `json:"assets,omitempty"`
+	GPU          *BundleSkeletonGPU                     `json:"gpu,omitempty"`
+	Critical     *bool                                  `json:"critical,omitempty"`
+}
+
+type BundleSkeletonServiceBinary struct {
+	Path string            `json:"path"`
+	Args []string          `json:"args,omitempty"`
+	Env  map[string]string `json:"env,omitempty"`
+	Cwd  string            `json:"cwd,omitempty"`
+}
+
+type BundleSkeletonServicePorts struct {
+	Requested []BundleSkeletonRequestedPort `json:"requested"`
+}
+
+type BundleSkeletonRequestedPort struct {
+	Name           string                 `json:"name"`
+	Range          BundleSkeletonPortRange `json:"range"`
+	RequiresSocket bool                   `json:"requires_socket,omitempty"`
+}
+
+type BundleSkeletonHealth struct {
+	Type     string   `json:"type"`
+	Path     string   `json:"path,omitempty"`
+	PortName string   `json:"port_name,omitempty"`
+	Command  []string `json:"command,omitempty"`
+	Interval int      `json:"interval_ms,omitempty"`
+	Timeout  int      `json:"timeout_ms,omitempty"`
+	Retries  int      `json:"retries,omitempty"`
+}
+
+type BundleSkeletonReadiness struct {
+	Type     string `json:"type"`
+	PortName string `json:"port_name,omitempty"`
+	Pattern  string `json:"pattern,omitempty"`
+	Timeout  int    `json:"timeout_ms,omitempty"`
+}
+
+type BundleSkeletonMigration struct {
+	Version string            `json:"version"`
+	Command []string          `json:"command"`
+	Env     map[string]string `json:"env,omitempty"`
+	RunOn   string            `json:"run_on,omitempty"`
+}
+
+type BundleSkeletonAsset struct {
+	Path      string `json:"path"`
+	SHA256    string `json:"sha256,omitempty"`
+	SizeBytes int64  `json:"size_bytes,omitempty"`
+}
+
+type BundleSkeletonGPU struct {
+	Requirement string `json:"requirement"`
 }
 
 // DeploymentMetadataGaps reports missing deployment metadata across the dependency tree.

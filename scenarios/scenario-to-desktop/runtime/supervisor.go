@@ -396,7 +396,41 @@ func (s *Supervisor) handleShutdown(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Supervisor) handleSecrets(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
+	switch r.Method {
+	case http.MethodGet:
+		type secretView struct {
+			ID          string            `json:"id"`
+			Class       string            `json:"class"`
+			Required    bool              `json:"required"`
+			HasValue    bool              `json:"has_value"`
+			Description string            `json:"description,omitempty"`
+			Prompt      map[string]string `json:"prompt,omitempty"`
+		}
+
+		var secrets []secretView
+		current := s.secretsCopy()
+		for _, sec := range s.opts.Manifest.Secrets {
+			required := true
+			if sec.Required != nil {
+				required = *sec.Required
+			}
+			val := strings.TrimSpace(current[sec.ID])
+			secrets = append(secrets, secretView{
+				ID:          sec.ID,
+				Class:       sec.Class,
+				Required:    required,
+				HasValue:    val != "",
+				Description: sec.Description,
+				Prompt:      sec.Prompt,
+			})
+		}
+
+		s.writeJSON(w, http.StatusOK, map[string]interface{}{
+			"secrets": secrets,
+		})
+		return
+	case http.MethodPost:
+	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}

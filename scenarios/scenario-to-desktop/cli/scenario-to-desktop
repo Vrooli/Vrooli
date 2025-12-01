@@ -325,6 +325,7 @@ cmd_generate() {
 	local server_url=""
 	local api_url=""
 	local proxy_url=""
+	local bundle_manifest_path=""
 	local auto_manage_vrooli="false"
 	local vrooli_binary_path="vrooli"
     
@@ -374,6 +375,10 @@ cmd_generate() {
 				proxy_url="$2"
 				shift 2
 				;;
+			--bundle-manifest)
+				bundle_manifest_path="$2"
+				shift 2
+				;;
 			--auto-manage-vrooli|--auto-manage-tier1)
 				auto_manage_vrooli="true"
 				shift 1
@@ -408,6 +413,9 @@ cmd_generate() {
 	if [ -z "$proxy_url" ] && [ -n "$saved_config_json" ]; then
 		proxy_url=$(echo "$saved_config_json" | jq -r '.proxy_url // .server_url // empty')
 	fi
+	if [ -z "$bundle_manifest_path" ] && [ -n "$saved_config_json" ]; then
+		bundle_manifest_path=$(echo "$saved_config_json" | jq -r '.bundle_manifest_path // empty')
+	fi
 	if [ "$deployment_mode" = "external-server" ] && [ -n "$saved_config_json" ]; then
 		local saved_mode=$(echo "$saved_config_json" | jq -r '.deployment_mode // empty')
 		if [ -n "$saved_mode" ]; then
@@ -439,7 +447,15 @@ cmd_generate() {
 
 	check_api_health
 
-	if [ "$server_type" = "external" ]; then
+	if [ "$deployment_mode" = "bundled" ]; then
+		if [ -z "$proxy_url" ]; then
+			proxy_url="http://127.0.0.1"
+		fi
+		server_url="$proxy_url"
+		api_url="$proxy_url"
+		auto_manage_vrooli="false"
+		server_type="external"
+	elif [ "$server_type" = "external" ]; then
 		if [ -z "$proxy_url" ]; then
 			proxy_url=$(prompt_for_value "Enter the proxy URL you already open in a browser (e.g. https://app-monitor.example.dev/apps/${scenario_name}/proxy/)")
 		fi
@@ -498,6 +514,7 @@ cmd_generate() {
     "background": "#f5f5f5"
   },
   "deployment_mode": "${deployment_mode}",
+  "bundle_manifest_path": "${bundle_manifest_path}",
   "proxy_url": "${proxy_url}",
   "auto_manage_vrooli": ${auto_manage_vrooli},
   "vrooli_binary_path": "${vrooli_binary_path}",
@@ -552,6 +569,7 @@ OPTIONS:
     --features <features>     Comma-separated list of features (tray,updater,menus)
     --config <file>           Use JSON configuration file instead of command-line options
     --deployment-mode <mode>  Deployment intent (external-server|cloud-api|bundled) [default: external-server]
+    --bundle-manifest <path>  Path to bundle.json when deployment-mode=bundled
     --server-type <type>      Server strategy (external|node|static|executable) [default: external]
     --proxy-url <url>         Proxy/Cloudflare URL you already open in a browser (preferred)
     --server-url <url>        Legacy alias for --proxy-url

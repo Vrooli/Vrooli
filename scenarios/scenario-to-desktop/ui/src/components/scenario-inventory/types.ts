@@ -10,6 +10,7 @@ export interface DesktopConnectionConfig {
   auto_manage_vrooli?: boolean;
   vrooli_binary_path?: string;
   server_type?: string;
+  bundle_manifest_path?: string;
   updated_at?: string;
 }
 

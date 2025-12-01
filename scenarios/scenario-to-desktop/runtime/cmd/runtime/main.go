@@ -24,7 +24,7 @@ func main() {
 	flag.StringVar(&manifestPath, "manifest", "bundle.json", "Path to bundle.json")
 	flag.StringVar(&appData, "app-data", "", "Override app data directory (defaults to OS config dir + app name)")
 	flag.StringVar(&bundleRoot, "bundle-root", "", "Root directory containing bundle assets; defaults to manifest directory")
-	flag.BoolVar(&dryRun, "dry-run", true, "Skip launching service binaries (control API + validation only)")
+	flag.BoolVar(&dryRun, "dry-run", false, "Skip launching service binaries (control API + validation only)")
 	flag.Parse()
 
 	absManifest, err := filepath.Abs(manifestPath)

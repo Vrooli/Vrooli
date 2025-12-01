@@ -178,6 +178,7 @@ export interface BundleManifest {
   generated_at: string;
   files: BundleFileEntry[];
   dependencies: BundleDependencyEntry[];
+  skeleton?: DesktopBundleSkeleton;
 }
 
 export interface BundleFileEntry {
@@ -193,6 +194,144 @@ export interface BundleDependencyEntry {
   resource_type?: string;
   tier_support?: Record<string, TierSupportSummary>;
   alternatives?: string[];
+}
+
+export interface DesktopBundleSkeleton {
+  schema_version: string;
+  target: string;
+  app: BundleSkeletonApp;
+  ipc: BundleSkeletonIPC;
+  telemetry: BundleSkeletonTelemetry;
+  ports: BundleSkeletonPorts;
+  swaps?: BundleSkeletonSwap[];
+  secrets?: BundleSkeletonSecret[];
+  services: BundleSkeletonService[];
+}
+
+export interface BundleSkeletonApp {
+  name: string;
+  version: string;
+  description?: string;
+}
+
+export interface BundleSkeletonIPC {
+  mode: string;
+  host: string;
+  port: number;
+  auth_token_path: string;
+}
+
+export interface BundleSkeletonTelemetry {
+  file: string;
+  upload_url?: string;
+}
+
+export interface BundleSkeletonPorts {
+  default_range: BundleSkeletonPortRange;
+  reserved?: number[];
+}
+
+export interface BundleSkeletonPortRange {
+  min: number;
+  max: number;
+}
+
+export interface BundleSkeletonSwap {
+  original: string;
+  replacement: string;
+  reason?: string;
+  limitations?: string;
+}
+
+export interface BundleSkeletonSecret {
+  id: string;
+  class: string;
+  description?: string;
+  format?: string;
+  required?: boolean;
+  prompt?: BundleSkeletonSecretPrompt;
+  generator?: Record<string, unknown>;
+  target: BundleSkeletonSecretTarget;
+}
+
+export interface BundleSkeletonSecretPrompt {
+  label?: string;
+  description?: string;
+}
+
+export interface BundleSkeletonSecretTarget {
+  type: string;
+  name: string;
+}
+
+export interface BundleSkeletonService {
+  id: string;
+  type: string;
+  description?: string;
+  binaries: Record<string, BundleSkeletonServiceBinary>;
+  env?: Record<string, string>;
+  secrets?: string[];
+  data_dirs?: string[];
+  log_dir?: string;
+  ports?: BundleSkeletonServicePorts;
+  health: BundleSkeletonHealth;
+  readiness: BundleSkeletonReadiness;
+  dependencies?: string[];
+  migrations?: BundleSkeletonMigration[];
+  assets?: BundleSkeletonAsset[];
+  gpu?: BundleSkeletonGPU;
+  critical?: boolean;
+}
+
+export interface BundleSkeletonServiceBinary {
+  path: string;
+  args?: string[];
+  env?: Record<string, string>;
+  cwd?: string;
+}
+
+export interface BundleSkeletonServicePorts {
+  requested: BundleSkeletonRequestedPort[];
+}
+
+export interface BundleSkeletonRequestedPort {
+  name: string;
+  range: BundleSkeletonPortRange;
+  requires_socket?: boolean;
+}
+
+export interface BundleSkeletonHealth {
+  type: string;
+  path?: string;
+  port_name?: string;
+  command?: string[];
+  interval_ms?: number;
+  timeout_ms?: number;
+  retries?: number;
+}
+
+export interface BundleSkeletonReadiness {
+  type: string;
+  port_name?: string;
+  pattern?: string;
+  timeout_ms?: number;
+}
+
+export interface BundleSkeletonMigration {
+  version: string;
+  command: string[];
+  env?: Record<string, string>;
+  run_on?: string;
+}
+
+export interface BundleSkeletonAsset {
+  path: string;
+  sha256?: string;
+  size_bytes?: number;
+}
+
+export interface BundleSkeletonGPU {
+  requirement: string;
 }
 
 export interface ScenarioGapInfo {

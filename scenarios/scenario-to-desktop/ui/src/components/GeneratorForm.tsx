@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { fetchProxyHints, generateDesktop, probeEndpoints, type DesktopConfig, type ProbeResponse, type ProxyHintsResponse } from "../lib/api";
@@ -33,6 +33,7 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
   });
   const [outputPath, setOutputPath] = useState("./desktop-app");
   const [proxyUrl, setProxyUrl] = useState("");
+  const [bundleManifestPath, setBundleManifestPath] = useState("");
   const [serverPort, setServerPort] = useState(3000);
   const [localServerPath, setLocalServerPath] = useState("ui/server.js");
   const [localApiEndpoint, setLocalApiEndpoint] = useState("http://localhost:3001/api");
@@ -108,6 +109,7 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
     setProxyUrl(config.proxy_url ?? config.server_url ?? "");
     setAutoManageTier1(config.auto_manage_vrooli ?? false);
     setVrooliBinaryPath(config.vrooli_binary_path ?? "vrooli");
+    setBundleManifestPath(config.bundle_manifest_path ?? "");
   };
 
   useEffect(() => {
@@ -126,6 +128,13 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
     setLastLoadedScenario(configKey);
   }, [useDropdown, scenarioName, selectedScenario?.connection_config?.updated_at, lastLoadedScenario, selectedScenario?.connection_config]);
 
+  useEffect(() => {
+    if (deploymentMode === "bundled") {
+      setServerType("external");
+      setAutoManageTier1(false);
+    }
+  }, [deploymentMode]);
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
@@ -138,19 +147,22 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
       return;
     }
 
-    if (deploymentMode !== "external-server") {
-      alert("Bundled and cloud deployments are still in planning. Choose Thin Client (external-server) until deployment-manager ships.");
+    const isBundled = deploymentMode === "bundled";
+    if (isBundled && !bundleManifestPath) {
+      alert("Provide bundle_manifest_path from deployment-manager before generating a bundled build.");
       return;
     }
 
-    const requiresRemoteConfig = serverType === "external";
+    const requiresRemoteConfig = serverType === "external" && !isBundled;
     if (requiresRemoteConfig && !proxyUrl) {
       alert("Provide the proxy URL you use in the browser (for example https://app-monitor.example.com/apps/<scenario>/proxy/).");
       return;
     }
 
-    const resolvedServerPath = requiresRemoteConfig ? proxyUrl : localServerPath;
-    const resolvedApiEndpoint = requiresRemoteConfig ? proxyUrl : localApiEndpoint;
+    const resolvedServerPath = isBundled ? "http://127.0.0.1" : (requiresRemoteConfig ? proxyUrl : localServerPath);
+    const resolvedApiEndpoint = isBundled ? "http://127.0.0.1" : (requiresRemoteConfig ? proxyUrl : localApiEndpoint);
+
+    const serverTypeForConfig = isBundled ? "external" : serverType;
 
     const config: DesktopConfig = {
       app_name: scenarioName,
@@ -160,7 +172,7 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
       author: "Vrooli Platform",
       license: "MIT",
       app_id: `com.vrooli.${scenarioName.replace(/-/g, ".")}`,
-      server_type: serverType,
+      server_type: serverTypeForConfig,
       server_port: serverPort,
       server_path: resolvedServerPath,
       api_endpoint: resolvedApiEndpoint,
@@ -183,10 +195,11 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
       vrooli_binary_path: vrooliBinaryPath,
       proxy_url: requiresRemoteConfig ? proxyUrl : undefined,
       external_server_url: requiresRemoteConfig ? proxyUrl : undefined,
-      external_api_url: requiresRemoteConfig ? undefined : undefined
+      external_api_url: requiresRemoteConfig ? undefined : undefined,
+      bundle_manifest_path: isBundled ? bundleManifestPath : undefined
     };
 
-    if (!requiresRemoteConfig) {
+    if (!requiresRemoteConfig && !isBundled) {
       config.external_api_url = localApiEndpoint;
     }
 
@@ -310,7 +323,7 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
                 className="mt-1.5"
               >
                 {DEPLOYMENT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value} disabled={option.value !== "external-server"}>
+                  <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
@@ -360,7 +373,20 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
             </div>
           </div>
 
-          {serverType === "external" ? (
+          {deploymentMode === "bundled" ? (
+            <div className="rounded-lg border border-emerald-900 bg-emerald-950/10 p-4 space-y-3">
+              <Label htmlFor="bundleManifest">bundle_manifest_path</Label>
+              <Input
+                id="bundleManifest"
+                value={bundleManifestPath}
+                onChange={(e) => setBundleManifestPath(e.target.value)}
+                placeholder="/home/you/Vrooli/docs/deployment/examples/manifests/desktop-happy.json"
+              />
+              <p className="text-xs text-emerald-200/80">
+                Stages the manifest and bundled binaries so the packaged runtime can launch the scenario offline.
+              </p>
+            </div>
+          ) : serverType === "external" ? (
             <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 space-y-3">
               <div>
                 <Label htmlFor="proxyUrl">Proxy URL</Label>
@@ -556,9 +582,9 @@ const DEPLOYMENT_OPTIONS = [
   },
   {
     value: "bundled",
-    label: "Fully bundled/offline (coming soon)",
+    label: "Fully bundled/offline",
     description:
-      "Planned: ship the API/resources inside the desktop installer for true offline use. Blocked on dependency swapping + deployment-manager manifests.",
+      "Ships the API/resources inside the desktop installer using a bundle.json manifest exported by deployment-manager.",
     docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
   }
 ];
