@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { selectors } from "./consts/selectors";
@@ -19,8 +19,54 @@ const REQUESTED_TYPE_OPTIONS = ["unit", "integration", "performance", "vault", "
 const PRIORITY_OPTIONS = ["low", "normal", "high", "urgent"] as const;
 const EXECUTION_PRESETS = ["quick", "smoke", "comprehensive"] as const;
 const DEFAULT_REQUEST_TYPES = ["unit", "integration"];
+const SECTION_ANCHORS = {
+  scenarioFocus: "scenario-focus-section",
+  queueForm: "queue-form-section",
+  executionForm: "execution-form-section",
+  suiteRequests: "suite-requests-section",
+  executionHistory: "execution-history-section"
+} as const;
 
 const relativeFormatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+
+const DASHBOARD_TABS = [
+  { key: "overview", label: "Overview", description: "Intent + persona guides" },
+  { key: "operate", label: "Operate", description: "Focus, queue, and run suites" },
+  { key: "signals", label: "Signals", description: "Backlog and execution health" }
+] as const;
+
+type DashboardTabKey = (typeof DASHBOARD_TABS)[number]["key"];
+
+const PRESET_DETAILS = {
+  quick: {
+    label: "Quick preset",
+    description: "Structure + unit phases replace the bash smoke check so you can sanity check scaffolding without heavy runners.",
+    phases: ["structure", "unit"]
+  },
+  smoke: {
+    label: "Smoke preset",
+    description: "Structure + integration ensure orchestrator parity with the legacy scripts without leaving the Go API.",
+    phases: ["structure", "integration"]
+  },
+  comprehensive: {
+    label: "Comprehensive preset",
+    description: "Full Go-native replacement for scripts/scenarios/testing with dependency, unit, integration, business, and performance coverage.",
+    phases: ["structure", "dependencies", "unit", "integration", "business", "performance"]
+  }
+} as const;
+
+const PHASE_LABELS: Record<string, string> = {
+  structure: "Structure validation",
+  dependencies: "Dependency audit",
+  unit: "Unit tests",
+  integration: "Integration suite",
+  business: "Business validation",
+  performance: "Performance checks"
+};
+
+const PRESET_ENTRIES = Object.entries(PRESET_DETAILS) as Array<
+  [keyof typeof PRESET_DETAILS, (typeof PRESET_DETAILS)[keyof typeof PRESET_DETAILS]]
+>;
 
 type QueueFormState = {
   scenarioName: string;
@@ -60,7 +106,27 @@ export default function App() {
   const [queueFeedback, setQueueFeedback] = useState<string | null>(null);
   const [executionFeedback, setExecutionFeedback] = useState<string | null>(null);
   const [focusScenario, setFocusScenario] = useState("");
+  const [activeTab, setActiveTab] = useState<DashboardTabKey>("overview");
   const [activeQuickRunId, setActiveQuickRunId] = useState<string | null>(null);
+  const scrollToSection = useCallback((sectionId: string) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
+  const navigateToSection = useCallback(
+    (tabKey: DashboardTabKey, sectionId: string) => {
+      setActiveTab(tabKey);
+      setTimeout(() => {
+        scrollToSection(sectionId);
+      }, 50);
+    },
+    [scrollToSection]
+  );
 
   const healthQuery = useQuery<ApiHealthResponse>({
     queryKey: ["health"],
@@ -230,33 +296,109 @@ export default function App() {
     return executions.length > 0 ? executions[0] : undefined;
   }, [executions, lastExecution]);
 
-  const actionableRequest = useMemo(() => {
-    const actionableStatuses = new Set(["queued", "delegated"]);
-    const candidates = requests.filter((req) => actionableStatuses.has(req.status.toLowerCase()));
-    if (candidates.length === 0) {
-      return null;
-    }
-    return candidates.reduce<SuiteRequest | null>((best, candidate) => {
-      if (!best) {
-        return candidate;
-      }
-      const priorityDiff = priorityWeight(candidate.priority) - priorityWeight(best.priority);
-      if (priorityDiff > 0) {
-        return candidate;
-      }
-      if (priorityDiff < 0) {
-        return best;
-      }
-      const candidateTimestamp = parseTimestamp(candidate.updatedAt ?? candidate.createdAt);
-      const bestTimestamp = parseTimestamp(best.updatedAt ?? best.createdAt);
-      return candidateTimestamp < bestTimestamp ? candidate : best;
-    }, null);
-  }, [requests]);
+  const actionableRequest = useMemo(() => selectActionableRequest(requests), [requests]);
 
   const lastFailedExecution = useMemo(
     () => executions.find((execution) => execution.success === false),
     [executions]
   );
+
+  const focusQueueStats = useMemo(() => {
+    if (!focusActive) {
+      return null;
+    }
+    const actionableCount = filteredRequests.filter((req) => isActionableRequest(req.status)).length;
+    const mostRecentRequest = [...filteredRequests].sort(
+      (a, b) =>
+        parseTimestamp(b.updatedAt ?? b.createdAt) - parseTimestamp(a.updatedAt ?? a.createdAt)
+    )[0];
+    const recentExecution = filteredExecutions[0] ?? null;
+    const failedExecution =
+      filteredExecutions.find((execution) => execution.success === false) ?? null;
+    const nextRequest = selectActionableRequest(filteredRequests);
+    return {
+      actionableCount,
+      totalCount: filteredRequests.length,
+      mostRecentRequest: mostRecentRequest ?? null,
+      recentExecution,
+      failedExecution,
+      nextRequest
+    };
+  }, [filteredExecutions, filteredRequests, focusActive]);
+
+  const queuePendingCount = useMemo(
+    () => requests.filter((req) => isActionableRequest(req.status)).length,
+    [requests]
+  );
+
+  const activeTabMeta = useMemo(
+    () => DASHBOARD_TABS.find((tab) => tab.key === activeTab) ?? DASHBOARD_TABS[0],
+    [activeTab]
+  );
+
+  const quickNavItems = [
+    {
+      key: "focus",
+      eyebrow: "Step 1",
+      title: "Focus a scenario",
+      description: "Prefill both forms + filter the queue/history tables around one scenario.",
+      statValue: focusActive ? focusScenario : "Not set",
+      statLabel: focusActive ? "Active focus" : "Needed for shortcuts",
+      actionLabel: focusActive ? "Adjust focus" : "Set focus",
+      onClick: () => {
+        if (!focusScenario && scenarioOptions.length > 0) {
+          applyFocusScenario(scenarioOptions[0]);
+        }
+        navigateToSection("operate", SECTION_ANCHORS.scenarioFocus);
+      }
+    },
+    {
+      key: "queue",
+      eyebrow: "Step 2",
+      title: "Queue AI coverage",
+      description: "Send intent to App Issue Tracker or deterministic fallbacks via the Go API.",
+      statValue: `${queuePendingCount} pending`,
+      statLabel: `${requests.length} total`,
+      actionLabel: "Open queue form",
+      onClick: () => navigateToSection("operate", SECTION_ANCHORS.queueForm)
+    },
+    {
+      key: "run",
+      eyebrow: "Step 3",
+      title: "Run with the Go orchestrator",
+      description: "Trigger scenario-local runners without calling scripts/scenarios/testing/.",
+      statValue: heroExecution
+        ? heroExecution.success
+          ? "Last run passed"
+          : "Last run failed"
+        : "No runs yet",
+      statLabel: heroExecution ? `Completed ${formatRelative(heroExecution.completedAt)}` : "Record a run",
+      actionLabel: "Open runner",
+      onClick: () => navigateToSection("operate", SECTION_ANCHORS.executionForm)
+    },
+    {
+      key: "investigate",
+      eyebrow: "Signal",
+      title: "Investigate backlog/failures",
+      description: "Jump to the right table to clear the riskiest request or rerun.",
+      statValue: lastFailedExecution
+        ? lastFailedExecution.scenarioName
+        : actionableRequest
+        ? actionableRequest.scenarioName
+        : "Nothing urgent",
+      statLabel: lastFailedExecution
+        ? `Failed ${formatRelative(lastFailedExecution.completedAt)}`
+        : actionableRequest
+        ? `${actionableRequest.priority} priority queued`
+        : "Monitor queue",
+      actionLabel: lastFailedExecution ? "Go to history" : "Review queue",
+      onClick: () =>
+        navigateToSection(
+          "signals",
+          lastFailedExecution ? SECTION_ANCHORS.executionHistory : SECTION_ANCHORS.suiteRequests
+        )
+    }
+  ];
 
   const handleQueueSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -352,11 +494,186 @@ export default function App() {
             can retire the bash runner and keep flows cross-platform.
           </p>
         </header>
-
+        <nav className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Workspace layers</p>
+              <p className="mt-1 text-sm text-slate-300">{activeTabMeta.description}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {DASHBOARD_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  className={cn(
+                    "rounded-full border px-4 py-2 text-sm transition",
+                    activeTab === tab.key
+                      ? "border-cyan-400 bg-cyan-400/20 text-white"
+                      : "border-white/20 text-slate-300 hover:border-white/50"
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </nav>
+        {activeTab === "overview" && (
+          <>
+        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Guided flows</p>
+              <h2 className="mt-2 text-2xl font-semibold">Start from your intent</h2>
+              <p className="mt-2 text-sm text-slate-300">
+                These shortcuts thread the main jobs—focus a scenario, queue AI suites, run the Go orchestrator,
+                and investigate risks—so first-time users do not have to guess where to scroll next.
+              </p>
+            </div>
+            <p className="text-xs text-slate-400">
+              Tip: follow the order below once and your next loop becomes muscle memory.
+            </p>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {quickNavItems.map((item) => (
+              <article
+                key={item.key}
+                className="flex flex-col rounded-2xl border border-white/5 bg-black/30 p-5"
+              >
+                <p className="text-[0.65rem] uppercase tracking-[0.4em] text-slate-400">{item.eyebrow}</p>
+                <h3 className="mt-2 text-xl font-semibold">{item.title}</h3>
+                <p className="mt-2 text-sm text-slate-300">{item.description}</p>
+                <div className="mt-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-400">{item.statLabel}</p>
+                  <p className="mt-1 text-lg font-semibold">{item.statValue}</p>
+                </div>
+                <div className="mt-4">
+                  <Button variant="outline" size="sm" onClick={item.onClick}>
+                    {item.actionLabel}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
         <section
-          className="rounded-2xl border border-white/10 bg-white/[0.04] p-6"
-          data-testid={selectors.dashboard.flowHighlights}
+          className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-white/[0.01] p-6"
+          data-testid={selectors.dashboard.experienceNavigator}
         >
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Experience map</p>
+              <h2 className="mt-2 text-2xl font-semibold">Guide every persona to the next step</h2>
+              <p className="mt-2 text-sm text-slate-300">
+                First-time builders, returning operators, and failure responders all start with different
+                jobs. Use the shortcuts below to jump straight to the UI surface that completes that job.
+              </p>
+            </div>
+            <p className="text-xs text-slate-400">
+              Tip: set a focus scenario once and these flows prefill the queue + Go runner forms automatically.
+            </p>
+          </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <article className="rounded-2xl border border-white/5 bg-black/30 p-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">First-time builder</p>
+              <h3 className="mt-2 text-xl font-semibold">Pick a scenario and queue AI coverage</h3>
+              <p className="mt-2 text-sm text-slate-300">
+                Set a focus once, then jump directly into the suite request form so deterministic fallbacks
+                or App Issue Tracker delegation can start working immediately.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (!focusScenario && scenarioOptions.length > 0) {
+                      applyFocusScenario(scenarioOptions[0]);
+                    }
+                    navigateToSection("operate", SECTION_ANCHORS.queueForm);
+                  }}
+                >
+                  Focus &amp; queue
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigateToSection("operate", SECTION_ANCHORS.scenarioFocus)}
+                >
+                  Go to Scenario Focus
+                </Button>
+              </div>
+            </article>
+            <article className="rounded-2xl border border-white/5 bg-black/30 p-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Returning operator</p>
+              <h3 className="mt-2 text-xl font-semibold">Triage backlog pressure</h3>
+              <p className="mt-2 text-sm text-slate-300">
+                {actionableRequest
+                  ? `${actionableRequest.scenarioName} is waiting with ${actionableRequest.priority} priority. Prefill the forms below or inspect the queue before running.`
+                  : "No queued or delegated requests need attention. Keep this tab handy to jump into the queue view whenever new suites arrive."}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  disabled={!actionableRequest}
+                  onClick={() => {
+                    if (actionableRequest) {
+                      prefillFromRequest(actionableRequest);
+                    }
+                    navigateToSection("operate", SECTION_ANCHORS.queueForm);
+                  }}
+                >
+                  Prefill highest priority
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigateToSection("signals", SECTION_ANCHORS.suiteRequests)}
+                >
+                  Review queue
+                </Button>
+              </div>
+            </article>
+            <article className="rounded-2xl border border-white/5 bg-black/30 p-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Failure responder</p>
+              <h3 className="mt-2 text-xl font-semibold">Resume the last failed run</h3>
+              <p className="mt-2 text-sm text-slate-300">
+                {lastFailedExecution
+                  ? `${lastFailedExecution.scenarioName} failed ${formatRelative(lastFailedExecution.completedAt)}. Prefill the rerun controls with one click.`
+                  : "The most recent executions have passed. When a failure occurs, this card highlights it immediately and links to the runner + history views."}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  disabled={!lastFailedExecution}
+                  onClick={() => {
+                    if (lastFailedExecution) {
+                      prefillFromExecution(lastFailedExecution);
+                    }
+                    navigateToSection("operate", SECTION_ANCHORS.executionForm);
+                  }}
+                >
+                  Prefill rerun
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigateToSection("signals", SECTION_ANCHORS.executionHistory)}
+                >
+                  View history
+                </Button>
+              </div>
+            </article>
+          </div>
+        </section>
+          </>
+        )}
+
+        {activeTab === "signals" && (
+          <section
+            className="rounded-2xl border border-white/10 bg-white/[0.04] p-6"
+            data-testid={selectors.dashboard.flowHighlights}
+          >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Flow shortcuts</p>
@@ -396,7 +713,10 @@ export default function App() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => prefillFromRequest(actionableRequest)}
+                      onClick={() => {
+                        prefillFromRequest(actionableRequest);
+                        navigateToSection("operate", SECTION_ANCHORS.queueForm);
+                      }}
                       data-testid={selectors.actions.flowPrefillRequest}
                     >
                       Prefill forms
@@ -436,7 +756,10 @@ export default function App() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => prefillFromExecution(lastFailedExecution)}
+                      onClick={() => {
+                        prefillFromExecution(lastFailedExecution);
+                        navigateToSection("operate", SECTION_ANCHORS.executionForm);
+                      }}
                       data-testid={selectors.actions.flowPrefillRerun}
                     >
                       Prefill rerun
@@ -459,12 +782,15 @@ export default function App() {
               )}
             </article>
           </div>
-        </section>
+          </section>
+        )}
 
-        <section
-          className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
-          data-testid={selectors.dashboard.scenarioFocus}
-        >
+        {activeTab === "operate" && (
+          <section
+            id={SECTION_ANCHORS.scenarioFocus}
+            className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+            data-testid={selectors.dashboard.scenarioFocus}
+          >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Scenario Focus</p>
@@ -515,18 +841,123 @@ export default function App() {
               </div>
             </div>
           </div>
+          {focusActive && focusQueueStats && (
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <article className="rounded-2xl border border-white/5 bg-black/30 p-4">
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Queue attention</p>
+                <p className="mt-2 text-3xl font-semibold">
+                  {focusQueueStats.actionableCount}/{focusQueueStats.totalCount}
+                </p>
+                <p className="mt-1 text-sm text-slate-300">
+                  {focusQueueStats.actionableCount > 0
+                    ? "Requests waiting to be executed inside the Go orchestrator."
+                    : "No actionable queue entries for this scenario."}
+                </p>
+                {focusQueueStats.mostRecentRequest && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Last requested {formatRelative(focusQueueStats.mostRecentRequest.updatedAt ?? focusQueueStats.mostRecentRequest.createdAt)}
+                  </p>
+                )}
+                <Button
+                  size="sm"
+                  className="mt-3"
+                  variant="outline"
+                  onClick={() => {
+                    if (focusQueueStats.nextRequest) {
+                      prefillFromRequest(focusQueueStats.nextRequest);
+                    }
+                    scrollToSection(SECTION_ANCHORS.queueForm);
+                  }}
+                >
+                  {focusQueueStats.nextRequest ? "Prefill queue run" : "Open queue"}
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </article>
+              <article className="rounded-2xl border border-white/5 bg-black/30 p-4">
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Recent execution</p>
+                <p className="mt-2 text-xl font-semibold">
+                  {focusQueueStats.recentExecution
+                    ? focusQueueStats.recentExecution.success
+                      ? "Last run passed"
+                      : "Last run failed"
+                    : "No runs recorded"}
+                </p>
+                <p className="mt-1 text-sm text-slate-300">
+                  {focusQueueStats.recentExecution
+                    ? `Completed ${formatRelative(focusQueueStats.recentExecution.completedAt)}`
+                    : "Trigger the Go runner to record history without bash wrappers."}
+                </p>
+                {focusQueueStats.failedExecution && focusQueueStats.failedExecution !== focusQueueStats.recentExecution && (
+                  <p className="mt-2 text-xs text-amber-300">
+                    Previous failure: {formatRelative(focusQueueStats.failedExecution.completedAt)}
+                  </p>
+                )}
+                <Button
+                  size="sm"
+                  className="mt-3"
+                  variant="outline"
+                  onClick={() => {
+                    if (focusQueueStats.recentExecution) {
+                      prefillFromExecution(focusQueueStats.recentExecution);
+                    }
+                    scrollToSection(SECTION_ANCHORS.executionForm);
+                  }}
+                >
+                  {focusQueueStats.recentExecution ? "Prefill rerun" : "Open runner"}
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </article>
+              <article className="rounded-2xl border border-white/5 bg-black/30 p-4">
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Most recent request</p>
+                {focusQueueStats.mostRecentRequest ? (
+                  <>
+                    <p className="mt-2 text-xl font-semibold">
+                      {focusQueueStats.mostRecentRequest.scenarioName}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-300">
+                      {focusQueueStats.mostRecentRequest.priority} priority ·{" "}
+                      {focusQueueStats.mostRecentRequest.requestedTypes.join(", ")}
+                    </p>
+                    {focusQueueStats.mostRecentRequest.notes && (
+                      <p className="mt-2 text-xs text-slate-400 truncate">
+                        {focusQueueStats.mostRecentRequest.notes}
+                      </p>
+                    )}
+                    <Button
+                      size="sm"
+                      className="mt-3"
+                      variant="outline"
+                      onClick={() => {
+                        prefillFromRequest(focusQueueStats.mostRecentRequest!);
+                        scrollToSection(SECTION_ANCHORS.queueForm);
+                      }}
+                    >
+                      Prefill from request
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-300">
+                    Queue a request or run an execution to capture intent for this scenario.
+                  </p>
+                )}
+              </article>
+            </div>
+          )}
           <p className="mt-4 text-xs text-slate-400">
             {focusActive
               ? `Filtering surface data to ${focusScenario}. Clear focus to see everything.`
-              : "Focus is optional—leave blank to view all queued requests and executions."}
+              : "Set a focus scenario to prefill both forms automatically; leave it blank to browse all queue and execution data."}
           </p>
-        </section>
+          </section>
+        )}
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <section
-            className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
-            data-testid={selectors.dashboard.queueMetrics}
-          >
+        {activeTab === "signals" && (
+          <div className="grid gap-6 lg:grid-cols-2">
+            <section
+              className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+              data-testid={selectors.dashboard.queueMetrics}
+            >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Queue Health</p>
@@ -569,12 +1000,12 @@ export default function App() {
                   : "No pending items"}
               </p>
             )}
-          </section>
+            </section>
 
-          <section
-            className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
-            data-testid={selectors.dashboard.lastExecution}
-          >
+            <section
+              className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+              data-testid={selectors.dashboard.lastExecution}
+            >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Orchestrator</p>
@@ -591,15 +1022,30 @@ export default function App() {
                 runner without touching bash scripts.
               </p>
             )}
-            {heroExecution && <ExecutionSummaryCard execution={heroExecution} />}
-          </section>
-        </div>
+              {heroExecution && (
+                <ExecutionSummaryCard
+                  execution={heroExecution}
+                  onPrefill={() => {
+                    prefillFromExecution(heroExecution);
+                    navigateToSection("operate", SECTION_ANCHORS.executionForm);
+                  }}
+                  onFocus={() => {
+                    applyFocusScenario(heroExecution.scenarioName);
+                    navigateToSection("operate", SECTION_ANCHORS.scenarioFocus);
+                  }}
+                />
+              )}
+            </section>
+          </div>
+        )}
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <section
-            className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
-            data-testid={selectors.dashboard.suiteRequestForm}
-          >
+        {activeTab === "operate" && (
+          <div className="grid gap-6 lg:grid-cols-2">
+            <section
+              id={SECTION_ANCHORS.queueForm}
+              className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+              data-testid={selectors.dashboard.suiteRequestForm}
+            >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-slate-400">AI Delegation</p>
@@ -708,12 +1154,13 @@ export default function App() {
                 </p>
               )}
             </form>
-          </section>
+            </section>
 
-          <section
-            className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
-            data-testid={selectors.dashboard.executionForm}
-          >
+            <section
+              id={SECTION_ANCHORS.executionForm}
+              className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+              data-testid={selectors.dashboard.executionForm}
+            >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Go Runner</p>
@@ -786,6 +1233,41 @@ export default function App() {
                   placeholder="Link to queue row for status updates"
                 />
               </label>
+              <div className="rounded-2xl border border-white/5 bg-black/30 p-4">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Preset coverage map</p>
+                    <p className="mt-1 text-sm text-slate-300">
+                      Each preset runs Go-native phases that replace scripts/scenarios/testing/. Pick the coverage
+                      depth you need and know exactly which runners will execute cross-platform.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                  {PRESET_ENTRIES.map(([presetKey, detail]) => (
+                    <div
+                      key={presetKey}
+                      className={cn(
+                        "rounded-xl border bg-white/5 p-3 text-sm",
+                        executionForm.preset === presetKey
+                          ? "border-emerald-400/60 bg-emerald-400/10"
+                          : "border-white/10 bg-black/30"
+                      )}
+                    >
+                      <p className="font-semibold capitalize">{detail.label}</p>
+                      <p className="mt-1 text-xs text-slate-400">{detail.description}</p>
+                      <ul className="mt-3 space-y-1 text-xs text-slate-300">
+                        {detail.phases.map((phase) => (
+                          <li key={`${presetKey}-${phase}`} className="flex items-center gap-2">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                            <span>{PHASE_LABELS[phase] ?? phase}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               <Button
                 className="w-full"
@@ -807,14 +1289,17 @@ export default function App() {
                 </p>
               )}
             </form>
-          </section>
-        </div>
+            </section>
+          </div>
+        )}
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <section
-            className="rounded-2xl border border-white/10 bg-white/[0.02] p-6"
-            data-testid={selectors.dashboard.suiteRequestsTable}
-          >
+        {activeTab === "signals" && (
+          <div className="grid gap-6 lg:grid-cols-2">
+            <section
+              id={SECTION_ANCHORS.suiteRequests}
+              className="rounded-2xl border border-white/10 bg-white/[0.02] p-6"
+              data-testid={selectors.dashboard.suiteRequestsTable}
+            >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Queue</p>
@@ -841,7 +1326,7 @@ export default function App() {
                 </thead>
                 <tbody>
                   {filteredRequests.slice(0, 6).map((request) => {
-                    const canRunInline = ["queued", "delegated"].includes(request.status.toLowerCase());
+                    const canRunInline = isActionableRequest(request.status);
                     const isActiveRow = activeQuickRunId === request.id && quickRunMutation.isPending;
                     return (
                     <tr key={request.id} className="border-t border-white/5">
@@ -866,9 +1351,25 @@ export default function App() {
                             type="button"
                             size="sm"
                             variant="outline"
-                            onClick={() => prefillFromRequest(request)}
+                            onClick={() => {
+                              prefillFromRequest(request);
+                              navigateToSection("operate", SECTION_ANCHORS.queueForm);
+                            }}
                           >
                             Prefill
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="border-transparent text-slate-200 hover:border-white/40"
+                            onClick={() => {
+                              applyFocusScenario(request.scenarioName);
+                              navigateToSection("operate", SECTION_ANCHORS.scenarioFocus);
+                            }}
+                            data-testid={selectors.actions.focusScenarioFromQueue}
+                          >
+                            Focus
                           </Button>
                           <Button
                             type="button"
@@ -895,12 +1396,13 @@ export default function App() {
                 </tbody>
               </table>
             </div>
-          </section>
+            </section>
 
-          <section
-            className="rounded-2xl border border-white/10 bg-white/[0.02] p-6"
-            data-testid={selectors.dashboard.executionHistory}
-          >
+            <section
+              id={SECTION_ANCHORS.executionHistory}
+              className="rounded-2xl border border-white/10 bg-white/[0.02] p-6"
+              data-testid={selectors.dashboard.executionHistory}
+            >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Executions</p>
@@ -976,11 +1478,39 @@ export default function App() {
                       ))}
                     </div>
                   )}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        prefillFromExecution(execution);
+                        navigateToSection("operate", SECTION_ANCHORS.executionForm);
+                      }}
+                      data-testid={selectors.actions.prefillExecutionFromHistory}
+                    >
+                      Prefill rerun
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="border-transparent text-slate-200 hover:border-white/40"
+                      onClick={() => {
+                        applyFocusScenario(execution.scenarioName);
+                        navigateToSection("operate", SECTION_ANCHORS.scenarioFocus);
+                      }}
+                      data-testid={selectors.actions.focusExecutionFromHistory}
+                    >
+                      Focus scenario
+                    </Button>
+                  </div>
                 </article>
               ))}
             </div>
-          </section>
-        </div>
+            </section>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1003,7 +1533,15 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-function ExecutionSummaryCard({ execution }: { execution: SuiteExecutionResult }) {
+function ExecutionSummaryCard({
+  execution,
+  onPrefill,
+  onFocus
+}: {
+  execution: SuiteExecutionResult;
+  onPrefill?: () => void;
+  onFocus?: () => void;
+}) {
   return (
     <div className="mt-6 rounded-2xl border border-white/5 bg-black/20 p-5">
       <div className="flex items-start justify-between gap-4">
@@ -1031,6 +1569,25 @@ function ExecutionSummaryCard({ execution }: { execution: SuiteExecutionResult }
           </p>
         </div>
       </div>
+      {(onPrefill || onFocus) && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {onPrefill && (
+            <Button variant="outline" size="sm" onClick={onPrefill}>
+              Prefill rerun
+            </Button>
+          )}
+          {onFocus && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-transparent text-slate-200 hover:border-white/40"
+              onClick={onFocus}
+            >
+              Focus scenario
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1107,4 +1664,34 @@ function presetFromPriority(priority: string) {
     return "smoke";
   }
   return "quick";
+}
+
+function isActionableRequest(status: string) {
+  const normalized = status.toLowerCase();
+  return normalized === "queued" || normalized === "delegated";
+}
+
+function selectActionableRequest(requests: SuiteRequest[]) {
+  const actionable = requests.filter((req) => isActionableRequest(req.status));
+  if (actionable.length === 0) {
+    return null;
+  }
+  let best = actionable[0];
+  for (let idx = 1; idx < actionable.length; idx += 1) {
+    const candidate = actionable[idx];
+    const priorityDiff = priorityWeight(candidate.priority) - priorityWeight(best.priority);
+    if (priorityDiff > 0) {
+      best = candidate;
+      continue;
+    }
+    if (priorityDiff < 0) {
+      continue;
+    }
+    const candidateTimestamp = parseTimestamp(candidate.updatedAt ?? candidate.createdAt);
+    const bestTimestamp = parseTimestamp(best.updatedAt ?? best.createdAt);
+    if (candidateTimestamp < bestTimestamp) {
+      best = candidate;
+    }
+  }
+  return best;
 }

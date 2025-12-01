@@ -268,6 +268,7 @@ const createSelectorRegistry = <
 const literalSelectors: LiteralSelectorTree = {
   dashboard: {
     hero: "test-genie-hero",
+    experienceNavigator: "test-genie-experience-navigator",
     flowHighlights: "test-genie-flow-highlights",
     flowHighlightsBacklog: "test-genie-flow-highlights-backlog",
     flowHighlightsRerun: "test-genie-flow-highlights-rerun",
@@ -285,7 +286,10 @@ const literalSelectors: LiteralSelectorTree = {
     runSuiteFromQueue: "test-genie-run-suite-from-queue",
     flowPrefillRequest: "test-genie-flow-prefill-request",
     flowRunInlineRequest: "test-genie-flow-run-inline-request",
-    flowPrefillRerun: "test-genie-flow-prefill-rerun"
+    flowPrefillRerun: "test-genie-flow-prefill-rerun",
+    focusScenarioFromQueue: "test-genie-focus-scenario-from-queue",
+    prefillExecutionFromHistory: "test-genie-prefill-from-history",
+    focusExecutionFromHistory: "test-genie-focus-from-history"
   }
 };
 
