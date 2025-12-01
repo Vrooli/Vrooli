@@ -17,6 +17,7 @@ import (
 func TestHealthHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
+	server := newAPIServer(nil, logger)
 
 	t.Run("Success", func(t *testing.T) {
 		req, err := http.NewRequest("GET", "/health", nil)
@@ -25,7 +26,7 @@ func TestHealthHandler(t *testing.T) {
 		}
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(healthHandler)
+		handler := http.HandlerFunc(server.healthHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
@@ -64,6 +65,7 @@ func TestHealthHandler(t *testing.T) {
 func TestVaultSecretsStatusHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
+	server := newAPIServer(nil, logger)
 
 	t.Run("Success_NoFilter", func(t *testing.T) {
 		req, err := http.NewRequest("GET", "/api/v1/vault/secrets/status", nil)
@@ -72,7 +74,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 		}
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(vaultSecretsStatusHandler)
+		handler := http.HandlerFunc(server.vaultSecretsStatusHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
@@ -96,7 +98,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 		}
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(vaultSecretsStatusHandler)
+		handler := http.HandlerFunc(server.vaultSecretsStatusHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
@@ -117,7 +119,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(vaultSecretsStatusHandler)
+		handler := http.HandlerFunc(server.vaultSecretsStatusHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
@@ -133,7 +135,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(vaultSecretsStatusHandler)
+		handler := http.HandlerFunc(server.vaultSecretsStatusHandler)
 		handler.ServeHTTP(rr, req)
 
 		// Handler doesn't validate JSON for POST requests currently, just processes GET
@@ -148,6 +150,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 func TestValidateHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
+	server := newAPIServer(nil, logger)
 
 	t.Run("GET_Success", func(t *testing.T) {
 		// Note: Requires database/validator initialization - skipping in unit tests
@@ -172,7 +175,7 @@ func TestValidateHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(validateHandler)
+		handler := http.HandlerFunc(server.validateHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusBadRequest {
@@ -185,6 +188,7 @@ func TestValidateHandler(t *testing.T) {
 func TestProvisionHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
+	server := newAPIServer(nil, logger)
 
 	t.Run("Success", func(t *testing.T) {
 		provReq := ProvisionRequest{
@@ -201,7 +205,7 @@ func TestProvisionHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(provisionHandler)
+		handler := http.HandlerFunc(server.provisionHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
@@ -222,7 +226,7 @@ func TestProvisionHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(provisionHandler)
+		handler := http.HandlerFunc(server.provisionHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusBadRequest {
@@ -238,7 +242,7 @@ func TestProvisionHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(provisionHandler)
+		handler := http.HandlerFunc(server.provisionHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusBadRequest {
@@ -269,6 +273,7 @@ func TestSecurityScanHandler(t *testing.T) {
 func TestComplianceHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
+	server := newAPIServer(nil, logger)
 
 	// Enable test mode to avoid long scans
 	os.Setenv("SECRETS_MANAGER_TEST_MODE", "true")
@@ -281,7 +286,7 @@ func TestComplianceHandler(t *testing.T) {
 		}
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(complianceHandler)
+		handler := http.HandlerFunc(server.complianceHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
@@ -489,6 +494,7 @@ func TestGetLocalSecretsPath(t *testing.T) {
 func TestDeploymentSecretsHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
+	server := newAPIServer(nil, logger)
 
 	t.Run("MissingRequiredFields", func(t *testing.T) {
 		// Empty request body
@@ -502,7 +508,7 @@ func TestDeploymentSecretsHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(deploymentSecretsHandler)
+		handler := http.HandlerFunc(server.deploymentSecretsHandler)
 		handler.ServeHTTP(rr, req)
 
 		// Handler returns 200 even with missing fields (graceful handling)
@@ -520,7 +526,7 @@ func TestDeploymentSecretsHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(deploymentSecretsHandler)
+		handler := http.HandlerFunc(server.deploymentSecretsHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusBadRequest {
@@ -542,7 +548,7 @@ func TestDeploymentSecretsHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(deploymentSecretsHandler)
+		handler := http.HandlerFunc(server.deploymentSecretsHandler)
 		handler.ServeHTTP(rr, req)
 
 		// Accept OK or errors related to DB/implementation details
@@ -556,6 +562,7 @@ func TestDeploymentSecretsHandler(t *testing.T) {
 func TestVulnerabilitiesHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
+	server := newAPIServer(nil, logger)
 
 	// Enable test mode to avoid long scans
 	os.Setenv("SECRETS_MANAGER_TEST_MODE", "true")
@@ -568,7 +575,7 @@ func TestVulnerabilitiesHandler(t *testing.T) {
 		}
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(vulnerabilitiesHandler)
+		handler := http.HandlerFunc(server.vulnerabilitiesHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
@@ -591,6 +598,7 @@ func TestVulnerabilitiesHandler(t *testing.T) {
 func TestFixVulnerabilitiesHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
+	server := newAPIServer(nil, logger)
 
 	t.Run("Success", func(t *testing.T) {
 		fixReq := map[string]interface{}{
@@ -611,7 +619,7 @@ func TestFixVulnerabilitiesHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(fixVulnerabilitiesHandler)
+		handler := http.HandlerFunc(server.fixVulnerabilitiesHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
@@ -641,7 +649,7 @@ func TestFixVulnerabilitiesHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(fixVulnerabilitiesHandler)
+		handler := http.HandlerFunc(server.fixVulnerabilitiesHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusBadRequest {
@@ -657,7 +665,7 @@ func TestFixVulnerabilitiesHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(fixVulnerabilitiesHandler)
+		handler := http.HandlerFunc(server.fixVulnerabilitiesHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusBadRequest {
@@ -670,6 +678,7 @@ func TestFixVulnerabilitiesHandler(t *testing.T) {
 func TestFixProgressHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
+	server := newAPIServer(nil, logger)
 
 	t.Run("Success", func(t *testing.T) {
 		progressReq := map[string]interface{}{
@@ -688,7 +697,7 @@ func TestFixProgressHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(fixProgressHandler)
+		handler := http.HandlerFunc(server.fixProgressHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
@@ -710,7 +719,7 @@ func TestFixProgressHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(fixProgressHandler)
+		handler := http.HandlerFunc(server.fixProgressHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusBadRequest {
@@ -725,6 +734,7 @@ func TestFileContentHandler(t *testing.T) {
 	defer cleanup()
 	env := setupTestDirectory(t)
 	defer env.Cleanup()
+	server := newAPIServer(nil, logger)
 
 	t.Run("MissingPath", func(t *testing.T) {
 		req, err := http.NewRequest("GET", "/api/v1/files/content", nil)
@@ -733,7 +743,7 @@ func TestFileContentHandler(t *testing.T) {
 		}
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(fileContentHandler)
+		handler := http.HandlerFunc(server.fileContentHandler)
 		handler.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusBadRequest {
@@ -755,7 +765,7 @@ func TestFileContentHandler(t *testing.T) {
 		}
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(fileContentHandler)
+		handler := http.HandlerFunc(server.fileContentHandler)
 		handler.ServeHTTP(rr, req)
 
 		// May succeed or fail depending on security checks, both are valid
@@ -907,13 +917,8 @@ func TestRouterSetup(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	router := mux.NewRouter()
-
-	// Test that we can add routes without errors
-	router.HandleFunc("/health", healthHandler).Methods("GET")
-	api := router.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/vault/secrets/status", vaultSecretsStatusHandler).Methods("GET")
-	api.HandleFunc("/secrets/validate", validateHandler).Methods("GET", "POST")
+	server := newAPIServer(nil, logger)
+	router := server.routes()
 
 	// Verify routes are registered
 	err := router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
@@ -1010,57 +1015,65 @@ func TestSaveSecretsToLocalStore(t *testing.T) {
 	})
 }
 
-// TestStoreValidationResultFunction tests storing validation results
-// Note: This function uses the global db, so we can't test it without initializing the database
-// Coverage for this function is achieved through integration tests
-
-// TestGetHealthSummaryFunction tests health summary retrieval
-func TestGetHealthSummaryFunction(t *testing.T) {
+// Validation boundaries are owned by SecretValidator; these tests keep the single pipeline exercised even without DB wiring.
+func TestValidatorGenerateHealthSummary(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	t.Run("NoDatabase", func(t *testing.T) {
-		summary, err := getHealthSummary()
-		if err == nil {
-			t.Error("Expected error with no DB, got nil")
-		}
-		if summary != nil {
-			t.Errorf("Expected nil summary with error, got %v", summary)
-		}
-	})
+	validator := NewSecretValidator(nil)
+	summary, err := validator.generateHealthSummary("")
+	if err != nil {
+		t.Fatalf("Expected no error with nil DB, got %v", err)
+	}
+	if len(summary) != 0 {
+		t.Fatalf("Expected empty summary with nil DB, got %d entries", len(summary))
+	}
 }
 
-// TestValidateSecretsFunction tests the validateSecrets function
 func TestValidateSecretsFunction(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	t.Run("NoDatabase", func(t *testing.T) {
-		_, err := validateSecrets("")
-		if err == nil {
-			t.Error("Expected error with no DB, got nil")
-		}
-	})
+	validator := NewSecretValidator(nil)
+	result, err := validator.ValidateSecrets("")
+	if err != nil {
+		t.Fatalf("Expected no error with nil DB, got %v", err)
+	}
+	if result == nil {
+		t.Fatal("Expected validation response, got nil")
+	}
+	if result.TotalSecrets != 0 || result.ValidSecrets != 0 {
+		t.Fatalf("Expected zero counts with nil DB, got total=%d valid=%d", result.TotalSecrets, result.ValidSecrets)
+	}
 }
 
-// TestValidateSingleSecretFunction tests the validateSingleSecret function
-func TestValidateSingleSecretFunction(t *testing.T) {
+func TestValidateSecretFromEnv(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	t.Run("BasicSecret", func(t *testing.T) {
-		secret := ResourceSecret{
-			ID:           "test-id",
-			ResourceName: "test-resource",
-			SecretKey:    "TEST_KEY",
-			SecretType:   "api_key",
-			Required:     true,
-		}
-		result := validateSingleSecret(secret)
-		if result.ResourceSecretID != secret.ID {
-			t.Errorf("Expected ResourceSecretID %s, got %s", secret.ID, result.ResourceSecretID)
-		}
-	})
+	const envKey = "TEST_SECRET_KEY"
+	os.Setenv(envKey, "valid-secret-value-1234")
+	defer os.Unsetenv(envKey)
+
+	validator := NewSecretValidator(nil)
+	secret := ResourceSecret{
+		ID:           "test-id",
+		ResourceName: "test-resource",
+		SecretKey:    envKey,
+		SecretType:   "api_key",
+		Required:     true,
+	}
+
+	result := validator.validateSecret(secret)
+	if result.ValidationStatus != "valid" {
+		t.Fatalf("Expected secret to be valid from env, got %s", result.ValidationStatus)
+	}
+	if result.ValidationMethod != string(ValidationMethodEnv) {
+		t.Fatalf("Expected validation method %s, got %s", ValidationMethodEnv, result.ValidationMethod)
+	}
+	if result.ResourceSecretID != secret.ID {
+		t.Fatalf("Expected ResourceSecretID %s, got %s", secret.ID, result.ResourceSecretID)
+	}
 }
 
 func TestDeriveBundleSecretPlans(t *testing.T) {

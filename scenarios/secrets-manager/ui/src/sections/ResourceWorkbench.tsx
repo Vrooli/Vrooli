@@ -22,7 +22,7 @@ interface ResourceInsight {
 interface ResourceWorkbenchProps {
   resourceInsights: ResourceInsight[];
   isLoading: boolean;
-  onOpenResource: (resourceName: string) => void;
+  onOpenResource: (resourceName: string, secretKey?: string) => void;
 }
 
 export const ResourceWorkbench = ({ resourceInsights, isLoading, onOpenResource }: ResourceWorkbenchProps) => (

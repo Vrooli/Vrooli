@@ -2,9 +2,17 @@ import type { VaultResourceStatus } from "../../lib/api";
 import { percentage } from "../../lib/formatters";
 import type { Intent } from "../../lib/constants";
 import { SeverityBadge } from "./SeverityBadge";
+import { Button } from "./button";
 
-export const SecretsRow = ({ status }: { status: VaultResourceStatus }) => {
+export const SecretsRow = ({
+  status,
+  onOpenResource
+}: {
+  status: VaultResourceStatus;
+  onOpenResource?: (resourceName: string, secretKey?: string) => void;
+}) => {
   const configuredPercent = percentage(status.secrets_found, status.secrets_total);
+  const missingCount = status.secrets_missing ?? 0;
   const tone: Intent =
     status.health_status === "healthy"
       ? "good"
@@ -27,6 +35,9 @@ export const SecretsRow = ({ status }: { status: VaultResourceStatus }) => {
       <div>
         <p className="text-sm font-semibold text-white">{status.resource_name}</p>
         <p className="text-xs text-white/70">{status.secrets_found}/{status.secrets_total} configured</p>
+        {missingCount > 0 ? (
+          <p className="text-[11px] text-amber-200">Missing {missingCount} secret{missingCount !== 1 ? "s" : ""}</p>
+        ) : null}
       </div>
       <div className="flex w-1/2 flex-col items-end gap-2">
         <div className="h-2 w-full rounded-full bg-white/10">
@@ -36,6 +47,16 @@ export const SecretsRow = ({ status }: { status: VaultResourceStatus }) => {
           <span>{configuredPercent}% ready</span>
           <SeverityBadge severity={status.health_status} />
         </div>
+        {onOpenResource && missingCount > 0 ? (
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-[11px]"
+            onClick={() => onOpenResource(status.resource_name)}
+          >
+            Open Workbench
+          </Button>
+        ) : null}
       </div>
     </div>
   );

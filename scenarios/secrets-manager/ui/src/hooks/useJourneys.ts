@@ -30,7 +30,7 @@ interface UseJourneysOptions {
     total: number;
   }>;
   topResourceNeedingAttention?: string;
-  onOpenResource: (resourceName?: string) => void;
+  onOpenResource: (resourceName?: string, secretKey?: string) => void;
   onRefetchVulnerabilities: () => void;
 }
 

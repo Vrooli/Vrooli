@@ -22,7 +22,7 @@ interface ResourceInsight {
 interface TierReadinessProps {
   tierReadiness: TierReadinessData[];
   isLoading: boolean;
-  onOpenResource: (resourceName: string) => void;
+  onOpenResource: (resourceName: string, secretKey?: string) => void;
   resourceInsights: ResourceInsight[];
 }
 

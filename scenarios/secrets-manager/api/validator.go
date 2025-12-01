@@ -10,7 +10,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// SecretValidator handles secret validation operations
+// SecretValidator owns secret validation so handlers and jobs share a single pipeline
+// instead of duplicating logic across the codebase.
 type SecretValidator struct {
 	db     *sql.DB
 	logger Logger
@@ -37,28 +38,28 @@ const (
 func (v *SecretValidator) ValidateSecrets(resource string) (*ValidationResponse, error) {
 	validationID := uuid.New().String()
 	_ = time.Now() // startTime for future use
-	
+
 	v.logger.Info(fmt.Sprintf("Starting secret validation (ID: %s, Resource: %s)", validationID, resource))
-	
+
 	// Get secrets to validate
 	secrets, err := v.getSecretsForValidation(resource)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get secrets for validation: %w", err)
 	}
-	
+
 	var validSecrets []SecretValidation
 	var missingSecrets []SecretValidation
 	var invalidSecrets []SecretValidation
-	
+
 	// Validate each secret
 	for _, secret := range secrets {
 		validation := v.validateSecret(secret)
-		
+
 		// Store validation result in database
 		if err := v.storeValidationResult(validation); err != nil {
 			v.logger.Error(fmt.Sprintf("Failed to store validation for %s", secret.SecretKey), err)
 		}
-		
+
 		// Categorize validation result
 		switch validation.ValidationStatus {
 		case "valid":
@@ -69,14 +70,14 @@ func (v *SecretValidator) ValidateSecrets(resource string) (*ValidationResponse,
 			invalidSecrets = append(invalidSecrets, validation)
 		}
 	}
-	
+
 	// Generate health summary
 	healthSummary, err := v.generateHealthSummary(resource)
 	if err != nil {
 		v.logger.Error("Failed to generate health summary", err)
 		healthSummary = []SecretHealthSummary{}
 	}
-	
+
 	response := &ValidationResponse{
 		ValidationID:   validationID,
 		TotalSecrets:   len(secrets),
@@ -85,9 +86,9 @@ func (v *SecretValidator) ValidateSecrets(resource string) (*ValidationResponse,
 		InvalidSecrets: invalidSecrets,
 		HealthSummary:  healthSummary,
 	}
-	
+
 	v.logger.Info(fmt.Sprintf("Validation completed: %d/%d secrets valid", len(validSecrets), len(secrets)))
-	
+
 	return response, nil
 }
 
@@ -97,10 +98,10 @@ func (v *SecretValidator) getSecretsForValidation(resource string) ([]ResourceSe
 		// If no database, return empty list
 		return []ResourceSecret{}, nil
 	}
-	
+
 	var query string
 	var args []interface{}
-	
+
 	if resource != "" {
 		query = `
 			SELECT id, resource_name, secret_key, secret_type, required,
@@ -121,17 +122,17 @@ func (v *SecretValidator) getSecretsForValidation(resource string) ([]ResourceSe
 		`
 		args = []interface{}{}
 	}
-	
+
 	rows, err := v.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var secrets []ResourceSecret
 	for rows.Next() {
 		var secret ResourceSecret
-		
+
 		err := rows.Scan(
 			&secret.ID, &secret.ResourceName, &secret.SecretKey, &secret.SecretType,
 			&secret.Required, &secret.Description, &secret.ValidationPattern,
@@ -142,10 +143,10 @@ func (v *SecretValidator) getSecretsForValidation(resource string) ([]ResourceSe
 			v.logger.Error("Failed to scan secret row", err)
 			continue
 		}
-		
+
 		secrets = append(secrets, secret)
 	}
-	
+
 	return secrets, nil
 }
 
@@ -156,17 +157,17 @@ func (v *SecretValidator) validateSecret(secret ResourceSecret) SecretValidation
 		ResourceSecretID:    secret.ID,
 		ValidationTimestamp: time.Now(),
 	}
-	
+
 	// Try different validation methods in order of preference
 	methods := []ValidationMethod{
 		ValidationMethodEnv,   // Check environment variables first
 		ValidationMethodVault, // Then check vault
 		ValidationMethodFile,  // Finally check files
 	}
-	
+
 	var lastError string
 	isValid := false
-	
+
 	for _, method := range methods {
 		switch method {
 		case ValidationMethodEnv:
@@ -178,7 +179,7 @@ func (v *SecretValidator) validateSecret(secret ResourceSecret) SecretValidation
 			} else if err != nil {
 				lastError = err.Error()
 			}
-			
+
 		case ValidationMethodVault:
 			if valid, err := v.validateVaultSecret(secret); valid {
 				validation.ValidationStatus = "valid"
@@ -188,7 +189,7 @@ func (v *SecretValidator) validateSecret(secret ResourceSecret) SecretValidation
 			} else if err != nil {
 				lastError = err.Error()
 			}
-			
+
 		case ValidationMethodFile:
 			if valid, err := v.validateFileSecret(secret); valid {
 				validation.ValidationStatus = "valid"
@@ -199,12 +200,12 @@ func (v *SecretValidator) validateSecret(secret ResourceSecret) SecretValidation
 				lastError = err.Error()
 			}
 		}
-		
+
 		if isValid {
 			break
 		}
 	}
-	
+
 	// Set validation status and error message
 	if !isValid {
 		if secret.Required {
@@ -212,16 +213,16 @@ func (v *SecretValidator) validateSecret(secret ResourceSecret) SecretValidation
 		} else {
 			validation.ValidationStatus = "optional_missing"
 		}
-		
+
 		if lastError != "" {
 			validation.ErrorMessage = &lastError
 		}
 	}
-	
+
 	// Add validation details
 	details := fmt.Sprintf("Validated using methods: %v", methods)
 	validation.ValidationDetails = &details
-	
+
 	return validation
 }
 
@@ -231,12 +232,12 @@ func (v *SecretValidator) validateEnvironmentVariable(secret ResourceSecret) (bo
 	if value == "" {
 		return false, fmt.Errorf("environment variable %s is not set", secret.SecretKey)
 	}
-	
+
 	// Additional validation based on secret type
 	if err := v.validateSecretValue(value, secret); err != nil {
 		return false, fmt.Errorf("environment variable %s value is invalid: %w", secret.SecretKey, err)
 	}
-	
+
 	return true, nil
 }
 
@@ -245,15 +246,15 @@ func (v *SecretValidator) validateVaultSecret(secret ResourceSecret) (bool, erro
 	// This is a placeholder implementation
 	// In a real implementation, you would integrate with HashiCorp Vault
 	// or another secret management system
-	
+
 	// For now, we'll simulate vault validation by checking for vault-specific env vars
 	vaultToken := os.Getenv("VAULT_TOKEN")
 	vaultAddr := os.Getenv("VAULT_ADDR")
-	
+
 	if vaultToken == "" || vaultAddr == "" {
 		return false, fmt.Errorf("vault not configured (VAULT_TOKEN or VAULT_ADDR missing)")
 	}
-	
+
 	// Simulate vault lookup - in reality you would make API calls to vault
 	// Return false for now since this is just a placeholder
 	return false, fmt.Errorf("vault integration not implemented")
@@ -268,13 +269,13 @@ func (v *SecretValidator) validateFileSecret(secret ResourceSecret) (bool, error
 		".env",
 		".env.local",
 	}
-	
+
 	for _, path := range configPaths {
 		if v.checkSecretInFile(path, secret.SecretKey) {
 			return true, nil
 		}
 	}
-	
+
 	return false, fmt.Errorf("secret %s not found in any configuration file", secret.SecretKey)
 }
 
@@ -285,12 +286,12 @@ func (v *SecretValidator) checkSecretInFile(filePath, secretKey string) bool {
 		return false
 	}
 	defer file.Close()
-	
+
 	// Read file content and look for the secret key
 	content := make([]byte, 10240) // 10KB limit
 	n, _ := file.Read(content)
 	fileContent := string(content[:n])
-	
+
 	// Look for key=value patterns
 	lines := strings.Split(fileContent, "\n")
 	for _, line := range lines {
@@ -299,7 +300,7 @@ func (v *SecretValidator) checkSecretInFile(filePath, secretKey string) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -308,7 +309,7 @@ func (v *SecretValidator) validateSecretValue(value string, secret ResourceSecre
 	if value == "" {
 		return fmt.Errorf("secret value is empty")
 	}
-	
+
 	// Apply custom validation pattern if available
 	if secret.ValidationPattern != nil && *secret.ValidationPattern != "" {
 		// This would typically use regexp to validate the pattern
@@ -317,7 +318,7 @@ func (v *SecretValidator) validateSecretValue(value string, secret ResourceSecre
 			return fmt.Errorf("secret value too short (minimum 3 characters)")
 		}
 	}
-	
+
 	// Type-specific validation
 	switch secret.SecretType {
 	case "password":
@@ -333,7 +334,7 @@ func (v *SecretValidator) validateSecretValue(value string, secret ResourceSecre
 			return fmt.Errorf("token too short (minimum 10 characters)")
 		}
 	}
-	
+
 	return nil
 }
 
@@ -342,20 +343,20 @@ func (v *SecretValidator) storeValidationResult(validation SecretValidation) err
 	if v.db == nil {
 		return nil // Skip if no database connection
 	}
-	
+
 	query := `
 		INSERT INTO secret_validations (
 			id, resource_secret_id, validation_status, validation_method,
 			validation_timestamp, error_message, validation_details
 		) VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
-	
+
 	_, err := v.db.Exec(query,
 		validation.ID, validation.ResourceSecretID, validation.ValidationStatus,
 		validation.ValidationMethod, validation.ValidationTimestamp,
 		validation.ErrorMessage, validation.ValidationDetails,
 	)
-	
+
 	return err
 }
 
@@ -364,10 +365,10 @@ func (v *SecretValidator) generateHealthSummary(resourceFilter string) ([]Secret
 	if v.db == nil {
 		return []SecretHealthSummary{}, nil
 	}
-	
+
 	var query string
 	var args []interface{}
-	
+
 	if resourceFilter != "" {
 		query = `
 			SELECT 
@@ -402,18 +403,18 @@ func (v *SecretValidator) generateHealthSummary(resourceFilter string) ([]Secret
 		`
 		args = []interface{}{}
 	}
-	
+
 	rows, err := v.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var summaries []SecretHealthSummary
 	for rows.Next() {
 		var summary SecretHealthSummary
 		var lastValidation sql.NullTime
-		
+
 		err := rows.Scan(
 			&summary.ResourceName, &summary.TotalSecrets, &summary.RequiredSecrets,
 			&summary.ValidSecrets, &summary.MissingRequiredSecrets, &summary.InvalidSecrets,
@@ -423,14 +424,14 @@ func (v *SecretValidator) generateHealthSummary(resourceFilter string) ([]Secret
 			v.logger.Error("Failed to scan health summary row", err)
 			continue
 		}
-		
+
 		if lastValidation.Valid {
 			summary.LastValidation = &lastValidation.Time
 		}
-		
+
 		summaries = append(summaries, summary)
 	}
-	
+
 	return summaries, nil
 }
 
@@ -439,10 +440,10 @@ func (v *SecretValidator) GetValidationHistory(resourceName string, limit int) (
 	if v.db == nil {
 		return []SecretValidation{}, nil
 	}
-	
+
 	var query string
 	var args []interface{}
-	
+
 	if resourceName != "" {
 		query = `
 			SELECT sv.id, sv.resource_secret_id, sv.validation_status, 
@@ -467,18 +468,18 @@ func (v *SecretValidator) GetValidationHistory(resourceName string, limit int) (
 		`
 		args = []interface{}{limit}
 	}
-	
+
 	rows, err := v.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var validations []SecretValidation
 	for rows.Next() {
 		var validation SecretValidation
 		var resourceName, secretKey string
-		
+
 		err := rows.Scan(
 			&validation.ID, &validation.ResourceSecretID, &validation.ValidationStatus,
 			&validation.ValidationMethod, &validation.ValidationTimestamp,
@@ -489,9 +490,9 @@ func (v *SecretValidator) GetValidationHistory(resourceName string, limit int) (
 			v.logger.Error("Failed to scan validation row", err)
 			continue
 		}
-		
+
 		validations = append(validations, validation)
 	}
-	
+
 	return validations, nil
 }

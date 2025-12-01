@@ -49,10 +49,10 @@ export const useResourcePanel = () => {
     }
   });
 
-  const openResourcePanel = useCallback((resourceName?: string) => {
+  const openResourcePanel = useCallback((resourceName?: string, secretKey?: string) => {
     if (!resourceName) return;
     setActiveResource(resourceName);
-    setSelectedSecretKey(null);
+    setSelectedSecretKey(secretKey ?? null);
   }, []);
 
   const closeResourcePanel = useCallback(() => {

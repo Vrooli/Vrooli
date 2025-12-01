@@ -16,6 +16,7 @@ interface SecurityTablesProps {
   scanId?: string;
   riskScore?: number;
   scanDuration?: number;
+  onOpenResource?: (resourceName: string, secretKey?: string) => void;
   onComponentTypeChange: (value: string) => void;
   onComponentFilterChange: (value: string) => void;
   onSeverityFilterChange: (value: string) => void;
@@ -33,6 +34,7 @@ export const SecurityTables = ({
   scanId,
   riskScore,
   scanDuration,
+  onOpenResource,
   onComponentTypeChange,
   onComponentFilterChange,
   onSeverityFilterChange
@@ -59,7 +61,7 @@ export const SecurityTables = ({
           </div>
         ) : (
           resourceStatuses.slice(0, 6).map((status) => (
-            <SecretsRow key={status.resource_name} status={status} />
+            <SecretsRow key={status.resource_name} status={status} onOpenResource={onOpenResource} />
           ))
         )}
       </div>

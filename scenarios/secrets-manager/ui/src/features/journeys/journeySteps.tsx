@@ -41,7 +41,7 @@ interface JourneyStepOptions {
   manifestIsError: boolean;
   manifestError?: Error;
   topResourceNeedingAttention?: string;
-  onOpenResource: (resourceName?: string) => void;
+  onOpenResource: (resourceName?: string, secretKey?: string) => void;
   onRefetchVulnerabilities: () => void;
   onManifestRequest: () => void;
   onSetDeploymentScenario: (value: string) => void;

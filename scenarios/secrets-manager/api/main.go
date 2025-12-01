@@ -225,70 +225,6 @@ type PromptMetadata struct {
 	Description string `json:"description,omitempty"`
 }
 
-type OrientationSummary struct {
-	HeroStats             HeroStats                `json:"hero_stats"`
-	Journeys              []JourneyCard            `json:"journeys"`
-	TierReadiness         []TierReadiness          `json:"tier_readiness"`
-	ResourceInsights      []ResourceInsight        `json:"resource_insights"`
-	VulnerabilityInsights []VulnerabilityHighlight `json:"vulnerability_insights"`
-	UpdatedAt             time.Time                `json:"updated_at"`
-}
-
-type HeroStats struct {
-	VaultConfigured int     `json:"vault_configured"`
-	VaultTotal      int     `json:"vault_total"`
-	MissingSecrets  int     `json:"missing_secrets"`
-	RiskScore       int     `json:"risk_score"`
-	OverallScore    int     `json:"overall_score"`
-	LastScan        string  `json:"last_scan"`
-	ReadinessLabel  string  `json:"readiness_label"`
-	Confidence      float64 `json:"confidence"`
-}
-
-type JourneyCard struct {
-	ID          string   `json:"id"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Status      string   `json:"status"`
-	CtaLabel    string   `json:"cta_label"`
-	CtaAction   string   `json:"cta_action"`
-	Primers     []string `json:"primers"`
-	Badge       string   `json:"badge"`
-}
-
-type TierReadiness struct {
-	Tier                 string   `json:"tier"`
-	Label                string   `json:"label"`
-	Strategized          int      `json:"strategized"`
-	Total                int      `json:"total"`
-	ReadyPercent         int      `json:"ready_percent"`
-	BlockingSecretSample []string `json:"blocking_secret_sample"`
-}
-
-type ResourceInsight struct {
-	ResourceName   string                  `json:"resource_name"`
-	TotalSecrets   int                     `json:"total_secrets"`
-	ValidSecrets   int                     `json:"valid_secrets"`
-	MissingSecrets int                     `json:"missing_secrets"`
-	InvalidSecrets int                     `json:"invalid_secrets"`
-	LastValidation *time.Time              `json:"last_validation"`
-	Secrets        []ResourceSecretInsight `json:"secrets"`
-}
-
-type ResourceSecretInsight struct {
-	SecretKey      string            `json:"secret_key"`
-	SecretType     string            `json:"secret_type"`
-	Classification string            `json:"classification"`
-	Required       bool              `json:"required"`
-	TierStrategies map[string]string `json:"tier_strategies"`
-}
-
-type VulnerabilityHighlight struct {
-	Severity string `json:"severity"`
-	Count    int    `json:"count"`
-	Message  string `json:"message"`
-}
-
 // Vault-specific data structures
 type VaultSecretsStatus struct {
 	TotalResources      int                   `json:"total_resources"`
@@ -531,14 +467,12 @@ type DeploymentManifestRequest struct {
 
 // Database connection
 var db *sql.DB
-var scanner *SecretScanner
-var validator *SecretValidator
 
 // Progressive scan management
 var activeScansMutex sync.RWMutex
 var activeScans = make(map[string]*ProgressiveScanResult)
 
-func initDB() {
+func initDB() *sql.DB {
 	var err error
 
 	// Database configuration - support both POSTGRES_URL and individual components
@@ -615,9 +549,7 @@ func initDB() {
 
 	logger.Info("🎉 Database connection pool established successfully!")
 
-	// Initialize scanner and validator components for downstream handlers
-	scanner = NewSecretScanner(db)
-	validator = NewSecretValidator(db)
+	return db
 }
 
 // getEnvOrDefault removed to prevent hardcoded defaults
@@ -1622,115 +1554,6 @@ func isLikelyRequired(varName string) bool {
 	return false
 }
 
-// Validation functions
-func validateSecrets(resource string) (ValidationResponse, error) {
-	if db == nil {
-		return ValidationResponse{}, fmt.Errorf("database not initialized")
-	}
-
-	// Get all secrets for the resource (or all if empty)
-	query := `
-		SELECT rs.id, rs.resource_name, rs.secret_key, rs.secret_type, rs.required,
-		       rs.description, rs.validation_pattern
-		FROM resource_secrets rs
-	`
-	args := []interface{}{}
-
-	if resource != "" {
-		query += " WHERE rs.resource_name = $1"
-		args = append(args, resource)
-	}
-
-	rows, err := db.Query(query, args...)
-	if err != nil {
-		return ValidationResponse{}, err
-	}
-	defer rows.Close()
-
-	var secrets []ResourceSecret
-	for rows.Next() {
-		var secret ResourceSecret
-		err := rows.Scan(&secret.ID, &secret.ResourceName, &secret.SecretKey,
-			&secret.SecretType, &secret.Required, &secret.Description, &secret.ValidationPattern)
-		if err != nil {
-			continue
-		}
-		secrets = append(secrets, secret)
-	}
-
-	// Validate each secret
-	var validSecrets, totalSecrets int
-	var missingSecrets, invalidSecrets []SecretValidation
-
-	for _, secret := range secrets {
-		totalSecrets++
-		validation := validateSingleSecret(secret)
-
-		// Store validation result
-		storeValidationResult(validation)
-
-		switch validation.ValidationStatus {
-		case "valid":
-			validSecrets++
-		case "missing":
-			missingSecrets = append(missingSecrets, validation)
-		case "invalid":
-			invalidSecrets = append(invalidSecrets, validation)
-		}
-	}
-
-	// Get health summary
-	healthSummary, _ := getHealthSummary()
-
-	return ValidationResponse{
-		ValidationID:   uuid.New().String(),
-		TotalSecrets:   totalSecrets,
-		ValidSecrets:   validSecrets,
-		MissingSecrets: missingSecrets,
-		InvalidSecrets: invalidSecrets,
-		HealthSummary:  healthSummary,
-	}, nil
-}
-
-func validateSingleSecret(secret ResourceSecret) SecretValidation {
-	validation := SecretValidation{
-		ID:                  uuid.New().String(),
-		ResourceSecretID:    secret.ID,
-		ValidationTimestamp: time.Now(),
-	}
-
-	// Check environment variable
-	envValue := os.Getenv(secret.SecretKey)
-	if envValue != "" {
-		validation.ValidationMethod = "env"
-
-		// Validate against pattern if provided
-		if secret.ValidationPattern != nil {
-			if matched, _ := regexp.MatchString(*secret.ValidationPattern, envValue); matched {
-				validation.ValidationStatus = "valid"
-			} else {
-				validation.ValidationStatus = "invalid"
-				validation.ErrorMessage = stringPtr("Value does not match required pattern")
-			}
-		} else {
-			validation.ValidationStatus = "valid"
-		}
-	} else {
-		// Check vault if available
-		vaultValue, err := getVaultSecret(secret.SecretKey)
-		if err == nil && vaultValue != "" {
-			validation.ValidationMethod = "vault"
-			validation.ValidationStatus = "valid"
-		} else {
-			validation.ValidationStatus = "missing"
-			validation.ValidationMethod = "env"
-			validation.ErrorMessage = stringPtr("Environment variable not set and not found in vault")
-		}
-	}
-
-	return validation
-}
-
 func getVaultSecret(key string) (string, error) {
 	// Use resource-vault CLI to get secret value
 	cmd := exec.Command("resource-vault", "secrets", "get", key)
@@ -1863,59 +1686,16 @@ func saveSecretsToLocalStore(secrets map[string]string) (int, error) {
 	return len(secrets), nil
 }
 
-func storeValidationResult(validation SecretValidation) {
-	query := `
-		INSERT INTO secret_validations (id, resource_secret_id, validation_status, 
-			validation_method, validation_timestamp, error_message)
-		VALUES ($1, $2, $3, $4, $5, $6)
-	`
-	_, err := db.Exec(query, validation.ID, validation.ResourceSecretID,
-		validation.ValidationStatus, validation.ValidationMethod,
-		validation.ValidationTimestamp, validation.ErrorMessage)
-	if err != nil {
-		logger.Info("Failed to store validation result: %v", err)
-	}
-}
-
-func getHealthSummary() ([]SecretHealthSummary, error) {
-	if db == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-
-	query := `SELECT * FROM secret_health_summary ORDER BY resource_name`
-
-	rows, err := db.Query(query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var summaries []SecretHealthSummary
-	for rows.Next() {
-		var summary SecretHealthSummary
-		err := rows.Scan(&summary.ResourceName, &summary.TotalSecrets,
-			&summary.RequiredSecrets, &summary.ValidSecrets,
-			&summary.MissingRequiredSecrets, &summary.InvalidSecrets,
-			&summary.LastValidation)
-		if err != nil {
-			continue
-		}
-		summaries = append(summaries, summary)
-	}
-
-	return summaries, nil
-}
-
 // HTTP Handlers
-func healthHandler(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) healthHandler(w http.ResponseWriter, r *http.Request) {
 	// Check database connectivity
 	dbConnected := false
 	var dbLatency float64
 	var dbError map[string]interface{}
 
-	if db != nil {
+	if s.db != nil {
 		start := time.Now()
-		err := db.Ping()
+		err := s.db.Ping()
 		dbLatency = float64(time.Since(start).Milliseconds())
 
 		if err == nil {
@@ -1972,7 +1752,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Vault secrets status handler
-func vaultSecretsStatusHandler(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) vaultSecretsStatusHandler(w http.ResponseWriter, r *http.Request) {
 	resourceFilter := r.URL.Query().Get("resource")
 
 	status, err := getVaultSecretsStatus(resourceFilter)
@@ -1986,8 +1766,13 @@ func vaultSecretsStatusHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(status)
 }
 
-func orientationSummaryHandler(w http.ResponseWriter, r *http.Request) {
-	summary, err := buildOrientationSummary(r.Context())
+func (s *APIServer) orientationSummaryHandler(w http.ResponseWriter, r *http.Request) {
+	if s.orientationBuilder == nil {
+		http.Error(w, "orientation summary unavailable: database not initialized", http.StatusServiceUnavailable)
+		return
+	}
+
+	summary, err := s.orientationBuilder.Build(r.Context())
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to build orientation summary: %v", err), http.StatusInternalServerError)
 		return
@@ -1998,7 +1783,7 @@ func orientationSummaryHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Security scan handler
-func securityScanHandler(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) securityScanHandler(w http.ResponseWriter, r *http.Request) {
 	componentFilter := r.URL.Query().Get("component")
 	componentTypeFilter := r.URL.Query().Get("component_type")
 	severityFilter := r.URL.Query().Get("severity")
@@ -2020,7 +1805,7 @@ func securityScanHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Vault provision handler
-func vaultProvisionHandler(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) vaultProvisionHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ResourceName string            `json:"resource_name"`
 		Secrets      map[string]string `json:"secrets"`
@@ -2035,13 +1820,13 @@ func vaultProvisionHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "resource_name is required", http.StatusBadRequest)
 		return
 	}
-	updates := normalizeProvisionSecrets(req.Secrets)
+	updates := s.normalizeProvisionSecrets(req.Secrets)
 	if len(updates) == 0 {
 		http.Error(w, "no secrets provided", http.StatusBadRequest)
 		return
 	}
 
-	result, err := performSecretProvision(r.Context(), req.ResourceName, updates)
+	result, err := s.performSecretProvision(r.Context(), req.ResourceName, updates)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -2051,7 +1836,7 @@ func vaultProvisionHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
-func normalizeProvisionSecrets(raw map[string]string) map[string]string {
+func (s *APIServer) normalizeProvisionSecrets(raw map[string]string) map[string]string {
 	updates := map[string]string{}
 	for key, value := range raw {
 		envName := strings.TrimSpace(key)
@@ -2073,7 +1858,7 @@ func normalizeProvisionSecrets(raw map[string]string) map[string]string {
 	return updates
 }
 
-func performSecretProvision(ctx context.Context, resource string, secrets map[string]string) (*ProvisionResponse, error) {
+func (s *APIServer) performSecretProvision(ctx context.Context, resource string, secrets map[string]string) (*ProvisionResponse, error) {
 	if len(secrets) == 0 {
 		return nil, fmt.Errorf("no secrets provided")
 	}
@@ -2233,7 +2018,7 @@ func recordSecretProvision(ctx context.Context, resourceName, envKey, vaultPath 
 }
 
 // Compliance dashboard handler
-func complianceHandler(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) complianceHandler(w http.ResponseWriter, r *http.Request) {
 	// Get vault secrets status
 	vaultStatus, err := getVaultSecretsStatus("")
 	if err != nil {
@@ -2320,7 +2105,7 @@ func complianceHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func vulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) vulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	severity := r.URL.Query().Get("severity")
 	component := r.URL.Query().Get("component")
@@ -2387,7 +2172,7 @@ func vulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func validateHandler(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) validateHandler(w http.ResponseWriter, r *http.Request) {
 	var req ValidationRequest
 	if r.Method == "POST" {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -2395,12 +2180,12 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if validator == nil {
+	if s.validator == nil {
 		http.Error(w, "validator not ready (database unavailable)", http.StatusServiceUnavailable)
 		return
 	}
 
-	response, err := validator.ValidateSecrets(req.Resource)
+	response, err := s.validator.ValidateSecrets(req.Resource)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Validation failed: %v", err), http.StatusInternalServerError)
 		return
@@ -2410,14 +2195,14 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func provisionHandler(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) provisionHandler(w http.ResponseWriter, r *http.Request) {
 	var req ProvisionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	secrets := normalizeProvisionSecrets(req.Secrets)
+	secrets := s.normalizeProvisionSecrets(req.Secrets)
 	if req.SecretKey != "" && strings.TrimSpace(req.SecretValue) != "" {
 		if secrets == nil {
 			secrets = map[string]string{}
@@ -2433,7 +2218,7 @@ func provisionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := performSecretProvision(r.Context(), strings.TrimSpace(req.Resource), secrets)
+	result, err := s.performSecretProvision(r.Context(), strings.TrimSpace(req.Resource), secrets)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -2444,7 +2229,7 @@ func provisionHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // deploymentSecretsHandler generates deployment manifests for specific tiers
-func deploymentSecretsHandler(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) deploymentSecretsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -2468,7 +2253,7 @@ func deploymentSecretsHandler(w http.ResponseWriter, r *http.Request) {
 
 // deploymentSecretsGetHandler exposes a simple GET form for bundle consumers (scenario-to-*, deployment-manager).
 // Example: GET /api/v1/deployment/secrets/picker-wheel?tier=tier-2-desktop&resources=postgres,redis&include_optional=false
-func deploymentSecretsGetHandler(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) deploymentSecretsGetHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	scenario := strings.TrimSpace(vars["scenario"])
 	if scenario == "" {
@@ -2517,7 +2302,7 @@ func deploymentSecretsGetHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(manifest)
 }
 
-func resourceDetailHandler(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) resourceDetailHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	resource := vars["resource"]
 	detail, err := fetchResourceDetail(r.Context(), resource)
@@ -2537,8 +2322,8 @@ type resourceSecretUpdateRequest struct {
 	OwnerContact   *string `json:"owner_contact"`
 }
 
-func resourceSecretUpdateHandler(w http.ResponseWriter, r *http.Request) {
-	if db == nil {
+func (s *APIServer) resourceSecretUpdateHandler(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
 		http.Error(w, "database not ready", http.StatusServiceUnavailable)
 		return
 	}
@@ -2595,7 +2380,7 @@ func resourceSecretUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	query := fmt.Sprintf("UPDATE resource_secrets SET %s, updated_at = CURRENT_TIMESTAMP WHERE resource_name = $%d AND secret_key = $%d RETURNING id", strings.Join(updates, ", "), idx, idx+1)
 	args = append(args, resource, secretKey)
 	var secretID string
-	if err := db.QueryRowContext(r.Context(), query, args...).Scan(&secretID); err != nil {
+	if err := s.db.QueryRowContext(r.Context(), query, args...).Scan(&secretID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			http.Error(w, "secret not found", http.StatusNotFound)
 			return
@@ -2624,8 +2409,8 @@ type secretStrategyRequest struct {
 	BundleHints       map[string]interface{} `json:"bundle_hints"`
 }
 
-func secretStrategyHandler(w http.ResponseWriter, r *http.Request) {
-	if db == nil {
+func (s *APIServer) secretStrategyHandler(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
 		http.Error(w, "database not ready", http.StatusServiceUnavailable)
 		return
 	}
@@ -2700,7 +2485,7 @@ type vulnerabilityStatusRequest struct {
 	AssignedTo string `json:"assigned_to"`
 }
 
-func vulnerabilityStatusHandler(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) vulnerabilityStatusHandler(w http.ResponseWriter, r *http.Request) {
 	if db == nil {
 		http.Error(w, "database not ready", http.StatusServiceUnavailable)
 		return
@@ -3492,340 +3277,6 @@ func resolveScenarioResources(scenario string) []string {
 	return dedupeStrings(resources)
 }
 
-func buildOrientationSummary(ctx context.Context) (*OrientationSummary, error) {
-	var (
-		vaultStatus    *VaultSecretsStatus
-		securityResult *SecurityScanResult
-		err            error
-	)
-
-	vaultStatus, err = getVaultSecretsStatus("")
-	if err != nil {
-		logger.Info("orientation vault status fallback: %v", err)
-		vaultStatus = &VaultSecretsStatus{}
-	}
-
-	securityResult, err = scanComponentsForVulnerabilities("", "", "")
-	if err != nil {
-		logger.Info("orientation scan fallback: %v", err)
-		securityResult = &SecurityScanResult{
-			ScanID:          uuid.New().String(),
-			Vulnerabilities: []SecurityVulnerability{},
-			RiskScore:       0,
-		}
-	}
-
-	tierReadiness, err := fetchTierReadiness(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	resourceInsights, err := fetchResourceInsights(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	orientation := &OrientationSummary{
-		HeroStats:             buildHeroStats(vaultStatus, securityResult, tierReadiness),
-		Journeys:              buildJourneyCards(vaultStatus, securityResult, tierReadiness),
-		TierReadiness:         tierReadiness,
-		ResourceInsights:      resourceInsights,
-		VulnerabilityInsights: buildVulnerabilityHighlights(securityResult),
-		UpdatedAt:             time.Now(),
-	}
-
-	return orientation, nil
-}
-
-func fetchTierReadiness(ctx context.Context) ([]TierReadiness, error) {
-	var totalRequired int
-	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM resource_secrets WHERE required = TRUE`).Scan(&totalRequired); err != nil {
-		return nil, err
-	}
-
-	readiness := make([]TierReadiness, 0, len(deploymentTierCatalog))
-
-	for _, tier := range deploymentTierCatalog {
-		var strategized int
-		if err := db.QueryRowContext(ctx, `
-			SELECT COUNT(*) FROM resource_secrets rs
-			WHERE rs.required = TRUE AND EXISTS (
-				SELECT 1 FROM secret_deployment_strategies sds
-				WHERE sds.resource_secret_id = rs.id AND sds.tier = $1
-			)
-		`, tier.Name).Scan(&strategized); err != nil {
-			return nil, err
-		}
-
-		missingRows, err := db.QueryContext(ctx, `
-			SELECT rs.resource_name, rs.secret_key
-			FROM resource_secrets rs
-			WHERE rs.required = TRUE AND NOT EXISTS (
-				SELECT 1 FROM secret_deployment_strategies sds
-				WHERE sds.resource_secret_id = rs.id AND sds.tier = $1
-			)
-			ORDER BY rs.resource_name, rs.secret_key
-			LIMIT 5
-		`, tier.Name)
-		if err != nil {
-			return nil, err
-		}
-		var blockers []string
-		for missingRows.Next() {
-			var rName, sKey string
-			if err := missingRows.Scan(&rName, &sKey); err != nil {
-				missingRows.Close()
-				return nil, err
-			}
-			blockers = append(blockers, fmt.Sprintf("%s:%s", rName, sKey))
-		}
-		missingRows.Close()
-
-		readyPercent := 0
-		if totalRequired == 0 {
-			readyPercent = 100
-		} else {
-			readyPercent = int(math.Round((float64(strategized) / float64(totalRequired)) * 100))
-		}
-
-		readiness = append(readiness, TierReadiness{
-			Tier:                 tier.Name,
-			Label:                tier.Label,
-			Strategized:          strategized,
-			Total:                totalRequired,
-			ReadyPercent:         readyPercent,
-			BlockingSecretSample: blockers,
-		})
-	}
-
-	return readiness, nil
-}
-
-func fetchResourceInsights(ctx context.Context) ([]ResourceInsight, error) {
-	rows, err := db.QueryContext(ctx, `
-		SELECT resource_name, total_secrets, required_secrets, valid_secrets, missing_required_secrets, invalid_secrets, last_validation
-		FROM secret_health_summary
-		ORDER BY resource_name
-	`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	summaries := []SecretHealthSummary{}
-	for rows.Next() {
-		var summary SecretHealthSummary
-		if err := rows.Scan(&summary.ResourceName, &summary.TotalSecrets, &summary.RequiredSecrets,
-			&summary.ValidSecrets, &summary.MissingRequiredSecrets, &summary.InvalidSecrets, &summary.LastValidation); err != nil {
-			return nil, err
-		}
-		summaries = append(summaries, summary)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	secretRows, err := db.QueryContext(ctx, `
-		SELECT rs.resource_name,
-		       rs.secret_key,
-		       rs.secret_type,
-		       COALESCE(rs.classification, 'service') as classification,
-		       rs.required,
-		       COALESCE(tiers.tier_map, '{}'::jsonb) as tier_map
-		FROM resource_secrets rs
-		LEFT JOIN (
-			SELECT resource_secret_id, jsonb_object_agg(tier, handling_strategy) AS tier_map
-			FROM secret_deployment_strategies
-			GROUP BY resource_secret_id
-		) tiers ON tiers.resource_secret_id = rs.id
-		ORDER BY rs.resource_name, rs.secret_key
-	`)
-	if err != nil {
-		return nil, err
-	}
-	defer secretRows.Close()
-
-	resourceSecretMap := map[string][]ResourceSecretInsight{}
-	for secretRows.Next() {
-		var (
-			resourceName   string
-			secretKey      string
-			secretType     string
-			classification string
-			required       bool
-			tierMapJSON    []byte
-		)
-		if err := secretRows.Scan(&resourceName, &secretKey, &secretType, &classification, &required, &tierMapJSON); err != nil {
-			return nil, err
-		}
-		insight := ResourceSecretInsight{
-			SecretKey:      secretKey,
-			SecretType:     secretType,
-			Classification: classification,
-			Required:       required,
-			TierStrategies: decodeStringMap(tierMapJSON),
-		}
-		resourceSecretMap[resourceName] = append(resourceSecretMap[resourceName], insight)
-	}
-	if err := secretRows.Err(); err != nil {
-		return nil, err
-	}
-
-	sort.Slice(summaries, func(i, j int) bool {
-		if summaries[i].MissingRequiredSecrets == summaries[j].MissingRequiredSecrets {
-			return summaries[i].ResourceName < summaries[j].ResourceName
-		}
-		return summaries[i].MissingRequiredSecrets > summaries[j].MissingRequiredSecrets
-	})
-
-	limit := 5
-	if len(summaries) < limit {
-		limit = len(summaries)
-	}
-	insights := make([]ResourceInsight, 0, limit)
-	for idx := 0; idx < limit; idx++ {
-		summary := summaries[idx]
-		secrets := resourceSecretMap[summary.ResourceName]
-		if len(secrets) > 6 {
-			secrets = secrets[:6]
-		}
-		insights = append(insights, ResourceInsight{
-			ResourceName:   summary.ResourceName,
-			TotalSecrets:   summary.TotalSecrets,
-			ValidSecrets:   summary.ValidSecrets,
-			MissingSecrets: summary.MissingRequiredSecrets,
-			InvalidSecrets: summary.InvalidSecrets,
-			LastValidation: summary.LastValidation,
-			Secrets:        secrets,
-		})
-	}
-
-	return insights, nil
-}
-
-func buildHeroStats(vaultStatus *VaultSecretsStatus, security *SecurityScanResult, readiness []TierReadiness) HeroStats {
-	hero := HeroStats{}
-	if vaultStatus != nil {
-		hero.VaultConfigured = vaultStatus.ConfiguredResources
-		hero.VaultTotal = vaultStatus.TotalResources
-		hero.MissingSecrets = len(vaultStatus.MissingSecrets)
-		hero.LastScan = vaultStatus.LastUpdated.Format(time.RFC3339)
-	}
-	if security != nil {
-		hero.RiskScore = security.RiskScore
-		if hero.LastScan == "" {
-			hero.LastScan = time.Now().Format(time.RFC3339)
-		}
-	}
-	vaultHealth := 0
-	if hero.VaultTotal > 0 {
-		vaultHealth = (hero.VaultConfigured * 100) / hero.VaultTotal
-	}
-	securityScore := 100 - hero.RiskScore
-	if securityScore < 0 {
-		securityScore = 0
-	}
-	hero.OverallScore = (vaultHealth + securityScore) / 2
-	bestReadiness := 0
-	for _, tier := range readiness {
-		if tier.ReadyPercent > bestReadiness {
-			bestReadiness = tier.ReadyPercent
-		}
-	}
-	hero.Confidence = math.Round((float64(bestReadiness)/100.0)*100) / 100
-	switch {
-	case hero.OverallScore >= 80:
-		hero.ReadinessLabel = "Operational"
-	case hero.OverallScore >= 50:
-		hero.ReadinessLabel = "Stabilize"
-	default:
-		hero.ReadinessLabel = "Blocked"
-	}
-	return hero
-}
-
-func buildJourneyCards(vaultStatus *VaultSecretsStatus, security *SecurityScanResult, readiness []TierReadiness) []JourneyCard {
-	missing := 0
-	if vaultStatus != nil {
-		missing = len(vaultStatus.MissingSecrets)
-	}
-	risk := 0
-	if security != nil {
-		risk = security.RiskScore
-	}
-	deploymentCoverage := 0
-	for _, tier := range readiness {
-		if tier.Tier == "tier-2-desktop" {
-			deploymentCoverage = tier.ReadyPercent
-			break
-		}
-	}
-	journeys := []JourneyCard{
-		{
-			ID:          "orientation",
-			Title:       "Orientation",
-			Description: "Get familiar with your security posture and available workflows.",
-			Status:      "steady",
-			CtaLabel:    "Start Tour",
-			CtaAction:   "open-orientation-flow",
-			Primers:     []string{"Getting started"},
-			Badge:       "Start",
-		},
-		{
-			ID:          "configure-secrets",
-			Title:       "Configure Secrets",
-			Description: "Audit vault coverage and close the gap per resource with guided provisioning.",
-			Status:      map[bool]string{true: "attention", false: "steady"}[missing > 0],
-			CtaLabel:    "Start Coverage Flow",
-			CtaAction:   "open-configure-flow",
-			Primers:     []string{fmt.Sprintf("%d resources missing secrets", missing)},
-			Badge:       "P0",
-		},
-		{
-			ID:          "fix-vulnerabilities",
-			Title:       "Address Vulnerabilities",
-			Description: "Triage findings, review recommended fixes, and trigger agents for remediation.",
-			Status:      map[bool]string{true: "attention", false: "steady"}[risk > 40],
-			CtaLabel:    "Launch Security Flow",
-			CtaAction:   "open-security-flow",
-			Primers:     []string{fmt.Sprintf("Risk score %d", risk)},
-			Badge:       "Security",
-		},
-		{
-			ID:          "prep-deployment",
-			Title:       "Prep Deployment",
-			Description: "Select target tiers, review tier strategies, and emit bundle manifests.",
-			Status:      map[bool]string{true: "attention", false: "steady"}[deploymentCoverage < 60],
-			CtaLabel:    "Open Deployment Wizard",
-			CtaAction:   "open-deployment-flow",
-			Primers:     []string{fmt.Sprintf("Tier 2 coverage %d%%", deploymentCoverage)},
-			Badge:       "Deploy",
-		},
-	}
-	return journeys
-}
-
-func buildVulnerabilityHighlights(results *SecurityScanResult) []VulnerabilityHighlight {
-	if results == nil {
-		return []VulnerabilityHighlight{}
-	}
-	counts := map[string]int{}
-	for _, vuln := range results.Vulnerabilities {
-		counts[vuln.Severity]++
-	}
-	levels := []string{"critical", "high", "medium", "low"}
-	highlights := []VulnerabilityHighlight{}
-	for _, level := range levels {
-		if counts[level] == 0 {
-			continue
-		}
-		message := fmt.Sprintf("%d %s issues", counts[level], level)
-		highlights = append(highlights, VulnerabilityHighlight{Severity: level, Count: counts[level], Message: message})
-	}
-	return highlights
-}
-
 func dedupeStrings(values []string) []string {
 	if len(values) == 0 {
 		return nil
@@ -4432,7 +3883,7 @@ func getResourceSecretID(ctx context.Context, resourceName, secretKey string) (s
 }
 
 // Fix vulnerabilities handler - spawns claude-code agent
-func fixVulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) fixVulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -4476,7 +3927,7 @@ func fixVulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // fixProgressHandler handles progress updates from the claude-code agent
-func fixProgressHandler(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) fixProgressHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -4523,7 +3974,7 @@ func fixProgressHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // fileContentHandler provides secure access to file content for vulnerability analysis
-func fileContentHandler(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) fileContentHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -4794,50 +4245,14 @@ func main() {
 	if skipDB {
 		logger.Info("⚠️ Skipping database initialization (SECRETS_MANAGER_SKIP_DB=true)")
 	} else {
-		initDB()
+		db = initDB()
 		defer db.Close()
 		warmSecurityScanCache()
 	}
 	logger.Info("🚀 Starting Secrets Manager API (database optional)")
 
-	// Create router
-	r := mux.NewRouter()
-
-	// Health check (root path for backward compatibility)
-	r.HandleFunc("/health", healthHandler).Methods("GET")
-
-	// API routes
-	api := r.PathPrefix("/api/v1").Subrouter()
-
-	// Health check (API path for UI integration)
-	api.HandleFunc("/health", healthHandler).Methods("GET")
-
-	// Vault secrets integration routes
-	api.HandleFunc("/vault/secrets/status", vaultSecretsStatusHandler).Methods("GET")
-	api.HandleFunc("/vault/secrets/provision", vaultProvisionHandler).Methods("POST")
-
-	// Security scanning routes
-	api.HandleFunc("/security/scan", securityScanHandler).Methods("GET")
-	api.HandleFunc("/security/compliance", complianceHandler).Methods("GET")
-	api.HandleFunc("/security/vulnerabilities", vulnerabilitiesHandler).Methods("GET")
-	api.HandleFunc("/vulnerabilities", vulnerabilitiesHandler).Methods("GET") // Legacy route for backward compatibility
-	api.HandleFunc("/vulnerabilities/fix", fixVulnerabilitiesHandler).Methods("POST")
-	api.HandleFunc("/vulnerabilities/fix/progress", fixProgressHandler).Methods("POST")
-	api.HandleFunc("/vulnerabilities/{id}/status", vulnerabilityStatusHandler).Methods("POST")
-	api.HandleFunc("/files/content", fileContentHandler).Methods("GET")
-	api.HandleFunc("/orientation/summary", orientationSummaryHandler).Methods("GET")
-	api.HandleFunc("/resources/{resource}", resourceDetailHandler).Methods("GET")
-	api.HandleFunc("/resources/{resource}/secrets/{secret}", resourceSecretUpdateHandler).Methods("PATCH")
-	api.HandleFunc("/resources/{resource}/secrets/{secret}/strategy", secretStrategyHandler).Methods("POST")
-
-	// Legacy routes (keep for backward compatibility)
-	api.HandleFunc("/secrets/scan", vaultSecretsStatusHandler).Methods("GET", "POST")
-	api.HandleFunc("/secrets/validate", validateHandler).Methods("GET", "POST")
-	api.HandleFunc("/secrets/provision", provisionHandler).Methods("POST")
-
-	// Deployment routes (experimental/planned features)
-	api.HandleFunc("/deployment/secrets", deploymentSecretsHandler).Methods("POST")
-	api.HandleFunc("/deployment/secrets/{scenario}", deploymentSecretsGetHandler).Methods("GET")
+	apiServer := newAPIServer(db, logger)
+	r := apiServer.routes()
 
 	// CORS headers
 	corsHeaders := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})

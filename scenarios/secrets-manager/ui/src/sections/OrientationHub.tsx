@@ -43,6 +43,10 @@ interface OrientationHubProps {
   journeyStep: number;
   updatedAt?: string;
   isLoading: boolean;
+  priorityResource?: string | null;
+  prioritySecretKey?: string;
+  missingCount?: number;
+  onOpenResource?: (resourceName: string, secretKey?: string) => void;
   onJourneySelect: (journeyId: JourneyId) => void;
   onJourneyExit: () => void;
   onJourneyNext: () => void;
@@ -59,6 +63,10 @@ export const OrientationHub = ({
   journeyStep,
   updatedAt,
   isLoading,
+  priorityResource,
+  prioritySecretKey,
+  missingCount,
+  onOpenResource,
   onJourneySelect,
   onJourneyExit,
   onJourneyNext,
@@ -138,6 +146,26 @@ export const OrientationHub = ({
             )}
           </div>
         </div>
+        {priorityResource && onOpenResource ? (
+          <div className="mt-4 rounded-2xl border border-emerald-400/30 bg-emerald-500/5 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-200/80">Priority action</p>
+                <p className="text-sm text-white">
+                  {priorityResource} {missingCount ? `· ${missingCount} missing secret${missingCount !== 1 ? "s" : ""}` : ""}
+                </p>
+                {prioritySecretKey ? (
+                  <p className="text-[11px] text-emerald-100/80">Start with {prioritySecretKey}</p>
+                ) : (
+                  <p className="text-[11px] text-emerald-100/70">Open the workbench to assign strategies</p>
+                )}
+              </div>
+              <Button size="sm" variant="secondary" onClick={() => onOpenResource(priorityResource, prioritySecretKey)}>
+                Open workbench
+              </Button>
+            </div>
+          </div>
+        ) : null}
         {!activeJourney || journeySteps.length === 0 ? (
           <div className="mt-6">
             <p className="text-white/70">Select a journey from the left to begin your guided experience.</p>

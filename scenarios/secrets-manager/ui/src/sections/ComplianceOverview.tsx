@@ -3,6 +3,7 @@ import { StatCard } from "../components/ui/StatCard";
 import { SeverityBadge } from "../components/ui/SeverityBadge";
 import { HelpDialog } from "../components/ui/HelpDialog";
 import { LoadingStatCard, Skeleton } from "../components/ui/LoadingStates";
+import { Button } from "../components/ui/button";
 
 interface VulnerabilitySummary {
   critical: number;
@@ -26,6 +27,7 @@ interface ComplianceOverviewProps {
   missingSecrets: MissingSecret[];
   isComplianceLoading: boolean;
   isVaultLoading: boolean;
+  onOpenResource?: (resourceName: string, secretKey?: string) => void;
 }
 
 export const ComplianceOverview = ({
@@ -36,7 +38,8 @@ export const ComplianceOverview = ({
   vulnerabilitySummary,
   missingSecrets,
   isComplianceLoading,
-  isVaultLoading
+  isVaultLoading,
+  onOpenResource
 }: ComplianceOverviewProps) => (
   <section>
     <div className="mb-4 flex items-center gap-3">
@@ -134,6 +137,18 @@ export const ComplianceOverview = ({
                   <p className="text-sm font-semibold text-white">{secret.resource_name}</p>
                   <p className="text-xs text-white/70">{secret.secret_name}</p>
                   <p className="mt-1 text-xs text-amber-100">{secret.description}</p>
+                  {onOpenResource ? (
+                    <div className="mt-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-[11px]"
+                        onClick={() => onOpenResource(secret.resource_name, secret.secret_name)}
+                      >
+                        Fix in workbench
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
               ))}
               {missingSecrets.length > 4 ? (

@@ -97,6 +97,10 @@ export default function App() {
   const missingSecrets = vaultQuery.data?.missing_secrets ?? [];
   const resourceStatuses = vaultQuery.data?.resource_statuses ?? [];
   const vulnerabilities = vulnerabilityQuery.data?.vulnerabilities ?? [];
+  const topMissingSecret = missingSecrets[0];
+  const priorityResource = topMissingSecret?.resource_name ?? topResourceNeedingAttention ?? null;
+  const prioritySecretKey = topMissingSecret?.secret_name;
+  const priorityMissingCount = heroStats?.missing_secrets ?? missingSecrets.length;
 
   const activeJourneyCard = journeyCards.find((card) => card.id === activeJourney);
 
@@ -141,6 +145,10 @@ export default function App() {
           journeyStep={journeyStep}
           updatedAt={orientationData?.updated_at}
           isLoading={orientationQuery.isLoading}
+          priorityResource={priorityResource}
+          prioritySecretKey={prioritySecretKey}
+          missingCount={priorityMissingCount}
+          onOpenResource={openResourcePanel}
           onJourneySelect={handleJourneySelectTyped}
           onJourneyExit={handleJourneyExit}
           onJourneyNext={handleJourneyNext}
@@ -180,6 +188,7 @@ export default function App() {
           missingSecrets={missingSecrets}
           isComplianceLoading={complianceQuery.isLoading}
           isVaultLoading={vaultQuery.isLoading}
+          onOpenResource={openResourcePanel}
         />
 
         <SecurityTables
@@ -194,6 +203,7 @@ export default function App() {
           scanId={vulnerabilityQuery.data?.scan_id}
           riskScore={vulnerabilityQuery.data?.risk_score}
           scanDuration={vulnerabilityQuery.data?.scan_duration}
+          onOpenResource={openResourcePanel}
           onComponentTypeChange={setComponentType}
           onComponentFilterChange={setComponentFilter}
           onSeverityFilterChange={setSeverityFilter}

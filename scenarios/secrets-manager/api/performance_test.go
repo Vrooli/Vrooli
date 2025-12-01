@@ -10,10 +10,18 @@ import (
 	"testing"
 )
 
+func benchmarkServer() *APIServer {
+	if logger == nil {
+		logger = NewLogger("test")
+	}
+	return newAPIServer(nil, logger)
+}
+
 // BenchmarkHealthHandler benchmarks the health check endpoint
 func BenchmarkHealthHandler(b *testing.B) {
+	server := benchmarkServer()
 	req, _ := http.NewRequest("GET", "/health", nil)
-	handler := http.HandlerFunc(healthHandler)
+	handler := http.HandlerFunc(server.healthHandler)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -24,8 +32,9 @@ func BenchmarkHealthHandler(b *testing.B) {
 
 // BenchmarkVaultSecretsStatusHandler benchmarks the vault status endpoint
 func BenchmarkVaultSecretsStatusHandler(b *testing.B) {
+	server := benchmarkServer()
 	req, _ := http.NewRequest("GET", "/api/v1/vault/secrets/status", nil)
-	handler := http.HandlerFunc(vaultSecretsStatusHandler)
+	handler := http.HandlerFunc(server.vaultSecretsStatusHandler)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -36,8 +45,9 @@ func BenchmarkVaultSecretsStatusHandler(b *testing.B) {
 
 // BenchmarkValidateHandler benchmarks the validation endpoint
 func BenchmarkValidateHandler(b *testing.B) {
+	server := benchmarkServer()
 	req, _ := http.NewRequest("GET", "/api/v1/secrets/validate", nil)
-	handler := http.HandlerFunc(validateHandler)
+	handler := http.HandlerFunc(server.validateHandler)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -48,8 +58,9 @@ func BenchmarkValidateHandler(b *testing.B) {
 
 // BenchmarkSecurityScanHandler benchmarks the security scan endpoint
 func BenchmarkSecurityScanHandler(b *testing.B) {
+	server := benchmarkServer()
 	req, _ := http.NewRequest("GET", "/api/v1/security/scan", nil)
-	handler := http.HandlerFunc(securityScanHandler)
+	handler := http.HandlerFunc(server.securityScanHandler)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -60,11 +71,12 @@ func BenchmarkSecurityScanHandler(b *testing.B) {
 
 // BenchmarkProvisionHandler benchmarks the provision endpoint
 func BenchmarkProvisionHandler(b *testing.B) {
+	server := benchmarkServer()
 	provReq := ProvisionRequest{
 		Secrets: map[string]string{"TEST_KEY": "test-value"},
 	}
 	body, _ := json.Marshal(provReq)
-	handler := http.HandlerFunc(provisionHandler)
+	handler := http.HandlerFunc(server.provisionHandler)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -293,7 +305,8 @@ func BenchmarkJSONEncoding(b *testing.B) {
 
 // BenchmarkConcurrentHealthChecks benchmarks concurrent health check requests
 func BenchmarkConcurrentHealthChecks(b *testing.B) {
-	handler := http.HandlerFunc(healthHandler)
+	server := benchmarkServer()
+	handler := http.HandlerFunc(server.healthHandler)
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
@@ -306,7 +319,8 @@ func BenchmarkConcurrentHealthChecks(b *testing.B) {
 
 // BenchmarkConcurrentValidation benchmarks concurrent validation requests
 func BenchmarkConcurrentValidation(b *testing.B) {
-	handler := http.HandlerFunc(validateHandler)
+	server := benchmarkServer()
+	handler := http.HandlerFunc(server.validateHandler)
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
@@ -351,10 +365,11 @@ func TestPerformanceMetrics(t *testing.T) {
 
 	cleanup := setupTestLogger()
 	defer cleanup()
+	server := benchmarkServer()
 
 	t.Run("HealthCheckResponseTime", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/health", nil)
-		handler := http.HandlerFunc(healthHandler)
+		handler := http.HandlerFunc(server.healthHandler)
 
 		// Warmup
 		for i := 0; i < 10; i++ {
