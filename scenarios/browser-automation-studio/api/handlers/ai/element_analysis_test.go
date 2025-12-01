@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 )
 
 func TestNewElementAnalysisHandler(t *testing.T) {
@@ -431,4 +434,245 @@ func TestBuildElementAnalysisPrompt(t *testing.T) {
 		assert.Contains(t, prompt, "10") // button count
 		assert.Contains(t, prompt, "50") // link count
 	})
+}
+
+func TestElementAnalysisHandler_extractPageElements(t *testing.T) {
+	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] returns structured data when automation succeeds", func(t *testing.T) {
+		mockRunner := NewMockAutomationRunner()
+		mockRunner.Outcomes = []autocontracts.StepOutcome{
+			{
+				Success:  true,
+				NodeID:   "analysis.evaluate",
+				StepType: "evaluate",
+				ExtractedData: map[string]any{
+					"value": map[string]any{
+						"elements": []any{
+							map[string]any{
+								"text":      "Login",
+								"tagName":   "BUTTON",
+								"type":      "button",
+								"selectors": []any{map[string]any{"selector": "#login-btn", "type": "id", "robustness": 0.9, "fallback": false}},
+								"boundingBox": map[string]any{
+									"x":      1,
+									"y":      2,
+									"width":  100,
+									"height": 40,
+								},
+								"confidence": 0.85,
+								"category":   "authentication",
+								"attributes": map[string]any{
+									"id":        "login-btn",
+									"className": "primary",
+								},
+							},
+						},
+						"pageContext": map[string]any{
+							"title":       "Example",
+							"url":         "https://example.com",
+							"hasLogin":    true,
+							"hasSearch":   false,
+							"formCount":   1,
+							"buttonCount": 2,
+							"linkCount":   5,
+						},
+					},
+				},
+			},
+			{
+				Success:  true,
+				NodeID:   "analysis.screenshot",
+				StepType: "screenshot",
+				Screenshot: &autocontracts.Screenshot{
+					Data:      []byte{0x89, 0x50, 0x4E},
+					MediaType: "image/png",
+				},
+			},
+		}
+
+		handler := newElementAnalysisHandlerForTest(mockRunner)
+
+		elements, pageCtx, screenshot, err := handler.extractPageElements(context.Background(), "https://example.com")
+
+		require.NoError(t, err)
+		require.Len(t, elements, 1)
+		assert.Equal(t, "Login", elements[0].Text)
+		assert.Equal(t, "Example", pageCtx.Title)
+		assert.Contains(t, screenshot, "data:image/png;base64,")
+
+		require.Len(t, mockRunner.RunCalls, 1)
+		call := mockRunner.RunCalls[0]
+		assert.Equal(t, previewDefaultViewportWidth, call.ViewportWidth)
+		assert.Equal(t, previewDefaultViewportHeight, call.ViewportHeight)
+		require.Len(t, call.Instructions, 4)
+		assert.Equal(t, "analysis.evaluate", call.Instructions[2].NodeID)
+		assert.Equal(t, "analysis.screenshot", call.Instructions[3].NodeID)
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] surfaces automation runner failures", func(t *testing.T) {
+		mockRunner := &MockAutomationRunner{
+			Err: errors.New("driver unavailable"),
+		}
+		handler := newElementAnalysisHandlerForTest(mockRunner)
+
+		_, _, _, err := handler.extractPageElements(context.Background(), "https://example.com")
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "automation run failed")
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] fails when screenshot data missing", func(t *testing.T) {
+		mockRunner := NewMockAutomationRunner()
+		mockRunner.Outcomes = []autocontracts.StepOutcome{
+			{
+				Success:  true,
+				NodeID:   "analysis.evaluate",
+				StepType: "evaluate",
+				ExtractedData: map[string]any{
+					"value": map[string]any{
+						"elements": []any{
+							map[string]any{
+								"text":      "Login",
+								"tagName":   "BUTTON",
+								"type":      "button",
+								"selectors": []any{},
+								"boundingBox": map[string]any{
+									"x":      1,
+									"y":      2,
+									"width":  100,
+									"height": 40,
+								},
+								"confidence": 0.5,
+								"category":   "authentication",
+								"attributes": map[string]any{},
+							},
+						},
+						"pageContext": map[string]any{
+							"title": "Example",
+							"url":   "https://example.com",
+						},
+					},
+				},
+			},
+			{
+				Success:    true,
+				NodeID:     "analysis.screenshot",
+				StepType:   "screenshot",
+				Screenshot: &autocontracts.Screenshot{Data: []byte{}},
+			},
+		}
+
+		handler := newElementAnalysisHandlerForTest(mockRunner)
+
+		_, _, _, err := handler.extractPageElements(context.Background(), "https://example.com")
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "screenshot capture returned no data")
+	})
+}
+
+func TestElementAnalysisHandler_getElementAtCoordinate(t *testing.T) {
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] clamps selection index and hydrates element", func(t *testing.T) {
+		mockRunner := NewMockAutomationRunner()
+		mockRunner.Outcomes = []autocontracts.StepOutcome{
+			{Success: true, NodeID: "probe.navigate", StepType: "navigate"},
+			{
+				Success:  true,
+				NodeID:   "probe.element",
+				StepType: "probeElements",
+				ProbeResult: map[string]any{
+					"candidates": []any{
+						map[string]any{
+							"element": map[string]any{
+								"text":    "Login",
+								"tagName": "BUTTON",
+								"type":    "button",
+								"boundingBox": map[string]any{
+									"x":      0,
+									"y":      0,
+									"width":  80,
+									"height": 24,
+								},
+								"selectors": []any{
+									map[string]any{"selector": "#login-btn", "type": "id"},
+								},
+								"attributes": map[string]any{"id": "login-btn"},
+							},
+							"selector": "#login-btn",
+							"depth":    1,
+							"path":     []any{"html", "body", "button"},
+						},
+					},
+					"selectedIndex": 5,
+				},
+			},
+		}
+
+		handler := newElementAnalysisHandlerForTest(mockRunner)
+
+		result, err := handler.getElementAtCoordinate(context.Background(), "https://example.com", 10, 20)
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, 0, result.SelectedIndex)
+		require.NotNil(t, result.Element)
+		assert.Equal(t, "Login", result.Element.Text)
+		require.Len(t, result.Candidates, 1)
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] surfaces automation probe errors", func(t *testing.T) {
+		mockRunner := &MockAutomationRunner{Err: errors.New("probe failed")}
+		handler := newElementAnalysisHandlerForTest(mockRunner)
+
+		_, err := handler.getElementAtCoordinate(context.Background(), "https://example.com", 10, 20)
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "automation probe failed")
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] errors when probe outcomes missing", func(t *testing.T) {
+		mockRunner := NewMockAutomationRunner()
+		mockRunner.Outcomes = []autocontracts.StepOutcome{
+			{Success: true, NodeID: "probe.navigate", StepType: "navigate"},
+		}
+
+		handler := newElementAnalysisHandlerForTest(mockRunner)
+
+		_, err := handler.getElementAtCoordinate(context.Background(), "https://example.com", 10, 20)
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "probe did not return any outcomes")
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] errors when no qualifying candidates", func(t *testing.T) {
+		mockRunner := NewMockAutomationRunner()
+		mockRunner.Outcomes = []autocontracts.StepOutcome{
+			{Success: true, NodeID: "probe.navigate", StepType: "navigate"},
+			{
+				Success:  true,
+				NodeID:   "probe.element",
+				StepType: "probeElements",
+				ProbeResult: map[string]any{
+					"candidates":    []any{},
+					"selectedIndex": 0,
+				},
+			},
+		}
+
+		handler := newElementAnalysisHandlerForTest(mockRunner)
+
+		_, err := handler.getElementAtCoordinate(context.Background(), "https://example.com", 10, 20)
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "no qualifying elements")
+	})
+}
+
+func newElementAnalysisHandlerForTest(runner AutomationRunner) *ElementAnalysisHandler {
+	log := logrus.New()
+	log.SetOutput(io.Discard)
+	mockSuggestions := newOllamaSuggestionGenerator(log, WithOllamaClient(NewMockOllamaClient(`{"suggestions": []}`)))
+	return NewElementAnalysisHandler(log,
+		WithElementRunner(runner),
+		WithSuggestionGenerator(mockSuggestions),
+	)
 }

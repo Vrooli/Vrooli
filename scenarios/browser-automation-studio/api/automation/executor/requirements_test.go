@@ -263,3 +263,49 @@ func TestAnalyzeRequirementsReturnsReasons(t *testing.T) {
 		t.Fatalf("expected reasons for missing capabilities, got %+v", reasons)
 	}
 }
+
+func TestAnalyzeRequirementsIncludesMetadataReasons(t *testing.T) {
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		CreatedAt:   time.Now().UTC(),
+		Metadata: map[string]any{
+			"requiresHAR":          true,
+			"requiresDownloads":    true,
+			"requiresParallelTabs": true,
+		},
+	}
+
+	req, reasons := analyzeRequirements(plan)
+	if !req.NeedsHAR || !req.NeedsDownloads || !req.NeedsParallelTabs {
+		t.Fatalf("expected metadata flags to set requirements, got %+v", req)
+	}
+	if len(reasons["har"]) == 0 || len(reasons["downloads"]) == 0 || len(reasons["parallel_tabs"]) == 0 {
+		t.Fatalf("expected metadata reasons captured, got %+v", reasons)
+	}
+	for _, reason := range reasons["har"] {
+		if reason == "metadata.requiresHar" {
+			return
+		}
+	}
+	t.Fatalf("expected requiresHar reason to be recorded, got %+v", reasons["har"])
+}
+
+func TestFilterReasonsReturnsSubset(t *testing.T) {
+	reasons := map[string][]string{
+		"har":     {"step 1: network mock"},
+		"video":   {"metadata.requiresVideo"},
+		"tracing": {"metadata.requiresTracing"},
+	}
+
+	filtered := filterReasons(reasons, []string{"video", "missing"})
+	if len(filtered) != 1 {
+		t.Fatalf("expected only requested keys returned, got %+v", filtered)
+	}
+	if _, ok := filtered["video"]; !ok {
+		t.Fatalf("expected video key present, got %+v", filtered)
+	}
+	if res := filterReasons(reasons, []string{"missing"}); len(res) != 0 {
+		t.Fatalf("expected zero results when no keys match, got %+v", res)
+	}
+}

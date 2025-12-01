@@ -164,6 +164,9 @@ func TestContractPlanCompiler_EdgeCases(t *testing.T) {
 		assert.Equal(t, "nav", instructions[0].NodeID)
 		assert.Equal(t, "navigate", instructions[0].Type)
 		assert.Equal(t, "https://example.com", instructions[0].Params["url"])
+		require.Len(t, plan.Instructions, 1)
+		assert.Equal(t, instructions[0].NodeID, plan.Instructions[0].NodeID)
+		assert.Equal(t, instructions[0].Type, plan.Instructions[0].Type)
 	})
 
 	t.Run("[REQ:BAS-WORKFLOW-PERSIST-CRUD] preserves node parameters in instructions", func(t *testing.T) {
@@ -280,8 +283,8 @@ func TestContractPlanCompiler_MetadataExtraction(t *testing.T) {
 		require.NotNil(t, plan.Metadata)
 		viewport, ok := plan.Metadata["executionViewport"].(map[string]any)
 		require.True(t, ok, "executionViewport should be in metadata")
-		assert.Equal(t, float64(1920), viewport["width"])
-		assert.Equal(t, float64(1080), viewport["height"])
+		assert.EqualValues(t, 1920, viewport["width"])
+		assert.EqualValues(t, 1080, viewport["height"])
 	})
 
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] extracts entry selector from settings", func(t *testing.T) {
@@ -326,6 +329,7 @@ func TestContractPlanCompiler_MetadataExtraction(t *testing.T) {
 		require.NoError(t, err)
 		// Metadata can be nil when there's nothing to extract
 		// This is acceptable behavior
+		assert.Nil(t, plan.Metadata)
 	})
 }
 

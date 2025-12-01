@@ -290,8 +290,8 @@ func TestEventEnvelopeValidation(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] telemetry kinds are distinct", func(t *testing.T) {
 		kinds := []contracts.TelemetryKind{
 			contracts.TelemetryKindHeartbeat,
-			contracts.TelemetryKindScreenshot,
-			contracts.TelemetryKindDOMSnapshot,
+			contracts.TelemetryKindConsole,
+			contracts.TelemetryKindNetwork,
 		}
 
 		seen := make(map[contracts.TelemetryKind]bool)

@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -162,6 +163,98 @@ func TestFlowExecutorRoutesFailureEdges(t *testing.T) {
 	}
 	if rec.outcomes[1].NodeID != "fallback" {
 		t.Fatalf("expected fallback node to run, got %s", rec.outcomes[1].NodeID)
+	}
+}
+
+func TestFlowExecutorErrorsWhenGraphReferencesMissingNode(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	plan := contracts.ExecutionPlan{
+		ExecutionID: execID,
+		WorkflowID:  workflowID,
+		Graph: &contracts.PlanGraph{
+			Steps: []contracts.PlanStep{
+				{
+					Index:  0,
+					NodeID: "start",
+					Type:   "navigate",
+					Outgoing: []contracts.PlanEdge{
+						{Target: "missing", Condition: "success"},
+					},
+				},
+			},
+		},
+	}
+
+	rec := &recordingRecorder{}
+	sink := events.NewMemorySink(contracts.DefaultEventBufferLimits)
+	stub := &flowStubEngine{
+		outcomes: map[int]contracts.StepOutcome{
+			0: {Success: true},
+		},
+	}
+
+	exec := NewSimpleExecutor(nil)
+	err := exec.Execute(context.Background(), Request{
+		Plan:              plan,
+		EngineName:        stub.Name(),
+		EngineFactory:     engine.NewStaticFactory(stub),
+		Recorder:          rec,
+		EventSink:         sink,
+		HeartbeatInterval: 0,
+	})
+	if err == nil || !strings.Contains(err.Error(), "graph references missing node missing") {
+		t.Fatalf("expected missing node error, got %v", err)
+	}
+	if len(rec.outcomes) != 1 {
+		t.Fatalf("expected single recorded outcome before error, got %d", len(rec.outcomes))
+	}
+}
+
+func TestFlowExecutorEnforcesGraphStepBudget(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	plan := contracts.ExecutionPlan{
+		ExecutionID: execID,
+		WorkflowID:  workflowID,
+		Graph: &contracts.PlanGraph{
+			Steps: []contracts.PlanStep{
+				{
+					Index:  0,
+					NodeID: "loop",
+					Type:   "navigate",
+					Outgoing: []contracts.PlanEdge{
+						{Target: "loop", Condition: "success"},
+					},
+				},
+			},
+		},
+	}
+
+	rec := &recordingRecorder{}
+	sink := events.NewMemorySink(contracts.DefaultEventBufferLimits)
+	stub := &flowStubEngine{
+		outcomes: map[int]contracts.StepOutcome{
+			0: {Success: true},
+		},
+	}
+
+	exec := NewSimpleExecutor(nil)
+	err := exec.Execute(context.Background(), Request{
+		Plan:              plan,
+		EngineName:        stub.Name(),
+		EngineFactory:     engine.NewStaticFactory(stub),
+		Recorder:          rec,
+		EventSink:         sink,
+		HeartbeatInterval: 0,
+	})
+	if err == nil || !strings.Contains(err.Error(), "graph execution exceeded step budget") {
+		t.Fatalf("expected step budget error, got %v", err)
+	}
+	if len(rec.outcomes) != 10 {
+		t.Fatalf("expected 10 executions before budget trip, got %d", len(rec.outcomes))
 	}
 }
 
@@ -533,6 +626,49 @@ func TestFlowExecutorHonorsCancelledContext(t *testing.T) {
 	out := rec.outcomes[0]
 	if out.Success || out.Failure == nil || out.Failure.Kind != contracts.FailureKindCancelled {
 		t.Fatalf("expected cancellation failure, got %+v", out.Failure)
+	}
+}
+
+func TestFlowExecutorRejectsWorkflowCallNodes(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	plan := contracts.ExecutionPlan{
+		ExecutionID: execID,
+		WorkflowID:  workflowID,
+		Graph: &contracts.PlanGraph{
+			Steps: []contracts.PlanStep{
+				{
+					Index:  0,
+					NodeID: "legacy-call",
+					Type:   "workflowCall",
+				},
+			},
+		},
+	}
+
+	rec := &recordingRecorder{}
+	sink := events.NewMemorySink(contracts.DefaultEventBufferLimits)
+	stub := &flowStubEngine{
+		outcomes: map[int]contracts.StepOutcome{
+			0: {Success: true},
+		},
+	}
+
+	exec := NewSimpleExecutor(nil)
+	err := exec.Execute(context.Background(), Request{
+		Plan:              plan,
+		EngineName:        stub.Name(),
+		EngineFactory:     engine.NewStaticFactory(stub),
+		Recorder:          rec,
+		EventSink:         sink,
+		HeartbeatInterval: 0,
+	})
+	if err == nil || !strings.Contains(err.Error(), "workflowCall nodes are no longer supported") {
+		t.Fatalf("expected workflowCall rejection, got %v", err)
+	}
+	if len(rec.outcomes) != 0 {
+		t.Fatalf("expected no recorded outcomes, got %d", len(rec.outcomes))
 	}
 }
 

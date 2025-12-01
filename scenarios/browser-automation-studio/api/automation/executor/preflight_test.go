@@ -153,3 +153,30 @@ func TestAnalyzeRequirementsAggregatesGraphAndSubflowReasons(t *testing.T) {
 		t.Fatalf("expected subflow download reason to be captured, got %+v", reasons["downloads"])
 	}
 }
+
+func TestDeriveRequirementsMetadataOnlyFlags(t *testing.T) {
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		Metadata: map[string]any{
+			"requiresDownloads":    true,
+			"requiresFileUploads":  true,
+			"requiresVideo":        true,
+			"requiresTracing":      true,
+			"requiresIframes":      true,
+			"requiresParallelTabs": true,
+			"requiresHAR":          true, // uppercase variant should still be honored
+		},
+	}
+
+	req := deriveRequirements(plan)
+	if !req.NeedsDownloads ||
+		!req.NeedsFileUploads ||
+		!req.NeedsVideo ||
+		!req.NeedsTracing ||
+		!req.NeedsIframes ||
+		!req.NeedsParallelTabs ||
+		!req.NeedsHAR {
+		t.Fatalf("expected metadata flags to map to requirements, got %+v", req)
+	}
+}

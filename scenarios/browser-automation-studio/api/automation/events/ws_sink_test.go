@@ -18,6 +18,11 @@ type stubHub struct {
 	updates []any
 }
 
+type closingHub struct {
+	stubHub
+	closed []uuid.UUID
+}
+
 func (s *stubHub) ServeWS(*websocket.Conn, *uuid.UUID) {}
 func (s *stubHub) Run()                                {}
 func (s *stubHub) GetClientCount() int {
@@ -42,6 +47,12 @@ func (s *stubHub) Updates() []any {
 
 func (s *stubHub) CloseExecution(executionID uuid.UUID) {
 	_ = executionID
+}
+
+func (c *closingHub) CloseExecution(executionID uuid.UUID) {
+	c.stubHub.mu.Lock()
+	c.closed = append(c.closed, executionID)
+	c.stubHub.mu.Unlock()
 }
 
 func TestWSHubSinkPublishesAdaptedEvent(t *testing.T) {
@@ -328,6 +339,106 @@ func TestWSHubSinkDropsTelemetryWhenBufferFull(t *testing.T) {
 	}
 	if lastPayload.Drops.Dropped == 0 {
 		t.Fatalf("expected drops metadata propagated in WS payload, got %+v", lastPayload.Drops)
+	}
+}
+
+func TestExecutionQueueDropsOldAttemptTelemetry(t *testing.T) {
+	hub := &stubHub{}
+	limits := contracts.EventBufferLimits{PerExecution: 5, PerAttempt: 1}
+	queue := newExecutionQueue(uuid.New(), hub, limits, logrus.New())
+
+	stepIndex, attempt := 0, 1
+	queue.enqueue(contracts.EventEnvelope{
+		SchemaVersion: contracts.EventEnvelopeSchemaVersion,
+		Kind:          contracts.EventKindStepTelemetry,
+		ExecutionID:   uuid.New(),
+		StepIndex:     &stepIndex,
+		Attempt:       &attempt,
+		Sequence:      1,
+	})
+	queue.enqueue(contracts.EventEnvelope{
+		SchemaVersion: contracts.EventEnvelopeSchemaVersion,
+		Kind:          contracts.EventKindStepTelemetry,
+		ExecutionID:   uuid.New(),
+		StepIndex:     &stepIndex,
+		Attempt:       &attempt,
+		Sequence:      2,
+	})
+
+	queue.mu.Lock()
+	events := append([]contracts.EventEnvelope(nil), queue.events...)
+	drops := queue.dropCounter
+	queue.mu.Unlock()
+
+	if len(events) != 1 {
+		t.Fatalf("expected oldest telemetry to be dropped, queue contains %d events", len(events))
+	}
+	if events[0].Sequence != 2 {
+		t.Fatalf("expected latest telemetry retained, got sequence %d", events[0].Sequence)
+	}
+	if events[0].Drops.Dropped != 1 || events[0].Drops.OldestDropped != 1 {
+		t.Fatalf("expected drop counters to be attached to surviving event, got %+v", events[0].Drops)
+	}
+	if drops.OldestDropped != 1 {
+		t.Fatalf("expected queue drop counter to be updated, got %+v", drops)
+	}
+}
+
+func TestExecutionQueuePreservesNonDroppableEvents(t *testing.T) {
+	hub := &stubHub{}
+	limits := contracts.EventBufferLimits{PerExecution: 1, PerAttempt: 1}
+	queue := newExecutionQueue(uuid.New(), hub, limits, logrus.New())
+
+	queue.enqueue(contracts.EventEnvelope{
+		SchemaVersion: contracts.EventEnvelopeSchemaVersion,
+		Kind:          contracts.EventKindExecutionCompleted,
+		ExecutionID:   uuid.New(),
+		Sequence:      1,
+	})
+	queue.enqueue(contracts.EventEnvelope{
+		SchemaVersion: contracts.EventEnvelopeSchemaVersion,
+		Kind:          contracts.EventKindStepTelemetry,
+		ExecutionID:   uuid.New(),
+		Sequence:      2,
+	})
+
+	queue.mu.Lock()
+	defer queue.mu.Unlock()
+	if len(queue.events) != 2 {
+		t.Fatalf("non-droppable completion event should be preserved, queue size %d", len(queue.events))
+	}
+	if queue.events[0].Kind != contracts.EventKindExecutionCompleted {
+		t.Fatalf("expected completion event to stay in queue, got %s", queue.events[0].Kind)
+	}
+	if queue.events[1].Drops.Dropped != 0 {
+		t.Fatalf("telemetry appended after non-droppable should not inherit drops, got %+v", queue.events[1].Drops)
+	}
+}
+
+func TestWSHubSinkSanitizesInvalidLimits(t *testing.T) {
+	hub := &stubHub{}
+	sink := NewWSHubSink(hub, logrus.New(), contracts.EventBufferLimits{
+		PerExecution: 0,
+		PerAttempt:   -10,
+	})
+
+	limits := sink.Limits()
+	if limits.PerExecution != contracts.DefaultEventBufferLimits.PerExecution || limits.PerAttempt != contracts.DefaultEventBufferLimits.PerAttempt {
+		t.Fatalf("expected invalid limits replaced with defaults, got %+v", limits)
+	}
+}
+
+func TestWSHubSinkCloseExecutionNotifiesHub(t *testing.T) {
+	hub := &closingHub{}
+	sink := NewWSHubSink(hub, logrus.New(), contracts.DefaultEventBufferLimits)
+	execID := uuid.New()
+
+	sink.CloseExecution(execID)
+
+	hub.stubHub.mu.Lock()
+	defer hub.stubHub.mu.Unlock()
+	if len(hub.closed) != 1 || hub.closed[0] != execID {
+		t.Fatalf("expected hub.CloseExecution invoked with %s, got %+v", execID, hub.closed)
 	}
 }
 

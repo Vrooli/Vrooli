@@ -159,6 +159,70 @@ func TestSimpleExecutorPropagatesEngineError(t *testing.T) {
 	}
 }
 
+func TestSimpleExecutorEmitsArtifactsAndTimelineMetadata(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+	artifactID := uuid.New()
+	timelineID := uuid.New()
+
+	rec := &artifactRecorder{
+		result: recorder.RecordResult{
+			ArtifactIDs:        []uuid.UUID{artifactID},
+			TimelineArtifactID: &timelineID,
+		},
+	}
+	sink := events.NewMemorySink(contracts.DefaultEventBufferLimits)
+	factory := &fakeEngineFactory{
+		session: &fakeSession{outcome: contracts.StepOutcome{Success: true}},
+	}
+
+	req := Request{
+		Plan: contracts.ExecutionPlan{
+			SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
+			PayloadVersion: contracts.PayloadVersion,
+			ExecutionID:    execID,
+			WorkflowID:     workflowID,
+			Instructions: []contracts.CompiledInstruction{
+				{Index: 0, NodeID: "node-1", Type: "navigate"},
+			},
+			CreatedAt: time.Now().UTC(),
+		},
+		EngineName:        "browserless",
+		EngineFactory:     factory,
+		Recorder:          rec,
+		EventSink:         sink,
+		HeartbeatInterval: 0,
+	}
+
+	if err := NewSimpleExecutor(nil).Execute(context.Background(), req); err != nil {
+		t.Fatalf("execute returned error: %v", err)
+	}
+
+	found := false
+	for _, ev := range sink.Events() {
+		if ev.Kind != contracts.EventKindStepCompleted {
+			continue
+		}
+		payload, ok := ev.Payload.(map[string]any)
+		if !ok {
+			t.Fatalf("expected map payload, got %T", ev.Payload)
+		}
+		rawArtifacts, ok := payload["artifacts"].([]uuid.UUID)
+		if !ok || len(rawArtifacts) != 1 || rawArtifacts[0] != artifactID {
+			t.Fatalf("expected artifacts payload with %s, got %+v", artifactID, payload["artifacts"])
+		}
+		rawTimeline, ok := payload["timeline_artifact_id"].(uuid.UUID)
+		if !ok || rawTimeline != timelineID {
+			t.Fatalf("expected timeline artifact id %s, got %+v", timelineID, payload["timeline_artifact_id"])
+		}
+		found = true
+		break
+	}
+	if !found {
+		t.Fatalf("expected step completion event with artifact metadata")
+	}
+}
+
 func TestSimpleExecutorRunsSubflowWithWorkflowID(t *testing.T) {
 	execID := uuid.New()
 	parentWorkflowID := uuid.New()
@@ -1049,6 +1113,83 @@ func TestSimpleExecutorCapabilityErrorReasonsFilteredToMissing(t *testing.T) {
 	}
 }
 
+func TestSimpleExecutorUsesProvidedCapsWithoutFetchingEngine(t *testing.T) {
+	execID := uuid.New()
+	workflowID := uuid.New()
+
+	plan := contracts.ExecutionPlan{
+		SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
+		PayloadVersion: contracts.PayloadVersion,
+		ExecutionID:    execID,
+		WorkflowID:     workflowID,
+		Metadata: map[string]any{
+			"requiresDownloads": true,
+		},
+		Instructions: []contracts.CompiledInstruction{
+			{
+				Index:  0,
+				NodeID: "mock",
+				Type:   "network_mock",
+				Params: map[string]any{
+					"networkMockType": "abort",
+				},
+			},
+		},
+		CreatedAt: time.Now().UTC(),
+	}
+
+	engineCaps := &contracts.EngineCapabilities{
+		SchemaVersion:         contracts.CapabilitiesSchemaVersion,
+		Engine:                "preflight",
+		MaxConcurrentSessions: 1,
+		AllowsParallelTabs:    true,
+		SupportsHAR:           false,
+		SupportsVideo:         true,
+		SupportsIframes:       true,
+		SupportsFileUploads:   true,
+		SupportsDownloads:     false,
+		SupportsTracing:       false,
+	}
+
+	factory := &fakeEngineFactory{
+		session: &fakeSession{outcome: contracts.StepOutcome{Success: true}},
+	}
+
+	req := Request{
+		Plan:              plan,
+		EngineName:        "browserless",
+		EngineFactory:     factory,
+		Recorder:          &memoryRecorder{},
+		EventSink:         events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		HeartbeatInterval: 0,
+		EngineCaps:        engineCaps,
+	}
+
+	err := NewSimpleExecutor(nil).Execute(context.Background(), req)
+	capErr, ok := err.(*CapabilityError)
+	if !ok {
+		t.Fatalf("expected CapabilityError, got %T (%v)", err, err)
+	}
+	if factory.engine == nil {
+		t.Fatalf("expected fake engine to be initialized")
+	}
+	if factory.engine.capCalls != 0 {
+		t.Fatalf("expected provided EngineCaps to skip Capabilities fetch, got %d calls", factory.engine.capCalls)
+	}
+	for _, missing := range []string{"downloads", "har", "tracing"} {
+		found := false
+		for _, gap := range capErr.Missing {
+			if gap == missing {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("expected missing capability %s in gap %+v", missing, capErr.Missing)
+		}
+	}
+}
+
 func TestSimpleExecutorValidatesEngineCapabilities(t *testing.T) {
 	execID := uuid.New()
 	workflowID := uuid.New()
@@ -1377,11 +1518,13 @@ type fakeEngine struct {
 	session    *fakeSession
 	startCount int
 	caps       *contracts.EngineCapabilities
+	capCalls   int
 }
 
 func (f *fakeEngine) Name() string { return "fake" }
 
 func (f *fakeEngine) Capabilities(ctx context.Context) (contracts.EngineCapabilities, error) {
+	f.capCalls++
 	if f.caps != nil {
 		return *f.caps, nil
 	}
@@ -1454,6 +1597,22 @@ func (m *memoryRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, f
 	return nil
 }
 
+type artifactRecorder struct {
+	result recorder.RecordResult
+}
+
+func (a *artifactRecorder) RecordStepOutcome(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (recorder.RecordResult, error) {
+	return a.result, nil
+}
+
+func (a *artifactRecorder) RecordTelemetry(ctx context.Context, plan contracts.ExecutionPlan, telemetry contracts.StepTelemetry) error {
+	return nil
+}
+
+func (a *artifactRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, failure contracts.StepFailure) error {
+	return nil
+}
+
 type stubWorkflowResolver struct {
 	workflows map[uuid.UUID]*database.Workflow
 }
@@ -1495,10 +1654,10 @@ func TestValidateSubflowResolver(t *testing.T) {
 	sink := events.NewMemorySink(contracts.DefaultEventBufferLimits)
 
 	tests := []struct {
-		name        string
-		instructions []contracts.CompiledInstruction
-		resolver    WorkflowResolver
-		expectError bool
+		name          string
+		instructions  []contracts.CompiledInstruction
+		resolver      WorkflowResolver
+		expectError   bool
 		errorContains string
 	}{
 		{
