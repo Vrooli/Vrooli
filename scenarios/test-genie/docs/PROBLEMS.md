@@ -1,8 +1,9 @@
 # Open Issues
 - Legacy documentation claims high coverage and complete P0 features even though v2 rewrite currently contains only template code.
 - The scenario still needs to rebuild the CLI delegation workflow that triggers suite generation remotely; existing Go backend lives in `scenarios/test-genie-old/` for reference.
-- Requirement modules have their first unit-level validation wired to `api/suite_requests_test.go`, but integration + CLI acceptance coverage remain gaps until OT-P0-002 fully lands.
+- Requirement modules now have `[REQ:TESTGENIE-*]` tags across Go + CLI suites, but we still need to run the orchestrator through the lifecycle to refresh requirement snapshots and add UI/E2E coverage (vault dashboard, delegated flows) before OT-P0-002 is truly multi-layer.
 - Structure, dependencies, business, unit, integration, and performance phases now run inside the Go orchestrator, but we still ship duplicate bash scripts—retire them and wire the CLI to call the API runner directly to avoid drift.
+- Requirements sync now runs directly from the Go orchestrator, but it only fires after full-suite executions triggered via the API—`test/run-tests.sh` and the UI still need to delegate to that path so coverage snapshots stay fresh without manual commands.
 - Queue telemetry now surfaces in `/health` and the CLI, but there is still no alerting when items stay queued for too long or when execution failures spike—ecosystem-manager will need to subscribe to the new signals to close that gap.
 - The React dashboard now exposes queue metrics and runner triggers, but it still lacks visibility into delegated issue IDs, coverage/vault analytics, and historical suite grouping, so ops personas cannot yet audit whether AI generation actually closed the gaps they queued.
 - Flow highlight cards now surface the oldest high-priority queue entry and the most recent failed execution, but guidance still stops there—coverage/vault analytics and automated alert thresholds remain missing, so ops personas cannot yet tell when AI assistance produced enough suites or which vault needs attention next.

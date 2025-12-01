@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -43,6 +44,7 @@ type SuiteOrchestrator struct {
 	projectRoot   string
 	phaseTimeout  time.Duration
 	goPhases      map[string]phaseRunnerFunc
+	requirements  requirementsSyncer
 }
 
 // SuiteExecutionRequest configures a single test execution run.
@@ -113,9 +115,10 @@ type PhaseSummary struct {
 type phaseRunnerFunc func(ctx context.Context, env PhaseEnvironment, logWriter io.Writer) PhaseRunReport
 
 type phaseDefinition struct {
-	Name    string
-	Runner  phaseRunnerFunc
-	Timeout time.Duration
+	Name     string
+	Runner   phaseRunnerFunc
+	Timeout  time.Duration
+	Optional bool
 }
 
 func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
@@ -138,6 +141,7 @@ func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 		projectRoot:   filepath.Dir(absRoot),
 		phaseTimeout:  defaultPhaseTimeout,
 		goPhases:      defaultGoPhases(),
+		requirements:  newNodeRequirementsSyncer(filepath.Dir(absRoot)),
 	}, nil
 }
 
@@ -225,6 +229,21 @@ func (o *SuiteOrchestrator) Execute(ctx context.Context, req SuiteExecutionReque
 	result.Success = !anyFailure
 	result.Phases = phases
 	result.PhaseSummary = summarizePhases(phases)
+
+	if o.requirements != nil && shouldSyncRequirements(req, defs, selected, phases, result.Success) {
+		history := buildCommandHistory(req, presetUsed, selected)
+		input := requirementsSyncInput{
+			ScenarioName:     env.ScenarioName,
+			ScenarioDir:      env.ScenarioDir,
+			PhaseDefinitions: defs,
+			PhaseResults:     phases,
+			CommandHistory:   history,
+		}
+		if err := o.requirements.Sync(ctx, input); err != nil {
+			log.Printf("requirements sync skipped: %v", err)
+		}
+	}
+
 	return result, nil
 }
 
@@ -562,4 +581,58 @@ func filterPresetPhases(phases []string, allowed map[string]struct{}) []string {
 		filtered = append(filtered, normalized)
 	}
 	return filtered
+}
+
+func shouldSyncRequirements(req SuiteExecutionRequest, defs []phaseDefinition, selected []phaseDefinition, phases []PhaseExecutionResult, success bool) bool {
+	if len(defs) == 0 || len(selected) == 0 {
+		return false
+	}
+	if req.Preset != "" || len(req.Phases) > 0 || len(req.Skip) > 0 {
+		return false
+	}
+	if len(selected) != len(defs) {
+		return false
+	}
+	if len(phases) != len(selected) {
+		return false
+	}
+	if !success {
+		return false
+	}
+	return true
+}
+
+func buildCommandHistory(req SuiteExecutionRequest, presetUsed string, selected []phaseDefinition) []string {
+	var history []string
+	var descriptor []string
+	if req.ScenarioName != "" {
+		descriptor = append(descriptor, fmt.Sprintf("scenario=%s", req.ScenarioName))
+	}
+	if presetUsed != "" {
+		descriptor = append(descriptor, fmt.Sprintf("preset=%s", presetUsed))
+	}
+	if len(req.Phases) > 0 {
+		descriptor = append(descriptor, fmt.Sprintf("phases=%s", strings.Join(req.Phases, ",")))
+	}
+	if len(req.Skip) > 0 {
+		descriptor = append(descriptor, fmt.Sprintf("skip=%s", strings.Join(req.Skip, ",")))
+	}
+	if req.FailFast {
+		descriptor = append(descriptor, "failFast=true")
+	}
+	if len(descriptor) > 0 {
+		history = append(history, strings.Join(descriptor, " "))
+	}
+	if len(selected) > 0 {
+		var names []string
+		for _, def := range selected {
+			if def.Name != "" {
+				names = append(names, def.Name)
+			}
+		}
+		if len(names) > 0 {
+			history = append(history, fmt.Sprintf("phase-order:%s", strings.Join(names, ",")))
+		}
+	}
+	return history
 }

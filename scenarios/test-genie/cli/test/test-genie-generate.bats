@@ -60,13 +60,13 @@ teardown() {
     fi
 }
 
-@test "generate command requires a scenario argument" {
+@test "generate command requires a scenario argument [REQ:TESTGENIE-SUITE-P0]" {
     run $TEST_CLI generate
     [ "$status" -eq 1 ]
     [[ "$output" =~ "Scenario name is required" ]]
 }
 
-@test "generate command posts payload with custom options" {
+@test "generate command posts payload with custom options [REQ:TESTGENIE-SUITE-P0]" {
     run $TEST_CLI generate sample-scenario --types unit,performance --coverage 92 --priority high --notes "delegated request"
     [ "$status" -eq 0 ]
     [[ -f "$TEST_CLI_CURL_CAPTURE" ]]
@@ -85,7 +85,7 @@ teardown() {
     [[ "$output" =~ "Suite request queued" ]]
 }
 
-@test "generate command supports --json output" {
+@test "generate command supports --json output [REQ:TESTGENIE-SUITE-P0]" {
     run $TEST_CLI generate demo-scenario --json
     [ "$status" -eq 0 ]
     [[ "$output" =~ "{" ]]
