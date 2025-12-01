@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -30,16 +31,18 @@ func TestNewStripeService(t *testing.T) {
 		t.Fatal("NewStripeService returned nil")
 	}
 
-	if service.publishableKey != "pk_test_123" {
-		t.Errorf("Expected publishableKey pk_test_123, got %s", service.publishableKey)
+	snapshot := service.ConfigSnapshot()
+	if !snapshot.PublishableKeySet {
+		t.Fatalf("expected publishable key to be detected")
 	}
-
-	if service.secretKey != "sk_test_123" {
-		t.Errorf("Expected secretKey sk_test_123, got %s", service.secretKey)
+	if snapshot.PublishableKeyPreview == "" {
+		t.Fatalf("expected publishable key preview to be populated")
 	}
-
-	if service.webhookSecret != "whsec_123" {
-		t.Errorf("Expected webhookSecret whsec_123, got %s", service.webhookSecret)
+	if !snapshot.SecretKeySet {
+		t.Fatalf("expected secret key to be detected")
+	}
+	if !snapshot.WebhookSecretSet {
+		t.Fatalf("expected webhook secret to be detected")
 	}
 }
 

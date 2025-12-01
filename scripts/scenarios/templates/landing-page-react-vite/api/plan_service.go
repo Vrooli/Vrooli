@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -49,6 +50,7 @@ type PlanOption struct {
 	BonusType              string                 `json:"bonus_type,omitempty"`
 	Kind                   string                 `json:"kind,omitempty"`
 	IsVariableAmount       bool                   `json:"is_variable_amount,omitempty"`
+	DisplayEnabled         bool                   `json:"display_enabled"`
 	BundleKey              string                 `json:"bundle_key,omitempty"`
 	DisplayWeight          int                    `json:"display_weight"`
 	Metadata               map[string]interface{} `json:"metadata,omitempty"`
@@ -94,6 +96,9 @@ func (s *PlanService) GetPricingOverview() (*PricingOverview, error) {
 
 	var monthly, yearly []PlanOption
 	for _, price := range prices {
+		if !price.DisplayEnabled {
+			continue
+		}
 		if price.BillingInterval == "month" {
 			monthly = append(monthly, price)
 		} else {
@@ -133,7 +138,7 @@ func (s *PlanService) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 		       bp.amount_cents, bp.currency, bp.intro_enabled, bp.intro_type,
 		       bp.intro_amount_cents, bp.intro_periods, bp.intro_price_lookup_key,
 		       bp.monthly_included_credits, bp.one_time_bonus_credits, bp.plan_rank,
-		       bp.bonus_type, bp.kind, bp.is_variable_amount, b.bundle_key,
+		       bp.bonus_type, bp.kind, bp.is_variable_amount, bp.display_enabled, b.bundle_key,
 		       bp.metadata, bp.display_weight
 		FROM bundle_prices bp
 		JOIN bundle_products b ON bp.product_id = b.id
@@ -162,6 +167,7 @@ func (s *PlanService) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 		&option.BonusType,
 		&option.Kind,
 		&option.IsVariableAmount,
+		&option.DisplayEnabled,
 		&option.BundleKey,
 		&metadataBytes,
 		&option.DisplayWeight,
@@ -229,8 +235,8 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]PlanOption, error) {
 		SELECT bp.stripe_price_id, bp.plan_name, bp.plan_tier, bp.billing_interval,
 		       bp.amount_cents, bp.currency, bp.intro_enabled, bp.intro_type, bp.intro_amount_cents,
 		       bp.intro_periods, bp.intro_price_lookup_key, bp.monthly_included_credits,
-		       bp.one_time_bonus_credits, bp.plan_rank, bp.bonus_type, bp.kind, bp.is_variable_amount, b.bundle_key,
-		       bp.metadata, bp.display_weight
+		       bp.one_time_bonus_credits, bp.plan_rank, bp.bonus_type, bp.kind, bp.is_variable_amount,
+		       bp.display_enabled, b.bundle_key, bp.metadata, bp.display_weight
 		FROM bundle_prices bp
 		JOIN bundle_products b ON bp.product_id = b.id
 		WHERE bp.product_id = $1
@@ -266,6 +272,7 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]PlanOption, error) {
 			&option.BonusType,
 			&option.Kind,
 			&option.IsVariableAmount,
+			&option.DisplayEnabled,
 			&option.BundleKey,
 			&metadataBytes,
 			&option.DisplayWeight,
@@ -294,4 +301,167 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]PlanOption, error) {
 // GetBundleProduct returns the configured bundle product metadata.
 func (s *PlanService) GetBundleProduct() (*BundleProduct, error) {
 	return s.loadBundleProduct(s.defaultBundle)
+}
+
+// BundleCatalogEntry groups a bundle with all of its prices (visible + hidden).
+type BundleCatalogEntry struct {
+	Bundle BundleProduct `json:"bundle"`
+	Prices []PlanOption  `json:"prices"`
+}
+
+// ListBundleCatalog returns bundles for the configured environment so the admin UI
+// can toggle prices without raw SQL edits.
+func (s *PlanService) ListBundleCatalog(ctx context.Context) ([]BundleCatalogEntry, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, bundle_key, bundle_name, stripe_product_id, credits_per_usd,
+		       display_credits_multiplier, display_credits_label, environment, metadata
+		FROM bundle_products
+		WHERE environment = $1
+		ORDER BY bundle_key ASC
+	`, s.displayEnv)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []BundleCatalogEntry
+	for rows.Next() {
+		var product BundleProduct
+		var metadataBytes []byte
+		if err := rows.Scan(
+			&product.ID,
+			&product.BundleKey,
+			&product.Name,
+			&product.StripeProductID,
+			&product.CreditsPerUSD,
+			&product.DisplayCreditsMultiplier,
+			&product.DisplayCreditsLabel,
+			&product.Environment,
+			&metadataBytes,
+		); err != nil {
+			return nil, err
+		}
+
+		if len(metadataBytes) > 0 {
+			var meta map[string]interface{}
+			if err := json.Unmarshal(metadataBytes, &meta); err == nil {
+				product.Metadata = meta
+			}
+		}
+
+		prices, err := s.loadBundlePrices(product.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		entries = append(entries, BundleCatalogEntry{
+			Bundle: product,
+			Prices: prices,
+		})
+	}
+
+	return entries, nil
+}
+
+// UpdateBundlePriceInput contains editable fields for price display metadata.
+type UpdateBundlePriceInput struct {
+	PlanName       *string
+	DisplayWeight  *int
+	DisplayEnabled *bool
+	Subtitle       *string
+	Badge          *string
+	CtaLabel       *string
+	Highlight      *bool
+	Features       *[]string
+}
+
+// UpdateBundlePrice applies display overrides for a Stripe price row.
+func (s *PlanService) UpdateBundlePrice(ctx context.Context, bundleKey, priceID string, input UpdateBundlePriceInput) (*PlanOption, error) {
+	if priceID == "" || bundleKey == "" {
+		return nil, fmt.Errorf("bundle key and price id are required")
+	}
+
+	var pricePrimaryID int64
+	var metadataBytes []byte
+	query := `
+		SELECT bp.id, bp.metadata
+		FROM bundle_prices bp
+		JOIN bundle_products b ON bp.product_id = b.id
+		WHERE bp.stripe_price_id = $1 AND b.bundle_key = $2 AND b.environment = $3
+	`
+	if err := s.db.QueryRowContext(ctx, query, priceID, bundleKey, s.displayEnv).Scan(&pricePrimaryID, &metadataBytes); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("price %s not found for bundle %s", priceID, bundleKey)
+		}
+		return nil, err
+	}
+
+	metadata := map[string]interface{}{}
+	if len(metadataBytes) > 0 {
+		if err := json.Unmarshal(metadataBytes, &metadata); err != nil {
+			logStructured("plan metadata unmarshal failed", map[string]interface{}{
+				"level": "warn",
+				"error": err.Error(),
+			})
+			metadata = map[string]interface{}{}
+		}
+	}
+
+	setMetadataString := func(key string, value *string) {
+		if value == nil {
+			return
+		}
+		trimmed := strings.TrimSpace(*value)
+		if trimmed == "" {
+			delete(metadata, key)
+			return
+		}
+		metadata[key] = trimmed
+	}
+
+	if input.Features != nil {
+		var sanitized []string
+		for _, feature := range *input.Features {
+			trimmed := strings.TrimSpace(feature)
+			if trimmed != "" {
+				sanitized = append(sanitized, trimmed)
+			}
+		}
+		if len(sanitized) == 0 {
+			delete(metadata, "features")
+		} else {
+			metadata["features"] = sanitized
+		}
+	}
+
+	setMetadataString("subtitle", input.Subtitle)
+	setMetadataString("badge", input.Badge)
+	setMetadataString("cta_label", input.CtaLabel)
+	if input.Highlight != nil {
+		if *input.Highlight {
+			metadata["highlight"] = true
+		} else {
+			delete(metadata, "highlight")
+		}
+	}
+
+	metadataJSON, err := json.Marshal(metadata)
+	if err != nil {
+		return nil, fmt.Errorf("marshal price metadata: %w", err)
+	}
+
+	_, err = s.db.ExecContext(ctx, `
+		UPDATE bundle_prices
+		SET plan_name = COALESCE($1, plan_name),
+		    display_weight = COALESCE($2, display_weight),
+		    display_enabled = COALESCE($3, display_enabled),
+		    metadata = $4,
+		    updated_at = NOW()
+		WHERE id = $5
+	`, input.PlanName, input.DisplayWeight, input.DisplayEnabled, metadataJSON, pricePrimaryID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.GetPlanByPriceID(priceID)
 }

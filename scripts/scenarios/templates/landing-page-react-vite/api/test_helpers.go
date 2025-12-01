@@ -62,17 +62,21 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 	// Initialize all services
 	variantService := NewVariantService(db, defaultVariantSpace)
 	metricsService := NewMetricsService(db)
-	stripeService := NewStripeService(db)
+	planService := NewPlanService(db)
+	paymentSettings := NewPaymentSettingsService(db)
+	stripeService := NewStripeServiceWithSettings(db, planService, paymentSettings)
 	contentService := NewContentService(db)
 
 	server := &Server{
-		config:         config,
-		db:             db,
-		variantSpace:   defaultVariantSpace,
-		variantService: variantService,
-		metricsService: metricsService,
-		stripeService:  stripeService,
-		contentService: contentService,
+		config:          config,
+		db:              db,
+		variantSpace:    defaultVariantSpace,
+		variantService:  variantService,
+		metricsService:  metricsService,
+		stripeService:   stripeService,
+		contentService:  contentService,
+		planService:     planService,
+		paymentSettings: paymentSettings,
 	}
 
 	cleanup := func() {

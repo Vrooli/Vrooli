@@ -66,16 +66,16 @@ WITH prod AS (
 INSERT INTO bundle_prices (
     product_id, stripe_price_id, plan_name, plan_tier, billing_interval, amount_cents, currency,
     intro_enabled, intro_type, intro_amount_cents, intro_periods, intro_price_lookup_key,
-    monthly_included_credits, one_time_bonus_credits, plan_rank, bonus_type, kind, is_variable_amount, metadata, display_weight
+    monthly_included_credits, one_time_bonus_credits, plan_rank, bonus_type, kind, is_variable_amount, display_enabled, metadata, display_weight
 ) VALUES
-((SELECT id FROM prod), 'price_solo_monthly', 'Solo Monthly', 'solo', 'month', 4900, 'usd', TRUE, 'flat_amount', 100, 1, 'solo_monthly_intro', 5, 0, 1, 'none', 'subscription', FALSE, '{"features":["Solo workspace","1k monthly credits"]}', 30),
-((SELECT id FROM prod), 'price_solo_yearly', 'Solo Yearly', 'solo', 'year', 49900, 'usd', FALSE, NULL, NULL, 0, NULL, 60, 50, 1, 'yearly_bonus', 'subscription', FALSE, '{"features":["2 months free equivalent","Bonus credits"]}', 10),
-((SELECT id FROM prod), 'price_pro_monthly', 'Pro Monthly', 'pro', 'month', 14900, 'usd', TRUE, 'flat_amount', 100, 1, 'pro_monthly_intro', 25, 0, 2, 'none', 'subscription', FALSE, '{"features":["Team workflows","Priority support"]}', 40),
-((SELECT id FROM prod), 'price_pro_yearly', 'Pro Yearly', 'pro', 'year', 149900, 'usd', FALSE, NULL, NULL, 0, NULL, 320, 200, 2, 'yearly_bonus', 'subscription', FALSE, '{"features":["Advanced automations","Dedicated success"]}', 20),
-((SELECT id FROM prod), 'price_studio_monthly', 'Studio Monthly', 'studio', 'month', 34900, 'usd', TRUE, 'flat_amount', 100, 1, 'studio_monthly_intro', 75, 0, 3, 'none', 'subscription', FALSE, '{"features":["Studio credits","Multi-seat"]}', 50),
-((SELECT id FROM prod), 'price_studio_yearly', 'Studio Yearly', 'studio', 'year', 349900, 'usd', FALSE, NULL, NULL, 0, NULL, 900, 500, 3, 'yearly_bonus', 'subscription', FALSE, '{"features":["Enterprise integrations","VIP onboarding"]}', 30),
-((SELECT id FROM prod), 'price_credits_topup', 'Credits Top-Up', 'credits', 'one_time', 0, 'usd', FALSE, NULL, NULL, 0, NULL, 0, 0, 0, 'none', 'credits_topup', TRUE, '{"description":"Add credits via Stripe checkout"}', 5),
-((SELECT id FROM prod), 'price_supporter_contribution', 'Supporter Contribution', 'donation', 'one_time', 0, 'usd', FALSE, NULL, NULL, 0, NULL, 0, 0, 0, 'none', 'supporter_contribution', TRUE, '{"grants_credits": false, "grants_entitlements": false, "description":"Support Browser Automation Studio"}', 1)
+((SELECT id FROM prod), 'price_solo_monthly', 'Solo Monthly', 'solo', 'month', 4900, 'usd', TRUE, 'flat_amount', 100, 1, 'solo_monthly_intro', 5, 0, 1, 'none', 'subscription', FALSE, TRUE, '{"features":["Solo workspace","1k monthly credits"]}', 30),
+((SELECT id FROM prod), 'price_solo_yearly', 'Solo Yearly', 'solo', 'year', 49900, 'usd', FALSE, NULL, NULL, 0, NULL, 60, 50, 1, 'yearly_bonus', 'subscription', FALSE, TRUE, '{"features":["2 months free equivalent","Bonus credits"]}', 10),
+((SELECT id FROM prod), 'price_pro_monthly', 'Pro Monthly', 'pro', 'month', 14900, 'usd', TRUE, 'flat_amount', 100, 1, 'pro_monthly_intro', 25, 0, 2, 'none', 'subscription', FALSE, TRUE, '{"features":["Team workflows","Priority support"]}', 40),
+((SELECT id FROM prod), 'price_pro_yearly', 'Pro Yearly', 'pro', 'year', 149900, 'usd', FALSE, NULL, NULL, 0, NULL, 320, 200, 2, 'yearly_bonus', 'subscription', FALSE, TRUE, '{"features":["Advanced automations","Dedicated success"]}', 20),
+((SELECT id FROM prod), 'price_studio_monthly', 'Studio Monthly', 'studio', 'month', 34900, 'usd', TRUE, 'flat_amount', 100, 1, 'studio_monthly_intro', 75, 0, 3, 'none', 'subscription', FALSE, TRUE, '{"features":["Studio credits","Multi-seat"]}', 50),
+((SELECT id FROM prod), 'price_studio_yearly', 'Studio Yearly', 'studio', 'year', 349900, 'usd', FALSE, NULL, NULL, 0, NULL, 900, 500, 3, 'yearly_bonus', 'subscription', FALSE, TRUE, '{"features":["Enterprise integrations","VIP onboarding"]}', 30),
+((SELECT id FROM prod), 'price_credits_topup', 'Credits Top-Up', 'credits', 'one_time', 0, 'usd', FALSE, NULL, NULL, 0, NULL, 0, 0, 0, 'none', 'credits_topup', TRUE, TRUE, '{"description":"Add credits via Stripe checkout"}', 5),
+((SELECT id FROM prod), 'price_supporter_contribution', 'Supporter Contribution', 'donation', 'one_time', 0, 'usd', FALSE, NULL, NULL, 0, NULL, 0, 0, 0, 'none', 'supporter_contribution', TRUE, TRUE, '{"grants_credits": false, "grants_entitlements": false, "description":"Support Browser Automation Studio"}', 1)
 ON CONFLICT (stripe_price_id) DO UPDATE SET
     plan_name = EXCLUDED.plan_name,
     plan_tier = EXCLUDED.plan_tier,
@@ -93,6 +93,7 @@ ON CONFLICT (stripe_price_id) DO UPDATE SET
     kind = EXCLUDED.kind,
     is_variable_amount = EXCLUDED.is_variable_amount,
     metadata = EXCLUDED.metadata,
+    display_enabled = EXCLUDED.display_enabled,
     display_weight = EXCLUDED.display_weight,
     updated_at = NOW();
 
@@ -121,3 +122,8 @@ ON CONFLICT (customer_email) DO UPDATE SET
     balance_credits = EXCLUDED.balance_credits,
     bonus_credits = EXCLUDED.bonus_credits,
     updated_at = NOW();
+
+-- Seed payment settings row so admin UI can update it without manual SQL
+INSERT INTO payment_settings (id, publishable_key, secret_key, webhook_secret, dashboard_url)
+VALUES (1, NULL, NULL, NULL, NULL)
+ON CONFLICT (id) DO NOTHING;

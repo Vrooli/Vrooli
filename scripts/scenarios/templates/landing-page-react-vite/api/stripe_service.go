@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"database/sql"
@@ -12,16 +13,27 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sync"
 )
 
 // StripeService handles Stripe payment integration
 type StripeService struct {
-	db               *sql.DB
-	planService      *PlanService
-	publishableKey   string
-	secretKey        string
-	webhookSecret    string
-	checkoutCacheTTL time.Duration
+	db                *sql.DB
+	planService       *PlanService
+	paymentSettings   *PaymentSettingsService
+	checkoutCacheTTL  time.Duration
+	mu                sync.RWMutex
+	runtimeConfig     stripeRuntimeConfig
+}
+
+type stripeRuntimeConfig struct {
+	publishableKey string
+	secretKey      string
+	webhookSecret  string
+	source         string
+	hasPublishable bool
+	hasSecret      bool
+	hasWebhook     bool
 }
 
 const (
@@ -30,50 +42,152 @@ const (
 	sessionTypeSupporterContribution = "supporter_contribution"
 )
 
-// NewStripeService creates a new Stripe service instance
+// NewStripeService creates a new Stripe service instance.
 func NewStripeService(db *sql.DB) *StripeService {
-	planService := NewPlanService(db)
-	publishableKey := os.Getenv("STRIPE_PUBLISHABLE_KEY")
-	secretKey := os.Getenv("STRIPE_SECRET_KEY")
-	webhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
+	return NewStripeServiceWithSettings(db, NewPlanService(db), NewPaymentSettingsService(db))
+}
 
-	if publishableKey == "" {
-		publishableKey = "pk_test_placeholder"
+// NewStripeServiceWithSettings wires explicit plan/payment dependencies (used by server).
+func NewStripeServiceWithSettings(db *sql.DB, planService *PlanService, paymentSettings *PaymentSettingsService) *StripeService {
+	if planService == nil {
+		planService = NewPlanService(db)
+	}
+	if paymentSettings == nil {
+		paymentSettings = NewPaymentSettingsService(db)
+	}
+
+	service := &StripeService{
+		db:               db,
+		planService:      planService,
+		paymentSettings:  paymentSettings,
+		checkoutCacheTTL: 60 * time.Second,
+	}
+
+	if err := service.RefreshConfig(context.Background()); err != nil {
+		logStructured("failed to initialize Stripe config", map[string]interface{}{
+			"level": "warn",
+			"error": err.Error(),
+		})
+	}
+
+	return service
+}
+
+// RefreshConfig reloads Stripe credentials from DB/env.
+func (s *StripeService) RefreshConfig(ctx context.Context) error {
+	cfg, err := s.loadStripeConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	s.runtimeConfig = cfg
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *StripeService) loadStripeConfig(ctx context.Context) (stripeRuntimeConfig, error) {
+	cfg := stripeRuntimeConfig{source: "env"}
+
+	if s.paymentSettings != nil {
+		record, err := s.paymentSettings.GetStripeSettings(ctx)
+		if err != nil {
+			return cfg, err
+		}
+		if record != nil {
+			cfg.publishableKey = strings.TrimSpace(record.PublishableKey)
+			cfg.secretKey = strings.TrimSpace(record.SecretKey)
+			cfg.webhookSecret = strings.TrimSpace(record.WebhookSecret)
+			cfg.source = "database"
+			cfg.hasPublishable = cfg.publishableKey != ""
+			cfg.hasSecret = cfg.secretKey != ""
+			cfg.hasWebhook = cfg.webhookSecret != ""
+			if cfg.hasPublishable && cfg.hasSecret {
+				return cfg, nil
+			}
+		}
+	}
+
+	envPublishable := strings.TrimSpace(os.Getenv("STRIPE_PUBLISHABLE_KEY"))
+	envSecret := strings.TrimSpace(os.Getenv("STRIPE_SECRET_KEY"))
+	envWebhook := strings.TrimSpace(os.Getenv("STRIPE_WEBHOOK_SECRET"))
+
+	cfg.publishableKey = envPublishable
+	cfg.secretKey = envSecret
+	cfg.webhookSecret = envWebhook
+	cfg.hasPublishable = envPublishable != ""
+	cfg.hasSecret = envSecret != ""
+	cfg.hasWebhook = envWebhook != ""
+
+	if !cfg.hasPublishable {
+		cfg.publishableKey = "pk_test_placeholder"
 		logStructured("STRIPE_PUBLISHABLE_KEY missing - using placeholder", map[string]interface{}{
 			"level":   "warn",
 			"message": "STRIPE_PUBLISHABLE_KEY not set; using placeholder for development",
 		})
 	}
-	if secretKey == "" {
-		secretKey = "sk_test_placeholder"
+	if !cfg.hasSecret {
+		cfg.secretKey = "sk_test_placeholder"
 		logStructured("STRIPE_SECRET_KEY missing - using placeholder", map[string]interface{}{
 			"level":   "warn",
 			"message": "STRIPE_SECRET_KEY not set; using placeholder for development",
 		})
 	}
-	if webhookSecret == "" {
-		webhookSecret = "whsec_placeholder"
+	if !cfg.hasWebhook {
+		cfg.webhookSecret = "whsec_placeholder"
 		logStructured("STRIPE_WEBHOOK_SECRET missing - using placeholder", map[string]interface{}{
 			"level":   "warn",
 			"message": "STRIPE_WEBHOOK_SECRET not set; using placeholder for development",
 		})
 	}
 
-	return &StripeService{
-		db:               db,
-		planService:      planService,
-		publishableKey:   publishableKey,
-		secretKey:        secretKey,
-		webhookSecret:    webhookSecret,
-		checkoutCacheTTL: 60 * time.Second,
+	return cfg, nil
+}
+
+func (s *StripeService) getConfig() stripeRuntimeConfig {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.runtimeConfig
+}
+
+// StripeConfigSnapshot exposes sanitized runtime config info.
+type StripeConfigSnapshot struct {
+	PublishableKeyPreview string `json:"publishable_key_preview,omitempty"`
+	PublishableKeySet     bool   `json:"publishable_key_set"`
+	SecretKeySet          bool   `json:"secret_key_set"`
+	WebhookSecretSet      bool   `json:"webhook_secret_set"`
+	Source                string `json:"source"`
+}
+
+func maskValue(value string) string {
+	if value == "" {
+		return ""
+	}
+	if len(value) <= 6 {
+		return value
+	}
+	return value[:4] + "…" + value[len(value)-2:]
+}
+
+// ConfigSnapshot returns a redacted view of the active Stripe configuration.
+func (s *StripeService) ConfigSnapshot() StripeConfigSnapshot {
+	cfg := s.getConfig()
+	return StripeConfigSnapshot{
+		PublishableKeyPreview: maskValue(cfg.publishableKey),
+		PublishableKeySet:     cfg.hasPublishable,
+		SecretKeySet:          cfg.hasSecret,
+		WebhookSecretSet:      cfg.hasWebhook,
+		Source:                cfg.source,
 	}
 }
 
 // CreateCheckoutSession creates a Stripe checkout session
 // [REQ:STRIPE-ROUTES] POST /api/checkout/create endpoint
 func (s *StripeService) CreateCheckoutSession(priceID string, successURL string, cancelURL string, customerEmail string) (map[string]interface{}, error) {
-	// [REQ:STRIPE-CONFIG] Uses Stripe keys from environment
-	if s.secretKey == "sk_test_placeholder" {
+	cfg := s.getConfig()
+
+	// [REQ:STRIPE-CONFIG] Uses Stripe keys from environment or admin settings
+	if !cfg.hasSecret {
 		return nil, errors.New("Stripe not configured - missing STRIPE_SECRET_KEY")
 	}
 
@@ -92,7 +206,7 @@ func (s *StripeService) CreateCheckoutSession(priceID string, successURL string,
 		"created":         time.Now().Unix(),
 		"success_url":     successURL,
 		"cancel_url":      cancelURL,
-		"publishable_key": s.publishableKey,
+		"publishable_key": cfg.publishableKey,
 	}
 
 	// Store session in database for later verification
@@ -111,8 +225,9 @@ func (s *StripeService) CreateCheckoutSession(priceID string, successURL string,
 // VerifyWebhookSignature validates the Stripe webhook signature
 // [REQ:STRIPE-SIG] Webhook signature verification
 func (s *StripeService) VerifyWebhookSignature(payload []byte, signature string) bool {
-	// [REQ:STRIPE-CONFIG] Uses webhook secret from environment
-	if s.webhookSecret == "whsec_placeholder" {
+	cfg := s.getConfig()
+	// [REQ:STRIPE-CONFIG] Uses webhook secret from environment/admin settings
+	if !cfg.hasWebhook {
 		logStructured("Stripe webhook secret not configured", map[string]interface{}{"level": "warn"})
 		return false
 	}
@@ -141,7 +256,7 @@ func (s *StripeService) VerifyWebhookSignature(payload []byte, signature string)
 	signedPayload := timestamp + "." + string(payload)
 
 	// Compute HMAC-SHA256
-	mac := hmac.New(sha256.New, []byte(s.webhookSecret))
+	mac := hmac.New(sha256.New, []byte(cfg.webhookSecret))
 	mac.Write([]byte(signedPayload))
 	expectedSig := hex.EncodeToString(mac.Sum(nil))
 

@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { Home, BarChart3, Palette, LogOut, ChevronRight } from 'lucide-react';
+import { Home, BarChart3, Palette, LogOut, ChevronRight, CreditCard } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { adminLogout } from '../../../shared/api';
 import { RuntimeSignalStrip } from './RuntimeSignalStrip';
@@ -90,6 +90,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                     Customization
                   </Button>
                 </Link>
+                <Link to="/admin/billing" data-testid="nav-billing">
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Billing
+                  </Button>
+                </Link>
               </nav>
             </div>
             <Button
@@ -140,3 +146,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     </div>
   );
 }
+    } else if (path.startsWith('/admin/billing')) {
+      segments.push({ label: 'Billing', path: '/admin/billing' });
+    }

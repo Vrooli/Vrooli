@@ -175,6 +175,7 @@ CREATE TABLE IF NOT EXISTS bundle_prices (
     bonus_type VARCHAR(50),
     kind VARCHAR(50) DEFAULT 'subscription',
     is_variable_amount BOOLEAN DEFAULT FALSE,
+    display_enabled BOOLEAN DEFAULT TRUE,
     metadata JSONB DEFAULT '{}'::jsonb,
     display_weight INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW(),
@@ -196,6 +197,16 @@ CREATE TABLE IF NOT EXISTS download_assets (
     requires_entitlement BOOLEAN DEFAULT TRUE,
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Payment + Stripe configuration (admin-managed)
+CREATE TABLE IF NOT EXISTS payment_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    publishable_key TEXT,
+    secret_key TEXT,
+    webhook_secret TEXT,
+    dashboard_url TEXT,
     updated_at TIMESTAMP DEFAULT NOW()
 );
 

@@ -43,19 +43,21 @@ function formatCredits(amount: number, multiplier: number, label: string) {
   return `${value} ${label}`;
 }
 
-function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle'], highlighted: boolean) {
+function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle'], fallbackHighlight: boolean) {
   const priceLabel = formatCurrency(option.amount_cents, option.currency);
   const introAmount = option.intro_amount_cents;
+  const metadata = option.metadata || {};
+  const metaFeatures = Array.isArray(metadata.features) ? (metadata.features as string[]) : [];
+  const creditsLabel = bundle.display_credits_label || 'credits';
+  const badgeOverride = typeof metadata.badge === 'string' ? (metadata.badge as string) : undefined;
   const badge =
-    option.intro_enabled && introAmount
+    badgeOverride ||
+    (option.intro_enabled && introAmount
       ? `${formatCurrency(introAmount, option.currency)} intro for ${option.intro_periods || 1} month${option.intro_periods === 1 ? '' : 's'}`
       : option.bonus_type
         ? option.bonus_type.replace('_', ' ')
-        : undefined;
+        : undefined);
 
-  const metaFeatures = option.metadata?.features;
-  const baseFeatures = Array.isArray(metaFeatures) ? (metaFeatures as string[]) : [];
-  const creditsLabel = bundle.display_credits_label || 'credits';
   const features = [
     `${formatCredits(option.monthly_included_credits, bundle.display_credits_multiplier, creditsLabel)} included`,
     ...(option.one_time_bonus_credits > 0
@@ -63,21 +65,32 @@ function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle']
           `Bonus ${formatCredits(option.one_time_bonus_credits, bundle.display_credits_multiplier, creditsLabel)}`,
         ]
       : []),
-    ...baseFeatures,
+    ...metaFeatures,
   ];
+
+  const subtitle =
+    typeof metadata.subtitle === 'string' && metadata.subtitle.trim().length > 0
+      ? (metadata.subtitle as string)
+      : `Plan rank #${option.plan_rank}`;
+  const ctaText =
+    typeof metadata.cta_label === 'string' && metadata.cta_label.trim().length > 0
+      ? (metadata.cta_label as string)
+      : option.intro_enabled
+        ? `Start ${formatCurrency(introAmount ?? option.amount_cents, option.currency)} intro`
+        : 'Choose plan';
+
+  const highlighted = metadata.highlight === true ? true : fallbackHighlight;
 
   return {
     name: option.plan_name,
     description: option.plan_tier.charAt(0).toUpperCase() + option.plan_tier.slice(1),
     price: `${priceLabel} / ${option.billing_interval === 'month' ? 'month' : 'year'}`,
     features,
-    cta_text: option.intro_enabled
-      ? `Start ${formatCurrency(introAmount ?? option.amount_cents, option.currency)} intro`
-      : 'Choose plan',
+    cta_text: ctaText,
     cta_url: `/checkout?price_id=${option.stripe_price_id}`,
     highlighted,
     badge,
-    subtitle: `Plan rank #${option.plan_rank}`,
+    subtitle,
   };
 }
 

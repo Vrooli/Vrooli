@@ -50,12 +50,23 @@ export interface BundleProduct {
   credits_per_usd: number;
   display_credits_multiplier: number;
   display_credits_label: string;
+  environment?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface PlanDisplayMetadata {
+  subtitle?: string;
+  badge?: string;
+  cta_label?: string;
+  highlight?: boolean;
+  features?: string[];
+  [key: string]: unknown;
 }
 
 export interface PlanOption {
   plan_name: string;
   plan_tier: string;
-  billing_interval: 'month' | 'year';
+  billing_interval: 'month' | 'year' | 'one_time';
   amount_cents: number;
   currency: string;
   intro_enabled: boolean;
@@ -65,7 +76,14 @@ export interface PlanOption {
   stripe_price_id: string;
   monthly_included_credits: number;
   one_time_bonus_credits: number;
-  metadata?: Record<string, unknown>;
+  plan_rank?: number;
+  bonus_type?: string;
+  kind?: string;
+  is_variable_amount?: boolean;
+  display_enabled: boolean;
+  bundle_key?: string;
+  display_weight: number;
+  metadata?: PlanDisplayMetadata;
 }
 
 export interface PricingOverview {
@@ -183,4 +201,9 @@ export interface EntitlementPayload {
   features?: string[];
   credits?: CreditInfo;
   subscription?: SubscriptionInfo;
+}
+
+export interface BundleCatalogEntry {
+  bundle: BundleProduct;
+  prices: PlanOption[];
 }

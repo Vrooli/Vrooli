@@ -40,6 +40,7 @@ type Server struct {
 	downloadAuthorizer   *DownloadAuthorizer
 	accountService       *AccountService
 	landingConfigService *LandingConfigService
+	paymentSettings      *PaymentSettingsService
 }
 
 // NewServer initializes configuration, database, and routes
@@ -74,6 +75,8 @@ func NewServer() (*Server, error) {
 	downloadService := NewDownloadService(db)
 	accountService := NewAccountService(db, planService)
 	downloadAuthorizer := NewDownloadAuthorizer(downloadService, accountService, planService.BundleKey())
+	paymentSettings := NewPaymentSettingsService(db)
+	stripeService := NewStripeServiceWithSettings(db, planService, paymentSettings)
 
 	srv := &Server{
 		config:               cfg,
@@ -82,13 +85,14 @@ func NewServer() (*Server, error) {
 		variantSpace:         variantSpace,
 		variantService:       variantService,
 		metricsService:       NewMetricsService(db),
-		stripeService:        NewStripeService(db),
+		stripeService:        stripeService,
 		contentService:       contentService,
 		planService:          planService,
 		downloadService:      downloadService,
 		downloadAuthorizer:   downloadAuthorizer,
 		accountService:       accountService,
 		landingConfigService: NewLandingConfigService(variantService, contentService, planService, downloadService),
+		paymentSettings:      paymentSettings,
 	}
 
 	// Initialize session store for authentication
@@ -126,6 +130,10 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/admin/login", s.handleAdminLogin).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/logout", s.requireAdmin(s.handleAdminLogout)).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/session", s.handleAdminSession).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/settings/stripe", s.requireAdmin(handleGetStripeSettings(s.paymentSettings, s.stripeService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/settings/stripe", s.requireAdmin(handleUpdateStripeSettings(s.paymentSettings, s.stripeService))).Methods("PUT")
+	s.router.HandleFunc("/api/v1/admin/bundles", s.requireAdmin(handleAdminBundleCatalog(s.planService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/bundles/{bundle_key}/prices/{price_id}", s.requireAdmin(handleAdminUpdateBundlePrice(s.planService))).Methods("PATCH")
 
 	// A/B Testing variant endpoints (OT-P0-014 through OT-P0-018)
 	// Public endpoints (no auth required for landing page display)
@@ -519,11 +527,13 @@ func ensureSchema(db *sql.DB) error {
 			bonus_type VARCHAR(50),
 			kind VARCHAR(50) DEFAULT 'subscription',
 			is_variable_amount BOOLEAN DEFAULT FALSE,
+			display_enabled BOOLEAN DEFAULT TRUE,
 			metadata JSONB DEFAULT '{}'::jsonb,
 			display_weight INTEGER DEFAULT 0,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);`,
+		`ALTER TABLE bundle_prices ADD COLUMN IF NOT EXISTS display_enabled BOOLEAN DEFAULT TRUE;`,
 		`CREATE INDEX IF NOT EXISTS idx_bundle_prices_tier ON bundle_prices(plan_tier);`,
 		`CREATE INDEX IF NOT EXISTS idx_bundle_prices_interval ON bundle_prices(billing_interval);`,
 		`CREATE TABLE IF NOT EXISTS download_assets (
@@ -555,6 +565,14 @@ func ensureSchema(db *sql.DB) error {
 			source VARCHAR(100),
 			metadata JSONB DEFAULT '{}'::jsonb,
 			created_at TIMESTAMP DEFAULT NOW()
+		);`,
+		`CREATE TABLE IF NOT EXISTS payment_settings (
+			id INTEGER PRIMARY KEY CHECK (id = 1),
+			publishable_key TEXT,
+			secret_key TEXT,
+			webhook_secret TEXT,
+			dashboard_url TEXT,
+			updated_at TIMESTAMP DEFAULT NOW()
 		);`,
 	}
 
