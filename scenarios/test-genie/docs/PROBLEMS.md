@@ -4,6 +4,8 @@
 - Requirement modules have their first unit-level validation wired to `api/suite_requests_test.go`, but integration + CLI acceptance coverage remain gaps until OT-P0-002 fully lands.
 - Structure, dependencies, business, unit, integration, and performance phases now run inside the Go orchestrator, but we still ship duplicate bash scripts—retire them and wire the CLI to call the API runner directly to avoid drift.
 - Queue telemetry now surfaces in `/health` and the CLI, but there is still no alerting when items stay queued for too long or when execution failures spike—ecosystem-manager will need to subscribe to the new signals to close that gap.
+- The React dashboard now exposes queue metrics and runner triggers, but it still lacks visibility into delegated issue IDs, coverage/vault analytics, and historical suite grouping, so ops personas cannot yet audit whether AI generation actually closed the gaps they queued.
+- Flow highlight cards now surface the oldest high-priority queue entry and the most recent failed execution, but guidance still stops there—coverage/vault analytics and automated alert thresholds remain missing, so ops personas cannot yet tell when AI assistance produced enough suites or which vault needs attention next.
 
 # Failure Topography (2025-12-03)
 - **Critical flows mapped**

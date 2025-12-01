@@ -113,8 +113,9 @@ type PhaseSummary struct {
 type phaseRunnerFunc func(ctx context.Context, env PhaseEnvironment, logWriter io.Writer) PhaseRunReport
 
 type phaseDefinition struct {
-	Name   string
-	Runner phaseRunnerFunc
+	Name    string
+	Runner  phaseRunnerFunc
+	Timeout time.Duration
 }
 
 func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
@@ -168,15 +169,26 @@ func (o *SuiteOrchestrator) Execute(ctx context.Context, req SuiteExecutionReque
 		AppRoot:      appRootFromScenario(scenarioDir),
 	}
 
+	config, err := loadTestingConfig(env.ScenarioDir)
+	if err != nil {
+		return nil, err
+	}
+
 	defs, err := o.discoverPhaseDefinitions(env)
 	if err != nil {
 		return nil, err
 	}
+	defs = o.applyTestingConfig(defs, config)
 	if len(defs) == 0 {
-		return nil, fmt.Errorf("scenario '%s' has no phase scripts defined", scenario)
+		return nil, fmt.Errorf("scenario '%s' has no enabled phase definitions", scenario)
 	}
 
-	presets := o.loadPresets(testDir)
+	available := make(map[string]struct{}, len(defs))
+	for _, def := range defs {
+		available[strings.ToLower(def.Name)] = struct{}{}
+	}
+
+	presets := o.loadPresets(testDir, config, available)
 	selected, presetUsed, err := selectPhases(defs, presets, req)
 	if err != nil {
 		return nil, err
@@ -229,8 +241,9 @@ func (o *SuiteOrchestrator) discoverPhaseDefinitions(env PhaseEnvironment) ([]ph
 			continue
 		}
 		definitions[normalized] = phaseDefinition{
-			Name:   normalized,
-			Runner: handler,
+			Name:    normalized,
+			Runner:  handler,
+			Timeout: o.phaseTimeout,
 		}
 	}
 	for _, entry := range entries {
@@ -250,8 +263,9 @@ func (o *SuiteOrchestrator) discoverPhaseDefinitions(env PhaseEnvironment) ([]ph
 			continue
 		}
 		definitions[normalized] = phaseDefinition{
-			Name:   normalized,
-			Runner: o.scriptPhaseRunner(filepath.Join(phaseDir, name)),
+			Name:    normalized,
+			Runner:  o.scriptPhaseRunner(filepath.Join(phaseDir, name)),
+			Timeout: o.phaseTimeout,
 		}
 	}
 	var defs []phaseDefinition
@@ -363,7 +377,12 @@ func (o *SuiteOrchestrator) runPhase(ctx context.Context, env PhaseEnvironment, 
 	}
 	defer logFile.Close()
 
-	phaseCtx, cancel := context.WithTimeout(ctx, o.phaseTimeout)
+	timeout := def.Timeout
+	if timeout <= 0 {
+		timeout = o.phaseTimeout
+	}
+
+	phaseCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	if env.AppRoot == "" {
@@ -386,7 +405,7 @@ func (o *SuiteOrchestrator) runPhase(ctx context.Context, env PhaseEnvironment, 
 		status = "failed"
 		errMsg = runErr.Error()
 		if errors.Is(runErr, context.DeadlineExceeded) || errors.Is(phaseCtx.Err(), context.DeadlineExceeded) {
-			errMsg = fmt.Sprintf("phase timed out after %s", o.phaseTimeout)
+			errMsg = fmt.Sprintf("phase timed out after %s", timeout)
 			classification = failureClassTimeout
 			if remediation == "" {
 				remediation = "Increase the timeout or break the phase into smaller steps."
@@ -454,28 +473,93 @@ func phaseSortValue(name string) int {
 	return 1000
 }
 
-func (o *SuiteOrchestrator) loadPresets(testDir string) map[string][]string {
+func (o *SuiteOrchestrator) loadPresets(testDir string, cfg *testingConfig, allowed map[string]struct{}) map[string][]string {
+	presets := make(map[string][]string)
 	configPath := filepath.Join(testDir, "presets.json")
-	raw, err := os.ReadFile(configPath)
-	if err != nil {
-		return defaultExecutionPresets
-	}
-	var parsed map[string][]string
-	if err := json.Unmarshal(raw, &parsed); err != nil {
-		return defaultExecutionPresets
-	}
-	normalized := make(map[string][]string, len(parsed))
-	for key, value := range parsed {
-		normalized[strings.ToLower(strings.TrimSpace(key))] = value
-	}
-	for key, value := range defaultExecutionPresets {
-		if _, exists := normalized[key]; !exists {
-			normalized[key] = value
+	if raw, err := os.ReadFile(configPath); err == nil {
+		var parsed map[string][]string
+		if err := json.Unmarshal(raw, &parsed); err == nil {
+			for key, phases := range parsed {
+				name := strings.ToLower(strings.TrimSpace(key))
+				if name == "" {
+					continue
+				}
+				filtered := filterPresetPhases(phases, allowed)
+				if len(filtered) > 0 {
+					presets[name] = filtered
+				}
+			}
 		}
 	}
-	return normalized
+
+	if cfg != nil {
+		for key, phases := range cfg.Presets {
+			filtered := filterPresetPhases(phases, allowed)
+			if len(filtered) == 0 {
+				delete(presets, key)
+				continue
+			}
+			presets[key] = filtered
+		}
+	}
+
+	for key, phases := range defaultExecutionPresets {
+		if _, exists := presets[key]; exists {
+			continue
+		}
+		filtered := filterPresetPhases(phases, allowed)
+		if len(filtered) > 0 {
+			presets[key] = filtered
+		}
+	}
+
+	return presets
 }
 
 func appRootFromScenario(scenarioDir string) string {
 	return filepath.Clean(filepath.Join(scenarioDir, "..", ".."))
+}
+
+func (o *SuiteOrchestrator) applyTestingConfig(defs []phaseDefinition, cfg *testingConfig) []phaseDefinition {
+	if cfg == nil || len(cfg.Phases) == 0 {
+		return defs
+	}
+	var configured []phaseDefinition
+	for _, def := range defs {
+		name := strings.ToLower(def.Name)
+		settings, ok := cfg.Phases[name]
+		if ok {
+			if settings.Enabled != nil && !*settings.Enabled {
+				continue
+			}
+			if settings.Timeout > 0 {
+				def.Timeout = settings.Timeout
+			}
+		}
+		configured = append(configured, def)
+	}
+	return configured
+}
+
+func filterPresetPhases(phases []string, allowed map[string]struct{}) []string {
+	if len(phases) == 0 || len(allowed) == 0 {
+		return nil
+	}
+	var filtered []string
+	seen := make(map[string]struct{})
+	for _, phase := range phases {
+		normalized := strings.ToLower(strings.TrimSpace(phase))
+		if normalized == "" {
+			continue
+		}
+		if _, exists := allowed[normalized]; !exists {
+			continue
+		}
+		if _, present := seen[normalized]; present {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		filtered = append(filtered, normalized)
+	}
+	return filtered
 }

@@ -12,3 +12,7 @@
 | 2025-12-04 | Codex Agent | Business registry audited via Go phase | Ported the business requirements phase into the Go orchestrator, enforcing module metadata without jq and adding validation tracker coverage in Go tests. |
 | 2025-12-04 | Codex Agent | Unit phase migrated to Go runner | Added go test + shell lint execution to the SuiteOrchestrator with command stubs + unit tests so the bash unit phase can eventually be retired. |
 | 2025-12-01 | Codex Agent | Integration/perf runners ported | Implemented Go-native integration/performance phases with CLI+Bats validation, go build benchmarks, ordering fixes, and orchestration unit tests. |
+| 2025-12-05 | Codex Agent | Testing config wired into Go orchestrator | Added .vrooli/testing.json parsing for phase toggles, presets, and timeouts with API tests plus requirements mapping so OT-P0-001 keeps improving. |
+| 2025-12-01 | Codex Agent | Experience architecture surfaced | Replaced the placeholder UI with queue metrics, suite request forms, Go runner controls, and selectors so the scenario advertises the Go-based orchestrator flows again. |
+| 2025-12-05 | Codex Agent | Experience flows audited | Added scenario focus controls, inline queue-to-run actions, and filtered tables so operators can move from queueing to execution without retyping scenario names. |
+| 2025-12-05 | Codex Agent | Backlog/failure guidance shipped | Added flow highlight cards, scenario suggestion lists, and rerun shortcuts so operators immediately see which suite to run or rerun without scanning every table row. |

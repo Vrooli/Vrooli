@@ -16,24 +16,24 @@
       "validation": [
         {
           "type": "test",
-          "ref": "test/run-tests.sh",
-          "phase": "structure",
-          "status": "implemented",
-          "notes": "Scenario-local orchestrator drives phased suite without relying on scripts/scenarios/testing"
-        },
-        {
-          "type": "test",
-          "ref": "test/lib/orchestrator.sh",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Bash-driven runner powers structure/dependency/unit/performance phases"
-        },
-        {
-          "type": "test",
-          "ref": "test/phases/test-integration.sh",
+          "ref": "api/suite_execution_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Integration phase asserts CLI + orchestrator workflows"
+          "notes": "Covers scenario-local Go orchestrator execution, presets, fail-fast, and per-phase queuing"
+        },
+        {
+          "type": "test",
+          "ref": "api/testing_config_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates .vrooli/testing.json ingestion, phase toggles, preset overrides, and timeout enforcement"
+        },
+        {
+          "type": "test",
+          "ref": "api/phase_integration_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Ensures the Go-native integration phase exercises CLI+Bats suites without legacy scripts"
         }
       ]
     }

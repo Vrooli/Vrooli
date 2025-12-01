@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func writePhaseScript(t *testing.T, dir, name, content string, exitCode int) {
@@ -221,5 +222,120 @@ func TestSuiteOrchestratorRejectsInvalidScenarioNames(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "scenarioName") {
 		t.Fatalf("expected validation error for invalid scenario name, got %v", err)
+	}
+}
+
+func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := createScenarioLayout(t, root, "demo")
+	configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
+	if err := os.WriteFile(configPath, []byte(`{"phases":{"integration":{"enabled":false}}}`), 0o644); err != nil {
+		t.Fatalf("failed to write testing config: %v", err)
+	}
+	stubCommandLookup(t, func(name string) (string, error) {
+		return "/tmp/" + name, nil
+	})
+	stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
+		return nil
+	})
+
+	orchestrator, err := NewSuiteOrchestrator(root)
+	if err != nil {
+		t.Fatalf("failed to init orchestrator: %v", err)
+	}
+
+	result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
+		ScenarioName: "demo",
+	})
+	if err != nil {
+		t.Fatalf("execution failed: %v", err)
+	}
+	for _, phase := range result.Phases {
+		if phase.Name == "integration" {
+			t.Fatalf("expected integration phase to be disabled via testing config")
+		}
+	}
+	if len(result.Phases) != 5 {
+		t.Fatalf("expected five phases after disabling integration, got %d", len(result.Phases))
+	}
+}
+
+func TestSuiteOrchestratorHonorsTestingConfigPresets(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := createScenarioLayout(t, root, "demo")
+	configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
+	if err := os.WriteFile(configPath, []byte(`{"presets":{"focused":["unit","performance"]}}`), 0o644); err != nil {
+		t.Fatalf("failed to write testing config: %v", err)
+	}
+	stubCommandLookup(t, func(name string) (string, error) {
+		return "/tmp/" + name, nil
+	})
+	stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
+		return nil
+	})
+
+	orchestrator, err := NewSuiteOrchestrator(root)
+	if err != nil {
+		t.Fatalf("failed to init orchestrator: %v", err)
+	}
+
+	result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
+		ScenarioName: "demo",
+		Preset:       "focused",
+	})
+	if err != nil {
+		t.Fatalf("execution failed: %v", err)
+	}
+	if len(result.Phases) != 2 {
+		t.Fatalf("expected preset to run two phases, got %d", len(result.Phases))
+	}
+	if result.Phases[0].Name != "unit" || result.Phases[1].Name != "performance" {
+		t.Fatalf("unexpected preset order: %#v", result.Phases)
+	}
+	if result.PresetUsed != "focused" {
+		t.Fatalf("expected presetUsed to be recorded, got %s", result.PresetUsed)
+	}
+}
+
+func TestSuiteOrchestratorRespectsPhaseTimeoutOverrides(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := createScenarioLayout(t, root, "demo")
+	configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
+	if err := os.WriteFile(configPath, []byte(`{"phases":{"slow":{"timeout":"1s"}}}`), 0o644); err != nil {
+		t.Fatalf("failed to write testing config: %v", err)
+	}
+
+	orchestrator, err := NewSuiteOrchestrator(root)
+	if err != nil {
+		t.Fatalf("failed to init orchestrator: %v", err)
+	}
+	orchestrator.goPhases["slow"] = func(ctx context.Context, env PhaseEnvironment, logWriter io.Writer) PhaseRunReport {
+		select {
+		case <-ctx.Done():
+			return PhaseRunReport{Err: ctx.Err()}
+		case <-time.After(2 * time.Second):
+			return PhaseRunReport{}
+		}
+	}
+
+	result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
+		ScenarioName: "demo",
+		Phases:       []string{"slow"},
+	})
+	if err != nil {
+		t.Fatalf("execution failed: %v", err)
+	}
+	if len(result.Phases) != 1 {
+		t.Fatalf("expected only slow phase to run, got %d phases", len(result.Phases))
+	}
+	phase := result.Phases[0]
+	if phase.Status != "failed" {
+		t.Fatalf("expected slow phase to fail due to timeout, got %s", phase.Status)
+	}
+	if phase.Classification != failureClassTimeout {
+		t.Fatalf("expected timeout classification, got %s", phase.Classification)
+	}
+	if !strings.Contains(phase.Error, "timed out") {
+		t.Fatalf("expected timeout message, got %s", phase.Error)
 	}
 }

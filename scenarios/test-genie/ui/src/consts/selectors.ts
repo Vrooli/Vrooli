@@ -266,12 +266,27 @@ const createSelectorRegistry = <
 };
 
 const literalSelectors: LiteralSelectorTree = {
-  /*
-  Example literal selectors:
   dashboard: {
-    newProjectButton: 'dashboard-new-project-button',
+    hero: "test-genie-hero",
+    flowHighlights: "test-genie-flow-highlights",
+    flowHighlightsBacklog: "test-genie-flow-highlights-backlog",
+    flowHighlightsRerun: "test-genie-flow-highlights-rerun",
+    scenarioFocus: "test-genie-scenario-focus",
+    queueMetrics: "test-genie-queue-metrics",
+    lastExecution: "test-genie-last-execution",
+    suiteRequestForm: "test-genie-suite-request-form",
+    executionForm: "test-genie-execution-form",
+    suiteRequestsTable: "test-genie-suite-requests-table",
+    executionHistory: "test-genie-execution-history"
   },
-  */
+  actions: {
+    submitSuiteRequest: "test-genie-submit-suite-request",
+    runSuiteExecution: "test-genie-run-suite-execution",
+    runSuiteFromQueue: "test-genie-run-suite-from-queue",
+    flowPrefillRequest: "test-genie-flow-prefill-request",
+    flowRunInlineRequest: "test-genie-flow-run-inline-request",
+    flowPrefillRerun: "test-genie-flow-prefill-rerun"
+  }
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {
