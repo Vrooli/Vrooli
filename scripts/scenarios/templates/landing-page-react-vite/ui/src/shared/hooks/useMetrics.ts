@@ -2,24 +2,96 @@ import { useEffect, useRef } from 'react';
 import { useLandingVariant } from '../../app/providers/LandingVariantProvider';
 import { trackMetric, type MetricEvent as APIMetricEvent } from '../api';
 
+const SESSION_STORAGE_KEY = 'metrics_session_id';
+const VISITOR_STORAGE_KEY = 'metrics_visitor_id';
+
+let fallbackSessionId: string | null = null;
+let fallbackVisitorId: string | null = null;
+let sessionWarningLogged = false;
+let visitorWarningLogged = false;
+
+function generateId(prefix: string) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
+function logStorageWarning(kind: 'session' | 'local', error: unknown) {
+  if (kind === 'session') {
+    if (sessionWarningLogged) return;
+    sessionWarningLogged = true;
+  } else {
+    if (visitorWarningLogged) return;
+    visitorWarningLogged = true;
+  }
+  console.warn(`[useMetrics] Access to ${kind}Storage unavailable:`, error);
+}
+
+function getStorage(kind: 'session' | 'local') {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  try {
+    return kind === 'session' ? window.sessionStorage : window.localStorage;
+  } catch (error) {
+    logStorageWarning(kind, error);
+    return undefined;
+  }
+}
+
 // Generate session ID (persisted in sessionStorage)
 function getSessionID(): string {
-  let sessionID = sessionStorage.getItem('metrics_session_id');
-  if (!sessionID) {
-    sessionID = `session_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    sessionStorage.setItem('metrics_session_id', sessionID);
+  const fallback = () => {
+    if (!fallbackSessionId) {
+      fallbackSessionId = generateId('session');
+    }
+    return fallbackSessionId;
+  };
+
+  const storage = getStorage('session');
+  if (!storage) {
+    return fallback();
   }
-  return sessionID;
+
+  try {
+    let sessionID = storage.getItem(SESSION_STORAGE_KEY);
+    if (!sessionID) {
+      sessionID = generateId('session');
+      storage.setItem(SESSION_STORAGE_KEY, sessionID);
+    }
+    fallbackSessionId = sessionID;
+    return sessionID;
+  } catch (error) {
+    logStorageWarning('session', error);
+    return fallback();
+  }
 }
 
 // Generate visitor ID (persisted in localStorage for cross-session tracking)
 function getVisitorID(): string {
-  let visitorID = localStorage.getItem('metrics_visitor_id');
-  if (!visitorID) {
-    visitorID = `visitor_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    localStorage.setItem('metrics_visitor_id', visitorID);
+  const fallback = () => {
+    if (!fallbackVisitorId) {
+      fallbackVisitorId = generateId('visitor');
+    }
+    return fallbackVisitorId;
+  };
+
+  const storage = getStorage('local');
+  if (!storage) {
+    return fallback();
   }
-  return visitorID;
+
+  try {
+    let visitorID = storage.getItem(VISITOR_STORAGE_KEY);
+    if (!visitorID) {
+      visitorID = generateId('visitor');
+      storage.setItem(VISITOR_STORAGE_KEY, visitorID);
+    }
+    fallbackVisitorId = visitorID;
+    return visitorID;
+  } catch (error) {
+    logStorageWarning('local', error);
+    return fallback();
+  }
 }
 
 type MetricEventPayload = APIMetricEvent & {

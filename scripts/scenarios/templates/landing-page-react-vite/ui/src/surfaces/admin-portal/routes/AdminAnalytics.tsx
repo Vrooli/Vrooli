@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { BarChart3, TrendingUp, Users, MousePointerClick, DownloadCloud, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 import { AdminLayout } from "../components/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../shared/ui/card";
@@ -7,12 +7,16 @@ import { Button } from "../../../shared/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/ui/select";
 import { type AnalyticsSummary, type VariantStats } from "../../../shared/api";
 import { buildDateRange, fetchAnalyticsSummary, fetchVariantAnalytics } from "../controllers/analyticsController";
+import { getAdminExperienceSnapshot, rememberAnalyticsFilters } from "../../../shared/lib/adminExperience";
 
 const getTrendIcon = (trend?: 'up' | 'down' | 'stable') => {
   if (trend === 'up') return <ArrowUpRight className="h-4 w-4 text-green-400" />;
   if (trend === 'down') return <ArrowDownRight className="h-4 w-4 text-red-400" />;
   return <Minus className="h-4 w-4 text-slate-400" />;
 };
+
+const VALID_TIME_RANGES = new Set(['1', '7', '30', '90']);
+const DEFAULT_TIME_RANGE = '7';
 
 /**
  * Admin Analytics Dashboard - implements OT-P0-023 and OT-P0-024
@@ -25,12 +29,25 @@ const getTrendIcon = (trend?: 'up' | 'down' | 'stable') => {
  */
 export function AdminAnalytics() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const adminExperience = useMemo(() => getAdminExperienceSnapshot(), []);
+  const initialVariant = searchParams.get('variant') ?? adminExperience.lastAnalytics?.variantSlug ?? 'all';
+  const initialTimeRangeFromUrl = searchParams.get('range');
+  const initialRangeFromExperience = adminExperience.lastAnalytics?.timeRangeDays
+    ? String(adminExperience.lastAnalytics.timeRangeDays)
+    : undefined;
+  const initialRange = initialTimeRangeFromUrl && VALID_TIME_RANGES.has(initialTimeRangeFromUrl)
+    ? initialTimeRangeFromUrl
+    : initialRangeFromExperience && VALID_TIME_RANGES.has(initialRangeFromExperience)
+      ? initialRangeFromExperience
+      : DEFAULT_TIME_RANGE;
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
-  const [selectedVariant, setSelectedVariant] = useState<string>("all");
-  const [timeRange, setTimeRange] = useState<string>("7");
+  const [selectedVariant, setSelectedVariant] = useState<string>(initialVariant);
+  const [timeRange, setTimeRange] = useState<string>(initialRange);
   const [variantDetails, setVariantDetails] = useState<VariantStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const searchSignature = searchParams.toString();
 
   useEffect(() => {
     fetchAnalytics();
@@ -43,6 +60,33 @@ export function AdminAnalytics() {
       setVariantDetails([]);
     }
   }, [selectedVariant, timeRange]);
+
+  useEffect(() => {
+    if (!summary) return;
+    const variantSlug = selectedVariant === 'all' ? null : selectedVariant;
+    const variantName = variantSlug
+      ? summary.variant_stats.find((stat) => stat.variant_slug === variantSlug)?.variant_name
+      : undefined;
+    rememberAnalyticsFilters({
+      variantSlug,
+      variantName,
+      timeRangeDays: parseInt(timeRange, 10),
+    });
+  }, [summary, selectedVariant, timeRange]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchSignature);
+    const urlVariant = params.get('variant') ?? 'all';
+    const urlRange = params.get('range');
+    const normalizedRange = urlRange && VALID_TIME_RANGES.has(urlRange) ? urlRange : DEFAULT_TIME_RANGE;
+
+    if (urlVariant !== selectedVariant) {
+      setSelectedVariant(urlVariant);
+    }
+    if (normalizedRange !== timeRange) {
+      setTimeRange(normalizedRange);
+    }
+  }, [searchSignature]);
 
   const fetchAnalytics = async () => {
     try {
@@ -70,6 +114,43 @@ export function AdminAnalytics() {
       setVariantDetails([]);
     }
   };
+
+  const syncFiltersToUrl = (nextVariant: string, nextRange: string) => {
+    const params = new URLSearchParams();
+    if (nextVariant !== 'all') {
+      params.set('variant', nextVariant);
+    }
+    if (nextRange !== DEFAULT_TIME_RANGE) {
+      params.set('range', nextRange);
+    }
+
+    const nextQuery = params.toString();
+    if (nextQuery === searchSignature) {
+      return;
+    }
+
+    setSearchParams(params, { replace: true });
+  };
+
+  const handleVariantChange = (value: string) => {
+    setSelectedVariant(value);
+    syncFiltersToUrl(value, timeRange);
+  };
+
+  const handleTimeRangeChange = (value: string) => {
+    setTimeRange(value);
+    syncFiltersToUrl(selectedVariant, value);
+  };
+
+  const variantNameLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    summary?.variant_stats.forEach((stat) => map.set(stat.variant_slug, stat.variant_name));
+    return map;
+  }, [summary]);
+
+  const selectedVariantName = selectedVariant !== 'all'
+    ? variantNameLookup.get(selectedVariant) ?? selectedVariant
+    : null;
 
   if (loading) {
     return (
@@ -102,7 +183,7 @@ export function AdminAnalytics() {
           <h1 className="text-3xl font-semibold">Analytics Dashboard</h1>
 
           <div className="flex gap-3" data-testid="analytics-filters">
-            <Select value={timeRange} onValueChange={setTimeRange}>
+            <Select value={timeRange} onValueChange={handleTimeRangeChange}>
               <SelectTrigger className="w-[140px] bg-white/5 border-white/10" data-testid="analytics-time-range">
                 <SelectValue placeholder="Time range" />
               </SelectTrigger>
@@ -114,7 +195,7 @@ export function AdminAnalytics() {
               </SelectContent>
             </Select>
 
-            <Select value={selectedVariant} onValueChange={setSelectedVariant}>
+            <Select value={selectedVariant} onValueChange={handleVariantChange}>
               <SelectTrigger className="w-[160px] bg-white/5 border-white/10" data-testid="analytics-variant-filter">
                 <SelectValue placeholder="All variants" />
               </SelectTrigger>
@@ -249,14 +330,24 @@ export function AdminAnalytics() {
                           </div>
                         </td>
                         <td className="text-right py-4 px-4">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedVariant(variant.variant_slug)}
-                            data-testid={`analytics-view-details-${variant.variant_id}`}
-                          >
-                            Details →
-                          </Button>
+                          <div className="flex flex-col items-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedVariant(variant.variant_slug)}
+                              data-testid={`analytics-view-details-${variant.variant_id}`}
+                            >
+                              Details →
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/admin/customization/variants/${variant.variant_slug}`)}
+                              data-testid={`analytics-edit-${variant.variant_id}`}
+                            >
+                              Customize
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -328,6 +419,25 @@ export function AdminAnalytics() {
                     <div className="text-lg font-medium">{(variantDetails[0].avg_scroll_depth * 100).toFixed(1)}%</div>
                   </div>
                 )}
+                <div className="mt-6 grid gap-3 md:grid-cols-2" data-testid="analytics-variant-actions">
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => navigate(`/admin/customization/variants/${selectedVariant}`)}
+                  >
+                    Edit {selectedVariantName ?? 'variant'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => window.open(`/?variant=${selectedVariant}`, '_blank')}
+                  >
+                    Preview pinned variant
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  Apply changes in Customization, then refresh this detail view to confirm the next experiment run.
+                </p>
               </div>
             </CardContent>
           </Card>

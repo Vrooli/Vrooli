@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useLandingVariant } from '../../../app/providers/LandingVariantProvider';
-import type { LandingSection } from '../../../shared/api';
+import type { LandingConfigResponse, LandingSection } from '../../../shared/api';
 import { HeroSection } from '../sections/HeroSection';
 import { FeaturesSection } from '../sections/FeaturesSection';
 import { PricingSection } from '../sections/PricingSection';
@@ -10,6 +10,33 @@ import { FAQSection } from '../sections/FAQSection';
 import { FooterSection } from '../sections/FooterSection';
 import { VideoSection } from '../sections/VideoSection';
 import { DownloadSection } from '../sections/DownloadSection';
+
+interface SectionRendererContext {
+  section: LandingSection;
+  key: string;
+  config: LandingConfigResponse | null;
+}
+
+type SectionRenderer = (context: SectionRendererContext) => JSX.Element | null;
+
+// Map section types declared in variant schemas to their React implementations.
+// Add new entries here when introducing a new section so renderers stay centralized.
+const SECTION_COMPONENTS: Record<string, SectionRenderer> = {
+  hero: ({ key, section }) => <HeroSection key={key} content={section.content} />,
+  features: ({ key, section }) => <FeaturesSection key={key} content={section.content} />,
+  pricing: ({ key, section, config }) => (
+    <PricingSection key={key} content={section.content} pricingOverview={config?.pricing} />
+  ),
+  cta: ({ key, section }) => <CTASection key={key} content={section.content} />,
+  testimonials: ({ key, section }) => <TestimonialsSection key={key} content={section.content} />,
+  faq: ({ key, section }) => <FAQSection key={key} content={section.content} />,
+  footer: ({ key, section }) => <FooterSection key={key} content={section.content} />,
+  video: ({ key, section }) => <VideoSection key={key} content={section.content} />,
+};
+
+function getSectionKey(section: LandingSection) {
+  return section.id ?? `${section.section_type}-${section.order}`;
+}
 
 /**
  * Public Landing Page
@@ -23,8 +50,17 @@ import { DownloadSection } from '../sections/DownloadSection';
  * - OT-P0-021: Minimum event coverage (page_view, scroll, clicks)
  */
 export function PublicLanding() {
-  const { variant, config, loading: configLoading, error: configError } = useLandingVariant();
+  const {
+    variant,
+    config,
+    loading: configLoading,
+    error: configError,
+    resolution,
+    statusNote,
+    lastUpdated,
+  } = useLandingVariant();
   const fallbackActive = Boolean(config?.fallback);
+  const variantPinnedViaParam = resolution === 'url_param';
 
   const sections = useMemo(() => {
     const incoming = config?.sections ?? [];
@@ -83,40 +119,34 @@ export function PublicLanding() {
   }
 
   const renderSection = (section: LandingSection) => {
-    const key = section.id ?? `${section.section_type}-${section.order}`;
-    const commonProps = {
-      key,
-      content: section.content,
-    };
-
-    switch (section.section_type) {
-      case 'hero':
-        return <HeroSection {...commonProps} />;
-      case 'features':
-        return <FeaturesSection {...commonProps} />;
-      case 'pricing':
-        return <PricingSection {...commonProps} pricingOverview={config?.pricing} />;
-      case 'cta':
-        return <CTASection {...commonProps} />;
-      case 'testimonials':
-        return <TestimonialsSection {...commonProps} />;
-      case 'faq':
-        return <FAQSection {...commonProps} />;
-      case 'footer':
-        return <FooterSection {...commonProps} />;
-      case 'video':
-        return <VideoSection {...commonProps} />;
-      default:
-        console.warn(`Unknown section type: ${section.section_type}`);
-        return null;
+    const renderer = SECTION_COMPONENTS[section.section_type];
+    if (!renderer) {
+      console.warn(`Unknown section type: ${section.section_type}`);
+      return null;
     }
+
+    return renderer({
+      section,
+      key: getSectionKey(section),
+      config,
+    });
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
+      {variantPinnedViaParam && (
+        <div className="bg-blue-500/10 border border-blue-500/30 text-blue-100 text-sm py-3 px-4 text-center" data-testid="variant-source-banner">
+          Variant <strong>{variant?.name ?? variant?.slug}</strong> is pinned via URL parameter. Remove the <code>?variant=</code> query to resume weighted traffic allocation.
+        </div>
+      )}
+
       {fallbackActive && (
-        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-100 text-sm py-3 px-4 text-center">
-          Offline-safe fallback variant is active. Live analytics, pricing, and downloads may be outdated until the API recovers.
+        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-100 text-sm py-3 px-4 text-center" data-testid="fallback-signal-banner">
+          Offline-safe fallback variant is active. {statusNote && <span>{statusNote}. </span>}
+          Live analytics, pricing, and downloads may be outdated until the API recovers.
+          {lastUpdated && (
+            <span className="ml-1 text-amber-200/80">Last sync: {new Date(lastUpdated).toLocaleTimeString()}.</span>
+          )}
         </div>
       )}
 
@@ -128,6 +158,9 @@ export function PublicLanding() {
             <div>Variant: {variant.name} ({variant.slug})</div>
             <div>Sections: {sections.length}</div>
             <div>Status: {variant.status}</div>
+            <div>Resolution: {resolution}</div>
+            {statusNote && <div>Note: {statusNote}</div>}
+            {lastUpdated && <div>Last updated: {new Date(lastUpdated).toLocaleTimeString()}</div>}
             {fallbackActive && <div>Fallback Variant Active</div>}
           </div>
         </div>

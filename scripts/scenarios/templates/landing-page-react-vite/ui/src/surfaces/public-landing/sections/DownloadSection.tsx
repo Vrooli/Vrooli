@@ -33,6 +33,49 @@ function formatCreditDisplay(amount?: number, multiplier?: number, label?: strin
   return `${scaled.toLocaleString()} ${displayLabel}`;
 }
 
+export function getDownloadAssetKey(download: DownloadAsset): string {
+  if (typeof download.id === 'number') {
+    return `asset-${download.id}`;
+  }
+  const version = download.release_version || 'unknown';
+  const artifact = download.artifact_url || 'na';
+  return `platform-${download.platform}-${version}-${artifact}`;
+}
+
+function sanitizeArtifactUrl(artifactUrl?: string) {
+  if (typeof artifactUrl !== 'string') {
+    return '';
+  }
+
+  const trimmed = artifactUrl.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) {
+    return '';
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  if (/^[./]/.test(trimmed) || !trimmed.includes(':')) {
+    return trimmed;
+  }
+
+  return '';
+}
+
+function openDownloadWindow(url: string) {
+  if (typeof window === 'undefined' || typeof window.open !== 'function') {
+    return false;
+  }
+  const target = window.open(url, '_blank', 'noopener,noreferrer');
+  return target !== null;
+}
+
 export function DownloadSection({ content, downloads }: DownloadSectionProps) {
   if (!downloads || downloads.length === 0) {
     return null;
@@ -60,17 +103,16 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
 
   const showEntitlementSummary = entitlementsRequired && trimmedEmail.length > 0;
 
-  const handleDownload = async (download: DownloadAsset) => {
-    const platformKey = download.platform;
+  const handleDownload = async (download: DownloadAsset, assetKey: string) => {
     setDownloadStatus((prev) => ({
       ...prev,
-      [platformKey]: { loading: true },
+      [assetKey]: { loading: true },
     }));
 
     if (download.requires_entitlement && !trimmedEmail) {
       setDownloadStatus((prev) => ({
         ...prev,
-        [platformKey]: {
+        [assetKey]: {
           loading: false,
           message: 'Enter the email tied to your subscription to unlock this download.',
         },
@@ -81,7 +123,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
     if (download.requires_entitlement && !hasActiveSubscription) {
       setDownloadStatus((prev) => ({
         ...prev,
-        [platformKey]: {
+        [assetKey]: {
           loading: false,
           message: `Subscription status is ${entitlementStatus}. Refresh to verify access before downloading.`,
         },
@@ -95,17 +137,39 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
         download.requires_entitlement ? trimmedEmail : undefined
       );
 
+      const artifactUrl = sanitizeArtifactUrl(asset?.artifact_url);
+      if (!artifactUrl) {
+        setDownloadStatus((prev) => ({
+          ...prev,
+          [assetKey]: {
+            loading: false,
+            message: 'Download artifact is not available yet. Please try again later.',
+          },
+        }));
+        return;
+      }
+
+      const opened = openDownloadWindow(artifactUrl);
+      if (!opened) {
+        setDownloadStatus((prev) => ({
+          ...prev,
+          [assetKey]: {
+            loading: false,
+            message: 'Unable to open download. Allow pop-ups and try again.',
+          },
+        }));
+        return;
+      }
+
       trackDownload({
         platform: download.platform,
         release_version: download.release_version,
         requires_entitlement: download.requires_entitlement,
       });
 
-      window.open(asset.artifact_url, '_blank');
-
       setDownloadStatus((prev) => ({
         ...prev,
-        [platformKey]: {
+        [assetKey]: {
           loading: false,
           message: 'Download started in a new tab.',
         },
@@ -113,7 +177,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
     } catch (err) {
       setDownloadStatus((prev) => ({
         ...prev,
-        [platformKey]: {
+        [assetKey]: {
           loading: false,
           message: err instanceof Error ? err.message : 'Failed to prepare download.',
         },
@@ -188,13 +252,15 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
 
         <div className="grid md:grid-cols-3 gap-6">
           {downloads.map((download) => {
-            const status = downloadStatus[download.platform];
+            const assetKey = getDownloadAssetKey(download);
+            const status = downloadStatus[assetKey];
             const buttonLabel = download.requires_entitlement ? 'Verify & Download' : 'Download';
 
             return (
               <div
-                key={download.platform}
+                key={assetKey}
                 className="rounded-3xl border border-white/10 bg-white/5 p-6 space-y-4"
+                data-testid={`download-card-${assetKey}`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs uppercase tracking-[0.3em] text-slate-500">{download.platform}</span>
@@ -214,7 +280,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
                 <Button
                   variant="outline"
                   size="lg"
-                  onClick={() => handleDownload(download)}
+                  onClick={() => handleDownload(download, assetKey)}
                   disabled={status?.loading}
                   className="w-full"
                 >

@@ -9,6 +9,10 @@ vi.mock('../../../shared/api', () => ({
   adminLogout: vi.fn(),
 }));
 
+vi.mock('./RuntimeSignalStrip', () => ({
+  RuntimeSignalStrip: () => <div data-testid="runtime-signal-mock" />,
+}));
+
 const renderWithRouter = (ui: React.ReactElement, { route = '/admin' } = {}) => {
   return render(
     <MemoryRouter initialEntries={[route]}>

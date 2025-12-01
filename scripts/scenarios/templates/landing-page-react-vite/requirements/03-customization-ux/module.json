@@ -11,7 +11,7 @@
       "description": "Public landing page renders ordered sections/pricing/download entries from GET /api/v1/landing-config?variant=… and includes a baked fallback variant that is shown when the API fails or misconfigurations prevent fetching live data.",
       "validation": [],
       "status": "planned",
-      "notes": "Spec: TODO_IMPLEMENTATION_PLAN.md §1.1. Requires caching fallback JSON inside UI bundle and wiring the template API to return landing-config payloads."
+      "notes": "Spec: Template PRD `OT-P0-031` (landing config + fallback). Requires caching fallback JSON inside the UI bundle and wiring the template API to return landing-config payloads."
     },
     {
       "id": "CUSTOM-SPLIT",

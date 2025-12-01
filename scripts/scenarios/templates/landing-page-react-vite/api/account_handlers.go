@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 )
 
 func handleLandingConfig(service *LandingConfigService) http.HandlerFunc {
@@ -68,7 +69,7 @@ func handleEntitlements(accountService *AccountService) http.HandlerFunc {
 
 func handleDownloads(authorizer *DownloadAuthorizer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		platform := r.URL.Query().Get("platform")
+		platform := strings.TrimSpace(r.URL.Query().Get("platform"))
 		if platform == "" {
 			http.Error(w, "platform is required", http.StatusBadRequest)
 			return
@@ -83,6 +84,12 @@ func handleDownloads(authorizer *DownloadAuthorizer) http.HandlerFunc {
 				http.Error(w, err.Error(), http.StatusNotFound)
 			case errors.Is(err, ErrDownloadRequiresActiveSubscription):
 				http.Error(w, err.Error(), http.StatusForbidden)
+			case errors.Is(err, ErrDownloadIdentityRequired):
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			case errors.Is(err, ErrDownloadPlatformRequired):
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			case errors.Is(err, ErrDownloadEntitlementsUnavailable):
+				http.Error(w, err.Error(), http.StatusServiceUnavailable)
 			default:
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}

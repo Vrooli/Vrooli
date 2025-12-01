@@ -3,6 +3,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Home, BarChart3, Palette, LogOut, ChevronRight } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { adminLogout } from '../../../shared/api';
+import { RuntimeSignalStrip } from './RuntimeSignalStrip';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -133,6 +134,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Main Content */}
       <main className="container mx-auto px-6 py-8">
+        <RuntimeSignalStrip />
         {children}
       </main>
     </div>

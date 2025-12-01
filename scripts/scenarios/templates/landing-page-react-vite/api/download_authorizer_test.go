@@ -57,6 +57,7 @@ func TestDownloadAuthorizerAuthorize_AllowsUngatedAssets(t *testing.T) {
 	}
 }
 
+// [REQ:DOWNLOAD-GATE] Download gating enforces entitlement state before granting assets.
 func TestDownloadAuthorizerAuthorize_RequiresActiveSubscription(t *testing.T) {
 	downloads := &fakeDownloads{
 		assets: map[string]*DownloadAsset{
@@ -93,5 +94,48 @@ func TestDownloadAuthorizerAuthorize_PropagatesLookupErrors(t *testing.T) {
 	}
 	if entitlements.calls != 0 {
 		t.Fatalf("expected entitlement lookup skipped on asset failure, got %d", entitlements.calls)
+	}
+}
+
+func TestDownloadAuthorizerAuthorize_RequiresIdentityForGatedAssets(t *testing.T) {
+	downloads := &fakeDownloads{
+		assets: map[string]*DownloadAsset{
+			"bundle:linux": {Platform: "linux", RequiresEntitlement: true},
+		},
+	}
+	entitlements := &trackingEntitlements{
+		payload: &EntitlementPayload{Status: "active"},
+	}
+
+	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
+	if _, err := authorizer.Authorize("linux", ""); !errors.Is(err, ErrDownloadIdentityRequired) {
+		t.Fatalf("expected ErrDownloadIdentityRequired, got %v", err)
+	}
+	if entitlements.calls != 0 {
+		t.Fatalf("expected entitlements skipped until identity provided")
+	}
+}
+
+func TestDownloadAuthorizerAuthorize_RejectsBlankPlatform(t *testing.T) {
+	downloads := &fakeDownloads{}
+	entitlements := &trackingEntitlements{}
+
+	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
+	if _, err := authorizer.Authorize("   ", "user@example.com"); !errors.Is(err, ErrDownloadPlatformRequired) {
+		t.Fatalf("expected ErrDownloadPlatformRequired, got %v", err)
+	}
+}
+
+func TestDownloadAuthorizerAuthorize_ErrorsOnNilEntitlements(t *testing.T) {
+	downloads := &fakeDownloads{
+		assets: map[string]*DownloadAsset{
+			"bundle:android": {Platform: "android", RequiresEntitlement: true},
+		},
+	}
+	entitlements := &trackingEntitlements{}
+
+	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
+	if _, err := authorizer.Authorize("android", "user@example.com"); err == nil {
+		t.Fatalf("expected error when entitlement provider returns nil")
 	}
 }

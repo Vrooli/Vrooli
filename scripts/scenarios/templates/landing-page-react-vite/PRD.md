@@ -23,7 +23,7 @@
 
 **Value promise**: Generated landing pages are production-ready with payments, A/B testing, and analytics built-in. Agents can customize safely; marketers can A/B test quickly.
 
-**Runtime spec linkage**: The authoritative implementation brief for this template lives in `/scenarios/landing-manager/TODO_IMPLEMENTATION_PLAN.md`. That document defines the landing config API, fallback strategy, subscription/billing endpoints, credit wallet math, download gating, and bundled-app entitlement expectations. This PRD and the requirements registry must stay synchronized with that plan so every generated landing page automatically satisfies the bundle-ready experience.
+**Runtime spec linkage**: This PRD is the authoritative implementation brief for the landing runtime (landing config API, fallback strategy, subscription/billing endpoints, credit wallet math, download gating, and bundled-app entitlement expectations). The landing-manager factory references this document directly so every generated scenario inherits the bundle-ready experience.
 
 ## 🎯 Operational Targets
 
@@ -61,12 +61,12 @@
 - [x] OT-P0-025 | Stripe environment config | Each landing page includes Stripe keys from environment variables
 - [x] OT-P0-026 | Stripe routes | Each landing page includes routes for creating checkout sessions and handling webhook events
 #### Landing Runtime & Fallback
-- [ ] OT-P0-031 | API-driven landing config + fallback | Public `/` renders ordered sections, pricing, and download CTAs from `GET /api/v1/landing-config?variant=...`, and ships a baked fallback variant (sections + pricing copy) for API timeouts, auth failures, or admin misconfiguration.
+- [x] OT-P0-031 | API-driven landing config + fallback | Public `/` renders ordered sections, pricing, and download CTAs from `GET /api/v1/landing-config?variant=...`, and ships a baked fallback variant (sections + pricing copy) for API timeouts, auth failures, or admin misconfiguration.
 
 #### Subscription, Credits, and Bundled Apps
-- [ ] OT-P0-032 | Subscription-aware pricing APIs | Backend parses Stripe metadata (products/prices/intro pricing) and exposes `GET /plans`, `POST /billing/create-checkout-session`, `POST /billing/create-credits-checkout-session`, and `GET /billing/portal-url` with correct tier/weight info for both monthly/yearly plans plus $1 intro logic.
-- [ ] OT-P0-033 | Credits + entitlements | Provide `GET /me/subscription`, `GET /me/credits`, and `GET /entitlements` endpoints that interpret `credits_per_usd`, `display_credits_multiplier`, intro grants, top-ups, donations, and return feature flags for bundled apps (with short-lived caches/offline fallback).
-- [ ] OT-P0-034 | Download gating for bundled apps | Landing config includes download sections that surface installers, release notes, and analytics; downloads remain disabled until entitlements confirm an active subscription, and emit variant + plan metadata when triggered.
+- [x] OT-P0-032 | Subscription-aware pricing APIs | Backend parses Stripe metadata (products/prices/intro pricing) and exposes `GET /plans`, `POST /billing/create-checkout-session`, `POST /billing/create-credits-checkout-session`, and `GET /billing/portal-url` with correct tier/weight info for both monthly/yearly plans plus $1 intro logic.
+- [x] OT-P0-033 | Credits + entitlements | Provide `GET /me/subscription`, `GET /me/credits`, and `GET /entitlements` endpoints that interpret `credits_per_usd`, `display_credits_multiplier`, intro grants, top-ups, donations, and return feature flags for bundled apps (with short-lived caches/offline fallback).
+- [x] OT-P0-034 | Download gating for bundled apps | Landing config includes download sections that surface installers, release notes, and analytics; downloads remain disabled until entitlements confirm an active subscription, and emit variant + plan metadata when triggered.
 
 #### Security & Verification
 - [x] OT-P0-027 | Webhook signature verification | All webhook endpoints verify Stripe signature before processing

@@ -6,6 +6,9 @@ import { AdminAuthProvider } from '../../../app/providers/AdminAuthProvider';
 import * as api from '../../../shared/api';
 
 vi.mock('../../../shared/api');
+vi.mock('../components/RuntimeSignalStrip', () => ({
+  RuntimeSignalStrip: () => <div data-testid="runtime-signal-mock" />,
+}));
 
 const mockSummary = {
   total_visitors: 1250,
@@ -57,6 +60,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
     global.fetch = vi.fn().mockResolvedValue({ ok: false } as Response);
     delete (window as { location?: Location }).location;
     window.location = { ...originalLocation, pathname: '/admin/analytics' };
+    window.localStorage.clear();
 
     vi.mocked(api.getMetricsSummary).mockResolvedValue(mockSummary);
   });
@@ -64,6 +68,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
   afterEach(() => {
     global.fetch = originalFetch;
     window.location = originalLocation;
+    window.localStorage.clear();
   });
 
   it('[REQ:METRIC-SUMMARY] should display total visitors metric', async () => {
@@ -124,5 +129,24 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
 
     renderWithRouter(<AdminAnalytics />);
     expect(screen.getByText('Loading analytics...')).toBeInTheDocument();
+  });
+
+  it('should render customize shortcut per variant row', async () => {
+    renderWithRouter(<AdminAnalytics />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('analytics-edit-v1')).toBeInTheDocument();
+    });
+  });
+
+  it('should persist recent analytics filters to localStorage', async () => {
+    renderWithRouter(<AdminAnalytics />);
+
+    await waitFor(() => {
+      const raw = window.localStorage.getItem('landing_admin_experience');
+      expect(raw).toBeTruthy();
+      const snapshot = JSON.parse(raw ?? '{}');
+      expect(snapshot.lastAnalytics).toBeTruthy();
+    });
   });
 });

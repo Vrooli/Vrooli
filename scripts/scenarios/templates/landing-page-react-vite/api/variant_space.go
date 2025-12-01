@@ -3,22 +3,45 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
+var defaultVariantSpaceJSON = []byte(`{
+	"_name": "Landing Variant Space (Fallback)",
+	"_schemaVersion": 1,
+	"axes": {
+		"persona": {
+			"variants": [
+				{ "id": "ops_leader", "label": "Ops Leader" }
+			]
+		},
+		"jtbd": {
+			"variants": [
+				{ "id": "launch_bundle", "label": "Launch bundle" }
+			]
+		},
+		"conversionStyle": {
+			"variants": [
+				{ "id": "demo_led", "label": "Demo-led" }
+			]
+		}
+	}
+}`)
+
 var variantSpaceBytes = readVariantSpaceFile()
 var defaultVariantSpace = mustLoadVariantSpace()
 
 type VariantSpace struct {
-	Name            string                            `json:"_name"`
-	SchemaVersion   int                               `json:"_schemaVersion"`
-	Note            string                            `json:"_note,omitempty"`
-	AgentGuidelines []string                          `json:"_agentGuidelines,omitempty"`
-	Axes            map[string]*AxisDefinition        `json:"axes"`
-	Constraints     *VariantSpaceConstraints          `json:"constraints,omitempty"`
-	rawJSON         json.RawMessage                   `json:"-"`
+	Name            string                     `json:"_name"`
+	SchemaVersion   int                        `json:"_schemaVersion"`
+	Note            string                     `json:"_note,omitempty"`
+	AgentGuidelines []string                   `json:"_agentGuidelines,omitempty"`
+	Axes            map[string]*AxisDefinition `json:"axes"`
+	Constraints     *VariantSpaceConstraints   `json:"constraints,omitempty"`
+	rawJSON         json.RawMessage            `json:"-"`
 }
 
 type AxisDefinition struct {
@@ -43,24 +66,49 @@ type VariantSpaceConstraints struct {
 }
 
 func mustLoadVariantSpace() *VariantSpace {
-	data := readVariantSpaceFile()
-
-	var space VariantSpace
-	if err := json.Unmarshal(data, &space); err != nil {
-		panic(fmt.Sprintf("failed to parse variant space: %v", err))
+	space, err := parseVariantSpace(variantSpaceBytes)
+	if err != nil {
+		log.Printf("failed to parse variant space: %v; using baked defaults", err)
+		space, err = parseVariantSpace(defaultVariantSpaceJSON)
+		if err != nil {
+			panic(fmt.Sprintf("default variant space invalid: %v", err))
+		}
+		variantSpaceBytes = append([]byte(nil), space.rawJSON...)
 	}
-	space.rawJSON = make([]byte, len(data))
-	copy(space.rawJSON, data)
-	return &space
+	return space
 }
 
 func readVariantSpaceFile() []byte {
-	path := filepath.Join("..", ".vrooli", "variant_space.json")
+	return loadVariantSpaceBytes(variantSpaceFilePath())
+}
+
+func variantSpaceFilePath() string {
+	if override := strings.TrimSpace(os.Getenv("VARIANT_SPACE_PATH")); override != "" {
+		return override
+	}
+	return filepath.Join("..", ".vrooli", "variant_space.json")
+}
+
+func loadVariantSpaceBytes(path string) []byte {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		panic(fmt.Sprintf("failed to read variant space file %s: %v", path, err))
+		log.Printf("failed to read variant space at %s: %v", path, err)
+		return cloneBytes(defaultVariantSpaceJSON)
 	}
-	return data
+	return cloneBytes(data)
+}
+
+func parseVariantSpace(data []byte) (*VariantSpace, error) {
+	if len(data) == 0 {
+		return nil, fmt.Errorf("variant space payload is empty")
+	}
+
+	var space VariantSpace
+	if err := json.Unmarshal(data, &space); err != nil {
+		return nil, fmt.Errorf("parse variant space: %w", err)
+	}
+	space.rawJSON = cloneBytes(data)
+	return &space, nil
 }
 
 // JSONBytes returns the original JSON payload for serving via HTTP.
@@ -128,4 +176,13 @@ func (a *AxisDefinition) hasVariant(id string) bool {
 		}
 	}
 	return false
+}
+
+func cloneBytes(data []byte) []byte {
+	if data == nil {
+		return nil
+	}
+	cloned := make([]byte, len(data))
+	copy(cloned, data)
+	return cloned
 }

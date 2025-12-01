@@ -8,8 +8,12 @@ import { useDebounce } from '../../../shared/hooks/useDebounce';
 import {
   loadSectionEditor,
   persistExistingSectionContent,
+  loadVariantContext,
   type SectionEditorState,
+  type VariantContext,
 } from '../controllers/sectionEditorController';
+import { getStylingConfig, getVariantStylingGuidance } from '../../../shared/lib/stylingConfig';
+import { rememberVariantSession } from '../../../shared/lib/adminExperience';
 
 /**
  * Section Editor - Split-screen form + live preview
@@ -18,6 +22,8 @@ import {
  *
  * [REQ:CUSTOM-SPLIT] [REQ:CUSTOM-LIVE]
  */
+const STYLING_CONFIG = getStylingConfig();
+
 export function SectionEditor() {
   const navigate = useNavigate();
   const { variantSlug, sectionId } = useParams<{ variantSlug: string; sectionId: string }>();
@@ -29,6 +35,9 @@ export function SectionEditor() {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [variantContext, setVariantContext] = useState<VariantContext | null>(null);
+  const [variantContextError, setVariantContextError] = useState<string | null>(null);
+  const [variantContextLoading, setVariantContextLoading] = useState(Boolean(variantSlug));
 
   // Form state
   const [sectionType, setSectionType] = useState<ContentSection['section_type']>('hero');
@@ -49,6 +58,64 @@ export function SectionEditor() {
       fetchSection();
     }
   }, [isNew, numericSectionId]);
+
+  useEffect(() => {
+    if (!variantSlug) {
+      setVariantContext(null);
+      setVariantContextError(null);
+      setVariantContextLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchContext = async () => {
+      try {
+        setVariantContextLoading(true);
+        const context = await loadVariantContext(variantSlug);
+        if (!cancelled) {
+          setVariantContext(context);
+          setVariantContextError(null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : 'Failed to load variant guidance';
+          setVariantContextError(message);
+        }
+      } finally {
+        if (!cancelled) {
+          setVariantContextLoading(false);
+        }
+      }
+    };
+    fetchContext();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [variantSlug]);
+
+  useEffect(() => {
+    if (!variantSlug || !variantContext?.variant) {
+      return;
+    }
+
+    if (isNew || numericSectionId === null) {
+      rememberVariantSession({
+        slug: variantSlug,
+        name: variantContext.variant.name,
+        surface: 'variant',
+      });
+      return;
+    }
+
+    rememberVariantSession({
+      slug: variantSlug,
+      name: variantContext.variant.name,
+      surface: 'section',
+      sectionId: numericSectionId,
+      sectionType,
+    });
+  }, [variantSlug, variantContext, numericSectionId, isNew, sectionType]);
 
   const applySectionState = (state: SectionEditorState) => {
     setSection(state.section);
@@ -165,6 +232,12 @@ export function SectionEditor() {
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Left Column: Form */}
           <div className="space-y-6" data-testid="section-form">
+            <VariantContextCard
+              context={variantContext}
+              error={variantContextError}
+              loading={variantContextLoading}
+            />
+            <StylingGuardrailsCard variantSlug={variantContext?.variant.slug ?? variantSlug} />
             {/* Section Settings */}
             <div className="bg-white/5 border border-white/10 rounded-xl p-6">
               <h2 className="text-lg font-semibold mb-4">Section Settings</h2>
@@ -222,8 +295,8 @@ export function SectionEditor() {
             </div>
 
             {/* Content Fields */}
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-              <h2 className="text-lg font-semibold mb-4">Content</h2>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+                <h2 className="text-lg font-semibold mb-4">Content</h2>
 
               <div className="space-y-4">
                 <div>
@@ -389,5 +462,149 @@ export function SectionEditor() {
         </div>
       </div>
     </AdminLayout>
+  );
+}
+
+function VariantContextCard({
+  context,
+  error,
+  loading,
+}: {
+  context: VariantContext | null;
+  error: string | null;
+  loading: boolean;
+}) {
+  if (!context && !error && !loading) {
+    return null;
+  }
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-xl p-6 space-y-4" data-testid="variant-context-card">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold">Variant Context</h2>
+          <p className="text-sm text-slate-400">
+            Align copy with the selected persona, JTBD, and conversion style pulled from variant_space.json.
+          </p>
+        </div>
+        {context?.variant && (
+          <span className="text-xs uppercase tracking-wide text-slate-500 bg-slate-900/60 px-3 py-1 rounded-full">
+            {context.variant.name}
+          </span>
+        )}
+      </div>
+
+      {loading && (
+        <div className="text-slate-400 text-sm">Loading variant guidance…</div>
+      )}
+
+      {error && (
+        <div className="text-sm text-red-400">
+          {error}
+        </div>
+      )}
+
+      {context && (
+        <div className="space-y-4">
+          {context.axes.map((axis) => (
+            <div key={axis.axisId} className="border-l-2 border-purple-500/40 pl-4">
+              <div className="flex items-center justify-between text-xs uppercase text-slate-500 mb-1">
+                <span>{axis.axisLabel}</span>
+                {axis.axisNote && <span className="text-slate-600">{axis.axisNote}</span>}
+              </div>
+              <div className="text-lg font-semibold text-white">
+                {axis.selectionLabel || 'Not selected'}
+              </div>
+              {axis.selectionDescription && (
+                <p className="text-sm text-slate-400 mt-1">{axis.selectionDescription}</p>
+              )}
+              {axis.agentHints && axis.agentHints.length > 0 && (
+                <ul className="mt-2 text-sm text-slate-400 space-y-1 list-disc list-inside">
+                  {axis.agentHints.map((hint, index) => (
+                    <li key={index}>{hint}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+
+          {(context.variantSpace.agentGuidelines && context.variantSpace.agentGuidelines.length > 0) && (
+            <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4 text-sm text-slate-300 space-y-2">
+              <div className="font-medium text-slate-200">Agent Guidelines</div>
+              <ul className="list-disc list-inside space-y-1">
+                {context.variantSpace.agentGuidelines.map((guideline, index) => (
+                  <li key={index}>{guideline}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StylingGuardrailsCard({ variantSlug }: { variantSlug?: string }) {
+  const variantGuidance = getVariantStylingGuidance(variantSlug);
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-xl p-6 space-y-4" data-testid="styling-guardrails-card">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold">Styling & Tone Guardrails</h2>
+          <p className="text-sm text-slate-400">
+            Pulled from styling.json so CTA, palette, and messaging stay aligned.
+          </p>
+        </div>
+        <span className="text-xs uppercase tracking-wide text-slate-500 bg-slate-900/60 px-3 py-1 rounded-full">
+          {STYLING_CONFIG.brand?.product_name ?? 'Brand'}
+        </span>
+      </div>
+
+      {STYLING_CONFIG.tone?.voice && (
+        <p className="text-sm text-slate-300">
+          Voice: <span className="text-white font-medium">{STYLING_CONFIG.tone.voice}</span>
+        </p>
+      )}
+
+      {STYLING_CONFIG.tone?.keywords && (
+        <div className="flex flex-wrap gap-2">
+          {STYLING_CONFIG.tone.keywords.map((keyword) => (
+            <span key={keyword} className="text-xs uppercase tracking-wide bg-purple-500/20 text-purple-200 px-2 py-1 rounded-full">
+              {keyword}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {STYLING_CONFIG.usage_notes && STYLING_CONFIG.usage_notes.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs uppercase text-slate-500">Usage Notes</div>
+          <ul className="list-disc list-inside text-sm text-slate-300 space-y-1">
+            {STYLING_CONFIG.usage_notes.map((note, index) => (
+              <li key={index}>{note}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4 space-y-2">
+        <div className="text-xs uppercase text-slate-500">Variant CTA Guidance</div>
+        {variantGuidance.promise && (
+          <p className="text-base text-white font-semibold">{variantGuidance.promise}</p>
+        )}
+        <div className="text-sm text-slate-300 space-y-1">
+          {variantGuidance.primary_cta && <div>Primary CTA: {variantGuidance.primary_cta}</div>}
+          {variantGuidance.secondary_cta && <div>Secondary CTA: {variantGuidance.secondary_cta}</div>}
+        </div>
+        {variantGuidance.notes && variantGuidance.notes.length > 0 && (
+          <ul className="list-disc list-inside text-sm text-slate-400 space-y-1">
+            {variantGuidance.notes.map((note, index) => (
+              <li key={index}>{note}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }

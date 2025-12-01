@@ -15,6 +15,10 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+vi.mock('../components/RuntimeSignalStrip', () => ({
+  RuntimeSignalStrip: () => <div data-testid="runtime-signal-mock" />,
+}));
+
 const renderWithRouter = (component: React.ReactElement) => {
   return render(
     <BrowserRouter>
@@ -34,11 +38,13 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: false } as Response);
     delete (window as { location?: Location }).location;
     window.location = { ...originalLocation, pathname: '/admin' };
+    window.localStorage.clear();
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
     window.location = originalLocation;
+    window.localStorage.clear();
   });
 
   it('[REQ:ADMIN-MODES] should display exactly two modes: Analytics and Customization', () => {
@@ -79,5 +85,32 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
 
     expect(screen.getByText(/View conversion rates, A\/B test results/)).toBeInTheDocument();
     expect(screen.getByText(/Customize landing page content, trigger agent-based/)).toBeInTheDocument();
+  });
+
+  it('should surface quick resume panel when recents exist', async () => {
+    window.localStorage.setItem(
+      'landing_admin_experience',
+      JSON.stringify({
+        version: 1,
+        lastVariant: {
+          slug: 'alpha',
+          name: 'Variant Alpha',
+          surface: 'variant',
+          lastVisitedAt: new Date().toISOString(),
+        },
+        lastAnalytics: {
+          variantSlug: 'beta',
+          variantName: 'Variant Beta',
+          timeRangeDays: 30,
+          savedAt: new Date().toISOString(),
+        },
+      })
+    );
+
+    renderWithRouter(<AdminHome />);
+
+    expect(await screen.findByTestId('admin-resume-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('admin-resume-customization')).toBeInTheDocument();
+    expect(screen.getByTestId('admin-resume-analytics')).toBeInTheDocument();
   });
 });

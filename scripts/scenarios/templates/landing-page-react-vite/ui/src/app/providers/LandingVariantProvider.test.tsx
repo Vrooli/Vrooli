@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { LandingVariantProvider, useLandingVariant } from './LandingVariantProvider';
 import { getFallbackLandingConfig } from '../../shared/lib/fallbackLandingConfig';
 import type { ReactNode } from 'react';
@@ -95,6 +95,9 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
     expect(result.current.variant?.slug).toEqual('test-variant');
     expect(result.current.config?.variant.slug).toEqual('test-variant');
     expect(result.current.error).toBe(null);
+    expect(result.current.resolution).toEqual('url_param');
+    expect(result.current.statusNote).toContain('URL parameter');
+    expect(result.current.lastUpdated).not.toBeNull();
 
     // Should have stored slug
     const stored = localStorageMock.getItem('landing_manager_variant_slug');
@@ -123,6 +126,7 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
 
     expect(result.current.variant?.slug).toEqual('stored-variant');
     expect(result.current.error).toBe(null);
+    expect(result.current.resolution).toEqual('local_storage');
   });
 
   it('[REQ:AB-API] should select variant via API when no URL or localStorage', async () => {
@@ -142,6 +146,7 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
 
     expect(result.current.variant?.slug).toEqual('test-variant');
     expect(result.current.error).toBe(null);
+    expect(result.current.resolution).toEqual('api_select');
     expect(localStorageMock.getItem('landing_manager_variant_slug')).toEqual('test-variant');
   });
 
@@ -170,6 +175,7 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
     expect(result.current.variant?.slug).toEqual('url-variant');
   });
 
+  // [REQ:AB-FALLBACK] Baked fallback is used when landing config fetch fails.
   it('should fall back to baked config when API errors occur', async () => {
     (global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
 
@@ -183,8 +189,11 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
     expect(result.current.variant?.slug).toEqual(bakedFallback.variant.slug);
     expect(result.current.config?.fallback).toBe(true);
     expect(result.current.error).toBe(null);
+    expect(result.current.resolution).toEqual('fallback');
+    expect(result.current.statusNote).toContain('API unavailable');
   });
 
+  // [REQ:AB-FALLBACK] Invalid slugs also trigger the fallback configuration.
   it('should use fallback config for invalid variant slugs', async () => {
     setLocationSearch('?variant=invalid-slug');
 
@@ -204,6 +213,7 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
     expect(result.current.variant?.slug).toEqual(bakedFallback.variant.slug);
     expect(result.current.config?.fallback).toBe(true);
     expect(result.current.error).toBe(null);
+    expect(result.current.resolution).toEqual('fallback');
   });
 
   it('should support variant_slug parameter for backwards compatibility', async () => {
@@ -225,5 +235,31 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
       expect.any(Object)
     );
     expect(result.current.variant?.slug).toEqual('test-variant');
+  });
+  it('supports manual refresh to re-sync landing config', async () => {
+    (global.fetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => mockConfig,
+    });
+
+    const { result } = renderHook(() => useLandingVariant(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ...mockConfig, variant: { ...mockConfig.variant, slug: 'next-variant' } }),
+    });
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    await waitFor(() => {
+      expect(result.current.variant?.slug).toEqual('next-variant');
+    });
   });
 });

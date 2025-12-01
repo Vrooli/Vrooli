@@ -8,6 +8,7 @@ import * as controller from '../controllers/sectionEditorController';
 vi.mock('../controllers/sectionEditorController', () => ({
   loadSectionEditor: vi.fn(),
   persistExistingSectionContent: vi.fn(),
+  loadVariantContext: vi.fn(),
 }));
 
 // Mock useParams
@@ -45,10 +46,35 @@ const mockControllerState = {
   },
 };
 
+const mockVariantContext = {
+  variant: {
+    slug: 'test-variant',
+    name: 'Test Variant',
+  },
+  axes: [
+    {
+      axisId: 'persona',
+      axisLabel: 'Persona',
+      axisNote: 'Buyer persona',
+      selectionId: 'ops_leader',
+      selectionLabel: 'Ops Leader',
+      selectionDescription: 'Director of Operations',
+      agentHints: ['Emphasize governance'],
+    },
+  ],
+  variantSpace: {
+    name: 'Test Space',
+    note: 'Context note',
+    agentGuidelines: ['Pick one axis variant per persona.'],
+    constraintsNote: 'Some combos disabled',
+  },
+};
+
 describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(controller.loadSectionEditor).mockResolvedValue(mockControllerState);
+    vi.mocked(controller.loadVariantContext).mockResolvedValue(mockVariantContext);
   });
 
   const renderEditor = () => {
@@ -210,5 +236,27 @@ describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
 
     const previewContainer = screen.getByTestId('section-preview').parentElement?.parentElement;
     expect(previewContainer?.className).toContain('lg:sticky');
+  });
+  it('surfaces variant context guidance from variant_space', async () => {
+    renderEditor();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('variant-context-card')).toBeInTheDocument();
+    });
+
+    expect(controller.loadVariantContext).toHaveBeenCalledWith('test-variant');
+    expect(screen.getByText(/Ops Leader/i)).toBeInTheDocument();
+    expect(screen.getByText(/Emphasize governance/i)).toBeInTheDocument();
+  });
+
+  it('displays styling guardrails pulled from styling.json', async () => {
+    renderEditor();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('styling-guardrails-card')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Styling & Tone Guardrails/)).toBeInTheDocument();
+    expect(screen.getByText(/Primary CTA/i)).toBeInTheDocument();
   });
 });

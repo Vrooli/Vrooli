@@ -280,6 +280,13 @@ const literalSelectors: LiteralSelectorTree = {
       customization: 'nav-customization',
       logout: 'nav-logout',
     },
+    home: {
+      resumePanel: 'admin-resume-panel',
+      resumeCustomization: 'admin-resume-customization',
+      resumeAnalytics: 'admin-resume-analytics',
+      resumeCard: 'admin-resume-card',
+      resumeAnalyticsCard: 'admin-resume-analytics-card',
+    },
     mode: {
       analytics: 'admin-mode-analytics',
       customization: 'admin-mode-customization',
@@ -293,6 +300,7 @@ const literalSelectors: LiteralSelectorTree = {
       topCta: 'analytics-top-cta',
       variantPerformance: 'analytics-variant-performance',
       variantDetail: 'analytics-variant-detail',
+      variantActions: 'analytics-variant-actions',
     },
     customization: {
       triggerAgent: 'trigger-agent-customization',
@@ -343,6 +351,11 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
         testIdPattern: 'analytics-view-details-${id}',
         params: { id: { type: 'number' } },
       }),
+      editVariant: defineDynamicSelector({
+        description: 'Customize button for specific variant from analytics table',
+        testIdPattern: 'analytics-edit-${id}',
+        params: { id: { type: 'number' } },
+      }),
     },
     customization: {
       variantCard: defineDynamicSelector({
@@ -363,6 +376,16 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
       archiveVariant: defineDynamicSelector({
         description: 'Archive variant button by slug',
         testIdPattern: 'archive-variant-${slug}',
+        params: { slug: { type: 'string' } },
+      }),
+      variantAnalytics: defineDynamicSelector({
+        description: 'Link to view analytics for a variant card',
+        testIdPattern: 'variant-analytics-${slug}',
+        params: { slug: { type: 'string' } },
+      }),
+      variantPerformance: defineDynamicSelector({
+        description: 'Variant performance summary block',
+        testIdPattern: 'variant-performance-${slug}',
         params: { slug: { type: 'string' } },
       }),
       deleteVariant: defineDynamicSelector({

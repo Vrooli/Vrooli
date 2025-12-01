@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // DownloadService provides helpers for retrieving bundle download metadata.
@@ -17,6 +18,12 @@ var (
 	ErrDownloadNotFound = errors.New("download not found")
 	// ErrDownloadRequiresActiveSubscription indicates a gated download without active access.
 	ErrDownloadRequiresActiveSubscription = errors.New("active subscription required for downloads")
+	// ErrDownloadIdentityRequired indicates the caller must provide identity details before accessing gated assets.
+	ErrDownloadIdentityRequired = errors.New("user identity required for gated downloads")
+	// ErrDownloadPlatformRequired indicates the platform input was blank.
+	ErrDownloadPlatformRequired = errors.New("platform is required")
+	// ErrDownloadEntitlementsUnavailable indicates the entitlement provider returned an unusable response.
+	ErrDownloadEntitlementsUnavailable = errors.New("entitlements unavailable")
 )
 
 // DownloadAsset represents a gated downloadable artifact.
@@ -149,7 +156,12 @@ func NewDownloadAuthorizer(downloads downloadAssetLookup, entitlements entitleme
 
 // Authorize ensures the caller can access the requested download asset.
 func (a *DownloadAuthorizer) Authorize(platform string, userIdentity string) (*DownloadAsset, error) {
-	asset, err := a.downloads.GetAsset(a.bundleKey, platform)
+	trimmedPlatform := strings.TrimSpace(platform)
+	if trimmedPlatform == "" {
+		return nil, ErrDownloadPlatformRequired
+	}
+
+	asset, err := a.downloads.GetAsset(a.bundleKey, trimmedPlatform)
 	if err != nil {
 		return nil, err
 	}
@@ -158,9 +170,17 @@ func (a *DownloadAuthorizer) Authorize(platform string, userIdentity string) (*D
 		return asset, nil
 	}
 
+	userIdentity = strings.TrimSpace(userIdentity)
+	if userIdentity == "" {
+		return nil, ErrDownloadIdentityRequired
+	}
+
 	entitlements, err := a.entitlements.GetEntitlements(userIdentity)
 	if err != nil {
 		return nil, fmt.Errorf("retrieve entitlements: %w", err)
+	}
+	if entitlements == nil {
+		return nil, fmt.Errorf("retrieve entitlements: %w", ErrDownloadEntitlementsUnavailable)
 	}
 
 	status := entitlements.Status

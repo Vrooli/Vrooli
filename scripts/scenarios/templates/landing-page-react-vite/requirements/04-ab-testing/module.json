@@ -9,9 +9,24 @@
       "title": "Baked fallback variant",
       "prd_ref": "OT-P0-031",
       "description": "Ship a static fallback variant (hero/features/pricing/cta/download copy) that the UI renders whenever variant selection or section fetches fail, ensuring visitors always see a safe configuration even if the API is unavailable.",
-      "validation": [],
-      "status": "planned",
-      "notes": "Spec: TODO_IMPLEMENTATION_PLAN.md §1.1. Frontend must detect select/sections failures and render fallback; backend must embed fallback config within build artifacts."
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/app/providers/LandingVariantProvider.test.tsx",
+          "notes": "Provider unit tests cover fallback activation when the landing config fetch errors or the slug is invalid."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/landing_config_service_test.go",
+          "notes": "LandingConfigService test verifies that missing variants trigger the baked fallback response."
+        }
+      ],
+      "status": "complete",
+      "notes": "Spec: Template PRD `OT-P0-031` (landing config + fallback). Frontend fallback coverage via LandingVariantProvider tests and backend guard via landing_config_service."
     },
     {
       "id": "AB-URL",

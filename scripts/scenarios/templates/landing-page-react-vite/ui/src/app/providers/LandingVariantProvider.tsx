@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { getLandingConfig, type LandingConfigResponse } from '../../shared/api';
 import { getFallbackLandingConfig } from '../../shared/lib/fallbackLandingConfig';
 
@@ -13,11 +13,17 @@ export interface Variant {
   updated_at?: string;
 }
 
+export type VariantResolution = 'unknown' | 'url_param' | 'local_storage' | 'api_select' | 'fallback';
+
 interface LandingVariantContextType {
   variant: Variant | null;
   config: LandingConfigResponse | null;
   loading: boolean;
   error: string | null;
+  resolution: VariantResolution;
+  statusNote: string | null;
+  lastUpdated: number | null;
+  refresh: () => Promise<void>;
 }
 
 const LandingVariantContext = createContext<LandingVariantContextType | undefined>(undefined);
@@ -51,9 +57,12 @@ export function LandingVariantProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<LandingConfigResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [resolution, setResolution] = useState<VariantResolution>('unknown');
+  const [statusNote, setStatusNote] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
-  useEffect(() => {
-    function applyConfig(nextConfig: LandingConfigResponse | null) {
+  const applyConfig = useCallback(
+    (nextConfig: LandingConfigResponse | null, nextResolution: VariantResolution, note?: string | null) => {
       setConfig(nextConfig);
 
       if (nextConfig?.variant) {
@@ -72,43 +81,75 @@ export function LandingVariantProvider({ children }: { children: ReactNode }) {
       } else {
         setVariant(null);
       }
-    }
 
-    async function loadVariant() {
-      try {
-        setLoading(true);
-        setError(null);
+      setResolution(nextResolution);
+      setStatusNote(note ?? null);
+      setLastUpdated(Date.now());
+    },
+    []
+  );
 
-        const urlSlug = getVariantSlugFromUrl();
-        const storedSlug = getStoredVariantSlug();
-        const slugToUse = urlSlug || storedSlug || undefined;
+  const loadVariant = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        const landingConfig = await getLandingConfig(slugToUse);
-        if (!landingConfig?.variant?.slug) {
-          throw new Error('Landing config missing variant');
-        }
+      const urlSlug = getVariantSlugFromUrl();
+      const storedSlug = getStoredVariantSlug();
+      const slugToUse = urlSlug || storedSlug || undefined;
 
-        applyConfig(landingConfig);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        console.error('Failed to load variant:', message);
-
-        try {
-          const fallbackConfig = getFallbackLandingConfig();
-          applyConfig(fallbackConfig);
-        } catch (fallbackErr) {
-          console.error('Failed to load fallback landing config:', fallbackErr);
-          setError(message);
-        }
-      } finally {
-        setLoading(false);
+      const landingConfig = await getLandingConfig(slugToUse);
+      if (!landingConfig?.variant?.slug) {
+        throw new Error('Landing config missing variant');
       }
+
+      const nextResolution: VariantResolution = urlSlug
+        ? 'url_param'
+        : storedSlug
+          ? 'local_storage'
+          : 'api_select';
+
+      const note =
+        nextResolution === 'url_param'
+          ? 'Variant pinned via URL parameter'
+          : nextResolution === 'local_storage'
+            ? 'Reusing visitor assignment from localStorage'
+            : 'Variant selected via weighted API';
+
+      applyConfig(landingConfig, landingConfig.fallback ? 'fallback' : nextResolution, note);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Failed to load variant:', message);
+
+      try {
+        const fallbackConfig = getFallbackLandingConfig();
+        applyConfig(fallbackConfig, 'fallback', `API unavailable: ${message}`);
+      } catch (fallbackErr) {
+        console.error('Failed to load fallback landing config:', fallbackErr);
+        setError(message);
+        setResolution('unknown');
+        setStatusNote(message);
+      }
+    } finally {
+      setLoading(false);
     }
+  }, [applyConfig]);
 
+  useEffect(() => {
     loadVariant();
-  }, []);
+  }, [loadVariant]);
 
-  return <LandingVariantContext.Provider value={{ variant, config, loading, error }}>{children}</LandingVariantContext.Provider>;
+  const refresh = useCallback(async () => {
+    await loadVariant();
+  }, [loadVariant]);
+
+  return (
+    <LandingVariantContext.Provider
+      value={{ variant, config, loading, error, resolution, statusNote, lastUpdated, refresh }}
+    >
+      {children}
+    </LandingVariantContext.Provider>
+  );
 }
 
 export function useLandingVariant() {

@@ -15,6 +15,7 @@ import {
   validateVariantForm,
   type VariantFormState,
 } from '../controllers/variantEditorController';
+import { rememberVariantSession } from '../../../shared/lib/adminExperience';
 
 /**
  * Variant Editor - Create or edit a variant and its sections
@@ -100,6 +101,11 @@ export function VariantEditor() {
       setForm(hydrateFormFromVariant(data.variant));
       setAxesSelection(data.variant.axes || {});
       setSections(data.sections);
+      rememberVariantSession({
+        slug: data.variant.slug,
+        name: data.variant.name,
+        surface: 'variant',
+      });
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load variant');
@@ -133,6 +139,11 @@ export function VariantEditor() {
       });
 
       if (saved && isNew) {
+        rememberVariantSession({
+          slug: saved.slug,
+          name: saved.name,
+          surface: 'variant',
+        });
         navigate(`/admin/customization/variants/${saved.slug}`);
       } else if (slug) {
         await fetchVariant();

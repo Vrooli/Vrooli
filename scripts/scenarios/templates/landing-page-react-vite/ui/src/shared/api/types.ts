@@ -76,6 +76,7 @@ export interface PricingOverview {
 }
 
 export interface DownloadAsset {
+  id?: number;
   bundle_key: string;
   platform: string;
   artifact_url: string;

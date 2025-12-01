@@ -58,12 +58,43 @@ func TestCreateCheckoutSession(t *testing.T) {
 			price_id VARCHAR(255),
 			subscription_id VARCHAR(255),
 			status VARCHAR(50) NOT NULL,
+			session_type VARCHAR(50) DEFAULT 'subscription',
+			amount_cents INTEGER,
+			schedule_id VARCHAR(255),
+			metadata JSONB DEFAULT '{}'::jsonb,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		)
 	`)
 	if err != nil {
 		t.Fatalf("Failed to create checkout_sessions table: %v", err)
+	}
+
+	// Seed bundle metadata so plan lookup succeeds
+	if _, err := db.Exec(`
+		INSERT INTO bundle_products (bundle_key, bundle_name, stripe_product_id, credits_per_usd, display_credits_multiplier, display_credits_label, environment)
+		VALUES ('business_suite', 'Business Suite', 'prod_business_suite', 1000000, 0.001, 'credits', 'production')
+		ON CONFLICT (bundle_key) DO NOTHING
+	`); err != nil {
+		t.Fatalf("failed to seed bundle product: %v", err)
+	}
+
+	if _, err := db.Exec(`
+		INSERT INTO bundle_prices (
+			product_id, stripe_price_id, plan_name, plan_tier, billing_interval,
+			amount_cents, currency, intro_enabled, intro_type, intro_amount_cents, intro_periods, intro_price_lookup_key,
+			monthly_included_credits, one_time_bonus_credits, plan_rank, bonus_type,
+			kind, metadata, display_weight
+		) VALUES (
+			(SELECT id FROM bundle_products WHERE bundle_key = 'business_suite'),
+			'price_123', 'Test Plan', 'pro', 'month',
+			5000, 'usd', TRUE, 'flat_amount', 100, 1, 'test_intro_lookup',
+			1000000, 0, 1, 'none',
+			'subscription', '{}'::jsonb, 10
+		)
+		ON CONFLICT (stripe_price_id) DO NOTHING
+	`); err != nil {
+		t.Fatalf("failed to seed bundle price: %v", err)
 	}
 
 	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_valid")
@@ -168,6 +199,10 @@ func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 			price_id VARCHAR(255),
 			subscription_id VARCHAR(255),
 			status VARCHAR(50) NOT NULL,
+			session_type VARCHAR(50) DEFAULT 'subscription',
+			amount_cents INTEGER,
+			schedule_id VARCHAR(255),
+			metadata JSONB DEFAULT '{}'::jsonb,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);
@@ -177,6 +212,9 @@ func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 			customer_id VARCHAR(255),
 			customer_email VARCHAR(255),
 			status VARCHAR(50) NOT NULL,
+			plan_tier VARCHAR(50),
+			price_id VARCHAR(255),
+			bundle_key VARCHAR(100),
 			canceled_at TIMESTAMP,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
@@ -184,6 +222,33 @@ func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 	`)
 	if err != nil {
 		t.Fatalf("Failed to create tables: %v", err)
+	}
+
+	// Seed bundle metadata for checkout plan
+	if _, err := db.Exec(`
+		INSERT INTO bundle_products (bundle_key, bundle_name, stripe_product_id, credits_per_usd, display_credits_multiplier, display_credits_label, environment)
+		VALUES ('business_suite', 'Business Suite', 'prod_business_suite', 1000000, 0.001, 'credits', 'production')
+		ON CONFLICT (bundle_key) DO NOTHING
+	`); err != nil {
+		t.Fatalf("failed to seed bundle product: %v", err)
+	}
+
+	if _, err := db.Exec(`
+		INSERT INTO bundle_prices (
+			product_id, stripe_price_id, plan_name, plan_tier, billing_interval,
+			amount_cents, currency, intro_enabled, intro_type, intro_amount_cents, intro_periods, intro_price_lookup_key,
+			monthly_included_credits, one_time_bonus_credits, plan_rank, bonus_type,
+			kind, metadata, display_weight
+		) VALUES (
+			(SELECT id FROM bundle_products WHERE bundle_key = 'business_suite'),
+			'price_123', 'Test Plan', 'pro', 'month',
+			5000, 'usd', TRUE, 'flat_amount', 100, 1, 'test_intro_lookup',
+			1000000, 0, 1, 'none',
+			'subscription', '{}'::jsonb, 10
+		)
+		ON CONFLICT (stripe_price_id) DO NOTHING
+	`); err != nil {
+		t.Fatalf("failed to seed bundle price: %v", err)
 	}
 
 	// Insert initial checkout session
