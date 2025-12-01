@@ -6,6 +6,8 @@
 - Requirements sync now runs directly from the Go orchestrator, but it only fires after full-suite executions triggered via the API—`test/run-tests.sh` and the UI still need to delegate to that path so coverage snapshots stay fresh without manual commands.
 - Queue telemetry now surfaces in `/health` and the CLI, but there is still no alerting when items stay queued for too long or when execution failures spike—ecosystem-manager will need to subscribe to the new signals to close that gap.
 - The React dashboard now exposes queue metrics and runner triggers, but it still lacks visibility into delegated issue IDs, coverage/vault analytics, and historical suite grouping, so ops personas cannot yet audit whether AI generation actually closed the gaps they queued.
+- The new quick-focus rail is still ephemeral; we need to persist the chosen scenario and outstanding queue/execution context (local storage + API) so operators can resume their intent after refreshes instead of retyping every session.
+- Personas still share the same overview density; watchers and decision-makers need a lighter "state of testing" digest surface that summarizes focus, backlog, vault coverage, and failure stories without the instrumentation-heavy controls that builders expect.
 - Flow highlight cards now surface the oldest high-priority queue entry and the most recent failed execution, but guidance still stops there—coverage/vault analytics and automated alert thresholds remain missing, so ops personas cannot yet tell when AI assistance produced enough suites or which vault needs attention next.
 
 # Failure Topography (2025-12-03)

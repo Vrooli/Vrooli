@@ -621,6 +621,35 @@ export default function App() {
     }));
   };
 
+  const handleFocusQueueShortcut = () => {
+    if (focusQueueStats?.nextRequest) {
+      prefillFromRequest(focusQueueStats.nextRequest);
+    } else if (focusQueueStats?.mostRecentRequest) {
+      prefillFromRequest(focusQueueStats.mostRecentRequest);
+    }
+    navigateToSection("operate", SECTION_ANCHORS.queueForm);
+  };
+
+  const handleFocusRunnerShortcut = () => {
+    const executionCandidate = focusQueueStats?.recentExecution ?? focusQueueStats?.failedExecution;
+    if (executionCandidate) {
+      prefillFromExecution(executionCandidate);
+    }
+    navigateToSection("operate", SECTION_ANCHORS.executionForm);
+  };
+
+  const handleFocusSignalsShortcut = () => {
+    if (focusQueueStats?.failedExecution) {
+      navigateToSection("signals", SECTION_ANCHORS.executionHistory);
+      return;
+    }
+    if (focusQueueStats?.actionableCount) {
+      navigateToSection("signals", SECTION_ANCHORS.suiteRequests);
+      return;
+    }
+    navigateToSection("signals", SECTION_ANCHORS.queueMetrics);
+  };
+
   const handleQuickRun = (request: SuiteRequest) => {
     if (quickRunMutation.isPending) {
       return;
@@ -662,7 +691,7 @@ export default function App() {
             ))}
           </div>
         </header>
-        <nav className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+        <nav className="rounded-2xl border border-white/10 bg-white/[0.02] p-4" data-testid={selectors.dashboard.experienceNavigator}>
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Workspace layers</p>
@@ -686,7 +715,160 @@ export default function App() {
               ))}
             </div>
           </div>
+          <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <label className="flex-1 text-sm">
+              <span className="text-xs uppercase tracking-[0.3em] text-slate-400">Quick focus</span>
+              <input
+                className="mt-2 w-full rounded-full border border-white/10 bg-black/30 px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                placeholder="Type or pick a scenario to sync every section"
+                value={focusScenario}
+                onChange={(evt) => applyFocusScenario(evt.target.value)}
+                list={scenarioOptionsDatalistId}
+              />
+              <p className="mt-2 text-xs text-slate-400">
+                Focus filters the queue + history tables and pre-fills all forms. Use it before you scroll.
+              </p>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigateToSection("operate", SECTION_ANCHORS.scenarioFocus)}>
+                Open focus tools
+              </Button>
+              {focusActive ? (
+                <Button variant="outline" size="sm" onClick={clearFocusScenario}>
+                  Clear focus
+                </Button>
+              ) : scenarioOptions.length > 0 ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applyFocusScenario(scenarioOptions[0])}
+                >
+                  Use last scenario
+                </Button>
+              ) : null}
+            </div>
+          </div>
         </nav>
+        <section
+          className="rounded-2xl border border-white/10 bg-gradient-to-br from-emerald-500/5 via-slate-900/60 to-slate-900 p-5 text-sm"
+          data-testid={selectors.dashboard.intentSummary}
+        >
+          {focusActive ? (
+            <>
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">Intent rail</p>
+                  <h2 className="mt-1 text-2xl font-semibold text-white">Focused on {focusScenario}</h2>
+                  <p className="mt-2 text-slate-300">
+                    Every CTA below is already filtered to this scenario so you can delegate, rerun, or inspect
+                    signals without hunting through the tabs.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-left">
+                    <p className="text-xs uppercase tracking-wide text-slate-400">Queue</p>
+                    <p className="mt-1 text-lg font-semibold text-white">
+                      {focusQueueStats
+                        ? `${focusQueueStats.actionableCount}/${focusQueueStats.totalCount} actionable`
+                        : "No queue history"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {focusQueueStats?.mostRecentRequest
+                        ? `Last request ${formatRelative(
+                            focusQueueStats.mostRecentRequest.updatedAt ?? focusQueueStats.mostRecentRequest.createdAt
+                          )}`
+                        : "Queue a suite to start tracking"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-left">
+                    <p className="text-xs uppercase tracking-wide text-slate-400">Runner</p>
+                    <p className="mt-1 text-lg font-semibold text-white">
+                      {focusQueueStats?.recentExecution
+                        ? focusQueueStats.recentExecution.success
+                          ? "Last run passed"
+                          : "Last run failed"
+                        : "No runs yet"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {focusQueueStats?.recentExecution
+                        ? formatRelative(focusQueueStats.recentExecution.completedAt)
+                        : "Kick off a preset to record telemetry"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-left">
+                    <p className="text-xs uppercase tracking-wide text-slate-400">Signals</p>
+                    <p className="mt-1 text-lg font-semibold text-white">
+                      {focusQueueStats?.failedExecution
+                        ? "Failure in backlog"
+                        : focusQueueStats?.actionableCount
+                        ? "Suite waiting"
+                        : "All clear"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {focusQueueStats?.failedExecution
+                        ? `Failed ${formatRelative(focusQueueStats.failedExecution.completedAt)}`
+                        : focusQueueStats?.actionableCount
+                        ? "Run queued suites to keep pace"
+                        : "No alerts for this scenario"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6 grid gap-3 md:grid-cols-3">
+                <Button size="sm" className="justify-between" onClick={handleFocusQueueShortcut}>
+                  Queue next suite
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+                <Button size="sm" variant="outline" className="justify-between" onClick={handleFocusRunnerShortcut}>
+                  Resume runner
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+                <Button size="sm" variant="outline" className="justify-between" onClick={handleFocusSignalsShortcut}>
+                  Review signals
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Intent rail</p>
+                  <h2 className="mt-1 text-2xl font-semibold text-white">Align everything to a scenario</h2>
+                  <p className="mt-2 text-slate-300">
+                    Set a focus once and queue forms, runner presets, and signal tables will all follow. Pick from
+                    recent activity or open the catalog if you are starting fresh.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={() => navigateToSection("catalog", SECTION_ANCHORS.scenarioDirectory)}>
+                    Browse catalog
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => navigateToSection("operate", SECTION_ANCHORS.scenarioFocus)}>
+                    Open focus tools
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {scenarioOptions.length === 0 && (
+                  <span className="text-xs text-slate-400">
+                    Queue or run a suite to record history. Recent scenarios will populate here automatically.
+                  </span>
+                )}
+                {scenarioOptions.slice(0, 4).map((name) => (
+                  <button
+                    key={`focus-quick-${name}`}
+                    type="button"
+                    onClick={() => applyFocusScenario(name)}
+                    className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 transition hover:border-white/50"
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
         {activeTab === "overview" && (
           <>
         <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">

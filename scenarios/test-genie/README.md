@@ -101,6 +101,10 @@ Signals now flow through the API so operators can understand orchestration healt
 - `/health` – still reports infrastructure readiness, but now embeds queue depth, pending/failed counts, and the age of the oldest waiting request under `operations.queue`, plus the most recent execution summary under `operations.lastExecution`.
 - `test-genie status` surfaces the same telemetry in the CLI so agents immediately know if suites are piling up or failing without digging through logs.
 
+### Phase Catalog & Workspace Planner
+
+The Go orchestrator now exposes its mental model directly. Call `GET /api/v1/phases` to retrieve the Go-native phase catalog (structure, dependencies, unit, integration, business, performance) with descriptions and optionality flags. Behind the scenes, each execution request now resolves a `ScenarioWorkspace` (scenario/test/phase paths and artifact roots) plus a `PhasePlan` that captures which phases/presets will run. This separation replaces bash-era heuristics with explicit Go types that the API, CLI, and UI can reason about.
+
 ## 🔥 Core Features
 
 ### 1. **Delegated Test Generation**

@@ -23,14 +23,14 @@
         },
         {
           "type": "test",
-          "ref": "api/generate_suite_integration_test.go",
+          "ref": "api/internal/app/generate_suite_integration_test.go",
           "phase": "integration",
           "status": "implemented",
           "notes": "API integration tests verify suite persistence plus deterministic fallback defaults"
         },
         {
           "type": "test",
-          "ref": "api/suite_requests_test.go",
+          "ref": "api/internal/suite/suite_requests_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Covers suite request payload validation + persistence and query helpers"

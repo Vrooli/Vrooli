@@ -16,21 +16,21 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/suite_execution_test.go",
+          "ref": "api/internal/suite/suite_execution_test.go",
           "phase": "integration",
           "status": "implemented",
           "notes": "Covers scenario-local Go orchestrator execution, presets, fail-fast, and per-phase queuing"
         },
         {
           "type": "test",
-          "ref": "api/testing_config_test.go",
+          "ref": "api/internal/suite/testing_config_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Validates .vrooli/testing.json ingestion, phase toggles, preset overrides, and timeout enforcement"
         },
         {
           "type": "test",
-          "ref": "api/phase_integration_test.go",
+          "ref": "api/internal/suite/phase_integration_test.go",
           "phase": "integration",
           "status": "implemented",
           "notes": "Ensures the Go-native integration phase exercises CLI+Bats suites without legacy scripts"

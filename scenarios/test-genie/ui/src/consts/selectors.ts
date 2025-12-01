@@ -269,6 +269,7 @@ const literalSelectors: LiteralSelectorTree = {
   dashboard: {
     hero: "test-genie-hero",
     experienceNavigator: "test-genie-experience-navigator",
+    intentSummary: "test-genie-intent-summary",
     flowHighlights: "test-genie-flow-highlights",
     flowHighlightsBacklog: "test-genie-flow-highlights-backlog",
     flowHighlightsRerun: "test-genie-flow-highlights-rerun",

@@ -1,5 +1,9 @@
 | Date | Author | Status Snapshot | Notes |
 |------|--------|-----------------|-------|
+| 2025-12-06 | Codex Agent | Go API split into screaming packages | Refactored the API into `cmd/`, `internal/app`, `internal/suite`, and `internal/scenarios` packages so HTTP, orchestration, and catalog responsibilities are explicit, promoted shared domain types/errors for cross-package use, and backfilled tests/docs to keep behavior unchanged. |
+| 2025-12-06 | Codex Agent | Workspace + phase plan surfaced | Split the Go orchestrator into explicit `ScenarioWorkspace` + `PhasePlan` types, added an API-accessible phase catalog, and wired `/api/v1/phases` so every surface can describe the Go-native testing architecture without diving into bash scripts. |
+| 2025-12-06 | Codex Agent | Phase catalog screams suite intent | Added a first-class phase catalog/type system in the Go API so structure/dependencies/unit/etc. are modeled explicitly, presets derive from the same registry, and requirements syncing + tests can reason about optional phases without stringly-typed guesses. |
+| 2025-12-01 | Codex Agent | Intent rail + quick focus | Added nav-level focus picker plus a global intent summary with queue/run/signal shortcuts so personas can execute the coverage journey without re-scanning the dashboard. |
 | 2025-11-30 | Codex Agent | Dependencies seam moved into Go | Reimplemented the dependencies phase in the API, added command lookup seam, and documented the seam inventory in docs/SEAMS.md. |
 | 2025-12-01 | Generator Agent | Legacy scenario archived | Moved original implementation to scenarios/test-genie-old/ prior to v2 rewrite. |
 | 2025-12-01 | Codex Agent | React+Vite scaffold restored | Copied legacy docs, PRD, README into new scaffold to guide the rewrite stage. |
