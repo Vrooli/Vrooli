@@ -1,3 +1,4 @@
+import { LOOPBACK_HOSTS, getProxyInfo, isProxyContext } from '@vrooli/api-base';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { type GeneratedScenario, type PreviewLinks } from '../lib/api';
@@ -22,6 +23,173 @@ export interface LandingPreviewViewProps {
   scenarioLogs?: string;
   logsLoading?: boolean;
   onLoadLogs?: (scenarioId: string, options?: { force?: boolean; tail?: number }) => void;
+  onPromoteScenario?: (scenario: GeneratedScenario) => void;
+}
+
+const UI_LABEL_PATTERN = /(ui|front|preview|web|client|app)/i;
+
+interface PreviewRoutingEnvironment {
+  viewerIsLocal: boolean;
+  forceProxyRouting: boolean;
+}
+
+function getViewerEnvironment(): PreviewRoutingEnvironment {
+  if (typeof window === 'undefined') {
+    return {
+      viewerIsLocal: true,
+      forceProxyRouting: false,
+    };
+  }
+
+  const hostname = window.location.hostname?.toLowerCase() ?? '';
+  const viewerIsLocal = hostname ? LOOPBACK_HOSTS.has(hostname) : false;
+  const forceProxyRouting = isProxyContext() || !viewerIsLocal;
+
+  return {
+    viewerIsLocal,
+    forceProxyRouting,
+  };
+}
+
+function isLocalPreviewUrl(candidate: string): boolean {
+  if (!candidate) {
+    return false;
+  }
+
+  try {
+    const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+    const parsed = new URL(candidate, candidate.startsWith('http') ? undefined : base);
+    const hostname = parsed.hostname?.toLowerCase() ?? '';
+    if (!hostname) {
+      return false;
+    }
+    return LOOPBACK_HOSTS.has(hostname);
+  } catch {
+    return false;
+  }
+}
+
+function selectUiProxyPath(): string | null {
+  const info = getProxyInfo();
+  if (!info) {
+    return null;
+  }
+
+  const ports = Array.isArray(info.ports) ? info.ports : [];
+  const matchesPattern = (value?: string | null) => {
+    if (!value) return false;
+    return UI_LABEL_PATTERN.test(value);
+  };
+
+  const byLabel = ports.find((port) => matchesPattern(port.normalizedLabel) || matchesPattern(port.label));
+  if (byLabel?.path) {
+    return byLabel.path;
+  }
+
+  const byAlias = ports.find((port) =>
+    Array.isArray(port.aliases) && port.aliases.some((alias) => matchesPattern(alias?.toLowerCase())),
+  );
+  if (byAlias?.path) {
+    return byAlias.path;
+  }
+
+  const primaryPort = ports.find((port) => port.isPrimary && typeof port.path === 'string' && port.path.trim());
+  if (primaryPort?.path) {
+    return primaryPort.path;
+  }
+
+  if (info.basePath) {
+    return info.basePath;
+  }
+
+  if (info.primary?.path) {
+    return info.primary.path;
+  }
+
+  return null;
+}
+
+function deriveScenarioBaseFromLocation(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  const origin = window.location.origin ?? '';
+  const pathname = window.location.pathname ?? '';
+  if (!origin) {
+    return '';
+  }
+
+  const proxyMarker = '/proxy';
+  const proxyIndex = pathname.indexOf(proxyMarker);
+  if (proxyIndex === -1) {
+    return origin.replace(/\/+$/, '');
+  }
+
+  const basePath = pathname.slice(0, proxyIndex + proxyMarker.length);
+  return `${origin}${basePath}`.replace(/\/+$/, '');
+}
+
+function normalizeBasePath(value: string): string {
+  return value.replace(/\/+$/, '');
+}
+
+function getScenarioBaseUrl(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  const origin = window.location.origin ?? '';
+  const proxyPath = selectUiProxyPath();
+  if (proxyPath) {
+    if (proxyPath.startsWith('http://') || proxyPath.startsWith('https://')) {
+      return normalizeBasePath(proxyPath);
+    }
+    if (proxyPath.startsWith('/') && origin) {
+      return normalizeBasePath(`${origin}${proxyPath}`);
+    }
+  }
+
+  const fallback = deriveScenarioBaseFromLocation();
+  if (fallback) {
+    return normalizeBasePath(fallback);
+  }
+
+  return normalizeBasePath(origin);
+}
+
+function withScenarioBase(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const base = getScenarioBaseUrl();
+  if (!base) {
+    return normalizedPath;
+  }
+  return `${base}${normalizedPath}`;
+}
+
+function selectDirectPreviewUrl(
+  candidates: Array<string | undefined>,
+  env: PreviewRoutingEnvironment,
+): string | null {
+  if (env.forceProxyRouting) {
+    return null;
+  }
+
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue;
+    }
+    const trimmed = candidate.trim();
+    if (!trimmed) {
+      continue;
+    }
+    if (!env.viewerIsLocal && isLocalPreviewUrl(trimmed)) {
+      continue;
+    }
+    return trimmed;
+  }
+
+  return null;
 }
 
 /**
@@ -30,7 +198,7 @@ export interface LandingPreviewViewProps {
  */
 function buildProxyPreviewUrl(scenarioId: string, viewType: PreviewViewType): string {
   const path = viewType === 'admin' ? '/admin' : '/';
-  return `/landing/${encodeURIComponent(scenarioId)}/proxy${path}`;
+  return withScenarioBase(`/landing/${encodeURIComponent(scenarioId)}/proxy${path}`);
 }
 
 function resolvePreviewUrl(
@@ -38,18 +206,35 @@ function resolvePreviewUrl(
   viewType: PreviewViewType,
   isRunning: boolean,
   links?: PreviewLinks,
+  env?: PreviewRoutingEnvironment,
 ): string | null {
   if (!isRunning) return null;
 
   const linkSet = links?.links;
   if (linkSet) {
     if (viewType === 'admin') {
-      if (linkSet.admin) return linkSet.admin;
-      if (linkSet.admin_login) return linkSet.admin_login;
-      if (linkSet.public) return `${linkSet.public.replace(/\/$/, '')}/admin`;
+      const directAdmin = selectDirectPreviewUrl(
+        [
+          linkSet.admin,
+          linkSet.admin_login,
+          linkSet.public ? `${linkSet.public.replace(/\/$/, '')}/admin` : undefined,
+        ],
+        env ?? getViewerEnvironment(),
+      );
+      if (directAdmin) {
+        return directAdmin;
+      }
       return buildProxyPreviewUrl(scenarioId, viewType);
     }
-    return linkSet.public ?? linkSet.admin ?? buildProxyPreviewUrl(scenarioId, viewType);
+
+    const directPublic = selectDirectPreviewUrl(
+      [linkSet.public, linkSet.admin],
+      env ?? getViewerEnvironment(),
+    );
+    if (directPublic) {
+      return directPublic;
+    }
+    return buildProxyPreviewUrl(scenarioId, viewType);
   }
 
   return buildProxyPreviewUrl(scenarioId, viewType);
@@ -70,6 +255,7 @@ export const LandingPreviewView = memo(function LandingPreviewView({
   scenarioLogs,
   logsLoading,
   onLoadLogs,
+  onPromoteScenario,
 }: LandingPreviewViewProps) {
   const [viewType, setViewType] = useState<PreviewViewType>(initialView);
   const [isLoading, setIsLoading] = useState(true);
@@ -80,6 +266,8 @@ export const LandingPreviewView = memo(function LandingPreviewView({
 
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const viewerEnvironment = useMemo(() => getViewerEnvironment(), []);
+  const isProxyRestrictedPreview = viewerEnvironment.forceProxyRouting && !viewerEnvironment.viewerIsLocal;
 
   // Fullscreen mode
   const {
@@ -92,8 +280,17 @@ export const LandingPreviewView = memo(function LandingPreviewView({
 
   // Build preview URL
   const previewUrl = useMemo(() => {
-    return resolvePreviewUrl(scenario.scenario_id, viewType, isRunning, previewLinks);
-  }, [scenario.scenario_id, viewType, isRunning, previewLinks]);
+    if (isProxyRestrictedPreview) {
+      return null;
+    }
+    return resolvePreviewUrl(
+      scenario.scenario_id,
+      viewType,
+      isRunning,
+      previewLinks,
+      viewerEnvironment,
+    );
+  }, [scenario.scenario_id, viewType, isRunning, previewLinks, viewerEnvironment, isProxyRestrictedPreview]);
 
   useEffect(() => {
     if (!enableInfoPanel) {
@@ -247,6 +444,36 @@ export const LandingPreviewView = memo(function LandingPreviewView({
               >
                 Start Scenario
               </button>
+            </div>
+          </div>
+        ) : isProxyRestrictedPreview ? (
+          <div className="landing-preview-view__placeholder">
+            <div className="landing-preview-view__placeholder-content">
+              <AlertCircle className="h-12 w-12 text-amber-400 mb-4" />
+              <h3 className="text-lg font-semibold text-slate-100 mb-2">
+                Preview Requires Local Access
+              </h3>
+              <p className="text-sm text-slate-400 mb-4 max-w-md text-center">
+                Generated landing pages can only be embedded when viewing Landing Manager locally. Promote this scenario to convert it into a managed app, or open Landing Manager directly on localhost to continue staging previews.
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                {onPromoteScenario && (
+                  <button
+                    type="button"
+                    className="inline-flex justify-center items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-purple-400/40 bg-purple-500/10 text-purple-100 hover:bg-purple-500/20 hover:border-purple-300 transition-all"
+                    onClick={() => onPromoteScenario(scenario)}
+                  >
+                    Promote Scenario
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="inline-flex justify-center items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-slate-500/40 bg-slate-500/10 text-slate-200 hover:bg-slate-500/20 hover:border-slate-300 transition-all"
+                  onClick={onClose}
+                >
+                  Close Preview
+                </button>
+              </div>
             </div>
           </div>
         ) : loadError ? (

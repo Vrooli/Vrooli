@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, Loader2, RefreshCcw } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, Loader2, RefreshCcw } from 'lucide-react';
 import { LandingPreviewView } from '../components/LandingPreviewView';
 import { ErrorDisplay, parseApiError } from '../components/ErrorDisplay';
-import { type GeneratedScenario, listGeneratedScenarios } from '../lib/api';
+import { PromoteDialog } from '../components/PromoteDialog';
+import { type GeneratedScenario, listGeneratedScenarios, promoteScenario } from '../lib/api';
 import { useScenarioLifecycle } from '../hooks/useScenarioLifecycle';
 
 export function ScenarioPreviewPage() {
@@ -27,6 +28,10 @@ export function ScenarioPreviewPage() {
   const [scenario, setScenario] = useState<GeneratedScenario | null>(null);
   const [loadingScenario, setLoadingScenario] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [promoteDialogScenarioId, setPromoteDialogScenarioId] = useState<string | null>(null);
+  const [promotionSuccess, setPromotionSuccess] = useState<string | null>(null);
+  const [promotionError, setPromotionError] = useState<string | null>(null);
+  const [promoteInFlight, setPromoteInFlight] = useState(false);
 
   const initialView = searchParams.get('view') === 'admin' ? 'admin' : 'public';
 
@@ -87,6 +92,34 @@ export function ScenarioPreviewPage() {
     }
   }, [scenario, loadStatuses]);
 
+  const handleRequestPromote = useCallback((target: GeneratedScenario) => {
+    setPromotionError(null);
+    setPromotionSuccess(null);
+    setPromoteDialogScenarioId(target.scenario_id);
+  }, []);
+
+  const confirmPromote = useCallback(async () => {
+    if (!promoteDialogScenarioId || promoteInFlight) {
+      return;
+    }
+    try {
+      setPromoteInFlight(true);
+      setPromotionError(null);
+      setPromotionSuccess(null);
+      const result = await promoteScenario(promoteDialogScenarioId);
+      setPromotionSuccess(
+        result.production_path
+          ? `Promoted ${promoteDialogScenarioId} to ${result.production_path}`
+          : `Promoted ${promoteDialogScenarioId}`,
+      );
+      setPromoteDialogScenarioId(null);
+    } catch (error) {
+      setPromotionError(error instanceof Error ? error.message : 'Failed to promote scenario');
+    } finally {
+      setPromoteInFlight(false);
+    }
+  }, [promoteDialogScenarioId, promoteInFlight]);
+
   const statusLabel = useMemo(() => {
     if (!scenario) return 'Select scenario';
     if (isBusy) return 'Updating…';
@@ -130,6 +163,19 @@ export function ScenarioPreviewPage() {
             <ErrorDisplay error={lifecycleError} onDismiss={clearError} size="sm" />
           </div>
         )}
+        {promotionError && (
+          <div className="max-w-6xl mx-auto px-4 sm:px-8 lg:px-16 pb-4">
+            <ErrorDisplay error={promotionError} onDismiss={() => setPromotionError(null)} size="sm" />
+          </div>
+        )}
+        {promotionSuccess && (
+          <div className="max-w-6xl mx-auto px-4 sm:px-8 lg:px-16 pb-4">
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200 flex items-start gap-2">
+              <CheckCircle2 className="h-4 w-4 mt-0.5 opacity-70" />
+              <p>{promotionSuccess}</p>
+            </div>
+          </div>
+        )}
       </header>
 
       <main className="flex-1 relative flex flex-col min-h-0">
@@ -167,6 +213,7 @@ export function ScenarioPreviewPage() {
               scenarioLogs={lifecycleLogs[scenario.scenario_id]}
               logsLoading={logsLoading[scenario.scenario_id]}
               onLoadLogs={loadLogs}
+              onPromoteScenario={handleRequestPromote}
             />
           </div>
         )}
@@ -185,6 +232,13 @@ export function ScenarioPreviewPage() {
           </div>
         )}
       </main>
+      {promoteDialogScenarioId && (
+        <PromoteDialog
+          scenarioId={promoteDialogScenarioId}
+          onClose={() => setPromoteDialogScenarioId(null)}
+          onConfirm={confirmPromote}
+        />
+      )}
     </div>
   );
 }
