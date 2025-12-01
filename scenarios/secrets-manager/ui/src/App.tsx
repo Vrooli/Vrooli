@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { RefreshCcw } from "lucide-react";
 import { Header } from "./sections/Header";
 import { OrientationHub } from "./sections/OrientationHub";
@@ -12,12 +12,14 @@ import { useSecretsData } from "./hooks/useSecretsData";
 import { useVulnerabilities } from "./hooks/useVulnerabilities";
 import { useResourcePanel } from "./hooks/useResourcePanel";
 import { useJourneys } from "./hooks/useJourneys";
+import { useScenarios } from "./hooks/useScenarios";
 import type { JourneyId } from "./features/journeys/journeySteps";
 
 export default function App() {
   type ExperienceTab = "overview" | "readiness" | "scenario" | "compliance";
 
   const [activeTab, setActiveTab] = useState<ExperienceTab>("overview");
+  const [selectedScenario, setSelectedScenario] = useState<string>("secrets-manager");
   const {
     healthQuery,
     vaultQuery,
@@ -65,6 +67,8 @@ export default function App() {
   const tierReadiness = orientationData?.tier_readiness ?? [];
   const resourceInsights = orientationData?.resource_insights ?? [];
 
+  const { search, setSearch, query: scenarioQuery, scenarios, filtered } = useScenarios();
+
   const topResourceNeedingAttention = useMemo(() => {
     if (resourceInsights.length > 0) {
       return resourceInsights[0].resource_name;
@@ -83,6 +87,17 @@ export default function App() {
     handleJourneyBack,
     deploymentFlow
   } = useJourneys({
+    selectedScenario,
+    onDeploymentScenarioChange: setSelectedScenario,
+    scenarioSelection: {
+      scenarios,
+      filtered,
+      search,
+      isLoading: scenarioQuery.isLoading,
+      selectedScenario,
+      onSearchChange: setSearch,
+      onSelect: setSelectedScenario
+    },
     heroStats,
     orientationData,
     tierReadiness,
@@ -90,6 +105,17 @@ export default function App() {
     onOpenResource: openResourcePanel,
     onRefetchVulnerabilities: () => vulnerabilityQuery.refetch()
   });
+
+  useEffect(() => {
+    if (!scenarioQuery.data?.scenarios?.length) return;
+    // Prefer secrets-manager if present; otherwise first scenario
+    const preferred = scenarioQuery.data.scenarios.find((scenario) => scenario.name === "secrets-manager");
+    const fallback = scenarioQuery.data.scenarios[0];
+    const nextScenario = preferred?.name || fallback?.name;
+    if (nextScenario && selectedScenario === "secrets-manager" && nextScenario !== selectedScenario) {
+      setSelectedScenario(nextScenario);
+    }
+  }, [scenarioQuery.data?.scenarios, selectedScenario]);
 
   const vulnerabilitySummary = {
     critical: complianceQuery.data?.vulnerability_summary?.critical ?? 0,

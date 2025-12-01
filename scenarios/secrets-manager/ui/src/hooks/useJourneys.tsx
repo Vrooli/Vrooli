@@ -6,11 +6,24 @@ import {
   type DeploymentManifestRequest,
   type DeploymentManifestResponse,
   type ProvisionSecretsPayload,
-  type ProvisionSecretsResponse
+  type ProvisionSecretsResponse,
+  type ScenarioSummary
 } from "../lib/api";
 import { buildJourneySteps, type JourneyId } from "../features/journeys/journeySteps";
+import { ScenarioSelector } from "../sections/ScenarioSelector";
 
 interface UseJourneysOptions {
+  selectedScenario?: string;
+  onDeploymentScenarioChange?: (scenario: string) => void;
+  scenarioSelection?: {
+    scenarios: ScenarioSummary[];
+    filtered: ScenarioSummary[];
+    search: string;
+    isLoading: boolean;
+    selectedScenario?: string;
+    onSearchChange: (value: string) => void;
+    onSelect: (scenario: string) => void;
+  };
   heroStats?: {
     vault_configured: number;
     vault_total: number;
@@ -38,7 +51,7 @@ export const useJourneys = (options: UseJourneysOptions) => {
   // Default to orientation journey on mount
   const [activeJourney, setActiveJourney] = useState<JourneyId | null>("orientation");
   const [journeyStep, setJourneyStep] = useState(0);
-  const [deploymentScenario, setDeploymentScenario] = useState("picker-wheel");
+  const [deploymentScenario, setDeploymentScenario] = useState(options.selectedScenario || "picker-wheel");
   const [deploymentTier, setDeploymentTier] = useState("tier-2-desktop");
   const [resourceInput, setResourceInput] = useState("");
   const [provisionResourceInput, setProvisionResourceInput] = useState("");
@@ -52,6 +65,12 @@ export const useJourneys = (options: UseJourneysOptions) => {
   const provisionMutation = useMutation<ProvisionSecretsResponse, Error, ProvisionSecretsPayload>({
     mutationFn: (payload) => provisionSecrets(payload)
   });
+
+  useEffect(() => {
+    if (options.selectedScenario && options.selectedScenario !== deploymentScenario) {
+      setDeploymentScenario(options.selectedScenario);
+    }
+  }, [options.selectedScenario, deploymentScenario]);
 
   const parsedResources = useMemo(() => {
     if (!resourceInput.trim()) return undefined;
@@ -86,6 +105,14 @@ export const useJourneys = (options: UseJourneysOptions) => {
     }
   }, [provisionMutation.isSuccess]);
 
+  const handleSetDeploymentScenario = useCallback(
+    (scenario: string) => {
+      setDeploymentScenario(scenario);
+      options.onDeploymentScenarioChange?.(scenario);
+    },
+    [options]
+  );
+
   const journeySteps = useMemo(
     () =>
       buildJourneySteps(activeJourney, {
@@ -106,16 +133,28 @@ export const useJourneys = (options: UseJourneysOptions) => {
         manifestIsError: manifestMutation.isError,
         manifestError: manifestMutation.error ?? undefined,
         topResourceNeedingAttention: options.topResourceNeedingAttention,
+        scenarioSelectionContent: options.scenarioSelection ? (
+          <ScenarioSelector
+            scenarios={options.scenarioSelection.scenarios}
+            filtered={options.scenarioSelection.filtered}
+            search={options.scenarioSelection.search}
+            isLoading={options.scenarioSelection.isLoading}
+            selectedScenario={options.scenarioSelection.selectedScenario || deploymentScenario}
+            onSearchChange={options.scenarioSelection.onSearchChange}
+            onSelect={handleSetDeploymentScenario}
+          />
+        ) : null,
         onOpenResource: options.onOpenResource,
         onRefetchVulnerabilities: options.onRefetchVulnerabilities,
         onManifestRequest: handleManifestRequest,
-        onSetDeploymentScenario: setDeploymentScenario,
+        onSetDeploymentScenario: handleSetDeploymentScenario,
         onSetDeploymentTier: setDeploymentTier,
         onSetResourceInput: setResourceInput,
         onSetProvisionResourceInput: setProvisionResourceInput,
         onSetProvisionSecretKey: setProvisionSecretKey,
         onSetProvisionSecretValue: setProvisionSecretValue,
-        onProvisionSubmit: handleProvisionSubmit
+        onProvisionSubmit: handleProvisionSubmit,
+        scenarioSelection: options.scenarioSelection
       }),
     [
       activeJourney,
@@ -139,7 +178,9 @@ export const useJourneys = (options: UseJourneysOptions) => {
       options.onOpenResource,
       options.onRefetchVulnerabilities,
       handleManifestRequest,
-      handleProvisionSubmit
+      handleProvisionSubmit,
+      handleSetDeploymentScenario,
+      options.scenarioSelection
     ]
   );
 
@@ -179,7 +220,7 @@ export const useJourneys = (options: UseJourneysOptions) => {
       manifestIsLoading: manifestMutation.isPending,
       manifestIsError: manifestMutation.isError,
       manifestError: manifestMutation.error ?? undefined,
-      onSetScenario: setDeploymentScenario,
+      onSetScenario: handleSetDeploymentScenario,
       onSetTier: setDeploymentTier,
       onSetResourcesInput: setResourceInput,
       onGenerateManifest: handleManifestRequest

@@ -51,6 +51,7 @@ interface JourneyStepOptions {
   onSetProvisionSecretKey: (value: string) => void;
   onSetProvisionSecretValue: (value: string) => void;
   onProvisionSubmit: () => void;
+  scenarioSelectionContent?: React.ReactNode;
 }
 
 export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyStepOptions) => {
@@ -74,6 +75,7 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
     manifestIsError,
     manifestError,
     topResourceNeedingAttention,
+    scenarioSelectionContent,
     onOpenResource,
     onRefetchVulnerabilities,
     onManifestRequest,
@@ -333,6 +335,11 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
   }
 
   if (journeyId === "prep-deployment") {
+    steps.push({
+      title: "Choose scenario",
+      description: "Pick the scenario you want to prepare and scope it by tier.",
+      content: scenarioSelectionContent || <p className="text-sm text-white/70">Scenario list not available.</p>
+    });
     steps.push({
       title: "Assess tier readiness",
       description: "Confirm which tiers have full secret strategies.",

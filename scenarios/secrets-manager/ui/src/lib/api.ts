@@ -407,3 +407,15 @@ export const provisionSecrets = (payload: ProvisionSecretsPayload) =>
     method: "POST",
     body: JSON.stringify(payload)
   });
+
+export interface ScenarioSummary {
+  name: string;
+  description?: string;
+  version?: string;
+  status?: string;
+  tags?: string[];
+  path?: string;
+}
+
+export const fetchScenarios = () =>
+  jsonFetch<{ scenarios: ScenarioSummary[]; count: number }>("/scenarios");

@@ -181,13 +181,14 @@ Goal: deliver true offline/portable desktop bundles (UI + API + resources + secr
 - Assets/swaps: Hard fail with clear error/telemetry if required asset is missing; downloads happen before packaging, not at runtime.
 
 ## Progress
+**Done**
 - [x] Schema + samples: Added `docs/deployment/bundle-schema.desktop.v0.1.json` and sample manifests (`desktop-happy.json`, `desktop-playwright.json`) to anchor validation and fixtures.
-- [x] Integrations: Wire schema validation into deployment-manager exports and scenario-dependency-analyzer outputs; add fixture tests.
-- [x] Secrets plan: Bundle schema + manifests now carry prompt/generator directives; secrets-manager emits bundle-ready secret plans for deployment-manager to consume.
-- [x] Runtime wiring: scenario-to-desktop runtime + CLI shim consuming validated manifests.
-- [x] Process supervision: runtime starts/stops binaries from manifest, enforces readiness/health, and tears down in dependency order.
-- [x] Secrets/runtime bridge: Electron first-run wizard -> `/secrets` handoff, runtime injects `secrets.target` into env/files before launches, persists with validation.
-- [x] Migrations/data dirs: runtime tracks applied migrations, runs pending ones, and seeds data/assets declared in manifest before service start.
-- [x] Telemetry/logs UX: Electron surfaces `/readyz`/`/ports`/`/logs` and upload to deployment-manager; CLI shim maps to `status/port/logs`.
-- [x] Packaging: scenario-to-desktop bundles per-OS runtime binaries + manifest + service/resource artifacts into platforms/electron output; validates bundle.json prebuild.
-- [x] Playwright/model assets: bundle driver/Chromium or Electron path reuse, set env (`PLAYWRIGHT_*`), and warn/fail on missing large assets with size budgets.
+- [x] Runtime core: Supervisor loads manifests, allocates ports, runs migrations, enforces readiness/health, persists secrets/migrations, records telemetry, and exposes control API + CLI shim; Playwright env defaults + asset size checks added.
+- [x] Runtime wiring to product UX: Bundled mode now consumes real manifests end-to-end (UI/CLI accept `bundle_manifest_path`, generator packages bundles/runtime, Electron launches the bundled runtime instead of blocking, and dry-run defaults to real service startup).
+
+**Missing / To Do**
+- [x] Integrations: deployment-manager must validate exports against the schema; scenario-dependency-analyzer must emit manifest skeletons; add fixture tests.
+- [x] Secrets plan: secrets-manager must emit bundle-ready secret plans to deployment-manager; first-run wizard in Electron must collect `user_prompt` secrets and call `/secrets`.
+- [x] Telemetry/logs UX: Electron UI should surface `/readyz`/`/ports`/`/logs` and upload telemetry to deployment-manager; deployment-manager needs telemetry ingestion and visualization.
+- [x] Packaging completeness: scenario-to-desktop stages service/resource assets (including Playwright/Chromium) into bundles, preserves exec bits, sets `ELECTRON_CHROMIUM_PATH` for the runtime, and ensures package.json includes the bundled payload via `extraResources`.
+- [x] Installer/update path and GPU handling: choose installer targets (MSI/pkg/AppImage) and implement GPU capability checks/fallbacks per manifest flags.

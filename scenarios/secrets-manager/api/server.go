@@ -64,5 +64,8 @@ func (s *APIServer) routes() *mux.Router {
 	api.HandleFunc("/deployment/secrets", s.deploymentSecretsHandler).Methods("POST")
 	api.HandleFunc("/deployment/secrets/{scenario}", s.deploymentSecretsGetHandler).Methods("GET")
 
+	// Scenario intelligence (fast list for UI selection)
+	api.HandleFunc("/scenarios", s.scenarioListHandler).Methods("GET")
+
 	return r
 }
