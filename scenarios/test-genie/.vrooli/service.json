@@ -83,7 +83,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o test-genie-api ./cmd/server",
+          "run": "cd api && go mod download && go build -o test-genie-api .",
           "description": "Compile Go API server"
         },
         {
@@ -105,6 +105,9 @@
           "name": "start-api",
           "run": "cd api && ./test-genie-api",
           "background": true,
+          "condition": {
+            "file_exists": "api/test-genie-api"
+          },
           "description": "Start Go API server"
         },
         {

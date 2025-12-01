@@ -28,7 +28,10 @@ var (
 	goPhaseOrdering   = map[string]int{
 		"structure":    0,
 		"dependencies": 10,
-		"business":     20,
+		"unit":         20,
+		"integration":  30,
+		"business":     40,
+		"performance":  50,
 	}
 )
 
@@ -436,7 +439,10 @@ func defaultGoPhases() map[string]phaseRunnerFunc {
 	return map[string]phaseRunnerFunc{
 		"structure":    runStructurePhase,
 		"dependencies": runDependenciesPhase,
+		"unit":         runUnitPhase,
+		"integration":  runIntegrationPhase,
 		"business":     runBusinessPhase,
+		"performance":  runPerformancePhase,
 	}
 }
 

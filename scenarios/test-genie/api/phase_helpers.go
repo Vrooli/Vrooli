@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +11,8 @@ import (
 )
 
 var commandLookup = exec.LookPath
+var phaseCommandExecutor = runCommand
+var phaseCommandCapture = runCommandCapture
 
 func ensureDir(path string) error {
 	info, err := os.Stat(path)
@@ -69,4 +73,40 @@ func logPhaseWarn(w io.Writer, format string, args ...interface{}) {
 		return
 	}
 	fmt.Fprintf(w, "WARN: "+format+"\n", args...)
+}
+
+func runCommand(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	cmd := exec.CommandContext(ctx, name, args...)
+	if dir != "" {
+		cmd.Dir = dir
+	}
+	if logWriter == nil {
+		logWriter = io.Discard
+	}
+	cmd.Stdout = logWriter
+	cmd.Stderr = logWriter
+	return cmd.Run()
+}
+
+func runCommandCapture(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	cmd := exec.CommandContext(ctx, name, args...)
+	if dir != "" {
+		cmd.Dir = dir
+	}
+	var output bytes.Buffer
+	if logWriter != nil {
+		cmd.Stdout = io.MultiWriter(logWriter, &output)
+		cmd.Stderr = logWriter
+	} else {
+		cmd.Stdout = &output
+		cmd.Stderr = io.Discard
+	}
+	err := cmd.Run()
+	return output.String(), err
 }

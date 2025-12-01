@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,7 +22,7 @@ func writePhaseScript(t *testing.T, dir, name, content string, exitCode int) {
 func createScenarioLayout(t *testing.T, root, name string) string {
 	t.Helper()
 	scenarioDir := filepath.Join(root, name)
-	requiredDirs := []string{"api", "cli", "requirements", "ui", filepath.Join("test", "phases"), ".vrooli"}
+	requiredDirs := []string{"api", "cli", "requirements", "ui", filepath.Join("test", "phases"), filepath.Join("test", "lib"), ".vrooli"}
 	for _, rel := range requiredDirs {
 		if err := os.MkdirAll(filepath.Join(scenarioDir, rel), 0o755); err != nil {
 			t.Fatalf("failed to create required directory %s: %v", rel, err)
@@ -64,6 +65,23 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 	if _, err := f.WriteString("#!/usr/bin/env bash\necho 'using scenario-local orchestrator'\n"); err != nil {
 		t.Fatalf("failed to seed run-tests.sh: %v", err)
 	}
+	cliPath := filepath.Join(scenarioDir, "cli", "test-genie")
+	if err := os.WriteFile(cliPath, []byte("#!/usr/bin/env bash\necho cli\n"), 0o755); err != nil {
+		t.Fatalf("failed to seed cli binary: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "test-genie.bats"), []byte("#!/usr/bin/env bash\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed cli/test-genie.bats: %v", err)
+	}
+	libDir := filepath.Join(scenarioDir, "test", "lib")
+	libFiles := map[string]string{
+		"runtime.sh":      "#!/usr/bin/env bash\necho runtime\n",
+		"orchestrator.sh": "#!/usr/bin/env bash\necho orchestrator\n",
+	}
+	for name, contents := range libFiles {
+		if err := os.WriteFile(filepath.Join(libDir, name), []byte(contents), 0o755); err != nil {
+			t.Fatalf("failed to seed %s: %v", name, err)
+		}
+	}
 	return scenarioDir
 }
 
@@ -74,6 +92,19 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 	writePhaseScript(t, phaseDir, "test-unit.sh", "echo 'unit phase'", 0)
 	stubCommandLookup(t, func(name string) (string, error) {
 		return "/tmp/" + name, nil
+	})
+	stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
+		return nil
+	})
+	stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
+		switch {
+		case strings.HasSuffix(name, filepath.Join("cli", "test-genie")) && len(args) > 0 && args[0] == "version":
+			return "test-genie version 1.0.0", nil
+		case strings.HasSuffix(name, filepath.Join("test", "run-tests.sh")):
+			return "structure\ndependencies\nunit\nintegration\nbusiness\nperformance\n", nil
+		default:
+			return "", nil
+		}
 	})
 
 	orchestrator, err := NewSuiteOrchestrator(root)
@@ -90,10 +121,10 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 	if !result.Success {
 		t.Fatalf("expected success, got failure: %#v", result)
 	}
-	if len(result.Phases) != 4 {
-		t.Fatalf("expected four phases, got %d", len(result.Phases))
+	if len(result.Phases) != 6 {
+		t.Fatalf("expected six phases, got %d", len(result.Phases))
 	}
-	expected := []string{"structure", "dependencies", "business", "unit"}
+	expected := []string{"structure", "dependencies", "unit", "integration", "business", "performance"}
 	for _, phase := range result.Phases {
 		if phase.Status != "passed" {
 			t.Fatalf("phase %s expected passed, got %s", phase.Name, phase.Status)
@@ -157,6 +188,9 @@ func TestSuiteOrchestratorPresetFromFile(t *testing.T) {
 	}
 	writePhaseScript(t, phaseDir, "test-structure.sh", "echo hi", 0)
 	writePhaseScript(t, phaseDir, "test-unit.sh", "echo hi", 0)
+	stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
+		return nil
+	})
 
 	orchestrator, err := NewSuiteOrchestrator(root)
 	if err != nil {

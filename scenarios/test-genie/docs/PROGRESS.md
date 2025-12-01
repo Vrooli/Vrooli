@@ -10,3 +10,5 @@
 | 2025-12-03 | Codex Agent | Failure telemetry embedded in Go phases | Added failure classifications/observations to the suite orchestrator, aggregated dependency gap reporting, and documented the new failure topography. |
 | 2025-12-03 | Codex Agent | Queue + execution signals wired into API | Added execution history endpoints, health telemetry, CLI surfacing, and per-phase summaries so operators can see backlog, last run, and failure context without scraping logs. |
 | 2025-12-04 | Codex Agent | Business registry audited via Go phase | Ported the business requirements phase into the Go orchestrator, enforcing module metadata without jq and adding validation tracker coverage in Go tests. |
+| 2025-12-04 | Codex Agent | Unit phase migrated to Go runner | Added go test + shell lint execution to the SuiteOrchestrator with command stubs + unit tests so the bash unit phase can eventually be retired. |
+| 2025-12-01 | Codex Agent | Integration/perf runners ported | Implemented Go-native integration/performance phases with CLI+Bats validation, go build benchmarks, ordering fixes, and orchestration unit tests. |

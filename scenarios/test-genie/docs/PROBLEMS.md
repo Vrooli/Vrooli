@@ -2,7 +2,7 @@
 - Legacy documentation claims high coverage and complete P0 features even though v2 rewrite currently contains only template code.
 - The scenario still needs to rebuild the CLI delegation workflow that triggers suite generation remotely; existing Go backend lives in `scenarios/test-genie-old/` for reference.
 - Requirement modules have their first unit-level validation wired to `api/suite_requests_test.go`, but integration + CLI acceptance coverage remain gaps until OT-P0-002 fully lands.
-- Structure, dependencies, and business phases now run as Go code, but unit/integration/performance remain bash-only and should move into the runner registry for portability.
+- Structure, dependencies, business, unit, integration, and performance phases now run inside the Go orchestrator, but we still ship duplicate bash scripts—retire them and wire the CLI to call the API runner directly to avoid drift.
 - Queue telemetry now surfaces in `/health` and the CLI, but there is still no alerting when items stay queued for too long or when execution failures spike—ecosystem-manager will need to subscribe to the new signals to close that gap.
 
 # Failure Topography (2025-12-03)
@@ -15,7 +15,7 @@
   - Optional data (e.g., Node workspaces without lockfiles, manifests without required resources) now degrade gracefully by issuing warnings/observations instead of failing the phase.
 - **Remaining risks**
   - Execution persistence is still a single SQL INSERT with no retry or circuit breaker. If Postgres is down, the orchestrator returns a 500 even though the phase output is available in memory. Future loop: buffer execution records locally and retry asynchronously.
-  - Only structure/dependency phases emit failure classifications. The remaining bash-backed phases must be ported so we can attach the same telemetry across the entire run.
+  - The Go phases emit failure classifications, but the UI/API have not consumed the new integration/perf telemetry yet—wire it into operator dashboards and delete the redundant bash entrypoints so we have a single source of truth.
   - The new history endpoints expose per-phase failures to operators, but they still require a manual poll; future work should stream execution status so long-running suites can surface progress before completion.
 
 # Deferred Ideas
