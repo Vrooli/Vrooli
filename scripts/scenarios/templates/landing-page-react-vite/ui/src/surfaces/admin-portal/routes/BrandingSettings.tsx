@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
+import { SEOPreview } from '../../../shared/ui/SEOPreview';
 import { getBranding, updateBranding, clearBrandingField, type SiteBranding } from '../../../shared/api';
-import { Palette, RefreshCw, Globe, Type, Search, X } from 'lucide-react';
+import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface BrandingFormState {
   site_name: string;
@@ -150,6 +151,23 @@ export function BrandingSettings() {
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(originalForm);
 
+  // Compute branding setup health
+  const brandingHealth = useMemo(() => {
+    const checks = {
+      identity: Boolean(form.site_name && form.logo_url),
+      favicon: Boolean(form.favicon_url),
+      seo: Boolean(form.default_title && form.default_description),
+      ogImage: Boolean(form.default_og_image_url),
+    };
+    const configured = Object.values(checks).filter(Boolean).length;
+    const total = Object.keys(checks).length;
+    return { checks, configured, total, percentage: Math.round((configured / total) * 100) };
+  }, [form]);
+
+  const previewPublicLanding = () => {
+    window.open('/', '_blank', 'noopener,noreferrer');
+  };
+
   const renderColorPreview = (color: string) => {
     if (!color) return null;
     return (
@@ -164,14 +182,53 @@ export function BrandingSettings() {
   return (
     <AdminLayout>
       <div className="space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Branding Settings</h1>
-            <p className="text-slate-400">Configure site-wide branding, logos, and SEO defaults</p>
+        {/* Enhanced Header with Purpose Statement */}
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-900/90 p-6" data-testid="branding-header">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="flex-1">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Branding</p>
+              <h1 className="text-2xl font-bold text-white mt-1">Configure how your landing page looks and ranks</h1>
+              <p className="text-slate-400 text-sm mt-2">
+                Set your site identity, colors, and SEO defaults. These settings apply site-wide and can be overridden per-variant for specific sections.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={previewPublicLanding} className="gap-2" data-testid="branding-preview">
+                <ExternalLink className="h-4 w-4" />
+                Preview landing
+              </Button>
+              <Button variant="ghost" size="sm" onClick={loadBranding} className="gap-2" data-testid="branding-refresh">
+                <RefreshCw className="h-4 w-4" />
+                Refresh
+              </Button>
+            </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={loadBranding} className="gap-2">
-            <RefreshCw className="h-4 w-4" /> Refresh
-          </Button>
+
+          {/* Setup Completeness Indicator */}
+          {!loading && (
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="branding-health">
+              <BrandingHealthBadge
+                label="Site identity"
+                configured={brandingHealth.checks.identity}
+                description={brandingHealth.checks.identity ? 'Name and logo set' : 'Add site name and logo'}
+              />
+              <BrandingHealthBadge
+                label="Favicon"
+                configured={brandingHealth.checks.favicon}
+                description={brandingHealth.checks.favicon ? 'Browser icon set' : 'Upload a favicon'}
+              />
+              <BrandingHealthBadge
+                label="SEO defaults"
+                configured={brandingHealth.checks.seo}
+                description={brandingHealth.checks.seo ? 'Title and description set' : 'Add page title and description'}
+              />
+              <BrandingHealthBadge
+                label="Social preview"
+                configured={brandingHealth.checks.ogImage}
+                description={brandingHealth.checks.ogImage ? 'OG image uploaded' : 'Upload social share image'}
+              />
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -389,57 +446,81 @@ export function BrandingSettings() {
                   Default meta tags for search engines and social sharing (can be overridden per-variant)
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Default Page Title
-                  </label>
-                  <input
-                    type="text"
-                    value={form.default_title}
-                    onChange={handleInput('default_title')}
-                    placeholder="My Amazing Product - Tagline Here"
-                    maxLength={60}
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
-                  />
-                  <p className="mt-1 text-xs text-slate-500">
-                    {form.default_title.length}/60 characters (recommended)
-                  </p>
-                </div>
+              <CardContent>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Form Fields */}
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Default Page Title
+                      </label>
+                      <input
+                        type="text"
+                        value={form.default_title}
+                        onChange={handleInput('default_title')}
+                        placeholder="My Amazing Product - Tagline Here"
+                        maxLength={60}
+                        className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                      />
+                      <p className="mt-1 text-xs text-slate-500">
+                        {form.default_title.length}/60 characters (recommended)
+                      </p>
+                    </div>
 
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Default Description
-                  </label>
-                  <textarea
-                    value={form.default_description}
-                    onChange={handleInput('default_description')}
-                    placeholder="A compelling description of your product or service..."
-                    rows={3}
-                    maxLength={160}
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
-                  />
-                  <p className="mt-1 text-xs text-slate-500">
-                    {form.default_description.length}/160 characters (recommended)
-                  </p>
-                </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Default Description
+                      </label>
+                      <textarea
+                        value={form.default_description}
+                        onChange={handleInput('default_description')}
+                        placeholder="A compelling description of your product or service..."
+                        rows={3}
+                        maxLength={160}
+                        className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                      />
+                      <p className="mt-1 text-xs text-slate-500">
+                        {form.default_description.length}/160 characters (recommended)
+                      </p>
+                    </div>
 
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-                    Default OG Image (Social Preview)
-                  </label>
-                  <ImageUploader
-                    value={form.default_og_image_url}
-                    onChange={handleImageChange('default_og_image_url')}
-                    category="og_image"
-                    placeholder="Upload social preview image"
-                    uploadLabel="Upload OG Image"
-                    previewSize="xl"
-                    alt="Social preview image"
-                  />
-                  <p className="mt-1 text-xs text-slate-500">
-                    Recommended: 1200x630 pixels for optimal social media display
-                  </p>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
+                        Default OG Image (Social Preview)
+                      </label>
+                      <ImageUploader
+                        value={form.default_og_image_url}
+                        onChange={handleImageChange('default_og_image_url')}
+                        category="og_image"
+                        placeholder="Upload social preview image"
+                        uploadLabel="Upload OG Image"
+                        previewSize="xl"
+                        alt="Social preview image"
+                      />
+                      <p className="mt-1 text-xs text-slate-500">
+                        Recommended: 1200x630 pixels for optimal social media display
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Live Preview */}
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-slate-300 mb-4">Live Preview</h4>
+                      <p className="text-xs text-slate-500 mb-4">
+                        See how your site appears in search results and social shares. Updates as you type.
+                      </p>
+                    </div>
+                    <SEOPreview
+                      title={form.default_title || form.site_name || 'Page Title'}
+                      description={form.default_description || 'Your page description will appear here...'}
+                      url={form.canonical_base_url || 'https://example.com'}
+                      ogImage={form.default_og_image_url || undefined}
+                      siteName={form.site_name || undefined}
+                      favicon={form.favicon_url || undefined}
+                      twitterCard="summary_large_image"
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -518,5 +599,33 @@ export function BrandingSettings() {
         )}
       </div>
     </AdminLayout>
+  );
+}
+
+interface BrandingHealthBadgeProps {
+  label: string;
+  configured: boolean;
+  description: string;
+}
+
+function BrandingHealthBadge({ label, configured, description }: BrandingHealthBadgeProps) {
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
+        configured
+          ? 'border-emerald-500/30 bg-emerald-500/10'
+          : 'border-amber-500/30 bg-amber-500/10'
+      }`}
+    >
+      {configured ? (
+        <CheckCircle2 className="h-5 w-5 text-emerald-300" />
+      ) : (
+        <AlertCircle className="h-5 w-5 text-amber-300" />
+      )}
+      <div>
+        <p className="text-sm font-semibold text-white">{label}</p>
+        <p className="text-xs text-slate-400">{description}</p>
+      </div>
+    </div>
   );
 }

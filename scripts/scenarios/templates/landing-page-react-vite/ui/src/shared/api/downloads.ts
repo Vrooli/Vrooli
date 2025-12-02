@@ -56,3 +56,9 @@ export function createDownloadAppAdmin(payload: DownloadAppInput) {
     },
   });
 }
+
+export function deleteDownloadAppAdmin(appKey: string) {
+  return apiCall<{ success: boolean }>(`/admin/download-apps/${appKey}`, {
+    method: 'DELETE',
+  });
+}

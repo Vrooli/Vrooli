@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "../components/AdminLayout";
 import { Button } from "../../../shared/ui/button";
-import { Activity, AlertTriangle, BarChart3, Compass, CreditCard, Download, ExternalLink, Gauge, History, Palette, RefreshCw, ShieldCheck } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, CheckCircle2, Compass, CreditCard, Download, ExternalLink, Gauge, History, Package, Palette, RefreshCw, Settings2, ShieldCheck, Type } from "lucide-react";
 import { getAdminExperienceSnapshot, type AdminExperienceSnapshot } from "../../../shared/lib/adminExperience";
-import { listVariants, type AnalyticsSummary, type Variant, type VariantStats, getStripeSettings, type StripeSettingsResponse, resetDemoData } from "../../../shared/api";
+import { listVariants, type AnalyticsSummary, type Variant, type VariantStats, getStripeSettings, type StripeSettingsResponse, resetDemoData, getBranding, listDownloadAppsAdmin, type SiteBranding, type DownloadApp } from "../../../shared/api";
 import { buildDateRange, fetchAnalyticsSummary } from "../controllers/analyticsController";
 import { useLandingVariant, type VariantResolution } from "../../../app/providers/LandingVariantProvider";
 import { useAdminAuth } from "../../../app/providers/AdminAuthProvider";
@@ -33,6 +33,22 @@ interface HealthSnapshot {
   totalWeight: number;
   weightStatus: WeightStatus;
   highlightedAttention?: VariantAttention;
+}
+
+interface BrandingHealthStatus {
+  hasIdentity: boolean;
+  hasFavicon: boolean;
+  hasSeo: boolean;
+  hasOgImage: boolean;
+  configuredCount: number;
+  totalChecks: number;
+}
+
+interface DownloadsHealthStatus {
+  appCount: number;
+  platformsConfigured: number;
+  storefrontsConfigured: number;
+  hasApps: boolean;
 }
 
 const RESOLUTION_LABELS: Record<VariantResolution, string> = {
@@ -69,6 +85,10 @@ export function AdminHome() {
   const [resettingDemoData, setResettingDemoData] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [resetError, setResetError] = useState<string | null>(null);
+  const [brandingHealth, setBrandingHealth] = useState<BrandingHealthStatus | null>(null);
+  const [brandingLoading, setBrandingLoading] = useState(true);
+  const [downloadsHealth, setDownloadsHealth] = useState<DownloadsHealthStatus | null>(null);
+  const [downloadsLoading, setDownloadsLoading] = useState(true);
 
   useEffect(() => {
     setExperience(getAdminExperienceSnapshot());
@@ -127,6 +147,38 @@ export function AdminHome() {
   useEffect(() => {
     refreshStripeStatus();
   }, [refreshStripeStatus]);
+
+  const refreshBrandingHealth = useCallback(async () => {
+    setBrandingLoading(true);
+    try {
+      const branding = await getBranding();
+      setBrandingHealth(computeBrandingHealth(branding));
+    } catch {
+      setBrandingHealth(null);
+    } finally {
+      setBrandingLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshBrandingHealth();
+  }, [refreshBrandingHealth]);
+
+  const refreshDownloadsHealth = useCallback(async () => {
+    setDownloadsLoading(true);
+    try {
+      const { apps } = await listDownloadAppsAdmin();
+      setDownloadsHealth(computeDownloadsHealth(apps));
+    } catch {
+      setDownloadsHealth(null);
+    } finally {
+      setDownloadsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshDownloadsHealth();
+  }, [refreshDownloadsHealth]);
 
   const handleResetDemoData = useCallback(async () => {
     if (!canResetDemoData) {
@@ -207,7 +259,7 @@ export function AdminHome() {
 
   return (
     <AdminLayout>
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-semibold mb-4">Landing Manager Admin</h1>
 
         <ExperienceGuidePanel
@@ -240,6 +292,15 @@ export function AdminHome() {
           settings={stripeSettings}
           onRetry={refreshStripeStatus}
           onNavigateBilling={handleNavigateBilling}
+        />
+
+        <SettingsStatusCard
+          brandingHealth={brandingHealth}
+          brandingLoading={brandingLoading}
+          downloadsHealth={downloadsHealth}
+          downloadsLoading={downloadsLoading}
+          onNavigateBranding={() => navigate('/admin/branding')}
+          onNavigateDownloads={handleNavigateDownloads}
         />
 
         {canResetDemoData && (
@@ -581,6 +642,140 @@ function MonetizationStatusCard({ loading, error, settings, onRetry, onNavigateB
           {settings?.updated_at && (
             <span>Last updated: {new Date(settings.updated_at).toLocaleString()}</span>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface SettingsStatusCardProps {
+  brandingHealth: BrandingHealthStatus | null;
+  brandingLoading: boolean;
+  downloadsHealth: DownloadsHealthStatus | null;
+  downloadsLoading: boolean;
+  onNavigateBranding: () => void;
+  onNavigateDownloads: () => void;
+}
+
+function SettingsStatusCard({
+  brandingHealth,
+  brandingLoading,
+  downloadsHealth,
+  downloadsLoading,
+  onNavigateBranding,
+  onNavigateDownloads,
+}: SettingsStatusCardProps) {
+  const isLoading = brandingLoading || downloadsLoading;
+
+  return (
+    <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6" data-testid="admin-settings-status-card">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Site configuration</p>
+          <h2 className="text-2xl font-semibold text-white mt-1">Branding and downloads setup at a glance.</h2>
+          <p className="text-sm text-slate-400">
+            Configure your site identity, SEO defaults, and downloadable apps without leaving home.
+          </p>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          {[0, 1].map((i) => (
+            <div key={i} className="h-24 rounded-xl bg-white/5 animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          {/* Branding Status */}
+          <div className="rounded-xl border border-white/10 bg-slate-900/40 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-purple-500/20 p-2">
+                  <Settings2 className="h-5 w-5 text-purple-300" />
+                </div>
+                <div>
+                  <p className="font-semibold text-white">Branding</p>
+                  <p className="text-xs text-slate-400">
+                    {brandingHealth
+                      ? `${brandingHealth.configuredCount}/${brandingHealth.totalChecks} configured`
+                      : "Unable to load"}
+                  </p>
+                </div>
+              </div>
+              {brandingHealth && (
+                <div className={`rounded-full px-2 py-1 text-xs ${
+                  brandingHealth.configuredCount === brandingHealth.totalChecks
+                    ? "bg-emerald-500/20 text-emerald-300"
+                    : "bg-amber-500/20 text-amber-300"
+                }`}>
+                  {brandingHealth.configuredCount === brandingHealth.totalChecks ? "Complete" : "Incomplete"}
+                </div>
+              )}
+            </div>
+            {brandingHealth && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className={brandingHealth.hasIdentity ? "text-emerald-300" : "text-amber-300"}>
+                  {brandingHealth.hasIdentity ? "✓" : "○"} Identity
+                </span>
+                <span className={brandingHealth.hasFavicon ? "text-emerald-300" : "text-amber-300"}>
+                  {brandingHealth.hasFavicon ? "✓" : "○"} Favicon
+                </span>
+                <span className={brandingHealth.hasSeo ? "text-emerald-300" : "text-amber-300"}>
+                  {brandingHealth.hasSeo ? "✓" : "○"} SEO
+                </span>
+                <span className={brandingHealth.hasOgImage ? "text-emerald-300" : "text-amber-300"}>
+                  {brandingHealth.hasOgImage ? "✓" : "○"} OG Image
+                </span>
+              </div>
+            )}
+            <Button size="sm" variant="outline" onClick={onNavigateBranding} className="w-full gap-2">
+              <Type className="h-4 w-4" />
+              Configure branding
+            </Button>
+          </div>
+
+          {/* Downloads Status */}
+          <div className="rounded-xl border border-white/10 bg-slate-900/40 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-blue-500/20 p-2">
+                  <Package className="h-5 w-5 text-blue-300" />
+                </div>
+                <div>
+                  <p className="font-semibold text-white">Downloads</p>
+                  <p className="text-xs text-slate-400">
+                    {downloadsHealth
+                      ? `${downloadsHealth.appCount} app${downloadsHealth.appCount !== 1 ? "s" : ""} configured`
+                      : "Unable to load"}
+                  </p>
+                </div>
+              </div>
+              {downloadsHealth && (
+                <div className={`rounded-full px-2 py-1 text-xs ${
+                  downloadsHealth.hasApps
+                    ? "bg-emerald-500/20 text-emerald-300"
+                    : "bg-slate-500/20 text-slate-300"
+                }`}>
+                  {downloadsHealth.hasApps ? "Active" : "None"}
+                </div>
+              )}
+            </div>
+            {downloadsHealth && downloadsHealth.hasApps && (
+              <div className="flex flex-wrap gap-2 text-xs text-slate-300">
+                <span>{downloadsHealth.platformsConfigured} platform{downloadsHealth.platformsConfigured !== 1 ? "s" : ""}</span>
+                <span>•</span>
+                <span>{downloadsHealth.storefrontsConfigured} store link{downloadsHealth.storefrontsConfigured !== 1 ? "s" : ""}</span>
+              </div>
+            )}
+            {downloadsHealth && !downloadsHealth.hasApps && (
+              <p className="text-xs text-slate-400">Add your first app to enable downloads on the landing page.</p>
+            )}
+            <Button size="sm" variant="outline" onClick={onNavigateDownloads} className="w-full gap-2">
+              <Download className="h-4 w-4" />
+              Configure downloads
+            </Button>
+          </div>
         </div>
       )}
     </div>
@@ -938,4 +1133,41 @@ function getAttentionPriority(entry: VariantAttention) {
     return 1;
   }
   return 0;
+}
+
+function computeBrandingHealth(branding: SiteBranding): BrandingHealthStatus {
+  const hasIdentity = Boolean(branding.site_name && branding.logo_url);
+  const hasFavicon = Boolean(branding.favicon_url);
+  const hasSeo = Boolean(branding.default_title && branding.default_description);
+  const hasOgImage = Boolean(branding.default_og_image_url);
+  const checks = [hasIdentity, hasFavicon, hasSeo, hasOgImage];
+  return {
+    hasIdentity,
+    hasFavicon,
+    hasSeo,
+    hasOgImage,
+    configuredCount: checks.filter(Boolean).length,
+    totalChecks: checks.length,
+  };
+}
+
+function computeDownloadsHealth(apps: DownloadApp[]): DownloadsHealthStatus {
+  let platformsConfigured = 0;
+  let storefrontsConfigured = 0;
+
+  apps.forEach((app) => {
+    if (app.platforms) {
+      platformsConfigured += app.platforms.filter((p) => p.artifact_url && p.release_version).length;
+    }
+    if (app.storefronts) {
+      storefrontsConfigured += app.storefronts.filter((s) => s.url).length;
+    }
+  });
+
+  return {
+    appCount: apps.length,
+    platformsConfigured,
+    storefrontsConfigured,
+    hasApps: apps.length > 0,
+  };
 }
