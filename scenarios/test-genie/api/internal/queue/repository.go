@@ -1,4 +1,4 @@
-package suite
+package queue
 
 import (
 	"context"
@@ -150,15 +150,15 @@ GROUP BY status
 		}
 		snapshot.Total += count
 		switch status {
-		case suiteStatusQueued:
+		case StatusQueued:
 			snapshot.Queued = count
-		case suiteStatusDelegated:
+		case StatusDelegated:
 			snapshot.Delegated = count
-		case suiteStatusRunning:
+		case StatusRunning:
 			snapshot.Running = count
-		case suiteStatusCompleted:
+		case StatusCompleted:
 			snapshot.Completed = count
-		case suiteStatusFailed:
+		case StatusFailed:
 			snapshot.Failed = count
 		}
 	}
@@ -173,7 +173,7 @@ FROM suite_requests
 WHERE status IN ($1, $2)
 ORDER BY created_at ASC
 LIMIT 1
-`, suiteStatusQueued, suiteStatusDelegated).Scan(&oldest); err != nil {
+`, StatusQueued, StatusDelegated).Scan(&oldest); err != nil {
 		if err != sql.ErrNoRows {
 			return snapshot, err
 		}

@@ -16,7 +16,7 @@ import (
 	"github.com/gorilla/mux"
 	pq "github.com/lib/pq"
 
-	"test-genie/internal/suite"
+	"test-genie/internal/queue"
 )
 
 func newTestServer(t *testing.T, db *sql.DB) *Server {
@@ -28,7 +28,7 @@ func newTestServer(t *testing.T, db *sql.DB) *Server {
 		},
 		db:            db,
 		router:        mux.NewRouter(),
-		suiteRequests: suite.NewSuiteRequestService(suite.NewPostgresSuiteRequestRepository(db)),
+		suiteRequests: queue.NewSuiteRequestService(queue.NewPostgresSuiteRequestRepository(db)),
 		logger:        log.New(io.Discard, "", 0),
 	}
 	srv.setupRoutes()
@@ -69,7 +69,7 @@ func TestSuiteRequestLifecycleIntegration(t *testing.T) {
 			t.Fatalf("expected status 201, got %d", rec.Code)
 		}
 
-		var created suite.SuiteRequest
+		var created queue.SuiteRequest
 		if err := json.NewDecoder(rec.Body).Decode(&created); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -132,7 +132,7 @@ func TestSuiteRequestLifecycleIntegration(t *testing.T) {
 			t.Fatalf("expected status 200, got %d", getRec.Code)
 		}
 
-		var fetched suite.SuiteRequest
+		var fetched queue.SuiteRequest
 		if err := json.NewDecoder(getRec.Body).Decode(&fetched); err != nil {
 			t.Fatalf("failed to decode fetched suite: %v", err)
 		}

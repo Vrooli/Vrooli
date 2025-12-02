@@ -1,4 +1,4 @@
-package suite
+package execution
 
 import (
 	"context"
@@ -11,13 +11,20 @@ import (
 
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
+	"test-genie/internal/queue"
 	"test-genie/internal/shared"
 )
 
+// ErrSuiteRequestNotFound indicates the linked suite request does not exist.
 var ErrSuiteRequestNotFound = errors.New("suite request not found")
 
 type suiteExecutionEngine interface {
 	Execute(ctx context.Context, req orchestrator.SuiteExecutionRequest) (*orchestrator.SuiteExecutionResult, error)
+}
+
+type suiteRequestManager interface {
+	Get(ctx context.Context, id uuid.UUID) (*queue.SuiteRequest, error)
+	UpdateStatus(ctx context.Context, id uuid.UUID, status string) error
 }
 
 // SuiteExecutionInput encapsulates the orchestration request plus optional linkage to a queued suite.
@@ -30,10 +37,10 @@ type SuiteExecutionInput struct {
 type SuiteExecutionService struct {
 	engine        suiteExecutionEngine
 	executions    *SuiteExecutionRepository
-	suiteRequests *SuiteRequestService
+	suiteRequests suiteRequestManager
 }
 
-func NewSuiteExecutionService(engine suiteExecutionEngine, executions *SuiteExecutionRepository, suiteRequests *SuiteRequestService) *SuiteExecutionService {
+func NewSuiteExecutionService(engine suiteExecutionEngine, executions *SuiteExecutionRepository, suiteRequests suiteRequestManager) *SuiteExecutionService {
 	return &SuiteExecutionService{
 		engine:        engine,
 		executions:    executions,
@@ -109,7 +116,7 @@ func (s *SuiteExecutionService) loadAndMarkSuiteRequest(ctx context.Context, sui
 	if !strings.EqualFold(req.ScenarioName, scenario) {
 		return shared.NewValidationError("suiteRequestId does not match scenarioName")
 	}
-	if err := s.suiteRequests.UpdateStatus(ctx, suiteID, suiteStatusRunning); err != nil {
+	if err := s.suiteRequests.UpdateStatus(ctx, suiteID, queue.StatusRunning); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrSuiteRequestNotFound
 		}
@@ -122,9 +129,9 @@ func (s *SuiteExecutionService) finalizeSuiteRequest(ctx context.Context, suiteI
 	if s.suiteRequests == nil {
 		return fmt.Errorf("suite request service is not configured")
 	}
-	status := suiteStatusFailed
+	status := queue.StatusFailed
 	if success {
-		status = suiteStatusCompleted
+		status = queue.StatusCompleted
 	}
 	return s.suiteRequests.UpdateStatus(ctx, suiteID, status)
 }
@@ -133,5 +140,5 @@ func (s *SuiteExecutionService) markSuiteFailed(ctx context.Context, suiteID *uu
 	if suiteID == nil || s.suiteRequests == nil {
 		return
 	}
-	_ = s.suiteRequests.UpdateStatus(ctx, *suiteID, suiteStatusFailed)
+	_ = s.suiteRequests.UpdateStatus(ctx, *suiteID, queue.StatusFailed)
 }

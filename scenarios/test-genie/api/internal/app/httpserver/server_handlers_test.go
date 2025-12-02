@@ -18,16 +18,17 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
+	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/queue"
 	"test-genie/internal/scenarios"
 	"test-genie/internal/shared"
-	"test-genie/internal/suite"
 )
 
 func TestServer_handleGetSuiteRequestSuccess(t *testing.T) {
 	id := uuid.New()
-	queue := &stubSuiteQueue{
-		getResp: &suite.SuiteRequest{
+	q := &stubSuiteQueue{
+		getResp: &queue.SuiteRequest{
 			ID:           id,
 			ScenarioName: "demo",
 			Status:       "queued",
@@ -36,7 +37,7 @@ func TestServer_handleGetSuiteRequestSuccess(t *testing.T) {
 	server := &Server{
 		config:        Config{Port: "0"},
 		router:        mux.NewRouter(),
-		suiteRequests: queue,
+		suiteRequests: q,
 		logger:        log.New(io.Discard, "", 0),
 	}
 
@@ -50,26 +51,26 @@ func TestServer_handleGetSuiteRequestSuccess(t *testing.T) {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
 
-	var payload suite.SuiteRequest
+	var payload queue.SuiteRequest
 	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
 	if payload.ID != id {
 		t.Fatalf("expected suite request %s, got %s", id, payload.ID)
 	}
-	if queue.lastGet != id {
-		t.Fatalf("expected queue Get to receive %s, got %s", id, queue.lastGet)
+	if q.lastGet != id {
+		t.Fatalf("expected queue Get to receive %s, got %s", id, q.lastGet)
 	}
 }
 
 func TestServer_handleGetSuiteRequestNotFound(t *testing.T) {
-	queue := &stubSuiteQueue{
+	q := &stubSuiteQueue{
 		getErr: sql.ErrNoRows,
 	}
 	server := &Server{
 		config:        Config{Port: "0"},
 		router:        mux.NewRouter(),
-		suiteRequests: queue,
+		suiteRequests: q,
 		logger:        log.New(io.Discard, "", 0),
 	}
 
@@ -364,7 +365,7 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 			name: "suite request not found",
 			body: `{"scenarioName":"demo","suiteRequestId":"11111111-1111-1111-1111-111111111111"}`,
 			executor: &stubSuiteExecutor{
-				err: suite.ErrSuiteRequestNotFound,
+				err: execution.ErrSuiteRequestNotFound,
 			},
 			wantStatus: http.StatusNotFound,
 		},
@@ -412,8 +413,8 @@ func TestServer_handleHealthReportsOperations(t *testing.T) {
 	mock.ExpectPing().WillReturnError(nil)
 
 	oldest := time.Now().Add(-2 * time.Minute)
-	queue := &stubSuiteQueue{
-		snapshot: suite.SuiteRequestSnapshot{
+	q := &stubSuiteQueue{
+		snapshot: queue.SuiteRequestSnapshot{
 			Total:          5,
 			Queued:         3,
 			Delegated:      1,
@@ -437,7 +438,7 @@ func TestServer_handleHealthReportsOperations(t *testing.T) {
 	server := &Server{
 		config:           Config{Port: "0", ServiceName: "Test Genie API"},
 		db:               db,
-		suiteRequests:    queue,
+		suiteRequests:    q,
 		executionHistory: history,
 		logger:           log.New(io.Discard, "", 0),
 	}
@@ -493,13 +494,13 @@ func TestServer_handleHealthDatabaseFailure(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectPing().WillReturnError(errors.New("offline"))
-	queue := &stubSuiteQueue{}
+	q := &stubSuiteQueue{}
 	history := &fakeExecutionHistory{}
 
 	server := &Server{
 		config:           Config{Port: "0"},
 		db:               db,
-		suiteRequests:    queue,
+		suiteRequests:    q,
 		executionHistory: history,
 		logger:           log.New(io.Discard, "", 0),
 	}
@@ -529,29 +530,29 @@ func TestServer_handleHealthDatabaseFailure(t *testing.T) {
 }
 
 type stubSuiteQueue struct {
-	getResp     *suite.SuiteRequest
+	getResp     *queue.SuiteRequest
 	getErr      error
 	lastGet     uuid.UUID
-	snapshot    suite.SuiteRequestSnapshot
+	snapshot    queue.SuiteRequestSnapshot
 	snapshotErr error
 }
 
-func (s *stubSuiteQueue) Queue(ctx context.Context, payload suite.QueueSuiteRequestInput) (*suite.SuiteRequest, error) {
+func (s *stubSuiteQueue) Queue(ctx context.Context, payload queue.QueueSuiteRequestInput) (*queue.SuiteRequest, error) {
 	return nil, nil
 }
 
-func (s *stubSuiteQueue) List(ctx context.Context, limit int) ([]suite.SuiteRequest, error) {
+func (s *stubSuiteQueue) List(ctx context.Context, limit int) ([]queue.SuiteRequest, error) {
 	return nil, nil
 }
 
-func (s *stubSuiteQueue) Get(ctx context.Context, id uuid.UUID) (*suite.SuiteRequest, error) {
+func (s *stubSuiteQueue) Get(ctx context.Context, id uuid.UUID) (*queue.SuiteRequest, error) {
 	s.lastGet = id
 	return s.getResp, s.getErr
 }
 
-func (s *stubSuiteQueue) StatusSnapshot(ctx context.Context) (suite.SuiteRequestSnapshot, error) {
+func (s *stubSuiteQueue) StatusSnapshot(ctx context.Context) (queue.SuiteRequestSnapshot, error) {
 	if s.snapshotErr != nil {
-		return suite.SuiteRequestSnapshot{}, s.snapshotErr
+		return queue.SuiteRequestSnapshot{}, s.snapshotErr
 	}
 	return s.snapshot, nil
 }
@@ -592,12 +593,12 @@ func (s *stubScenarioDirectory) RunScenarioTests(ctx context.Context, name strin
 }
 
 type stubSuiteExecutor struct {
-	input  suite.SuiteExecutionInput
+	input  execution.SuiteExecutionInput
 	result *orchestrator.SuiteExecutionResult
 	err    error
 }
 
-func (s *stubSuiteExecutor) Execute(ctx context.Context, input suite.SuiteExecutionInput) (*orchestrator.SuiteExecutionResult, error) {
+func (s *stubSuiteExecutor) Execute(ctx context.Context, input execution.SuiteExecutionInput) (*orchestrator.SuiteExecutionResult, error) {
 	s.input = input
 	return s.result, s.err
 }

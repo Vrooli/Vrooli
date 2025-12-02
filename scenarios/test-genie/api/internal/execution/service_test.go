@@ -1,4 +1,4 @@
-package suite
+package execution
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/queue"
 	"test-genie/internal/shared"
 )
 
@@ -46,7 +47,7 @@ func TestSuiteExecutionService_ExecuteWithoutLinkedRequest(t *testing.T) {
 	service := NewSuiteExecutionService(
 		engine,
 		NewSuiteExecutionRepository(db),
-		NewSuiteRequestService(&fakeSuiteRequestRepo{}),
+		&fakeSuiteRequestManager{},
 	)
 
 	output, err := service.Execute(ctx, SuiteExecutionInput{
@@ -76,8 +77,8 @@ func TestSuiteExecutionService_RejectsMismatchedSuiteRequest(t *testing.T) {
 	defer db.Close()
 
 	suiteID := uuid.New()
-	repo := &fakeSuiteRequestRepo{
-		suites: map[uuid.UUID]*SuiteRequest{
+	mgr := &fakeSuiteRequestManager{
+		suites: map[uuid.UUID]*queue.SuiteRequest{
 			suiteID: {
 				ID:           suiteID,
 				ScenarioName: "ecosystem-manager",
@@ -88,7 +89,7 @@ func TestSuiteExecutionService_RejectsMismatchedSuiteRequest(t *testing.T) {
 	service := NewSuiteExecutionService(
 		&stubExecutionEngine{},
 		NewSuiteExecutionRepository(db),
-		NewSuiteRequestService(repo),
+		mgr,
 	)
 
 	_, err = service.Execute(ctx, SuiteExecutionInput{
@@ -102,8 +103,8 @@ func TestSuiteExecutionService_RejectsMismatchedSuiteRequest(t *testing.T) {
 	if !errors.As(err, &vErr) {
 		t.Fatalf("expected validation error, got %v", err)
 	}
-	if len(repo.updates) != 0 {
-		t.Fatalf("expected no status updates, got %v", repo.updates)
+	if len(mgr.updates) != 0 {
+		t.Fatalf("expected no status updates, got %v", mgr.updates)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -120,8 +121,8 @@ func TestSuiteExecutionService_MarksSuiteRequestFailedOnRunnerError(t *testing.T
 	defer db.Close()
 
 	suiteID := uuid.New()
-	repo := &fakeSuiteRequestRepo{
-		suites: map[uuid.UUID]*SuiteRequest{
+	mgr := &fakeSuiteRequestManager{
+		suites: map[uuid.UUID]*queue.SuiteRequest{
 			suiteID: {
 				ID:           suiteID,
 				ScenarioName: "demo",
@@ -132,7 +133,7 @@ func TestSuiteExecutionService_MarksSuiteRequestFailedOnRunnerError(t *testing.T
 	service := NewSuiteExecutionService(
 		&stubExecutionEngine{err: errors.New("runner failed")},
 		NewSuiteExecutionRepository(db),
-		NewSuiteRequestService(repo),
+		mgr,
 	)
 
 	_, err = service.Execute(ctx, SuiteExecutionInput{
@@ -142,14 +143,14 @@ func TestSuiteExecutionService_MarksSuiteRequestFailedOnRunnerError(t *testing.T
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-	if len(repo.updates) != 2 {
-		t.Fatalf("expected two status updates, got %d", len(repo.updates))
+	if len(mgr.updates) != 2 {
+		t.Fatalf("expected two status updates, got %d", len(mgr.updates))
 	}
-	if repo.updates[0].status != suiteStatusRunning {
-		t.Fatalf("first status should be running, got %s", repo.updates[0].status)
+	if mgr.updates[0].status != queue.StatusRunning {
+		t.Fatalf("first status should be running, got %s", mgr.updates[0].status)
 	}
-	if repo.updates[1].status != suiteStatusFailed {
-		t.Fatalf("second status should be failed, got %s", repo.updates[1].status)
+	if mgr.updates[1].status != queue.StatusFailed {
+		t.Fatalf("second status should be failed, got %s", mgr.updates[1].status)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -171,20 +172,12 @@ type statusChange struct {
 	status string
 }
 
-type fakeSuiteRequestRepo struct {
-	suites  map[uuid.UUID]*SuiteRequest
+type fakeSuiteRequestManager struct {
+	suites  map[uuid.UUID]*queue.SuiteRequest
 	updates []statusChange
 }
 
-func (f *fakeSuiteRequestRepo) Create(ctx context.Context, req *SuiteRequest) error {
-	return nil
-}
-
-func (f *fakeSuiteRequestRepo) List(ctx context.Context, limit int) ([]SuiteRequest, error) {
-	return nil, nil
-}
-
-func (f *fakeSuiteRequestRepo) GetByID(ctx context.Context, id uuid.UUID) (*SuiteRequest, error) {
+func (f *fakeSuiteRequestManager) Get(ctx context.Context, id uuid.UUID) (*queue.SuiteRequest, error) {
 	if f.suites == nil {
 		return nil, sql.ErrNoRows
 	}
@@ -195,7 +188,7 @@ func (f *fakeSuiteRequestRepo) GetByID(ctx context.Context, id uuid.UUID) (*Suit
 	return nil, sql.ErrNoRows
 }
 
-func (f *fakeSuiteRequestRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
+func (f *fakeSuiteRequestManager) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
 	if f.suites == nil {
 		return sql.ErrNoRows
 	}
@@ -204,8 +197,4 @@ func (f *fakeSuiteRequestRepo) UpdateStatus(ctx context.Context, id uuid.UUID, s
 	}
 	f.updates = append(f.updates, statusChange{id: id, status: status})
 	return nil
-}
-
-func (f *fakeSuiteRequestRepo) StatusSnapshot(ctx context.Context) (SuiteRequestSnapshot, error) {
-	return SuiteRequestSnapshot{}, nil
 }

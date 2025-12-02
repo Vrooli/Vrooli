@@ -1,4 +1,4 @@
-package suite
+package queue
 
 import (
 	"bytes"
@@ -13,20 +13,24 @@ import (
 	"test-genie/internal/shared"
 )
 
+// Status constants for suite request lifecycle.
 const (
-	suiteStatusQueued    = "queued"
-	suiteStatusDelegated = "delegated"
-	suiteStatusRunning   = "running"
-	suiteStatusCompleted = "completed"
-	suiteStatusFailed    = "failed"
-
-	suitePriorityLow    = "low"
-	suitePriorityNormal = "normal"
-	suitePriorityHigh   = "high"
-	suitePriorityUrgent = "urgent"
-
-	MaxSuiteListPage = 50
+	StatusQueued    = "queued"
+	StatusDelegated = "delegated"
+	StatusRunning   = "running"
+	StatusCompleted = "completed"
+	StatusFailed    = "failed"
 )
+
+// Priority constants for queue ordering.
+const (
+	PriorityLow    = "low"
+	PriorityNormal = "normal"
+	PriorityHigh   = "high"
+	PriorityUrgent = "urgent"
+)
+
+const MaxSuiteListPage = 50
 
 var (
 	allowedSuiteTypes = map[string]struct{}{
@@ -38,17 +42,17 @@ var (
 	}
 	defaultSuiteTypes = []string{"unit", "integration"}
 	allowedPriorities = map[string]struct{}{
-		suitePriorityLow:    {},
-		suitePriorityNormal: {},
-		suitePriorityHigh:   {},
-		suitePriorityUrgent: {},
+		PriorityLow:    {},
+		PriorityNormal: {},
+		PriorityHigh:   {},
+		PriorityUrgent: {},
 	}
-	allowedSuiteStatuses = map[string]struct{}{
-		suiteStatusQueued:    {},
-		suiteStatusDelegated: {},
-		suiteStatusRunning:   {},
-		suiteStatusCompleted: {},
-		suiteStatusFailed:    {},
+	allowedStatuses = map[string]struct{}{
+		StatusQueued:    {},
+		StatusDelegated: {},
+		StatusRunning:   {},
+		StatusCompleted: {},
+		StatusFailed:    {},
 	}
 )
 
@@ -116,10 +120,6 @@ func (sl *stringList) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("expected string or array of strings for requestedTypes")
 }
 
-func isValidationError(err error) bool {
-	return shared.IsValidationError(err)
-}
-
 // SuiteRequestRepository exposes persistence operations for the domain service.
 type SuiteRequestRepository interface {
 	Create(ctx context.Context, req *SuiteRequest) error
@@ -166,7 +166,7 @@ func (s *SuiteRequestService) Get(ctx context.Context, id uuid.UUID) (*SuiteRequ
 
 // UpdateStatus transitions a request to a new state when orchestration progresses.
 func (s *SuiteRequestService) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
-	if _, ok := allowedSuiteStatuses[status]; !ok {
+	if _, ok := allowedStatuses[status]; !ok {
 		return shared.NewValidationError(fmt.Sprintf("status '%s' is not supported", status))
 	}
 	return s.repo.UpdateStatus(ctx, id, status)
@@ -209,7 +209,7 @@ func buildSuiteRequest(payload QueueSuiteRequestInput) (*SuiteRequest, error) {
 		RequestedTypes: types,
 		CoverageTarget: coverage,
 		Priority:       priority,
-		Status:         suiteStatusQueued,
+		Status:         StatusQueued,
 		Notes:          notes,
 	}
 	req.EstimatedQueueTime = estimateQueueSeconds(len(req.RequestedTypes), req.CoverageTarget)
@@ -248,7 +248,7 @@ func normalizeSuiteTypes(values []string) ([]string, error) {
 func normalizePriority(value string) (string, error) {
 	trimmed := strings.ToLower(strings.TrimSpace(value))
 	if trimmed == "" {
-		return suitePriorityNormal, nil
+		return PriorityNormal, nil
 	}
 	if _, ok := allowedPriorities[trimmed]; !ok {
 		return "", shared.NewValidationError(fmt.Sprintf("priority '%s' is not supported", value))

@@ -14,7 +14,7 @@ import (
 	"github.com/gorilla/mux"
 	pq "github.com/lib/pq"
 
-	"test-genie/internal/suite"
+	"test-genie/internal/queue"
 )
 
 func TestServer_handleCreateSuiteRequest_InvalidPayload(t *testing.T) {
@@ -28,7 +28,7 @@ func TestServer_handleCreateSuiteRequest_InvalidPayload(t *testing.T) {
 		config:        Config{Port: "0", ServiceName: "Test Genie API"},
 		db:            db,
 		router:        mux.NewRouter(),
-		suiteRequests: suite.NewSuiteRequestService(suite.NewPostgresSuiteRequestRepository(db)),
+		suiteRequests: queue.NewSuiteRequestService(queue.NewPostgresSuiteRequestRepository(db)),
 		logger:        log.New(io.Discard, "", 0),
 	}
 
@@ -53,7 +53,7 @@ func TestServer_handleListSuiteRequests(t *testing.T) {
 		config:        Config{Port: "0", ServiceName: "Test Genie API"},
 		db:            db,
 		router:        mux.NewRouter(),
-		suiteRequests: suite.NewSuiteRequestService(suite.NewPostgresSuiteRequestRepository(db)),
+		suiteRequests: queue.NewSuiteRequestService(queue.NewPostgresSuiteRequestRepository(db)),
 		logger:        log.New(io.Discard, "", 0),
 	}
 
@@ -83,7 +83,7 @@ func TestServer_handleListSuiteRequests(t *testing.T) {
 	)
 
 	mock.ExpectQuery("SELECT\\s+id").
-		WithArgs(suite.MaxSuiteListPage).
+		WithArgs(queue.MaxSuiteListPage).
 		WillReturnRows(rows)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/suite-requests", nil)
@@ -96,7 +96,7 @@ func TestServer_handleListSuiteRequests(t *testing.T) {
 	}
 
 	var payload struct {
-		Items []suite.SuiteRequest `json:"items"`
+		Items []queue.SuiteRequest `json:"items"`
 		Count int                  `json:"count"`
 	}
 	if err := json.NewDecoder(w.Body).Decode(&payload); err != nil {

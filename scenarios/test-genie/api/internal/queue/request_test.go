@@ -1,4 +1,4 @@
-package suite
+package queue
 
 import (
 	"context"
@@ -32,8 +32,8 @@ func TestBuildSuiteRequestDefaults(t *testing.T) {
 			t.Fatalf("expected default types %v, got %v", expectedTypes, req.RequestedTypes)
 		}
 
-		if req.Priority != suitePriorityNormal {
-			t.Fatalf("expected default priority %s, got %s", suitePriorityNormal, req.Priority)
+		if req.Priority != PriorityNormal {
+			t.Fatalf("expected default priority %s, got %s", PriorityNormal, req.Priority)
 		}
 
 		if req.EstimatedQueueTime == 0 {
@@ -66,10 +66,10 @@ func TestSuiteRequestRepositoryUpdateStatus(t *testing.T) {
 		id := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 
 		mock.ExpectExec("UPDATE suite_requests").
-			WithArgs(suiteStatusRunning, id).
+			WithArgs(StatusRunning, id).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
-		if err := repo.UpdateStatus(context.Background(), id, suiteStatusRunning); err != nil {
+		if err := repo.UpdateStatus(context.Background(), id, StatusRunning); err != nil {
 			t.Fatalf("expected update to succeed: %v", err)
 		}
 
@@ -91,15 +91,15 @@ func TestSuiteRequestRepositoryStatusSnapshot(t *testing.T) {
 		now := time.Now().UTC()
 
 		countRows := sqlmock.NewRows([]string{"status", "count"}).
-			AddRow(suiteStatusQueued, 2).
-			AddRow(suiteStatusRunning, 1).
-			AddRow(suiteStatusFailed, 1)
+			AddRow(StatusQueued, 2).
+			AddRow(StatusRunning, 1).
+			AddRow(StatusFailed, 1)
 
 		mock.ExpectQuery("SELECT status, COUNT").
 			WillReturnRows(countRows)
 
 		mock.ExpectQuery("SELECT created_at FROM suite_requests").
-			WithArgs(suiteStatusQueued, suiteStatusDelegated).
+			WithArgs(StatusQueued, StatusDelegated).
 			WillReturnRows(sqlmock.NewRows([]string{"created_at"}).AddRow(now.Add(-2 * time.Minute)))
 
 		snapshot, err := repo.StatusSnapshot(context.Background())

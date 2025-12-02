@@ -4,19 +4,20 @@ import (
 	"database/sql"
 	"fmt"
 
+	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
+	"test-genie/internal/queue"
 	"test-genie/internal/scenarios"
-	"test-genie/internal/suite"
 )
 
 // Bootstrapped holds the concrete dependencies needed by the HTTP server.
 type Bootstrapped struct {
 	DB               *sql.DB
-	SuiteRequests    *suite.SuiteRequestService
-	ExecutionRepo    *suite.SuiteExecutionRepository
-	ExecutionHistory suite.ExecutionHistory
-	ExecutionService *suite.SuiteExecutionService
+	SuiteRequests    *queue.SuiteRequestService
+	ExecutionRepo    *execution.SuiteExecutionRepository
+	ExecutionHistory execution.ExecutionHistory
+	ExecutionService *execution.SuiteExecutionService
 	ScenarioService  *scenarios.ScenarioDirectoryService
 	PhaseCatalog     phaseCatalogProvider
 }
@@ -46,15 +47,15 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		return nil, fmt.Errorf("failed to initialize orchestrator: %w", err)
 	}
 
-	suiteRequestRepo := suite.NewPostgresSuiteRequestRepository(db)
-	suiteRequestService := suite.NewSuiteRequestService(suiteRequestRepo)
-	executionRepo := suite.NewSuiteExecutionRepository(db)
-	executionHistory := suite.NewExecutionHistoryService(executionRepo)
+	suiteRequestRepo := queue.NewPostgresSuiteRequestRepository(db)
+	suiteRequestService := queue.NewSuiteRequestService(suiteRequestRepo)
+	executionRepo := execution.NewSuiteExecutionRepository(db)
+	executionHistory := execution.NewExecutionHistoryService(executionRepo)
 	scenarioRepo := scenarios.NewScenarioDirectoryRepository(db)
 	scenarioLister := scenarios.NewVrooliScenarioLister()
 	scenarioService := scenarios.NewScenarioDirectoryService(scenarioRepo, scenarioLister, cfg.ScenariosRoot)
 
-	executionSvc := suite.NewSuiteExecutionService(runner, executionRepo, suiteRequestService)
+	executionSvc := execution.NewSuiteExecutionService(runner, executionRepo, suiteRequestService)
 
 	return &Bootstrapped{
 		DB:               db,
