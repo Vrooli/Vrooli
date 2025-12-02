@@ -3,6 +3,7 @@ package buildinfo
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -71,6 +72,33 @@ func TestComputeFingerprint_IgnoresModtimeAndSkippedDirs(t *testing.T) {
 
 	if original != updated {
 		t.Fatalf("expected fingerprint unchanged when only modtime or skipped dirs differ")
+	}
+}
+
+func TestComputeFingerprint_ErrorsOnUnreadableFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("file permission semantics differ on Windows")
+	}
+	dir := t.TempDir()
+	root := filepath.Join(dir, "cli")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	target := filepath.Join(root, "secret.txt")
+	if err := os.WriteFile(target, []byte("data"), 0o200); err != nil { // write-only
+		t.Fatalf("write: %v", err)
+	}
+	if _, err := ComputeFingerprint(root); err == nil {
+		t.Fatalf("expected error for unreadable file")
+	}
+}
+
+func TestSkipDirNormalizesSeparators(t *testing.T) {
+	if !skipDir("node_modules\\pkg") {
+		t.Fatalf("expected windows-style node_modules path to be skipped")
+	}
+	if !skipFile("custom\\cache\\index.json", []string{"custom/cache"}) {
+		t.Fatalf("expected windows-style custom/cache path to be skipped via extra list")
 	}
 }
 

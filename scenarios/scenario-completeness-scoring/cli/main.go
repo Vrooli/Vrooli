@@ -35,6 +35,7 @@ type App struct {
 	apiOverride     string
 	client          *cliutil.HTTPClient
 	api             *APIClient
+	services        *Services
 	configDirectory string
 	staleChecker    *cliutil.StaleChecker
 	commands        []commandDefinition
@@ -124,14 +125,15 @@ func NewApp() (*App, error) {
 		configStore:     configStore,
 		config:          cfg,
 		apiOverride:     "",
-	client:          cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}),
-	configDirectory: configDir,
-	staleChecker:    cliutil.NewStaleChecker("scenario-completeness-scoring", buildFingerprint, buildTimestamp, buildSourceRoot, genericSourceRootEnvVar, legacySourceRootEnvVar),
-	colorEnabled:    colorEnabled,
-}
-app.api = NewAPIClient(app.client, app.buildAPIBaseOptions, func() string { return app.config.Token })
-app.commandGroups, app.commands = app.registerCommands()
-return app, nil
+		client:          cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}),
+		configDirectory: configDir,
+		staleChecker:    cliutil.NewStaleChecker("scenario-completeness-scoring", buildFingerprint, buildTimestamp, buildSourceRoot, genericSourceRootEnvVar, legacySourceRootEnvVar),
+		colorEnabled:    colorEnabled,
+	}
+	app.api = NewAPIClient(app.client, app.buildAPIBaseOptions, func() string { return app.config.Token })
+	app.services = NewServices(app.api)
+	app.commandGroups, app.commands = app.registerCommands()
+	return app, nil
 }
 
 func (a *App) saveConfig() error {

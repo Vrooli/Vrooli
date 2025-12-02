@@ -17,8 +17,7 @@ func (a *App) cmdRecommend(args []string) error {
 		return fmt.Errorf("usage: recommend <scenario> [--json]")
 	}
 	scenarioName := fs.Arg(0)
-	path := fmt.Sprintf("/api/v1/recommendations/%s", scenarioName)
-	body, err := a.api.Get(path, nil)
+	body, err := a.services.Scoring.Recommend(scenarioName)
 	if err != nil {
 		return err
 	}

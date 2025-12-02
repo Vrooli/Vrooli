@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"net/http"
-	"net/url"
 	"os"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -18,7 +16,7 @@ func (a *App) cmdScores(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	body, parsed, err := a.fetchScoresList()
+	parsed, body, err := a.services.Scoring.ScoresList()
 	if err != nil {
 		return err
 	}
@@ -57,19 +55,13 @@ func (a *App) cmdScore(args []string) error {
 		return fmt.Errorf("usage: score <scenario> [--json] [--verbose] [--metrics]")
 	}
 	scenarioName := fs.Arg(0)
-	a.warnIfBinaryStale()
-	path := fmt.Sprintf("/api/v1/scores/%s", scenarioName)
-	body, err := a.api.Get(path, nil)
+	resp, body, err := a.services.Scoring.Score(scenarioName)
 	if err != nil {
 		return err
 	}
 	if *jsonOutput {
 		cliutil.PrintJSON(body)
 		return nil
-	}
-	resp, err := a.parseScore(body)
-	if err != nil {
-		return err
 	}
 
 	format.FormatValidationIssues(resp.ValidationAnalysis, *verbose)
@@ -87,37 +79,6 @@ func (a *App) cmdScore(args []string) error {
 	return nil
 }
 
-type scoresListResponse struct {
-	Scenarios []struct {
-		Scenario       string  `json:"scenario"`
-		Category       string  `json:"category"`
-		Score          float64 `json:"score"`
-		Classification string  `json:"classification"`
-		Partial        bool    `json:"partial"`
-	} `json:"scenarios"`
-	Total int `json:"total"`
-}
-
-func (a *App) fetchScoresList() ([]byte, scoresListResponse, error) {
-	body, err := a.api.Get("/api/v1/scores", nil)
-	if err != nil {
-		return nil, scoresListResponse{}, err
-	}
-	var resp scoresListResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, scoresListResponse{}, fmt.Errorf("parse response: %w", err)
-	}
-	return body, resp, nil
-}
-
-func (a *App) parseScore(body []byte) (format.ScoreResponse, error) {
-	var resp format.ScoreResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return resp, fmt.Errorf("parse response: %w", err)
-	}
-	return resp, nil
-}
-
 func (a *App) cmdCalculate(args []string) error {
 	fs := flag.NewFlagSet("calculate", flag.ContinueOnError)
 	source := fs.String("source", "", "Source identifier for history tracking")
@@ -131,15 +92,7 @@ func (a *App) cmdCalculate(args []string) error {
 		return fmt.Errorf("usage: calculate <scenario> [--source name] [--tag value] [--json]")
 	}
 	scenarioName := fs.Arg(0)
-	payload := map[string]interface{}{}
-	if *source != "" {
-		payload["source"] = *source
-	}
-	if len(tags) > 0 {
-		payload["tags"] = []string(tags)
-	}
-	path := fmt.Sprintf("/api/v1/scores/%s/calculate", scenarioName)
-	body, err := a.api.Request(http.MethodPost, path, nil, payload)
+	body, err := a.services.Scoring.Calculate(scenarioName, *source, []string(tags))
 	if err != nil {
 		return err
 	}
@@ -166,18 +119,7 @@ func (a *App) cmdHistory(args []string) error {
 		return fmt.Errorf("usage: history <scenario> [--limit N] [--source name] [--tag value] [--json]")
 	}
 	scenarioName := fs.Arg(0)
-	query := url.Values{}
-	if *limit > 0 {
-		query.Set("limit", fmt.Sprintf("%d", *limit))
-	}
-	if *source != "" {
-		query.Set("source", *source)
-	}
-	for _, tag := range tags {
-		query.Add("tag", tag)
-	}
-	path := fmt.Sprintf("/api/v1/scores/%s/history", scenarioName)
-	body, err := a.api.Get(path, query)
+	body, err := a.services.Scoring.History(scenarioName, *limit, *source, []string(tags))
 	if err != nil {
 		return err
 	}
@@ -203,18 +145,7 @@ func (a *App) cmdTrends(args []string) error {
 		return fmt.Errorf("usage: trends <scenario> [--limit N] [--source name] [--tag value] [--json]")
 	}
 	scenarioName := fs.Arg(0)
-	query := url.Values{}
-	if *limit > 0 {
-		query.Set("limit", fmt.Sprintf("%d", *limit))
-	}
-	if *source != "" {
-		query.Set("source", *source)
-	}
-	for _, tag := range tags {
-		query.Add("tag", tag)
-	}
-	path := fmt.Sprintf("/api/v1/scores/%s/trends", scenarioName)
-	body, err := a.api.Get(path, query)
+	body, err := a.services.Scoring.Trends(scenarioName, *limit, *source, []string(tags))
 	if err != nil {
 		return err
 	}
@@ -249,8 +180,7 @@ func (a *App) cmdWhatIf(args []string) error {
 			return fmt.Errorf("parse changes file: %w", err)
 		}
 	}
-	path := fmt.Sprintf("/api/v1/scores/%s/what-if", scenarioName)
-	body, err := a.api.Request(http.MethodPost, path, nil, payload)
+	body, err := a.services.Scoring.WhatIf(scenarioName, payload)
 	if err != nil {
 		return err
 	}

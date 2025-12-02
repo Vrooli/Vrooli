@@ -36,6 +36,24 @@ make start
 vrooli scenario start scenario-completeness-scoring
 ```
 
+### CLI installation (cross-platform)
+
+Install or rebuild the Go CLI binary into `~/.vrooli/bin`:
+
+```bash
+# Use the checked-out cli-core (default)
+./cli/install.sh
+
+# Or pin a published cli-core version for reproducible installs
+CLI_CORE_VERSION=latest ./cli/install.sh
+
+# Without the repo, run directly:
+go run github.com/vrooli/cli-core/cmd/cli-installer@latest \
+  --module ./scenarios/scenario-completeness-scoring/cli \
+  --name scenario-completeness-scoring \
+  --install-dir ~/.vrooli/bin
+```
+
 ## Architecture
 
 ```

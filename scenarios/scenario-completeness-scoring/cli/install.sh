@@ -10,7 +10,18 @@ if ! command -v go >/dev/null 2>&1; then
 fi
 
 echo "Building and installing scenario-completeness-scoring CLI..."
+INSTALLER_TARGET="${CLI_CORE_VERSION:+github.com/vrooli/cli-core/cmd/cli-installer@${CLI_CORE_VERSION}}"
+INSTALLER_DIR="$APP_ROOT"
+
+if [[ -z "${INSTALLER_TARGET}" ]]; then
+    INSTALLER_TARGET="./cmd/cli-installer"
+    INSTALLER_DIR="${APP_ROOT}/packages/cli-core"
+fi
+
 (
-    cd "$APP_ROOT/packages/cli-core"
-    go run ./cmd/cli-installer --module "$CLI_DIR" --name scenario-completeness-scoring --install-dir "${HOME}/.vrooli/bin"
+    cd "$INSTALLER_DIR"
+    go run "${INSTALLER_TARGET}" \
+        --module "$CLI_DIR" \
+        --name scenario-completeness-scoring \
+        --install-dir "${HOME}/.vrooli/bin"
 )

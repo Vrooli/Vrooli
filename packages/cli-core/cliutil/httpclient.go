@@ -55,7 +55,7 @@ func (h *HTTPClient) Do(method, path string, query url.Values, body interface{})
 	if base == "" {
 		return nil, fmt.Errorf("api base URL is empty; configure an API base or set an API port")
 	}
-	if parsed, err := url.Parse(base); err != nil || parsed.Scheme == "" {
+	if parsed, err := url.Parse(base); err != nil || parsed.Scheme == "" || parsed.Host == "" {
 		return nil, fmt.Errorf("invalid api base URL %q", base)
 	}
 	endpoint := strings.TrimRight(base, "/") + path

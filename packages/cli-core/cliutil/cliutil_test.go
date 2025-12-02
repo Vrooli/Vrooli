@@ -136,4 +136,11 @@ func TestHTTPClientBaseValidation(t *testing.T) {
 	if _, err := client.Do(http.MethodGet, "/health", nil, nil); err == nil || !strings.Contains(err.Error(), "invalid api base URL") {
 		t.Fatalf("expected invalid base error, got %v", err)
 	}
+
+	client = NewHTTPClient(HTTPClientOptions{
+		BaseOptions: APIBaseOptions{DefaultBase: "http://"},
+	})
+	if _, err := client.Do(http.MethodGet, "/health", nil, nil); err == nil || !strings.Contains(err.Error(), "invalid api base URL") {
+		t.Fatalf("expected invalid host error, got %v", err)
+	}
 }

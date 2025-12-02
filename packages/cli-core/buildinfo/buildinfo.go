@@ -45,6 +45,7 @@ func ComputeFingerprint(root string, extraSkipFiles ...string) (string, error) {
 		if relErr != nil {
 			return relErr
 		}
+		rel = filepath.ToSlash(rel)
 
 		if rel == "." {
 			return nil
@@ -64,7 +65,7 @@ func ComputeFingerprint(root string, extraSkipFiles ...string) (string, error) {
 
 		content, readErr := fs.ReadFile(fs.FS(os.DirFS(root)), rel)
 		if readErr != nil {
-			return nil
+			return fmt.Errorf("read %s: %w", rel, readErr)
 		}
 
 		info, infoErr := d.Info()
@@ -97,6 +98,7 @@ func ComputeFingerprint(root string, extraSkipFiles ...string) (string, error) {
 }
 
 func skipDir(path string) bool {
+	path = strings.ReplaceAll(filepath.ToSlash(path), "\\", "/")
 	for _, skip := range skipDirs {
 		if path == skip || strings.HasPrefix(path, skip+"/") {
 			return true
@@ -106,6 +108,7 @@ func skipDir(path string) bool {
 }
 
 func skipFile(path string, extra []string) bool {
+	path = strings.ReplaceAll(filepath.ToSlash(path), "\\", "/")
 	for _, skip := range skipFiles {
 		if path == skip || strings.HasPrefix(path, skip+"/") {
 			return true
