@@ -15,22 +15,38 @@ flowchart TB
 
     subgraph Syncer["Requirements Syncer"]
         iface["Syncer Interface"]
-        node["nodeRequirementsSyncer"]
-        payload["buildPhaseStatusPayload()"]
+        native["nativeRequirementsSyncer"]
     end
 
-    subgraph External["Vrooli Scripts"]
-        script["scripts/requirements/report.js"]
-        modules["requirements/ modules"]
+    subgraph Service["internal/requirements.Service"]
+        discovery["discovery/"]
+        parsing["parsing/"]
+        evidence["evidence/"]
+        enrichment["enrichment/"]
+        sync["sync/"]
+        snapshot["snapshot/"]
+    end
+
+    subgraph Output["Scenario Files"]
+        modules["requirements/*.json"]
+        coverage["coverage/sync/latest.json"]
+        snapshots["coverage/requirements-sync/"]
     end
 
     scenario --> iface
-    phases --> payload
-    results --> payload
-    payload --> node
-    history --> node
-    node --> script
-    script --> modules
+    phases --> native
+    results --> native
+    history --> native
+    iface --> native
+    native --> Service
+    discovery --> parsing
+    parsing --> evidence
+    evidence --> enrichment
+    enrichment --> sync
+    sync --> snapshot
+    sync --> modules
+    snapshot --> snapshots
+    sync --> coverage
 ```
 
 ## Syncer Interface
@@ -51,15 +67,12 @@ type SyncInput struct {
 }
 ```
 
-## Node Syncer
+## Native Go Syncer (Default)
 
-The default implementation (`nodeRequirementsSyncer`) invokes the Vrooli requirements reporting script:
+The default implementation (`nativeRequirementsSyncer`) uses the native Go requirements service:
 
 ```go
-syncer := requirements.NewNodeSyncer("/path/to/vrooli")
-if syncer == nil {
-    // Script not found — syncing disabled
-}
+syncer := requirements.NewSyncer(projectRoot)
 
 err := syncer.Sync(ctx, requirements.SyncInput{
     ScenarioName:     "my-scenario",
@@ -72,65 +85,62 @@ err := syncer.Sync(ctx, requirements.SyncInput{
 
 ### How It Works
 
-1. **Validates environment**: Checks that `requirements/` directory exists in the scenario
-2. **Builds payload**: Converts phase definitions and results into JSON status entries
-3. **Invokes script**: Runs `node scripts/requirements/report.js --scenario <name> --mode sync`
-4. **Passes data**: Phase status and command history are passed via environment variables
+The native syncer delegates to `internal/requirements.Service`, which executes a 7-stage pipeline:
+
+1. **Discovery**: Finds all requirement files in `requirements/` (respects `index.json` imports)
+2. **Parsing**: Parses JSON files, normalizes fields (`validation` → `validations`)
+3. **Evidence Loading**: Loads test evidence from multiple sources:
+   - Phase execution results (passed as input)
+   - `coverage/phase-results/*.json`
+   - `ui/coverage/vitest-requirements.json`
+   - `coverage/manual-validations/log.jsonl`
+4. **Enrichment**: Matches validations to evidence, aggregates statuses, resolves hierarchy
+5. **Sync**: Updates requirement files with live statuses
+6. **Snapshot**: Writes coverage snapshot to `coverage/requirements-sync/latest.json`
+7. **Metadata**: Writes sync metadata to `coverage/sync/latest.json`
 
 ### Environment Variables
 
-| Variable | Content |
-|----------|---------|
-| `REQUIREMENTS_SYNC_PHASE_STATUS` | JSON array of phase status entries |
-| `REQUIREMENTS_SYNC_TEST_COMMANDS` | JSON array of executed commands |
+| Variable | Effect |
+|----------|--------|
+| `REQUIREMENTS_SYNC_NODE=true` | Force legacy Node.js syncer (if script exists) |
+| `TESTING_REQUIREMENTS_SYNC=false` | Disable sync entirely |
+| `TESTING_REQUIREMENTS_SYNC_FORCE=true` | Force sync even if required phases are missing |
 
-## Phase Status Payload
+## Sync Pipeline Details
 
-The `buildPhaseStatusPayload()` function transforms execution data into a structured format:
+### Discovery
 
-```go
-type phaseStatusEntry struct {
-    Phase    string `json:"phase"`    // e.g., "unit"
-    Status   string `json:"status"`   // "passed", "failed", "not_run", "unknown"
-    Optional bool   `json:"optional"` // Whether phase was optional
-    Recorded bool   `json:"recorded"` // Whether result was captured
-}
-```
+The discovery stage finds requirement files:
+- Scans `requirements/` directory recursively
+- Respects `index.json` import declarations
+- Handles circular dependency detection
 
-### Status Values
+### Evidence Sources
 
-| Status | Meaning |
-|--------|---------|
-| `passed` | Phase completed successfully |
-| `failed` | Phase encountered errors |
-| `not_run` | Phase was in plan but not executed |
-| `unknown` | Result status was empty |
+Evidence is loaded from multiple sources and merged:
 
-## Data Flow
+| Source | Path | Content |
+|--------|------|---------|
+| Phase Results | Input parameter | Execution status per phase |
+| Phase Files | `coverage/phase-results/*.json` | Detailed phase execution data |
+| Vitest | `ui/coverage/vitest-requirements.json` | Frontend test results |
+| Manual | `coverage/manual-validations/log.jsonl` | Manual validation records |
 
-```mermaid
-sequenceDiagram
-    participant O as Orchestrator
-    participant S as Syncer
-    participant FS as FileSystem
-    participant N as Node Script
-    participant R as Requirements
+### Status Derivation
 
-    O->>S: Sync(ctx, input)
-    S->>FS: Check requirements/ exists
-    FS-->>S: exists
+Validation statuses are derived using this priority:
+1. Direct evidence match (test file → validation)
+2. Phase-level rollup (phase passed → validations passed)
+3. Parent/child hierarchy aggregation
 
-    S->>S: buildPhaseStatusPayload()
-    Note over S: Convert definitions + results<br/>to JSON status entries
+### File Updates
 
-    S->>N: node report.js --scenario X --mode sync
-    Note over S,N: Pass via env vars:<br/>REQUIREMENTS_SYNC_PHASE_STATUS<br/>REQUIREMENTS_SYNC_TEST_COMMANDS
-
-    N->>R: Update module coverage
-    N-->>S: exit 0
-
-    S-->>O: nil (success)
-```
+When syncing writes files:
+- Only modules with changes are written
+- `_metadata.last_validated_at` is updated
+- Statuses are attached to validations
+- Orphaned validations can be pruned (configurable)
 
 ## Usage in Orchestrator
 
@@ -152,32 +162,62 @@ if syncer != nil && shouldSync {
 }
 ```
 
+## Sync Gating
+
+The orchestrator gates sync execution based on phase coverage. Sync is blocked if:
+
+- Phase plan is unavailable
+- No phases were selected
+- No phase results were recorded
+- `requirements.sync` is disabled in `.vrooli/testing.json`
+- `TESTING_REQUIREMENTS_SYNC` env var is false
+- Required (non-optional) phases are missing or skipped
+
+Use `TESTING_REQUIREMENTS_SYNC_FORCE=true` to bypass gating.
+
 ## Prerequisites
 
 For syncing to work:
 
-1. **Node.js available**: `node` command must be in PATH
-2. **Script exists**: `scripts/requirements/report.js` must exist in Vrooli root
-3. **Requirements directory**: Scenario must have `requirements/` folder
+1. **Requirements directory**: Scenario must have `requirements/` folder
+2. **Valid requirement files**: JSON files with proper structure
 
-If any prerequisite is missing, syncing is silently skipped (not an error).
+No external dependencies (Node.js, etc.) are required.
 
 ## Directory Structure
 
 ```
 requirements/
-├── requirements_syncer.go       # Syncer interface and nodeRequirementsSyncer
+├── requirements_syncer.go       # Syncer interface, native and node implementations
 └── requirements_syncer_test.go  # Unit tests
+```
+
+The core implementation lives in `internal/requirements/`:
+
+```
+internal/requirements/
+├── service.go          # Pipeline orchestration
+├── io.go               # Filesystem abstraction
+├── discovery/          # File discovery
+├── parsing/            # JSON parsing
+├── evidence/           # Evidence loading
+├── enrichment/         # Status enrichment
+├── sync/               # File synchronization
+├── reporting/          # Output generation
+├── validation/         # Structure validation
+├── snapshot/           # Snapshot generation
+└── types/              # Shared types
 ```
 
 ## Where to Look
 
 | Task | Location |
 |------|----------|
-| Create a syncer instance | `requirements_syncer.go` → `NewNodeSyncer()` |
+| Create a syncer instance | `requirements_syncer.go` → `NewSyncer()` |
 | Sync results after execution | `requirements_syncer.go` → `Sync()` |
-| Understand payload format | `requirements_syncer.go` → `buildPhaseStatusPayload()` |
+| Understand sync pipeline | `internal/requirements/service.go` → `Sync()` |
 | Customize sync behavior | Scenario's `.vrooli/testing.json` → `requirements.sync` |
+| Debug sync issues | Check `coverage/sync/latest.json` for metadata |
 
 ## Related Documentation
 

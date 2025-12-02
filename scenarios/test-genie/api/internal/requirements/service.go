@@ -2,6 +2,7 @@ package requirements
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -117,7 +118,7 @@ func (s *Service) Sync(ctx context.Context, input SyncInput) error {
 	// 1. Discover requirement files
 	files, err := s.discoverer.Discover(ctx, input.ScenarioDir)
 	if err != nil {
-		if err == ErrNoRequirementsDir {
+		if errors.Is(err, types.ErrNoRequirementsDir) || errors.Is(err, discovery.ErrNoRequirementsDir) {
 			// No requirements directory - nothing to sync
 			return nil
 		}
@@ -215,7 +216,7 @@ func (s *Service) Validate(ctx context.Context, scenarioDir string) (*types.Vali
 	// 1. Discover requirement files
 	files, err := s.discoverer.Discover(ctx, scenarioDir)
 	if err != nil {
-		if err == ErrNoRequirementsDir {
+		if errors.Is(err, types.ErrNoRequirementsDir) || errors.Is(err, discovery.ErrNoRequirementsDir) {
 			return types.NewValidationResult(), nil
 		}
 		return nil, fmt.Errorf("discovery: %w", err)
