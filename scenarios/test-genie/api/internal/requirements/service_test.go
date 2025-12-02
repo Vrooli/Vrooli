@@ -558,3 +558,180 @@ func TestService_Report_Integration(t *testing.T) {
 		t.Errorf("report output is not valid JSON: %v", err)
 	}
 }
+
+// TestService_FullPipeline_Integration tests the complete sync pipeline with real files
+func TestService_FullPipeline_Integration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	// Create scenario structure
+	tmpDir := t.TempDir()
+	scenarioDir := filepath.Join(tmpDir, "my-scenario")
+	requirementsDir := filepath.Join(scenarioDir, "requirements")
+	coverageDir := filepath.Join(scenarioDir, "coverage")
+	moduleDir := filepath.Join(requirementsDir, "01-foundation")
+	featureDir := filepath.Join(requirementsDir, "02-features")
+
+	for _, dir := range []string{moduleDir, featureDir, coverageDir} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatalf("create dir %s: %v", dir, err)
+		}
+	}
+
+	// Write index.json with imports
+	indexData := []byte(`{
+		"imports": [
+			"01-foundation/module.json",
+			"02-features/module.json"
+		]
+	}`)
+	if err := os.WriteFile(filepath.Join(requirementsDir, "index.json"), indexData, 0644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
+
+	// Write foundation module
+	foundationData := []byte(`{
+		"_metadata": {
+			"module": "foundation",
+			"description": "Core foundation requirements"
+		},
+		"requirements": [
+			{
+				"id": "FOUND-001",
+				"title": "API server starts",
+				"status": "complete",
+				"criticality": "P0",
+				"validation": [
+					{"type": "test", "ref": "api/server_test.go", "status": "implemented"}
+				]
+			},
+			{
+				"id": "FOUND-002",
+				"title": "Database connects",
+				"status": "in_progress",
+				"criticality": "P0",
+				"children": ["FOUND-002-A"],
+				"validation": [
+					{"type": "test", "ref": "api/db_test.go", "status": "implemented"}
+				]
+			},
+			{
+				"id": "FOUND-002-A",
+				"title": "Connection pooling",
+				"status": "pending",
+				"criticality": "P1"
+			}
+		]
+	}`)
+	if err := os.WriteFile(filepath.Join(moduleDir, "module.json"), foundationData, 0644); err != nil {
+		t.Fatalf("write foundation: %v", err)
+	}
+
+	// Write features module
+	featuresData := []byte(`{
+		"_metadata": {
+			"module": "features",
+			"description": "Feature requirements"
+		},
+		"requirements": [
+			{
+				"id": "FEAT-001",
+				"title": "User authentication",
+				"status": "pending",
+				"criticality": "P1",
+				"depends_on": ["FOUND-001"],
+				"validation": [
+					{"type": "test", "ref": "api/auth_test.go", "status": "not_implemented"}
+				]
+			}
+		]
+	}`)
+	if err := os.WriteFile(filepath.Join(featureDir, "module.json"), featuresData, 0644); err != nil {
+		t.Fatalf("write features: %v", err)
+	}
+
+	// Test 1: Validate requirements structure
+	service := NewService()
+	result, err := service.Validate(context.Background(), scenarioDir)
+	if err != nil {
+		t.Fatalf("validate failed: %v", err)
+	}
+	t.Logf("Validation result: %d issues", len(result.Issues))
+
+	// Test 2: Get summary before sync
+	summaryBefore, err := service.GetSummary(context.Background(), scenarioDir)
+	if err != nil {
+		t.Fatalf("get summary failed: %v", err)
+	}
+	if summaryBefore.Total != 4 {
+		t.Errorf("expected 4 requirements, got: %d", summaryBefore.Total)
+	}
+	t.Logf("Before sync - Total: %d, Complete: %d, Pending: %d, InProgress: %d",
+		summaryBefore.Total,
+		summaryBefore.ByDeclaredStatus[types.StatusComplete],
+		summaryBefore.ByDeclaredStatus[types.StatusPending],
+		summaryBefore.ByDeclaredStatus[types.StatusInProgress])
+
+	// Test 3: Sync with phase results
+	err = service.Sync(context.Background(), SyncInput{
+		ScenarioName: "my-scenario",
+		ScenarioDir:  scenarioDir,
+		PhaseDefinitions: []phases.Definition{
+			{Name: phases.Structure},
+			{Name: phases.Unit},
+			{Name: phases.Business},
+		},
+		PhaseResults: []phases.ExecutionResult{
+			{Name: "structure", Status: "passed", DurationSeconds: 1},
+			{Name: "unit", Status: "passed", DurationSeconds: 10},
+			{Name: "business", Status: "passed", DurationSeconds: 5},
+		},
+		CommandHistory: []string{"suite my-scenario --preset full"},
+	})
+	if err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+
+	// Test 4: Verify sync metadata was written
+	syncMetadataPath := filepath.Join(coverageDir, "sync", "latest.json")
+	if _, err := os.Stat(syncMetadataPath); err != nil {
+		t.Logf("Note: sync metadata not written (expected if no status changes): %v", err)
+	} else {
+		data, _ := os.ReadFile(syncMetadataPath)
+		t.Logf("Sync metadata: %s", string(data))
+	}
+
+	// Test 5: Generate report
+	var reportBuf bytes.Buffer
+	err = service.Report(context.Background(), scenarioDir, reporting.Options{
+		Format: reporting.FormatJSON,
+	}, &reportBuf)
+	if err != nil {
+		t.Fatalf("report failed: %v", err)
+	}
+	if reportBuf.Len() == 0 {
+		t.Error("expected non-empty report")
+	}
+
+	// Validate report JSON
+	var reportData map[string]any
+	if err := json.Unmarshal(reportBuf.Bytes(), &reportData); err != nil {
+		t.Fatalf("invalid report JSON: %v", err)
+	}
+	t.Logf("Report generated: %d bytes", reportBuf.Len())
+
+	// Test 6: Generate markdown report
+	var mdBuf bytes.Buffer
+	err = service.Report(context.Background(), scenarioDir, reporting.Options{
+		Format: reporting.FormatMarkdown,
+	}, &mdBuf)
+	if err != nil {
+		t.Fatalf("markdown report failed: %v", err)
+	}
+	if !strings.Contains(mdBuf.String(), "FOUND-001") {
+		t.Error("markdown report should contain requirement IDs")
+	}
+
+	t.Log("Full pipeline integration test completed successfully")
+}
