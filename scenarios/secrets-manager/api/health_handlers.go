@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 type HealthHandlers struct {
@@ -15,8 +17,9 @@ func NewHealthHandlers(db *sql.DB) *HealthHandlers {
 	return &HealthHandlers{db: db}
 }
 
-func (s *APIServer) healthHandler(w http.ResponseWriter, r *http.Request) {
-	s.handlers.health.Health(w, r)
+// RegisterRoutes mounts the health endpoints for both base and API prefixed routers.
+func (h *HealthHandlers) RegisterRoutes(router *mux.Router) {
+	router.HandleFunc("/health", h.Health).Methods("GET")
 }
 
 func (h *HealthHandlers) Health(w http.ResponseWriter, r *http.Request) {

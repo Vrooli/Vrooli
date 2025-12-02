@@ -50,52 +50,38 @@ func (s *APIServer) routes() *mux.Router {
 	r := mux.NewRouter()
 
 	// Health
-	r.HandleFunc("/health", s.healthHandler).Methods("GET")
+	s.handlers.health.RegisterRoutes(r)
 
 	api := r.PathPrefix("/api/v1").Subrouter()
 
 	// Health (API-prefixed for UI/iframe clients)
-	api.HandleFunc("/health", s.healthHandler).Methods("GET")
+	s.handlers.health.RegisterRoutes(api)
 
 	// Orientation insights
 	orientation := api.PathPrefix("/orientation").Subrouter()
-	orientation.HandleFunc("/summary", s.orientationSummaryHandler).Methods("GET")
+	s.handlers.orientation.RegisterRoutes(orientation)
 
 	// Vault coverage and provisioning
 	vault := api.PathPrefix("/vault").Subrouter()
-	vault.HandleFunc("/secrets/status", s.vaultSecretsStatusHandler).Methods("GET")
-	vault.HandleFunc("/secrets/provision", s.vaultProvisionHandler).Methods("POST")
+	s.handlers.vault.RegisterRoutes(vault)
+	s.handlers.vault.RegisterLegacyRoutes(api)
 
 	// Security intelligence
 	security := api.PathPrefix("/security").Subrouter()
-	security.HandleFunc("/scan", s.securityScanHandler).Methods("GET")
-	security.HandleFunc("/compliance", s.complianceHandler).Methods("GET")
-	security.HandleFunc("/vulnerabilities", s.vulnerabilitiesHandler).Methods("GET")
-	security.HandleFunc("/vulnerabilities/fix", s.fixVulnerabilitiesHandler).Methods("POST")
-	security.HandleFunc("/vulnerabilities/fix/progress", s.fixProgressHandler).Methods("POST")
-	security.HandleFunc("/vulnerabilities/{id}/status", s.vulnerabilityStatusHandler).Methods("POST")
-	api.HandleFunc("/vulnerabilities", s.vulnerabilitiesHandler).Methods("GET") // Legacy route for backward compatibility
-	api.HandleFunc("/files/content", s.fileContentHandler).Methods("GET")
+	s.handlers.security.RegisterRoutes(security)
+	s.handlers.security.RegisterLegacyRoutes(api)
 
 	// Resource intelligence
 	resources := api.PathPrefix("/resources").Subrouter()
-	resources.HandleFunc("/{resource}", s.resourceDetailHandler).Methods("GET")
-	resources.HandleFunc("/{resource}/secrets/{secret}", s.resourceSecretUpdateHandler).Methods("PATCH")
-	resources.HandleFunc("/{resource}/secrets/{secret}/strategy", s.secretStrategyHandler).Methods("POST")
-
-	// Legacy secrets endpoints (kept for clients already depending on them)
-	api.HandleFunc("/secrets/scan", s.vaultSecretsStatusHandler).Methods("GET", "POST")
-	api.HandleFunc("/secrets/validate", s.validateHandler).Methods("GET", "POST")
-	api.HandleFunc("/secrets/provision", s.provisionHandler).Methods("POST")
+	s.handlers.resources.RegisterRoutes(resources)
 
 	// Deployment manifest and bundle consumers
 	deployment := api.PathPrefix("/deployment").Subrouter()
-	deployment.HandleFunc("/secrets", s.deploymentSecretsHandler).Methods("POST")
-	deployment.HandleFunc("/secrets/{scenario}", s.deploymentSecretsGetHandler).Methods("GET")
+	s.handlers.deployment.RegisterRoutes(deployment)
 
 	// Scenario intelligence (fast list for UI selection)
 	scenarios := api.PathPrefix("/scenarios").Subrouter()
-	scenarios.HandleFunc("", s.scenarioListHandler).Methods("GET")
+	s.handlers.scenarios.RegisterRoutes(scenarios)
 
 	return r
 }

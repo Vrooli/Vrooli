@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 type scenarioSummary struct {
@@ -30,8 +32,9 @@ func NewScenarioHandlers() *ScenarioHandlers {
 	return &ScenarioHandlers{}
 }
 
-func (s *APIServer) scenarioListHandler(w http.ResponseWriter, r *http.Request) {
-	s.handlers.scenarios.ScenarioList(w, r)
+// RegisterRoutes exposes scenario list endpoints for UI selection lists.
+func (h *ScenarioHandlers) RegisterRoutes(router *mux.Router) {
+	router.HandleFunc("", h.ScenarioList).Methods("GET")
 }
 
 func (h *ScenarioHandlers) ScenarioList(w http.ResponseWriter, r *http.Request) {

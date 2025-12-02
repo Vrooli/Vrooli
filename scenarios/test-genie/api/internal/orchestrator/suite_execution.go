@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -366,7 +367,7 @@ func (o *SuiteOrchestrator) runPhase(ctx context.Context, env workspacepkg.Envir
 
 	report := def.Runner(phaseCtx, env, logFile)
 	runErr := report.Err
-	duration := int(time.Since(start).Seconds())
+	duration := int(math.Ceil(time.Since(start).Seconds()))
 	if duration < 0 {
 		duration = 0
 	}

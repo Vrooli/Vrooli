@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 )
 
 type OrientationSummary struct {
@@ -85,8 +86,9 @@ func NewOrientationHandlers(builder *OrientationBuilder) *OrientationHandlers {
 	return &OrientationHandlers{builder: builder}
 }
 
-func (s *APIServer) orientationSummaryHandler(w http.ResponseWriter, r *http.Request) {
-	s.handlers.orientation.Summary(w, r)
+// RegisterRoutes mounts the orientation endpoints under the provided router root.
+func (h *OrientationHandlers) RegisterRoutes(router *mux.Router) {
+	router.HandleFunc("/summary", h.Summary).Methods("GET")
 }
 
 func (h *OrientationHandlers) Summary(w http.ResponseWriter, r *http.Request) {

@@ -23,20 +23,22 @@ func NewSecurityHandlers(db *sql.DB, logger *Logger) *SecurityHandlers {
 	return &SecurityHandlers{db: db, logger: logger}
 }
 
-func (s *APIServer) securityScanHandler(w http.ResponseWriter, r *http.Request) {
-	s.handlers.security.SecurityScan(w, r)
+// RegisterRoutes mounts the security endpoints under /security.
+func (h *SecurityHandlers) RegisterRoutes(router *mux.Router) {
+	router.HandleFunc("/scan", h.SecurityScan).Methods("GET")
+	router.HandleFunc("/compliance", h.Compliance).Methods("GET")
+	router.HandleFunc("/vulnerabilities", h.Vulnerabilities).Methods("GET")
+	router.HandleFunc("/vulnerabilities/fix", h.FixVulnerabilities).Methods("POST")
+	router.HandleFunc("/vulnerabilities/fix/progress", h.FixProgress).Methods("POST")
+	router.HandleFunc("/vulnerabilities/{id}/status", h.VulnerabilityStatus).Methods("POST")
 }
 
-func (s *APIServer) complianceHandler(w http.ResponseWriter, r *http.Request) {
-	s.handlers.security.Compliance(w, r)
-}
-
-func (s *APIServer) vulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
-	s.handlers.security.Vulnerabilities(w, r)
-}
-
-func (s *APIServer) vulnerabilityStatusHandler(w http.ResponseWriter, r *http.Request) {
-	s.handlers.security.VulnerabilityStatus(w, r)
+// RegisterLegacyRoutes covers legacy paths that live at the API root rather than under /security.
+func (h *SecurityHandlers) RegisterLegacyRoutes(router *mux.Router) {
+	router.HandleFunc("/vulnerabilities", h.Vulnerabilities).Methods("GET")
+	router.HandleFunc("/vulnerabilities/fix", h.FixVulnerabilities).Methods("POST")
+	router.HandleFunc("/vulnerabilities/fix/progress", h.FixProgress).Methods("POST")
+	router.HandleFunc("/files/content", h.FileContent).Methods("GET")
 }
 
 func (h *SecurityHandlers) SecurityScan(w http.ResponseWriter, r *http.Request) {

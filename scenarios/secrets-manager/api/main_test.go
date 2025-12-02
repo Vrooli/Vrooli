@@ -18,6 +18,7 @@ func TestHealthHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 	server := newAPIServer(nil, logger)
+	router := server.routes()
 
 	t.Run("Success", func(t *testing.T) {
 		req, err := http.NewRequest("GET", "/health", nil)
@@ -26,8 +27,7 @@ func TestHealthHandler(t *testing.T) {
 		}
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.healthHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
@@ -66,6 +66,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 	server := newAPIServer(nil, logger)
+	router := server.routes()
 
 	t.Run("Success_NoFilter", func(t *testing.T) {
 		req, err := http.NewRequest("GET", "/api/v1/vault/secrets/status", nil)
@@ -74,8 +75,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 		}
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.vaultSecretsStatusHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
@@ -98,8 +98,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 		}
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.vaultSecretsStatusHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
@@ -119,8 +118,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.vaultSecretsStatusHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
@@ -135,8 +133,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.vaultSecretsStatusHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		// Handler doesn't validate JSON for POST requests currently, just processes GET
 		// This is acceptable behavior - handler ignores invalid POST bodies
@@ -151,6 +148,7 @@ func TestValidateHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 	server := newAPIServer(nil, logger)
+	router := server.routes()
 
 	t.Run("GET_Success", func(t *testing.T) {
 		// Note: Requires database/validator initialization - skipping in unit tests
@@ -175,8 +173,7 @@ func TestValidateHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.validateHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusBadRequest {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
@@ -189,6 +186,7 @@ func TestProvisionHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 	server := newAPIServer(nil, logger)
+	router := server.routes()
 
 	t.Run("Success", func(t *testing.T) {
 		provReq := ProvisionRequest{
@@ -205,8 +203,7 @@ func TestProvisionHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.provisionHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
 			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
@@ -226,8 +223,7 @@ func TestProvisionHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.provisionHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusBadRequest {
 			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
@@ -242,8 +238,7 @@ func TestProvisionHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.provisionHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusBadRequest {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
@@ -274,6 +269,7 @@ func TestComplianceHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 	server := newAPIServer(nil, logger)
+	router := server.routes()
 
 	// Enable test mode to avoid long scans
 	os.Setenv("SECRETS_MANAGER_TEST_MODE", "true")
@@ -286,8 +282,7 @@ func TestComplianceHandler(t *testing.T) {
 		}
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.complianceHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
@@ -495,6 +490,7 @@ func TestDeploymentSecretsHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 	server := newAPIServer(nil, logger)
+	router := server.routes()
 
 	t.Run("MissingRequiredFields", func(t *testing.T) {
 		// Empty request body
@@ -508,8 +504,7 @@ func TestDeploymentSecretsHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.deploymentSecretsHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		// Handler returns 200 even with missing fields (graceful handling)
 		// The implementation doesn't strictly validate required fields
@@ -526,8 +521,7 @@ func TestDeploymentSecretsHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.deploymentSecretsHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusBadRequest {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
@@ -548,8 +542,7 @@ func TestDeploymentSecretsHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.deploymentSecretsHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		// Accept OK or errors related to DB/implementation details
 		if status := rr.Code; status != http.StatusOK && status != http.StatusInternalServerError {
@@ -563,6 +556,7 @@ func TestVulnerabilitiesHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 	server := newAPIServer(nil, logger)
+	router := server.routes()
 
 	// Enable test mode to avoid long scans
 	os.Setenv("SECRETS_MANAGER_TEST_MODE", "true")
@@ -575,8 +569,7 @@ func TestVulnerabilitiesHandler(t *testing.T) {
 		}
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.vulnerabilitiesHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
@@ -599,6 +592,7 @@ func TestFixVulnerabilitiesHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 	server := newAPIServer(nil, logger)
+	router := server.routes()
 
 	t.Run("Success", func(t *testing.T) {
 		fixReq := map[string]interface{}{
@@ -619,8 +613,7 @@ func TestFixVulnerabilitiesHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.fixVulnerabilitiesHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
@@ -649,8 +642,7 @@ func TestFixVulnerabilitiesHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.fixVulnerabilitiesHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusBadRequest {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
@@ -665,8 +657,7 @@ func TestFixVulnerabilitiesHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.fixVulnerabilitiesHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusBadRequest {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
@@ -679,6 +670,7 @@ func TestFixProgressHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 	server := newAPIServer(nil, logger)
+	router := server.routes()
 
 	t.Run("Success", func(t *testing.T) {
 		progressReq := map[string]interface{}{
@@ -697,8 +689,7 @@ func TestFixProgressHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.fixProgressHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
@@ -719,8 +710,7 @@ func TestFixProgressHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.fixProgressHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusBadRequest {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
@@ -735,6 +725,7 @@ func TestFileContentHandler(t *testing.T) {
 	env := setupTestDirectory(t)
 	defer env.Cleanup()
 	server := newAPIServer(nil, logger)
+	router := server.routes()
 
 	t.Run("MissingPath", func(t *testing.T) {
 		req, err := http.NewRequest("GET", "/api/v1/files/content", nil)
@@ -743,8 +734,7 @@ func TestFileContentHandler(t *testing.T) {
 		}
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.fileContentHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusBadRequest {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
@@ -765,8 +755,7 @@ func TestFileContentHandler(t *testing.T) {
 		}
 
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(server.fileContentHandler)
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 
 		// May succeed or fail depending on security checks, both are valid
 		if status := rr.Code; status != http.StatusOK && status != http.StatusForbidden && status != http.StatusInternalServerError {

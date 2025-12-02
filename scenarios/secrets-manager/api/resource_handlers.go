@@ -19,8 +19,11 @@ func NewResourceHandlers(db *sql.DB) *ResourceHandlers {
 	return &ResourceHandlers{db: db}
 }
 
-func (s *APIServer) resourceDetailHandler(w http.ResponseWriter, r *http.Request) {
-	s.handlers.resources.ResourceDetail(w, r)
+// RegisterRoutes mounts resource intelligence endpoints under the provided router.
+func (h *ResourceHandlers) RegisterRoutes(router *mux.Router) {
+	router.HandleFunc("/{resource}", h.ResourceDetail).Methods("GET")
+	router.HandleFunc("/{resource}/secrets/{secret}", h.ResourceSecretUpdate).Methods("PATCH")
+	router.HandleFunc("/{resource}/secrets/{secret}/strategy", h.SecretStrategy).Methods("POST")
 }
 
 func (h *ResourceHandlers) ResourceDetail(w http.ResponseWriter, r *http.Request) {
@@ -41,10 +44,6 @@ type resourceSecretUpdateRequest struct {
 	Required       *bool   `json:"required"`
 	OwnerTeam      *string `json:"owner_team"`
 	OwnerContact   *string `json:"owner_contact"`
-}
-
-func (s *APIServer) resourceSecretUpdateHandler(w http.ResponseWriter, r *http.Request) {
-	s.handlers.resources.ResourceSecretUpdate(w, r)
 }
 
 func (h *ResourceHandlers) ResourceSecretUpdate(w http.ResponseWriter, r *http.Request) {
@@ -132,10 +131,6 @@ type secretStrategyRequest struct {
 	PromptDescription string                 `json:"prompt_description"`
 	GeneratorTemplate map[string]interface{} `json:"generator_template"`
 	BundleHints       map[string]interface{} `json:"bundle_hints"`
-}
-
-func (s *APIServer) secretStrategyHandler(w http.ResponseWriter, r *http.Request) {
-	s.handlers.resources.SecretStrategy(w, r)
 }
 
 func (h *ResourceHandlers) SecretStrategy(w http.ResponseWriter, r *http.Request) {

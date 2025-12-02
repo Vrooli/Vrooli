@@ -11,6 +11,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 type VaultHandlers struct {
@@ -27,20 +29,17 @@ func NewVaultHandlers(db *sql.DB, logger *Logger, validator *SecretValidator) *V
 	}
 }
 
-func (s *APIServer) vaultSecretsStatusHandler(w http.ResponseWriter, r *http.Request) {
-	s.handlers.vault.Status(w, r)
+// RegisterRoutes mounts versioned vault endpoints (preferred paths).
+func (h *VaultHandlers) RegisterRoutes(router *mux.Router) {
+	router.HandleFunc("/secrets/status", h.Status).Methods("GET", "POST")
+	router.HandleFunc("/secrets/provision", h.Provision).Methods("POST")
 }
 
-func (s *APIServer) vaultProvisionHandler(w http.ResponseWriter, r *http.Request) {
-	s.handlers.vault.Provision(w, r)
-}
-
-func (s *APIServer) validateHandler(w http.ResponseWriter, r *http.Request) {
-	s.handlers.vault.Validate(w, r)
-}
-
-func (s *APIServer) provisionHandler(w http.ResponseWriter, r *http.Request) {
-	s.handlers.vault.LegacyProvision(w, r)
+// RegisterLegacyRoutes keeps backward-compatible secrets endpoints.
+func (h *VaultHandlers) RegisterLegacyRoutes(router *mux.Router) {
+	router.HandleFunc("/secrets/scan", h.Status).Methods("GET", "POST")
+	router.HandleFunc("/secrets/validate", h.Validate).Methods("GET", "POST")
+	router.HandleFunc("/secrets/provision", h.LegacyProvision).Methods("POST")
 }
 
 // Vault secrets status handler

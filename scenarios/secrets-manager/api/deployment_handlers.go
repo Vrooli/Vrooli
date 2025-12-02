@@ -16,12 +16,10 @@ func NewDeploymentHandlers() *DeploymentHandlers {
 	return &DeploymentHandlers{}
 }
 
-func (s *APIServer) deploymentSecretsHandler(w http.ResponseWriter, r *http.Request) {
-	s.handlers.deployment.DeploymentSecrets(w, r)
-}
-
-func (s *APIServer) deploymentSecretsGetHandler(w http.ResponseWriter, r *http.Request) {
-	s.handlers.deployment.DeploymentSecretsGet(w, r)
+// RegisterRoutes mounts deployment manifest endpoints.
+func (h *DeploymentHandlers) RegisterRoutes(router *mux.Router) {
+	router.HandleFunc("/secrets", h.DeploymentSecrets).Methods("POST")
+	router.HandleFunc("/secrets/{scenario}", h.DeploymentSecretsGet).Methods("GET")
 }
 
 // deploymentSecretsHandler generates deployment manifests for specific tiers
