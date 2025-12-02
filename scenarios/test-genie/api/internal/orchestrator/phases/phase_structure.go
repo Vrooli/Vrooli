@@ -133,6 +133,13 @@ func runStructurePhase(ctx context.Context, env workspace.Environment, logWriter
 	logPhaseStep(logWriter, "verified scenario-local orchestrator usage: %s", runnerPath)
 	observations = append(observations, "scenario-local orchestrator enforced")
 
+	if uiObservation, failure := enforceUISmokeTelemetry(ctx, env, logWriter); failure != nil {
+		failure.Observations = append(failure.Observations, observations...)
+		return *failure
+	} else if uiObservation != "" {
+		observations = append(observations, uiObservation)
+	}
+
 	logPhaseStep(logWriter, "structure validation complete")
 	return RunReport{Observations: observations}
 }
@@ -316,4 +323,43 @@ func scanScenarioJSON(root string) (int, []string, error) {
 		return nil
 	})
 	return count, invalid, err
+}
+
+func enforceUISmokeTelemetry(ctx context.Context, env workspace.Environment, logWriter io.Writer) (string, *RunReport) {
+	status, err := fetchScenarioStatus(ctx, env, logWriter)
+	if err != nil {
+		logPhaseWarn(logWriter, "ui smoke telemetry unavailable: %v", err)
+		return "", nil
+	}
+	if status.Diagnostics.UISmoke == nil {
+		return "ui smoke telemetry not reported", nil
+	}
+	smoke := status.Diagnostics.UISmoke
+	if strings.EqualFold(smoke.Status, "passed") {
+		if smoke.Bundle != nil && !smoke.Bundle.Fresh {
+			reason := strings.TrimSpace(smoke.Bundle.Reason)
+			if reason == "" {
+				reason = "bundle marked stale"
+			}
+			return "", &RunReport{
+				Err:                   fmt.Errorf("ui bundle stale: %s", reason),
+				FailureClassification: FailureClassMisconfiguration,
+				Remediation:           "Rebuild or restart the UI so bundles are regenerated before re-running structure tests.",
+			}
+		}
+		duration := int(smoke.DurationMs)
+		if duration < 0 {
+			duration = 0
+		}
+		return fmt.Sprintf("ui smoke passed (%dms)", duration), nil
+	}
+	message := strings.TrimSpace(smoke.Message)
+	if message == "" {
+		message = "UI smoke reported a failure"
+	}
+	return "", &RunReport{
+		Err:                   fmt.Errorf("ui smoke status '%s': %s", smoke.Status, message),
+		FailureClassification: FailureClassSystem,
+		Remediation:           "Investigate the UI smoke failure (see scenario status diagnostics) and restart the scenario before retrying.",
+	}
 }

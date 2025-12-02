@@ -93,6 +93,13 @@ func runDependenciesPhase(ctx context.Context, env workspace.Environment, logWri
 		}
 	}
 
+	if telemetryObs, telemetryFailure := enforceResourceTelemetry(ctx, env, logWriter); telemetryFailure != nil {
+		telemetryFailure.Observations = append(telemetryFailure.Observations, observations...)
+		return *telemetryFailure
+	} else if len(telemetryObs) > 0 {
+		observations = append(observations, telemetryObs...)
+	}
+
 	logPhaseStep(logWriter, "dependency validation complete")
 	return RunReport{Observations: observations}
 }
@@ -259,4 +266,43 @@ func dedupeStrings(values []string) []string {
 		result = append(result, value)
 	}
 	return result
+}
+
+func enforceResourceTelemetry(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]string, *RunReport) {
+	status, err := fetchScenarioStatus(ctx, env, logWriter)
+	if err != nil {
+		logPhaseWarn(logWriter, "resource telemetry unavailable: %v", err)
+		return nil, nil
+	}
+	var observations []string
+	var failures []string
+	for _, resource := range status.Insights.Resources.Items {
+		if !resource.Required {
+			continue
+		}
+		if resource.Running && resource.Healthy {
+			observations = append(observations, fmt.Sprintf("resource healthy: %s", resource.Name))
+			continue
+		}
+		failures = append(failures, fmt.Sprintf("%s (running=%t healthy=%t)", resource.Name, resource.Running, resource.Healthy))
+	}
+	if len(failures) > 0 {
+		return nil, &RunReport{
+			Err:                   fmt.Errorf("required resources unhealthy: %s", strings.Join(failures, ", ")),
+			FailureClassification: FailureClassMissingDependency,
+			Remediation:           "Start the missing resources (see `vrooli resources status`) or restart the scenario before rerunning tests.",
+		}
+	}
+	if apiHealth, ok := status.Diagnostics.HealthChecks["api"]; ok {
+		for name, dependency := range apiHealth.Dependencies {
+			if !dependency.Connected {
+				return nil, &RunReport{
+					Err:                   fmt.Errorf("API dependency '%s' is not connected", name),
+					FailureClassification: FailureClassMissingDependency,
+					Remediation:           fmt.Sprintf("Ensure %s is running and reachable, then restart the API.", name),
+				}
+			}
+		}
+	}
+	return observations, nil
 }
