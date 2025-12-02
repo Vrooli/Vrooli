@@ -26,7 +26,7 @@
 //
 //	Orchestration Layer (this package):
 //	  supervisor.go       - Core Supervisor struct, Start, Shutdown
-//	  control_api.go      - HTTP handlers and authentication middleware
+//	  api/                - HTTP handlers and authentication middleware
 //	  service_launcher.go - Service lifecycle management
 //	  interfaces.go       - Re-exports and ServiceManager interface
 //	  utils.go            - Shared utilities (copyStringMap, intersection, etc.)
@@ -48,6 +48,8 @@ import (
 	"strings"
 	"sync"
 
+	"scenario-to-desktop-runtime/api"
+	"scenario-to-desktop-runtime/config"
 	"scenario-to-desktop-runtime/env"
 	"scenario-to-desktop-runtime/gpu"
 	"scenario-to-desktop-runtime/health"
@@ -90,29 +92,16 @@ type ServiceManager interface {
 // Ensure Supervisor implements ServiceManager.
 var _ ServiceManager = (*Supervisor)(nil)
 
+// Ensure Supervisor implements api.Runtime.
+var _ api.Runtime = (*Supervisor)(nil)
+
 // =============================================================================
 // Supervisor Configuration
 // =============================================================================
 
-// Options configures the Supervisor.
-type Options struct {
-	AppDataDir string             // Override for app data directory (default: user config dir)
-	Manifest   *manifest.Manifest // Bundle manifest (required)
-	BundlePath string             // Root path of the unpacked bundle
-	DryRun     bool               // Skip actual service launches (for testing)
-
-	// Injectable dependencies (nil = use real implementations)
-	Clock         Clock         // Time operations (default: RealClock)
-	FileSystem    FileSystem    // File operations (default: RealFileSystem)
-	NetworkDialer NetworkDialer // Network operations (default: RealNetworkDialer)
-	ProcessRunner ProcessRunner // Process execution (default: RealProcessRunner)
-	CommandRunner CommandRunner // Command execution (default: RealCommandRunner)
-	GPUDetector   GPUDetector   // GPU detection (default: RealGPUDetector)
-	EnvReader     EnvReader     // Environment variable access (default: RealEnvReader)
-	PortAllocator PortAllocator // Port allocation (default: PortManager)
-	SecretStore   SecretStore   // Secret management (default: SecretManager)
-	HealthChecker HealthChecker // Health monitoring (default: HealthMonitor)
-}
+// Options is an alias for config.Options for backward compatibility.
+// See config.Options for documentation.
+type Options = config.Options
 
 // Supervisor manages the desktop bundle runtime.
 // It orchestrates service startup, health monitoring, and exposes a control API.
@@ -159,17 +148,6 @@ type Supervisor struct {
 // Manifest is an alias for the manifest package type for convenience.
 type Manifest = manifest.Manifest
 
-// sanitizeAppName normalizes an application name for filesystem use.
-func sanitizeAppName(name string) string {
-	out := strings.TrimSpace(name)
-	if out == "" {
-		return "desktop-app"
-	}
-	out = strings.ReplaceAll(out, " ", "-")
-	out = strings.ToLower(out)
-	return out
-}
-
 // NewSupervisor creates a new Supervisor with the given options.
 // Injectable dependencies are set to real implementations when nil.
 func NewSupervisor(opts Options) (*Supervisor, error) {
@@ -183,7 +161,7 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 		if err != nil {
 			return nil, fmt.Errorf("resolve app data dir: %w", err)
 		}
-		appData = filepath.Join(base, sanitizeAppName(opts.Manifest.App.Name))
+		appData = filepath.Join(base, config.SanitizeAppName(opts.Manifest.App.Name))
 	}
 
 	// Set default implementations for nil dependencies.
@@ -224,7 +202,7 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 
 	portAllocator := opts.PortAllocator
 	if portAllocator == nil {
-		portAllocator = NewPortManager(opts.Manifest, dialer)
+		portAllocator = ports.NewManager(opts.Manifest, dialer)
 	}
 
 	// Compute paths for secret manager.
@@ -335,14 +313,15 @@ func (s *Supervisor) Start(ctx context.Context) error {
 		"reason":    s.gpuStatus.Reason,
 	})
 
-	// Set up HTTP server.
+	// Set up HTTP server using the API package.
+	apiServer := api.NewServer(s, s.authToken)
 	mux := http.NewServeMux()
-	s.registerHandlers(mux)
+	apiServer.RegisterHandlers(mux)
 
 	addr := fmt.Sprintf("%s:%d", s.opts.Manifest.IPC.Host, s.opts.Manifest.IPC.Port)
 	server := &http.Server{
 		Addr:    addr,
-		Handler: s.authMiddleware(mux),
+		Handler: apiServer.AuthMiddleware(mux),
 	}
 	s.server = server
 
@@ -359,7 +338,7 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	s.cancel = cancel
 
 	// Check for missing secrets.
-	missing := s.missingRequiredSecrets()
+	missing := s.secretStore.MissingRequired()
 	if len(missing) > 0 {
 		msg := fmt.Sprintf("waiting for secrets: %s", strings.Join(missing, ", "))
 		for _, svc := range s.opts.Manifest.Services {
@@ -464,6 +443,43 @@ func (s *Supervisor) AppDataDir() string {
 	return s.appData
 }
 
+// TelemetryPath returns the telemetry file path.
+func (s *Supervisor) TelemetryPath() string {
+	return s.telemetryPath
+}
+
+// TelemetryUploadURL returns the telemetry upload URL.
+func (s *Supervisor) TelemetryUploadURL() string {
+	return s.opts.Manifest.Telemetry.UploadTo
+}
+
+// Manifest returns the bundle manifest.
+func (s *Supervisor) Manifest() *manifest.Manifest {
+	return s.opts.Manifest
+}
+
+// FileSystem returns the file system abstraction.
+func (s *Supervisor) FileSystem() infra.FileSystem {
+	return s.fs
+}
+
+// SecretStore returns the secret store for API interactions.
+func (s *Supervisor) SecretStore() api.SecretStore {
+	return s.secretStore
+}
+
+// StartServicesIfReady triggers service startup if secrets are ready.
+func (s *Supervisor) StartServicesIfReady() {
+	if !s.servicesStarted {
+		s.startServicesAsync()
+	}
+}
+
+// RecordTelemetry records a telemetry event (public interface for api package).
+func (s *Supervisor) RecordTelemetry(event string, details map[string]interface{}) error {
+	return s.recordTelemetry(event, details)
+}
+
 // AuthToken returns the current auth token for the control API.
 func (s *Supervisor) AuthToken() string {
 	return s.authToken
@@ -506,33 +522,8 @@ func (s *Supervisor) recordTelemetry(event string, details map[string]interface{
 }
 
 // =============================================================================
-// Secret Management (delegates to secrets package)
+// Secret Management
 // =============================================================================
-
-// secretsCopy returns a thread-safe copy of the current secrets.
-func (s *Supervisor) secretsCopy() map[string]string {
-	return s.secretStore.Get()
-}
-
-// missingRequiredSecrets returns a list of required secrets that are missing.
-func (s *Supervisor) missingRequiredSecrets() []string {
-	return s.secretStore.MissingRequired()
-}
-
-// missingRequiredSecretsFrom checks a secrets map for missing required values.
-func (s *Supervisor) missingRequiredSecretsFrom(secretsMap map[string]string) []string {
-	return s.secretStore.MissingRequiredFrom(secretsMap)
-}
-
-// persistSecrets saves secrets to the secrets file.
-func (s *Supervisor) persistSecrets(secretsMap map[string]string) error {
-	return s.secretStore.Persist(secretsMap)
-}
-
-// findSecret looks up a secret definition by ID.
-func (s *Supervisor) findSecret(id string) *manifest.Secret {
-	return s.secretStore.FindSecret(id)
-}
 
 // applySecrets injects secrets into the environment for a service.
 func (s *Supervisor) applySecrets(env map[string]string, svc manifest.Service) error {
@@ -545,13 +536,13 @@ func (s *Supervisor) applySecrets(env map[string]string, svc manifest.Service) e
 func (s *Supervisor) UpdateSecrets(newSecrets map[string]string) error {
 	merged := s.secretStore.Merge(newSecrets)
 
-	missing := s.missingRequiredSecretsFrom(merged)
+	missing := s.secretStore.MissingRequiredFrom(merged)
 	if len(missing) > 0 {
 		_ = s.recordTelemetry("secrets_missing", map[string]interface{}{"missing": missing})
 		return fmt.Errorf("missing required secrets: %s", strings.Join(missing, ", "))
 	}
 
-	if err := s.persistSecrets(merged); err != nil {
+	if err := s.secretStore.Persist(merged); err != nil {
 		return err
 	}
 
@@ -600,36 +591,3 @@ func (s *Supervisor) PortMap() map[string]map[string]int {
 	return s.portAllocator.Map()
 }
 
-// =============================================================================
-// Factory Functions
-// =============================================================================
-
-// NewPortManager creates a new PortManager with the given dependencies.
-func NewPortManager(m *Manifest, dialer NetworkDialer) *ports.Manager {
-	return ports.NewManager(m, dialer)
-}
-
-// NewSecretManager creates a new SecretManager with the given dependencies.
-func NewSecretManager(m *Manifest, fs FileSystem, secretsPath string) *secrets.Manager {
-	return secrets.NewManager(m, fs, secretsPath)
-}
-
-// NewHealthMonitor creates a new HealthMonitor with the given dependencies.
-func NewHealthMonitor(cfg health.MonitorConfig) *health.Monitor {
-	return health.NewMonitor(cfg)
-}
-
-// NewEnvRenderer creates a new environment variable renderer.
-func NewEnvRenderer(appData, bundlePath string, portAlloc PortAllocator, envReader EnvReader) *env.Renderer {
-	return env.NewRenderer(appData, bundlePath, portAlloc, envReader)
-}
-
-// NewTelemetryRecorder creates a new telemetry file recorder.
-func NewTelemetryRecorder(path string, clock Clock, fs FileSystem) *telemetry.FileRecorder {
-	return telemetry.NewFileRecorder(path, clock, fs)
-}
-
-// NewGPUDetector creates a new GPU detector.
-func NewGPUDetector(cmdRunner CommandRunner, envReader EnvReader) *gpu.RealDetector {
-	return gpu.NewDetector(cmdRunner, envReader)
-}

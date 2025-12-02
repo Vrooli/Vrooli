@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"time"
 
+	"scenario-to-desktop-runtime/deps"
 	"scenario-to-desktop-runtime/infra"
 	"scenario-to-desktop-runtime/manifest"
 	"scenario-to-desktop-runtime/ports"
@@ -70,19 +71,9 @@ func NewMonitor(cfg MonitorConfig) *Monitor {
 	}
 }
 
-// findService looks up a service by ID.
-func (m *Monitor) findService(id string) *manifest.Service {
-	for i := range m.manifest.Services {
-		if m.manifest.Services[i].ID == id {
-			return &m.manifest.Services[i]
-		}
-	}
-	return nil
-}
-
 // WaitForReadiness waits for a service to become ready based on its readiness configuration.
 func (m *Monitor) WaitForReadiness(ctx context.Context, serviceID string) error {
-	svc := m.findService(serviceID)
+	svc := deps.FindService(m.manifest.Services, serviceID)
 	if svc == nil {
 		return fmt.Errorf("service %s not found", serviceID)
 	}
@@ -114,7 +105,7 @@ func (m *Monitor) WaitForReadiness(ctx context.Context, serviceID string) error 
 
 // CheckOnce performs a single health check for a service.
 func (m *Monitor) CheckOnce(ctx context.Context, serviceID string) bool {
-	svc := m.findService(serviceID)
+	svc := deps.FindService(m.manifest.Services, serviceID)
 	if svc == nil {
 		return false
 	}

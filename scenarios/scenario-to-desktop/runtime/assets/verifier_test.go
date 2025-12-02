@@ -1,4 +1,4 @@
-package bundleruntime
+package assets
 
 import (
 	"crypto/sha256"
@@ -6,9 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
-	"scenario-to-desktop-runtime/assets"
+	"scenario-to-desktop-runtime/infra"
 	"scenario-to-desktop-runtime/manifest"
 	"scenario-to-desktop-runtime/telemetry"
 )
@@ -27,7 +26,6 @@ func TestEnsureAssets(t *testing.T) {
 	t.Run("verifies all assets exist", func(t *testing.T) {
 		bundleDir := t.TempDir()
 
-		// Create asset files
 		asset1Content := []byte("asset1 content")
 		asset2Content := []byte("asset2 content")
 		asset1Path := filepath.Join(bundleDir, "assets", "file1.txt")
@@ -52,7 +50,7 @@ func TestEnsureAssets(t *testing.T) {
 		}
 
 		telem := &mockTelemetryRecorder{}
-		v := assets.NewVerifier(bundleDir, RealFileSystem{}, telem)
+		v := NewVerifier(bundleDir, infra.RealFileSystem{}, telem)
 		err := v.EnsureAssets(svc)
 		if err != nil {
 			t.Errorf("EnsureAssets() error = %v, want nil", err)
@@ -70,39 +68,10 @@ func TestEnsureAssets(t *testing.T) {
 		}
 
 		telem := &mockTelemetryRecorder{}
-		v := assets.NewVerifier(bundleDir, RealFileSystem{}, telem)
+		v := NewVerifier(bundleDir, infra.RealFileSystem{}, telem)
 		err := v.EnsureAssets(svc)
 		if err == nil {
 			t.Error("EnsureAssets() should return error for missing asset")
-		}
-	})
-
-	t.Run("integrates with supervisor", func(t *testing.T) {
-		bundleDir := t.TempDir()
-		appData := t.TempDir()
-
-		// Create asset
-		assetPath := filepath.Join(bundleDir, "test.txt")
-		if err := os.WriteFile(assetPath, []byte("content"), 0644); err != nil {
-			t.Fatal(err)
-		}
-
-		svc := manifest.Service{
-			ID:     "test-svc",
-			Assets: []manifest.Asset{{Path: "test.txt"}},
-		}
-
-		s := &Supervisor{
-			opts:      Options{BundlePath: bundleDir},
-			appData:   appData,
-			fs:        RealFileSystem{},
-			clock:     &fakeClock{now: time.Now()},
-			telemetry: telemetry.NewFileRecorder(filepath.Join(appData, "telemetry.jsonl"), &fakeClock{now: time.Now()}, RealFileSystem{}),
-		}
-
-		err := s.ensureAssets(svc)
-		if err != nil {
-			t.Errorf("Supervisor.ensureAssets() error = %v, want nil", err)
 		}
 	})
 }
@@ -119,7 +88,7 @@ func TestVerifyAsset(t *testing.T) {
 
 		svc := manifest.Service{ID: "test-svc", Assets: []manifest.Asset{{Path: "test.txt"}}}
 		telem := &mockTelemetryRecorder{}
-		v := assets.NewVerifier(bundleDir, RealFileSystem{}, telem)
+		v := NewVerifier(bundleDir, infra.RealFileSystem{}, telem)
 
 		err := v.EnsureAssets(svc)
 		if err != nil {
@@ -137,7 +106,7 @@ func TestVerifyAsset(t *testing.T) {
 
 		svc := manifest.Service{ID: "test-svc", Assets: []manifest.Asset{{Path: "somedir"}}}
 		telem := &mockTelemetryRecorder{}
-		v := assets.NewVerifier(bundleDir, RealFileSystem{}, telem)
+		v := NewVerifier(bundleDir, infra.RealFileSystem{}, telem)
 
 		err := v.EnsureAssets(svc)
 		if err == nil {
@@ -163,7 +132,7 @@ func TestVerifyAssetChecksum(t *testing.T) {
 		}
 
 		telem := &mockTelemetryRecorder{}
-		v := assets.NewVerifier(bundleDir, RealFileSystem{}, telem)
+		v := NewVerifier(bundleDir, infra.RealFileSystem{}, telem)
 
 		err := v.EnsureAssets(svc)
 		if err != nil {
@@ -187,7 +156,7 @@ func TestVerifyAssetChecksum(t *testing.T) {
 		}
 
 		telem := &mockTelemetryRecorder{}
-		v := assets.NewVerifier(bundleDir, RealFileSystem{}, telem)
+		v := NewVerifier(bundleDir, infra.RealFileSystem{}, telem)
 
 		err := v.EnsureAssets(svc)
 		if err == nil {
@@ -212,7 +181,7 @@ func TestVerifyAssetChecksum(t *testing.T) {
 		}
 
 		telem := &mockTelemetryRecorder{}
-		v := assets.NewVerifier(bundleDir, RealFileSystem{}, telem)
+		v := NewVerifier(bundleDir, infra.RealFileSystem{}, telem)
 
 		err := v.EnsureAssets(svc)
 		if err != nil {
@@ -236,7 +205,7 @@ func TestCheckAssetSizeBudget(t *testing.T) {
 			Assets: []manifest.Asset{{Path: "exact.bin", SizeBytes: 1000}},
 		}
 		telem := &mockTelemetryRecorder{}
-		v := assets.NewVerifier(bundleDir, RealFileSystem{}, telem)
+		v := NewVerifier(bundleDir, infra.RealFileSystem{}, telem)
 
 		err := v.EnsureAssets(svc)
 		if err != nil {
@@ -245,7 +214,6 @@ func TestCheckAssetSizeBudget(t *testing.T) {
 	})
 
 	t.Run("accepts slightly larger with slack", func(t *testing.T) {
-		// 10MB expected, 10.5MB actual (5% overage)
 		expected := int64(10 * 1024 * 1024)
 		actual := int64(10.5 * 1024 * 1024)
 		content := make([]byte, actual)
@@ -259,7 +227,7 @@ func TestCheckAssetSizeBudget(t *testing.T) {
 			Assets: []manifest.Asset{{Path: "slack.bin", SizeBytes: expected}},
 		}
 		telem := &mockTelemetryRecorder{}
-		v := assets.NewVerifier(bundleDir, RealFileSystem{}, telem)
+		v := NewVerifier(bundleDir, infra.RealFileSystem{}, telem)
 
 		err := v.EnsureAssets(svc)
 		if err != nil {
@@ -268,7 +236,6 @@ func TestCheckAssetSizeBudget(t *testing.T) {
 	})
 
 	t.Run("rejects significantly oversized", func(t *testing.T) {
-		// 10MB expected, 15MB actual (50% overage)
 		expected := int64(10 * 1024 * 1024)
 		actual := int64(15 * 1024 * 1024)
 		content := make([]byte, actual)
@@ -282,7 +249,7 @@ func TestCheckAssetSizeBudget(t *testing.T) {
 			Assets: []manifest.Asset{{Path: "oversized.bin", SizeBytes: expected}},
 		}
 		telem := &mockTelemetryRecorder{}
-		v := assets.NewVerifier(bundleDir, RealFileSystem{}, telem)
+		v := NewVerifier(bundleDir, infra.RealFileSystem{}, telem)
 
 		err := v.EnsureAssets(svc)
 		if err == nil {
@@ -291,7 +258,6 @@ func TestCheckAssetSizeBudget(t *testing.T) {
 	})
 
 	t.Run("rejects suspiciously small", func(t *testing.T) {
-		// 10MB expected, 2MB actual (80% smaller)
 		expected := int64(10 * 1024 * 1024)
 		actual := int64(2 * 1024 * 1024)
 		content := make([]byte, actual)
@@ -305,7 +271,7 @@ func TestCheckAssetSizeBudget(t *testing.T) {
 			Assets: []manifest.Asset{{Path: "small.bin", SizeBytes: expected}},
 		}
 		telem := &mockTelemetryRecorder{}
-		v := assets.NewVerifier(bundleDir, RealFileSystem{}, telem)
+		v := NewVerifier(bundleDir, infra.RealFileSystem{}, telem)
 
 		err := v.EnsureAssets(svc)
 		if err == nil {
@@ -314,7 +280,6 @@ func TestCheckAssetSizeBudget(t *testing.T) {
 	})
 
 	t.Run("accepts at half size boundary", func(t *testing.T) {
-		// 10MB expected, 5MB actual (exactly half)
 		expected := int64(10 * 1024 * 1024)
 		actual := int64(5 * 1024 * 1024)
 		content := make([]byte, actual)
@@ -328,7 +293,7 @@ func TestCheckAssetSizeBudget(t *testing.T) {
 			Assets: []manifest.Asset{{Path: "half.bin", SizeBytes: expected}},
 		}
 		telem := &mockTelemetryRecorder{}
-		v := assets.NewVerifier(bundleDir, RealFileSystem{}, telem)
+		v := NewVerifier(bundleDir, infra.RealFileSystem{}, telem)
 
 		err := v.EnsureAssets(svc)
 		if err != nil {
@@ -339,9 +304,8 @@ func TestCheckAssetSizeBudget(t *testing.T) {
 
 func TestSizeBudgetSlack(t *testing.T) {
 	t.Run("returns minimum 1MB for small files", func(t *testing.T) {
-		// 100KB expected -> should get 1MB slack (minimum)
 		expected := int64(100 * 1024)
-		slack := assets.SizeBudgetSlack(expected)
+		slack := SizeBudgetSlack(expected)
 		minSlack := int64(1 * 1024 * 1024)
 		if slack != minSlack {
 			t.Errorf("SizeBudgetSlack(%d) = %d, want %d (1MB minimum)", expected, slack, minSlack)
@@ -349,9 +313,8 @@ func TestSizeBudgetSlack(t *testing.T) {
 	})
 
 	t.Run("returns 5% for large files", func(t *testing.T) {
-		// 100MB expected -> should get 5MB slack (5%)
 		expected := int64(100 * 1024 * 1024)
-		slack := assets.SizeBudgetSlack(expected)
+		slack := SizeBudgetSlack(expected)
 		expectedSlack := expected / 20
 		if slack != expectedSlack {
 			t.Errorf("SizeBudgetSlack(%d) = %d, want %d (5%%)", expected, slack, expectedSlack)
@@ -359,32 +322,29 @@ func TestSizeBudgetSlack(t *testing.T) {
 	})
 
 	t.Run("returns 0 for zero expected", func(t *testing.T) {
-		slack := assets.SizeBudgetSlack(0)
+		slack := SizeBudgetSlack(0)
 		if slack != 0 {
 			t.Errorf("SizeBudgetSlack(0) = %d, want 0", slack)
 		}
 	})
 
 	t.Run("returns 0 for negative expected", func(t *testing.T) {
-		slack := assets.SizeBudgetSlack(-100)
+		slack := SizeBudgetSlack(-100)
 		if slack != 0 {
 			t.Errorf("SizeBudgetSlack(-100) = %d, want 0", slack)
 		}
 	})
 
 	t.Run("threshold between minimum and percentage", func(t *testing.T) {
-		// 20MB expected -> 5% is 1MB, which equals the minimum
-		// Anything above 20MB should use percentage
 		expected := int64(20 * 1024 * 1024)
-		slack := assets.SizeBudgetSlack(expected)
+		slack := SizeBudgetSlack(expected)
 		minSlack := int64(1 * 1024 * 1024)
 		if slack != minSlack {
 			t.Errorf("SizeBudgetSlack(%d) = %d, want %d (at threshold)", expected, slack, minSlack)
 		}
 
-		// 25MB expected -> 5% is 1.25MB, should use percentage
 		expected = int64(25 * 1024 * 1024)
-		slack = assets.SizeBudgetSlack(expected)
+		slack = SizeBudgetSlack(expected)
 		expectedSlack := expected / 20
 		if slack != expectedSlack {
 			t.Errorf("SizeBudgetSlack(%d) = %d, want %d (above threshold)", expected, slack, expectedSlack)
@@ -415,10 +375,13 @@ func TestVerifyAssetWithSizeAndChecksum(t *testing.T) {
 	}
 
 	telem := &mockTelemetryRecorder{}
-	v := assets.NewVerifier(bundleDir, RealFileSystem{}, telem)
+	v := NewVerifier(bundleDir, infra.RealFileSystem{}, telem)
 
 	err := v.EnsureAssets(svc)
 	if err != nil {
 		t.Errorf("EnsureAssets() with size and checksum error = %v, want nil", err)
 	}
 }
+
+// Ensure mockTelemetryRecorder implements telemetry.Recorder.
+var _ telemetry.Recorder = (*mockTelemetryRecorder)(nil)

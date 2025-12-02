@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"scenario-to-desktop-runtime/manifest"
+	"scenario-to-desktop-runtime/testutil"
 )
 
 func TestRenderEnvMap(t *testing.T) {
@@ -16,7 +17,7 @@ func TestRenderEnvMap(t *testing.T) {
 			BundlePath: "/bundle/root",
 			Manifest:   &manifest.Manifest{},
 		},
-		portAllocator: &testMockPortAllocator{Ports: map[string]map[string]int{}},
+		portAllocator: &testutil.MockPortAllocator{Ports: map[string]map[string]int{}},
 		envReader:     RealEnvReader{},
 	}
 
@@ -71,7 +72,7 @@ func TestRenderArgs(t *testing.T) {
 		opts: Options{
 			BundlePath: "/bundle",
 		},
-		portAllocator: &testMockPortAllocator{Ports: map[string]map[string]int{
+		portAllocator: &testutil.MockPortAllocator{Ports: map[string]map[string]int{
 			"api": {"http": 47000, "grpc": 47001},
 		}},
 	}
@@ -121,7 +122,7 @@ func TestRenderValue(t *testing.T) {
 		opts: Options{
 			BundlePath: "/opt/myapp",
 		},
-		portAllocator: &testMockPortAllocator{Ports: map[string]map[string]int{
+		portAllocator: &testutil.MockPortAllocator{Ports: map[string]map[string]int{
 			"api":      {"http": 8080},
 			"database": {"postgres": 5432},
 		}},
@@ -160,7 +161,7 @@ func TestRenderEnvMap_BinaryOverridesService(t *testing.T) {
 			BundlePath: "/bundle",
 			Manifest:   &manifest.Manifest{},
 		},
-		portAllocator: &testMockPortAllocator{Ports: map[string]map[string]int{}},
+		portAllocator: &testutil.MockPortAllocator{Ports: map[string]map[string]int{}},
 		envReader:     RealEnvReader{},
 	}
 
@@ -206,7 +207,7 @@ func TestRenderEnvMap_InheritsOSEnvironment(t *testing.T) {
 			BundlePath: "/bundle",
 			Manifest:   &manifest.Manifest{},
 		},
-		portAllocator: &testMockPortAllocator{Ports: map[string]map[string]int{}},
+		portAllocator: &testutil.MockPortAllocator{Ports: map[string]map[string]int{}},
 		envReader:     RealEnvReader{},
 	}
 

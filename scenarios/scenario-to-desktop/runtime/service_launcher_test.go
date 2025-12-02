@@ -102,7 +102,7 @@ func TestStartService_NoBinary(t *testing.T) {
 
 func TestPrepareServiceDirs(t *testing.T) {
 	tmp := t.TempDir()
-	mockFS := NewMockFileSystem()
+	mockFS := testutil.NewMockFileSystem()
 
 	s := &Supervisor{
 		fs:      mockFS,

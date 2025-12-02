@@ -2,50 +2,15 @@ package bundleruntime
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
 
-	"scenario-to-desktop-runtime/gpu"
-	"scenario-to-desktop-runtime/infra"
 	"scenario-to-desktop-runtime/manifest"
 	"scenario-to-desktop-runtime/telemetry"
 )
 
-func TestRealGPUDetector_EnvOverride(t *testing.T) {
-	tests := []struct {
-		name       string
-		envValue   string
-		wantAvail  bool
-		wantMethod string
-	}{
-		{"true enables GPU", "true", true, "env_override"},
-		{"1 enables GPU", "1", true, "env_override"},
-		{"yes enables GPU", "yes", true, "env_override"},
-		{"on enables GPU", "on", true, "env_override"},
-		{"false disables GPU", "false", false, "env_override"},
-		{"0 disables GPU", "0", false, "env_override"},
-		{"no disables GPU", "no", false, "env_override"},
-		{"off disables GPU", "off", false, "env_override"},
-		{"TRUE case insensitive", "TRUE", true, "env_override"},
-		{"False case insensitive", "False", false, "env_override"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("BUNDLE_GPU_AVAILABLE", tt.envValue)
-
-			detector := gpu.NewDetector(infra.RealCommandRunner{}, infra.RealEnvReader{})
-			status := detector.Detect()
-			if status.Available != tt.wantAvail {
-				t.Errorf("gpu.RealDetector.Detect().Available = %v, want %v", status.Available, tt.wantAvail)
-			}
-			if status.Method != tt.wantMethod {
-				t.Errorf("gpu.RealDetector.Detect().Method = %q, want %q", status.Method, tt.wantMethod)
-			}
-		})
-	}
-}
+// Note: Unit tests for gpu.RealDetector have been moved to gpu/detector_test.go.
+// This file contains integration tests for Supervisor GPU methods.
 
 func TestApplyGPURequirement(t *testing.T) {
 	tmp := t.TempDir()
@@ -150,7 +115,6 @@ func TestCommandRunnerOutput(t *testing.T) {
 	runner := RealCommandRunner{}
 	ctx := context.Background()
 
-	// Test with a simple command that should succeed
 	t.Run("successful command", func(t *testing.T) {
 		out, err := runner.Output(ctx, "echo", "hello")
 		if err != nil {
@@ -161,27 +125,10 @@ func TestCommandRunnerOutput(t *testing.T) {
 		}
 	})
 
-	// Test with a non-existent command
 	t.Run("command not found", func(t *testing.T) {
 		_, err := runner.Output(ctx, "nonexistent-command-12345")
 		if err == nil {
 			t.Error("Output() expected error for non-existent command")
 		}
 	})
-}
-
-func TestRealGPUDetector_NoOverride(t *testing.T) {
-	// Ensure no override is set
-	os.Unsetenv("BUNDLE_GPU_AVAILABLE")
-
-	detector := gpu.NewDetector(infra.RealCommandRunner{}, infra.RealEnvReader{})
-	status := detector.Detect()
-
-	// We can't predict the result, but we can verify the structure is valid
-	if status.Method == "" {
-		t.Error("gpu.RealDetector.Detect() returned empty method")
-	}
-	if status.Reason == "" {
-		t.Error("gpu.RealDetector.Detect() returned empty reason")
-	}
 }

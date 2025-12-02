@@ -1,4 +1,4 @@
-package bundleruntime
+package health
 
 import (
 	"context"
@@ -9,68 +9,47 @@ import (
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/health"
+	"scenario-to-desktop-runtime/infra"
 	"scenario-to-desktop-runtime/manifest"
 	"scenario-to-desktop-runtime/testutil"
 )
 
-// Type aliases for backward compatibility with existing tests.
-type MockClock = testutil.MockClock
-
-func NewMockClock(t time.Time) *testutil.MockClock {
-	return testutil.NewMockClock(t)
-}
-
-type MockDialer = testutil.MockDialer
-
-func NewMockDialer() *testutil.MockDialer {
-	return testutil.NewMockDialer()
-}
-
-type MockCommandRunner = testutil.MockCommandRunner
-
-type MockFileSystem = testutil.MockFileSystem
-
-func NewMockFileSystem() *testutil.MockFileSystem {
-	return testutil.NewMockFileSystem()
-}
-
-type testMockPortAllocator = testutil.MockPortAllocator
-
-// testHealthMonitor creates a health.Monitor for testing with the given dependencies.
-func testHealthMonitor(m *manifest.Manifest, ports map[string]map[string]int, clock Clock, dialer NetworkDialer, fs FileSystem, cmdRunner CommandRunner) *health.Monitor {
+// testMonitor creates a Monitor configured for testing.
+func testMonitor(m *manifest.Manifest, ports map[string]map[string]int, clock *testutil.MockClock, dialer infra.NetworkDialer, fs *testutil.MockFileSystem, cmdRunner *testutil.MockCommandRunner) *Monitor {
+	var clockIface infra.Clock = clock
 	if clock == nil {
-		clock = NewMockClock(time.Now())
+		clockIface = testutil.NewMockClock(time.Now())
 	}
 	if dialer == nil {
-		dialer = RealNetworkDialer{}
+		dialer = infra.RealNetworkDialer{}
 	}
+	var fsIface infra.FileSystem = fs
 	if fs == nil {
-		fs = NewMockFileSystem()
+		fsIface = testutil.NewMockFileSystem()
 	}
+	var cmdIface infra.CommandRunner = cmdRunner
 	if cmdRunner == nil {
-		cmdRunner = testutil.NewMockCommandRunner()
+		cmdIface = testutil.NewMockCommandRunner()
 	}
-	return health.NewMonitor(health.MonitorConfig{
+
+	return NewMonitor(MonitorConfig{
 		Manifest:     m,
-		Ports:        &testMockPortAllocator{Ports: ports},
+		Ports:        &testutil.MockPortAllocator{Ports: ports},
 		Dialer:       dialer,
-		CmdRunner:    cmdRunner,
-		FS:           fs,
-		Clock:        clock,
+		CmdRunner:    cmdIface,
+		FS:           fsIface,
+		Clock:        clockIface,
 		AppData:      "/tmp/test-appdata",
 		StatusGetter: nil,
 	})
 }
 
 func TestWaitForReadiness_HealthSuccess(t *testing.T) {
-	// Set up a test HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
-	// Extract port from server URL
 	_, portStr, _ := net.SplitHostPort(server.Listener.Addr().String())
 	var port int
 	fmt.Sscanf(portStr, "%d", &port)
@@ -95,8 +74,8 @@ func TestWaitForReadiness_HealthSuccess(t *testing.T) {
 		},
 	}
 
-	clock := NewMockClock(time.Now())
-	hm := testHealthMonitor(m, map[string]map[string]int{"api": {"http": port}}, clock, nil, nil, nil)
+	clock := testutil.NewMockClock(time.Now())
+	hm := testMonitor(m, map[string]map[string]int{"api": {"http": port}}, clock, nil, nil, nil)
 
 	ctx := context.Background()
 	err := hm.WaitForReadiness(ctx, "api")
@@ -106,7 +85,6 @@ func TestWaitForReadiness_HealthSuccess(t *testing.T) {
 }
 
 func TestWaitForReadiness_PortOpen(t *testing.T) {
-	// Create a listener to have an open port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("Failed to create listener: %v", err)
@@ -130,9 +108,9 @@ func TestWaitForReadiness_PortOpen(t *testing.T) {
 		},
 	}
 
-	clock := NewMockClock(time.Now())
-	dialer := RealNetworkDialer{}
-	hm := testHealthMonitor(m, map[string]map[string]int{"api": {"http": port}}, clock, dialer, nil, nil)
+	clock := testutil.NewMockClock(time.Now())
+	dialer := infra.RealNetworkDialer{}
+	hm := testMonitor(m, map[string]map[string]int{"api": {"http": port}}, clock, dialer, nil, nil)
 
 	ctx := context.Background()
 	err = hm.WaitForReadiness(ctx, "api")
@@ -142,10 +120,8 @@ func TestWaitForReadiness_PortOpen(t *testing.T) {
 }
 
 func TestWaitForReadiness_LogMatch(t *testing.T) {
-	clock := NewMockClock(time.Now())
-	mockFS := NewMockFileSystem()
-
-	// Pre-populate log file with matching pattern
+	clock := testutil.NewMockClock(time.Now())
+	mockFS := testutil.NewMockFileSystem()
 	mockFS.Files["/tmp/test-appdata/logs/api.log"] = []byte("Server started successfully")
 
 	m := &manifest.Manifest{
@@ -162,7 +138,7 @@ func TestWaitForReadiness_LogMatch(t *testing.T) {
 		},
 	}
 
-	hm := testHealthMonitor(m, map[string]map[string]int{}, clock, nil, mockFS, nil)
+	hm := testMonitor(m, map[string]map[string]int{}, clock, nil, mockFS, nil)
 
 	ctx := context.Background()
 	err := hm.WaitForReadiness(ctx, "api")
@@ -184,7 +160,7 @@ func TestWaitForReadiness_UnknownType(t *testing.T) {
 		},
 	}
 
-	hm := testHealthMonitor(m, map[string]map[string]int{}, nil, nil, nil, nil)
+	hm := testMonitor(m, map[string]map[string]int{}, nil, nil, nil, nil)
 
 	ctx := context.Background()
 	err := hm.WaitForReadiness(ctx, "api")
@@ -193,8 +169,7 @@ func TestWaitForReadiness_UnknownType(t *testing.T) {
 	}
 }
 
-func TestCheckTCPHealth(t *testing.T) {
-	// Create a listener
+func TestCheckOnce_TCP(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("Failed to create listener: %v", err)
@@ -217,23 +192,22 @@ func TestCheckTCPHealth(t *testing.T) {
 		},
 	}
 
-	hm := testHealthMonitor(m, map[string]map[string]int{"api": {"http": port}}, nil, RealNetworkDialer{}, nil, nil)
+	hm := testMonitor(m, map[string]map[string]int{"api": {"http": port}}, nil, infra.RealNetworkDialer{}, nil, nil)
 
 	ctx := context.Background()
 	if !hm.CheckOnce(ctx, "api") {
 		t.Error("CheckOnce() returned false, expected true")
 	}
 
-	// Close listener and check again
 	listener.Close()
-	time.Sleep(10 * time.Millisecond) // Give time for port to close
+	time.Sleep(10 * time.Millisecond)
 
 	if hm.CheckOnce(ctx, "api") {
 		t.Error("CheckOnce() returned true after listener closed, expected false")
 	}
 }
 
-func TestCheckCommandHealth(t *testing.T) {
+func TestCheckOnce_Command(t *testing.T) {
 	runner := testutil.NewMockCommandRunner()
 
 	m := &manifest.Manifest{
@@ -248,24 +222,22 @@ func TestCheckCommandHealth(t *testing.T) {
 		},
 	}
 
-	hm := testHealthMonitor(m, map[string]map[string]int{}, nil, nil, nil, runner)
+	hm := testMonitor(m, map[string]map[string]int{}, nil, nil, nil, runner)
 
 	ctx := context.Background()
 
-	// Test successful command
 	runner.SetShouldErr(false)
 	if !hm.CheckOnce(ctx, "api") {
 		t.Error("CheckOnce() returned false, expected true")
 	}
 
-	// Test failed command
 	runner.SetShouldErr(true)
 	if hm.CheckOnce(ctx, "api") {
 		t.Error("CheckOnce() returned true, expected false")
 	}
 }
 
-func TestCheckCommandHealth_NoCommand(t *testing.T) {
+func TestCheckOnce_CommandEmpty(t *testing.T) {
 	m := &manifest.Manifest{
 		Services: []manifest.Service{
 			{
@@ -278,7 +250,7 @@ func TestCheckCommandHealth_NoCommand(t *testing.T) {
 		},
 	}
 
-	hm := testHealthMonitor(m, map[string]map[string]int{}, nil, nil, nil, nil)
+	hm := testMonitor(m, map[string]map[string]int{}, nil, nil, nil, nil)
 
 	ctx := context.Background()
 	if hm.CheckOnce(ctx, "api") {
@@ -286,11 +258,10 @@ func TestCheckCommandHealth_NoCommand(t *testing.T) {
 	}
 }
 
-func TestLogMatches(t *testing.T) {
-	mockFS := NewMockFileSystem()
+func TestCheckOnce_LogMatch(t *testing.T) {
+	mockFS := testutil.NewMockFileSystem()
 	mockFS.Files["/tmp/test-appdata/logs/api.log"] = []byte("INFO: Server started on port 8080\nDEBUG: Ready for connections")
 
-	// Test cases that work through the public API (manifest-based)
 	tests := []struct {
 		name    string
 		logDir  string
@@ -316,7 +287,7 @@ func TestLogMatches(t *testing.T) {
 				},
 			}
 
-			hm := testHealthMonitor(m, map[string]map[string]int{}, nil, nil, mockFS, nil)
+			hm := testMonitor(m, map[string]map[string]int{}, nil, nil, mockFS, nil)
 			ctx := context.Background()
 			got := hm.CheckOnce(ctx, "api")
 			if got != tt.want {
@@ -324,20 +295,16 @@ func TestLogMatches(t *testing.T) {
 			}
 		})
 	}
-
-	// Note: Tests for "pattern not found", "missing log file", and "empty log dir"
-	// were removed as they test internal implementation details now in health package.
 }
 
 func TestWaitForDependencies(t *testing.T) {
-	clock := NewMockClock(time.Now())
+	clock := testutil.NewMockClock(time.Now())
 
-	// Create status map
-	serviceStatus := map[string]ServiceStatus{
+	serviceStatus := map[string]Status{
 		"db":    {Ready: true},
 		"cache": {Ready: true},
 	}
-	statusGetter := func(id string) (ServiceStatus, bool) {
+	statusGetter := func(id string) (Status, bool) {
 		s, ok := serviceStatus[id]
 		return s, ok
 	}
@@ -350,12 +317,12 @@ func TestWaitForDependencies(t *testing.T) {
 		},
 	}
 
-	hm := health.NewMonitor(health.MonitorConfig{
+	hm := NewMonitor(MonitorConfig{
 		Manifest:     m,
-		Ports:        &testMockPortAllocator{Ports: map[string]map[string]int{}},
-		Dialer:       RealNetworkDialer{},
+		Ports:        &testutil.MockPortAllocator{Ports: map[string]map[string]int{}},
+		Dialer:       infra.RealNetworkDialer{},
 		CmdRunner:    testutil.NewMockCommandRunner(),
-		FS:           NewMockFileSystem(),
+		FS:           testutil.NewMockFileSystem(),
 		Clock:        clock,
 		AppData:      "/tmp/test-appdata",
 		StatusGetter: statusGetter,
@@ -374,10 +341,10 @@ func TestWaitForDependencies(t *testing.T) {
 }
 
 func TestWaitForDependencies_MissingDep(t *testing.T) {
-	clock := NewMockClock(time.Now())
+	clock := testutil.NewMockClock(time.Now())
 
-	serviceStatus := map[string]ServiceStatus{}
-	statusGetter := func(id string) (ServiceStatus, bool) {
+	serviceStatus := map[string]Status{}
+	statusGetter := func(id string) (Status, bool) {
 		s, ok := serviceStatus[id]
 		return s, ok
 	}
@@ -388,12 +355,12 @@ func TestWaitForDependencies_MissingDep(t *testing.T) {
 		},
 	}
 
-	hm := health.NewMonitor(health.MonitorConfig{
+	hm := NewMonitor(MonitorConfig{
 		Manifest:     m,
-		Ports:        &testMockPortAllocator{Ports: map[string]map[string]int{}},
-		Dialer:       RealNetworkDialer{},
+		Ports:        &testutil.MockPortAllocator{Ports: map[string]map[string]int{}},
+		Dialer:       infra.RealNetworkDialer{},
 		CmdRunner:    testutil.NewMockCommandRunner(),
-		FS:           NewMockFileSystem(),
+		FS:           testutil.NewMockFileSystem(),
 		Clock:        clock,
 		AppData:      "/tmp/test-appdata",
 		StatusGetter: statusGetter,
@@ -418,7 +385,7 @@ func TestWaitForDependencies_NoDeps(t *testing.T) {
 		},
 	}
 
-	hm := testHealthMonitor(m, map[string]map[string]int{}, nil, nil, nil, nil)
+	hm := testMonitor(m, map[string]map[string]int{}, nil, nil, nil, nil)
 
 	svc := &manifest.Service{
 		ID:           "api",
@@ -433,7 +400,7 @@ func TestWaitForDependencies_NoDeps(t *testing.T) {
 }
 
 func TestWaitForReadiness_Retries(t *testing.T) {
-	clock := NewMockClock(time.Now())
+	clock := testutil.NewMockClock(time.Now())
 	runner := testutil.NewMockCommandRunner()
 	runner.SetShouldErr(true)
 
@@ -450,15 +417,14 @@ func TestWaitForReadiness_Retries(t *testing.T) {
 				},
 				Readiness: manifest.ReadinessCheck{
 					Type:      "health_success",
-					TimeoutMs: 3000, // Long enough for retries
+					TimeoutMs: 3000,
 				},
 			},
 		},
 	}
 
-	hm := testHealthMonitor(m, map[string]map[string]int{}, clock, nil, nil, runner)
+	hm := testMonitor(m, map[string]map[string]int{}, clock, nil, nil, runner)
 
-	// Using the public WaitForReadiness API which internally uses pollHealth
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -467,7 +433,6 @@ func TestWaitForReadiness_Retries(t *testing.T) {
 		t.Error("WaitForReadiness() expected error after retries exhausted")
 	}
 
-	// Should have tried 3 times (initial + 2 retries)
 	if len(runner.Commands()) != 3 {
 		t.Errorf("WaitForReadiness() ran %d commands, expected 3", len(runner.Commands()))
 	}

@@ -1,6 +1,7 @@
 package bundleruntime
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,8 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	"scenario-to-desktop-runtime/api"
+	"scenario-to-desktop-runtime/health"
 	"scenario-to-desktop-runtime/manifest"
+	"scenario-to-desktop-runtime/secrets"
 	"scenario-to-desktop-runtime/telemetry"
+	"scenario-to-desktop-runtime/testutil"
 )
 
 func TestEnsureAssetsSizeBudget(t *testing.T) {
@@ -73,7 +78,7 @@ func TestApplyPlaywrightConventionsFallback(t *testing.T) {
 			BundlePath: filepath.Join(tmp, "bundle"),
 			Manifest:   &manifest.Manifest{},
 		},
-		portAllocator: &testMockPortAllocator{Ports: map[string]map[string]int{
+		portAllocator: &testutil.MockPortAllocator{Ports: map[string]map[string]int{
 			"playwright-driver": {"http": 48000},
 		}},
 		telemetryPath: telemetryPath,
@@ -110,6 +115,33 @@ func TestApplyPlaywrightConventionsFallback(t *testing.T) {
 	}
 }
 
+// mockSupervisorRuntime wraps a Supervisor to implement api.Runtime for testing.
+type mockSupervisorRuntime struct {
+	manifest      *manifest.Manifest
+	secretStore   *secrets.Manager
+	statuses      map[string]health.Status
+	telemetryLogs []string
+}
+
+func (m *mockSupervisorRuntime) Shutdown(_ context.Context) error { return nil }
+func (m *mockSupervisorRuntime) ServiceStatuses() map[string]health.Status {
+	return m.statuses
+}
+func (m *mockSupervisorRuntime) PortMap() map[string]map[string]int {
+	return map[string]map[string]int{}
+}
+func (m *mockSupervisorRuntime) TelemetryPath() string         { return "/tmp/telemetry.jsonl" }
+func (m *mockSupervisorRuntime) TelemetryUploadURL() string    { return "" }
+func (m *mockSupervisorRuntime) Manifest() *manifest.Manifest  { return m.manifest }
+func (m *mockSupervisorRuntime) AppDataDir() string            { return "/tmp/appdata" }
+func (m *mockSupervisorRuntime) FileSystem() FileSystem        { return RealFileSystem{} }
+func (m *mockSupervisorRuntime) SecretStore() api.SecretStore  { return m.secretStore }
+func (m *mockSupervisorRuntime) StartServicesIfReady()         {}
+func (m *mockSupervisorRuntime) RecordTelemetry(event string, _ map[string]interface{}) error {
+	m.telemetryLogs = append(m.telemetryLogs, event)
+	return nil
+}
+
 func TestHandleSecretsGetReturnsStatus(t *testing.T) {
 	manifestData := &manifest.Manifest{
 		App: manifest.App{Name: "demo", Version: "1.0.0"},
@@ -122,17 +154,22 @@ func TestHandleSecretsGetReturnsStatus(t *testing.T) {
 			{ID: "OPTIONAL_HINT", Class: "per_install_generated", Required: ptrBool(false)},
 		},
 	}
-	sm := NewSecretManager(manifestData, NewMockFileSystem(), "/tmp/secrets.json")
+	sm := secrets.NewManager(manifestData, testutil.NewMockFileSystem(), "/tmp/secrets.json")
 	sm.Set(map[string]string{"OPTIONAL_HINT": "seed"})
-	s := &Supervisor{
-		opts:        Options{Manifest: manifestData},
+
+	rt := &mockSupervisorRuntime{
+		manifest:    manifestData,
 		secretStore: sm,
+		statuses:    map[string]health.Status{"api": {Ready: false}},
 	}
+	server := api.NewServer(rt, "test-token")
 
 	req := httptest.NewRequest(http.MethodGet, "/secrets", nil)
 	rr := httptest.NewRecorder()
 
-	s.handleSecrets(rr, req)
+	mux := http.NewServeMux()
+	server.RegisterHandlers(mux)
+	mux.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
