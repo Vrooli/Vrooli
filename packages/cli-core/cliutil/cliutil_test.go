@@ -208,3 +208,47 @@ func TestValidateAPIBase(t *testing.T) {
 		t.Fatalf("unexpected base: %s", base)
 	}
 }
+
+func TestStringListFlagCollectsValues(t *testing.T) {
+	var list StringList
+	list.Set("a")
+	list.Set("b")
+	values := list.Values()
+	if len(values) != 2 || values[0] != "a" || values[1] != "b" {
+		t.Fatalf("unexpected values: %+v", values)
+	}
+	values[0] = "mutated"
+	// Ensure Values() returns a copy.
+	second := list.Values()
+	if second[0] != "a" {
+		t.Fatalf("expected copy to remain unchanged, got %+v", second)
+	}
+}
+
+func TestParseCSVAndMergeArgs(t *testing.T) {
+	parsed := ParseCSV("a, b, ,c")
+	if len(parsed) != 3 || parsed[1] != "b" {
+		t.Fatalf("unexpected parsed csv: %+v", parsed)
+	}
+
+	merged := MergeArgs([]string{"one"}, []string{"", "two", " three "})
+	if len(merged) != 3 || merged[2] != "three" {
+		t.Fatalf("unexpected merged args: %+v", merged)
+	}
+}
+
+func TestReadFileString(t *testing.T) {
+	temp := t.TempDir()
+	path := filepath.Join(temp, "file.txt")
+	content := "hello\nworld"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	got, err := ReadFileString(path)
+	if err != nil {
+		t.Fatalf("ReadFileString: %v", err)
+	}
+	if got != content {
+		t.Fatalf("expected %q, got %q", content, got)
+	}
+}
