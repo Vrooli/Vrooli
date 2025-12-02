@@ -187,8 +187,8 @@ Goal: deliver true offline/portable desktop bundles (UI + API + resources + secr
 - [x] Runtime wiring to product UX: Bundled mode now consumes real manifests end-to-end (UI/CLI accept `bundle_manifest_path`, generator packages bundles/runtime, Electron launches the bundled runtime instead of blocking, and dry-run defaults to real service startup).
 
 **Missing / To Do**
-- [ ] Manifest assembly: deployment-manager must generate desktop `bundle.json` from scenario-dependency-analyzer output + swaps + secrets plan, not just validate; scenario-dependency-analyzer must emit v0.1 skeletons/fixtures.
-- [ ] Secrets plan + UX: secrets-manager must export bundle-ready secret plans per tier; Electron first-run wizard must collect `user_prompt` secrets and POST `/secrets` before launch.
+- [x] Manifest assembly: deployment-manager now generates desktop `bundle.json` from scenario-dependency-analyzer bundle skeletons (v0.1) and merges secrets plans; exposed via `/api/v1/bundles/assemble`.
+- [x] Secrets plan + UX: secrets-manager exports bundle-ready secret plans per tier (including fallback when discovery fails); Electron bundled launches now gate on the runtime control API, prompt for `user_prompt` secrets before readiness checks, POST them to `/secrets`, and fail fast with clear messaging if required secrets are withheld.
 - [ ] Telemetry/logs UX: Electron UI should render `/readyz`/`/ports`/`/logs` and automate telemetry upload; deployment-manager UI should ingest and surface bundle telemetry failures.
 - [ ] Packaging completeness polish: scrub remaining exe/dmg references, confirm MSI/PKG/AppImage flows, and document/update the updater channel design (still pending).
 - [ ] GPU visibility/tests: surface GPU availability/requirement status in UI and add runtime tests covering gpu_required/optional paths.
