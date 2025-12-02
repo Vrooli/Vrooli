@@ -4,12 +4,13 @@ import { AdminAuthProvider, useAdminAuth } from './AdminAuthProvider';
 
 // Test component that uses the auth context
 function TestComponent() {
-  const { isAuthenticated, user, login, logout } = useAdminAuth();
+  const { isAuthenticated, user, login, logout, canResetDemoData } = useAdminAuth();
 
   return (
     <div>
       <div data-testid="auth-status">{isAuthenticated ? 'authenticated' : 'not-authenticated'}</div>
       <div data-testid="user-email">{user?.email || 'no-user'}</div>
+      <div data-testid="reset-flag">{canResetDemoData ? 'reset-enabled' : 'reset-disabled'}</div>
       <button onClick={() => login('test@example.com', 'password')} data-testid="login-btn">
         Login
       </button>
@@ -52,10 +53,11 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
 
     expect(screen.getByTestId('auth-status')).toHaveTextContent('not-authenticated');
     expect(screen.getByTestId('user-email')).toHaveTextContent('no-user');
+    expect(screen.getByTestId('reset-flag')).toHaveTextContent('reset-disabled');
   });
 
   it('[REQ:ADMIN-AUTH] should check session on mount for admin routes', async () => {
-    const mockSessionData = { authenticated: true, email: 'admin@example.com' };
+    const mockSessionData = { authenticated: true, email: 'admin@example.com', reset_enabled: true };
 
     vi.mocked(global.fetch).mockResolvedValue({
       ok: true,
@@ -81,6 +83,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     await waitFor(() => {
       expect(screen.getByTestId('auth-status')).toHaveTextContent('authenticated');
       expect(screen.getByTestId('user-email')).toHaveTextContent('admin@example.com');
+      expect(screen.getByTestId('reset-flag')).toHaveTextContent('reset-enabled');
     });
   });
 
@@ -104,10 +107,11 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
 
     expect(global.fetch).not.toHaveBeenCalled();
     expect(screen.getByTestId('auth-status')).toHaveTextContent('not-authenticated');
+    expect(screen.getByTestId('reset-flag')).toHaveTextContent('reset-disabled');
   });
 
   it('[REQ:ADMIN-AUTH] should handle login successfully', async () => {
-    const mockUserData = { email: 'test@example.com' };
+    const mockUserData = { email: 'test@example.com', reset_enabled: true };
 
     // Mock initial session check (fail)
     vi.mocked(global.fetch)
@@ -144,6 +148,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     await waitFor(() => {
       expect(screen.getByTestId('auth-status')).toHaveTextContent('authenticated');
       expect(screen.getByTestId('user-email')).toHaveTextContent('test@example.com');
+      expect(screen.getByTestId('reset-flag')).toHaveTextContent('reset-enabled');
     });
   });
 
@@ -213,7 +218,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
   });
 
   it('[REQ:ADMIN-AUTH] should handle logout successfully', async () => {
-    const mockUserData = { email: 'test@example.com' };
+    const mockUserData = { email: 'test@example.com', reset_enabled: true };
 
     // Mock successful session check
     vi.mocked(global.fetch)

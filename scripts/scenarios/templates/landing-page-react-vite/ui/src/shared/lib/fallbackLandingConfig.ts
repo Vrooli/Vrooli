@@ -1,11 +1,11 @@
-import type { LandingConfigResponse, LandingSection, DownloadAsset, PricingOverview, VariantAxes } from '../api';
+import type { LandingConfigResponse, LandingSection, DownloadApp, PricingOverview, VariantAxes } from '../api';
 import rawFallback from '../../../../.vrooli/variants/fallback.json';
 
 interface FallbackPayload {
   variant: LandingConfigResponse['variant'];
   sections?: LandingSection[] | null;
   pricing?: PricingOverview;
-  downloads?: DownloadAsset[];
+  downloads?: DownloadApp[];
   axes?: VariantAxes;
 }
 

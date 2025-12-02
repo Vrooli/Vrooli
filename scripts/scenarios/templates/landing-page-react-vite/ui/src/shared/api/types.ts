@@ -96,12 +96,34 @@ export interface PricingOverview {
 export interface DownloadAsset {
   id?: number;
   bundle_key: string;
+  app_key: string;
   platform: string;
   artifact_url: string;
   release_version: string;
   release_notes?: string;
   requires_entitlement: boolean;
   metadata?: Record<string, unknown>;
+}
+
+export interface DownloadStorefront {
+  store: string;
+  label: string;
+  url: string;
+  badge?: string;
+}
+
+export interface DownloadApp {
+  bundle_key: string;
+  app_key: string;
+  name: string;
+  tagline?: string;
+  description?: string;
+  install_overview?: string;
+  install_steps?: string[];
+  storefronts?: DownloadStorefront[];
+  metadata?: Record<string, unknown>;
+  display_order?: number;
+  platforms: DownloadAsset[];
 }
 
 export type SectionType =
@@ -112,7 +134,8 @@ export type SectionType =
   | 'testimonials'
   | 'faq'
   | 'footer'
-  | 'video';
+  | 'video'
+  | 'downloads';
 
 export interface ContentSection {
   id: number;
@@ -143,7 +166,7 @@ export interface LandingConfigResponse {
   };
   sections: LandingSection[];
   pricing?: PricingOverview;
-  downloads: DownloadAsset[];
+  downloads: DownloadApp[];
   fallback: boolean;
 }
 

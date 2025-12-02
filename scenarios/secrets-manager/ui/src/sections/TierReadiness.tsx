@@ -111,6 +111,9 @@ export const DeploymentReadinessPanel = ({
             Resource readiness answers “are my resources strategized per tier?” Scenario readiness answers “can this
             scenario ship to a target tier right now?”. Use this panel to generate manifests and clear blockers per scenario.
           </p>
+          <p className="text-xs text-white/50 mt-1">
+            Currently focused on: <span className="font-semibold text-white">{manifestState.scenario || "Select a scenario"}</span>
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {onStartJourney ? (
@@ -164,6 +167,7 @@ export const DeploymentReadinessPanel = ({
             <div>
               <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">Manifest generator</p>
               <p className="text-sm text-white/70">Select scope and emit deployment bundle</p>
+              <p className="text-[11px] text-white/50">Shared with the guided journey selection.</p>
             </div>
             <FileOutput className="h-4 w-4 text-white/60" />
           </div>
@@ -222,7 +226,7 @@ export const DeploymentReadinessPanel = ({
               size="sm"
               className="w-full"
               onClick={manifestState.onGenerateManifest}
-              disabled={manifestState.manifestIsLoading}
+              disabled={manifestState.manifestIsLoading || !manifestState.scenario}
             >
               {manifestState.manifestIsLoading ? "Generating..." : "Generate manifest"}
             </Button>
@@ -235,6 +239,11 @@ export const DeploymentReadinessPanel = ({
         </div>
         <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
           <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">Manifest status</p>
+          {manifestState.manifestData ? (
+            <p className="mt-1 text-xs text-white/60">
+              {manifestState.manifestData.scenario} · {manifestState.manifestData.tier}
+            </p>
+          ) : null}
           {manifestState.manifestIsLoading ? (
               <div className="mt-3 flex items-center gap-3 rounded-xl border border-cyan-400/30 bg-cyan-400/5 px-3 py-2">
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />

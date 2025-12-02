@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
+  fetchDeploymentReadiness,
   generateDeploymentManifest,
   provisionSecrets,
   type DeploymentManifestRequest,
   type DeploymentManifestResponse,
+  type DeploymentReadinessResponse,
   type ProvisionSecretsPayload,
   type ProvisionSecretsResponse,
   type ScenarioSummary
@@ -57,6 +59,19 @@ export const useJourneys = (options: UseJourneysOptions) => {
   const [provisionResourceInput, setProvisionResourceInput] = useState("");
   const [provisionSecretKey, setProvisionSecretKey] = useState("");
   const [provisionSecretValue, setProvisionSecretValue] = useState("");
+  const [readinessRefreshKey, setReadinessRefreshKey] = useState(0);
+  const [autoManifestDisabled, setAutoManifestDisabled] = useState(false);
+  const [tierSnapshots, setTierSnapshots] = useState<
+    Record<
+      string,
+      {
+        summary?: DeploymentReadinessResponse["summary"];
+        generatedAt?: string;
+        loading?: boolean;
+        error?: string;
+      }
+    >
+  >({});
 
   const manifestMutation = useMutation<DeploymentManifestResponse, Error, DeploymentManifestRequest>({
     mutationFn: (payload) => generateDeploymentManifest(payload)
@@ -72,22 +87,99 @@ export const useJourneys = (options: UseJourneysOptions) => {
     }
   }, [options.selectedScenario, deploymentScenario]);
 
-  const parsedResources = useMemo(() => {
-    if (!resourceInput.trim()) return undefined;
-    return resourceInput
+  const parseResources = useCallback((value: string) => {
+    if (!value.trim()) return undefined;
+    return value
       .split(/[\n,]+/)
-      .map((value) => value.trim())
+      .map((item) => item.trim())
       .filter(Boolean);
-  }, [resourceInput]);
+  }, []);
 
   const handleManifestRequest = useCallback(() => {
+    const resources = parseResources(resourceInput);
     manifestMutation.mutate({
       scenario: deploymentScenario,
       tier: deploymentTier,
-      resources: parsedResources,
+      resources,
       include_optional: false
     });
-  }, [manifestMutation, deploymentScenario, deploymentTier, parsedResources]);
+  }, [manifestMutation.mutate, deploymentScenario, deploymentTier, parseResources, resourceInput]);
+
+  // Auto-refresh manifest whenever scenario/tier/resources change (skip if user-facing errors disable it)
+  useEffect(() => {
+    if (!deploymentScenario || autoManifestDisabled) return;
+    handleManifestRequest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deploymentScenario, deploymentTier, resourceInput, autoManifestDisabled]);
+
+  // If manifest fetch fails, stop auto-loop and let the user click regenerate manually.
+  useEffect(() => {
+    if (manifestMutation.isError) {
+      setAutoManifestDisabled(true);
+    }
+  }, [manifestMutation.isError]);
+
+  // Re-enable auto manifest when inputs change or a success occurs.
+  useEffect(() => {
+    setAutoManifestDisabled(false);
+  }, [deploymentScenario, deploymentTier]);
+
+  useEffect(() => {
+    if (manifestMutation.isSuccess) {
+      setAutoManifestDisabled(false);
+    }
+  }, [manifestMutation.isSuccess]);
+
+  // Fetch readiness snapshots for all tiers for this scenario
+  useEffect(() => {
+    if (!deploymentScenario || options.tierReadiness.length === 0) return;
+    const tiers = options.tierReadiness.map((tier) => tier.tier);
+    setTierSnapshots((prev) => {
+      const next = { ...prev };
+      tiers.forEach((tier) => {
+        next[tier] = { ...next[tier], loading: true, error: undefined };
+      });
+      return next;
+    });
+
+    let cancelled = false;
+    const resources = parseResources(resourceInput);
+
+    const fetchTiers = async () => {
+      for (const tier of tiers) {
+        try {
+          const data = await fetchDeploymentReadiness({
+            scenario: deploymentScenario,
+            tier,
+            resources,
+            include_optional: false
+          });
+          if (cancelled) return;
+          setTierSnapshots((prev) => ({
+            ...prev,
+            [tier]: {
+              summary: data.summary,
+              generatedAt: data.generated_at,
+              loading: false,
+              error: undefined
+            }
+          }));
+        } catch (err) {
+          if (cancelled) return;
+          const message = err instanceof Error ? err.message : "Failed to load readiness";
+          setTierSnapshots((prev) => ({
+            ...prev,
+            [tier]: { ...prev[tier], loading: false, error: message }
+          }));
+        }
+      }
+    };
+
+    fetchTiers();
+    return () => {
+      cancelled = true;
+    };
+  }, [deploymentScenario, resourceInput, options.tierReadiness, parseResources, readinessRefreshKey]);
 
   const handleProvisionSubmit = useCallback(() => {
     provisionMutation.mutate({
@@ -113,6 +205,14 @@ export const useJourneys = (options: UseJourneysOptions) => {
     [options]
   );
 
+  const selectedTierSnapshot = tierSnapshots[deploymentTier];
+  const selectedTierHasData = !!selectedTierSnapshot?.summary;
+  const selectedTierLoading = !!selectedTierSnapshot?.loading;
+
+  const handleReadinessRefresh = useCallback(() => {
+    setReadinessRefreshKey((value) => value + 1);
+  }, []);
+
   const journeySteps = useMemo(
     () =>
       buildJourneySteps(activeJourney, {
@@ -132,6 +232,13 @@ export const useJourneys = (options: UseJourneysOptions) => {
         manifestIsLoading: manifestMutation.isPending,
         manifestIsError: manifestMutation.isError,
         manifestError: manifestMutation.error ?? undefined,
+        readinessSummary: selectedTierSnapshot?.summary,
+        readinessGeneratedAt: selectedTierSnapshot?.generatedAt,
+        readinessIsLoading: selectedTierSnapshot?.loading,
+        readinessIsError: !!selectedTierSnapshot?.error,
+        readinessError: selectedTierSnapshot?.error ? new Error(selectedTierSnapshot.error) : undefined,
+        readinessByTier: tierSnapshots,
+        onRefreshReadiness: handleReadinessRefresh,
         topResourceNeedingAttention: options.topResourceNeedingAttention,
         scenarioSelectionContent: options.scenarioSelection ? (
           <ScenarioSelector
@@ -174,12 +281,14 @@ export const useJourneys = (options: UseJourneysOptions) => {
       manifestMutation.isPending,
       manifestMutation.isError,
       manifestMutation.error,
+      tierSnapshots,
       options.topResourceNeedingAttention,
       options.onOpenResource,
       options.onRefetchVulnerabilities,
       handleManifestRequest,
       handleProvisionSubmit,
       handleSetDeploymentScenario,
+      handleReadinessRefresh,
       options.scenarioSelection
     ]
   );
@@ -204,6 +313,11 @@ export const useJourneys = (options: UseJourneysOptions) => {
     setJourneyStep((value) => Math.max(0, value - 1));
   }, []);
 
+  const journeyNextDisabled =
+    (activeJourney === "prep-deployment" && journeyStep === 0 && !deploymentScenario) ||
+    (activeJourney === "prep-deployment" && journeyStep === 1 && !selectedTierHasData && !selectedTierLoading) ||
+    (activeJourney === "prep-deployment" && journeyStep >= 2 && !manifestMutation.data && !manifestMutation.isPending);
+
   return {
     activeJourney,
     journeyStep,
@@ -212,6 +326,7 @@ export const useJourneys = (options: UseJourneysOptions) => {
     handleJourneyExit,
     handleJourneyNext,
     handleJourneyBack,
+    journeyNextDisabled,
     deploymentFlow: {
       scenario: deploymentScenario,
       tier: deploymentTier,

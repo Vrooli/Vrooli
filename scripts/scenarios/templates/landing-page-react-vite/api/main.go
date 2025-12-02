@@ -132,6 +132,10 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/admin/session", s.handleAdminSession).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/settings/stripe", s.requireAdmin(handleGetStripeSettings(s.paymentSettings, s.stripeService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/settings/stripe", s.requireAdmin(handleUpdateStripeSettings(s.paymentSettings, s.stripeService))).Methods("PUT")
+	s.router.HandleFunc("/api/v1/admin/reset-demo-data", s.requireAdmin(s.handleAdminResetDemoData)).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-apps", s.requireAdmin(handleAdminListDownloadApps(s.downloadService, s.planService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/download-apps", s.requireAdmin(handleAdminCreateDownloadApp(s.downloadService, s.planService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-apps/{app_key}", s.requireAdmin(handleAdminSaveDownloadApp(s.downloadService, s.planService))).Methods("PUT")
 	s.router.HandleFunc("/api/v1/admin/bundles", s.requireAdmin(handleAdminBundleCatalog(s.planService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/bundles/{bundle_key}/prices/{price_id}", s.requireAdmin(handleAdminUpdateBundlePrice(s.planService))).Methods("PATCH")
 
@@ -241,6 +245,62 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (s *Server) handleAdminResetDemoData(w http.ResponseWriter, r *http.Request) {
+	if !adminResetEnabled() {
+		http.Error(w, "demo reset disabled", http.StatusForbidden)
+		return
+	}
+
+	if err := s.resetDemoData(r.Context()); err != nil {
+		logStructuredError("admin_reset_failed", map[string]interface{}{"error": err.Error()})
+		http.Error(w, "failed to reset demo data", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"reset":     true,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (s *Server) resetDemoData(ctx context.Context) error {
+	tables := []string{
+		"content_sections",
+		"variant_axes",
+		"variants",
+		"download_assets",
+		"download_apps",
+		"bundle_prices",
+		"bundle_products",
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for _, table := range tables {
+		stmt := fmt.Sprintf("TRUNCATE TABLE %s CASCADE", table)
+		if _, err := tx.ExecContext(ctx, stmt); err != nil {
+			return fmt.Errorf("truncate %s: %w", table, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return seedDefaultData(s.db)
+}
+
+func adminResetEnabled() bool {
+	return strings.EqualFold(strings.TrimSpace(os.Getenv("ENABLE_ADMIN_RESET")), "true")
+}
+
 // seedDefaultData ensures the public landing page has content without requiring admin setup
 func seedDefaultData(db *sql.DB) error {
 	if err := ensureSchema(db); err != nil {
@@ -304,19 +364,8 @@ func seedDefaultData(db *sql.DB) error {
 	}
 
 	if sectionCount == 0 {
-		hero := `{"headline": "Build Landing Pages in Minutes", "subheadline": "Create beautiful, conversion-optimized landing pages with A/B testing and analytics built-in", "cta_text": "Get Started Free", "cta_url": "/signup", "background_color": "#0f172a"}`
-		features := `{"title": "Everything You Need", "items": [{"title": "A/B Testing", "description": "Test variants and optimize conversions", "icon": "Zap"}, {"title": "Analytics", "description": "Track visitor behavior and metrics", "icon": "BarChart"}, {"title": "Stripe Integration", "description": "Accept payments instantly", "icon": "CreditCard"}]}`
-		pricing := `{"title": "Simple Pricing", "plans": [{"name": "Starter", "price": "$29", "features": ["5 landing pages", "Basic analytics", "Email support"], "cta_text": "Start Free Trial"}, {"name": "Pro", "price": "$99", "features": ["Unlimited pages", "Advanced analytics", "Priority support", "Custom domains"], "cta_text": "Get Started", "highlighted": true}]}`
-		cta := `{"headline": "Ready to Launch Your Landing Page?", "subheadline": "Join thousands of marketers using Landing Manager", "cta_text": "Start Building Now", "cta_url": "/signup"}`
-
-		if _, err := db.Exec(`
-			INSERT INTO content_sections (variant_id, section_type, content, "order", enabled) VALUES
-			($1, 'hero', $2::jsonb, 1, TRUE),
-			($1, 'features', $3::jsonb, 2, TRUE),
-			($1, 'pricing', $4::jsonb, 3, TRUE),
-			($1, 'cta', $5::jsonb, 4, TRUE)
-		`, controlID, hero, features, pricing, cta); err != nil {
-			return fmt.Errorf("failed to seed default sections: %w", err)
+		if err := seedSectionsFromFallback(db, controlID); err != nil {
+			return err
 		}
 	}
 
@@ -324,7 +373,355 @@ func seedDefaultData(db *sql.DB) error {
 		return fmt.Errorf("failed to seed variant axes defaults: %w", err)
 	}
 
+	if err := seedBundlePricingDefaults(db, fallbackLanding.Pricing); err != nil {
+		return err
+	}
+
+	if err := seedDownloadDefaults(db, fallbackLanding.Downloads); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func defaultSectionSeeds() []LandingSection {
+	if len(fallbackLanding.Sections) > 0 {
+		return fallbackLanding.Sections
+	}
+
+	return []LandingSection{
+		{
+			SectionType: "hero",
+			Order:       1,
+			Enabled:     true,
+			Content: map[string]interface{}{
+				"headline": "Build Landing Pages in Minutes",
+				"subheadline": "Create beautiful, conversion-optimized landing pages with A/B testing and analytics built-in",
+				"cta_text":  "Get Started Free",
+				"cta_url":   "/signup",
+			},
+		},
+		{
+			SectionType: "features",
+			Order:       2,
+			Enabled:     true,
+			Content: map[string]interface{}{
+				"title": "Everything You Need",
+				"items": []map[string]interface{}{
+					{"title": "A/B Testing", "description": "Test variants and optimize conversions", "icon": "Zap"},
+					{"title": "Analytics", "description": "Track visitor behavior and metrics", "icon": "BarChart"},
+					{"title": "Stripe Integration", "description": "Accept payments instantly", "icon": "CreditCard"},
+				},
+			},
+		},
+		{
+			SectionType: "pricing",
+			Order:       3,
+			Enabled:     true,
+			Content: map[string]interface{}{
+				"title": "Simple Pricing",
+				"plans": []map[string]interface{}{
+					{"name": "Starter", "price": "$29", "features": []string{"5 landing pages", "Basic analytics", "Email support"}, "cta_text": "Start Free Trial"},
+					{"name": "Pro", "price": "$99", "features": []string{"Unlimited pages", "Advanced analytics", "Priority support", "Custom domains"}, "cta_text": "Get Started", "highlighted": true},
+				},
+			},
+		},
+		{
+			SectionType: "cta",
+			Order:       4,
+			Enabled:     true,
+			Content: map[string]interface{}{
+				"headline": "Ready to Launch Your Landing Page?",
+				"subheadline": "Join thousands of marketers using Landing Manager",
+				"cta_text":  "Start Building Now",
+				"cta_url":   "/signup",
+			},
+		},
+	}
+}
+
+func seedSectionsFromFallback(db *sql.DB, variantID int) error {
+	sections := defaultSectionSeeds()
+	for idx, section := range sections {
+		sectionType := strings.TrimSpace(section.SectionType)
+		if sectionType == "" {
+			continue
+		}
+
+		order := section.Order
+		if order <= 0 {
+			order = idx + 1
+		}
+
+		content := section.Content
+		if content == nil {
+			content = map[string]interface{}{}
+		}
+		payload, err := json.Marshal(content)
+		if err != nil {
+			return fmt.Errorf("marshal section %s: %w", sectionType, err)
+		}
+
+		enabled := section.Enabled
+		if _, err := db.Exec(`
+			INSERT INTO content_sections (variant_id, section_type, content, "order", enabled)
+			VALUES ($1, $2, $3::jsonb, $4, $5)
+		`, variantID, sectionType, payload, order, enabled); err != nil {
+			return fmt.Errorf("failed to seed section %s: %w", sectionType, err)
+		}
+	}
+	return nil
+}
+
+func seedBundlePricingDefaults(db *sql.DB, pricing PricingOverview) error {
+	if pricing.Bundle.BundleKey == "" {
+		return nil
+	}
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM bundle_products`).Scan(&count); err != nil {
+		return fmt.Errorf("count bundle products: %w", err)
+	}
+	if count > 0 {
+		return nil
+	}
+
+	bundle := pricing.Bundle
+	bundleMetadata, err := json.Marshal(bundle.Metadata)
+	if err != nil {
+		return fmt.Errorf("marshal bundle metadata: %w", err)
+	}
+
+	var productID int64
+	insertProduct := `
+		INSERT INTO bundle_products (bundle_key, bundle_name, stripe_product_id, credits_per_usd,
+			display_credits_multiplier, display_credits_label, environment, metadata)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+		ON CONFLICT (bundle_key)
+		DO UPDATE SET bundle_name = EXCLUDED.bundle_name,
+			stripe_product_id = EXCLUDED.stripe_product_id,
+			credits_per_usd = EXCLUDED.credits_per_usd,
+			display_credits_multiplier = EXCLUDED.display_credits_multiplier,
+			display_credits_label = EXCLUDED.display_credits_label,
+			environment = EXCLUDED.environment,
+			metadata = EXCLUDED.metadata,
+			updated_at = NOW()
+		RETURNING id
+	`
+	if err := db.QueryRow(insertProduct,
+		bundle.BundleKey,
+		bundle.Name,
+		bundle.StripeProductID,
+		bundle.CreditsPerUSD,
+		bundle.DisplayCreditsMultiplier,
+		bundle.DisplayCreditsLabel,
+		bundle.Environment,
+		bundleMetadata,
+	).Scan(&productID); err != nil {
+		return fmt.Errorf("seed bundle product: %w", err)
+	}
+
+	plans := append([]PlanOption{}, pricing.Monthly...)
+	plans = append(plans, pricing.Yearly...)
+	for _, option := range plans {
+		priceID := strings.TrimSpace(option.StripePriceID)
+		if priceID == "" {
+			continue
+		}
+
+		planMetadata, err := json.Marshal(option.Metadata)
+		if err != nil {
+			return fmt.Errorf("marshal plan metadata %s: %w", option.PlanName, err)
+		}
+
+		displayEnabled := option.DisplayEnabled
+		if !displayEnabled {
+			displayEnabled = true
+		}
+
+		insertPrice := `
+			INSERT INTO bundle_prices (
+				product_id, stripe_price_id, plan_name, plan_tier, billing_interval, amount_cents, currency,
+				intro_enabled, intro_type, intro_amount_cents, intro_periods, intro_price_lookup_key,
+				monthly_included_credits, one_time_bonus_credits, plan_rank, bonus_type, kind,
+				is_variable_amount, display_enabled, metadata, display_weight
+			) VALUES (
+				$1,$2,$3,$4,$5,$6,$7,
+				$8,$9,$10,$11,$12,
+				$13,$14,$15,$16,$17,
+				$18,$19,$20::jsonb,$21
+			)
+			ON CONFLICT (stripe_price_id)
+			DO UPDATE SET plan_name = EXCLUDED.plan_name,
+				plan_tier = EXCLUDED.plan_tier,
+				billing_interval = EXCLUDED.billing_interval,
+				amount_cents = EXCLUDED.amount_cents,
+				currency = EXCLUDED.currency,
+				intro_enabled = EXCLUDED.intro_enabled,
+				intro_type = EXCLUDED.intro_type,
+				intro_amount_cents = EXCLUDED.intro_amount_cents,
+				intro_periods = EXCLUDED.intro_periods,
+				intro_price_lookup_key = EXCLUDED.intro_price_lookup_key,
+				monthly_included_credits = EXCLUDED.monthly_included_credits,
+				one_time_bonus_credits = EXCLUDED.one_time_bonus_credits,
+				plan_rank = EXCLUDED.plan_rank,
+				bonus_type = EXCLUDED.bonus_type,
+				kind = EXCLUDED.kind,
+				is_variable_amount = EXCLUDED.is_variable_amount,
+				display_enabled = EXCLUDED.display_enabled,
+				metadata = EXCLUDED.metadata,
+				display_weight = EXCLUDED.display_weight,
+				updated_at = NOW()
+		`
+
+		var introAmount interface{}
+		if option.IntroAmountCents != nil {
+			introAmount = *option.IntroAmountCents
+		}
+
+		if _, err := db.Exec(insertPrice,
+			productID,
+			priceID,
+			option.PlanName,
+			option.PlanTier,
+			option.BillingInterval,
+			option.AmountCents,
+			option.Currency,
+			option.IntroEnabled,
+			option.IntroType,
+			introAmount,
+			option.IntroPeriods,
+			option.IntroPriceLookupKey,
+			option.MonthlyIncludedCredits,
+			option.OneTimeBonusCredits,
+			option.PlanRank,
+			option.BonusType,
+			valueOrDefault(option.Kind, "subscription"),
+			option.IsVariableAmount,
+			displayEnabled,
+			planMetadata,
+			option.DisplayWeight,
+		); err != nil {
+			return fmt.Errorf("seed bundle price %s: %w", option.PlanName, err)
+		}
+	}
+
+	return nil
+}
+
+func seedDownloadDefaults(db *sql.DB, downloads []DownloadApp) error {
+	if len(downloads) == 0 {
+		return nil
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM download_apps`).Scan(&count); err != nil {
+		return fmt.Errorf("count download apps: %w", err)
+	}
+	if count > 0 {
+		return nil
+	}
+
+	for idx, app := range downloads {
+		bundleKey := strings.TrimSpace(app.BundleKey)
+		appKey := strings.TrimSpace(app.AppKey)
+		if bundleKey == "" {
+			bundleKey = "business_suite"
+		}
+		if appKey == "" {
+			appKey = fmt.Sprintf("bundle_app_%d", idx+1)
+		}
+
+		installSteps, err := json.Marshal(app.InstallSteps)
+		if err != nil {
+			return fmt.Errorf("marshal install steps for %s: %w", appKey, err)
+		}
+		storefronts, err := json.Marshal(app.Storefronts)
+		if err != nil {
+			return fmt.Errorf("marshal storefronts for %s: %w", appKey, err)
+		}
+		metadata, err := json.Marshal(app.Metadata)
+		if err != nil {
+			return fmt.Errorf("marshal metadata for %s: %w", appKey, err)
+		}
+
+		displayOrder := app.DisplayOrder
+		if displayOrder == 0 {
+			displayOrder = idx + 1
+		}
+
+		if _, err := db.Exec(`
+			INSERT INTO download_apps (bundle_key, app_key, name, tagline, description, install_overview, install_steps, storefronts, metadata, display_order)
+			VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10)
+		`,
+			bundleKey,
+			appKey,
+			app.Name,
+			app.Tagline,
+			app.Description,
+			app.InstallOverview,
+			installSteps,
+			storefronts,
+			metadata,
+			displayOrder,
+		); err != nil {
+			return fmt.Errorf("seed download app %s: %w", appKey, err)
+		}
+
+		for _, asset := range app.Platforms {
+			platform := strings.TrimSpace(asset.Platform)
+			if platform == "" {
+				continue
+			}
+			assetMeta, err := json.Marshal(asset.Metadata)
+			if err != nil {
+				return fmt.Errorf("marshal asset metadata %s:%s: %w", appKey, platform, err)
+			}
+
+			assetBundle := asset.BundleKey
+			if strings.TrimSpace(assetBundle) == "" {
+				assetBundle = bundleKey
+			}
+			assetAppKey := asset.AppKey
+			if strings.TrimSpace(assetAppKey) == "" {
+				assetAppKey = appKey
+			}
+
+			if _, err := db.Exec(`
+				INSERT INTO download_assets (bundle_key, app_key, platform, artifact_url, release_version, release_notes, checksum, requires_entitlement, metadata)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)
+				ON CONFLICT (bundle_key, app_key, platform)
+				DO UPDATE SET artifact_url = EXCLUDED.artifact_url,
+					release_version = EXCLUDED.release_version,
+					release_notes = EXCLUDED.release_notes,
+					checksum = EXCLUDED.checksum,
+					requires_entitlement = EXCLUDED.requires_entitlement,
+					metadata = EXCLUDED.metadata,
+					updated_at = NOW()
+			`,
+				assetBundle,
+				assetAppKey,
+				platform,
+				asset.ArtifactURL,
+				asset.ReleaseVersion,
+				asset.ReleaseNotes,
+				asset.Checksum,
+				asset.RequiresEntitlement,
+				assetMeta,
+			); err != nil {
+				return fmt.Errorf("seed download asset %s:%s: %w", appKey, platform, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func valueOrDefault(value, fallback string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return fallback
+	}
+	return trimmed
 }
 
 func upsertVariant(db *sql.DB, slug, name, description string, weight int) (int, error) {
@@ -496,7 +893,7 @@ func ensureSchema(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS content_sections (
 			id SERIAL PRIMARY KEY,
 			variant_id INTEGER REFERENCES variants(id) ON DELETE CASCADE,
-			section_type VARCHAR(50) NOT NULL CHECK (section_type IN ('hero', 'features', 'pricing', 'cta', 'testimonials', 'faq', 'footer', 'video')),
+			section_type VARCHAR(50) NOT NULL CHECK (section_type IN ('hero', 'features', 'pricing', 'cta', 'testimonials', 'faq', 'footer', 'video', 'downloads')),
 			content JSONB NOT NULL,
 			"order" INTEGER DEFAULT 0,
 			enabled BOOLEAN DEFAULT TRUE,
@@ -506,6 +903,8 @@ func ensureSchema(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_content_sections_variant ON content_sections(variant_id);`,
 		`CREATE INDEX IF NOT EXISTS idx_content_sections_type ON content_sections(section_type);`,
 		`CREATE INDEX IF NOT EXISTS idx_content_sections_order ON content_sections("order");`,
+		`ALTER TABLE content_sections DROP CONSTRAINT IF EXISTS content_sections_section_type_check;`,
+		`ALTER TABLE content_sections ADD CONSTRAINT content_sections_section_type_check CHECK (section_type IN ('hero', 'features', 'pricing', 'cta', 'testimonials', 'faq', 'footer', 'video', 'downloads'));`,
 		`CREATE TABLE IF NOT EXISTS bundle_products (
 			id SERIAL PRIMARY KEY,
 			bundle_key VARCHAR(100) UNIQUE NOT NULL,
@@ -549,9 +948,26 @@ func ensureSchema(db *sql.DB) error {
 		`ALTER TABLE bundle_prices ADD COLUMN IF NOT EXISTS display_enabled BOOLEAN DEFAULT TRUE;`,
 		`CREATE INDEX IF NOT EXISTS idx_bundle_prices_tier ON bundle_prices(plan_tier);`,
 		`CREATE INDEX IF NOT EXISTS idx_bundle_prices_interval ON bundle_prices(billing_interval);`,
+		`CREATE TABLE IF NOT EXISTS download_apps (
+			id SERIAL PRIMARY KEY,
+			bundle_key VARCHAR(100) NOT NULL,
+			app_key VARCHAR(100) NOT NULL,
+			name VARCHAR(255) NOT NULL,
+			tagline TEXT,
+			description TEXT,
+			install_overview TEXT,
+			install_steps JSONB DEFAULT '[]'::jsonb,
+			storefronts JSONB DEFAULT '[]'::jsonb,
+			metadata JSONB DEFAULT '{}'::jsonb,
+			display_order INTEGER DEFAULT 0,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW(),
+			UNIQUE (bundle_key, app_key)
+		);`,
 		`CREATE TABLE IF NOT EXISTS download_assets (
 			id SERIAL PRIMARY KEY,
 			bundle_key VARCHAR(100) NOT NULL,
+			app_key VARCHAR(100) NOT NULL,
 			platform VARCHAR(50) NOT NULL CHECK (platform IN ('windows','mac','linux')),
 			artifact_url TEXT NOT NULL,
 			release_version VARCHAR(50) NOT NULL,
@@ -560,9 +976,23 @@ func ensureSchema(db *sql.DB) error {
 			requires_entitlement BOOLEAN DEFAULT TRUE,
 			metadata JSONB DEFAULT '{}'::jsonb,
 			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
+			updated_at TIMESTAMP DEFAULT NOW(),
+			CONSTRAINT fk_download_app FOREIGN KEY (bundle_key, app_key)
+				REFERENCES download_apps(bundle_key, app_key) ON DELETE CASCADE
 		);`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS idx_download_assets_bundle_platform ON download_assets(bundle_key, platform);`,
+		`CREATE INDEX IF NOT EXISTS idx_download_apps_bundle ON download_apps(bundle_key);`,
+		`ALTER TABLE download_assets ADD COLUMN IF NOT EXISTS app_key VARCHAR(100);`,
+		`UPDATE download_assets SET app_key = bundle_key WHERE app_key IS NULL OR app_key = '';`,
+		`ALTER TABLE download_assets ALTER COLUMN app_key SET NOT NULL;`,
+		`ALTER TABLE download_assets DROP CONSTRAINT IF EXISTS fk_download_app;`,
+		`ALTER TABLE download_assets ADD CONSTRAINT fk_download_app FOREIGN KEY (bundle_key, app_key)
+			REFERENCES download_apps(bundle_key, app_key) ON DELETE CASCADE;`,
+		`DROP INDEX IF EXISTS idx_download_assets_bundle_platform;`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_download_assets_bundle_app_platform ON download_assets(bundle_key, app_key, platform);`,
+		`INSERT INTO download_apps (bundle_key, app_key, name, display_order)
+			SELECT DISTINCT bundle_key, app_key, CONCAT(bundle_key, ' downloads'), 0
+			FROM download_assets
+			ON CONFLICT (bundle_key, app_key) DO NOTHING;`,
 		`CREATE TABLE IF NOT EXISTS credit_wallets (
 			id SERIAL PRIMARY KEY,
 			customer_email VARCHAR(255) UNIQUE NOT NULL,

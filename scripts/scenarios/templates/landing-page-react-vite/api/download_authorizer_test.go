@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -10,11 +11,12 @@ type fakeDownloads struct {
 	err    error
 }
 
-func (f *fakeDownloads) GetAsset(bundleKey, platform string) (*DownloadAsset, error) {
+func (f *fakeDownloads) GetAsset(bundleKey, appKey, platform string) (*DownloadAsset, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
-	if asset, ok := f.assets[bundleKey+":"+platform]; ok {
+	key := strings.Join([]string{bundleKey, appKey, platform}, ":")
+	if asset, ok := f.assets[key]; ok {
 		return asset, nil
 	}
 	return nil, errors.New("asset missing")
@@ -37,7 +39,7 @@ func (t *trackingEntitlements) GetEntitlements(user string) (*EntitlementPayload
 func TestDownloadAuthorizerAuthorize_AllowsUngatedAssets(t *testing.T) {
 	downloads := &fakeDownloads{
 		assets: map[string]*DownloadAsset{
-			"bundle:mac": {Platform: "mac", RequiresEntitlement: false},
+			"bundle:app:mac": {Platform: "mac", RequiresEntitlement: false},
 		},
 	}
 	entitlements := &trackingEntitlements{
@@ -45,7 +47,7 @@ func TestDownloadAuthorizerAuthorize_AllowsUngatedAssets(t *testing.T) {
 	}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
-	asset, err := authorizer.Authorize("mac", "")
+	asset, err := authorizer.Authorize("app", "mac", "")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -61,7 +63,7 @@ func TestDownloadAuthorizerAuthorize_AllowsUngatedAssets(t *testing.T) {
 func TestDownloadAuthorizerAuthorize_RequiresActiveSubscription(t *testing.T) {
 	downloads := &fakeDownloads{
 		assets: map[string]*DownloadAsset{
-			"bundle:windows": {Platform: "windows", RequiresEntitlement: true},
+			"bundle:app:windows": {Platform: "windows", RequiresEntitlement: true},
 		},
 	}
 	entitlements := &trackingEntitlements{
@@ -69,7 +71,7 @@ func TestDownloadAuthorizerAuthorize_RequiresActiveSubscription(t *testing.T) {
 	}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
-	if _, err := authorizer.Authorize("windows", "user@example.com"); err != nil {
+	if _, err := authorizer.Authorize("app", "windows", "user@example.com"); err != nil {
 		t.Fatalf("expected access for trialing status, got %v", err)
 	}
 	if entitlements.calls != 1 {
@@ -77,7 +79,7 @@ func TestDownloadAuthorizerAuthorize_RequiresActiveSubscription(t *testing.T) {
 	}
 
 	entitlements.payload.Status = "inactive"
-	if _, err := authorizer.Authorize("windows", "user@example.com"); !errors.Is(err, ErrDownloadRequiresActiveSubscription) {
+	if _, err := authorizer.Authorize("app", "windows", "user@example.com"); !errors.Is(err, ErrDownloadRequiresActiveSubscription) {
 		t.Fatalf("expected ErrDownloadRequiresActiveSubscription, got %v", err)
 	}
 }
@@ -89,7 +91,7 @@ func TestDownloadAuthorizerAuthorize_PropagatesLookupErrors(t *testing.T) {
 	entitlements := &trackingEntitlements{}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
-	if _, err := authorizer.Authorize("ios", "user@example.com"); !errors.Is(err, ErrDownloadNotFound) {
+	if _, err := authorizer.Authorize("app", "ios", "user@example.com"); !errors.Is(err, ErrDownloadNotFound) {
 		t.Fatalf("expected ErrDownloadNotFound, got %v", err)
 	}
 	if entitlements.calls != 0 {
@@ -100,7 +102,7 @@ func TestDownloadAuthorizerAuthorize_PropagatesLookupErrors(t *testing.T) {
 func TestDownloadAuthorizerAuthorize_RequiresIdentityForGatedAssets(t *testing.T) {
 	downloads := &fakeDownloads{
 		assets: map[string]*DownloadAsset{
-			"bundle:linux": {Platform: "linux", RequiresEntitlement: true},
+			"bundle:app:linux": {Platform: "linux", RequiresEntitlement: true},
 		},
 	}
 	entitlements := &trackingEntitlements{
@@ -108,7 +110,7 @@ func TestDownloadAuthorizerAuthorize_RequiresIdentityForGatedAssets(t *testing.T
 	}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
-	if _, err := authorizer.Authorize("linux", ""); !errors.Is(err, ErrDownloadIdentityRequired) {
+	if _, err := authorizer.Authorize("app", "linux", ""); !errors.Is(err, ErrDownloadIdentityRequired) {
 		t.Fatalf("expected ErrDownloadIdentityRequired, got %v", err)
 	}
 	if entitlements.calls != 0 {
@@ -121,7 +123,7 @@ func TestDownloadAuthorizerAuthorize_RejectsBlankPlatform(t *testing.T) {
 	entitlements := &trackingEntitlements{}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
-	if _, err := authorizer.Authorize("   ", "user@example.com"); !errors.Is(err, ErrDownloadPlatformRequired) {
+	if _, err := authorizer.Authorize("app", "   ", "user@example.com"); !errors.Is(err, ErrDownloadPlatformRequired) {
 		t.Fatalf("expected ErrDownloadPlatformRequired, got %v", err)
 	}
 }
@@ -129,13 +131,23 @@ func TestDownloadAuthorizerAuthorize_RejectsBlankPlatform(t *testing.T) {
 func TestDownloadAuthorizerAuthorize_ErrorsOnNilEntitlements(t *testing.T) {
 	downloads := &fakeDownloads{
 		assets: map[string]*DownloadAsset{
-			"bundle:android": {Platform: "android", RequiresEntitlement: true},
+			"bundle:app:android": {Platform: "android", RequiresEntitlement: true},
 		},
 	}
 	entitlements := &trackingEntitlements{}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
-	if _, err := authorizer.Authorize("android", "user@example.com"); err == nil {
+	if _, err := authorizer.Authorize("app", "android", "user@example.com"); err == nil {
 		t.Fatalf("expected error when entitlement provider returns nil")
+	}
+}
+
+func TestDownloadAuthorizerAuthorize_RequiresAppKey(t *testing.T) {
+	downloads := &fakeDownloads{}
+	entitlements := &trackingEntitlements{}
+
+	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
+	if _, err := authorizer.Authorize("   ", "windows", "user@example.com"); !errors.Is(err, ErrDownloadAppNotFound) {
+		t.Fatalf("expected ErrDownloadAppNotFound on blank app key, got %v", err)
 	}
 }

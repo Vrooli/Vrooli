@@ -10,6 +10,7 @@ import { VariantEditor } from './surfaces/admin-portal/routes/VariantEditor';
 import { SectionEditor } from './surfaces/admin-portal/routes/SectionEditor';
 import { AgentCustomization } from './surfaces/admin-portal/routes/AgentCustomization';
 import { BillingSettings } from './surfaces/admin-portal/routes/BillingSettings';
+import { DownloadSettings } from './surfaces/admin-portal/routes/DownloadSettings';
 import { PublicLanding } from './surfaces/public-landing/routes/PublicLanding';
 
 export default function App() {
@@ -62,6 +63,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <BillingSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/downloads"
+              element={
+                <ProtectedRoute>
+                  <DownloadSettings />
                 </ProtectedRoute>
               }
             />

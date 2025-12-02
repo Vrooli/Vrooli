@@ -304,6 +304,14 @@ export interface DeploymentManifestRequest {
   include_optional?: boolean;
 }
 
+export interface DeploymentReadinessResponse {
+  scenario: string;
+  tier: string;
+  resources: string[];
+  summary: DeploymentManifestSummary;
+  generated_at: string;
+}
+
 export const fetchHealth = () => jsonFetch<HealthResponse>("/health");
 
 export const fetchVaultStatus = (resource?: string) => {
@@ -339,6 +347,12 @@ export const fetchOrientationSummary = () => jsonFetch<OrientationSummary>("/ori
 
 export const generateDeploymentManifest = (payload: DeploymentManifestRequest) =>
   jsonFetch<DeploymentManifestResponse>("/deployment/secrets", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+export const fetchDeploymentReadiness = (payload: DeploymentManifestRequest) =>
+  jsonFetch<DeploymentReadinessResponse>("/deployment/readiness", {
     method: "POST",
     body: JSON.stringify(payload)
   });

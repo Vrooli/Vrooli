@@ -24,8 +24,19 @@
       }
     },
     {
-      "section_type": "features",
+      "section_type": "video",
       "order": 2,
+      "enabled": true,
+      "content": {
+        "title": "Watch the landing/runtime handoff",
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "thumbnailUrl": "/assets/fallback/video-thumb.png",
+        "caption": "Tour the variant selector, analytics lane, and gated downloads in four minutes."
+      }
+    },
+    {
+      "section_type": "features",
+      "order": 3,
       "enabled": true,
       "content": {
         "title": "Everything you need to sell automation bundles",
@@ -50,8 +61,40 @@
       }
     },
     {
+      "section_type": "testimonials",
+      "order": 4,
+      "enabled": true,
+      "content": {
+        "title": "Proof from operators",
+        "subtitle": "How teams describe Browser Automation Studio hand-offs during reviews.",
+        "testimonials": [
+          {
+            "name": "Marina Patel",
+            "role": "VP Operations",
+            "company": "Clause",
+            "content": "We sold enterprise seats the same week we scaffolded this template. Downloads + billing landed perfectly.",
+            "rating": 5
+          },
+          {
+            "name": "Devon Brooks",
+            "role": "Founder",
+            "company": "Atlas Automations",
+            "content": "Entitlement-aware installers made our desktop launch credible with zero extra wiring.",
+            "rating": 5
+          },
+          {
+            "name": "Lina Gomez",
+            "role": "Product Lead",
+            "company": "Brightlab",
+            "content": "Landing + admin portal shipped with metrics, FAQ, and CTA sequencing ready for paid media.",
+            "rating": 5
+          }
+        ]
+      }
+    },
+    {
       "section_type": "pricing",
-      "order": 3,
+      "order": 5,
       "enabled": true,
       "content": {
         "title": "Simple, transparent pricing",
@@ -98,14 +141,88 @@
       }
     },
     {
+      "section_type": "downloads",
+      "order": 6,
+      "enabled": true,
+      "content": {
+        "title": "Download Browser Automation Studio",
+        "subtitle": "macOS, Windows, Linux, and store links inherit entitlement gating by default."
+      }
+    },
+    {
+      "section_type": "faq",
+      "order": 7,
+      "enabled": true,
+      "content": {
+        "title": "Guardrails teams ask about before launch",
+        "subtitle": "From staging folders to download gating, here are the answers ops leaders reference most often.",
+        "faqs": [
+          {
+            "question": "How do downloads stay in sync with entitlements?",
+            "answer": "Gated installers call the downloads API, which verifies the subscription before handing back the asset."
+          },
+          {
+            "question": "Can we restyle every section?",
+            "answer": "Yes. Each section maps to styling.json tokens and can be updated live through the admin portal."
+          },
+          {
+            "question": "Do variants inherit pricing and analytics?",
+            "answer": "All variants read from the same pricing overview and emit download + CTA events with their slug."
+          }
+        ]
+      }
+    },
+    {
       "section_type": "cta",
-      "order": 4,
+      "order": 8,
       "enabled": true,
       "content": {
         "title": "Deploy Browser Automation Studio in under an hour",
         "subtitle": "Vrooli landing system manages subscriptions, download gating, and future upgrades.",
         "cta_text": "Book a live demo",
         "cta_url": "/contact"
+      }
+    },
+    {
+      "section_type": "footer",
+      "order": 9,
+      "enabled": true,
+      "content": {
+        "company_name": "Vrooli Business Suite",
+        "tagline": "Clause-inspired landings with analytics, download gating, and styling guardrails baked in.",
+        "columns": [
+          {
+            "title": "Product",
+            "links": [
+              { "label": "Features", "url": "#features" },
+              { "label": "Pricing", "url": "#pricing" },
+              { "label": "Downloads", "url": "#downloads-section" }
+            ]
+          },
+          {
+            "title": "Company",
+            "links": [
+              { "label": "Docs", "url": "/docs" },
+              { "label": "PRD", "url": "/prd" },
+              { "label": "Careers", "url": "/careers" }
+            ]
+          },
+          {
+            "title": "Legal",
+            "links": [
+              { "label": "Privacy", "url": "/privacy" },
+              { "label": "Terms", "url": "/terms" },
+              { "label": "Security", "url": "/security" }
+            ]
+          }
+        ],
+        "social_links": {
+          "github": "https://github.com/vrooli",
+          "twitter": "https://twitter.com/vrooli",
+          "linkedin": "https://www.linkedin.com/company/vrooli",
+          "email": "hello@vrooli.com"
+        },
+        "copyright": "© 2025 Vrooli. All rights reserved."
       }
     }
   ],
@@ -264,36 +381,130 @@
   "downloads": [
     {
       "bundle_key": "business_suite",
-      "platform": "windows",
-      "artifact_url": "https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe",
-      "release_version": "1.0.0",
-      "release_notes": "Initial GA release with Browser Automation Studio.",
-      "requires_entitlement": true,
-      "metadata": {
-        "size_mb": 210
-      }
+      "app_key": "automation_studio",
+      "name": "Browser Automation Studio",
+      "tagline": "Clause-grade desktop automations",
+      "description": "Desktop suite that orchestrates automations, download rail governance, and analytics traced per variant.",
+      "install_overview": "Pick your OS, download the installer, and sign in with the email tied to your plan to unlock entitlement-gated downloads.",
+      "install_steps": [
+        "Download the installer for your OS",
+        "Launch the setup wizard and finish the install",
+        "Sign in with your subscription email to unlock the workspace"
+      ],
+      "storefronts": [
+        {
+          "store": "app_store",
+          "label": "macOS App Store",
+          "url": "https://apps.apple.com/app/id000000",
+          "badge": "Download on the App Store"
+        }
+      ],
+      "platforms": [
+        {
+          "bundle_key": "business_suite",
+          "app_key": "automation_studio",
+          "platform": "windows",
+          "artifact_url": "https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe",
+          "release_version": "1.0.0",
+          "release_notes": "Initial GA release with Browser Automation Studio.",
+          "requires_entitlement": true,
+          "metadata": {
+            "size_mb": 210
+          }
+        },
+        {
+          "bundle_key": "business_suite",
+          "app_key": "automation_studio",
+          "platform": "mac",
+          "artifact_url": "https://downloads.vrooli.local/business-suite/mac/VrooliBusinessSuite.dmg",
+          "release_version": "1.0.0",
+          "release_notes": "Universal build for Apple Silicon and Intel.",
+          "requires_entitlement": true,
+          "metadata": {
+            "size_mb": 190
+          }
+        },
+        {
+          "bundle_key": "business_suite",
+          "app_key": "automation_studio",
+          "platform": "linux",
+          "artifact_url": "https://downloads.vrooli.local/business-suite/linux/vrooli-business-suite.tar.gz",
+          "release_version": "1.0.0",
+          "release_notes": "AppImage bundle tested on Ubuntu/Debian.",
+          "requires_entitlement": true,
+          "metadata": {
+            "size_mb": 205
+          }
+        }
+      ]
     },
     {
       "bundle_key": "business_suite",
-      "platform": "mac",
-      "artifact_url": "https://downloads.vrooli.local/business-suite/mac/VrooliBusinessSuite.dmg",
-      "release_version": "1.0.0",
-      "release_notes": "Universal build for Apple Silicon and Intel.",
-      "requires_entitlement": true,
-      "metadata": {
-        "size_mb": 190
-      }
-    },
-    {
-      "bundle_key": "business_suite",
-      "platform": "linux",
-      "artifact_url": "https://downloads.vrooli.local/business-suite/linux/vrooli-business-suite.tar.gz",
-      "release_version": "1.0.0",
-      "release_notes": "AppImage bundle tested on Ubuntu/Debian.",
-      "requires_entitlement": true,
-      "metadata": {
-        "size_mb": 205
-      }
+      "app_key": "command_center",
+      "name": "Vrooli Command Center",
+      "tagline": "Mobile companion + approvals",
+      "description": "Approve downloads, monitor install attempts, and push updates from iOS/Android or lightweight desktop utilities.",
+      "install_overview": "Install from your preferred store for mobile or download the desktop notifier to watch bundle health.",
+      "install_steps": [
+        "Install from the App Store or Google Play",
+        "Enable notifications for entitlement changes",
+        "Link the workspace to sync download telemetry"
+      ],
+      "storefronts": [
+        {
+          "store": "app_store",
+          "label": "Apple App Store",
+          "url": "https://apps.apple.com/app/id000111",
+          "badge": "Download on the App Store"
+        },
+        {
+          "store": "play_store",
+          "label": "Google Play",
+          "url": "https://play.google.com/store/apps/details?id=vrooli.command",
+          "badge": "Get it on Google Play"
+        }
+      ],
+      "platforms": [
+        {
+          "bundle_key": "business_suite",
+          "app_key": "command_center",
+          "platform": "windows",
+          "artifact_url": "https://downloads.vrooli.local/command-center/win/VrooliCommandCenter.exe",
+          "release_version": "0.9.5",
+          "release_notes": "Preview build with entitlement notifications.",
+          "requires_entitlement": false,
+          "metadata": {
+            "size_mb": 120,
+            "channel": "beta"
+          }
+        },
+        {
+          "bundle_key": "business_suite",
+          "app_key": "command_center",
+          "platform": "mac",
+          "artifact_url": "https://downloads.vrooli.local/command-center/mac/VrooliCommandCenter.dmg",
+          "release_version": "0.9.5",
+          "release_notes": "Signed build with push notification helpers.",
+          "requires_entitlement": false,
+          "metadata": {
+            "size_mb": 115,
+            "channel": "beta"
+          }
+        },
+        {
+          "bundle_key": "business_suite",
+          "app_key": "command_center",
+          "platform": "linux",
+          "artifact_url": "https://downloads.vrooli.local/command-center/linux/VrooliCommandCenter.tar.gz",
+          "release_version": "0.9.5",
+          "release_notes": "Preview release for Debian/Ubuntu.",
+          "requires_entitlement": false,
+          "metadata": {
+            "size_mb": 118,
+            "channel": "beta"
+          }
+        }
+      ]
     }
   ]
 }

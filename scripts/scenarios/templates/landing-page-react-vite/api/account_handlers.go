@@ -69,6 +69,11 @@ func handleEntitlements(accountService *AccountService) http.HandlerFunc {
 
 func handleDownloads(authorizer *DownloadAuthorizer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		appKey := strings.TrimSpace(r.URL.Query().Get("app"))
+		if appKey == "" {
+			http.Error(w, "app is required", http.StatusBadRequest)
+			return
+		}
 		platform := strings.TrimSpace(r.URL.Query().Get("platform"))
 		if platform == "" {
 			http.Error(w, "platform is required", http.StatusBadRequest)
@@ -77,10 +82,12 @@ func handleDownloads(authorizer *DownloadAuthorizer) http.HandlerFunc {
 
 		user := resolveUserIdentity(r)
 
-		asset, err := authorizer.Authorize(platform, user)
+		asset, err := authorizer.Authorize(appKey, platform, user)
 		if err != nil {
 			switch {
 			case errors.Is(err, ErrDownloadNotFound):
+				http.Error(w, err.Error(), http.StatusNotFound)
+			case errors.Is(err, ErrDownloadAppNotFound):
 				http.Error(w, err.Error(), http.StatusNotFound)
 			case errors.Is(err, ErrDownloadRequiresActiveSubscription):
 				http.Error(w, err.Error(), http.StatusForbidden)

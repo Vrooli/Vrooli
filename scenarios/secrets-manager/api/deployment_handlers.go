@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -20,6 +21,7 @@ func NewDeploymentHandlers() *DeploymentHandlers {
 func (h *DeploymentHandlers) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/secrets", h.DeploymentSecrets).Methods("POST")
 	router.HandleFunc("/secrets/{scenario}", h.DeploymentSecretsGet).Methods("GET")
+	router.HandleFunc("/readiness", h.DeploymentReadiness).Methods("POST")
 }
 
 // deploymentSecretsHandler generates deployment manifests for specific tiers
@@ -94,4 +96,35 @@ func (h *DeploymentHandlers) DeploymentSecretsGet(w http.ResponseWriter, r *http
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(manifest)
+}
+
+// DeploymentReadiness returns a lightweight readiness snapshot without shipping the full manifest.
+func (h *DeploymentHandlers) DeploymentReadiness(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req DeploymentManifestRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	manifest, err := generateDeploymentManifest(r.Context(), req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to generate readiness snapshot: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	resp := struct {
+		Scenario    string            `json:"scenario"`
+		Tier        string            `json:"tier"`
+		Resources   []string          `json:"resources"`
+		Summary     DeploymentSummary `json:"summary"`
+		GeneratedAt time.Time         `json:"generated_at"`
+	}{Scenario: manifest.Scenario, Tier: manifest.Tier, Resources: manifest.Resources, Summary: manifest.Summary, GeneratedAt: manifest.GeneratedAt}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }

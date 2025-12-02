@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { DownloadAsset } from '../../../shared/api';
+import type { DownloadApp, DownloadAsset } from '../../../shared/api';
 import { DownloadSection, getDownloadAssetKey } from './DownloadSection';
 
 const requestDownloadMock = vi.hoisted(() => vi.fn());
@@ -40,6 +40,7 @@ describe('getDownloadAssetKey', () => {
     const asset: DownloadAsset = {
       id: 42,
       bundle_key: 'bundle',
+      app_key: 'app',
       platform: 'windows',
       artifact_url: 'https://example.com/app.exe',
       release_version: '1.0.0',
@@ -52,13 +53,14 @@ describe('getDownloadAssetKey', () => {
   it('falls back to composite key when id missing', () => {
     const asset: DownloadAsset = {
       bundle_key: 'bundle',
+      app_key: 'studio',
       platform: 'mac',
       artifact_url: 'https://example.com/app.dmg',
       release_version: '1.0.0',
       requires_entitlement: false,
     };
 
-    expect(getDownloadAssetKey(asset)).toContain('platform-mac-1.0.0-https://example.com/app.dmg');
+    expect(getDownloadAssetKey(asset)).toContain('app-studio-mac-1.0.0-https://example.com/app.dmg');
   });
 });
 
@@ -70,10 +72,34 @@ describe('DownloadSection', () => {
     window.open = originalWindowOpen;
   });
 
-  it('renders unique cards even when platforms repeat', () => {
-    const downloads: DownloadAsset[] = [
+  const buildApp = (overrides?: Partial<DownloadApp>, platforms?: DownloadAsset[]): DownloadApp => ({
+    bundle_key: 'bundle',
+    app_key: 'automation',
+    name: 'Automation Studio',
+    tagline: 'Desktop automation suite',
+    description: 'Default description',
+    install_overview: 'Download and sign in.',
+    install_steps: ['Download installer', 'Launch setup', 'Sign in'],
+    storefronts: [],
+    display_order: 0,
+    platforms: platforms ?? [
       {
         bundle_key: 'bundle',
+        app_key: 'automation',
+        platform: 'windows',
+        artifact_url: 'https://example.com/app.exe',
+        release_version: '1.0.0',
+        requires_entitlement: false,
+      },
+    ],
+    ...overrides,
+  });
+
+  it('renders unique cards even when platforms repeat within an app', () => {
+    const platforms: DownloadAsset[] = [
+      {
+        bundle_key: 'bundle',
+        app_key: 'automation',
         platform: 'windows',
         artifact_url: 'https://example.com/app.exe',
         release_version: '1.0.0',
@@ -81,6 +107,7 @@ describe('DownloadSection', () => {
       },
       {
         bundle_key: 'bundle',
+        app_key: 'automation',
         platform: 'windows',
         artifact_url: 'https://example.com/app-beta.exe',
         release_version: '1.1.0-beta',
@@ -88,7 +115,7 @@ describe('DownloadSection', () => {
       },
     ];
 
-    render(<DownloadSection downloads={downloads} />);
+    render(<DownloadSection downloads={[buildApp(undefined, platforms)]} />);
 
     const cards = screen.getAllByTestId(/download-card-/);
     expect(cards).toHaveLength(2);
@@ -96,18 +123,22 @@ describe('DownloadSection', () => {
   });
 
   it('shows a helpful message when an artifact URL is missing', async () => {
-    const downloads: DownloadAsset[] = [
-      {
-        bundle_key: 'bundle',
-        platform: 'windows',
-        artifact_url: 'not-used',
-        release_version: '1.0.0',
-        requires_entitlement: false,
-      },
+    const apps: DownloadApp[] = [
+      buildApp(undefined, [
+        {
+          bundle_key: 'bundle',
+          app_key: 'automation',
+          platform: 'windows',
+          artifact_url: 'not-used',
+          release_version: '1.0.0',
+          requires_entitlement: false,
+        },
+      ]),
     ];
 
     requestDownloadMock.mockResolvedValueOnce({
       bundle_key: 'bundle',
+      app_key: 'automation',
       platform: 'windows',
       release_version: '1.0.0',
       requires_entitlement: false,
@@ -116,7 +147,7 @@ describe('DownloadSection', () => {
 
     window.open = vi.fn();
 
-    render(<DownloadSection downloads={downloads} />);
+    render(<DownloadSection downloads={apps} />);
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: /download/i }));
@@ -126,21 +157,22 @@ describe('DownloadSection', () => {
   });
 
   it('warns when the browser blocks pop-ups', async () => {
-    const downloads: DownloadAsset[] = [
+    const app = buildApp(undefined, [
       {
         bundle_key: 'bundle',
+        app_key: 'automation',
         platform: 'mac',
         artifact_url: 'https://example.com/app.dmg',
         release_version: '1.2.3',
         requires_entitlement: false,
       },
-    ];
+    ]);
 
-    requestDownloadMock.mockResolvedValueOnce(downloads[0]);
+    requestDownloadMock.mockResolvedValueOnce(app.platforms[0]);
 
     window.open = vi.fn(() => null);
 
-    render(<DownloadSection downloads={downloads} />);
+    render(<DownloadSection downloads={[app]} />);
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: /download/i }));
@@ -150,24 +182,25 @@ describe('DownloadSection', () => {
   });
 
   it('allows safe relative artifact URLs returned by the API', async () => {
-    const downloads: DownloadAsset[] = [
+    const app = buildApp(undefined, [
       {
         bundle_key: 'bundle',
+        app_key: 'automation',
         platform: 'linux',
         artifact_url: '/downloads/app.tar.gz',
         release_version: '0.9.0',
         requires_entitlement: false,
       },
-    ];
+    ]);
 
     requestDownloadMock.mockResolvedValueOnce({
-      ...downloads[0],
+      ...app.platforms[0],
       artifact_url: '/downloads/app.tar.gz',
     });
 
     window.open = vi.fn(() => ({} as Window));
 
-    render(<DownloadSection downloads={downloads} />);
+    render(<DownloadSection downloads={[app]} />);
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: /download/i }));
@@ -177,24 +210,25 @@ describe('DownloadSection', () => {
   });
 
   it('rejects dangerous artifact URL schemes before opening a new window', async () => {
-    const downloads: DownloadAsset[] = [
+    const app = buildApp(undefined, [
       {
         bundle_key: 'bundle',
+        app_key: 'automation',
         platform: 'mac',
         artifact_url: 'placeholder',
         release_version: '2.0.0',
         requires_entitlement: false,
       },
-    ];
+    ]);
 
     requestDownloadMock.mockResolvedValueOnce({
-      ...downloads[0],
+      ...app.platforms[0],
       artifact_url: 'javascript:alert(1)',
     });
 
     window.open = vi.fn(() => ({} as Window));
 
-    render(<DownloadSection downloads={downloads} />);
+    render(<DownloadSection downloads={[app]} />);
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: /download/i }));

@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { AdminHome } from './AdminHome';
 import { AdminAuthProvider } from '../../../app/providers/AdminAuthProvider';
-import { listVariants, checkAdminSession, getStripeSettings } from '../../../shared/api';
+import { listVariants, checkAdminSession, getStripeSettings, resetDemoData } from '../../../shared/api';
 import * as analyticsController from '../controllers/analyticsController';
 
 const mockNavigate = vi.fn();
@@ -28,6 +28,7 @@ vi.mock('../../../shared/api', async () => {
     listVariants: vi.fn(),
     checkAdminSession: vi.fn(),
     getStripeSettings: vi.fn(),
+    resetDemoData: vi.fn(),
   };
 });
 vi.mock('../../../app/providers/LandingVariantProvider', () => ({
@@ -47,6 +48,7 @@ vi.mock('../../../app/providers/LandingVariantProvider', () => ({
 const mockedListVariants = vi.mocked(listVariants);
 const mockedCheckAdminSession = vi.mocked(checkAdminSession);
 const mockedGetStripeSettings = vi.mocked(getStripeSettings);
+const mockedResetDemoData = vi.mocked(resetDemoData);
 const mockVariantsResponse = {
   variants: [
     {
@@ -119,9 +121,10 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
     window.location = { ...originalLocation, pathname: '/admin' };
     window.localStorage.clear();
     mockedListVariants.mockResolvedValue(mockVariantsResponse);
-    mockedCheckAdminSession.mockResolvedValue({ authenticated: true, email: 'ops@vrooli.dev' });
+    mockedCheckAdminSession.mockResolvedValue({ authenticated: true, email: 'ops@vrooli.dev', reset_enabled: false });
     fetchAnalyticsSpy = vi.spyOn(analyticsController, 'fetchAnalyticsSummary').mockResolvedValue(mockAnalyticsSummary);
     mockedGetStripeSettings.mockResolvedValue(mockStripeSettings);
+    mockedResetDemoData.mockResolvedValue({ reset: true, timestamp: new Date().toISOString() });
   });
 
   afterEach(() => {
@@ -181,6 +184,24 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
 
     expect(openSpy).toHaveBeenCalledWith('/', '_blank', 'noopener,noreferrer');
     openSpy.mockRestore();
+  });
+
+  it('surfaces demo data reset control when flag enabled', async () => {
+    mockedCheckAdminSession.mockResolvedValue({ authenticated: true, email: 'ops@vrooli.dev', reset_enabled: true });
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = userEvent.setup();
+
+    renderWithRouter(<AdminHome />);
+
+    const resetCard = await screen.findByTestId('admin-reset-demo-card');
+    expect(resetCard).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('admin-reset-demo-btn'));
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(mockedResetDemoData).toHaveBeenCalled();
+
+    confirmSpy.mockRestore();
   });
 
   it('should surface quick resume panel when recents exist', async () => {

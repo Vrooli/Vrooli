@@ -24,6 +24,7 @@ import { TestimonialsSection } from '../../public-landing/sections/TestimonialsS
 import { FAQSection } from '../../public-landing/sections/FAQSection';
 import { FooterSection } from '../../public-landing/sections/FooterSection';
 import { VideoSection } from '../../public-landing/sections/VideoSection';
+import { DownloadSection } from '../../public-landing/sections/DownloadSection';
 
 /**
  * Section Editor - Split-screen form + live preview
@@ -49,6 +50,9 @@ const SECTION_PREVIEW_RENDERERS: Record<ContentSection['section_type'], PreviewR
   faq: ({ content }) => <FAQSection content={content as any} />,
   footer: ({ content }) => <FooterSection content={content as any} />,
   video: ({ content }) => <VideoSection content={content as any} />,
+  downloads: ({ content, config }) => (
+    <DownloadSection content={content as any} downloads={config?.downloads} />
+  ),
 };
 
 export function SectionEditor() {
@@ -535,9 +539,11 @@ export function SectionEditor() {
                     <option value="features">Features</option>
                     <option value="pricing">Pricing</option>
                     <option value="cta">Call to Action</option>
+                    <option value="video">Video</option>
                     <option value="testimonials">Testimonials</option>
                     <option value="faq">FAQ</option>
                     <option value="footer">Footer</option>
+                    <option value="downloads">Downloads</option>
                   </select>
                 </div>
 

@@ -43,22 +43,12 @@ interface OrientationHubProps {
   journeyStep: number;
   updatedAt?: string;
   isLoading: boolean;
-  priorityResource?: string | null;
-  prioritySecretKey?: string;
-  missingCount?: number;
-  tierReadiness: Array<{
-    tier: string;
-    label: string;
-    ready_percent: number;
-    strategized: number;
-    total: number;
-  }>;
-  onOpenResource?: (resourceName: string, secretKey?: string) => void;
   onJourneySelect: (journeyId: JourneyId) => void;
   onJourneyExit: () => void;
   onJourneyNext: () => void;
   onJourneyBack: () => void;
   onShowReadiness?: () => void;
+  journeyNextDisabled?: boolean;
 }
 
 export const OrientationHub = ({
@@ -71,21 +61,14 @@ export const OrientationHub = ({
   journeyStep,
   updatedAt,
   isLoading,
-  priorityResource,
-  prioritySecretKey,
-  missingCount,
-  tierReadiness,
-  onOpenResource,
   onJourneySelect,
   onJourneyExit,
   onJourneyNext,
   onJourneyBack,
-  onShowReadiness
+  onShowReadiness,
+  journeyNextDisabled
 }: OrientationHubProps) => {
   const activeStep = journeySteps[journeyStep];
-  const blockedTiers = tierReadiness.filter((tier) => tier.ready_percent < 100 || tier.strategized < tier.total);
-  const topBlockedTier = blockedTiers[0];
-
   return (
     <section className="grid gap-6 lg:grid-cols-[1fr,2fr]">
       {/* LEFT SIDE: Journey Navigation (Primary - F-pattern) */}
@@ -158,55 +141,6 @@ export const OrientationHub = ({
             )}
           </div>
         </div>
-        {priorityResource && onOpenResource ? (
-          <div className="mt-4 rounded-2xl border border-emerald-400/30 bg-emerald-500/5 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-200/80">Priority action</p>
-                <p className="text-sm text-white">
-                  {priorityResource} {missingCount ? `· ${missingCount} missing secret${missingCount !== 1 ? "s" : ""}` : ""}
-                </p>
-                {prioritySecretKey ? (
-                  <p className="text-[11px] text-emerald-100/80">Start with {prioritySecretKey}</p>
-                ) : (
-                  <p className="text-[11px] text-emerald-100/70">Open the workbench to assign strategies</p>
-                )}
-              </div>
-              <Button size="sm" variant="secondary" onClick={() => onOpenResource(priorityResource, prioritySecretKey)}>
-                Open workbench
-              </Button>
-            </div>
-          </div>
-        ) : null}
-        {tierReadiness.length > 0 ? (
-          <div className="mt-4 rounded-2xl border border-cyan-400/30 bg-cyan-400/5 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-200/80">Deployment readiness</p>
-                <p className="text-sm text-white">
-                  {blockedTiers.length > 0
-                    ? `${blockedTiers.length} tier${blockedTiers.length === 1 ? "" : "s"} need strategies before deployment`
-                    : "All tiers have strategies defined"}
-                </p>
-                <p className="text-xs text-white/60">
-                  {blockedTiers.length > 0 && topBlockedTier
-                    ? `${topBlockedTier.label} at ${topBlockedTier.ready_percent}% · ${topBlockedTier.strategized}/${topBlockedTier.total} secrets covered`
-                    : "Resource Readiness = strategies by tier. Scenario Readiness = manifests per scenario."}
-                </p>
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                {onShowReadiness ? (
-                  <Button size="sm" variant="secondary" onClick={onShowReadiness}>
-                    Open readiness
-                  </Button>
-                ) : null}
-                <Button size="sm" variant="outline" onClick={() => onJourneySelect("prep-deployment")}>
-                  Prep deployment journey
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : null}
         {!activeJourney || journeySteps.length === 0 ? (
           <div className="mt-6">
             <p className="text-white/70">Select a journey from the left to begin your guided experience.</p>
@@ -252,7 +186,7 @@ export const OrientationHub = ({
                 <Button
                   size="sm"
                   onClick={onJourneyNext}
-                  disabled={journeyStep >= journeySteps.length - 1}
+                  disabled={journeyStep >= journeySteps.length - 1 || journeyNextDisabled}
                 >
                   Next →
                 </Button>

@@ -10,3 +10,4 @@ export * from './sections';
 export * from './metrics';
 export * from './customization';
 export * from './billing';
+export * from './admin';

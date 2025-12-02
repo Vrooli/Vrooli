@@ -85,6 +85,7 @@ export default function App() {
     handleJourneyExit,
     handleJourneyNext,
     handleJourneyBack,
+    journeyNextDisabled,
     deploymentFlow
   } = useJourneys({
     selectedScenario,
@@ -127,18 +128,12 @@ export default function App() {
   const missingSecrets = vaultQuery.data?.missing_secrets ?? [];
   const resourceStatuses = vaultQuery.data?.resource_statuses ?? [];
   const vulnerabilities = vulnerabilityQuery.data?.vulnerabilities ?? [];
-  const topMissingSecret = missingSecrets[0];
-  const priorityResource = topMissingSecret?.resource_name ?? topResourceNeedingAttention ?? null;
-  const prioritySecretKey = topMissingSecret?.secret_name;
-  const priorityMissingCount = heroStats?.missing_secrets ?? missingSecrets.length;
 
   const blockedTiers = tierReadiness.filter((tier) => tier.ready_percent < 100 || tier.strategized < tier.total);
   const readinessBadge =
     blockedTiers.length > 0
       ? `${blockedTiers.length} tier${blockedTiers.length === 1 ? "" : "s"} need strategies`
-      : priorityMissingCount > 0
-        ? `${priorityMissingCount} missing secret${priorityMissingCount === 1 ? "" : "s"}`
-        : undefined;
+      : undefined;
   const complianceBadge =
     vulnerabilitySummary.critical + vulnerabilitySummary.high + vulnerabilitySummary.medium + vulnerabilitySummary.low > 0
       ? `${vulnerabilitySummary.critical + vulnerabilitySummary.high + vulnerabilitySummary.medium + vulnerabilitySummary.low} findings`
@@ -249,16 +244,11 @@ export default function App() {
                 journeyStep={journeyStep}
                 updatedAt={orientationData?.updated_at}
                 isLoading={orientationQuery.isLoading}
-                priorityResource={priorityResource}
-                prioritySecretKey={prioritySecretKey}
-                missingCount={priorityMissingCount}
-                onOpenResource={openResourcePanel}
                 onJourneySelect={handleJourneySelectTyped}
                 onJourneyExit={handleJourneyExit}
                 onJourneyNext={handleJourneyNext}
                 onJourneyBack={handleJourneyBack}
-                tierReadiness={tierReadiness}
-                onShowReadiness={showReadinessTab}
+                journeyNextDisabled={journeyNextDisabled}
               />
 
               <StatusGrid

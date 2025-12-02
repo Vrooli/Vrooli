@@ -1,7 +1,7 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAdminAuth } from '../../../app/providers/AdminAuthProvider';
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+export function ProtectedRoute({ children }: { children?: React.ReactNode }) {
   const location = useLocation();
   const { isAuthenticated, isSessionLoading } = useAdminAuth();
 
@@ -20,5 +20,9 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/admin/login" replace state={{ from: location.pathname }} />;
   }
 
-  return <>{children}</>;
+  if (children) {
+    return <>{children}</>;
+  }
+
+  return <Outlet />;
 }

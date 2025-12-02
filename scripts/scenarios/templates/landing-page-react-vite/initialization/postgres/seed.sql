@@ -41,10 +41,15 @@ SET variant_value = EXCLUDED.variant_value,
 
 -- Insert default content sections for control variant (OT-P0-012, OT-P0-013)
 INSERT INTO content_sections (variant_id, section_type, content, "order", enabled) VALUES
-(1, 'hero', '{"headline": "Build Landing Pages in Minutes", "subheadline": "Create beautiful, conversion-optimized landing pages with A/B testing and analytics built-in", "cta_text": "Get Started Free", "cta_url": "/signup", "background_color": "#0f172a"}', 1, TRUE),
-(1, 'features', '{"title": "Everything You Need", "items": [{"title": "A/B Testing", "description": "Test variants and optimize conversions", "icon": "Zap"}, {"title": "Analytics", "description": "Track visitor behavior and metrics", "icon": "BarChart"}, {"title": "Stripe Integration", "description": "Accept payments instantly", "icon": "CreditCard"}]}', 2, TRUE),
-(1, 'pricing', '{"title": "Simple Pricing", "plans": [{"name": "Starter", "price": "$29", "features": ["5 landing pages", "Basic analytics", "Email support"], "cta_text": "Start Free Trial"}, {"name": "Pro", "price": "$99", "features": ["Unlimited pages", "Advanced analytics", "Priority support", "Custom domains"], "cta_text": "Get Started", "highlighted": true}]}', 3, TRUE),
-(1, 'cta', '{"headline": "Ready to Launch Your Landing Page?", "subheadline": "Join thousands of marketers using Landing Manager", "cta_text": "Start Building Now", "cta_url": "/signup"}', 4, TRUE)
+(1, 'hero', '{"headline": "Launch Browser Automation Studio", "subheadline": "Ship automation bundles with analytics, downloads, and admin rails on day one.", "cta_text": "Get Started", "cta_url": "/checkout?plan=pro", "background_color": "#0f172a"}', 1, TRUE),
+(1, 'video', '{"title": "Tour the landing runtime", "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "thumbnailUrl": "/assets/fallback/video-thumb.png", "caption": "Weighted variants, analytics, and downloads sync in this 4-minute overview."}', 2, TRUE),
+(1, 'features', '{"title": "Everything You Need", "items": [{"title": "Variant routing", "description": "Control traffic weights per persona", "icon": "Zap"}, {"title": "Analytics", "description": "Track CTA, scroll, and download events", "icon": "BarChart"}, {"title": "Download gating", "description": "Gate installers behind active entitlements", "icon": "Shield"}]}', 3, TRUE),
+(1, 'testimonials', '{"title": "Loved by operators", "subtitle": "Quotes from internal dogfood launches", "testimonials": [{"name": "Marina Patel", "role": "VP Operations", "company": "Clause", "content": "Downloads + pricing landed perfectly on the first deploy.", "rating": 5}, {"name": "Devon Brooks", "role": "Founder", "company": "Atlas Automations", "content": "The download rail let us ship macOS + Windows builds without custom code.", "rating": 5}] }', 4, TRUE),
+(1, 'pricing', '{"title": "Simple Pricing", "plans": [{"name": "Solo", "price": "$49", "features": ["Solo workspace", "5M credits", "Email support"], "cta_text": "Start for $1"}, {"name": "Pro", "price": "$149", "features": ["Team workflows", "Priority support", "Desktop downloads"], "cta_text": "Upgrade", "highlighted": true}, {"name": "Studio", "price": "$349", "features": ["Unlimited automations", "Dedicated architect"], "cta_text": "Talk to sales"}]}', 5, TRUE),
+(1, 'downloads', '{"title": "Download Browser Automation Studio", "subtitle": "macOS, Windows, Linux, and store links inherit entitlement gating by default."}', 6, TRUE),
+(1, 'faq', '{"title": "Launch guardrails", "subtitle": "Answers teams need before sending paid traffic", "faqs": [{"question": "How do downloads verify entitlements?", "answer": "Each installer request hits /api/v1/downloads with the subscriber email."}, {"question": "Can we restyle sections?", "answer": "Yes, every section respects styling.json tokens."}, {"question": "Do analytics include downloads?", "answer": "Download events are captured per variant alongside CTA clicks."}]}', 7, TRUE),
+(1, 'cta', '{"headline": "Ready to launch your bundle?", "subheadline": "Book a walkthrough with the landing team.", "cta_text": "Book demo", "cta_url": "/contact"}', 8, TRUE),
+(1, 'footer', '{"company_name": "Vrooli Business Suite", "tagline": "Clause-grade landing runtime with analytics + downloads in lockstep.", "columns": [{"title": "Product", "links": [{"label": "Features", "url": "#features"}, {"label": "Pricing", "url": "#pricing"}]}, {"title": "Company", "links": [{"label": "Docs", "url": "/docs"}, {"label": "Careers", "url": "/careers"}]}], "social_links": {"github": "https://github.com/vrooli", "twitter": "https://twitter.com/vrooli"}}', 9, TRUE)
 ON CONFLICT DO NOTHING;
 
 -- Bundle products & prices (business suite)
@@ -97,13 +102,31 @@ ON CONFLICT (stripe_price_id) DO UPDATE SET
     display_weight = EXCLUDED.display_weight,
     updated_at = NOW();
 
--- Download assets for Browser Automation Studio
-INSERT INTO download_assets (bundle_key, platform, artifact_url, release_version, release_notes, checksum, requires_entitlement, metadata)
+-- Download apps + platform installers
+INSERT INTO download_apps (bundle_key, app_key, name, tagline, description, install_overview, install_steps, storefronts, metadata, display_order)
 VALUES
-('business_suite', 'windows', 'https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe', '1.0.0', 'Initial GA release with Browser Automation Studio.', 'sha256-win-placeholder', TRUE, '{"size_mb":210}'),
-('business_suite', 'mac', 'https://downloads.vrooli.local/business-suite/mac/VrooliBusinessSuite.dmg', '1.0.0', 'Universal build for Apple Silicon and Intel.', 'sha256-mac-placeholder', TRUE, '{"size_mb":190}'),
-('business_suite', 'linux', 'https://downloads.vrooli.local/business-suite/linux/vrooli-business-suite.tar.gz', '1.0.0', 'AppImage bundle tested on Ubuntu/Debian.', 'sha256-linux-placeholder', TRUE, '{"size_mb":205}')
-ON CONFLICT (bundle_key, platform) DO UPDATE SET
+('business_suite', 'automation_studio', 'Browser Automation Studio', 'Full desktop automation workbench', 'Ships the flagship Browser Automation Studio desktop client with entitlement-backed installers and telemetry baked in.', 'Download the installer for your OS and sign in with the email tied to your active subscription.', '["Download the installer for your OS","Launch the setup wizard","Sign in with your subscription email to unlock downloads"]', '[{"store":"app_store","label":"macOS App Store","url":"https://apps.apple.com/app/id000000","badge":"Download on the App Store"}]', '{"bundle":"business_suite"}', 1),
+('business_suite', 'command_center', 'Vrooli Command Center', 'Mobile companion for monitoring bots', 'Native companion apps for leaders who need to approve automations, monitor download health, and trigger bundles while on the go.', 'Install from your preferred app store or download the desktop utilities when you need offline orchestration.', '["Install from the App Store or Google Play","Enable notifications for entitlement updates","Link to your workspace to sync download telemetry"]', '[{"store":"app_store","label":"Apple App Store","url":"https://apps.apple.com/app/id000111","badge":"Download on the App Store"},{"store":"play_store","label":"Google Play","url":"https://play.google.com/store/apps/details?id=vrooli.command","badge":"Get it on Google Play"}]', '{"bundle":"business_suite"}', 2)
+ON CONFLICT (bundle_key, app_key) DO UPDATE SET
+    name = EXCLUDED.name,
+    tagline = EXCLUDED.tagline,
+    description = EXCLUDED.description,
+    install_overview = EXCLUDED.install_overview,
+    install_steps = EXCLUDED.install_steps,
+    storefronts = EXCLUDED.storefronts,
+    metadata = EXCLUDED.metadata,
+    display_order = EXCLUDED.display_order,
+    updated_at = NOW();
+
+INSERT INTO download_assets (bundle_key, app_key, platform, artifact_url, release_version, release_notes, checksum, requires_entitlement, metadata)
+VALUES
+('business_suite', 'automation_studio', 'windows', 'https://downloads.vrooli.local/business-suite/win/VrooliBusinessStudioSetup.exe', '1.2.0', 'Includes fresh launch console + webdriver upgrades.', 'sha256-win-placeholder', TRUE, '{"size_mb":230}'),
+('business_suite', 'automation_studio', 'mac', 'https://downloads.vrooli.local/business-suite/mac/VrooliBusinessStudio.dmg', '1.2.0', 'Signed universal build for Apple Silicon + Intel.', 'sha256-mac-placeholder', TRUE, '{"size_mb":215}'),
+('business_suite', 'automation_studio', 'linux', 'https://downloads.vrooli.local/business-suite/linux/vrooli-business-studio.tar.gz', '1.2.0', 'AppImage bundle tested on Ubuntu/Debian.', 'sha256-linux-placeholder', TRUE, '{"size_mb":225}'),
+('business_suite', 'command_center', 'windows', 'https://downloads.vrooli.local/command-center/win/VrooliCommandCenter.exe', '0.9.5', 'Preview build with entitlement notifications.', 'sha256-win-cc', FALSE, '{"size_mb":120,"channel":"beta"}'),
+('business_suite', 'command_center', 'mac', 'https://downloads.vrooli.local/command-center/mac/VrooliCommandCenter.dmg', '0.9.5', 'Signed build with push notification helpers.', 'sha256-mac-cc', FALSE, '{"size_mb":115,"channel":"beta"}'),
+('business_suite', 'command_center', 'linux', 'https://downloads.vrooli.local/command-center/linux/VrooliCommandCenter.tar.gz', '0.9.5', 'Preview release for Debian/Ubuntu.', 'sha256-linux-cc', FALSE, '{"size_mb":118,"channel":"beta"}')
+ON CONFLICT (bundle_key, app_key, platform) DO UPDATE SET
     artifact_url = EXCLUDED.artifact_url,
     release_version = EXCLUDED.release_version,
     release_notes = EXCLUDED.release_notes,

@@ -1,58 +1,105 @@
 {
   "scenario": "secrets-manager",
   "report_version": 1,
-  "generated_at": "2025-11-23T19:34:24.157941415Z",
+  "generated_at": "2025-12-02T14:55:54.231225248Z",
   "dependencies": [
     {
       "name": "claude-code",
       "type": "resource",
+      "resource_type": "",
+      "requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0,
+        "network": "",
+        "source": "",
+        "confidence": ""
+      },
       "tier_support": {
         "desktop": {
           "supported": true,
-          "fitness_score": 0.9
+          "fitness_score": 0.9,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "enterprise": {
           "supported": true,
-          "fitness_score": 0.98
+          "fitness_score": 0.98,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "local": {
           "supported": true,
-          "fitness_score": 1
+          "fitness_score": 1,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "mobile": {
           "supported": true,
-          "fitness_score": 0.4
+          "fitness_score": 0.4,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "saas": {
           "supported": true,
-          "fitness_score": 0.85
+          "fitness_score": 0.85,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "server": {
           "supported": true,
-          "fitness_score": 0.95
+          "fitness_score": 0.95,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         }
       },
+      "alternatives": null,
       "source": "declared"
     },
     {
       "name": "postgres",
       "type": "resource",
+      "resource_type": "",
+      "requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0,
+        "network": "",
+        "source": "",
+        "confidence": ""
+      },
       "tier_support": {
         "desktop": {
           "supported": true,
-          "fitness_score": 0.6
+          "fitness_score": 0.6,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "enterprise": {
           "supported": true,
-          "fitness_score": 0.98
+          "fitness_score": 0.98,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "local": {
           "supported": true,
-          "fitness_score": 1
+          "fitness_score": 1,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "mobile": {
           "supported": false,
           "fitness_score": 0.2,
+          "notes": "",
           "reason": "Database should be remote for mobile deployments",
           "alternatives": [
             "saas-postgres",
@@ -61,44 +108,79 @@
         },
         "saas": {
           "supported": true,
-          "fitness_score": 0.95
+          "fitness_score": 0.95,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "server": {
           "supported": true,
-          "fitness_score": 0.95
+          "fitness_score": 0.95,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         }
       },
+      "alternatives": null,
       "source": "declared"
     },
     {
       "name": "vault",
       "type": "resource",
+      "resource_type": "",
+      "requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0,
+        "network": "",
+        "source": "",
+        "confidence": ""
+      },
       "tier_support": {
         "desktop": {
           "supported": true,
-          "fitness_score": 0.9
+          "fitness_score": 0.9,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "enterprise": {
           "supported": true,
-          "fitness_score": 0.98
+          "fitness_score": 0.98,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "local": {
           "supported": true,
-          "fitness_score": 1
+          "fitness_score": 1,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "mobile": {
           "supported": true,
-          "fitness_score": 0.4
+          "fitness_score": 0.4,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "saas": {
           "supported": true,
-          "fitness_score": 0.85
+          "fitness_score": 0.85,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "server": {
           "supported": true,
-          "fitness_score": 0.95
+          "fitness_score": 0.95,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         }
       },
+      "alternatives": null,
       "source": "declared"
     }
   ],
@@ -118,6 +200,7 @@
     "enterprise": {
       "fitness_score": 0.98,
       "dependency_count": 3,
+      "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -127,6 +210,7 @@
     "local": {
       "fitness_score": 1,
       "dependency_count": 3,
+      "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -150,6 +234,7 @@
     "saas": {
       "fitness_score": 0.8833333333333333,
       "dependency_count": 3,
+      "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -159,190 +244,12 @@
     "server": {
       "fitness_score": 0.9499999999999998,
       "dependency_count": 3,
+      "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
         "cpu_cores": 0
       }
     }
-  },
-  "bundle_manifest": {
-    "scenario": "secrets-manager",
-    "generated_at": "2025-11-23T19:34:24.157941415Z",
-    "files": [
-      {
-        "path": ".vrooli/service.json",
-        "type": "service-config",
-        "exists": true
-      },
-      {
-        "path": "api",
-        "type": "api-source",
-        "exists": true
-      },
-      {
-        "path": "api/secrets-manager-api",
-        "type": "api-binary",
-        "exists": true
-      },
-      {
-        "path": "ui/dist",
-        "type": "ui-bundle",
-        "exists": true
-      },
-      {
-        "path": "ui/dist/index.html",
-        "type": "ui-entry",
-        "exists": true
-      },
-      {
-        "path": "cli/secrets-manager",
-        "type": "cli-binary",
-        "exists": true
-      }
-    ],
-    "dependencies": [
-      {
-        "name": "claude-code",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.9
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": true,
-            "fitness_score": 0.4
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.85
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
-      {
-        "name": "postgres",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.6
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": false,
-            "fitness_score": 0.2,
-            "reason": "Database should be remote for mobile deployments",
-            "alternatives": [
-              "saas-postgres",
-              "cloud-postgres"
-            ]
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.95
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
-      {
-        "name": "vault",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.9
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": true,
-            "fitness_score": 0.4
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.85
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      }
-    ]
-  },
-  "metadata_gaps": {
-    "total_gaps": 0,
-    "scenarios_missing_all": 0,
-    "gaps_by_scenario": {},
-    "missing_tiers": null,
-    "secret_requirements": [
-      {
-        "dependency_name": "claude-code",
-        "dependency_type": "resource",
-        "secret_type": "ai_api_key",
-        "required_secrets": [
-          "claude-code_api_key"
-        ],
-        "playbook_reference": "secrets-manager/playbooks/ai-api-keys.md",
-        "priority": "required"
-      },
-      {
-        "dependency_name": "postgres",
-        "dependency_type": "resource",
-        "secret_type": "database_credentials",
-        "required_secrets": [
-          "postgres_password",
-          "postgres_user"
-        ],
-        "playbook_reference": "secrets-manager/playbooks/database-credentials.md",
-        "priority": "required"
-      }
-    ],
-    "resource_swap_suggestions": [
-      {
-        "original_resource": "postgres",
-        "alternative_resource": "supabase",
-        "reason": "Managed PostgreSQL with built-in APIs",
-        "applicable_tiers": [
-          "mobile",
-          "saas"
-        ],
-        "relationship": "managed_service",
-        "impact_description": "Eliminates database management overhead"
-      }
-    ],
-    "recommendations": [
-      "Configure 2 secret(s) for dependencies - see secrets-manager playbooks",
-      "Consider 1 resource swap(s) for deployment optimization"
-    ]
   }
 }

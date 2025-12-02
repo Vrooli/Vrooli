@@ -8,6 +8,8 @@ const renderWithAuth = (isAuthenticated: boolean) => {
   // Mock the useAdminAuth hook to return our desired state
   vi.spyOn(AdminAuth, 'useAdminAuth').mockReturnValue({
     isAuthenticated,
+    isSessionLoading: false,
+    canResetDemoData: false,
     login: async () => {},
     logout: async () => {},
     user: isAuthenticated ? { email: 'test@example.com' } : null,
@@ -52,6 +54,8 @@ describe('ProtectedRoute [REQ:ADMIN-AUTH]', () => {
   it('should handle nested children elements', () => {
     vi.spyOn(AdminAuth, 'useAdminAuth').mockReturnValue({
       isAuthenticated: true,
+      isSessionLoading: false,
+      canResetDemoData: false,
       login: async () => {},
       logout: async () => {},
       user: { email: 'test@example.com' },

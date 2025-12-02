@@ -14,11 +14,15 @@ import { useState } from "react";
  * Automatically extracts video IDs and generates proper embed URLs.
  */
 
-interface VideoSectionProps {
+export interface VideoSectionContent {
   title?: string;
-  videoUrl: string;
+  videoUrl?: string;
   thumbnailUrl?: string;
   caption?: string;
+}
+
+interface VideoSectionProps extends VideoSectionContent {
+  content?: VideoSectionContent;
 }
 
 /**
@@ -46,12 +50,22 @@ function getVideoEmbedUrl(url: string): string | null {
   return null;
 }
 
-export function VideoSection({ title, videoUrl, thumbnailUrl, caption }: VideoSectionProps) {
+export function VideoSection(props: VideoSectionProps) {
+  const resolved = props.content ?? props;
+  const title = resolved.title;
+  const thumbnailUrl = resolved.thumbnailUrl;
+  const caption = resolved.caption;
+  const rawVideoUrl = typeof resolved.videoUrl === 'string' ? resolved.videoUrl.trim() : '';
+
+  if (!rawVideoUrl) {
+    return null;
+  }
+
   const [isPlaying, setIsPlaying] = useState(false);
-  const embedUrl = getVideoEmbedUrl(videoUrl);
+  const embedUrl = getVideoEmbedUrl(rawVideoUrl);
 
   if (!embedUrl) {
-    console.error("[VideoSection] Invalid video URL:", videoUrl);
+    console.error("[VideoSection] Invalid video URL:", rawVideoUrl);
     return null;
   }
 

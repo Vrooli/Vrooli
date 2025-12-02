@@ -33,6 +33,7 @@ landing-page-react-vite/
 | `.vrooli/variants/*.json` | Control and fallback payloads the public surface can render with zero API calls. |
 | `ui/src/shared/lib/fallbackLandingConfig.ts` | Explains how fallback JSON becomes a runtime-safe config and how sections/pricing/downloads are normalized. |
 | `ui/src/surfaces/public-landing/routes/PublicLanding.tsx` | Main renderer for landing sections + download rail. |
+| `ui/src/surfaces/admin-portal/routes/DownloadSettings.tsx` | Admin surface for managing multi-app download metadata, install steps, store links, and platform installers. |
 
 Read those five files together before attempting copy or styling overrides. They keep variant axes, language, and UI expectations in lockstep.
 
@@ -112,6 +113,7 @@ export function CountdownSection({ content }: CountdownSectionProps) {
 ### Section Coverage Status
 
 - **Implemented**: hero, features, pricing, cta, testimonials, faq, footer, video, download rail.  
+- **Download installs**: The `/admin/downloads` settings page lets operators curate multiple apps, attach App Store / Google Play links, and define per-platform installers + instructions that the public download rail renders.
 - **Schema-only (needs React implementation before use)**: benefits, social-proof, lead-form, preview.
 
 ## Why `.vrooli/styling.json` + `variant_space.json` Matter During Code Edits

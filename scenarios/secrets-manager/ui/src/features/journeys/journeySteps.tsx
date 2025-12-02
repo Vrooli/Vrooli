@@ -37,12 +37,39 @@ interface JourneyStepOptions {
       requires_action: number;
     };
   };
+  readinessByTier?: Record<
+    string,
+    {
+      summary?: {
+        strategized_secrets: number;
+        total_secrets: number;
+        requires_action: number;
+        blocking_secrets?: string[];
+        scope_readiness?: Record<string, string>;
+      };
+      generatedAt?: string;
+      loading?: boolean;
+      error?: string;
+    }
+  >;
+  readinessSummary?: {
+    strategized_secrets: number;
+    total_secrets: number;
+    requires_action: number;
+    blocking_secrets?: string[];
+    scope_readiness?: Record<string, string>;
+  };
+  readinessGeneratedAt?: string;
+  readinessIsLoading?: boolean;
+  readinessIsError?: boolean;
+  readinessError?: Error;
   manifestIsLoading: boolean;
   manifestIsError: boolean;
   manifestError?: Error;
   topResourceNeedingAttention?: string;
   onOpenResource: (resourceName?: string, secretKey?: string) => void;
   onRefetchVulnerabilities: () => void;
+  onRefreshReadiness: () => void;
   onManifestRequest: () => void;
   onSetDeploymentScenario: (value: string) => void;
   onSetDeploymentTier: (value: string) => void;
@@ -71,6 +98,12 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
     provisionIsSuccess,
     provisionError,
     manifestData,
+    readinessByTier,
+    readinessSummary,
+    readinessGeneratedAt,
+    readinessIsLoading,
+    readinessIsError,
+    readinessError,
     manifestIsLoading,
     manifestIsError,
     manifestError,
@@ -78,6 +111,7 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
     scenarioSelectionContent,
     onOpenResource,
     onRefetchVulnerabilities,
+    onRefreshReadiness,
     onManifestRequest,
     onSetDeploymentScenario,
     onSetDeploymentTier,
@@ -342,8 +376,149 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
     });
     steps.push({
       title: "Assess tier readiness",
-      description: "Confirm which tiers have full secret strategies.",
-      content: (
+      description: "Confirm which tiers have full secret strategies for your selected scenario and pick the target tier.",
+      content: readinessIsLoading ? (
+        <div className="rounded-2xl border border-cyan-400/30 bg-cyan-400/5 px-3 py-2 text-sm text-cyan-100">
+          Checking {deploymentScenario || "scenario"} readiness...
+        </div>
+      ) : readinessIsError ? (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-100">
+          {readinessError?.message || "Failed to load readiness."}
+        </div>
+      ) : readinessSummary ? (
+        <div className="space-y-4 rounded-2xl border border-emerald-400/30 bg-emerald-500/5 p-3 text-sm text-white/80">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {tierReadiness.map((tier) => {
+              const snapshot = readinessByTier?.[tier.tier];
+              const covered = snapshot?.summary?.strategized_secrets ?? tier.strategized;
+              const total = snapshot?.summary?.total_secrets ?? tier.total;
+              const requires = snapshot?.summary?.requires_action ?? Math.max(total - covered, 0);
+              return (
+                <div
+                  key={tier.tier}
+                  className={`rounded-xl border px-3 py-2 text-xs ${
+                    tier.tier === deploymentTier
+                      ? "border-emerald-400/50 bg-emerald-500/10"
+                      : "border-white/15 bg-white/5"
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-white/60">
+                    <span>{tier.label}</span>
+                    {snapshot?.loading ? <span className="text-white/50">…</span> : null}
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-white">
+                    <span>Covered</span>
+                    <span className="font-semibold">
+                      {covered}/{total}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-amber-100">
+                    <span>Requires action</span>
+                    <span className="font-semibold">{requires}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {tierReadiness.map((tier) => (
+              <button
+                key={tier.tier}
+                onClick={() => onSetDeploymentTier(tier.tier)}
+                className={`rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.2em] ${
+                  tier.tier === deploymentTier
+                    ? "border-emerald-400 bg-emerald-500/10 text-emerald-100"
+                    : "border-white/20 bg-white/5 text-white/70 hover:border-white/40"
+                }`}
+              >
+                {tier.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-white/60">
+            <span>{deploymentScenario || "Select a scenario"}</span>
+            <span>{deploymentTier}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Coverage</span>
+            <span className="font-semibold text-white">
+              {readinessSummary.strategized_secrets}/{readinessSummary.total_secrets}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Requires action</span>
+            <span className={`font-semibold ${readinessSummary.requires_action > 0 ? "text-amber-100" : "text-emerald-100"}`}>
+              {readinessSummary.requires_action}
+            </span>
+          </div>
+          <p className="text-xs text-white/60">
+            Coverage = required secrets with a strategy for this tier. Requires action = required secrets still missing a strategy/value.
+          </p>
+          {readinessSummary.scope_readiness?.[deploymentTier] ? (
+            <p className="text-xs text-white/60">
+              Tier readiness: {readinessSummary.scope_readiness[deploymentTier]}
+            </p>
+          ) : (
+            <p className="text-xs text-white/60">Select a tier to view readiness details.</p>
+          )}
+          {readinessSummary.blocking_secrets?.length ? (
+            <div className="space-y-2 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+              <p className="font-semibold">Top blockers</p>
+              <ul className="space-y-1 text-amber-100/80">
+                {readinessSummary.blocking_secrets.slice(0, 3).map((blocker) => {
+                  const [resourceName, secretKey] = blocker.split(":");
+                  return (
+                    <li key={blocker} className="flex items-center justify-between gap-2">
+                      <span>{blocker}</span>
+                      <Button size="sm" variant="outline" className="text-[11px] px-2 py-1"
+                        onClick={() => onOpenResource(resourceName || undefined, secretKey || undefined)}>
+                        Open workbench
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {readinessSummary.blocking_secrets.length > 3 ? (
+                <p className="text-[11px] text-amber-100/70">
+                  +{readinessSummary.blocking_secrets.length - 3} more blockers
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {readinessGeneratedAt ? (
+            <div className="flex items-center justify-between text-[11px] text-white/50">
+              <span>Data from latest readiness check at {new Date(readinessGeneratedAt).toLocaleTimeString()}</span>
+              <Button size="sm" variant="ghost" className="text-[11px] px-2 py-1" onClick={onRefreshReadiness}>
+                Refresh
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : manifestData ? (
+        <div className="space-y-2 rounded-2xl border border-emerald-400/30 bg-emerald-500/5 p-3 text-sm text-white/80">
+          <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-white/60">
+            <span>{deploymentScenario || "Select a scenario"}</span>
+            <span>{deploymentTier}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Coverage</span>
+            <span className="font-semibold text-white">
+              {manifestData.summary.strategized_secrets}/{manifestData.summary.total_secrets}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Requires action</span>
+            <span className={`font-semibold ${manifestData.summary.requires_action > 0 ? "text-amber-100" : "text-emerald-100"}`}>
+              {manifestData.summary.requires_action}
+            </span>
+          </div>
+          {manifestData.summary.scope_readiness?.[deploymentTier] ? (
+            <p className="text-xs text-white/60">
+              Tier readiness: {manifestData.summary.scope_readiness[deploymentTier]}
+            </p>
+          ) : null}
+        </div>
+      ) : (
         <ul className="mt-2 space-y-1 text-sm text-white/80">
           {tierReadiness.slice(0, 3).map((tier) => (
             <li key={tier.tier}>
@@ -392,8 +567,11 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
             />
           </label>
           <Button variant="secondary" size="sm" className="w-full" onClick={onManifestRequest} disabled={manifestIsLoading}>
-            {manifestIsLoading ? "Generating…" : "Generate manifest"}
+            {manifestIsLoading ? "Generating…" : manifestData ? "Regenerate manifest" : "Generate manifest"}
           </Button>
+          <p className="text-xs text-white/50">
+            Your selection from step 1 is synced here. The manifest auto-refreshes when scenario or tier changes.
+          </p>
           {manifestIsError ? (
             <p className="text-xs text-red-300">{manifestError?.message}</p>
           ) : null}
@@ -430,6 +608,15 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
         </div>
       ) : manifestData ? (
         <div className="space-y-3 text-xs text-white/70">
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white/80">
+            <span className="font-semibold text-white">{manifestData.scenario}</span>
+            <span className="rounded-full border border-white/10 px-2 py-[2px] text-[10px] uppercase tracking-[0.2em]">
+              {manifestData.tier}
+            </span>
+            <span className="text-white/50">
+              Generated {manifestData.generated_at ? new Date(manifestData.generated_at).toLocaleTimeString() : "just now"}
+            </span>
+          </div>
           <div className="grid gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3">
             <div className="flex items-center justify-between">
               <span className="text-white/60">Secrets Covered:</span>
@@ -471,6 +658,22 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
               </pre>
             </div>
           </details>
+          {manifestData.summary.blocking_secrets?.length ? (() => {
+            const firstBlocker = manifestData.summary.blocking_secrets[0];
+            const [resourceName, secretKey] = firstBlocker.split(":");
+            return (
+              <div className="rounded-2xl border border-amber-400/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-100 space-y-2">
+                <p className="font-semibold">Next action: {firstBlocker}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onOpenResource(resourceName || undefined, secretKey || undefined)}
+                >
+                  Open resource workbench
+                </Button>
+              </div>
+            );
+          })() : null}
         </div>
       ) : (
         <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm text-white/60">

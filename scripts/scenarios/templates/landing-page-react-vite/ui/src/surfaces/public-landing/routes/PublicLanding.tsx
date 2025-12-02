@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { useLandingVariant, type VariantResolution } from '../../../app/providers/LandingVariantProvider';
-import type { LandingConfigResponse, LandingSection } from '../../../shared/api';
+import type { DownloadApp, LandingConfigResponse, LandingSection } from '../../../shared/api';
 import { HeroSection } from '../sections/HeroSection';
 import { FeaturesSection } from '../sections/FeaturesSection';
 import { PricingSection } from '../sections/PricingSection';
@@ -44,20 +44,39 @@ const RESOLUTION_LABELS: Record<VariantResolution, string> = {
   fallback: 'Offline fallback',
   unknown: 'Unknown source',
 };
+const DOWNLOAD_PLATFORM_LABELS: Record<string, string> = {
+  windows: 'Windows',
+  mac: 'macOS',
+  linux: 'Linux',
+};
+
+function hasDownloadTargets(app: DownloadApp) {
+  return (app.platforms?.length ?? 0) > 0 || (app.storefronts?.length ?? 0) > 0;
+}
+
+function formatDownloadPlatform(platform?: string) {
+  if (!platform) {
+    return 'Download';
+  }
+  return DOWNLOAD_PLATFORM_LABELS[platform.toLowerCase()] ?? platform;
+}
 
 // Map section types declared in variant schemas to their React implementations.
 // Add new entries here when introducing a new section so renderers stay centralized.
 const SECTION_COMPONENTS: Record<string, SectionRenderer> = {
-  hero: ({ section }) => <HeroSection content={section.content} />,
+  hero: ({ section }) => <HeroSection content={section.content} />, 
   features: ({ section }) => <FeaturesSection content={section.content} />,
   pricing: ({ section, config }) => (
     <PricingSection content={section.content} pricingOverview={config?.pricing} />
   ),
-  cta: ({ section }) => <CTASection content={section.content} />,
+  cta: ({ section }) => <CTASection content={section.content} />, 
   testimonials: ({ section }) => <TestimonialsSection content={section.content} />,
   faq: ({ section }) => <FAQSection content={section.content} />,
   footer: ({ section }) => <FooterSection content={section.content} />,
   video: ({ section }) => <VideoSection content={section.content} />,
+  downloads: ({ section, config }) => (
+    <DownloadSection content={section.content as any} downloads={config?.downloads} />
+  ),
 };
 
 function getSectionKey(section: LandingSection) {
@@ -65,12 +84,15 @@ function getSectionKey(section: LandingSection) {
 }
 
 function getSectionAnchorId(section: LandingSection) {
+  if (section.section_type === 'downloads') {
+    return DOWNLOAD_ANCHOR_ID;
+  }
   const base = section.section_type.replace(/_/g, '-');
   const suffix = section.id ?? section.order;
   return `${base}-${suffix}`;
 }
 
-function buildNavItems(sections: LandingSection[], includeDownloads: boolean): NavItem[] {
+function buildNavItems(sections: LandingSection[], includeDownloads: boolean, downloadAnchorId: string): NavItem[] {
   const items: NavItem[] = [];
   for (const type of SECTION_NAV_ORDER) {
     const match = sections.find((section) => section.section_type === type);
@@ -80,7 +102,7 @@ function buildNavItems(sections: LandingSection[], includeDownloads: boolean): N
     items.push({ id: getSectionAnchorId(match), label: SECTION_NAV_LABELS[type] ?? type });
   }
   if (includeDownloads) {
-    items.push({ id: DOWNLOAD_ANCHOR_ID, label: 'Downloads' });
+    items.push({ id: downloadAnchorId, label: 'Downloads' });
   }
   return items;
 }
@@ -119,9 +141,17 @@ export function PublicLanding() {
   const sectionsToRender = debugSectionTypes
     ? sections.filter((section) => debugSectionTypes.includes(section.section_type))
     : sections;
-  const downloads = config?.downloads ?? [];
-  const hasDownloads = downloads.length > 0;
-  const navItems = useMemo(() => buildNavItems(sections, hasDownloads), [sections, hasDownloads]);
+  const downloadsSection = sections.find((section) => section.section_type === 'downloads');
+  const downloadApps = useMemo<DownloadApp[]>(() => {
+    const raw = config?.downloads ?? [];
+    return raw.filter((app) => hasDownloadTargets(app));
+  }, [config]);
+  const hasDownloads = downloadApps.length > 0;
+  const downloadAnchorId = downloadsSection ? getSectionAnchorId(downloadsSection) : DOWNLOAD_ANCHOR_ID;
+  const navItems = useMemo(
+    () => buildNavItems(sections, hasDownloads, downloadAnchorId),
+    [sections, hasDownloads, downloadAnchorId],
+  );
   const heroSection = sections.find((section) => section.section_type === 'hero');
   const heroCTAContent = heroSection?.content as { cta_text?: string; cta_url?: string } | undefined;
   const heroCtaText = typeof heroCTAContent?.cta_text === 'string' ? heroCTAContent.cta_text : undefined;
@@ -129,21 +159,22 @@ export function PublicLanding() {
   const variantLabel = variant?.name ?? variant?.slug ?? 'Variant not resolved';
   const resolutionLabel = RESOLUTION_LABELS[resolution] ?? RESOLUTION_LABELS.unknown;
   const downloadButtonLabel = useMemo(() => {
-    if (downloads.length === 0) {
+    if (!hasDownloads) {
       return 'Downloads';
     }
-    if (downloads.length === 1) {
-      const single = downloads[0];
-      if (single?.label) {
-        return `Download ${single.label}`;
+    if (downloadApps.length === 1) {
+      const single = downloadApps[0];
+      const singleInstaller = single.platforms?.[0];
+      if ((single.platforms?.length ?? 0) === 1 && singleInstaller) {
+        return `Download ${formatDownloadPlatform(singleInstaller.platform)}`;
       }
-      if (single?.platform) {
-        return `Download ${single.platform}`;
+      if ((single.storefronts?.length ?? 0) === 1 && (single.platforms?.length ?? 0) === 0) {
+        return `Open ${single.storefronts?.[0]?.label ?? 'store'}`;
       }
-      return 'Download';
+      return `View ${single.name}`;
     }
     return 'View downloads';
-  }, [downloads]);
+  }, [downloadApps, hasDownloads]);
 
   if (configLoading) {
     return (
@@ -201,12 +232,18 @@ export function PublicLanding() {
       return null;
     }
 
+    const rendered = renderer({
+      section,
+      config,
+    });
+
+    if (!rendered) {
+      return null;
+    }
+
     return (
       <div key={getSectionKey(section)} id={getSectionAnchorId(section)} className="scroll-mt-28">
-        {renderer({
-          section,
-          config,
-        })}
+        {rendered}
       </div>
     );
   };
@@ -222,7 +259,7 @@ export function PublicLanding() {
         fallbackActive={fallbackActive}
         statusNote={statusNote}
         downloadsAvailable={hasDownloads}
-        downloadAnchorId={DOWNLOAD_ANCHOR_ID}
+        downloadAnchorId={downloadAnchorId}
         downloadButtonLabel={downloadButtonLabel}
       />
       {variantPinnedViaParam && (
@@ -271,13 +308,13 @@ export function PublicLanding() {
           </div>
         </div>
       )}
-      {hasDownloads && config?.downloads && (
-        <div id={DOWNLOAD_ANCHOR_ID} className="scroll-mt-28">
+      {hasDownloads && !downloadsSection && (
+        <div id={downloadAnchorId} className="scroll-mt-28">
           <DownloadSection
-            downloads={config.downloads}
+            downloads={downloadApps}
             content={{
               title: 'Download Browser Automation Studio',
-              subtitle: 'Install on Windows, macOS, or Linux while we verify your subscription entitlements.',
+              subtitle: 'Install on Windows, macOS, Linux, or via the stores while we verify entitlements.',
             }}
           />
         </div>

@@ -3,6 +3,7 @@ import { apiCall } from './common';
 export interface AdminSessionResponse {
   authenticated: boolean;
   email?: string;
+  reset_enabled?: boolean;
 }
 
 export async function adminLogin(email: string, password: string) {

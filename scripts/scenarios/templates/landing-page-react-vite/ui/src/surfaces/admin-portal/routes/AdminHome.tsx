@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "../components/AdminLayout";
 import { Button } from "../../../shared/ui/button";
-import { Activity, AlertTriangle, BarChart3, Compass, CreditCard, ExternalLink, Gauge, History, Palette, RefreshCw, ShieldCheck } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Compass, CreditCard, Download, ExternalLink, Gauge, History, Palette, RefreshCw, ShieldCheck } from "lucide-react";
 import { getAdminExperienceSnapshot, type AdminExperienceSnapshot } from "../../../shared/lib/adminExperience";
-import { listVariants, type AnalyticsSummary, type Variant, type VariantStats, getStripeSettings, type StripeSettingsResponse } from "../../../shared/api";
+import { listVariants, type AnalyticsSummary, type Variant, type VariantStats, getStripeSettings, type StripeSettingsResponse, resetDemoData } from "../../../shared/api";
 import { buildDateRange, fetchAnalyticsSummary } from "../controllers/analyticsController";
 import { useLandingVariant, type VariantResolution } from "../../../app/providers/LandingVariantProvider";
+import { useAdminAuth } from "../../../app/providers/AdminAuthProvider";
 
 const HEALTH_SNAPSHOT_DAYS = 7;
 const STALE_VARIANT_DAYS = 10;
@@ -57,6 +58,7 @@ export function AdminHome() {
   const navigate = useNavigate();
   const [experience, setExperience] = useState<AdminExperienceSnapshot | null>(null);
   const { variant: liveVariant, resolution: liveResolution, statusNote: liveStatusNote } = useLandingVariant();
+  const { canResetDemoData } = useAdminAuth();
   const [healthSnapshot, setHealthSnapshot] = useState<HealthSnapshot | null>(null);
   const [healthLoading, setHealthLoading] = useState(true);
   const [healthError, setHealthError] = useState<string | null>(null);
@@ -64,6 +66,9 @@ export function AdminHome() {
   const [stripeSettings, setStripeSettings] = useState<StripeSettingsResponse | null>(null);
   const [stripeLoading, setStripeLoading] = useState(true);
   const [stripeError, setStripeError] = useState<string | null>(null);
+  const [resettingDemoData, setResettingDemoData] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   useEffect(() => {
     setExperience(getAdminExperienceSnapshot());
@@ -123,6 +128,28 @@ export function AdminHome() {
     refreshStripeStatus();
   }, [refreshStripeStatus]);
 
+  const handleResetDemoData = useCallback(async () => {
+    if (!canResetDemoData) {
+      return;
+    }
+    const confirmed = window.confirm('This will wipe variants, sections, downloads, and pricing, then re-seed from the template defaults. Continue?');
+    if (!confirmed) {
+      return;
+    }
+    setResettingDemoData(true);
+    setResetError(null);
+    setResetMessage(null);
+    try {
+      await resetDemoData();
+      setResetMessage('Demo data restored to template defaults.');
+      await Promise.all([refreshHealthSnapshot(), refreshStripeStatus()]);
+    } catch (error) {
+      setResetError(error instanceof Error ? error.message : 'Failed to reset demo data');
+    } finally {
+      setResettingDemoData(false);
+    }
+  }, [canResetDemoData, refreshHealthSnapshot, refreshStripeStatus]);
+
   const resumeVariant = experience?.lastVariant;
   const resumeAnalytics = experience?.lastAnalytics;
 
@@ -174,6 +201,9 @@ export function AdminHome() {
   const handleNavigateBilling = () => {
     navigate("/admin/billing");
   };
+  const handleNavigateDownloads = () => {
+    navigate("/admin/downloads");
+  };
 
   return (
     <AdminLayout>
@@ -184,6 +214,7 @@ export function AdminHome() {
           onNavigateAnalytics={() => navigate('/admin/analytics')}
           onNavigateCustomization={() => navigate('/admin/customization')}
           onNavigateBilling={handleNavigateBilling}
+          onNavigateDownloads={handleNavigateDownloads}
           onPreviewPublicLanding={previewPublicLanding}
         />
 
@@ -210,6 +241,37 @@ export function AdminHome() {
           onRetry={refreshStripeStatus}
           onNavigateBilling={handleNavigateBilling}
         />
+
+        {canResetDemoData && (
+          <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6" data-testid="admin-reset-demo-card">
+            <div className="flex items-center gap-3">
+              <RefreshCw className={`h-5 w-5 text-amber-300 ${resettingDemoData ? 'animate-spin' : ''}`} />
+              <div>
+                <h3 className="text-lg font-semibold text-white">Reset demo data</h3>
+                <p className="text-sm text-amber-100/80">Wipe variants, sections, downloads, and pricing, then re-seed from the template fallback payload.</p>
+              </div>
+            </div>
+            {resetError && (
+              <p className="mt-3 text-sm text-rose-200" data-testid="admin-reset-error">{resetError}</p>
+            )}
+            {resetMessage && (
+              <p className="mt-3 text-sm text-emerald-200" data-testid="admin-reset-success">{resetMessage}</p>
+            )}
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={handleResetDemoData}
+                disabled={resettingDemoData}
+                data-testid="admin-reset-demo-btn"
+              >
+                <RefreshCw className="h-4 w-4" />
+                {resettingDemoData ? 'Resetting…' : 'Reset demo data'}
+              </Button>
+              <p className="text-xs text-amber-200/70">Available when ENABLE_ADMIN_RESET=true.</p>
+            </div>
+          </div>
+        )}
 
         <div className="grid md:grid-cols-2 gap-6">
           {/* Analytics / Metrics Mode */}
@@ -317,10 +379,11 @@ interface ExperienceGuidePanelProps {
   onNavigateAnalytics: () => void;
   onNavigateCustomization: () => void;
   onNavigateBilling: () => void;
+  onNavigateDownloads: () => void;
   onPreviewPublicLanding: () => void;
 }
 
-function ExperienceGuidePanel({ onNavigateAnalytics, onNavigateCustomization, onNavigateBilling, onPreviewPublicLanding }: ExperienceGuidePanelProps) {
+function ExperienceGuidePanel({ onNavigateAnalytics, onNavigateCustomization, onNavigateBilling, onNavigateDownloads, onPreviewPublicLanding }: ExperienceGuidePanelProps) {
   return (
     <div className="mb-8 rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-900/90 p-6" data-testid="admin-experience-guide">
       <div className="flex flex-col gap-2 mb-6">
@@ -330,7 +393,7 @@ function ExperienceGuidePanel({ onNavigateAnalytics, onNavigateCustomization, on
           Analytics tells you what happened. Customization lets you respond. Use the quick flows below to jump to the right surface for your job.
         </p>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-blue-500/20">
@@ -409,6 +472,25 @@ function ExperienceGuidePanel({ onNavigateAnalytics, onNavigateCustomization, on
           </ol>
           <Button size="sm" variant="outline" className="w-full" onClick={onNavigateBilling} data-testid="admin-guide-billing">
             Open Billing
+          </Button>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-emerald-500/20">
+              <Download className="h-4 w-4 text-emerald-300" />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Flow 5</p>
+              <p className="font-semibold text-white">Maintain downloads</p>
+            </div>
+          </div>
+          <ol className="text-sm text-slate-400 space-y-1 list-decimal list-inside">
+            <li>Update copy + install steps</li>
+            <li>Paste store links + badges</li>
+            <li>Verify installers per platform</li>
+          </ol>
+          <Button size="sm" variant="outline" className="w-full" onClick={onNavigateDownloads} data-testid="admin-guide-downloads">
+            Configure downloads
           </Button>
         </div>
       </div>

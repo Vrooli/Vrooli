@@ -66,7 +66,7 @@
 #### Subscription, Credits, and Bundled Apps
 - [x] OT-P0-032 | Subscription-aware pricing APIs | Backend parses Stripe metadata (products/prices/intro pricing) and exposes `GET /plans`, `POST /billing/create-checkout-session`, `POST /billing/create-credits-checkout-session`, and `GET /billing/portal-url` with correct tier/weight info for both monthly/yearly plans plus $1 intro logic.
 - [x] OT-P0-033 | Credits + entitlements | Provide `GET /me/subscription`, `GET /me/credits`, and `GET /entitlements` endpoints that interpret `credits_per_usd`, `display_credits_multiplier`, intro grants, top-ups, donations, and return feature flags for bundled apps (with short-lived caches/offline fallback).
-- [x] OT-P0-034 | Download gating for bundled apps | Landing config includes download sections that surface installers, release notes, and analytics; downloads remain disabled until entitlements confirm an active subscription, and emit variant + plan metadata when triggered.
+- [x] OT-P0-034 | Download gating for bundled apps | Landing config includes multi-app download sections that surface installers, release notes, and store links curated from the admin Download Settings page; downloads remain disabled until entitlements confirm an active subscription, and emit variant + plan metadata when triggered.
 
 #### Security & Verification
 - [x] OT-P0-027 | Webhook signature verification | All webhook endpoints verify Stripe signature before processing

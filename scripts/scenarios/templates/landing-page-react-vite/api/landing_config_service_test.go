@@ -176,12 +176,20 @@ func TestParseFallbackLandingConfigNormalizesSectionsAndAxes(t *testing.T) {
 		},
 		"downloads": [
 			{
-				"id": 10,
 				"bundle_key": "bundle",
-				"platform": "windows",
-				"artifact_url": "https://example.com",
-				"release_version": "1.0.0",
-				"requires_entitlement": true
+				"app_key": "desktop",
+				"name": "Desktop App",
+				"platforms": [
+					{
+						"id": 10,
+						"bundle_key": "bundle",
+						"app_key": "desktop",
+						"platform": "windows",
+						"artifact_url": "https://example.com",
+						"release_version": "1.0.0",
+						"requires_entitlement": true
+					}
+				]
 			}
 		]
 	}`)
@@ -207,7 +215,7 @@ func TestParseFallbackLandingConfigNormalizesSectionsAndAxes(t *testing.T) {
 		t.Fatalf("expected explicit order/enabled preserved, got order=%d enabled=%v", payload.Sections[1].Order, payload.Sections[1].Enabled)
 	}
 
-	if len(payload.Downloads) != 1 || payload.Downloads[0].Platform != "windows" {
+	if len(payload.Downloads) != 1 || len(payload.Downloads[0].Platforms) != 1 || payload.Downloads[0].Platforms[0].Platform != "windows" {
 		t.Fatalf("expected downloads copied, got %+v", payload.Downloads)
 	}
 }

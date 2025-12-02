@@ -33,6 +33,18 @@ type LoginRequest struct {
 type LoginResponse struct {
 	Email         string `json:"email,omitempty"`
 	Authenticated bool   `json:"authenticated"`
+	ResetEnabled  bool   `json:"reset_enabled"`
+}
+
+func buildLoginResponse(email string, authenticated bool) LoginResponse {
+	resp := LoginResponse{
+		Authenticated: authenticated,
+		ResetEnabled:  adminResetEnabled(),
+	}
+	if authenticated && email != "" {
+		resp.Email = email
+	}
+	return resp
 }
 
 // handleAdminLogin authenticates admin users and creates a session
@@ -104,10 +116,7 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 
 	// Return user data
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(LoginResponse{
-		Email:         req.Email,
-		Authenticated: true,
-	})
+	json.NewEncoder(w).Encode(buildLoginResponse(req.Email, true))
 }
 
 // handleAdminLogout destroys the admin session
@@ -132,17 +141,12 @@ func (s *Server) handleAdminSession(w http.ResponseWriter, r *http.Request) {
 	if !ok || email == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(LoginResponse{
-			Authenticated: false,
-		})
+		json.NewEncoder(w).Encode(buildLoginResponse("", false))
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(LoginResponse{
-		Email:         email,
-		Authenticated: true,
-	})
+	json.NewEncoder(w).Encode(buildLoginResponse(email, true))
 }
 
 // requireAdmin is middleware to protect admin routes

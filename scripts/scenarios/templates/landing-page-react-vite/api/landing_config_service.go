@@ -34,7 +34,210 @@ var (
 					"title": "Launch Browser Automation Studio Instantly",
 					"subtitle": "Ship automation workflows with Stripe-ready billing and admin analytics.",
 					"cta_text": "Get Started",
-					"cta_url": "/checkout?plan=pro"
+					"cta_url": "/checkout?plan=pro",
+					"image_url": "/assets/fallback/hero.png"
+				}
+			},
+			{
+				"section_type": "video",
+				"order": 2,
+				"enabled": true,
+				"content": {
+					"title": "Watch the landing/runtime handoff",
+					"videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+					"thumbnailUrl": "/assets/fallback/video-thumb.png",
+					"caption": "Tour the variant selector, analytics lane, and gated downloads in four minutes."
+				}
+			},
+			{
+				"section_type": "features",
+				"order": 3,
+				"enabled": true,
+				"content": {
+					"title": "Everything you need to sell automation bundles",
+					"subtitle": "Variants, analytics, download gating, and entitlement checks all live in one repo.",
+					"features": [
+						{
+							"title": "A/B-tested landing pages",
+							"description": "Variants, analytics, and agent customization in one template.",
+							"icon": "zap"
+						},
+						{
+							"title": "Subscription awareness",
+							"description": "Pricing auto-syncs from Stripe metadata and intro offers.",
+							"icon": "shield"
+						},
+						{
+							"title": "Bundle downloads",
+							"description": "Gate Windows, macOS, and Linux installers behind entitlements.",
+							"icon": "sparkles"
+						}
+					]
+				}
+			},
+			{
+				"section_type": "testimonials",
+				"order": 4,
+				"enabled": true,
+				"content": {
+					"title": "Proof from operators",
+					"subtitle": "How teams describe Browser Automation Studio hand-offs during reviews.",
+					"testimonials": [
+						{
+							"name": "Marina Patel",
+							"role": "VP Operations",
+							"company": "Clause",
+							"content": "We sold enterprise seats the same week we scaffolded this template. Downloads + billing landed perfectly.",
+							"rating": 5
+						},
+						{
+							"name": "Devon Brooks",
+							"role": "Founder",
+							"company": "Atlas Automations",
+							"content": "Entitlement-aware installers made our desktop launch credible with zero extra wiring.",
+							"rating": 5
+						},
+						{
+							"name": "Lina Gomez",
+							"role": "Product Lead",
+							"company": "Brightlab",
+							"content": "Landing + admin portal shipped with metrics, FAQ, and CTA sequencing ready for paid media.",
+							"rating": 5
+						}
+					]
+				}
+			},
+			{
+				"section_type": "pricing",
+				"order": 5,
+				"enabled": true,
+				"content": {
+					"title": "Simple, transparent pricing",
+					"subtitle": "Bundled credit packs for Browser Automation Studio.",
+					"tiers": [
+						{
+							"name": "Solo",
+							"price": "$49",
+							"description": "1 workspace, 5M included credits, email support",
+							"features": [
+								"Solo workspace",
+								"5M included credits",
+								"Email support"
+							],
+							"cta_text": "Start for $1",
+							"cta_url": "/checkout?plan=solo"
+						},
+						{
+							"name": "Pro",
+							"price": "$149",
+							"description": "3 workspaces, priority support, desktop bundle downloads",
+							"features": [
+								"Team workflows",
+								"Priority support",
+								"Desktop bundle downloads"
+							],
+							"cta_text": "Upgrade",
+							"cta_url": "/checkout?plan=pro",
+							"highlighted": true
+						},
+						{
+							"name": "Studio",
+							"price": "$349",
+							"description": "Unlimited automations, dedicated architect, enterprise compliance",
+							"features": [
+								"Unlimited automations",
+								"Dedicated architect",
+								"Enterprise compliance"
+							],
+							"cta_text": "Talk to sales",
+							"cta_url": "/contact"
+						}
+					]
+				}
+			},
+			{
+				"section_type": "downloads",
+				"order": 6,
+				"enabled": true,
+				"content": {
+					"title": "Download Browser Automation Studio",
+					"subtitle": "macOS, Windows, Linux, and store links inherit entitlement gating by default."
+				}
+			},
+			{
+				"section_type": "faq",
+				"order": 7,
+				"enabled": true,
+				"content": {
+					"title": "Guardrails teams ask about before launch",
+					"subtitle": "From staging folders to download gating, here are the answers ops leaders reference most often.",
+					"faqs": [
+						{
+							"question": "How do downloads stay in sync with entitlements?",
+							"answer": "Gated installers call the downloads API, which verifies the subscription before handing back the asset."
+						},
+						{
+							"question": "Can we restyle every section?",
+							"answer": "Yes. Each section maps to styling.json tokens and can be updated live through the admin portal."
+						},
+						{
+							"question": "Do variants inherit pricing and analytics?",
+							"answer": "All variants read from the same pricing overview and emit download + CTA events with their slug."
+						}
+					]
+				}
+			},
+			{
+				"section_type": "cta",
+				"order": 8,
+				"enabled": true,
+				"content": {
+					"title": "Deploy Browser Automation Studio in under an hour",
+					"subtitle": "Vrooli landing system manages subscriptions, download gating, and future upgrades.",
+					"cta_text": "Book a live demo",
+					"cta_url": "/contact"
+				}
+			},
+			{
+				"section_type": "footer",
+				"order": 9,
+				"enabled": true,
+				"content": {
+					"company_name": "Vrooli Business Suite",
+					"tagline": "Clause-inspired landings with analytics, download gating, and styling guardrails baked in.",
+					"columns": [
+						{
+							"title": "Product",
+							"links": [
+								{ "label": "Features", "url": "#features" },
+								{ "label": "Pricing", "url": "#pricing" },
+								{ "label": "Downloads", "url": "#downloads-section" }
+							]
+						},
+						{
+							"title": "Company",
+							"links": [
+								{ "label": "Docs", "url": "/docs" },
+								{ "label": "PRD", "url": "/prd" },
+								{ "label": "Careers", "url": "/careers" }
+							]
+						},
+						{
+							"title": "Legal",
+							"links": [
+								{ "label": "Privacy", "url": "/privacy" },
+								{ "label": "Terms", "url": "/terms" },
+								{ "label": "Security", "url": "/security" }
+							]
+						}
+					],
+					"social_links": {
+						"github": "https://github.com/vrooli",
+						"twitter": "https://twitter.com/vrooli",
+						"linkedin": "https://www.linkedin.com/company/vrooli",
+						"email": "hello@vrooli.com"
+					},
+					"copyright": "© 2025 Vrooli. All rights reserved."
 				}
 			}
 		],
@@ -81,12 +284,131 @@ var (
 		},
 		"downloads": [
 			{
-				"id": 0,
 				"bundle_key": "business_suite",
-				"platform": "windows",
-				"artifact_url": "https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe",
-				"release_version": "1.0.0",
-				"requires_entitlement": true
+				"app_key": "automation_studio",
+				"name": "Browser Automation Studio",
+				"tagline": "Clause-grade desktop automations",
+				"description": "Desktop suite that orchestrates automations, download rail governance, and analytics traced per variant.",
+				"install_overview": "Pick your OS, download the installer, and sign in with the email tied to your plan to unlock entitlement-gated downloads.",
+				"install_steps": [
+					"Download the installer for your OS",
+					"Launch the setup wizard and finish the install",
+					"Sign in with your subscription email to unlock the workspace"
+				],
+				"storefronts": [
+					{
+						"store": "app_store",
+						"label": "macOS App Store",
+						"url": "https://apps.apple.com/app/id000000",
+						"badge": "Download on the App Store"
+					}
+				],
+				"platforms": [
+					{
+						"bundle_key": "business_suite",
+						"app_key": "automation_studio",
+						"platform": "windows",
+						"artifact_url": "https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe",
+						"release_version": "1.0.0",
+						"release_notes": "Initial GA release with Browser Automation Studio.",
+						"requires_entitlement": true,
+						"metadata": {
+							"size_mb": 210
+						}
+					},
+					{
+						"bundle_key": "business_suite",
+						"app_key": "automation_studio",
+						"platform": "mac",
+						"artifact_url": "https://downloads.vrooli.local/business-suite/mac/VrooliBusinessSuite.dmg",
+						"release_version": "1.0.0",
+						"release_notes": "Universal build for Apple Silicon and Intel.",
+						"requires_entitlement": true,
+						"metadata": {
+							"size_mb": 190
+						}
+					},
+					{
+						"bundle_key": "business_suite",
+						"app_key": "automation_studio",
+						"platform": "linux",
+						"artifact_url": "https://downloads.vrooli.local/business-suite/linux/vrooli-business-suite.tar.gz",
+						"release_version": "1.0.0",
+						"release_notes": "AppImage bundle tested on Ubuntu/Debian.",
+						"requires_entitlement": true,
+						"metadata": {
+							"size_mb": 205
+						}
+					}
+				]
+			},
+			{
+				"bundle_key": "business_suite",
+				"app_key": "command_center",
+				"name": "Vrooli Command Center",
+				"tagline": "Mobile companion + approvals",
+				"description": "Approve downloads, monitor install attempts, and push updates from iOS/Android or lightweight desktop utilities.",
+				"install_overview": "Install from your preferred store for mobile or download the desktop notifier to watch bundle health.",
+				"install_steps": [
+					"Install from the App Store or Google Play",
+					"Enable notifications for entitlement changes",
+					"Link the workspace to sync download telemetry"
+				],
+				"storefronts": [
+					{
+						"store": "app_store",
+						"label": "Apple App Store",
+						"url": "https://apps.apple.com/app/id000111",
+						"badge": "Download on the App Store"
+					},
+					{
+						"store": "play_store",
+						"label": "Google Play",
+						"url": "https://play.google.com/store/apps/details?id=vrooli.command",
+						"badge": "Get it on Google Play"
+					}
+				],
+				"platforms": [
+					{
+						"bundle_key": "business_suite",
+						"app_key": "command_center",
+						"platform": "windows",
+						"artifact_url": "https://downloads.vrooli.local/command-center/win/VrooliCommandCenter.exe",
+						"release_version": "0.9.5",
+						"release_notes": "Preview build with entitlement notifications.",
+						"requires_entitlement": false,
+						"metadata": {
+							"size_mb": 120,
+							"channel": "beta"
+						}
+					},
+					{
+						"bundle_key": "business_suite",
+						"app_key": "command_center",
+						"platform": "mac",
+						"artifact_url": "https://downloads.vrooli.local/command-center/mac/VrooliCommandCenter.dmg",
+						"release_version": "0.9.5",
+						"release_notes": "Signed build with push notification helpers.",
+						"requires_entitlement": false,
+						"metadata": {
+							"size_mb": 115,
+							"channel": "beta"
+						}
+					},
+					{
+						"bundle_key": "business_suite",
+						"app_key": "command_center",
+						"platform": "linux",
+						"artifact_url": "https://downloads.vrooli.local/command-center/linux/VrooliCommandCenter.tar.gz",
+						"release_version": "0.9.5",
+						"release_notes": "Preview release for Debian/Ubuntu.",
+						"requires_entitlement": false,
+						"metadata": {
+							"size_mb": 118,
+							"channel": "beta"
+						}
+					}
+				]
 			}
 		]
 	}`)
@@ -118,7 +440,7 @@ type LandingConfigResponse struct {
 	Variant   LandingVariantSummary `json:"variant"`
 	Sections  []LandingSection      `json:"sections"`
 	Pricing   *PricingOverview      `json:"pricing"`
-	Downloads []DownloadAsset       `json:"downloads"`
+	Downloads []DownloadApp         `json:"downloads"`
 	Fallback  bool                  `json:"fallback"`
 }
 
@@ -141,7 +463,7 @@ type LandingConfigPayload struct {
 	Variant   LandingVariantSummary `json:"variant"`
 	Sections  []LandingSection      `json:"sections"`
 	Pricing   PricingOverview       `json:"pricing"`
-	Downloads []DownloadAsset       `json:"downloads"`
+	Downloads []DownloadApp         `json:"downloads"`
 }
 
 func NewLandingConfigService(
@@ -164,7 +486,7 @@ func (s *LandingConfigService) GetLandingConfig(ctx context.Context, variantSlug
 		return s.fallbackWithReason("pricing_fetch_failed", err, nil)
 	}
 
-	downloads, err := s.downloadService.ListAssets(s.planService.BundleKey())
+	downloads, err := s.downloadService.ListApps(s.planService.BundleKey())
 	if err != nil {
 		return s.fallbackWithReason("download_list_failed", err, nil)
 	}
@@ -269,7 +591,7 @@ type fallbackLandingPayload struct {
 	Variant   LandingVariantSummary `json:"variant"`
 	Sections  []fallbackSection     `json:"sections"`
 	Pricing   *PricingOverview      `json:"pricing"`
-	Downloads []DownloadAsset       `json:"downloads"`
+	Downloads json.RawMessage       `json:"downloads"`
 	Axes      map[string]string     `json:"axes"`
 }
 
@@ -304,11 +626,16 @@ func parseFallbackLandingConfig(data []byte) (LandingConfigPayload, error) {
 		return LandingConfigPayload{}, fmt.Errorf("fallback config has no usable sections")
 	}
 
+	downloadApps, err := parseFallbackDownloads(raw.Downloads)
+	if err != nil {
+		return LandingConfigPayload{}, fmt.Errorf("parse fallback downloads: %w", err)
+	}
+
 	payload := LandingConfigPayload{
 		Variant:   raw.Variant,
 		Sections:  sections,
 		Pricing:   *raw.Pricing,
-		Downloads: normalizeDownloads(raw.Downloads),
+		Downloads: normalizeDownloads(downloadApps),
 	}
 	payload.Variant.Slug = variantSlug
 
@@ -360,12 +687,84 @@ func normalizeFallbackSections(sections []fallbackSection) []LandingSection {
 	return normalized
 }
 
-func normalizeDownloads(downloads []DownloadAsset) []DownloadAsset {
-	if downloads == nil {
-		return []DownloadAsset{}
+func parseFallbackDownloads(raw json.RawMessage) ([]DownloadApp, error) {
+	if len(raw) == 0 {
+		return []DownloadApp{}, nil
 	}
-	copied := make([]DownloadAsset, len(downloads))
-	copy(copied, downloads)
+
+	var appsGuess []DownloadApp
+	if err := json.Unmarshal(raw, &appsGuess); err == nil {
+		hasStructuredApps := false
+		for _, app := range appsGuess {
+			if strings.TrimSpace(app.AppKey) != "" || len(app.Platforms) > 0 {
+				hasStructuredApps = true
+				break
+			}
+		}
+		if hasStructuredApps {
+			for i := range appsGuess {
+				if appsGuess[i].Platforms == nil {
+					appsGuess[i].Platforms = []DownloadAsset{}
+				}
+			}
+			return appsGuess, nil
+		}
+	}
+
+	var flatAssets []DownloadAsset
+	if err := json.Unmarshal(raw, &flatAssets); err != nil {
+		return nil, err
+	}
+	if len(flatAssets) == 0 {
+		return []DownloadApp{}, nil
+	}
+
+	bundleKey := flatAssets[0].BundleKey
+	appKey := flatAssets[0].AppKey
+	if strings.TrimSpace(appKey) == "" {
+		appKey = "bundle_downloads"
+	}
+
+	app := DownloadApp{
+		BundleKey: bundleKey,
+		AppKey:    appKey,
+		Name:      "Bundle downloads",
+		Tagline:   "Installer payload generated from fallback config",
+		Platforms: flatAssets,
+	}
+
+	return []DownloadApp{app}, nil
+}
+
+func normalizeDownloads(downloads []DownloadApp) []DownloadApp {
+	if downloads == nil {
+		return []DownloadApp{}
+	}
+	copied := make([]DownloadApp, len(downloads))
+	for i, download := range downloads {
+		copied[i] = download
+		if download.Platforms == nil {
+			copied[i].Platforms = []DownloadAsset{}
+		} else {
+			platforms := make([]DownloadAsset, len(download.Platforms))
+			copy(platforms, download.Platforms)
+			copied[i].Platforms = platforms
+		}
+		if download.InstallSteps == nil {
+			copied[i].InstallSteps = []string{}
+		} else {
+			steps := make([]string, len(download.InstallSteps))
+			copy(steps, download.InstallSteps)
+			copied[i].InstallSteps = steps
+		}
+		if download.Storefronts == nil {
+			copied[i].Storefronts = []DownloadStorefront{}
+		} else {
+			storefronts := make([]DownloadStorefront, len(download.Storefronts))
+			copy(storefronts, download.Storefronts)
+			copied[i].Storefronts = storefronts
+		}
+	}
 	return copied
 }
 

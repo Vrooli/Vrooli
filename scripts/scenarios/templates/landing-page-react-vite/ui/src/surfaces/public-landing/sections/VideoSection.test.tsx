@@ -156,4 +156,29 @@ describe('VideoSection [REQ:DESIGN-VIDEO]', () => {
 
     expect(container.querySelector('img[alt="Video thumbnail"]')).toBeDefined();
   });
+
+  it('should render when content prop provides data', () => {
+    const { container } = render(
+      <VideoSection
+        content={{
+          title: 'Inline content payload',
+          videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          thumbnailUrl: '/thumbnail.jpg',
+        }}
+      />
+    );
+
+    expect(container.querySelector('img[alt="Video thumbnail"]')).toBeDefined();
+    expect(screen.getByText('Inline content payload')).toBeDefined();
+  });
+
+  it('should skip rendering when videoUrl missing from content payload', () => {
+    const { container } = render(
+      <VideoSection
+        content={{ title: 'Missing video url' }}
+      />
+    );
+
+    expect(container.querySelector('section')).toBeNull();
+  });
 });
