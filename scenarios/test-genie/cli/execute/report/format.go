@@ -12,16 +12,17 @@ import (
 )
 
 // StatusIcon returns an icon for the given phase status.
+// Uses consistent emoji icons that match the legacy testing output.
 func StatusIcon(status string) string {
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case "passed", "success":
-		return "✓"
+		return "✅"
 	case "skipped":
-		return "↷"
+		return "⏭️"
 	case "failed", "error":
-		return "✗"
+		return "❌"
 	default:
-		return "•"
+		return "⏳"
 	}
 }
 

@@ -44,8 +44,8 @@ func TestPrinterIncludesGuidesAndInsights(t *testing.T) {
 
 	out := buf.String()
 	for _, token := range []string{
-		"Quick fix guide:",
-		"Phase-specific debug guides:",
+		"QUICK FIX GUIDE:",
+		"PHASE-SPECIFIC DEBUG GUIDES:",
 		"UI bundle",
 		"artifact roots:",
 	} {
