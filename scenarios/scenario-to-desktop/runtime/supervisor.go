@@ -47,13 +47,128 @@ import (
 	"strings"
 	"sync"
 
+	"scenario-to-desktop-runtime/env"
 	"scenario-to-desktop-runtime/gpu"
 	"scenario-to-desktop-runtime/health"
 	"scenario-to-desktop-runtime/infra"
 	"scenario-to-desktop-runtime/manifest"
+	"scenario-to-desktop-runtime/ports"
 	"scenario-to-desktop-runtime/secrets"
 	"scenario-to-desktop-runtime/telemetry"
 )
+
+// =============================================================================
+// Type Aliases (re-exports from domain packages)
+// =============================================================================
+
+// Infrastructure types - re-exported from infra/
+type (
+	Clock             = infra.Clock
+	Ticker            = infra.Ticker
+	FileSystem        = infra.FileSystem
+	File              = infra.File
+	NetworkDialer     = infra.NetworkDialer
+	HTTPClient        = infra.HTTPClient
+	ProcessRunner     = infra.ProcessRunner
+	Process           = infra.Process
+	CommandRunner     = infra.CommandRunner
+	EnvReader         = infra.EnvReader
+)
+
+// Real implementations - re-exported from infra/
+type (
+	RealClock         = infra.RealClock
+	RealFileSystem    = infra.RealFileSystem
+	RealNetworkDialer = infra.RealNetworkDialer
+	RealHTTPClient    = infra.RealHTTPClient
+	RealProcessRunner = infra.RealProcessRunner
+	RealCommandRunner = infra.RealCommandRunner
+	RealEnvReader     = infra.RealEnvReader
+)
+
+// Port allocation - re-exported from ports/
+type (
+	PortAllocator = ports.Allocator
+	PortRange     = ports.Range
+)
+
+// Secret management - re-exported from secrets/
+type (
+	SecretStore = secrets.Store
+)
+
+// Health monitoring - re-exported from health/
+type (
+	HealthChecker = health.Checker
+	ServiceStatus = health.Status
+)
+
+// GPU detection - re-exported from gpu/
+type (
+	GPUDetector = gpu.Detector
+	GPUStatus   = gpu.Status
+)
+
+// Telemetry - re-exported from telemetry/
+type (
+	TelemetryRecorder = telemetry.Recorder
+)
+
+// Environment rendering - re-exported from env/
+type (
+	EnvRenderer = env.Renderer
+)
+
+// MigrationsState tracks applied migrations per service and the current app version.
+type MigrationsState struct {
+	AppVersion string              `json:"app_version"`
+	Applied    map[string][]string `json:"applied"` // service ID -> list of applied migration versions
+}
+
+// Signal constants for cross-platform compatibility - re-exported from infra/
+var (
+	Interrupt = infra.Interrupt
+	Kill      = infra.Kill
+)
+
+// DefaultPortRange is the fallback range when not specified in manifest.
+var DefaultPortRange = ports.DefaultRange
+
+// =============================================================================
+// ServiceManager Interface
+// =============================================================================
+
+// ServiceManager provides a high-level interface for service lifecycle management.
+// This interface can be used by external code (like Electron) to interact with the runtime.
+type ServiceManager interface {
+	// Start initializes the runtime and begins service orchestration.
+	Start(ctx context.Context) error
+	// Shutdown gracefully stops all services.
+	Shutdown(ctx context.Context) error
+	// IsStarted returns whether the runtime has been started.
+	IsStarted() bool
+	// AllServicesReady returns true if all services are ready.
+	AllServicesReady() bool
+	// ServiceStatuses returns the current status of all services.
+	ServiceStatuses() map[string]ServiceStatus
+	// UpdateSecrets merges new secrets and triggers service startup if ready.
+	UpdateSecrets(secrets map[string]string) error
+	// GPUStatus returns GPU detection results.
+	GPUStatus() GPUStatus
+	// PortMap returns allocated ports for all services.
+	PortMap() map[string]map[string]int
+	// AppDataDir returns the application data directory.
+	AppDataDir() string
+	// AuthToken returns the control API authentication token.
+	AuthToken() string
+}
+
+// Ensure Supervisor implements ServiceManager.
+var _ ServiceManager = (*Supervisor)(nil)
+
+// =============================================================================
+// Supervisor Configuration
+// =============================================================================
 
 // Options configures the Supervisor.
 type Options struct {
@@ -471,4 +586,133 @@ func (s *Supervisor) recordTelemetry(event string, details map[string]interface{
 		return nil
 	}
 	return s.telemetry.Record(event, details)
+}
+
+// =============================================================================
+// Secret Management (delegates to secrets package)
+// =============================================================================
+
+// secretsCopy returns a thread-safe copy of the current secrets.
+func (s *Supervisor) secretsCopy() map[string]string {
+	return s.secretStore.Get()
+}
+
+// missingRequiredSecrets returns a list of required secrets that are missing.
+func (s *Supervisor) missingRequiredSecrets() []string {
+	return s.secretStore.MissingRequired()
+}
+
+// missingRequiredSecretsFrom checks a secrets map for missing required values.
+func (s *Supervisor) missingRequiredSecretsFrom(secretsMap map[string]string) []string {
+	return s.secretStore.MissingRequiredFrom(secretsMap)
+}
+
+// persistSecrets saves secrets to the secrets file.
+func (s *Supervisor) persistSecrets(secretsMap map[string]string) error {
+	return s.secretStore.Persist(secretsMap)
+}
+
+// findSecret looks up a secret definition by ID.
+func (s *Supervisor) findSecret(id string) *manifest.Secret {
+	return s.secretStore.FindSecret(id)
+}
+
+// applySecrets injects secrets into the environment for a service.
+func (s *Supervisor) applySecrets(env map[string]string, svc manifest.Service) error {
+	injector := secrets.NewInjector(s.secretStore, s.fs, s.appData)
+	return injector.Apply(env, svc)
+}
+
+// UpdateSecrets merges new secrets and persists them.
+// Triggers service startup if all required secrets are now available.
+func (s *Supervisor) UpdateSecrets(newSecrets map[string]string) error {
+	merged := s.secretStore.Merge(newSecrets)
+
+	missing := s.missingRequiredSecretsFrom(merged)
+	if len(missing) > 0 {
+		_ = s.recordTelemetry("secrets_missing", map[string]interface{}{"missing": missing})
+		return fmt.Errorf("missing required secrets: %s", strings.Join(missing, ", "))
+	}
+
+	if err := s.persistSecrets(merged); err != nil {
+		return err
+	}
+
+	s.secretStore.Set(merged)
+
+	_ = s.recordTelemetry("secrets_updated", map[string]interface{}{"count": len(merged)})
+
+	// Trigger service startup if not already started.
+	if !s.servicesStarted {
+		s.startServicesAsync()
+	}
+	return nil
+}
+
+// =============================================================================
+// Template Expansion (delegates to env package)
+// =============================================================================
+
+// envRenderer returns an environment renderer for the current supervisor state.
+func (s *Supervisor) envRenderer() *env.Renderer {
+	return env.NewRenderer(s.appData, s.opts.BundlePath, s.portAllocator, s.envReader)
+}
+
+// renderEnvMap builds the environment variable map for a service.
+func (s *Supervisor) renderEnvMap(svc manifest.Service, bin manifest.Binary) (map[string]string, error) {
+	return s.envRenderer().RenderEnvMap(svc, bin)
+}
+
+// renderArgs expands template variables in command arguments.
+func (s *Supervisor) renderArgs(args []string) []string {
+	return s.envRenderer().RenderArgs(args)
+}
+
+// renderValue expands template variables in a string.
+func (s *Supervisor) renderValue(input string) string {
+	return s.envRenderer().RenderValue(input)
+}
+
+// GPUStatus returns the current GPU detection status.
+func (s *Supervisor) GPUStatus() GPUStatus {
+	return s.gpuStatus
+}
+
+// PortMap returns allocated ports for all services.
+func (s *Supervisor) PortMap() map[string]map[string]int {
+	return s.portAllocator.Map()
+}
+
+// =============================================================================
+// Factory Functions
+// =============================================================================
+
+// NewPortManager creates a new PortManager with the given dependencies.
+func NewPortManager(m *Manifest, dialer NetworkDialer) *ports.Manager {
+	return ports.NewManager(m, dialer)
+}
+
+// NewSecretManager creates a new SecretManager with the given dependencies.
+func NewSecretManager(m *Manifest, fs FileSystem, secretsPath string) *secrets.Manager {
+	return secrets.NewManager(m, fs, secretsPath)
+}
+
+// NewHealthMonitor creates a new HealthMonitor with the given dependencies.
+func NewHealthMonitor(cfg health.MonitorConfig) *health.Monitor {
+	return health.NewMonitor(cfg)
+}
+
+// NewEnvRenderer creates a new environment variable renderer.
+func NewEnvRenderer(appData, bundlePath string, portAlloc PortAllocator, envReader EnvReader) *env.Renderer {
+	return env.NewRenderer(appData, bundlePath, portAlloc, envReader)
+}
+
+// NewTelemetryRecorder creates a new telemetry file recorder.
+func NewTelemetryRecorder(path string, clock Clock, fs FileSystem) *telemetry.FileRecorder {
+	return telemetry.NewFileRecorder(path, clock, fs)
+}
+
+// NewGPUDetector creates a new GPU detector.
+func NewGPUDetector(cmdRunner CommandRunner, envReader EnvReader) *gpu.RealDetector {
+	return gpu.NewDetector(cmdRunner, envReader)
 }

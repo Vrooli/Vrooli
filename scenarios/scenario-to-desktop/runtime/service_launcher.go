@@ -9,8 +9,82 @@ import (
 	"path/filepath"
 	"time"
 
+	"scenario-to-desktop-runtime/assets"
+	"scenario-to-desktop-runtime/gpu"
+	"scenario-to-desktop-runtime/health"
 	"scenario-to-desktop-runtime/manifest"
 )
+
+// =============================================================================
+// Asset Management (delegates to assets package)
+// =============================================================================
+
+// ensureAssets verifies all required assets for a service exist and are valid.
+func (s *Supervisor) ensureAssets(svc manifest.Service) error {
+	v := assets.NewVerifier(s.opts.BundlePath, s.fs, s.telemetry)
+	return v.EnsureAssets(svc)
+}
+
+// =============================================================================
+// Playwright Conventions (delegates to assets package)
+// =============================================================================
+
+// applyPlaywrightConventions sets up environment variables for Playwright-based services.
+func (s *Supervisor) applyPlaywrightConventions(svc manifest.Service, env map[string]string) error {
+	cfg := assets.PlaywrightConfig{
+		BundlePath: s.opts.BundlePath,
+		FS:         s.fs,
+		EnvReader:  s.envReader,
+		Ports:      s.portAllocator,
+		Telemetry:  s.telemetry,
+	}
+	return assets.ApplyPlaywrightConventions(cfg, svc, env)
+}
+
+// serviceUsesPlaywright determines if a service requires Playwright setup.
+func serviceUsesPlaywright(svc manifest.Service) bool {
+	return assets.ServiceUsesPlaywright(svc)
+}
+
+// =============================================================================
+// Health Monitoring (delegates to health package)
+// =============================================================================
+
+// waitForReadiness waits for a service to become ready.
+func (s *Supervisor) waitForReadiness(ctx context.Context, svc manifest.Service) error {
+	return s.healthChecker.WaitForReadiness(ctx, svc.ID)
+}
+
+// waitForDependencies waits for all service dependencies to be ready.
+func (s *Supervisor) waitForDependencies(ctx context.Context, svc *manifest.Service) error {
+	if len(svc.Dependencies) == 0 {
+		return nil
+	}
+
+	// Use the HealthChecker's implementation if it's a health.Monitor.
+	if hm, ok := s.healthChecker.(*health.Monitor); ok {
+		return hm.WaitForDependencies(ctx, svc)
+	}
+
+	// Fallback implementation for custom HealthCheckers.
+	return s.healthChecker.WaitForReadiness(ctx, svc.ID)
+}
+
+// =============================================================================
+// GPU Requirement (delegates to gpu package)
+// =============================================================================
+
+// applyGPURequirement enforces GPU requirements for a service.
+func (s *Supervisor) applyGPURequirement(env map[string]string, svc manifest.Service) error {
+	applier := gpu.NewApplier(s.gpuStatus, s.telemetry)
+	return applier.Apply(env, svc)
+}
+
+// boolToString converts a boolean to "true" or "false".
+// Re-exported from gpu package for tests.
+func boolToString(v bool) string {
+	return gpu.BoolToString(v)
+}
 
 // exitCode extracts the exit code from an error, if available.
 func exitCode(err error) *int {
