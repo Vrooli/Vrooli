@@ -117,11 +117,13 @@ func (c *Catalog) Descriptors() []Descriptor {
 	}
 	descriptors := make([]Descriptor, 0, len(specs))
 	for _, spec := range specs {
+		timeout := int(spec.DefaultTimeout.Seconds())
 		descriptors = append(descriptors, Descriptor{
-			Name:        spec.Name.String(),
-			Optional:    spec.Optional,
-			Description: spec.Description,
-			Source:      spec.Source,
+			Name:                  spec.Name.String(),
+			Optional:              spec.Optional,
+			Description:           spec.Description,
+			Source:                spec.Source,
+			DefaultTimeoutSeconds: timeout,
 		})
 	}
 	return descriptors

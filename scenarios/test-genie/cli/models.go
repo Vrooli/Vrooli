@@ -105,8 +105,9 @@ type RunTestsResponse struct {
 }
 
 type PhaseDescriptor struct {
-	Name        string `json:"name"`
-	Optional    bool   `json:"optional"`
-	Description string `json:"description"`
-	Source      string `json:"source"`
+	Name                  string `json:"name"`
+	Optional              bool   `json:"optional"`
+	Description           string `json:"description"`
+	Source                string `json:"source"`
+	DefaultTimeoutSeconds int    `json:"defaultTimeoutSeconds"`
 }

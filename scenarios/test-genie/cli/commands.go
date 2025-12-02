@@ -4,12 +4,16 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 )
 
+// allowedPhases enumerates the standard phase set the planner understands.
 var allowedPhases = []string{
 	"structure",
 	"dependencies",
@@ -18,6 +22,39 @@ var allowedPhases = []string{
 	"e2e",
 	"business",
 	"performance",
+}
+
+// generateArgs holds parsed CLI inputs for "generate".
+type generateArgs struct {
+	Scenario  string
+	Types     string
+	Coverage  int
+	Priority  string
+	Notes     string
+	NotesFile string
+	JSON      bool
+}
+
+// executeArgs holds parsed CLI inputs for "execute".
+type executeArgs struct {
+	Scenario    string
+	Preset      string
+	PhasesCSV   string
+	SkipCSV     string
+	Phases      []string
+	Skip        []string
+	RequestID   string
+	FailFast    bool
+	Stream      bool
+	JSON        bool
+	ExtraPhases []string
+}
+
+// runTestsArgs holds parsed CLI inputs for "run-tests".
+type runTestsArgs struct {
+	Scenario string
+	Type     string
+	JSON     bool
 }
 
 func (a *App) cmdStatus() error {
@@ -66,41 +103,23 @@ func (a *App) cmdStatus() error {
 }
 
 func (a *App) cmdGenerate(args []string) error {
-	if len(args) == 0 {
-		return usageError("usage: generate <scenario> [--types unit,integration] [--coverage 95] [--priority normal] [--notes text] [--notes-file path] [--json]")
-	}
-	scenario := args[0]
-	fs := flag.NewFlagSet("generate", flag.ContinueOnError)
-	types := fs.String("types", "", "Comma-separated types to request")
-	coverage := fs.Int("coverage", 0, "Coverage target (1-100)")
-	priority := fs.String("priority", "", "Priority (low|normal|high|urgent)")
-	notes := fs.String("notes", "", "Notes for this request")
-	notesFile := fs.String("notes-file", "", "Path to notes file")
-	jsonOutput := cliutil.JSONFlag(fs)
-	fs.SetOutput(flag.CommandLine.Output())
-	if err := fs.Parse(args[1:]); err != nil {
+	parsed, err := parseGenerateArgs(args)
+	if err != nil {
 		return err
 	}
 
-	if *coverage < 0 || *coverage > 100 {
-		return usageError("coverage must be between 0 and 100")
-	}
-	if *priority != "" && !isAllowedPriority(*priority) {
-		return usageError("priority must be one of: low, normal, high, urgent")
-	}
-
 	payload := GenerateRequest{
-		ScenarioName:   scenario,
-		RequestedTypes: cliutil.ParseCSV(*types),
-		Priority:       strings.ToLower(*priority),
-		Notes:          *notes,
+		ScenarioName:   parsed.Scenario,
+		RequestedTypes: cliutil.ParseCSV(parsed.Types),
+		Priority:       strings.ToLower(parsed.Priority),
+		Notes:          parsed.Notes,
 	}
-	if *coverage > 0 {
-		val := *coverage
+	if parsed.Coverage > 0 {
+		val := parsed.Coverage
 		payload.CoverageTarget = &val
 	}
-	if *notesFile != "" {
-		content, err := cliutil.ReadFileString(*notesFile)
+	if parsed.NotesFile != "" {
+		content, err := cliutil.ReadFileString(parsed.NotesFile)
 		if err != nil {
 			return fmt.Errorf("read notes file: %w", err)
 		}
@@ -111,7 +130,7 @@ func (a *App) cmdGenerate(args []string) error {
 	if err != nil {
 		return err
 	}
-	if *jsonOutput {
+	if parsed.JSON {
 		cliutil.PrintJSON(raw)
 		return nil
 	}
@@ -139,41 +158,18 @@ func (a *App) cmdGenerate(args []string) error {
 }
 
 func (a *App) cmdExecute(args []string) error {
-	if len(args) == 0 {
-		return usageError("usage: execute <scenario> [phases...] [--preset quick] [--skip performance] [--request-id id] [--fail-fast] [--json]")
-	}
-	scenario := args[0]
-	fs := flag.NewFlagSet("execute", flag.ContinueOnError)
-	preset := fs.String("preset", "", "Preset name")
-	phasesFlag := fs.String("phases", "", "Comma-separated phases to run")
-	skipFlag := fs.String("skip", "", "Comma-separated phases to skip")
-	requestID := fs.String("request-id", "", "Link to suite request")
-	failFast := fs.Bool("fail-fast", false, "Stop on first failure")
-	jsonOutput := cliutil.JSONFlag(fs)
-	fs.SetOutput(flag.CommandLine.Output())
-	if err := fs.Parse(args[1:]); err != nil {
-		return err
-	}
-
-	phases := cliutil.MergeArgs(cliutil.ParseCSV(*phasesFlag), fs.Args())
-	skip := cliutil.ParseCSV(*skipFlag)
-
-	normalizedPhases, err := normalizePhaseSelection(phases)
-	if err != nil {
-		return err
-	}
-	normalizedSkip, err := normalizePhaseSelection(skip)
+	parsed, err := parseExecuteArgs(args)
 	if err != nil {
 		return err
 	}
 
 	req := ExecuteRequest{
-		ScenarioName:   scenario,
-		Preset:         *preset,
-		Phases:         normalizedPhases,
-		Skip:           normalizedSkip,
-		FailFast:       *failFast,
-		SuiteRequestID: *requestID,
+		ScenarioName:   parsed.Scenario,
+		Preset:         parsed.Preset,
+		Phases:         parsed.Phases,
+		Skip:           parsed.Skip,
+		FailFast:       parsed.FailFast,
+		SuiteRequestID: parsed.RequestID,
 	}
 
 	var phaseDescriptors []PhaseDescriptor
@@ -182,17 +178,55 @@ func (a *App) cmdExecute(args []string) error {
 	} else {
 		fmt.Fprintf(os.Stderr, "Warning: unable to load phase catalog (%v)\n", err)
 	}
+	_, durationTargets := makeDescriptorMaps(phaseDescriptors)
+
+	var stopProgress func()
+	var tailer *logTailer
+	if !parsed.JSON {
+		progressPhases := parsed.Phases
+		if len(progressPhases) == 0 {
+			progressPhases = []string{"structure", "dependencies", "unit", "integration", "business", "performance"}
+		}
+		stopProgress = startExecuteProgress(os.Stderr, progressPhases, durationTargets)
+		if parsed.Stream {
+			if paths := discoverScenarioPaths(parsed.Scenario); paths.TestDir != "" {
+				t, err := startLogTailer(os.Stderr, filepath.Join(paths.TestDir, "artifacts"))
+				if err == nil {
+					tailer = t
+				} else {
+					fmt.Fprintf(os.Stderr, "Warning: unable to start log streaming: %v\n", err)
+				}
+			} else {
+				fmt.Fprintf(os.Stderr, "Warning: unable to locate scenario test dir for streaming\n")
+			}
+		}
+	}
 
 	resp, raw, err := a.services.Suite.Execute(req)
+	if stopProgress != nil {
+		stopProgress()
+	}
+	if tailer != nil {
+		tailer.Stop()
+	}
 	if err != nil {
+		printExecuteError(os.Stdout, err, req, a.core.HTTPClient)
 		return err
 	}
-	if *jsonOutput {
+	if parsed.JSON {
 		cliutil.PrintJSON(raw)
 		return nil
 	}
 
-	printer := newExecutionPrinter(os.Stdout, scenario, req.Preset, normalizedPhases, phaseDescriptors)
+	printer := newExecutionPrinter(
+		os.Stdout,
+		parsed.Scenario,
+		req.Preset,
+		parsed.Phases,
+		parsed.Skip,
+		req.FailFast,
+		phaseDescriptors,
+	)
 	printer.Print(resp)
 
 	if resp.Error != "" {
@@ -206,28 +240,21 @@ func (a *App) cmdExecute(args []string) error {
 }
 
 func (a *App) cmdRunTests(args []string) error {
-	if len(args) == 0 {
-		return usageError("usage: run-tests <scenario> [--type phased] [--json]")
-	}
-	scenario := args[0]
-	fs := flag.NewFlagSet("run-tests", flag.ContinueOnError)
-	testType := fs.String("type", "", "Test runner type to request")
-	jsonOutput := cliutil.JSONFlag(fs)
-	fs.SetOutput(flag.CommandLine.Output())
-	if err := fs.Parse(args[1:]); err != nil {
+	parsed, err := parseRunTestsArgs(args)
+	if err != nil {
 		return err
 	}
 
 	req := RunTestsRequest{}
-	if *testType != "" {
-		req.Type = *testType
+	if parsed.Type != "" {
+		req.Type = parsed.Type
 	}
 
-	resp, raw, err := a.services.RunTests.Run(scenario, req)
+	resp, raw, err := a.services.RunTests.Run(parsed.Scenario, req)
 	if err != nil {
 		return err
 	}
-	if *jsonOutput {
+	if parsed.JSON {
 		cliutil.PrintJSON(raw)
 		return nil
 	}
@@ -246,6 +273,85 @@ func (a *App) cmdRunTests(args []string) error {
 		fmt.Printf("  Status  : %s\n", resp.Status)
 	}
 	return nil
+}
+
+func parseGenerateArgs(args []string) (generateArgs, error) {
+	if len(args) == 0 {
+		return generateArgs{}, usageError("usage: generate <scenario> [--types unit,integration] [--coverage 95] [--priority normal] [--notes text] [--notes-file path] [--json]")
+	}
+	out := generateArgs{Scenario: args[0]}
+	fs := flag.NewFlagSet("generate", flag.ContinueOnError)
+	fs.StringVar(&out.Types, "types", "", "Comma-separated types to request")
+	fs.IntVar(&out.Coverage, "coverage", 0, "Coverage target (1-100)")
+	fs.StringVar(&out.Priority, "priority", "", "Priority (low|normal|high|urgent)")
+	fs.StringVar(&out.Notes, "notes", "", "Notes for this request")
+	fs.StringVar(&out.NotesFile, "notes-file", "", "Path to notes file")
+	jsonOutput := cliutil.JSONFlag(fs)
+	fs.SetOutput(flag.CommandLine.Output())
+	if err := fs.Parse(args[1:]); err != nil {
+		return generateArgs{}, err
+	}
+	out.JSON = *jsonOutput
+
+	if out.Coverage < 0 || out.Coverage > 100 {
+		return generateArgs{}, usageError("coverage must be between 0 and 100")
+	}
+	if out.Priority != "" && !isAllowedPriority(out.Priority) {
+		return generateArgs{}, usageError("priority must be one of: low, normal, high, urgent")
+	}
+	return out, nil
+}
+
+func parseExecuteArgs(args []string) (executeArgs, error) {
+	if len(args) == 0 {
+		return executeArgs{}, usageError("usage: execute <scenario> [phases...] [--preset quick] [--skip performance] [--request-id id] [--fail-fast] [--stream] [--json]")
+	}
+	out := executeArgs{Scenario: args[0]}
+	fs := flag.NewFlagSet("execute", flag.ContinueOnError)
+	fs.StringVar(&out.Preset, "preset", "", "Preset name")
+	fs.StringVar(&out.PhasesCSV, "phases", "", "Comma-separated phases to run")
+	fs.StringVar(&out.SkipCSV, "skip", "", "Comma-separated phases to skip")
+	fs.StringVar(&out.RequestID, "request-id", "", "Link to suite request")
+	fs.BoolVar(&out.FailFast, "fail-fast", false, "Stop on first failure")
+	fs.BoolVar(&out.Stream, "stream", false, "Stream live phase logs while the run executes")
+	jsonOutput := cliutil.JSONFlag(fs)
+	fs.SetOutput(flag.CommandLine.Output())
+	if err := fs.Parse(args[1:]); err != nil {
+		return executeArgs{}, err
+	}
+	out.JSON = *jsonOutput
+	out.ExtraPhases = fs.Args()
+
+	phases := cliutil.MergeArgs(cliutil.ParseCSV(out.PhasesCSV), out.ExtraPhases)
+	skip := cliutil.ParseCSV(out.SkipCSV)
+
+	normalizedPhases, err := normalizePhaseSelection(phases)
+	if err != nil {
+		return executeArgs{}, err
+	}
+	normalizedSkip, err := normalizePhaseSelection(skip)
+	if err != nil {
+		return executeArgs{}, err
+	}
+	out.Phases = normalizedPhases
+	out.Skip = normalizedSkip
+	return out, nil
+}
+
+func parseRunTestsArgs(args []string) (runTestsArgs, error) {
+	if len(args) == 0 {
+		return runTestsArgs{}, usageError("usage: run-tests <scenario> [--type phased] [--json]")
+	}
+	out := runTestsArgs{Scenario: args[0]}
+	fs := flag.NewFlagSet("run-tests", flag.ContinueOnError)
+	fs.StringVar(&out.Type, "type", "", "Test runner type to request")
+	jsonOutput := cliutil.JSONFlag(fs)
+	fs.SetOutput(flag.CommandLine.Output())
+	if err := fs.Parse(args[1:]); err != nil {
+		return runTestsArgs{}, err
+	}
+	out.JSON = *jsonOutput
+	return out, nil
 }
 
 func defaultValue(val, fallback string) string {
@@ -316,4 +422,70 @@ func normalizePhaseAlias(name string) string {
 	default:
 		return name
 	}
+}
+
+func startExecuteProgress(w io.Writer, phases []string, targets map[string]time.Duration) func() {
+	if len(phases) == 0 {
+		phases = []string{"structure", "unit", "integration"}
+	}
+	start := time.Now()
+	ticker := time.NewTicker(2 * time.Second)
+	done := make(chan struct{})
+	go func() {
+		idx := 0
+		for {
+			select {
+			case <-done:
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				phase := phases[idx%len(phases)]
+				idx++
+				elapsed := time.Since(start).Truncate(time.Second)
+				target := ""
+				if d, ok := targets[normalizePhaseName(phase)]; ok && d > 0 {
+					target = fmt.Sprintf(" target=%s", d.Truncate(time.Second))
+				}
+				fmt.Fprintf(w, "\rExecuting %-12s (t+%s%s)", phase, elapsed, target)
+			}
+		}
+	}()
+	return func() {
+		close(done)
+		fmt.Fprint(w, "\r")
+	}
+}
+
+func printExecuteError(w io.Writer, err error, req ExecuteRequest, httpClient *cliutil.HTTPClient) {
+	fmt.Fprintln(w, "╔═══════════════════════════════════════════════════════════════╗")
+	fmt.Fprintf(w, "║  %-61s║\n", "TEST EXECUTION REQUEST FAILED")
+	fmt.Fprintln(w, "╠═══════════════════════════════════════════════════════════════╣")
+	fmt.Fprintf(w, "║  %-61s║\n", fmt.Sprintf("Scenario: %s", req.ScenarioName))
+	if req.Preset != "" {
+		fmt.Fprintf(w, "║  %-61s║\n", fmt.Sprintf("Preset: %s", req.Preset))
+	}
+	if len(req.Phases) > 0 {
+		fmt.Fprintf(w, "║  %-61s║\n", fmt.Sprintf("Requested phases: %s", strings.Join(req.Phases, ", ")))
+	}
+	if len(req.Skip) > 0 {
+		fmt.Fprintf(w, "║  %-61s║\n", fmt.Sprintf("Skip: %s", strings.Join(req.Skip, ", ")))
+	}
+	if req.FailFast {
+		fmt.Fprintf(w, "║  %-61s║\n", "Fail-fast: enabled")
+	}
+	if httpClient != nil {
+		if base := httpClient.BaseURL(); strings.TrimSpace(base) != "" {
+			fmt.Fprintf(w, "║  %-61s║\n", fmt.Sprintf("API base: %s", base))
+		}
+		if timeout := httpClient.Timeout(); timeout > 0 {
+			fmt.Fprintf(w, "║  %-61s║\n", fmt.Sprintf("HTTP timeout: %s", timeout))
+		}
+	}
+	fmt.Fprintf(w, "║  %-61s║\n", fmt.Sprintf("Error: %v", err))
+	fmt.Fprintln(w, "╚═══════════════════════════════════════════════════════════════╝")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Next steps:")
+	fmt.Fprintf(w, "  • Check scenario logs: vrooli scenario logs %s\n", req.ScenarioName)
+	fmt.Fprintf(w, "  • Verify scenario health: vrooli scenario status %s\n", req.ScenarioName)
+	fmt.Fprintf(w, "  • Retry with streaming to inspect live output: test-genie execute %s --stream\n", req.ScenarioName)
 }

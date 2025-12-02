@@ -38,10 +38,11 @@ const (
 // Descriptor surfaces metadata about registered phases so the UI/CLI can
 // describe the orchestration flow without scraping bash scripts.
 type Descriptor struct {
-	Name        string `json:"name"`
-	Optional    bool   `json:"optional"`
-	Description string `json:"description,omitempty"`
-	Source      string `json:"source"`
+	Name                  string `json:"name"`
+	Optional              bool   `json:"optional"`
+	Description           string `json:"description,omitempty"`
+	Source                string `json:"source"`
+	DefaultTimeoutSeconds int    `json:"defaultTimeoutSeconds,omitempty"`
 }
 
 // RunReport captures per-phase execution context that a runner returns.
