@@ -80,6 +80,50 @@ func TestResolveSourceRoot(t *testing.T) {
 	}
 }
 
+func TestResolveConfigDirPrefersEnv(t *testing.T) {
+	temp := t.TempDir()
+	override := filepath.Join(temp, "custom")
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", override)
+
+	dir, err := ResolveConfigDir("demo", "CLI_CONFIG_DIR_OVERRIDE")
+	if err != nil {
+		t.Fatalf("ResolveConfigDir: %v", err)
+	}
+	if dir != override {
+		t.Fatalf("expected override dir %s, got %s", override, dir)
+	}
+	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+		t.Fatalf("expected directory to exist at %s", dir)
+	}
+}
+
+func TestLoadAPIConfigRoundTrip(t *testing.T) {
+	temp := t.TempDir()
+	override := filepath.Join(temp, "cfg")
+	t.Setenv("APP_CONFIG_DIR", override)
+
+	file, cfg, err := LoadAPIConfig("demo", "APP_CONFIG_DIR")
+	if err != nil {
+		t.Fatalf("LoadAPIConfig: %v", err)
+	}
+	if cfg.APIBase != "" || cfg.Token != "" {
+		t.Fatalf("expected empty config by default")
+	}
+
+	updated := APIConfig{APIBase: "http://example.com", Token: "secret"}
+	if err := file.Save(updated); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	var reloaded APIConfig
+	if err := file.Load(&reloaded); err != nil {
+		t.Fatalf("reload config: %v", err)
+	}
+	if reloaded != updated {
+		t.Fatalf("expected %+v, got %+v", updated, reloaded)
+	}
+}
+
 func TestConfigFileLoadSave(t *testing.T) {
 	temp := t.TempDir()
 	path := filepath.Join(temp, "nested", "config.json")
@@ -142,5 +186,25 @@ func TestHTTPClientBaseValidation(t *testing.T) {
 	})
 	if _, err := client.Do(http.MethodGet, "/health", nil, nil); err == nil || !strings.Contains(err.Error(), "invalid api base URL") {
 		t.Fatalf("expected invalid host error, got %v", err)
+	}
+}
+
+func TestValidateAPIBase(t *testing.T) {
+	_, err := ValidateAPIBase(APIBaseOptions{EnvVars: []string{"MISSING"}})
+	if err == nil || !strings.Contains(err.Error(), "api base URL is empty") {
+		t.Fatalf("expected empty base error, got %v", err)
+	}
+
+	_, err = ValidateAPIBase(APIBaseOptions{DefaultBase: "::::"})
+	if err == nil || !strings.Contains(err.Error(), "invalid api base URL") {
+		t.Fatalf("expected invalid base error, got %v", err)
+	}
+
+	base, err := ValidateAPIBase(APIBaseOptions{DefaultBase: "http://localhost:1234"})
+	if err != nil {
+		t.Fatalf("validate base: %v", err)
+	}
+	if base != "http://localhost:1234" {
+		t.Fatalf("unexpected base: %s", base)
 	}
 }

@@ -1,6 +1,7 @@
 package cliapp
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -93,5 +94,53 @@ func TestAppUnknownCommand(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "Unknown command") {
 		t.Fatalf("expected unknown command error, got %v", err)
+	}
+}
+
+func TestAppPreflightRuns(t *testing.T) {
+	preflightCalled := false
+	group := CommandGroup{
+		Title: "Demo",
+		Commands: []Command{
+			{Name: "run", Description: "Run demo", Run: func(args []string) error { return nil }},
+		},
+	}
+	app := NewApp(AppOptions{
+		Name:     "demo",
+		Commands: []CommandGroup{group},
+		Preflight: func(cmd Command, global GlobalOptions) error {
+			preflightCalled = true
+			return nil
+		},
+	})
+
+	if err := app.Run([]string{"run"}); err != nil {
+		t.Fatalf("expected run to succeed: %v", err)
+	}
+	if !preflightCalled {
+		t.Fatalf("expected preflight to be invoked")
+	}
+}
+
+func TestAppPreflightErrorStopsRun(t *testing.T) {
+	group := CommandGroup{
+		Title: "Demo",
+		Commands: []Command{
+			{Name: "run", Description: "Run demo", Run: func(args []string) error {
+				t.Fatalf("command should not execute when preflight fails")
+				return nil
+			}},
+		},
+	}
+	app := NewApp(AppOptions{
+		Name:     "demo",
+		Commands: []CommandGroup{group},
+		Preflight: func(cmd Command, global GlobalOptions) error {
+			return errors.New("blocked")
+		},
+	})
+
+	if err := app.Run([]string{"run"}); err == nil || !strings.Contains(err.Error(), "blocked") {
+		t.Fatalf("expected preflight error, got %v", err)
 	}
 }

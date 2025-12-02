@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,6 +59,20 @@ type APIBaseOptions struct {
 	PortEnvVars  []string
 	PortDetector func() string
 	DefaultBase  string
+}
+
+// ValidateAPIBase resolves and validates an API base URL, returning a trimmed
+// base or an error with guidance when missing or malformed.
+func ValidateAPIBase(opts APIBaseOptions) (string, error) {
+	base := DetermineAPIBase(opts)
+	if base == "" {
+		return "", fmt.Errorf("api base URL is empty; set --api-base, %s, config api_base, or a port env", strings.Join(append(opts.EnvVars, opts.PortEnvVars...), ", "))
+	}
+	parsed, err := url.Parse(base)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", fmt.Errorf("invalid api base URL %q", base)
+	}
+	return base, nil
 }
 
 // DetermineAPIBase resolves the API base URL from override flags, environment,

@@ -35,6 +35,7 @@ type AppOptions struct {
 	ColorEnabled bool
 	OnColor      func(enabled bool)
 	StaleChecker *cliutil.StaleChecker
+	Preflight    func(cmd Command, global GlobalOptions) error
 }
 
 // GlobalOptions holds parsed global flags that all scenario CLIs share.
@@ -96,6 +97,12 @@ func (a *App) Run(args []string) error {
 		a.opts.StaleChecker.ReexecArgs = args
 		if restarted := a.opts.StaleChecker.CheckAndMaybeRebuild(); restarted {
 			return nil
+		}
+	}
+
+	if a.opts.Preflight != nil {
+		if err := a.opts.Preflight(cmd, a.global); err != nil {
+			return err
 		}
 	}
 
