@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -17,6 +16,8 @@ const (
 
 	genericSourceRootEnvVar = "VROOLI_CLI_SOURCE_ROOT"
 	legacySourceRootEnvVar  = "SCENARIO_COMPLETENESS_SCORING_CLI_SOURCE_ROOT"
+	configDirEnvVar         = "SCENARIO_COMPLETENESS_SCORING_CONFIG_DIR"
+	configDirGenericEnvVar  = "VROOLI_CLI_CONFIG_DIR"
 )
 
 var (
@@ -25,14 +26,9 @@ var (
 	buildSourceRoot  = ""
 )
 
-type Config struct {
-	APIBase string `json:"api_base"`
-	Token   string `json:"token,omitempty"`
-}
-
 type App struct {
 	configStore *cliutil.ConfigFile
-	config      Config
+	config      cliutil.APIConfig
 	apiOverride string
 	client      *cliutil.HTTPClient
 	api         *cliutil.APIClient
@@ -53,17 +49,8 @@ func main() {
 }
 
 func NewApp() (*App, error) {
-	dir, err := os.UserHomeDir()
+	configStore, cfg, err := cliutil.LoadAPIConfig("scenario-completeness-scoring", configDirEnvVar, configDirGenericEnvVar)
 	if err != nil {
-		return nil, fmt.Errorf("resolve home directory: %w", err)
-	}
-	configDir := filepath.Join(dir, ".scenario-completeness-scoring")
-	configStore, err := cliutil.NewConfigFile(filepath.Join(configDir, "config.json"))
-	if err != nil {
-		return nil, err
-	}
-	cfg := Config{}
-	if err := configStore.Load(&cfg); err != nil {
 		return nil, err
 	}
 	app := &App{
@@ -83,6 +70,7 @@ func NewApp() (*App, error) {
 		ColorEnabled: cliapp.DefaultColorEnabled(),
 		OnColor:      format.SetColorEnabled,
 		StaleChecker: cliutil.NewStaleChecker("scenario-completeness-scoring", buildFingerprint, buildTimestamp, buildSourceRoot, genericSourceRootEnvVar, legacySourceRootEnvVar),
+		Preflight:    app.preflightAPI,
 	})
 	return app, nil
 }
@@ -144,4 +132,12 @@ func getString(m map[string]interface{}, key string) string {
 		return value
 	}
 	return ""
+}
+
+func (a *App) preflightAPI(cmd cliapp.Command, global cliapp.GlobalOptions) error {
+	if !cmd.NeedsAPI {
+		return nil
+	}
+	_, err := cliutil.ValidateAPIBase(a.buildAPIBaseOptions())
+	return err
 }

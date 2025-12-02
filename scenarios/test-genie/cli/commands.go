@@ -9,6 +9,16 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
+var allowedPhases = []string{
+	"structure",
+	"dependencies",
+	"unit",
+	"integration",
+	"e2e",
+	"business",
+	"performance",
+}
+
 func (a *App) cmdStatus() error {
 	body, resp, err := a.services.Health.Status()
 	if err != nil {
@@ -173,11 +183,20 @@ func (a *App) cmdExecute(args []string) error {
 	phases := parseMultiArgs(parseCSV(*phasesFlag), fs.Args())
 	skip := parseCSV(*skipFlag)
 
+	normalizedPhases, err := normalizePhaseSelection(phases)
+	if err != nil {
+		return err
+	}
+	normalizedSkip, err := normalizePhaseSelection(skip)
+	if err != nil {
+		return err
+	}
+
 	req := ExecuteRequest{
 		ScenarioName:   scenario,
 		Preset:         *preset,
-		Phases:         phases,
-		Skip:           skip,
+		Phases:         normalizedPhases,
+		Skip:           normalizedSkip,
 		FailFast:       *failFast,
 		SuiteRequestID: *requestID,
 	}
@@ -294,5 +313,55 @@ func isAllowedPriority(priority string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func normalizePhaseSelection(phases []string) ([]string, error) {
+	if len(phases) == 0 {
+		return nil, nil
+	}
+
+	// Allow "all" (and synonyms) to request the default planner behavior.
+	for _, phase := range phases {
+		if p := normalizePhaseName(phase); p == "all" || p == "default" {
+			return nil, nil
+		}
+	}
+
+	allowed := make(map[string]struct{}, len(allowedPhases))
+	for _, phase := range allowedPhases {
+		allowed[phase] = struct{}{}
+	}
+
+	var normalized []string
+	seen := make(map[string]struct{}, len(phases))
+	for _, phase := range phases {
+		normalizedName := normalizePhaseName(phase)
+		if normalizedName == "" {
+			continue
+		}
+		normalizedName = normalizePhaseAlias(normalizedName)
+		if _, exists := allowed[normalizedName]; !exists {
+			return nil, usageError(fmt.Sprintf("unknown phase '%s' (allowed: %s)", phase, strings.Join(allowedPhases, ",")))
+		}
+		if _, dup := seen[normalizedName]; dup {
+			continue
+		}
+		seen[normalizedName] = struct{}{}
+		normalized = append(normalized, normalizedName)
+	}
+	return normalized, nil
+}
+
+func normalizePhaseName(name string) string {
+	return strings.ToLower(strings.TrimSpace(name))
+}
+
+func normalizePhaseAlias(name string) string {
+	switch name {
+	case "e2e":
+		return "integration"
+	default:
+		return name
 	}
 }

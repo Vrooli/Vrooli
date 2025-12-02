@@ -33,6 +33,28 @@ func TestExecuteAcceptsPositionalPhases(t *testing.T) {
 	}
 }
 
+func TestExecuteAllPhaseSkipsExplicitList(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/executions" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		body, _ := io.ReadAll(r.Body)
+		defer r.Body.Close()
+		if bytes.Contains(body, []byte(`"phases"`)) {
+			t.Fatalf("expected phases to be omitted when 'all' requested, got: %s", string(body))
+		}
+		fmt.Fprintf(w, `{"success":true,"phases":[],"executionId":"abc"}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("TEST_GENIE_API_BASE", server.URL)
+	app := newTestApp(t)
+
+	if err := app.Run([]string{"execute", "demo", "all"}); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+}
+
 func TestConfigureSetsValues(t *testing.T) {
 	app := newTestApp(t)
 	if err := app.Run([]string{"configure", "api_base", "http://example.com"}); err != nil {
