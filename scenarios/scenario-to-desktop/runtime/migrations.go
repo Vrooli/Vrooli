@@ -19,22 +19,16 @@ func (s *Supervisor) loadMigrations() (MigrationsState, error) {
 	tracker := s.migrationsTracker()
 	state, err := tracker.Load()
 	if err != nil {
-		return MigrationsState{Applied: map[string][]string{}}, err
+		return migrations.NewState(), err
 	}
-	return MigrationsState{
-		AppVersion: state.AppVersion,
-		Applied:    state.Applied,
-	}, nil
+	return state, nil
 }
 
 // persistMigrations saves the migrations state to disk.
 // Delegates to migrations.Tracker.
 func (s *Supervisor) persistMigrations(state MigrationsState) error {
 	tracker := s.migrationsTracker()
-	return tracker.Persist(migrations.State{
-		AppVersion: state.AppVersion,
-		Applied:    state.Applied,
-	})
+	return tracker.Persist(state)
 }
 
 // runMigrations executes pending migrations for a service.
@@ -44,10 +38,7 @@ func (s *Supervisor) runMigrations(ctx context.Context, svc manifest.Service, bi
 		return s.ensureAppVersionRecorded()
 	}
 
-	phase := migrations.Phase(migrations.State{
-		AppVersion: s.migrations.AppVersion,
-		Applied:    s.migrations.Applied,
-	}, s.opts.Manifest.App.Version)
+	phase := migrations.Phase(s.migrations, s.opts.Manifest.App.Version)
 
 	state := s.migrations
 	appliedSet := migrations.BuildAppliedSet(state.Applied[svc.ID])
@@ -105,9 +96,7 @@ func (s *Supervisor) maybeRunMigration(
 	}
 
 	appliedSet[m.Version] = true
-	migState := &migrations.State{AppVersion: state.AppVersion, Applied: state.Applied}
-	migrations.MarkApplied(migState, svc.ID, m.Version)
-	state.Applied = migState.Applied
+	migrations.MarkApplied(state, svc.ID, m.Version)
 
 	_ = s.recordTelemetry("migration_applied", map[string]interface{}{
 		"service_id": svc.ID,

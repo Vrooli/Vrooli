@@ -1,12 +1,14 @@
-package bundleruntime
+package ports_test
 
 import (
 	"testing"
 
+	"scenario-to-desktop-runtime/infra"
 	"scenario-to-desktop-runtime/manifest"
+	"scenario-to-desktop-runtime/ports"
 )
 
-func TestPortManagerAllocate(t *testing.T) {
+func TestManagerAllocate(t *testing.T) {
 	tests := []struct {
 		name     string
 		manifest *manifest.Manifest
@@ -85,7 +87,7 @@ func TestPortManagerAllocate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pm := NewPortManager(tt.manifest, RealNetworkDialer{})
+			pm := ports.NewManager(tt.manifest, infra.RealNetworkDialer{})
 
 			err := pm.Allocate()
 			if (err != nil) != tt.wantErr {
@@ -115,7 +117,7 @@ func TestPortManagerAllocate(t *testing.T) {
 	}
 }
 
-func TestPortManagerResolve(t *testing.T) {
+func TestManagerResolve(t *testing.T) {
 	// Create a manifest with services and ports for allocation
 	m := &manifest.Manifest{
 		Services: []manifest.Service{
@@ -138,7 +140,7 @@ func TestPortManagerResolve(t *testing.T) {
 			},
 		},
 	}
-	pm := NewPortManager(m, RealNetworkDialer{})
+	pm := ports.NewManager(m, infra.RealNetworkDialer{})
 	if err := pm.Allocate(); err != nil {
 		t.Fatalf("Allocate() failed: %v", err)
 	}
@@ -171,8 +173,8 @@ func TestPortManagerResolve(t *testing.T) {
 	}
 }
 
-// TestPortManagerMap tests that Map returns a copy of the port allocations.
-func TestPortManagerMap(t *testing.T) {
+// TestManagerMap tests that Map returns a copy of the port allocations.
+func TestManagerMap(t *testing.T) {
 	// Create a manifest with services and ports
 	m := &manifest.Manifest{
 		Services: []manifest.Service{
@@ -186,7 +188,7 @@ func TestPortManagerMap(t *testing.T) {
 			},
 		},
 	}
-	pm := NewPortManager(m, RealNetworkDialer{})
+	pm := ports.NewManager(m, infra.RealNetworkDialer{})
 	if err := pm.Allocate(); err != nil {
 		t.Fatalf("Allocate() failed: %v", err)
 	}
@@ -206,6 +208,3 @@ func TestPortManagerMap(t *testing.T) {
 		t.Errorf("original portMap modified, got %d want %d", original["api"]["http"], originalPort)
 	}
 }
-
-// Note: testMockPortAllocator is defined in health_test.go and reused here.
-// Note: TestPortManagerPickPort was removed as it tests internal implementation.

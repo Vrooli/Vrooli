@@ -73,7 +73,7 @@ func TestApplyPlaywrightConventionsFallback(t *testing.T) {
 			BundlePath: filepath.Join(tmp, "bundle"),
 			Manifest:   &manifest.Manifest{},
 		},
-		portAllocator: &testMockPortAllocator{ports: map[string]map[string]int{
+		portAllocator: &testMockPortAllocator{Ports: map[string]map[string]int{
 			"playwright-driver": {"http": 48000},
 		}},
 		telemetryPath: telemetryPath,

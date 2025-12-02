@@ -136,23 +136,35 @@ sequenceDiagram
 
 ## File Structure
 
+### Top-Level (Orchestration Layer)
+
 | File | Purpose |
 |------|---------|
-| `supervisor.go` | Core `Supervisor` struct with `Start()` and `Shutdown()` methods |
+| `supervisor.go` | Core `Supervisor` struct with `Start()`, `Shutdown()`, and factory functions |
 | `control_api.go` | HTTP handlers for `/healthz`, `/readyz`, `/ports`, `/logs`, `/secrets`, `/shutdown` |
-| `service_launcher.go` | Process lifecycle: start, stop, dependency ordering |
-| `health.go` | Readiness and health checking (HTTP, TCP, command, log_match) |
-| `secrets.go` | Secret loading, persistence, and injection (env vars or files) |
-| `migrations.go` | Schema migration tracking and execution |
-| `ports.go` | Dynamic port allocation within configurable ranges |
-| `env.go` | Environment variable rendering with `${data}`, `${bundle}`, `${svc.port}` templates |
-| `gpu.go` | Cross-platform GPU detection (nvidia-smi, system_profiler, wmic) |
-| `playwright.go` | Playwright environment setup with Chromium fallback |
-| `assets.go` | Asset verification (existence, size budget, SHA256 checksum) |
-| `telemetry.go` | JSONL event recording for debugging and analytics |
-| `errors.go` | Structured error types for better error handling |
-| `interfaces.go` | Interfaces for testing and external integration |
+| `service_launcher.go` | Process lifecycle: start, stop, health monitoring |
+| `migrations.go` | Migration orchestration and execution |
+| `types.go` | Type aliases re-exported from domain packages |
 | `utils.go` | Shared utility functions |
+
+### Domain Packages
+
+| Package | Purpose |
+|---------|---------|
+| `infra/` | Infrastructure abstractions (clock, filesystem, network, process) |
+| `manifest/` | Bundle manifest schema and loading |
+| `ports/` | Dynamic port allocation within configurable ranges |
+| `secrets/` | Secret storage, loading, and injection |
+| `health/` | Readiness and health checking (HTTP, TCP, command, log_match) |
+| `gpu/` | Cross-platform GPU detection and requirements |
+| `assets/` | Asset verification and Playwright environment setup |
+| `env/` | Environment variable templating with `${data}`, `${bundle}`, `${svc.port}` |
+| `migrations/` | Migration state tracking |
+| `telemetry/` | JSONL event recording for debugging and analytics |
+| `errors/` | Structured error types for better error handling |
+| `deps/` | Dependency resolution (topological sort) |
+| `testutil/` | Mock implementations for testing |
+| `cmd/` | CLI entry points (`runtime` daemon, `runtimectl` CLI) |
 
 ## Usage
 

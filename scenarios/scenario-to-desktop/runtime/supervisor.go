@@ -29,7 +29,8 @@
 //	  control_api.go      - HTTP handlers and authentication middleware
 //	  service_launcher.go - Service lifecycle management
 //	  interfaces.go       - Re-exports and ServiceManager interface
-//	  utils.go            - Shared utilities (topoSort, findService, etc.)
+//	  utils.go            - Shared utilities (copyStringMap, intersection, etc.)
+//	  deps/               - Dependency resolution (TopoSort, FindService)
 //
 // See README.md for detailed documentation and architecture diagrams.
 package bundleruntime
@@ -56,83 +57,6 @@ import (
 	"scenario-to-desktop-runtime/secrets"
 	"scenario-to-desktop-runtime/telemetry"
 )
-
-// =============================================================================
-// Type Aliases (re-exports from domain packages)
-// =============================================================================
-
-// Infrastructure types - re-exported from infra/
-type (
-	Clock             = infra.Clock
-	Ticker            = infra.Ticker
-	FileSystem        = infra.FileSystem
-	File              = infra.File
-	NetworkDialer     = infra.NetworkDialer
-	HTTPClient        = infra.HTTPClient
-	ProcessRunner     = infra.ProcessRunner
-	Process           = infra.Process
-	CommandRunner     = infra.CommandRunner
-	EnvReader         = infra.EnvReader
-)
-
-// Real implementations - re-exported from infra/
-type (
-	RealClock         = infra.RealClock
-	RealFileSystem    = infra.RealFileSystem
-	RealNetworkDialer = infra.RealNetworkDialer
-	RealHTTPClient    = infra.RealHTTPClient
-	RealProcessRunner = infra.RealProcessRunner
-	RealCommandRunner = infra.RealCommandRunner
-	RealEnvReader     = infra.RealEnvReader
-)
-
-// Port allocation - re-exported from ports/
-type (
-	PortAllocator = ports.Allocator
-	PortRange     = ports.Range
-)
-
-// Secret management - re-exported from secrets/
-type (
-	SecretStore = secrets.Store
-)
-
-// Health monitoring - re-exported from health/
-type (
-	HealthChecker = health.Checker
-	ServiceStatus = health.Status
-)
-
-// GPU detection - re-exported from gpu/
-type (
-	GPUDetector = gpu.Detector
-	GPUStatus   = gpu.Status
-)
-
-// Telemetry - re-exported from telemetry/
-type (
-	TelemetryRecorder = telemetry.Recorder
-)
-
-// Environment rendering - re-exported from env/
-type (
-	EnvRenderer = env.Renderer
-)
-
-// MigrationsState tracks applied migrations per service and the current app version.
-type MigrationsState struct {
-	AppVersion string              `json:"app_version"`
-	Applied    map[string][]string `json:"applied"` // service ID -> list of applied migration versions
-}
-
-// Signal constants for cross-platform compatibility - re-exported from infra/
-var (
-	Interrupt = infra.Interrupt
-	Kill      = infra.Kill
-)
-
-// DefaultPortRange is the fallback range when not specified in manifest.
-var DefaultPortRange = ports.DefaultRange
 
 // =============================================================================
 // ServiceManager Interface
@@ -204,7 +128,7 @@ type Supervisor struct {
 	gpuDetector   GPUDetector
 	envReader     EnvReader
 	portAllocator PortAllocator
-	secretStore   *secrets.Manager // Using concrete type for extended methods
+	secretStore   secrets.Store
 	healthChecker HealthChecker
 	telemetry     telemetry.Recorder
 
@@ -307,15 +231,8 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 	secretsPath := filepath.Join(appData, "secrets.json")
 
 	// Create or use provided SecretStore.
-	var secretStore *secrets.Manager
-	if opts.SecretStore != nil {
-		// If a SecretStore was provided, it must be a *secrets.Manager for extended methods.
-		var ok bool
-		secretStore, ok = opts.SecretStore.(*secrets.Manager)
-		if !ok {
-			return nil, errors.New("SecretStore must be a *secrets.Manager")
-		}
-	} else {
+	secretStore := opts.SecretStore
+	if secretStore == nil {
 		secretStore = secrets.NewManager(opts.Manifest, fileSystem, secretsPath)
 	}
 

@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"scenario-to-desktop-runtime/assets"
+	"scenario-to-desktop-runtime/deps"
 	"scenario-to-desktop-runtime/gpu"
-	"scenario-to-desktop-runtime/health"
 	"scenario-to-desktop-runtime/manifest"
 )
 
@@ -57,17 +57,7 @@ func (s *Supervisor) waitForReadiness(ctx context.Context, svc manifest.Service)
 
 // waitForDependencies waits for all service dependencies to be ready.
 func (s *Supervisor) waitForDependencies(ctx context.Context, svc *manifest.Service) error {
-	if len(svc.Dependencies) == 0 {
-		return nil
-	}
-
-	// Use the HealthChecker's implementation if it's a health.Monitor.
-	if hm, ok := s.healthChecker.(*health.Monitor); ok {
-		return hm.WaitForDependencies(ctx, svc)
-	}
-
-	// Fallback implementation for custom HealthCheckers.
-	return s.healthChecker.WaitForReadiness(ctx, svc.ID)
+	return s.healthChecker.WaitForDependencies(ctx, svc)
 }
 
 // =============================================================================
@@ -113,7 +103,7 @@ type serviceProcess struct {
 
 // launchServices starts all services in dependency order.
 func (s *Supervisor) launchServices(ctx context.Context) error {
-	order, err := topoSort(s.opts.Manifest.Services)
+	order, err := deps.TopoSort(s.opts.Manifest.Services)
 	if err != nil {
 		return fmt.Errorf("dependency sort: %w", err)
 	}
@@ -125,7 +115,7 @@ func (s *Supervisor) launchServices(ctx context.Context) error {
 		default:
 		}
 
-		svc := findService(s.opts.Manifest.Services, id)
+		svc := deps.FindService(s.opts.Manifest.Services, id)
 		if svc == nil {
 			continue
 		}
@@ -282,7 +272,7 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 
 // stopServices stops all services in reverse dependency order.
 func (s *Supervisor) stopServices(ctx context.Context) {
-	order, err := topoSort(s.opts.Manifest.Services)
+	order, err := deps.TopoSort(s.opts.Manifest.Services)
 	if err != nil {
 		return
 	}

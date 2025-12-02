@@ -23,7 +23,7 @@ func TestSecretManagerLoad_MissingFile(t *testing.T) {
 
 func TestSecretManagerLoad_NewFormat(t *testing.T) {
 	mockFS := NewMockFileSystem()
-	mockFS.files["/app/data/secrets.json"] = []byte(`{"secrets": {"API_KEY": "secret123", "DB_PASS": "password"}}`)
+	mockFS.Files["/app/data/secrets.json"] = []byte(`{"secrets": {"API_KEY": "secret123", "DB_PASS": "password"}}`)
 
 	sm := NewSecretManager(&manifest.Manifest{}, mockFS, "/app/data/secrets.json")
 
@@ -44,7 +44,7 @@ func TestSecretManagerLoad_NewFormat(t *testing.T) {
 
 func TestSecretManagerLoad_LegacyFormat(t *testing.T) {
 	mockFS := NewMockFileSystem()
-	mockFS.files["/app/data/secrets.json"] = []byte(`{"API_KEY": "legacy_key"}`)
+	mockFS.Files["/app/data/secrets.json"] = []byte(`{"API_KEY": "legacy_key"}`)
 
 	sm := NewSecretManager(&manifest.Manifest{}, mockFS, "/app/data/secrets.json")
 
@@ -215,7 +215,7 @@ func testSecretsSupervisor(t *testing.T, m *manifest.Manifest, secrets map[strin
 		appData:       tmp,
 		telemetryPath: filepath.Join(tmp, "telemetry.jsonl"),
 		secretStore:   sm,
-		portAllocator: &testMockPortAllocator{ports: map[string]map[string]int{}},
+		portAllocator: &testMockPortAllocator{Ports: map[string]map[string]int{}},
 	}
 	return s
 }
@@ -295,7 +295,7 @@ func TestApplySecrets_FileTarget(t *testing.T) {
 		appData:       tmp,
 		fs:            RealFileSystem{},
 		secretStore:   NewSecretManager(m, RealFileSystem{}, filepath.Join(tmp, "secrets.json")),
-		portAllocator: &testMockPortAllocator{ports: map[string]map[string]int{}},
+		portAllocator: &testMockPortAllocator{Ports: map[string]map[string]int{}},
 	}
 	s.secretStore.Set(map[string]string{"CERT": "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----"})
 
@@ -423,7 +423,7 @@ func TestUpdateSecrets(t *testing.T) {
 		clock:         mockClock,
 		telemetryPath: filepath.Join(tmp, "telemetry.jsonl"),
 		secretStore:   sm,
-		portAllocator: &testMockPortAllocator{ports: map[string]map[string]int{}},
+		portAllocator: &testMockPortAllocator{Ports: map[string]map[string]int{}},
 	}
 
 	newSecrets := map[string]string{"NEW_KEY": "new_value"}
@@ -462,7 +462,7 @@ func TestUpdateSecrets_MissingRequired(t *testing.T) {
 		clock:         mockClock,
 		telemetryPath: filepath.Join(tmp, "telemetry.jsonl"),
 		secretStore:   sm,
-		portAllocator: &testMockPortAllocator{ports: map[string]map[string]int{}},
+		portAllocator: &testMockPortAllocator{Ports: map[string]map[string]int{}},
 	}
 
 	// Update without providing required secret

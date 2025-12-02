@@ -3,75 +3,12 @@ package bundleruntime
 import (
 	"context"
 	"errors"
-	"io"
-	"os"
 	"testing"
 	"time"
 
 	"scenario-to-desktop-runtime/manifest"
+	"scenario-to-desktop-runtime/testutil"
 )
-
-// MockProcess implements Process for testing.
-type MockProcess struct {
-	pid      int
-	waitErr  error
-	signaled bool
-	killed   bool
-	waitCh   chan struct{}
-}
-
-func NewMockProcess(pid int) *MockProcess {
-	return &MockProcess{
-		pid:    pid,
-		waitCh: make(chan struct{}),
-	}
-}
-
-func (p *MockProcess) Pid() int { return p.pid }
-
-func (p *MockProcess) Wait() error {
-	<-p.waitCh
-	return p.waitErr
-}
-
-func (p *MockProcess) Signal(sig os.Signal) error {
-	p.signaled = true
-	return nil
-}
-
-func (p *MockProcess) Kill() error {
-	p.killed = true
-	// Only close channel once - use select to avoid panic
-	select {
-	case <-p.waitCh:
-		// Already closed
-	default:
-		close(p.waitCh)
-	}
-	return nil
-}
-
-// MockProcessRunner implements ProcessRunner for testing.
-type MockProcessRunner struct {
-	processes    []*MockProcess
-	shouldFail   bool
-	startedCmds  []string
-	currentIndex int
-}
-
-func (r *MockProcessRunner) Start(ctx context.Context, cmd string, args []string, env []string, dir string, stdout, stderr io.Writer) (Process, error) {
-	r.startedCmds = append(r.startedCmds, cmd)
-	if r.shouldFail {
-		return nil, errors.New("start failed")
-	}
-	if r.currentIndex < len(r.processes) {
-		proc := r.processes[r.currentIndex]
-		r.currentIndex++
-		return proc, nil
-	}
-	// Return a default process
-	return NewMockProcess(12345), nil
-}
 
 func TestExitCode(t *testing.T) {
 	tests := []struct {
@@ -188,7 +125,7 @@ func TestPrepareServiceDirs(t *testing.T) {
 		tmp + "/logs",
 	}
 	for _, dir := range expectedDirs {
-		if !mockFS.dirs[dir] {
+		if !mockFS.Dirs[dir] {
 			t.Errorf("prepareServiceDirs() didn't create %q", dir)
 		}
 	}
@@ -276,47 +213,47 @@ func TestLogWriter(t *testing.T) {
 }
 
 func TestGracefulStop(t *testing.T) {
-	mockClock := NewMockClock(time.Now())
+	mockClock := testutil.NewMockClock(time.Now())
 	s := &Supervisor{clock: mockClock}
 
-	proc := NewMockProcess(123)
+	proc := testutil.NewMockProcess(123)
 	svcProc := &serviceProcess{proc: proc}
 
 	ctx := context.Background()
 
-	// Simulate process exiting after signal - close before calling gracefulStop
+	// Simulate process exiting after signal - exit before calling gracefulStop
 	// to simulate a process that exits immediately
-	close(proc.waitCh)
+	proc.Exit(nil)
 
 	s.gracefulStop(ctx, svcProc)
 
-	if !proc.signaled {
+	if !proc.Signaled() {
 		t.Error("gracefulStop() didn't signal process")
 	}
 }
 
 func TestGracefulStop_Timeout(t *testing.T) {
-	mockClock := NewMockClock(time.Now())
+	mockClock := testutil.NewMockClock(time.Now())
 	s := &Supervisor{clock: mockClock}
 
-	proc := NewMockProcess(123)
+	proc := testutil.NewMockProcess(123)
 	svcProc := &serviceProcess{proc: proc}
 
 	ctx := context.Background()
 
-	// Don't close waitCh, so process doesn't exit gracefully
+	// Don't exit process, so it doesn't exit gracefully
 	s.gracefulStop(ctx, svcProc)
 
-	if !proc.signaled {
+	if !proc.Signaled() {
 		t.Error("gracefulStop() didn't signal process")
 	}
-	if !proc.killed {
+	if !proc.Killed() {
 		t.Error("gracefulStop() didn't kill process after timeout")
 	}
 }
 
 func TestServiceProcess(t *testing.T) {
-	proc := NewMockProcess(12345)
+	proc := testutil.NewMockProcess(12345)
 	svcProc := &serviceProcess{
 		proc:    proc,
 		logPath: "/var/log/api.log",
@@ -379,7 +316,7 @@ func TestStopServices_NoProcesses(t *testing.T) {
 			},
 		},
 		procs: make(map[string]*serviceProcess),
-		clock: NewMockClock(time.Now()),
+		clock: testutil.NewMockClock(time.Now()),
 	}
 
 	ctx := context.Background()

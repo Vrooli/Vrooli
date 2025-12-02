@@ -6,6 +6,7 @@ import (
 	"sort"
 	"testing"
 
+	"scenario-to-desktop-runtime/deps"
 	"scenario-to-desktop-runtime/manifest"
 )
 
@@ -325,13 +326,13 @@ func TestTopoSort(t *testing.T) {
 			{ID: "c"},
 		}
 
-		order, err := topoSort(services)
+		order, err := deps.TopoSort(services)
 		if err != nil {
-			t.Fatalf("topoSort() error = %v", err)
+			t.Fatalf("deps.TopoSort() error = %v", err)
 		}
 
 		if len(order) != 3 {
-			t.Errorf("topoSort() returned %d elements, want 3", len(order))
+			t.Errorf("deps.TopoSort() returned %d elements, want 3", len(order))
 		}
 	})
 
@@ -342,9 +343,9 @@ func TestTopoSort(t *testing.T) {
 			{ID: "cache"},
 		}
 
-		order, err := topoSort(services)
+		order, err := deps.TopoSort(services)
 		if err != nil {
-			t.Fatalf("topoSort() error = %v", err)
+			t.Fatalf("deps.TopoSort() error = %v", err)
 		}
 
 		// Find indices
@@ -359,11 +360,11 @@ func TestTopoSort(t *testing.T) {
 		}
 
 		if dbIdx == -1 || apiIdx == -1 {
-			t.Fatalf("topoSort() missing expected services, got %v", order)
+			t.Fatalf("deps.TopoSort() missing expected services, got %v", order)
 		}
 
 		if dbIdx > apiIdx {
-			t.Errorf("topoSort() db should come before api, got order %v", order)
+			t.Errorf("deps.TopoSort() db should come before api, got order %v", order)
 		}
 	})
 
@@ -374,14 +375,14 @@ func TestTopoSort(t *testing.T) {
 			{ID: "a"},
 		}
 
-		order, err := topoSort(services)
+		order, err := deps.TopoSort(services)
 		if err != nil {
-			t.Fatalf("topoSort() error = %v", err)
+			t.Fatalf("deps.TopoSort() error = %v", err)
 		}
 
 		// a should come first, then b, then c
 		if len(order) != 3 {
-			t.Fatalf("topoSort() returned %d elements, want 3", len(order))
+			t.Fatalf("deps.TopoSort() returned %d elements, want 3", len(order))
 		}
 
 		idxA, idxB, idxC := -1, -1, -1
@@ -397,7 +398,7 @@ func TestTopoSort(t *testing.T) {
 		}
 
 		if idxA > idxB || idxB > idxC {
-			t.Errorf("topoSort() should order a < b < c, got %v", order)
+			t.Errorf("deps.TopoSort() should order a < b < c, got %v", order)
 		}
 	})
 
@@ -407,9 +408,9 @@ func TestTopoSort(t *testing.T) {
 			{ID: "b", Dependencies: []string{"a"}},
 		}
 
-		_, err := topoSort(services)
+		_, err := deps.TopoSort(services)
 		if err == nil {
-			t.Error("topoSort() should detect cycle")
+			t.Error("deps.TopoSort() should detect cycle")
 		}
 	})
 
@@ -421,13 +422,13 @@ func TestTopoSort(t *testing.T) {
 			{ID: "db"},
 		}
 
-		order, err := topoSort(services)
+		order, err := deps.TopoSort(services)
 		if err != nil {
-			t.Fatalf("topoSort() error = %v", err)
+			t.Fatalf("deps.TopoSort() error = %v", err)
 		}
 
 		if len(order) != 4 {
-			t.Fatalf("topoSort() returned %d elements, want 4", len(order))
+			t.Fatalf("deps.TopoSort() returned %d elements, want 4", len(order))
 		}
 
 		// app should be last since it depends on api and cache
@@ -439,17 +440,17 @@ func TestTopoSort(t *testing.T) {
 		}
 
 		if idxApp != len(order)-1 {
-			t.Errorf("topoSort() app should be last, got order %v", order)
+			t.Errorf("deps.TopoSort() app should be last, got order %v", order)
 		}
 	})
 
 	t.Run("handles empty services list", func(t *testing.T) {
-		order, err := topoSort([]manifest.Service{})
+		order, err := deps.TopoSort([]manifest.Service{})
 		if err != nil {
-			t.Fatalf("topoSort() error = %v", err)
+			t.Fatalf("deps.TopoSort() error = %v", err)
 		}
 		if len(order) != 0 {
-			t.Errorf("topoSort([]) should return empty, got %v", order)
+			t.Errorf("deps.TopoSort([]) should return empty, got %v", order)
 		}
 	})
 }
@@ -462,40 +463,40 @@ func TestFindService(t *testing.T) {
 	}
 
 	t.Run("finds existing service", func(t *testing.T) {
-		svc := findService(services, "db")
+		svc := deps.FindService(services, "db")
 		if svc == nil {
-			t.Fatal("findService() returned nil for existing service")
+			t.Fatal("deps.FindService() returned nil for existing service")
 		}
 		if svc.ID != "db" {
-			t.Errorf("findService() returned wrong service, got ID=%q", svc.ID)
+			t.Errorf("deps.FindService() returned wrong service, got ID=%q", svc.ID)
 		}
 		if svc.Type != "database" {
-			t.Errorf("findService() returned wrong type, got Type=%q", svc.Type)
+			t.Errorf("deps.FindService() returned wrong type, got Type=%q", svc.Type)
 		}
 	})
 
 	t.Run("returns nil for non-existent service", func(t *testing.T) {
-		svc := findService(services, "nonexistent")
+		svc := deps.FindService(services, "nonexistent")
 		if svc != nil {
-			t.Errorf("findService() should return nil for non-existent, got %+v", svc)
+			t.Errorf("deps.FindService() should return nil for non-existent, got %+v", svc)
 		}
 	})
 
 	t.Run("returns nil for empty slice", func(t *testing.T) {
-		svc := findService([]manifest.Service{}, "api")
+		svc := deps.FindService([]manifest.Service{}, "api")
 		if svc != nil {
-			t.Errorf("findService() should return nil for empty slice, got %+v", svc)
+			t.Errorf("deps.FindService() should return nil for empty slice, got %+v", svc)
 		}
 	})
 
 	t.Run("returns pointer to original slice element", func(t *testing.T) {
-		svc := findService(services, "api")
+		svc := deps.FindService(services, "api")
 		if svc == nil {
-			t.Fatal("findService() returned nil")
+			t.Fatal("deps.FindService() returned nil")
 		}
 		// Verify it's the same underlying data
 		if svc != &services[0] {
-			t.Error("findService() should return pointer to original slice element")
+			t.Error("deps.FindService() should return pointer to original slice element")
 		}
 	})
 }

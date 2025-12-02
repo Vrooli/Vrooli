@@ -26,6 +26,8 @@ type Checker interface {
 	WaitForReadiness(ctx context.Context, serviceID string) error
 	// CheckOnce performs a single health check.
 	CheckOnce(ctx context.Context, serviceID string) bool
+	// WaitForDependencies waits for all service dependencies to be ready.
+	WaitForDependencies(ctx context.Context, svc *manifest.Service) error
 }
 
 // Monitor implements Checker for service health monitoring.
