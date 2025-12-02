@@ -54,6 +54,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           }
         }
       }
+    } else if (path.startsWith('/admin/billing')) {
+      segments.push({ label: 'Billing', path: '/admin/billing' });
     }
 
     return segments;
@@ -146,6 +148,3 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     </div>
   );
 }
-    } else if (path.startsWith('/admin/billing')) {
-      segments.push({ label: 'Billing', path: '/admin/billing' });
-    }

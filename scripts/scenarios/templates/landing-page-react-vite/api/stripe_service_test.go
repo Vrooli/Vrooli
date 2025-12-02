@@ -5,8 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
-	"strings"
 	"testing"
 	"time"
 )
@@ -160,14 +160,15 @@ func TestVerifyWebhookSignature(t *testing.T) {
 
 	payload := []byte(`{"type":"checkout.session.completed","data":{}}`)
 	timestamp := time.Now().Unix()
+	timestampStr := fmt.Sprintf("%d", timestamp)
 
 	// Generate valid signature
-	signedPayload := string(rune(timestamp)) + "." + string(payload)
+	signedPayload := timestampStr + "." + string(payload)
 	mac := hmac.New(sha256.New, []byte("whsec_test_secret"))
 	mac.Write([]byte(signedPayload))
 	signature := hex.EncodeToString(mac.Sum(nil))
 
-	signatureHeader := "t=" + string(rune(timestamp)) + ",v1=" + signature
+	signatureHeader := "t=" + timestampStr + ",v1=" + signature
 
 	// Test valid signature
 	if !service.VerifyWebhookSignature(payload, signatureHeader) {
@@ -175,7 +176,7 @@ func TestVerifyWebhookSignature(t *testing.T) {
 	}
 
 	// Test invalid signature
-	invalidHeader := "t=" + string(rune(timestamp)) + ",v1=invalid_signature"
+	invalidHeader := "t=" + timestampStr + ",v1=invalid_signature"
 	if service.VerifyWebhookSignature(payload, invalidHeader) {
 		t.Error("Invalid signature was accepted")
 	}

@@ -8,6 +8,9 @@ import (
 func TestPaymentSettingsServiceUpsert(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
+	t.Cleanup(func() {
+		db.Exec("DELETE FROM payment_settings")
+	})
 
 	service := NewPaymentSettingsService(db)
 	ctx := context.Background()

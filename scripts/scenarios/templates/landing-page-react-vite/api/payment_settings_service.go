@@ -44,11 +44,25 @@ func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*Stripe
 	`)
 
 	var record StripeSettingsRecord
-	if err := row.Scan(&record.PublishableKey, &record.SecretKey, &record.WebhookSecret, &record.DashboardURL, &record.UpdatedAt); err != nil {
+	var publishable, secret, webhook, dashboard sql.NullString
+	if err := row.Scan(&publishable, &secret, &webhook, &dashboard, &record.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
+	}
+
+	if publishable.Valid {
+		record.PublishableKey = publishable.String
+	}
+	if secret.Valid {
+		record.SecretKey = secret.String
+	}
+	if webhook.Valid {
+		record.WebhookSecret = webhook.String
+	}
+	if dashboard.Valid {
+		record.DashboardURL = dashboard.String
 	}
 
 	return &record, nil

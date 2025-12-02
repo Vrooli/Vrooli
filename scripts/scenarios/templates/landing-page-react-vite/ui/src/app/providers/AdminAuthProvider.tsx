@@ -3,6 +3,7 @@ import { adminLogin, adminLogout, checkAdminSession } from '../../shared/api';
 
 interface AdminAuthContextValue {
   isAuthenticated: boolean;
+  isSessionLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   user: { email: string } | null;
@@ -13,33 +14,54 @@ const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<{ email: string } | null>(null);
+  const [isSessionLoading, setIsSessionLoading] = useState(() => (typeof window !== 'undefined' ? window.location.pathname.startsWith('/admin') : false));
 
   // Check for existing session only on admin routes (lazy check)
   // This avoids triggering 401 errors during UI smoke tests on public pages
   useEffect(() => {
     // Only check session if we're on an admin route
-    if (!window.location.pathname.startsWith('/admin')) {
+    if (typeof window === 'undefined') {
       return;
     }
+
+    if (!window.location.pathname.startsWith('/admin')) {
+      setIsSessionLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsSessionLoading(true);
 
     const checkSession = async () => {
       try {
         const session = await checkAdminSession();
+        if (!isMounted) {
+          return;
+        }
         setIsAuthenticated(session.authenticated);
         setUser(session.authenticated && session.email ? { email: session.email } : null);
       } catch (e) {
         console.error('Session check failed:', e);
         setIsAuthenticated(false);
         setUser(null);
+      } finally {
+        if (isMounted) {
+          setIsSessionLoading(false);
+        }
       }
     };
     checkSession();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
-    await adminLogin(email, password);
-    setIsAuthenticated(true);
-    setUser({ email });
+    const response = await adminLogin(email, password);
+    setIsAuthenticated(Boolean(response?.authenticated));
+    setUser(response?.authenticated && response.email ? { email: response.email } : { email });
+    setIsSessionLoading(false);
   };
 
   const logout = async () => {
@@ -50,9 +72,10 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     }
     setIsAuthenticated(false);
     setUser(null);
+    setIsSessionLoading(false);
   };
 
-  return <AdminAuthContext.Provider value={{ isAuthenticated, login, logout, user }}>{children}</AdminAuthContext.Provider>;
+  return <AdminAuthContext.Provider value={{ isAuthenticated, isSessionLoading, login, logout, user }}>{children}</AdminAuthContext.Provider>;
 }
 
 export const useAdminAuth = () => {

@@ -187,8 +187,8 @@ Goal: deliver true offline/portable desktop bundles (UI + API + resources + secr
 - [x] Runtime wiring to product UX: Bundled mode now consumes real manifests end-to-end (UI/CLI accept `bundle_manifest_path`, generator packages bundles/runtime, Electron launches the bundled runtime instead of blocking, and dry-run defaults to real service startup).
 
 **Missing / To Do**
-- [x] Integrations: deployment-manager must validate exports against the schema; scenario-dependency-analyzer must emit manifest skeletons; add fixture tests.
-- [x] Secrets plan: secrets-manager must emit bundle-ready secret plans to deployment-manager; first-run wizard in Electron must collect `user_prompt` secrets and call `/secrets`.
-- [x] Telemetry/logs UX: Electron UI should surface `/readyz`/`/ports`/`/logs` and upload telemetry to deployment-manager; deployment-manager needs telemetry ingestion and visualization.
-- [x] Packaging completeness: scenario-to-desktop stages service/resource assets (including Playwright/Chromium) into bundles, preserves exec bits, sets `ELECTRON_CHROMIUM_PATH` for the runtime, and ensures package.json includes the bundled payload via `extraResources`.
-- [x] Installer/update path and GPU handling: choose installer targets (MSI/pkg/AppImage) and implement GPU capability checks/fallbacks per manifest flags.
+- [ ] Manifest assembly: deployment-manager must generate desktop `bundle.json` from scenario-dependency-analyzer output + swaps + secrets plan, not just validate; scenario-dependency-analyzer must emit v0.1 skeletons/fixtures.
+- [ ] Secrets plan + UX: secrets-manager must export bundle-ready secret plans per tier; Electron first-run wizard must collect `user_prompt` secrets and POST `/secrets` before launch.
+- [ ] Telemetry/logs UX: Electron UI should render `/readyz`/`/ports`/`/logs` and automate telemetry upload; deployment-manager UI should ingest and surface bundle telemetry failures.
+- [ ] Packaging completeness polish: scrub remaining exe/dmg references, confirm MSI/PKG/AppImage flows, and document/update the updater channel design (still pending).
+- [ ] GPU visibility/tests: surface GPU availability/requirement status in UI and add runtime tests covering gpu_required/optional paths.

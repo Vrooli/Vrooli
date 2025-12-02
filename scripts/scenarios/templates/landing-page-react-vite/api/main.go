@@ -260,6 +260,19 @@ func seedDefaultData(db *sql.DB) error {
 		return fmt.Errorf("failed to seed admin user: %w", err)
 	}
 
+	if _, err := db.Exec(`
+		INSERT INTO payment_settings (id, publishable_key, secret_key, webhook_secret, dashboard_url, updated_at)
+		VALUES (1, NULL, NULL, NULL, NULL, NOW())
+		ON CONFLICT (id) DO UPDATE SET
+			publishable_key = EXCLUDED.publishable_key,
+			secret_key = EXCLUDED.secret_key,
+			webhook_secret = EXCLUDED.webhook_secret,
+			dashboard_url = EXCLUDED.dashboard_url,
+			updated_at = NOW()
+	`); err != nil {
+		return fmt.Errorf("failed to seed payment settings: %w", err)
+	}
+
 	// Ensure control and variant-a exist and are active
 	controlID, err := upsertVariant(db, "control", "Control (Original)", "Original landing page design", 50)
 	if err != nil {

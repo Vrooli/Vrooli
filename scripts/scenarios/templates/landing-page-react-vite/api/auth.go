@@ -31,7 +31,8 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	Email string `json:"email"`
+	Email         string `json:"email,omitempty"`
+	Authenticated bool   `json:"authenticated"`
 }
 
 // handleAdminLogin authenticates admin users and creates a session
@@ -103,7 +104,10 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 
 	// Return user data
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(LoginResponse{Email: req.Email})
+	json.NewEncoder(w).Encode(LoginResponse{
+		Email:         req.Email,
+		Authenticated: true,
+	})
 }
 
 // handleAdminLogout destroys the admin session
@@ -126,12 +130,19 @@ func (s *Server) handleAdminSession(w http.ResponseWriter, r *http.Request) {
 	session, _ := sessionStore.Get(r, "admin_session")
 	email, ok := session.Values["email"].(string)
 	if !ok || email == "" {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(LoginResponse{
+			Authenticated: false,
+		})
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(LoginResponse{Email: email})
+	json.NewEncoder(w).Encode(LoginResponse{
+		Email:         email,
+		Authenticated: true,
+	})
 }
 
 // requireAdmin is middleware to protect admin routes
