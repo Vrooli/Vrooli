@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"test-genie/internal/orchestrator/phases"
+	reqsvc "test-genie/internal/requirements"
 )
 
 type Syncer interface {
@@ -25,6 +26,44 @@ type SyncInput struct {
 	CommandHistory   []string
 }
 
+// nativeRequirementsSyncer uses the native Go implementation.
+type nativeRequirementsSyncer struct {
+	service *reqsvc.Service
+}
+
+// NewNativeSyncer creates a native Go requirements syncer.
+// This is the preferred syncer that does not require Node.js.
+func NewNativeSyncer() Syncer {
+	return &nativeRequirementsSyncer{
+		service: reqsvc.NewService(),
+	}
+}
+
+func (s *nativeRequirementsSyncer) Sync(ctx context.Context, input SyncInput) error {
+	return s.service.Sync(ctx, reqsvc.SyncInput{
+		ScenarioName:     input.ScenarioName,
+		ScenarioDir:      input.ScenarioDir,
+		PhaseDefinitions: input.PhaseDefinitions,
+		PhaseResults:     input.PhaseResults,
+		CommandHistory:   input.CommandHistory,
+	})
+}
+
+// NewSyncer creates a requirements syncer, preferring native Go over Node.js.
+// Environment variable REQUIREMENTS_SYNC_NATIVE=true forces native Go.
+// Environment variable REQUIREMENTS_SYNC_NODE=true forces Node.js (if available).
+func NewSyncer(projectRoot string) Syncer {
+	// Check for explicit preference
+	if os.Getenv("REQUIREMENTS_SYNC_NODE") == "true" {
+		if syncer := NewNodeSyncer(projectRoot); syncer != nil {
+			return syncer
+		}
+	}
+
+	// Default to native Go
+	return NewNativeSyncer()
+}
+
 type nodeRequirementsSyncer struct {
 	projectRoot string
 	scriptPath  string
@@ -34,6 +73,8 @@ var execCommandContext = func(ctx context.Context, name string, args ...string) 
 	return exec.CommandContext(ctx, name, args...)
 }
 
+// NewNodeSyncer creates a Node.js-based syncer (legacy).
+// Returns nil if the Node.js script is not available.
 func NewNodeSyncer(projectRoot string) Syncer {
 	scriptPath := filepath.Join(projectRoot, "scripts", "requirements", "report.js")
 	if _, err := os.Stat(scriptPath); err != nil {
