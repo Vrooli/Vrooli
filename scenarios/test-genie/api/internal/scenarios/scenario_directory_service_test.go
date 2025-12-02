@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -58,7 +60,7 @@ func TestScenarioDirectoryServiceListSummariesHydratesCatalog(t *testing.T) {
 		},
 	}
 
-	svc := NewScenarioDirectoryService(repo, lister)
+	svc := NewScenarioDirectoryService(repo, lister, "")
 	results, err := svc.ListSummaries(context.Background())
 	if err != nil {
 		t.Fatalf("ListSummaries returned error: %v", err)
@@ -87,7 +89,7 @@ func TestScenarioDirectoryServiceListSummariesFallsBackOnListerError(t *testing.
 	}
 	lister := &fakeScenarioLister{err: errors.New("boom")}
 
-	svc := NewScenarioDirectoryService(repo, lister)
+	svc := NewScenarioDirectoryService(repo, lister, "")
 	results, err := svc.ListSummaries(context.Background())
 	if err != nil {
 		t.Fatalf("expected fallback list, got error: %v", err)
@@ -105,7 +107,7 @@ func TestScenarioDirectoryServiceGetSummaryFallsBackToCli(t *testing.T) {
 		items: []ScenarioMetadata{{Name: "test-genie", Description: "AI testing"}},
 	}
 
-	svc := NewScenarioDirectoryService(repo, lister)
+	svc := NewScenarioDirectoryService(repo, lister, "")
 	result, err := svc.GetSummary(context.Background(), "test-genie")
 	if err != nil {
 		t.Fatalf("expected CLI fallback, got error: %v", err)
@@ -132,5 +134,96 @@ func TestApplyScenarioMetadataCopiesTags(t *testing.T) {
 	}
 	if &result.ScenarioTags[0] == &meta.Tags[0] {
 		t.Fatalf("expected tags slice to be cloned")
+	}
+}
+
+func TestScenarioDirectoryServiceDecoratesTestingCapabilities(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "test"), 0o755); err != nil {
+		t.Fatalf("mkdir test dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "test", "run-tests.sh"), []byte("#!/usr/bin/env bash"), 0o755); err != nil {
+		t.Fatalf("write run-tests: %v", err)
+	}
+	repo := &fakeScenarioRepo{
+		listSummaries: []ScenarioSummary{{ScenarioName: "demo"}},
+	}
+	svc := NewScenarioDirectoryService(repo, nil, root)
+	results, err := svc.ListSummaries(context.Background())
+	if err != nil {
+		t.Fatalf("ListSummaries error: %v", err)
+	}
+	if len(results) != 1 || results[0].Testing == nil || !results[0].Testing.Phased {
+		t.Fatalf("expected testing capabilities to be populated, got %#v", results)
+	}
+	if len(results[0].Testing.Commands) == 0 || results[0].Testing.Commands[0].Type != "phased" {
+		t.Fatalf("expected phased command to be included, got %#v", results[0].Testing.Commands)
+	}
+}
+
+func TestScenarioDirectoryServiceRunScenarioTests(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "test"), 0o755); err != nil {
+		t.Fatalf("mkdir test dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "test", "run-tests.sh"), []byte("#!/usr/bin/env bash"), 0o755); err != nil {
+		t.Fatalf("write run-tests: %v", err)
+	}
+	svc := NewScenarioDirectoryService(&fakeScenarioRepo{}, nil, root)
+	called := false
+	svc.runTests = func(ctx context.Context, caps TestingCapabilities, preferred string) (*TestingRunnerResult, error) {
+		called = true
+		if preferred != "" {
+			t.Fatalf("expected empty preferred value, got %s", preferred)
+		}
+		return &TestingRunnerResult{Command: []string{"./test/run-tests.sh"}}, nil
+	}
+	cmd, result, err := svc.RunScenarioTests(context.Background(), "demo", "")
+	if err != nil {
+		t.Fatalf("RunScenarioTests returned error: %v", err)
+	}
+	if cmd == nil || cmd.Type != "phased" {
+		t.Fatalf("expected phased command, got %#v", cmd)
+	}
+	if result == nil || len(result.Command) == 0 {
+		t.Fatalf("expected runner result, got %#v", result)
+	}
+	if !called {
+		t.Fatal("expected testing runner to be invoked")
+	}
+}
+
+func TestScenarioDirectoryServiceRunScenarioTestsValidation(t *testing.T) {
+	root := t.TempDir()
+	svc := NewScenarioDirectoryService(&fakeScenarioRepo{}, nil, root)
+	if _, _, err := svc.RunScenarioTests(context.Background(), "missing", ""); err == nil {
+		t.Fatalf("expected error for missing scenario")
+	}
+	scenarioDir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatalf("mkdir scenario dir: %v", err)
+	}
+	if _, _, err := svc.RunScenarioTests(context.Background(), "demo", ""); err == nil {
+		t.Fatalf("expected validation error when no tests defined")
+	}
+}
+
+func TestScenarioDirectoryServiceRunScenarioTestsRunnerFailure(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "test"), 0o755); err != nil {
+		t.Fatalf("mkdir test dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "test", "run-tests.sh"), []byte("#!/usr/bin/env bash"), 0o755); err != nil {
+		t.Fatalf("write run-tests: %v", err)
+	}
+	svc := NewScenarioDirectoryService(&fakeScenarioRepo{}, nil, root)
+	svc.runTests = func(ctx context.Context, caps TestingCapabilities, preferred string) (*TestingRunnerResult, error) {
+		return nil, errors.New("runner failed")
+	}
+	if _, _, err := svc.RunScenarioTests(context.Background(), "demo", ""); err == nil || err.Error() != "runner failed" {
+		t.Fatalf("expected runner error, got %v", err)
 	}
 }

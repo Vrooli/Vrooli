@@ -82,11 +82,19 @@ type fakeExecutionHistory struct {
 	getResult    *orchestrator.SuiteExecutionResult
 	latest       *orchestrator.SuiteExecutionResult
 	lastScenario string
+	lastLimit    int
+	lastOffset   int
 	lastGet      uuid.UUID
+	listErr      error
 }
 
 func (f *fakeExecutionHistory) List(ctx context.Context, scenario string, limit int, offset int) ([]orchestrator.SuiteExecutionResult, error) {
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
 	f.lastScenario = scenario
+	f.lastLimit = limit
+	f.lastOffset = offset
 	return f.listResults, nil
 }
 

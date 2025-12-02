@@ -52,7 +52,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	executionHistory := suite.NewExecutionHistoryService(executionRepo)
 	scenarioRepo := scenarios.NewScenarioDirectoryRepository(db)
 	scenarioLister := scenarios.NewVrooliScenarioLister()
-	scenarioService := scenarios.NewScenarioDirectoryService(scenarioRepo, scenarioLister)
+	scenarioService := scenarios.NewScenarioDirectoryService(scenarioRepo, scenarioLister, cfg.ScenariosRoot)
 
 	executionSvc := suite.NewSuiteExecutionService(runner, executionRepo, suiteRequestService)
 

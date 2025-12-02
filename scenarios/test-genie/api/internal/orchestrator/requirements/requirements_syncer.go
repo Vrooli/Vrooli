@@ -30,6 +30,10 @@ type nodeRequirementsSyncer struct {
 	scriptPath  string
 }
 
+var execCommandContext = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+	return exec.CommandContext(ctx, name, args...)
+}
+
 func NewNodeSyncer(projectRoot string) Syncer {
 	scriptPath := filepath.Join(projectRoot, "scripts", "requirements", "report.js")
 	if _, err := os.Stat(scriptPath); err != nil {
@@ -75,7 +79,7 @@ func (s *nodeRequirementsSyncer) Sync(ctx context.Context, input SyncInput) erro
 		return fmt.Errorf("failed to encode command history: %w", err)
 	}
 
-	cmd := exec.CommandContext(ctx, "node", s.scriptPath, "--scenario", input.ScenarioName, "--mode", "sync")
+	cmd := execCommandContext(ctx, "node", s.scriptPath, "--scenario", input.ScenarioName, "--mode", "sync")
 	cmd.Dir = s.projectRoot
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("REQUIREMENTS_SYNC_PHASE_STATUS=%s", string(phaseJSON)),

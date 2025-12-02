@@ -36,6 +36,7 @@ type ScenarioSummary struct {
 	LastExecutionPhases       []orchestrator.PhaseExecutionResult `json:"lastExecutionPhases,omitempty"`
 	LastExecutionPhaseSummary *orchestrator.PhaseSummary          `json:"lastExecutionPhaseSummary,omitempty"`
 	LastFailureAt             *time.Time                          `json:"lastFailureAt,omitempty"`
+	Testing                   *TestingCapabilities                `json:"testing,omitempty"`
 }
 
 type rowScanner interface {

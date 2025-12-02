@@ -3,9 +3,14 @@ package scenarios
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
+
+	"test-genie/internal/shared"
 )
 
 type scenarioSummaryStore interface {
@@ -28,12 +33,28 @@ type ScenarioMetadata struct {
 
 // ScenarioDirectoryService orchestrates catalog lookups.
 type ScenarioDirectoryService struct {
-	repo   scenarioSummaryStore
-	lister ScenarioLister
+	repo          scenarioSummaryStore
+	lister        ScenarioLister
+	scenariosRoot string
+	detectTesting func(string) TestingCapabilities
+	runTests      func(context.Context, TestingCapabilities, string) (*TestingRunnerResult, error)
 }
 
-func NewScenarioDirectoryService(repo scenarioSummaryStore, lister ScenarioLister) *ScenarioDirectoryService {
-	return &ScenarioDirectoryService{repo: repo, lister: lister}
+func NewScenarioDirectoryService(repo scenarioSummaryStore, lister ScenarioLister, scenariosRoot string) *ScenarioDirectoryService {
+	defaultRunner := TestingRunner{
+		Timeout: defaultTestingTimeout,
+		Output:  log.Writer(),
+		LogDir:  filepath.Join(strings.TrimSpace(scenariosRoot), "_artifacts", "scenario-tests"),
+	}
+	return &ScenarioDirectoryService{
+		repo:          repo,
+		lister:        lister,
+		scenariosRoot: strings.TrimSpace(scenariosRoot),
+		detectTesting: DetectTestingCapabilities,
+		runTests: func(ctx context.Context, caps TestingCapabilities, preferred string) (*TestingRunnerResult, error) {
+			return defaultRunner.Run(ctx, caps, preferred)
+		},
+	}
 }
 
 // ListSummaries returns every tracked scenario with queue + execution metadata and hydrates
@@ -46,6 +67,9 @@ func (s *ScenarioDirectoryService) ListSummaries(ctx context.Context) ([]Scenari
 	summaries, err := s.repo.List(ctx)
 	if err != nil {
 		return nil, err
+	}
+	for i := range summaries {
+		s.decorateScenario(&summaries[i])
 	}
 	if s.lister == nil {
 		return summaries, nil
@@ -78,22 +102,27 @@ func (s *ScenarioDirectoryService) ListSummaries(ctx context.Context) ([]Scenari
 		}
 		key := strings.ToLower(name)
 		if summary, ok := summaryMap[key]; ok {
-			merged = append(merged, applyScenarioMetadata(summary, meta))
+			summary := applyScenarioMetadata(summary, meta)
+			s.decorateScenario(&summary)
+			merged = append(merged, summary)
 			delete(summaryMap, key)
 			continue
 		}
-		merged = append(merged, applyScenarioMetadata(ScenarioSummary{
+		summary := applyScenarioMetadata(ScenarioSummary{
 			ScenarioName:    name,
 			PendingRequests: 0,
 			TotalRequests:   0,
 			TotalExecutions: 0,
-		}, meta))
+		}, meta)
+		s.decorateScenario(&summary)
+		merged = append(merged, summary)
 	}
 
 	// Preserve any tracked scenarios not currently returned by the CLI.
 	if len(summaryMap) > 0 {
 		leftovers := make([]ScenarioSummary, 0, len(summaryMap))
 		for _, summary := range summaryMap {
+			s.decorateScenario(&summary)
 			leftovers = append(leftovers, summary)
 		}
 		sort.Slice(leftovers, func(i, j int) bool {
@@ -119,8 +148,10 @@ func (s *ScenarioDirectoryService) GetSummary(ctx context.Context, scenario stri
 	if err == nil {
 		if meta := s.lookupScenarioMetadata(ctx, scenario); meta != nil {
 			result := applyScenarioMetadata(*summary, *meta)
+			s.decorateScenario(&result)
 			return &result, nil
 		}
+		s.decorateScenario(summary)
 		return summary, nil
 	}
 	if err != sql.ErrNoRows {
@@ -138,6 +169,7 @@ func (s *ScenarioDirectoryService) GetSummary(ctx context.Context, scenario stri
 		TotalRequests:   0,
 		TotalExecutions: 0,
 	}, *meta)
+	s.decorateScenario(&placeholder)
 	return &placeholder, nil
 }
 
@@ -169,4 +201,58 @@ func applyScenarioMetadata(summary ScenarioSummary, meta ScenarioMetadata) Scena
 		summary.ScenarioTags = nil
 	}
 	return summary
+}
+
+func (s *ScenarioDirectoryService) decorateScenario(summary *ScenarioSummary) {
+	if summary == nil || summary.ScenarioName == "" {
+		return
+	}
+	if s == nil || s.scenariosRoot == "" || s.detectTesting == nil {
+		return
+	}
+	dir := filepath.Join(s.scenariosRoot, summary.ScenarioName)
+	caps := s.detectTesting(dir)
+	if !caps.HasTests && !caps.Lifecycle && !caps.Legacy && !caps.Phased {
+		summary.Testing = nil
+		return
+	}
+	summary.Testing = &caps
+}
+
+// RunScenarioTests executes the preferred testing command for the provided scenario.
+func (s *ScenarioDirectoryService) RunScenarioTests(ctx context.Context, scenario string, preferred string) (*TestingCommand, *TestingRunnerResult, error) {
+	if s == nil || s.runTests == nil {
+		return nil, nil, sql.ErrConnDone
+	}
+	scenario = strings.TrimSpace(scenario)
+	if scenario == "" {
+		return nil, nil, shared.NewValidationError("scenario name is required")
+	}
+	if s.scenariosRoot == "" {
+		return nil, nil, fmt.Errorf("scenarios root is not configured")
+	}
+	dir := filepath.Join(s.scenariosRoot, scenario)
+	info, err := os.Stat(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil, fmt.Errorf("scenario directory not found: %w", os.ErrNotExist)
+		}
+		return nil, nil, fmt.Errorf("failed to access scenario directory: %w", err)
+	}
+	if !info.IsDir() {
+		return nil, nil, fmt.Errorf("scenario path is not a directory")
+	}
+	caps := s.detectTesting(dir)
+	if !caps.HasTests {
+		return nil, nil, shared.NewValidationError("scenario does not define runnable tests")
+	}
+	cmd := caps.SelectCommand(preferred)
+	if cmd == nil {
+		return nil, nil, shared.NewValidationError("requested test type is unavailable for this scenario")
+	}
+	result, err := s.runTests(ctx, caps, preferred)
+	if err != nil {
+		return nil, nil, err
+	}
+	return cmd, result, nil
 }
