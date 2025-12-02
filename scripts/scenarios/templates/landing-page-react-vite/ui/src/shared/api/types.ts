@@ -212,6 +212,17 @@ export interface HeaderBehaviorConfig {
   hide_on_scroll: boolean;
 }
 
+// Public branding info included in landing config
+export interface LandingBranding {
+  site_name: string;
+  tagline?: string | null;
+  logo_url?: string | null;
+  logo_icon_url?: string | null;
+  favicon_url?: string | null;
+  theme_primary_color?: string | null;
+  theme_background_color?: string | null;
+}
+
 export interface LandingConfigResponse {
   variant: {
     id?: number;
@@ -224,6 +235,7 @@ export interface LandingConfigResponse {
   pricing?: PricingOverview;
   downloads: DownloadApp[];
   header: LandingHeaderConfig;
+  branding?: LandingBranding;
   fallback: boolean;
 }
 
@@ -286,4 +298,83 @@ export interface EntitlementPayload {
 export interface BundleCatalogEntry {
   bundle: BundleProduct;
   prices: PlanOption[];
+}
+
+// Site-wide branding configuration
+export interface SiteBranding {
+  id: number;
+  site_name: string;
+  tagline?: string | null;
+  logo_url?: string | null;
+  logo_icon_url?: string | null;
+  favicon_url?: string | null;
+  apple_touch_icon_url?: string | null;
+  default_title?: string | null;
+  default_description?: string | null;
+  default_og_image_url?: string | null;
+  theme_primary_color?: string | null;
+  theme_background_color?: string | null;
+  canonical_base_url?: string | null;
+  google_site_verification?: string | null;
+  robots_txt?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SiteBrandingUpdate {
+  site_name?: string;
+  tagline?: string;
+  logo_url?: string;
+  logo_icon_url?: string;
+  favicon_url?: string;
+  apple_touch_icon_url?: string;
+  default_title?: string;
+  default_description?: string;
+  default_og_image_url?: string;
+  theme_primary_color?: string;
+  theme_background_color?: string;
+  canonical_base_url?: string;
+  google_site_verification?: string;
+  robots_txt?: string;
+}
+
+export interface PublicBranding {
+  site_name: string;
+  tagline?: string | null;
+  logo_url?: string | null;
+  logo_icon_url?: string | null;
+  favicon_url?: string | null;
+  theme_primary_color?: string | null;
+  theme_background_color?: string | null;
+}
+
+// Uploaded asset
+export interface Asset {
+  id: number;
+  filename: string;
+  original_filename: string;
+  mime_type: string;
+  size_bytes: number;
+  storage_path: string;
+  thumbnail_path?: string | null;
+  alt_text?: string | null;
+  category: string;
+  uploaded_by?: string | null;
+  created_at: string;
+  url: string;
+}
+
+export type AssetCategory = 'logo' | 'favicon' | 'og_image' | 'general';
+
+// Per-variant SEO configuration
+export interface VariantSEOConfig {
+  title?: string;
+  description?: string;
+  og_title?: string;
+  og_description?: string;
+  og_image_url?: string;
+  twitter_card?: 'summary' | 'summary_large_image';
+  canonical_path?: string;
+  noindex?: boolean;
+  structured_data?: Record<string, unknown>;
 }

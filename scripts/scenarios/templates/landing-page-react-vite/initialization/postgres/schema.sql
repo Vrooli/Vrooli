@@ -254,3 +254,59 @@ CREATE TABLE IF NOT EXISTS credit_transactions (
 );
 
 CREATE INDEX idx_credit_transactions_customer ON credit_transactions(customer_email);
+
+-- Site Branding Table (singleton pattern for site-wide branding)
+-- Stores logos, favicons, default SEO, theme colors, and technical settings
+CREATE TABLE IF NOT EXISTS site_branding (
+    id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    site_name TEXT NOT NULL DEFAULT 'My Landing',
+    tagline TEXT,
+
+    -- Logo assets
+    logo_url TEXT,
+    logo_icon_url TEXT,
+    favicon_url TEXT,
+    apple_touch_icon_url TEXT,
+
+    -- Default SEO (fallback when variant doesn't specify)
+    default_title TEXT,
+    default_description TEXT,
+    default_og_image_url TEXT,
+
+    -- Theme overrides (extends styling.json)
+    theme_primary_color TEXT,
+    theme_background_color TEXT,
+
+    -- Technical settings
+    canonical_base_url TEXT,
+    google_site_verification TEXT,
+    robots_txt TEXT,
+
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Ensure only one row exists (singleton)
+CREATE UNIQUE INDEX IF NOT EXISTS site_branding_singleton ON site_branding ((1));
+
+-- Uploaded Assets Table
+-- Stores metadata for uploaded files (logos, favicons, og images, etc.)
+CREATE TABLE IF NOT EXISTS assets (
+    id SERIAL PRIMARY KEY,
+    filename TEXT NOT NULL,
+    original_filename TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    size_bytes BIGINT NOT NULL,
+    storage_path TEXT NOT NULL,
+    thumbnail_path TEXT,
+    alt_text TEXT,
+    category TEXT DEFAULT 'general' CHECK (category IN ('logo', 'favicon', 'og_image', 'general')),
+    uploaded_by TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_assets_category ON assets(category);
+CREATE INDEX idx_assets_created ON assets(created_at);
+
+-- Add SEO config column to variants table for per-variant SEO
+ALTER TABLE variants ADD COLUMN IF NOT EXISTS seo_config JSONB DEFAULT '{}'::jsonb;

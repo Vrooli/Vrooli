@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
+import { SEOHead } from '../../../shared/ui/SEOHead';
 import { useLandingVariant, type VariantResolution } from '../../../app/providers/LandingVariantProvider';
 import type { DownloadApp, LandingConfigResponse, LandingHeaderConfig, LandingSection } from '../../../shared/api';
 import { HeroSection } from '../sections/HeroSection';
@@ -287,6 +288,9 @@ export function PublicLanding() {
 
   return (
     <div className="min-h-screen bg-[#07090F] text-slate-50">
+      {/* Client-side SEO meta tag updates based on branding */}
+      <SEOHead branding={config?.branding} />
+
       <LandingExperienceHeader
         headerConfig={headerConfig}
         navLinks={navLinks}

@@ -13,17 +13,18 @@ import (
 
 // Variant represents an A/B testing variant
 type Variant struct {
-	ID          int               `json:"id"`
-	Slug        string            `json:"slug"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Weight      int               `json:"weight"`
-	Status      string            `json:"status"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
-	ArchivedAt  *time.Time        `json:"archived_at,omitempty"`
-	Axes        map[string]string `json:"axes,omitempty"`
+	ID           int               `json:"id"`
+	Slug         string            `json:"slug"`
+	Name         string            `json:"name"`
+	Description  string            `json:"description"`
+	Weight       int               `json:"weight"`
+	Status       string            `json:"status"`
+	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
+	ArchivedAt   *time.Time        `json:"archived_at,omitempty"`
+	Axes         map[string]string `json:"axes,omitempty"`
 	HeaderConfig LandingHeaderConfig `json:"header_config"`
+	SEOConfig    *json.RawMessage  `json:"seo_config,omitempty"`
 }
 
 // VariantService handles A/B testing variant operations
@@ -84,7 +85,7 @@ func (vs *VariantService) SelectVariant() (*Variant, error) {
 // GetVariantBySlug retrieves a variant by slug (OT-P0-014: AB-URL)
 func (vs *VariantService) GetVariantBySlug(slug string) (*Variant, error) {
 	query := `
-		SELECT id, slug, name, description, weight, status, created_at, updated_at, archived_at, header_config
+		SELECT id, slug, name, description, weight, status, created_at, updated_at, archived_at, header_config, COALESCE(seo_config, '{}'::jsonb)
 		FROM variants
 		WHERE slug = $1
 	`
@@ -92,9 +93,10 @@ func (vs *VariantService) GetVariantBySlug(slug string) (*Variant, error) {
 	var v Variant
 	var archivedAt sql.NullTime
 	var headerJSON []byte
+	var seoJSON []byte
 	err := vs.db.QueryRow(query, slug).Scan(
 		&v.ID, &v.Slug, &v.Name, &v.Description, &v.Weight,
-		&v.Status, &v.CreatedAt, &v.UpdatedAt, &archivedAt, &headerJSON,
+		&v.Status, &v.CreatedAt, &v.UpdatedAt, &archivedAt, &headerJSON, &seoJSON,
 	)
 
 	if err == sql.ErrNoRows {
@@ -110,6 +112,12 @@ func (vs *VariantService) GetVariantBySlug(slug string) (*Variant, error) {
 
 	v.HeaderConfig = decodeHeaderConfig(headerJSON, v.Name, v.Slug)
 
+	// Parse SEO config
+	if len(seoJSON) > 0 && string(seoJSON) != "{}" {
+		raw := json.RawMessage(seoJSON)
+		v.SEOConfig = &raw
+	}
+
 	axes, err := vs.getVariantAxes(v.ID)
 	if err != nil {
 		return nil, err
@@ -117,6 +125,16 @@ func (vs *VariantService) GetVariantBySlug(slug string) (*Variant, error) {
 	v.Axes = axes
 
 	return &v, nil
+}
+
+// GetBySlug is an alias for GetVariantBySlug
+func (vs *VariantService) GetBySlug(slug string) (*Variant, error) {
+	return vs.GetVariantBySlug(slug)
+}
+
+// List returns all active variants
+func (vs *VariantService) List() ([]Variant, error) {
+	return vs.ListVariants("")
 }
 
 // ListVariants returns all variants, optionally filtered by status (OT-P0-017: AB-CRUD)

@@ -155,3 +155,13 @@ ON CONFLICT (id) DO UPDATE SET
     webhook_secret = EXCLUDED.webhook_secret,
     dashboard_url = EXCLUDED.dashboard_url,
     updated_at = NOW();
+
+-- Seed default site branding (singleton row)
+INSERT INTO site_branding (id, site_name, tagline, robots_txt)
+VALUES (
+    1,
+    'My Landing',
+    NULL,
+    E'User-agent: *\nAllow: /'
+)
+ON CONFLICT (id) DO NOTHING;

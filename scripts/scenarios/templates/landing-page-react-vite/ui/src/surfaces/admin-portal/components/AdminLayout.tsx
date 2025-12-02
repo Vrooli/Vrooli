@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { Home, BarChart3, Palette, LogOut, ChevronRight, CreditCard, Download } from 'lucide-react';
+import { Home, BarChart3, Palette, LogOut, ChevronRight, CreditCard, Download, Settings2 } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { adminLogout } from '../../../shared/api';
 import { RuntimeSignalStrip } from './RuntimeSignalStrip';
@@ -58,6 +58,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       segments.push({ label: 'Billing', path: '/admin/billing' });
     } else if (path.startsWith('/admin/downloads')) {
       segments.push({ label: 'Downloads', path: '/admin/downloads' });
+    } else if (path.startsWith('/admin/branding')) {
+      segments.push({ label: 'Branding', path: '/admin/branding' });
     }
 
     return segments;
@@ -104,6 +106,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   <Button variant="ghost" size="sm" className="gap-2">
                     <Download className="h-4 w-4" />
                     Downloads
+                  </Button>
+                </Link>
+                <Link to="/admin/branding" data-testid="nav-branding">
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <Settings2 className="h-4 w-4" />
+                    Branding
                   </Button>
                 </Link>
               </nav>

@@ -433,6 +433,7 @@ type LandingConfigService struct {
 	contentService  *ContentService
 	planService     *PlanService
 	downloadService *DownloadService
+	brandingService *BrandingService
 }
 
 // LandingConfigResponse is returned by GET /landing-config.
@@ -442,7 +443,19 @@ type LandingConfigResponse struct {
 	Pricing   *PricingOverview      `json:"pricing"`
 	Downloads []DownloadApp         `json:"downloads"`
 	Header    LandingHeaderConfig   `json:"header"`
+	Branding  *LandingBranding      `json:"branding,omitempty"`
 	Fallback  bool                  `json:"fallback"`
+}
+
+// LandingBranding contains public branding fields for the frontend.
+type LandingBranding struct {
+	SiteName             string  `json:"site_name"`
+	Tagline              *string `json:"tagline,omitempty"`
+	LogoURL              *string `json:"logo_url,omitempty"`
+	LogoIconURL          *string `json:"logo_icon_url,omitempty"`
+	FaviconURL           *string `json:"favicon_url,omitempty"`
+	ThemePrimaryColor    *string `json:"theme_primary_color,omitempty"`
+	ThemeBackgroundColor *string `json:"theme_background_color,omitempty"`
 }
 
 type LandingVariantSummary struct {
@@ -473,12 +486,14 @@ func NewLandingConfigService(
 	contentService *ContentService,
 	planService *PlanService,
 	downloadService *DownloadService,
+	brandingService *BrandingService,
 ) *LandingConfigService {
 	return &LandingConfigService{
 		variantService:  variantService,
 		contentService:  contentService,
 		planService:     planService,
 		downloadService: downloadService,
+		brandingService: brandingService,
 	}
 }
 
@@ -517,6 +532,22 @@ func (s *LandingConfigService) GetLandingConfig(ctx context.Context, variantSlug
 		})
 	}
 
+	// Fetch branding (non-critical - don't fail on error)
+	var branding *LandingBranding
+	if s.brandingService != nil {
+		if siteBranding, err := s.brandingService.Get(); err == nil && siteBranding != nil {
+			branding = &LandingBranding{
+				SiteName:             siteBranding.SiteName,
+				Tagline:              siteBranding.Tagline,
+				LogoURL:              siteBranding.LogoURL,
+				LogoIconURL:          siteBranding.LogoIconURL,
+				FaviconURL:           siteBranding.FaviconURL,
+				ThemePrimaryColor:    siteBranding.ThemePrimaryColor,
+				ThemeBackgroundColor: siteBranding.ThemeBackgroundColor,
+			}
+		}
+	}
+
 	response := &LandingConfigResponse{
 		Variant: LandingVariantSummary{
 			ID:          variant.ID,
@@ -525,9 +556,10 @@ func (s *LandingConfigService) GetLandingConfig(ctx context.Context, variantSlug
 			Description: variant.Description,
 			Axes:        variant.Axes,
 		},
-		Header:   variant.HeaderConfig,
+		Header:    variant.HeaderConfig,
 		Pricing:   pricing,
 		Downloads: downloads,
+		Branding:  branding,
 		Fallback:  false,
 	}
 
@@ -559,7 +591,7 @@ func (s *LandingConfigService) GetLandingConfig(ctx context.Context, variantSlug
 
 func (s *LandingConfigService) fallbackResponse(mark bool) *LandingConfigResponse {
 	// fallbackLanding already contains pricing/download placeholders.
-	return &LandingConfigResponse{
+	response := &LandingConfigResponse{
 		Variant:   fallbackLanding.Variant,
 		Sections:  fallbackLanding.Sections,
 		Pricing:   &fallbackLanding.Pricing,
@@ -567,6 +599,23 @@ func (s *LandingConfigService) fallbackResponse(mark bool) *LandingConfigRespons
 		Header:    fallbackLanding.Header,
 		Fallback:  mark,
 	}
+
+	// Try to include branding even in fallback
+	if s.brandingService != nil {
+		if siteBranding, err := s.brandingService.Get(); err == nil && siteBranding != nil {
+			response.Branding = &LandingBranding{
+				SiteName:             siteBranding.SiteName,
+				Tagline:              siteBranding.Tagline,
+				LogoURL:              siteBranding.LogoURL,
+				LogoIconURL:          siteBranding.LogoIconURL,
+				FaviconURL:           siteBranding.FaviconURL,
+				ThemePrimaryColor:    siteBranding.ThemePrimaryColor,
+				ThemeBackgroundColor: siteBranding.ThemeBackgroundColor,
+			}
+		}
+	}
+
+	return response
 }
 
 func (s *LandingConfigService) fallbackWithReason(reason string, err error, meta map[string]interface{}) (*LandingConfigResponse, error) {

@@ -11,6 +11,7 @@ import { SectionEditor } from './surfaces/admin-portal/routes/SectionEditor';
 import { AgentCustomization } from './surfaces/admin-portal/routes/AgentCustomization';
 import { BillingSettings } from './surfaces/admin-portal/routes/BillingSettings';
 import { DownloadSettings } from './surfaces/admin-portal/routes/DownloadSettings';
+import { BrandingSettings } from './surfaces/admin-portal/routes/BrandingSettings';
 import { PublicLanding } from './surfaces/public-landing/routes/PublicLanding';
 
 export default function App() {
@@ -71,6 +72,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <DownloadSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/branding"
+              element={
+                <ProtectedRoute>
+                  <BrandingSettings />
                 </ProtectedRoute>
               }
             />

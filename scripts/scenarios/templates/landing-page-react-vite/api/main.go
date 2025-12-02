@@ -41,6 +41,8 @@ type Server struct {
 	accountService       *AccountService
 	landingConfigService *LandingConfigService
 	paymentSettings      *PaymentSettingsService
+	brandingService      *BrandingService
+	assetsService        *AssetsService
 }
 
 // NewServer initializes configuration, database, and routes
@@ -77,6 +79,8 @@ func NewServer() (*Server, error) {
 	downloadAuthorizer := NewDownloadAuthorizer(downloadService, accountService, planService.BundleKey())
 	paymentSettings := NewPaymentSettingsService(db)
 	stripeService := NewStripeServiceWithSettings(db, planService, paymentSettings)
+	brandingService := NewBrandingService(db)
+	assetsService := NewAssetsService(db)
 
 	srv := &Server{
 		config:               cfg,
@@ -91,8 +95,10 @@ func NewServer() (*Server, error) {
 		downloadService:      downloadService,
 		downloadAuthorizer:   downloadAuthorizer,
 		accountService:       accountService,
-		landingConfigService: NewLandingConfigService(variantService, contentService, planService, downloadService),
+		landingConfigService: NewLandingConfigService(variantService, contentService, planService, downloadService, brandingService),
 		paymentSettings:      paymentSettings,
+		brandingService:      brandingService,
+		assetsService:        assetsService,
 	}
 
 	// Initialize session store for authentication
@@ -171,6 +177,29 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/sections/{id}", s.requireAdmin(handleUpdateSection(s.contentService))).Methods("PATCH")
 	s.router.HandleFunc("/api/v1/sections", s.requireAdmin(handleCreateSection(s.contentService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/sections/{id}", s.requireAdmin(handleDeleteSection(s.contentService))).Methods("DELETE")
+
+	// Branding endpoints (admin-only for site-wide branding)
+	s.router.HandleFunc("/api/v1/admin/branding", s.requireAdmin(handleGetBranding(s.brandingService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/branding", s.requireAdmin(handleUpdateBranding(s.brandingService))).Methods("PUT")
+	s.router.HandleFunc("/api/v1/admin/branding/clear-field", s.requireAdmin(handleClearBrandingField(s.brandingService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/branding", handleGetPublicBranding(s.brandingService)).Methods("GET")
+
+	// Asset upload endpoints (admin-only for file uploads)
+	s.router.HandleFunc("/api/v1/admin/assets", s.requireAdmin(handleAssetsList(s.assetsService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/assets/upload", s.requireAdmin(handleAssetUpload(s.assetsService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/assets/{id}", s.requireAdmin(handleAssetGet(s.assetsService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/assets/{id}", s.requireAdmin(handleAssetDelete(s.assetsService))).Methods("DELETE")
+
+	// Serve uploaded files publicly
+	s.router.PathPrefix("/api/v1/uploads/").Handler(http.StripPrefix("/api/v1/uploads/", http.FileServer(http.Dir(s.assetsService.GetUploadDir()))))
+
+	// SEO endpoints
+	s.router.HandleFunc("/api/v1/seo/{slug}", handleGetVariantSEO(s.brandingService, s.variantService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/variants/{slug}/seo", s.requireAdmin(handleUpdateVariantSEO(s.variantService))).Methods("PUT")
+
+	// Sitemap and robots.txt
+	s.router.HandleFunc("/sitemap.xml", handleSitemapXML(s.brandingService, s.variantService)).Methods("GET")
+	s.router.HandleFunc("/robots.txt", handleRobotsTXT(s.brandingService)).Methods("GET")
 }
 
 func handleVariantSpaceRoute(space *VariantSpace) http.HandlerFunc {
@@ -331,6 +360,15 @@ func seedDefaultData(db *sql.DB) error {
 			updated_at = NOW()
 	`); err != nil {
 		return fmt.Errorf("failed to seed payment settings: %w", err)
+	}
+
+	// Seed default site branding (singleton)
+	if _, err := db.Exec(`
+		INSERT INTO site_branding (id, site_name, robots_txt)
+		VALUES (1, 'My Landing', E'User-agent: *\nAllow: /')
+		ON CONFLICT (id) DO NOTHING
+	`); err != nil {
+		return fmt.Errorf("failed to seed site branding: %w", err)
 	}
 
 	// Ensure control and variant-a exist and are active
@@ -1019,6 +1057,42 @@ func ensureSchema(db *sql.DB) error {
 			dashboard_url TEXT,
 			updated_at TIMESTAMP DEFAULT NOW()
 		);`,
+		`CREATE TABLE IF NOT EXISTS site_branding (
+			id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+			site_name TEXT NOT NULL DEFAULT 'My Landing',
+			tagline TEXT,
+			logo_url TEXT,
+			logo_icon_url TEXT,
+			favicon_url TEXT,
+			apple_touch_icon_url TEXT,
+			default_title TEXT,
+			default_description TEXT,
+			default_og_image_url TEXT,
+			theme_primary_color TEXT,
+			theme_background_color TEXT,
+			canonical_base_url TEXT,
+			google_site_verification TEXT,
+			robots_txt TEXT,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW()
+		);`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS site_branding_singleton ON site_branding ((1));`,
+		`CREATE TABLE IF NOT EXISTS assets (
+			id SERIAL PRIMARY KEY,
+			filename TEXT NOT NULL,
+			original_filename TEXT NOT NULL,
+			mime_type TEXT NOT NULL,
+			size_bytes BIGINT NOT NULL,
+			storage_path TEXT NOT NULL,
+			thumbnail_path TEXT,
+			alt_text TEXT,
+			category TEXT DEFAULT 'general' CHECK (category IN ('logo', 'favicon', 'og_image', 'general')),
+			uploaded_by TEXT,
+			created_at TIMESTAMP DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_assets_category ON assets(category);`,
+		`CREATE INDEX IF NOT EXISTS idx_assets_created ON assets(created_at);`,
+		`ALTER TABLE variants ADD COLUMN IF NOT EXISTS seo_config JSONB DEFAULT '{}'::jsonb;`,
 	}
 
 	for _, stmt := range stmts {
