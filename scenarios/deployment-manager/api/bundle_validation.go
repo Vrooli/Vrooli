@@ -4,6 +4,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"sync"
+
+	"github.com/santhosh-tekuri/jsonschema/v5"
+)
+
+var (
+	desktopSchemaOnce sync.Once
+	desktopSchema     *jsonschema.Schema
+	desktopSchemaErr  error
 )
 
 // desktopBundleManifest mirrors the v0.1 desktop bundle schema enough for
@@ -61,8 +73,8 @@ type manifestSecret struct {
 	Description string                 `json:"description"`
 	Format      string                 `json:"format"`
 	Required    *bool                  `json:"required"`
-	Prompt      *manifestSecretPrompt  `json:"prompt"`
-	Generator   map[string]interface{} `json:"generator"`
+	Prompt      *manifestSecretPrompt  `json:"prompt,omitempty"`
+	Generator   map[string]interface{} `json:"generator,omitempty"`
 	Target      manifestSecretTarget   `json:"target"`
 }
 
@@ -81,25 +93,25 @@ type manifestServiceEntry struct {
 	Type         string                           `json:"type"`
 	Description  string                           `json:"description"`
 	Binaries     map[string]manifestServiceBinary `json:"binaries"`
-	Env          map[string]string                `json:"env"`
-	Secrets      []string                         `json:"secrets"`
-	DataDirs     []string                         `json:"data_dirs"`
-	LogDir       string                           `json:"log_dir"`
-	Ports        *manifestServicePorts            `json:"ports"`
+	Env          map[string]string                `json:"env,omitempty"`
+	Secrets      []string                         `json:"secrets,omitempty"`
+	DataDirs     []string                         `json:"data_dirs,omitempty"`
+	LogDir       string                           `json:"log_dir,omitempty"`
+	Ports        *manifestServicePorts            `json:"ports,omitempty"`
 	Health       manifestHealth                   `json:"health"`
 	Readiness    manifestReadiness                `json:"readiness"`
-	Dependencies []string                         `json:"dependencies"`
-	Migrations   []manifestMigration              `json:"migrations"`
-	Assets       []manifestAsset                  `json:"assets"`
-	GPU          *manifestGPU                     `json:"gpu"`
-	Critical     *bool                            `json:"critical"`
+	Dependencies []string                         `json:"dependencies,omitempty"`
+	Migrations   []manifestMigration              `json:"migrations,omitempty"`
+	Assets       []manifestAsset                  `json:"assets,omitempty"`
+	GPU          *manifestGPU                     `json:"gpu,omitempty"`
+	Critical     *bool                            `json:"critical,omitempty"`
 }
 
 type manifestServiceBinary struct {
 	Path string            `json:"path"`
-	Args []string          `json:"args"`
-	Env  map[string]string `json:"env"`
-	Cwd  string            `json:"cwd"`
+	Args []string          `json:"args,omitempty"`
+	Env  map[string]string `json:"env,omitempty"`
+	Cwd  string            `json:"cwd,omitempty"`
 }
 
 type manifestServicePorts struct {
@@ -116,7 +128,7 @@ type manifestHealth struct {
 	Type     string   `json:"type"`
 	Path     string   `json:"path"`
 	PortName string   `json:"port_name"`
-	Command  []string `json:"command"`
+	Command  []string `json:"command,omitempty"`
 	Interval int      `json:"interval_ms"`
 	Timeout  int      `json:"timeout_ms"`
 	Retries  int      `json:"retries"`
@@ -132,7 +144,7 @@ type manifestReadiness struct {
 type manifestMigration struct {
 	Version string            `json:"version"`
 	Command []string          `json:"command"`
-	Env     map[string]string `json:"env"`
+	Env     map[string]string `json:"env,omitempty"`
 	RunOn   string            `json:"run_on"`
 }
 
@@ -186,6 +198,9 @@ func validateDesktopBundleManifestBytes(data []byte) error {
 			return fmt.Errorf("service %s: %w", svc.ID, err)
 		}
 	}
+	if err := validateAgainstDesktopSchema(data); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -225,4 +240,43 @@ func validateService(svc manifestServiceEntry) error {
 		return fmt.Errorf("readiness.type is required")
 	}
 	return nil
+}
+
+func validateAgainstDesktopSchema(data []byte) error {
+	schema, err := loadDesktopBundleSchema()
+	if err != nil {
+		return fmt.Errorf("failed to load desktop bundle schema: %w", err)
+	}
+	var payload interface{}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return fmt.Errorf("invalid JSON: %w", err)
+	}
+	if err := schema.Validate(payload); err != nil {
+		return fmt.Errorf("bundle schema validation failed: %w", err)
+	}
+	return nil
+}
+
+func loadDesktopBundleSchema() (*jsonschema.Schema, error) {
+	desktopSchemaOnce.Do(func() {
+		_, currentFile, _, ok := runtime.Caller(0)
+		if !ok {
+			desktopSchemaErr = fmt.Errorf("unable to resolve schema path from caller")
+			return
+		}
+		schemaPath := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", "..", "docs", "deployment", "bundle-schema.desktop.v0.1.json"))
+		schemaBytes, readErr := os.ReadFile(schemaPath)
+		if readErr != nil {
+			desktopSchemaErr = fmt.Errorf("failed to read bundle schema: %w", readErr)
+			return
+		}
+
+		compiler := jsonschema.NewCompiler()
+		if err := compiler.AddResource("bundle-schema.desktop.v0.1.json", bytes.NewReader(schemaBytes)); err != nil {
+			desktopSchemaErr = fmt.Errorf("failed to add schema resource: %w", err)
+			return
+		}
+		desktopSchema, desktopSchemaErr = compiler.Compile("bundle-schema.desktop.v0.1.json")
+	})
+	return desktopSchema, desktopSchemaErr
 }

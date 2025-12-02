@@ -1,6 +1,7 @@
 package bundleruntime
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -50,6 +51,7 @@ type Supervisor struct {
 	servicesStarted bool
 	runtimeCtx      context.Context
 	migrations      migrationsState
+	gpuStatus       gpuStatus
 }
 
 type ServiceStatus struct {
@@ -72,6 +74,12 @@ type serviceProcess struct {
 	started  time.Time
 	cancel   context.CancelFunc
 	stopping bool
+}
+
+type gpuStatus struct {
+	Available bool
+	Method    string
+	Reason    string
 }
 
 func NewSupervisor(opts Options) (*Supervisor, error) {
@@ -143,6 +151,13 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	if err := s.recordTelemetry("runtime_start", nil); err != nil {
 		return fmt.Errorf("write telemetry: %w", err)
 	}
+
+	s.gpuStatus = detectGPU()
+	_ = s.recordTelemetry("gpu_status", map[string]interface{}{
+		"available": s.gpuStatus.Available,
+		"method":    s.gpuStatus.Method,
+		"reason":    s.gpuStatus.Reason,
+	})
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", s.handleHealth)
@@ -552,6 +567,63 @@ func (s *Supervisor) recordTelemetry(event string, details map[string]interface{
 
 // Utilities.
 
+func detectGPU() gpuStatus {
+	override := strings.TrimSpace(os.Getenv("BUNDLE_GPU_AVAILABLE"))
+	switch strings.ToLower(override) {
+	case "1", "true", "yes", "on":
+		return gpuStatus{Available: true, Method: "env_override", Reason: "forced available via BUNDLE_GPU_AVAILABLE"}
+	case "0", "false", "no", "off":
+		return gpuStatus{Available: false, Method: "env_override", Reason: "forced unavailable via BUNDLE_GPU_AVAILABLE"}
+	}
+
+	if path, err := exec.LookPath("nvidia-smi"); err == nil {
+		if out, err := runCommandWithTimeout(2*time.Second, path, "--query-gpu=name", "--format=csv,noheader"); err == nil && len(bytes.TrimSpace(out)) > 0 {
+			return gpuStatus{Available: true, Method: "nvidia-smi", Reason: "nvidia gpu detected"}
+		}
+	}
+
+	switch runtime.GOOS {
+	case "darwin":
+		if path, err := exec.LookPath("system_profiler"); err == nil {
+			if out, err := runCommandWithTimeout(3*time.Second, path, "SPDisplaysDataType"); err == nil {
+				lower := bytes.ToLower(out)
+				if bytes.Contains(lower, []byte("chipset model")) || bytes.Contains(lower, []byte("gpu")) {
+					return gpuStatus{Available: true, Method: "system_profiler", Reason: "GPU reported by system_profiler"}
+				}
+			}
+		}
+	case "windows":
+		if path, err := exec.LookPath("wmic"); err == nil {
+			if out, err := runCommandWithTimeout(3*time.Second, path, "path", "win32_VideoController", "get", "name"); err == nil {
+				lower := bytes.ToLower(out)
+				if bytes.Contains(lower, []byte("nvidia")) || bytes.Contains(lower, []byte("amd")) || bytes.Contains(lower, []byte("intel")) {
+					return gpuStatus{Available: true, Method: "wmic", Reason: "GPU reported by wmic"}
+				}
+			}
+		}
+	}
+
+	return gpuStatus{Available: false, Method: "probe", Reason: "no GPU detected"}
+}
+
+func runCommandWithTimeout(timeout time.Duration, name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, args...)
+	out, err := cmd.Output()
+	if ctx.Err() != nil {
+		return out, ctx.Err()
+	}
+	return out, err
+}
+
+func boolToString(v bool) string {
+	if v {
+		return "true"
+	}
+	return "false"
+}
+
 func (s *Supervisor) loadSecrets() (map[string]string, error) {
 	out := map[string]string{}
 	data, err := os.ReadFile(s.secretsPath)
@@ -789,6 +861,9 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 		return err
 	}
 	if err := s.applyPlaywrightConventions(svc, envMap); err != nil {
+		return err
+	}
+	if err := s.applyGPURequirement(envMap, svc); err != nil {
 		return err
 	}
 	if err := s.ensureAssets(svc); err != nil {
@@ -1256,6 +1331,50 @@ func (s *Supervisor) applyPlaywrightConventions(svc manifest.Service, env map[st
 		"reason":     "playwright_chromium",
 	})
 	return fmt.Errorf("playwright chromium missing for %s: %s", svc.ID, resolved)
+}
+
+func (s *Supervisor) applyGPURequirement(env map[string]string, svc manifest.Service) error {
+	req := svc.GPURequirement()
+	env["BUNDLE_GPU_AVAILABLE"] = boolToString(s.gpuStatus.Available)
+
+	if req == "" {
+		return nil
+	}
+
+	switch req {
+	case "required":
+		if !s.gpuStatus.Available {
+			_ = s.recordTelemetry("gpu_required_missing", map[string]interface{}{
+				"service_id": svc.ID,
+				"reason":     s.gpuStatus.Reason,
+			})
+			return fmt.Errorf("gpu required for %s: %s", svc.ID, s.gpuStatus.Reason)
+		}
+		env["BUNDLE_GPU_MODE"] = "gpu"
+	case "optional_with_cpu_fallback":
+		if s.gpuStatus.Available {
+			env["BUNDLE_GPU_MODE"] = "gpu"
+			return nil
+		}
+		env["BUNDLE_GPU_MODE"] = "cpu"
+		_ = s.recordTelemetry("gpu_fallback_cpu", map[string]interface{}{
+			"service_id": svc.ID,
+			"reason":     s.gpuStatus.Reason,
+		})
+	case "optional_but_warn":
+		if s.gpuStatus.Available {
+			env["BUNDLE_GPU_MODE"] = "gpu"
+			return nil
+		}
+		env["BUNDLE_GPU_MODE"] = "cpu"
+		_ = s.recordTelemetry("gpu_optional_unavailable", map[string]interface{}{
+			"service_id": svc.ID,
+			"reason":     s.gpuStatus.Reason,
+		})
+	default:
+		return fmt.Errorf("unknown gpu requirement %q for service %s", req, svc.ID)
+	}
+	return nil
 }
 
 func (s *Supervisor) runMigrations(ctx context.Context, svc manifest.Service, bin manifest.Binary, baseEnv map[string]string) error {

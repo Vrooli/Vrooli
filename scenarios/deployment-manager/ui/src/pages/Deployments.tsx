@@ -1,12 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Package, HelpCircle, Rocket, Plus, Upload, Workflow, RefreshCw } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Package, HelpCircle, Rocket, Plus, Upload, Workflow, RefreshCw, FileText, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { GuidedFlow } from "../components/GuidedFlow";
 import { Tip } from "../components/ui/tip";
-import { getDeploymentStatus } from "../lib/api";
+import { Badge } from "../components/ui/badge";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { getDeploymentStatus, listTelemetry, uploadTelemetry } from "../lib/api";
 
 export function Deployments() {
   const [showHelp, setShowHelp] = useState(false);
@@ -19,6 +22,35 @@ export function Deployments() {
     enabled: Boolean(id),
     staleTime: 5_000,
   });
+  const {
+    data: telemetry,
+    isFetching: telemetryLoading,
+    refetch: refetchTelemetry,
+    error: telemetryError,
+  } = useQuery({
+    queryKey: ["telemetry"],
+    queryFn: () => listTelemetry(),
+    staleTime: 30_000,
+  });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [scenarioName, setScenarioName] = useState<string>("");
+  const uploadMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedFile) throw new Error("Pick a telemetry file first");
+      return uploadTelemetry(scenarioName || deployment?.profile_id, selectedFile);
+    },
+    onSuccess: () => {
+      setSelectedFile(null);
+      void refetchTelemetry();
+    },
+  });
+
+  useEffect(() => {
+    if (scenarioName || !deployment) return;
+    if (deployment.profile_id) {
+      setScenarioName(deployment.profile_id);
+    }
+  }, [deployment, scenarioName]);
 
   const statusPill = useMemo(() => {
     if (!deployment) return null;
@@ -117,15 +149,141 @@ export function Deployments() {
               <CardDescription>Mirrors the scenario-to-desktop guidance</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3 space-y-3">
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <Upload className="h-4 w-4" />
                   Upload deployment-telemetry.jsonl
                 </div>
-                <p className="text-sm text-slate-400 mt-1">
-                  Import the telemetry file from the packaged app to see which dependencies or secrets failed. (Upload UI pending; use issue tracker in the meantime.)
+                <p className="text-sm text-slate-400">
+                  Import the telemetry file from the packaged app to see which dependencies or secrets failed. We store it under
+                  <code className="mx-1 rounded bg-black/30 px-1 py-0.5 text-[11px] text-slate-100">~/.vrooli/deployment/telemetry/</code>
+                  and surface failures below.
                 </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="scenario">Scenario (optional)</Label>
+                    <Input
+                      id="scenario"
+                      placeholder="picker-wheel"
+                      value={scenarioName}
+                      onChange={(e) => setScenarioName(e.target.value)}
+                    />
+                    <p className="text-xs text-slate-400">
+                      Used for naming the telemetry file and grouping events. Defaults to the profile id if left blank.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="telemetry-file">Telemetry file</Label>
+                    <Input
+                      id="telemetry-file"
+                      type="file"
+                      accept=".jsonl,.json,.txt"
+                      onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+                    />
+                    <p className="text-xs text-slate-400">
+                      Each line must be JSON (deployment-telemetry.jsonl). We’ll validate before ingesting.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => uploadMutation.mutate()}
+                    disabled={uploadMutation.isPending || !selectedFile}
+                  >
+                    {uploadMutation.isPending ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4" />
+                        Upload telemetry
+                      </>
+                    )}
+                  </Button>
+                  {selectedFile && <span className="text-xs text-slate-400 truncate max-w-[200px]">{selectedFile.name}</span>}
+                </div>
+                {uploadMutation.error && (
+                  <div className="rounded border border-red-500/30 bg-red-500/10 p-2 text-xs text-red-100">
+                    {(uploadMutation.error as Error).message}
+                  </div>
+                )}
+                {uploadMutation.isSuccess && (
+                  <div className="rounded border border-emerald-500/30 bg-emerald-500/10 p-2 text-xs text-emerald-100">
+                    Uploaded. Telemetry saved to {uploadMutation.data?.path}.
+                  </div>
+                )}
               </div>
+
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <FileText className="h-4 w-4" />
+                  Recent telemetry ingests
+                </div>
+                {telemetryError && (
+                  <div className="rounded border border-red-500/30 bg-red-500/10 p-2 text-xs text-red-100">
+                    {(telemetryError as Error).message}
+                  </div>
+                )}
+                {telemetryLoading && <p className="text-xs text-slate-400">Loading telemetry...</p>}
+                {!telemetryLoading && telemetry && telemetry.length === 0 && (
+                  <p className="text-xs text-slate-400">No telemetry ingested yet.</p>
+                )}
+                <div className="space-y-2">
+                  {telemetry?.map((entry) => {
+                    const failureTotal = Object.values(entry.failure_counts || {}).reduce((sum, val) => sum + (val || 0), 0);
+                    return (
+                      <div key={entry.path} className="rounded border border-slate-700 bg-black/20 p-3 space-y-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2 text-sm font-semibold">
+                              {entry.scenario}
+                              {failureTotal > 0 ? (
+                                <Badge variant="destructive" className="gap-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  {failureTotal} failure{failureTotal === 1 ? "" : "s"}
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary">Clean</Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400">
+                              {entry.total_events} events • last {entry.last_event || "event"} @ {entry.last_timestamp || "unknown"}
+                            </p>
+                            <p className="text-[11px] text-slate-500 break-all">{entry.path}</p>
+                          </div>
+                          <Button size="sm" variant="ghost" onClick={() => refetchTelemetry()} className="gap-1">
+                            <RefreshCw className="h-4 w-4" /> Refresh
+                          </Button>
+                        </div>
+                        {entry.recent_failures && entry.recent_failures.length > 0 && (
+                          <div className="rounded border border-red-500/30 bg-red-500/5 p-2 text-[11px] text-red-100 space-y-1">
+                            <p className="font-semibold">Recent failures</p>
+                            {entry.recent_failures.map((evt, idx) => (
+                              <div key={idx} className="flex items-start gap-2">
+                                <span className="mt-[2px] block h-1.5 w-1.5 rounded-full bg-red-300" />
+                                <div>
+                                  <div className="font-semibold">{evt.event || "unknown"}</div>
+                                  <div className="text-slate-200">{evt.timestamp}</div>
+                                  {evt.details && (
+                                    <pre className="mt-1 whitespace-pre-wrap break-words rounded bg-black/30 p-2 text-[10px] text-slate-100">
+                                      {JSON.stringify(evt.details, null, 2)}
+                                    </pre>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="rounded-lg border border-white/10 bg-white/5 p-3">
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <Workflow className="h-4 w-4" />

@@ -89,9 +89,20 @@ type Service struct {
 	Dependencies []string               `json:"dependencies,omitempty"`
 	Migrations   []Migration            `json:"migrations,omitempty"`
 	Assets       []Asset                `json:"assets,omitempty"`
-	GPU          map[string]string      `json:"gpu,omitempty"`
+	GPU          *GPURequirements       `json:"gpu,omitempty"`
 	Critical     *bool                  `json:"critical,omitempty"`
 	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+}
+
+type GPURequirements struct {
+	Requirement string `json:"requirement,omitempty"`
+}
+
+func (s Service) GPURequirement() string {
+	if s.GPU == nil {
+		return ""
+	}
+	return strings.TrimSpace(s.GPU.Requirement)
 }
 
 type Binary struct {

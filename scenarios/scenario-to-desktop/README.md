@@ -216,7 +216,7 @@ curl -X POST http://localhost:<API_PORT>/api/v1/desktop/build/picker-wheel \
 cd scenarios/picker-wheel/platforms/electron
 npm install
 npm run build
-npm run dist:win    # Build Windows executable
+npm run dist:win    # Build Windows MSI installer
 ```
 
 **Build Process**:
@@ -224,15 +224,15 @@ npm run dist:win    # Build Windows executable
 2. Compiles TypeScript (main.ts, preload.ts)
 3. Packages with electron-builder for target platform(s)
 4. Creates installers in `dist-electron/`:
-   - Windows: `<name>-Setup-<version>.exe`
-   - macOS: `<name>-<version>.dmg`
+   - Windows: `<name>-<version>.msi`
+   - macOS: `<name>-<version>.pkg`
    - Linux: `<name>-<version>.AppImage`, `<name>-<version>.deb`
 
 ### 5. Install Wine (For Windows Builds on Linux)
 
 **🍷 Wine Installation - No Sudo Required!**
 
-Building Windows `.exe` installers on Linux requires Wine. You can install it **without sudo** using Flatpak:
+Building Windows `.msi` installers on Linux requires Wine. You can install it **without sudo** using Flatpak:
 
 ```bash
 # Add Flathub repository (user-space, no sudo)
@@ -322,12 +322,12 @@ vrooli scenario status scenario-to-desktop
 
 # Step 2: Download Windows installer
 1. Click the "🪟 Windows" download button
-2. Browser will download the .exe file (e.g., picker-wheel-Setup-1.0.0.exe)
+2. Browser will download the .msi file (e.g., picker-wheel-1.0.0.msi)
 3. Save to your Windows Downloads folder
 
 # Step 3: Install on Windows
 1. Navigate to Downloads folder
-2. Double-click the Setup.exe file
+2. Double-click the `.msi` file
 3. Windows SmartScreen warning will appear:
    - Click "More info"
    - Click "Run anyway"
@@ -395,14 +395,14 @@ Examples:
 - macOS:   GET /api/v1/desktop/download/picker-wheel/mac
 - Linux:   GET /api/v1/desktop/download/picker-wheel/linux
 
-Response: Binary file (application/x-msdownload for .exe)
-Filename: <scenario-name>-Setup-<version>.exe
+Response: Binary file (application/x-msi for .msi)
+Filename: <scenario-name>-<version>.msi
 ```
 
 **Direct Download from Command Line** (if you know the port):
 ```bash
 # From Windows PowerShell
-Invoke-WebRequest -Uri "http://your-server:38123/api/v1/desktop/download/picker-wheel/win" -OutFile "picker-wheel-Setup.exe"
+Invoke-WebRequest -Uri "http://your-server:38123/api/v1/desktop/download/picker-wheel/win" -OutFile "picker-wheel.msi"
 
 # From WSL/Git Bash
 curl -O "http://your-server:38123/api/v1/desktop/download/picker-wheel/win"
@@ -420,7 +420,7 @@ When testing desktop apps from a remote server:
 
 #### Building Signed Windows Apps
 
-For production distribution, you need to sign the executable:
+For production distribution, you need to sign the installer:
 
 ```bash
 # Step 1: Obtain a code signing certificate
@@ -453,8 +453,8 @@ npm run dev              # Launch with DevTools
 
 # Build for distribution
 npm run dist             # Current platform only
-npm run dist:win         # Windows executable
-npm run dist:mac         # macOS DMG
+npm run dist:win         # Windows MSI installer
+npm run dist:mac         # macOS PKG installer
 npm run dist:linux       # Linux AppImage
 npm run dist:all         # All platforms
 ```
@@ -791,7 +791,7 @@ Response:
 4. Creates installers in `dist-electron/` directory
 5. Typical build time: 3-8 minutes depending on platforms
 
-**Note**: Building Windows executables on Linux requires wine, which is installed automatically by electron-builder.
+**Note**: Building Windows MSI installers on Linux still requires wine, which is installed automatically by electron-builder.
 
 #### Download Built Package (NEW!)
 Download the built executable for a specific platform:
@@ -804,14 +804,14 @@ Parameters:
 - platform: One of: "win", "mac", "linux"
 
 Response:
-- Content-Type: application/x-msdownload (for .exe)
-- Content-Type: application/x-apple-diskimage (for .dmg)
+- Content-Type: application/x-msi (for .msi)
+- Content-Type: application/octet-stream (for .pkg)
 - Content-Type: application/x-executable (for .AppImage)
 - Content-Disposition: attachment; filename=<installer-file>
 
 File Downloads:
-- Windows: picker-wheel-Setup-1.0.0.exe
-- macOS: picker-wheel-1.0.0.dmg
+- Windows: picker-wheel-1.0.0.msi
+- macOS: picker-wheel-1.0.0.pkg
 - Linux: picker-wheel-1.0.0.AppImage
 ```
 

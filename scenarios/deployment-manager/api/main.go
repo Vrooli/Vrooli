@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -103,6 +104,15 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/profiles/{id}/secrets/validate", s.handleValidateSecrets).Methods("POST")
 	s.router.HandleFunc("/api/v1/secrets/validate", s.handleValidateSecret).Methods("POST")
 	s.router.HandleFunc("/api/v1/secrets/test", s.handleTestSecret).Methods("GET", "POST")
+
+	// Bundle validation
+	s.router.HandleFunc("/api/v1/bundles/validate", s.handleValidateBundle).Methods("POST")
+	s.router.HandleFunc("/api/v1/bundles/merge-secrets", s.handleMergeBundleSecrets).Methods("POST")
+	s.router.HandleFunc("/api/v1/bundles/assemble", s.handleAssembleBundle).Methods("POST")
+
+	// Telemetry ingestion + summaries
+	s.router.HandleFunc("/api/v1/telemetry", s.handleListTelemetry).Methods("GET")
+	s.router.HandleFunc("/api/v1/telemetry/upload", s.handleUploadTelemetry).Methods("POST")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -375,11 +385,11 @@ func (s *Server) handleScoreFitness(w http.ResponseWriter, r *http.Request) {
 		fitnessScore := calculateFitnessScore(req.Scenario, tier)
 
 		scores[tier] = map[string]interface{}{
-			"overall":             fitnessScore.Overall,
-			"portability":         fitnessScore.Portability,
-			"resources":           fitnessScore.Resources,
-			"licensing":           fitnessScore.Licensing,
-			"platform_support":    fitnessScore.PlatformSupport,
+			"overall":          fitnessScore.Overall,
+			"portability":      fitnessScore.Portability,
+			"resources":        fitnessScore.Resources,
+			"licensing":        fitnessScore.Licensing,
+			"platform_support": fitnessScore.PlatformSupport,
 		}
 
 		if fitnessScore.Overall == 0 {
@@ -891,12 +901,12 @@ func (s *Server) handleSwapAnalyze(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"from":           fromDep,
-		"to":             toDep,
-		"fitness_delta":  fitnessDeltas,
-		"impact":         "medium",
-		"pros":           pros,
-		"cons":           cons,
+		"from":             fromDep,
+		"to":               toDep,
+		"fitness_delta":    fitnessDeltas,
+		"impact":           "medium",
+		"pros":             pros,
+		"cons":             cons,
 		"migration_effort": "2-4 hours",
 		"applicable_tiers": []string{"desktop", "mobile", "saas"},
 	}
@@ -1380,8 +1390,8 @@ DEBUG_MODE=false
 			"timestamp":  time.Now().UTC().Format(time.RFC3339),
 		}
 		w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(response)
 	} else {
 		// Return JSON template directly
 		w.Header().Set("Content-Type", "application/json")
@@ -1431,6 +1441,137 @@ func (s *Server) handleValidateSecret(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (s *Server) handleValidateBundle(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(io.LimitReader(r.Body, 2<<20))
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to read bundle: %v"}`, err), http.StatusBadRequest)
+		return
+	}
+	if len(body) == 0 {
+		http.Error(w, `{"error":"bundle manifest required"}`, http.StatusBadRequest)
+		return
+	}
+
+	if err := validateDesktopBundleManifestBytes(body); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"bundle failed validation","details":"%s"}`, err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "valid",
+		"schema": "desktop.v0.1",
+	})
+}
+
+type mergeSecretsRequest struct {
+	Scenario string                 `json:"scenario"`
+	Tier     string                 `json:"tier"`
+	Manifest desktopBundleManifest  `json:"manifest"`
+	Raw      map[string]interface{} `json:"-"`
+}
+
+func (s *Server) handleMergeBundleSecrets(w http.ResponseWriter, r *http.Request) {
+	var req mergeSecretsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"invalid JSON: %v"}`, err), http.StatusBadRequest)
+		return
+	}
+	if req.Scenario == "" {
+		http.Error(w, `{"error":"scenario is required"}`, http.StatusBadRequest)
+		return
+	}
+	if req.Tier == "" {
+		req.Tier = "tier-2-desktop"
+	}
+
+	// Re-validate manifest before merging.
+	rawPayload, err := json.Marshal(req.Manifest)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to marshal manifest: %v"}`, err), http.StatusBadRequest)
+		return
+	}
+	if err := validateDesktopBundleManifestBytes(rawPayload); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"manifest failed validation","details":"%s"}`, err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	secretPlans, err := s.fetchBundleSecrets(r.Context(), req.Scenario, req.Tier)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to load secret plans: %v"}`, err), http.StatusBadGateway)
+		return
+	}
+
+	manifest := req.Manifest
+	if err := applyBundleSecrets(&manifest, secretPlans); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to merge secrets: %v"}`, err), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(manifest)
+}
+
+type assembleBundleRequest struct {
+	Scenario       string `json:"scenario"`
+	Tier           string `json:"tier"`
+	IncludeSecrets *bool  `json:"include_secrets,omitempty"`
+}
+
+func (s *Server) handleAssembleBundle(w http.ResponseWriter, r *http.Request) {
+	var req assembleBundleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"invalid JSON: %v"}`, err), http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.Scenario) == "" {
+		http.Error(w, `{"error":"scenario is required"}`, http.StatusBadRequest)
+		return
+	}
+	if req.Tier == "" {
+		req.Tier = "tier-2-desktop"
+	}
+	includeSecrets := true
+	if req.IncludeSecrets != nil {
+		includeSecrets = *req.IncludeSecrets
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	manifest, err := s.fetchSkeletonBundle(ctx, req.Scenario)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to build bundle","details":"%s"}`, err.Error()), http.StatusBadGateway)
+		return
+	}
+
+	if includeSecrets {
+		secretPlans, err := s.fetchBundleSecrets(ctx, req.Scenario, req.Tier)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"failed to load secret plans: %v"}`, err), http.StatusBadGateway)
+			return
+		}
+		if err := applyBundleSecrets(manifest, secretPlans); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"failed to merge secrets: %v"}`, err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Validate assembled manifest to guarantee schema compliance before handing off.
+	payload, _ := json.Marshal(manifest)
+	if err := validateDesktopBundleManifestBytes(payload); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"assembled manifest failed validation","details":"%s"}`, err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":   "assembled",
+		"schema":   "desktop.v0.1",
+		"manifest": manifest,
+	})
+}
+
 func (s *Server) handleTestSecret(w http.ResponseWriter, r *http.Request) {
 	// Mock secret testing endpoint
 	response := map[string]interface{}{
@@ -1442,6 +1583,137 @@ func (s *Server) handleTestSecret(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
+}
+
+func (s *Server) fetchBundleSecrets(ctx context.Context, scenario, tier string) ([]secretsManagerBundleSecret, error) {
+	base := os.Getenv("SECRETS_MANAGER_URL")
+	if base == "" {
+		base = os.Getenv("SECRETS_MANAGER_API_URL")
+	}
+	if base == "" {
+		if port := os.Getenv("SECRETS_MANAGER_API_PORT"); port != "" {
+			base = fmt.Sprintf("http://127.0.0.1:%s", port)
+		}
+	}
+	if base == "" {
+		return nil, fmt.Errorf("SECRETS_MANAGER_URL or SECRETS_MANAGER_API_URL must be set")
+	}
+
+	base = strings.TrimSuffix(base, "/")
+	target, err := url.Parse(fmt.Sprintf("%s/api/v1/deployment/secrets/%s", base, url.PathEscape(scenario)))
+	if err != nil {
+		return nil, fmt.Errorf("build secrets-manager url: %w", err)
+	}
+	q := target.Query()
+	q.Set("tier", tier)
+	q.Set("include_optional", "true")
+	target.RawQuery = q.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request secrets-manager: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(res.Body, 1<<16))
+		return nil, fmt.Errorf("secrets-manager returned %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
+	}
+
+	var parsed struct {
+		BundleSecrets []secretsManagerBundleSecret `json:"bundle_secrets"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&parsed); err != nil {
+		return nil, fmt.Errorf("decode secrets-manager response: %w", err)
+	}
+	return parsed.BundleSecrets, nil
+}
+
+// fetchSkeletonBundle retrieves the analyzer-emitted desktop bundle skeleton for a scenario.
+func (s *Server) fetchSkeletonBundle(ctx context.Context, scenario string) (*desktopBundleManifest, error) {
+	port, err := resolveAnalyzerPort()
+	if err != nil {
+		return nil, err
+	}
+
+	target, err := url.Parse(fmt.Sprintf("http://127.0.0.1:%s/api/v1/scenarios/%s/bundle/manifest", port, url.PathEscape(scenario)))
+	if err != nil {
+		return nil, fmt.Errorf("build analyzer url: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("create analyzer request: %w", err)
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("call analyzer: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(res.Body, 1<<15))
+		return nil, fmt.Errorf("analyzer returned %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
+	}
+
+	var parsed struct {
+		Manifest json.RawMessage `json:"manifest"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&parsed); err != nil {
+		return nil, fmt.Errorf("decode analyzer response: %w", err)
+	}
+	if len(parsed.Manifest) == 0 {
+		return nil, fmt.Errorf("analyzer response missing manifest")
+	}
+
+	// Prefer skeleton field, fall back to manifest directly if already in final form.
+	var shape struct {
+		Skeleton json.RawMessage `json:"skeleton"`
+	}
+	_ = json.Unmarshal(parsed.Manifest, &shape)
+
+	var manifestBytes []byte
+	if len(shape.Skeleton) > 0 {
+		manifestBytes = shape.Skeleton
+	} else {
+		manifestBytes = parsed.Manifest
+	}
+	if len(manifestBytes) == 0 {
+		return nil, fmt.Errorf("analyzer manifest missing skeleton")
+	}
+
+	if err := validateDesktopBundleManifestBytes(manifestBytes); err != nil {
+		return nil, fmt.Errorf("analyzer manifest failed validation: %w", err)
+	}
+
+	var manifest desktopBundleManifest
+	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
+		return nil, fmt.Errorf("decode manifest: %w", err)
+	}
+	return &manifest, nil
+}
+
+func resolveAnalyzerPort() (string, error) {
+	if port := strings.TrimSpace(os.Getenv("SCENARIO_DEPENDENCY_ANALYZER_API_PORT")); port != "" {
+		return port, nil
+	}
+
+	cmd := exec.Command("vrooli", "scenario", "port", "scenario-dependency-analyzer", "API_PORT")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("SCENARIO_DEPENDENCY_ANALYZER_API_PORT not set and dynamic lookup failed: %w", err)
+	}
+	port := strings.TrimSpace(string(output))
+	if port == "" {
+		return "", fmt.Errorf("SCENARIO_DEPENDENCY_ANALYZER_API_PORT not set and dynamic lookup returned empty output")
+	}
+	return port, nil
 }
 
 func main() {

@@ -207,6 +207,24 @@ async function runtimeRequest<T = unknown>(endpoint: string, opts?: RuntimeReque
     return res.json();
 }
 
+async function waitForRuntimeControl(timeoutMs: number): Promise<void> {
+    if (!RUNTIME_CONTROL.ENABLED) return;
+    const url = `http://${RUNTIME_CONTROL.HOST}:${RUNTIME_CONTROL.PORT}/healthz`;
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        try {
+            const res = await fetch(url);
+            if (res.ok) {
+                return;
+            }
+        } catch {
+            // keep retrying
+        }
+        await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    throw new Error("Runtime control API did not respond before timeout");
+}
+
 async function showRuntimeDiagnostics(): Promise<void> {
     if (!RUNTIME_CONTROL.ENABLED) {
         await dialog.showMessageBox({
@@ -393,9 +411,13 @@ async function promptForSecretValue(secret: RuntimeSecret): Promise<string | nul
 async function ensureRuntimeSecretsIfNeeded(): Promise<void> {
     if (!RUNTIME_CONTROL.ENABLED) return;
     try {
-        const status = await runtimeRequest<RuntimeSecretsResponse>("/secrets");
-        const secrets = (status as RuntimeSecretsResponse | undefined)?.secrets || [];
-        const missing = secrets.filter(
+        const fetchSecrets = async (): Promise<RuntimeSecret[]> => {
+            const status = await runtimeRequest<RuntimeSecretsResponse>("/secrets");
+            return (status as RuntimeSecretsResponse | undefined)?.secrets || [];
+        };
+
+        const current = await fetchSecrets();
+        const missing = current.filter(
             (sec) => sec.class === "user_prompt" && sec.required && !sec.has_value,
         );
         if (missing.length === 0) {
@@ -411,14 +433,23 @@ async function ensureRuntimeSecretsIfNeeded(): Promise<void> {
         }
 
         if (Object.keys(collected).length === 0) {
-            dialog.showErrorBox("Missing secrets", "Secrets are required to start the bundled runtime.");
-            return;
+            throw new Error("Required secrets were not provided. Restart and enter the missing values to continue.");
         }
 
         await runtimeRequest("/secrets", { method: "POST", body: { secrets: collected } });
+
+        const refreshed = await fetchSecrets();
+        const stillMissing = refreshed.filter(
+            (sec) => sec.class === "user_prompt" && sec.required && !sec.has_value,
+        );
+        if (stillMissing.length > 0) {
+            const ids = stillMissing.map((s) => s.id).join(", ");
+            throw new Error(`Secrets still missing after submission: ${ids}`);
+        }
     } catch (error) {
         console.error("[Desktop App] Failed to sync runtime secrets:", error);
-        dialog.showErrorBox("Secrets error", String(error));
+        dialog.showErrorBox("Secrets required", String(error));
+        throw error;
     }
 }
 
@@ -1014,6 +1045,60 @@ async function waitForFile(filePath: string, timeoutMs = 15000): Promise<void> {
 	throw new Error(`file not found within timeout: ${filePath}`);
 }
 
+function normalizeBundlePath(bundleRoot: string, rel: string): string {
+	return path.join(bundleRoot, rel.replace(/\\/g, path.sep));
+}
+
+async function findChromiumPath(bundleRoot: string, manifestPath: string): Promise<string | null> {
+	const candidates: string[] = [];
+
+	try {
+		const raw = await fs.readFile(manifestPath, "utf-8");
+		const manifest = JSON.parse(raw) as { services?: Array<{ assets?: Array<{ path: string }>; env?: Record<string, string> }> };
+		for (const svc of manifest.services || []) {
+			for (const asset of svc.assets || []) {
+				if (asset.path?.toLowerCase().includes("chromium") || asset.path?.toLowerCase().includes("playwright")) {
+					candidates.push(asset.path);
+				}
+			}
+			for (const value of Object.values(svc.env || {})) {
+				if (typeof value === "string" && value.toLowerCase().includes("chromium")) {
+					candidates.push(value);
+				}
+			}
+		}
+	} catch (error) {
+		console.warn("[Desktop App] Unable to parse bundle manifest for Chromium detection", error);
+	}
+
+	for (const rel of candidates) {
+		const candidate = path.isAbsolute(rel) ? rel : normalizeBundlePath(bundleRoot, rel);
+		if (await pathExists(candidate)) {
+			return candidate;
+		}
+	}
+
+	const electronCandidates: string[] = [process.execPath];
+	if (process.platform === "darwin") {
+		electronCandidates.push(
+			path.join(process.resourcesPath, "..", "Frameworks", "Electron Framework.framework", "Versions", "Current", "Helpers", "Electron Helper (Renderer).app", "Contents", "MacOS", "Electron Helper (Renderer)"),
+			path.join(process.resourcesPath, "..", "Frameworks", "Electron Framework.framework", "Versions", "Current", "Resources", "electron")
+		);
+	} else if (process.platform === "win32") {
+		electronCandidates.push(path.join(path.dirname(process.execPath), "chrome.exe"));
+	} else {
+		electronCandidates.push(path.join(path.dirname(process.execPath), "chrome"));
+	}
+
+	for (const candidate of electronCandidates) {
+		if (await pathExists(candidate)) {
+			return candidate;
+		}
+	}
+
+	return null;
+}
+
 async function startBundledRuntime(): Promise<string> {
 	const bundleRoot = await resolveBundleRoot();
 	if (!bundleRoot) {
@@ -1052,15 +1137,23 @@ async function startBundledRuntime(): Promise<string> {
 		"--dry-run=false",
 	];
 
+	const chromiumPath = await findChromiumPath(bundleRoot, manifestPath);
+	const runtimeEnv = { ...process.env };
+	if (chromiumPath && !runtimeEnv.ELECTRON_CHROMIUM_PATH) {
+		runtimeEnv.ELECTRON_CHROMIUM_PATH = chromiumPath;
+	}
+
 	runtimeProcess = spawn(runtimePath, args, {
 		stdio: "inherit",
-		env: { ...process.env },
+		env: runtimeEnv,
 	});
 	runtimeProcess.on("exit", (code, signal) => {
 		void recordTelemetry("bundled_runtime_exit", { code, signal });
 	});
 
 	await waitForFile(tokenPath, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+	await waitForRuntimeControl(APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+	await ensureRuntimeSecretsIfNeeded();
 
 	const readyDeadline = Date.now() + APP_CONFIG.SERVER_CHECK_TIMEOUT_MS;
 	while (Date.now() < readyDeadline) {
@@ -1336,7 +1429,6 @@ app.whenReady().then(async () => {
 
 			try {
 				targetUrl = await startBundledRuntime();
-				await ensureRuntimeSecretsIfNeeded();
 			} catch (startupError) {
 				console.error("[Desktop App] Bundled runtime failed to start", startupError);
 				await recordTelemetry("bundled_runtime_failed", { error: String(startupError) });
@@ -1353,7 +1445,15 @@ app.whenReady().then(async () => {
 			// Start scenario server (thin client / embedded server modes)
 			await startScenarioServer();
 			if (RUNTIME_CONTROL.ENABLED) {
-				await ensureRuntimeSecretsIfNeeded();
+				try {
+					await waitForRuntimeControl(APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+					await ensureRuntimeSecretsIfNeeded();
+				} catch (secretError) {
+					await recordTelemetry("runtime_secrets_missing", { error: String(secretError) });
+					dialog.showErrorBox("Secrets required", String(secretError));
+					app.quit();
+					return;
+				}
 			}
 		}
 

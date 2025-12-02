@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -87,7 +88,7 @@ func packageBundle(appPath, manifestPath string, requestedPlatforms []string) (*
 			if err != nil {
 				return nil, fmt.Errorf("stage binary for %s: %w", svc.ID, err)
 			}
-			if err := copyFile(src, dst); err != nil {
+			if err := copyPath(src, dst); err != nil {
 				return nil, fmt.Errorf("copy binary for %s: %w", svc.ID, err)
 			}
 			copied = append(copied, dst)
@@ -102,7 +103,7 @@ func packageBundle(appPath, manifestPath string, requestedPlatforms []string) (*
 			if err != nil {
 				return nil, fmt.Errorf("stage asset %s: %w", asset.Path, err)
 			}
-			if err := copyFile(src, dst); err != nil {
+			if err := copyPath(src, dst); err != nil {
 				return nil, fmt.Errorf("copy asset %s: %w", asset.Path, err)
 			}
 			copied = append(copied, dst)
@@ -261,13 +262,17 @@ func copyFile(src, dst string) error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
+	info, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
 
-	out, err := os.Create(dst)
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode().Perm())
 	if err != nil {
 		return err
 	}
@@ -277,6 +282,42 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	return out.Sync()
+}
+
+func copyPath(src, dst string) error {
+	info, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		return copyDir(src, dst, info.Mode())
+	}
+	return copyFile(src, dst)
+}
+
+func copyDir(src, dst string, mode fs.FileMode) error {
+	if err := os.MkdirAll(dst, mode.Perm()); err != nil {
+		return err
+	}
+	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return os.MkdirAll(target, info.Mode().Perm())
+		}
+		return copyFile(path, target)
+	})
 }
 
 func runtimeBinaryName(goos string) string {

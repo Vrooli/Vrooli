@@ -132,6 +132,26 @@ export interface SwapCascade {
   warnings: string[];
 }
 
+export interface TelemetryEvent {
+  event?: string;
+  timestamp?: string;
+  details?: Record<string, unknown>;
+  scenario_name?: string;
+  deployment_mode?: string;
+  source?: string;
+}
+
+export interface TelemetrySummary {
+  scenario: string;
+  path: string;
+  total_events: number;
+  last_event?: string;
+  last_timestamp?: string;
+  failure_counts?: Record<string, number>;
+  recent_failures?: TelemetryEvent[];
+  recent_events?: TelemetryEvent[];
+}
+
 // ============================================================================
 // API Client
 // ============================================================================
@@ -318,6 +338,58 @@ export async function analyzeSwapCascade(from: string, to: string): Promise<Swap
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: "Unknown error" }));
     throw new Error(error.error || `Cascade analysis failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function uploadTelemetry(scenario: string | undefined, file: File): Promise<{ path: string }> {
+  const raw = await file.text();
+  const lines = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length === 0) {
+    throw new Error("File is empty");
+  }
+  const events = lines.map((line, idx) => {
+    try {
+      return JSON.parse(line);
+    } catch {
+      throw new Error(`Line ${idx + 1} is not valid JSON`);
+    }
+  });
+
+  const res = await fetch(buildApiUrl(`/telemetry/upload${scenario ? `?scenario=${encodeURIComponent(scenario)}` : ""}`, { baseUrl: getApiBaseUrl() }), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      scenario_name: scenario || "unknown",
+      deployment_mode: "bundled",
+      source: "deployment-manager-ui",
+      events,
+    }),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `Telemetry upload failed (${res.status})`);
+  }
+
+  const data = await res.json();
+  return { path: data.path as string };
+}
+
+export async function listTelemetry(): Promise<TelemetrySummary[]> {
+  const res = await fetch(buildApiUrl("/telemetry", { baseUrl: getApiBaseUrl() }), {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `Failed to list telemetry (${res.status})`);
   }
 
   return res.json();
