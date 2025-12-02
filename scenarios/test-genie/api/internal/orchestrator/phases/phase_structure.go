@@ -14,25 +14,23 @@ import (
 )
 
 var (
+	// standardStructureDirs defines directories required for a well-formed scenario.
+	// Note: test/phases/ is no longer required - test-genie executes phases natively in Go.
 	standardStructureDirs = []string{
 		"api",
 		"cli",
 		"docs",
 		"requirements",
 		"test",
-		filepath.Join("test", "phases"),
 		"ui",
 	}
+	// standardStructureFiles defines files required for a well-formed scenario.
+	// Note: Bash phase scripts (test/phases/*.sh) are no longer required - the Go
+	// orchestrator implements all test phases natively for portability and consistency.
 	standardStructureFiles = []string{
 		filepath.Join("api", "main.go"),
 		filepath.Join("cli", "install.sh"),
 		filepath.Join("test", "run-tests.sh"),
-		filepath.Join("test", "phases", "test-structure.sh"),
-		filepath.Join("test", "phases", "test-dependencies.sh"),
-		filepath.Join("test", "phases", "test-unit.sh"),
-		filepath.Join("test", "phases", "test-integration.sh"),
-		filepath.Join("test", "phases", "test-business.sh"),
-		filepath.Join("test", "phases", "test-performance.sh"),
 		filepath.Join(".vrooli", "service.json"),
 		filepath.Join(".vrooli", "testing.json"),
 		"README.md",

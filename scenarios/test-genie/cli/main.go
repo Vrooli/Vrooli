@@ -50,6 +50,7 @@ func NewApp() (*App, error) {
 		APIPortDetector:   cliutil.DetectPortFromVrooli(appName, "API_PORT"),
 		ConfigDirEnvVars:  env.ConfigDirEnvVars,
 		SourceRootEnvVars: env.SourceRootEnvVars,
+		TokenEnvVars:      env.TokenEnvVars,
 		TokenKeys:         []string{"token", "api_token"},
 		BuildFingerprint:  buildFingerprint,
 		BuildTimestamp:    buildTimestamp,

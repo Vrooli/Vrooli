@@ -54,6 +54,11 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Description: "Exercises the CLI/Bats suite plus scenario-local orchestrator listings.",
 	})
 	register(Spec{
+		Name:        Playbooks,
+		Runner:      runPlaybooksPhase,
+		Description: "Executes Browser Automation Studio workflows declared under test/playbooks/ to validate end-to-end UI flows.",
+	})
+	register(Spec{
 		Name:        Business,
 		Runner:      runBusinessPhase,
 		Description: "Audits requirements modules to guarantee operational targets stay mapped.",

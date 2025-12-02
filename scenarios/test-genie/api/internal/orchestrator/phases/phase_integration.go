@@ -11,9 +11,12 @@ import (
 	"test-genie/internal/orchestrator/workspace"
 )
 
-var expectedPhaseListing = []string{"structure", "dependencies", "unit", "integration", "business", "performance"}
+// Note: expectedPhaseListing was removed - the Go orchestrator no longer validates
+// bash phase scripts since it implements all phases natively.
 
-// runIntegrationPhase validates CLI flows and acceptance tests without delegating to bash orchestrators.
+// runIntegrationPhase validates CLI flows and acceptance tests.
+// Note: This phase no longer validates bash orchestrator functionality since test-genie
+// now implements all test phases natively in Go for portability and consistency.
 func runIntegrationPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
 	if err := ctx.Err(); err != nil {
 		return RunReport{Err: err, FailureClassification: FailureClassSystem}
@@ -62,37 +65,11 @@ func runIntegrationPhase(ctx context.Context, env workspace.Environment, logWrit
 	logPhaseStep(logWriter, "cli version output: %s", strings.TrimSpace(versionOutput))
 	observations = append(observations, "cli version reported")
 
-	runnerPath := filepath.Join(env.TestDir, "run-tests.sh")
-	if err := ensureExecutable(runnerPath); err != nil {
-		return RunReport{
-			Err:                   err,
-			FailureClassification: FailureClassMisconfiguration,
-			Remediation:           "Restore test/run-tests.sh with execute permissions so phase listings work.",
-			Observations:          observations,
-		}
-	}
-	listing, err := phaseCommandCapture(ctx, env.TestDir, logWriter, runnerPath, "--list")
-	if err != nil {
-		return RunReport{
-			Err:                   fmt.Errorf("failed to list phases: %w", err),
-			FailureClassification: FailureClassSystem,
-			Remediation:           "Run test/run-tests.sh --list to confirm the orchestrator works locally.",
-			Observations:          observations,
-		}
-	}
-	loweredListing := strings.ToLower(listing)
-	for _, phase := range expectedPhaseListing {
-		if !strings.Contains(loweredListing, phase) {
-			return RunReport{
-				Err:                   fmt.Errorf("phase '%s' missing from orchestrator --list output", phase),
-				FailureClassification: FailureClassMisconfiguration,
-				Remediation:           "Ensure test/phases contains scripts for all expected phases.",
-				Observations:          observations,
-			}
-		}
-	}
-	logPhaseStep(logWriter, "phase listing validated via run-tests.sh --list")
-	observations = append(observations, "phase listing verified")
+	// Note: We no longer validate test/run-tests.sh --list since the Go orchestrator
+	// implements phases natively. The run-tests.sh script is kept as a thin compatibility
+	// shim but is not required for test execution.
+	logPhaseStep(logWriter, "skipping bash orchestrator validation (Go-native phases)")
+	observations = append(observations, "go-native phase execution")
 
 	if err := EnsureCommandAvailable("bats"); err != nil {
 		return RunReport{

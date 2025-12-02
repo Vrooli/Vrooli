@@ -18,6 +18,7 @@ const (
 	Dependencies Name = "dependencies"
 	Unit         Name = "unit"
 	Integration  Name = "integration"
+	Playbooks    Name = "playbooks"
 	Business     Name = "business"
 	Performance  Name = "performance"
 )

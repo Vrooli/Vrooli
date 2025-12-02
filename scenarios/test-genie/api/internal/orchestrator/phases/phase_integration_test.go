@@ -37,8 +37,6 @@ func TestRunIntegrationPhaseExecutesCliAndBats(t *testing.T) {
 			switch {
 			case strings.HasSuffix(name, filepath.Join("cli", "test-genie")):
 				return "test-genie version 1.0.0", nil
-			case strings.HasSuffix(name, filepath.Join("test", "run-tests.sh")):
-				return strings.Join(expectedPhaseListing, "\n") + "\n", nil
 			default:
 				return "", nil
 			}
@@ -72,42 +70,6 @@ func TestRunIntegrationPhaseExecutesCliAndBats(t *testing.T) {
 		}
 		if !foundHelp || !foundPrimary || !foundAdditional {
 			t.Fatalf("expected cli help + bats invocations, got %v", executed)
-		}
-	})
-}
-
-func TestRunIntegrationPhaseFailsWhenPhaseMissing(t *testing.T) {
-	t.Run("[REQ:TESTGENIE-ORCH-P0] missing phases produce misconfiguration error", func(t *testing.T) {
-		root := t.TempDir()
-		scenarioDir := createScenarioLayout(t, root, "demo")
-		stubCommandLookup(t, func(name string) (string, error) {
-			return "/tmp/" + name, nil
-		})
-		stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
-			return nil
-		})
-		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
-			switch {
-			case strings.HasSuffix(name, filepath.Join("cli", "test-genie")):
-				return "test-genie version 1.0.0", nil
-			case strings.HasSuffix(name, filepath.Join("test", "run-tests.sh")):
-				return "structure\n", nil
-			default:
-				return "", nil
-			}
-		})
-
-		env := workspace.Environment{
-			ScenarioName: "demo",
-			ScenarioDir:  scenarioDir,
-			TestDir:      filepath.Join(scenarioDir, "test"),
-		}
-		report := runIntegrationPhase(context.Background(), env, io.Discard)
-		if report.Err == nil {
-			t.Fatalf("expected error when phases missing from listing")
-		}
-		if report.FailureClassification != FailureClassMisconfiguration {
-			t.Fatalf("expected misconfiguration classification, got %s", report.FailureClassification)
 		}
 	})
 }

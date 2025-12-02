@@ -39,7 +39,17 @@ func writePhaseScript(t *testing.T, dir, name, content string, exitCode int) {
 func createScenarioLayout(t *testing.T, root, name string) string {
 	t.Helper()
 	scenarioDir := filepath.Join(root, name)
-	requiredDirs := []string{"api", "cli", "requirements", "ui", "docs", filepath.Join("test", "phases"), filepath.Join("test", "lib"), ".vrooli"}
+	requiredDirs := []string{
+		"api",
+		"cli",
+		"requirements",
+		"ui",
+		"docs",
+		filepath.Join("test", "phases"),
+		filepath.Join("test", "lib"),
+		filepath.Join("test", "playbooks"),
+		".vrooli",
+	}
 	for _, rel := range requiredDirs {
 		if err := os.MkdirAll(filepath.Join(scenarioDir, rel), 0o755); err != nil {
 			t.Fatalf("failed to create required directory %s: %v", rel, err)
@@ -101,8 +111,13 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "test-genie.bats"), []byte("#!/usr/bin/env bash\n"), 0o644); err != nil {
 		t.Fatalf("failed to seed cli/test-genie.bats: %v", err)
 	}
-	for _, phase := range []string{"structure", "dependencies", "unit", "integration", "business", "performance"} {
+	for _, phase := range []string{"structure", "dependencies", "unit", "integration", "playbooks", "business", "performance"} {
 		writePhaseScript(t, filepath.Join(scenarioDir, "test", "phases"), "test-"+phase+".sh", "echo "+phase, 0)
+	}
+	playbookRegistry := fmt.Sprintf(`{"scenario":"%s","playbooks":[]}`, name)
+	registryPath := filepath.Join(scenarioDir, "test", "playbooks", "registry.json")
+	if err := os.WriteFile(registryPath, []byte(playbookRegistry), 0o644); err != nil {
+		t.Fatalf("failed to seed playbook registry: %v", err)
 	}
 	libDir := filepath.Join(scenarioDir, "test", "lib")
 	libFiles := map[string]string{
@@ -130,8 +145,14 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 	return scenarioDir
 }
 
+func skipPlaybooksForTests(t *testing.T) {
+	t.Helper()
+	t.Setenv("TEST_GENIE_SKIP_PLAYBOOKS", "1")
+}
+
 func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] orchestrator runs go-native phases", func(t *testing.T) {
+		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
 		phaseDir := filepath.Join(scenarioDir, "test", "phases")
@@ -146,8 +167,6 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 			switch {
 			case strings.HasSuffix(name, filepath.Join("cli", "test-genie")) && len(args) > 0 && args[0] == "version":
 				return "test-genie version 1.0.0", nil
-			case strings.HasSuffix(name, filepath.Join("test", "run-tests.sh")):
-				return "structure\ndependencies\nunit\nintegration\nbusiness\nperformance\n", nil
 			default:
 				return "", nil
 			}
@@ -167,10 +186,10 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		if !result.Success {
 			t.Fatalf("expected success, got failure: %#v", result)
 		}
-		if len(result.Phases) != 6 {
-			t.Fatalf("expected six phases, got %d", len(result.Phases))
+		if len(result.Phases) != 7 {
+			t.Fatalf("expected seven phases, got %d", len(result.Phases))
 		}
-		expected := []string{"structure", "dependencies", "unit", "integration", "business", "performance"}
+		expected := []string{"structure", "dependencies", "unit", "integration", "playbooks", "business", "performance"}
 		for _, phase := range result.Phases {
 			if phase.Status != "passed" {
 				t.Fatalf("phase %s expected passed, got %s", phase.Name, phase.Status)
@@ -189,6 +208,7 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 
 func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] full suites trigger requirement sync", func(t *testing.T) {
+		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
 		phaseDir := filepath.Join(scenarioDir, "test", "phases")
@@ -204,8 +224,6 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 			switch {
 			case strings.HasSuffix(name, filepath.Join("cli", "test-genie")) && len(args) > 0 && args[0] == "version":
 				return "test-genie version 1.0.0", nil
-			case strings.HasSuffix(name, filepath.Join("test", "run-tests.sh")):
-				return "structure\ndependencies\nunit\nintegration\nbusiness\nperformance\n", nil
 			default:
 				return "", nil
 			}
@@ -241,6 +259,7 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 
 func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] fail-fast halts remaining phases", func(t *testing.T) {
+		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
 		phaseDir := filepath.Join(scenarioDir, "test", "phases")
@@ -314,6 +333,7 @@ func TestSuiteOrchestratorPresetFromFile(t *testing.T) {
 
 func TestSuiteOrchestratorRejectsInvalidScenarioNames(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] scenario names are validated", func(t *testing.T) {
+		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		orchestrator, err := NewSuiteOrchestrator(root)
 		if err != nil {
@@ -331,6 +351,7 @@ func TestSuiteOrchestratorRejectsInvalidScenarioNames(t *testing.T) {
 
 func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] testing config disables phases", func(t *testing.T) {
+		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
 		configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
@@ -360,14 +381,15 @@ func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 				t.Fatalf("expected integration phase to be disabled via testing config")
 			}
 		}
-		if len(result.Phases) != 5 {
-			t.Fatalf("expected five phases after disabling integration, got %d", len(result.Phases))
+		if len(result.Phases) != 6 {
+			t.Fatalf("expected six phases after disabling integration, got %d", len(result.Phases))
 		}
 	})
 }
 
 func TestSuiteOrchestratorHonorsTestingConfigPresets(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] config presets constrain execution order", func(t *testing.T) {
+		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
 		configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
@@ -407,6 +429,7 @@ func TestSuiteOrchestratorHonorsTestingConfigPresets(t *testing.T) {
 
 func TestSuiteOrchestratorRespectsPhaseTimeoutOverrides(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] per-phase timeouts guard against hangs", func(t *testing.T) {
+		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
 		configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
