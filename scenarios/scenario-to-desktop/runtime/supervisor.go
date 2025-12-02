@@ -9,23 +9,27 @@
 //   - Exposing a control API for Electron/CLI interaction
 //   - Recording telemetry events
 //
-// Architecture:
+// Architecture (Screaming Architecture):
 //
-//	supervisor.go       - Core Supervisor struct, Start, Shutdown
-//	control_api.go      - HTTP handlers and authentication middleware
-//	service_launcher.go - Service lifecycle management (includes topoSort, findService)
-//	health.go           - Health and readiness checking
-//	secrets.go          - Secret loading, persistence, and injection
-//	migrations.go       - Migration tracking and execution
-//	ports.go            - Port allocation and resolution
-//	telemetry.go        - Telemetry event recording
-//	gpu.go              - GPU detection and requirement enforcement
-//	playwright.go       - Playwright environment setup
-//	assets.go           - Asset verification
-//	template.go         - Template expansion for environment variables and arguments
-//	errors.go           - Structured error types
-//	interfaces.go       - Interfaces for testing and external integration
-//	utils.go            - Shared utilities (copyStringMap, envMapToList, etc.)
+//	Domain Packages:
+//	  infra/       - Infrastructure abstractions (clock, filesystem, network, process)
+//	  ports/       - Dynamic port allocation
+//	  secrets/     - Secret management and injection
+//	  health/      - Health and readiness monitoring
+//	  gpu/         - GPU detection and requirements
+//	  assets/      - Asset verification and Playwright conventions
+//	  env/         - Environment variable templating
+//	  migrations/  - Migration state tracking
+//	  telemetry/   - Event recording
+//	  errors/      - Structured error types
+//	  manifest/    - Bundle manifest parsing
+//
+//	Orchestration Layer (this package):
+//	  supervisor.go       - Core Supervisor struct, Start, Shutdown
+//	  control_api.go      - HTTP handlers and authentication middleware
+//	  service_launcher.go - Service lifecycle management
+//	  interfaces.go       - Re-exports and ServiceManager interface
+//	  utils.go            - Shared utilities (topoSort, findService, etc.)
 //
 // See README.md for detailed documentation and architecture diagrams.
 package bundleruntime
@@ -43,7 +47,12 @@ import (
 	"strings"
 	"sync"
 
+	"scenario-to-desktop-runtime/gpu"
+	"scenario-to-desktop-runtime/health"
+	"scenario-to-desktop-runtime/infra"
 	"scenario-to-desktop-runtime/manifest"
+	"scenario-to-desktop-runtime/secrets"
+	"scenario-to-desktop-runtime/telemetry"
 )
 
 // Options configures the Supervisor.
@@ -80,8 +89,9 @@ type Supervisor struct {
 	gpuDetector   GPUDetector
 	envReader     EnvReader
 	portAllocator PortAllocator
-	secretStore   *SecretManager // Using concrete type for extended methods
+	secretStore   *secrets.Manager // Using concrete type for extended methods
 	healthChecker HealthChecker
+	telemetry     telemetry.Recorder
 
 	// Paths and auth.
 	authToken      string
@@ -105,13 +115,6 @@ type Supervisor struct {
 	wg         sync.WaitGroup
 	cancel     context.CancelFunc
 	runtimeCtx context.Context
-}
-
-// ServiceStatus represents the current state of a service.
-type ServiceStatus struct {
-	Ready    bool   `json:"ready"`
-	Message  string `json:"message,omitempty"`
-	ExitCode *int   `json:"exit_code,omitempty"`
 }
 
 // Manifest is an alias for the manifest package type for convenience.
@@ -162,22 +165,22 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 
 	procRunner := opts.ProcessRunner
 	if procRunner == nil {
-		procRunner = RealProcessRunner{}
+		procRunner = infra.RealProcessRunner{}
 	}
 
 	cmdRunner := opts.CommandRunner
 	if cmdRunner == nil {
-		cmdRunner = RealCommandRunner{}
+		cmdRunner = infra.RealCommandRunner{}
 	}
 
 	envReader := opts.EnvReader
 	if envReader == nil {
-		envReader = RealEnvReader{}
+		envReader = infra.RealEnvReader{}
 	}
 
 	gpuDetector := opts.GPUDetector
 	if gpuDetector == nil {
-		gpuDetector = &RealGPUDetector{CommandRunner: cmdRunner, EnvReader: envReader}
+		gpuDetector = gpu.NewDetector(cmdRunner, envReader)
 	}
 
 	portAllocator := opts.PortAllocator
@@ -189,16 +192,16 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 	secretsPath := filepath.Join(appData, "secrets.json")
 
 	// Create or use provided SecretStore.
-	var secretStore *SecretManager
+	var secretStore *secrets.Manager
 	if opts.SecretStore != nil {
-		// If a SecretStore was provided, it must be a *SecretManager for extended methods.
+		// If a SecretStore was provided, it must be a *secrets.Manager for extended methods.
 		var ok bool
-		secretStore, ok = opts.SecretStore.(*SecretManager)
+		secretStore, ok = opts.SecretStore.(*secrets.Manager)
 		if !ok {
-			return nil, errors.New("SecretStore must be a *SecretManager")
+			return nil, errors.New("SecretStore must be a *secrets.Manager")
 		}
 	} else {
-		secretStore = NewSecretManager(opts.Manifest, fileSystem, secretsPath)
+		secretStore = secrets.NewManager(opts.Manifest, fileSystem, secretsPath)
 	}
 
 	s := &Supervisor{
@@ -221,15 +224,15 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 	if opts.HealthChecker != nil {
 		s.healthChecker = opts.HealthChecker
 	} else {
-		s.healthChecker = NewHealthMonitor(HealthMonitorConfig{
-			Manifest:      opts.Manifest,
-			PortAllocator: portAllocator,
-			Dialer:        dialer,
-			CmdRunner:     cmdRunner,
-			FS:            fileSystem,
-			Clock:         clock,
-			AppData:       appData,
-			StatusGetter:  s.getStatus, // Closure captures supervisor
+		s.healthChecker = health.NewMonitor(health.MonitorConfig{
+			Manifest:     opts.Manifest,
+			Ports:        portAllocator,
+			Dialer:       dialer,
+			CmdRunner:    cmdRunner,
+			FS:           fileSystem,
+			Clock:        clock,
+			AppData:      appData,
+			StatusGetter: s.getStatus, // Closure captures supervisor
 		})
 	}
 
@@ -252,6 +255,9 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	if err := s.fs.MkdirAll(filepath.Dir(s.telemetryPath), 0o755); err != nil {
 		return fmt.Errorf("create telemetry dir: %w", err)
 	}
+
+	// Initialize telemetry recorder.
+	s.telemetry = telemetry.NewFileRecorder(s.telemetryPath, s.clock, s.fs)
 
 	// Load persisted state.
 	loadedSecrets, err := s.secretStore.Load()
@@ -457,4 +463,12 @@ func (s *Supervisor) ServiceStatuses() map[string]ServiceStatus {
 		out[id] = st
 	}
 	return out
+}
+
+// recordTelemetry writes a telemetry event if the recorder is initialized.
+func (s *Supervisor) recordTelemetry(event string, details map[string]interface{}) error {
+	if s.telemetry == nil {
+		return nil
+	}
+	return s.telemetry.Record(event, details)
 }

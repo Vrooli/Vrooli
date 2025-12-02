@@ -2,10 +2,10 @@ package bundleruntime
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"scenario-to-desktop-runtime/manifest"
+	"scenario-to-desktop-runtime/secrets"
 )
 
 // secretsCopy returns a thread-safe copy of the current secrets.
@@ -22,14 +22,14 @@ func (s *Supervisor) missingRequiredSecrets() []string {
 
 // missingRequiredSecretsFrom checks a secrets map for missing required values.
 // Delegates to the injected SecretStore.
-func (s *Supervisor) missingRequiredSecretsFrom(secrets map[string]string) []string {
-	return s.secretStore.MissingRequiredFrom(secrets)
+func (s *Supervisor) missingRequiredSecretsFrom(secretsMap map[string]string) []string {
+	return s.secretStore.MissingRequiredFrom(secretsMap)
 }
 
 // persistSecrets saves secrets to the secrets file.
 // Delegates to the injected SecretStore.
-func (s *Supervisor) persistSecrets(secrets map[string]string) error {
-	return s.secretStore.Persist(secrets)
+func (s *Supervisor) persistSecrets(secretsMap map[string]string) error {
+	return s.secretStore.Persist(secretsMap)
 }
 
 // findSecret looks up a secret definition by ID.
@@ -39,66 +39,10 @@ func (s *Supervisor) findSecret(id string) *manifest.Secret {
 }
 
 // applySecrets injects secrets into the environment for a service.
-// Secrets can be injected as environment variables or written to files.
+// Delegates to secrets.Injector.
 func (s *Supervisor) applySecrets(env map[string]string, svc manifest.Service) error {
-	secrets := s.secretsCopy()
-	for _, secretID := range svc.Secrets {
-		secret := s.findSecret(secretID)
-		if secret == nil {
-			return fmt.Errorf("service %s references unknown secret %s", svc.ID, secretID)
-		}
-
-		value := strings.TrimSpace(secrets[secretID])
-		required := true
-		if secret.Required != nil {
-			required = *secret.Required
-		}
-
-		if value == "" {
-			if required {
-				return fmt.Errorf("secret %s missing for service %s", secretID, svc.ID)
-			}
-			continue
-		}
-
-		switch secret.Target.Type {
-		case "env":
-			name := secret.Target.Name
-			if name == "" {
-				name = strings.ToUpper(secret.ID)
-			}
-			env[name] = value
-
-		case "file":
-			if err := s.writeSecretToFile(secret, value, env); err != nil {
-				return err
-			}
-
-		default:
-			return fmt.Errorf("secret %s has unsupported target type %s", secretID, secret.Target.Type)
-		}
-	}
-	return nil
-}
-
-// writeSecretToFile writes a secret value to a file and adds the path to env.
-func (s *Supervisor) writeSecretToFile(secret *manifest.Secret, value string, env map[string]string) error {
-	if secret.Target.Name == "" {
-		return fmt.Errorf("secret %s missing file path target", secret.ID)
-	}
-
-	path := manifest.ResolvePath(s.appData, secret.Target.Name)
-	if err := s.fs.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("secret %s path setup: %w", secret.ID, err)
-	}
-	if err := s.fs.WriteFile(path, []byte(value), 0o600); err != nil {
-		return fmt.Errorf("secret %s write: %w", secret.ID, err)
-	}
-
-	// Add file path to environment for service to discover.
-	envName := fmt.Sprintf("SECRET_FILE_%s", strings.ToUpper(secret.ID))
-	env[envName] = path
-	return nil
+	injector := secrets.NewInjector(s.secretStore, s.fs, s.appData)
+	return injector.Apply(env, svc)
 }
 
 // UpdateSecrets merges new secrets and persists them.

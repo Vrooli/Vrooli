@@ -2,48 +2,39 @@ package bundleruntime
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"path/filepath"
-	"strings"
 
 	"scenario-to-desktop-runtime/manifest"
+	"scenario-to-desktop-runtime/migrations"
 )
 
+// migrationsTracker returns a migrations tracker instance.
+func (s *Supervisor) migrationsTracker() *migrations.Tracker {
+	return migrations.NewTracker(s.migrationsPath, s.fs)
+}
+
 // loadMigrations reads the migrations state from disk.
-// Returns an empty state if the file doesn't exist.
+// Delegates to migrations.Tracker.
 func (s *Supervisor) loadMigrations() (MigrationsState, error) {
-	state := MigrationsState{
-		Applied: map[string][]string{},
-	}
-	data, err := s.fs.ReadFile(s.migrationsPath)
+	tracker := s.migrationsTracker()
+	state, err := tracker.Load()
 	if err != nil {
-		// Check if file doesn't exist
-		if _, statErr := s.fs.Stat(s.migrationsPath); statErr != nil {
-			return state, nil
-		}
-		return state, err
+		return MigrationsState{Applied: map[string][]string{}}, err
 	}
-	if err := json.Unmarshal(data, &state); err != nil {
-		return state, err
-	}
-	if state.Applied == nil {
-		state.Applied = map[string][]string{}
-	}
-	return state, nil
+	return MigrationsState{
+		AppVersion: state.AppVersion,
+		Applied:    state.Applied,
+	}, nil
 }
 
 // persistMigrations saves the migrations state to disk.
+// Delegates to migrations.Tracker.
 func (s *Supervisor) persistMigrations(state MigrationsState) error {
-	if err := s.fs.MkdirAll(filepath.Dir(s.migrationsPath), 0o700); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(state, "", "  ")
-	if err != nil {
-		return err
-	}
-	data = append(data, '\n')
-	return s.fs.WriteFile(s.migrationsPath, data, 0o600)
+	tracker := s.migrationsTracker()
+	return tracker.Persist(migrations.State{
+		AppVersion: state.AppVersion,
+		Applied:    state.Applied,
+	})
 }
 
 // runMigrations executes pending migrations for a service.
@@ -53,10 +44,13 @@ func (s *Supervisor) runMigrations(ctx context.Context, svc manifest.Service, bi
 		return s.ensureAppVersionRecorded()
 	}
 
-	phase := s.installPhase()
-	state := s.migrations
+	phase := migrations.Phase(migrations.State{
+		AppVersion: s.migrations.AppVersion,
+		Applied:    s.migrations.Applied,
+	}, s.opts.Manifest.App.Version)
 
-	appliedSet := buildAppliedSet(state.Applied[svc.ID])
+	state := s.migrations
+	appliedSet := migrations.BuildAppliedSet(state.Applied[svc.ID])
 	envBase := copyStringMap(baseEnv)
 
 	for _, m := range svc.Migrations {
@@ -68,15 +62,6 @@ func (s *Supervisor) runMigrations(ctx context.Context, svc manifest.Service, bi
 	state.AppVersion = s.opts.Manifest.App.Version
 	s.migrations = state
 	return s.persistMigrations(state)
-}
-
-// buildAppliedSet creates a lookup set from applied version list.
-func buildAppliedSet(versions []string) map[string]bool {
-	set := make(map[string]bool)
-	for _, v := range versions {
-		set[v] = true
-	}
-	return set
 }
 
 // maybeRunMigration decides if a migration should run and executes it.
@@ -97,7 +82,7 @@ func (s *Supervisor) maybeRunMigration(
 		return nil
 	}
 
-	if !shouldRunMigration(m, phase) {
+	if !migrations.ShouldRun(m, phase) {
 		return nil
 	}
 
@@ -120,10 +105,9 @@ func (s *Supervisor) maybeRunMigration(
 	}
 
 	appliedSet[m.Version] = true
-	if state.Applied[svc.ID] == nil {
-		state.Applied[svc.ID] = []string{}
-	}
-	state.Applied[svc.ID] = append(state.Applied[svc.ID], m.Version)
+	migState := &migrations.State{AppVersion: state.AppVersion, Applied: state.Applied}
+	migrations.MarkApplied(migState, svc.ID, m.Version)
+	state.Applied = migState.Applied
 
 	_ = s.recordTelemetry("migration_applied", map[string]interface{}{
 		"service_id": svc.ID,
@@ -131,24 +115,6 @@ func (s *Supervisor) maybeRunMigration(
 	})
 
 	return s.persistMigrations(*state)
-}
-
-// shouldRunMigration checks if a migration should run based on its run_on condition.
-func shouldRunMigration(m manifest.Migration, phase string) bool {
-	runOn := strings.TrimSpace(m.RunOn)
-	if runOn == "" {
-		runOn = "always"
-	}
-	switch runOn {
-	case "always":
-		return true
-	case "first_install":
-		return phase == "first_install"
-	case "upgrade":
-		return phase == "upgrade"
-	default:
-		return false
-	}
 }
 
 // executeMigration runs a single migration command.
@@ -186,17 +152,6 @@ func (s *Supervisor) executeMigration(ctx context.Context, svc manifest.Service,
 		return fmt.Errorf("migration %s failed: %w", m.Version, err)
 	}
 	return nil
-}
-
-// installPhase determines if this is a first install, upgrade, or current version.
-func (s *Supervisor) installPhase() string {
-	if s.migrations.AppVersion == "" {
-		return "first_install"
-	}
-	if s.migrations.AppVersion != s.opts.Manifest.App.Version {
-		return "upgrade"
-	}
-	return "current"
 }
 
 // ensureAppVersionRecorded updates the migrations state with current app version

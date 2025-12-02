@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"scenario-to-desktop-runtime/manifest"
+	"scenario-to-desktop-runtime/telemetry"
 )
 
 func TestEnsureAssetsSizeBudget(t *testing.T) {
@@ -23,14 +24,16 @@ func TestEnsureAssetsSizeBudget(t *testing.T) {
 		t.Fatalf("write asset: %v", err)
 	}
 
+	telemetryPath := filepath.Join(tmp, "telemetry.jsonl")
 	s := &Supervisor{
 		opts: Options{
 			BundlePath: tmp,
 			Manifest:   &manifest.Manifest{},
 		},
-		telemetryPath: filepath.Join(tmp, "telemetry.jsonl"),
+		telemetryPath: telemetryPath,
 		fs:            RealFileSystem{},
 		clock:         RealClock{},
+		telemetry:     telemetry.NewFileRecorder(telemetryPath, RealClock{}, RealFileSystem{}),
 	}
 	svc := manifest.Service{
 		ID: "playwright-driver",
@@ -64,6 +67,7 @@ func TestApplyPlaywrightConventionsFallback(t *testing.T) {
 	}
 	t.Setenv("ELECTRON_CHROMIUM_PATH", fallbackChrome)
 
+	telemetryPath := filepath.Join(tmp, "telemetry.jsonl")
 	s := &Supervisor{
 		opts: Options{
 			BundlePath: filepath.Join(tmp, "bundle"),
@@ -72,10 +76,11 @@ func TestApplyPlaywrightConventionsFallback(t *testing.T) {
 		portAllocator: &testMockPortAllocator{ports: map[string]map[string]int{
 			"playwright-driver": {"http": 48000},
 		}},
-		telemetryPath: filepath.Join(tmp, "telemetry.jsonl"),
+		telemetryPath: telemetryPath,
 		fs:            RealFileSystem{},
 		clock:         RealClock{},
 		envReader:     RealEnvReader{},
+		telemetry:     telemetry.NewFileRecorder(telemetryPath, RealClock{}, RealFileSystem{}),
 	}
 	svc := manifest.Service{
 		ID: "playwright-driver",

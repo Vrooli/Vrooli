@@ -116,28 +116,44 @@ func TestPortManagerAllocate(t *testing.T) {
 }
 
 func TestPortManagerResolve(t *testing.T) {
-	m := &manifest.Manifest{}
-	pm := NewPortManager(m, RealNetworkDialer{})
-	// Manually set up port map for testing
-	pm.mu.Lock()
-	pm.portMap = map[string]map[string]int{
-		"api":    {"http": 47000, "grpc": 47001},
-		"worker": {"metrics": 47002},
+	// Create a manifest with services and ports for allocation
+	m := &manifest.Manifest{
+		Services: []manifest.Service{
+			{
+				ID: "api",
+				Ports: &manifest.ServicePorts{
+					Requested: []manifest.PortRequest{
+						{Name: "http", Range: manifest.PortRange{Min: 47000, Max: 47100}},
+						{Name: "grpc", Range: manifest.PortRange{Min: 47000, Max: 47100}},
+					},
+				},
+			},
+			{
+				ID: "worker",
+				Ports: &manifest.ServicePorts{
+					Requested: []manifest.PortRequest{
+						{Name: "metrics", Range: manifest.PortRange{Min: 47000, Max: 47100}},
+					},
+				},
+			},
+		},
 	}
-	pm.mu.Unlock()
+	pm := NewPortManager(m, RealNetworkDialer{})
+	if err := pm.Allocate(); err != nil {
+		t.Fatalf("Allocate() failed: %v", err)
+	}
 
 	tests := []struct {
 		name      string
 		serviceID string
 		portName  string
-		want      int
 		wantErr   bool
 	}{
-		{"existing port", "api", "http", 47000, false},
-		{"second port", "api", "grpc", 47001, false},
-		{"different service", "worker", "metrics", 47002, false},
-		{"unknown service", "unknown", "http", 0, true},
-		{"unknown port", "api", "unknown", 0, true},
+		{"existing port", "api", "http", false},
+		{"second port", "api", "grpc", false},
+		{"different service", "worker", "metrics", false},
+		{"unknown service", "unknown", "http", true},
+		{"unknown port", "api", "unknown", true},
 	}
 
 	for _, tt := range tests {
@@ -147,95 +163,49 @@ func TestPortManagerResolve(t *testing.T) {
 				t.Errorf("Resolve() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("Resolve() = %v, want %v", got, tt.want)
+			// For successful resolutions, verify port is in valid range
+			if !tt.wantErr && (got < 47000 || got > 47100) {
+				t.Errorf("Resolve() = %v, expected port in range 47000-47100", got)
 			}
 		})
 	}
 }
 
-func TestPortManagerPickPort(t *testing.T) {
-	tests := []struct {
-		name     string
-		rng      PortRange
-		reserved map[int]bool
-		next     int
-		wantErr  bool
-	}{
-		{
-			name:     "valid range",
-			rng:      PortRange{Min: 47000, Max: 47010},
-			reserved: map[int]bool{},
-			next:     47000,
-			wantErr:  false,
-		},
-		{
-			name:     "skips reserved",
-			rng:      PortRange{Min: 47000, Max: 47010},
-			reserved: map[int]bool{47000: true, 47001: true},
-			next:     47000,
-			wantErr:  false,
-		},
-		{
-			name:     "invalid range min > max",
-			rng:      PortRange{Min: 47010, Max: 47000},
-			reserved: map[int]bool{},
-			next:     47000,
-			wantErr:  true,
-		},
-		{
-			name:     "zero range",
-			rng:      PortRange{Min: 0, Max: 0},
-			reserved: map[int]bool{},
-			next:     0,
-			wantErr:  true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pm := NewPortManager(&manifest.Manifest{}, RealNetworkDialer{})
-			next := tt.next
-			port, err := pm.pickPort(tt.rng, tt.reserved, &next)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("pickPort() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr {
-				if port < tt.rng.Min || port > tt.rng.Max {
-					t.Errorf("pickPort() = %v, outside range %d-%d", port, tt.rng.Min, tt.rng.Max)
-				}
-				if tt.reserved[port] {
-					t.Errorf("pickPort() = %v, but port is reserved", port)
-				}
-			}
-		})
-	}
-}
-
+// TestPortManagerMap tests that Map returns a copy of the port allocations.
 func TestPortManagerMap(t *testing.T) {
-	m := &manifest.Manifest{}
-	pm := NewPortManager(m, RealNetworkDialer{})
-	// Manually set up port map for testing
-	pm.mu.Lock()
-	pm.portMap = map[string]map[string]int{
-		"api": {"http": 47000},
+	// Create a manifest with services and ports
+	m := &manifest.Manifest{
+		Services: []manifest.Service{
+			{
+				ID: "api",
+				Ports: &manifest.ServicePorts{
+					Requested: []manifest.PortRequest{
+						{Name: "http", Range: manifest.PortRange{Min: 47000, Max: 47100}},
+					},
+				},
+			},
+		},
 	}
-	pm.mu.Unlock()
+	pm := NewPortManager(m, RealNetworkDialer{})
+	if err := pm.Allocate(); err != nil {
+		t.Fatalf("Allocate() failed: %v", err)
+	}
 
 	result := pm.Map()
 
-	// Verify it's a copy
+	// Verify it's a copy by modifying the result
+	originalPort := result["api"]["http"]
 	result["api"]["http"] = 99999
 	original := pm.Map()
 	if original["api"]["http"] == 99999 {
 		t.Error("Map() returned reference instead of copy")
 	}
 
-	// Verify original value
-	if original["api"]["http"] != 47000 {
-		t.Errorf("original portMap modified, got %d want 47000", original["api"]["http"])
+	// Verify original value is still correct
+	if original["api"]["http"] != originalPort {
+		t.Errorf("original portMap modified, got %d want %d", original["api"]["http"], originalPort)
 	}
 }
 
 // Note: testMockPortAllocator is defined in health_test.go and reused here.
+// Note: TestPortManagerPickPort was removed as it tests internal implementation.

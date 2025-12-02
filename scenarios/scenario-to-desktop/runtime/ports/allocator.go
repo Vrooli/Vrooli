@@ -1,24 +1,45 @@
-package bundleruntime
+// Package ports provides dynamic port allocation for bundle services.
+package ports
 
 import (
 	"fmt"
 	"sync"
 
+	"scenario-to-desktop-runtime/infra"
 	"scenario-to-desktop-runtime/manifest"
 )
 
-// PortManager implements PortAllocator for managing dynamic port allocation.
-type PortManager struct {
+// Range defines a range of port numbers for allocation.
+type Range struct {
+	Min int
+	Max int
+}
+
+// DefaultRange is the fallback range when not specified in manifest.
+var DefaultRange = Range{Min: 47000, Max: 48000}
+
+// Allocator abstracts port allocation for testing.
+type Allocator interface {
+	// Allocate assigns ports to all services based on manifest requirements.
+	Allocate() error
+	// Resolve looks up an allocated port for a service.
+	Resolve(serviceID, portName string) (int, error)
+	// Map returns a copy of all allocated ports.
+	Map() map[string]map[string]int
+}
+
+// Manager implements Allocator for managing dynamic port allocation.
+type Manager struct {
 	manifest *manifest.Manifest
-	dialer   NetworkDialer
+	dialer   infra.NetworkDialer
 
 	mu      sync.RWMutex
 	portMap map[string]map[string]int // service ID -> port name -> port
 }
 
-// NewPortManager creates a new PortManager with the given dependencies.
-func NewPortManager(m *manifest.Manifest, dialer NetworkDialer) *PortManager {
-	return &PortManager{
+// NewManager creates a new Manager with the given dependencies.
+func NewManager(m *manifest.Manifest, dialer infra.NetworkDialer) *Manager {
+	return &Manager{
 		manifest: m,
 		dialer:   dialer,
 		portMap:  make(map[string]map[string]int),
@@ -28,13 +49,13 @@ func NewPortManager(m *manifest.Manifest, dialer NetworkDialer) *PortManager {
 // Allocate assigns port numbers to each service based on manifest requirements.
 // Ports are allocated sequentially within the specified or default range,
 // skipping reserved ports and ports already in use.
-func (p *PortManager) Allocate() error {
+func (p *Manager) Allocate() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	defaultRange := DefaultPortRange
+	defaultRange := DefaultRange
 	if p.manifest.Ports != nil && p.manifest.Ports.DefaultRange != nil {
-		defaultRange = PortRange{
+		defaultRange = Range{
 			Min: p.manifest.Ports.DefaultRange.Min,
 			Max: p.manifest.Ports.DefaultRange.Max,
 		}
@@ -54,7 +75,7 @@ func (p *PortManager) Allocate() error {
 		for _, req := range svc.Ports.Requested {
 			rng := defaultRange
 			if req.Range.Min != 0 && req.Range.Max != 0 {
-				rng = PortRange{Min: req.Range.Min, Max: req.Range.Max}
+				rng = Range{Min: req.Range.Min, Max: req.Range.Max}
 			}
 			port, err := p.pickPort(rng, reserved, &nextPort)
 			if err != nil {
@@ -68,7 +89,7 @@ func (p *PortManager) Allocate() error {
 }
 
 // Resolve looks up an allocated port for a service.
-func (p *PortManager) Resolve(serviceID, portName string) (int, error) {
+func (p *Manager) Resolve(serviceID, portName string) (int, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -84,7 +105,7 @@ func (p *PortManager) Resolve(serviceID, portName string) (int, error) {
 }
 
 // Map returns a copy of the current port allocation map.
-func (p *PortManager) Map() map[string]map[string]int {
+func (p *Manager) Map() map[string]map[string]int {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -98,8 +119,15 @@ func (p *PortManager) Map() map[string]map[string]int {
 	return out
 }
 
+// SetPorts allows directly setting the port map (for testing).
+func (p *Manager) SetPorts(portMap map[string]map[string]int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.portMap = portMap
+}
+
 // buildReservedSet creates a set of reserved ports from the manifest.
-func (p *PortManager) buildReservedSet() map[int]bool {
+func (p *Manager) buildReservedSet() map[int]bool {
 	reserved := map[int]bool{}
 	if p.manifest.Ports != nil {
 		for _, port := range p.manifest.Ports.Reserved {
@@ -112,7 +140,7 @@ func (p *PortManager) buildReservedSet() map[int]bool {
 // pickPort finds an available port within the given range.
 // It skips reserved ports and verifies the port is actually available
 // by attempting to bind to it.
-func (p *PortManager) pickPort(rng PortRange, reserved map[int]bool, next *int) (int, error) {
+func (p *Manager) pickPort(rng Range, reserved map[int]bool, next *int) (int, error) {
 	if rng.Min == 0 || rng.Max == 0 || rng.Max < rng.Min {
 		return 0, fmt.Errorf("invalid range %d-%d", rng.Min, rng.Max)
 	}
@@ -134,7 +162,7 @@ func (p *PortManager) pickPort(rng PortRange, reserved map[int]bool, next *int) 
 }
 
 // isPortAvailable checks if a port is available by attempting to bind to it.
-func (p *PortManager) isPortAvailable(port int) bool {
+func (p *Manager) isPortAvailable(port int) bool {
 	ln, err := p.dialer.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
 		return false
@@ -143,5 +171,5 @@ func (p *PortManager) isPortAvailable(port int) bool {
 	return true
 }
 
-// Ensure PortManager implements PortAllocator.
-var _ PortAllocator = (*PortManager)(nil)
+// Ensure Manager implements Allocator.
+var _ Allocator = (*Manager)(nil)

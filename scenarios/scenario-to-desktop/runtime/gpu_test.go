@@ -6,7 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"scenario-to-desktop-runtime/gpu"
+	"scenario-to-desktop-runtime/infra"
 	"scenario-to-desktop-runtime/manifest"
+	"scenario-to-desktop-runtime/telemetry"
 )
 
 func TestRealGPUDetector_EnvOverride(t *testing.T) {
@@ -32,13 +35,13 @@ func TestRealGPUDetector_EnvOverride(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("BUNDLE_GPU_AVAILABLE", tt.envValue)
 
-			detector := &RealGPUDetector{CommandRunner: RealCommandRunner{}, EnvReader: RealEnvReader{}}
+			detector := gpu.NewDetector(infra.RealCommandRunner{}, infra.RealEnvReader{})
 			status := detector.Detect()
 			if status.Available != tt.wantAvail {
-				t.Errorf("RealGPUDetector.Detect().Available = %v, want %v", status.Available, tt.wantAvail)
+				t.Errorf("gpu.RealDetector.Detect().Available = %v, want %v", status.Available, tt.wantAvail)
 			}
 			if status.Method != tt.wantMethod {
-				t.Errorf("RealGPUDetector.Detect().Method = %q, want %q", status.Method, tt.wantMethod)
+				t.Errorf("gpu.RealDetector.Detect().Method = %q, want %q", status.Method, tt.wantMethod)
 			}
 		})
 	}
@@ -73,6 +76,7 @@ func TestApplyGPURequirement(t *testing.T) {
 				telemetryPath: telemetryPath,
 				fs:            RealFileSystem{},
 				clock:         RealClock{},
+				telemetry:     telemetry.NewFileRecorder(telemetryPath, RealClock{}, RealFileSystem{}),
 			}
 
 			var gpu *manifest.GPURequirements
@@ -170,14 +174,14 @@ func TestRealGPUDetector_NoOverride(t *testing.T) {
 	// Ensure no override is set
 	os.Unsetenv("BUNDLE_GPU_AVAILABLE")
 
-	detector := &RealGPUDetector{CommandRunner: RealCommandRunner{}, EnvReader: RealEnvReader{}}
+	detector := gpu.NewDetector(infra.RealCommandRunner{}, infra.RealEnvReader{})
 	status := detector.Detect()
 
 	// We can't predict the result, but we can verify the structure is valid
 	if status.Method == "" {
-		t.Error("RealGPUDetector.Detect() returned empty method")
+		t.Error("gpu.RealDetector.Detect() returned empty method")
 	}
 	if status.Reason == "" {
-		t.Error("RealGPUDetector.Detect() returned empty reason")
+		t.Error("gpu.RealDetector.Detect() returned empty reason")
 	}
 }

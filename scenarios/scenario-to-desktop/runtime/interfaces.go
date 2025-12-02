@@ -1,154 +1,92 @@
+// Package bundleruntime provides the desktop bundle runtime supervisor.
+//
+// This package orchestrates service lifecycle using domain packages:
+//   - infra/     - Infrastructure abstractions (clock, filesystem, network, process, env)
+//   - ports/     - Dynamic port allocation
+//   - secrets/   - Secret management
+//   - health/    - Health and readiness monitoring
+//   - gpu/       - GPU detection and requirements
+//   - assets/    - Asset verification
+//   - env/       - Environment variable templating
+//   - migrations/ - Migration state tracking
+//   - telemetry/ - Event recording
+//   - errors/    - Structured error types
 package bundleruntime
 
 import (
 	"context"
-	"io"
-	"io/fs"
-	"net"
-	"net/http"
-	"os"
-	"os/exec"
-	"syscall"
-	"time"
+
+	"scenario-to-desktop-runtime/env"
+	"scenario-to-desktop-runtime/gpu"
+	"scenario-to-desktop-runtime/health"
+	"scenario-to-desktop-runtime/infra"
+	"scenario-to-desktop-runtime/ports"
+	"scenario-to-desktop-runtime/secrets"
+	"scenario-to-desktop-runtime/telemetry"
 )
 
-// ProcessRunner abstracts process execution for testing.
-type ProcessRunner interface {
-	// Start starts a process with the given command and arguments.
-	Start(ctx context.Context, cmd string, args []string, env []string, dir string, stdout, stderr io.Writer) (Process, error)
-}
+// Infrastructure types - re-exported from infra/
+type (
+	Clock             = infra.Clock
+	Ticker            = infra.Ticker
+	FileSystem        = infra.FileSystem
+	File              = infra.File
+	NetworkDialer     = infra.NetworkDialer
+	HTTPClient        = infra.HTTPClient
+	ProcessRunner     = infra.ProcessRunner
+	Process           = infra.Process
+	CommandRunner     = infra.CommandRunner
+	EnvReader         = infra.EnvReader
+)
 
-// Process represents a running process.
-type Process interface {
-	// Wait waits for the process to exit and returns any error.
-	Wait() error
-	// Signal sends a signal to the process.
-	Signal(sig os.Signal) error
-	// Kill forcefully terminates the process.
-	Kill() error
-	// Pid returns the process ID.
-	Pid() int
-}
+// Real implementations - re-exported from infra/
+type (
+	RealClock         = infra.RealClock
+	RealFileSystem    = infra.RealFileSystem
+	RealNetworkDialer = infra.RealNetworkDialer
+	RealHTTPClient    = infra.RealHTTPClient
+	RealProcessRunner = infra.RealProcessRunner
+	RealCommandRunner = infra.RealCommandRunner
+	RealEnvReader     = infra.RealEnvReader
+)
 
-// FileSystem abstracts file system operations for testing.
-type FileSystem interface {
-	// ReadFile reads the entire contents of a file.
-	ReadFile(path string) ([]byte, error)
-	// WriteFile writes data to a file with the given permissions.
-	WriteFile(path string, data []byte, perm fs.FileMode) error
-	// MkdirAll creates a directory and all parent directories.
-	MkdirAll(path string, perm fs.FileMode) error
-	// Stat returns file info for the given path.
-	Stat(path string) (fs.FileInfo, error)
-	// OpenFile opens a file with the given flags and permissions.
-	OpenFile(path string, flag int, perm fs.FileMode) (File, error)
-	// Remove removes a file or empty directory.
-	Remove(path string) error
-}
+// Port allocation - re-exported from ports/
+type (
+	PortAllocator = ports.Allocator
+	PortRange     = ports.Range
+)
 
-// File abstracts os.File for testing.
-type File interface {
-	io.Writer
-	io.Closer
-	// Sync commits the current contents of the file to stable storage.
-	Sync() error
-}
+// Secret management - re-exported from secrets/
+type (
+	SecretStore = secrets.Store
+)
 
-// NetworkDialer abstracts network connections for testing.
-type NetworkDialer interface {
-	// Dial connects to the address on the named network.
-	Dial(network, address string) (net.Conn, error)
-	// DialTimeout connects to the address with a timeout.
-	DialTimeout(network, address string, timeout time.Duration) (net.Conn, error)
-	// Listen creates a listener on the given address.
-	Listen(network, address string) (net.Listener, error)
-}
+// Health monitoring - re-exported from health/
+type (
+	HealthChecker = health.Checker
+	ServiceStatus = health.Status
+)
 
-// HTTPClient abstracts HTTP client operations for testing.
-type HTTPClient interface {
-	// Do sends an HTTP request and returns an HTTP response.
-	Do(req *http.Request) (*http.Response, error)
-}
+// GPU detection - re-exported from gpu/
+type (
+	GPUDetector = gpu.Detector
+	GPUStatus   = gpu.Status
+)
 
-// CommandRunner abstracts command execution for health checks.
-type CommandRunner interface {
-	// Run executes a command and returns its exit status.
-	Run(ctx context.Context, name string, args []string) error
-	// LookPath searches for an executable in the system PATH.
-	LookPath(file string) (string, error)
-	// Output runs the command and returns its standard output.
-	Output(ctx context.Context, name string, args ...string) ([]byte, error)
-}
+// Telemetry - re-exported from telemetry/
+type (
+	TelemetryRecorder = telemetry.Recorder
+)
 
-// GPUDetector abstracts GPU detection for testing.
-type GPUDetector interface {
-	// Detect probes the system for GPU availability.
-	Detect() GPUStatus
-}
-
-// GPUStatus holds the result of GPU detection.
-type GPUStatus struct {
-	Available bool   // Whether a usable GPU was detected
-	Method    string // Detection method used (env_override, nvidia-smi, system_profiler, wmic, probe)
-	Reason    string // Human-readable explanation
-}
-
-// SecretStore abstracts secret storage for testing.
-type SecretStore interface {
-	// Load reads secrets from persistent storage.
-	Load() (map[string]string, error)
-	// Persist saves secrets to persistent storage.
-	Persist(secrets map[string]string) error
-	// Get returns a copy of the current secrets.
-	Get() map[string]string
-	// MissingRequired returns IDs of required secrets that are missing.
-	MissingRequired() []string
-}
-
-// PortAllocator abstracts port allocation for testing.
-type PortAllocator interface {
-	// Allocate assigns ports to all services based on manifest requirements.
-	Allocate() error
-	// Resolve looks up an allocated port for a service.
-	Resolve(serviceID, portName string) (int, error)
-	// Map returns a copy of all allocated ports.
-	Map() map[string]map[string]int
-}
-
-// HealthChecker abstracts health checking for testing.
-type HealthChecker interface {
-	// WaitForReadiness waits for a service to become ready.
-	WaitForReadiness(ctx context.Context, serviceID string) error
-	// CheckOnce performs a single health check.
-	CheckOnce(ctx context.Context, serviceID string) bool
-}
-
-// MigrationRunner abstracts migration execution for testing.
-type MigrationRunner interface {
-	// Run executes pending migrations for a service.
-	Run(ctx context.Context, serviceID string, env map[string]string) error
-	// State returns the current migration state.
-	State() MigrationsState
-}
+// Environment rendering - re-exported from env/
+type (
+	EnvRenderer = env.Renderer
+)
 
 // MigrationsState tracks applied migrations per service and the current app version.
 type MigrationsState struct {
 	AppVersion string              `json:"app_version"`
 	Applied    map[string][]string `json:"applied"` // service ID -> list of applied migration versions
-}
-
-// TelemetryRecorder abstracts telemetry recording for testing.
-type TelemetryRecorder interface {
-	// Record records a telemetry event.
-	Record(event string, details map[string]interface{}) error
-}
-
-// EnvReader abstracts environment variable access for testing.
-type EnvReader interface {
-	// Getenv retrieves the value of the environment variable named by the key.
-	Getenv(key string) string
-	// Environ returns a copy of strings representing the environment.
-	Environ() []string
 }
 
 // ServiceManager provides a high-level interface for service lifecycle management.
@@ -176,177 +114,43 @@ type ServiceManager interface {
 	AuthToken() string
 }
 
-// Ensure Supervisor implements ServiceManager.
-var _ ServiceManager = (*Supervisor)(nil)
+// Signal constants for cross-platform compatibility - re-exported from infra/
+var (
+	Interrupt = infra.Interrupt
+	Kill      = infra.Kill
+)
 
-// =============================================================================
-// Real Implementations
-// =============================================================================
+// DefaultPortRange is the fallback range when not specified in manifest.
+var DefaultPortRange = ports.DefaultRange
 
-// RealProcessRunner implements ProcessRunner using os/exec.
-type RealProcessRunner struct{}
+// Factory functions
 
-// Start starts a process with the given command and arguments.
-func (RealProcessRunner) Start(ctx context.Context, cmd string, args []string, env []string, dir string, stdout, stderr io.Writer) (Process, error) {
-	c := exec.CommandContext(ctx, cmd, args...)
-	c.Env = env
-	c.Dir = dir
-	c.Stdout = stdout
-	c.Stderr = stderr
-	if err := c.Start(); err != nil {
-		return nil, err
-	}
-	return &realProcess{cmd: c}, nil
+// NewPortManager creates a new PortManager with the given dependencies.
+func NewPortManager(m *Manifest, dialer NetworkDialer) *ports.Manager {
+	return ports.NewManager(m, dialer)
 }
 
-// realProcess wraps exec.Cmd to implement Process interface.
-type realProcess struct {
-	cmd *exec.Cmd
+// NewSecretManager creates a new SecretManager with the given dependencies.
+func NewSecretManager(m *Manifest, fs FileSystem, secretsPath string) *secrets.Manager {
+	return secrets.NewManager(m, fs, secretsPath)
 }
 
-func (p *realProcess) Wait() error {
-	return p.cmd.Wait()
+// NewHealthMonitor creates a new HealthMonitor with the given dependencies.
+func NewHealthMonitor(cfg health.MonitorConfig) *health.Monitor {
+	return health.NewMonitor(cfg)
 }
 
-func (p *realProcess) Signal(sig os.Signal) error {
-	if p.cmd.Process == nil {
-		return os.ErrProcessDone
-	}
-	return p.cmd.Process.Signal(sig)
+// NewEnvRenderer creates a new environment variable renderer.
+func NewEnvRenderer(appData, bundlePath string, portAlloc PortAllocator, envReader EnvReader) *env.Renderer {
+	return env.NewRenderer(appData, bundlePath, portAlloc, envReader)
 }
 
-func (p *realProcess) Kill() error {
-	if p.cmd.Process == nil {
-		return os.ErrProcessDone
-	}
-	return p.cmd.Process.Kill()
+// NewTelemetryRecorder creates a new telemetry file recorder.
+func NewTelemetryRecorder(path string, clock Clock, fs FileSystem) *telemetry.FileRecorder {
+	return telemetry.NewFileRecorder(path, clock, fs)
 }
 
-func (p *realProcess) Pid() int {
-	if p.cmd.Process == nil {
-		return 0
-	}
-	return p.cmd.Process.Pid
+// NewGPUDetector creates a new GPU detector.
+func NewGPUDetector(cmdRunner CommandRunner, envReader EnvReader) *gpu.RealDetector {
+	return gpu.NewDetector(cmdRunner, envReader)
 }
-
-// Ensure RealProcessRunner implements ProcessRunner.
-var _ ProcessRunner = RealProcessRunner{}
-
-// RealFileSystem implements FileSystem using the os package.
-type RealFileSystem struct{}
-
-func (RealFileSystem) ReadFile(path string) ([]byte, error) {
-	return os.ReadFile(path)
-}
-
-func (RealFileSystem) WriteFile(path string, data []byte, perm fs.FileMode) error {
-	return os.WriteFile(path, data, perm)
-}
-
-func (RealFileSystem) MkdirAll(path string, perm fs.FileMode) error {
-	return os.MkdirAll(path, perm)
-}
-
-func (RealFileSystem) Stat(path string) (fs.FileInfo, error) {
-	return os.Stat(path)
-}
-
-func (RealFileSystem) OpenFile(path string, flag int, perm fs.FileMode) (File, error) {
-	return os.OpenFile(path, flag, perm)
-}
-
-func (RealFileSystem) Remove(path string) error {
-	return os.Remove(path)
-}
-
-// Ensure RealFileSystem implements FileSystem.
-var _ FileSystem = RealFileSystem{}
-
-// RealNetworkDialer implements NetworkDialer using the net package.
-type RealNetworkDialer struct{}
-
-func (RealNetworkDialer) Dial(network, address string) (net.Conn, error) {
-	return net.Dial(network, address)
-}
-
-func (RealNetworkDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
-	return net.DialTimeout(network, address, timeout)
-}
-
-func (RealNetworkDialer) Listen(network, address string) (net.Listener, error) {
-	return net.Listen(network, address)
-}
-
-// Ensure RealNetworkDialer implements NetworkDialer.
-var _ NetworkDialer = RealNetworkDialer{}
-
-// RealHTTPClient implements HTTPClient using http.Client.
-type RealHTTPClient struct {
-	Client *http.Client
-}
-
-func (c *RealHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	if c.Client == nil {
-		return http.DefaultClient.Do(req)
-	}
-	return c.Client.Do(req)
-}
-
-// Ensure RealHTTPClient implements HTTPClient.
-var _ HTTPClient = (*RealHTTPClient)(nil)
-
-// RealCommandRunner implements CommandRunner using os/exec.
-type RealCommandRunner struct{}
-
-func (RealCommandRunner) Run(ctx context.Context, name string, args []string) error {
-	cmd := exec.CommandContext(ctx, name, args...)
-	return cmd.Run()
-}
-
-func (RealCommandRunner) LookPath(file string) (string, error) {
-	return exec.LookPath(file)
-}
-
-func (RealCommandRunner) Output(ctx context.Context, name string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
-	return cmd.Output()
-}
-
-// Ensure RealCommandRunner implements CommandRunner.
-var _ CommandRunner = RealCommandRunner{}
-
-// RealEnvReader implements EnvReader using the os package.
-type RealEnvReader struct{}
-
-func (RealEnvReader) Getenv(key string) string {
-	return os.Getenv(key)
-}
-
-func (RealEnvReader) Environ() []string {
-	return os.Environ()
-}
-
-// Ensure RealEnvReader implements EnvReader.
-var _ EnvReader = RealEnvReader{}
-
-// RealGPUDetector implements GPUDetector using system commands.
-type RealGPUDetector struct {
-	CommandRunner CommandRunner
-	EnvReader     EnvReader
-}
-
-// Detect is implemented in gpu.go to avoid circular references.
-// This struct is provided for dependency injection.
-
-// Ensure RealGPUDetector implements GPUDetector (implementation in gpu.go).
-var _ GPUDetector = (*RealGPUDetector)(nil)
-
-// =============================================================================
-// Signal constants for cross-platform compatibility
-// =============================================================================
-
-// Interrupt is os.Interrupt for use in Process.Signal calls.
-var Interrupt = os.Interrupt
-
-// Kill signal for forceful termination.
-var Kill = syscall.SIGKILL

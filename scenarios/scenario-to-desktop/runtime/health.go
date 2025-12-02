@@ -3,6 +3,7 @@ package bundleruntime
 import (
 	"context"
 
+	"scenario-to-desktop-runtime/health"
 	"scenario-to-desktop-runtime/manifest"
 )
 
@@ -19,9 +20,9 @@ func (s *Supervisor) waitForDependencies(ctx context.Context, svc *manifest.Serv
 		return nil
 	}
 
-	// Use the HealthChecker's implementation if it's a HealthMonitor.
-	if hm, ok := s.healthChecker.(*HealthMonitor); ok {
-		return hm.waitForDependencies(ctx, svc)
+	// Use the HealthChecker's implementation if it's a health.Monitor.
+	if hm, ok := s.healthChecker.(*health.Monitor); ok {
+		return hm.WaitForDependencies(ctx, svc)
 	}
 
 	// Fallback implementation for custom HealthCheckers.

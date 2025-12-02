@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"scenario-to-desktop-runtime/manifest"
+	"scenario-to-desktop-runtime/migrations"
 )
 
 func TestLoadMigrations(t *testing.T) {
@@ -106,18 +107,10 @@ func TestInstallPhase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &Supervisor{
-				opts: Options{
-					Manifest: &manifest.Manifest{
-						App: manifest.App{Version: tt.currentVersion},
-					},
-				},
-				migrations: MigrationsState{AppVersion: tt.savedVersion},
-			}
-
-			got := s.installPhase()
+			state := migrations.State{AppVersion: tt.savedVersion}
+			got := migrations.Phase(state, tt.currentVersion)
 			if got != tt.want {
-				t.Errorf("installPhase() = %q, want %q", got, tt.want)
+				t.Errorf("Phase() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -146,9 +139,9 @@ func TestShouldRunMigration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := manifest.Migration{RunOn: tt.runOn}
-			got := shouldRunMigration(m, tt.phase)
+			got := migrations.ShouldRun(m, tt.phase)
 			if got != tt.expect {
-				t.Errorf("shouldRunMigration() = %v, want %v", got, tt.expect)
+				t.Errorf("ShouldRun() = %v, want %v", got, tt.expect)
 			}
 		})
 	}
@@ -168,9 +161,9 @@ func TestBuildAppliedSet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			set := buildAppliedSet(tt.versions)
+			set := migrations.BuildAppliedSet(tt.versions)
 			if set[tt.check] != tt.exists {
-				t.Errorf("buildAppliedSet()[%q] = %v, want %v", tt.check, set[tt.check], tt.exists)
+				t.Errorf("BuildAppliedSet()[%q] = %v, want %v", tt.check, set[tt.check], tt.exists)
 			}
 		})
 	}

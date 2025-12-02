@@ -332,10 +332,8 @@ func copyTemplatePayload(scenarioRoot, outputDir string) error {
 	factoryPage := filepath.Join(outputDir, "ui", "src", "pages", "FactoryHome.tsx")
 	_ = os.Remove(factoryPage)
 
-	appPath := filepath.Join(outputDir, "ui", "src", "App.tsx")
-	if err := writeLandingApp(appPath); err != nil {
-		return fmt.Errorf("failed to write landing App.tsx: %w", err)
-	}
+	// Template's App.tsx is used directly - it already has all routes configured correctly
+	// (including /admin/downloads, /admin/branding, etc.)
 
 	if err := fixWorkspaceDependencies(outputDir); err != nil {
 		return fmt.Errorf("failed to fix workspace dependencies: %w", err)
@@ -360,110 +358,6 @@ Admin:  http://localhost:<UI_PORT>/admin
 	}
 
 	return nil
-}
-
-func writeLandingApp(path string) error {
-	content := `import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AdminAuthProvider } from './app/providers/AdminAuthProvider';
-import { LandingVariantProvider } from './app/providers/LandingVariantProvider';
-import { ProtectedRoute } from './surfaces/admin-portal/components/ProtectedRoute';
-import { AdminLogin } from './surfaces/admin-portal/routes/AdminLogin';
-import { AdminHome } from './surfaces/admin-portal/routes/AdminHome';
-import { AdminAnalytics } from './surfaces/admin-portal/routes/AdminAnalytics';
-import { Customization } from './surfaces/admin-portal/routes/Customization';
-import { VariantEditor } from './surfaces/admin-portal/routes/VariantEditor';
-import { SectionEditor } from './surfaces/admin-portal/routes/SectionEditor';
-import { AgentCustomization } from './surfaces/admin-portal/routes/AgentCustomization';
-import { BillingSettings } from './surfaces/admin-portal/routes/BillingSettings';
-import { PublicLanding } from './surfaces/public-landing/routes/PublicLanding';
-
-export default function App() {
-  return (
-    <BrowserRouter>
-      <AdminAuthProvider>
-        <LandingVariantProvider>
-          <Routes>
-            <Route path="/" element={<PublicLanding />} />
-            <Route path="/health" element={<PublicLanding />} />
-
-            <Route path="/admin/login" element={<AdminLogin />} />
-
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute>
-                  <AdminHome />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/admin/analytics"
-              element={
-                <ProtectedRoute>
-                  <AdminAnalytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/analytics/:variantSlug"
-              element={
-                <ProtectedRoute>
-                  <AdminAnalytics />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/admin/customization"
-              element={
-                <ProtectedRoute>
-                  <Customization />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/billing"
-              element={
-                <ProtectedRoute>
-                  <BillingSettings />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/customization/agent"
-              element={
-                <ProtectedRoute>
-                  <AgentCustomization />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/customization/variants/:slug"
-              element={
-                <ProtectedRoute>
-                  <VariantEditor />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/customization/variants/:variantSlug/sections/:sectionId"
-              element={
-                <ProtectedRoute>
-                  <SectionEditor />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </LandingVariantProvider>
-      </AdminAuthProvider>
-    </BrowserRouter>
-  );
-}
-`
-	return os.WriteFile(path, []byte(content), 0o644)
 }
 
 func fixWorkspaceDependencies(outputDir string) error {

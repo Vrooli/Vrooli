@@ -12,3 +12,4 @@ export * from './customization';
 export * from './billing';
 export * from './admin';
 export * from './branding';
+export * from './assets';

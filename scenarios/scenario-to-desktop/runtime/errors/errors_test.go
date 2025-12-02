@@ -1,4 +1,4 @@
-package bundleruntime
+package errors
 
 import (
 	"errors"
@@ -51,7 +51,7 @@ func TestSecretError(t *testing.T) {
 
 func TestPortError(t *testing.T) {
 	t.Run("with range", func(t *testing.T) {
-		err := NewPortError("api", "http", PortRange{Min: 47000, Max: 47100}, "no free ports")
+		err := NewPortError("api", "http", 47000, 47100, "no free ports")
 		want := "port http for service api in range 47000-47100: no free ports"
 		if err.Error() != want {
 			t.Errorf("Error() = %q, want %q", err.Error(), want)

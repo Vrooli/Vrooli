@@ -1,4 +1,5 @@
-package bundleruntime
+// Package infra provides infrastructure abstractions for testing and external integration.
+package infra
 
 import "time"
 

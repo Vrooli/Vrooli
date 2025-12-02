@@ -1,4 +1,5 @@
-package bundleruntime
+// Package secrets provides secret management for the bundle runtime.
+package secrets
 
 import (
 	"encoding/json"
@@ -6,22 +7,43 @@ import (
 	"strings"
 	"sync"
 
+	"scenario-to-desktop-runtime/infra"
 	"scenario-to-desktop-runtime/manifest"
 )
 
-// SecretManager implements SecretStore for managing secrets.
-type SecretManager struct {
+// Store abstracts secret storage for testing.
+type Store interface {
+	// Load reads secrets from persistent storage.
+	Load() (map[string]string, error)
+	// Persist saves secrets to persistent storage.
+	Persist(secrets map[string]string) error
+	// Get returns a copy of the current secrets.
+	Get() map[string]string
+	// Set updates the internal secrets.
+	Set(secrets map[string]string)
+	// MissingRequired returns IDs of required secrets that are missing.
+	MissingRequired() []string
+	// MissingRequiredFrom checks a secrets map for missing required values.
+	MissingRequiredFrom(secrets map[string]string) []string
+	// FindSecret looks up a secret definition by ID.
+	FindSecret(id string) *manifest.Secret
+	// Merge combines new secrets with existing ones.
+	Merge(newSecrets map[string]string) map[string]string
+}
+
+// Manager implements Store for managing secrets.
+type Manager struct {
 	manifest    *manifest.Manifest
-	fs          FileSystem
+	fs          infra.FileSystem
 	secretsPath string
 
 	mu      sync.RWMutex
 	secrets map[string]string
 }
 
-// NewSecretManager creates a new SecretManager with the given dependencies.
-func NewSecretManager(m *manifest.Manifest, fs FileSystem, secretsPath string) *SecretManager {
-	return &SecretManager{
+// NewManager creates a new Manager with the given dependencies.
+func NewManager(m *manifest.Manifest, fs infra.FileSystem, secretsPath string) *Manager {
+	return &Manager{
 		manifest:    m,
 		fs:          fs,
 		secretsPath: secretsPath,
@@ -31,7 +53,7 @@ func NewSecretManager(m *manifest.Manifest, fs FileSystem, secretsPath string) *
 
 // Load reads secrets from persistent storage.
 // Returns an empty map if the file doesn't exist.
-func (sm *SecretManager) Load() (map[string]string, error) {
+func (sm *Manager) Load() (map[string]string, error) {
 	out := map[string]string{}
 	data, err := sm.fs.ReadFile(sm.secretsPath)
 	if err != nil {
@@ -59,7 +81,7 @@ func (sm *SecretManager) Load() (map[string]string, error) {
 
 // Persist saves secrets to persistent storage.
 // The file is created with 0600 permissions for security.
-func (sm *SecretManager) Persist(secrets map[string]string) error {
+func (sm *Manager) Persist(secrets map[string]string) error {
 	if err := sm.fs.MkdirAll(filepath.Dir(sm.secretsPath), 0o700); err != nil {
 		return err
 	}
@@ -79,7 +101,7 @@ func (sm *SecretManager) Persist(secrets map[string]string) error {
 }
 
 // Get returns a copy of the current secrets.
-func (sm *SecretManager) Get() map[string]string {
+func (sm *Manager) Get() map[string]string {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 	out := make(map[string]string, len(sm.secrets))
@@ -90,7 +112,7 @@ func (sm *SecretManager) Get() map[string]string {
 }
 
 // Set updates the internal secrets map (thread-safe).
-func (sm *SecretManager) Set(secrets map[string]string) {
+func (sm *Manager) Set(secrets map[string]string) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.secrets = make(map[string]string, len(secrets))
@@ -100,12 +122,12 @@ func (sm *SecretManager) Set(secrets map[string]string) {
 }
 
 // MissingRequired returns IDs of required secrets that are missing.
-func (sm *SecretManager) MissingRequired() []string {
+func (sm *Manager) MissingRequired() []string {
 	return sm.MissingRequiredFrom(sm.Get())
 }
 
 // MissingRequiredFrom checks a secrets map for missing required values.
-func (sm *SecretManager) MissingRequiredFrom(secrets map[string]string) []string {
+func (sm *Manager) MissingRequiredFrom(secrets map[string]string) []string {
 	var missing []string
 	for _, sec := range sm.manifest.Secrets {
 		required := true
@@ -124,7 +146,7 @@ func (sm *SecretManager) MissingRequiredFrom(secrets map[string]string) []string
 }
 
 // FindSecret looks up a secret definition by ID.
-func (sm *SecretManager) FindSecret(id string) *manifest.Secret {
+func (sm *Manager) FindSecret(id string) *manifest.Secret {
 	for i := range sm.manifest.Secrets {
 		if sm.manifest.Secrets[i].ID == id {
 			return &sm.manifest.Secrets[i]
@@ -133,8 +155,8 @@ func (sm *SecretManager) FindSecret(id string) *manifest.Secret {
 	return nil
 }
 
-// Merge combines new secrets with existing ones and updates the store.
-func (sm *SecretManager) Merge(newSecrets map[string]string) map[string]string {
+// Merge combines new secrets with existing ones.
+func (sm *Manager) Merge(newSecrets map[string]string) map[string]string {
 	merged := sm.Get()
 	for k, v := range newSecrets {
 		merged[k] = v
@@ -142,5 +164,5 @@ func (sm *SecretManager) Merge(newSecrets map[string]string) map[string]string {
 	return merged
 }
 
-// Ensure SecretManager implements SecretStore.
-var _ SecretStore = (*SecretManager)(nil)
+// Ensure Manager implements Store.
+var _ Store = (*Manager)(nil)

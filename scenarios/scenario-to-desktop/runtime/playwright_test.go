@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"scenario-to-desktop-runtime/manifest"
+	"scenario-to-desktop-runtime/telemetry"
 )
 
 // playwrightTestPortAllocator is a test double for PortAllocator in playwright tests.
@@ -62,6 +63,7 @@ func testPlaywrightSupervisor(t *testing.T, opts Options, ports map[string]map[s
 	}
 
 	s.telemetryPath = filepath.Join(appData, "telemetry.jsonl")
+	s.telemetry = telemetry.NewFileRecorder(s.telemetryPath, s.clock, s.fs)
 	return s
 }
 
@@ -295,32 +297,6 @@ func TestApplyPlaywrightConventionsElectronFallbackEmpty(t *testing.T) {
 	if env["PLAYWRIGHT_CHROMIUM_PATH"] != electronPath {
 		t.Errorf("PLAYWRIGHT_CHROMIUM_PATH = %q, want %q (electron fallback when empty)", env["PLAYWRIGHT_CHROMIUM_PATH"], electronPath)
 	}
-}
-
-func TestOsStatForPlaywright(t *testing.T) {
-	appData := t.TempDir()
-	s := &Supervisor{
-		fs: RealFileSystem{},
-	}
-
-	t.Run("returns nil for existing file", func(t *testing.T) {
-		path := filepath.Join(appData, "exists.txt")
-		if err := os.WriteFile(path, []byte("content"), 0644); err != nil {
-			t.Fatal(err)
-		}
-
-		err := s.osStatForPlaywright(path)
-		if err != nil {
-			t.Errorf("osStatForPlaywright() error = %v for existing file", err)
-		}
-	})
-
-	t.Run("returns error for missing file", func(t *testing.T) {
-		err := s.osStatForPlaywright("/nonexistent/path")
-		if err == nil {
-			t.Error("osStatForPlaywright() should return error for missing file")
-		}
-	})
 }
 
 func TestPlaywrightDetectionWithEnvVars(t *testing.T) {

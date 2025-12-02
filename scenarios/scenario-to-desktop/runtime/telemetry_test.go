@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-runtime/telemetry"
 )
 
 func TestRecordTelemetry(t *testing.T) {
@@ -20,6 +22,7 @@ func TestRecordTelemetry(t *testing.T) {
 		telemetryPath: telemetryPath,
 		clock:         mockClock,
 		fs:            mockFS,
+		telemetry:     telemetry.NewFileRecorder(telemetryPath, mockClock, mockFS),
 	}
 
 	details := map[string]interface{}{
@@ -38,7 +41,7 @@ func TestRecordTelemetry(t *testing.T) {
 	}
 
 	// Parse JSONL record
-	var rec telemetryRecord
+	var rec telemetry.Record
 	if err := json.Unmarshal(data[:len(data)-1], &rec); err != nil { // -1 to remove trailing newline
 		t.Fatalf("Unmarshal() error = %v", err)
 	}
@@ -65,6 +68,7 @@ func TestRecordTelemetry_MultipleRecords(t *testing.T) {
 		telemetryPath: telemetryPath,
 		clock:         mockClock,
 		fs:            mockFS,
+		telemetry:     telemetry.NewFileRecorder(telemetryPath, mockClock, mockFS),
 	}
 
 	// Record multiple events
@@ -83,7 +87,7 @@ func TestRecordTelemetry_MultipleRecords(t *testing.T) {
 	}
 
 	for i, line := range lines {
-		var rec telemetryRecord
+		var rec telemetry.Record
 		if err := json.Unmarshal([]byte(line), &rec); err != nil {
 			t.Fatalf("Unmarshal line %d error = %v", i, err)
 		}
@@ -104,6 +108,7 @@ func TestRecordTelemetry_NoServiceID(t *testing.T) {
 		telemetryPath: telemetryPath,
 		clock:         mockClock,
 		fs:            mockFS,
+		telemetry:     telemetry.NewFileRecorder(telemetryPath, mockClock, mockFS),
 	}
 
 	details := map[string]interface{}{
@@ -115,7 +120,7 @@ func TestRecordTelemetry_NoServiceID(t *testing.T) {
 	}
 
 	data, _ := mockFS.ReadFile(telemetryPath)
-	var rec telemetryRecord
+	var rec telemetry.Record
 	json.Unmarshal(data[:len(data)-1], &rec)
 
 	if rec.ServiceID != "" {
@@ -134,6 +139,7 @@ func TestRecordTelemetry_NilDetails(t *testing.T) {
 		telemetryPath: telemetryPath,
 		clock:         mockClock,
 		fs:            mockFS,
+		telemetry:     telemetry.NewFileRecorder(telemetryPath, mockClock, mockFS),
 	}
 
 	if err := s.recordTelemetry("event_no_details", nil); err != nil {
@@ -141,7 +147,7 @@ func TestRecordTelemetry_NilDetails(t *testing.T) {
 	}
 
 	data, _ := mockFS.ReadFile(telemetryPath)
-	var rec telemetryRecord
+	var rec telemetry.Record
 	if err := json.Unmarshal(data[:len(data)-1], &rec); err != nil {
 		t.Fatalf("Unmarshal() error = %v", err)
 	}
@@ -156,11 +162,13 @@ func TestRecordTelemetry_CreatesDirectory(t *testing.T) {
 	telemetryPath := filepath.Join(tmp, "subdir", "nested", "telemetry.jsonl")
 
 	mockClock := NewMockClock(time.Now())
+	realFS := RealFileSystem{}
 
 	s := &Supervisor{
 		telemetryPath: telemetryPath,
 		clock:         mockClock,
-		fs:            RealFileSystem{},
+		fs:            realFS,
+		telemetry:     telemetry.NewFileRecorder(telemetryPath, mockClock, realFS),
 	}
 
 	if err := s.recordTelemetry("test_event", nil); err != nil {
@@ -186,6 +194,7 @@ func TestRecordTelemetry_TimestampIsUTC(t *testing.T) {
 		telemetryPath: telemetryPath,
 		clock:         mockClock,
 		fs:            mockFS,
+		telemetry:     telemetry.NewFileRecorder(telemetryPath, mockClock, mockFS),
 	}
 
 	if err := s.recordTelemetry("test_event", nil); err != nil {
@@ -193,7 +202,7 @@ func TestRecordTelemetry_TimestampIsUTC(t *testing.T) {
 	}
 
 	data, _ := mockFS.ReadFile(telemetryPath)
-	var rec telemetryRecord
+	var rec telemetry.Record
 	json.Unmarshal(data[:len(data)-1], &rec)
 
 	// Timestamp should be in UTC
@@ -203,7 +212,7 @@ func TestRecordTelemetry_TimestampIsUTC(t *testing.T) {
 }
 
 func TestTelemetryRecord_JSON(t *testing.T) {
-	rec := telemetryRecord{
+	rec := telemetry.Record{
 		Timestamp: time.Date(2025, 1, 15, 10, 30, 0, 0, time.UTC),
 		Event:     "service_start",
 		ServiceID: "api",
@@ -235,10 +244,14 @@ func TestRecordTelemetry_WithRealFileSystem(t *testing.T) {
 	tmp := t.TempDir()
 	telemetryPath := filepath.Join(tmp, "telemetry.jsonl")
 
+	realClock := RealClock{}
+	realFS := RealFileSystem{}
+
 	s := &Supervisor{
 		telemetryPath: telemetryPath,
-		clock:         RealClock{},
-		fs:            RealFileSystem{},
+		clock:         realClock,
+		fs:            realFS,
+		telemetry:     telemetry.NewFileRecorder(telemetryPath, realClock, realFS),
 	}
 
 	// Record an event

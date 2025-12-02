@@ -1,4 +1,5 @@
-package bundleruntime
+// Package errors provides structured error types for the bundle runtime.
+package errors
 
 import (
 	"errors"
@@ -66,21 +67,22 @@ func NewSecretError(secretID, serviceID, reason string) *SecretError {
 type PortError struct {
 	ServiceID string
 	PortName  string
-	Range     PortRange
+	RangeMin  int
+	RangeMax  int
 	Reason    string
 }
 
 func (e *PortError) Error() string {
-	if e.Range.Min > 0 && e.Range.Max > 0 {
+	if e.RangeMin > 0 && e.RangeMax > 0 {
 		return fmt.Sprintf("port %s for service %s in range %d-%d: %s",
-			e.PortName, e.ServiceID, e.Range.Min, e.Range.Max, e.Reason)
+			e.PortName, e.ServiceID, e.RangeMin, e.RangeMax, e.Reason)
 	}
 	return fmt.Sprintf("port %s for service %s: %s", e.PortName, e.ServiceID, e.Reason)
 }
 
 // NewPortError creates a new PortError.
-func NewPortError(serviceID, portName string, rng PortRange, reason string) *PortError {
-	return &PortError{ServiceID: serviceID, PortName: portName, Range: rng, Reason: reason}
+func NewPortError(serviceID, portName string, rangeMin, rangeMax int, reason string) *PortError {
+	return &PortError{ServiceID: serviceID, PortName: portName, RangeMin: rangeMin, RangeMax: rangeMax, Reason: reason}
 }
 
 // AssetError represents an error related to asset verification.
