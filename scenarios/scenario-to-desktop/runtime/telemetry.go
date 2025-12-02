@@ -22,38 +22,21 @@ type telemetryRecord struct {
 }
 
 // recordTelemetry appends a telemetry event to the JSONL file.
+// The details map can include a "service_id" key for service-specific events.
 func (s *Supervisor) recordTelemetry(event string, details map[string]interface{}) error {
 	rec := telemetryRecord{
 		Timestamp: time.Now().UTC(),
 		Event:     event,
 		Details:   details,
 	}
-	data, err := json.Marshal(rec)
-	if err != nil {
-		return err
-	}
-	data = append(data, '\n')
 
-	if err := os.MkdirAll(filepath.Dir(s.telemetryPath), 0o755); err != nil {
-		return err
+	// Extract service_id from details if present for cleaner JSON structure.
+	if details != nil {
+		if sid, ok := details["service_id"].(string); ok {
+			rec.ServiceID = sid
+		}
 	}
-	f, err := os.OpenFile(s.telemetryPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = f.Write(data)
-	return err
-}
 
-// recordServiceTelemetry is a convenience wrapper for service-specific events.
-func (s *Supervisor) recordServiceTelemetry(event, serviceID string, details map[string]interface{}) error {
-	rec := telemetryRecord{
-		Timestamp: time.Now().UTC(),
-		Event:     event,
-		ServiceID: serviceID,
-		Details:   details,
-	}
 	data, err := json.Marshal(rec)
 	if err != nil {
 		return err

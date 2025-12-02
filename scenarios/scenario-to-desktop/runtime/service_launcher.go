@@ -2,6 +2,7 @@ package bundleruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,6 +11,79 @@ import (
 
 	"scenario-to-desktop-runtime/manifest"
 )
+
+// topoSort performs topological sort on services based on their dependencies.
+// Returns service IDs in dependency order (dependencies first).
+func topoSort(services []manifest.Service) ([]string, error) {
+	graph := make(map[string][]string)
+	inDegree := make(map[string]int)
+
+	for _, svc := range services {
+		graph[svc.ID] = append(graph[svc.ID], svc.Dependencies...)
+		if _, ok := inDegree[svc.ID]; !ok {
+			inDegree[svc.ID] = 0
+		}
+		for _, dep := range svc.Dependencies {
+			inDegree[svc.ID]++
+			if _, ok := inDegree[dep]; !ok {
+				inDegree[dep] = 0
+			}
+		}
+	}
+
+	queue := make([]string, 0)
+	for id, deg := range inDegree {
+		if deg == 0 {
+			queue = append(queue, id)
+		}
+	}
+
+	order := make([]string, 0, len(inDegree))
+	for len(queue) > 0 {
+		id := queue[0]
+		queue = queue[1:]
+		order = append(order, id)
+		for _, svc := range services {
+			for _, dep := range svc.Dependencies {
+				if dep == id {
+					inDegree[svc.ID]--
+					if inDegree[svc.ID] == 0 {
+						queue = append(queue, svc.ID)
+					}
+				}
+			}
+		}
+	}
+
+	if len(order) != len(inDegree) {
+		return nil, errors.New("cycle detected in dependencies")
+	}
+	return order, nil
+}
+
+// findService looks up a service by ID from a slice.
+func findService(services []manifest.Service, id string) *manifest.Service {
+	for i := range services {
+		if services[i].ID == id {
+			return &services[i]
+		}
+	}
+	return nil
+}
+
+// exitCode extracts the exit code from an error, if available.
+func exitCode(err error) *int {
+	if err == nil {
+		code := 0
+		return &code
+	}
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		code := ee.ExitCode()
+		return &code
+	}
+	return nil
+}
 
 // serviceProcess tracks a running service process.
 type serviceProcess struct {

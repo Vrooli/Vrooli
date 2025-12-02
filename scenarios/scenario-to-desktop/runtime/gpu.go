@@ -152,3 +152,11 @@ func (s *Supervisor) applyGPURequirement(env map[string]string, svc manifest.Ser
 func (s *Supervisor) GPUStatus() gpuStatus {
 	return s.gpuStatus
 }
+
+// boolToString converts a boolean to "true" or "false".
+func boolToString(v bool) string {
+	if v {
+		return "true"
+	}
+	return "false"
+}

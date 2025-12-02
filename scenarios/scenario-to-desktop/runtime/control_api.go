@@ -3,16 +3,58 @@ package bundleruntime
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
 	"scenario-to-desktop-runtime/manifest"
 )
+
+// parsePositiveInt parses a string as a positive integer.
+func parsePositiveInt(s string) (int, error) {
+	v, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil {
+		return 0, err
+	}
+	if v <= 0 {
+		return 0, errors.New("must be positive")
+	}
+	return v, nil
+}
+
+// tailFile returns the last N lines from a file.
+func tailFile(path string, lines int) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	parts := strings.Split(string(data), "\n")
+	if lines >= len(parts) {
+		return []byte(strings.Join(parts, "\n")), nil
+	}
+	return []byte(strings.Join(parts[len(parts)-lines:], "\n")), nil
+}
+
+// intersection returns elements present in both slices.
+func intersection(a []string, b []string) []string {
+	set := map[string]bool{}
+	for _, v := range b {
+		set[v] = true
+	}
+	var out []string
+	for _, v := range a {
+		if set[v] {
+			out = append(out, v)
+		}
+	}
+	return out
+}
 
 // registerHandlers sets up the control API HTTP routes.
 func (s *Supervisor) registerHandlers(mux *http.ServeMux) {

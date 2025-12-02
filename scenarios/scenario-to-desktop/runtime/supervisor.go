@@ -11,19 +11,23 @@
 //
 // Architecture:
 //
-//	supervisor.go      - Core Supervisor struct, Start, Shutdown
-//	control_api.go     - HTTP handlers and authentication middleware
-//	service_launcher.go - Service lifecycle management
-//	health.go          - Health and readiness checking
-//	secrets.go         - Secret loading, persistence, and injection
-//	migrations.go      - Migration tracking and execution
-//	ports.go           - Port allocation and resolution
-//	telemetry.go       - Telemetry event recording
-//	gpu.go             - GPU detection and requirement enforcement
-//	playwright.go      - Playwright environment setup
-//	assets.go          - Asset verification
-//	env.go             - Environment variable rendering
-//	utils.go           - Shared utilities
+//	supervisor.go       - Core Supervisor struct, Start, Shutdown
+//	control_api.go      - HTTP handlers and authentication middleware
+//	service_launcher.go - Service lifecycle management (includes topoSort, findService)
+//	health.go           - Health and readiness checking
+//	secrets.go          - Secret loading, persistence, and injection
+//	migrations.go       - Migration tracking and execution
+//	ports.go            - Port allocation and resolution
+//	telemetry.go        - Telemetry event recording
+//	gpu.go              - GPU detection and requirement enforcement
+//	playwright.go       - Playwright environment setup
+//	assets.go           - Asset verification
+//	env.go              - Environment variable rendering
+//	errors.go           - Structured error types
+//	interfaces.go       - Interfaces for testing and external integration
+//	utils.go            - Shared utilities (copyStringMap, envMapToList)
+//
+// See README.md for detailed documentation and architecture diagrams.
 package bundleruntime
 
 import (
@@ -91,6 +95,17 @@ type ServiceStatus struct {
 
 // Manifest is an alias for the manifest package type for convenience.
 type Manifest = manifest.Manifest
+
+// sanitizeAppName normalizes an application name for filesystem use.
+func sanitizeAppName(name string) string {
+	out := strings.TrimSpace(name)
+	if out == "" {
+		return "desktop-app"
+	}
+	out = strings.ReplaceAll(out, " ", "-")
+	out = strings.ToLower(out)
+	return out
+}
 
 // NewSupervisor creates a new Supervisor with the given options.
 func NewSupervisor(opts Options) (*Supervisor, error) {
