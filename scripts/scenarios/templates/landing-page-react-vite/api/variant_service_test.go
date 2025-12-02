@@ -123,7 +123,7 @@ func TestUpdateVariant(t *testing.T) {
 
 	// Test updating weight
 	newWeight := 70
-	updated, err := vs.UpdateVariant("test-update", nil, nil, &newWeight, nil)
+	updated, err := vs.UpdateVariant("test-update", nil, nil, &newWeight, nil, nil)
 	if err != nil {
 		t.Fatalf("UpdateVariant failed: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestUpdateVariant(t *testing.T) {
 
 	// Test updating name
 	newName := "Updated Name"
-	updated, err = vs.UpdateVariant("test-update", &newName, nil, nil, nil)
+	updated, err = vs.UpdateVariant("test-update", &newName, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("UpdateVariant name failed: %v", err)
 	}
@@ -145,14 +145,14 @@ func TestUpdateVariant(t *testing.T) {
 
 	// Test invalid weight
 	invalidWeight := 150
-	_, err = vs.UpdateVariant("test-update", nil, nil, &invalidWeight, nil)
+	_, err = vs.UpdateVariant("test-update", nil, nil, &invalidWeight, nil, nil)
 	if err == nil {
 		t.Error("UpdateVariant should fail for weight > 100")
 	}
 
 	// Test updating axes
 	newAxes := altAxesSelection()
-	updated, err = vs.UpdateVariant("test-update", nil, nil, nil, newAxes)
+	updated, err = vs.UpdateVariant("test-update", nil, nil, nil, newAxes, nil)
 	if err != nil {
 		t.Fatalf("UpdateVariant axes failed: %v", err)
 	}

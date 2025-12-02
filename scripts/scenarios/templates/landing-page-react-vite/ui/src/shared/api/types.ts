@@ -41,6 +41,7 @@ export interface Variant {
   updated_at?: string;
   archived_at?: string;
   axes?: VariantAxes;
+  header_config?: LandingHeaderConfig;
 }
 
 export interface BundleProduct {
@@ -156,6 +157,61 @@ export interface LandingSection {
   enabled?: boolean;
 }
 
+export type HeaderBrandingMode = 'none' | 'logo' | 'name' | 'logo_and_name';
+export type HeaderNavLinkType = 'section' | 'downloads' | 'custom';
+export type HeaderCTAMode = 'inherit_hero' | 'downloads' | 'custom' | 'hidden';
+
+export interface LandingHeaderConfig {
+  branding: HeaderBrandingConfig;
+  nav: HeaderNavConfig;
+  ctas: HeaderCTAGroup;
+  behavior: HeaderBehaviorConfig;
+}
+
+export interface HeaderBrandingConfig {
+  mode: HeaderBrandingMode;
+  label?: string;
+  subtitle?: string;
+  mobile_preference?: 'auto' | 'logo' | 'name' | 'stacked';
+}
+
+export interface HeaderNavConfig {
+  links: LandingHeaderNavLink[];
+}
+
+export interface LandingHeaderNavLink {
+  id: string;
+  type: HeaderNavLinkType;
+  label: string;
+  section_type?: string;
+  section_id?: number;
+  anchor?: string;
+  href?: string;
+  visible_on?: HeaderVisibilityConfig;
+}
+
+export interface HeaderVisibilityConfig {
+  desktop?: boolean;
+  mobile?: boolean;
+}
+
+export interface HeaderCTAGroup {
+  primary: HeaderCTAConfig;
+  secondary: HeaderCTAConfig;
+}
+
+export interface HeaderCTAConfig {
+  mode: HeaderCTAMode;
+  label?: string;
+  href?: string;
+  variant?: 'solid' | 'ghost';
+}
+
+export interface HeaderBehaviorConfig {
+  sticky: boolean;
+  hide_on_scroll: boolean;
+}
+
 export interface LandingConfigResponse {
   variant: {
     id?: number;
@@ -167,6 +223,7 @@ export interface LandingConfigResponse {
   sections: LandingSection[];
   pricing?: PricingOverview;
   downloads: DownloadApp[];
+  header: LandingHeaderConfig;
   fallback: boolean;
 }
 

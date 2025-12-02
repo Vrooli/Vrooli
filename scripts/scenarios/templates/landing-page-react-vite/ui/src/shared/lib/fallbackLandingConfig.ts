@@ -1,5 +1,6 @@
-import type { LandingConfigResponse, LandingSection, DownloadApp, PricingOverview, VariantAxes } from '../api';
+import type { LandingConfigResponse, LandingSection, DownloadApp, PricingOverview, VariantAxes, LandingHeaderConfig } from '../api';
 import rawFallback from '../../../../.vrooli/variants/fallback.json';
+import { normalizeHeaderConfig } from './headerConfig';
 
 interface FallbackPayload {
   variant: LandingConfigResponse['variant'];
@@ -7,6 +8,7 @@ interface FallbackPayload {
   pricing?: PricingOverview;
   downloads?: DownloadApp[];
   axes?: VariantAxes;
+  header?: LandingHeaderConfig;
 }
 
 function normalizeSections(sectionsInput?: LandingSection[] | null): LandingSection[] {
@@ -31,6 +33,7 @@ const FALLBACK_CONFIG: LandingConfigResponse = (() => {
     sections: normalizeSections(payload.sections),
     pricing: payload.pricing,
     downloads: payload.downloads ?? [],
+    header: normalizeHeaderConfig(payload.header, variant.name),
     fallback: true,
   };
 })();

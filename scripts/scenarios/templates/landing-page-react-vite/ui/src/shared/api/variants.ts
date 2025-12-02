@@ -1,5 +1,5 @@
 import { apiCall } from './common';
-import type { Variant, VariantAxes, VariantSpace } from './types';
+import type { LandingHeaderConfig, Variant, VariantAxes, VariantSpace } from './types';
 
 export interface VariantCreatePayload {
   name: string;
@@ -7,6 +7,7 @@ export interface VariantCreatePayload {
   description?: string;
   weight?: number;
   axes: VariantAxes;
+  header_config?: LandingHeaderConfig;
 }
 
 export interface VariantUpdatePayload {
@@ -14,6 +15,7 @@ export interface VariantUpdatePayload {
   description?: string;
   weight?: number;
   axes?: VariantAxes;
+  header_config?: LandingHeaderConfig;
 }
 
 export function getPublicVariant(slug: string) {

@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 )
 
@@ -20,6 +23,7 @@ type Variant struct {
 	UpdatedAt   time.Time         `json:"updated_at"`
 	ArchivedAt  *time.Time        `json:"archived_at,omitempty"`
 	Axes        map[string]string `json:"axes,omitempty"`
+	HeaderConfig LandingHeaderConfig `json:"header_config"`
 }
 
 // VariantService handles A/B testing variant operations
@@ -80,16 +84,17 @@ func (vs *VariantService) SelectVariant() (*Variant, error) {
 // GetVariantBySlug retrieves a variant by slug (OT-P0-014: AB-URL)
 func (vs *VariantService) GetVariantBySlug(slug string) (*Variant, error) {
 	query := `
-		SELECT id, slug, name, description, weight, status, created_at, updated_at, archived_at
+		SELECT id, slug, name, description, weight, status, created_at, updated_at, archived_at, header_config
 		FROM variants
 		WHERE slug = $1
 	`
 
 	var v Variant
 	var archivedAt sql.NullTime
+	var headerJSON []byte
 	err := vs.db.QueryRow(query, slug).Scan(
 		&v.ID, &v.Slug, &v.Name, &v.Description, &v.Weight,
-		&v.Status, &v.CreatedAt, &v.UpdatedAt, &archivedAt,
+		&v.Status, &v.CreatedAt, &v.UpdatedAt, &archivedAt, &headerJSON,
 	)
 
 	if err == sql.ErrNoRows {
@@ -103,6 +108,8 @@ func (vs *VariantService) GetVariantBySlug(slug string) (*Variant, error) {
 		v.ArchivedAt = &archivedAt.Time
 	}
 
+	v.HeaderConfig = decodeHeaderConfig(headerJSON, v.Name, v.Slug)
+
 	axes, err := vs.getVariantAxes(v.ID)
 	if err != nil {
 		return nil, err
@@ -115,7 +122,7 @@ func (vs *VariantService) GetVariantBySlug(slug string) (*Variant, error) {
 // ListVariants returns all variants, optionally filtered by status (OT-P0-017: AB-CRUD)
 func (vs *VariantService) ListVariants(statusFilter string) ([]Variant, error) {
 	query := `
-		SELECT id, slug, name, description, weight, status, created_at, updated_at, archived_at
+		SELECT id, slug, name, description, weight, status, created_at, updated_at, archived_at, header_config
 		FROM variants
 		WHERE status != 'deleted'
 	`
@@ -138,9 +145,10 @@ func (vs *VariantService) ListVariants(statusFilter string) ([]Variant, error) {
 	for rows.Next() {
 		var v Variant
 		var archivedAt sql.NullTime
+		var headerJSON []byte
 		err := rows.Scan(
 			&v.ID, &v.Slug, &v.Name, &v.Description, &v.Weight,
-			&v.Status, &v.CreatedAt, &v.UpdatedAt, &archivedAt,
+			&v.Status, &v.CreatedAt, &v.UpdatedAt, &archivedAt, &headerJSON,
 		)
 		if err != nil {
 			return nil, err
@@ -149,6 +157,8 @@ func (vs *VariantService) ListVariants(statusFilter string) ([]Variant, error) {
 		if archivedAt.Valid {
 			v.ArchivedAt = &archivedAt.Time
 		}
+
+		v.HeaderConfig = decodeHeaderConfig(headerJSON, v.Name, v.Slug)
 
 		variants = append(variants, v)
 	}
@@ -176,6 +186,12 @@ func (vs *VariantService) CreateVariant(slug, name, description string, weight i
 		return nil, err
 	}
 
+	headerCfg := defaultLandingHeaderConfig(name)
+	headerJSON, err := marshalHeaderConfig(headerCfg)
+	if err != nil {
+		return nil, fmt.Errorf("marshal header config: %w", err)
+	}
+
 	tx, err := vs.db.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
@@ -183,13 +199,13 @@ func (vs *VariantService) CreateVariant(slug, name, description string, weight i
 	defer tx.Rollback()
 
 	query := `
-		INSERT INTO variants (slug, name, description, weight, status)
-		VALUES ($1, $2, $3, $4, 'active')
+		INSERT INTO variants (slug, name, description, weight, status, header_config)
+		VALUES ($1, $2, $3, $4, 'active', $5)
 		RETURNING id, slug, name, description, weight, status, created_at, updated_at
 	`
 
 	var v Variant
-	err = tx.QueryRow(query, slug, name, description, weight).Scan(
+	err = tx.QueryRow(query, slug, name, description, weight, headerJSON).Scan(
 		&v.ID, &v.Slug, &v.Name, &v.Description, &v.Weight,
 		&v.Status, &v.CreatedAt, &v.UpdatedAt,
 	)
@@ -207,14 +223,33 @@ func (vs *VariantService) CreateVariant(slug, name, description string, weight i
 	}
 
 	v.Axes = axes
+	v.HeaderConfig = headerCfg
 
 	return &v, nil
 }
 
-// UpdateVariant updates variant weight and/or name (OT-P0-017: AB-CRUD)
-func (vs *VariantService) UpdateVariant(slug string, name *string, description *string, weight *int, axes map[string]string) (*Variant, error) {
+// UpdateVariant updates variant values (OT-P0-017: AB-CRUD)
+func (vs *VariantService) UpdateVariant(slug string, name *string, description *string, weight *int, axes map[string]string, headerConfig *LandingHeaderConfig) (*Variant, error) {
 	if weight != nil && (*weight < 0 || *weight > 100) {
 		return nil, errors.New("weight must be between 0 and 100")
+	}
+
+	var headerJSON []byte
+	if headerConfig != nil {
+		targetName := ""
+		if name != nil && strings.TrimSpace(*name) != "" {
+			targetName = strings.TrimSpace(*name)
+		} else {
+			if err := vs.db.QueryRow(`SELECT name FROM variants WHERE slug = $1`, slug).Scan(&targetName); err != nil {
+				return nil, fmt.Errorf("fetch variant for header config: %w", err)
+			}
+		}
+		norm := normalizeLandingHeaderConfig(headerConfig, targetName)
+		var err error
+		headerJSON, err = marshalHeaderConfig(norm)
+		if err != nil {
+			return nil, fmt.Errorf("marshal header config: %w", err)
+		}
 	}
 
 	// Build dynamic update query
@@ -240,10 +275,16 @@ func (vs *VariantService) UpdateVariant(slug string, name *string, description *
 		argIndex++
 	}
 
+	if headerJSON != nil {
+		query += fmt.Sprintf(", header_config = $%d", argIndex)
+		args = append(args, headerJSON)
+		argIndex++
+	}
+
 	query += fmt.Sprintf(" WHERE slug = $%d", argIndex)
 	args = append(args, slug)
 
-	query += " RETURNING id, slug, name, description, weight, status, created_at, updated_at, archived_at"
+	query += " RETURNING id, slug, name, description, weight, status, created_at, updated_at, archived_at, header_config"
 
 	var v Variant
 	var archivedAt sql.NullTime
@@ -253,9 +294,10 @@ func (vs *VariantService) UpdateVariant(slug string, name *string, description *
 	}
 	defer tx.Rollback()
 
+	var headerFromDB []byte
 	err = tx.QueryRow(query, args...).Scan(
 		&v.ID, &v.Slug, &v.Name, &v.Description, &v.Weight,
-		&v.Status, &v.CreatedAt, &v.UpdatedAt, &archivedAt,
+		&v.Status, &v.CreatedAt, &v.UpdatedAt, &archivedAt, &headerFromDB,
 	)
 
 	if err == sql.ErrNoRows {
@@ -268,6 +310,8 @@ func (vs *VariantService) UpdateVariant(slug string, name *string, description *
 	if archivedAt.Valid {
 		v.ArchivedAt = &archivedAt.Time
 	}
+
+	v.HeaderConfig = decodeHeaderConfig(headerFromDB, v.Name, v.Slug)
 
 	if axes != nil {
 		if err := vs.saveVariantAxesTx(tx, v.ID, axes); err != nil {
@@ -385,4 +429,22 @@ func (vs *VariantService) saveVariantAxesTx(tx *sql.Tx, variantID int, axes map[
 	}
 
 	return nil
+}
+
+func decodeHeaderConfig(raw []byte, variantName, slug string) LandingHeaderConfig {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 {
+		return defaultLandingHeaderConfig(variantName)
+	}
+
+	var cfg LandingHeaderConfig
+	if err := json.Unmarshal(trimmed, &cfg); err != nil {
+		logStructuredError("variant_header_parse_failed", map[string]interface{}{
+			"variant_slug": slug,
+			"error":        err.Error(),
+		})
+		return defaultLandingHeaderConfig(variantName)
+	}
+
+	return normalizeLandingHeaderConfig(&cfg, variantName)
 }

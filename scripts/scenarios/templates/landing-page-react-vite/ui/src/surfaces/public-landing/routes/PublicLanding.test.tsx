@@ -47,6 +47,15 @@ vi.mock('../../../app/providers/LandingVariantProvider', () => {
     ],
     fallback: false,
     pricing: null,
+    header: {
+      branding: { mode: 'logo_and_name', label: 'Control', mobile_preference: 'auto' },
+      nav: { links: [] },
+      ctas: {
+        primary: { mode: 'inherit_hero', variant: 'solid' },
+        secondary: { mode: 'downloads', variant: 'ghost' },
+      },
+      behavior: { sticky: true, hide_on_scroll: false },
+    },
   };
 
   return {

@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { useLandingVariant, type VariantResolution } from '../../../app/providers/LandingVariantProvider';
-import type { DownloadApp, LandingConfigResponse, LandingSection } from '../../../shared/api';
+import type { DownloadApp, LandingConfigResponse, LandingHeaderConfig, LandingSection } from '../../../shared/api';
 import { HeroSection } from '../sections/HeroSection';
 import { FeaturesSection } from '../sections/FeaturesSection';
 import { PricingSection } from '../sections/PricingSection';
@@ -12,6 +12,8 @@ import { FAQSection } from '../sections/FAQSection';
 import { FooterSection } from '../sections/FooterSection';
 import { VideoSection } from '../sections/VideoSection';
 import { DownloadSection } from '../sections/DownloadSection';
+import { DOWNLOAD_ANCHOR_ID, getSectionAnchorId, getSectionKey } from '../../../shared/lib/sections';
+import { normalizeHeaderConfig } from '../../../shared/lib/headerConfig';
 
 interface SectionRendererContext {
   section: LandingSection;
@@ -25,6 +27,33 @@ interface NavItem {
   label: string;
 }
 
+interface HeaderNavRenderItem {
+  id: string;
+  label: string;
+  href: string;
+  desktop: boolean;
+  mobile: boolean;
+}
+
+interface HeaderCTAResolved {
+  label: string;
+  href: string;
+  variant: 'solid' | 'ghost';
+  testId: string;
+}
+
+interface HeaderCTASet {
+  primary: HeaderCTAResolved | null;
+  secondary: HeaderCTAResolved | null;
+}
+
+interface HeaderRuntimeMeta {
+  fallbackActive: boolean;
+  variantLabel: string;
+  resolutionLabel: string;
+  statusNote: string | null;
+}
+
 const SECTION_NAV_ORDER = ['hero', 'video', 'features', 'pricing', 'testimonials', 'faq', 'cta', 'footer'] as const;
 const SECTION_NAV_LABELS: Record<string, string> = {
   hero: 'Overview',
@@ -36,7 +65,6 @@ const SECTION_NAV_LABELS: Record<string, string> = {
   cta: 'Call to Action',
   footer: 'More',
 };
-const DOWNLOAD_ANCHOR_ID = 'downloads-section';
 const RESOLUTION_LABELS: Record<VariantResolution, string> = {
   url_param: 'URL parameter',
   local_storage: 'Stored assignment',
@@ -78,19 +106,6 @@ const SECTION_COMPONENTS: Record<string, SectionRenderer> = {
     <DownloadSection content={section.content as any} downloads={config?.downloads} />
   ),
 };
-
-function getSectionKey(section: LandingSection) {
-  return section.id ?? `${section.section_type}-${section.order}`;
-}
-
-function getSectionAnchorId(section: LandingSection) {
-  if (section.section_type === 'downloads') {
-    return DOWNLOAD_ANCHOR_ID;
-  }
-  const base = section.section_type.replace(/_/g, '-');
-  const suffix = section.id ?? section.order;
-  return `${base}-${suffix}`;
-}
 
 function buildNavItems(sections: LandingSection[], includeDownloads: boolean, downloadAnchorId: string): NavItem[] {
   const items: NavItem[] = [];
@@ -148,10 +163,6 @@ export function PublicLanding() {
   }, [config]);
   const hasDownloads = downloadApps.length > 0;
   const downloadAnchorId = downloadsSection ? getSectionAnchorId(downloadsSection) : DOWNLOAD_ANCHOR_ID;
-  const navItems = useMemo(
-    () => buildNavItems(sections, hasDownloads, downloadAnchorId),
-    [sections, hasDownloads, downloadAnchorId],
-  );
   const heroSection = sections.find((section) => section.section_type === 'hero');
   const heroCTAContent = heroSection?.content as { cta_text?: string; cta_url?: string } | undefined;
   const heroCtaText = typeof heroCTAContent?.cta_text === 'string' ? heroCTAContent.cta_text : undefined;
@@ -175,6 +186,32 @@ export function PublicLanding() {
     }
     return 'View downloads';
   }, [downloadApps, hasDownloads]);
+  const headerConfig = useMemo(
+    () => normalizeHeaderConfig(config?.header, variantLabel),
+    [config?.header, variantLabel],
+  );
+  const navLinks = useMemo(
+    () => resolveNavLinks(headerConfig, sections, hasDownloads, downloadAnchorId),
+    [headerConfig, sections, hasDownloads, downloadAnchorId],
+  );
+  const ctas = useMemo(
+    () =>
+      resolveHeaderCTAs(
+        headerConfig,
+        { label: heroCtaText, href: heroCtaUrl },
+        hasDownloads ? { label: downloadButtonLabel, href: `#${downloadAnchorId}` } : null,
+      ),
+    [headerConfig, heroCtaText, heroCtaUrl, hasDownloads, downloadButtonLabel, downloadAnchorId],
+  );
+  const runtimeMeta = useMemo<HeaderRuntimeMeta>(
+    () => ({
+      fallbackActive,
+      variantLabel,
+      resolutionLabel,
+      statusNote,
+    }),
+    [fallbackActive, variantLabel, resolutionLabel, statusNote],
+  );
 
   if (configLoading) {
     return (
@@ -251,16 +288,10 @@ export function PublicLanding() {
   return (
     <div className="min-h-screen bg-[#07090F] text-slate-50">
       <LandingExperienceHeader
-        navItems={navItems}
-        ctaText={heroCtaText}
-        ctaUrl={heroCtaUrl}
-        variantLabel={variantLabel}
-        resolutionLabel={resolutionLabel}
-        fallbackActive={fallbackActive}
-        statusNote={statusNote}
-        downloadsAvailable={hasDownloads}
-        downloadAnchorId={downloadAnchorId}
-        downloadButtonLabel={downloadButtonLabel}
+        headerConfig={headerConfig}
+        navLinks={navLinks}
+        runtimeMeta={runtimeMeta}
+        ctas={ctas}
       />
       {variantPinnedViaParam && (
         <div className="border border-[#38BDF8]/30 bg-[#38BDF8]/10 py-3 px-4 text-center text-sm text-[#d3f2ff]" data-testid="variant-source-banner">
@@ -324,94 +355,334 @@ export function PublicLanding() {
 }
 
 interface LandingExperienceHeaderProps {
-  navItems: NavItem[];
-  ctaText?: string;
-  ctaUrl?: string;
-  variantLabel: string;
-  resolutionLabel: string;
-  fallbackActive: boolean;
-  statusNote: string | null;
-  downloadsAvailable: boolean;
-  downloadAnchorId?: string;
-  downloadButtonLabel?: string;
+  headerConfig: LandingHeaderConfig;
+  navLinks: HeaderNavRenderItem[];
+  runtimeMeta: HeaderRuntimeMeta;
+  ctas: HeaderCTASet;
 }
 
-function LandingExperienceHeader({
-  navItems,
-  ctaText,
-  ctaUrl,
-  variantLabel,
-  resolutionLabel,
-  fallbackActive,
-  statusNote,
-  downloadsAvailable,
-  downloadAnchorId,
-  downloadButtonLabel,
-}: LandingExperienceHeaderProps) {
-  const hasNav = navItems.length > 0;
-  const configClass = fallbackActive
-    ? 'border-[#F97316]/40 bg-[#F97316]/10 text-[#ffd3b5]'
-    : 'border-[#10B981]/40 bg-[#10B981]/10 text-[#c5f4df]';
+function LandingExperienceHeader({ headerConfig, navLinks, runtimeMeta, ctas }: LandingExperienceHeaderProps) {
+  const sticky = headerConfig.behavior?.sticky ?? true;
+  const hideOnScroll = sticky && headerConfig.behavior?.hide_on_scroll;
+  const isHidden = useHideOnScroll(hideOnScroll);
+  const hasDesktopNav = navLinks.some((link) => link.desktop);
+  const hasMobileNav = navLinks.some((link) => link.mobile);
+  const containerClasses = [
+    sticky ? 'sticky top-0' : 'relative',
+    'z-30 border-b border-white/10 bg-[#07090F]/95 backdrop-blur transition-transform duration-300',
+    isHidden ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100',
+  ].join(' ');
 
   return (
-    <div className="sticky top-0 z-30 border-b border-white/10 bg-[#07090F]/95 backdrop-blur" data-testid="landing-experience-header">
+    <div className={containerClasses} data-testid="landing-experience-header">
       <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Landing runtime</p>
-          <div className="mt-2 flex flex-wrap gap-2 text-xs font-medium">
-            <span className={`rounded-full border px-3 py-1 ${configClass}`}>
-              {fallbackActive ? 'Fallback copy active' : 'Live API config'}
-            </span>
-            <span className="rounded-full border border-white/10 px-3 py-1 text-slate-100">{variantLabel}</span>
-            <span className="rounded-full border border-white/10 px-3 py-1 text-slate-400">Source: {resolutionLabel}</span>
-          </div>
-          {statusNote && <p className="mt-1 text-xs text-slate-500">{statusNote}</p>}
-        </div>
-        {hasNav && (
+        <BrandingBlock header={headerConfig} runtime={runtimeMeta} />
+        {hasDesktopNav && (
           <nav className="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-            {navItems.map((item) => (
-              <a key={item.id} href={`#${item.id}`} className="transition-colors hover:text-white">
-                {item.label}
-              </a>
-            ))}
+            {navLinks
+              .filter((link) => link.desktop)
+              .map((link) => (
+                <a key={link.id} href={link.href} className="transition-colors hover:text-white">
+                  {link.label}
+                </a>
+              ))}
           </nav>
         )}
-        {(ctaText && ctaUrl) || (downloadsAvailable && downloadAnchorId) ? (
+        {(ctas.primary || ctas.secondary) && (
           <div className="flex flex-wrap gap-2">
-            {ctaText && ctaUrl && (
-              <Button asChild size="sm" className="gap-1 whitespace-nowrap" data-testid="landing-nav-cta">
-                <a href={ctaUrl}>
-                  {ctaText}
+            {ctas.primary && (
+              <Button asChild size="sm" className="gap-1 whitespace-nowrap" data-testid={ctas.primary.testId}>
+                <a href={ctas.primary.href}>
+                  {ctas.primary.label}
                   <ArrowRight className="ml-1 h-4 w-4" />
                 </a>
               </Button>
             )}
-            {downloadsAvailable && downloadAnchorId && (
+            {ctas.secondary && (
               <Button
                 asChild
                 size="sm"
-                variant="ghost"
-                className="gap-1 whitespace-nowrap bg-white/5 text-white hover:bg-white/10"
-                data-testid="landing-nav-download"
+                variant={ctas.secondary.variant === 'ghost' ? 'ghost' : undefined}
+                className={ctas.secondary.variant === 'ghost' ? 'gap-1 whitespace-nowrap bg-white/5 text-white hover:bg-white/10' : 'gap-1 whitespace-nowrap'}
+                data-testid={ctas.secondary.testId}
               >
-                <a href={`#${downloadAnchorId}`}>
-                  {downloadButtonLabel ?? 'Downloads'}
+                <a href={ctas.secondary.href}>
+                  {ctas.secondary.label}
                   <ArrowRight className="ml-1 h-4 w-4" />
                 </a>
               </Button>
             )}
           </div>
-        ) : null}
+        )}
       </div>
-      {hasNav && (
+      {hasMobileNav && (
         <div className="flex gap-3 overflow-x-auto px-6 pb-3 text-xs text-slate-400 md:hidden" data-testid="landing-nav-mobile">
-          {navItems.map((item) => (
-            <a key={item.id} href={`#${item.id}`} className="whitespace-nowrap rounded-full border border-white/10 px-3 py-1">
-              {item.label}
-            </a>
-          ))}
+          {navLinks
+            .filter((link) => link.mobile)
+            .map((link) => (
+              <a key={link.id} href={link.href} className="whitespace-nowrap rounded-full border border-white/10 px-3 py-1">
+                {link.label}
+              </a>
+            ))}
         </div>
       )}
     </div>
   );
+}
+
+function BrandingBlock({ header, runtime }: { header: LandingHeaderConfig; runtime: HeaderRuntimeMeta }) {
+  const mode = header.branding?.mode ?? 'logo_and_name';
+  const label = header.branding?.label ?? runtime.variantLabel;
+  const subtitle = header.branding?.subtitle;
+  const mobilePref = header.branding?.mobile_preference ?? 'auto';
+  const showLogo = mode === 'logo' || mode === 'logo_and_name';
+  const showName = mode === 'name' || mode === 'logo_and_name';
+
+  if (mode === 'none') {
+    return (
+      <div className="flex flex-col gap-1">
+        <p className="text-sm font-semibold text-white">{runtime.variantLabel}</p>
+        <RuntimeMeta runtime={runtime} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-3">
+        {showLogo && <BrandPlaceholder label={label} mobilePreference={mobilePref} hideOnMobile={mobilePref === 'name'} />}
+        {showName && (
+          <div className={mobilePref === 'logo' ? 'hidden sm:block' : ''}>
+            <p className="text-lg font-semibold text-white">{label}</p>
+            {(subtitle || runtime.resolutionLabel) && (
+              <p className="text-xs text-slate-400">{subtitle ?? runtime.resolutionLabel}</p>
+            )}
+          </div>
+        )}
+      </div>
+      <RuntimeMeta runtime={runtime} />
+    </div>
+  );
+}
+
+function BrandPlaceholder({
+  label,
+  mobilePreference,
+  hideOnMobile,
+}: {
+  label: string;
+  mobilePreference: string;
+  hideOnMobile: boolean;
+}) {
+  const initials = label
+    .split(' ')
+    .map((part) => part.charAt(0))
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'VR';
+  const visibilityClass =
+    hideOnMobile || mobilePreference === 'name' ? 'hidden sm:flex' : 'flex';
+
+  return (
+    <div
+      className={`${visibilityClass} h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500/80 to-indigo-500/80 text-sm font-bold text-white`}
+    >
+      {initials}
+    </div>
+  );
+}
+
+function RuntimeMeta({ runtime }: { runtime: HeaderRuntimeMeta }) {
+  return (
+    <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+      <span
+        className={`rounded-full border px-2 py-0.5 ${runtime.fallbackActive ? 'border-[#F97316]/40 bg-[#F97316]/10 text-[#ffd3b5]' : 'border-[#10B981]/40 bg-[#10B981]/10 text-[#c5f4df]'}`}
+      >
+        {runtime.fallbackActive ? 'Fallback copy active' : runtime.resolutionLabel}
+      </span>
+      <span className="text-slate-300">{runtime.variantLabel}</span>
+      {runtime.statusNote && <span className="text-slate-500">{runtime.statusNote}</span>}
+    </div>
+  );
+}
+
+function useHideOnScroll(enabled: boolean) {
+  const [hidden, setHidden] = useState(false);
+
+  useEffect(() => {
+    if (!enabled || typeof window === 'undefined') {
+      setHidden(false);
+      return;
+    }
+    let lastScroll = window.scrollY;
+    const handleScroll = () => {
+      const current = window.scrollY;
+      if (current > lastScroll + 20 && current > 120) {
+        setHidden(true);
+      } else if (current < lastScroll - 20) {
+        setHidden(false);
+      }
+      lastScroll = current;
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [enabled]);
+
+  return hidden;
+}
+
+function resolveNavLinks(
+  headerConfig: LandingHeaderConfig,
+  sections: LandingSection[],
+  downloadsAvailable: boolean,
+  downloadAnchorId: string,
+): HeaderNavRenderItem[] {
+  const defaultLinks = buildNavItems(sections, downloadsAvailable, downloadAnchorId).map<HeaderNavRenderItem>((item) => ({
+    id: item.id,
+    label: item.label,
+    href: `#${item.id}`,
+    desktop: true,
+    mobile: true,
+  }));
+
+  const configuredLinks = headerConfig.nav?.links ?? [];
+  if (configuredLinks.length === 0) {
+    return defaultLinks;
+  }
+
+  const anchors = sections.map((section) => ({
+    id: section.id,
+    type: section.section_type,
+    anchor: getSectionAnchorId(section),
+  }));
+
+  return configuredLinks.flatMap<HeaderNavRenderItem>((link, index) => {
+    const visibility = ensureVisibilityFlags(link.visible_on);
+    const label = link.label || SECTION_NAV_LABELS[link.section_type ?? ''] || 'Section';
+
+    if (link.type === 'downloads') {
+      if (!downloadsAvailable) {
+        return [];
+      }
+      return [
+        {
+          id: link.id || `nav-downloads-${index}`,
+          label,
+          href: `#${downloadAnchorId}`,
+          desktop: visibility.desktop,
+          mobile: visibility.mobile,
+        },
+      ];
+    }
+
+    if (link.type === 'custom' && link.href) {
+      return [
+        {
+          id: link.id || `nav-custom-${index}`,
+          label,
+          href: link.href,
+          desktop: visibility.desktop,
+          mobile: visibility.mobile,
+        },
+      ];
+    }
+
+    const anchor =
+      link.anchor ||
+      (typeof link.section_id === 'number'
+        ? anchors.find((entry) => entry.id === link.section_id)?.anchor
+        : undefined) ||
+      (link.section_type ? anchors.find((entry) => entry.type === link.section_type)?.anchor : undefined);
+
+    if (!anchor) {
+      return [];
+    }
+
+    return [
+      {
+        id: link.id || `nav-section-${index}`,
+        label,
+        href: `#${anchor}`,
+        desktop: visibility.desktop,
+        mobile: visibility.mobile,
+      },
+    ];
+  });
+}
+
+function ensureVisibilityFlags(visibility?: { desktop?: boolean; mobile?: boolean }) {
+  const desktop = visibility?.desktop ?? true;
+  const mobile = visibility?.mobile ?? true;
+  if (!visibility) {
+    return { desktop: true, mobile: true };
+  }
+  if (!desktop && !mobile) {
+    return { desktop: true, mobile: true };
+  }
+  return { desktop, mobile };
+}
+
+function resolveHeaderCTAs(
+  headerConfig: LandingHeaderConfig,
+  heroCTA: { label?: string; href?: string },
+  downloadCTA: { label: string; href: string } | null,
+): HeaderCTASet {
+  return {
+    primary: resolveCTA(headerConfig.ctas?.primary, heroCTA, downloadCTA, 'landing-nav-cta'),
+    secondary: resolveCTA(
+      headerConfig.ctas?.secondary,
+      heroCTA,
+      downloadCTA,
+      headerConfig.ctas?.secondary?.mode === 'downloads' ? 'landing-nav-download' : 'landing-nav-cta-secondary',
+    ),
+  };
+}
+
+function resolveCTA(
+  config: { mode?: string; label?: string; href?: string; variant?: 'solid' | 'ghost' } | undefined,
+  heroCTA: { label?: string; href?: string },
+  downloadCTA: { label: string; href: string } | null,
+  testId: string,
+): HeaderCTAResolved | null {
+  const mode = config?.mode ?? 'inherit_hero';
+  const variant = config?.variant ?? (mode === 'downloads' ? 'ghost' : 'solid');
+
+  if (mode === 'hidden') {
+    return null;
+  }
+
+  if (mode === 'downloads') {
+    if (!downloadCTA) {
+      return null;
+    }
+    return {
+      label: config?.label ?? downloadCTA.label,
+      href: downloadCTA.href,
+      variant,
+      testId: 'landing-nav-download',
+    };
+  }
+
+  if (mode === 'inherit_hero') {
+    if (!heroCTA.label || !heroCTA.href) {
+      return null;
+    }
+    return {
+      label: config?.label ?? heroCTA.label,
+      href: heroCTA.href,
+      variant,
+      testId,
+    };
+  }
+
+  if (mode === 'custom' && config?.label && config?.href) {
+    return {
+      label: config.label,
+      href: config.href,
+      variant,
+      testId,
+    };
+  }
+
+  return null;
 }

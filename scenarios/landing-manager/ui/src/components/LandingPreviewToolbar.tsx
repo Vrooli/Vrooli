@@ -4,6 +4,7 @@ import {
   ArrowRight,
   ExternalLink,
   Globe,
+  Home,
   Info,
   Loader2,
   Maximize2,
@@ -15,7 +16,6 @@ import {
   Settings,
   SlidersHorizontal,
   Wand2,
-  X,
 } from 'lucide-react';
 import { type LifecycleControlConfig } from './types';
 
@@ -180,6 +180,17 @@ export const LandingPreviewToolbar = memo(function LandingPreviewToolbar({
       </div>
 
       <div className="landing-preview-toolbar__right">
+        <button
+          type="button"
+          className="landing-preview-toolbar__action-btn landing-preview-toolbar__action-btn--back"
+          onClick={onClose}
+          title="Back to factory"
+          data-testid="preview-back-button"
+        >
+          <Home size={16} />
+          <span>Back to Factory</span>
+        </button>
+
         {showInfoButton && (
           <button
             type="button"
@@ -276,17 +287,6 @@ export const LandingPreviewToolbar = memo(function LandingPreviewToolbar({
           title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
         >
           {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-        </button>
-
-        {/* Close button */}
-        <button
-          type="button"
-          className="landing-preview-toolbar__icon-btn landing-preview-toolbar__icon-btn--close"
-          onClick={onClose}
-          aria-label="Close preview"
-          title="Close"
-        >
-          <X size={18} />
         </button>
       </div>
     </div>

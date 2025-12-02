@@ -374,6 +374,7 @@ import { Customization } from './surfaces/admin-portal/routes/Customization';
 import { VariantEditor } from './surfaces/admin-portal/routes/VariantEditor';
 import { SectionEditor } from './surfaces/admin-portal/routes/SectionEditor';
 import { AgentCustomization } from './surfaces/admin-portal/routes/AgentCustomization';
+import { BillingSettings } from './surfaces/admin-portal/routes/BillingSettings';
 import { PublicLanding } from './surfaces/public-landing/routes/PublicLanding';
 
 export default function App() {
@@ -418,6 +419,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Customization />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/billing"
+              element={
+                <ProtectedRoute>
+                  <BillingSettings />
                 </ProtectedRoute>
               }
             />

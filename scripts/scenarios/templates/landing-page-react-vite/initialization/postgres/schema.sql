@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS variants (
     description TEXT,
     weight INTEGER DEFAULT 50 CHECK (weight >= 0 AND weight <= 100),
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'archived', 'deleted')),
+    header_config JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     archived_at TIMESTAMP

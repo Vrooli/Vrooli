@@ -8,6 +8,7 @@ import {
   type Variant,
   type VariantAxes,
   type VariantSpace,
+  type LandingHeaderConfig,
 } from '../../../shared/api';
 
 export interface VariantEditorData {
@@ -102,6 +103,7 @@ export async function persistVariant(params: {
   slugFromRoute?: string;
   form: VariantFormState;
   axesSelection: VariantAxes;
+  headerConfig: LandingHeaderConfig;
 }) {
   const normalized = normalizeForm(params.form);
   if (params.isNew) {
@@ -111,6 +113,7 @@ export async function persistVariant(params: {
       description: normalized.description || undefined,
       weight: normalized.weight,
       axes: params.axesSelection,
+      header_config: params.headerConfig,
     });
   }
 
@@ -123,6 +126,7 @@ export async function persistVariant(params: {
     description: normalized.description || undefined,
     weight: normalized.weight,
     axes: params.axesSelection,
+    header_config: params.headerConfig,
   });
 
   return undefined;

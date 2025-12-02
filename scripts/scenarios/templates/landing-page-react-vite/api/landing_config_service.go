@@ -441,6 +441,7 @@ type LandingConfigResponse struct {
 	Sections  []LandingSection      `json:"sections"`
 	Pricing   *PricingOverview      `json:"pricing"`
 	Downloads []DownloadApp         `json:"downloads"`
+	Header    LandingHeaderConfig   `json:"header"`
 	Fallback  bool                  `json:"fallback"`
 }
 
@@ -464,6 +465,7 @@ type LandingConfigPayload struct {
 	Sections  []LandingSection      `json:"sections"`
 	Pricing   PricingOverview       `json:"pricing"`
 	Downloads []DownloadApp         `json:"downloads"`
+	Header    LandingHeaderConfig   `json:"header"`
 }
 
 func NewLandingConfigService(
@@ -523,6 +525,7 @@ func (s *LandingConfigService) GetLandingConfig(ctx context.Context, variantSlug
 			Description: variant.Description,
 			Axes:        variant.Axes,
 		},
+		Header:   variant.HeaderConfig,
 		Pricing:   pricing,
 		Downloads: downloads,
 		Fallback:  false,
@@ -561,6 +564,7 @@ func (s *LandingConfigService) fallbackResponse(mark bool) *LandingConfigRespons
 		Sections:  fallbackLanding.Sections,
 		Pricing:   &fallbackLanding.Pricing,
 		Downloads: fallbackLanding.Downloads,
+		Header:    fallbackLanding.Header,
 		Fallback:  mark,
 	}
 }
@@ -593,6 +597,7 @@ type fallbackLandingPayload struct {
 	Pricing   *PricingOverview      `json:"pricing"`
 	Downloads json.RawMessage       `json:"downloads"`
 	Axes      map[string]string     `json:"axes"`
+	Header    LandingHeaderConfig   `json:"header"`
 }
 
 type fallbackSection struct {
@@ -636,6 +641,7 @@ func parseFallbackLandingConfig(data []byte) (LandingConfigPayload, error) {
 		Sections:  sections,
 		Pricing:   *raw.Pricing,
 		Downloads: normalizeDownloads(downloadApps),
+		Header:    normalizeLandingHeaderConfig(&raw.Header, raw.Variant.Name),
 	}
 	payload.Variant.Slug = variantSlug
 

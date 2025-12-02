@@ -221,6 +221,7 @@ func handleVariantUpdate(vs *VariantService) http.HandlerFunc {
 			Description *string           `json:"description,omitempty"`
 			Weight      *int              `json:"weight,omitempty"`
 			Axes        map[string]string `json:"axes,omitempty"`
+			HeaderConfig *LandingHeaderConfig `json:"header_config,omitempty"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -228,7 +229,7 @@ func handleVariantUpdate(vs *VariantService) http.HandlerFunc {
 			return
 		}
 
-		variant, err := vs.UpdateVariant(slug, req.Name, req.Description, req.Weight, req.Axes)
+		variant, err := vs.UpdateVariant(slug, req.Name, req.Description, req.Weight, req.Axes, req.HeaderConfig)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
