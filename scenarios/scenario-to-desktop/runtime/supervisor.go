@@ -28,8 +28,9 @@
 //	  supervisor.go       - Core Supervisor struct, Start, Shutdown
 //	  api/                - HTTP handlers and authentication middleware
 //	  service_launcher.go - Service lifecycle management
-//	  interfaces.go       - Re-exports and ServiceManager interface
-//	  utils.go            - Shared utilities (copyStringMap, intersection, etc.)
+//	  types.go            - Re-exports and ServiceManager interface
+//	  strutil/            - String/map utilities (CopyStringMap, EnvMapToList, Intersection)
+//	  fileutil/           - File utilities (TailFile)
 //	  deps/               - Dependency resolution (TopoSort, FindService)
 //
 // See README.md for detailed documentation and architecture diagrams.
@@ -49,6 +50,7 @@ import (
 	"sync"
 
 	"scenario-to-desktop-runtime/api"
+	"scenario-to-desktop-runtime/assets"
 	"scenario-to-desktop-runtime/config"
 	"scenario-to-desktop-runtime/env"
 	"scenario-to-desktop-runtime/gpu"
@@ -120,6 +122,11 @@ type Supervisor struct {
 	secretStore   secrets.Store
 	healthChecker HealthChecker
 	telemetry     telemetry.Recorder
+
+	// Cached domain objects (created once, reused).
+	envRenderer   *env.Renderer
+	assetVerifier *assets.Verifier
+	gpuApplier    *gpu.Applier
 
 	// Paths and auth.
 	authToken      string
@@ -228,6 +235,8 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 		appData:       appData,
 		serviceStatus: make(map[string]ServiceStatus),
 		procs:         make(map[string]*serviceProcess),
+		// Create envRenderer now since all dependencies are available.
+		envRenderer: env.NewRenderer(appData, opts.BundlePath, portAllocator, envReader),
 	}
 
 	// Create or use provided HealthChecker.
@@ -312,6 +321,10 @@ func (s *Supervisor) Start(ctx context.Context) error {
 		"method":    s.gpuStatus.Method,
 		"reason":    s.gpuStatus.Reason,
 	})
+
+	// Create cached domain objects now that telemetry and GPU status are available.
+	s.assetVerifier = assets.NewVerifier(s.opts.BundlePath, s.fs, s.telemetry)
+	s.gpuApplier = gpu.NewApplier(s.gpuStatus, s.telemetry)
 
 	// Set up HTTP server using the API package.
 	apiServer := api.NewServer(s, s.authToken)
@@ -561,24 +574,19 @@ func (s *Supervisor) UpdateSecrets(newSecrets map[string]string) error {
 // Template Expansion (delegates to env package)
 // =============================================================================
 
-// envRenderer returns an environment renderer for the current supervisor state.
-func (s *Supervisor) envRenderer() *env.Renderer {
-	return env.NewRenderer(s.appData, s.opts.BundlePath, s.portAllocator, s.envReader)
-}
-
 // renderEnvMap builds the environment variable map for a service.
 func (s *Supervisor) renderEnvMap(svc manifest.Service, bin manifest.Binary) (map[string]string, error) {
-	return s.envRenderer().RenderEnvMap(svc, bin)
+	return s.envRenderer.RenderEnvMap(svc, bin)
 }
 
 // renderArgs expands template variables in command arguments.
 func (s *Supervisor) renderArgs(args []string) []string {
-	return s.envRenderer().RenderArgs(args)
+	return s.envRenderer.RenderArgs(args)
 }
 
 // renderValue expands template variables in a string.
 func (s *Supervisor) renderValue(input string) string {
-	return s.envRenderer().RenderValue(input)
+	return s.envRenderer.RenderValue(input)
 }
 
 // GPUStatus returns the current GPU detection status.

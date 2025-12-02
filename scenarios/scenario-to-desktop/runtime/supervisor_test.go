@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"scenario-to-desktop-runtime/api"
+	"scenario-to-desktop-runtime/assets"
 	"scenario-to-desktop-runtime/health"
 	"scenario-to-desktop-runtime/manifest"
 	"scenario-to-desktop-runtime/secrets"
@@ -30,6 +31,7 @@ func TestEnsureAssetsSizeBudget(t *testing.T) {
 	}
 
 	telemetryPath := filepath.Join(tmp, "telemetry.jsonl")
+	telem := telemetry.NewFileRecorder(telemetryPath, RealClock{}, RealFileSystem{})
 	s := &Supervisor{
 		opts: Options{
 			BundlePath: tmp,
@@ -38,7 +40,8 @@ func TestEnsureAssetsSizeBudget(t *testing.T) {
 		telemetryPath: telemetryPath,
 		fs:            RealFileSystem{},
 		clock:         RealClock{},
-		telemetry:     telemetry.NewFileRecorder(telemetryPath, RealClock{}, RealFileSystem{}),
+		telemetry:     telem,
+		assetVerifier: assets.NewVerifier(tmp, RealFileSystem{}, telem),
 	}
 	svc := manifest.Service{
 		ID: "playwright-driver",

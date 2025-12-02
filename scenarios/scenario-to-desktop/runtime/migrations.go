@@ -6,6 +6,7 @@ import (
 
 	"scenario-to-desktop-runtime/manifest"
 	"scenario-to-desktop-runtime/migrations"
+	"scenario-to-desktop-runtime/strutil"
 )
 
 // migrationsTracker returns a migrations tracker instance.
@@ -42,7 +43,7 @@ func (s *Supervisor) runMigrations(ctx context.Context, svc manifest.Service, bi
 
 	state := s.migrations
 	appliedSet := migrations.BuildAppliedSet(state.Applied[svc.ID])
-	envBase := copyStringMap(baseEnv)
+	envBase := strutil.CopyStringMap(baseEnv)
 
 	for _, m := range svc.Migrations {
 		if err := s.maybeRunMigration(ctx, svc, m, bin, envBase, phase, appliedSet, &state); err != nil {
@@ -81,7 +82,7 @@ func (s *Supervisor) maybeRunMigration(
 		return fmt.Errorf("migration %s has no command", m.Version)
 	}
 
-	env := copyStringMap(envBase)
+	env := strutil.CopyStringMap(envBase)
 	for k, v := range m.Env {
 		env[k] = s.renderValue(v)
 	}
@@ -133,7 +134,7 @@ func (s *Supervisor) executeMigration(ctx context.Context, svc manifest.Service,
 	}
 
 	// Start the migration process using the injected ProcessRunner.
-	proc, err := s.procRunner.Start(ctx, cmdPath, args, envMapToList(env), workDir, logWriter, logWriter)
+	proc, err := s.procRunner.Start(ctx, cmdPath, args, strutil.EnvMapToList(env), workDir, logWriter, logWriter)
 	if err != nil {
 		return fmt.Errorf("start migration %s: %w", m.Version, err)
 	}

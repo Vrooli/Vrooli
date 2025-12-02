@@ -1,25 +1,36 @@
-package bundleruntime
+package env
 
 import (
-	"os"
 	"testing"
 
 	"scenario-to-desktop-runtime/manifest"
 	"scenario-to-desktop-runtime/testutil"
 )
 
-func TestRenderEnvMap(t *testing.T) {
-	t.Setenv("EXISTING_VAR", "existing_value")
+// mockEnvReader implements infra.EnvReader for testing.
+type mockEnvReader struct {
+	env map[string]string
+}
 
-	s := &Supervisor{
-		appData: "/app/data",
-		opts: Options{
-			BundlePath: "/bundle/root",
-			Manifest:   &manifest.Manifest{},
-		},
-		portAllocator: &testutil.MockPortAllocator{Ports: map[string]map[string]int{}},
-		envReader:     RealEnvReader{},
+func (r mockEnvReader) Getenv(key string) string {
+	return r.env[key]
+}
+
+func (r mockEnvReader) Environ() []string {
+	out := make([]string, 0, len(r.env))
+	for k, v := range r.env {
+		out = append(out, k+"="+v)
 	}
+	return out
+}
+
+func TestRenderer_RenderEnvMap(t *testing.T) {
+	ports := testutil.NewMockPortAllocator()
+	envReader := mockEnvReader{env: map[string]string{
+		"EXISTING_VAR": "existing_value",
+	}}
+
+	r := NewRenderer("/app/data", "/bundle/root", ports, envReader)
 
 	svc := manifest.Service{
 		ID: "api",
@@ -37,9 +48,9 @@ func TestRenderEnvMap(t *testing.T) {
 		},
 	}
 
-	env, err := s.renderEnvMap(svc, bin)
+	env, err := r.RenderEnvMap(svc, bin)
 	if err != nil {
-		t.Fatalf("renderEnvMap() error = %v", err)
+		t.Fatalf("RenderEnvMap() error = %v", err)
 	}
 
 	tests := []struct {
@@ -66,16 +77,12 @@ func TestRenderEnvMap(t *testing.T) {
 	}
 }
 
-func TestRenderArgs(t *testing.T) {
-	s := &Supervisor{
-		appData: "/app/data",
-		opts: Options{
-			BundlePath: "/bundle",
-		},
-		portAllocator: &testutil.MockPortAllocator{Ports: map[string]map[string]int{
-			"api": {"http": 47000, "grpc": 47001},
-		}},
-	}
+func TestRenderer_RenderArgs(t *testing.T) {
+	ports := testutil.NewMockPortAllocator()
+	ports.SetPort("api", "http", 47000)
+	ports.SetPort("api", "grpc", 47001)
+
+	r := NewRenderer("/app/data", "/bundle", ports, mockEnvReader{})
 
 	args := []string{
 		"--config",
@@ -90,7 +97,7 @@ func TestRenderArgs(t *testing.T) {
 		"no-template",
 	}
 
-	got := s.renderArgs(args)
+	got := r.RenderArgs(args)
 
 	want := []string{
 		"--config",
@@ -106,27 +113,22 @@ func TestRenderArgs(t *testing.T) {
 	}
 
 	if len(got) != len(want) {
-		t.Fatalf("renderArgs() returned %d args, want %d", len(got), len(want))
+		t.Fatalf("RenderArgs() returned %d args, want %d", len(got), len(want))
 	}
 
 	for i := range want {
 		if got[i] != want[i] {
-			t.Errorf("renderArgs()[%d] = %q, want %q", i, got[i], want[i])
+			t.Errorf("RenderArgs()[%d] = %q, want %q", i, got[i], want[i])
 		}
 	}
 }
 
-func TestRenderValue(t *testing.T) {
-	s := &Supervisor{
-		appData: "/home/user/.config/myapp",
-		opts: Options{
-			BundlePath: "/opt/myapp",
-		},
-		portAllocator: &testutil.MockPortAllocator{Ports: map[string]map[string]int{
-			"api":      {"http": 8080},
-			"database": {"postgres": 5432},
-		}},
-	}
+func TestRenderer_RenderValue(t *testing.T) {
+	ports := testutil.NewMockPortAllocator()
+	ports.SetPort("api", "http", 8080)
+	ports.SetPort("database", "postgres", 5432)
+
+	r := NewRenderer("/home/user/.config/myapp", "/opt/myapp", ports, mockEnvReader{})
 
 	tests := []struct {
 		name  string
@@ -146,29 +148,22 @@ func TestRenderValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := s.renderValue(tt.input)
+			got := r.RenderValue(tt.input)
 			if got != tt.want {
-				t.Errorf("renderValue(%q) = %q, want %q", tt.input, got, tt.want)
+				t.Errorf("RenderValue(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestRenderEnvMap_BinaryOverridesService(t *testing.T) {
-	s := &Supervisor{
-		appData: "/app",
-		opts: Options{
-			BundlePath: "/bundle",
-			Manifest:   &manifest.Manifest{},
-		},
-		portAllocator: &testutil.MockPortAllocator{Ports: map[string]map[string]int{}},
-		envReader:     RealEnvReader{},
-	}
+func TestRenderer_RenderEnvMap_BinaryOverridesService(t *testing.T) {
+	ports := testutil.NewMockPortAllocator()
+	r := NewRenderer("/app", "/bundle", ports, mockEnvReader{})
 
 	svc := manifest.Service{
 		ID: "api",
 		Env: map[string]string{
-			"PORT":     "8080",
+			"PORT":      "8080",
 			"LOG_LEVEL": "info",
 		},
 	}
@@ -179,9 +174,9 @@ func TestRenderEnvMap_BinaryOverridesService(t *testing.T) {
 		},
 	}
 
-	env, err := s.renderEnvMap(svc, bin)
+	env, err := r.RenderEnvMap(svc, bin)
 	if err != nil {
-		t.Fatalf("renderEnvMap() error = %v", err)
+		t.Fatalf("RenderEnvMap() error = %v", err)
 	}
 
 	// Binary PORT should override service PORT
@@ -195,28 +190,20 @@ func TestRenderEnvMap_BinaryOverridesService(t *testing.T) {
 	}
 }
 
-func TestRenderEnvMap_InheritsOSEnvironment(t *testing.T) {
-	uniqueKey := "TEST_RUNTIME_UNIQUE_VAR_12345"
-	uniqueValue := "unique_test_value"
-	os.Setenv(uniqueKey, uniqueValue)
-	defer os.Unsetenv(uniqueKey)
+func TestRenderer_RenderEnvMap_InheritsEnvironment(t *testing.T) {
+	ports := testutil.NewMockPortAllocator()
+	envReader := mockEnvReader{env: map[string]string{
+		"UNIQUE_VAR": "unique_value",
+	}}
 
-	s := &Supervisor{
-		appData: "/app",
-		opts: Options{
-			BundlePath: "/bundle",
-			Manifest:   &manifest.Manifest{},
-		},
-		portAllocator: &testutil.MockPortAllocator{Ports: map[string]map[string]int{}},
-		envReader:     RealEnvReader{},
-	}
+	r := NewRenderer("/app", "/bundle", ports, envReader)
 
-	env, err := s.renderEnvMap(manifest.Service{}, manifest.Binary{})
+	env, err := r.RenderEnvMap(manifest.Service{}, manifest.Binary{})
 	if err != nil {
-		t.Fatalf("renderEnvMap() error = %v", err)
+		t.Fatalf("RenderEnvMap() error = %v", err)
 	}
 
-	if env[uniqueKey] != uniqueValue {
-		t.Errorf("env[%s] = %q, want %q (should inherit OS environment)", uniqueKey, env[uniqueKey], uniqueValue)
+	if env["UNIQUE_VAR"] != "unique_value" {
+		t.Errorf("env[UNIQUE_VAR] = %q, want %q (should inherit from EnvReader)", env["UNIQUE_VAR"], "unique_value")
 	}
 }

@@ -14,8 +14,8 @@ import (
 
 	"scenario-to-desktop-runtime/health"
 	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/internal/fileutil"
-	"scenario-to-desktop-runtime/internal/strutil"
+	"scenario-to-desktop-runtime/fileutil"
+	"scenario-to-desktop-runtime/strutil"
 	"scenario-to-desktop-runtime/manifest"
 )
 

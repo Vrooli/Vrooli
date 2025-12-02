@@ -11,18 +11,17 @@ import (
 
 	"scenario-to-desktop-runtime/assets"
 	"scenario-to-desktop-runtime/deps"
-	"scenario-to-desktop-runtime/gpu"
 	"scenario-to-desktop-runtime/manifest"
+	"scenario-to-desktop-runtime/strutil"
 )
 
 // =============================================================================
-// Asset Management (delegates to assets package)
+// Asset Management (uses cached verifier)
 // =============================================================================
 
 // ensureAssets verifies all required assets for a service exist and are valid.
 func (s *Supervisor) ensureAssets(svc manifest.Service) error {
-	v := assets.NewVerifier(s.opts.BundlePath, s.fs, s.telemetry)
-	return v.EnsureAssets(svc)
+	return s.assetVerifier.EnsureAssets(svc)
 }
 
 // =============================================================================
@@ -41,39 +40,13 @@ func (s *Supervisor) applyPlaywrightConventions(svc manifest.Service, env map[st
 	return assets.ApplyPlaywrightConventions(cfg, svc, env)
 }
 
-// serviceUsesPlaywright determines if a service requires Playwright setup.
-func serviceUsesPlaywright(svc manifest.Service) bool {
-	return assets.ServiceUsesPlaywright(svc)
-}
-
 // =============================================================================
-// Health Monitoring (delegates to health package)
-// =============================================================================
-
-// waitForReadiness waits for a service to become ready.
-func (s *Supervisor) waitForReadiness(ctx context.Context, svc manifest.Service) error {
-	return s.healthChecker.WaitForReadiness(ctx, svc.ID)
-}
-
-// waitForDependencies waits for all service dependencies to be ready.
-func (s *Supervisor) waitForDependencies(ctx context.Context, svc *manifest.Service) error {
-	return s.healthChecker.WaitForDependencies(ctx, svc)
-}
-
-// =============================================================================
-// GPU Requirement (delegates to gpu package)
+// GPU Requirement (uses cached applier)
 // =============================================================================
 
 // applyGPURequirement enforces GPU requirements for a service.
 func (s *Supervisor) applyGPURequirement(env map[string]string, svc manifest.Service) error {
-	applier := gpu.NewApplier(s.gpuStatus, s.telemetry)
-	return applier.Apply(env, svc)
-}
-
-// boolToString converts a boolean to "true" or "false".
-// Re-exported from gpu package for tests.
-func boolToString(v bool) string {
-	return gpu.BoolToString(v)
+	return s.gpuApplier.Apply(env, svc)
 }
 
 // exitCode extracts the exit code from an error, if available.
@@ -121,7 +94,7 @@ func (s *Supervisor) launchServices(ctx context.Context) error {
 		}
 
 		// Ensure dependencies are ready before starting.
-		if err := s.waitForDependencies(ctx, svc); err != nil {
+		if err := s.healthChecker.WaitForDependencies(ctx, svc); err != nil {
 			s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: err.Error()})
 			_ = s.recordTelemetry("service_blocked", map[string]interface{}{
 				"service_id": svc.ID,
@@ -211,7 +184,7 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 	}()
 
 	// Start the process using the injected ProcessRunner.
-	proc, err := s.procRunner.Start(cmdCtx, cmdPath, args, envMapToList(envMap), workDir, logWriter, logWriter)
+	proc, err := s.procRunner.Start(cmdCtx, cmdPath, args, strutil.EnvMapToList(envMap), workDir, logWriter, logWriter)
 	if err != nil {
 		cancel()
 		return fmt.Errorf("start %s: %w", svc.ID, err)
@@ -233,7 +206,7 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		if err := s.waitForReadiness(cmdCtx, svc); err != nil {
+		if err := s.healthChecker.WaitForReadiness(cmdCtx, svc.ID); err != nil {
 			s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: err.Error()})
 			_ = s.recordTelemetry("service_not_ready", map[string]interface{}{
 				"service_id": svc.ID,
