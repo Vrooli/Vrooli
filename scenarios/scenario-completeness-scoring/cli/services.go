@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/vrooli/cli-core/cliutil"
 	"scenario-completeness-scoring/cli/models"
 )
 
@@ -15,7 +16,7 @@ type Services struct {
 	Config  *ConfigService
 }
 
-func NewServices(api *APIClient) *Services {
+func NewServices(api *cliutil.APIClient) *Services {
 	return &Services{
 		Health:  &HealthService{api: api},
 		Scoring: &ScoringService{api: api},
@@ -24,7 +25,7 @@ func NewServices(api *APIClient) *Services {
 }
 
 type HealthService struct {
-	api *APIClient
+	api *cliutil.APIClient
 }
 
 func (s *HealthService) Status() ([]byte, map[string]interface{}, error) {
@@ -63,7 +64,7 @@ type scoresListResponse struct {
 }
 
 type ScoringService struct {
-	api *APIClient
+	api *cliutil.APIClient
 }
 
 func (s *ScoringService) ScoresList() (scoresListResponse, []byte, error) {
@@ -147,7 +148,7 @@ func (s *ScoringService) Recommend(scenarioName string) ([]byte, error) {
 }
 
 type ConfigService struct {
-	api *APIClient
+	api *cliutil.APIClient
 }
 
 func (s *ConfigService) Get() ([]byte, error) {
