@@ -129,12 +129,8 @@
     }
   },
   "constraints": {
-    "_note": "Keep freelancers on self-serve funnels and ops leads on demo flows.",
+    "_note": "Prevent freelancers from pairing demo-led flows with optimization JTBD until the playbooks are ready.",
     "disallowedCombinations": [
-      {
-        "persona": "ops_leader",
-        "conversionStyle": "self_serve"
-      },
       {
         "persona": "automation_freelancer",
         "conversionStyle": "demo_led",

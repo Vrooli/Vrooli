@@ -33,6 +33,7 @@ export function VariantEditor() {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [variantSpace, setVariantSpace] = useState<VariantSpace | null>(null);
   const [axesSelection, setAxesSelection] = useState<VariantAxes>({});
   const [axesSeeded, setAxesSeeded] = useState(false);
@@ -48,6 +49,9 @@ export function VariantEditor() {
   };
 
   const updateFormField = <K extends keyof VariantFormState>(field: K, value: VariantFormState[K]) => {
+    if (validationError) {
+      setValidationError(null);
+    }
     setForm((prev) => ({
       ...prev,
       [field]: value,
@@ -124,12 +128,13 @@ export function VariantEditor() {
     });
 
     if (validationMessage) {
-      alert(validationMessage);
+      setValidationError(validationMessage);
       return;
     }
 
     try {
       setSaving(true);
+      setValidationError(null);
 
       const saved = await persistVariant({
         isNew,
@@ -202,6 +207,12 @@ export function VariantEditor() {
         {error && (
           <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 mb-6">
             <p className="text-red-400">{error}</p>
+          </div>
+        )}
+
+        {validationError && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 mb-6" data-testid="variant-validation-error">
+            <p className="text-amber-300 text-sm">{validationError}</p>
           </div>
         )}
 
@@ -281,12 +292,15 @@ export function VariantEditor() {
                         <select
                           className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
                           value={selectedValue}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            if (validationError) {
+                              setValidationError(null);
+                            }
                             setAxesSelection((prev) => ({
                               ...prev,
                               [axisId]: e.target.value,
-                            }))
-                          }
+                            }));
+                          }}
                         >
                           {axisDef.variants.map((axisVariant) => (
                             <option key={axisVariant.id} value={axisVariant.id}>

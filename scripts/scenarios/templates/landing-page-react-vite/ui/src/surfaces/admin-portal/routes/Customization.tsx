@@ -593,7 +593,9 @@ function VariantFilterBar({ query, onQueryChange, attentionOnly, onAttentionTogg
           )}
         </div>
       </div>
-      <p className="mt-3 text-xs text-slate-500">Filters apply to the Active Variants grid. Use them to jump directly to stale or underperforming experiments.</p>
+      <p className="mt-3 text-xs text-slate-500">
+        Filters apply to the Active Variants grid. Needs attention surfaces variants that are never customized, stale for 10+ days, or currently the weakest conversion.
+      </p>
     </div>
   );
 }

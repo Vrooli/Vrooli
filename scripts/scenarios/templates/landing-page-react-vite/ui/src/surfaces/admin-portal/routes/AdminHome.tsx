@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "../components/AdminLayout";
 import { Button } from "../../../shared/ui/button";
-import { Activity, AlertTriangle, BarChart3, Compass, ExternalLink, Gauge, History, Palette, RefreshCw } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Compass, CreditCard, ExternalLink, Gauge, History, Palette, RefreshCw, ShieldCheck } from "lucide-react";
 import { getAdminExperienceSnapshot, type AdminExperienceSnapshot } from "../../../shared/lib/adminExperience";
-import { listVariants, type AnalyticsSummary, type Variant, type VariantStats } from "../../../shared/api";
+import { listVariants, type AnalyticsSummary, type Variant, type VariantStats, getStripeSettings, type StripeSettingsResponse } from "../../../shared/api";
 import { buildDateRange, fetchAnalyticsSummary } from "../controllers/analyticsController";
 import { useLandingVariant, type VariantResolution } from "../../../app/providers/LandingVariantProvider";
 
@@ -61,6 +61,9 @@ export function AdminHome() {
   const [healthLoading, setHealthLoading] = useState(true);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [healthMetricsDegraded, setHealthMetricsDegraded] = useState(false);
+  const [stripeSettings, setStripeSettings] = useState<StripeSettingsResponse | null>(null);
+  const [stripeLoading, setStripeLoading] = useState(true);
+  const [stripeError, setStripeError] = useState<string | null>(null);
 
   useEffect(() => {
     setExperience(getAdminExperienceSnapshot());
@@ -101,6 +104,24 @@ export function AdminHome() {
   useEffect(() => {
     refreshHealthSnapshot();
   }, [refreshHealthSnapshot]);
+
+  const refreshStripeStatus = useCallback(async () => {
+    setStripeLoading(true);
+    setStripeError(null);
+    try {
+      const data = await getStripeSettings();
+      setStripeSettings(data);
+    } catch (error) {
+      setStripeSettings(null);
+      setStripeError(error instanceof Error ? error.message : "Failed to load monetization status");
+    } finally {
+      setStripeLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshStripeStatus();
+  }, [refreshStripeStatus]);
 
   const resumeVariant = experience?.lastVariant;
   const resumeAnalytics = experience?.lastAnalytics;
@@ -150,6 +171,9 @@ export function AdminHome() {
   const handleInspectVariantAnalytics = (slug: string) => {
     navigate(`/admin/analytics?variant=${slug}`);
   };
+  const handleNavigateBilling = () => {
+    navigate("/admin/billing");
+  };
 
   return (
     <AdminLayout>
@@ -159,6 +183,7 @@ export function AdminHome() {
         <ExperienceGuidePanel
           onNavigateAnalytics={() => navigate('/admin/analytics')}
           onNavigateCustomization={() => navigate('/admin/customization')}
+          onNavigateBilling={handleNavigateBilling}
           onPreviewPublicLanding={previewPublicLanding}
         />
 
@@ -176,6 +201,14 @@ export function AdminHome() {
           liveResolution={liveResolution}
           statusNote={liveStatusNote}
           previewPublicLanding={previewPublicLanding}
+        />
+
+        <MonetizationStatusCard
+          loading={stripeLoading}
+          error={stripeError}
+          settings={stripeSettings}
+          onRetry={refreshStripeStatus}
+          onNavigateBilling={handleNavigateBilling}
         />
 
         <div className="grid md:grid-cols-2 gap-6">
@@ -283,10 +316,11 @@ export function AdminHome() {
 interface ExperienceGuidePanelProps {
   onNavigateAnalytics: () => void;
   onNavigateCustomization: () => void;
+  onNavigateBilling: () => void;
   onPreviewPublicLanding: () => void;
 }
 
-function ExperienceGuidePanel({ onNavigateAnalytics, onNavigateCustomization, onPreviewPublicLanding }: ExperienceGuidePanelProps) {
+function ExperienceGuidePanel({ onNavigateAnalytics, onNavigateCustomization, onNavigateBilling, onPreviewPublicLanding }: ExperienceGuidePanelProps) {
   return (
     <div className="mb-8 rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-900/90 p-6" data-testid="admin-experience-guide">
       <div className="flex flex-col gap-2 mb-6">
@@ -296,7 +330,7 @@ function ExperienceGuidePanel({ onNavigateAnalytics, onNavigateCustomization, on
           Analytics tells you what happened. Customization lets you respond. Use the quick flows below to jump to the right surface for your job.
         </p>
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-blue-500/20">
@@ -358,6 +392,25 @@ function ExperienceGuidePanel({ onNavigateAnalytics, onNavigateCustomization, on
             Preview landing
           </Button>
         </div>
+        <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-500/20">
+              <CreditCard className="h-4 w-4 text-amber-300" />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Flow 4</p>
+              <p className="font-semibold text-white">Protect monetization</p>
+            </div>
+          </div>
+          <ol className="text-sm text-slate-400 space-y-1 list-decimal list-inside">
+            <li>Check Stripe key badges</li>
+            <li>Confirm visible plans</li>
+            <li>Sync entitlements</li>
+          </ol>
+          <Button size="sm" variant="outline" className="w-full" onClick={onNavigateBilling} data-testid="admin-guide-billing">
+            Open Billing
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -377,6 +430,79 @@ interface AdminHealthDigestProps {
   liveResolution: VariantResolution;
   statusNote: string | null;
   previewPublicLanding: () => void;
+}
+
+interface MonetizationStatusCardProps {
+  loading: boolean;
+  error: string | null;
+  settings: StripeSettingsResponse | null;
+  onRetry: () => void;
+  onNavigateBilling: () => void;
+}
+
+function MonetizationStatusCard({ loading, error, settings, onRetry, onNavigateBilling }: MonetizationStatusCardProps) {
+  return (
+    <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6" data-testid="admin-monetization-card">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Monetization guardrail</p>
+          <h2 className="text-2xl font-semibold text-white mt-1">Stripe keys and plan signals stay visible from here.</h2>
+          <p className="text-sm text-slate-400">
+            Keep billing healthy before routing campaigns or enabling gated downloads.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={onRetry}>
+            Refresh
+          </Button>
+          <Button size="sm" onClick={onNavigateBilling}>
+            Go to billing
+          </Button>
+        </div>
+      </div>
+      {loading ? (
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          {[0, 1, 2].map((entry) => (
+            <div key={entry} className="h-16 rounded-xl bg-white/5 animate-pulse" />
+          ))}
+        </div>
+      ) : error ? (
+        <div className="mt-6 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100 flex items-center justify-between gap-3">
+          <div>{error}</div>
+          <Button size="sm" variant="ghost" onClick={onRetry}>
+            Retry
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          {[
+            { label: "Publishable key", ok: Boolean(settings?.publishable_key_set) },
+            { label: "Secret key", ok: Boolean(settings?.secret_key_set) },
+            { label: "Webhook secret", ok: Boolean(settings?.webhook_secret_set) },
+          ].map((badge) => (
+            <div
+              key={badge.label}
+              className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${badge.ok ? "border-emerald-500/30 bg-emerald-500/10" : "border-amber-500/30 bg-amber-500/10"}`}
+            >
+              <ShieldCheck className={`h-5 w-5 ${badge.ok ? "text-emerald-300" : "text-amber-300"}`} />
+              <div>
+                <p className="text-sm font-semibold text-white">{badge.label}</p>
+                <p className="text-xs text-slate-400">{badge.ok ? "Configured" : "Missing"}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {!loading && !error && (
+        <div className="mt-4 text-xs text-slate-500 flex flex-wrap gap-4">
+          {settings?.source && <span>Source: {settings.source === "database" ? "Admin override" : "Environment variables"}</span>}
+          {settings?.updated_at && (
+            <span>Last updated: {new Date(settings.updated_at).toLocaleString()}</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function AdminHealthDigest({

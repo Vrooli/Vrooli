@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { AdminHome } from './AdminHome';
 import { AdminAuthProvider } from '../../../app/providers/AdminAuthProvider';
-import { listVariants, checkAdminSession } from '../../../shared/api';
+import { listVariants, checkAdminSession, getStripeSettings } from '../../../shared/api';
 import * as analyticsController from '../controllers/analyticsController';
 
 const mockNavigate = vi.fn();
@@ -27,6 +27,7 @@ vi.mock('../../../shared/api', async () => {
     ...actual,
     listVariants: vi.fn(),
     checkAdminSession: vi.fn(),
+    getStripeSettings: vi.fn(),
   };
 });
 vi.mock('../../../app/providers/LandingVariantProvider', () => ({
@@ -45,6 +46,7 @@ vi.mock('../../../app/providers/LandingVariantProvider', () => ({
 
 const mockedListVariants = vi.mocked(listVariants);
 const mockedCheckAdminSession = vi.mocked(checkAdminSession);
+const mockedGetStripeSettings = vi.mocked(getStripeSettings);
 const mockVariantsResponse = {
   variants: [
     {
@@ -119,6 +121,7 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
     mockedListVariants.mockResolvedValue(mockVariantsResponse);
     mockedCheckAdminSession.mockResolvedValue({ authenticated: true, email: 'ops@vrooli.dev' });
     fetchAnalyticsSpy = vi.spyOn(analyticsController, 'fetchAnalyticsSummary').mockResolvedValue(mockAnalyticsSummary);
+    mockedGetStripeSettings.mockResolvedValue(mockStripeSettings);
   });
 
   afterEach(() => {
@@ -226,3 +229,25 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/admin/customization?focus=beta&focusSectionType=hero');
   });
 });
+const mockStripeSettings = {
+  publishable_key_set: true,
+  secret_key_set: true,
+  webhook_secret_set: false,
+  source: 'env' as const,
+  updated_at: new Date().toISOString(),
+  dashboard_url: 'https://dashboard.stripe.com/',
+};
+
+  it('surfaces monetization guardrails and billing flow', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<AdminHome />);
+
+    const monetizationCard = await screen.findByTestId('admin-monetization-card');
+    expect(monetizationCard).toHaveTextContent('Monetization guardrail');
+    expect(monetizationCard).toHaveTextContent('Publishable key');
+    expect(monetizationCard).toHaveTextContent('Webhook secret');
+
+    const billingFlowButton = await screen.findByTestId('admin-guide-billing');
+    await user.click(billingFlowButton);
+    expect(mockNavigate).toHaveBeenCalledWith('/admin/billing');
+  });
