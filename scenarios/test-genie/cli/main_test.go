@@ -13,15 +13,21 @@ import (
 
 func TestExecuteAcceptsPositionalPhases(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/executions" {
+		switch r.URL.Path {
+		case "/api/v1/phases":
+			fmt.Fprintf(w, `{"items":[{"name":"unit","description":"Unit tests"},{"name":"integration","description":"Integration tests"}]}`)
+			return
+		case "/api/v1/executions":
+			body, _ := io.ReadAll(r.Body)
+			defer r.Body.Close()
+			if !bytes.Contains(body, []byte(`"phases":["unit","integration"]`)) {
+				t.Fatalf("expected phases in payload, got: %s", string(body))
+			}
+			fmt.Fprintf(w, `{"success":true,"phases":[{"name":"unit","status":"passed","durationSeconds":1}],"executionId":"abc"}`)
+			return
+		default:
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		body, _ := io.ReadAll(r.Body)
-		defer r.Body.Close()
-		if !bytes.Contains(body, []byte(`"phases":["unit","integration"]`)) {
-			t.Fatalf("expected phases in payload, got: %s", string(body))
-		}
-		fmt.Fprintf(w, `{"success":true,"phases":[{"name":"unit","status":"passed","durationSeconds":1}],"executionId":"abc"}`)
 	}))
 	defer server.Close()
 
@@ -35,15 +41,21 @@ func TestExecuteAcceptsPositionalPhases(t *testing.T) {
 
 func TestExecuteAllPhaseSkipsExplicitList(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/executions" {
+		switch r.URL.Path {
+		case "/api/v1/phases":
+			fmt.Fprintf(w, `{"items":[]}`)
+			return
+		case "/api/v1/executions":
+			body, _ := io.ReadAll(r.Body)
+			defer r.Body.Close()
+			if bytes.Contains(body, []byte(`"phases"`)) {
+				t.Fatalf("expected phases to be omitted when 'all' requested, got: %s", string(body))
+			}
+			fmt.Fprintf(w, `{"success":true,"phases":[],"executionId":"abc"}`)
+			return
+		default:
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		body, _ := io.ReadAll(r.Body)
-		defer r.Body.Close()
-		if bytes.Contains(body, []byte(`"phases"`)) {
-			t.Fatalf("expected phases to be omitted when 'all' requested, got: %s", string(body))
-		}
-		fmt.Fprintf(w, `{"success":true,"phases":[],"executionId":"abc"}`)
 	}))
 	defer server.Close()
 

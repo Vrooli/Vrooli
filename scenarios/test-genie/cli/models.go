@@ -63,6 +63,7 @@ type ExecuteResponse struct {
 	PresetUsed    string         `json:"presetUsed"`
 	StartedAt     string         `json:"startedAt"`
 	CompletedAt   string         `json:"completedAt"`
+	PhaseSummary  PhaseSummary   `json:"phaseSummary"`
 	Phases        []ExecutePhase `json:"phases"`
 	Error         string         `json:"error"`
 	ErrorMessages []string       `json:"errors"`
@@ -71,11 +72,22 @@ type ExecuteResponse struct {
 }
 
 type ExecutePhase struct {
-	Name            string  `json:"name"`
-	Status          string  `json:"status"`
-	DurationSeconds float64 `json:"durationSeconds"`
-	LogPath         string  `json:"logPath"`
-	Error           string  `json:"error"`
+	Name            string   `json:"name"`
+	Status          string   `json:"status"`
+	DurationSeconds float64  `json:"durationSeconds"`
+	LogPath         string   `json:"logPath"`
+	Error           string   `json:"error"`
+	Classification  string   `json:"classification"`
+	Remediation     string   `json:"remediation"`
+	Observations    []string `json:"observations"`
+}
+
+type PhaseSummary struct {
+	Total            int `json:"total"`
+	Passed           int `json:"passed"`
+	Failed           int `json:"failed"`
+	DurationSeconds  int `json:"durationSeconds"`
+	ObservationCount int `json:"observationCount"`
 }
 
 type RunTestsRequest struct {
@@ -90,4 +102,11 @@ type RunTestsResponse struct {
 		Command    []string `json:"command"`
 		WorkingDir string   `json:"workingDir"`
 	} `json:"command"`
+}
+
+type PhaseDescriptor struct {
+	Name        string `json:"name"`
+	Optional    bool   `json:"optional"`
+	Description string `json:"description"`
+	Source      string `json:"source"`
 }

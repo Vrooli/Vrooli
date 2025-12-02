@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -175,6 +176,13 @@ func (a *App) cmdExecute(args []string) error {
 		SuiteRequestID: *requestID,
 	}
 
+	var phaseDescriptors []PhaseDescriptor
+	if desc, err := a.services.Phases.List(); err == nil {
+		phaseDescriptors = desc
+	} else {
+		fmt.Fprintf(os.Stderr, "Warning: unable to load phase catalog (%v)\n", err)
+	}
+
 	resp, raw, err := a.services.Suite.Execute(req)
 	if err != nil {
 		return err
@@ -184,42 +192,8 @@ func (a *App) cmdExecute(args []string) error {
 		return nil
 	}
 
-	icon := "⚠"
-	if resp.Success {
-		icon = "✓"
-	}
-	fmt.Printf("%s Suite execution for %s\n", icon, scenario)
-	if resp.ExecutionID != "" {
-		fmt.Printf("  Execution : %s\n", resp.ExecutionID)
-	}
-	if resp.SuiteRequest != "" {
-		fmt.Printf("  Request   : %s\n", resp.SuiteRequest)
-	}
-	if resp.PresetUsed != "" {
-		fmt.Printf("  Preset    : %s\n", resp.PresetUsed)
-	}
-	if resp.StartedAt != "" {
-		fmt.Printf("  Started   : %s\n", resp.StartedAt)
-	}
-	if resp.CompletedAt != "" {
-		fmt.Printf("  Finished  : %s\n", resp.CompletedAt)
-	}
-
-	fmt.Println()
-	fmt.Println("Phase results:")
-	for _, phase := range resp.Phases {
-		phaseIcon := "✓"
-		if !strings.EqualFold(phase.Status, "passed") {
-			phaseIcon = "✗"
-		}
-		fmt.Printf("  %s %-12s status=%-8s duration=%gs\n", phaseIcon, phase.Name, phase.Status, phase.DurationSeconds)
-		if phase.LogPath != "" {
-			fmt.Printf("      log: %s\n", phase.LogPath)
-		}
-		if phase.Error != "" {
-			fmt.Printf("      error: %s\n", phase.Error)
-		}
-	}
+	printer := newExecutionPrinter(os.Stdout, scenario, req.Preset, normalizedPhases, phaseDescriptors)
+	printer.Print(resp)
 
 	if resp.Error != "" {
 		fmt.Printf("\nError: %s\n", resp.Error)

@@ -13,6 +13,7 @@ type Services struct {
 	Health   *HealthService
 	Suite    *SuiteService
 	RunTests *RunTestsService
+	Phases   *PhaseService
 }
 
 func NewServices(api *cliutil.APIClient) *Services {
@@ -20,6 +21,7 @@ func NewServices(api *cliutil.APIClient) *Services {
 		Health:   &HealthService{api: api},
 		Suite:    &SuiteService{api: api},
 		RunTests: &RunTestsService{api: api},
+		Phases:   &PhaseService{api: api},
 	}
 }
 
@@ -82,4 +84,22 @@ func (s *RunTestsService) Run(scenario string, req RunTestsRequest) (RunTestsRes
 		return RunTestsResponse{}, body, fmt.Errorf("parse response: %w", err)
 	}
 	return resp, body, nil
+}
+
+type PhaseService struct {
+	api *cliutil.APIClient
+}
+
+func (s *PhaseService) List() ([]PhaseDescriptor, error) {
+	body, err := s.api.Get("/api/v1/phases", nil)
+	if err != nil {
+		return nil, err
+	}
+	var payload struct {
+		Items []PhaseDescriptor `json:"items"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, fmt.Errorf("parse phase descriptors: %w", err)
+	}
+	return payload.Items, nil
 }
