@@ -165,7 +165,9 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		})
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
 			switch {
-			case strings.HasSuffix(name, filepath.Join("cli", "test-genie")) && len(args) > 0 && args[0] == "version":
+			case strings.Contains(name, filepath.Join("cli", "demo")) && len(args) > 0 && args[0] == "version":
+				return "demo version 1.0.0", nil
+			case strings.Contains(name, filepath.Join("cli", "test-genie")) && len(args) > 0 && args[0] == "version":
 				return "test-genie version 1.0.0", nil
 			default:
 				return "", nil
@@ -222,7 +224,9 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 		})
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
 			switch {
-			case strings.HasSuffix(name, filepath.Join("cli", "test-genie")) && len(args) > 0 && args[0] == "version":
+			case strings.Contains(name, filepath.Join("cli", "demo")) && len(args) > 0 && args[0] == "version":
+				return "demo version 1.0.0", nil
+			case strings.Contains(name, filepath.Join("cli", "test-genie")) && len(args) > 0 && args[0] == "version":
 				return "test-genie version 1.0.0", nil
 			default:
 				return "", nil
@@ -267,10 +271,10 @@ func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 		stubCommandLookup(t, func(name string) (string, error) {
 			return "/tmp/" + name, nil
 		})
-		// Force the structure phase to fail by reintroducing the forbidden runner reference.
-		runnerPath := filepath.Join(scenarioDir, "test", "run-tests.sh")
-		if err := os.WriteFile(runnerPath, []byte("#!/usr/bin/env bash\necho 'scripts/scenarios/testing'\n"), 0o644); err != nil {
-			t.Fatalf("failed to poison runner: %v", err)
+		// Force the structure phase to fail by removing a required file.
+		requiredFile := filepath.Join(scenarioDir, "README.md")
+		if err := os.Remove(requiredFile); err != nil {
+			t.Fatalf("failed to remove %s: %v", requiredFile, err)
 		}
 
 		orchestrator, err := NewSuiteOrchestrator(root)

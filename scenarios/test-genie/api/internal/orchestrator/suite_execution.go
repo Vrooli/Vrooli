@@ -234,8 +234,10 @@ func (o *SuiteOrchestrator) syncRequirementsIfNeeded(
 
 func (o *SuiteOrchestrator) discoverPhaseDefinitions(env workspacepkg.Environment) ([]phases.Definition, error) {
 	phaseDir := filepath.Join(env.TestDir, "phases")
-	entries, err := os.ReadDir(phaseDir)
-	if err != nil {
+	var entries []os.DirEntry
+	if dirEntries, err := os.ReadDir(phaseDir); err == nil {
+		entries = dirEntries
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("failed to read phase directory: %w", err)
 	}
 	definitions := make(map[string]phases.Definition)

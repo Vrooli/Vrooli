@@ -81,10 +81,23 @@ func executeGoUnitTests(ctx context.Context, env workspace.Environment, logWrite
 }
 
 func lintScenarioShellTargets(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]string, *RunReport) {
-	shellTargets := []string{
-		filepath.Join(env.ScenarioDir, "cli", "test-genie"),
-		filepath.Join(env.ScenarioDir, "test", "lib", "runtime.sh"),
-		filepath.Join(env.ScenarioDir, "test", "lib", "orchestrator.sh"),
+	var shellTargets []string
+	if cliPath, err := discoverScenarioCLIBinary(env); err == nil {
+		shellTargets = append(shellTargets, cliPath)
+	} else {
+		logPhaseWarn(logWriter, "cli binary not linted: %v", err)
+	}
+	for _, rel := range []string{
+		filepath.Join("test", "lib", "runtime.sh"),
+		filepath.Join("test", "lib", "orchestrator.sh"),
+	} {
+		abs := filepath.Join(env.ScenarioDir, rel)
+		if _, err := os.Stat(abs); err == nil {
+			shellTargets = append(shellTargets, abs)
+		}
+	}
+	if len(shellTargets) == 0 {
+		return []string{"no shell entrypoints detected"}, nil
 	}
 	if err := EnsureCommandAvailable("bash"); err != nil {
 		return nil, &RunReport{

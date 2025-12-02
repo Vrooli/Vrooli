@@ -15,7 +15,6 @@ import (
 
 var (
 	// standardStructureDirs defines directories required for a well-formed scenario.
-	// Note: test/phases/ is no longer required - test-genie executes phases natively in Go.
 	standardStructureDirs = []string{
 		"api",
 		"cli",
@@ -25,12 +24,9 @@ var (
 		"ui",
 	}
 	// standardStructureFiles defines files required for a well-formed scenario.
-	// Note: Bash phase scripts (test/phases/*.sh) are no longer required - the Go
-	// orchestrator implements all test phases natively for portability and consistency.
 	standardStructureFiles = []string{
 		filepath.Join("api", "main.go"),
 		filepath.Join("cli", "install.sh"),
-		filepath.Join("test", "run-tests.sh"),
 		filepath.Join(".vrooli", "service.json"),
 		filepath.Join(".vrooli", "testing.json"),
 		"README.md",
@@ -101,35 +97,6 @@ func runStructurePhase(ctx context.Context, env workspace.Environment, logWriter
 		logPhaseStep(logWriter, "validated %d JSON files", jsonCount)
 		observations = append(observations, fmt.Sprintf("json files validated: %d", jsonCount))
 	}
-
-	runnerPath := filepath.Join(env.TestDir, "run-tests.sh")
-	if err := ensureFile(runnerPath); err != nil {
-		return RunReport{
-			Err:                   err,
-			FailureClassification: FailureClassMisconfiguration,
-			Remediation:           "Restore test/run-tests.sh from the scenario template.",
-			Observations:          observations,
-		}
-	}
-	content, err := os.ReadFile(runnerPath)
-	if err != nil {
-		return RunReport{
-			Err:                   fmt.Errorf("failed to read %s: %w", runnerPath, err),
-			FailureClassification: FailureClassSystem,
-			Remediation:           "Ensure the orchestrator script is readable by the scenario runtime.",
-			Observations:          observations,
-		}
-	}
-	if strings.Contains(string(content), "scripts/scenarios/testing") {
-		return RunReport{
-			Err:                   fmt.Errorf("%s must not reference scripts/scenarios/testing", runnerPath),
-			FailureClassification: FailureClassMisconfiguration,
-			Remediation:           "Update run-tests.sh to call the scenario-local orchestrator instead of legacy scripts.",
-			Observations:          observations,
-		}
-	}
-	logPhaseStep(logWriter, "verified scenario-local orchestrator usage: %s", runnerPath)
-	observations = append(observations, "scenario-local orchestrator enforced")
 
 	if uiObservation, failure := enforceUISmokeTelemetry(ctx, env, logWriter); failure != nil {
 		failure.Observations = append(failure.Observations, observations...)

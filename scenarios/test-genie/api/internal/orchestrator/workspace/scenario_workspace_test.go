@@ -9,16 +9,8 @@ import (
 func TestNewScenarioWorkspace(t *testing.T) {
 	root := t.TempDir()
 	scenarioDir := filepath.Join(root, "demo")
-	required := []string{
-		filepath.Join("test", "phases"),
-	}
-	for _, rel := range required {
-		if err := os.MkdirAll(filepath.Join(scenarioDir, rel), 0o755); err != nil {
-			t.Fatalf("failed to create %s: %v", rel, err)
-		}
-	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "test", "run-tests.sh"), []byte("echo ok"), 0o644); err != nil {
-		t.Fatalf("failed to seed runner: %v", err)
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "test"), 0o755); err != nil {
+		t.Fatalf("failed to create test dir: %v", err)
 	}
 
 	workspace, err := New(root, "demo")
@@ -31,7 +23,8 @@ func TestNewScenarioWorkspace(t *testing.T) {
 	if workspace.TestDir != filepath.Join(scenarioDir, "test") {
 		t.Fatalf("unexpected test dir %s", workspace.TestDir)
 	}
-	if workspace.PhaseDir != filepath.Join(scenarioDir, "test", "phases") {
+	expectedPhaseDir := filepath.Join(scenarioDir, "test", "phases")
+	if workspace.PhaseDir != expectedPhaseDir {
 		t.Fatalf("unexpected phase dir %s", workspace.PhaseDir)
 	}
 	if workspace.AppRoot == "" {

@@ -2,6 +2,7 @@ package phases
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -55,11 +56,30 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 	if err := os.WriteFile(filepath.Join(scenarioDir, "test", "run-tests.sh"), []byte("echo ok"), 0o755); err != nil {
 		t.Fatalf("failed to seed run-tests.sh: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "test-genie"), []byte("#!/usr/bin/env bash\nexit 0\n"), 0o755); err != nil {
+	cliScript := func(name string) []byte {
+		return []byte(fmt.Sprintf(`#!/usr/bin/env bash
+if [ "$1" = "version" ]; then
+  echo "%s version 1.0.0"
+  exit 0
+fi
+if [ "$1" = "help" ]; then
+  echo "usage: %s <cmd>"
+  exit 0
+fi
+exit 0
+`, name, name))
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "test-genie"), cliScript("test-genie"), 0o755); err != nil {
 		t.Fatalf("failed to seed cli binary: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", name), cliScript(name), 0o755); err != nil {
+		t.Fatalf("failed to seed scenario cli binary: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "test-genie.bats"), []byte("#!/usr/bin/env bats\n"), 0o644); err != nil {
 		t.Fatalf("failed to seed cli bats file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", name+".bats"), []byte("#!/usr/bin/env bats\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed scenario bats file: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(scenarioDir, "test", "lib", "runtime.sh"), []byte("#!/usr/bin/env bash\n"), 0o755); err != nil {
 		t.Fatalf("failed to seed runtime script: %v", err)

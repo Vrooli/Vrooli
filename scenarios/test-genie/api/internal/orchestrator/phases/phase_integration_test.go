@@ -35,7 +35,9 @@ func TestRunIntegrationPhaseExecutesCliAndBats(t *testing.T) {
 		})
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
 			switch {
-			case strings.HasSuffix(name, filepath.Join("cli", "test-genie")):
+			case strings.Contains(name, filepath.Join("cli", "demo")):
+				return "demo version 1.0.0", nil
+			case strings.Contains(name, filepath.Join("cli", "test-genie")):
 				return "test-genie version 1.0.0", nil
 			default:
 				return "", nil
@@ -60,9 +62,9 @@ func TestRunIntegrationPhaseExecutesCliAndBats(t *testing.T) {
 		foundAdditional := false
 		for _, cmd := range executed {
 			switch {
-			case strings.Contains(cmd, "test-genie help"):
+			case strings.Contains(cmd, "demo help") || strings.Contains(cmd, "test-genie help"):
 				foundHelp = true
-			case strings.Contains(cmd, "bats --tap test-genie.bats"):
+			case strings.Contains(cmd, "bats --tap demo.bats") || strings.Contains(cmd, "bats --tap test-genie.bats"):
 				foundPrimary = true
 			case strings.Contains(cmd, "bats --tap test/test-genie-generate.bats"):
 				foundAdditional = true

@@ -23,12 +23,12 @@ func runIntegrationPhase(ctx context.Context, env workspace.Environment, logWrit
 	}
 
 	var observations []string
-	cliPath := filepath.Join(env.ScenarioDir, "cli", "test-genie")
-	if err := ensureExecutable(cliPath); err != nil {
+	cliPath, err := discoverScenarioCLIBinary(env)
+	if err != nil {
 		return RunReport{
 			Err:                   err,
 			FailureClassification: FailureClassMisconfiguration,
-			Remediation:           "Ensure cli/test-genie exists and is executable so operators can invoke the scenario CLI.",
+			Remediation:           "Add an executable CLI binary under cli/ so operators can invoke the scenario.",
 		}
 	}
 	logPhaseStep(logWriter, "cli binary verified: %s", cliPath)
@@ -83,24 +83,25 @@ func runIntegrationPhase(ctx context.Context, env workspace.Environment, logWrit
 	observations = append(observations, "bats runtime available")
 
 	cliDir := filepath.Join(env.ScenarioDir, "cli")
-	baseSuite := filepath.Join(cliDir, "test-genie.bats")
-	if err := ensureFile(baseSuite); err != nil {
+	baseSuite, err := findPrimaryBatsSuite(cliDir, env.ScenarioName)
+	if err != nil {
 		return RunReport{
 			Err:                   err,
 			FailureClassification: FailureClassMisconfiguration,
-			Remediation:           "Restore cli/test-genie.bats so CLI acceptance coverage exists.",
+			Remediation:           "Add a .bats suite under cli/ to exercise CLI workflows.",
 			Observations:          observations,
 		}
 	}
-	if err := phaseCommandExecutor(ctx, cliDir, logWriter, "bats", "--tap", filepath.Base(baseSuite)); err != nil {
+	baseName := filepath.Base(baseSuite)
+	if err := phaseCommandExecutor(ctx, cliDir, logWriter, "bats", "--tap", baseName); err != nil {
 		return RunReport{
-			Err:                   fmt.Errorf("cli/test-genie.bats failed: %w", err),
+			Err:                   fmt.Errorf("%s failed: %w", baseName, err),
 			FailureClassification: FailureClassSystem,
-			Remediation:           "Inspect cli/test-genie.bats to resolve acceptance test failures.",
+			Remediation:           fmt.Sprintf("Inspect %s to resolve acceptance test failures.", baseName),
 			Observations:          observations,
 		}
 	}
-	logPhaseStep(logWriter, "cli/test-genie.bats executed successfully")
+	logPhaseStep(logWriter, "%s executed successfully", baseName)
 	observations = append(observations, "primary Bats suite passed")
 
 	testSuitesRun, err := runAdditionalBatsSuites(ctx, cliDir, logWriter)

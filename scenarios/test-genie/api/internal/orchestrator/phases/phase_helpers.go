@@ -7,7 +7,11 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
+	"strings"
+
+	"test-genie/internal/orchestrator/workspace"
 )
 
 var commandLookup = exec.LookPath
@@ -130,4 +134,81 @@ func OverrideCommandCapture(fn func(context.Context, string, io.Writer, string, 
 	prev := phaseCommandCapture
 	phaseCommandCapture = fn
 	return func() { phaseCommandCapture = prev }
+}
+
+func discoverScenarioCLIBinary(env workspace.Environment) (string, error) {
+	cliDir := filepath.Join(env.ScenarioDir, "cli")
+	info, err := os.Stat(cliDir)
+	if err != nil {
+		return "", fmt.Errorf("cli directory missing: %w", err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("cli path is not a directory: %s", cliDir)
+	}
+
+	var candidates []string
+	name := strings.TrimSpace(env.ScenarioName)
+	if name != "" {
+		candidates = append(candidates,
+			filepath.Join(cliDir, name),
+			filepath.Join(cliDir, name+".sh"),
+			filepath.Join(cliDir, name+".exe"),
+		)
+	}
+	candidates = append(candidates,
+		filepath.Join(cliDir, "test-genie"),
+		filepath.Join(cliDir, "test-genie.exe"),
+	)
+	for _, candidate := range candidates {
+		if err := ensureExecutable(candidate); err == nil {
+			return candidate, nil
+		}
+	}
+
+	entries, err := os.ReadDir(cliDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to list cli directory: %w", err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		path := filepath.Join(cliDir, entry.Name())
+		if err := ensureExecutable(path); err == nil {
+			return path, nil
+		}
+	}
+	return "", fmt.Errorf("no executable CLI binary found under %s", cliDir)
+}
+
+func findPrimaryBatsSuite(cliDir, scenarioName string) (string, error) {
+	preferred := []string{}
+	name := strings.TrimSpace(scenarioName)
+	if name != "" {
+		preferred = append(preferred,
+			filepath.Join(cliDir, name+".bats"),
+			filepath.Join(cliDir, name+"-cli.bats"),
+		)
+	}
+	preferred = append(preferred,
+		filepath.Join(cliDir, "test-genie.bats"),
+	)
+
+	for _, candidate := range preferred {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, nil
+		}
+	}
+
+	entries, err := os.ReadDir(cliDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to scan cli directory: %w", err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".bats") {
+			continue
+		}
+		return filepath.Join(cliDir, entry.Name()), nil
+	}
+	return "", fmt.Errorf("no .bats suites found under %s", cliDir)
 }

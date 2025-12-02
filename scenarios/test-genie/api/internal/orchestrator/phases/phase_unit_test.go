@@ -89,12 +89,18 @@ func TestRunUnitPhaseFailsWhenGoTestFails(t *testing.T) {
 	}
 }
 
-func TestRunUnitPhaseFailsWhenShellScriptMissing(t *testing.T) {
+func TestRunUnitPhaseSkipsMissingShellTargets(t *testing.T) {
 	root := t.TempDir()
 	scenarioDir := createScenarioLayout(t, root, "demo")
-	target := filepath.Join(scenarioDir, "test", "lib", "runtime.sh")
-	if err := os.Remove(target); err != nil {
-		t.Fatalf("failed to remove runtime script: %v", err)
+	for _, rel := range []string{
+		filepath.Join("test", "lib", "runtime.sh"),
+		filepath.Join("test", "lib", "orchestrator.sh"),
+		filepath.Join("cli", "demo"),
+		filepath.Join("cli", "test-genie"),
+	} {
+		if err := os.Remove(filepath.Join(scenarioDir, rel)); err != nil {
+			t.Fatalf("failed to remove %s: %v", rel, err)
+		}
 	}
 	stubCommandLookup(t, func(name string) (string, error) {
 		return "/tmp/" + name, nil
@@ -108,10 +114,17 @@ func TestRunUnitPhaseFailsWhenShellScriptMissing(t *testing.T) {
 		ScenarioDir:  scenarioDir,
 	}
 	report := runUnitPhase(context.Background(), env, io.Discard)
-	if report.Err == nil {
-		t.Fatalf("expected error when runtime script missing")
+	if report.Err != nil {
+		t.Fatalf("expected success despite missing shell targets: %v", report.Err)
 	}
-	if report.FailureClassification != FailureClassMisconfiguration {
-		t.Fatalf("expected misconfiguration classification, got %s", report.FailureClassification)
+	found := false
+	for _, obs := range report.Observations {
+		if strings.Contains(obs, "no shell entrypoints") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected observation about missing shell entrypoints, got %v", report.Observations)
 	}
 }

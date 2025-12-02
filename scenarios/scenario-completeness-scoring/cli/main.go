@@ -58,6 +58,7 @@ func NewApp() (*App, error) {
 		BuildFingerprint:   buildFingerprint,
 		BuildTimestamp:     buildTimestamp,
 		BuildSourceRoot:    buildSourceRoot,
+		AllowAnonymous:     true,
 	})
 	if err != nil {
 		return nil, err

@@ -60,9 +60,6 @@ func New(scenariosRoot, scenario string) (*ScenarioWorkspace, error) {
 	}
 
 	phaseDir := filepath.Join(testDir, "phases")
-	if err := EnsureDir(phaseDir); err != nil {
-		return nil, fmt.Errorf("scenario '%s' is missing test phases directory at %s", name, phaseDir)
-	}
 
 	return &ScenarioWorkspace{
 		Name:        name,
