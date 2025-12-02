@@ -1,15 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ReactNode } from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { SectionEditor } from './SectionEditor';
 import * as controller from '../controllers/sectionEditorController';
+import * as api from '../../../shared/api';
+import type { LandingConfigResponse } from '../../../shared/api';
 
 // Mock the controller module
 vi.mock('../controllers/sectionEditorController', () => ({
   loadSectionEditor: vi.fn(),
   persistExistingSectionContent: vi.fn(),
   loadVariantContext: vi.fn(),
+}));
+
+vi.mock('../../../shared/api', () => ({
+  getLandingConfig: vi.fn(),
+  listVariants: vi.fn(),
 }));
 
 vi.mock('../../../app/providers/LandingVariantProvider', () => ({
@@ -85,11 +92,28 @@ const mockVariantContext = {
   },
 };
 
+const mockLandingConfig: LandingConfigResponse = {
+  variant: {
+    slug: 'test-variant',
+    name: 'Test Variant',
+  },
+  sections: [],
+  downloads: [],
+  fallback: false,
+};
+
 describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(controller.loadSectionEditor).mockResolvedValue(mockControllerState);
     vi.mocked(controller.loadVariantContext).mockResolvedValue(mockVariantContext);
+    vi.mocked(api.getLandingConfig).mockResolvedValue(mockLandingConfig);
+    vi.mocked(api.listVariants).mockResolvedValue({
+      variants: [
+        { slug: 'test-variant', name: 'Test Variant', status: 'active' },
+        { slug: 'compare-variant', name: 'Compare Variant', status: 'active' },
+      ],
+    } as any);
   });
 
   const renderEditor = () => {
@@ -260,8 +284,9 @@ describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
     });
 
     expect(controller.loadVariantContext).toHaveBeenCalledWith('test-variant');
-    expect(screen.getByText(/Ops Leader/i)).toBeInTheDocument();
-    expect(screen.getByText(/Emphasize governance/i)).toBeInTheDocument();
+    const contextCard = screen.getByTestId('variant-context-card');
+    expect(within(contextCard).getByText(/Ops Leader/i)).toBeInTheDocument();
+    expect(within(contextCard).getByText(/Emphasize governance/i)).toBeInTheDocument();
   });
 
   it('displays styling guardrails pulled from styling.json', async () => {

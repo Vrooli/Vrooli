@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { useLandingVariant } from '../../app/providers/LandingVariantProvider';
 import { trackMetric, type MetricEvent as APIMetricEvent } from '../api';
 
@@ -9,6 +9,20 @@ let fallbackSessionId: string | null = null;
 let fallbackVisitorId: string | null = null;
 let sessionWarningLogged = false;
 let visitorWarningLogged = false;
+
+type MetricsMode = 'live' | 'preview';
+
+const MetricsModeContext = createContext<MetricsMode>('live');
+
+export function MetricsModeProvider({
+  mode = 'live',
+  children,
+}: {
+  mode?: MetricsMode;
+  children: ReactNode;
+}) {
+  return <MetricsModeContext.Provider value={mode}>{children}</MetricsModeContext.Provider>;
+}
 
 function generateId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -105,15 +119,20 @@ type MetricEventPayload = APIMetricEvent & {
  */
 export function useMetrics() {
   const { variant } = useLandingVariant();
+  const metricsMode = useContext(MetricsModeContext);
+  const previewMode = metricsMode === 'preview';
   const sessionID = useRef(getSessionID());
   const visitorID = useRef(getVisitorID());
   const scrollDepthTracked = useRef<Set<number>>(new Set());
 
   // Track event to API
-  const trackEvent = async (
+  const trackEvent = useCallback(async (
     eventType: APIMetricEvent['event_type'],
     eventData?: Record<string, unknown>
   ) => {
+    if (previewMode) {
+      return;
+    }
     if (!variant) {
       console.warn('[useMetrics] No variant selected, skipping event tracking');
       return;
@@ -132,10 +151,13 @@ export function useMetrics() {
     } catch (error) {
       console.error('[useMetrics] Error tracking event:', error);
     }
-  };
+  }, [previewMode, variant]);
 
   // Track page view on mount
   useEffect(() => {
+    if (previewMode || !variant) {
+      return;
+    }
     if (variant) {
       trackEvent('page_view', {
         page: window.location.pathname,
@@ -143,11 +165,11 @@ export function useMetrics() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variant?.id]);
+  }, [variant?.id, previewMode]);
 
   // Track scroll depth (bands: 25%, 50%, 75%, 100%)
   useEffect(() => {
-    if (!variant) return;
+    if (previewMode || !variant) return;
 
     const handleScroll = () => {
       const scrollPercentage = (window.scrollY + window.innerHeight) / document.documentElement.scrollHeight * 100;
@@ -164,10 +186,11 @@ export function useMetrics() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variant?.id]);
+  }, [variant?.id, previewMode]);
 
   // Track CTA clicks
   const trackCTAClick = (elementId: string, elementData?: Record<string, unknown>) => {
+    if (previewMode) return;
     trackEvent('click', {
       element_id: elementId,
       element_type: 'cta',
@@ -177,6 +200,7 @@ export function useMetrics() {
 
   // Track form submission
   const trackFormSubmit = (formId: string, formData?: Record<string, unknown>) => {
+    if (previewMode) return;
     trackEvent('form_submit', {
       form_id: formId,
       ...formData,
@@ -185,10 +209,12 @@ export function useMetrics() {
 
   // Track conversion (e.g., Stripe checkout success)
   const trackConversion = (conversionData?: Record<string, unknown>) => {
+    if (previewMode) return;
     trackEvent('conversion', conversionData);
   };
 
   const trackDownload = (downloadData?: Record<string, unknown>) => {
+    if (previewMode) return;
     trackEvent('download', downloadData);
   };
 

@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, ArrowLeft, Eye } from 'lucide-react';
+import { Save, ArrowLeft, Eye, ArrowRight, Plus } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Button } from '../../../shared/ui/button';
-import type { ContentSection } from '../../../shared/api';
+import { getLandingConfig, listVariants, type ContentSection, type LandingConfigResponse, type LandingSection, type Variant } from '../../../shared/api';
 import { useDebounce } from '../../../shared/hooks/useDebounce';
 import {
   loadSectionEditor,
@@ -14,6 +14,15 @@ import {
 } from '../controllers/sectionEditorController';
 import { getStylingConfig, getVariantStylingGuidance } from '../../../shared/lib/stylingConfig';
 import { rememberVariantSession } from '../../../shared/lib/adminExperience';
+import { MetricsModeProvider } from '../../../shared/hooks/useMetrics';
+import { HeroSection } from '../../public-landing/sections/HeroSection';
+import { FeaturesSection } from '../../public-landing/sections/FeaturesSection';
+import { PricingSection } from '../../public-landing/sections/PricingSection';
+import { CTASection } from '../../public-landing/sections/CTASection';
+import { TestimonialsSection } from '../../public-landing/sections/TestimonialsSection';
+import { FAQSection } from '../../public-landing/sections/FAQSection';
+import { FooterSection } from '../../public-landing/sections/FooterSection';
+import { VideoSection } from '../../public-landing/sections/VideoSection';
 
 /**
  * Section Editor - Split-screen form + live preview
@@ -23,6 +32,22 @@ import { rememberVariantSession } from '../../../shared/lib/adminExperience';
  * [REQ:CUSTOM-SPLIT] [REQ:CUSTOM-LIVE]
  */
 const STYLING_CONFIG = getStylingConfig();
+
+type PreviewRenderer = (params: {
+  content: Record<string, unknown>;
+  config: LandingConfigResponse | null;
+}) => JSX.Element | null;
+
+const SECTION_PREVIEW_RENDERERS: Record<ContentSection['section_type'], PreviewRenderer> = {
+  hero: ({ content }) => <HeroSection content={content as any} />,
+  features: ({ content }) => <FeaturesSection content={content as any} />,
+  pricing: ({ content, config }) => <PricingSection content={content as any} pricingOverview={config?.pricing} />,
+  cta: ({ content }) => <CTASection content={content as any} />,
+  testimonials: ({ content }) => <TestimonialsSection content={content as any} />,
+  faq: ({ content }) => <FAQSection content={content as any} />,
+  footer: ({ content }) => <FooterSection content={content as any} />,
+  video: ({ content }) => <VideoSection content={content as any} />,
+};
 
 export function SectionEditor() {
   const navigate = useNavigate();
@@ -38,6 +63,17 @@ export function SectionEditor() {
   const [variantContext, setVariantContext] = useState<VariantContext | null>(null);
   const [variantContextError, setVariantContextError] = useState<string | null>(null);
   const [variantContextLoading, setVariantContextLoading] = useState(Boolean(variantSlug));
+  const [previewConfig, setPreviewConfig] = useState<LandingConfigResponse | null>(null);
+  const [previewConfigLoading, setPreviewConfigLoading] = useState(false);
+  const [previewConfigError, setPreviewConfigError] = useState<string | null>(null);
+  const [variantOptions, setVariantOptions] = useState<Variant[]>([]);
+  const [variantOptionsLoading, setVariantOptionsLoading] = useState(false);
+  const [variantOptionsError, setVariantOptionsError] = useState<string | null>(null);
+  const [compareVariantSlug, setCompareVariantSlug] = useState('');
+  const [compareConfig, setCompareConfig] = useState<LandingConfigResponse | null>(null);
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [compareError, setCompareError] = useState<string | null>(null);
+  const compareConfigCache = useRef<Map<string, LandingConfigResponse>>(new Map());
 
   // Form state
   const [sectionType, setSectionType] = useState<ContentSection['section_type']>('hero');
@@ -93,6 +129,69 @@ export function SectionEditor() {
       cancelled = true;
     };
   }, [variantSlug]);
+
+  useEffect(() => {
+    if (!variantSlug) {
+      setPreviewConfig(null);
+      setPreviewConfigError('Variant slug missing for preview');
+      return;
+    }
+
+    let cancelled = false;
+    const fetchPreviewConfig = async () => {
+      try {
+        setPreviewConfigLoading(true);
+        const config = await getLandingConfig(variantSlug);
+        if (!cancelled) {
+          setPreviewConfig(config);
+          setPreviewConfigError(null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : 'Failed to load landing preview context';
+          setPreviewConfig(null);
+          setPreviewConfigError(message);
+        }
+      } finally {
+        if (!cancelled) {
+          setPreviewConfigLoading(false);
+        }
+      }
+    };
+
+    fetchPreviewConfig();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [variantSlug]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchVariantOptions = async () => {
+      try {
+        setVariantOptionsLoading(true);
+        const data = await listVariants();
+        if (!cancelled) {
+          setVariantOptions(data.variants);
+          setVariantOptionsError(null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : 'Failed to load variants';
+          setVariantOptionsError(message);
+        }
+      } finally {
+        if (!cancelled) {
+          setVariantOptionsLoading(false);
+        }
+      }
+    };
+    fetchVariantOptions();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!variantSlug || !variantContext?.variant) {
@@ -182,6 +281,78 @@ export function SectionEditor() {
     }));
   };
 
+  const handleNavigateSection = (target: LandingSection) => {
+    if (!variantSlug) {
+      return;
+    }
+    const targetPath = target.id
+      ? `/admin/customization/variants/${variantSlug}/sections/${target.id}`
+      : `/admin/customization/variants/${variantSlug}/sections/new`;
+    navigate(targetPath);
+  };
+
+  const handleAddSection = () => {
+    if (!variantSlug) return;
+    navigate(`/admin/customization/variants/${variantSlug}/sections/new`);
+  };
+
+  const handleCompareVariantChange = async (slug: string) => {
+    setCompareVariantSlug(slug);
+    if (!slug) {
+      setCompareConfig(null);
+      setCompareError(null);
+      return;
+    }
+
+    if (compareConfigCache.current.has(slug)) {
+      setCompareConfig(compareConfigCache.current.get(slug) ?? null);
+      setCompareError(null);
+      return;
+    }
+
+    try {
+      setCompareLoading(true);
+      const config = await getLandingConfig(slug);
+      compareConfigCache.current.set(slug, config);
+      setCompareConfig(config);
+      setCompareError(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load comparison variant';
+      setCompareError(message);
+      setCompareConfig(null);
+    } finally {
+      setCompareLoading(false);
+    }
+  };
+
+  const previewRenderer = useMemo(() => SECTION_PREVIEW_RENDERERS[sectionType], [sectionType]);
+  const previewVariantLabel = useMemo(() => {
+    return previewConfig?.variant?.name || variantContext?.variant?.name || variantSlug || 'Active variant';
+  }, [previewConfig, variantContext, variantSlug]);
+  const comparisonVariantLabel = useMemo(() => {
+    if (!compareVariantSlug) {
+      return null;
+    }
+    const matched = variantOptions.find((variant) => variant.slug === compareVariantSlug);
+    return matched?.name || compareVariantSlug;
+  }, [compareVariantSlug, variantOptions]);
+  const timelineSections = useMemo(() => {
+    const sections = previewConfig?.sections ?? [];
+    return [...sections].sort((a, b) => a.order - b.order);
+  }, [previewConfig]);
+  const comparisonSection = useMemo(() => {
+    if (!compareConfig) {
+      return null;
+    }
+    return (
+      compareConfig.sections
+        ?.filter((section) => section.section_type === sectionType)
+        .sort((a, b) => a.order - b.order)[0] ?? null
+    );
+  }, [compareConfig, sectionType]);
+  const comparisonContent = comparisonSection?.content ?? {};
+  const comparisonEnabled = comparisonSection?.enabled !== false;
+
   if (loading) {
     return (
       <AdminLayout>
@@ -211,6 +382,19 @@ export function SectionEditor() {
               {isNew ? 'New Section' : `Edit ${sectionType} Section`}
             </h1>
           </div>
+          {variantSlug && (
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="gap-2 hidden sm:inline-flex"
+            >
+              <a href={`/?variant=${variantSlug}`} target="_blank" rel="noopener noreferrer">
+                <Eye className="h-4 w-4" />
+                View Variant
+              </a>
+            </Button>
+          )}
           <Button
             onClick={handleSave}
             disabled={saving}
@@ -232,6 +416,18 @@ export function SectionEditor() {
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Left Column: Form */}
           <div className="space-y-6" data-testid="section-form">
+            {variantSlug && (
+              <VariantSectionTimeline
+                variantName={previewVariantLabel}
+                sections={timelineSections}
+                loading={previewConfigLoading}
+                error={previewConfigError}
+                currentSectionId={numericSectionId}
+                currentSectionType={sectionType}
+                onNavigateSection={handleNavigateSection}
+                onAddSection={handleAddSection}
+              />
+            )}
             <VariantContextCard
               context={variantContext}
               error={variantContextError}
@@ -384,84 +580,243 @@ export function SectionEditor() {
 
           {/* Right Column: Live Preview (OT-P0-013: updates within 300ms) */}
           <div className="lg:sticky lg:top-6 lg:self-start">
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <Eye className="h-5 w-5" />
-                  Live Preview
-                </h2>
-                <span className="text-xs text-slate-500">Updates in 300ms</span>
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6 space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <Eye className="h-5 w-5" />
+                    Live Preview
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Mirrors the actual landing component for this section type.
+                  </p>
+                </div>
+                <div className="w-full sm:w-auto">
+                  <label htmlFor="compare-variant" className="block text-xs uppercase tracking-[0.3em] text-slate-500 mb-1">
+                    Compare Variant
+                  </label>
+                  <select
+                    id="compare-variant"
+                    value={compareVariantSlug}
+                    onChange={(e) => handleCompareVariantChange(e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="">Single preview</option>
+                    {variantOptions
+                      .filter((variant) => variant.slug !== variantSlug)
+                      .map((variant) => (
+                        <option key={variant.slug} value={variant.slug}>
+                          {variant.name || variant.slug}
+                        </option>
+                      ))}
+                  </select>
+                  {variantOptionsLoading && (
+                    <p className="mt-1 text-[11px] text-slate-500">Loading variant list…</p>
+                  )}
+                  {variantOptionsError && (
+                    <p className="mt-1 text-[11px] text-amber-300">{variantOptionsError}</p>
+                  )}
+                </div>
               </div>
 
-              {/* Preview Panel */}
-              <div className="bg-slate-900 rounded-lg border border-white/10 p-8" data-testid="section-preview">
-                {!enabled && (
-                  <div className="mb-4 px-3 py-2 bg-amber-500/20 border border-amber-500/30 rounded text-amber-400 text-sm">
-                    Section is currently disabled
-                  </div>
-                )}
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <div>Updates in 300ms</div>
+                <div className="text-[11px] text-slate-400">Editing: {previewVariantLabel}</div>
+              </div>
 
-                {/* Hero Section Preview */}
-                {sectionType === 'hero' && (
-                  <div className="text-center space-y-6">
-                    {debouncedContent.image_url && (
-                      <div className="mb-6">
-                        <img
-                          src={debouncedContent.image_url as string}
-                          alt="Hero"
-                          className="max-w-full h-auto rounded-lg"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
-                        />
-                      </div>
-                    )}
-                    <h1 className="text-4xl font-bold">{debouncedContent.title || 'Your Title Here'}</h1>
-                    <p className="text-xl text-slate-300">{debouncedContent.subtitle || 'Your subtitle here'}</p>
-                    {debouncedContent.cta_text && (
-                      <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors">
-                        {debouncedContent.cta_text}
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* CTA Section Preview */}
-                {sectionType === 'cta' && (
-                  <div className="text-center space-y-4 py-8 px-6 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                    <h2 className="text-3xl font-bold">{debouncedContent.title || 'Call to Action'}</h2>
-                    <p className="text-lg text-slate-300">{debouncedContent.subtitle || 'Subtitle goes here'}</p>
-                    {debouncedContent.cta_text && (
-                      <button className="px-8 py-4 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold text-lg transition-colors">
-                        {debouncedContent.cta_text}
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Generic Preview for other types */}
-                {!['hero', 'cta'].includes(sectionType) && (
-                  <div className="space-y-4">
-                    <h2 className="text-2xl font-bold capitalize">{sectionType}</h2>
-                    <h3 className="text-xl">{debouncedContent.title || 'Section Title'}</h3>
-                    <p className="text-slate-300">{debouncedContent.subtitle || 'Section content will appear here'}</p>
-                    {debouncedContent.cta_text && (
-                      <button className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded transition-colors">
-                        {debouncedContent.cta_text}
-                      </button>
-                    )}
-                  </div>
+              <div
+                className={`grid gap-4 ${compareVariantSlug && compareConfig ? 'lg:grid-cols-2' : ''}`}
+                data-testid="section-preview"
+              >
+                <PreviewPanel
+                  title="Editing variant"
+                  variantLabel={previewVariantLabel}
+                  renderer={previewRenderer}
+                  content={debouncedContent}
+                  config={previewConfig}
+                  sectionEnabled={enabled}
+                  missingSectionMessage={`No ${sectionType} preview available yet.`}
+                />
+                {compareVariantSlug && (
+                  <PreviewPanel
+                    title="Comparison variant"
+                    variantLabel={comparisonVariantLabel || compareVariantSlug}
+                    renderer={comparisonSection ? previewRenderer : undefined}
+                    content={comparisonContent}
+                    config={compareConfig}
+                    sectionEnabled={comparisonSection ? comparisonEnabled : true}
+                    missingSectionMessage={
+                      comparisonSection
+                        ? `Unable to render ${sectionType} for ${comparisonVariantLabel || compareVariantSlug}.`
+                        : `${comparisonVariantLabel || compareVariantSlug} does not include a ${sectionType} section yet.`
+                    }
+                  />
                 )}
               </div>
 
-              <div className="mt-4 text-xs text-slate-500">
+              {previewConfigLoading && (
+                <div className="text-xs text-slate-500">
+                  Syncing landing runtime context…
+                </div>
+              )}
+              {previewConfigError && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                  {previewConfigError}
+                </div>
+              )}
+              {compareLoading && (
+                <div className="text-xs text-slate-500">Loading comparison variant…</div>
+              )}
+              {compareError && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                  {compareError}
+                </div>
+              )}
+
+              <div className="text-xs text-slate-500">
                 Preview automatically updates as you type (debounced 300ms)
               </div>
+
+              {variantSlug && (
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 sm:hidden"
+                >
+                  <a href={`/?variant=${variantSlug}`} target="_blank" rel="noopener noreferrer">
+                    <Eye className="h-4 w-4" />
+                    View Variant
+                  </a>
+                </Button>
+              )}
             </div>
           </div>
         </div>
       </div>
     </AdminLayout>
+  );
+}
+
+function PreviewPanel({
+  title,
+  variantLabel,
+  renderer,
+  content,
+  config,
+  sectionEnabled,
+  missingSectionMessage,
+}: {
+  title: string;
+  variantLabel: string;
+  renderer?: PreviewRenderer;
+  content: Record<string, unknown>;
+  config: LandingConfigResponse | null;
+  sectionEnabled: boolean;
+  missingSectionMessage: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs text-slate-500">
+        <span className="font-semibold text-white">{title}</span>
+        <span className="text-[11px] text-slate-400">{variantLabel}</span>
+      </div>
+      <div className="rounded-2xl border border-white/10 bg-slate-950/90 p-4">
+        {!sectionEnabled && (
+          <div className="mb-4 px-3 py-2 bg-amber-500/20 border border-amber-500/30 rounded text-amber-300 text-sm">
+            Section is currently disabled
+          </div>
+        )}
+        <MetricsModeProvider mode="preview">
+          <div className="relative rounded-[28px] border border-white/10 bg-[#07090F] shadow-[0_10px_50px_rgba(7,9,15,0.8)]">
+            <div className="max-h-[720px] overflow-y-auto rounded-[28px]">
+              {renderer ? (
+                renderer({
+                  content,
+                  config,
+                })
+              ) : (
+                <div className="p-8 text-center text-sm text-slate-400">{missingSectionMessage}</div>
+              )}
+            </div>
+          </div>
+        </MetricsModeProvider>
+      </div>
+    </div>
+  );
+}
+
+function VariantSectionTimeline({
+  variantName,
+  sections,
+  loading,
+  error,
+  currentSectionId,
+  currentSectionType,
+  onNavigateSection,
+  onAddSection,
+}: {
+  variantName: string;
+  sections: LandingSection[];
+  loading: boolean;
+  error: string | null;
+  currentSectionId: number | null;
+  currentSectionType: ContentSection['section_type'];
+  onNavigateSection: (section: LandingSection) => void;
+  onAddSection: () => void;
+}) {
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-xl p-6 space-y-4" data-testid="variant-section-timeline">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Variant Timeline</p>
+          <h2 className="text-lg font-semibold text-white">Sections for {variantName}</h2>
+          <p className="text-xs text-slate-500">Jump directly to any section without leaving the editor.</p>
+        </div>
+        <Button variant="outline" size="sm" className="gap-2" onClick={onAddSection}>
+          <Plus className="h-4 w-4" />
+          New Section
+        </Button>
+      </div>
+      {loading && <p className="text-sm text-slate-400">Loading sections…</p>}
+      {error && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          {error}
+        </div>
+      )}
+      {!loading && !error && sections.length === 0 && (
+        <p className="text-sm text-slate-400">
+          This variant has no sections yet. Use the button above to create the first one.
+        </p>
+      )}
+      {!loading && !error && sections.length > 0 && (
+        <div className="space-y-2">
+          {sections.map((section) => {
+            const isActive = currentSectionId
+              ? section.id === currentSectionId
+              : section.section_type === currentSectionType;
+            const badge = section.enabled === false ? 'Disabled' : 'Enabled';
+            return (
+              <button
+                key={`${section.section_type}-${section.id ?? section.order}`}
+                type="button"
+                onClick={() => onNavigateSection(section)}
+                className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
+                  isActive ? 'border-white/40 bg-white/10' : 'border-white/10 hover:border-white/30'
+                }`}
+              >
+                <div>
+                  <div className="text-xs text-slate-500">#{section.order ?? '-'}</div>
+                  <div className="text-sm font-medium capitalize text-white">{section.section_type}</div>
+                  <div className="text-[11px] uppercase tracking-wide text-slate-500">{badge}</div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-slate-500" />
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
