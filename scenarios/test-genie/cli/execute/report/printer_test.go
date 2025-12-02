@@ -1,4 +1,4 @@
-package main
+package report
 
 import (
 	"bytes"
@@ -7,9 +7,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	execTypes "test-genie/cli/internal/execute"
 )
 
-func TestExecutionPrinterIncludesGuidesAndInsights(t *testing.T) {
+func TestPrinterIncludesGuidesAndInsights(t *testing.T) {
 	tmp := t.TempDir()
 
 	unitLog := filepath.Join(tmp, "unit.log")
@@ -21,24 +23,24 @@ func TestExecutionPrinterIncludesGuidesAndInsights(t *testing.T) {
 		t.Fatalf("write integration log: %v", err)
 	}
 
-	resp := ExecuteResponse{
+	resp := execTypes.Response{
 		Success:     false,
 		StartedAt:   time.Now().UTC().Format(time.RFC3339),
 		CompletedAt: time.Now().Add(30 * time.Second).UTC().Format(time.RFC3339),
-		PhaseSummary: PhaseSummary{
+		PhaseSummary: execTypes.PhaseSummary{
 			Total:           2,
 			Failed:          2,
 			DurationSeconds: 30,
 		},
-		Phases: []ExecutePhase{
+		Phases: []execTypes.Phase{
 			{Name: "unit", Status: "failed", DurationSeconds: 8, LogPath: unitLog},
 			{Name: "integration", Status: "failed", DurationSeconds: 12, LogPath: integrationLog},
 		},
 	}
 
 	var buf bytes.Buffer
-	printer := newExecutionPrinter(&buf, "demo-scenario", "", nil, nil, false, nil)
-	printer.Print(resp)
+	pr := New(&buf, "demo-scenario", "", nil, nil, false, nil)
+	pr.Print(resp)
 
 	out := buf.String()
 	for _, token := range []string{
