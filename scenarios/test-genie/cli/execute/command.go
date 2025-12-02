@@ -6,14 +6,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
 
 	"test-genie/cli/execute/report"
 	"test-genie/cli/internal/phases"
-	"test-genie/cli/internal/repo"
 )
 
 // Run executes the execute command.
@@ -40,44 +38,13 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 	}
 	durationTargets := phases.TargetDurations(phaseDescriptors)
 
-	var stopProgress func()
-	var tailer *LogTailer
-	if !parsed.JSON {
-		progressPhases := parsed.Phases
-		if len(progressPhases) == 0 {
-			progressPhases = []string{"structure", "dependencies", "unit", "integration", "business", "performance"}
-		}
-		stopProgress = StartProgress(os.Stderr, progressPhases, durationTargets)
-		if parsed.Stream {
-			if paths := repo.DiscoverScenarioPaths(parsed.Scenario); paths.TestDir != "" {
-				t, err := StartLogTailer(os.Stderr, filepath.Join(paths.TestDir, "artifacts"))
-				if err == nil {
-					tailer = t
-				} else {
-					fmt.Fprintf(os.Stderr, "Warning: unable to start log streaming: %v\n", err)
-				}
-			} else {
-				fmt.Fprintf(os.Stderr, "Warning: unable to locate scenario test dir for streaming\n")
-			}
-		}
+	// Determine which phases will run (for pre-execution display)
+	progressPhases := parsed.Phases
+	if len(progressPhases) == 0 {
+		progressPhases = []string{"structure", "dependencies", "unit", "integration", "business", "performance"}
 	}
 
-	resp, raw, err := client.Run(req)
-	if stopProgress != nil {
-		stopProgress()
-	}
-	if tailer != nil {
-		tailer.Stop()
-	}
-	if err != nil {
-		PrintError(os.Stdout, err, req, httpClient)
-		return err
-	}
-	if parsed.JSON {
-		cliutil.PrintJSON(raw)
-		return nil
-	}
-
+	// Create printer early for pre-execution output
 	pr := report.New(
 		os.Stdout,
 		parsed.Scenario,
@@ -87,7 +54,59 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		req.FailFast,
 		phaseDescriptors,
 	)
-	pr.Print(resp)
+
+	// Print header and test plan IMMEDIATELY (before API call)
+	// This gives users instant feedback about what will run
+	if !parsed.JSON {
+		pr.PrintPreExecution(progressPhases)
+	}
+
+	// Choose execution mode: SSE streaming vs regular
+	var resp Response
+	var raw []byte
+
+	if parsed.Stream && !parsed.JSON {
+		// SSE streaming mode: real-time output as phases complete
+		fmt.Fprintln(os.Stderr, "🔴 Live streaming enabled - receiving real-time updates...")
+		fmt.Fprintln(os.Stderr)
+
+		var err error
+		resp, err = client.RunWithSSE(req, pr, progressPhases)
+		if err != nil {
+			PrintError(os.Stdout, err, req, httpClient)
+			return err
+		}
+
+		// Print final summary (SSE already showed phase progress)
+		pr.PrintResults(resp)
+	} else {
+		// Standard execution mode with progress indicator
+		var stopProgress func()
+		var tailer *LogTailer
+		if !parsed.JSON {
+			stopProgress = StartProgress(os.Stderr, progressPhases, durationTargets)
+		}
+
+		var err error
+		resp, raw, err = client.Run(req)
+		if stopProgress != nil {
+			stopProgress()
+		}
+		if tailer != nil {
+			tailer.Stop()
+		}
+		if err != nil {
+			PrintError(os.Stdout, err, req, httpClient)
+			return err
+		}
+		if parsed.JSON {
+			cliutil.PrintJSON(raw)
+			return nil
+		}
+
+		// Print results (header/plan already printed pre-execution)
+		pr.PrintResults(resp)
+	}
 
 	if resp.Error != "" {
 		fmt.Printf("\nError: %s\n", resp.Error)

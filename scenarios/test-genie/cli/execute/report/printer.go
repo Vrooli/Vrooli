@@ -67,6 +67,101 @@ func (p *Printer) Print(resp execTypes.Response) {
 	p.printDocs()
 }
 
+// PrintPreExecution prints the header and test plan BEFORE the API call starts.
+// This provides immediate feedback to users while waiting for tests to run.
+func (p *Printer) PrintPreExecution(phaseNames []string) {
+	p.printPreHeader(phaseNames)
+	p.printPrePlan(phaseNames)
+}
+
+// PrintResults prints only the results portion (after API call completes).
+// Used in conjunction with PrintPreExecution for streaming-style output.
+func (p *Printer) PrintResults(resp execTypes.Response) {
+	p.printPhaseProgress(resp.Phases)
+	p.printPhaseResults(resp.Phases)
+	p.printSummary(resp)
+	p.printFailureDigest(resp.Phases)
+	p.printQuickFixGuide(resp.Phases)
+	p.printDebugGuides(resp.Phases)
+	p.printArtifacts(resp)
+	p.printDocs()
+}
+
+func (p *Printer) printPreHeader(phaseNames []string) {
+	title := fmt.Sprintf("%s COMPREHENSIVE TEST SUITE", strings.ToUpper(p.scenario))
+	paths := repo.DiscoverScenarioPaths(p.scenario)
+	estimated := p.estimateTotalFromNames(phaseNames)
+	startText := time.Now().Format("15:04:05")
+
+	fmt.Fprintln(p.w, p.color.Cyan("╔═══════════════════════════════════════════════════════════════╗"))
+	fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), p.color.BoldCyan(title), p.color.Cyan("║"))
+	fmt.Fprintln(p.w, p.color.Cyan("╠═══════════════════════════════════════════════════════════════╣"))
+	fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Scenario: %s", p.scenario), p.color.Cyan("║"))
+	if p.requestedPreset != "" {
+		fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Preset: %s", p.requestedPreset), p.color.Cyan("║"))
+	}
+	if len(p.requestedPhases) > 0 {
+		fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Requested phases: %s", strings.Join(p.requestedPhases, ", ")), p.color.Cyan("║"))
+	}
+	if len(p.requestedSkip) > 0 {
+		fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Skip: %s", strings.Join(p.requestedSkip, ", ")), p.color.Cyan("║"))
+	}
+	if p.failFast {
+		fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), "Fail-fast: enabled", p.color.Cyan("║"))
+	}
+	fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Started: %s", startText), p.color.Cyan("║"))
+	if estimated != "" {
+		fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Estimated: ~%s", estimated), p.color.Cyan("║"))
+	}
+	fmt.Fprintf(p.w, "%s  Phases: %-54d%s\n", p.color.Cyan("║"), len(phaseNames), p.color.Cyan("║"))
+	if paths.ScenarioDir != "" {
+		fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Test directory: %s/test", p.scenario), p.color.Cyan("║"))
+	}
+	fmt.Fprintln(p.w, p.color.Cyan("╚═══════════════════════════════════════════════════════════════╝"))
+	fmt.Fprintln(p.w)
+}
+
+func (p *Printer) printPrePlan(phaseNames []string) {
+	fmt.Fprintln(p.w, p.color.Bold("Test Plan:"))
+	if len(phaseNames) == 0 {
+		fmt.Fprintln(p.w, "  • (no phases specified)")
+		fmt.Fprintln(p.w)
+		return
+	}
+	for idx, name := range phaseNames {
+		target := p.targetDuration(name)
+		desc := p.lookupPhaseDescription(name)
+		targetText := ""
+		if target != "" {
+			targetText = fmt.Sprintf("(±%s)", target)
+		}
+		line := fmt.Sprintf("  [%d/%d] %-14s %-10s", idx+1, len(phaseNames), name, targetText)
+		if desc != "" {
+			line = fmt.Sprintf("%s → %s", line, desc)
+		}
+		fmt.Fprintln(p.w, p.color.Cyan(line))
+	}
+	fmt.Fprintln(p.w)
+	fmt.Fprintln(p.w, p.color.Cyan("Starting execution..."))
+	fmt.Fprintln(p.w)
+}
+
+func (p *Printer) estimateTotalFromNames(phaseNames []string) string {
+	if len(phaseNames) == 0 {
+		return ""
+	}
+	var total time.Duration
+	for _, name := range phaseNames {
+		if d, ok := p.targetDurationByKey[NormalizeName(name)]; ok && d > 0 {
+			total += d
+		}
+	}
+	if total == 0 {
+		return ""
+	}
+	return total.Truncate(time.Second).String()
+}
+
 func (p *Printer) printHeader(resp execTypes.Response) {
 	title := fmt.Sprintf("%s COMPREHENSIVE TEST SUITE", strings.ToUpper(p.scenario))
 	startText := FormatTimestampShort(resp.StartedAt, "unknown")

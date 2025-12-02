@@ -1,13 +1,21 @@
 {
   "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
   "_metadata": {
-    "description": "Sample testing configuration for React + Vite template",
-    "last_updated": "2025-11-08T00:00:00Z"
+    "description": "Testing configuration for test-genie scenario",
+    "last_updated": "2025-12-02T00:00:00Z"
   },
   "version": "1.0.0",
   "structure": {
     "additional_dirs": [
       "ui"
+    ],
+    "additional_files": [
+      "api/cmd/test-genie-api/main.go",
+      "cli/main.go"
+    ],
+    "exclude_files": [
+      "api/main.go",
+      "cli/test-genie"
     ]
   },
   "unit": {

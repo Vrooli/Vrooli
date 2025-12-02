@@ -137,6 +137,7 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/suite-requests/{id}", s.handleGetSuiteRequest).Methods("GET")
 	apiRouter.HandleFunc("/phases", s.handleListPhases).Methods("GET")
 	apiRouter.HandleFunc("/executions", s.handleExecuteSuite).Methods("POST")
+	apiRouter.HandleFunc("/executions/stream", s.handleExecuteSuiteStream).Methods("POST")
 	apiRouter.HandleFunc("/executions", s.handleListExecutions).Methods("GET")
 	apiRouter.HandleFunc("/executions/{id}", s.handleGetExecution).Methods("GET")
 	apiRouter.HandleFunc("/scenarios", s.handleListScenarios).Methods("GET")
@@ -152,10 +153,12 @@ func (s *Server) Start() error {
 	})
 
 	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%s", s.config.Port),
-		Handler:      handlers.RecoveryHandler()(s.router),
+		Addr:    fmt.Sprintf(":%s", s.config.Port),
+		Handler: handlers.RecoveryHandler()(s.router),
+		// Extended timeouts to support long-running SSE streams for test execution
+		// Test suites can run for up to 15 minutes
 		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		WriteTimeout: 20 * time.Minute, // Extended for SSE streaming
 		IdleTimeout:  120 * time.Second,
 	}
 
