@@ -28,14 +28,14 @@ type HealthService struct {
 	api *cliutil.APIClient
 }
 
-func (s *HealthService) Status() ([]byte, map[string]interface{}, error) {
+func (s *HealthService) Status() ([]byte, models.HealthResponse, error) {
 	body, err := s.api.Get("/health", nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, models.HealthResponse{}, err
 	}
-	var parsed map[string]interface{}
+	var parsed models.HealthResponse
 	if err := json.Unmarshal(body, &parsed); err != nil {
-		return body, nil, fmt.Errorf("parse response: %w", err)
+		return body, models.HealthResponse{}, fmt.Errorf("parse response: %w", err)
 	}
 	return body, parsed, nil
 }

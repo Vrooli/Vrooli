@@ -2,6 +2,7 @@ package cliutil
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,12 +24,19 @@ type HTTPClientOptions struct {
 	Client      *http.Client
 	BaseOptions APIBaseOptions
 	Token       string
+	Timeout     time.Duration
 }
 
 func NewHTTPClient(opts HTTPClientOptions) *HTTPClient {
 	client := opts.Client
 	if client == nil {
-		client = &http.Client{Timeout: 30 * time.Second}
+		timeout := opts.Timeout
+		if timeout <= 0 {
+			timeout = 30 * time.Second
+		}
+		client = &http.Client{Timeout: timeout}
+	} else if opts.Timeout > 0 {
+		client.Timeout = opts.Timeout
 	}
 	return &HTTPClient{
 		client:      client,
@@ -49,8 +57,24 @@ func (h *HTTPClient) BaseURL() string {
 	return DetermineAPIBase(h.baseOptions)
 }
 
+// Timeout returns the configured HTTP timeout, or zero when no client exists.
+func (h *HTTPClient) Timeout() time.Duration {
+	if h == nil || h.client == nil {
+		return 0
+	}
+	return h.client.Timeout
+}
+
 // Do performs an HTTP request with JSON encoding and standard error handling.
 func (h *HTTPClient) Do(method, path string, query url.Values, body interface{}) ([]byte, error) {
+	return h.DoWithContext(context.Background(), method, path, query, body)
+}
+
+// DoWithContext performs an HTTP request with a provided context.
+func (h *HTTPClient) DoWithContext(ctx context.Context, method, path string, query url.Values, body interface{}) ([]byte, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	base := strings.TrimSpace(h.BaseURL())
 	if base == "" {
 		return nil, fmt.Errorf("api base URL is empty; configure an API base or set an API port")
@@ -72,7 +96,7 @@ func (h *HTTPClient) Do(method, path string, query url.Values, body interface{})
 		reader = bytes.NewReader(payload)
 	}
 
-	req, err := http.NewRequest(method, endpoint, reader)
+	req, err := http.NewRequestWithContext(ctx, method, endpoint, reader)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}

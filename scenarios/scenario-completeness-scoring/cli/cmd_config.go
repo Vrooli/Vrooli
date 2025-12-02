@@ -9,32 +9,6 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
-func (a *App) cmdConfigure(args []string) error {
-	if len(args) == 0 {
-		payload, _ := json.MarshalIndent(a.config, "", "  ")
-		fmt.Println(string(payload))
-		return nil
-	}
-	if len(args) != 2 {
-		return fmt.Errorf("usage: configure <key> <value>")
-	}
-	key := args[0]
-	value := args[1]
-	switch key {
-	case "api_base":
-		a.config.APIBase = value
-	case "token":
-		a.config.Token = value
-	default:
-		return fmt.Errorf("unknown configuration key: %s", key)
-	}
-	if err := a.saveConfig(); err != nil {
-		return err
-	}
-	fmt.Printf("Updated %s\n", key)
-	return nil
-}
-
 func (a *App) cmdConfig(args []string) error {
 	if len(args) > 0 && args[0] == "set" {
 		return a.cmdConfigSet(args[1:])

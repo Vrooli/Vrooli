@@ -3,6 +3,9 @@ package cliapp
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
+	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -11,24 +14,29 @@ import (
 // scenarios don't have to repeat config loading, API client setup, stale
 // checking, and configure command plumbing.
 type ScenarioOptions struct {
-	Name              string
-	Version           string
-	Description       string
-	DefaultAPIBase    string
-	APIEnvVars        []string
-	APIPortEnvVars    []string
-	APIPortDetector   func() string
-	ConfigDirEnvVars  []string
-	SourceRootEnvVars []string
-	ColorEnabled      *bool
-	OnColor           func(enabled bool)
-	Commands          []CommandGroup
-	TokenKeys         []string
-	APIBaseKeys       []string
-	Preflight         func(cmd Command, global GlobalOptions, app *ScenarioApp) error
-	BuildFingerprint  string
-	BuildTimestamp    string
-	BuildSourceRoot   string
+	Name               string
+	Version            string
+	Description        string
+	DefaultAPIBase     string
+	APIEnvVars         []string
+	APIPortEnvVars     []string
+	APIPortDetector    func() string
+	ConfigDirEnvVars   []string
+	SourceRootEnvVars  []string
+	ColorEnabled       *bool
+	OnColor            func(enabled bool)
+	Commands           []CommandGroup
+	TokenKeys          []string
+	APIBaseKeys        []string
+	TokenEnvVars       []string
+	Preflight          func(cmd Command, global GlobalOptions, app *ScenarioApp) error
+	BuildFingerprint   string
+	BuildTimestamp     string
+	BuildSourceRoot    string
+	HTTPClientOptions  cliutil.HTTPClientOptions
+	HTTPTimeoutEnvVars []string
+	DefaultHTTPTimeout time.Duration
+	AllowAnonymous     bool
 }
 
 // ScenarioApp encapsulates the shared CLI scaffolding for a scenario CLI.
@@ -40,6 +48,7 @@ type ScenarioApp struct {
 	APIClient    *cliutil.APIClient
 	CLI          *App
 	StaleChecker *cliutil.StaleChecker
+	tokenSource  func() string
 
 	options     ScenarioOptions
 	baseOptions func() cliutil.APIBaseOptions
@@ -55,6 +64,17 @@ func NewScenarioApp(opts ScenarioOptions) (*ScenarioApp, error) {
 	if len(opts.TokenKeys) == 0 {
 		opts.TokenKeys = []string{"token", "api_token"}
 	}
+	if len(opts.TokenEnvVars) == 0 {
+		slug := strings.ToUpper(strings.ReplaceAll(opts.Name, "-", "_"))
+		opts.TokenEnvVars = []string{slug + "_API_TOKEN", "VROOLI_API_TOKEN"}
+	}
+	if len(opts.HTTPTimeoutEnvVars) == 0 {
+		slug := strings.ToUpper(strings.ReplaceAll(opts.Name, "-", "_"))
+		opts.HTTPTimeoutEnvVars = []string{slug + "_HTTP_TIMEOUT", "VROOLI_HTTP_TIMEOUT"}
+	}
+	if opts.DefaultHTTPTimeout == 0 {
+		opts.DefaultHTTPTimeout = 30 * time.Second
+	}
 
 	configFile, cfg, err := cliutil.LoadAPIConfig(opts.Name, opts.ConfigDirEnvVars...)
 	if err != nil {
@@ -65,9 +85,17 @@ func NewScenarioApp(opts ScenarioOptions) (*ScenarioApp, error) {
 		ConfigFile:   configFile,
 		Config:       cfg,
 		APIOverride:  "",
-		HTTPClient:   cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}),
+		HTTPClient:   cliutil.NewHTTPClient(applyTimeoutOpts(opts)),
 		StaleChecker: cliutil.NewStaleChecker(opts.Name, opts.BuildFingerprint, opts.BuildTimestamp, opts.BuildSourceRoot, opts.SourceRootEnvVars...),
 		options:      opts,
+	}
+	app.tokenSource = func() string {
+		for _, env := range opts.TokenEnvVars {
+			if val := strings.TrimSpace(os.Getenv(env)); val != "" {
+				return val
+			}
+		}
+		return app.Config.Token
 	}
 	app.baseOptions = func() cliutil.APIBaseOptions {
 		return cliutil.APIBaseOptions{
@@ -79,7 +107,7 @@ func NewScenarioApp(opts ScenarioOptions) (*ScenarioApp, error) {
 			DefaultBase:  opts.DefaultAPIBase,
 		}
 	}
-	app.APIClient = cliutil.NewAPIClient(app.HTTPClient, app.APIBaseOptions, func() string { return app.Config.Token })
+	app.APIClient = cliutil.NewAPIClient(app.HTTPClient, app.APIBaseOptions, app.tokenSource)
 	app.SetCommands(opts.Commands)
 	return app, nil
 }
@@ -98,6 +126,9 @@ func (a *ScenarioApp) SetCommands(commands []CommandGroup) {
 		if cmd.NeedsAPI {
 			if _, err := cliutil.ValidateAPIBase(a.APIBaseOptions()); err != nil {
 				return err
+			}
+			if !a.options.AllowAnonymous && strings.TrimSpace(a.tokenSource()) == "" {
+				return fmt.Errorf("API token is required for %s; set one via configure or %s", cmd.Name, strings.Join(a.options.TokenEnvVars, ", "))
 			}
 		}
 		if a.options.Preflight != nil {
@@ -180,4 +211,12 @@ func keyMatch(key string, allowed []string) bool {
 		}
 	}
 	return false
+}
+
+func applyTimeoutOpts(opts ScenarioOptions) cliutil.HTTPClientOptions {
+	clientOpts := opts.HTTPClientOptions
+	if clientOpts.Timeout == 0 {
+		clientOpts.Timeout = cliutil.ResolveTimeout(opts.HTTPTimeoutEnvVars, opts.DefaultHTTPTimeout)
+	}
+	return clientOpts
 }

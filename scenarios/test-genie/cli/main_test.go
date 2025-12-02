@@ -80,11 +80,78 @@ func TestBuildAPIBaseOptionsUsesPortEnv(t *testing.T) {
 	}
 }
 
+func TestGenerateCommandSendsRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/suite-requests" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		body, _ := io.ReadAll(r.Body)
+		defer r.Body.Close()
+		if !bytes.Contains(body, []byte(`"coverageTarget":80`)) {
+			t.Fatalf("expected coverage in payload, got %s", string(body))
+		}
+		fmt.Fprintf(w, `{"id":"1","scenarioName":"demo","status":"queued","requestedTypes":["unit"]}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("TEST_GENIE_API_BASE", server.URL)
+	app := newTestApp(t)
+
+	if err := app.Run([]string{"generate", "demo", "--coverage", "80", "--types", "unit"}); err != nil {
+		t.Fatalf("generate failed: %v", err)
+	}
+}
+
+func TestRunTestsCommandSendsType(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/scenarios/demo/run-tests" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		body, _ := io.ReadAll(r.Body)
+		defer r.Body.Close()
+		if !bytes.Contains(body, []byte(`"type":"phased"`)) {
+			t.Fatalf("expected type in payload, got %s", string(body))
+		}
+		fmt.Fprintf(w, `{"type":"phased","status":"ok","command":{"command":["echo"],"workingDir":"."}}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("TEST_GENIE_API_BASE", server.URL)
+	app := newTestApp(t)
+
+	if err := app.Run([]string{"run-tests", "demo", "--type", "phased"}); err != nil {
+		t.Fatalf("run-tests failed: %v", err)
+	}
+}
+
+func TestStatusCommandRequestsHealth(t *testing.T) {
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if r.URL.Path != "/health" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		fmt.Fprintf(w, `{"status":"ok","service":"test-genie","version":"1.0","dependencies":{"db":"up"},"operations":{"queue":{"pending":0,"queued":1,"delegated":0,"running":0,"failed":0,"oldestQueuedAgeSeconds":0}}}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("TEST_GENIE_API_BASE", server.URL)
+	app := newTestApp(t)
+
+	if err := app.Run([]string{"status"}); err != nil {
+		t.Fatalf("status failed: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("expected one health call, got %d", calls)
+	}
+}
+
 func newTestApp(t *testing.T) *App {
 	t.Helper()
 	temp := t.TempDir()
 	t.Setenv("HOME", temp)
 	t.Setenv("TEST_GENIE_CONFIG_DIR", temp)
+	t.Setenv("TEST_GENIE_API_TOKEN", "test-token")
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("new app: %v", err)

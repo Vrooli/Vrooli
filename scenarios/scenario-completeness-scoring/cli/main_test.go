@@ -73,7 +73,7 @@ func TestUnknownCommand(t *testing.T) {
 
 func TestConfigDirectoryCreated(t *testing.T) {
 	app := newTestApp(t)
-	dir := filepath.Dir(app.configStore.Path)
+	dir := filepath.Dir(app.core.ConfigFile.Path)
 	if _, err := os.Stat(dir); err != nil {
 		t.Fatalf("expected config directory to exist: %v", err)
 	}
@@ -84,8 +84,8 @@ func TestGlobalFlagApiBaseAcceptedAnywhere(t *testing.T) {
 	if err := app.Run([]string{"--api-base", "http://example.com", "help"}); err != nil {
 		t.Fatalf("run with api-base: %v", err)
 	}
-	if app.apiOverride != "http://example.com" {
-		t.Fatalf("expected apiOverride to be set, got %q", app.apiOverride)
+	if app.core.APIOverride != "http://example.com" {
+		t.Fatalf("expected apiOverride to be set, got %q", app.core.APIOverride)
 	}
 }
 
@@ -100,7 +100,7 @@ func TestGlobalFlagApiBaseMissingValue(t *testing.T) {
 func TestBuildAPIBaseOptionsUsesPortEnv(t *testing.T) {
 	app := newTestApp(t)
 	t.Setenv("API_PORT", "4321")
-	base := cliutil.DetermineAPIBase(app.buildAPIBaseOptions())
+	base := cliutil.DetermineAPIBase(app.core.APIBaseOptions())
 	if base != "http://localhost:4321" {
 		t.Fatalf("expected API base from port env, got %s", base)
 	}
@@ -123,7 +123,7 @@ func TestScoreCommandRunsStaleCheckViaDispatcher(t *testing.T) {
 	t.Cleanup(func() { format.SetColorEnabled(true) })
 	app := newTestApp(t)
 	called := false
-	app.cli.SetStaleChecker(&cliutil.StaleChecker{
+	app.core.CLI.SetStaleChecker(&cliutil.StaleChecker{
 		BuildFingerprint: "fp",
 		BuildSourceRoot:  t.TempDir(),
 		FingerprintFunc: func(root string, skip ...string) (string, error) {
@@ -150,10 +150,83 @@ func TestScoreCommandRunsStaleCheckViaDispatcher(t *testing.T) {
 	}
 }
 
+func TestHistoryCommandSendsQuery(t *testing.T) {
+	app := newTestApp(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/scores/demo/history" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if r.URL.Query().Get("limit") != "5" {
+			t.Fatalf("expected limit query param, got %s", r.URL.RawQuery)
+		}
+		fmt.Fprint(w, `{"items":[]}`)
+	}))
+	defer server.Close()
+	t.Setenv("SCENARIO_COMPLETENESS_SCORING_API_BASE", server.URL)
+
+	if err := app.Run([]string{"history", "--limit", "5", "demo"}); err != nil {
+		t.Fatalf("history command failed: %v", err)
+	}
+}
+
+func TestWhatIfCommandSendsPayload(t *testing.T) {
+	app := newTestApp(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		defer r.Body.Close()
+		if r.URL.Path != "/api/v1/scores/demo/what-if" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if !bytes.Contains(body, []byte(`"changes"`)) {
+			t.Fatalf("expected changes payload, got %s", string(body))
+		}
+		fmt.Fprint(w, `{"ok":true}`)
+	}))
+	defer server.Close()
+	t.Setenv("SCENARIO_COMPLETENESS_SCORING_API_BASE", server.URL)
+
+	if err := app.Run([]string{"what-if", "demo"}); err != nil {
+		t.Fatalf("what-if command failed: %v", err)
+	}
+}
+
+func TestPresetApplyCommand(t *testing.T) {
+	app := newTestApp(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/config/presets/default/apply" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		fmt.Fprint(w, `{"applied":"default"}`)
+	}))
+	defer server.Close()
+	t.Setenv("SCENARIO_COMPLETENESS_SCORING_API_BASE", server.URL)
+
+	if err := app.Run([]string{"preset", "apply", "default"}); err != nil {
+		t.Fatalf("preset apply failed: %v", err)
+	}
+}
+
+func TestRecommendCommand(t *testing.T) {
+	app := newTestApp(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/recommendations/demo" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		fmt.Fprint(w, `{"recommendations":[]}`)
+	}))
+	defer server.Close()
+	t.Setenv("SCENARIO_COMPLETENESS_SCORING_API_BASE", server.URL)
+
+	if err := app.Run([]string{"recommend", "demo"}); err != nil {
+		t.Fatalf("recommend failed: %v", err)
+	}
+}
+
 func newTestApp(t *testing.T) *App {
 	t.Helper()
 	tempHome := t.TempDir()
 	t.Setenv("HOME", tempHome)
+	t.Setenv("SCENARIO_COMPLETENESS_SCORING_API_TOKEN", "test-token")
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("new app: %v", err)

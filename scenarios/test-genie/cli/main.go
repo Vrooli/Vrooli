@@ -41,20 +41,21 @@ func main() {
 func NewApp() (*App, error) {
 	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{})
 	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
-		Name:              appName,
-		Version:           appVersion,
-		Description:       "Test Genie CLI",
-		DefaultAPIBase:    defaultAPIBase,
-		APIEnvVars:        env.APIEnvVars,
-		APIPortEnvVars:    env.APIPortEnvVars,
-		APIPortDetector:   cliutil.DetectPortFromVrooli(appName, "API_PORT"),
-		ConfigDirEnvVars:  env.ConfigDirEnvVars,
-		SourceRootEnvVars: env.SourceRootEnvVars,
-		TokenEnvVars:      env.TokenEnvVars,
-		TokenKeys:         []string{"token", "api_token"},
-		BuildFingerprint:  buildFingerprint,
-		BuildTimestamp:    buildTimestamp,
-		BuildSourceRoot:   buildSourceRoot,
+		Name:               appName,
+		Version:            appVersion,
+		Description:        "Test Genie CLI",
+		DefaultAPIBase:     defaultAPIBase,
+		APIEnvVars:         env.APIEnvVars,
+		APIPortEnvVars:     env.APIPortEnvVars,
+		APIPortDetector:    cliutil.DetectPortFromVrooli(appName, "API_PORT"),
+		ConfigDirEnvVars:   env.ConfigDirEnvVars,
+		SourceRootEnvVars:  env.SourceRootEnvVars,
+		TokenEnvVars:       env.TokenEnvVars,
+		HTTPTimeoutEnvVars: env.HTTPTimeoutEnvVars,
+		TokenKeys:          []string{"token", "api_token"},
+		BuildFingerprint:   buildFingerprint,
+		BuildTimestamp:     buildTimestamp,
+		BuildSourceRoot:    buildSourceRoot,
 	})
 	if err != nil {
 		return nil, err

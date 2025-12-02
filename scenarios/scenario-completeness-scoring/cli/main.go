@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -11,13 +10,9 @@ import (
 )
 
 const (
+	appName        = "scenario-completeness-scoring"
 	appVersion     = "0.1.0"
 	defaultAPIBase = ""
-
-	genericSourceRootEnvVar = "VROOLI_CLI_SOURCE_ROOT"
-	legacySourceRootEnvVar  = "SCENARIO_COMPLETENESS_SCORING_CLI_SOURCE_ROOT"
-	configDirEnvVar         = "SCENARIO_COMPLETENESS_SCORING_CONFIG_DIR"
-	configDirGenericEnvVar  = "VROOLI_CLI_CONFIG_DIR"
 )
 
 var (
@@ -27,13 +22,8 @@ var (
 )
 
 type App struct {
-	configStore *cliutil.ConfigFile
-	config      cliutil.APIConfig
-	apiOverride string
-	client      *cliutil.HTTPClient
-	api         *cliutil.APIClient
-	services    *Services
-	cli         *cliapp.App
+	core     *cliapp.ScenarioApp
+	services *Services
 }
 
 func main() {
@@ -49,34 +39,33 @@ func main() {
 }
 
 func NewApp() (*App, error) {
-	configStore, cfg, err := cliutil.LoadAPIConfig("scenario-completeness-scoring", configDirEnvVar, configDirGenericEnvVar)
+	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
+		ExtraAPIEnvVars: []string{"SCORING_API_BASE"},
+	})
+	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
+		Name:               appName,
+		Version:            appVersion,
+		Description:        "scenario-completeness-scoring CLI",
+		DefaultAPIBase:     defaultAPIBase,
+		APIEnvVars:         env.APIEnvVars,
+		APIPortEnvVars:     env.APIPortEnvVars,
+		APIPortDetector:    cliutil.DetectPortFromVrooli(appName, "API_PORT"),
+		ConfigDirEnvVars:   env.ConfigDirEnvVars,
+		SourceRootEnvVars:  env.SourceRootEnvVars,
+		TokenEnvVars:       env.TokenEnvVars,
+		HTTPTimeoutEnvVars: env.HTTPTimeoutEnvVars,
+		OnColor:            format.SetColorEnabled,
+		BuildFingerprint:   buildFingerprint,
+		BuildTimestamp:     buildTimestamp,
+		BuildSourceRoot:    buildSourceRoot,
+	})
 	if err != nil {
 		return nil, err
 	}
-	app := &App{
-		configStore: configStore,
-		config:      cfg,
-		apiOverride: "",
-		client:      cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}),
-	}
-	app.api = cliutil.NewAPIClient(app.client, app.buildAPIBaseOptions, func() string { return app.config.Token })
-	app.services = NewServices(app.api)
-	app.cli = cliapp.NewApp(cliapp.AppOptions{
-		Name:         "scenario-completeness-scoring",
-		Version:      appVersion,
-		Description:  "scenario-completeness-scoring CLI",
-		Commands:     app.registerCommands(),
-		APIOverride:  &app.apiOverride,
-		ColorEnabled: cliapp.DefaultColorEnabled(),
-		OnColor:      format.SetColorEnabled,
-		StaleChecker: cliutil.NewStaleChecker("scenario-completeness-scoring", buildFingerprint, buildTimestamp, buildSourceRoot, genericSourceRootEnvVar, legacySourceRootEnvVar),
-		Preflight:    app.preflightAPI,
-	})
+	app := &App{core: core}
+	app.services = NewServices(app.core.APIClient)
+	app.core.SetCommands(app.registerCommands())
 	return app, nil
-}
-
-func (a *App) saveConfig() error {
-	return a.configStore.Save(a.config)
 }
 
 func (a *App) registerCommands() []cliapp.CommandGroup {
@@ -103,41 +92,15 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	config := cliapp.CommandGroup{
 		Title: "Configuration",
 		Commands: []cliapp.Command{
+			a.core.ConfigureCommand(nil, nil),
 			{Name: "config", NeedsAPI: true, Description: "Show server scoring configuration", Run: a.cmdConfig},
 			{Name: "presets", NeedsAPI: true, Description: "List configuration presets", Run: func(args []string) error { return a.cmdPresets() }},
 			{Name: "preset", NeedsAPI: true, Description: "Apply a configuration preset", Run: a.cmdPreset},
-			{Name: "configure", NeedsAPI: false, Description: "View or update local CLI settings (api_base, token)", Run: a.cmdConfigure},
 		},
 	}
 	return []cliapp.CommandGroup{health, scoring, config}
 }
 
 func (a *App) Run(args []string) error {
-	return a.cli.Run(args)
-}
-
-type multiValue []string
-
-func (m *multiValue) String() string {
-	return strings.Join(*m, ",")
-}
-
-func (m *multiValue) Set(value string) error {
-	*m = append(*m, value)
-	return nil
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if value, ok := m[key].(string); ok {
-		return value
-	}
-	return ""
-}
-
-func (a *App) preflightAPI(cmd cliapp.Command, global cliapp.GlobalOptions) error {
-	if !cmd.NeedsAPI {
-		return nil
-	}
-	_, err := cliutil.ValidateAPIBase(a.buildAPIBaseOptions())
-	return err
+	return a.core.CLI.Run(args)
 }

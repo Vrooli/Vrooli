@@ -12,7 +12,7 @@ import (
 
 func (a *App) cmdScores(args []string) error {
 	fs := flag.NewFlagSet("scores", flag.ContinueOnError)
-	jsonOutput := fs.Bool("json", false, "Output raw JSON")
+	jsonOutput := cliutil.JSONFlag(fs)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func (a *App) cmdScores(args []string) error {
 
 func (a *App) cmdScore(args []string) error {
 	fs := flag.NewFlagSet("score", flag.ContinueOnError)
-	jsonOutput := fs.Bool("json", false, "Output raw JSON")
+	jsonOutput := cliutil.JSONFlag(fs)
 	verbose := fs.Bool("verbose", false, "Show detailed breakdown")
 	fs.BoolVar(verbose, "v", false, "Show detailed breakdown")
 	metrics := fs.Bool("metrics", false, "Include raw metric counters")
@@ -82,8 +82,8 @@ func (a *App) cmdScore(args []string) error {
 func (a *App) cmdCalculate(args []string) error {
 	fs := flag.NewFlagSet("calculate", flag.ContinueOnError)
 	source := fs.String("source", "", "Source identifier for history tracking")
-	jsonOutput := fs.Bool("json", false, "Output raw JSON")
-	var tags multiValue
+	jsonOutput := cliutil.JSONFlag(fs)
+	var tags cliutil.StringList
 	fs.Var(&tags, "tag", "Tag to associate with snapshot (repeatable)")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -92,7 +92,7 @@ func (a *App) cmdCalculate(args []string) error {
 		return fmt.Errorf("usage: calculate <scenario> [--source name] [--tag value] [--json]")
 	}
 	scenarioName := fs.Arg(0)
-	body, err := a.services.Scoring.Calculate(scenarioName, *source, []string(tags))
+	body, err := a.services.Scoring.Calculate(scenarioName, *source, tags.Values())
 	if err != nil {
 		return err
 	}
@@ -109,8 +109,8 @@ func (a *App) cmdHistory(args []string) error {
 	fs := flag.NewFlagSet("history", flag.ContinueOnError)
 	limit := fs.Int("limit", 30, "Number of entries to show")
 	source := fs.String("source", "", "Filter by source")
-	jsonOutput := fs.Bool("json", false, "Output raw JSON")
-	var tags multiValue
+	jsonOutput := cliutil.JSONFlag(fs)
+	var tags cliutil.StringList
 	fs.Var(&tags, "tag", "Filter by tag (repeatable)")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -119,7 +119,7 @@ func (a *App) cmdHistory(args []string) error {
 		return fmt.Errorf("usage: history <scenario> [--limit N] [--source name] [--tag value] [--json]")
 	}
 	scenarioName := fs.Arg(0)
-	body, err := a.services.Scoring.History(scenarioName, *limit, *source, []string(tags))
+	body, err := a.services.Scoring.History(scenarioName, *limit, *source, tags.Values())
 	if err != nil {
 		return err
 	}
@@ -135,8 +135,8 @@ func (a *App) cmdTrends(args []string) error {
 	fs := flag.NewFlagSet("trends", flag.ContinueOnError)
 	limit := fs.Int("limit", 30, "Number of entries to analyze")
 	source := fs.String("source", "", "Filter by source")
-	jsonOutput := fs.Bool("json", false, "Output raw JSON")
-	var tags multiValue
+	jsonOutput := cliutil.JSONFlag(fs)
+	var tags cliutil.StringList
 	fs.Var(&tags, "tag", "Filter by tag")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -145,7 +145,7 @@ func (a *App) cmdTrends(args []string) error {
 		return fmt.Errorf("usage: trends <scenario> [--limit N] [--source name] [--tag value] [--json]")
 	}
 	scenarioName := fs.Arg(0)
-	body, err := a.services.Scoring.Trends(scenarioName, *limit, *source, []string(tags))
+	body, err := a.services.Scoring.Trends(scenarioName, *limit, *source, tags.Values())
 	if err != nil {
 		return err
 	}
@@ -159,7 +159,7 @@ func (a *App) cmdTrends(args []string) error {
 
 func (a *App) cmdWhatIf(args []string) error {
 	fs := flag.NewFlagSet("what-if", flag.ContinueOnError)
-	jsonOutput := fs.Bool("json", false, "Output raw JSON")
+	jsonOutput := cliutil.JSONFlag(fs)
 	changesFile := fs.String("file", "", "Path to JSON file describing changes")
 	if err := fs.Parse(args); err != nil {
 		return err

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // ConfigFile manages loading and saving JSON config files and ensures the parent
@@ -159,4 +160,24 @@ func PrintJSONMap(m map[string]interface{}, indent int) {
 			fmt.Printf("%s%s: %s\n", prefix, key, string(jsonVal))
 		}
 	}
+}
+
+// ResolveTimeout returns the first parseable duration from envVars or the fallback.
+// Accepts standard duration strings (e.g. "45s", "2m") and plain integers as seconds.
+func ResolveTimeout(envVars []string, fallback time.Duration) time.Duration {
+	for _, env := range envVars {
+		val := strings.TrimSpace(os.Getenv(env))
+		if val == "" {
+			continue
+		}
+		parsed, err := time.ParseDuration(val)
+		if err != nil {
+			if secs, convErr := time.ParseDuration(val + "s"); convErr == nil {
+				return secs
+			}
+			continue
+		}
+		return parsed
+	}
+	return fallback
 }

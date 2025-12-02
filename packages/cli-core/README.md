@@ -27,7 +27,7 @@ flowchart TD
 
 ## Quickstart (install a scenario CLI)
 ```bash
-# From repo root
+# From repo root (macOS/Linux)
 ./packages/cli-core/install.sh scenarios/scenario-completeness-scoring/cli --name scenario-completeness-scoring
 
 # Install somewhere else
@@ -35,6 +35,9 @@ flowchart TD
 
 # Pin a published cli-core instead of local sources
 CLI_CORE_VERSION=v0.0.1 ./packages/cli-core/install.sh scenarios/test-genie/cli --name test-genie
+
+# Windows/PowerShell
+powershell -ExecutionPolicy Bypass -File packages/cli-core/install.ps1 -ModulePath scenarios/test-genie/cli -Name test-genie
 ```
 
 Notes:
@@ -42,7 +45,7 @@ Notes:
 - `APP_ROOT` can override repo root detection when running from a different working dir.
 
 ## Scenario wiring checklist
-- Use `cliapp.StandardScenarioEnv("<scenario-name>", ...)` to derive API/config/source-root env vars (keeps names consistent across CLIs).
+- Use `cliapp.StandardScenarioEnv("<scenario-name>", ...)` to derive API/config/source-root/timeout env vars (keeps names consistent across CLIs). Scenario-specific API port envs are checked before global `API_PORT`.
 - Build the core with `cliapp.NewScenarioApp`, pass your command groups, and use `ConfigureCommand` for a consistent config UX.
 - Make API calls through `cliutil.APIClient` (wraps `HTTPClient`, handles base URL resolution and token injection).
 - For flags/inputs, use `cliutil.JSONFlag`, `StringList`, `ParseCSV`, and `MergeArgs` instead of hand-rolled parsers; read files with `ReadFileString`.
@@ -56,11 +59,11 @@ Notes:
 
 ## Helpers reference
 - Flags/IO: `StringList`, `ParseCSV`, `MergeArgs`, `JSONFlag`, `ReadFileString`.
-- HTTP/API: `HTTPClient` (`Do`, base URL + token), `APIClient` (base resolver + token source), `ValidateAPIBase`, `DetermineAPIBase`.
+- HTTP/API: `HTTPClient` (`Do`, base URL + token, timeout override via env), `APIClient` (base resolver + token source), `ValidateAPIBase`, `DetermineAPIBase`.
 - Config: `ResolveConfigDir`, `LoadAPIConfig`, `ConfigFile` (JSON load/save).
 - Output: `PrintJSON`, `PrintJSONMap`.
 - Ports: `DetectPortFromVrooli("<scenario>", "API_PORT")`.
-- Apps: `App` (command router with global flags and meta commands), `ScenarioApp` (scenario wiring), `ConfigureCommand` (standard config UX).
+- Apps: `App` (command router with global flags and meta commands), `ScenarioApp` (scenario wiring + token preflight), `ConfigureCommand` (standard config UX).
 
 ## Testing locally
 ```bash

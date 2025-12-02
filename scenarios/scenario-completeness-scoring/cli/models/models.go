@@ -161,3 +161,9 @@ type MonolithicTestInfo struct {
 	Count    int      `json:"count"`
 	Severity string   `json:"severity"`
 }
+
+type HealthResponse struct {
+	Status     string                 `json:"status"`
+	Readiness  bool                   `json:"readiness"`
+	Operations map[string]interface{} `json:"operations"`
+}

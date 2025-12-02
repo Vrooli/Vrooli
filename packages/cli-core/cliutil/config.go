@@ -27,12 +27,20 @@ func ResolveConfigDir(appName string, envVars ...string) (string, error) {
 		}
 	}
 
-	if dir, err := os.UserConfigDir(); err == nil && dir != "" {
-		target := filepath.Join(dir, appName)
-		if err := os.MkdirAll(target, 0o700); err != nil {
+	ensureDir := func(path string) (string, error) {
+		if err := os.MkdirAll(path, 0o700); err != nil {
 			return "", fmt.Errorf("create config dir: %w", err)
 		}
-		return target, nil
+		return path, nil
+	}
+
+	if dir, err := os.UserConfigDir(); err == nil && dir != "" {
+		namespaced := filepath.Join(dir, "vrooli", appName)
+		legacy := filepath.Join(dir, appName)
+		if info, err := os.Stat(legacy); err == nil && info.IsDir() {
+			return ensureDir(legacy)
+		}
+		return ensureDir(namespaced)
 	}
 
 	home := os.Getenv("HOME")
@@ -45,11 +53,12 @@ func ResolveConfigDir(appName string, envVars ...string) (string, error) {
 		return "", fmt.Errorf("unable to resolve config directory")
 	}
 
-	target := filepath.Join(home, "."+appName)
-	if err := os.MkdirAll(target, 0o700); err != nil {
-		return "", fmt.Errorf("create config dir: %w", err)
+	namespaced := filepath.Join(home, ".vrooli", "config", appName)
+	legacy := filepath.Join(home, "."+appName)
+	if info, err := os.Stat(legacy); err == nil && info.IsDir() {
+		return ensureDir(legacy)
 	}
-	return target, nil
+	return ensureDir(namespaced)
 }
 
 // LoadAPIConfig returns a ConfigFile at the standard location and loads any

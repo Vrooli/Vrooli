@@ -11,14 +11,11 @@ func (a *App) cmdStatus() error {
 	if err != nil {
 		return err
 	}
-	status := getString(parsed, "status")
-	fmt.Printf("Status: %s\n", status)
-	if readiness, ok := parsed["readiness"].(bool); ok {
-		fmt.Printf("Ready: %v\n", readiness)
-	}
-	if ops, ok := parsed["operations"].(map[string]interface{}); ok && len(ops) > 0 {
+	fmt.Printf("Status: %s\n", parsed.Status)
+	fmt.Printf("Ready: %v\n", parsed.Readiness)
+	if len(parsed.Operations) > 0 {
 		fmt.Println("Operations:")
-		cliutil.PrintJSONMap(ops, 2)
+		cliutil.PrintJSONMap(parsed.Operations, 2)
 	} else {
 		cliutil.PrintJSON(body)
 	}

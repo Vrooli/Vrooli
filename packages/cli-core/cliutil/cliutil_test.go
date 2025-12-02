@@ -1,12 +1,15 @@
 package cliutil
 
 import (
+	"context"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDetermineAPIBasePrecedence(t *testing.T) {
@@ -166,6 +169,76 @@ func TestConfigFileLoadSave(t *testing.T) {
 	}
 }
 
+func TestResolveConfigDirUsesNamespacedDefault(t *testing.T) {
+	temp := t.TempDir()
+	cfgRoot := filepath.Join(temp, "cfg")
+	if runtime.GOOS == "windows" {
+		t.Setenv("APPDATA", cfgRoot)
+	} else {
+		t.Setenv("XDG_CONFIG_HOME", cfgRoot)
+	}
+
+	dir, err := ResolveConfigDir("demo-app")
+	if err != nil {
+		t.Fatalf("ResolveConfigDir: %v", err)
+	}
+
+	expected := filepath.Join(cfgRoot, "vrooli", "demo-app")
+	if dir != expected {
+		t.Fatalf("expected namespaced config dir %s, got %s", expected, dir)
+	}
+	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+		t.Fatalf("expected directory to exist: %v", err)
+	}
+}
+
+func TestResolveConfigDirFallsBackToLegacyWhenPresent(t *testing.T) {
+	temp := t.TempDir()
+	cfgRoot := filepath.Join(temp, "cfg")
+	if runtime.GOOS == "windows" {
+		t.Setenv("APPDATA", cfgRoot)
+	} else {
+		t.Setenv("XDG_CONFIG_HOME", cfgRoot)
+	}
+	legacyDir := filepath.Join(cfgRoot, "demo-legacy")
+	if err := os.MkdirAll(legacyDir, 0o700); err != nil {
+		t.Fatalf("mkdir legacy: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(legacyDir, "config.json"), []byte(`{"api_base":"http://legacy"}`), 0o600); err != nil {
+		t.Fatalf("write legacy config: %v", err)
+	}
+
+	dir, err := ResolveConfigDir("demo-legacy")
+	if err != nil {
+		t.Fatalf("ResolveConfigDir: %v", err)
+	}
+	if dir != legacyDir {
+		t.Fatalf("expected to reuse legacy dir %s, got %s", legacyDir, dir)
+	}
+}
+
+func TestResolveTimeout(t *testing.T) {
+	fallback := 10 * time.Second
+	if got := ResolveTimeout([]string{"MISSING"}, fallback); got != fallback {
+		t.Fatalf("expected fallback timeout, got %v", got)
+	}
+
+	t.Setenv("TIMEOUT_SECS", "45")
+	if got := ResolveTimeout([]string{"TIMEOUT_SECS"}, fallback); got != 45*time.Second {
+		t.Fatalf("expected 45s, got %v", got)
+	}
+
+	t.Setenv("TIMEOUT_DURATION", "2m")
+	if got := ResolveTimeout([]string{"TIMEOUT_DURATION", "TIMEOUT_SECS"}, fallback); got != 2*time.Minute {
+		t.Fatalf("expected 2m, got %v", got)
+	}
+
+	t.Setenv("TIMEOUT_BAD", "not-a-duration")
+	if got := ResolveTimeout([]string{"TIMEOUT_BAD", "TIMEOUT_DURATION"}, fallback); got != 2*time.Minute {
+		t.Fatalf("expected to skip bad value and use next, got %v", got)
+	}
+}
+
 func TestHTTPClientBaseValidation(t *testing.T) {
 	client := NewHTTPClient(HTTPClientOptions{
 		BaseOptions: APIBaseOptions{DefaultBase: ""},
@@ -206,6 +279,34 @@ func TestValidateAPIBase(t *testing.T) {
 	}
 	if base != "http://localhost:1234" {
 		t.Fatalf("unexpected base: %s", base)
+	}
+}
+
+func TestHTTPClientTimeoutOverride(t *testing.T) {
+	client := NewHTTPClient(HTTPClientOptions{Timeout: 5 * time.Second})
+	if client.client.Timeout != 5*time.Second {
+		t.Fatalf("expected timeout override, got %v", client.client.Timeout)
+	}
+}
+
+func TestHTTPClientRespectsContextCancellation(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := NewHTTPClient(HTTPClientOptions{
+		BaseOptions: APIBaseOptions{DefaultBase: server.URL},
+		Timeout:     0,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	_, err := client.DoWithContext(ctx, http.MethodGet, "/slow", nil, nil)
+	if err == nil {
+		t.Fatalf("expected context cancellation error")
 	}
 }
 

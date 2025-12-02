@@ -3,6 +3,7 @@ package cliutil
 import (
 	"context"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -17,6 +18,16 @@ func DetectPortFromVrooli(scenarioName, portVar string) func() string {
 		if err != nil {
 			return ""
 		}
-		return strings.TrimSpace(string(output))
+		return sanitizePortOutput(string(output))
 	}
+}
+
+func sanitizePortOutput(output string) string {
+	trimmed := strings.TrimSpace(output)
+	if trimmed == "" {
+		return ""
+	}
+	re := regexp.MustCompile(`\b(\d{2,5})\b`)
+	match := re.FindString(trimmed)
+	return strings.TrimSpace(match)
 }
