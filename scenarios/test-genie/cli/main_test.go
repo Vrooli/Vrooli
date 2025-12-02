@@ -60,13 +60,13 @@ func TestConfigureSetsValues(t *testing.T) {
 	if err := app.Run([]string{"configure", "api_base", "http://example.com"}); err != nil {
 		t.Fatalf("configure api_base: %v", err)
 	}
-	if app.config.APIBase != "http://example.com" {
+	if app.core.Config.APIBase != "http://example.com" {
 		t.Fatalf("expected api base saved")
 	}
 	if err := app.Run([]string{"configure", "token", "secret"}); err != nil {
 		t.Fatalf("configure token: %v", err)
 	}
-	if app.config.Token != "secret" {
+	if app.core.Config.Token != "secret" {
 		t.Fatalf("expected token saved")
 	}
 }
@@ -74,7 +74,7 @@ func TestConfigureSetsValues(t *testing.T) {
 func TestBuildAPIBaseOptionsUsesPortEnv(t *testing.T) {
 	app := newTestApp(t)
 	t.Setenv("API_PORT", "4567")
-	base := cliutil.DetermineAPIBase(app.buildAPIBaseOptions())
+	base := cliutil.DetermineAPIBase(app.core.APIBaseOptions())
 	if base != "http://localhost:4567" {
 		t.Fatalf("expected base from port env, got %s", base)
 	}
@@ -84,6 +84,7 @@ func newTestApp(t *testing.T) *App {
 	t.Helper()
 	temp := t.TempDir()
 	t.Setenv("HOME", temp)
+	t.Setenv("TEST_GENIE_CONFIG_DIR", temp)
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("new app: %v", err)

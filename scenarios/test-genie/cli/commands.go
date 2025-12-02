@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"strings"
@@ -64,32 +64,6 @@ func (a *App) cmdStatus() error {
 	return nil
 }
 
-func (a *App) cmdConfigure(args []string) error {
-	if len(args) == 0 {
-		payload, _ := json.MarshalIndent(a.config, "", "  ")
-		fmt.Println(string(payload))
-		return nil
-	}
-	if len(args) != 2 {
-		return usageError("usage: configure <api_base|token> <value>")
-	}
-	key := args[0]
-	value := args[1]
-	switch key {
-	case "api_base":
-		a.config.APIBase = value
-	case "token", "api_token":
-		a.config.Token = value
-	default:
-		return usageError("unknown configuration key: " + key)
-	}
-	if err := a.saveConfig(); err != nil {
-		return err
-	}
-	fmt.Printf("Updated %s\n", key)
-	return nil
-}
-
 func (a *App) cmdGenerate(args []string) error {
 	if len(args) == 0 {
 		return usageError("usage: generate <scenario> [--types unit,integration] [--coverage 95] [--priority normal] [--notes text] [--notes-file path] [--json]")
@@ -101,7 +75,7 @@ func (a *App) cmdGenerate(args []string) error {
 	priority := fs.String("priority", "", "Priority (low|normal|high|urgent)")
 	notes := fs.String("notes", "", "Notes for this request")
 	notesFile := fs.String("notes-file", "", "Path to notes file")
-	jsonOutput := fs.Bool("json", false, "Output raw JSON")
+	jsonOutput := cliutil.JSONFlag(fs)
 	fs.SetOutput(flag.CommandLine.Output())
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
@@ -116,7 +90,7 @@ func (a *App) cmdGenerate(args []string) error {
 
 	payload := GenerateRequest{
 		ScenarioName:   scenario,
-		RequestedTypes: parseCSV(*types),
+		RequestedTypes: cliutil.ParseCSV(*types),
 		Priority:       strings.ToLower(*priority),
 		Notes:          *notes,
 	}
@@ -125,7 +99,7 @@ func (a *App) cmdGenerate(args []string) error {
 		payload.CoverageTarget = &val
 	}
 	if *notesFile != "" {
-		content, err := readFile(*notesFile)
+		content, err := cliutil.ReadFileString(*notesFile)
 		if err != nil {
 			return fmt.Errorf("read notes file: %w", err)
 		}
@@ -174,14 +148,14 @@ func (a *App) cmdExecute(args []string) error {
 	skipFlag := fs.String("skip", "", "Comma-separated phases to skip")
 	requestID := fs.String("request-id", "", "Link to suite request")
 	failFast := fs.Bool("fail-fast", false, "Stop on first failure")
-	jsonOutput := fs.Bool("json", false, "Output raw JSON")
+	jsonOutput := cliutil.JSONFlag(fs)
 	fs.SetOutput(flag.CommandLine.Output())
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
 	}
 
-	phases := parseMultiArgs(parseCSV(*phasesFlag), fs.Args())
-	skip := parseCSV(*skipFlag)
+	phases := cliutil.MergeArgs(cliutil.ParseCSV(*phasesFlag), fs.Args())
+	skip := cliutil.ParseCSV(*skipFlag)
 
 	normalizedPhases, err := normalizePhaseSelection(phases)
 	if err != nil {
@@ -264,7 +238,7 @@ func (a *App) cmdRunTests(args []string) error {
 	scenario := args[0]
 	fs := flag.NewFlagSet("run-tests", flag.ContinueOnError)
 	testType := fs.String("type", "", "Test runner type to request")
-	jsonOutput := fs.Bool("json", false, "Output raw JSON")
+	jsonOutput := cliutil.JSONFlag(fs)
 	fs.SetOutput(flag.CommandLine.Output())
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
@@ -305,6 +279,10 @@ func defaultValue(val, fallback string) string {
 		return fallback
 	}
 	return val
+}
+
+func usageError(msg string) error {
+	return errors.New(msg)
 }
 
 func isAllowedPriority(priority string) bool {
