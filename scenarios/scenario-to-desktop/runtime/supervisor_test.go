@@ -29,6 +29,8 @@ func TestEnsureAssetsSizeBudget(t *testing.T) {
 			Manifest:   &manifest.Manifest{},
 		},
 		telemetryPath: filepath.Join(tmp, "telemetry.jsonl"),
+		fs:            RealFileSystem{},
+		clock:         RealClock{},
 	}
 	svc := manifest.Service{
 		ID: "playwright-driver",
@@ -67,10 +69,13 @@ func TestApplyPlaywrightConventionsFallback(t *testing.T) {
 			BundlePath: filepath.Join(tmp, "bundle"),
 			Manifest:   &manifest.Manifest{},
 		},
-		portMap: map[string]map[string]int{
+		portAllocator: &testMockPortAllocator{ports: map[string]map[string]int{
 			"playwright-driver": {"http": 48000},
-		},
+		}},
 		telemetryPath: filepath.Join(tmp, "telemetry.jsonl"),
+		fs:            RealFileSystem{},
+		clock:         RealClock{},
+		envReader:     RealEnvReader{},
 	}
 	svc := manifest.Service{
 		ID: "playwright-driver",
@@ -112,9 +117,11 @@ func TestHandleSecretsGetReturnsStatus(t *testing.T) {
 			{ID: "OPTIONAL_HINT", Class: "per_install_generated", Required: ptrBool(false)},
 		},
 	}
+	sm := NewSecretManager(manifestData, NewMockFileSystem(), "/tmp/secrets.json")
+	sm.Set(map[string]string{"OPTIONAL_HINT": "seed"})
 	s := &Supervisor{
-		opts:    Options{Manifest: manifestData},
-		secrets: map[string]string{"OPTIONAL_HINT": "seed"},
+		opts:        Options{Manifest: manifestData},
+		secretStore: sm,
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/secrets", nil)

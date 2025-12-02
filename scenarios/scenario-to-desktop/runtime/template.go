@@ -1,7 +1,12 @@
+// template.go provides template expansion for environment variables and arguments.
+//
+// The runtime supports variable interpolation using ${...} syntax:
+//   - ${data}         -> app data directory
+//   - ${bundle}       -> bundle root path
+//   - ${service.port} -> allocated port for service.port
 package bundleruntime
 
 import (
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -16,7 +21,7 @@ func (s *Supervisor) renderEnvMap(svc manifest.Service, bin manifest.Binary) (ma
 	env := make(map[string]string)
 
 	// Inherit current environment.
-	for _, kv := range os.Environ() {
+	for _, kv := range s.envReader.Environ() {
 		parts := strings.SplitN(kv, "=", 2)
 		if len(parts) == 2 {
 			env[parts[0]] = parts[1]
@@ -68,10 +73,8 @@ func (s *Supervisor) renderValue(input string) string {
 			return "", false
 		}
 		svcID, portName := parts[0], parts[1]
-		if svcPorts, ok := s.portMap[svcID]; ok {
-			if port, ok := svcPorts[portName]; ok {
-				return strconv.Itoa(port), true
-			}
+		if port, err := s.portAllocator.Resolve(svcID, portName); err == nil {
+			return strconv.Itoa(port), true
 		}
 		return "", false
 	}

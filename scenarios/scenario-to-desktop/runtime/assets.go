@@ -3,7 +3,6 @@ package bundleruntime
 import (
 	"crypto/sha256"
 	"fmt"
-	"os"
 	"strings"
 
 	"scenario-to-desktop-runtime/manifest"
@@ -25,7 +24,7 @@ func (s *Supervisor) verifyAsset(svc manifest.Service, asset manifest.Asset) err
 	path := manifest.ResolvePath(s.opts.BundlePath, asset.Path)
 
 	// Check existence.
-	info, err := os.Stat(path)
+	info, err := s.fs.Stat(path)
 	if err != nil {
 		_ = s.recordTelemetry("asset_missing", map[string]interface{}{
 			"service_id": svc.ID,
@@ -63,7 +62,7 @@ func (s *Supervisor) verifyAsset(svc manifest.Service, asset manifest.Asset) err
 
 // verifyAssetChecksum computes and compares the SHA256 hash of an asset.
 func (s *Supervisor) verifyAssetChecksum(svc manifest.Service, asset manifest.Asset, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := s.fs.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read asset %s: %w", asset.Path, err)
 	}

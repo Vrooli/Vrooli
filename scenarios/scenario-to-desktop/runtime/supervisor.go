@@ -22,10 +22,10 @@
 //	gpu.go              - GPU detection and requirement enforcement
 //	playwright.go       - Playwright environment setup
 //	assets.go           - Asset verification
-//	env.go              - Environment variable rendering
+//	template.go         - Template expansion for environment variables and arguments
 //	errors.go           - Structured error types
 //	interfaces.go       - Interfaces for testing and external integration
-//	utils.go            - Shared utilities (copyStringMap, envMapToList)
+//	utils.go            - Shared utilities (copyStringMap, envMapToList, etc.)
 //
 // See README.md for detailed documentation and architecture diagrams.
 package bundleruntime
@@ -52,6 +52,18 @@ type Options struct {
 	Manifest   *manifest.Manifest // Bundle manifest (required)
 	BundlePath string             // Root path of the unpacked bundle
 	DryRun     bool               // Skip actual service launches (for testing)
+
+	// Injectable dependencies (nil = use real implementations)
+	Clock         Clock         // Time operations (default: RealClock)
+	FileSystem    FileSystem    // File operations (default: RealFileSystem)
+	NetworkDialer NetworkDialer // Network operations (default: RealNetworkDialer)
+	ProcessRunner ProcessRunner // Process execution (default: RealProcessRunner)
+	CommandRunner CommandRunner // Command execution (default: RealCommandRunner)
+	GPUDetector   GPUDetector   // GPU detection (default: RealGPUDetector)
+	EnvReader     EnvReader     // Environment variable access (default: RealEnvReader)
+	PortAllocator PortAllocator // Port allocation (default: PortManager)
+	SecretStore   SecretStore   // Secret management (default: SecretManager)
+	HealthChecker HealthChecker // Health monitoring (default: HealthMonitor)
 }
 
 // Supervisor manages the desktop bundle runtime.
@@ -59,20 +71,29 @@ type Options struct {
 type Supervisor struct {
 	opts Options
 
+	// Injected dependencies.
+	clock         Clock
+	fs            FileSystem
+	dialer        NetworkDialer
+	procRunner    ProcessRunner
+	cmdRunner     CommandRunner
+	gpuDetector   GPUDetector
+	envReader     EnvReader
+	portAllocator PortAllocator
+	secretStore   *SecretManager // Using concrete type for extended methods
+	healthChecker HealthChecker
+
 	// Paths and auth.
 	authToken      string
 	appData        string
-	secretsPath    string
 	telemetryPath  string
 	migrationsPath string
 
 	// Runtime state.
-	portMap         map[string]map[string]int // service ID -> port name -> port
 	serviceStatus   map[string]ServiceStatus
 	procs           map[string]*serviceProcess
-	secrets         map[string]string
-	migrations      migrationsState
-	gpuStatus       gpuStatus
+	migrations      MigrationsState
+	gpuStatus       GPUStatus
 	servicesStarted bool
 	started         bool
 
@@ -108,6 +129,7 @@ func sanitizeAppName(name string) string {
 }
 
 // NewSupervisor creates a new Supervisor with the given options.
+// Injectable dependencies are set to real implementations when nil.
 func NewSupervisor(opts Options) (*Supervisor, error) {
 	if opts.Manifest == nil {
 		return nil, errors.New("manifest is required")
@@ -122,13 +144,96 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 		appData = filepath.Join(base, sanitizeAppName(opts.Manifest.App.Name))
 	}
 
-	return &Supervisor{
+	// Set default implementations for nil dependencies.
+	clock := opts.Clock
+	if clock == nil {
+		clock = RealClock{}
+	}
+
+	fileSystem := opts.FileSystem
+	if fileSystem == nil {
+		fileSystem = RealFileSystem{}
+	}
+
+	dialer := opts.NetworkDialer
+	if dialer == nil {
+		dialer = RealNetworkDialer{}
+	}
+
+	procRunner := opts.ProcessRunner
+	if procRunner == nil {
+		procRunner = RealProcessRunner{}
+	}
+
+	cmdRunner := opts.CommandRunner
+	if cmdRunner == nil {
+		cmdRunner = RealCommandRunner{}
+	}
+
+	envReader := opts.EnvReader
+	if envReader == nil {
+		envReader = RealEnvReader{}
+	}
+
+	gpuDetector := opts.GPUDetector
+	if gpuDetector == nil {
+		gpuDetector = &RealGPUDetector{CommandRunner: cmdRunner, EnvReader: envReader}
+	}
+
+	portAllocator := opts.PortAllocator
+	if portAllocator == nil {
+		portAllocator = NewPortManager(opts.Manifest, dialer)
+	}
+
+	// Compute paths for secret manager.
+	secretsPath := filepath.Join(appData, "secrets.json")
+
+	// Create or use provided SecretStore.
+	var secretStore *SecretManager
+	if opts.SecretStore != nil {
+		// If a SecretStore was provided, it must be a *SecretManager for extended methods.
+		var ok bool
+		secretStore, ok = opts.SecretStore.(*SecretManager)
+		if !ok {
+			return nil, errors.New("SecretStore must be a *SecretManager")
+		}
+	} else {
+		secretStore = NewSecretManager(opts.Manifest, fileSystem, secretsPath)
+	}
+
+	s := &Supervisor{
 		opts:          opts,
+		clock:         clock,
+		fs:            fileSystem,
+		dialer:        dialer,
+		procRunner:    procRunner,
+		cmdRunner:     cmdRunner,
+		gpuDetector:   gpuDetector,
+		envReader:     envReader,
+		portAllocator: portAllocator,
+		secretStore:   secretStore,
 		appData:       appData,
-		portMap:       make(map[string]map[string]int),
 		serviceStatus: make(map[string]ServiceStatus),
 		procs:         make(map[string]*serviceProcess),
-	}, nil
+	}
+
+	// Create or use provided HealthChecker.
+	if opts.HealthChecker != nil {
+		s.healthChecker = opts.HealthChecker
+	} else {
+		s.healthChecker = NewHealthMonitor(HealthMonitorConfig{
+			Manifest:      opts.Manifest,
+			PortAllocator: portAllocator,
+			Dialer:        dialer,
+			CmdRunner:     cmdRunner,
+			FS:            fileSystem,
+			Clock:         clock,
+			AppData:       appData,
+			StatusGetter:  s.getStatus, // Closure captures supervisor
+		})
+	}
+
+	return s, nil
 }
 
 // Start initializes the supervisor and begins service orchestration.
@@ -136,25 +241,24 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 // and starts services asynchronously once all required secrets are available.
 func (s *Supervisor) Start(ctx context.Context) error {
 	// Create app data directory.
-	if err := os.MkdirAll(s.appData, 0o755); err != nil {
+	if err := s.fs.MkdirAll(s.appData, 0o755); err != nil {
 		return fmt.Errorf("create app data dir: %w", err)
 	}
 
 	// Set up paths.
-	s.secretsPath = filepath.Join(s.appData, "secrets.json")
 	s.telemetryPath = manifest.ResolvePath(s.appData, s.opts.Manifest.Telemetry.File)
 	s.migrationsPath = filepath.Join(s.appData, "migrations.json")
 
-	if err := os.MkdirAll(filepath.Dir(s.telemetryPath), 0o755); err != nil {
+	if err := s.fs.MkdirAll(filepath.Dir(s.telemetryPath), 0o755); err != nil {
 		return fmt.Errorf("create telemetry dir: %w", err)
 	}
 
 	// Load persisted state.
-	loadedSecrets, err := s.loadSecrets()
+	loadedSecrets, err := s.secretStore.Load()
 	if err != nil {
 		return fmt.Errorf("load secrets: %w", err)
 	}
-	s.secrets = loadedSecrets
+	s.secretStore.Set(loadedSecrets)
 
 	migrations, err := s.loadMigrations()
 	if err != nil {
@@ -164,14 +268,14 @@ func (s *Supervisor) Start(ctx context.Context) error {
 
 	// Load or create auth token.
 	tokenPath := manifest.ResolvePath(s.appData, s.opts.Manifest.IPC.AuthTokenRel)
-	token, err := loadOrCreateToken(tokenPath)
+	token, err := s.loadOrCreateToken(tokenPath)
 	if err != nil {
 		return fmt.Errorf("load auth token: %w", err)
 	}
 	s.authToken = token
 
 	// Allocate ports.
-	if err := s.allocatePorts(); err != nil {
+	if err := s.portAllocator.Allocate(); err != nil {
 		return err
 	}
 
@@ -186,7 +290,7 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	}
 
 	// Detect GPU.
-	s.gpuStatus = detectGPU()
+	s.gpuStatus = s.gpuDetector.Detect()
 	_ = s.recordTelemetry("gpu_status", map[string]interface{}{
 		"available": s.gpuStatus.Available,
 		"method":    s.gpuStatus.Method,
@@ -297,12 +401,12 @@ func (s *Supervisor) getProc(id string) *serviceProcess {
 }
 
 // loadOrCreateToken loads an existing auth token or creates a new one.
-func loadOrCreateToken(path string) (string, error) {
-	if data, err := os.ReadFile(path); err == nil && len(strings.TrimSpace(string(data))) > 0 {
+func (s *Supervisor) loadOrCreateToken(path string) (string, error) {
+	if data, err := s.fs.ReadFile(path); err == nil && len(strings.TrimSpace(string(data))) > 0 {
 		return strings.TrimSpace(string(data)), nil
 	}
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	if err := s.fs.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return "", err
 	}
 
@@ -311,7 +415,7 @@ func loadOrCreateToken(path string) (string, error) {
 		return "", err
 	}
 	token := hex.EncodeToString(buf)
-	if err := os.WriteFile(path, []byte(token), 0o600); err != nil {
+	if err := s.fs.WriteFile(path, []byte(token), 0o600); err != nil {
 		return "", err
 	}
 	return token, nil

@@ -47,6 +47,16 @@ func FormatRunDuration(summarySeconds int, started, completed string) string {
 	return "n/a"
 }
 
+// FormatTimestampShort converts an RFC3339 timestamp to a human-readable short format.
+// Returns fallback if the timestamp is empty or invalid.
+func FormatTimestampShort(timestamp, fallback string) string {
+	t, ok := parseTime(timestamp)
+	if !ok {
+		return fallback
+	}
+	return t.Local().Format("15:04:05")
+}
+
 func parseTime(value string) (time.Time, bool) {
 	value = strings.TrimSpace(value)
 	if value == "" {

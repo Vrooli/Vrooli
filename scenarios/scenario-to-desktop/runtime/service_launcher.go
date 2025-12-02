@@ -12,65 +12,6 @@ import (
 	"scenario-to-desktop-runtime/manifest"
 )
 
-// topoSort performs topological sort on services based on their dependencies.
-// Returns service IDs in dependency order (dependencies first).
-func topoSort(services []manifest.Service) ([]string, error) {
-	graph := make(map[string][]string)
-	inDegree := make(map[string]int)
-
-	for _, svc := range services {
-		graph[svc.ID] = append(graph[svc.ID], svc.Dependencies...)
-		if _, ok := inDegree[svc.ID]; !ok {
-			inDegree[svc.ID] = 0
-		}
-		for _, dep := range svc.Dependencies {
-			inDegree[svc.ID]++
-			if _, ok := inDegree[dep]; !ok {
-				inDegree[dep] = 0
-			}
-		}
-	}
-
-	queue := make([]string, 0)
-	for id, deg := range inDegree {
-		if deg == 0 {
-			queue = append(queue, id)
-		}
-	}
-
-	order := make([]string, 0, len(inDegree))
-	for len(queue) > 0 {
-		id := queue[0]
-		queue = queue[1:]
-		order = append(order, id)
-		for _, svc := range services {
-			for _, dep := range svc.Dependencies {
-				if dep == id {
-					inDegree[svc.ID]--
-					if inDegree[svc.ID] == 0 {
-						queue = append(queue, svc.ID)
-					}
-				}
-			}
-		}
-	}
-
-	if len(order) != len(inDegree) {
-		return nil, errors.New("cycle detected in dependencies")
-	}
-	return order, nil
-}
-
-// findService looks up a service by ID from a slice.
-func findService(services []manifest.Service, id string) *manifest.Service {
-	for i := range services {
-		if services[i].ID == id {
-			return &services[i]
-		}
-	}
-	return nil
-}
-
 // exitCode extracts the exit code from an error, if available.
 func exitCode(err error) *int {
 	if err == nil {
@@ -87,8 +28,9 @@ func exitCode(err error) *int {
 
 // serviceProcess tracks a running service process.
 type serviceProcess struct {
-	cmd      *exec.Cmd
+	proc     Process
 	logPath  string
+	logFile  File // log file handle for closing
 	service  manifest.Service
 	started  time.Time
 	cancel   context.CancelFunc
@@ -182,15 +124,14 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 		return err
 	}
 
-	// Create the command.
+	// Create the command context.
 	cmdCtx, cancel := context.WithCancel(ctx)
 	args := s.renderArgs(bin.Args)
-	cmd := exec.CommandContext(cmdCtx, cmdPath, args...)
-	cmd.Env = envMapToList(envMap)
+
+	// Determine working directory.
+	workDir := s.opts.BundlePath
 	if bin.CWD != "" {
-		cmd.Dir = manifest.ResolvePath(s.opts.BundlePath, bin.CWD)
-	} else {
-		cmd.Dir = s.opts.BundlePath
+		workDir = manifest.ResolvePath(s.opts.BundlePath, bin.CWD)
 	}
 
 	// Set up logging.
@@ -204,23 +145,23 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 			_ = logWriter.Close()
 		}
 	}()
-	cmd.Stdout = logWriter
-	cmd.Stderr = logWriter
 
-	// Start the process.
-	if err := cmd.Start(); err != nil {
+	// Start the process using the injected ProcessRunner.
+	proc, err := s.procRunner.Start(cmdCtx, cmdPath, args, envMapToList(envMap), workDir, logWriter, logWriter)
+	if err != nil {
 		cancel()
 		return fmt.Errorf("start %s: %w", svc.ID, err)
 	}
 
-	proc := &serviceProcess{
-		cmd:     cmd,
+	svcProc := &serviceProcess{
+		proc:    proc,
 		logPath: logPath,
+		logFile: logWriter,
 		service: svc,
-		started: time.Now(),
+		started: s.clock.Now(),
 		cancel:  cancel,
 	}
-	s.setProc(svc.ID, proc)
+	s.setProc(svc.ID, svcProc)
 	s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: "starting"})
 	_ = s.recordTelemetry("service_start", map[string]interface{}{"service_id": svc.ID})
 
@@ -244,7 +185,7 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		err := cmd.Wait()
+		err := proc.Wait()
 		code := exitCode(err)
 		msg := "stopped"
 		if err != nil {
@@ -256,6 +197,10 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 			"exit_code":  code,
 			"error":      msg,
 		})
+		// Close log file when process exits.
+		if svcProc.logFile != nil {
+			_ = svcProc.logFile.Close()
+		}
 	}()
 
 	return nil
@@ -280,7 +225,7 @@ func (s *Supervisor) stopServices(ctx context.Context) {
 		if proc.cancel != nil {
 			proc.cancel()
 		}
-		if proc.cmd.Process != nil {
+		if proc.proc != nil {
 			s.gracefulStop(ctx, proc)
 		}
 	}
@@ -288,18 +233,18 @@ func (s *Supervisor) stopServices(ctx context.Context) {
 
 // gracefulStop attempts graceful shutdown, then forceful kill.
 func (s *Supervisor) gracefulStop(ctx context.Context, proc *serviceProcess) {
-	_ = proc.cmd.Process.Signal(os.Interrupt)
+	_ = proc.proc.Signal(Interrupt)
 
 	waitCh := make(chan error, 1)
-	go func() { waitCh <- proc.cmd.Wait() }()
+	go func() { waitCh <- proc.proc.Wait() }()
 
 	select {
 	case <-ctx.Done():
-		_ = proc.cmd.Process.Kill()
+		_ = proc.proc.Kill()
 	case <-waitCh:
 		// Process exited normally.
-	case <-time.After(3 * time.Second):
-		_ = proc.cmd.Process.Kill()
+	case <-s.clock.After(3 * time.Second):
+		_ = proc.proc.Kill()
 	}
 }
 
@@ -307,29 +252,35 @@ func (s *Supervisor) gracefulStop(ctx context.Context, proc *serviceProcess) {
 func (s *Supervisor) prepareServiceDirs(svc manifest.Service) error {
 	for _, dir := range svc.DataDirs {
 		path := manifest.ResolvePath(s.appData, dir)
-		if err := os.MkdirAll(path, 0o755); err != nil {
+		if err := s.fs.MkdirAll(path, 0o755); err != nil {
 			return fmt.Errorf("create data dir for %s: %w", svc.ID, err)
 		}
 	}
 	if svc.LogDir != "" {
 		logPath := manifest.ResolvePath(s.appData, svc.LogDir)
-		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		if err := s.fs.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
 			return fmt.Errorf("prepare log dir: %w", err)
 		}
-		if _, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644); err != nil {
+		// Touch the log file to ensure it exists.
+		f, err := s.fs.OpenFile(logPath, fileCreateAppend, 0o644)
+		if err != nil {
 			return fmt.Errorf("prepare log file: %w", err)
 		}
+		_ = f.Close()
 	}
 	return nil
 }
 
+// fileCreateAppend is the flag combination for os.O_CREATE|os.O_WRONLY|os.O_APPEND
+var fileCreateAppend = os.O_CREATE | os.O_WRONLY | os.O_APPEND
+
 // logWriter creates a log file writer for a service.
-func (s *Supervisor) logWriter(svc manifest.Service) (*os.File, string, error) {
+func (s *Supervisor) logWriter(svc manifest.Service) (File, string, error) {
 	if svc.LogDir == "" {
 		return nil, "", nil
 	}
 	logPath := manifest.ResolvePath(s.appData, svc.LogDir)
-	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	f, err := s.fs.OpenFile(logPath, fileCreateAppend, 0o644)
 	if err != nil {
 		return nil, "", fmt.Errorf("open log file: %w", err)
 	}

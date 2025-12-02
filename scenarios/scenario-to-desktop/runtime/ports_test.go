@@ -6,7 +6,7 @@ import (
 	"scenario-to-desktop-runtime/manifest"
 )
 
-func TestAllocatePorts(t *testing.T) {
+func TestPortManagerAllocate(t *testing.T) {
 	tests := []struct {
 		name     string
 		manifest *manifest.Manifest
@@ -85,14 +85,11 @@ func TestAllocatePorts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &Supervisor{
-				opts:    Options{Manifest: tt.manifest},
-				portMap: make(map[string]map[string]int),
-			}
+			pm := NewPortManager(tt.manifest, RealNetworkDialer{})
 
-			err := s.allocatePorts()
+			err := pm.Allocate()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("allocatePorts() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Allocate() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
@@ -103,9 +100,9 @@ func TestAllocatePorts(t *testing.T) {
 						continue
 					}
 					for _, req := range svc.Ports.Requested {
-						port, err := s.resolvePort(svc.ID, req.Name)
+						port, err := pm.Resolve(svc.ID, req.Name)
 						if err != nil {
-							t.Errorf("resolvePort(%s, %s) error = %v", svc.ID, req.Name, err)
+							t.Errorf("Resolve(%s, %s) error = %v", svc.ID, req.Name, err)
 							continue
 						}
 						if port < req.Range.Min || port > req.Range.Max {
@@ -118,13 +115,16 @@ func TestAllocatePorts(t *testing.T) {
 	}
 }
 
-func TestResolvePort(t *testing.T) {
-	s := &Supervisor{
-		portMap: map[string]map[string]int{
-			"api":    {"http": 47000, "grpc": 47001},
-			"worker": {"metrics": 47002},
-		},
+func TestPortManagerResolve(t *testing.T) {
+	m := &manifest.Manifest{}
+	pm := NewPortManager(m, RealNetworkDialer{})
+	// Manually set up port map for testing
+	pm.mu.Lock()
+	pm.portMap = map[string]map[string]int{
+		"api":    {"http": 47000, "grpc": 47001},
+		"worker": {"metrics": 47002},
 	}
+	pm.mu.Unlock()
 
 	tests := []struct {
 		name      string
@@ -142,19 +142,19 @@ func TestResolvePort(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := s.resolvePort(tt.serviceID, tt.portName)
+			got, err := pm.Resolve(tt.serviceID, tt.portName)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("resolvePort() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Resolve() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("resolvePort() = %v, want %v", got, tt.want)
+				t.Errorf("Resolve() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestPickPort(t *testing.T) {
+func TestPortManagerPickPort(t *testing.T) {
 	tests := []struct {
 		name     string
 		rng      PortRange
@@ -194,8 +194,9 @@ func TestPickPort(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			pm := NewPortManager(&manifest.Manifest{}, RealNetworkDialer{})
 			next := tt.next
-			port, err := pickPort(tt.rng, tt.reserved, &next)
+			port, err := pm.pickPort(tt.rng, tt.reserved, &next)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("pickPort() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -212,23 +213,29 @@ func TestPickPort(t *testing.T) {
 	}
 }
 
-func TestPortMap(t *testing.T) {
-	s := &Supervisor{
-		portMap: map[string]map[string]int{
-			"api": {"http": 47000},
-		},
+func TestPortManagerMap(t *testing.T) {
+	m := &manifest.Manifest{}
+	pm := NewPortManager(m, RealNetworkDialer{})
+	// Manually set up port map for testing
+	pm.mu.Lock()
+	pm.portMap = map[string]map[string]int{
+		"api": {"http": 47000},
 	}
+	pm.mu.Unlock()
 
-	pm := s.PortMap()
+	result := pm.Map()
 
 	// Verify it's a copy
-	pm["api"]["http"] = 99999
-	if s.portMap["api"]["http"] == 99999 {
-		t.Error("PortMap() returned reference instead of copy")
+	result["api"]["http"] = 99999
+	original := pm.Map()
+	if original["api"]["http"] == 99999 {
+		t.Error("Map() returned reference instead of copy")
 	}
 
 	// Verify original value
-	if s.portMap["api"]["http"] != 47000 {
-		t.Errorf("original portMap modified, got %d want 47000", s.portMap["api"]["http"])
+	if original["api"]["http"] != 47000 {
+		t.Errorf("original portMap modified, got %d want 47000", original["api"]["http"])
 	}
 }
+
+// Note: testMockPortAllocator is defined in health_test.go and reused here.

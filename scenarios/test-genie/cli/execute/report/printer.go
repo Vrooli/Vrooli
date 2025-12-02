@@ -69,8 +69,8 @@ func (p *Printer) Print(resp execTypes.Response) {
 
 func (p *Printer) printHeader(resp execTypes.Response) {
 	title := fmt.Sprintf("%s COMPREHENSIVE TEST SUITE", strings.ToUpper(p.scenario))
-	startText := DefaultValue(resp.StartedAt, "unknown")
-	finishText := DefaultValue(resp.CompletedAt, "pending")
+	startText := FormatTimestampShort(resp.StartedAt, "unknown")
+	finishText := FormatTimestampShort(resp.CompletedAt, "pending")
 	duration := FormatRunDuration(resp.PhaseSummary.DurationSeconds, resp.StartedAt, resp.CompletedAt)
 	preset := DefaultValue(resp.PresetUsed, p.requestedPreset)
 	paths := repo.DiscoverScenarioPaths(p.scenario)
@@ -169,12 +169,17 @@ func (p *Printer) printPhaseProgress(phasesData []execTypes.Phase) {
 		fmt.Fprintln(p.w, phaseSeparator)
 		targetText := ""
 		if target != "" {
-			targetText = fmt.Sprintf("Target: <%s • ", target)
+			targetText = fmt.Sprintf("Timeout: %s • ", target)
 		}
 		headerLine := fmt.Sprintf("[%d/%d] %s • %sStarted: %s",
 			idx+1, total, strings.ToUpper(key), targetText,
 			time.Now().Format("15:04:05"))
 		fmt.Fprintln(p.w, p.color.Bold(headerLine))
+
+		// Show log path (like legacy shows script path)
+		if phase.LogPath != "" {
+			fmt.Fprintf(p.w, "   %s %s\n", p.color.Cyan("Log:"), phase.LogPath)
+		}
 		fmt.Fprintln(p.w, phaseSeparator)
 
 		// Show any observations from the phase

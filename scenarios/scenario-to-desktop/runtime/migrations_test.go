@@ -15,6 +15,7 @@ func TestLoadMigrations(t *testing.T) {
 	t.Run("returns empty state for missing file", func(t *testing.T) {
 		s := &Supervisor{
 			migrationsPath: filepath.Join(tmp, "nonexistent", "migrations.json"),
+			fs:             RealFileSystem{},
 		}
 
 		state, err := s.loadMigrations()
@@ -31,7 +32,7 @@ func TestLoadMigrations(t *testing.T) {
 
 	t.Run("loads existing state", func(t *testing.T) {
 		migPath := filepath.Join(tmp, "migrations.json")
-		state := migrationsState{
+		state := MigrationsState{
 			AppVersion: "1.0.0",
 			Applied: map[string][]string{
 				"api": {"v1", "v2"},
@@ -42,7 +43,7 @@ func TestLoadMigrations(t *testing.T) {
 			t.Fatalf("WriteFile() error = %v", err)
 		}
 
-		s := &Supervisor{migrationsPath: migPath}
+		s := &Supervisor{migrationsPath: migPath, fs: RealFileSystem{}}
 		got, err := s.loadMigrations()
 		if err != nil {
 			t.Fatalf("loadMigrations() error = %v", err)
@@ -60,8 +61,8 @@ func TestPersistMigrations(t *testing.T) {
 	tmp := t.TempDir()
 	migPath := filepath.Join(tmp, "subdir", "migrations.json")
 
-	s := &Supervisor{migrationsPath: migPath}
-	state := migrationsState{
+	s := &Supervisor{migrationsPath: migPath, fs: RealFileSystem{}}
+	state := MigrationsState{
 		AppVersion: "2.0.0",
 		Applied: map[string][]string{
 			"api":    {"v1", "v2", "v3"},
@@ -79,7 +80,7 @@ func TestPersistMigrations(t *testing.T) {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
 
-	var got migrationsState
+	var got MigrationsState
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatalf("Unmarshal() error = %v", err)
 	}
@@ -111,7 +112,7 @@ func TestInstallPhase(t *testing.T) {
 						App: manifest.App{Version: tt.currentVersion},
 					},
 				},
-				migrations: migrationsState{AppVersion: tt.savedVersion},
+				migrations: MigrationsState{AppVersion: tt.savedVersion},
 			}
 
 			got := s.installPhase()
@@ -186,7 +187,8 @@ func TestEnsureAppVersionRecorded(t *testing.T) {
 			},
 		},
 		migrationsPath: migPath,
-		migrations:     migrationsState{Applied: map[string][]string{}},
+		migrations:     MigrationsState{Applied: map[string][]string{}},
+		fs:             RealFileSystem{},
 	}
 
 	if err := s.ensureAppVersionRecorded(); err != nil {
@@ -202,7 +204,7 @@ func TestEnsureAppVersionRecorded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
-	var persisted migrationsState
+	var persisted MigrationsState
 	if err := json.Unmarshal(data, &persisted); err != nil {
 		t.Fatalf("Unmarshal() error = %v", err)
 	}

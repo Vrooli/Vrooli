@@ -3,58 +3,15 @@ package bundleruntime
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
 	"scenario-to-desktop-runtime/manifest"
 )
-
-// parsePositiveInt parses a string as a positive integer.
-func parsePositiveInt(s string) (int, error) {
-	v, err := strconv.Atoi(strings.TrimSpace(s))
-	if err != nil {
-		return 0, err
-	}
-	if v <= 0 {
-		return 0, errors.New("must be positive")
-	}
-	return v, nil
-}
-
-// tailFile returns the last N lines from a file.
-func tailFile(path string, lines int) ([]byte, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	parts := strings.Split(string(data), "\n")
-	if lines >= len(parts) {
-		return []byte(strings.Join(parts, "\n")), nil
-	}
-	return []byte(strings.Join(parts[len(parts)-lines:], "\n")), nil
-}
-
-// intersection returns elements present in both slices.
-func intersection(a []string, b []string) []string {
-	set := map[string]bool{}
-	for _, v := range b {
-		set[v] = true
-	}
-	var out []string
-	for _, v := range a {
-		if set[v] {
-			out = append(out, v)
-		}
-	}
-	return out
-}
 
 // registerHandlers sets up the control API HTTP routes.
 func (s *Supervisor) registerHandlers(mux *http.ServeMux) {
@@ -100,7 +57,7 @@ func (s *Supervisor) handleReady(w http.ResponseWriter, r *http.Request) {
 // handlePorts returns the current port allocation map.
 func (s *Supervisor) handlePorts(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, map[string]interface{}{
-		"services": s.portMap,
+		"services": s.portAllocator.Map(),
 	})
 }
 
@@ -138,7 +95,7 @@ func (s *Supervisor) handleLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logPath := manifest.ResolvePath(s.appData, service.LogDir)
-	info, err := os.Stat(logPath)
+	info, err := s.fs.Stat(logPath)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("log path unavailable: %v", err), http.StatusBadRequest)
 		return
@@ -148,7 +105,7 @@ func (s *Supervisor) handleLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content, err := tailFile(logPath, lines)
+	content, err := s.tailFile(logPath, lines)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("tail logs: %v", err), http.StatusBadRequest)
 		return
@@ -236,10 +193,7 @@ func (s *Supervisor) handleSecretsPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Merge with existing secrets.
-	merged := s.secretsCopy()
-	for k, v := range payload.Secrets {
-		merged[k] = v
-	}
+	merged := s.secretStore.Merge(payload.Secrets)
 
 	// Validate all required secrets are present.
 	missing := s.missingRequiredSecretsFrom(merged)
@@ -268,9 +222,7 @@ func (s *Supervisor) handleSecretsPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.mu.Lock()
-	s.secrets = merged
-	s.mu.Unlock()
+	s.secretStore.Set(merged)
 
 	_ = s.recordTelemetry("secrets_updated", map[string]interface{}{"count": len(merged)})
 	s.writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})

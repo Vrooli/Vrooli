@@ -2,12 +2,18 @@ package bundleruntime
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
 	"scenario-to-desktop-runtime/manifest"
 )
+
+// osStatForPlaywright is a helper to check file existence for Playwright.
+// Uses the supervisor's FileSystem if available, falls back to os.Stat.
+func (s *Supervisor) osStatForPlaywright(path string) error {
+	_, err := s.fs.Stat(path)
+	return err
+}
 
 // applyPlaywrightConventions sets up environment variables for Playwright-based services.
 // This includes setting PLAYWRIGHT_DRIVER_PORT, PLAYWRIGHT_DRIVER_URL, ENGINE,
@@ -40,7 +46,7 @@ func (s *Supervisor) applyPlaywrightConventions(svc manifest.Service, env map[st
 	chromePath := strings.TrimSpace(env["PLAYWRIGHT_CHROMIUM_PATH"])
 	if chromePath == "" {
 		// No path specified; try Electron's Chromium as fallback.
-		if fallback := strings.TrimSpace(os.Getenv("ELECTRON_CHROMIUM_PATH")); fallback != "" {
+		if fallback := strings.TrimSpace(s.envReader.Getenv("ELECTRON_CHROMIUM_PATH")); fallback != "" {
 			env["PLAYWRIGHT_CHROMIUM_PATH"] = fallback
 			_ = s.recordTelemetry("playwright_chromium_fallback", map[string]interface{}{
 				"service_id": svc.ID,
@@ -55,12 +61,12 @@ func (s *Supervisor) applyPlaywrightConventions(svc manifest.Service, env map[st
 	env["PLAYWRIGHT_CHROMIUM_PATH"] = resolved
 
 	// Verify the path exists.
-	if _, err := os.Stat(resolved); err == nil {
+	if err := s.osStatForPlaywright(resolved); err == nil {
 		return nil
 	}
 
 	// Path doesn't exist; try Electron's Chromium as fallback.
-	if fallback := strings.TrimSpace(os.Getenv("ELECTRON_CHROMIUM_PATH")); fallback != "" {
+	if fallback := strings.TrimSpace(s.envReader.Getenv("ELECTRON_CHROMIUM_PATH")); fallback != "" {
 		env["PLAYWRIGHT_CHROMIUM_PATH"] = fallback
 		_ = s.recordTelemetry("playwright_chromium_fallback", map[string]interface{}{
 			"service_id": svc.ID,

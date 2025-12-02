@@ -1,107 +1,41 @@
 package bundleruntime
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"scenario-to-desktop-runtime/manifest"
 )
 
-// loadSecrets reads persisted secrets from the secrets file.
-// Returns an empty map if the file doesn't exist.
-func (s *Supervisor) loadSecrets() (map[string]string, error) {
-	out := map[string]string{}
-	data, err := os.ReadFile(s.secretsPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return out, nil
-		}
-		return nil, err
-	}
-
-	// Try new format first: {"secrets": {...}}
-	var wrapper struct {
-		Secrets map[string]string `json:"secrets"`
-	}
-	if err := json.Unmarshal(data, &wrapper); err != nil || wrapper.Secrets == nil {
-		// Fall back to legacy flat format.
-		var legacy map[string]string
-		if err2 := json.Unmarshal(data, &legacy); err2 == nil {
-			return legacy, nil
-		}
-		return nil, err
-	}
-	return wrapper.Secrets, nil
-}
-
-// persistSecrets saves secrets to the secrets file.
-// The file is created with 0600 permissions for security.
-func (s *Supervisor) persistSecrets(secrets map[string]string) error {
-	if err := os.MkdirAll(filepath.Dir(s.secretsPath), 0o700); err != nil {
-		return err
-	}
-
-	payload := struct {
-		Secrets map[string]string `json:"secrets"`
-	}{
-		Secrets: secrets,
-	}
-
-	data, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		return err
-	}
-	data = append(data, '\n')
-	return os.WriteFile(s.secretsPath, data, 0o600)
-}
-
 // secretsCopy returns a thread-safe copy of the current secrets.
+// Delegates to the injected SecretStore.
 func (s *Supervisor) secretsCopy() map[string]string {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	out := make(map[string]string, len(s.secrets))
-	for k, v := range s.secrets {
-		out[k] = v
-	}
-	return out
+	return s.secretStore.Get()
 }
 
 // missingRequiredSecrets returns a list of required secrets that are missing.
+// Delegates to the injected SecretStore.
 func (s *Supervisor) missingRequiredSecrets() []string {
-	return s.missingRequiredSecretsFrom(s.secretsCopy())
+	return s.secretStore.MissingRequired()
 }
 
 // missingRequiredSecretsFrom checks a secrets map for missing required values.
+// Delegates to the injected SecretStore.
 func (s *Supervisor) missingRequiredSecretsFrom(secrets map[string]string) []string {
-	var missing []string
-	for _, sec := range s.opts.Manifest.Secrets {
-		required := true
-		if sec.Required != nil {
-			required = *sec.Required
-		}
-		if !required {
-			continue
-		}
-		val := strings.TrimSpace(secrets[sec.ID])
-		if val == "" {
-			missing = append(missing, sec.ID)
-		}
-	}
-	return missing
+	return s.secretStore.MissingRequiredFrom(secrets)
+}
+
+// persistSecrets saves secrets to the secrets file.
+// Delegates to the injected SecretStore.
+func (s *Supervisor) persistSecrets(secrets map[string]string) error {
+	return s.secretStore.Persist(secrets)
 }
 
 // findSecret looks up a secret definition by ID.
+// Delegates to the injected SecretStore.
 func (s *Supervisor) findSecret(id string) *manifest.Secret {
-	for i := range s.opts.Manifest.Secrets {
-		if s.opts.Manifest.Secrets[i].ID == id {
-			return &s.opts.Manifest.Secrets[i]
-		}
-	}
-	return nil
+	return s.secretStore.FindSecret(id)
 }
 
 // applySecrets injects secrets into the environment for a service.
@@ -154,10 +88,10 @@ func (s *Supervisor) writeSecretToFile(secret *manifest.Secret, value string, en
 	}
 
 	path := manifest.ResolvePath(s.appData, secret.Target.Name)
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	if err := s.fs.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("secret %s path setup: %w", secret.ID, err)
 	}
-	if err := os.WriteFile(path, []byte(value), 0o600); err != nil {
+	if err := s.fs.WriteFile(path, []byte(value), 0o600); err != nil {
 		return fmt.Errorf("secret %s write: %w", secret.ID, err)
 	}
 
@@ -170,10 +104,7 @@ func (s *Supervisor) writeSecretToFile(secret *manifest.Secret, value string, en
 // UpdateSecrets merges new secrets and persists them.
 // Triggers service startup if all required secrets are now available.
 func (s *Supervisor) UpdateSecrets(newSecrets map[string]string) error {
-	merged := s.secretsCopy()
-	for k, v := range newSecrets {
-		merged[k] = v
-	}
+	merged := s.secretStore.Merge(newSecrets)
 
 	missing := s.missingRequiredSecretsFrom(merged)
 	if len(missing) > 0 {
@@ -185,9 +116,7 @@ func (s *Supervisor) UpdateSecrets(newSecrets map[string]string) error {
 		return err
 	}
 
-	s.mu.Lock()
-	s.secrets = merged
-	s.mu.Unlock()
+	s.secretStore.Set(merged)
 
 	_ = s.recordTelemetry("secrets_updated", map[string]interface{}{"count": len(merged)})
 

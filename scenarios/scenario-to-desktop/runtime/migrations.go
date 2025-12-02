@@ -3,31 +3,23 @@ package bundleruntime
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"scenario-to-desktop-runtime/manifest"
 )
 
-// migrationsState tracks applied migrations per service and the current app version.
-type migrationsState struct {
-	AppVersion string              `json:"app_version"`
-	Applied    map[string][]string `json:"applied"` // service ID -> list of applied migration versions
-}
-
 // loadMigrations reads the migrations state from disk.
 // Returns an empty state if the file doesn't exist.
-func (s *Supervisor) loadMigrations() (migrationsState, error) {
-	state := migrationsState{
+func (s *Supervisor) loadMigrations() (MigrationsState, error) {
+	state := MigrationsState{
 		Applied: map[string][]string{},
 	}
-	data, err := os.ReadFile(s.migrationsPath)
+	data, err := s.fs.ReadFile(s.migrationsPath)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
+		// Check if file doesn't exist
+		if _, statErr := s.fs.Stat(s.migrationsPath); statErr != nil {
 			return state, nil
 		}
 		return state, err
@@ -42,8 +34,8 @@ func (s *Supervisor) loadMigrations() (migrationsState, error) {
 }
 
 // persistMigrations saves the migrations state to disk.
-func (s *Supervisor) persistMigrations(state migrationsState) error {
-	if err := os.MkdirAll(filepath.Dir(s.migrationsPath), 0o700); err != nil {
+func (s *Supervisor) persistMigrations(state MigrationsState) error {
+	if err := s.fs.MkdirAll(filepath.Dir(s.migrationsPath), 0o700); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(state, "", "  ")
@@ -51,7 +43,7 @@ func (s *Supervisor) persistMigrations(state migrationsState) error {
 		return err
 	}
 	data = append(data, '\n')
-	return os.WriteFile(s.migrationsPath, data, 0o600)
+	return s.fs.WriteFile(s.migrationsPath, data, 0o600)
 }
 
 // runMigrations executes pending migrations for a service.
@@ -96,7 +88,7 @@ func (s *Supervisor) maybeRunMigration(
 	envBase map[string]string,
 	phase string,
 	appliedSet map[string]bool,
-	state *migrationsState,
+	state *MigrationsState,
 ) error {
 	if m.Version == "" {
 		return fmt.Errorf("migration for service %s missing version", svc.ID)
@@ -170,29 +162,27 @@ func (s *Supervisor) executeMigration(ctx context.Context, svc manifest.Service,
 		"version":    m.Version,
 	})
 
-	cmd := exec.CommandContext(ctx, cmdPath, args...)
-	cmd.Env = envMapToList(env)
-
+	// Determine working directory.
+	workDir := s.opts.BundlePath
 	if bin.CWD != "" {
-		cmd.Dir = manifest.ResolvePath(s.opts.BundlePath, bin.CWD)
-	} else {
-		cmd.Dir = s.opts.BundlePath
+		workDir = manifest.ResolvePath(s.opts.BundlePath, bin.CWD)
 	}
 
+	// Set up logging.
 	logWriter, _, err := s.logWriter(svc)
 	if err != nil {
 		return err
 	}
 	if logWriter != nil {
 		defer logWriter.Close()
-		cmd.Stdout = logWriter
-		cmd.Stderr = logWriter
 	}
 
-	if err := cmd.Start(); err != nil {
+	// Start the migration process using the injected ProcessRunner.
+	proc, err := s.procRunner.Start(ctx, cmdPath, args, envMapToList(env), workDir, logWriter, logWriter)
+	if err != nil {
 		return fmt.Errorf("start migration %s: %w", m.Version, err)
 	}
-	if err := cmd.Wait(); err != nil {
+	if err := proc.Wait(); err != nil {
 		return fmt.Errorf("migration %s failed: %w", m.Version, err)
 	}
 	return nil

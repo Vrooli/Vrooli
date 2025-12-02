@@ -25,7 +25,7 @@ type telemetryRecord struct {
 // The details map can include a "service_id" key for service-specific events.
 func (s *Supervisor) recordTelemetry(event string, details map[string]interface{}) error {
 	rec := telemetryRecord{
-		Timestamp: time.Now().UTC(),
+		Timestamp: s.clock.Now().UTC(),
 		Event:     event,
 		Details:   details,
 	}
@@ -43,10 +43,10 @@ func (s *Supervisor) recordTelemetry(event string, details map[string]interface{
 	}
 	data = append(data, '\n')
 
-	if err := os.MkdirAll(filepath.Dir(s.telemetryPath), 0o755); err != nil {
+	if err := s.fs.MkdirAll(filepath.Dir(s.telemetryPath), 0o755); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(s.telemetryPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	f, err := s.fs.OpenFile(s.telemetryPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}

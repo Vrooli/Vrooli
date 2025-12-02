@@ -16,7 +16,8 @@ func TestRenderEnvMap(t *testing.T) {
 			BundlePath: "/bundle/root",
 			Manifest:   &manifest.Manifest{},
 		},
-		portMap: map[string]map[string]int{},
+		portAllocator: &testMockPortAllocator{ports: map[string]map[string]int{}},
+		envReader:     RealEnvReader{},
 	}
 
 	svc := manifest.Service{
@@ -70,9 +71,9 @@ func TestRenderArgs(t *testing.T) {
 		opts: Options{
 			BundlePath: "/bundle",
 		},
-		portMap: map[string]map[string]int{
+		portAllocator: &testMockPortAllocator{ports: map[string]map[string]int{
 			"api": {"http": 47000, "grpc": 47001},
-		},
+		}},
 	}
 
 	args := []string{
@@ -120,10 +121,10 @@ func TestRenderValue(t *testing.T) {
 		opts: Options{
 			BundlePath: "/opt/myapp",
 		},
-		portMap: map[string]map[string]int{
+		portAllocator: &testMockPortAllocator{ports: map[string]map[string]int{
 			"api":      {"http": 8080},
 			"database": {"postgres": 5432},
-		},
+		}},
 	}
 
 	tests := []struct {
@@ -159,7 +160,8 @@ func TestRenderEnvMap_BinaryOverridesService(t *testing.T) {
 			BundlePath: "/bundle",
 			Manifest:   &manifest.Manifest{},
 		},
-		portMap: map[string]map[string]int{},
+		portAllocator: &testMockPortAllocator{ports: map[string]map[string]int{}},
+		envReader:     RealEnvReader{},
 	}
 
 	svc := manifest.Service{
@@ -204,7 +206,8 @@ func TestRenderEnvMap_InheritsOSEnvironment(t *testing.T) {
 			BundlePath: "/bundle",
 			Manifest:   &manifest.Manifest{},
 		},
-		portMap: map[string]map[string]int{},
+		portAllocator: &testMockPortAllocator{ports: map[string]map[string]int{}},
+		envReader:     RealEnvReader{},
 	}
 
 	env, err := s.renderEnvMap(manifest.Service{}, manifest.Binary{})

@@ -1,19 +1,19 @@
 package bundleruntime
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"scenario-to-desktop-runtime/manifest"
 )
 
-func TestDetectGPU_EnvOverride(t *testing.T) {
+func TestRealGPUDetector_EnvOverride(t *testing.T) {
 	tests := []struct {
-		name      string
-		envValue  string
-		wantAvail bool
+		name       string
+		envValue   string
+		wantAvail  bool
 		wantMethod string
 	}{
 		{"true enables GPU", "true", true, "env_override"},
@@ -32,12 +32,13 @@ func TestDetectGPU_EnvOverride(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("BUNDLE_GPU_AVAILABLE", tt.envValue)
 
-			status := detectGPU()
+			detector := &RealGPUDetector{CommandRunner: RealCommandRunner{}, EnvReader: RealEnvReader{}}
+			status := detector.Detect()
 			if status.Available != tt.wantAvail {
-				t.Errorf("detectGPU().Available = %v, want %v", status.Available, tt.wantAvail)
+				t.Errorf("RealGPUDetector.Detect().Available = %v, want %v", status.Available, tt.wantAvail)
 			}
 			if status.Method != tt.wantMethod {
-				t.Errorf("detectGPU().Method = %q, want %q", status.Method, tt.wantMethod)
+				t.Errorf("RealGPUDetector.Detect().Method = %q, want %q", status.Method, tt.wantMethod)
 			}
 		})
 	}
@@ -68,8 +69,10 @@ func TestApplyGPURequirement(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Supervisor{
-				gpuStatus:     gpuStatus{Available: tt.gpuAvail, Method: "test", Reason: "test"},
+				gpuStatus:     GPUStatus{Available: tt.gpuAvail, Method: "test", Reason: "test"},
 				telemetryPath: telemetryPath,
+				fs:            RealFileSystem{},
+				clock:         RealClock{},
 			}
 
 			var gpu *manifest.GPURequirements
@@ -120,7 +123,7 @@ func TestBoolToString(t *testing.T) {
 
 func TestGPUStatus(t *testing.T) {
 	s := &Supervisor{
-		gpuStatus: gpuStatus{
+		gpuStatus: GPUStatus{
 			Available: true,
 			Method:    "nvidia-smi",
 			Reason:    "nvidia gpu detected",
@@ -139,38 +142,42 @@ func TestGPUStatus(t *testing.T) {
 	}
 }
 
-func TestRunCommandWithTimeout(t *testing.T) {
+func TestCommandRunnerOutput(t *testing.T) {
+	runner := RealCommandRunner{}
+	ctx := context.Background()
+
 	// Test with a simple command that should succeed
 	t.Run("successful command", func(t *testing.T) {
-		out, err := runCommandWithTimeout(5*time.Second, "echo", "hello")
+		out, err := runner.Output(ctx, "echo", "hello")
 		if err != nil {
-			t.Errorf("runCommandWithTimeout() error = %v", err)
+			t.Errorf("Output() error = %v", err)
 		}
 		if len(out) == 0 {
-			t.Error("runCommandWithTimeout() returned empty output")
+			t.Error("Output() returned empty output")
 		}
 	})
 
 	// Test with a non-existent command
 	t.Run("command not found", func(t *testing.T) {
-		_, err := runCommandWithTimeout(1*time.Second, "nonexistent-command-12345")
+		_, err := runner.Output(ctx, "nonexistent-command-12345")
 		if err == nil {
-			t.Error("runCommandWithTimeout() expected error for non-existent command")
+			t.Error("Output() expected error for non-existent command")
 		}
 	})
 }
 
-func TestDetectGPU_NoOverride(t *testing.T) {
+func TestRealGPUDetector_NoOverride(t *testing.T) {
 	// Ensure no override is set
 	os.Unsetenv("BUNDLE_GPU_AVAILABLE")
 
-	status := detectGPU()
+	detector := &RealGPUDetector{CommandRunner: RealCommandRunner{}, EnvReader: RealEnvReader{}}
+	status := detector.Detect()
 
 	// We can't predict the result, but we can verify the structure is valid
 	if status.Method == "" {
-		t.Error("detectGPU() returned empty method")
+		t.Error("RealGPUDetector.Detect() returned empty method")
 	}
 	if status.Reason == "" {
-		t.Error("detectGPU() returned empty reason")
+		t.Error("RealGPUDetector.Detect() returned empty reason")
 	}
 }
