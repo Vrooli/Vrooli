@@ -1,6 +1,7 @@
 import {
   getSection,
   updateSection,
+  patchSection,
   getVariant,
   getVariantSpace,
   type ContentSection,
@@ -44,6 +45,13 @@ export async function persistExistingSectionContent(
 ): Promise<SectionEditorState> {
   await updateSection(sectionId, content);
   return loadSectionEditor(sectionId);
+}
+
+export async function updateSectionOrder(sectionId: number, order: number) {
+  if (!sectionId || Number.isNaN(order)) {
+    throw new Error('Section ID and order are required');
+  }
+  await patchSection(sectionId, { order });
 }
 
 export interface VariantAxisContext {

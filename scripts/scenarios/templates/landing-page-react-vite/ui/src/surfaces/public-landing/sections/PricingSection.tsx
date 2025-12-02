@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import { Check } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { useMetrics } from '../../../shared/hooks/useMetrics';
 import type { PlanOption, PricingOverview } from '../../../shared/api';
+import { ensureDemoPlansForDisplay } from '../../../shared/lib/pricingPlaceholders';
 
 interface PricingTier {
   name: string;
@@ -103,6 +105,7 @@ function getTierFeatures(tier: PricingTier): string[] {
 
 export function PricingSection({ content, pricingOverview }: PricingSectionProps) {
   const { trackCTAClick } = useMetrics();
+  const [activeInterval, setActiveInterval] = useState<'monthly' | 'yearly'>('monthly');
 
   const renderTier = (tier: PricingTier, index: number) => {
     const handleClick = () => {
@@ -117,8 +120,7 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
     const highlight = tier.highlighted;
     return (
       <div
-        key={`${tier.name}-${tier.price}-${index}`}
-        className={`relative rounded-3xl border p-8 transition-all duration-300 ${
+        className={`relative h-full rounded-3xl border p-8 transition-all duration-300 ${
           highlight
             ? 'border-[#F97316]/40 bg-[#0F172A] text-white shadow-2xl shadow-[#F97316]/20'
             : 'border-slate-200 bg-white text-slate-900 hover:-translate-y-1'
@@ -169,10 +171,10 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
   };
 
   const bundle = pricingOverview?.bundle;
-  const monthlyPlansRaw = pricingOverview?.monthly;
-  const yearlyPlansRaw = pricingOverview?.yearly;
-  const monthlyPlans = Array.isArray(monthlyPlansRaw) ? monthlyPlansRaw : [];
-  const yearlyPlans = Array.isArray(yearlyPlansRaw) ? yearlyPlansRaw : [];
+  const monthlyPlansRaw = Array.isArray(pricingOverview?.monthly) ? (pricingOverview?.monthly as PlanOption[]) : [];
+  const yearlyPlansRaw = Array.isArray(pricingOverview?.yearly) ? (pricingOverview?.yearly as PlanOption[]) : [];
+  const monthlyPlans = bundle ? ensureDemoPlansForDisplay(bundle, monthlyPlansRaw, 3) : [];
+  const yearlyPlans = bundle ? yearlyPlansRaw : [];
 
   const monthlyTiers =
     bundle && monthlyPlans.length > 0
@@ -215,6 +217,25 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
     features: getTierFeatures(tier),
   }));
 
+  const hasYearly = yearlyTiers.length > 0;
+  useEffect(() => {
+    if (!hasYearly && activeInterval === 'yearly') {
+      setActiveInterval('monthly');
+    }
+  }, [activeInterval, hasYearly]);
+
+  const effectiveInterval =
+    bundle && activeInterval === 'yearly' && hasYearly ? 'yearly' : 'monthly';
+  const tiersToRender = bundle
+    ? effectiveInterval === 'yearly'
+      ? yearlyTiers.length > 0
+        ? yearlyTiers
+        : monthlyTiers
+      : monthlyTiers.length > 0
+        ? monthlyTiers
+        : []
+    : fallbackTiers;
+
   return (
     <section className="bg-[#F6F5F2] py-24 text-slate-900">
       <div className="container mx-auto px-6">
@@ -227,13 +248,38 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
           </p>
         </div>
 
-        <div className="mt-12 grid items-start gap-8 md:grid-cols-3">
-          {(pricingOverview && monthlyTiers.length > 0 ? monthlyTiers : fallbackTiers).map((tier, index) =>
-            renderTier(tier, index)
-          )}
+        {bundle && hasYearly && (
+          <div className="mt-8 inline-flex w-full max-w-xl flex-wrap gap-2 rounded-full border border-slate-300 bg-white/80 p-1 text-sm font-semibold text-slate-600">
+            {(['monthly', 'yearly'] as const).map((mode) => {
+              const active = effectiveInterval === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setActiveInterval(mode)}
+                  className={`flex-1 rounded-full px-4 py-2 transition ${
+                    active ? 'bg-slate-900 text-white shadow' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {mode === 'monthly' ? 'Monthly billing' : 'Yearly billing'}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="mt-12 -mx-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-6 md:mx-0 md:grid md:grid-cols-3 md:gap-8 md:overflow-visible md:pb-0 md:snap-none">
+          {tiersToRender.map((tier, index) => (
+            <div
+              key={`${tier.name}-${tier.price ?? 'n/a'}-${index}`}
+              className="min-w-[82%] flex-shrink-0 snap-center md:min-w-0 md:flex-shrink"
+            >
+              {renderTier(tier, index)}
+            </div>
+          ))}
         </div>
 
-        {yearlyTiers.length > 0 && (
+        {hasYearly && (
           <div className="mt-12 rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
             Yearly billing available on request — includes white-glove promotion support and export of the entire style
             pack for compliance archives.

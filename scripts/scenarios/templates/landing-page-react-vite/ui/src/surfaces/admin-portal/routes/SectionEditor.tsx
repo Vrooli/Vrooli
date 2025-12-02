@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, ArrowLeft, Eye, ArrowRight, Plus } from 'lucide-react';
+import { Save, ArrowLeft, Eye, Plus } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Button } from '../../../shared/ui/button';
 import { getLandingConfig, listVariants, type ContentSection, type LandingConfigResponse, type LandingSection, type Variant } from '../../../shared/api';
@@ -9,6 +9,7 @@ import {
   loadSectionEditor,
   persistExistingSectionContent,
   loadVariantContext,
+  updateSectionOrder,
   type SectionEditorState,
   type VariantContext,
 } from '../controllers/sectionEditorController';
@@ -32,6 +33,7 @@ import { VideoSection } from '../../public-landing/sections/VideoSection';
  * [REQ:CUSTOM-SPLIT] [REQ:CUSTOM-LIVE]
  */
 const STYLING_CONFIG = getStylingConfig();
+const COMPARE_STORAGE_KEY = 'landing-manager-section-editor-compare';
 
 type PreviewRenderer = (params: {
   content: Record<string, unknown>;
@@ -74,6 +76,8 @@ export function SectionEditor() {
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareError, setCompareError] = useState<string | null>(null);
   const compareConfigCache = useRef<Map<string, LandingConfigResponse>>(new Map());
+  const [reorderingSectionId, setReorderingSectionId] = useState<number | null>(null);
+  const [reorderError, setReorderError] = useState<string | null>(null);
 
   // Form state
   const [sectionType, setSectionType] = useState<ContentSection['section_type']>('hero');
@@ -130,41 +134,35 @@ export function SectionEditor() {
     };
   }, [variantSlug]);
 
-  useEffect(() => {
-    if (!variantSlug) {
+  const loadPreviewConfig = useCallback(async (slug?: string | null) => {
+    if (!slug) {
       setPreviewConfig(null);
       setPreviewConfigError('Variant slug missing for preview');
+      setPreviewConfigLoading(false);
       return;
     }
 
-    let cancelled = false;
-    const fetchPreviewConfig = async () => {
-      try {
-        setPreviewConfigLoading(true);
-        const config = await getLandingConfig(variantSlug);
-        if (!cancelled) {
-          setPreviewConfig(config);
-          setPreviewConfigError(null);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          const message = err instanceof Error ? err.message : 'Failed to load landing preview context';
-          setPreviewConfig(null);
-          setPreviewConfigError(message);
-        }
-      } finally {
-        if (!cancelled) {
-          setPreviewConfigLoading(false);
-        }
-      }
-    };
+    try {
+      setPreviewConfigLoading(true);
+      const config = await getLandingConfig(slug);
+      setPreviewConfig(config);
+      setPreviewConfigError(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load landing preview context';
+      setPreviewConfig(null);
+      setPreviewConfigError(message);
+    } finally {
+      setPreviewConfigLoading(false);
+    }
+  }, []);
 
-    fetchPreviewConfig();
+  useEffect(() => {
+    loadPreviewConfig(variantSlug);
+  }, [variantSlug, loadPreviewConfig]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [variantSlug]);
+  const refreshPreviewConfig = useCallback(async () => {
+    await loadPreviewConfig(variantSlug);
+  }, [variantSlug, loadPreviewConfig]);
 
   useEffect(() => {
     let cancelled = false;
@@ -296,7 +294,7 @@ export function SectionEditor() {
     navigate(`/admin/customization/variants/${variantSlug}/sections/new`);
   };
 
-  const handleCompareVariantChange = async (slug: string) => {
+  const handleCompareVariantChange = useCallback(async (slug: string) => {
     setCompareVariantSlug(slug);
     if (!slug) {
       setCompareConfig(null);
@@ -323,7 +321,53 @@ export function SectionEditor() {
     } finally {
       setCompareLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!variantSlug) {
+      return;
+    }
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(COMPARE_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+      const stored = JSON.parse(raw);
+      const savedSlug = stored?.[variantSlug];
+      if (typeof savedSlug === 'string' && savedSlug !== compareVariantSlug) {
+        handleCompareVariantChange(savedSlug);
+      }
+    } catch (err) {
+      console.warn('Failed to load comparison preference', err);
+    }
+    // intentionally omit handleCompareVariantChange from deps to avoid duplicate fetch loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variantSlug]);
+
+  useEffect(() => {
+    if (!variantSlug) {
+      return;
+    }
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(COMPARE_STORAGE_KEY);
+      const stored = raw ? JSON.parse(raw) : {};
+      if (compareVariantSlug) {
+        stored[variantSlug] = compareVariantSlug;
+      } else {
+        delete stored[variantSlug];
+      }
+      window.localStorage.setItem(COMPARE_STORAGE_KEY, JSON.stringify(stored));
+    } catch (err) {
+      console.warn('Failed to persist comparison preference', err);
+    }
+  }, [variantSlug, compareVariantSlug]);
 
   const previewRenderer = useMemo(() => SECTION_PREVIEW_RENDERERS[sectionType], [sectionType]);
   const previewVariantLabel = useMemo(() => {
@@ -352,6 +396,39 @@ export function SectionEditor() {
   }, [compareConfig, sectionType]);
   const comparisonContent = comparisonSection?.content ?? {};
   const comparisonEnabled = comparisonSection?.enabled !== false;
+  const handleReorderSection = useCallback(
+    async (target: LandingSection, direction: 'up' | 'down') => {
+      if (!target.id || !timelineSections.length) {
+        return;
+      }
+      const currentIndex = timelineSections.findIndex((section) => section.id === target.id);
+      if (currentIndex === -1) {
+        return;
+      }
+      const neighborIndex = currentIndex + (direction === 'up' ? -1 : 1);
+      const neighbor = timelineSections[neighborIndex];
+      if (!neighbor || !neighbor.id || typeof neighbor.order !== 'number' || typeof target.order !== 'number') {
+        setReorderError('Unable to move section. Missing neighbor information.');
+        return;
+      }
+
+      try {
+        setReorderingSectionId(target.id);
+        setReorderError(null);
+        await Promise.all([
+          updateSectionOrder(target.id, neighbor.order),
+          updateSectionOrder(neighbor.id, target.order),
+        ]);
+        await refreshPreviewConfig();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to reorder sections';
+        setReorderError(message);
+      } finally {
+        setReorderingSectionId(null);
+      }
+    },
+    [timelineSections, refreshPreviewConfig],
+  );
 
   if (loading) {
     return (
@@ -426,6 +503,9 @@ export function SectionEditor() {
                 currentSectionType={sectionType}
                 onNavigateSection={handleNavigateSection}
                 onAddSection={handleAddSection}
+                onReorderSection={handleReorderSection}
+                reorderingSectionId={reorderingSectionId}
+                reorderError={reorderError}
               />
             )}
             <VariantContextCard
@@ -755,6 +835,9 @@ function VariantSectionTimeline({
   currentSectionType,
   onNavigateSection,
   onAddSection,
+  onReorderSection,
+  reorderingSectionId,
+  reorderError,
 }: {
   variantName: string;
   sections: LandingSection[];
@@ -764,6 +847,9 @@ function VariantSectionTimeline({
   currentSectionType: ContentSection['section_type'];
   onNavigateSection: (section: LandingSection) => void;
   onAddSection: () => void;
+  onReorderSection: (section: LandingSection, direction: 'up' | 'down') => void;
+  reorderingSectionId: number | null;
+  reorderError: string | null;
 }) {
   return (
     <div className="bg-white/5 border border-white/10 rounded-xl p-6 space-y-4" data-testid="variant-section-timeline">
@@ -796,24 +882,67 @@ function VariantSectionTimeline({
               ? section.id === currentSectionId
               : section.section_type === currentSectionType;
             const badge = section.enabled === false ? 'Disabled' : 'Enabled';
+            const isFirst = sections[0]?.id === section.id;
+            const isLast = sections[sections.length - 1]?.id === section.id;
             return (
-              <button
+              <div
                 key={`${section.section_type}-${section.id ?? section.order}`}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() => onNavigateSection(section)}
-                className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onNavigateSection(section);
+                  }
+                }}
+                className={`rounded-xl border px-4 py-3 text-left transition-colors ${
                   isActive ? 'border-white/40 bg-white/10' : 'border-white/10 hover:border-white/30'
                 }`}
               >
-                <div>
-                  <div className="text-xs text-slate-500">#{section.order ?? '-'}</div>
-                  <div className="text-sm font-medium capitalize text-white">{section.section_type}</div>
-                  <div className="text-[11px] uppercase tracking-wide text-slate-500">{badge}</div>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-xs text-slate-500">#{section.order ?? '-'}</div>
+                    <div className="text-sm font-medium capitalize text-white">{section.section_type}</div>
+                    <div className="text-[11px] uppercase tracking-wide text-slate-500">{badge}</div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs text-slate-400">
+                    {section.id && (
+                      <>
+                        <button
+                          type="button"
+                          className="rounded-full border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-50"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onReorderSection(section, 'up');
+                          }}
+                          disabled={reorderingSectionId !== null || isFirst}
+                        >
+                          Move up
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-full border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-50"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onReorderSection(section, 'down');
+                          }}
+                          disabled={reorderingSectionId !== null || isLast}
+                        >
+                          Move down
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <ArrowRight className="h-4 w-4 text-slate-500" />
-              </button>
+              </div>
             );
           })}
+        </div>
+      )}
+      {reorderError && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          {reorderError}
         </div>
       )}
     </div>
