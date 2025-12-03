@@ -1,4 +1,4 @@
-// Package main provides the Deployment Manager API server.
+// Package main provides the Deployment Manager API server entry point.
 //
 // The server exposes HTTP endpoints for:
 //   - Dependency analysis and fitness scoring
@@ -9,22 +9,28 @@
 //   - Bundle validation and assembly
 //   - Telemetry ingestion and reporting
 //
-// Architecture:
+// Architecture (Screaming Architecture):
 //
 //	main.go              - Entry point
-//	server.go            - Server struct, config, middleware, logging
-//	routes.go            - Route setup
-//	handlers_*.go        - HTTP request handlers
-//	services_*.go        - Business logic and external service clients
-//	bundle_validation.go - Bundle manifest validation
-//	bundle_mapper.go     - Secret mapping for bundles
-//	handlers_telemetry.go- Telemetry handlers
+//	server/              - HTTP server, routes, middleware
+//	bundles/             - Bundle validation and assembly
+//	profiles/            - Deployment profile management
+//	fitness/             - Tier fitness scoring
+//	secrets/             - Secret identification and templating
+//	telemetry/           - Deployment telemetry ingestion
+//	deployments/         - Deployment execution
+//	dependencies/        - Dependency analysis
+//	swaps/               - Resource swap analysis
+//	health/              - Health checks
+//	shared/              - Cross-cutting utilities
 package main
 
 import (
 	"fmt"
 	"log"
 	"os"
+
+	"deployment-manager/server"
 )
 
 func main() {
@@ -40,12 +46,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	server, err := NewServer()
+	srv, err := server.New()
 	if err != nil {
 		log.Fatalf("failed to initialize server: %v", err)
 	}
 
-	if err := server.Start(); err != nil {
+	if err := srv.Start(); err != nil {
 		log.Fatalf("server stopped with error: %v", err)
 	}
 }
