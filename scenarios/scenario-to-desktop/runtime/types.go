@@ -108,6 +108,9 @@ type EnvRenderer = env.Renderer
 // MigrationsState tracks applied migrations per service.
 type MigrationsState = migrations.State
 
+// MigrationRunner defines the interface for migration execution.
+type MigrationRunner = migrations.Runner
+
 // =============================================================================
 // Re-exported Constants and Defaults
 // =============================================================================

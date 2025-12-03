@@ -208,3 +208,55 @@ func TestManagerMap(t *testing.T) {
 		t.Errorf("original portMap modified, got %d want %d", original["api"]["http"], originalPort)
 	}
 }
+
+// TestManagerSetPorts tests that SetPorts allows directly setting the port map.
+func TestManagerSetPorts(t *testing.T) {
+	m := &manifest.Manifest{
+		Services: []manifest.Service{
+			{ID: "api"},
+			{ID: "worker"},
+		},
+	}
+	pm := ports.NewManager(m, infra.RealNetworkDialer{})
+
+	// Set ports directly without calling Allocate
+	customPorts := map[string]map[string]int{
+		"api":    {"http": 8080, "grpc": 9090},
+		"worker": {"metrics": 9100},
+	}
+	pm.SetPorts(customPorts)
+
+	// Verify the ports were set correctly
+	port, err := pm.Resolve("api", "http")
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if port != 8080 {
+		t.Errorf("Resolve(api, http) = %d, want 8080", port)
+	}
+
+	port, err = pm.Resolve("api", "grpc")
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if port != 9090 {
+		t.Errorf("Resolve(api, grpc) = %d, want 9090", port)
+	}
+
+	port, err = pm.Resolve("worker", "metrics")
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if port != 9100 {
+		t.Errorf("Resolve(worker, metrics) = %d, want 9100", port)
+	}
+
+	// Verify Map returns the same data
+	result := pm.Map()
+	if len(result) != 2 {
+		t.Errorf("Map() returned %d services, want 2", len(result))
+	}
+	if result["api"]["http"] != 8080 {
+		t.Errorf("Map()[api][http] = %d, want 8080", result["api"]["http"])
+	}
+}

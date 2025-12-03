@@ -128,7 +128,7 @@ type Supervisor struct {
 	envRenderer       *env.Renderer
 	assetVerifier     *assets.Verifier
 	gpuApplier        *gpu.Applier
-	migrationExecutor *migrations.Executor
+	migrationExecutor migrations.Runner
 
 	// Paths and auth.
 	authToken      string

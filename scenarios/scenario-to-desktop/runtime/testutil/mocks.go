@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"scenario-to-desktop-runtime/infra"
+	"scenario-to-desktop-runtime/manifest"
 )
 
 // =============================================================================
@@ -514,3 +515,310 @@ func (m *MockPortAllocator) Map() map[string]map[string]int {
 	}
 	return result
 }
+
+// =============================================================================
+// Health Checker Mocks
+// =============================================================================
+
+// MockHealthChecker implements health.Checker for testing.
+type MockHealthChecker struct {
+	mu               sync.Mutex
+	readyServices    map[string]bool
+	waitReadinessErr error
+	waitDepsErr      error
+	checkOnceResult  bool
+}
+
+// NewMockHealthChecker creates a new MockHealthChecker.
+func NewMockHealthChecker() *MockHealthChecker {
+	return &MockHealthChecker{
+		readyServices:   make(map[string]bool),
+		checkOnceResult: true,
+	}
+}
+
+// SetServiceReady marks a service as ready or not ready.
+func (m *MockHealthChecker) SetServiceReady(serviceID string, ready bool) {
+	m.mu.Lock()
+	m.readyServices[serviceID] = ready
+	m.mu.Unlock()
+}
+
+// SetWaitReadinessErr configures an error to return from WaitForReadiness.
+func (m *MockHealthChecker) SetWaitReadinessErr(err error) {
+	m.mu.Lock()
+	m.waitReadinessErr = err
+	m.mu.Unlock()
+}
+
+// SetWaitDepsErr configures an error to return from WaitForDependencies.
+func (m *MockHealthChecker) SetWaitDepsErr(err error) {
+	m.mu.Lock()
+	m.waitDepsErr = err
+	m.mu.Unlock()
+}
+
+// SetCheckOnceResult configures the result of CheckOnce.
+func (m *MockHealthChecker) SetCheckOnceResult(result bool) {
+	m.mu.Lock()
+	m.checkOnceResult = result
+	m.mu.Unlock()
+}
+
+// WaitForReadiness returns configured error or nil.
+func (m *MockHealthChecker) WaitForReadiness(ctx context.Context, serviceID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.waitReadinessErr != nil {
+		return m.waitReadinessErr
+	}
+	m.readyServices[serviceID] = true
+	return nil
+}
+
+// CheckOnce returns configured result.
+func (m *MockHealthChecker) CheckOnce(ctx context.Context, serviceID string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.checkOnceResult
+}
+
+// WaitForDependencies returns configured error or nil.
+func (m *MockHealthChecker) WaitForDependencies(ctx context.Context, svc *manifest.Service) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.waitDepsErr
+}
+
+// =============================================================================
+// Secret Store Mocks
+// =============================================================================
+
+// MockSecretStore implements secrets.Store for testing.
+type MockSecretStore struct {
+	mu              sync.Mutex
+	secrets         map[string]string
+	missingRequired []string
+	loadErr         error
+	persistErr      error
+	manifest        *manifest.Manifest
+}
+
+// NewMockSecretStore creates a new MockSecretStore.
+func NewMockSecretStore(m *manifest.Manifest) *MockSecretStore {
+	return &MockSecretStore{
+		secrets:  make(map[string]string),
+		manifest: m,
+	}
+}
+
+// SetSecrets configures the secrets to return.
+func (m *MockSecretStore) SetSecrets(secrets map[string]string) {
+	m.mu.Lock()
+	m.secrets = make(map[string]string)
+	for k, v := range secrets {
+		m.secrets[k] = v
+	}
+	m.mu.Unlock()
+}
+
+// SetMissingRequired configures the missing required secrets.
+func (m *MockSecretStore) SetMissingRequired(missing []string) {
+	m.mu.Lock()
+	m.missingRequired = missing
+	m.mu.Unlock()
+}
+
+// SetLoadErr configures an error to return from Load.
+func (m *MockSecretStore) SetLoadErr(err error) {
+	m.mu.Lock()
+	m.loadErr = err
+	m.mu.Unlock()
+}
+
+// SetPersistErr configures an error to return from Persist.
+func (m *MockSecretStore) SetPersistErr(err error) {
+	m.mu.Lock()
+	m.persistErr = err
+	m.mu.Unlock()
+}
+
+// Load returns configured secrets or error.
+func (m *MockSecretStore) Load() (map[string]string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.loadErr != nil {
+		return nil, m.loadErr
+	}
+	result := make(map[string]string)
+	for k, v := range m.secrets {
+		result[k] = v
+	}
+	return result, nil
+}
+
+// Persist stores secrets or returns error.
+func (m *MockSecretStore) Persist(secrets map[string]string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.persistErr != nil {
+		return m.persistErr
+	}
+	m.secrets = make(map[string]string)
+	for k, v := range secrets {
+		m.secrets[k] = v
+	}
+	return nil
+}
+
+// Get returns a copy of current secrets.
+func (m *MockSecretStore) Get() map[string]string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	result := make(map[string]string)
+	for k, v := range m.secrets {
+		result[k] = v
+	}
+	return result
+}
+
+// Set updates internal secrets.
+func (m *MockSecretStore) Set(secrets map[string]string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.secrets = make(map[string]string)
+	for k, v := range secrets {
+		m.secrets[k] = v
+	}
+}
+
+// MissingRequired returns configured missing secrets.
+func (m *MockSecretStore) MissingRequired() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.missingRequired
+}
+
+// MissingRequiredFrom checks a secrets map for missing required values.
+func (m *MockSecretStore) MissingRequiredFrom(secrets map[string]string) []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.missingRequired
+}
+
+// FindSecret looks up a secret definition by ID.
+func (m *MockSecretStore) FindSecret(id string) *manifest.Secret {
+	if m.manifest == nil {
+		return nil
+	}
+	for i := range m.manifest.Secrets {
+		if m.manifest.Secrets[i].ID == id {
+			return &m.manifest.Secrets[i]
+		}
+	}
+	return nil
+}
+
+// Merge combines new secrets with existing ones.
+func (m *MockSecretStore) Merge(newSecrets map[string]string) map[string]string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	merged := make(map[string]string)
+	for k, v := range m.secrets {
+		merged[k] = v
+	}
+	for k, v := range newSecrets {
+		merged[k] = v
+	}
+	return merged
+}
+
+// =============================================================================
+// GPU Detector Mocks
+// =============================================================================
+
+// MockGPUDetector implements gpu.Detector for testing.
+type MockGPUDetector struct {
+	status GPUStatus
+}
+
+// GPUStatus represents GPU detection result.
+type GPUStatus struct {
+	Available bool
+	Method    string
+	Reason    string
+}
+
+// NewMockGPUDetector creates a new MockGPUDetector.
+func NewMockGPUDetector(available bool) *MockGPUDetector {
+	return &MockGPUDetector{
+		status: GPUStatus{
+			Available: available,
+			Method:    "mock",
+			Reason:    "mock detector",
+		},
+	}
+}
+
+// SetStatus configures the GPU status to return.
+func (m *MockGPUDetector) SetStatus(status GPUStatus) {
+	m.status = status
+}
+
+// Detect returns the configured GPU status.
+func (m *MockGPUDetector) Detect() GPUStatus {
+	return m.status
+}
+
+// =============================================================================
+// Env Reader Mocks
+// =============================================================================
+
+// MockEnvReader implements infra.EnvReader for testing.
+type MockEnvReader struct {
+	mu   sync.Mutex
+	envs map[string]string
+}
+
+// NewMockEnvReader creates a new MockEnvReader.
+func NewMockEnvReader() *MockEnvReader {
+	return &MockEnvReader{
+		envs: make(map[string]string),
+	}
+}
+
+// SetEnv sets an environment variable in the mock.
+func (m *MockEnvReader) SetEnv(key, value string) {
+	m.mu.Lock()
+	m.envs[key] = value
+	m.mu.Unlock()
+}
+
+// Getenv returns the configured environment variable.
+func (m *MockEnvReader) Getenv(key string) string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.envs[key]
+}
+
+// LookupEnv returns the configured environment variable and whether it exists.
+func (m *MockEnvReader) LookupEnv(key string) (string, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	v, ok := m.envs[key]
+	return v, ok
+}
+
+// Environ returns all configured environment variables.
+func (m *MockEnvReader) Environ() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	result := make([]string, 0, len(m.envs))
+	for k, v := range m.envs {
+		result = append(result, k+"="+v)
+	}
+	return result
+}
+
+// Ensure MockEnvReader implements infra.EnvReader.
+var _ infra.EnvReader = (*MockEnvReader)(nil)

@@ -32,6 +32,17 @@ type LogProvider interface {
 	LogWriter(svc manifest.Service) (infra.File, string, error)
 }
 
+// Runner defines the interface for migration execution.
+// This allows for easy testing with mock implementations.
+type Runner interface {
+	Run(ctx context.Context, svc manifest.Service, bin manifest.Binary, baseEnv map[string]string) error
+	State() State
+	SetState(state State)
+}
+
+// Ensure Executor implements Runner.
+var _ Runner = (*Executor)(nil)
+
 // Executor runs migrations for services.
 type Executor struct {
 	cfg         ExecutorConfig
