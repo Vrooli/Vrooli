@@ -5,10 +5,24 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import * as api from './lib/api';
 
-// Mock the API module
+// Mock the API module - include helper functions that are used directly in App.tsx
 vi.mock('./lib/api', () => ({
   fetchStatus: vi.fn(),
   runTick: vi.fn(),
+  // Include the helper functions that App.tsx uses
+  groupChecksByStatus: (checks: { status: string }[]) => ({
+    critical: checks.filter((c) => c.status === "critical"),
+    warning: checks.filter((c) => c.status === "warning"),
+    ok: checks.filter((c) => c.status === "ok"),
+  }),
+  statusToEmoji: (status: string) => {
+    switch (status) {
+      case "ok": return "\u2713";
+      case "warning": return "\u26A0";
+      case "critical": return "\u2717";
+      default: return "\u2753";
+    }
+  },
 }));
 
 const mockStatusResponse: api.StatusResponse = {

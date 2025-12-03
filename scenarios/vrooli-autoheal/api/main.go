@@ -17,9 +17,8 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 
+	"vrooli-autoheal/internal/bootstrap"
 	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/checks/infra"
-	"vrooli-autoheal/internal/checks/vrooli"
 	"vrooli-autoheal/internal/config"
 	apiHandlers "vrooli-autoheal/internal/handlers"
 	"vrooli-autoheal/internal/persistence"
@@ -64,11 +63,11 @@ func run() error {
 
 	// Initialize components
 	store := persistence.NewStore(db)
-	registry := checks.NewRegistry()
 	plat := platform.Detect()
+	registry := checks.NewRegistry(plat)
 
-	// Register health checks
-	registerChecks(registry)
+	// Register health checks (delegated to bootstrap module)
+	bootstrap.RegisterDefaultChecks(registry, plat)
 
 	// Setup HTTP server
 	h := apiHandlers.New(registry, store, plat)
@@ -77,20 +76,6 @@ func run() error {
 	log.Printf("starting server | service=vrooli-autoheal-api port=%s platform=%s", cfg.Port, plat.Platform)
 
 	return startServer(cfg.Port, router)
-}
-
-// registerChecks adds all health checks to the registry
-func registerChecks(registry *checks.Registry) {
-	// Infrastructure checks
-	registry.Register(infra.NewNetworkCheck(""))
-	registry.Register(infra.NewDNSCheck(""))
-	registry.Register(infra.NewDockerCheck())
-	registry.Register(infra.NewCloudflaredCheck())
-	registry.Register(infra.NewRDPCheck())
-
-	// Vrooli resource checks
-	registry.Register(vrooli.NewResourceCheck("postgres"))
-	registry.Register(vrooli.NewResourceCheck("redis"))
 }
 
 // setupRouter configures HTTP routes

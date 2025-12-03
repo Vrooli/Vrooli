@@ -9,6 +9,7 @@
 | 2025-12-03 | Improver Agent | Core implementation | Platform detection, health registry, tick/loop/status CLI, React dashboard |
 | 2025-12-03 | Improver Agent | DB + Test Infra | Fixed database schema (health_results, autoheal_actions, autoheal_config tables), installed jsdom/vitest-reporter, created selectors.manifest.json |
 | 2025-12-03 | Improver Agent | Test Suite | Added 48 Go unit tests (platform detection, health registry, checks), 36 API integration tests, 10 UI tests |
+| 2025-12-03 | Improver Agent | Decision Boundary Extraction | Extracted CLI status classifier, RDP/Cloudflared decision functions, UI status helpers; Added 18 new tests |
 | 2025-12-03 | Improver Agent | Architecture Audit | Screaming Architecture refactor - split monolithic main.go (354→155 lines), organized checks by domain (infra/, vrooli/), added config/handlers/persistence packages |
 
 ## Completed Features
@@ -107,6 +108,31 @@ api/internal/
 - Registry pattern allows extensible health check registration
 - Handlers are thin - delegate to registry for business logic
 - Persistence is isolated behind Store interface
+
+## Decision Boundaries
+
+Key decision points are extracted into named, testable functions:
+
+### CLI Status Classification (`vrooli/status_classifier.go`)
+- `ClassifyCLIOutput(output)` → Determines if CLI output indicates healthy/stopped/unclear
+- `CLIStatusToCheckStatus(cliStatus, isCritical)` → Maps CLI status to health check status
+- Stopped indicators checked first (handles "not running" containing "running")
+
+### RDP Service Selection (`infra/rdp.go`)
+- `SelectRDPService(caps)` → Decides which RDP service to check based on platform
+- Linux with systemd → xrdp service
+- Windows → TermService
+- Other → not checkable
+
+### Cloudflared Verification (`infra/cloudflared.go`)
+- `DetectCloudflaredInstall()` → Checks if binary exists
+- `SelectCloudflaredVerifyMethod(caps)` → Chooses verification method (systemd or none)
+- Returns warning if installed but can't verify running status
+
+### UI Status Grouping (`lib/api.ts`)
+- `groupChecksByStatus(checks)` → Groups checks by severity
+- `statusToEmoji(status)` → Maps status to display emoji
+- `STATUS_SEVERITY` → Defines severity ordering for sorting
 
 ## Implementation Notes
 

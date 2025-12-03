@@ -19,13 +19,14 @@ type Registry struct {
 	platform *platform.Capabilities
 }
 
-// NewRegistry creates a new health check registry
-func NewRegistry() *Registry {
+// NewRegistry creates a new health check registry with the given platform capabilities.
+// Platform is injected to allow testing and avoid hidden dependency creation.
+func NewRegistry(plat *platform.Capabilities) *Registry {
 	return &Registry{
 		checks:   make(map[string]Check),
 		results:  make(map[string]Result),
 		lastRun:  make(map[string]time.Time),
-		platform: platform.Detect(),
+		platform: plat,
 	}
 }
 
@@ -140,33 +141,10 @@ func (r *Registry) GetAllResults() []Result {
 	return results
 }
 
-// GetSummary returns an aggregate health summary
+// GetSummary returns an aggregate health summary.
+// Delegates to ComputeSummary for the domain logic.
 func (r *Registry) GetSummary() Summary {
-	results := r.GetAllResults()
-
-	summary := Summary{
-		Status:     StatusOK,
-		TotalCount: len(results),
-		Checks:     results,
-		Timestamp:  time.Now(),
-	}
-
-	for _, result := range results {
-		switch result.Status {
-		case StatusOK:
-			summary.OkCount++
-		case StatusWarning:
-			summary.WarnCount++
-			if summary.Status == StatusOK {
-				summary.Status = StatusWarning
-			}
-		case StatusCritical:
-			summary.CritCount++
-			summary.Status = StatusCritical
-		}
-	}
-
-	return summary
+	return ComputeSummary(r.GetAllResults())
 }
 
 // ListChecks returns info about all registered checks

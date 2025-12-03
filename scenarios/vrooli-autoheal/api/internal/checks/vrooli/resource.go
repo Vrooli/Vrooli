@@ -5,13 +5,13 @@ package vrooli
 import (
 	"context"
 	"os/exec"
-	"strings"
 
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 )
 
-// ResourceCheck monitors a Vrooli resource via CLI
+// ResourceCheck monitors a Vrooli resource via CLI.
+// Resources are core infrastructure (postgres, redis, etc.) and are always critical.
 type ResourceCheck struct {
 	id           string
 	resourceName string
@@ -19,7 +19,8 @@ type ResourceCheck struct {
 	interval     int
 }
 
-// NewResourceCheck creates a check for a Vrooli resource
+// NewResourceCheck creates a check for a Vrooli resource.
+// Resources are treated as critical by default since they are core infrastructure.
 func NewResourceCheck(resourceName string) *ResourceCheck {
 	return &ResourceCheck{
 		id:           "resource-" + resourceName,
@@ -29,10 +30,10 @@ func NewResourceCheck(resourceName string) *ResourceCheck {
 	}
 }
 
-func (c *ResourceCheck) ID() string                  { return c.id }
-func (c *ResourceCheck) Description() string         { return c.description }
-func (c *ResourceCheck) IntervalSeconds() int        { return c.interval }
-func (c *ResourceCheck) Platforms() []platform.Type  { return nil } // all platforms
+func (c *ResourceCheck) ID() string                 { return c.id }
+func (c *ResourceCheck) Description() string        { return c.description }
+func (c *ResourceCheck) IntervalSeconds() int       { return c.interval }
+func (c *ResourceCheck) Platforms() []platform.Type { return nil } // all platforms
 
 func (c *ResourceCheck) Run(ctx context.Context) checks.Result {
 	result := checks.Result{
@@ -53,18 +54,12 @@ func (c *ResourceCheck) Run(ctx context.Context) checks.Result {
 		return result
 	}
 
-	// Parse output for status indicators
-	outputStr := strings.ToLower(string(output))
-	if strings.Contains(outputStr, "running") || strings.Contains(outputStr, "healthy") {
-		result.Status = checks.StatusOK
-		result.Message = c.resourceName + " resource is healthy"
-	} else if strings.Contains(outputStr, "stopped") || strings.Contains(outputStr, "not running") {
-		result.Status = checks.StatusCritical
-		result.Message = c.resourceName + " resource is stopped"
-	} else {
-		result.Status = checks.StatusWarning
-		result.Message = c.resourceName + " resource status unclear"
-	}
+	// Use centralized CLI output classifier
+	// Resources are critical infrastructure, so stopped = critical
+	const isCritical = true
+	cliStatus := ClassifyCLIOutput(string(output))
+	result.Status = CLIStatusToCheckStatus(cliStatus, isCritical)
+	result.Message = CLIStatusDescription(cliStatus, c.resourceName+" resource")
 
 	return result
 }

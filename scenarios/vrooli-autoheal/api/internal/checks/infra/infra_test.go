@@ -11,12 +11,27 @@ import (
 	"vrooli-autoheal/internal/platform"
 )
 
+// testTarget and testDomain are explicit values for testing.
+// Production defaults are defined in the bootstrap package.
+const (
+	testTarget = "8.8.8.8:53"
+	testDomain = "google.com"
+)
+
+// testCaps returns platform capabilities for testing
+func testCaps() *platform.Capabilities {
+	return &platform.Capabilities{
+		Platform:        platform.Linux,
+		SupportsSystemd: true,
+	}
+}
+
 // TestNetworkCheckInterface verifies NetworkCheck implements Check
 // [REQ:INFRA-NET-001]
 func TestNetworkCheckInterface(t *testing.T) {
 	var _ checks.Check = (*NetworkCheck)(nil)
 
-	check := NewNetworkCheck("")
+	check := NewNetworkCheck(testTarget)
 	if check.ID() != "infra-network" {
 		t.Errorf("ID() = %q, want %q", check.ID(), "infra-network")
 	}
@@ -32,19 +47,8 @@ func TestNetworkCheckInterface(t *testing.T) {
 	}
 }
 
-// TestNetworkCheckDefaultTarget verifies default target is set
-func TestNetworkCheckDefaultTarget(t *testing.T) {
-	check := NewNetworkCheck("")
-	if check.target == "" {
-		t.Error("Default target not set")
-	}
-	if check.target != "8.8.8.8:53" {
-		t.Logf("Default target: %s", check.target)
-	}
-}
-
-// TestNetworkCheckCustomTarget verifies custom target is used
-func TestNetworkCheckCustomTarget(t *testing.T) {
+// TestNetworkCheckTarget verifies target is used exactly as provided
+func TestNetworkCheckTarget(t *testing.T) {
 	customTarget := "1.1.1.1:53"
 	check := NewNetworkCheck(customTarget)
 	if check.target != customTarget {
@@ -55,7 +59,7 @@ func TestNetworkCheckCustomTarget(t *testing.T) {
 // TestNetworkCheckRun verifies network check execution
 // [REQ:INFRA-NET-001]
 func TestNetworkCheckRun(t *testing.T) {
-	check := NewNetworkCheck("")
+	check := NewNetworkCheck(testTarget)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -84,7 +88,7 @@ func TestNetworkCheckRun(t *testing.T) {
 func TestDNSCheckInterface(t *testing.T) {
 	var _ checks.Check = (*DNSCheck)(nil)
 
-	check := NewDNSCheck("")
+	check := NewDNSCheck(testDomain)
 	if check.ID() != "infra-dns" {
 		t.Errorf("ID() = %q, want %q", check.ID(), "infra-dns")
 	}
@@ -96,19 +100,8 @@ func TestDNSCheckInterface(t *testing.T) {
 	}
 }
 
-// TestDNSCheckDefaultDomain verifies default domain is set
-func TestDNSCheckDefaultDomain(t *testing.T) {
-	check := NewDNSCheck("")
-	if check.domain == "" {
-		t.Error("Default domain not set")
-	}
-	if check.domain != "google.com" {
-		t.Logf("Default domain: %s", check.domain)
-	}
-}
-
-// TestDNSCheckCustomDomain verifies custom domain is used
-func TestDNSCheckCustomDomain(t *testing.T) {
+// TestDNSCheckDomain verifies domain is used exactly as provided
+func TestDNSCheckDomain(t *testing.T) {
 	customDomain := "cloudflare.com"
 	check := NewDNSCheck(customDomain)
 	if check.domain != customDomain {
@@ -119,7 +112,7 @@ func TestDNSCheckCustomDomain(t *testing.T) {
 // TestDNSCheckRun verifies DNS check execution
 // [REQ:INFRA-DNS-001]
 func TestDNSCheckRun(t *testing.T) {
-	check := NewDNSCheck("")
+	check := NewDNSCheck(testDomain)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -221,7 +214,7 @@ func TestDockerCheckRun(t *testing.T) {
 func TestCloudflaredCheckInterface(t *testing.T) {
 	var _ checks.Check = (*CloudflaredCheck)(nil)
 
-	check := NewCloudflaredCheck()
+	check := NewCloudflaredCheck(testCaps())
 	if check.ID() != "infra-cloudflared" {
 		t.Errorf("ID() = %q, want %q", check.ID(), "infra-cloudflared")
 	}
@@ -232,7 +225,7 @@ func TestCloudflaredCheckInterface(t *testing.T) {
 
 // TestCloudflaredCheckRun verifies cloudflared check execution
 func TestCloudflaredCheckRun(t *testing.T) {
-	check := NewCloudflaredCheck()
+	check := NewCloudflaredCheck(testCaps())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -252,11 +245,24 @@ func TestCloudflaredCheckRun(t *testing.T) {
 	t.Logf("Cloudflared check result: %s - %s", result.Status, result.Message)
 }
 
+// TestCloudflaredCheckUsesInjectedCaps verifies platform caps are used
+func TestCloudflaredCheckUsesInjectedCaps(t *testing.T) {
+	// Test with systemd disabled - should not try to check systemd service
+	caps := &platform.Capabilities{
+		Platform:        platform.Linux,
+		SupportsSystemd: false,
+	}
+	check := NewCloudflaredCheck(caps)
+	if check.caps != caps {
+		t.Error("CloudflaredCheck should store injected capabilities")
+	}
+}
+
 // TestRDPCheckInterface verifies RDPCheck implements Check
 func TestRDPCheckInterface(t *testing.T) {
 	var _ checks.Check = (*RDPCheck)(nil)
 
-	check := NewRDPCheck()
+	check := NewRDPCheck(testCaps())
 	if check.ID() != "infra-rdp" {
 		t.Errorf("ID() = %q, want %q", check.ID(), "infra-rdp")
 	}
@@ -270,7 +276,7 @@ func TestRDPCheckInterface(t *testing.T) {
 
 // TestRDPCheckRun verifies RDP check execution
 func TestRDPCheckRun(t *testing.T) {
-	check := NewRDPCheck()
+	check := NewRDPCheck(testCaps())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -282,4 +288,16 @@ func TestRDPCheckRun(t *testing.T) {
 	}
 
 	t.Logf("RDP check result: %s - %s", result.Status, result.Message)
+}
+
+// TestRDPCheckUsesInjectedCaps verifies platform caps are used
+func TestRDPCheckUsesInjectedCaps(t *testing.T) {
+	caps := &platform.Capabilities{
+		Platform:        platform.Windows,
+		SupportsSystemd: false,
+	}
+	check := NewRDPCheck(caps)
+	if check.caps != caps {
+		t.Error("RDPCheck should store injected capabilities")
+	}
 }

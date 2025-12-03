@@ -10,16 +10,15 @@ import (
 	"vrooli-autoheal/internal/platform"
 )
 
-// DNSCheck verifies DNS resolution
+// DNSCheck verifies DNS resolution.
+// Domain is required - operational defaults should be set by the bootstrap layer.
 type DNSCheck struct {
 	domain string
 }
 
-// NewDNSCheck creates a DNS resolution check
+// NewDNSCheck creates a DNS resolution check.
+// The domain parameter is required (e.g., "google.com").
 func NewDNSCheck(domain string) *DNSCheck {
-	if domain == "" {
-		domain = "google.com"
-	}
 	return &DNSCheck{domain: domain}
 }
 

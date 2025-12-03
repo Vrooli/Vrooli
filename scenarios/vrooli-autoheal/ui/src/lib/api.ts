@@ -101,3 +101,77 @@ export async function runTick(force = false): Promise<TickResponse> {
   const endpoint = force ? "/tick?force=true" : "/tick";
   return apiRequest<TickResponse>(endpoint, { method: "POST" });
 }
+
+// ============================================================================
+// Status Classification Helpers
+// These provide a central place for status-based decisions in the UI
+// ============================================================================
+
+/**
+ * Status severity order - higher number means more severe.
+ * Used for sorting checks to display most severe first.
+ */
+export const STATUS_SEVERITY: Record<HealthStatus, number> = {
+  critical: 2,
+  warning: 1,
+  ok: 0,
+};
+
+/**
+ * Groups an array of health results by their status.
+ * This is the central decision point for UI display grouping.
+ *
+ * @param checks - Array of health check results
+ * @returns Object with checks grouped by status (critical, warning, ok)
+ */
+export function groupChecksByStatus(checks: HealthResult[]): {
+  critical: HealthResult[];
+  warning: HealthResult[];
+  ok: HealthResult[];
+} {
+  return {
+    critical: checks.filter((c) => c.status === "critical"),
+    warning: checks.filter((c) => c.status === "warning"),
+    ok: checks.filter((c) => c.status === "ok"),
+  };
+}
+
+/**
+ * Sorts checks by severity (critical first, then warning, then ok).
+ * Within each severity level, maintains original order.
+ */
+export function sortChecksBySeverity(checks: HealthResult[]): HealthResult[] {
+  return [...checks].sort(
+    (a, b) => STATUS_SEVERITY[b.status] - STATUS_SEVERITY[a.status]
+  );
+}
+
+/**
+ * Determines the overall status from a summary object.
+ * Decision logic:
+ *   - Any critical → "critical"
+ *   - Any warning (no critical) → "warning"
+ *   - All ok → "ok"
+ */
+export function overallStatusFromSummary(summary: HealthSummary): HealthStatus {
+  if (summary.critical > 0) return "critical";
+  if (summary.warning > 0) return "warning";
+  return "ok";
+}
+
+/**
+ * Maps status to emoji for document title/notifications.
+ * Decision: ✓ for ok, ⚠ for warning, ✗ for critical
+ */
+export function statusToEmoji(status: HealthStatus): string {
+  switch (status) {
+    case "ok":
+      return "\u2713"; // ✓
+    case "warning":
+      return "\u26A0"; // ⚠
+    case "critical":
+      return "\u2717"; // ✗
+    default:
+      return "\u2753"; // ?
+  }
+}

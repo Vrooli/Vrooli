@@ -2,120 +2,13 @@
 // [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-EVENTS-001] [REQ:UI-REFRESH-001] [REQ:UI-RESPONSIVE-001]
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { RefreshCw, Play, Shield, AlertCircle, CheckCircle, AlertTriangle, Server, HardDrive, Activity } from "lucide-react";
+import { RefreshCw, Play, Shield, AlertCircle, CheckCircle, AlertTriangle, HardDrive, Activity } from "lucide-react";
 import { Button } from "./components/ui/button";
-import { fetchStatus, runTick, type StatusResponse, type HealthResult, type HealthStatus } from "./lib/api";
+import { fetchStatus, runTick, groupChecksByStatus, statusToEmoji } from "./lib/api";
 import { selectors } from "./consts/selectors";
+import { StatusBadge, SummaryCard, CheckCard, PlatformInfo } from "./components";
 
 const AUTO_REFRESH_INTERVAL = 30000; // 30 seconds
-
-function StatusIcon({ status, size = 20 }: { status: HealthStatus; size?: number }) {
-  switch (status) {
-    case "ok":
-      return <CheckCircle className="text-emerald-500" size={size} />;
-    case "warning":
-      return <AlertTriangle className="text-amber-500" size={size} />;
-    case "critical":
-      return <AlertCircle className="text-red-500" size={size} />;
-    default:
-      return <Activity className="text-slate-400" size={size} />;
-  }
-}
-
-function StatusBadge({ status }: { status: HealthStatus }) {
-  const colors: Record<HealthStatus, string> = {
-    ok: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    warning: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    critical: "bg-red-500/20 text-red-400 border-red-500/30",
-  };
-
-  return (
-    <span className={`px-3 py-1 rounded-full text-sm font-medium border ${colors[status] || "bg-slate-500/20 text-slate-400"}`}>
-      {status.toUpperCase()}
-    </span>
-  );
-}
-
-function SummaryCard({ title, value, icon: Icon, color }: { title: string; value: number; icon: React.ElementType; color: string }) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-      <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${color}`}>
-          <Icon size={20} />
-        </div>
-        <div>
-          <p className="text-2xl font-bold">{value}</p>
-          <p className="text-sm text-slate-400">{title}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CheckCard({ check }: { check: HealthResult }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div
-      className="rounded-lg border border-white/10 bg-white/5 p-4 hover:bg-white/[0.07] transition-colors cursor-pointer"
-      onClick={() => setExpanded(!expanded)}
-      data-testid={selectors.checkCard}
-    >
-      <div className="flex items-start gap-3">
-        <StatusIcon status={check.status} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="font-medium text-slate-200 truncate">{check.checkId}</h3>
-            <span className="text-xs text-slate-500">{check.duration}ms</span>
-          </div>
-          <p className="text-sm text-slate-400 mt-1">{check.message}</p>
-
-          {expanded && check.details && Object.keys(check.details).length > 0 && (
-            <div className="mt-3 p-3 rounded-lg bg-black/30 text-xs font-mono">
-              <pre className="overflow-x-auto">{JSON.stringify(check.details, null, 2)}</pre>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PlatformInfo({ platform }: { platform: StatusResponse["platform"] }) {
-  const capabilities = [
-    platform.hasDocker && "Docker",
-    platform.supportsSystemd && "Systemd",
-    platform.supportsLaunchd && "Launchd",
-    platform.supportsRdp && "RDP",
-    platform.supportsCloudflared && "Cloudflared",
-    platform.isWsl && "WSL",
-  ].filter(Boolean);
-
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Server size={18} className="text-slate-400" />
-        <h3 className="font-medium text-slate-200">Platform</h3>
-      </div>
-      <div className="space-y-2">
-        <p className="text-sm">
-          <span className="text-slate-400">OS:</span>{" "}
-          <span className="text-slate-200 capitalize">{platform.platform}</span>
-          {platform.isHeadlessServer && <span className="text-slate-500 ml-2">(headless)</span>}
-        </p>
-        {capabilities.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {capabilities.map((cap) => (
-              <span key={cap} className="px-2 py-0.5 text-xs rounded bg-slate-800 text-slate-300">
-                {cap}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export default function App() {
   const queryClient = useQueryClient();
@@ -134,10 +27,10 @@ export default function App() {
     },
   });
 
-  // Update page title based on status
+  // Update page title based on status using centralized emoji mapping
   useEffect(() => {
     if (data) {
-      const emoji = data.status === "ok" ? "✓" : data.status === "warning" ? "⚠" : "✗";
+      const emoji = statusToEmoji(data.status);
       document.title = `${emoji} Autoheal - ${data.status.toUpperCase()}`;
     }
   }, [data?.status]);
@@ -170,9 +63,8 @@ export default function App() {
   }
 
   const checks = data?.checks || [];
-  const okChecks = checks.filter((c) => c.status === "ok");
-  const warnChecks = checks.filter((c) => c.status === "warning");
-  const critChecks = checks.filter((c) => c.status === "critical");
+  // Use centralized grouping helper for consistent status-based classification
+  const { critical: critChecks, warning: warnChecks, ok: okChecks } = groupChecksByStatus(checks);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50" data-testid={selectors.dashboard}>

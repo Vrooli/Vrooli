@@ -55,3 +55,51 @@ type Summary struct {
 	Checks     []Result  `json:"checks"`
 	Timestamp  time.Time `json:"timestamp"`
 }
+
+// WorstStatus returns the most severe status between two statuses.
+// Severity order: critical > warning > ok
+func WorstStatus(a, b Status) Status {
+	priority := map[Status]int{
+		StatusOK:       0,
+		StatusWarning:  1,
+		StatusCritical: 2,
+	}
+	if priority[a] >= priority[b] {
+		return a
+	}
+	return b
+}
+
+// AggregateStatus calculates the overall status from a slice of results.
+// Returns the worst status among all results, or StatusOK if empty.
+func AggregateStatus(results []Result) Status {
+	overall := StatusOK
+	for _, r := range results {
+		overall = WorstStatus(overall, r.Status)
+	}
+	return overall
+}
+
+// ComputeSummary builds a Summary from a slice of results.
+// This is pure domain logic - no I/O or coordination.
+func ComputeSummary(results []Result) Summary {
+	summary := Summary{
+		TotalCount: len(results),
+		Checks:     results,
+		Timestamp:  time.Now(),
+	}
+
+	for _, r := range results {
+		switch r.Status {
+		case StatusOK:
+			summary.OkCount++
+		case StatusWarning:
+			summary.WarnCount++
+		case StatusCritical:
+			summary.CritCount++
+		}
+	}
+
+	summary.Status = AggregateStatus(results)
+	return summary
+}

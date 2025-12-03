@@ -11,16 +11,15 @@ import (
 	"vrooli-autoheal/internal/platform"
 )
 
-// NetworkCheck verifies basic network connectivity
+// NetworkCheck verifies basic network connectivity.
+// Target is required - operational defaults should be set by the bootstrap layer.
 type NetworkCheck struct {
 	target string
 }
 
-// NewNetworkCheck creates a network connectivity check
+// NewNetworkCheck creates a network connectivity check.
+// The target parameter is required and must be a valid host:port (e.g., "8.8.8.8:53").
 func NewNetworkCheck(target string) *NetworkCheck {
-	if target == "" {
-		target = "8.8.8.8:53" // Google DNS
-	}
 	return &NetworkCheck{target: target}
 }
 

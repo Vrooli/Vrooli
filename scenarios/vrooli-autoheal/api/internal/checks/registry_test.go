@@ -27,10 +27,26 @@ func (m *mockCheck) Run(ctx context.Context) Result {
 	return m.result
 }
 
+// testPlatform returns a mock platform for testing
+func testPlatform() *platform.Capabilities {
+	return &platform.Capabilities{
+		Platform:            platform.Linux,
+		HasDocker:           true,
+		SupportsSystemd:     true,
+		SupportsLaunchd:     false,
+		SupportsWindowsSvc:  false,
+		SupportsRDP:         false,
+		IsWSL:               false,
+		IsHeadlessServer:    true,
+		SupportsCloudflared: true,
+	}
+}
+
 // TestNewRegistry verifies registry initialization
 // [REQ:HEALTH-REGISTRY-001]
 func TestNewRegistry(t *testing.T) {
-	reg := NewRegistry()
+	plat := testPlatform()
+	reg := NewRegistry(plat)
 
 	if reg == nil {
 		t.Fatal("NewRegistry() returned nil")
@@ -49,14 +65,18 @@ func TestNewRegistry(t *testing.T) {
 	}
 
 	if reg.platform == nil {
-		t.Error("platform not detected")
+		t.Error("platform not set")
+	}
+
+	if reg.platform != plat {
+		t.Error("platform not set to injected value")
 	}
 }
 
 // TestRegisterUnregister verifies check registration and removal
 // [REQ:HEALTH-REGISTRY-001]
 func TestRegisterUnregister(t *testing.T) {
-	reg := NewRegistry()
+	reg := NewRegistry(testPlatform())
 
 	check := &mockCheck{
 		id:       "test-check",
@@ -89,7 +109,7 @@ func TestRegisterUnregister(t *testing.T) {
 // TestRunAll verifies running all checks
 // [REQ:HEALTH-REGISTRY-002]
 func TestRunAll(t *testing.T) {
-	reg := NewRegistry()
+	reg := NewRegistry(testPlatform())
 
 	check1 := &mockCheck{
 		id:       "check-1",
@@ -116,7 +136,7 @@ func TestRunAll(t *testing.T) {
 // TestPlatformFiltering verifies platform-based check filtering
 // [REQ:HEALTH-REGISTRY-003]
 func TestPlatformFiltering(t *testing.T) {
-	reg := NewRegistry()
+	reg := NewRegistry(testPlatform())
 
 	currentPlatform := reg.platform.Platform
 
@@ -193,7 +213,7 @@ func TestPlatformFiltering(t *testing.T) {
 // TestIntervalFiltering verifies interval-based check filtering
 // [REQ:HEALTH-REGISTRY-003]
 func TestIntervalFiltering(t *testing.T) {
-	reg := NewRegistry()
+	reg := NewRegistry(testPlatform())
 
 	check := &mockCheck{
 		id:       "interval-check",
@@ -227,7 +247,7 @@ func TestIntervalFiltering(t *testing.T) {
 // TestGetResult verifies result retrieval
 // [REQ:HEALTH-REGISTRY-004]
 func TestGetResult(t *testing.T) {
-	reg := NewRegistry()
+	reg := NewRegistry(testPlatform())
 
 	check := &mockCheck{
 		id:       "result-check",
@@ -264,7 +284,7 @@ func TestGetResult(t *testing.T) {
 
 // TestGetAllResults verifies bulk result retrieval
 func TestGetAllResults(t *testing.T) {
-	reg := NewRegistry()
+	reg := NewRegistry(testPlatform())
 
 	check1 := &mockCheck{
 		id:       "bulk-1",
@@ -292,7 +312,7 @@ func TestGetAllResults(t *testing.T) {
 // TestGetSummary verifies health summary calculation
 // [REQ:HEALTH-REGISTRY-004]
 func TestGetSummary(t *testing.T) {
-	reg := NewRegistry()
+	reg := NewRegistry(testPlatform())
 
 	checks := []*mockCheck{
 		{id: "ok-1", result: Result{CheckID: "ok-1", Status: StatusOK}},
@@ -348,7 +368,7 @@ func TestSummaryStatusCalculation(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			reg := NewRegistry()
+			reg := NewRegistry(testPlatform())
 
 			for i, status := range tc.statuses {
 				check := &mockCheck{
@@ -371,7 +391,7 @@ func TestSummaryStatusCalculation(t *testing.T) {
 
 // TestRunCheckSetsTimestamp verifies timestamp is set correctly
 func TestRunCheckSetsTimestamp(t *testing.T) {
-	reg := NewRegistry()
+	reg := NewRegistry(testPlatform())
 
 	check := &mockCheck{
 		id:       "timestamp-check",
@@ -399,7 +419,7 @@ func TestRunCheckSetsTimestamp(t *testing.T) {
 
 // TestContextCancellation verifies checks stop on context cancellation
 func TestContextCancellation(t *testing.T) {
-	reg := NewRegistry()
+	reg := NewRegistry(testPlatform())
 
 	// Add several checks
 	for i := 0; i < 10; i++ {
@@ -423,7 +443,7 @@ func TestContextCancellation(t *testing.T) {
 
 // TestListChecks verifies check metadata listing
 func TestListChecks(t *testing.T) {
-	reg := NewRegistry()
+	reg := NewRegistry(testPlatform())
 
 	check := &mockCheck{
 		id:        "list-check",

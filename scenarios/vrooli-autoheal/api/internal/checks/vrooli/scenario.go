@@ -5,22 +5,23 @@ package vrooli
 import (
 	"context"
 	"os/exec"
-	"strings"
 
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 )
 
-// ScenarioCheck monitors a Vrooli scenario via CLI
+// ScenarioCheck monitors a Vrooli scenario via CLI.
+// Scenarios can be marked as critical or non-critical, affecting severity of failures.
 type ScenarioCheck struct {
 	id           string
 	scenarioName string
 	description  string
 	interval     int
-	critical     bool
+	critical     bool // determines if stopped/failed → critical or warning
 }
 
-// NewScenarioCheck creates a check for a Vrooli scenario
+// NewScenarioCheck creates a check for a Vrooli scenario.
+// The critical parameter determines if failures should be critical or warning level.
 func NewScenarioCheck(scenarioName string, critical bool) *ScenarioCheck {
 	return &ScenarioCheck{
 		id:           "scenario-" + scenarioName,
@@ -31,10 +32,14 @@ func NewScenarioCheck(scenarioName string, critical bool) *ScenarioCheck {
 	}
 }
 
-func (c *ScenarioCheck) ID() string                  { return c.id }
-func (c *ScenarioCheck) Description() string         { return c.description }
-func (c *ScenarioCheck) IntervalSeconds() int        { return c.interval }
-func (c *ScenarioCheck) Platforms() []platform.Type  { return nil }
+func (c *ScenarioCheck) ID() string                 { return c.id }
+func (c *ScenarioCheck) Description() string        { return c.description }
+func (c *ScenarioCheck) IntervalSeconds() int       { return c.interval }
+func (c *ScenarioCheck) Platforms() []platform.Type { return nil }
+
+// IsCritical returns whether this scenario is marked as critical.
+// Critical scenarios report StatusCritical when stopped; non-critical report StatusWarning.
+func (c *ScenarioCheck) IsCritical() bool { return c.critical }
 
 func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 	result := checks.Result{
@@ -50,31 +55,17 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 	result.Details["critical"] = c.critical
 
 	if err != nil {
-		if c.critical {
-			result.Status = checks.StatusCritical
-		} else {
-			result.Status = checks.StatusWarning
-		}
+		// Command execution failed - use criticality to determine severity
+		result.Status = CLIStatusToCheckStatus(CLIStatusStopped, c.critical)
 		result.Message = c.scenarioName + " scenario check failed"
 		result.Details["error"] = err.Error()
 		return result
 	}
 
-	outputStr := strings.ToLower(string(output))
-	if strings.Contains(outputStr, "running") || strings.Contains(outputStr, "healthy") {
-		result.Status = checks.StatusOK
-		result.Message = c.scenarioName + " scenario is running"
-	} else if strings.Contains(outputStr, "stopped") {
-		if c.critical {
-			result.Status = checks.StatusCritical
-		} else {
-			result.Status = checks.StatusWarning
-		}
-		result.Message = c.scenarioName + " scenario is stopped"
-	} else {
-		result.Status = checks.StatusWarning
-		result.Message = c.scenarioName + " scenario status unclear"
-	}
+	// Use centralized CLI output classifier
+	cliStatus := ClassifyCLIOutput(string(output))
+	result.Status = CLIStatusToCheckStatus(cliStatus, c.critical)
+	result.Message = CLIStatusDescription(cliStatus, c.scenarioName+" scenario")
 
 	return result
 }

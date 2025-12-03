@@ -11,18 +11,50 @@ import (
 	"vrooli-autoheal/internal/platform"
 )
 
-// RDPCheck verifies RDP/xrdp service
-type RDPCheck struct{}
-
-// NewRDPCheck creates an RDP health check
-func NewRDPCheck() *RDPCheck { return &RDPCheck{} }
-
-func (c *RDPCheck) ID() string                  { return "infra-rdp" }
-func (c *RDPCheck) Description() string         { return "Remote desktop service health" }
-func (c *RDPCheck) IntervalSeconds() int        { return 60 }
-func (c *RDPCheck) Platforms() []platform.Type  {
-	return []platform.Type{platform.Linux, platform.Windows}
+// RDPServiceInfo describes which RDP service to check on a given platform
+type RDPServiceInfo struct {
+	ServiceName string
+	Checkable   bool
 }
+
+// SelectRDPService decides which RDP service to check based on platform capabilities.
+// This is the central decision point for RDP service selection.
+//
+// Decision logic:
+//   - Linux with systemd → xrdp service
+//   - Linux without systemd → not checkable (no service manager)
+//   - Windows → TermService (built-in RDP)
+//   - Other platforms → not checkable
+func SelectRDPService(caps *platform.Capabilities) RDPServiceInfo {
+	switch caps.Platform {
+	case platform.Linux:
+		if caps.SupportsSystemd {
+			return RDPServiceInfo{ServiceName: "xrdp", Checkable: true}
+		}
+		// Linux without systemd - can't reliably check service status
+		return RDPServiceInfo{ServiceName: "xrdp", Checkable: false}
+	case platform.Windows:
+		return RDPServiceInfo{ServiceName: "TermService", Checkable: true}
+	default:
+		return RDPServiceInfo{Checkable: false}
+	}
+}
+
+// RDPCheck verifies RDP/xrdp service.
+// Platform capabilities are injected to avoid hidden dependencies and enable testing.
+type RDPCheck struct {
+	caps *platform.Capabilities
+}
+
+// NewRDPCheck creates an RDP health check with injected platform capabilities.
+func NewRDPCheck(caps *platform.Capabilities) *RDPCheck {
+	return &RDPCheck{caps: caps}
+}
+
+func (c *RDPCheck) ID() string                 { return "infra-rdp" }
+func (c *RDPCheck) Description() string        { return "Remote desktop service health" }
+func (c *RDPCheck) IntervalSeconds() int       { return 60 }
+func (c *RDPCheck) Platforms() []platform.Type { return []platform.Type{platform.Linux, platform.Windows} }
 
 func (c *RDPCheck) Run(ctx context.Context) checks.Result {
 	result := checks.Result{
@@ -30,49 +62,64 @@ func (c *RDPCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	caps := platform.Detect()
+	// Determine which service to check based on platform
+	serviceInfo := SelectRDPService(c.caps)
+	result.Details["service"] = serviceInfo.ServiceName
 
-	if caps.Platform == platform.Linux && caps.SupportsSystemd {
-		// Check xrdp on Linux
-		cmd := exec.CommandContext(ctx, "systemctl", "is-active", "xrdp")
-		output, err := cmd.Output()
-		status := strings.TrimSpace(string(output))
-		result.Details["service"] = "xrdp"
-		result.Details["status"] = status
+	if !serviceInfo.Checkable {
+		result.Status = checks.StatusWarning
+		result.Message = "RDP check not applicable on this platform"
+		return result
+	}
 
-		if err != nil || status != "active" {
-			result.Status = checks.StatusWarning
-			result.Message = "xrdp service not active"
-			return result
-		}
+	// Execute platform-specific service check
+	switch c.caps.Platform {
+	case platform.Linux:
+		return c.checkLinuxXRDP(ctx, result)
+	case platform.Windows:
+		return c.checkWindowsTermService(ctx, result)
+	default:
+		result.Status = checks.StatusWarning
+		result.Message = "RDP check not applicable on this platform"
+		return result
+	}
+}
+
+// checkLinuxXRDP checks xrdp service status on Linux systems with systemd
+func (c *RDPCheck) checkLinuxXRDP(ctx context.Context, result checks.Result) checks.Result {
+	cmd := exec.CommandContext(ctx, "systemctl", "is-active", "xrdp")
+	output, err := cmd.Output()
+	status := strings.TrimSpace(string(output))
+	result.Details["status"] = status
+
+	if err != nil || status != "active" {
+		result.Status = checks.StatusWarning
+		result.Message = "xrdp service not active"
+		return result
+	}
+	result.Status = checks.StatusOK
+	result.Message = "xrdp is running"
+	return result
+}
+
+// checkWindowsTermService checks TermService status on Windows
+func (c *RDPCheck) checkWindowsTermService(ctx context.Context, result checks.Result) checks.Result {
+	cmd := exec.CommandContext(ctx, "sc", "query", "TermService")
+	output, err := cmd.Output()
+
+	if err != nil {
+		result.Status = checks.StatusWarning
+		result.Message = "Unable to check RDP service"
+		return result
+	}
+
+	// Decision: Windows sc query returns "STATE : X RUNNING" when service is running
+	if strings.Contains(string(output), "RUNNING") {
 		result.Status = checks.StatusOK
-		result.Message = "xrdp is running"
-		return result
+		result.Message = "RDP service is running"
+	} else {
+		result.Status = checks.StatusWarning
+		result.Message = "RDP service not running"
 	}
-
-	if caps.Platform == platform.Windows {
-		// Check TermService on Windows
-		cmd := exec.CommandContext(ctx, "sc", "query", "TermService")
-		output, err := cmd.Output()
-		result.Details["service"] = "TermService"
-
-		if err != nil {
-			result.Status = checks.StatusWarning
-			result.Message = "Unable to check RDP service"
-			return result
-		}
-
-		if strings.Contains(string(output), "RUNNING") {
-			result.Status = checks.StatusOK
-			result.Message = "RDP service is running"
-		} else {
-			result.Status = checks.StatusWarning
-			result.Message = "RDP service not running"
-		}
-		return result
-	}
-
-	result.Status = checks.StatusWarning
-	result.Message = "RDP check not applicable on this platform"
 	return result
 }

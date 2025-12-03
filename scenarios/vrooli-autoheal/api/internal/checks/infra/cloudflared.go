@@ -11,16 +11,63 @@ import (
 	"vrooli-autoheal/internal/platform"
 )
 
-// CloudflaredCheck verifies cloudflared service
-type CloudflaredCheck struct{}
+// CloudflaredInstallState represents cloudflared installation status
+type CloudflaredInstallState int
 
-// NewCloudflaredCheck creates a cloudflared health check
-func NewCloudflaredCheck() *CloudflaredCheck { return &CloudflaredCheck{} }
+const (
+	// CloudflaredNotInstalled means the binary is not found
+	CloudflaredNotInstalled CloudflaredInstallState = iota
+	// CloudflaredInstalled means the binary exists
+	CloudflaredInstalled
+)
 
-func (c *CloudflaredCheck) ID() string                  { return "infra-cloudflared" }
-func (c *CloudflaredCheck) Description() string         { return "Cloudflared tunnel health" }
-func (c *CloudflaredCheck) IntervalSeconds() int        { return 60 }
-func (c *CloudflaredCheck) Platforms() []platform.Type  { return nil }
+// CloudflaredVerifyCapability indicates whether we can verify cloudflared is running
+type CloudflaredVerifyCapability int
+
+const (
+	// CannotVerifyRunning means no service manager available to check
+	CannotVerifyRunning CloudflaredVerifyCapability = iota
+	// CanVerifyViaSystemd means we can check via systemctl
+	CanVerifyViaSystemd
+)
+
+// DetectCloudflaredInstall checks if cloudflared binary is available.
+// This is a prerequisite check - if not installed, we can't do anything else.
+func DetectCloudflaredInstall() CloudflaredInstallState {
+	if _, err := exec.LookPath("cloudflared"); err != nil {
+		return CloudflaredNotInstalled
+	}
+	return CloudflaredInstalled
+}
+
+// SelectCloudflaredVerifyMethod decides how to verify cloudflared is running.
+// Decision logic:
+//   - Linux with systemd → can check via systemctl
+//   - Windows → can potentially check via sc query (not implemented yet)
+//   - Other → cannot reliably verify running status
+func SelectCloudflaredVerifyMethod(caps *platform.Capabilities) CloudflaredVerifyCapability {
+	if caps.SupportsSystemd {
+		return CanVerifyViaSystemd
+	}
+	// TODO: Add Windows service check support
+	return CannotVerifyRunning
+}
+
+// CloudflaredCheck verifies cloudflared service.
+// Platform capabilities are injected to avoid hidden dependencies and enable testing.
+type CloudflaredCheck struct {
+	caps *platform.Capabilities
+}
+
+// NewCloudflaredCheck creates a cloudflared health check with injected platform capabilities.
+func NewCloudflaredCheck(caps *platform.Capabilities) *CloudflaredCheck {
+	return &CloudflaredCheck{caps: caps}
+}
+
+func (c *CloudflaredCheck) ID() string                 { return "infra-cloudflared" }
+func (c *CloudflaredCheck) Description() string        { return "Cloudflared tunnel health" }
+func (c *CloudflaredCheck) IntervalSeconds() int       { return 60 }
+func (c *CloudflaredCheck) Platforms() []platform.Type { return nil }
 
 func (c *CloudflaredCheck) Run(ctx context.Context) checks.Result {
 	result := checks.Result{
@@ -28,26 +75,48 @@ func (c *CloudflaredCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	// Check if cloudflared is installed
-	if _, err := exec.LookPath("cloudflared"); err != nil {
+	// First decision: Is cloudflared installed?
+	installState := DetectCloudflaredInstall()
+	if installState == CloudflaredNotInstalled {
 		result.Status = checks.StatusWarning
 		result.Message = "Cloudflared not installed"
+		result.Details["installed"] = false
 		return result
 	}
+	result.Details["installed"] = true
 
-	// Check service status on Linux
-	caps := platform.Detect()
-	if caps.SupportsSystemd {
-		cmd := exec.CommandContext(ctx, "systemctl", "is-active", "cloudflared")
-		output, err := cmd.Output()
-		status := strings.TrimSpace(string(output))
-		result.Details["serviceStatus"] = status
+	// Second decision: Can we verify it's running?
+	verifyMethod := SelectCloudflaredVerifyMethod(c.caps)
+	result.Details["verifyMethod"] = verifyMethod
 
-		if err != nil || status != "active" {
-			result.Status = checks.StatusCritical
-			result.Message = "Cloudflared service not active"
-			return result
-		}
+	switch verifyMethod {
+	case CanVerifyViaSystemd:
+		return c.checkSystemdService(ctx, result)
+	case CannotVerifyRunning:
+		// Cloudflared is installed but we can't verify service status
+		// Report warning because we can't confirm it's actually running
+		result.Status = checks.StatusWarning
+		result.Message = "Cloudflared installed but cannot verify service status"
+		return result
+	default:
+		result.Status = checks.StatusWarning
+		result.Message = "Cloudflared status check not supported"
+		return result
+	}
+}
+
+// checkSystemdService verifies cloudflared via systemctl
+func (c *CloudflaredCheck) checkSystemdService(ctx context.Context, result checks.Result) checks.Result {
+	cmd := exec.CommandContext(ctx, "systemctl", "is-active", "cloudflared")
+	output, err := cmd.Output()
+	status := strings.TrimSpace(string(output))
+	result.Details["serviceStatus"] = status
+
+	// Decision: "active" is the only healthy state
+	if err != nil || status != "active" {
+		result.Status = checks.StatusCritical
+		result.Message = "Cloudflared service not active"
+		return result
 	}
 
 	result.Status = checks.StatusOK
