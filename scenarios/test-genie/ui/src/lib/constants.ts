@@ -2,6 +2,8 @@
 
 import type { DashboardTab, RunsSubtab, PresetDetail, PhaseForGeneration } from "../types";
 
+export const REPO_ROOT = "/home/matthalloran8/Vrooli";
+
 export const DASHBOARD_TABS: DashboardTab[] = [
   { key: "dashboard", label: "Dashboard", description: "Quick actions and health overview" },
   { key: "runs", label: "Runs", description: "Scenarios and test history" },

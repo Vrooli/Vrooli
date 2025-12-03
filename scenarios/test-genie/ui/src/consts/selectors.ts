@@ -307,7 +307,10 @@ const literalSelectors: LiteralSelectorTree = {
     promptEditor: "test-genie-prompt-editor",
     copyButton: "test-genie-copy-prompt",
     spawnButton: "test-genie-spawn-agent",
-    presetSelector: "test-genie-preset-selector"
+    presetSelector: "test-genie-preset-selector",
+    scopeButton: "test-genie-scope-button",
+    targetSelector: "test-genie-target-selector",
+    targetItem: "test-genie-target-item"
   },
   // Docs page
   docs: {
@@ -393,6 +396,9 @@ export const selectors = registry.selectors as unknown as {
     copyButton: string;
     spawnButton: string;
     presetSelector: string;
+    scopeButton: string;
+    targetSelector: string;
+    targetItem: string;
   };
   docs: {
     sidebar: string;

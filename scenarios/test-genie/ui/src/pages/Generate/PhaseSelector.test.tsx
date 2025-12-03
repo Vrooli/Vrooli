@@ -104,4 +104,23 @@ describe("PhaseSelector", () => {
     expect(screen.getByText("Test phases")).toBeInTheDocument();
     expect(screen.getByText("Select phases to generate")).toBeInTheDocument();
   });
+
+  it("locks phases to unit when lockToUnit is true", () => {
+    const onTogglePhase = vi.fn();
+    render(
+      <PhaseSelector
+        selectedPhases={["unit"]}
+        onTogglePhase={onTogglePhase}
+        lockToUnit
+      />
+    );
+
+    const integrationButton = screen.getByText("Integration Tests").closest("button");
+    expect(integrationButton).toBeDisabled();
+    fireEvent.click(integrationButton!);
+    expect(onTogglePhase).not.toHaveBeenCalled();
+
+    const unitButton = screen.getByText("Unit Tests").closest("button");
+    expect(unitButton).not.toBeDisabled();
+  });
 });

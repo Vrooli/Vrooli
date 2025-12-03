@@ -1,18 +1,20 @@
-import { useState, useMemo, useId } from "react";
+import { useState, useMemo } from "react";
 import { PhaseSelector } from "./PhaseSelector";
 import { PromptEditor } from "./PromptEditor";
 import { ActionButtons } from "./ActionButtons";
 import { PresetSelector } from "./PresetSelector";
+import { ScenarioTargetDialog } from "./ScenarioTargetDialog";
 import { useScenarios } from "../../hooks/useScenarios";
 import { useUIStore } from "../../stores/uiStore";
-import { PHASES_FOR_GENERATION, PHASE_LABELS } from "../../lib/constants";
-
-const REPO_ROOT = "/home/matthalloran8/Vrooli";
+import { PHASES_FOR_GENERATION, PHASE_LABELS, REPO_ROOT } from "../../lib/constants";
+import { Button } from "../../components/ui/button";
+import { selectors } from "../../consts/selectors";
 
 function buildPrompt(
   scenarioName: string,
   selectedPhases: string[],
-  preset: string | null
+  preset: string | null,
+  targetPaths: string[]
 ): string {
   if (!scenarioName || selectedPhases.length === 0) {
     return "";
@@ -21,6 +23,7 @@ function buildPrompt(
   const phaseLabels = selectedPhases
     .map((p) => PHASE_LABELS[p] ?? p)
     .join(", ");
+  const hasTargets = targetPaths.length > 0;
 
   let context = "";
   if (preset === "bootstrap") {
@@ -44,6 +47,10 @@ function buildPrompt(
   const phaseDocsList =
     phaseDocs.length > 0 ? phaseDocs.map((doc) => `- ${doc}`).join("\n") : "- (no phase docs selected)";
 
+  const absoluteTargets = hasTargets
+    ? targetPaths.map((target) => `${REPO_ROOT}/scenarios/${scenarioName}/${target}`)
+    : [];
+
   return `Generate tests for the "${scenarioName}" scenario.
 
 **Test phases:** ${phaseLabels}
@@ -59,6 +66,7 @@ ${context ? `**Preset context:** ${context}\n\n` : ""}**Paths (absolute):**
 - Phase docs for selected phases:
 ${phaseDocsList}
 
+${hasTargets ? `**Targeted scope:**\n${absoluteTargets.map((p) => `- ${p}`).join("\n")}\n\n**Focus:** Add or enhance tests only for the components/files above. Avoid touching other paths, configs, or infrastructure.` : ""}
 **MUST:**
 - Align to PRD/requirements and existing coding/testing conventions in the scenario
 - Make tests deterministic, isolated, and idempotent (no hidden state, fixed seeds, stable selectors)
@@ -80,7 +88,7 @@ ${phaseDocsList}
    - Integration: exercise real component boundaries; minimal mocking; preserve setup/teardown hygiene
    - Playbooks (E2E): stable selectors, retries around navigation, capture screenshots/logs on failure hooks
    - Business: assertions tied to requirements/PRD acceptance criteria
-3) Create or update tests under the scenario using existing structure and naming
+3) Create or update tests under the scenario using existing structure and naming${hasTargets ? "; limit changes to the targeted paths above" : ""}
 4) Keep changes idempotent and documented (comments only where intent is non-obvious)
 
 **Validation (run after generation):**
@@ -99,27 +107,25 @@ Please generate comprehensive ${phaseLabels.toLowerCase()} for this scenario whi
 }
 
 export function GeneratePage() {
-  const datalistId = useId();
   const { scenarioDirectoryEntries } = useScenarios();
   const { focusScenario, setFocusScenario } = useUIStore();
 
   const [selectedPhases, setSelectedPhases] = useState<string[]>(["unit", "integration"]);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [customPrompt, setCustomPrompt] = useState<string | null>(null);
-
-  const scenarioOptions = useMemo(
-    () => scenarioDirectoryEntries.map((s) => s.scenarioName),
-    [scenarioDirectoryEntries]
-  );
+  const [targetPaths, setTargetPaths] = useState<string[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const defaultPrompt = useMemo(
-    () => buildPrompt(focusScenario, selectedPhases, selectedPreset),
-    [focusScenario, selectedPhases, selectedPreset]
+    () => buildPrompt(focusScenario, selectedPhases, selectedPreset, targetPaths),
+    [focusScenario, selectedPhases, selectedPreset, targetPaths]
   );
 
   const currentPrompt = customPrompt ?? defaultPrompt;
+  const hasTargets = targetPaths.length > 0;
 
   const handleTogglePhase = (phase: string) => {
+    if (hasTargets) return; // When targeting paths, phases are locked to Unit
     setSelectedPhases((prev) =>
       prev.includes(phase)
         ? prev.filter((p) => p !== phase)
@@ -137,6 +143,17 @@ export function GeneratePage() {
     setCustomPrompt(prompt);
   };
 
+  const handleScopeSave = (scenario: string, paths: string[]) => {
+    setFocusScenario(scenario);
+    setTargetPaths(paths);
+    setCustomPrompt(null);
+    if (paths.length > 0) {
+      setSelectedPhases(["unit"]);
+    } else {
+      setSelectedPhases(["unit", "integration"]);
+    }
+  };
+
   const isDisabled = !focusScenario || selectedPhases.length === 0;
 
   return (
@@ -151,43 +168,44 @@ export function GeneratePage() {
         </p>
       </section>
 
-      {/* Scenario Selection */}
+      {/* Scenario & Targets */}
       <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-        <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Target</p>
-        <h3 className="mt-2 text-lg font-semibold">Select scenario</h3>
-        <p className="mt-2 text-sm text-slate-300">
-          Choose the scenario you want to generate tests for.
-        </p>
-
-        <datalist id={datalistId}>
-          {scenarioOptions.map((name) => (
-            <option key={name} value={name} />
-          ))}
-        </datalist>
-
-        <input
-          className="mt-4 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-base text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-          placeholder="Enter scenario name..."
-          value={focusScenario}
-          onChange={(e) => setFocusScenario(e.target.value)}
-          list={datalistId}
-        />
-
-        {scenarioOptions.length > 0 && !focusScenario && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span className="text-xs text-slate-400">Quick select:</span>
-            {scenarioOptions.slice(0, 5).map((name) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() => setFocusScenario(name)}
-                className="rounded-full border border-white/20 px-3 py-1 text-xs text-slate-300 hover:border-white/50 transition"
-              >
-                {name}
-              </button>
-            ))}
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Target</p>
+            <h3 className="mt-2 text-lg font-semibold">Scenario & scope</h3>
+            <p className="mt-2 text-sm text-slate-300">
+              Choose a scenario and optionally focus on specific api/ui folders or files for targeted generation.
+            </p>
           </div>
-        )}
+          <Button onClick={() => setIsDialogOpen(true)} data-testid={selectors.generate.scopeButton}>
+            {focusScenario ? "Update selection" : "Select scenario"}
+          </Button>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
+          <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Current</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-white">
+            <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1">
+              Scenario: {focusScenario || "Not selected"}
+            </span>
+            <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1">
+              Targets: {targetPaths.length > 0 ? `${targetPaths.length} selected` : "All paths"}
+            </span>
+          </div>
+          {targetPaths.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {targetPaths.slice(0, 6).map((path) => (
+                <span key={path} className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-100">
+                  {path}
+                </span>
+              ))}
+              {targetPaths.length > 6 && (
+                <span className="text-xs text-slate-400">+{targetPaths.length - 6} more</span>
+              )}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Preset Templates */}
@@ -202,6 +220,7 @@ export function GeneratePage() {
       <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
         <PhaseSelector
           selectedPhases={selectedPhases}
+          lockToUnit={hasTargets}
           onTogglePhase={handleTogglePhase}
         />
       </section>
@@ -224,6 +243,15 @@ export function GeneratePage() {
         </p>
         <ActionButtons prompt={currentPrompt} disabled={isDisabled} />
       </section>
+
+      <ScenarioTargetDialog
+        open={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        scenarios={scenarioDirectoryEntries}
+        initialScenario={focusScenario}
+        initialTargets={targetPaths}
+        onSave={handleScopeSave}
+      />
     </div>
   );
 }

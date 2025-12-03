@@ -62,6 +62,7 @@ type scenarioDirectory interface {
 	ListSummaries(ctx context.Context) ([]scenarios.ScenarioSummary, error)
 	GetSummary(ctx context.Context, name string) (*scenarios.ScenarioSummary, error)
 	RunScenarioTests(ctx context.Context, name string, preferred string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error)
+	ListFiles(ctx context.Context, name string, opts scenarios.FileListOptions) ([]scenarios.FileNode, error)
 }
 
 type phaseCatalog interface {
@@ -144,6 +145,7 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/scenarios", s.handleListScenarios).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}", s.handleGetScenario).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/run-tests", s.handleRunScenarioTests).Methods("POST")
+	apiRouter.HandleFunc("/scenarios/{name}/files", s.handleListScenarioFiles).Methods("GET")
 
 	// Docs endpoints for in-app documentation browser
 	apiRouter.HandleFunc("/docs/manifest", s.handleGetDocsManifest).Methods("GET")

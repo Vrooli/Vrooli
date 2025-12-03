@@ -317,6 +317,7 @@ type scenarioDirectory interface {
     ListSummaries(ctx context.Context) ([]scenarios.ScenarioSummary, error)
     GetSummary(ctx context.Context, name string) (*scenarios.ScenarioSummary, error)
     RunScenarioTests(ctx context.Context, name string, preferred string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error)
+    ListFiles(ctx context.Context, name string, opts scenarios.FileListOptions) ([]scenarios.FileNode, error)
 }
 
 type phaseCatalog interface {

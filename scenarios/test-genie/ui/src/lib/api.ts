@@ -339,3 +339,32 @@ export async function syncScenarioRequirements(
   });
   return parseResponse(res);
 }
+
+export interface ScenarioFileNode {
+  path: string;
+  name: string;
+  isDir: boolean;
+}
+
+export async function fetchScenarioFiles(
+  name: string,
+  params?: { path?: string; search?: string; limit?: number }
+): Promise<ScenarioFileNode[]> {
+  const trimmed = name.trim();
+  if (!trimmed) return [];
+
+  const query = new URLSearchParams();
+  if (params?.path) query.set("path", params.path);
+  if (params?.search) query.set("search", params.search);
+  if (params?.limit) query.set("limit", String(params.limit));
+
+  const baseUrl = buildApiUrl(`/scenarios/${encodeURIComponent(trimmed)}/files`, { baseUrl: API_BASE });
+  const url = query.toString() ? `${baseUrl}?${query.toString()}` : baseUrl;
+
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  const payload = await parseResponse<{ items: ScenarioFileNode[]; count: number }>(res);
+  return payload.items ?? [];
+}

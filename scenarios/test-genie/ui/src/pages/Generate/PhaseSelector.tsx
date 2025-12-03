@@ -5,15 +5,17 @@ import { PHASES_FOR_GENERATION } from "../../lib/constants";
 interface PhaseSelectorProps {
   selectedPhases: string[];
   onTogglePhase: (phase: string) => void;
+  lockToUnit?: boolean;
 }
 
-export function PhaseSelector({ selectedPhases, onTogglePhase }: PhaseSelectorProps) {
+export function PhaseSelector({ selectedPhases, onTogglePhase, lockToUnit }: PhaseSelectorProps) {
   return (
     <div data-testid={selectors.generate.phaseSelector}>
       <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Test phases</p>
       <h3 className="mt-2 text-lg font-semibold">Select phases to generate</h3>
       <p className="mt-2 text-sm text-slate-300">
         Choose which test phases to include in your generation prompt.
+        {lockToUnit && " Targeting specific paths locks generation to Unit tests for safety and parallelism."}
       </p>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -21,13 +23,18 @@ export function PhaseSelector({ selectedPhases, onTogglePhase }: PhaseSelectorPr
           <button
             key={phase.key}
             type="button"
-            onClick={() => onTogglePhase(phase.key)}
+            onClick={() => {
+              if (lockToUnit && phase.key !== "unit") return;
+              onTogglePhase(phase.key);
+            }}
             className={cn(
               "rounded-xl border p-4 text-left transition",
               selectedPhases.includes(phase.key)
                 ? "border-cyan-400 bg-cyan-400/10"
-                : "border-white/10 bg-black/30 hover:border-white/30"
+                : "border-white/10 bg-black/30 hover:border-white/30",
+              lockToUnit && phase.key !== "unit" && "opacity-50 cursor-not-allowed"
             )}
+            disabled={lockToUnit && phase.key !== "unit"}
           >
             <div className="flex items-center justify-between">
               <span className="font-semibold">{phase.label}</span>

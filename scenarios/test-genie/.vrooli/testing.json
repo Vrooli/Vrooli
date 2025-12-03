@@ -14,8 +14,7 @@
       "cli/main.go"
     ],
     "exclude_files": [
-      "api/main.go",
-      "cli/test-genie"
+      "api/main.go"
     ]
   },
   "unit": {
