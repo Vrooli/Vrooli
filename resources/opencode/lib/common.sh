@@ -38,6 +38,40 @@ OPENCODE_CURL_EXIT_CODE=0
 REPLY=""
 OPENCODE_EVENT_LISTENER=""
 
+opencode::secret_value_invalid() {
+    local value="${1:-}"
+    if [[ -z "${value}" ]]; then
+        return 0
+    fi
+    if [[ "${value}" == auto-null-* ]]; then
+        return 1
+    fi
+    if [[ "${value}" == *"[ERROR]"* ]] || [[ "${value}" == *"[WARN"* ]] || [[ "${value}" == *"Failed to retrieve secret"* ]] || [[ "${value}" == *"❌"* ]]; then
+        return 1
+    fi
+    if printf '%s' "${value}" | grep -q $'\n'; then
+        return 1
+    fi
+    return 0
+}
+
+opencode::sanitize_secret_var() {
+    local var_name="${1:-}" label="${2:-${1:-secret}}"
+    if [[ -z "${var_name}" ]]; then
+        return 1
+    fi
+    local current_value="${!var_name:-}"
+    if [[ -z "${current_value}" ]]; then
+        return 0
+    fi
+    if opencode::secret_value_invalid "${current_value}"; then
+        log::warning "Ignoring invalid ${label} value from secrets backend"
+        unset "${var_name}"
+        return 1
+    fi
+    return 0
+}
+
 opencode::ensure_dirs() {
     mkdir -p "${OPENCODE_DATA_DIR}"
     mkdir -p "${OPENCODE_BIN_DIR}"
@@ -71,7 +105,7 @@ opencode::load_secrets() {
         fi
     fi
 
-    if [[ -z "${OPENROUTER_API_KEY:-}" || "${OPENROUTER_API_KEY}" == auto-null-* ]]; then
+    if [[ -z "${OPENROUTER_API_KEY:-}" || "${OPENROUTER_API_KEY}" == auto-null-* ]] || ! opencode::secret_value_invalid "${OPENROUTER_API_KEY:-}"; then
         if ! declare -f secrets::resolve >/dev/null 2>&1; then
             if [[ -f "${APP_ROOT}/scripts/lib/service/secrets.sh" ]]; then
                 # shellcheck disable=SC1091
@@ -101,10 +135,10 @@ opencode::load_secrets() {
                 CLOUDFLARE_AI_GATEWAY_SLUG
             )
             for var_name in "${vars[@]}"; do
-                if [[ -z "${!var_name:-}" ]]; then
+                if [[ -z "${!var_name:-}" ]] || ! opencode::secret_value_invalid "${!var_name:-}"; then
                     local value
                     value=$(jq -r --arg key "${var_name}" '.[$key] // empty' "${secrets_file}" 2>/dev/null)
-                    if [[ -n "${value}" && "${value}" != "null" ]]; then
+                    if [[ -n "${value}" && "${value}" != "null" ]] && ! opencode::secret_value_invalid "${value}"; then
                         export "${var_name}"="${value}"
                     fi
                 fi
@@ -112,18 +146,18 @@ opencode::load_secrets() {
         fi
     fi
 
-    if [[ -z "${OPENROUTER_API_KEY:-}" || "${OPENROUTER_API_KEY}" == auto-null-* ]]; then
+    if [[ -z "${OPENROUTER_API_KEY:-}" || "${OPENROUTER_API_KEY}" == auto-null-* ]] || ! opencode::secret_value_invalid "${OPENROUTER_API_KEY:-}"; then
         local credentials_file="${var_ROOT_DIR:-${APP_ROOT}}/data/credentials/openrouter-credentials.json"
         if [[ -f "${credentials_file}" ]]; then
             local credential_key
             credential_key=$(jq -r '.data.apiKey // empty' "${credentials_file}" 2>/dev/null || true)
-            if [[ -n "${credential_key}" && "${credential_key}" != "null" && "${credential_key}" != auto-null-* ]]; then
+            if [[ -n "${credential_key}" && "${credential_key}" != "null" && "${credential_key}" != auto-null-* ]] && ! opencode::secret_value_invalid "${credential_key}"; then
                 export OPENROUTER_API_KEY="${credential_key}"
             fi
         fi
     fi
 
-    if [[ -z "${OPENROUTER_API_KEY:-}" || "${OPENROUTER_API_KEY}" == auto-null-* ]]; then
+    if [[ -z "${OPENROUTER_API_KEY:-}" || "${OPENROUTER_API_KEY}" == auto-null-* ]] || ! opencode::secret_value_invalid "${OPENROUTER_API_KEY:-}"; then
         local openrouter_core="${APP_ROOT}/resources/openrouter/lib/core.sh"
         if [[ -f "${openrouter_core}" ]]; then
             # shellcheck disable=SC1090
@@ -144,6 +178,11 @@ opencode::load_secrets() {
     fi
 
     opencode::auth::sync_openrouter
+
+    opencode::sanitize_secret_var OPENROUTER_API_KEY "OpenRouter API key"
+    opencode::sanitize_secret_var CLOUDFLARE_API_TOKEN "Cloudflare API token"
+    opencode::sanitize_secret_var CLOUDFLARE_ACCOUNT_ID "Cloudflare account ID"
+    opencode::sanitize_secret_var CLOUDFLARE_AI_GATEWAY_SLUG "Cloudflare gateway slug"
 
     OPENCODE_SECRETS_LOADED=1
     return 0
