@@ -13,6 +13,7 @@
 | 2025-12-03 | Improver Agent | UX Audit | Experience Architecture Audit: Added check history API endpoint, enriched check cards with descriptions/intervals/relative timestamps, improved expand/collapse UX |
 | 2025-12-03 | Improver Agent | Decision Boundary Extraction | Extracted CLI status classifier, RDP/Cloudflared decision functions, UI status helpers; Added 18 new tests |
 | 2025-12-03 | Improver Agent | Architecture Audit | Screaming Architecture refactor - split monolithic main.go (354→155 lines), organized checks by domain (infra/, vrooli/), added config/handlers/persistence packages |
+| 2025-12-03 | Improver Agent | Failure Topography | Mapped failure modes, fixed swallowed errors, added structured error responses with codes, retry UX in UI |
 
 ## Completed Features
 
@@ -158,6 +159,52 @@ Key decision points are extracted into named, testable functions:
 - `groupChecksByStatus(checks)` → Groups checks by severity
 - `statusToEmoji(status)` → Maps status to display emoji
 - `STATUS_SEVERITY` → Defines severity ordering for sorting
+
+## Failure Handling
+
+### Error Response Structure (FAIL-SAFE-001)
+
+All API errors return structured JSON responses:
+```json
+{
+  "success": false,
+  "error": "DATABASE_ERROR",
+  "message": "Failed to retrieve events",
+  "requestId": "123456",
+  "timestamp": "2025-12-03T12:00:00Z"
+}
+```
+
+**Error Codes:**
+- `DATABASE_ERROR` - Database operation failed (500, retryable)
+- `NOT_FOUND` - Resource not found (404, not retryable)
+- `TIMEOUT` - Operation timed out (504, retryable)
+- `SERVICE_UNAVAILABLE` - Dependency unavailable (503, retryable)
+- `INTERNAL_ERROR` - Unexpected error (500, retryable)
+- `NETWORK_ERROR` - API unreachable (UI-only, retryable)
+
+### Graceful Degradation Patterns
+
+1. **Tick endpoint** - Persistence failures are logged but don't fail the tick
+   - Results are still returned to the client
+   - `warnings` array indicates persistence issues
+
+2. **Timeline/Uptime endpoints** - Return empty arrays on database errors
+   - UI shows error state with retry button
+   - Auto-retry with exponential backoff
+
+3. **UI error recovery**
+   - All data-fetching components have retry buttons
+   - `APIError` class provides user-friendly messages
+   - Request IDs enable log correlation for debugging
+
+### Observability
+
+All errors are logged with structured format:
+```
+[ERROR] request=123456 component=timeline code=DATABASE_ERROR message="Failed to retrieve events" cause=connection refused
+[WARN] component=tick operation=save_result:infra-network error=deadline exceeded
+```
 
 ## Implementation Notes
 

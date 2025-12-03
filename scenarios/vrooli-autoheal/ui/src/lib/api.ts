@@ -66,16 +66,106 @@ export interface HealthResponse {
   dependencies: Record<string, string>;
 }
 
+// Structured error response from the API
+// [REQ:FAIL-SAFE-001]
+export interface APIErrorResponse {
+  success: false;
+  error: string;
+  message: string;
+  requestId?: string;
+  timestamp: string;
+}
+
+// Custom error class with structured error information
+export class APIError extends Error {
+  code: string;
+  requestId?: string;
+  statusCode: number;
+  isRetryable: boolean;
+
+  constructor(
+    message: string,
+    code: string,
+    statusCode: number,
+    requestId?: string
+  ) {
+    super(message);
+    this.name = "APIError";
+    this.code = code;
+    this.statusCode = statusCode;
+    this.requestId = requestId;
+    // Determine if error is retryable based on status code
+    this.isRetryable = statusCode >= 500 || statusCode === 0 || statusCode === 408;
+  }
+
+  // User-friendly error message based on error code
+  getUserMessage(): string {
+    switch (this.code) {
+      case "DATABASE_ERROR":
+        return "Database is temporarily unavailable. Your data is safe.";
+      case "NOT_FOUND":
+        return this.message; // Already user-friendly
+      case "TIMEOUT":
+        return "The request took too long. Please try again.";
+      case "SERVICE_UNAVAILABLE":
+        return "A required service is currently unavailable.";
+      default:
+        return "Something went wrong. Please try again.";
+    }
+  }
+
+  // Suggested action for the user
+  getSuggestedAction(): string {
+    if (this.isRetryable) {
+      return "Try again in a few seconds.";
+    }
+    switch (this.code) {
+      case "NOT_FOUND":
+        return "The requested item may have been removed.";
+      default:
+        return "If this persists, check if the scenario is running.";
+    }
+  }
+}
+
 async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = buildApiUrl(endpoint, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-    ...options,
-  });
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+      ...options,
+    });
+  } catch (err) {
+    // Network error - API unreachable
+    throw new APIError(
+      "Unable to connect to the API",
+      "NETWORK_ERROR",
+      0
+    );
+  }
 
   if (!res.ok) {
-    throw new Error(`API request failed: ${res.status} ${res.statusText}`);
+    // Try to parse structured error response
+    try {
+      const errorBody = (await res.json()) as APIErrorResponse;
+      throw new APIError(
+        errorBody.message || `Request failed: ${res.statusText}`,
+        errorBody.error || "UNKNOWN_ERROR",
+        res.status,
+        errorBody.requestId
+      );
+    } catch (parseErr) {
+      // Failed to parse error response, use generic error
+      if (parseErr instanceof APIError) throw parseErr;
+      throw new APIError(
+        `Request failed: ${res.statusText}`,
+        "UNKNOWN_ERROR",
+        res.status
+      );
+    }
   }
 
   return res.json() as Promise<T>;

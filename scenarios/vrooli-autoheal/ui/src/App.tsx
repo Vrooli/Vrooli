@@ -7,7 +7,8 @@ import { Button } from "./components/ui/button";
 import { fetchStatus, fetchChecks, runTick, groupChecksByStatus, statusToEmoji } from "./lib/api";
 import type { CheckInfo, HealthResult } from "./lib/api";
 import { selectors } from "./consts/selectors";
-import { StatusBadge, SummaryCard, CheckCard, PlatformInfo, EventsTimeline, UptimeStats } from "./components";
+import { StatusBadge, SummaryCard, CheckCard, PlatformInfo, EventsTimeline, UptimeStats, ErrorDisplay } from "./components";
+import { APIError } from "./lib/api";
 
 const AUTO_REFRESH_INTERVAL = 30000; // 30 seconds
 
@@ -91,14 +92,12 @@ export default function App() {
   if (error) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center p-6">
-        <div className="text-center max-w-md">
-          <AlertCircle className="mx-auto mb-4 text-red-400" size={48} />
-          <h1 className="text-xl font-semibold mb-2">Connection Error</h1>
-          <p className="text-slate-400 mb-4">Unable to reach the Autoheal API. Make sure the scenario is running.</p>
-          <Button onClick={() => refetch()}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Retry
-          </Button>
+        <div className="max-w-md rounded-xl border border-white/10 bg-white/5 p-8">
+          <ErrorDisplay
+            error={error}
+            onRetry={() => refetch()}
+            title="Connection Error"
+          />
         </div>
       </div>
     );

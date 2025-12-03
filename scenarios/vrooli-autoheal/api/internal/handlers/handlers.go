@@ -1,5 +1,6 @@
 // Package handlers provides HTTP request handlers for the autoheal API
 // [REQ:CLI-TICK-001] [REQ:CLI-TICK-002] [REQ:CLI-STATUS-001] [REQ:CLI-STATUS-002]
+// [REQ:FAIL-SAFE-001] [REQ:FAIL-OBSERVE-001]
 package handlers
 
 import (
@@ -11,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"vrooli-autoheal/internal/checks"
+	apierrors "vrooli-autoheal/internal/errors"
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"
 )
@@ -93,11 +95,13 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 
 	results := h.registry.RunAll(ctx, forceAll)
 
-	// Store results in database
+	// Store results in database - log failures but don't block the response
+	// [REQ:FAIL-SAFE-001] Tick completes even if persistence fails
+	var persistenceErrors int
 	for _, result := range results {
 		if err := h.store.SaveResult(ctx, result); err != nil {
-			// Log but don't fail the request
-			_ = err // TODO: Add proper logging
+			persistenceErrors++
+			apierrors.LogError("tick", "save_result:"+result.CheckID, err)
 		}
 	}
 
@@ -117,8 +121,18 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 		"timestamp": time.Now().UTC(),
 	}
 
+	// Include warning about persistence issues without failing the request
+	if persistenceErrors > 0 {
+		response["warnings"] = []string{
+			"Some results could not be persisted to database",
+		}
+		apierrors.LogInfo("tick", "completed with persistence errors", persistenceErrors)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		apierrors.LogError("tick", "encode_response", err)
+	}
 }
 
 // ListChecks returns all registered checks
@@ -135,12 +149,14 @@ func (h *Handlers) CheckResult(w http.ResponseWriter, r *http.Request) {
 
 	result, exists := h.registry.GetResult(checkID)
 	if !exists {
-		http.Error(w, "Check not found or not yet run", http.StatusNotFound)
+		apierrors.LogAndRespond(w, apierrors.NewNotFoundError("checks", "check result", checkID))
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		apierrors.LogError("check_result", "encode_response", err)
+	}
 }
 
 // CheckHistory returns historical results for a specific check
@@ -157,16 +173,23 @@ func (h *Handlers) CheckHistory(w http.ResponseWriter, r *http.Request) {
 
 	results, err := h.store.GetRecentResults(ctx, checkID, limit)
 	if err != nil {
-		http.Error(w, "Failed to retrieve history", http.StatusInternalServerError)
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("history", "retrieve check history", err))
 		return
 	}
 
+	// Return empty array instead of null when no results (safe default)
+	if results == nil {
+		results = []checks.Result{}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"checkId": checkID,
 		"history": results,
 		"count":   len(results),
-	})
+	}); err != nil {
+		apierrors.LogError("history", "encode_response", err)
+	}
 }
 
 // Timeline returns recent events across all checks
@@ -180,8 +203,13 @@ func (h *Handlers) Timeline(w http.ResponseWriter, r *http.Request) {
 
 	events, err := h.store.GetTimelineEvents(ctx, limit)
 	if err != nil {
-		http.Error(w, "Failed to retrieve timeline", http.StatusInternalServerError)
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("timeline", "retrieve events", err))
 		return
+	}
+
+	// Return empty array instead of null when no events (safe default)
+	if events == nil {
+		events = []persistence.TimelineEvent{}
 	}
 
 	// Group events by status for summary
@@ -191,11 +219,13 @@ func (h *Handlers) Timeline(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"events":  events,
 		"count":   len(events),
 		"summary": summary,
-	})
+	}); err != nil {
+		apierrors.LogError("timeline", "encode_response", err)
+	}
 }
 
 // UptimeStats returns uptime statistics over a time window
@@ -209,10 +239,12 @@ func (h *Handlers) UptimeStats(w http.ResponseWriter, r *http.Request) {
 
 	stats, err := h.store.GetUptimeStats(ctx, windowHours)
 	if err != nil {
-		http.Error(w, "Failed to retrieve uptime stats", http.StatusInternalServerError)
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("uptime", "calculate uptime statistics", err))
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	if err := json.NewEncoder(w).Encode(stats); err != nil {
+		apierrors.LogError("uptime", "encode_response", err)
+	}
 }

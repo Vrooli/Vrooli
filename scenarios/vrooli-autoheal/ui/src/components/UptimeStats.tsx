@@ -1,8 +1,9 @@
 // Uptime statistics display component
-// [REQ:PERSIST-HISTORY-001] [REQ:UI-EVENTS-001]
+// [REQ:PERSIST-HISTORY-001] [REQ:UI-EVENTS-001] [REQ:FAIL-SAFE-001]
 import { useQuery } from "@tanstack/react-query";
 import { TrendingUp, Clock } from "lucide-react";
 import { fetchUptimeStats } from "../lib/api";
+import { ErrorDisplay } from "./ErrorDisplay";
 import { selectors } from "../consts/selectors";
 
 function getUptimeColor(percentage: number): string {
@@ -22,11 +23,13 @@ function getUptimeLabel(percentage: number): string {
 }
 
 export function UptimeStats() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["uptime"],
     queryFn: fetchUptimeStats,
     refetchInterval: 60000, // Refresh every minute
     staleTime: 30000, // Consider stale after 30s
+    retry: 2, // Retry failed requests twice
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
   });
 
   if (isLoading) {
@@ -48,7 +51,11 @@ export function UptimeStats() {
           <TrendingUp size={18} className="text-blue-400" />
           <h3 className="font-medium text-sm">Uptime (24h)</h3>
         </div>
-        <p className="text-sm text-red-400">Failed to load</p>
+        <ErrorDisplay
+          error={error}
+          onRetry={() => refetch()}
+          compact
+        />
       </div>
     );
   }

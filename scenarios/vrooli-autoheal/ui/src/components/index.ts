@@ -6,3 +6,4 @@ export { CheckCard } from "./CheckCard";
 export { PlatformInfo } from "./PlatformInfo";
 export { EventsTimeline } from "./EventsTimeline";
 export { UptimeStats } from "./UptimeStats";
+export { ErrorDisplay, InlineError } from "./ErrorDisplay";

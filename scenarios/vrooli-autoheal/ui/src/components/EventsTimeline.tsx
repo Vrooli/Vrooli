@@ -1,10 +1,11 @@
 // Events timeline showing recent health check results
-// [REQ:UI-EVENTS-001]
+// [REQ:UI-EVENTS-001] [REQ:FAIL-SAFE-001]
 import { useQuery } from "@tanstack/react-query";
-import { Clock, AlertCircle, AlertTriangle, CheckCircle, Filter } from "lucide-react";
+import { Clock, Filter } from "lucide-react";
 import { useState, useMemo } from "react";
-import { fetchTimeline, TimelineEvent, HealthStatus } from "../lib/api";
+import { fetchTimeline, TimelineEvent } from "../lib/api";
 import { StatusIcon } from "./StatusIcon";
+import { ErrorDisplay } from "./ErrorDisplay";
 import { selectors } from "../consts/selectors";
 
 function formatRelativeTime(timestamp: string): string {
@@ -33,10 +34,12 @@ export function EventsTimeline() {
   const [filter, setFilter] = useState<FilterOption>("all");
   const [showCount, setShowCount] = useState(20);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["timeline"],
     queryFn: fetchTimeline,
     refetchInterval: 30000, // Refresh every 30 seconds
+    retry: 2, // Retry failed requests twice
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
   });
 
   const filteredEvents = useMemo(() => {
@@ -71,7 +74,11 @@ export function EventsTimeline() {
           <Clock size={18} className="text-blue-400" />
           <h3 className="font-medium">Recent Events</h3>
         </div>
-        <p className="text-sm text-red-400">Failed to load timeline</p>
+        <ErrorDisplay
+          error={error}
+          onRetry={() => refetch()}
+          compact
+        />
       </div>
     );
   }

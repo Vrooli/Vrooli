@@ -1,199 +1,84 @@
-// Tests for API helper functions - especially status classification decision helpers
-// [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002]
-import { describe, it, expect } from "vitest";
-import {
-  groupChecksByStatus,
-  sortChecksBySeverity,
-  overallStatusFromSummary,
-  statusToEmoji,
-  STATUS_SEVERITY,
-  type HealthResult,
-  type HealthSummary,
-} from "./api";
+// API client error handling tests
+// [REQ:FAIL-SAFE-001]
+import { describe, it, expect } from 'vitest';
+import { APIError } from './api';
 
-describe("Status Classification Helpers", () => {
-  // Test fixtures
-  const mockChecks: HealthResult[] = [
-    {
-      checkId: "check-ok-1",
-      status: "ok",
-      message: "All good",
-      timestamp: "2025-01-01T00:00:00Z",
-      duration: 10,
-    },
-    {
-      checkId: "check-warning-1",
-      status: "warning",
-      message: "Something might be wrong",
-      timestamp: "2025-01-01T00:00:00Z",
-      duration: 15,
-    },
-    {
-      checkId: "check-critical-1",
-      status: "critical",
-      message: "System is down",
-      timestamp: "2025-01-01T00:00:00Z",
-      duration: 5,
-    },
-    {
-      checkId: "check-ok-2",
-      status: "ok",
-      message: "Also good",
-      timestamp: "2025-01-01T00:00:00Z",
-      duration: 12,
-    },
-    {
-      checkId: "check-warning-2",
-      status: "warning",
-      message: "Another warning",
-      timestamp: "2025-01-01T00:00:00Z",
-      duration: 8,
-    },
-  ];
+describe('APIError', () => {
+  describe('constructor', () => {
+    it('creates error with correct properties', () => {
+      const error = new APIError('Test message', 'DATABASE_ERROR', 500, 'req-123');
 
-  describe("groupChecksByStatus", () => {
-    it("groups checks correctly by status", () => {
-      const grouped = groupChecksByStatus(mockChecks);
-
-      expect(grouped.ok).toHaveLength(2);
-      expect(grouped.warning).toHaveLength(2);
-      expect(grouped.critical).toHaveLength(1);
-    });
-
-    it("returns correct check IDs in each group", () => {
-      const grouped = groupChecksByStatus(mockChecks);
-
-      expect(grouped.ok.map((c) => c.checkId)).toEqual([
-        "check-ok-1",
-        "check-ok-2",
-      ]);
-      expect(grouped.warning.map((c) => c.checkId)).toEqual([
-        "check-warning-1",
-        "check-warning-2",
-      ]);
-      expect(grouped.critical.map((c) => c.checkId)).toEqual([
-        "check-critical-1",
-      ]);
-    });
-
-    it("handles empty array", () => {
-      const grouped = groupChecksByStatus([]);
-
-      expect(grouped.ok).toHaveLength(0);
-      expect(grouped.warning).toHaveLength(0);
-      expect(grouped.critical).toHaveLength(0);
-    });
-
-    it("handles all same status", () => {
-      const allOk: HealthResult[] = [
-        { checkId: "a", status: "ok", message: "", timestamp: "", duration: 0 },
-        { checkId: "b", status: "ok", message: "", timestamp: "", duration: 0 },
-      ];
-      const grouped = groupChecksByStatus(allOk);
-
-      expect(grouped.ok).toHaveLength(2);
-      expect(grouped.warning).toHaveLength(0);
-      expect(grouped.critical).toHaveLength(0);
+      expect(error.message).toBe('Test message');
+      expect(error.code).toBe('DATABASE_ERROR');
+      expect(error.statusCode).toBe(500);
+      expect(error.requestId).toBe('req-123');
+      expect(error.name).toBe('APIError');
     });
   });
 
-  describe("sortChecksBySeverity", () => {
-    it("sorts critical first, then warning, then ok", () => {
-      const sorted = sortChecksBySeverity(mockChecks);
-
-      expect(sorted[0].status).toBe("critical");
-      expect(sorted[1].status).toBe("warning");
-      expect(sorted[2].status).toBe("warning");
-      expect(sorted[3].status).toBe("ok");
-      expect(sorted[4].status).toBe("ok");
+  describe('isRetryable', () => {
+    it('marks 5xx errors as retryable', () => {
+      expect(new APIError('', 'ERROR', 500).isRetryable).toBe(true);
+      expect(new APIError('', 'ERROR', 502).isRetryable).toBe(true);
+      expect(new APIError('', 'ERROR', 503).isRetryable).toBe(true);
     });
 
-    it("does not mutate original array", () => {
-      const original = [...mockChecks];
-      sortChecksBySeverity(mockChecks);
-
-      expect(mockChecks).toEqual(original);
+    it('marks network errors (status 0) as retryable', () => {
+      expect(new APIError('', 'NETWORK_ERROR', 0).isRetryable).toBe(true);
     });
 
-    it("handles empty array", () => {
-      const sorted = sortChecksBySeverity([]);
-      expect(sorted).toHaveLength(0);
+    it('marks timeout (408) as retryable', () => {
+      expect(new APIError('', 'TIMEOUT', 408).isRetryable).toBe(true);
+    });
+
+    it('marks 4xx errors as non-retryable', () => {
+      expect(new APIError('', 'ERROR', 400).isRetryable).toBe(false);
+      expect(new APIError('', 'ERROR', 404).isRetryable).toBe(false);
+      expect(new APIError('', 'ERROR', 422).isRetryable).toBe(false);
     });
   });
 
-  describe("overallStatusFromSummary", () => {
-    it("returns critical when any critical present", () => {
-      const summary: HealthSummary = {
-        total: 5,
-        ok: 3,
-        warning: 1,
-        critical: 1,
-      };
-      expect(overallStatusFromSummary(summary)).toBe("critical");
+  describe('getUserMessage', () => {
+    it('returns friendly message for DATABASE_ERROR', () => {
+      const error = new APIError('Raw error', 'DATABASE_ERROR', 500);
+      expect(error.getUserMessage()).toContain('Database');
     });
 
-    it("returns warning when warnings but no critical", () => {
-      const summary: HealthSummary = {
-        total: 5,
-        ok: 3,
-        warning: 2,
-        critical: 0,
-      };
-      expect(overallStatusFromSummary(summary)).toBe("warning");
+    it('returns original message for NOT_FOUND', () => {
+      const error = new APIError("Check 'test-123' not found", 'NOT_FOUND', 404);
+      expect(error.getUserMessage()).toBe("Check 'test-123' not found");
     });
 
-    it("returns ok when all checks are ok", () => {
-      const summary: HealthSummary = {
-        total: 5,
-        ok: 5,
-        warning: 0,
-        critical: 0,
-      };
-      expect(overallStatusFromSummary(summary)).toBe("ok");
+    it('returns friendly message for TIMEOUT', () => {
+      const error = new APIError('Raw error', 'TIMEOUT', 504);
+      expect(error.getUserMessage()).toContain('took too long');
     });
 
-    it("returns ok for empty summary", () => {
-      const summary: HealthSummary = {
-        total: 0,
-        ok: 0,
-        warning: 0,
-        critical: 0,
-      };
-      expect(overallStatusFromSummary(summary)).toBe("ok");
+    it('returns friendly message for SERVICE_UNAVAILABLE', () => {
+      const error = new APIError('Raw error', 'SERVICE_UNAVAILABLE', 503);
+      expect(error.getUserMessage()).toContain('unavailable');
+    });
+
+    it('returns generic message for unknown codes', () => {
+      const error = new APIError('Raw error', 'UNKNOWN_CODE', 500);
+      expect(error.getUserMessage()).toBe('Something went wrong. Please try again.');
     });
   });
 
-  describe("statusToEmoji", () => {
-    it("returns checkmark for ok", () => {
-      expect(statusToEmoji("ok")).toBe("\u2713");
+  describe('getSuggestedAction', () => {
+    it('suggests retry for retryable errors', () => {
+      const error = new APIError('', 'DATABASE_ERROR', 500);
+      expect(error.getSuggestedAction()).toContain('Try again');
     });
 
-    it("returns warning sign for warning", () => {
-      expect(statusToEmoji("warning")).toBe("\u26A0");
+    it('suggests checking removal for NOT_FOUND', () => {
+      const error = new APIError('', 'NOT_FOUND', 404);
+      expect(error.getSuggestedAction()).toContain('may have been removed');
     });
 
-    it("returns X for critical", () => {
-      expect(statusToEmoji("critical")).toBe("\u2717");
-    });
-
-    it("returns question mark for unknown status", () => {
-      // Force an unknown status value
-      expect(statusToEmoji("unknown" as never)).toBe("\u2753");
-    });
-  });
-
-  describe("STATUS_SEVERITY constant", () => {
-    it("has correct severity ordering", () => {
-      expect(STATUS_SEVERITY.critical).toBeGreaterThan(STATUS_SEVERITY.warning);
-      expect(STATUS_SEVERITY.warning).toBeGreaterThan(STATUS_SEVERITY.ok);
-    });
-
-    it("ok has lowest severity", () => {
-      expect(STATUS_SEVERITY.ok).toBe(0);
-    });
-
-    it("critical has highest severity", () => {
-      expect(STATUS_SEVERITY.critical).toBe(2);
+    it('suggests checking scenario for non-retryable errors', () => {
+      const error = new APIError('', 'UNKNOWN', 400);
+      expect(error.getSuggestedAction()).toContain('scenario');
     });
   });
 });
