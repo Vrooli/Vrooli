@@ -57,6 +57,7 @@ import (
 	"scenario-to-desktop-runtime/health"
 	"scenario-to-desktop-runtime/infra"
 	"scenario-to-desktop-runtime/manifest"
+	"scenario-to-desktop-runtime/migrations"
 	"scenario-to-desktop-runtime/ports"
 	"scenario-to-desktop-runtime/secrets"
 	"scenario-to-desktop-runtime/telemetry"
@@ -124,9 +125,10 @@ type Supervisor struct {
 	telemetry     telemetry.Recorder
 
 	// Cached domain objects (created once, reused).
-	envRenderer   *env.Renderer
-	assetVerifier *assets.Verifier
-	gpuApplier    *gpu.Applier
+	envRenderer       *env.Renderer
+	assetVerifier     *assets.Verifier
+	gpuApplier        *gpu.Applier
+	migrationExecutor *migrations.Executor
 
 	// Paths and auth.
 	authToken      string
@@ -285,11 +287,25 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	}
 	s.secretStore.Set(loadedSecrets)
 
-	migrations, err := s.loadMigrations()
+	// Create migration executor with tracker.
+	tracker := migrations.NewTracker(s.migrationsPath, s.fs)
+	migrationState, err := tracker.Load()
 	if err != nil {
 		return fmt.Errorf("load migrations: %w", err)
 	}
-	s.migrations = migrations
+	s.migrationExecutor = migrations.NewExecutor(
+		migrations.ExecutorConfig{
+			BundlePath: s.opts.BundlePath,
+			AppVersion: s.opts.Manifest.App.Version,
+			Tracker:    tracker,
+			ProcRunner: s.procRunner,
+			Telemetry:  s.telemetry,
+		},
+		s.envRenderer,
+		s, // Supervisor implements LogProvider
+	)
+	s.migrationExecutor.SetState(migrationState)
+	s.migrations = migrationState
 
 	// Load or create auth token.
 	tokenPath := manifest.ResolvePath(s.appData, s.opts.Manifest.IPC.AuthTokenRel)

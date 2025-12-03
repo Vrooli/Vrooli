@@ -324,6 +324,11 @@ func (s *Supervisor) logWriter(svc manifest.Service) (File, string, error) {
 	return f, logPath, nil
 }
 
+// LogWriter implements migrations.LogProvider.
+func (s *Supervisor) LogWriter(svc manifest.Service) (File, string, error) {
+	return s.logWriter(svc)
+}
+
 // startServicesAsync initiates service startup in a goroutine.
 // Only starts services if not already started and required secrets are available.
 func (s *Supervisor) startServicesAsync() {

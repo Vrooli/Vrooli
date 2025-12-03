@@ -407,6 +407,9 @@ func (p *MockProcess) Exit(err error) {
 	}
 }
 
+// Ensure MockProcess implements infra.Process.
+var _ infra.Process = (*MockProcess)(nil)
+
 // MockProcessRunner implements process starting for testing.
 type MockProcessRunner struct {
 	mu           sync.Mutex
@@ -443,16 +446,8 @@ func (r *MockProcessRunner) StartedCmds() []string {
 	return r.startedCmds
 }
 
-// Process is the interface for a running process.
-type Process interface {
-	Pid() int
-	Wait() error
-	Signal(sig os.Signal) error
-	Kill() error
-}
-
 // Start launches a mock process.
-func (r *MockProcessRunner) Start(ctx context.Context, cmd string, args []string, env []string, dir string, stdout, stderr io.Writer) (Process, error) {
+func (r *MockProcessRunner) Start(ctx context.Context, cmd string, args []string, env []string, dir string, stdout, stderr io.Writer) (infra.Process, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.startedCmds = append(r.startedCmds, cmd)
@@ -467,6 +462,9 @@ func (r *MockProcessRunner) Start(ctx context.Context, cmd string, args []string
 	// Return a default process
 	return NewMockProcess(12345), nil
 }
+
+// Ensure MockProcessRunner implements infra.ProcessRunner.
+var _ infra.ProcessRunner = (*MockProcessRunner)(nil)
 
 // =============================================================================
 // Port Allocator Mocks
