@@ -11,3 +11,4 @@ export { TrendsPage } from "./TrendsPage";
 export { UptimeTrendChart } from "./UptimeTrendChart";
 export { CheckTrendGrid } from "./CheckTrendGrid";
 export { CheckDetailModal } from "./CheckDetailModal";
+export { SystemProtection, useProtectionStatus } from "./SystemProtection";

@@ -340,6 +340,43 @@ export async function fetchIncidents(hours = 24, limit = 50): Promise<IncidentsR
 }
 
 // ============================================================================
+// Watchdog API - OS-level service status
+// [REQ:WATCH-DETECT-001]
+// ============================================================================
+
+export type WatchdogType = "" | "systemd" | "launchd" | "windows-task";
+export type ProtectionLevel = "full" | "partial" | "none";
+
+export interface WatchdogStatus {
+  loopRunning: boolean;
+  watchdogType: WatchdogType;
+  watchdogInstalled: boolean;
+  watchdogEnabled: boolean;
+  watchdogRunning: boolean;
+  bootProtectionActive: boolean;
+  canInstall: boolean;
+  servicePath?: string;
+  lastError?: string;
+  protectionLevel: ProtectionLevel;
+}
+
+export interface WatchdogTemplateResponse {
+  platform: string;
+  template: string;
+  instructions: string;
+  oneLiner: string;
+}
+
+export async function fetchWatchdogStatus(refresh = false): Promise<WatchdogStatus> {
+  const endpoint = refresh ? "/watchdog?refresh=true" : "/watchdog";
+  return apiRequest<WatchdogStatus>(endpoint);
+}
+
+export async function fetchWatchdogTemplate(): Promise<WatchdogTemplateResponse> {
+  return apiRequest<WatchdogTemplateResponse>("/watchdog/template");
+}
+
+// ============================================================================
 // Status Classification Helpers
 // These provide a central place for status-based decisions in the UI
 // ============================================================================

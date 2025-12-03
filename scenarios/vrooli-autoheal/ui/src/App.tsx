@@ -7,7 +7,7 @@ import { Button } from "./components/ui/button";
 import { fetchStatus, fetchChecks, runTick, groupChecksByStatus, statusToEmoji } from "./lib/api";
 import type { CheckInfo, HealthResult, CheckCategory } from "./lib/api";
 import { selectors } from "./consts/selectors";
-import { StatusBadge, SummaryCard, CheckCard, PlatformInfo, EventsTimeline, UptimeStats, ErrorDisplay, TrendsPage } from "./components";
+import { StatusBadge, SummaryCard, CheckCard, PlatformInfo, EventsTimeline, UptimeStats, ErrorDisplay, TrendsPage, SystemProtection } from "./components";
 import { APIError } from "./lib/api";
 
 const AUTO_REFRESH_INTERVAL = 30000; // 30 seconds
@@ -149,6 +149,7 @@ export default function App() {
 
           <div className="flex items-center gap-3">
             {data && <StatusBadge status={data.status} />}
+            <SystemProtection compact />
 
             <Button
               variant="outline"
@@ -281,6 +282,9 @@ export default function App() {
 
               {/* Sidebar */}
               <div className="space-y-4">
+                {/* System Protection Status */}
+                <SystemProtection />
+
                 {/* Uptime Stats - clickable to go to trends */}
                 <UptimeStats onShowTrends={() => handleTabChange("trends")} />
 

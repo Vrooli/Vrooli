@@ -507,6 +507,105 @@ test_uptime_endpoint() {
     echo "$response" > "$ARTIFACT_DIR/uptime-response.json"
 }
 
+# Test: Watchdog status endpoint
+# [REQ:WATCH-DETECT-001]
+test_watchdog_endpoint() {
+    local port="$1"
+    local response
+
+    response=$(curl -s "http://localhost:${port}/api/v1/watchdog")
+
+    # Check loopRunning field
+    local loop_running
+    loop_running=$(echo "$response" | jq -r 'if has("loopRunning") then "\(.loopRunning)" else "missing" end')
+    if [[ "$loop_running" == "true" || "$loop_running" == "false" ]]; then
+        pass "Watchdog endpoint returns loopRunning boolean"
+    else
+        fail "Watchdog endpoint loopRunning" "Expected boolean, got '$loop_running'"
+    fi
+
+    # Check protectionLevel field
+    local protection_level
+    protection_level=$(echo "$response" | jq -r '.protectionLevel // empty')
+    case "$protection_level" in
+        full|partial|none)
+            pass "Watchdog endpoint returns valid protectionLevel: $protection_level"
+            ;;
+        *)
+            fail "Watchdog endpoint protectionLevel" "Invalid value: $protection_level"
+            ;;
+    esac
+
+    # Check canInstall field
+    local can_install
+    can_install=$(echo "$response" | jq -r 'if has("canInstall") then "\(.canInstall)" else "missing" end')
+    if [[ "$can_install" == "true" || "$can_install" == "false" ]]; then
+        pass "Watchdog endpoint returns canInstall boolean"
+    else
+        fail "Watchdog endpoint canInstall" "Expected boolean, got '$can_install'"
+    fi
+
+    # Check watchdogInstalled field
+    local watchdog_installed
+    watchdog_installed=$(echo "$response" | jq -r 'if has("watchdogInstalled") then "\(.watchdogInstalled)" else "missing" end')
+    if [[ "$watchdog_installed" == "true" || "$watchdog_installed" == "false" ]]; then
+        pass "Watchdog endpoint returns watchdogInstalled boolean"
+    else
+        fail "Watchdog endpoint watchdogInstalled" "Expected boolean, got '$watchdog_installed'"
+    fi
+
+    # Check bootProtectionActive field
+    local boot_protection
+    boot_protection=$(echo "$response" | jq -r 'if has("bootProtectionActive") then "\(.bootProtectionActive)" else "missing" end')
+    if [[ "$boot_protection" == "true" || "$boot_protection" == "false" ]]; then
+        pass "Watchdog endpoint returns bootProtectionActive boolean"
+    else
+        fail "Watchdog endpoint bootProtectionActive" "Expected boolean, got '$boot_protection'"
+    fi
+
+    # Save response artifact
+    echo "$response" > "$ARTIFACT_DIR/watchdog-response.json"
+}
+
+# Test: Watchdog template endpoint
+# [REQ:WATCH-LINUX-001] [REQ:WATCH-MAC-001] [REQ:WATCH-WIN-001]
+test_watchdog_template_endpoint() {
+    local port="$1"
+    local response
+
+    response=$(curl -s "http://localhost:${port}/api/v1/watchdog/template")
+
+    # Check platform field
+    local platform
+    platform=$(echo "$response" | jq -r '.platform // empty')
+    if [[ -n "$platform" ]]; then
+        pass "Watchdog template endpoint returns platform: $platform"
+    else
+        fail "Watchdog template platform missing"
+    fi
+
+    # Check template field
+    local template_length
+    template_length=$(echo "$response" | jq -r '.template | length // 0')
+    if [[ "$template_length" -gt 10 ]]; then
+        pass "Watchdog template endpoint returns template (${template_length} chars)"
+    else
+        fail "Watchdog template template missing or empty"
+    fi
+
+    # Check instructions field
+    local instructions
+    instructions=$(echo "$response" | jq -r '.instructions // empty')
+    if [[ -n "$instructions" ]]; then
+        pass "Watchdog template endpoint returns instructions"
+    else
+        fail "Watchdog template instructions missing"
+    fi
+
+    # Save response artifact
+    echo "$response" > "$ARTIFACT_DIR/watchdog-template-response.json"
+}
+
 # Test: UI health check
 # [REQ:UI-HEALTH-001]
 test_ui_health() {
@@ -593,6 +692,14 @@ main() {
     echo ""
     echo "=== Uptime Endpoint Tests ==="
     test_uptime_endpoint "$api_port"
+
+    echo ""
+    echo "=== Watchdog Endpoint Tests ==="
+    test_watchdog_endpoint "$api_port"
+
+    echo ""
+    echo "=== Watchdog Template Endpoint Tests ==="
+    test_watchdog_template_endpoint "$api_port"
 
     echo ""
     echo "=== UI Tests ==="

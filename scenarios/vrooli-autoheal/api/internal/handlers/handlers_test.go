@@ -122,9 +122,12 @@ type mockCheck struct {
 }
 
 func (c *mockCheck) ID() string                      { return c.id }
+func (c *mockCheck) Title() string                   { return "Mock Check" }
 func (c *mockCheck) Description() string             { return "Mock check for testing" }
+func (c *mockCheck) Importance() string              { return "Test importance" }
 func (c *mockCheck) IntervalSeconds() int            { return 60 }
 func (c *mockCheck) Platforms() []platform.Type      { return c.platform }
+func (c *mockCheck) Category() checks.Category       { return checks.CategoryInfrastructure }
 func (c *mockCheck) Run(ctx context.Context) checks.Result {
 	return checks.Result{
 		CheckID: c.id,
@@ -702,6 +705,7 @@ func TestContentTypeHeaders(t *testing.T) {
 		{"ListChecks", "GET", "/api/v1/checks", h.ListChecks},
 		{"Timeline", "GET", "/api/v1/timeline", h.Timeline},
 		{"UptimeStats", "GET", "/api/v1/uptime", h.UptimeStats},
+		{"Watchdog", "GET", "/api/v1/watchdog", h.Watchdog},
 	}
 
 	for _, tc := range endpoints {
@@ -715,5 +719,98 @@ func TestContentTypeHeaders(t *testing.T) {
 				t.Errorf("%s Content-Type = %q, want application/json", tc.name, ct)
 			}
 		})
+	}
+}
+
+// [REQ:WATCH-DETECT-001] Watchdog endpoint tests
+func TestWatchdog(t *testing.T) {
+	store := &mockStore{}
+	h := setupTestHandlers(store)
+
+	req := httptest.NewRequest("GET", "/api/v1/watchdog", nil)
+	w := httptest.NewRecorder()
+
+	h.Watchdog(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Watchdog() status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	// Check required fields
+	if _, ok := resp["loopRunning"]; !ok {
+		t.Error("response should have loopRunning field")
+	}
+
+	if _, ok := resp["protectionLevel"]; !ok {
+		t.Error("response should have protectionLevel field")
+	}
+
+	if _, ok := resp["canInstall"]; !ok {
+		t.Error("response should have canInstall field")
+	}
+
+	if _, ok := resp["watchdogInstalled"]; !ok {
+		t.Error("response should have watchdogInstalled field")
+	}
+
+	if _, ok := resp["bootProtectionActive"]; !ok {
+		t.Error("response should have bootProtectionActive field")
+	}
+}
+
+func TestWatchdog_WithRefresh(t *testing.T) {
+	store := &mockStore{}
+	h := setupTestHandlers(store)
+
+	req := httptest.NewRequest("GET", "/api/v1/watchdog?refresh=true", nil)
+	w := httptest.NewRecorder()
+
+	h.Watchdog(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Watchdog() with refresh status = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+func TestWatchdogTemplate(t *testing.T) {
+	store := &mockStore{}
+	h := setupTestHandlers(store)
+
+	req := httptest.NewRequest("GET", "/api/v1/watchdog/template", nil)
+	w := httptest.NewRecorder()
+
+	h.WatchdogTemplate(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("WatchdogTemplate() status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	// Check required fields
+	if _, ok := resp["platform"]; !ok {
+		t.Error("response should have platform field")
+	}
+
+	if _, ok := resp["template"]; !ok {
+		t.Error("response should have template field")
+	}
+
+	if _, ok := resp["instructions"]; !ok {
+		t.Error("response should have instructions field")
+	}
+
+	// Template should have substantial content
+	template, ok := resp["template"].(string)
+	if !ok || len(template) < 50 {
+		t.Errorf("template should be a substantial string, got length %d", len(template))
 	}
 }

@@ -20,9 +20,12 @@ type mockCheck struct {
 }
 
 func (m *mockCheck) ID() string                   { return m.id }
+func (m *mockCheck) Title() string                { return "Mock Check" }
 func (m *mockCheck) Description() string          { return m.desc }
+func (m *mockCheck) Importance() string           { return "Test importance" }
 func (m *mockCheck) IntervalSeconds() int         { return m.interval }
 func (m *mockCheck) Platforms() []platform.Type   { return m.platforms }
+func (m *mockCheck) Category() Category           { return CategoryInfrastructure }
 func (m *mockCheck) Run(ctx context.Context) Result {
 	return m.result
 }

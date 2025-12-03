@@ -221,17 +221,17 @@ Goal: deliver true offline/portable desktop bundles (UI + API + resources + secr
   - [x] deployment-manager · Refactor (second pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
   - [x] deployment-manager · Test (first pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
   - [x] deployment-manager · Test (second pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
-  - [ ] scenario-dependency-analyzer · Screaming Architecture Audit — `scenarios/ecosystem-manager/prompts/phases/screaming-architecture-audit.md`
-  - [ ] scenario-dependency-analyzer · Boundary of Responsibility Enforcement — `scenarios/ecosystem-manager/prompts/phases/boundary-of-responsibility-enforcement.md`
-  - [ ] scenario-dependency-analyzer · Seam Discovery and Enforcement (first pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
-  - [ ] scenario-dependency-analyzer · Seam Discovery and Enforcement (second pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
-  - [ ] scenario-dependency-analyzer · Cognitive Load Reduction — `scenarios/ecosystem-manager/prompts/phases/cognitive-load-reduction.md`
-  - [ ] scenario-dependency-analyzer · Decision Boundary Extraction — `scenarios/ecosystem-manager/prompts/phases/decision-boundary-extraction.md`
-  - [ ] scenario-dependency-analyzer · Refactor (first pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
-  - [ ] scenario-dependency-analyzer · Refactor (second pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
-  - [ ] scenario-dependency-analyzer · Test (first pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
-  - [ ] scenario-dependency-analyzer · Test (second pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
-  - [ ] secrets-manager · Screaming Architecture Audit — `scenarios/ecosystem-manager/prompts/phases/screaming-architecture-audit.md`
+  - [x] scenario-dependency-analyzer · Screaming Architecture Audit — `scenarios/ecosystem-manager/prompts/phases/screaming-architecture-audit.md`
+  - [x] scenario-dependency-analyzer · Boundary of Responsibility Enforcement — `scenarios/ecosystem-manager/prompts/phases/boundary-of-responsibility-enforcement.md`
+  - [x] scenario-dependency-analyzer · Seam Discovery and Enforcement (first pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [x] scenario-dependency-analyzer · Seam Discovery and Enforcement (second pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [x] scenario-dependency-analyzer · Cognitive Load Reduction — `scenarios/ecosystem-manager/prompts/phases/cognitive-load-reduction.md`
+  - [x] scenario-dependency-analyzer · Decision Boundary Extraction — `scenarios/ecosystem-manager/prompts/phases/decision-boundary-extraction.md`
+  - [x] scenario-dependency-analyzer · Refactor (first pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [x] scenario-dependency-analyzer · Refactor (second pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [x] scenario-dependency-analyzer · Test (first pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [x] scenario-dependency-analyzer · Test (second pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [x] secrets-manager · Screaming Architecture Audit — `scenarios/ecosystem-manager/prompts/phases/screaming-architecture-audit.md`
   - [ ] secrets-manager · Boundary of Responsibility Enforcement — `scenarios/ecosystem-manager/prompts/phases/boundary-of-responsibility-enforcement.md`
   - [ ] secrets-manager · Seam Discovery and Enforcement (first pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
   - [ ] secrets-manager · Seam Discovery and Enforcement (second pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`

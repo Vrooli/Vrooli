@@ -298,6 +298,9 @@ const literalSelectors: LiteralSelectorTree = {
     chart: 'autoheal-trends-chart',
     checkGrid: 'autoheal-trends-check-grid',
   },
+  // System Protection section [REQ:WATCH-DETECT-001]
+  systemProtection: 'autoheal-system-protection',
+  systemProtectionCompact: 'autoheal-system-protection-compact',
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {

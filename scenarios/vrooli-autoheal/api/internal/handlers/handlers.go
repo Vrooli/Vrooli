@@ -1,6 +1,6 @@
 // Package handlers provides HTTP request handlers for the autoheal API
 // [REQ:CLI-TICK-001] [REQ:CLI-TICK-002] [REQ:CLI-STATUS-001] [REQ:CLI-STATUS-002]
-// [REQ:FAIL-SAFE-001] [REQ:FAIL-OBSERVE-001]
+// [REQ:FAIL-SAFE-001] [REQ:FAIL-OBSERVE-001] [REQ:WATCH-DETECT-001]
 package handlers
 
 import (
@@ -16,6 +16,7 @@ import (
 	apierrors "vrooli-autoheal/internal/errors"
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"
+	"vrooli-autoheal/internal/watchdog"
 )
 
 // StoreInterface defines the database operations needed by handlers
@@ -32,26 +33,29 @@ type StoreInterface interface {
 
 // Handlers wraps the dependencies needed by HTTP handlers
 type Handlers struct {
-	registry *checks.Registry
-	store    StoreInterface
-	platform *platform.Capabilities
+	registry         *checks.Registry
+	store            StoreInterface
+	platform         *platform.Capabilities
+	watchdogDetector *watchdog.Detector
 }
 
 // New creates a new Handlers instance
 func New(registry *checks.Registry, store *persistence.Store, plat *platform.Capabilities) *Handlers {
 	return &Handlers{
-		registry: registry,
-		store:    store,
-		platform: plat,
+		registry:         registry,
+		store:            store,
+		platform:         plat,
+		watchdogDetector: watchdog.NewDetector(plat),
 	}
 }
 
 // NewWithInterface creates a new Handlers instance with an interface-based store (for testing)
 func NewWithInterface(registry *checks.Registry, store StoreInterface, plat *platform.Capabilities) *Handlers {
 	return &Handlers{
-		registry: registry,
-		store:    store,
-		platform: plat,
+		registry:         registry,
+		store:            store,
+		platform:         plat,
+		watchdogDetector: watchdog.NewDetector(plat),
 	}
 }
 
@@ -370,5 +374,85 @@ func (h *Handlers) Incidents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(incidents); err != nil {
 		apierrors.LogError("incidents", "encode_response", err)
+	}
+}
+
+// Watchdog returns the OS-level watchdog/service status
+// [REQ:WATCH-DETECT-001]
+func (h *Handlers) Watchdog(w http.ResponseWriter, r *http.Request) {
+	// Check if refresh is requested
+	refresh := r.URL.Query().Get("refresh") == "true"
+
+	var status *watchdog.Status
+	if refresh {
+		status = h.watchdogDetector.Detect()
+	} else {
+		status = h.watchdogDetector.GetCached()
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(status); err != nil {
+		apierrors.LogError("watchdog", "encode_response", err)
+	}
+}
+
+// WatchdogTemplate returns the service configuration template for the current platform
+// [REQ:WATCH-LINUX-001] [REQ:WATCH-MAC-001] [REQ:WATCH-WIN-001]
+func (h *Handlers) WatchdogTemplate(w http.ResponseWriter, r *http.Request) {
+	template, err := h.watchdogDetector.GetServiceTemplate()
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewNotFoundError("watchdog", "service template", string(h.platform.Platform)))
+		return
+	}
+
+	// Build API base URL from request
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	apiBaseURL := fmt.Sprintf("%s://%s", scheme, r.Host)
+
+	platformStr := string(h.platform.Platform)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"platform":     h.platform.Platform,
+		"template":     template,
+		"instructions": getInstallInstructions(platformStr),
+		"oneLiner":     getOneLinerInstall(platformStr, apiBaseURL),
+	}); err != nil {
+		apierrors.LogError("watchdog_template", "encode_response", err)
+	}
+}
+
+// getInstallInstructions returns platform-specific installation instructions
+func getInstallInstructions(platformStr string) string {
+	switch platformStr {
+	case "linux":
+		return `1. Save the template to /etc/systemd/system/vrooli-autoheal.service
+2. Run: sudo systemctl daemon-reload
+3. Run: sudo systemctl enable vrooli-autoheal
+4. Run: sudo systemctl start vrooli-autoheal`
+	case "macos":
+		return `1. Save the template to ~/Library/LaunchAgents/com.vrooli.autoheal.plist
+2. Run: launchctl load ~/Library/LaunchAgents/com.vrooli.autoheal.plist`
+	case "windows":
+		return `1. Save the template as VrooliAutoheal.xml
+2. Run as Administrator: schtasks /Create /TN VrooliAutoheal /XML VrooliAutoheal.xml`
+	default:
+		return "Watchdog installation not supported on this platform"
+	}
+}
+
+// getOneLinerInstall returns a one-liner command to install the watchdog service
+func getOneLinerInstall(platformStr, apiBaseURL string) string {
+	switch platformStr {
+	case "linux":
+		return fmt.Sprintf(`curl -s %s/api/v1/watchdog/template | jq -r '.template' | sudo tee /etc/systemd/system/vrooli-autoheal.service > /dev/null && sudo systemctl daemon-reload && sudo systemctl enable --now vrooli-autoheal`, apiBaseURL)
+	case "macos":
+		return fmt.Sprintf(`curl -s %s/api/v1/watchdog/template | jq -r '.template' > ~/Library/LaunchAgents/com.vrooli.autoheal.plist && launchctl load ~/Library/LaunchAgents/com.vrooli.autoheal.plist`, apiBaseURL)
+	case "windows":
+		return fmt.Sprintf(`(Invoke-WebRequest -Uri %s/api/v1/watchdog/template).Content | ConvertFrom-Json | Select-Object -ExpandProperty template | Out-File VrooliAutoheal.xml; schtasks /Create /TN VrooliAutoheal /XML VrooliAutoheal.xml`, apiBaseURL)
+	default:
+		return ""
 	}
 }

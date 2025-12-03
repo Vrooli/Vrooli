@@ -107,6 +107,10 @@ func setupRouter(h *apiHandlers.Handlers) *mux.Router {
 	// Incidents endpoint [REQ:PERSIST-HISTORY-001]
 	router.HandleFunc("/api/v1/incidents", h.Incidents).Methods("GET")
 
+	// Watchdog endpoints [REQ:WATCH-DETECT-001]
+	router.HandleFunc("/api/v1/watchdog", h.Watchdog).Methods("GET")
+	router.HandleFunc("/api/v1/watchdog/template", h.WatchdogTemplate).Methods("GET")
+
 	return router
 }
 
