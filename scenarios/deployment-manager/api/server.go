@@ -27,9 +27,10 @@ type Config struct {
 
 // Server wires the HTTP router and database connection.
 type Server struct {
-	config *Config
-	db     *sql.DB
-	router *mux.Router
+	config   *Config
+	db       *sql.DB
+	router   *mux.Router
+	profiles ProfileRepository
 }
 
 // NewServer initializes configuration, database, and routes.
@@ -54,9 +55,10 @@ func NewServer() (*Server, error) {
 	}
 
 	srv := &Server{
-		config: cfg,
-		db:     db,
-		router: mux.NewRouter(),
+		config:   cfg,
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 
 	srv.setupRoutes()

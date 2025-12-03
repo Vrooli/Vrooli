@@ -23,9 +23,10 @@ func TestEndToEndDependencyAnalysisAndSwap(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 
@@ -92,9 +93,10 @@ func TestEndToEndProfileDeploymentWorkflow(t *testing.T) {
 			AddRow(1, "test-profile", "test-scenario", "desktop", "{}", time.Now(), time.Now()))
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 
@@ -176,9 +178,10 @@ func TestSwapImpactAnalysisWorkflow(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 
@@ -223,9 +226,10 @@ func TestSecretManagementWorkflow(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 
@@ -269,9 +273,10 @@ func TestCascadingDependencyDetection(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 
@@ -290,9 +295,9 @@ func TestCascadingDependencyDetection(t *testing.T) {
 	// Test cascading swap impact
 	t.Run("detect_cascading_swap_impact", func(t *testing.T) {
 		payload := map[string]interface{}{
-			"from":        "postgres",
-			"to":          "sqlite",
-			"tier":        "mobile",
+			"from":          "postgres",
+			"to":            "sqlite",
+			"tier":          "mobile",
 			"check_cascade": true,
 		}
 		body, _ := json.Marshal(payload)
@@ -318,9 +323,10 @@ func TestComprehensiveValidationWorkflow(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 
@@ -375,9 +381,10 @@ func TestDeploymentMonitoringWorkflow(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 
@@ -426,9 +433,10 @@ func TestPackagerIntegrationDiscovery(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 
@@ -466,9 +474,10 @@ func TestDependencyVisualizationDataPreparation(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 
@@ -516,9 +525,10 @@ func TestProfileVersionControlWorkflow(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 

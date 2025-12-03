@@ -1,8 +1,8 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -10,128 +10,104 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// profileToResponse converts a Profile to its JSON response representation.
+// This centralizes the conversion logic to ensure consistency across all profile endpoints.
+func profileToResponse(p Profile) map[string]interface{} {
+	return map[string]interface{}{
+		"id":         p.ID,
+		"name":       p.Name,
+		"scenario":   p.Scenario,
+		"tiers":      p.Tiers,
+		"swaps":      p.Swaps,
+		"secrets":    p.Secrets,
+		"settings":   p.Settings,
+		"version":    p.Version,
+		"created_at": p.CreatedAt.UTC().Format(time.RFC3339),
+		"updated_at": p.UpdatedAt.UTC().Format(time.RFC3339),
+		"created_by": p.CreatedBy,
+		"updated_by": p.UpdatedBy,
+	}
+}
+
+// profileVersionToResponse converts a ProfileVersion to its JSON response representation.
+func profileVersionToResponse(v ProfileVersion) map[string]interface{} {
+	entry := map[string]interface{}{
+		"version":    v.Version,
+		"name":       v.Name,
+		"scenario":   v.Scenario,
+		"tiers":      v.Tiers,
+		"swaps":      v.Swaps,
+		"secrets":    v.Secrets,
+		"settings":   v.Settings,
+		"created_at": v.CreatedAt.UTC().Format(time.RFC3339),
+		"created_by": v.CreatedBy,
+	}
+	if v.ChangeDescription != "" {
+		entry["change_description"] = v.ChangeDescription
+	}
+	return entry
+}
+
 // handleListProfiles returns all deployment profiles.
 // [REQ:DM-P0-012,DM-P0-013,DM-P0-014]
 func (s *Server) handleListProfiles(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.db.Query(`
-		SELECT id, name, scenario, tiers, swaps, secrets, settings, version, created_at, updated_at, created_by, updated_by
-		FROM profiles
-		ORDER BY created_at DESC
-	`)
+	profiles, err := s.profiles.List(r.Context())
 	if err != nil {
 		s.log("failed to list profiles", map[string]interface{}{"error": err.Error()})
 		http.Error(w, `{"error":"failed to list profiles"}`, http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
 
-	profiles := []map[string]interface{}{}
-	for rows.Next() {
-		var id, name, scenario, createdBy, updatedBy string
-		var tiersJSON, swapsJSON, secretsJSON, settingsJSON []byte
-		var version int
-		var createdAt, updatedAt time.Time
-
-		if err := rows.Scan(&id, &name, &scenario, &tiersJSON, &swapsJSON, &secretsJSON, &settingsJSON, &version, &createdAt, &updatedAt, &createdBy, &updatedBy); err != nil {
-			continue
-		}
-
-		var tiers, swaps, secrets, settings interface{}
-		json.Unmarshal(tiersJSON, &tiers)
-		json.Unmarshal(swapsJSON, &swaps)
-		json.Unmarshal(secretsJSON, &secrets)
-		json.Unmarshal(settingsJSON, &settings)
-
-		profiles = append(profiles, map[string]interface{}{
-			"id":         id,
-			"name":       name,
-			"scenario":   scenario,
-			"tiers":      tiers,
-			"swaps":      swaps,
-			"secrets":    secrets,
-			"settings":   settings,
-			"version":    version,
-			"created_at": createdAt.UTC().Format(time.RFC3339),
-			"updated_at": updatedAt.UTC().Format(time.RFC3339),
-			"created_by": createdBy,
-			"updated_by": updatedBy,
-		})
+	result := make([]map[string]interface{}, 0, len(profiles))
+	for _, p := range profiles {
+		result = append(result, profileToResponse(p))
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(profiles)
+	json.NewEncoder(w).Encode(result)
 }
 
 // handleCreateProfile creates a new deployment profile.
 // [REQ:DM-P0-012,DM-P0-013,DM-P0-014,DM-P0-015]
 func (s *Server) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
-	var profile map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&profile); err != nil {
+	var input map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
 		return
 	}
 
 	// Validate required fields
-	if profile["name"] == nil || profile["scenario"] == nil {
+	if input["name"] == nil || input["scenario"] == nil {
 		http.Error(w, `{"error":"name and scenario fields required"}`, http.StatusBadRequest)
 		return
 	}
 
-	// Generate profile ID
-	profileID := fmt.Sprintf("profile-%d", time.Now().Unix())
-	name := profile["name"].(string)
-	scenario := profile["scenario"].(string)
-
-	// Default values
-	tiers := profile["tiers"]
-	if tiers == nil {
-		tiers = []int{2} // Default to desktop tier
-	}
-	swaps := profile["swaps"]
-	if swaps == nil {
-		swaps = map[string]interface{}{}
-	}
-	secrets := profile["secrets"]
-	if secrets == nil {
-		secrets = map[string]interface{}{}
-	}
-	settings := profile["settings"]
-	if settings == nil {
-		settings = map[string]interface{}{}
+	// Build profile from input
+	profile := &Profile{
+		ID:       fmt.Sprintf("profile-%d", GetTimeProvider().Now().Unix()),
+		Name:     input["name"].(string),
+		Scenario: input["scenario"].(string),
+		Tiers:    input["tiers"],
+		Swaps:    input["swaps"],
+		Secrets:  input["secrets"],
+		Settings: input["settings"],
 	}
 
-	tiersJSON, _ := json.Marshal(tiers)
-	swapsJSON, _ := json.Marshal(swaps)
-	secretsJSON, _ := json.Marshal(secrets)
-	settingsJSON, _ := json.Marshal(settings)
+	// Apply defaults for unset fields (uses domain_profiles.go decision logic)
+	ApplyProfileDefaults(profile)
 
-	// Insert into database
-	_, err := s.db.Exec(`
-		INSERT INTO profiles (id, name, scenario, tiers, swaps, secrets, settings, version, created_by, updated_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, 1, 'system', 'system')
-	`, profileID, name, scenario, tiersJSON, swapsJSON, secretsJSON, settingsJSON)
-
+	profileID, err := s.profiles.Create(r.Context(), profile)
 	if err != nil {
 		s.log("failed to create profile", map[string]interface{}{"error": err.Error()})
 		http.Error(w, `{"error":"failed to create profile"}`, http.StatusInternalServerError)
 		return
 	}
 
-	// [REQ:DM-P0-015] Create initial version history entry
-	_, err = s.db.Exec(`
-		INSERT INTO profile_versions (profile_id, version, name, scenario, tiers, swaps, secrets, settings, created_by, change_description)
-		VALUES ($1, 1, $2, $3, $4, $5, $6, $7, 'system', 'Initial profile creation')
-	`, profileID, name, scenario, tiersJSON, swapsJSON, secretsJSON, settingsJSON)
-
-	if err != nil {
-		s.log("failed to create profile version", map[string]interface{}{"error": err.Error()})
-	}
-
 	// [REQ:DM-P0-015] Include timestamp and user in response
 	response := map[string]interface{}{
 		"id":         profileID,
 		"version":    1,
-		"created_at": time.Now().Format(time.RFC3339),
+		"created_at": GetTimeProvider().Now().Format(time.RFC3339),
 		"created_by": "system",
 	}
 
@@ -145,51 +121,19 @@ func (s *Server) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	profileID := vars["id"]
 
-	var id, name, scenario, createdBy, updatedBy string
-	var tiersJSON, swapsJSON, secretsJSON, settingsJSON []byte
-	var version int
-	var createdAt, updatedAt time.Time
-
-	// Try to fetch by ID first, then by name
-	err := s.db.QueryRow(`
-		SELECT id, name, scenario, tiers, swaps, secrets, settings, version, created_at, updated_at, created_by, updated_by
-		FROM profiles
-		WHERE id = $1 OR name = $1
-	`, profileID).Scan(&id, &name, &scenario, &tiersJSON, &swapsJSON, &secretsJSON, &settingsJSON, &version, &createdAt, &updatedAt, &createdBy, &updatedBy)
-
-	if err == sql.ErrNoRows {
-		http.Error(w, fmt.Sprintf(`{"error":"profile '%s' not found"}`, profileID), http.StatusNotFound)
-		return
-	}
+	profile, err := s.profiles.Get(r.Context(), profileID)
 	if err != nil {
 		s.log("failed to get profile", map[string]interface{}{"error": err.Error()})
 		http.Error(w, `{"error":"failed to get profile"}`, http.StatusInternalServerError)
 		return
 	}
-
-	var tiers, swaps, secrets, settings interface{}
-	json.Unmarshal(tiersJSON, &tiers)
-	json.Unmarshal(swapsJSON, &swaps)
-	json.Unmarshal(secretsJSON, &secrets)
-	json.Unmarshal(settingsJSON, &settings)
-
-	profile := map[string]interface{}{
-		"id":         id,
-		"name":       name,
-		"scenario":   scenario,
-		"tiers":      tiers,
-		"swaps":      swaps,
-		"secrets":    secrets,
-		"settings":   settings,
-		"version":    version,
-		"created_at": createdAt.UTC().Format(time.RFC3339),
-		"updated_at": updatedAt.UTC().Format(time.RFC3339),
-		"created_by": createdBy,
-		"updated_by": updatedBy,
+	if profile == nil {
+		http.Error(w, fmt.Sprintf(`{"error":"profile '%s' not found"}`, profileID), http.StatusNotFound)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(profile)
+	json.NewEncoder(w).Encode(profileToResponse(*profile))
 }
 
 // handleUpdateProfile updates an existing profile.
@@ -204,86 +148,25 @@ func (s *Server) handleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch current profile (support both ID and name lookup)
-	var currentVersion int
-	var tiersJSON, swapsJSON, secretsJSON, settingsJSON []byte
-	var name, scenario, actualID string
-	err := s.db.QueryRow(`
-		SELECT id, name, scenario, tiers, swaps, secrets, settings, version
-		FROM profiles
-		WHERE id = $1 OR name = $1
-	`, profileID).Scan(&actualID, &name, &scenario, &tiersJSON, &swapsJSON, &secretsJSON, &settingsJSON, &currentVersion)
-	profileID = actualID // Use the actual ID for updates
-
-	if err == sql.ErrNoRows {
-		http.Error(w, fmt.Sprintf(`{"error":"profile '%s' not found"}`, profileID), http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		http.Error(w, `{"error":"failed to fetch profile"}`, http.StatusInternalServerError)
-		return
-	}
-
-	// Parse current values
-	var tiers, swaps, secrets, settings interface{}
-	json.Unmarshal(tiersJSON, &tiers)
-	json.Unmarshal(swapsJSON, &swaps)
-	json.Unmarshal(secretsJSON, &secrets)
-	json.Unmarshal(settingsJSON, &settings)
-
-	// Apply updates
-	if updates["tiers"] != nil {
-		tiers = updates["tiers"]
-	}
-	if updates["swaps"] != nil {
-		swaps = updates["swaps"]
-	}
-	if updates["secrets"] != nil {
-		secrets = updates["secrets"]
-	}
-	if updates["settings"] != nil {
-		settings = updates["settings"]
-	}
-
-	// [REQ:DM-P0-015] Increment version
-	newVersion := currentVersion + 1
-
-	tiersJSON, _ = json.Marshal(tiers)
-	swapsJSON, _ = json.Marshal(swaps)
-	secretsJSON, _ = json.Marshal(secrets)
-	settingsJSON, _ = json.Marshal(settings)
-
-	// Update profile
-	_, err = s.db.Exec(`
-		UPDATE profiles
-		SET tiers = $1, swaps = $2, secrets = $3, settings = $4, version = $5, updated_at = NOW(), updated_by = 'system'
-		WHERE id = $6
-	`, tiersJSON, swapsJSON, secretsJSON, settingsJSON, newVersion, profileID)
-
+	profile, err := s.profiles.Update(r.Context(), profileID, updates)
 	if err != nil {
 		http.Error(w, `{"error":"failed to update profile"}`, http.StatusInternalServerError)
 		return
 	}
-
-	// [REQ:DM-P0-015] Create version history entry
-	_, err = s.db.Exec(`
-		INSERT INTO profile_versions (profile_id, version, name, scenario, tiers, swaps, secrets, settings, created_by, change_description)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'system', 'Profile updated')
-	`, profileID, newVersion, name, scenario, tiersJSON, swapsJSON, secretsJSON, settingsJSON)
-
-	if err != nil {
-		s.log("failed to create version history", map[string]interface{}{"error": err.Error()})
+	if profile == nil {
+		http.Error(w, fmt.Sprintf(`{"error":"profile '%s' not found"}`, profileID), http.StatusNotFound)
+		return
 	}
 
 	response := map[string]interface{}{
-		"id":       profileID,
-		"name":     name,
-		"scenario": scenario,
-		"tiers":    tiers,
-		"swaps":    swaps,
-		"secrets":  secrets,
-		"settings": settings,
-		"version":  newVersion,
+		"id":       profile.ID,
+		"name":     profile.Name,
+		"scenario": profile.Scenario,
+		"tiers":    profile.Tiers,
+		"swaps":    profile.Swaps,
+		"secrets":  profile.Secrets,
+		"settings": profile.Settings,
+		"version":  profile.Version,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -295,16 +178,14 @@ func (s *Server) handleDeleteProfile(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	profileID := vars["id"]
 
-	// Support both ID and name lookup
-	result, err := s.db.Exec(`DELETE FROM profiles WHERE id = $1 OR name = $1`, profileID)
+	deleted, err := s.profiles.Delete(r.Context(), profileID)
 	if err != nil {
 		s.log("failed to delete profile", map[string]interface{}{"error": err.Error()})
 		http.Error(w, `{"error":"failed to delete profile"}`, http.StatusInternalServerError)
 		return
 	}
 
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
+	if !deleted {
 		http.Error(w, fmt.Sprintf(`{"error":"profile '%s' not found"}`, profileID), http.StatusNotFound)
 		return
 	}
@@ -324,77 +205,21 @@ func (s *Server) handleGetProfileVersions(w http.ResponseWriter, r *http.Request
 	vars := mux.Vars(r)
 	profileID := vars["id"]
 
-	// Support both ID and name lookup - resolve to actual ID
-	var actualID string
-	err := s.db.QueryRow(`SELECT id FROM profiles WHERE id = $1 OR name = $1`, profileID).Scan(&actualID)
-	if err == sql.ErrNoRows {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"profile_id": profileID,
-			"versions":   []map[string]interface{}{},
-		})
-		return
-	}
-	if err != nil {
-		s.log("failed to resolve profile", map[string]interface{}{"error": err.Error()})
-		http.Error(w, `{"error":"failed to resolve profile"}`, http.StatusInternalServerError)
-		return
-	}
-	profileID = actualID
-
-	rows, err := s.db.Query(`
-		SELECT version, name, scenario, tiers, swaps, secrets, settings, created_at, created_by, change_description
-		FROM profile_versions
-		WHERE profile_id = $1
-		ORDER BY version DESC
-	`, profileID)
+	versions, err := s.profiles.GetVersions(r.Context(), profileID)
 	if err != nil {
 		s.log("failed to get profile versions", map[string]interface{}{"error": err.Error()})
 		http.Error(w, `{"error":"failed to get profile versions"}`, http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
 
-	versions := []map[string]interface{}{}
-	for rows.Next() {
-		var version int
-		var name, scenario, createdBy string
-		var changeDescription sql.NullString
-		var tiersJSON, swapsJSON, secretsJSON, settingsJSON []byte
-		var createdAt time.Time
-
-		if err := rows.Scan(&version, &name, &scenario, &tiersJSON, &swapsJSON, &secretsJSON, &settingsJSON, &createdAt, &createdBy, &changeDescription); err != nil {
-			continue
-		}
-
-		var tiers, swaps, secrets, settings interface{}
-		json.Unmarshal(tiersJSON, &tiers)
-		json.Unmarshal(swapsJSON, &swaps)
-		json.Unmarshal(secretsJSON, &secrets)
-		json.Unmarshal(settingsJSON, &settings)
-
-		versionEntry := map[string]interface{}{
-			"version":    version,
-			"name":       name,
-			"scenario":   scenario,
-			"tiers":      tiers,
-			"swaps":      swaps,
-			"secrets":    secrets,
-			"settings":   settings,
-			"created_at": createdAt.UTC().Format(time.RFC3339),
-			"created_by": createdBy,
-		}
-
-		if changeDescription.Valid {
-			versionEntry["change_description"] = changeDescription.String
-		}
-
-		versions = append(versions, versionEntry)
+	result := make([]map[string]interface{}, 0, len(versions))
+	for _, v := range versions {
+		result = append(result, profileVersionToResponse(v))
 	}
 
 	response := map[string]interface{}{
 		"profile_id": profileID,
-		"versions":   versions,
+		"versions":   result,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -407,16 +232,9 @@ func (s *Server) handleValidateProfile(w http.ResponseWriter, r *http.Request) {
 	profileID := vars["id"]
 	verbose := r.URL.Query().Get("verbose") == "true"
 
-	// Get profile
-	var scenario string
-	var tier int
-	err := s.db.QueryRow(`
-		SELECT scenario, COALESCE(jsonb_array_length(tiers), 0)
-		FROM profiles
-		WHERE name = $1 OR id = $1
-	`, profileID).Scan(&scenario, &tier)
-
-	if err == sql.ErrNoRows {
+	// Get profile scenario and tier
+	scenario, _, err := s.profiles.GetScenarioAndTier(r.Context(), profileID)
+	if errors.Is(err, ErrProfileNotFound) {
 		http.Error(w, `{"error":"profile not found"}`, http.StatusNotFound)
 		return
 	}
@@ -464,7 +282,7 @@ func (s *Server) handleValidateProfile(w http.ResponseWriter, r *http.Request) {
 		"scenario":   scenario,
 		"status":     "pass",
 		"checks":     checks,
-		"timestamp":  time.Now().UTC().Format(time.RFC3339),
+		"timestamp":  GetTimeProvider().Now().UTC().Format(time.RFC3339),
 	}
 
 	if verbose {
@@ -486,15 +304,9 @@ func (s *Server) handleCostEstimate(w http.ResponseWriter, r *http.Request) {
 	profileID := vars["id"]
 	verbose := r.URL.Query().Get("verbose") == "true"
 
-	// Get profile
-	var tier int
-	err := s.db.QueryRow(`
-		SELECT COALESCE(jsonb_array_length(tiers), 0)
-		FROM profiles
-		WHERE name = $1 OR id = $1
-	`, profileID).Scan(&tier)
-
-	if err == sql.ErrNoRows {
+	// Get profile tier
+	_, tier, err := s.profiles.GetScenarioAndTier(r.Context(), profileID)
+	if errors.Is(err, ErrProfileNotFound) {
 		http.Error(w, `{"error":"profile not found"}`, http.StatusNotFound)
 		return
 	}
@@ -516,7 +328,7 @@ func (s *Server) handleCostEstimate(w http.ResponseWriter, r *http.Request) {
 		"tier":         getTierName(tier),
 		"monthly_cost": fmt.Sprintf("$%.2f", totalCost),
 		"currency":     "USD",
-		"timestamp":    time.Now().UTC().Format(time.RFC3339),
+		"timestamp":    GetTimeProvider().Now().UTC().Format(time.RFC3339),
 	}
 
 	if verbose {

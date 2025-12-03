@@ -36,9 +36,10 @@ func TestHandleAnalyzeDependencies(t *testing.T) {
 			defer db.Close()
 
 			srv := &Server{
-				config: &Config{Port: "8080"},
-				db:     db,
-				router: mux.NewRouter(),
+				config:   &Config{Port: "8080"},
+				db:       db,
+				router:   mux.NewRouter(),
+				profiles: NewSQLProfileRepository(db),
 			}
 			srv.setupRoutes()
 
@@ -124,9 +125,10 @@ func TestHandleListProfiles(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 
 	// Mock successful profile query - match actual query columns
@@ -201,9 +203,10 @@ func TestHandleCreateProfile(t *testing.T) {
 			tt.setupMock(mock)
 
 			srv := &Server{
-				config: &Config{Port: "8080"},
-				db:     db,
-				router: mux.NewRouter(),
+				config:   &Config{Port: "8080"},
+				db:       db,
+				router:   mux.NewRouter(),
+				profiles: NewSQLProfileRepository(db),
 			}
 
 			var body *bytes.Buffer
@@ -236,9 +239,10 @@ func TestHandleDeploy(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 
@@ -262,9 +266,10 @@ func TestHandleIdentifySecrets(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 
@@ -288,9 +293,10 @@ func TestHandleValidateProfile(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 
@@ -338,10 +344,10 @@ func TestContextCancellation(t *testing.T) {
 // [REQ:DM-P0-001,DM-P0-002] TestAnalyzeDependencies_EdgeCases tests edge cases in dependency analysis
 func TestAnalyzeDependencies_EdgeCases(t *testing.T) {
 	tests := []struct {
-		name       string
-		scenario   string
-		wantStatus int
-		wantErr    bool
+		name        string
+		scenario    string
+		wantStatus  int
+		wantErr     bool
 		skipRequest bool
 	}{
 		{
@@ -351,10 +357,10 @@ func TestAnalyzeDependencies_EdgeCases(t *testing.T) {
 			wantErr:    true,
 		},
 		{
-			name:       "very long scenario name",
-			scenario:   "a" + string(make([]byte, 500)) + "z",
-			wantStatus: http.StatusBadRequest,
-			wantErr:    true,
+			name:        "very long scenario name",
+			scenario:    "a" + string(make([]byte, 500)) + "z",
+			wantStatus:  http.StatusBadRequest,
+			wantErr:     true,
 			skipRequest: true, // Skip because long strings with null bytes cause URL parsing issues
 		},
 	}
@@ -373,9 +379,10 @@ func TestAnalyzeDependencies_EdgeCases(t *testing.T) {
 			defer db.Close()
 
 			srv := &Server{
-				config: &Config{Port: "8080"},
-				db:     db,
-				router: mux.NewRouter(),
+				config:   &Config{Port: "8080"},
+				db:       db,
+				router:   mux.NewRouter(),
+				profiles: NewSQLProfileRepository(db),
 			}
 			srv.setupRoutes()
 
@@ -456,9 +463,10 @@ func TestProfileManagement_ConcurrentAccess(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 
 	// Mock profile query for concurrent reads
@@ -495,9 +503,10 @@ func TestProfileVersioning(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 
@@ -529,9 +538,10 @@ func TestSecretManagement_Categories(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 
@@ -555,9 +565,10 @@ func TestValidation_ComprehensiveChecks(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 
@@ -617,9 +628,10 @@ func TestDeployment_Orchestration(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 
@@ -656,9 +668,10 @@ func TestSwapSuggestions_Integration(t *testing.T) {
 	defer db.Close()
 
 	srv := &Server{
-		config: &Config{Port: "8080"},
-		db:     db,
-		router: mux.NewRouter(),
+		config:   &Config{Port: "8080"},
+		db:       db,
+		router:   mux.NewRouter(),
+		profiles: NewSQLProfileRepository(db),
 	}
 	srv.setupRoutes()
 

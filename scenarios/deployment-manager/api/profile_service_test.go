@@ -48,10 +48,10 @@ func TestProfileLifecycle(t *testing.T) {
 // [REQ:DM-P0-014,DM-P0-015] TestProfileVersionManagement tests version control
 func TestProfileVersionManagement(t *testing.T) {
 	tests := []struct {
-		name            string
-		operation       string
-		version         int
-		expectVersions  int
+		name           string
+		operation      string
+		version        int
+		expectVersions int
 	}{
 		{
 			name:           "create initial version",
@@ -87,21 +87,21 @@ func TestProfileVersionManagement(t *testing.T) {
 // [REQ:DM-P0-016,DM-P0-017] TestProfileComparison tests version diff functionality
 func TestProfileComparison(t *testing.T) {
 	tests := []struct {
-		name      string
-		version1  int
-		version2  int
+		name       string
+		version1   int
+		version2   int
 		expectDiff bool
 	}{
 		{
-			name:      "identical versions",
-			version1:  1,
-			version2:  1,
+			name:       "identical versions",
+			version1:   1,
+			version2:   1,
 			expectDiff: false,
 		},
 		{
-			name:      "different versions",
-			version1:  1,
-			version2:  2,
+			name:       "different versions",
+			version1:   1,
+			version2:   2,
 			expectDiff: true,
 		},
 	}
@@ -120,16 +120,16 @@ func TestProfileComparison(t *testing.T) {
 // [REQ:DM-P0-021,DM-P0-022] TestSecretValidation tests secret requirement validation
 func TestSecretValidation(t *testing.T) {
 	tests := []struct {
-		name        string
+		name            string
 		secretsProvided map[string]string
-		required    []string
-		expectValid bool
+		required        []string
+		expectValid     bool
 	}{
 		{
 			name: "all secrets provided",
 			secretsProvided: map[string]string{
-				"DB_PASSWORD":  "secret123",
-				"API_KEY":      "key456",
+				"DB_PASSWORD": "secret123",
+				"API_KEY":     "key456",
 			},
 			required:    []string{"DB_PASSWORD", "API_KEY"},
 			expectValid: true,
@@ -143,10 +143,10 @@ func TestSecretValidation(t *testing.T) {
 			expectValid: false,
 		},
 		{
-			name:        "no secrets required",
+			name:            "no secrets required",
 			secretsProvided: map[string]string{},
-			required:    []string{},
-			expectValid: true,
+			required:        []string{},
+			expectValid:     true,
 		},
 	}
 

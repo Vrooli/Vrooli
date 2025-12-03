@@ -168,17 +168,23 @@ func validateDesktopBundleManifestBytes(data []byte) error {
 		return fmt.Errorf("invalid JSON or unexpected fields: %w", err)
 	}
 
-	if manifest.SchemaVersion != "v0.1" {
-		return fmt.Errorf("schema_version must be v0.1")
+	// Validate schema version using domain decision helper
+	if !IsValidSchemaVersion(manifest.SchemaVersion) {
+		return fmt.Errorf("schema_version must be %s", BundleSchemaVersionV01)
 	}
-	if manifest.Target != "desktop" {
-		return fmt.Errorf("target must be desktop")
+
+	// Validate bundle target using domain decision helper
+	if !IsValidBundleTarget(manifest.Target) {
+		return fmt.Errorf("target must be %s", BundleTargetDesktop)
 	}
+
 	if manifest.App.Name == "" || manifest.App.Version == "" {
 		return fmt.Errorf("app.name and app.version are required")
 	}
-	if manifest.IPC.Mode != "loopback-http" || manifest.IPC.Host == "" || manifest.IPC.Port == 0 || manifest.IPC.AuthTokenPath == "" {
-		return fmt.Errorf("ipc must define loopback-http host, port, and auth_token_path")
+
+	// Validate IPC mode using domain decision helper
+	if !IsValidIPCMode(manifest.IPC.Mode) || manifest.IPC.Host == "" || manifest.IPC.Port == 0 || manifest.IPC.AuthTokenPath == "" {
+		return fmt.Errorf("ipc must define %s host, port, and auth_token_path", IPCModeLoopbackHTTP)
 	}
 	if manifest.Telemetry.File == "" {
 		return fmt.Errorf("telemetry.file is required")
@@ -205,14 +211,21 @@ func validateDesktopBundleManifestBytes(data []byte) error {
 }
 
 func validateSecret(secret manifestSecret) error {
-	switch secret.Class {
-	case "", "per_install_generated", "user_prompt", "remote_fetch", "infrastructure":
-	default:
-		return fmt.Errorf("unsupported class %q", secret.Class)
+	// Validate secret classification using domain decision helper
+	if !IsValidSecretClass(secret.Class) {
+		return fmt.Errorf("unsupported class %q (valid: per_install_generated, user_prompt, remote_fetch, infrastructure)", secret.Class)
 	}
+
+	// Validate secret target is specified
 	if secret.Target.Type == "" || secret.Target.Name == "" {
 		return fmt.Errorf("target.type and target.name are required")
 	}
+
+	// Validate secret target type using domain decision helper
+	if !IsValidSecretTargetType(secret.Target.Type) {
+		return fmt.Errorf("unsupported target.type %q (valid: env, file)", secret.Target.Type)
+	}
+
 	return nil
 }
 
@@ -220,11 +233,12 @@ func validateService(svc manifestServiceEntry) error {
 	if svc.ID == "" {
 		return fmt.Errorf("id is required")
 	}
-	switch svc.Type {
-	case "ui-bundle", "api-binary", "worker", "resource":
-	default:
-		return fmt.Errorf("type %q is not supported", svc.Type)
+
+	// Validate service type using domain decision helper
+	if err := GetServiceTypeError(svc.Type); err != nil {
+		return err
 	}
+
 	if len(svc.Binaries) == 0 {
 		return fmt.Errorf("at least one platform binary is required")
 	}

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -22,14 +21,14 @@ func (s *Server) handleAnalyzeDependencies(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Resolve analyzer port
-	analyzerPort, err := resolveAnalyzerPort()
+	// Resolve analyzer URL
+	analyzerBaseURL, err := GetConfigResolver().ResolveAnalyzerURL()
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusServiceUnavailable)
 		return
 	}
 
-	analyzerURL := fmt.Sprintf("http://localhost:%s/api/v1/analyze/%s", analyzerPort, scenarioName)
+	analyzerURL := fmt.Sprintf("%s/api/v1/analyze/%s", analyzerBaseURL, scenarioName)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
@@ -40,7 +39,7 @@ func (s *Server) handleAnalyzeDependencies(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := GetHTTPClient(ctx).Do(req)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"failed to call dependency analyzer: %s"}`, err.Error()), http.StatusServiceUnavailable)
 		return
@@ -64,8 +63,8 @@ func (s *Server) handleAnalyzeDependencies(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Add circular dependency detection
-	circularDeps := detectCircularDependencies(analysisData)
+	// Add circular dependency detection (domain logic extracted to domain_dependencies.go)
+	circularDeps := DetectCircularDependencies(analysisData)
 
 	// [REQ:DM-P0-002] Return error if circular dependencies detected
 	if len(circularDeps) > 0 {
@@ -80,8 +79,8 @@ func (s *Server) handleAnalyzeDependencies(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Calculate aggregate resources
-	aggregateReqs := calculateAggregateRequirements(analysisData)
+	// Calculate aggregate resources (domain logic extracted to domain_dependencies.go)
+	aggregateReqs := CalculateAggregateRequirements(analysisData)
 
 	// Calculate fitness scores for all tiers
 	tiers := []int{1, 2, 3, 4, 5}
@@ -164,82 +163,4 @@ func (s *Server) handleScoreFitness(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
-}
-
-// detectCircularDependencies finds circular references in the dependency graph.
-func detectCircularDependencies(analysisData map[string]interface{}) []string {
-	circular := []string{}
-
-	// Extract dependencies map if it exists
-	deps, ok := analysisData["dependencies"].(map[string]interface{})
-	if !ok {
-		return circular
-	}
-
-	// Check for circular reference patterns in the dependency structure
-	visited := make(map[string]bool)
-	stack := make(map[string]bool)
-
-	var dfs func(string, []string) bool
-	dfs = func(node string, path []string) bool {
-		if stack[node] {
-			// Found a cycle - build the circular dependency path
-			cycleStart := -1
-			for i, p := range path {
-				if p == node {
-					cycleStart = i
-					break
-				}
-			}
-			if cycleStart >= 0 {
-				cyclePath := append(path[cycleStart:], node)
-				circular = append(circular, strings.Join(cyclePath, " → "))
-			}
-			return true
-		}
-
-		if visited[node] {
-			return false
-		}
-
-		visited[node] = true
-		stack[node] = true
-		path = append(path, node)
-
-		// Check if this dependency has sub-dependencies
-		if nodeDeps, ok := deps[node].(map[string]interface{}); ok {
-			if subDeps, ok := nodeDeps["dependencies"].(map[string]interface{}); ok {
-				for depName := range subDeps {
-					if dfs(depName, path) {
-						stack[node] = false
-						return true
-					}
-				}
-			}
-		}
-
-		stack[node] = false
-		return false
-	}
-
-	// Start DFS from each top-level dependency
-	for depName := range deps {
-		if !visited[depName] {
-			dfs(depName, []string{})
-		}
-	}
-
-	return circular
-}
-
-// calculateAggregateRequirements computes total resource requirements.
-func calculateAggregateRequirements(analysisData map[string]interface{}) map[string]interface{} {
-	// Placeholder for aggregate requirement calculation
-	return map[string]interface{}{
-		"memory":  "512MB",
-		"cpu":     "1 core",
-		"gpu":     "none",
-		"storage": "1GB",
-		"network": "broadband",
-	}
 }

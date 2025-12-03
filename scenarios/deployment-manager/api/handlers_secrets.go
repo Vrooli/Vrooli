@@ -1,8 +1,8 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -16,15 +16,8 @@ func (s *Server) handleIdentifySecrets(w http.ResponseWriter, r *http.Request) {
 	profileID := vars["id"]
 
 	// Get profile
-	var scenario string
-	var tier int
-	err := s.db.QueryRow(`
-		SELECT scenario, COALESCE(jsonb_array_length(tiers), 0)
-		FROM profiles
-		WHERE name = $1 OR id = $1
-	`, profileID).Scan(&scenario, &tier)
-
-	if err == sql.ErrNoRows {
+	scenario, _, err := s.profiles.GetScenarioAndTier(r.Context(), profileID)
+	if errors.Is(err, ErrProfileNotFound) {
 		http.Error(w, `{"error":"profile not found"}`, http.StatusNotFound)
 		return
 	}
@@ -60,7 +53,7 @@ func (s *Server) handleIdentifySecrets(w http.ResponseWriter, r *http.Request) {
 		"scenario":   scenario,
 		"secrets":    secrets,
 		"count":      len(secrets),
-		"timestamp":  time.Now().UTC().Format(time.RFC3339),
+		"timestamp":  GetTimeProvider().Now().UTC().Format(time.RFC3339),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -72,21 +65,14 @@ func (s *Server) handleIdentifySecrets(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGenerateSecretTemplate(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	profileID := vars["id"]
-	format := r.URL.Query().Get("format")
-	if format == "" {
-		format = "env"
+	formatStr := r.URL.Query().Get("format")
+	if formatStr == "" {
+		formatStr = "env"
 	}
 
 	// Get profile
-	var scenario string
-	var tier int
-	err := s.db.QueryRow(`
-		SELECT scenario, COALESCE(jsonb_array_length(tiers), 0)
-		FROM profiles
-		WHERE name = $1 OR id = $1
-	`, profileID).Scan(&scenario, &tier)
-
-	if err == sql.ErrNoRows {
+	scenario, tier, err := s.profiles.GetScenarioAndTier(r.Context(), profileID)
+	if errors.Is(err, ErrProfileNotFound) {
 		http.Error(w, `{"error":"profile not found"}`, http.StatusNotFound)
 		return
 	}
@@ -95,66 +81,26 @@ func (s *Server) handleGenerateSecretTemplate(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var template string
-	switch format {
-	case "env":
-		template = `# Deployment Manager Secret Template
-# Generated for profile: ` + profileID + `
-# Scenario: ` + scenario + `
-# Tier: ` + getTierName(tier) + `
-
-# Database connection string (required)
-# Example: postgresql://user:pass@localhost:5432/dbname
-DATABASE_URL=
-
-# API key for third-party services (optional)
-API_KEY=
-
-# Enable debug mode (dev-only, set to 'true' for verbose logs)
-DEBUG_MODE=false
-`
-	case "vault":
-		template = `{
-  "secrets": [
-    {
-      "path": "secret/data/deployment-manager/` + profileID + `/database",
-      "key": "DATABASE_URL",
-      "description": "PostgreSQL connection string"
-    },
-    {
-      "path": "secret/data/deployment-manager/` + profileID + `/api",
-      "key": "API_KEY",
-      "description": "Third-party API key"
-    }
-  ]
-}`
-	case "aws":
-		template = `{
-  "secrets": [
-    {
-      "arn": "arn:aws:secretsmanager:us-east-1:123456789012:secret:deployment-manager/` + profileID + `/database",
-      "key": "DATABASE_URL",
-      "description": "PostgreSQL connection string"
-    },
-    {
-      "arn": "arn:aws:secretsmanager:us-east-1:123456789012:secret:deployment-manager/` + profileID + `/api",
-      "key": "API_KEY",
-      "description": "Third-party API key"
-    }
-  ]
-}`
-	default:
-		http.Error(w, `{"error":"unsupported format (supported: env, vault, aws)"}`, http.StatusBadRequest)
+	// Generate template using domain logic (extracted to domain_templates.go)
+	format := SecretTemplateFormat(formatStr)
+	params := SecretTemplateParams{
+		ProfileID: profileID,
+		Scenario:  scenario,
+		TierName:  getTierName(tier),
+	}
+	template, err := GenerateSecretTemplate(format, params)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusBadRequest)
 		return
 	}
 
-	if format == "env" {
-		// Return plain text for .env format
+	if IsEnvFormat(format) {
+		// Return plain text for .env format wrapped in JSON
 		response := map[string]interface{}{
 			"profile_id": profileID,
-			"format":     format,
+			"format":     formatStr,
 			"template":   template,
-			"timestamp":  time.Now().UTC().Format(time.RFC3339),
+			"timestamp":  GetTimeProvider().Now().UTC().Format(time.RFC3339),
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -188,7 +134,7 @@ func (s *Server) handleValidateSecrets(w http.ResponseWriter, r *http.Request) {
 				"message": "API key not configured (optional)",
 			},
 		},
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"timestamp": GetTimeProvider().Now().UTC().Format(time.RFC3339),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -202,7 +148,7 @@ func (s *Server) handleValidateSecret(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"status":    "pass",
 		"message":   "Secret validation not yet implemented",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"timestamp": GetTimeProvider().Now().UTC().Format(time.RFC3339),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -216,7 +162,7 @@ func (s *Server) handleTestSecret(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"status":    "available",
 		"message":   "Secret testing endpoint ready",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"timestamp": GetTimeProvider().Now().UTC().Format(time.RFC3339),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -16,40 +15,17 @@ func (s *Server) handleDeploy(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	profileID := vars["profile_id"]
 
-	// [REQ:DM-P0-028] Validate profile exists before deployment
-	if profileID == "" {
-		http.Error(w, `{"error":"profile_id required"}`, http.StatusBadRequest)
-		return
-	}
-
-	// Simulate profile not found check
-	if !strings.HasPrefix(profileID, "profile-") && !strings.HasPrefix(profileID, "test-") {
-		http.Error(w, fmt.Sprintf(`{"error":"Profile '%s' not found"}`, profileID), http.StatusNotFound)
-		return
-	}
-
-	// [REQ:DM-P0-028] Validate deployment readiness (simplified)
-	validationErrors := []string{}
-
-	// Check for missing packagers (simplified example)
-	if profileID == "missing-packager-profile" {
-		validationErrors = append(validationErrors, "Required packager 'scenario-to-desktop' not found")
-	}
-
-	// If validation fails, return error
-	if len(validationErrors) > 0 {
-		response := map[string]interface{}{
-			"error":             "Deployment validation failed",
-			"validation_errors": validationErrors,
-			"remediation":       "Install required packagers or update profile configuration",
-		}
+	// [REQ:DM-P0-028] Validate profile using domain logic (extracted to domain_deployment.go)
+	validation := ValidateDeploymentProfile(profileID)
+	if !validation.Valid {
+		status, response := formatDeploymentValidationError(validation)
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(status)
 		json.NewEncoder(w).Encode(response)
 		return
 	}
 
-	deploymentID := fmt.Sprintf("deploy-%d", time.Now().Unix())
+	deploymentID := GenerateDeploymentID()
 
 	response := map[string]interface{}{
 		"deployment_id": deploymentID,
@@ -72,7 +48,7 @@ func (s *Server) handleDeploymentStatus(w http.ResponseWriter, r *http.Request) 
 	response := map[string]interface{}{
 		"id":           deploymentID,
 		"status":       "queued",
-		"started_at":   time.Now().UTC().Format(time.RFC3339),
+		"started_at":   GetTimeProvider().Now().UTC().Format(time.RFC3339),
 		"completed_at": nil,
 		"artifacts":    []string{},
 		"message":      "Deployment status tracking not yet fully implemented",

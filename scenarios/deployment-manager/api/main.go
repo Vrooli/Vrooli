@@ -18,7 +18,7 @@
 //	services_*.go        - Business logic and external service clients
 //	bundle_validation.go - Bundle manifest validation
 //	bundle_mapper.go     - Secret mapping for bundles
-//	telemetry_handlers.go- Telemetry handlers
+//	handlers_telemetry.go- Telemetry handlers
 package main
 
 import (

@@ -159,6 +159,9 @@ export function Deployments() {
                   <code className="mx-1 rounded bg-black/30 px-1 py-0.5 text-[11px] text-slate-100">~/.vrooli/deployment/telemetry/</code>
                   and surface failures below.
                 </p>
+                <p className="text-xs text-slate-400">
+                  Bundled runtimes will auto-upload when a telemetry upload URL is included in the build; use this form for manual or fallback uploads.
+                </p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="scenario">Scenario (optional)</Label>
@@ -234,7 +237,9 @@ export function Deployments() {
                 )}
                 <div className="space-y-2">
                   {telemetry?.map((entry) => {
-                    const failureTotal = Object.values(entry.failure_counts || {}).reduce((sum, val) => sum + (val || 0), 0);
+                    const failureEntries = Object.entries(entry.failure_counts || {}).filter(([, val]) => (val || 0) > 0);
+                    const failureTotal = failureEntries.reduce((sum, [, val]) => sum + (val || 0), 0);
+                    const recentEvents = entry.recent_events || [];
                     return (
                       <div key={entry.path} className="rounded border border-slate-700 bg-black/20 p-3 space-y-1">
                         <div className="flex items-start justify-between gap-3">
@@ -276,6 +281,42 @@ export function Deployments() {
                                 </div>
                               </div>
                             ))}
+                          </div>
+                        )}
+                        {failureEntries.length > 0 && (
+                          <div className="rounded border border-red-500/20 bg-red-500/5 p-2 text-[11px] text-red-100 space-y-1">
+                            <p className="font-semibold">Failure breakdown</p>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              {failureEntries.map(([event, count]) => (
+                                <div key={event} className="rounded border border-red-500/20 bg-black/20 p-2 flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="destructive" className="uppercase tracking-wide">{event}</Badge>
+                                    <span className="text-sm font-semibold">{count}</span>
+                                  </div>
+                                  <span className="text-[11px] text-slate-300">Bundled runtime telemetry</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {recentEvents.length > 0 && (
+                          <div className="rounded border border-white/10 bg-white/5 p-2 text-[11px] text-slate-200 space-y-1">
+                            <p className="font-semibold">Recent events</p>
+                            <div className="space-y-1">
+                              {recentEvents.map((evt, idx) => (
+                                <div key={`${entry.path}-${idx}`} className="rounded border border-slate-700 bg-black/20 p-2">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[12px] font-semibold uppercase tracking-wide">{evt.event || "unknown"}</span>
+                                    <span className="text-[11px] text-slate-400">{evt.timestamp || "unknown time"}</span>
+                                  </div>
+                                  {evt.details && (
+                                    <pre className="mt-1 whitespace-pre-wrap break-words rounded bg-black/40 p-2 text-[10px] text-slate-100">
+                                      {JSON.stringify(evt.details, null, 2)}
+                                    </pre>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
