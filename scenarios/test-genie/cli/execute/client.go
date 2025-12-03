@@ -16,18 +16,20 @@ import (
 	"test-genie/cli/internal/phases"
 )
 
+// Note: os import is still needed for TEST_GENIE_EXECUTION_TIMEOUT env var check
+
 // Default timeout for test execution (15 minutes to handle long test suites)
 const defaultExecutionTimeout = 15 * time.Minute
 
 // Client provides API access to execution endpoints.
 type Client struct {
 	api             *cliutil.APIClient
+	httpClient      *cliutil.HTTPClient
 	executionClient *http.Client
-	baseURL         string
 }
 
 // NewClient creates a new execution client.
-func NewClient(api *cliutil.APIClient) *Client {
+func NewClient(api *cliutil.APIClient, httpClient *cliutil.HTTPClient) *Client {
 	timeout := defaultExecutionTimeout
 	// Allow override via environment variable
 	if envTimeout := os.Getenv("TEST_GENIE_EXECUTION_TIMEOUT"); envTimeout != "" {
@@ -37,6 +39,7 @@ func NewClient(api *cliutil.APIClient) *Client {
 	}
 	return &Client{
 		api:             api,
+		httpClient:      httpClient,
 		executionClient: &http.Client{Timeout: timeout},
 	}
 }
@@ -103,20 +106,13 @@ func (c *Client) ListPhases() ([]phases.Descriptor, error) {
 	return payload.Items, nil
 }
 
-// resolveBaseURL gets the base URL from environment or the api client
+// resolveBaseURL gets the base URL from the configured HTTP client.
+// The HTTP client is initialized by cli-core with proper port detection via vrooli.
 func (c *Client) resolveBaseURL() string {
-	// Check common environment variables
-	for _, envVar := range []string{"TEST_GENIE_API_BASE", "TEST_GENIE_API_URL"} {
-		if val := os.Getenv(envVar); val != "" {
-			return val
-		}
+	if c.httpClient != nil {
+		return c.httpClient.BaseURL()
 	}
-	// Try to detect from port registry
-	if port := os.Getenv("TEST_GENIE_API_PORT"); port != "" {
-		return "http://localhost:" + port
-	}
-	// Fallback to default port
-	return "http://localhost:17480"
+	return ""
 }
 
 // extractErrorMessage pulls an error message from a JSON response

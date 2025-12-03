@@ -55,6 +55,7 @@ type suiteRequestQueue interface {
 
 type suiteExecutor interface {
 	Execute(ctx context.Context, input execution.SuiteExecutionInput) (*orchestrator.SuiteExecutionResult, error)
+	ExecuteWithEvents(ctx context.Context, input execution.SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error)
 }
 
 type scenarioDirectory interface {

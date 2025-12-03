@@ -135,11 +135,54 @@ func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request
 		}
 	}()
 
-	// Execute the suite
+	// Execute the suite with real-time event streaming
 	startTime := time.Now()
-	result, err := s.executionSvc.Execute(ctx, execution.SuiteExecutionInput{
+	result, err := s.executionSvc.ExecuteWithEvents(ctx, execution.SuiteExecutionInput{
 		Request:        execRequest,
 		SuiteRequestID: suiteRequestID,
+	}, func(event orchestrator.ExecutionEvent) {
+		// Convert orchestrator events to SSE events
+		switch event.Type {
+		case orchestrator.EventPhaseStart:
+			s.writeSSE(w, flusher, SSEEvent{
+				Event: SSEEventPhaseStart,
+				Data: PhaseStartEvent{
+					Phase:     event.Phase,
+					Index:     event.PhaseIndex,
+					Total:     event.PhaseTotal,
+					Timestamp: event.Timestamp.Format(time.RFC3339),
+				},
+			})
+		case orchestrator.EventPhaseEnd:
+			s.writeSSE(w, flusher, SSEEvent{
+				Event: SSEEventPhaseEnd,
+				Data: PhaseEndEvent{
+					Phase:    event.Phase,
+					Status:   event.Status,
+					Duration: event.DurationSeconds,
+					Error:    event.Error,
+				},
+			})
+		case orchestrator.EventObservation:
+			s.writeSSE(w, flusher, SSEEvent{
+				Event: SSEEventObservation,
+				Data: map[string]interface{}{
+					"phase":     event.Phase,
+					"message":   event.Message,
+					"timestamp": event.Timestamp.Format(time.RFC3339),
+				},
+			})
+		case orchestrator.EventProgress:
+			s.writeSSE(w, flusher, SSEEvent{
+				Event: SSEEventProgress,
+				Data: ProgressEvent{
+					Phase:   event.Phase,
+					Message: event.Message,
+				},
+			})
+		case orchestrator.EventComplete:
+			// Complete event is handled after the function returns
+		}
 	})
 
 	// Stop heartbeat
@@ -149,23 +192,6 @@ func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		s.writeSSEError(w, flusher, fmt.Sprintf("execution failed: %v", err))
 		return
-	}
-
-	// Send phase results as events
-	for idx, phase := range result.Phases {
-		s.writeSSE(w, flusher, SSEEvent{
-			Event: SSEEventPhaseEnd,
-			Data: PhaseEndEvent{
-				Phase:    phase.Name,
-				Status:   phase.Status,
-				Duration: phase.DurationSeconds,
-				Error:    phase.Error,
-			},
-		})
-		// Small delay between phase events for readability
-		if idx < len(result.Phases)-1 {
-			time.Sleep(50 * time.Millisecond)
-		}
 	}
 
 	// Send completion event with full result

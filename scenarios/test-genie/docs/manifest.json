@@ -1,41 +1,85 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "title": "Test Genie Documentation",
+  "description": "Comprehensive testing documentation for Vrooli scenarios and resources",
   "defaultDocument": "QUICKSTART.md",
   "sections": [
     {
       "id": "getting-started",
       "title": "Getting Started",
+      "icon": "rocket",
       "documents": [
-        { "path": "QUICKSTART.md", "title": "Quick Start" }
+        { "path": "QUICKSTART.md", "title": "Quick Start", "description": "Get up and running with Test Genie" }
       ]
     },
     {
-      "id": "concepts",
-      "title": "Concepts",
+      "id": "guides",
+      "title": "Guides",
+      "icon": "book",
+      "description": "In-depth guides for testing workflows",
       "documents": [
-        { "path": "synchronous-execution-guide.md", "title": "Synchronous Execution" },
-        { "path": "sync-execution-cheatsheet.md", "title": "Execution Cheatsheet" }
+        { "path": "guides/phased-testing.md", "title": "Phased Testing", "description": "Understanding the 6-phase testing architecture" },
+        { "path": "guides/test-generation.md", "title": "Test Generation", "description": "AI-powered test generation with Test Genie" },
+        { "path": "guides/requirements-sync.md", "title": "Requirements Sync", "description": "Automatic requirement tracking from tests" },
+        { "path": "guides/scenario-unit-testing.md", "title": "Scenario Unit Testing", "description": "Unit testing for Go, Node.js, Python scenarios" },
+        { "path": "guides/resource-unit-testing.md", "title": "Resource Unit Testing", "description": "Testing Vrooli resources" },
+        { "path": "guides/cli-testing.md", "title": "CLI Testing", "description": "BATS testing for command-line tools" },
+        { "path": "guides/ui-testability.md", "title": "Writing Testable UIs", "description": "Design UIs for browser automation" },
+        { "path": "guides/vault-testing.md", "title": "Vault Testing", "description": "Multi-phase lifecycle validation" },
+        { "path": "guides/sync-execution.md", "title": "Synchronous Execution", "description": "Blocking test execution for agents" },
+        { "path": "guides/test-genie-integration.md", "title": "Test Genie Integration", "description": "Integrating Test Genie with your workflow" }
       ]
     },
     {
       "id": "reference",
       "title": "Reference",
+      "icon": "code",
+      "description": "Technical reference documentation",
       "documents": [
-        { "path": "RESEARCH.md", "title": "Research" },
-        { "path": "SEAMS.md", "title": "Seams" },
-        { "path": "requirements-sync.md", "title": "Requirements Sync" }
+        { "path": "reference/api-endpoints.md", "title": "API Reference", "description": "REST API endpoint documentation" },
+        { "path": "reference/cli-commands.md", "title": "CLI Commands", "description": "test-genie CLI reference" },
+        { "path": "reference/presets.md", "title": "Test Presets", "description": "Quick, Smoke, Comprehensive presets" },
+        { "path": "reference/phase-catalog.md", "title": "Phase Catalog", "description": "Detailed phase definitions" },
+        { "path": "reference/test-runners.md", "title": "Test Runners", "description": "Language-specific test runner APIs" },
+        { "path": "reference/sync-execution-cheatsheet.md", "title": "Sync Execution Cheatsheet", "description": "Quick reference for sync API" }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "description": "Architecture and design concepts",
+      "documents": [
+        { "path": "concepts/architecture.md", "title": "Architecture", "description": "Go orchestrator design" }
+      ]
+    },
+    {
+      "id": "standard",
+      "title": "Project Status",
+      "icon": "clipboard",
+      "description": "Standard scenario documentation",
+      "documents": [
+        { "path": "PROGRESS.md", "title": "Progress Log", "description": "Development progress tracking" },
+        { "path": "PROBLEMS.md", "title": "Known Issues", "description": "Current issues and blockers" },
+        { "path": "SEAMS.md", "title": "Seams", "description": "Integration points and boundaries" },
+        { "path": "RESEARCH.md", "title": "Research", "description": "Research notes and findings" }
       ]
     },
     {
       "id": "internal",
       "title": "Internal",
+      "icon": "lock",
       "visibility": "developers-only",
+      "description": "Developer-only documentation",
       "documents": [
-        { "path": "PROBLEMS.md", "title": "Known Issues" },
-        { "path": "PROGRESS.md", "title": "Progress Log" },
-        { "path": "REQUIREMENTS_SYNC_PLAN.md", "title": "Requirements Sync Plan" }
+        { "path": "internal/requirements-sync-plan.md", "title": "Requirements Sync Plan", "description": "Detailed Go implementation design" },
+        { "path": "internal/go-migration.md", "title": "Go Migration", "description": "Bash to Go migration guide" }
       ]
     }
-  ]
+  ],
+  "navigation": {
+    "primary": ["getting-started", "guides", "reference"],
+    "secondary": ["concepts", "standard"],
+    "hidden": ["internal"]
+  }
 }

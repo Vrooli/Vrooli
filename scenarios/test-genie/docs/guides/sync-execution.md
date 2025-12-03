@@ -431,7 +431,18 @@ curl -X POST http://localhost:17480/api/v1/test-suite/{suite_id}/execute-sync \
   -d '{}' | jq '.summary'
 ```
 
-For more information, see:
-- [Test Genie API Documentation](../README.md)
-- [Async Execution Guide](./async-execution-guide.md)
-- [PRD](../PRD.md)
+## See Also
+
+### Related Guides
+- [Phased Testing](phased-testing.md) - 6-phase testing architecture
+- [Requirements Sync](requirements-sync.md) - Automatic requirement tracking
+- [Test Generation](test-generation.md) - AI-powered test creation
+
+### Reference
+- [API Endpoints](../reference/api-endpoints.md) - Complete REST API reference
+- [Sync Execution Cheatsheet](../reference/sync-execution-cheatsheet.md) - Quick reference
+- [CLI Commands](../reference/cli-commands.md) - CLI reference
+- [Presets](../reference/presets.md) - Test preset configurations
+
+### Concepts
+- [Architecture](../concepts/architecture.md) - Go orchestrator design

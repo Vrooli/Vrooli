@@ -24,6 +24,7 @@ type Args struct {
 	RequestID   string
 	FailFast    bool
 	Stream      bool
+	NoStream    bool // Explicitly disable streaming (use spinner instead)
 	JSON        bool
 	ExtraPhases []string
 }

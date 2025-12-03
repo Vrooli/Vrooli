@@ -40,6 +40,9 @@ func NewStaleChecker(appName, buildFingerprint, buildTimestamp, buildSourceRoot 
 	}
 }
 
+// rebuildLoopEnvVar is set after a rebuild to detect infinite loops
+const rebuildLoopEnvVar = "CLI_CORE_REBUILD_FINGERPRINT"
+
 // CheckAndMaybeRebuild returns true when the process was restarted after a rebuild.
 func (c *StaleChecker) CheckAndMaybeRebuild() bool {
 	if c.BuildFingerprint == "" || c.BuildFingerprint == "unknown" {
@@ -62,6 +65,15 @@ func (c *StaleChecker) CheckAndMaybeRebuild() bool {
 	}
 
 	if fingerprint == c.BuildFingerprint {
+		return false
+	}
+
+	// Detect infinite rebuild loops: if we already rebuilt for this fingerprint
+	// but still have a mismatch, something is wrong - don't rebuild again
+	if prevFingerprint := os.Getenv(rebuildLoopEnvVar); prevFingerprint == fingerprint {
+		c.log("Warning: %s CLI rebuild loop detected (fingerprint %s). Skipping auto-rebuild.\n", c.appLabel(), fingerprint)
+		c.log("  This usually means the binary name doesn't match between the stale checker and installer.\n")
+		c.log("  Build fingerprint: %s, Source fingerprint: %s\n", c.BuildFingerprint, fingerprint)
 		return false
 	}
 
@@ -88,9 +100,17 @@ func (c *StaleChecker) autoRebuild(srcRoot, currentFingerprint string) bool {
 		return false
 	}
 
+	// Pass the binary name to the installer so it uses the same skip file
+	// as the stale checker when computing the fingerprint. Without this,
+	// the installer would use the module directory name (e.g., "cli") while
+	// the stale checker uses the executable name (e.g., "test-genie"),
+	// causing different fingerprints and an infinite rebuild loop.
+	binaryName := filepath.Base(executable)
+
 	cmd := exec.Command("go", "run", "./cmd/cli-installer",
 		"--module", srcRoot,
 		"--output", executable,
+		"--name", binaryName,
 		"--force", "true",
 	)
 	cmd.Dir = filepath.Join(repoRoot, c.installerModule())
@@ -105,7 +125,7 @@ func (c *StaleChecker) autoRebuild(srcRoot, currentFingerprint string) bool {
 	}
 
 	c.log("%s CLI rebuilt from current sources (fingerprint %s); restarting command...\n", c.appLabel(), currentFingerprint)
-	if err := c.reexec()(executable, c.ReexecArgs); err != nil {
+	if err := c.reexec()(executable, c.ReexecArgs, currentFingerprint); err != nil {
 		c.log("Warning: unable to restart CLI after rebuild: %v\n", err)
 	}
 	return true
@@ -156,13 +176,17 @@ func (c *StaleChecker) log(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, args...)
 }
 
-func (c *StaleChecker) reexec() func(string, []string) error {
+func (c *StaleChecker) reexec() func(string, []string, string) error {
 	if c.Reexec != nil {
-		return c.Reexec
+		// Wrap legacy Reexec that doesn't take fingerprint
+		return func(executable string, args []string, fingerprint string) error {
+			return c.Reexec(executable, args)
+		}
 	}
-	return func(executable string, args []string) error {
+	return func(executable string, args []string, fingerprint string) error {
 		cmd := exec.Command(executable, args...)
-		cmd.Env = os.Environ()
+		// Set the rebuild fingerprint env var to detect loops
+		cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", rebuildLoopEnvVar, fingerprint))
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin

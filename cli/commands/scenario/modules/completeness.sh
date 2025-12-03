@@ -167,7 +167,14 @@ HELP
     fi
 
     # Use scenario-completeness-scoring service
-    local scs_cli="${VROOLI_ROOT:-$HOME/Vrooli}/scenarios/scenario-completeness-scoring/cli/scenario-completeness-scoring"
+    local scs_source_root="${VROOLI_ROOT:-$HOME/Vrooli}/scenarios/scenario-completeness-scoring/cli"
+    local scs_cli
+
+    # Prefer installed binary on PATH, fall back to local build path
+    scs_cli="$(command -v scenario-completeness-scoring 2>/dev/null || true)"
+    if [[ -z "$scs_cli" ]]; then
+        scs_cli="${scs_source_root}/scenario-completeness-scoring"
+    fi
 
     if [[ ! -x "$scs_cli" ]]; then
         log::error "scenario-completeness-scoring CLI not found or not executable"
@@ -194,7 +201,7 @@ HELP
         fi
     done
 
-    if ! "$scs_cli" "${scs_args[@]}"; then
+    if ! SCENARIO_COMPLETENESS_SCORING_CLI_SOURCE_ROOT="$scs_source_root" "$scs_cli" "${scs_args[@]}"; then
         log::error "Completeness calculation failed for $scenario_name"
         return 1
     fi

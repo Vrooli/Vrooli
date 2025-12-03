@@ -63,7 +63,7 @@ func NewApp() (*App, error) {
 		core:           core,
 		statusClient:   status.NewClient(core.APIClient),
 		generateClient: generate.NewClient(core.APIClient),
-		executeClient:  execute.NewClient(core.APIClient),
+		executeClient:  execute.NewClient(core.APIClient, core.HTTPClient),
 		runlocalClient: runlocal.NewClient(core.APIClient),
 	}
 	app.core.SetCommands(app.registerCommands())

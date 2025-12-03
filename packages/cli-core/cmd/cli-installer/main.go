@@ -61,7 +61,12 @@ func run() error {
 		return fmt.Errorf("Go toolchain is required: %w", err)
 	}
 
-	fingerprint, err := buildinfo.ComputeFingerprint(modulePath)
+	// Skip the binary name when computing fingerprint (matches stale checker behavior)
+	binaryName := *name
+	if binaryName == "" {
+		binaryName = filepath.Base(modulePath)
+	}
+	fingerprint, err := buildinfo.ComputeFingerprint(modulePath, binaryName)
 	if err != nil {
 		return fmt.Errorf("compute fingerprint: %w", err)
 	}

@@ -65,6 +65,8 @@ func ensureExecutable(path string) error {
 	return nil
 }
 
+// logPhaseStep writes a structured step message to the log.
+// Uses consistent formatting that can be parsed for observation streaming.
 func logPhaseStep(w io.Writer, format string, args ...interface{}) {
 	if w == nil {
 		return
@@ -72,11 +74,41 @@ func logPhaseStep(w io.Writer, format string, args ...interface{}) {
 	fmt.Fprintf(w, format+"\n", args...)
 }
 
+// logPhaseSuccess writes a success message with a consistent marker.
+func logPhaseSuccess(w io.Writer, format string, args ...interface{}) {
+	if w == nil {
+		return
+	}
+	msg := fmt.Sprintf(format, args...)
+	fmt.Fprintf(w, "[SUCCESS] ✅ %s\n", msg)
+}
+
+// logPhaseInfo writes an info/progress message with a consistent marker.
+func logPhaseInfo(w io.Writer, format string, args ...interface{}) {
+	if w == nil {
+		return
+	}
+	msg := fmt.Sprintf(format, args...)
+	fmt.Fprintf(w, "🔍 %s\n", msg)
+}
+
+// logPhaseWarn writes a warning message with a structured marker.
+// The format includes the phase name and warning type for easy parsing.
 func logPhaseWarn(w io.Writer, format string, args ...interface{}) {
 	if w == nil {
 		return
 	}
-	fmt.Fprintf(w, "WARN: "+format+"\n", args...)
+	msg := fmt.Sprintf(format, args...)
+	fmt.Fprintf(w, "[WARNING] ⚠️ %s\n", msg)
+}
+
+// logPhaseError writes an error message with a structured marker.
+func logPhaseError(w io.Writer, format string, args ...interface{}) {
+	if w == nil {
+		return
+	}
+	msg := fmt.Sprintf(format, args...)
+	fmt.Fprintf(w, "[ERROR] ❌ %s\n", msg)
 }
 
 func runCommand(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {

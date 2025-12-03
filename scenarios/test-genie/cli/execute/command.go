@@ -61,15 +61,22 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		pr.PrintPreExecution(progressPhases)
 	}
 
+	// Determine streaming mode:
+	// - Default to streaming for interactive TTY (better UX with live output)
+	// - Use spinner for non-TTY (CI/piped output)
+	// - Respect explicit --stream or --no-stream flags
+	useStreaming := parsed.Stream
+	if !parsed.NoStream && !parsed.JSON && isInteractiveTTY() {
+		useStreaming = true
+	}
+
 	// Choose execution mode: SSE streaming vs regular
 	var resp Response
 	var raw []byte
 
-	if parsed.Stream && !parsed.JSON {
+	if useStreaming && !parsed.JSON {
 		// SSE streaming mode: real-time output as phases complete
-		fmt.Fprintln(os.Stderr, "🔴 Live streaming enabled - receiving real-time updates...")
-		fmt.Fprintln(os.Stderr)
-
+		// This is the default for interactive terminals
 		var err error
 		resp, err = client.RunWithSSE(req, pr, progressPhases)
 		if err != nil {
@@ -81,6 +88,7 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		pr.PrintResults(resp)
 	} else {
 		// Standard execution mode with progress indicator
+		// Used for CI, piped output, or when --no-stream is specified
 		var stopProgress func()
 		var tailer *LogTailer
 		if !parsed.JSON {
@@ -118,10 +126,21 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 	return fmt.Errorf("suite execution completed with failures")
 }
 
+// isInteractiveTTY checks if stdout is connected to an interactive terminal.
+// Returns true for interactive shells, false for piped output or CI environments.
+func isInteractiveTTY() bool {
+	fi, err := os.Stdout.Stat()
+	if err != nil {
+		return false
+	}
+	// Check if stdout is a character device (terminal)
+	return (fi.Mode() & os.ModeCharDevice) != 0
+}
+
 // ParseArgs parses command line arguments for the execute command.
 func ParseArgs(args []string) (Args, error) {
 	if len(args) == 0 {
-		return Args{}, usageError("usage: execute <scenario> [phases...] [--preset quick] [--skip performance] [--request-id id] [--fail-fast] [--stream] [--json]")
+		return Args{}, usageError("usage: execute <scenario> [phases...] [--preset quick] [--skip performance] [--request-id id] [--fail-fast] [--no-stream] [--json]")
 	}
 	out := Args{Scenario: args[0]}
 	fs := flag.NewFlagSet("execute", flag.ContinueOnError)
@@ -130,7 +149,8 @@ func ParseArgs(args []string) (Args, error) {
 	fs.StringVar(&out.SkipCSV, "skip", "", "Comma-separated phases to skip")
 	fs.StringVar(&out.RequestID, "request-id", "", "Link to suite request")
 	fs.BoolVar(&out.FailFast, "fail-fast", false, "Stop on first failure")
-	fs.BoolVar(&out.Stream, "stream", false, "Stream live phase logs while the run executes")
+	fs.BoolVar(&out.Stream, "stream", false, "Force streaming mode (default for TTY)")
+	fs.BoolVar(&out.NoStream, "no-stream", false, "Disable streaming, use progress spinner instead")
 	jsonOutput := cliutil.JSONFlag(fs)
 	fs.SetOutput(flag.CommandLine.Output())
 	if err := fs.Parse(args[1:]); err != nil {

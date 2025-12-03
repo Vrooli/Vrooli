@@ -49,8 +49,11 @@ func runStructurePhase(ctx context.Context, env workspace.Environment, logWriter
 		return RunReport{Err: err, FailureClassification: FailureClassSystem}
 	}
 
+	logPhaseInfo(logWriter, "Starting structure validation for %s", env.ScenarioName)
+
 	expectations, err := loadStructureExpectations(env.ScenarioDir)
 	if err != nil {
+		logPhaseError(logWriter, "Failed to load structure expectations: %v", err)
 		return RunReport{
 			Err:                   err,
 			FailureClassification: FailureClassMisconfiguration,
@@ -61,24 +64,32 @@ func runStructurePhase(ctx context.Context, env workspace.Environment, logWriter
 	requiredDirs, requiredFiles := resolveStructureRequirements(env.ScenarioName, expectations)
 	var observations []string
 
+	logPhaseInfo(logWriter, "Checking required directories...")
 	if report := validateStructureDirs(env.ScenarioDir, requiredDirs, logWriter); report.Err != nil {
 		return report
 	}
+	logPhaseSuccess(logWriter, "All required directories present (%d)", len(requiredDirs))
 	observations = append(observations, fmt.Sprintf("directories validated: %d", len(requiredDirs)))
 
+	logPhaseInfo(logWriter, "Checking required files...")
 	if report := validateStructureFiles(env.ScenarioDir, requiredFiles, logWriter); report.Err != nil {
 		return report
 	}
+	logPhaseSuccess(logWriter, "All required files present (%d)", len(requiredFiles))
 	observations = append(observations, fmt.Sprintf("files validated: %d", len(requiredFiles)))
 
+	logPhaseInfo(logWriter, "Validating service manifest...")
 	manifestPath := filepath.Join(env.ScenarioDir, ".vrooli", "service.json")
 	if result := validateServiceManifest(manifestPath, env.ScenarioName, logWriter, expectations); result.Err != nil {
 		return result
 	}
+	logPhaseSuccess(logWriter, "service.json validated")
 
 	if expectations.ValidateJSONFiles {
+		logPhaseInfo(logWriter, "Validating JSON files...")
 		jsonCount, invalidFiles, err := scanScenarioJSON(env.ScenarioDir)
 		if err != nil {
+			logPhaseError(logWriter, "JSON scan failed: %v", err)
 			return RunReport{
 				Err:                   err,
 				FailureClassification: FailureClassSystem,
@@ -87,6 +98,7 @@ func runStructurePhase(ctx context.Context, env workspace.Environment, logWriter
 			}
 		}
 		if len(invalidFiles) > 0 {
+			logPhaseError(logWriter, "Invalid JSON files found: %s", strings.Join(invalidFiles, ", "))
 			return RunReport{
 				Err:                   fmt.Errorf("invalid JSON detected: %s", strings.Join(invalidFiles, ", ")),
 				FailureClassification: FailureClassMisconfiguration,
@@ -94,18 +106,22 @@ func runStructurePhase(ctx context.Context, env workspace.Environment, logWriter
 				Observations:          observations,
 			}
 		}
-		logPhaseStep(logWriter, "validated %d JSON files", jsonCount)
+		logPhaseSuccess(logWriter, "All JSON files valid (%d)", jsonCount)
 		observations = append(observations, fmt.Sprintf("json files validated: %d", jsonCount))
 	}
 
+	logPhaseInfo(logWriter, "Checking UI smoke telemetry...")
 	if uiObservation, failure := enforceUISmokeTelemetry(ctx, env, logWriter); failure != nil {
 		failure.Observations = append(failure.Observations, observations...)
 		return *failure
 	} else if uiObservation != "" {
+		logPhaseSuccess(logWriter, "%s", uiObservation)
 		observations = append(observations, uiObservation)
+	} else {
+		logPhaseStep(logWriter, "UI smoke telemetry not configured (skipped)")
 	}
 
-	logPhaseStep(logWriter, "structure validation complete")
+	logPhaseSuccess(logWriter, "Structure validation complete")
 	return RunReport{Observations: observations}
 }
 
@@ -113,13 +129,14 @@ func validateStructureDirs(scenarioDir string, required []string, logWriter io.W
 	for _, rel := range required {
 		abs := resolveStructurePath(scenarioDir, rel)
 		if err := ensureDir(abs); err != nil {
+			logPhaseError(logWriter, "Missing directory: %s", rel)
 			return RunReport{
 				Err:                   err,
 				FailureClassification: FailureClassMisconfiguration,
 				Remediation:           fmt.Sprintf("Create the '%s' directory to match the scenario template.", rel),
 			}
 		}
-		logPhaseStep(logWriter, "directory verified: %s", abs)
+		logPhaseStep(logWriter, "  ✓ %s", rel)
 	}
 	return RunReport{}
 }
@@ -128,35 +145,42 @@ func validateStructureFiles(scenarioDir string, required []string, logWriter io.
 	for _, rel := range required {
 		abs := resolveStructurePath(scenarioDir, rel)
 		if err := ensureFile(abs); err != nil {
+			logPhaseError(logWriter, "Missing file: %s", rel)
 			return RunReport{
 				Err:                   err,
 				FailureClassification: FailureClassMisconfiguration,
 				Remediation:           fmt.Sprintf("Restore the file '%s' so structure validation can pass.", rel),
 			}
 		}
-		logPhaseStep(logWriter, "file verified: %s", abs)
+		logPhaseStep(logWriter, "  ✓ %s", rel)
 	}
 	return RunReport{}
 }
 
 func validateServiceManifest(manifestPath, scenarioName string, logWriter io.Writer, expectations *structureExpectations) RunReport {
 	if err := ensureFile(manifestPath); err != nil {
+		logPhaseError(logWriter, "service.json not found")
 		return RunReport{
 			Err:                   err,
 			FailureClassification: FailureClassMisconfiguration,
 			Remediation:           "Run `vrooli scenario init` or restore .vrooli/service.json.",
 		}
 	}
-	logPhaseStep(logWriter, "manifest located: %s", manifestPath)
+	logPhaseStep(logWriter, "  ✓ service.json exists")
+
 	manifest, err := workspace.LoadServiceManifest(manifestPath)
 	if err != nil {
+		logPhaseError(logWriter, "Failed to parse service.json: %v", err)
 		return RunReport{
 			Err:                   err,
 			FailureClassification: FailureClassMisconfiguration,
 			Remediation:           fmt.Sprintf("Fix JSON syntax in %s so the manifest can be parsed.", manifestPath),
 		}
 	}
+	logPhaseStep(logWriter, "  ✓ service.json valid JSON")
+
 	if expectations.ValidateServiceName && manifest.Service.Name != scenarioName {
+		logPhaseError(logWriter, "service.name '%s' does not match scenario '%s'", manifest.Service.Name, scenarioName)
 		return RunReport{
 			Err:                   fmt.Errorf("service.name '%s' does not match scenario '%s'", manifest.Service.Name, scenarioName),
 			FailureClassification: FailureClassMisconfiguration,
@@ -164,20 +188,25 @@ func validateServiceManifest(manifestPath, scenarioName string, logWriter io.Wri
 		}
 	}
 	if manifest.Service.Name == "" {
+		logPhaseError(logWriter, "service.name is required")
 		return RunReport{
 			Err:                   fmt.Errorf("service.name is required in %s", manifestPath),
 			FailureClassification: FailureClassMisconfiguration,
 			Remediation:           "Set service.name to the scenario folder name in .vrooli/service.json.",
 		}
 	}
+	logPhaseStep(logWriter, "  ✓ service.name matches scenario")
+
 	if len(manifest.Lifecycle.Health.Checks) == 0 {
+		logPhaseError(logWriter, "No health checks defined")
 		return RunReport{
 			Err:                   fmt.Errorf("lifecycle.health.checks must define at least one entry in %s", manifestPath),
 			FailureClassification: FailureClassMisconfiguration,
 			Remediation:           "Add at least one health check entry under lifecycle.health.checks.",
 		}
 	}
-	logPhaseStep(logWriter, "manifest validated for scenario '%s'", scenarioName)
+	logPhaseStep(logWriter, "  ✓ health checks defined (%d)", len(manifest.Lifecycle.Health.Checks))
+
 	return RunReport{}
 }
 

@@ -100,6 +100,42 @@ type PhaseSummary struct {
 	ObservationCount int `json:"observationCount"`
 }
 
+// ExecutionEventType identifies the kind of streaming event.
+type ExecutionEventType string
+
+const (
+	EventPhaseStart   ExecutionEventType = "phase_start"
+	EventPhaseEnd     ExecutionEventType = "phase_end"
+	EventObservation  ExecutionEventType = "observation"
+	EventProgress     ExecutionEventType = "progress"
+	EventComplete     ExecutionEventType = "complete"
+)
+
+// ExecutionEvent represents a streaming event during suite execution.
+type ExecutionEvent struct {
+	Type      ExecutionEventType `json:"type"`
+	Timestamp time.Time          `json:"timestamp"`
+
+	// For phase_start events
+	Phase      string `json:"phase,omitempty"`
+	PhaseIndex int    `json:"phaseIndex,omitempty"`
+	PhaseTotal int    `json:"phaseTotal,omitempty"`
+
+	// For phase_end events
+	Status          string `json:"status,omitempty"`
+	DurationSeconds int    `json:"durationSeconds,omitempty"`
+	Error           string `json:"error,omitempty"`
+
+	// For observation events
+	Message string `json:"message,omitempty"`
+
+	// For complete events
+	Result *SuiteExecutionResult `json:"result,omitempty"`
+}
+
+// ExecutionEventCallback is called for each event during streaming execution.
+type ExecutionEventCallback func(event ExecutionEvent)
+
 func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 	if strings.TrimSpace(scenariosRoot) == "" {
 		return nil, fmt.Errorf("scenarios root path is required")
@@ -170,6 +206,62 @@ func (o *SuiteOrchestrator) Execute(ctx context.Context, req SuiteExecutionReque
 	return result, nil
 }
 
+// ExecuteWithEvents performs a phased test run while streaming events via callback.
+// This enables real-time progress reporting for SSE/WebSocket clients.
+func (o *SuiteOrchestrator) ExecuteWithEvents(ctx context.Context, req SuiteExecutionRequest, emit ExecutionEventCallback) (*SuiteExecutionResult, error) {
+	scenario := strings.TrimSpace(req.ScenarioName)
+	if scenario == "" {
+		return nil, shared.NewValidationError("scenarioName is required")
+	}
+
+	ws, err := workspacepkg.New(o.scenariosRoot, scenario)
+	if err != nil {
+		return nil, err
+	}
+	env := ws.Environment()
+
+	config, err := workspacepkg.LoadTestingConfig(env.ScenarioDir)
+	if err != nil {
+		return nil, err
+	}
+
+	plan, err := o.buildPhasePlan(env, config, req)
+	if err != nil {
+		return nil, err
+	}
+
+	artifactDir, err := ws.EnsureArtifactDir()
+	if err != nil {
+		return nil, err
+	}
+
+	result := &SuiteExecutionResult{
+		ScenarioName: scenario,
+		StartedAt:    time.Now().UTC(),
+		PresetUsed:   plan.PresetUsed,
+	}
+
+	phaseResults, anyFailure := o.runSelectedPhasesWithEvents(ctx, env, artifactDir, plan.Selected, req.FailFast, emit)
+
+	result.CompletedAt = time.Now().UTC()
+	result.Success = !anyFailure
+	result.Phases = phaseResults
+	result.PhaseSummary = SummarizePhases(phaseResults)
+
+	// Emit completion event
+	if emit != nil {
+		emit(ExecutionEvent{
+			Type:      EventComplete,
+			Timestamp: time.Now(),
+			Result:    result,
+		})
+	}
+
+	o.syncRequirementsIfNeeded(ctx, env, config, req, plan, phaseResults)
+
+	return result, nil
+}
+
 func (o *SuiteOrchestrator) runSelectedPhases(
 	ctx context.Context,
 	env workspacepkg.Environment,
@@ -184,6 +276,58 @@ func (o *SuiteOrchestrator) runSelectedPhases(
 	anyFailure := false
 	for _, phase := range defs {
 		phaseResult := o.runPhase(ctx, env, artifactDir, phase)
+		if phaseResult.Status != "passed" {
+			anyFailure = true
+		}
+		results = append(results, phaseResult)
+		if failFast && phaseResult.Status == "failed" {
+			break
+		}
+	}
+	return results, anyFailure
+}
+
+func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
+	ctx context.Context,
+	env workspacepkg.Environment,
+	artifactDir string,
+	defs []phases.Definition,
+	failFast bool,
+	emit ExecutionEventCallback,
+) ([]PhaseExecutionResult, bool) {
+	if len(defs) == 0 {
+		return nil, false
+	}
+	results := make([]PhaseExecutionResult, 0, len(defs))
+	anyFailure := false
+	total := len(defs)
+
+	for idx, phase := range defs {
+		// Emit phase start event
+		if emit != nil {
+			emit(ExecutionEvent{
+				Type:       EventPhaseStart,
+				Timestamp:  time.Now(),
+				Phase:      phase.Name.String(),
+				PhaseIndex: idx + 1,
+				PhaseTotal: total,
+			})
+		}
+
+		phaseResult := o.runPhaseWithEvents(ctx, env, artifactDir, phase, emit)
+
+		// Emit phase end event
+		if emit != nil {
+			emit(ExecutionEvent{
+				Type:            EventPhaseEnd,
+				Timestamp:       time.Now(),
+				Phase:           phase.Name.String(),
+				Status:          phaseResult.Status,
+				DurationSeconds: phaseResult.DurationSeconds,
+				Error:           phaseResult.Error,
+			})
+		}
+
 		if phaseResult.Status != "passed" {
 			anyFailure = true
 		}
@@ -410,6 +554,185 @@ func (o *SuiteOrchestrator) runPhase(ctx context.Context, env workspacepkg.Envir
 		Remediation:     remediation,
 		Observations:    report.Observations,
 	}
+}
+
+// runPhaseWithEvents is like runPhase but emits observation events during execution.
+func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspacepkg.Environment, artifactDir string, def phases.Definition, emit ExecutionEventCallback) PhaseExecutionResult {
+	start := time.Now()
+	logPath := filepath.Join(artifactDir, fmt.Sprintf("%s-%s.log", start.UTC().Format("20060102-150405"), def.Name.String()))
+	logFile, err := os.Create(logPath)
+	if err != nil {
+		return PhaseExecutionResult{
+			Name:            def.Name.String(),
+			Status:          "failed",
+			DurationSeconds: 0,
+			LogPath:         logPath,
+			Error:           fmt.Sprintf("failed to create log file: %v", err),
+		}
+	}
+	defer logFile.Close()
+
+	timeout := def.Timeout
+	if timeout <= 0 {
+		timeout = o.phaseTimeout
+	}
+
+	phaseCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	if env.AppRoot == "" {
+		env.AppRoot = workspacepkg.AppRootFromScenario(env.ScenarioDir)
+	}
+
+	// Create an observation-emitting writer that wraps the log file
+	var logWriter io.Writer = logFile
+	if emit != nil {
+		logWriter = &observationEmitter{
+			underlying: logFile,
+			emit:       emit,
+			phase:      def.Name.String(),
+		}
+	}
+
+	report := def.Runner(phaseCtx, env, logWriter)
+	runErr := report.Err
+	duration := int(math.Ceil(time.Since(start).Seconds()))
+	if duration < 0 {
+		duration = 0
+	}
+
+	// Emit any final observations from the report
+	if emit != nil {
+		for _, obs := range report.Observations {
+			emit(ExecutionEvent{
+				Type:      EventObservation,
+				Timestamp: time.Now(),
+				Phase:     def.Name.String(),
+				Message:   obs,
+			})
+		}
+	}
+
+	status := "passed"
+	errMsg := ""
+	classification := report.FailureClassification
+	remediation := report.Remediation
+
+	if runErr != nil {
+		status = "failed"
+		errMsg = runErr.Error()
+		if errors.Is(runErr, context.DeadlineExceeded) || errors.Is(phaseCtx.Err(), context.DeadlineExceeded) {
+			errMsg = fmt.Sprintf("phase timed out after %s", timeout)
+			classification = phases.FailureClassTimeout
+			if remediation == "" {
+				remediation = "Increase the timeout or break the phase into smaller steps."
+			}
+		}
+		if classification == "" {
+			classification = phases.FailureClassSystem
+		}
+		if remediation == "" {
+			remediation = "Refer to the phase logs to triage the failure."
+		}
+	}
+
+	relLog, relErr := filepath.Rel(o.projectRoot, logPath)
+	if relErr == nil {
+		logPath = relLog
+	}
+
+	return PhaseExecutionResult{
+		Name:            def.Name.String(),
+		Status:          status,
+		DurationSeconds: duration,
+		LogPath:         logPath,
+		Error:           errMsg,
+		Classification:  classification,
+		Remediation:     remediation,
+		Observations:    report.Observations,
+	}
+}
+
+// observationEmitter wraps an io.Writer and emits observation events for lines with markers.
+type observationEmitter struct {
+	underlying io.Writer
+	emit       ExecutionEventCallback
+	phase      string
+	buffer     []byte
+}
+
+func (e *observationEmitter) Write(p []byte) (n int, err error) {
+	// Write to underlying log
+	n, err = e.underlying.Write(p)
+	if err != nil || e.emit == nil {
+		return n, err
+	}
+
+	// Buffer and scan for complete lines with observation markers
+	e.buffer = append(e.buffer, p...)
+	for {
+		idx := -1
+		for i, b := range e.buffer {
+			if b == '\n' {
+				idx = i
+				break
+			}
+		}
+		if idx < 0 {
+			break
+		}
+
+		line := string(e.buffer[:idx])
+		e.buffer = e.buffer[idx+1:]
+
+		// Emit observation events for significant lines
+		// Look for common markers that indicate progress
+		if e.isSignificantLine(line) {
+			e.emit(ExecutionEvent{
+				Type:      EventObservation,
+				Timestamp: time.Now(),
+				Phase:     e.phase,
+				Message:   line,
+			})
+		}
+	}
+
+	return n, nil
+}
+
+// isSignificantLine determines if a log line should be emitted as an observation.
+func (e *observationEmitter) isSignificantLine(line string) bool {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" {
+		return false
+	}
+
+	// Emit lines that contain progress indicators
+	significantPrefixes := []string{
+		"✅", "❌", "⚠️", "🔍", "✓", "✗",
+		"[SUCCESS]", "[ERROR]", "[WARNING]", "[INFO]",
+		"PASS", "FAIL", "ok ", "--- FAIL", "--- PASS",
+		"validated", "verified", "checking", "running",
+	}
+	lower := strings.ToLower(trimmed)
+	for _, prefix := range significantPrefixes {
+		if strings.HasPrefix(trimmed, prefix) || strings.HasPrefix(lower, strings.ToLower(prefix)) {
+			return true
+		}
+	}
+
+	// Also emit lines with certain keywords
+	keywords := []string{
+		"passed", "failed", "error:", "success", "complete",
+		"directories validated", "files validated", "json files validated",
+	}
+	for _, kw := range keywords {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func SummarizePhases(phases []PhaseExecutionResult) PhaseSummary {
