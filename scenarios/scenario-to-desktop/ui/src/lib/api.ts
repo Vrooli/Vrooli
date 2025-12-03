@@ -1,4 +1,5 @@
 import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
+import type { ScenariosResponse } from "../components/scenario-inventory/types";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
@@ -107,6 +108,66 @@ export interface ProxyHintsResponse {
     confidence: string;
     message: string;
   }>;
+}
+
+export interface WineInstallMethod {
+  id: string;
+  name: string;
+  description: string;
+  requires_sudo: boolean;
+  steps: string[];
+  estimated_time: string;
+}
+
+export interface WineCheckResponse {
+  installed: boolean;
+  version?: string;
+  platform: string;
+  required_for: string[];
+  install_methods?: WineInstallMethod[];
+  recommended_method?: string;
+}
+
+export interface WineInstallStatus {
+  install_id: string;
+  status: string;
+  method: string;
+  started_at: string;
+  completed_at?: string;
+  log: string[];
+  error_log: string[];
+}
+
+export interface QuickGenerateRequest {
+  scenario_name: string;
+  template_type: string;
+  deployment_mode?: string;
+  proxy_url?: string;
+  bundle_manifest_path?: string;
+  auto_manage_vrooli?: boolean;
+  vrooli_binary_path?: string;
+}
+
+export interface QuickGenerateResponse {
+  build_id: string;
+  status: string;
+  output_path?: string;
+  desktop_path?: string;
+}
+
+export interface TelemetryUploadRequest {
+  scenario_name: string;
+  deployment_mode?: string;
+  source?: string;
+  events: unknown[];
+}
+
+export async function fetchScenarioDesktopStatus(): Promise<ScenariosResponse> {
+  const response = await fetch(buildUrl("/scenarios/desktop-status"));
+  if (!response.ok) {
+    throw new Error("Failed to fetch scenarios");
+  }
+  return response.json();
 }
 
 export async function fetchHealth(): Promise<HealthResponse> {
@@ -221,5 +282,96 @@ export async function fetchProxyHints(scenarioName: string): Promise<ProxyHintsR
   if (!response.ok) {
     throw new Error("Failed to load proxy hints");
   }
+  return response.json();
+}
+
+export async function quickGenerateDesktop(payload: QuickGenerateRequest): Promise<QuickGenerateResponse> {
+  const response = await fetch(buildUrl("/desktop/generate/quick"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type");
+    let errorMessage = "Failed to generate desktop app";
+
+    if (contentType?.includes("application/json")) {
+      const errorData = await response.json().catch(() => null);
+      errorMessage = errorData?.message || errorData?.error || errorMessage;
+    } else {
+      const textError = await response.text().catch(() => null);
+      errorMessage = textError || errorMessage;
+    }
+
+    if (response.status === 404) {
+      throw new Error("Scenario not found. Check that it exists in the scenarios directory.");
+    } else if (response.status === 400) {
+      throw new Error(`Invalid request: ${errorMessage}`);
+    } else if (response.status === 500) {
+      throw new Error(`Server error: ${errorMessage}. Check API logs for details.`);
+    }
+    throw new Error(`${errorMessage} (HTTP ${response.status})`);
+  }
+
+  return response.json();
+}
+
+export async function checkWineStatus(): Promise<WineCheckResponse> {
+  const response = await fetch(buildUrl("/system/wine/check"));
+  if (!response.ok) {
+    throw new Error("Failed to check Wine status");
+  }
+  return response.json();
+}
+
+export async function startWineInstall(method: string): Promise<{ install_id: string }> {
+  const response = await fetch(buildUrl("/system/wine/install"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ method })
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || "Failed to start installation");
+  }
+  return response.json();
+}
+
+export async function fetchWineInstallStatus(installId: string): Promise<WineInstallStatus> {
+  const response = await fetch(buildUrl(`/system/wine/install/status/${installId}`));
+  if (!response.ok) {
+    throw new Error("Failed to fetch install status");
+  }
+  return response.json();
+}
+
+export async function deleteDesktopBuild(scenarioName: string): Promise<{ status: string }> {
+  const response = await fetch(buildUrl(`/desktop/delete/${scenarioName}`), {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    const error = await response.text().catch(() => response.statusText);
+    throw new Error(error || "Failed to delete desktop app");
+  }
+  return response.json();
+}
+
+export async function uploadTelemetry(payload: TelemetryUploadRequest): Promise<{ output_path: string }> {
+  const response = await fetch(buildUrl("/deployment/telemetry"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      deployment_mode: "external-server",
+      source: "desktop-upload",
+      ...payload
+    })
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => response.statusText);
+    throw new Error(text || "Failed to upload telemetry");
+  }
+
   return response.json();
 }

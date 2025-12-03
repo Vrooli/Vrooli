@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import {
@@ -14,37 +13,13 @@ import {
   Info,
   ExternalLink
 } from "lucide-react";
-
-const API_BASE = resolveApiBase({ appendSuffix: true });
-const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
-
-interface WineInstallMethod {
-  id: string;
-  name: string;
-  description: string;
-  requires_sudo: boolean;
-  steps: string[];
-  estimated_time: string;
-}
-
-interface WineCheckResponse {
-  installed: boolean;
-  version?: string;
-  platform: string;
-  required_for: string[];
-  install_methods: WineInstallMethod[];
-  recommended_method?: string;
-}
-
-interface WineInstallStatus {
-  install_id: string;
-  status: string;
-  method: string;
-  started_at: string;
-  completed_at?: string;
-  log: string[];
-  error_log: string[];
-}
+import {
+  checkWineStatus,
+  fetchWineInstallStatus,
+  startWineInstall,
+  type WineCheckResponse,
+  type WineInstallStatus
+} from "../../lib/api";
 
 interface WineInstallDialogProps {
   onClose: () => void;
@@ -64,26 +39,13 @@ export function WineInstallDialog({ onClose, onInstallComplete }: WineInstallDia
   // Check Wine status
   const { data: wineCheck, isLoading: checkingWine } = useQuery<WineCheckResponse>({
     queryKey: ['wine-check'],
-    queryFn: async () => {
-      const res = await fetch(buildUrl('/system/wine/check'));
-      if (!res.ok) throw new Error('Failed to check Wine status');
-      return res.json();
-    }
+    queryFn: checkWineStatus
   });
 
   // Install Wine mutation
   const installMutation = useMutation({
     mutationFn: async (method: string) => {
-      const res = await fetch(buildUrl('/system/wine/install'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ method })
-      });
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ message: res.statusText }));
-        throw new Error(error.message || 'Failed to start installation');
-      }
-      return res.json();
+      return startWineInstall(method);
     },
     onSuccess: (data) => {
       setInstallId(data.install_id);
@@ -91,14 +53,9 @@ export function WineInstallDialog({ onClose, onInstallComplete }: WineInstallDia
   });
 
   // Poll installation status
-  const { data: installStatus } = useQuery<WineInstallStatus>({
+  const { data: installStatus } = useQuery<WineInstallStatus | null>({
     queryKey: ['wine-install-status', installId],
-    queryFn: async () => {
-      if (!installId) return null;
-      const res = await fetch(buildUrl(`/system/wine/install/status/${installId}`));
-      if (!res.ok) throw new Error('Failed to fetch install status');
-      return res.json();
-    },
+    queryFn: async () => (installId ? fetchWineInstallStatus(installId) : null),
     enabled: !!installId,
     refetchInterval: (data) => {
       // Stop polling if installation complete or failed

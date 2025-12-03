@@ -759,8 +759,8 @@ const handleSave = async () => {
 
 The desktop wrapper automatically makes the scenario installable:
 
-1. **Windows**: Generates `.exe` installer with Start Menu integration
-2. **macOS**: Creates `.dmg` with drag-to-Applications
+1. **Windows**: Generates `.msi` installer with Start Menu integration
+2. **macOS**: Creates `.pkg` installer for drag-to-Applications flow
 3. **Linux**: Builds `.AppImage` and `.deb` packages
 
 No additional code needed - electron-builder handles this based on `package.json`:

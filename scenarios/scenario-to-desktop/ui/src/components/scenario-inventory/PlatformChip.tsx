@@ -2,11 +2,8 @@ import { useState, useEffect } from "react";
 import type { PlatformBuildResult } from "../../lib/api";
 import { Button } from "../ui/button";
 import { CheckCircle, XCircle, Loader2, AlertCircle, ChevronDown, ChevronUp, Copy, Check, FileDown } from "lucide-react";
-import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { formatBytes, platformIcons, platformNames } from "./utils";
-
-const API_BASE = resolveApiBase({ appendSuffix: true });
-const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
+import { getDownloadUrl } from "../../lib/api";
 
 interface PlatformChipProps {
   platform: string;
@@ -36,8 +33,7 @@ export function PlatformChip({ platform, result, scenarioName }: PlatformChipPro
   }, [result?.status]);
 
   const handleDownload = () => {
-    const downloadUrl = buildUrl(`/desktop/download/${scenarioName}/${platform}`);
-    window.open(downloadUrl, '_blank');
+    window.open(getDownloadUrl(scenarioName, platform), '_blank');
   };
 
   const handleCopyErrors = async () => {

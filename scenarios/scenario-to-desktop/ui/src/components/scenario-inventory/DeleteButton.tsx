@@ -1,13 +1,10 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
 import { Loader2, Trash2, CheckCircle, XCircle, AlertCircle } from "lucide-react";
-
-const API_BASE = resolveApiBase({ appendSuffix: true });
-const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
+import { deleteDesktopBuild } from "../../lib/api";
 
 interface DeleteButtonProps {
   scenarioName: string;
@@ -19,16 +16,7 @@ export function DeleteButton({ scenarioName }: DeleteButtonProps) {
   const [confirmText, setConfirmText] = useState("");
 
   const deleteMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(buildUrl(`/desktop/delete/${scenarioName}`), {
-        method: 'DELETE'
-      });
-      if (!res.ok) {
-        const error = await res.text();
-        throw new Error(error || 'Failed to delete desktop app');
-      }
-      return res.json();
-    },
+    mutationFn: () => deleteDesktopBuild(scenarioName),
     onSuccess: () => {
       setShowConfirm(false);
       setConfirmText("");

@@ -3,11 +3,13 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -319,6 +321,78 @@ func TestHandleLogs(t *testing.T) {
 			t.Errorf("handleLogs() status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
 		}
 	})
+
+	t.Run("rejects log dir that is a directory", func(t *testing.T) {
+		rt := testRuntime(t, nil)
+		server := NewServer(rt, "test-token")
+
+		logDir := filepath.Join(rt.appDataDir, "logs", "api.log")
+		if err := os.MkdirAll(logDir, 0o755); err != nil {
+			t.Fatalf("failed creating directory for log dir test: %v", err)
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=api&lines=5", nil)
+		w := httptest.NewRecorder()
+
+		mux := http.NewServeMux()
+		server.RegisterHandlers(mux)
+		mux.ServeHTTP(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("handleLogs() status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		if !strings.Contains(string(body), "directory") {
+			t.Fatalf("handleLogs() unexpected body: %q", string(body))
+		}
+	})
+
+	t.Run("defaults to 200 lines when not provided", func(t *testing.T) {
+		rt := testRuntime(t, nil)
+		server := NewServer(rt, "test-token")
+
+		lines := make([]string, 0, 250)
+		for i := 1; i <= 250; i++ {
+			lines = append(lines, fmt.Sprintf("line%d", i))
+		}
+		logContent := strings.Join(lines, "\n")
+
+		logPath := filepath.Join(rt.appDataDir, "logs", "api.log")
+		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(logPath, []byte(logContent), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=api", nil)
+		w := httptest.NewRecorder()
+
+		mux := http.NewServeMux()
+		server.RegisterHandlers(mux)
+		mux.ServeHTTP(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("handleLogs() status = %d, body = %s", resp.StatusCode, string(body))
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		bodyStr := string(body)
+		if !strings.HasPrefix(bodyStr, "line51\n") {
+			t.Fatalf("handleLogs() should start from line51 when defaulting to 200 lines, got prefix %q", bodyStr[:12])
+		}
+		if !strings.Contains(bodyStr, "line250") {
+			t.Fatalf("handleLogs() missing last line, got %q", bodyStr)
+		}
+	})
 }
 
 func TestHandleShutdown(t *testing.T) {
@@ -495,6 +569,108 @@ func TestHandleSecretsPost(t *testing.T) {
 
 		if resp.StatusCode != http.StatusBadRequest {
 			t.Errorf("handleSecrets POST status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("records telemetry and blocks start when required secrets missing", func(t *testing.T) {
+		required := true
+		m := &manifest.Manifest{
+			SchemaVersion: "desktop.v0.1",
+			Target:        "desktop",
+			App:           manifest.App{Name: "test-app", Version: "1.0.0"},
+			IPC:           manifest.IPC{Host: "127.0.0.1", Port: 47710, AuthTokenRel: "runtime/auth-token"},
+			Telemetry:     manifest.Telemetry{File: "telemetry.jsonl"},
+			Secrets: []manifest.Secret{
+				{ID: "api_key", Class: "api_key", Required: &required, Target: manifest.SecretTarget{Type: "env", Name: "API_KEY"}},
+				{ID: "db_pass", Class: "password", Required: &required, Target: manifest.SecretTarget{Type: "env", Name: "DB_PASS"}},
+			},
+			Services: []manifest.Service{
+				{
+					ID:        "api",
+					Type:      "api",
+					Binaries:  map[string]manifest.Binary{"linux-x64": {Path: "bin/api"}},
+					Health:    manifest.HealthCheck{Type: "http"},
+					Readiness: manifest.ReadinessCheck{Type: "port_open"},
+					Secrets:   []string{"api_key", "db_pass"},
+				},
+			},
+		}
+		rt := testRuntime(t, m)
+		server := NewServer(rt, "test-token")
+
+		payload := `{"secrets": {"api_key": "my-secret"}}`
+		req := httptest.NewRequest(http.MethodPost, "/secrets", strings.NewReader(payload))
+		w := httptest.NewRecorder()
+
+		mux := http.NewServeMux()
+		server.RegisterHandlers(mux)
+		mux.ServeHTTP(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("handleSecrets POST status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+		}
+		if rt.startCalled {
+			t.Fatalf("handleSecrets POST should not start services when required secrets missing")
+		}
+		if len(rt.telemetryLogs) != 1 || rt.telemetryLogs[0] != "secrets_missing" {
+			t.Fatalf("telemetry logs = %v, want [secrets_missing]", rt.telemetryLogs)
+		}
+	})
+
+	t.Run("persists merged secrets", func(t *testing.T) {
+		required := true
+		m := &manifest.Manifest{
+			SchemaVersion: "desktop.v0.1",
+			Target:        "desktop",
+			App:           manifest.App{Name: "test-app", Version: "1.0.0"},
+			IPC:           manifest.IPC{Host: "127.0.0.1", Port: 47710, AuthTokenRel: "runtime/auth-token"},
+			Telemetry:     manifest.Telemetry{File: "telemetry.jsonl"},
+			Secrets: []manifest.Secret{
+				{ID: "api_key", Class: "api_key", Required: &required, Target: manifest.SecretTarget{Type: "env", Name: "API_KEY"}},
+				{ID: "db_pass", Class: "password", Required: &required, Target: manifest.SecretTarget{Type: "env", Name: "DB_PASS"}},
+			},
+			Services: []manifest.Service{
+				{
+					ID:        "api",
+					Type:      "api",
+					Binaries:  map[string]manifest.Binary{"linux-x64": {Path: "bin/api"}},
+					Health:    manifest.HealthCheck{Type: "http"},
+					Readiness: manifest.ReadinessCheck{Type: "port_open"},
+					Secrets:   []string{"api_key", "db_pass"},
+				},
+			},
+		}
+		rt := testRuntime(t, m)
+		rt.secretStore.Set(map[string]string{"api_key": "existing"})
+		server := NewServer(rt, "test-token")
+
+		payload := `{"secrets": {"db_pass": "new-pass"}}`
+		req := httptest.NewRequest(http.MethodPost, "/secrets", strings.NewReader(payload))
+		w := httptest.NewRecorder()
+
+		mux := http.NewServeMux()
+		server.RegisterHandlers(mux)
+		mux.ServeHTTP(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("handleSecrets POST status = %d, body = %s", resp.StatusCode, string(body))
+		}
+
+		loaded, err := rt.secretStore.Load()
+		if err != nil {
+			t.Fatalf("Load() after POST: %v", err)
+		}
+
+		want := map[string]string{"api_key": "existing", "db_pass": "new-pass"}
+		if !reflect.DeepEqual(want, loaded) {
+			t.Fatalf("persisted secrets mismatch: got %v, want %v", loaded, want)
 		}
 	})
 }

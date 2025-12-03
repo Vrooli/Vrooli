@@ -5,10 +5,7 @@ import { Monitor, Package, CheckCircle, XCircle, Clock, Download } from "lucide-
 import { formatBytes, platformIcons } from "./utils";
 import { Button } from "../ui/button";
 import type { ScenarioDesktopStatus, DesktopBuildArtifact } from "./types";
-import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
-
-const API_BASE = resolveApiBase({ appendSuffix: true });
-const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
+import { getDownloadUrl } from "../../lib/api";
 
 interface ScenarioCardProps {
   scenario: ScenarioDesktopStatus;
@@ -37,8 +34,7 @@ export function ScenarioCard({ scenario, onSelect, isSelected }: ScenarioCardPro
     if (!platform) return;
     const query = uniquePlatforms.includes(platform) ? platform : undefined;
     if (!query) return;
-    const downloadUrl = buildUrl(`/desktop/download/${scenario.name}/${platform}`);
-    window.open(downloadUrl, '_blank');
+    window.open(getDownloadUrl(scenario.name, platform), '_blank');
   };
 
   return (

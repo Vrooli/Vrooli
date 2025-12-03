@@ -1,13 +1,10 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Loader2, RefreshCw, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { fetchBuildStatus, quickGenerateDesktop } from "../../lib/api";
 import type { DesktopConnectionConfig } from "./types";
-
-const API_BASE = resolveApiBase({ appendSuffix: true });
-const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
 
 interface RegenerateButtonProps {
   scenarioName: string;
@@ -40,16 +37,14 @@ export function RegenerateButton({ scenarioName, connectionConfig }: RegenerateB
         payload.vrooli_binary_path = connectionConfig.vrooli_binary_path;
       }
 
-      const res = await fetch(buildUrl('/desktop/generate/quick'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      return quickGenerateDesktop(payload as {
+        scenario_name: string;
+        template_type: string;
+        proxy_url?: string;
+        deployment_mode?: string;
+        auto_manage_vrooli?: boolean;
+        vrooli_binary_path?: string;
       });
-      if (!res.ok) {
-        const error = await res.text();
-        throw new Error(error || 'Failed to regenerate desktop app');
-      }
-      return res.json();
     },
     onSuccess: (data) => {
       setBuildId(data.build_id);
@@ -63,12 +58,7 @@ export function RegenerateButton({ scenarioName, connectionConfig }: RegenerateB
   // Poll build status if we have a buildId
   const { data: buildStatus } = useQuery({
     queryKey: ['regenerate-status', buildId],
-    queryFn: async () => {
-      if (!buildId) return null;
-      const res = await fetch(buildUrl(`/desktop/status/${buildId}`));
-      if (!res.ok) throw new Error('Failed to fetch build status');
-      return res.json();
-    },
+    queryFn: async () => (buildId ? fetchBuildStatus(buildId) : null),
     enabled: !!buildId,
     refetchInterval: (data) => {
       // Stop polling when build reaches any final state

@@ -82,6 +82,9 @@ interface CommandResult {
 let telemetryFilePath: string | null = null;
 let bootstrapStateCache: LocalVrooliBootstrapState | null = null;
 let bootstrapStatePath: string | null = null;
+let telemetryStateLoaded = false;
+let lastTelemetrySignature: string | null = null;
+let runtimeAppDataRoot: string | null = null;
 const localVrooliRuntime = {
     startedByApp: false,
     vrooliBinary: "",
@@ -120,11 +123,49 @@ type RuntimeSecretsResponse = {
     secrets: RuntimeSecret[];
 };
 
+type RuntimeGPUInfo = {
+    available: boolean;
+    method?: string;
+    reason?: string;
+    requirements?: Record<string, string>;
+};
+
+type RuntimeReadyResponse = {
+    ready: boolean;
+    details?: Record<string, { ready: boolean; message?: string; reason?: string }>;
+    gpu?: RuntimeGPUInfo;
+};
+
+type RuntimePortsResponse = {
+    services?: Record<string, Record<string, number>>;
+    apiBase?: string;
+};
+
+type RuntimeTelemetryResponse = {
+    path?: string;
+    upload_url?: string;
+};
+
+type RuntimeDiagnostics = {
+    ready: RuntimeReadyResponse;
+    ports: RuntimePortsResponse;
+    logs: Record<string, string>;
+    gpu?: RuntimeGPUInfo;
+    telemetryPath?: string;
+    telemetryUploadUrl?: string;
+};
+
 type RuntimeRequestOptions = {
     expectText?: boolean;
     method?: string;
     body?: unknown;
 };
+
+function getRuntimeAppDataRoot(): string {
+    if (runtimeAppDataRoot) return runtimeAppDataRoot;
+    runtimeAppDataRoot = path.join(app.getPath("userData"), "runtime");
+    return runtimeAppDataRoot;
+}
 
 async function initializeTelemetry() {
     try {
@@ -152,6 +193,112 @@ async function recordTelemetry(event: string, details: TelemetryDetails = {}): P
         await fs.appendFile(telemetryFilePath, JSON.stringify(payload) + "\n");
     } catch (error) {
         console.warn("[Desktop App] Failed to write telemetry entry:", error);
+    }
+}
+
+async function loadTelemetryState(): Promise<void> {
+    if (telemetryStateLoaded) return;
+    try {
+        const statePath = path.join(getRuntimeAppDataRoot(), "telemetry-upload.json");
+        const raw = await fs.readFile(statePath, "utf-8");
+        const parsed = JSON.parse(raw) as { lastSignature?: string };
+        lastTelemetrySignature = parsed.lastSignature || null;
+    } catch {
+        // best-effort; missing state is fine
+    } finally {
+        telemetryStateLoaded = true;
+    }
+}
+
+async function readTelemetryEvents(filePath: string, limit = 500): Promise<Array<Record<string, unknown>>> {
+    const raw = await fs.readFile(filePath, "utf-8");
+    const lines = raw
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .slice(0, limit);
+
+    const events: Array<Record<string, unknown>> = [];
+    lines.forEach((line, index) => {
+        try {
+            const parsed = JSON.parse(line);
+            if (parsed && typeof parsed === "object") {
+                events.push(parsed as Record<string, unknown>);
+            }
+        } catch (error) {
+            throw new Error(`Telemetry line ${index + 1} is invalid JSON: ${error}`);
+        }
+    });
+    return events;
+}
+
+async function uploadTelemetryFile(filePath: string, uploadURL: string, reason: string, force = false): Promise<void> {
+    await loadTelemetryState();
+    const stats = await fs.stat(filePath);
+    if (stats.size === 0) {
+        throw new Error("Telemetry file is empty");
+    }
+    const signature = `${filePath}:${stats.mtimeMs}:${stats.size}:${uploadURL}`;
+    if (!force && signature === lastTelemetrySignature) {
+        console.log("[Desktop App] Telemetry already uploaded for this file signature");
+        return;
+    }
+
+    const events = await readTelemetryEvents(filePath);
+    if (events.length === 0) {
+        throw new Error("No telemetry events found to upload");
+    }
+
+    const payload = {
+        scenario_name: APP_CONFIG.SCENARIO_NAME || APP_CONFIG.APP_NAME,
+        deployment_mode: APP_CONFIG.DEPLOYMENT_MODE,
+        source: "desktop-runtime",
+        events,
+    };
+
+    const res = await fetch(uploadURL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || `Telemetry upload failed (${res.status})`);
+    }
+
+    lastTelemetrySignature = signature;
+    try {
+        const statePath = path.join(getRuntimeAppDataRoot(), "telemetry-upload.json");
+        await fs.mkdir(path.dirname(statePath), { recursive: true });
+        await fs.writeFile(statePath, JSON.stringify({ lastSignature: signature, reason }, null, 2));
+    } catch {
+        // best-effort persistence
+    }
+    await recordTelemetry("runtime_telemetry_uploaded", { uploadURL, events: events.length, reason });
+}
+
+async function autoUploadTelemetryIfConfigured(reason: string): Promise<boolean> {
+    if (!RUNTIME_CONTROL.ENABLED) return false;
+    let telemetryInfo: RuntimeTelemetryResponse | null = null;
+    try {
+        telemetryInfo = await runtimeRequest<RuntimeTelemetryResponse>("/telemetry");
+    } catch (error) {
+        console.warn("[Desktop App] Runtime telemetry endpoint unavailable:", error);
+        return false;
+    }
+
+    const uploadURL = RUNTIME_CONTROL.TELEMETRY_UPLOAD_URL || telemetryInfo?.upload_url || "";
+    const filePath = telemetryInfo?.path;
+    if (!uploadURL || !filePath) {
+        return false;
+    }
+
+    try {
+        await uploadTelemetryFile(filePath, uploadURL, reason);
+        return true;
+    } catch (error) {
+        console.warn("[Desktop App] Telemetry upload skipped:", error);
+        return false;
     }
 }
 
@@ -225,6 +372,39 @@ async function waitForRuntimeControl(timeoutMs: number): Promise<void> {
     throw new Error("Runtime control API did not respond before timeout");
 }
 
+async function collectRuntimeDiagnostics(): Promise<RuntimeDiagnostics> {
+    const [ready, ports, telemetryInfo] = await Promise.all([
+        runtimeRequest<RuntimeReadyResponse>("/readyz"),
+        runtimeRequest<RuntimePortsResponse>("/ports"),
+        runtimeRequest<RuntimeTelemetryResponse>("/telemetry"),
+    ]);
+
+    const logs: Record<string, string> = {};
+    const services = new Set<string>();
+    Object.keys(ready.details || {}).forEach((svc) => services.add(svc));
+    Object.keys(ports.services || {}).forEach((svc) => services.add(svc));
+
+    for (const serviceId of services) {
+        try {
+            const logData = await runtimeRequest<string>(`/logs/tail?serviceId=${encodeURIComponent(serviceId)}&lines=${RUNTIME_CONTROL.LOG_LINES}`, { expectText: true });
+            if (typeof logData === "string") {
+                logs[serviceId] = logData;
+            }
+        } catch (error) {
+            logs[serviceId] = `Failed to load logs: ${error}`;
+        }
+    }
+
+    return {
+        ready,
+        ports,
+        logs,
+        gpu: ready.gpu,
+        telemetryPath: telemetryInfo?.path,
+        telemetryUploadUrl: telemetryInfo?.upload_url,
+    };
+}
+
 async function showRuntimeDiagnostics(): Promise<void> {
     if (!RUNTIME_CONTROL.ENABLED) {
         await dialog.showMessageBox({
@@ -236,65 +416,79 @@ async function showRuntimeDiagnostics(): Promise<void> {
     }
 
     try {
-        const ready = await runtimeRequest<{ ready: boolean; details: Record<string, { ready: boolean; message?: string }> }>("/readyz");
-        const ports = await runtimeRequest<{ services: Record<string, Record<string, number>> }>("/ports");
-        const telemetryInfo = await runtimeRequest<{ path?: string; upload_url?: string }>("/telemetry");
+        const diagnostics = await collectRuntimeDiagnostics();
+        const messageLines = [
+            `Ready: ${diagnostics.ready.ready ? "yes" : "no"}`,
+            `Services: ${Object.keys(diagnostics.ports.services || diagnostics.ready.details || {}).length}`,
+        ];
+        const detailLines: string[] = [];
 
-        const serviceId = Object.keys((ports as any).services || {})[0] || Object.keys((ready as any).details || {})[0];
-        let logSnippet = "";
-        if (serviceId) {
-            const logData = await runtimeRequest<string>(`/logs/tail?serviceId=${encodeURIComponent(serviceId)}&lines=${RUNTIME_CONTROL.LOG_LINES}`, { expectText: true });
-            if (typeof logData === "string") {
-                logSnippet = logData;
+        const gpuInfo = diagnostics.gpu || diagnostics.ready.gpu;
+        if (gpuInfo) {
+            const availability = gpuInfo.available ? "available" : "not available";
+            const method = gpuInfo.method ? ` via ${gpuInfo.method}` : "";
+            const reason = gpuInfo.reason ? ` (${gpuInfo.reason})` : "";
+            detailLines.push(`GPU: ${availability}${method}${reason}`);
+            const reqEntries = Object.entries(gpuInfo.requirements || {});
+            if (reqEntries.length > 0) {
+                detailLines.push("GPU requirements:");
+                for (const [svc, req] of reqEntries) {
+                    const status = gpuInfo.available || req !== "required" ? "ok" : "blocked";
+                    detailLines.push(`- ${svc}: ${req} [${status}]`);
+                }
             }
         }
 
-    const messageLines = [
-        `Ready: ${(ready as any).ready ? "yes" : "no"}`,
-        `Services: ${Object.keys((ready as any).details || {}).length || Object.keys((ports as any).services || {}).length}`,
-    ];
-        if ((ports as any).services) {
-            messageLines.push("Ports:");
-            for (const [svc, svcPorts] of Object.entries((ports as any).services)) {
+        const readyDetails = diagnostics.ready.details || {};
+        if (Object.keys(readyDetails).length > 0) {
+            detailLines.push("Readiness:");
+            for (const [svc, info] of Object.entries(readyDetails)) {
+                detailLines.push(`- ${svc}: ${info.ready ? "ready" : "not ready"}${info.message ? ` (${info.message})` : info.reason ? ` (${info.reason})` : ""}`);
+            }
+        }
+
+        if (diagnostics.ports.services) {
+            detailLines.push("Ports:");
+            for (const [svc, svcPorts] of Object.entries(diagnostics.ports.services)) {
                 const portList = Object.entries(svcPorts as Record<string, number>).map(([name, value]) => `${name}=${value}`).join(", ");
-                messageLines.push(`  - ${svc}: ${portList}`);
+                detailLines.push(`- ${svc}: ${portList}`);
+            }
+        }
+
+        const logEntries = Object.entries(diagnostics.logs);
+        if (logEntries.length > 0) {
+            detailLines.push("Log tail:");
+            for (const [svc, content] of logEntries) {
+                detailLines.push(`--- ${svc} ---`);
+                detailLines.push(content || "<no logs>");
             }
         }
 
         const buttons: string[] = ["Close"];
-        const uploadURL = RUNTIME_CONTROL.TELEMETRY_UPLOAD_URL || (telemetryInfo as any).upload_url || "";
-        if ((telemetryInfo as any).path) {
+        const uploadURL = RUNTIME_CONTROL.TELEMETRY_UPLOAD_URL || diagnostics.telemetryUploadUrl || "";
+        if (diagnostics.telemetryPath) {
             buttons.unshift("Copy telemetry path");
         }
-        if (uploadURL && (telemetryInfo as any).path) {
+        if (uploadURL && diagnostics.telemetryPath) {
             buttons.unshift("Upload telemetry");
         }
 
         const result = await dialog.showMessageBox({
-            type: (ready as any).ready ? "info" : "warning",
+            type: diagnostics.ready.ready ? "info" : "warning",
             title: "Bundled runtime diagnostics",
             message: messageLines.join("\n"),
-            detail: logSnippet ? `Log tail (${serviceId || "unknown"}):\n${logSnippet}` : undefined,
+            detail: detailLines.join("\n"),
             buttons,
             defaultId: buttons.length - 1,
         });
 
         const picked = buttons[result.response];
-        if (picked === "Copy telemetry path" && (telemetryInfo as any).path) {
-            clipboard.writeText((telemetryInfo as any).path);
-            void recordTelemetry("runtime_diag_copy_path", { path: telemetryInfo });
-        } else if (picked === "Upload telemetry" && (telemetryInfo as any).path) {
+        if (picked === "Copy telemetry path" && diagnostics.telemetryPath) {
+            clipboard.writeText(diagnostics.telemetryPath);
+            void recordTelemetry("runtime_diag_copy_path", { path: diagnostics.telemetryPath });
+        } else if (picked === "Upload telemetry" && diagnostics.telemetryPath && uploadURL) {
             try {
-                const body = await fs.readFile((telemetryInfo as any).path, "utf-8");
-                const resp = await fetch(uploadURL, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/jsonl" },
-                    body,
-                });
-                if (!resp.ok) {
-                    const text = await resp.text();
-                    throw new Error(text || resp.statusText);
-                }
+                await uploadTelemetryFile(diagnostics.telemetryPath, uploadURL, "manual", true);
                 void recordTelemetry("runtime_diag_upload_success", { uploadURL });
                 await dialog.showMessageBox({
                     type: "info",
@@ -1122,6 +1316,7 @@ async function startBundledRuntime(): Promise<string> {
 
 	const appData = path.join(app.getPath("userData"), "runtime");
 	await fs.mkdir(appData, { recursive: true });
+	runtimeAppDataRoot = appData;
 
 	const tokenRel = BUNDLED_RUNTIME.TOKEN_REL || "runtime/auth-token";
 	const tokenPath = path.join(appData, tokenRel);
@@ -1184,11 +1379,13 @@ async function startBundledRuntime(): Promise<string> {
 		portName,
 		port,
 	});
+	void autoUploadTelemetryIfConfigured("startup");
 	return url;
 }
 
 async function shutdownRuntime(): Promise<void> {
 	if (RUNTIME_CONTROL.ENABLED) {
+		void autoUploadTelemetryIfConfigured("shutdown");
 		try {
 			await runtimeRequest("/shutdown", { method: "POST" });
 		} catch (error) {
@@ -1448,6 +1645,7 @@ app.whenReady().then(async () => {
 				try {
 					await waitForRuntimeControl(APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
 					await ensureRuntimeSecretsIfNeeded();
+					void autoUploadTelemetryIfConfigured("startup");
 				} catch (secretError) {
 					await recordTelemetry("runtime_secrets_missing", { error: String(secretError) });
 					dialog.showErrorBox("Secrets required", String(secretError));

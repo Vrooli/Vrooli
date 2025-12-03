@@ -1,24 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { Button } from "../ui/button";
 import { Loader2, Hammer, CheckCircle, XCircle, AlertCircle, Check, HelpCircle } from "lucide-react";
 import { PlatformChip } from "./PlatformChip";
 import { WineInstallDialog } from "../wine";
 import { platformIcons, platformNames } from "./utils";
-
-const API_BASE = resolveApiBase({ appendSuffix: true });
-const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
+import { buildScenarioDesktop, checkWineStatus, fetchBuildStatus, type WineCheckResponse } from "../../lib/api";
 
 interface BuildDesktopButtonProps {
   scenarioName: string;
-}
-
-interface WineCheckResponse {
-  installed: boolean;
-  version?: string;
-  platform: string;
-  required_for: string[];
 }
 
 export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
@@ -55,29 +45,12 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
   // Check Wine status when building for Windows
   const { data: wineCheck } = useQuery<WineCheckResponse>({
     queryKey: ['wine-check'],
-    queryFn: async () => {
-      const res = await fetch(buildUrl('/system/wine/check'));
-      if (!res.ok) throw new Error('Failed to check Wine status');
-      return res.json();
-    },
+    queryFn: checkWineStatus,
     staleTime: 60000, // Cache for 1 minute
   });
 
   const buildMutation = useMutation({
-    mutationFn: async (platforms: string[]) => {
-      const res = await fetch(buildUrl(`/desktop/build/${scenarioName}`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          platforms // Use provided platforms
-        })
-      });
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ message: res.statusText }));
-        throw new Error(error.message || 'Failed to start build');
-      }
-      return res.json();
-    },
+    mutationFn: (platforms: string[]) => buildScenarioDesktop(scenarioName, platforms),
     onSuccess: (data) => {
       setBuildId(data.build_id);
       setMutationError(null);
@@ -125,12 +98,7 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
   // Poll build status if we have a buildId
   const { data: buildStatus } = useQuery({
     queryKey: ['build-status', buildId],
-    queryFn: async () => {
-      if (!buildId) return null;
-      const res = await fetch(buildUrl(`/desktop/status/${buildId}`));
-      if (!res.ok) throw new Error('Failed to fetch build status');
-      return res.json();
-    },
+    queryFn: async () => (buildId ? fetchBuildStatus(buildId) : null),
     enabled: !!buildId,
     refetchInterval: (data) => {
       // Stop polling if build is complete
@@ -291,9 +259,9 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
   };
 
   const platformOptions = [
-    { id: 'win', label: 'Windows (.exe)', helper: 'Most laptops and desktops' },
-    { id: 'mac', label: 'macOS (.dmg)', helper: 'MacBook + iMac' },
-    { id: 'linux', label: 'Linux (.AppImage)', helper: 'Ubuntu, Fedora, etc.' },
+    { id: 'win', label: 'Windows (.msi installer)', helper: 'Most laptops and desktops' },
+    { id: 'mac', label: 'macOS (.pkg installer)', helper: 'MacBook + iMac' },
+    { id: 'linux', label: 'Linux (.AppImage/.deb)', helper: 'Ubuntu, Fedora, etc.' },
   ];
 
   const selectionSummary = (() => {

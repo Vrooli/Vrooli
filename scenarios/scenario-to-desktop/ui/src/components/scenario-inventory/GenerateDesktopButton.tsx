@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
@@ -8,15 +7,52 @@ import { Label } from "../ui/label";
 import { Select } from "../ui/select";
 import { Checkbox } from "../ui/checkbox";
 import { Loader2, Zap, CheckCircle, XCircle } from "lucide-react";
-import type { ProbeResponse } from "../../lib/api";
-import { probeEndpoints } from "../../lib/api";
-import type { ScenarioDesktopStatus } from "./types";
-
-const API_BASE = resolveApiBase({ appendSuffix: true });
-const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
+import { fetchBuildStatus, probeEndpoints, quickGenerateDesktop, type ProbeResponse } from "../../lib/api";
+import type { DesktopConnectionConfig, ScenarioDesktopStatus } from "./types";
+import {
+  DEFAULT_DEPLOYMENT_MODE,
+  DEFAULT_SERVER_TYPE,
+  DEPLOYMENT_OPTIONS,
+  decideConnection,
+  findDeploymentOption,
+  type ConnectionDecision,
+  type DeploymentMode
+} from "../../domain/deployment";
 
 interface GenerateDesktopButtonProps {
   scenario: ScenarioDesktopStatus;
+}
+
+type ConnectionDefaults = {
+  deploymentMode: DeploymentMode;
+  proxyUrl: string;
+  autoManageVrooli: boolean;
+  vrooliBinaryPath: string;
+  bundleManifestPath: string;
+};
+
+function buildConnectionDefaults(config?: DesktopConnectionConfig | null): ConnectionDefaults {
+  return {
+    deploymentMode: (config?.deployment_mode as DeploymentMode) ?? DEFAULT_DEPLOYMENT_MODE,
+    proxyUrl: config?.proxy_url ?? config?.server_url ?? "",
+    autoManageVrooli: config?.auto_manage_vrooli ?? false,
+    vrooliBinaryPath: config?.vrooli_binary_path ?? "vrooli",
+    bundleManifestPath: config?.bundle_manifest_path ?? ""
+  };
+}
+
+function ensureRequiredInputs(
+  decision: ConnectionDecision,
+  proxyUrl: string,
+  bundleManifestPath: string,
+  messages: { proxy: string; bundle: string }
+) {
+  if (decision.requiresProxyUrl && !proxyUrl) {
+    throw new Error(messages.proxy);
+  }
+  if (decision.requiresBundleManifest && !bundleManifestPath) {
+    throw new Error(messages.bundle);
+  }
 }
 
 export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) {
@@ -24,61 +60,48 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
   const [buildId, setBuildId] = useState<string | null>(null);
   const [showConfigurator, setShowConfigurator] = useState(!scenario.has_desktop);
   const saved = scenario.connection_config;
-  const [deploymentMode, setDeploymentMode] = useState(saved?.deployment_mode ?? "external-server");
-  const [proxyUrl, setProxyUrl] = useState(saved?.proxy_url ?? saved?.server_url ?? "");
-  const [autoManageVrooli, setAutoManageVrooli] = useState(saved?.auto_manage_vrooli ?? false);
-  const [vrooliBinaryPath, setVrooliBinaryPath] = useState(saved?.vrooli_binary_path ?? "vrooli");
-  const [bundleManifestPath, setBundleManifestPath] = useState(saved?.bundle_manifest_path ?? "");
+  const defaults = buildConnectionDefaults(saved);
+  const [deploymentMode, setDeploymentMode] = useState<DeploymentMode>(defaults.deploymentMode);
+  const [proxyUrl, setProxyUrl] = useState(defaults.proxyUrl);
+  const [autoManageVrooli, setAutoManageVrooli] = useState(defaults.autoManageVrooli);
+  const [vrooliBinaryPath, setVrooliBinaryPath] = useState(defaults.vrooliBinaryPath);
+  const [bundleManifestPath, setBundleManifestPath] = useState(defaults.bundleManifestPath);
   const [connectionResult, setConnectionResult] = useState<ProbeResponse | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const selectedDeployment = useMemo(
-    () => DEPLOYMENT_OPTIONS.find((option) => option.value === deploymentMode) ?? DEPLOYMENT_OPTIONS[0],
+    () => findDeploymentOption(deploymentMode),
     [deploymentMode]
   );
+  const serverType = DEFAULT_SERVER_TYPE;
+  const connectionDecision = useMemo(
+    () => decideConnection(deploymentMode, serverType),
+    [deploymentMode, serverType]
+  );
+
+  const applyConnectionConfig = useCallback((config?: DesktopConnectionConfig | null) => {
+    const next = buildConnectionDefaults(config);
+    setDeploymentMode(next.deploymentMode);
+    setProxyUrl(next.proxyUrl);
+    setAutoManageVrooli(next.autoManageVrooli);
+    setVrooliBinaryPath(next.vrooliBinaryPath);
+    setBundleManifestPath(next.bundleManifestPath);
+  }, []);
 
   const generateMutation = useMutation({
     mutationFn: async () => {
-      if (deploymentMode === "external-server" && !proxyUrl) {
-        throw new Error("Provide the proxy URL you use in the browser.");
-      }
-      if (deploymentMode === "bundled" && !bundleManifestPath) {
-        throw new Error("Provide the bundle_manifest_path exported by deployment-manager.");
-      }
-      const res = await fetch(buildUrl('/desktop/generate/quick'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scenario_name: scenario.name,
-          template_type: 'universal',
-          deployment_mode: deploymentMode,
-          proxy_url: proxyUrl,
-          bundle_manifest_path: bundleManifestPath || undefined,
-          auto_manage_vrooli: autoManageVrooli,
-          vrooli_binary_path: vrooliBinaryPath
-        })
+      ensureRequiredInputs(connectionDecision, proxyUrl, bundleManifestPath, {
+        proxy: "Provide the proxy URL you use in the browser.",
+        bundle: "Provide the bundle_manifest_path exported by deployment-manager."
       });
-      if (!res.ok) {
-        const contentType = res.headers.get('content-type');
-        let errorMessage = 'Failed to generate desktop app';
-
-        if (contentType?.includes('application/json')) {
-          const errorData = await res.json();
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } else {
-          const textError = await res.text();
-          errorMessage = textError || errorMessage;
-        }
-
-        if (res.status === 404) {
-          throw new Error(`Scenario '${scenario.name}' not found. Check that the scenario exists in the scenarios directory.`);
-        } else if (res.status === 400) {
-          throw new Error(`Invalid request: ${errorMessage}`);
-        } else if (res.status === 500) {
-          throw new Error(`Server error: ${errorMessage}. Check API logs for details.`);
-        }
-        throw new Error(`${errorMessage} (HTTP ${res.status})`);
-      }
-      return res.json();
+      return quickGenerateDesktop({
+        scenario_name: scenario.name,
+        template_type: 'universal',
+        deployment_mode: deploymentMode,
+        proxy_url: proxyUrl || undefined,
+        bundle_manifest_path: bundleManifestPath || undefined,
+        auto_manage_vrooli: autoManageVrooli,
+        vrooli_binary_path: vrooliBinaryPath
+      });
     },
     onSuccess: (data) => {
       setBuildId(data.build_id);
@@ -100,19 +123,15 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
     if (!scenario.connection_config) {
       return;
     }
-    const cfg = scenario.connection_config;
-    setDeploymentMode(cfg.deployment_mode ?? "external-server");
-    setProxyUrl(cfg.proxy_url ?? cfg.server_url ?? "");
-    setAutoManageVrooli(cfg.auto_manage_vrooli ?? false);
-    setVrooliBinaryPath(cfg.vrooli_binary_path ?? "vrooli");
-    setBundleManifestPath(cfg.bundle_manifest_path ?? "");
-  }, [scenario.connection_config?.updated_at, scenario.connection_config, scenario.name]);
+    applyConnectionConfig(scenario.connection_config);
+  }, [applyConnectionConfig, scenario.connection_config?.updated_at, scenario.connection_config, scenario.name]);
 
   const connectionMutation = useMutation({
     mutationFn: async () => {
-      if (!proxyUrl) {
-        throw new Error("Enter the proxy URL first");
-      }
+      ensureRequiredInputs(connectionDecision, proxyUrl, bundleManifestPath, {
+        proxy: "Enter the proxy URL first",
+        bundle: "Provide the bundle_manifest_path exported by deployment-manager."
+      });
       return probeEndpoints({ proxy_url: proxyUrl });
     },
     onSuccess: (result) => {
@@ -127,12 +146,7 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
 
   const { data: buildStatus } = useQuery({
     queryKey: ['build-status', buildId],
-    queryFn: async () => {
-      if (!buildId) return null;
-      const res = await fetch(buildUrl(`/desktop/status/${buildId}`));
-      if (!res.ok) throw new Error('Failed to fetch build status');
-      return res.json();
-    },
+    queryFn: async () => (buildId ? fetchBuildStatus(buildId) : null),
     enabled: !!buildId,
     refetchInterval: (data) => {
       if (data?.status === 'ready' || data?.status === 'failed') {
@@ -226,7 +240,7 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
             <Select
               id={`deploymentMode-${scenario.name}`}
               value={deploymentMode}
-              onChange={(e) => setDeploymentMode(e.target.value)}
+              onChange={(e) => setDeploymentMode(e.target.value as DeploymentMode)}
               className="mt-1"
             >
               {DEPLOYMENT_OPTIONS.map((option) => (
@@ -250,75 +264,26 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
             </p>
           </div>
 
-          {deploymentMode === "bundled" ? (
-            <div className="space-y-2">
-              <Label htmlFor={`bundleManifest-${scenario.name}`}>bundle_manifest_path</Label>
-              <Input
-                id={`bundleManifest-${scenario.name}`}
-                value={bundleManifestPath}
-                onChange={(e) => setBundleManifestPath(e.target.value)}
-                placeholder="/home/you/Vrooli/docs/deployment/examples/manifests/desktop-happy.json"
-              />
-              <p className="text-xs text-emerald-200/80">
-                Stages the manifest + bundled binaries into the desktop app so the packaged runtime can start offline.
-              </p>
-            </div>
+          {connectionDecision.kind === "bundled-runtime" ? (
+            <BundleManifestField
+              scenarioName={scenario.name}
+              bundleManifestPath={bundleManifestPath}
+              onChange={setBundleManifestPath}
+            />
           ) : (
-            <>
-              <div>
-                <Label htmlFor={`proxyUrl-${scenario.name}`}>Proxy URL</Label>
-                <p className="mb-1 text-xs text-slate-400">
-                  Paste the Cloudflare/app-monitor link you already use (for example <code>https://app-monitor.example.com/apps/{scenario.name}/proxy/</code>).
-                </p>
-                <Input
-                  id={`proxyUrl-${scenario.name}`}
-                  value={proxyUrl}
-                  onChange={(e) => setProxyUrl(e.target.value)}
-                  placeholder="https://app-monitor.example.dev/apps/picker-wheel/proxy/"
-                  className="mt-1"
-                />
-
-                <div className="mt-2 flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => connectionMutation.mutate()}
-                    disabled={connectionMutation.isPending || !proxyUrl}
-                  >
-                    {connectionMutation.isPending ? "Testing..." : "Test connection"}
-                  </Button>
-                  {connectionResult && connectionResult.server.status === "ok" && connectionResult.api.status === "ok" && (
-                    <span className="text-xs text-green-300">Proxy responded ✔</span>
-                  )}
-                  {connectionError && <span className="text-xs text-red-300">{connectionError}</span>}
-                </div>
-                {(connectionResult?.server || connectionResult?.api) && (
-                  <div className="mt-2 space-y-1 rounded border border-slate-800 bg-black/20 p-2 text-xs text-slate-200">
-                    <p className="font-semibold text-slate-100">Connectivity snapshot</p>
-                    <p>UI URL: {connectionResult?.server.status === "ok" ? "reachable" : connectionResult?.server.message || "no response"}</p>
-                    <p>API URL: {connectionResult?.api.status === "ok" ? "reachable" : connectionResult?.api.message || "no response"}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Checkbox
-                  checked={autoManageVrooli}
-                  onChange={(e) => setAutoManageVrooli(e.target.checked)}
-                  label="Let the desktop build run the scenario locally (vrooli setup/start)"
-                />
-                <Input
-                  value={vrooliBinaryPath}
-                  onChange={(e) => setVrooliBinaryPath(e.target.value)}
-                  disabled={!autoManageVrooli}
-                  placeholder="vrooli"
-                />
-                <p className="text-xs text-slate-400">
-                  This runs `vrooli setup/start/stop` on the user's machine. Enable only when they expect to host the scenario locally.
-                </p>
-              </div>
-            </>
+            <RemoteConnectionSection
+              scenarioName={scenario.name}
+              proxyUrl={proxyUrl}
+              onProxyUrlChange={setProxyUrl}
+              onTestConnection={() => connectionMutation.mutate()}
+              isTesting={connectionMutation.isPending}
+              connectionResult={connectionResult}
+              connectionError={connectionError}
+              autoManageVrooli={autoManageVrooli}
+              onToggleAutoManageVrooli={setAutoManageVrooli}
+              vrooliBinaryPath={vrooliBinaryPath}
+              onBinaryPathChange={setVrooliBinaryPath}
+            />
           )}
 
           <div className="flex flex-wrap items-center gap-3">
@@ -337,13 +302,9 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
               variant="outline"
               type="button"
               onClick={() => {
-                setProxyUrl("");
-                setDeploymentMode("external-server");
-                setAutoManageVrooli(false);
+                applyConnectionConfig(null);
                 setConnectionResult(null);
                 setConnectionError(null);
-                setVrooliBinaryPath("vrooli");
-                setBundleManifestPath("");
               }}
             >
               Reset
@@ -355,27 +316,126 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
   );
 }
 
-const DEPLOYMENT_OPTIONS = [
-  {
-    value: "external-server",
-    label: "Connect to existing Vrooli instance (UI-only)",
-    description:
-      "Reuse the URL you already open in the browser (local or Cloudflare/app-monitor). The desktop shell streams against that server.",
-    docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
-  },
-  {
-    value: "cloud-api",
-    label: "Package remote API (coming soon)",
-    description: "Future option: hand deployment-manager a cloud target and connect this desktop app to it.",
-    docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-4-saas.md"
-  },
-  {
-    value: "bundled",
-    label: "Offline bundle (bundle.json)",
-    description: "Ship APIs/resources next to the UI using a bundle.json manifest so everything runs locally.",
-    docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
-  }
-];
+type BundleManifestFieldProps = {
+  scenarioName: string;
+  bundleManifestPath: string;
+  onChange: (value: string) => void;
+};
+
+function BundleManifestField({ scenarioName, bundleManifestPath, onChange }: BundleManifestFieldProps) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={`bundleManifest-${scenarioName}`}>bundle_manifest_path</Label>
+      <Input
+        id={`bundleManifest-${scenarioName}`}
+        value={bundleManifestPath}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="/home/you/Vrooli/docs/deployment/examples/manifests/desktop-happy.json"
+      />
+      <p className="text-xs text-emerald-200/80">
+        Stages the manifest + bundled binaries into the desktop app so the packaged runtime can start offline.
+      </p>
+    </div>
+  );
+}
+
+type RemoteConnectionSectionProps = {
+  scenarioName: string;
+  proxyUrl: string;
+  onProxyUrlChange: (value: string) => void;
+  onTestConnection: () => void;
+  isTesting: boolean;
+  connectionResult: ProbeResponse | null;
+  connectionError: string | null;
+  autoManageVrooli: boolean;
+  onToggleAutoManageVrooli: (value: boolean) => void;
+  vrooliBinaryPath: string;
+  onBinaryPathChange: (value: string) => void;
+};
+
+function RemoteConnectionSection({
+  scenarioName,
+  proxyUrl,
+  onProxyUrlChange,
+  onTestConnection,
+  isTesting,
+  connectionResult,
+  connectionError,
+  autoManageVrooli,
+  onToggleAutoManageVrooli,
+  vrooliBinaryPath,
+  onBinaryPathChange
+}: RemoteConnectionSectionProps) {
+  const bothEndpointsHealthy =
+    connectionResult?.server.status === "ok" && connectionResult?.api.status === "ok";
+
+  return (
+    <>
+      <div>
+        <Label htmlFor={`proxyUrl-${scenarioName}`}>Proxy URL</Label>
+        <p className="mb-1 text-xs text-slate-400">
+          Paste the Cloudflare/app-monitor link you already use (for example{" "}
+          <code>https://app-monitor.example.com/apps/{scenarioName}/proxy/</code>).
+        </p>
+        <Input
+          id={`proxyUrl-${scenarioName}`}
+          value={proxyUrl}
+          onChange={(e) => onProxyUrlChange(e.target.value)}
+          placeholder="https://app-monitor.example.dev/apps/picker-wheel/proxy/"
+          className="mt-1"
+        />
+
+        <div className="mt-2 flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onTestConnection}
+            disabled={isTesting || !proxyUrl}
+          >
+            {isTesting ? "Testing..." : "Test connection"}
+          </Button>
+          {bothEndpointsHealthy && <span className="text-xs text-green-300">Proxy responded ✔</span>}
+          {connectionError && <span className="text-xs text-red-300">{connectionError}</span>}
+        </div>
+        {(connectionResult?.server || connectionResult?.api) && (
+          <div className="mt-2 space-y-1 rounded border border-slate-800 bg-black/20 p-2 text-xs text-slate-200">
+            <p className="font-semibold text-slate-100">Connectivity snapshot</p>
+            <p>
+              UI URL:{" "}
+              {connectionResult?.server.status === "ok"
+                ? "reachable"
+                : connectionResult?.server.message || "no response"}
+            </p>
+            <p>
+              API URL:{" "}
+              {connectionResult?.api.status === "ok"
+                ? "reachable"
+                : connectionResult?.api.message || "no response"}
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Checkbox
+          checked={autoManageVrooli}
+          onChange={(e) => onToggleAutoManageVrooli(e.target.checked)}
+          label="Let the desktop build run the scenario locally (vrooli setup/start)"
+        />
+        <Input
+          value={vrooliBinaryPath}
+          onChange={(e) => onBinaryPathChange(e.target.value)}
+          disabled={!autoManageVrooli}
+          placeholder="vrooli"
+        />
+        <p className="text-xs text-slate-400">
+          This runs `vrooli setup/start/stop` on the user's machine. Enable only when they expect to host the scenario locally.
+        </p>
+      </div>
+    </>
+  );
+}
 
 function ErrorCallout({
   scenarioName,
@@ -386,24 +446,7 @@ function ErrorCallout({
   errorMessage: string;
   onRetry: () => void;
 }) {
-  const suggestion = (() => {
-    if (errorMessage.includes('not found') || errorMessage.includes('404')) {
-      return `Ensure the scenario '${scenarioName}' exists in /scenarios/ first.`;
-    }
-    if (errorMessage.includes('ui/dist') || errorMessage.includes('UI not built')) {
-      return `Build the scenario UI first: cd scenarios/${scenarioName}/ui && npm run build.`;
-    }
-    if (errorMessage.includes('permission') || errorMessage.includes('EACCES')) {
-      return 'Check file permissions in the scenarios directory.';
-    }
-    if (errorMessage.includes('ENOSPC') || errorMessage.includes('no space')) {
-      return 'Free up disk space and try again.';
-    }
-    if (errorMessage.includes('port') || errorMessage.includes('EADDRINUSE')) {
-      return 'Another process is using the required port. Stop it or change ports.';
-    }
-    return null;
-  })();
+  const suggestion = suggestRecovery(errorMessage, scenarioName);
 
   return (
     <div className="space-y-2 rounded-lg border border-red-900 bg-red-950/20 p-3 text-xs text-red-200">
@@ -429,4 +472,23 @@ function ErrorCallout({
       </div>
     </div>
   );
+}
+
+function suggestRecovery(errorMessage: string, scenarioName: string): string | null {
+  if (errorMessage.includes('not found') || errorMessage.includes('404')) {
+    return `Ensure the scenario '${scenarioName}' exists in /scenarios/ first.`;
+  }
+  if (errorMessage.includes('ui/dist') || errorMessage.includes('UI not built')) {
+    return `Build the scenario UI first: cd scenarios/${scenarioName}/ui && npm run build.`;
+  }
+  if (errorMessage.includes('permission') || errorMessage.includes('EACCES')) {
+    return 'Check file permissions in the scenarios directory.';
+  }
+  if (errorMessage.includes('ENOSPC') || errorMessage.includes('no space')) {
+    return 'Free up disk space and try again.';
+  }
+  if (errorMessage.includes('port') || errorMessage.includes('EADDRINUSE')) {
+    return 'Another process is using the required port. Stop it or change ports.';
+  }
+  return null;
 }

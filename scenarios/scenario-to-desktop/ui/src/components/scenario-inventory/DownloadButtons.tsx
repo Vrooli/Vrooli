@@ -1,12 +1,9 @@
-import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { Button } from "../ui/button";
 import { Download, Copy, Check } from "lucide-react";
 import { platformIcons, platformNames, formatBytes } from "./utils";
 import type { DesktopBuildArtifact } from "./types";
 import { useState } from "react";
-
-const API_BASE = resolveApiBase({ appendSuffix: true });
-const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
+import { getDownloadUrl } from "../../lib/api";
 
 interface DownloadButtonsProps {
   scenarioName: string;
@@ -31,8 +28,7 @@ export function DownloadButtons({ scenarioName, artifacts }: DownloadButtonsProp
   });
 
   const handleDownload = (platform: string) => {
-    const downloadUrl = buildUrl(`/desktop/download/${scenarioName}/${platform}`);
-    window.open(downloadUrl, '_blank');
+    window.open(getDownloadUrl(scenarioName, platform), '_blank');
   };
 
   const handleCopyPath = (path?: string) => {

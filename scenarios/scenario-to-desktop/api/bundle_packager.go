@@ -23,6 +23,25 @@ type bundlePackageResult struct {
 }
 
 func packageBundle(appPath, manifestPath string, requestedPlatforms []string) (*bundlePackageResult, error) {
+	return newBundlePackager().packageBundle(appPath, manifestPath, requestedPlatforms)
+}
+
+type runtimeResolver func() (string, error)
+type runtimeBuilder func(srcDir, outPath, goos, goarch, target string) error
+
+type bundlePackager struct {
+	runtimeResolver runtimeResolver
+	runtimeBuilder  runtimeBuilder
+}
+
+func newBundlePackager() *bundlePackager {
+	return &bundlePackager{
+		runtimeResolver: findRuntimeSourceDir,
+		runtimeBuilder:  buildRuntimeBinary,
+	}
+}
+
+func (p *bundlePackager) packageBundle(appPath, manifestPath string, requestedPlatforms []string) (*bundlePackageResult, error) {
 	if appPath == "" || manifestPath == "" {
 		return nil, errors.New("app_path and bundle_manifest_path are required")
 	}
@@ -110,7 +129,7 @@ func packageBundle(appPath, manifestPath string, requestedPlatforms []string) (*
 		}
 	}
 
-	runtimeDir, err := findRuntimeSourceDir()
+	runtimeDir, err := p.runtimeResolver()
 	if err != nil {
 		return nil, err
 	}
@@ -127,13 +146,13 @@ func packageBundle(appPath, manifestPath string, requestedPlatforms []string) (*
 		}
 
 		runtimePath := filepath.Join(outDir, runtimeBinaryName(goos))
-		if err := buildRuntimeBinary(runtimeDir, runtimePath, goos, goarch, "runtime"); err != nil {
+		if err := p.runtimeBuilder(runtimeDir, runtimePath, goos, goarch, "runtime"); err != nil {
 			return nil, fmt.Errorf("build runtime (%s): %w", platform, err)
 		}
 		runtimeBinaries[platform] = runtimePath
 
 		runtimectlPath := filepath.Join(outDir, runtimeCtlBinaryName(goos))
-		if err := buildRuntimeBinary(runtimeDir, runtimectlPath, goos, goarch, "runtimectl"); err == nil {
+		if err := p.runtimeBuilder(runtimeDir, runtimectlPath, goos, goarch, "runtimectl"); err == nil {
 			copied = append(copied, runtimectlPath)
 		}
 		copied = append(copied, runtimePath)

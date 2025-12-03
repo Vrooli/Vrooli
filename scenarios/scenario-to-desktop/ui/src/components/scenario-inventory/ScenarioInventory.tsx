@@ -1,16 +1,13 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { Card, CardContent } from "../ui/card";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Monitor, Package, Search, Download, Loader2, XCircle } from "lucide-react";
 import { ScenarioCard } from "./ScenarioCard";
 import { ScenarioDetails } from "./ScenarioDetails";
+import { fetchScenarioDesktopStatus } from "../../lib/api";
 import type { ScenariosResponse, FilterStatus, ScenarioDesktopStatus } from "./types";
-
-const API_BASE = resolveApiBase({ appendSuffix: true });
-const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
 
 export function ScenarioInventory() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -19,11 +16,7 @@ export function ScenarioInventory() {
 
   const { data, isLoading, error } = useQuery<ScenariosResponse>({
     queryKey: ['scenarios-desktop-status'],
-    queryFn: async () => {
-      const res = await fetch(buildUrl('/scenarios/desktop-status'));
-      if (!res.ok) throw new Error('Failed to fetch scenarios');
-      return res.json();
-    },
+    queryFn: fetchScenarioDesktopStatus,
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 

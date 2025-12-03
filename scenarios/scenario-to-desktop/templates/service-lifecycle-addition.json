@@ -42,7 +42,7 @@
         },
         {
           "name": "show-artifacts",
-          "run": "echo '✅ Desktop build complete!' && echo 'Artifacts: platforms/electron/dist-electron/' && ls -lh platforms/electron/dist-electron/ | grep -E '\\.(exe|dmg|AppImage|deb)$' || echo 'No packaged artifacts found (dev build only)'",
+          "run": "echo '✅ Desktop build complete!' && echo 'Artifacts: platforms/electron/dist-electron/' && ls -lh platforms/electron/dist-electron/ | grep -E '\\.(msi|pkg|AppImage|deb)$' || echo 'No packaged artifacts found (dev build only)'",
           "description": "Display build artifacts"
         }
       ]

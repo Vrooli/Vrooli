@@ -1,12 +1,9 @@
 import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { UploadCloud, Loader2, CheckCircle2, Info, ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
-
-const API_BASE = resolveApiBase({ appendSuffix: true });
-const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
+import { uploadTelemetry } from "../../lib/api";
 
 interface TelemetryUploadCardProps {
   scenarioName: string;
@@ -52,23 +49,10 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
         }
       });
 
-      const res = await fetch(buildUrl('/deployment/telemetry'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scenario_name: scenarioName,
-          deployment_mode: 'external-server',
-          source: 'desktop-upload',
-          events,
-        }),
+      return uploadTelemetry({
+        scenario_name: scenarioName,
+        events,
       });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || 'Failed to upload telemetry');
-      }
-
-      return res.json();
     },
     onSuccess: (data) => {
       setError(null);

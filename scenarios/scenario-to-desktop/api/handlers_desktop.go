@@ -16,20 +16,22 @@ import (
 	bundlemanifest "scenario-to-desktop-runtime/manifest"
 )
 
+type quickGenerateRequest struct {
+	ScenarioName     string `json:"scenario_name"`
+	TemplateType     string `json:"template_type"`
+	DeploymentMode   string `json:"deployment_mode"`
+	AutoManageVrooli *bool  `json:"auto_manage_vrooli"`
+	LegacyAutoManage *bool  `json:"auto_manage_tier1"`
+	ProxyURL         string `json:"proxy_url"`
+	LegacyServerURL  string `json:"server_url"`
+	LegacyAPIURL     string `json:"api_url"`
+	BundleManifest   string `json:"bundle_manifest_path"`
+	VrooliBinary     string `json:"vrooli_binary_path"`
+}
+
 // Quick generate desktop handler - auto-detects scenario configuration
 func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		ScenarioName     string `json:"scenario_name"`
-		TemplateType     string `json:"template_type"`
-		DeploymentMode   string `json:"deployment_mode"`
-		AutoManageVrooli *bool  `json:"auto_manage_vrooli"`
-		LegacyAutoManage *bool  `json:"auto_manage_tier1"`
-		ProxyURL         string `json:"proxy_url"`
-		LegacyServerURL  string `json:"server_url"`
-		LegacyAPIURL     string `json:"api_url"`
-		BundleManifest   string `json:"bundle_manifest_path"`
-		VrooliBinary     string `json:"vrooli_binary_path"`
-	}
+	var request quickGenerateRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
@@ -75,14 +77,6 @@ func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if request.DeploymentMode != "" {
-		config.DeploymentMode = request.DeploymentMode
-	}
-	if request.AutoManageVrooli != nil {
-		config.AutoManageVrooli = *request.AutoManageVrooli
-	} else if request.LegacyAutoManage != nil {
-		config.AutoManageVrooli = *request.LegacyAutoManage
-	}
 	savedConfig, err := loadDesktopConnectionConfig(metadata.ScenarioPath)
 	if err != nil {
 		s.logger.Warn("failed to read saved desktop config",
@@ -90,57 +84,11 @@ func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Requ
 			"error", err)
 	}
 
-	if request.ProxyURL != "" {
-		config.ProxyURL = request.ProxyURL
-	} else if savedConfig != nil && savedConfig.ProxyURL != "" {
-		config.ProxyURL = savedConfig.ProxyURL
-	} else if savedConfig != nil && savedConfig.ServerURL != "" {
-		config.ProxyURL = savedConfig.ServerURL
-	} else if request.LegacyServerURL != "" {
-		config.ProxyURL = request.LegacyServerURL
-	}
-	if config.ProxyURL == "" && request.LegacyAPIURL != "" {
-		config.ProxyURL = request.LegacyAPIURL
-	}
-	if request.VrooliBinary != "" {
-		config.VrooliBinaryPath = request.VrooliBinary
-	} else if savedConfig != nil && savedConfig.VrooliBinary != "" {
-		config.VrooliBinaryPath = savedConfig.VrooliBinary
-	}
-	if request.DeploymentMode != "" {
-		config.DeploymentMode = request.DeploymentMode
-	} else if savedConfig != nil && savedConfig.DeploymentMode != "" {
-		config.DeploymentMode = savedConfig.DeploymentMode
-	}
-	if config.OutputPath == "" {
-		config.OutputPath = s.standardOutputPath(config.AppName)
-	}
-	if request.BundleManifest != "" {
-		config.BundleManifestPath = request.BundleManifest
-	} else if savedConfig != nil && savedConfig.BundleManifestPath != "" {
-		config.BundleManifestPath = savedConfig.BundleManifestPath
-	}
-	if request.AutoManageVrooli != nil {
-		config.AutoManageVrooli = *request.AutoManageVrooli
-	} else if request.LegacyAutoManage != nil {
-		config.AutoManageVrooli = *request.LegacyAutoManage
-	} else if savedConfig != nil {
-		config.AutoManageVrooli = savedConfig.AutoManageVrooli
-	}
-	if savedConfig != nil && savedConfig.ServerType != "" && request.ProxyURL == "" && request.LegacyServerURL == "" {
-		config.ServerType = savedConfig.ServerType
-	}
+	config = mergeQuickGenerateConfig(config, request, savedConfig, s.standardOutputPath(config.AppName))
 
-	if err := s.validateDesktopConfig(config); err != nil {
-		http.Error(w, fmt.Sprintf("Configuration validation failed: %s", err), http.StatusBadRequest)
+	if err := s.validateAndPrepareBundle(config); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
-	}
-
-	if config.DeploymentMode == "bundled" {
-		if _, err := s.prepareBundledConfig(config); err != nil {
-			http.Error(w, fmt.Sprintf("Bundle validation failed: %s", err), http.StatusBadRequest)
-			return
-		}
 	}
 
 	s.persistDesktopConfig(metadata.ScenarioPath, config)
@@ -186,17 +134,9 @@ func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Validate configuration
-	if err := s.validateDesktopConfig(config); err != nil {
-		http.Error(w, fmt.Sprintf("Configuration validation failed: %s", err), http.StatusBadRequest)
+	if err := s.validateAndPrepareBundle(config); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
-	}
-
-	if config.DeploymentMode == "bundled" {
-		if _, err := s.prepareBundledConfig(config); err != nil {
-			http.Error(w, fmt.Sprintf("Bundle validation failed: %s", err), http.StatusBadRequest)
-			return
-		}
 	}
 
 	s.persistDesktopConfig(s.scenarioRoot(config.AppName), config)
@@ -216,6 +156,88 @@ func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
+}
+
+func mergeQuickGenerateConfig(config DesktopConfig, request quickGenerateRequest, savedConfig *DesktopConnectionConfig, defaultOutputPath string) DesktopConfig {
+	config.ProxyURL = chooseProxyURL(request, savedConfig)
+	config.VrooliBinaryPath = chooseVrooliBinary(request, savedConfig, config.VrooliBinaryPath)
+	config.DeploymentMode = chooseDeploymentMode(request, savedConfig, config.DeploymentMode)
+	config.BundleManifestPath = chooseBundleManifestPath(request, savedConfig)
+	config.AutoManageVrooli = chooseAutoManage(request, savedConfig, config.AutoManageVrooli)
+
+	if config.OutputPath == "" {
+		config.OutputPath = defaultOutputPath
+	}
+	if savedConfig != nil && savedConfig.ServerType != "" && request.ProxyURL == "" && request.LegacyServerURL == "" {
+		config.ServerType = savedConfig.ServerType
+	}
+
+	return config
+}
+
+func chooseProxyURL(request quickGenerateRequest, savedConfig *DesktopConnectionConfig) string {
+	if request.ProxyURL != "" {
+		return request.ProxyURL
+	}
+	if savedConfig != nil {
+		if savedConfig.ProxyURL != "" {
+			return savedConfig.ProxyURL
+		}
+		if savedConfig.ServerURL != "" {
+			return savedConfig.ServerURL
+		}
+	}
+	if request.LegacyServerURL != "" {
+		return request.LegacyServerURL
+	}
+	if request.LegacyAPIURL != "" {
+		return request.LegacyAPIURL
+	}
+
+	return ""
+}
+
+func chooseVrooliBinary(request quickGenerateRequest, savedConfig *DesktopConnectionConfig, existing string) string {
+	if request.VrooliBinary != "" {
+		return request.VrooliBinary
+	}
+	if savedConfig != nil && savedConfig.VrooliBinary != "" {
+		return savedConfig.VrooliBinary
+	}
+	return existing
+}
+
+func chooseDeploymentMode(request quickGenerateRequest, savedConfig *DesktopConnectionConfig, existing string) string {
+	if request.DeploymentMode != "" {
+		return request.DeploymentMode
+	}
+	if savedConfig != nil && savedConfig.DeploymentMode != "" {
+		return savedConfig.DeploymentMode
+	}
+	return existing
+}
+
+func chooseBundleManifestPath(request quickGenerateRequest, savedConfig *DesktopConnectionConfig) string {
+	if request.BundleManifest != "" {
+		return request.BundleManifest
+	}
+	if savedConfig != nil && savedConfig.BundleManifestPath != "" {
+		return savedConfig.BundleManifestPath
+	}
+	return ""
+}
+
+func chooseAutoManage(request quickGenerateRequest, savedConfig *DesktopConnectionConfig, existing bool) bool {
+	if request.AutoManageVrooli != nil {
+		return *request.AutoManageVrooli
+	}
+	if request.LegacyAutoManage != nil {
+		return *request.LegacyAutoManage
+	}
+	if savedConfig != nil {
+		return savedConfig.AutoManageVrooli
+	}
+	return existing
 }
 
 // Get build status handler
@@ -251,30 +273,12 @@ func (s *Server) buildScenarioDesktopHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Optional: Parse build options from request body
-	var options struct {
-		Platforms []string `json:"platforms"` // win, mac, linux
-		Clean     bool     `json:"clean"`     // Clean before building
-	}
-	if r.Body != nil {
-		json.NewDecoder(r.Body).Decode(&options)
-	}
-
-	// Default to all platforms if not specified
-	if len(options.Platforms) == 0 {
-		options.Platforms = []string{"win", "mac", "linux"}
-	}
+	options := decodeScenarioBuildOptions(r.Body)
 
 	buildID := uuid.New().String()
 
 	// Initialize platform results
-	platformResults := make(map[string]*PlatformBuildResult)
-	for _, platform := range options.Platforms {
-		platformResults[platform] = &PlatformBuildResult{
-			Platform: platform,
-			Status:   "pending",
-		}
-	}
+	platformResults := newPlatformResults(options.Platforms)
 
 	// Create build status
 	buildStatus := &BuildStatus{
@@ -349,24 +353,8 @@ func (s *Server) downloadDesktopHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Set appropriate content-type and headers
-	contentType := "application/octet-stream"
 	filename := filepath.Base(packageFile)
-
-	if strings.HasSuffix(packageFile, ".msi") {
-		contentType = "application/x-msi"
-	} else if strings.HasSuffix(packageFile, ".pkg") {
-		contentType = "application/vnd.apple.installer+xml"
-	} else if strings.HasSuffix(packageFile, ".exe") {
-		contentType = "application/x-msdownload"
-	} else if strings.HasSuffix(packageFile, ".dmg") {
-		contentType = "application/x-apple-diskimage"
-	} else if strings.HasSuffix(packageFile, ".AppImage") {
-		contentType = "application/x-executable"
-	} else if strings.HasSuffix(packageFile, ".deb") {
-		contentType = "application/vnd.debian.binary-package"
-	} else if strings.HasSuffix(packageFile, ".zip") {
-		contentType = "application/zip"
-	}
+	contentType := detectPackageContentType(packageFile)
 
 	s.logger.Info("serving download",
 		"scenario", scenarioName,
@@ -392,8 +380,7 @@ func (s *Server) deleteDesktopHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate scenario name to prevent path traversal
-	if strings.Contains(scenarioName, "..") || strings.Contains(scenarioName, "/") || strings.Contains(scenarioName, "\\") {
+	if !isSafeScenarioName(scenarioName) {
 		http.Error(w, "Invalid scenario name", http.StatusBadRequest)
 		return
 	}
@@ -698,4 +685,82 @@ func (s *Server) buildCompleteWebhookHandler(w http.ResponseWriter, r *http.Requ
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "received"})
+}
+
+func (s *Server) validateAndPrepareBundle(config *DesktopConfig) error {
+	if err := s.validateDesktopConfig(config); err != nil {
+		return fmt.Errorf("Configuration validation failed: %s", err)
+	}
+
+	if config.DeploymentMode != "bundled" {
+		return nil
+	}
+
+	if _, err := s.prepareBundledConfig(config); err != nil {
+		return fmt.Errorf("Bundle validation failed: %s", err)
+	}
+
+	return nil
+}
+
+func decodeScenarioBuildOptions(body io.ReadCloser) struct {
+	Platforms []string
+	Clean     bool
+} {
+	var options struct {
+		Platforms []string `json:"platforms"` // win, mac, linux
+		Clean     bool     `json:"clean"`     // Clean before building
+	}
+
+	if body != nil {
+		_ = json.NewDecoder(body).Decode(&options)
+	}
+
+	if len(options.Platforms) == 0 {
+		options.Platforms = []string{"win", "mac", "linux"}
+	}
+
+	return struct {
+		Platforms []string
+		Clean     bool
+	}{
+		Platforms: options.Platforms,
+		Clean:     options.Clean,
+	}
+}
+
+func newPlatformResults(platforms []string) map[string]*PlatformBuildResult {
+	platformResults := make(map[string]*PlatformBuildResult)
+	for _, platform := range platforms {
+		platformResults[platform] = &PlatformBuildResult{
+			Platform: platform,
+			Status:   "pending",
+		}
+	}
+	return platformResults
+}
+
+func detectPackageContentType(packageFile string) string {
+	switch {
+	case strings.HasSuffix(packageFile, ".msi"):
+		return "application/x-msi"
+	case strings.HasSuffix(packageFile, ".pkg"):
+		return "application/vnd.apple.installer+xml"
+	case strings.HasSuffix(packageFile, ".exe"):
+		return "application/x-msdownload"
+	case strings.HasSuffix(packageFile, ".dmg"):
+		return "application/x-apple-diskimage"
+	case strings.HasSuffix(packageFile, ".AppImage"):
+		return "application/x-executable"
+	case strings.HasSuffix(packageFile, ".deb"):
+		return "application/vnd.debian.binary-package"
+	case strings.HasSuffix(packageFile, ".zip"):
+		return "application/zip"
+	default:
+		return "application/octet-stream"
+	}
+}
+
+func isSafeScenarioName(name string) bool {
+	return !strings.Contains(name, "..") && !strings.Contains(name, "/") && !strings.Contains(name, "\\")
 }
