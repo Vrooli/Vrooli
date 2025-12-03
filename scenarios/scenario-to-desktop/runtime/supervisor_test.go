@@ -15,6 +15,7 @@ import (
 	"scenario-to-desktop-runtime/api"
 	"scenario-to-desktop-runtime/assets"
 	"scenario-to-desktop-runtime/config"
+	"scenario-to-desktop-runtime/gpu"
 	"scenario-to-desktop-runtime/health"
 	"scenario-to-desktop-runtime/manifest"
 	"scenario-to-desktop-runtime/secrets"
@@ -127,6 +128,7 @@ type mockSupervisorRuntime struct {
 	secretStore   *secrets.Manager
 	statuses      map[string]health.Status
 	telemetryLogs []string
+	gpuStatus     gpu.Status
 }
 
 func (m *mockSupervisorRuntime) Shutdown(_ context.Context) error { return nil }
@@ -136,16 +138,23 @@ func (m *mockSupervisorRuntime) ServiceStatuses() map[string]health.Status {
 func (m *mockSupervisorRuntime) PortMap() map[string]map[string]int {
 	return map[string]map[string]int{}
 }
-func (m *mockSupervisorRuntime) TelemetryPath() string         { return "/tmp/telemetry.jsonl" }
-func (m *mockSupervisorRuntime) TelemetryUploadURL() string    { return "" }
-func (m *mockSupervisorRuntime) Manifest() *manifest.Manifest  { return m.manifest }
-func (m *mockSupervisorRuntime) AppDataDir() string            { return "/tmp/appdata" }
-func (m *mockSupervisorRuntime) FileSystem() FileSystem        { return RealFileSystem{} }
-func (m *mockSupervisorRuntime) SecretStore() api.SecretStore  { return m.secretStore }
-func (m *mockSupervisorRuntime) StartServicesIfReady()         {}
+func (m *mockSupervisorRuntime) TelemetryPath() string        { return "/tmp/telemetry.jsonl" }
+func (m *mockSupervisorRuntime) TelemetryUploadURL() string   { return "" }
+func (m *mockSupervisorRuntime) Manifest() *manifest.Manifest { return m.manifest }
+func (m *mockSupervisorRuntime) AppDataDir() string           { return "/tmp/appdata" }
+func (m *mockSupervisorRuntime) FileSystem() FileSystem       { return RealFileSystem{} }
+func (m *mockSupervisorRuntime) SecretStore() api.SecretStore { return m.secretStore }
+func (m *mockSupervisorRuntime) StartServicesIfReady()        {}
 func (m *mockSupervisorRuntime) RecordTelemetry(event string, _ map[string]interface{}) error {
 	m.telemetryLogs = append(m.telemetryLogs, event)
 	return nil
+}
+
+func (m *mockSupervisorRuntime) GPUStatus() gpu.Status {
+	if m.gpuStatus.Method == "" {
+		return gpu.Status{Available: false, Method: "mock", Reason: "test"}
+	}
+	return m.gpuStatus
 }
 
 func TestHandleSecretsGetReturnsStatus(t *testing.T) {

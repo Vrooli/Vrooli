@@ -12,11 +12,12 @@ import (
 	"strings"
 	"time"
 
+	"scenario-to-desktop-runtime/fileutil"
+	"scenario-to-desktop-runtime/gpu"
 	"scenario-to-desktop-runtime/health"
 	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/fileutil"
-	"scenario-to-desktop-runtime/strutil"
 	"scenario-to-desktop-runtime/manifest"
+	"scenario-to-desktop-runtime/strutil"
 )
 
 // Runtime defines the interface that the API layer uses to interact with the supervisor.
@@ -43,6 +44,8 @@ type Runtime interface {
 	StartServicesIfReady()
 	// RecordTelemetry records a telemetry event.
 	RecordTelemetry(event string, details map[string]interface{}) error
+	// GPUStatus returns GPU detection info.
+	GPUStatus() gpu.Status
 }
 
 // SecretStore defines the interface for secret management used by the API.
@@ -127,9 +130,23 @@ func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	gpuStatus := s.runtime.GPUStatus()
+	requirements := map[string]string{}
+	for _, svc := range s.runtime.Manifest().Services {
+		if req := svc.GPURequirement(); req != "" {
+			requirements[svc.ID] = req
+		}
+	}
+
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"ready":   allReady,
 		"details": statuses,
+		"gpu": map[string]interface{}{
+			"available":    gpuStatus.Available,
+			"method":       gpuStatus.Method,
+			"reason":       gpuStatus.Reason,
+			"requirements": requirements,
+		},
 	})
 }
 

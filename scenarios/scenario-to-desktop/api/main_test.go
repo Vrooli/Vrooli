@@ -90,9 +90,9 @@ func TestStatusHandler(t *testing.T) {
 
 	t.Run("WithBuildStatistics", func(t *testing.T) {
 		// Add some build statuses
-		server.buildStatuses["build1"] = createTestBuildStatus("build1", "building")
-		server.buildStatuses["build2"] = createTestBuildStatus("build2", "ready")
-		server.buildStatuses["build3"] = createTestBuildStatus("build3", "failed")
+		server.builds.Save(createTestBuildStatus("build1", "building"))
+		server.builds.Save(createTestBuildStatus("build2", "ready"))
+		server.builds.Save(createTestBuildStatus("build3", "failed"))
 
 		req := httptest.NewRequest("GET", "/api/v1/status", nil)
 		w := httptest.NewRecorder()
@@ -453,7 +453,7 @@ func TestGetBuildStatusHandler(t *testing.T) {
 
 	t.Run("ExistingBuild", func(t *testing.T) {
 		buildID := uuid.New().String()
-		server.buildStatuses[buildID] = createTestBuildStatus(buildID, "ready")
+		server.builds.Save(createTestBuildStatus(buildID, "ready"))
 
 		req := httptest.NewRequest("GET", "/api/v1/desktop/status/"+buildID, nil)
 		req = mux.SetURLVars(req, map[string]string{"build_id": buildID})
@@ -482,7 +482,7 @@ func TestGetBuildStatusHandler(t *testing.T) {
 
 	t.Run("BuildingStatus", func(t *testing.T) {
 		buildID := uuid.New().String()
-		server.buildStatuses[buildID] = createTestBuildStatus(buildID, "building")
+		server.builds.Save(createTestBuildStatus(buildID, "building"))
 
 		req := httptest.NewRequest("GET", "/api/v1/desktop/status/"+buildID, nil)
 		req = mux.SetURLVars(req, map[string]string{"build_id": buildID})
@@ -498,7 +498,7 @@ func TestGetBuildStatusHandler(t *testing.T) {
 		buildID := uuid.New().String()
 		status := createTestBuildStatus(buildID, "failed")
 		status.ErrorLog = []string{"Build failed due to missing dependencies"}
-		server.buildStatuses[buildID] = status
+		server.builds.Save(status)
 
 		req := httptest.NewRequest("GET", "/api/v1/desktop/status/"+buildID, nil)
 		req = mux.SetURLVars(req, map[string]string{"build_id": buildID})
@@ -764,7 +764,7 @@ func TestBuildCompleteWebhookHandler(t *testing.T) {
 
 	t.Run("ValidWebhook_Completed", func(t *testing.T) {
 		buildID := uuid.New().String()
-		server.buildStatuses[buildID] = createTestBuildStatus(buildID, "building")
+		server.builds.Save(createTestBuildStatus(buildID, "building"))
 
 		body := map[string]interface{}{
 			"status": "completed",
@@ -780,17 +780,18 @@ func TestBuildCompleteWebhookHandler(t *testing.T) {
 		assertFieldValue(t, response, "status", "received")
 
 		// Verify status was updated
-		if server.buildStatuses[buildID].Status != "completed" {
+		status, _ := server.builds.Get(buildID)
+		if status.Status != "completed" {
 			t.Error("Expected build status to be updated to completed")
 		}
-		if server.buildStatuses[buildID].CompletedAt == nil {
+		if status.CompletedAt == nil {
 			t.Error("Expected CompletedAt to be set")
 		}
 	})
 
 	t.Run("ValidWebhook_Failed", func(t *testing.T) {
 		buildID := uuid.New().String()
-		server.buildStatuses[buildID] = createTestBuildStatus(buildID, "building")
+		server.builds.Save(createTestBuildStatus(buildID, "building"))
 
 		body := map[string]interface{}{
 			"status": "failed",
@@ -808,7 +809,8 @@ func TestBuildCompleteWebhookHandler(t *testing.T) {
 		}
 
 		// Verify status was updated
-		if server.buildStatuses[buildID].Status != "failed" {
+		status, _ := server.builds.Get(buildID)
+		if status.Status != "failed" {
 			t.Error("Expected build status to be updated to failed")
 		}
 	})
@@ -842,7 +844,7 @@ func TestBuildCompleteWebhookHandler(t *testing.T) {
 
 	t.Run("NonExistentBuild", func(t *testing.T) {
 		buildID := uuid.New().String()
-		// Don't add build to server.buildStatuses
+		// Don't add build to the build store
 
 		body := map[string]interface{}{
 			"status": "completed",
@@ -1044,8 +1046,8 @@ func TestNewServer(t *testing.T) {
 		if server.port != 8080 {
 			t.Errorf("Expected port 8080, got %d", server.port)
 		}
-		if server.buildStatuses == nil {
-			t.Error("Expected buildStatuses map to be initialized")
+		if server.builds == nil {
+			t.Error("Expected build store to be initialized")
 		}
 		if server.router == nil {
 			t.Error("Expected router to be initialized")
@@ -1190,9 +1192,13 @@ func TestEdgeCases(t *testing.T) {
 		if w.Code == http.StatusCreated {
 			response := assertJSONResponse(t, w, http.StatusCreated)
 			buildID := response["build_id"].(string)
-			status := env.Server.buildStatuses[buildID]
-			if len(status.Platforms) == 0 {
-				t.Error("Expected default platforms to be set")
+			status, ok := env.Server.builds.Get(buildID)
+			if ok {
+				if len(status.Platforms) == 0 {
+					t.Error("Expected default platforms to be set")
+				}
+			} else {
+				t.Fatalf("Expected build status for %s", buildID)
 			}
 		}
 	})
@@ -1271,8 +1277,8 @@ func TestConcurrentRequests(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 
 		// Verify all builds were created
-		if len(env.Server.buildStatuses) != 5 {
-			t.Errorf("Expected 5 build statuses, got %d", len(env.Server.buildStatuses))
+		if env.Server.builds.Len() != 5 {
+			t.Errorf("Expected 5 build statuses, got %d", env.Server.builds.Len())
 		}
 	})
 }
@@ -1321,7 +1327,7 @@ func TestPerformDesktopGeneration(t *testing.T) {
 			Metadata:     make(map[string]interface{}),
 		}
 
-		env.Server.buildStatuses[buildID] = buildStatus
+		env.Server.builds.Save(buildStatus)
 
 		// Run generation (will fail due to missing template generator, but tests flow)
 		env.Server.performDesktopGeneration(buildID, config)
@@ -1330,8 +1336,7 @@ func TestPerformDesktopGeneration(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 
 		// Check that function completed without panic
-		status := env.Server.buildStatuses[buildID]
-		if status != nil {
+		if status, ok := env.Server.builds.Get(buildID); ok && status != nil {
 			t.Log("Generation completed (status may be failed due to missing tools)")
 		}
 	})

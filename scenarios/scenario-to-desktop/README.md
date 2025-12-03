@@ -75,6 +75,12 @@ scenario-to-desktop telemetry collect \
 
 The API stores the events under `.vrooli/deployment/telemetry/picker-wheel.jsonl`, giving deployment-manager and scenario-dependency-analyzer a single source of truth for how thin clients behave in the wild.
 
+### Installer outputs and updater channels
+
+- **Installer formats**: Windows builds now target `.msi`, macOS uses `.pkg`, and Linux ships `.AppImage` + `.deb`. Legacy `.exe` / `.dmg` artifacts still download if present, but the generator/UX prefers the installer formats for signing and enterprise deployment.
+- **Channel intent**: Auto-update hooks remain off by default. When you wire a publish target, stick to three channels (`dev`, `beta`, `stable`) and publish per-platform artifacts with signatures; the runtime/Electron wrapper should only enable updates when a channel URL and signing material are configured.
+- **Bundled mode impact**: Offline bundles will initially rely on manual installer refreshes; differential updates stay on the roadmap. Until then, treat each MSI/PKG/AppImage as a full reinstall and keep telemetry enabled so deployment-manager can flag upgrade pain.
+
 ### Generator UI Upgrades
 
 - **Deployment intent picker** highlights Thin Client (ready today) vs Cloud API / Bundled (stubs). Selecting anything other than Thin Client surfaces a "coming soon" warning so builders don’t think offline bundles ship yet.

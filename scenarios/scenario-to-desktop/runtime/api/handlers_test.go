@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"scenario-to-desktop-runtime/gpu"
 	"scenario-to-desktop-runtime/health"
 	"scenario-to-desktop-runtime/infra"
 	"scenario-to-desktop-runtime/manifest"
@@ -31,6 +32,7 @@ type mockRuntime struct {
 	shutdownCalled bool
 	startCalled    bool
 	telemetryLogs  []string
+	gpuStatus      gpu.Status
 }
 
 func (m *mockRuntime) Shutdown(ctx context.Context) error {
@@ -79,6 +81,10 @@ func (m *mockRuntime) RecordTelemetry(event string, details map[string]interface
 	return nil
 }
 
+func (m *mockRuntime) GPUStatus() gpu.Status {
+	return m.gpuStatus
+}
+
 // testRuntime creates a mock runtime configured for testing.
 func testRuntime(t *testing.T, m *manifest.Manifest) *mockRuntime {
 	t.Helper()
@@ -120,6 +126,11 @@ func testRuntime(t *testing.T, m *manifest.Manifest) *mockRuntime {
 		appDataDir:    appData,
 		fs:            fs,
 		secretStore:   secrets.NewManager(m, fs, filepath.Join(appData, "secrets.json")),
+		gpuStatus: gpu.Status{
+			Available: true,
+			Method:    "mock",
+			Reason:    "test",
+		},
 	}
 }
 
@@ -177,6 +188,21 @@ func TestHandleReady(t *testing.T) {
 
 		if body["ready"] != true {
 			t.Errorf("handleReady() ready = %v, want true", body["ready"])
+		}
+
+		gpuInfo, ok := body["gpu"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("handleReady() gpu missing or wrong type")
+		}
+		if gpuInfo["available"] != true {
+			t.Errorf("handleReady() gpu.available = %v, want true", gpuInfo["available"])
+		}
+		reqs, ok := gpuInfo["requirements"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("handleReady() gpu.requirements missing or wrong type")
+		}
+		if reqs["api"] != nil {
+			t.Errorf("handleReady() expected no gpu requirement for api, got %v", reqs["api"])
 		}
 	})
 

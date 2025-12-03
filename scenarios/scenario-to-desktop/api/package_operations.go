@@ -18,10 +18,11 @@ func (s *Server) findBuiltPackage(distPath, platform string) (string, error) {
 	var patterns []string
 	switch platform {
 	case "win":
-		patterns = []string{"*.exe"}
+		// Prefer MSI installers; keep exe as a fallback for legacy builds.
+		patterns = []string{"*.msi", "*Setup.exe", "*.exe"}
 	case "mac":
-		// Accept both DMG (macOS builds) and ZIP (Linux cross-compilation)
-		patterns = []string{"*.dmg", "*.zip"}
+		// Prefer PKG installers; keep DMG/ZIP as a fallback when cross-compiling.
+		patterns = []string{"*.pkg", "*.dmg", "*.zip"}
 	case "linux":
 		patterns = []string{"*.AppImage", "*.deb"}
 	default:
@@ -36,8 +37,13 @@ func (s *Server) findBuiltPackage(distPath, platform string) (string, error) {
 		}
 		if len(matches) > 0 {
 			// Return the first match (usually there's only one)
-			// Prefer Setup.exe over portable.exe for Windows
 			if platform == "win" && len(matches) > 1 {
+				// Prefer MSI, otherwise Setup.exe over any other exe.
+				for _, match := range matches {
+					if strings.HasSuffix(strings.ToLower(match), ".msi") {
+						return match, nil
+					}
+				}
 				for _, match := range matches {
 					if strings.Contains(strings.ToLower(match), "setup") {
 						return match, nil
@@ -46,6 +52,12 @@ func (s *Server) findBuiltPackage(distPath, platform string) (string, error) {
 			}
 			// For Mac, prefer x64 over arm64 when both exist, and non-arm64 zip files
 			if platform == "mac" && len(matches) > 1 {
+				// Prefer PKG first when present.
+				for _, match := range matches {
+					if strings.HasSuffix(strings.ToLower(match), ".pkg") {
+						return match, nil
+					}
+				}
 				// First, try to find x64-specific file (not arm64)
 				for _, match := range matches {
 					lowerMatch := strings.ToLower(match)

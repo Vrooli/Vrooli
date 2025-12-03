@@ -42,24 +42,17 @@ func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	if request.TemplateType == "" {
-		request.TemplateType = "universal" // Default to universal template (works for any scenario)
+		request.TemplateType = defaultTemplateType // Default to universal template (works for any scenario)
 	}
 
 	// Validate template type
-	validTemplates := []string{"universal", "basic", "advanced", "multi_window", "kiosk"} // basic is alias for universal
-	if !contains(validTemplates, request.TemplateType) {
+	if !isValidTemplateType(request.TemplateType) {
 		http.Error(w, fmt.Sprintf("invalid template_type: %s", request.TemplateType), http.StatusBadRequest)
 		return
 	}
 
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		currentDir, _ := os.Getwd()
-		vrooliRoot = filepath.Join(currentDir, "../../..")
-	}
-
 	// Create analyzer
-	analyzer := NewScenarioAnalyzer(vrooliRoot)
+	analyzer := NewScenarioAnalyzer(detectVrooliRoot())
 
 	// Analyze scenario
 	metadata, err := analyzer.AnalyzeScenario(request.ScenarioName)
@@ -119,6 +112,9 @@ func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Requ
 	} else if savedConfig != nil && savedConfig.DeploymentMode != "" {
 		config.DeploymentMode = savedConfig.DeploymentMode
 	}
+	if config.OutputPath == "" {
+		config.OutputPath = s.standardOutputPath(config.AppName)
+	}
 	if request.BundleManifest != "" {
 		config.BundleManifestPath = request.BundleManifest
 	} else if savedConfig != nil && savedConfig.BundleManifestPath != "" {
@@ -156,48 +152,18 @@ func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Requ
 		"display_name", metadata.DisplayName)
 
 	// Generate build ID
-	buildID := uuid.New().String()
-
-	// Create build status
-	buildStatus := &BuildStatus{
-		BuildID:      buildID,
-		ScenarioName: config.AppName,
-		Status:       "building",
-		Framework:    config.Framework,
-		TemplateType: config.TemplateType,
-		Platforms:    config.Platforms,
-		OutputPath:   filepath.Join(metadata.ScenarioPath, "platforms", "electron"),
-		CreatedAt:    time.Now(),
-		BuildLog:     []string{},
-		ErrorLog:     []string{},
-		Artifacts:    make(map[string]string),
-		Metadata: map[string]interface{}{
-			"auto_detected":  true,
-			"ui_dist_path":   metadata.UIDistPath,
-			"has_api":        config.ServerType == "external",
-			"category":       metadata.Category,
-			"source_version": metadata.Version,
-		},
-	}
-
-	// Store build status
-	s.buildMutex.Lock()
-	s.buildStatuses[buildID] = buildStatus
-	s.buildMutex.Unlock()
-
-	// Start build process asynchronously
-	go s.performDesktopGeneration(buildID, config)
+	buildStatus := s.queueDesktopBuild(config, metadata, true)
 
 	// Return immediate response
 	response := map[string]interface{}{
-		"build_id":             buildID,
+		"build_id":             buildStatus.BuildID,
 		"status":               "building",
 		"scenario_name":        config.AppName,
 		"desktop_path":         buildStatus.OutputPath,
 		"detected_metadata":    metadata,
 		"install_instructions": "Run 'npm install && npm run dev' in the output directory",
 		"test_command":         "npm run dev",
-		"status_url":           fmt.Sprintf("/api/v1/desktop/status/%s", buildID),
+		"status_url":           fmt.Sprintf("/api/v1/desktop/status/%s", buildStatus.BuildID),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -233,65 +199,18 @@ func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		// Fallback to calculating from current directory
-		// This assumes API is in <vrooli-root>/scenarios/scenario-to-desktop/api/
-		currentDir, _ := os.Getwd()
-		vrooliRoot = filepath.Join(currentDir, "../../..")
-	}
+	s.persistDesktopConfig(s.scenarioRoot(config.AppName), config)
 
-	// Set default output path to standard location if not provided
-	if config.OutputPath == "" {
-		config.OutputPath = filepath.Join(
-			vrooliRoot,
-			"scenarios",
-			config.AppName,
-			"platforms",
-			"electron",
-		)
-		s.logger.Info("using standard output path",
-			"scenario", config.AppName,
-			"path", config.OutputPath)
-	}
-
-	s.persistDesktopConfig(filepath.Join(vrooliRoot, "scenarios", config.AppName), config)
-
-	// Generate build ID
-	buildID := uuid.New().String()
-
-	// Create build status
-	buildStatus := &BuildStatus{
-		BuildID:      buildID,
-		ScenarioName: config.AppName,
-		Status:       "building",
-		Framework:    config.Framework,
-		TemplateType: config.TemplateType,
-		Platforms:    config.Platforms,
-		OutputPath:   config.OutputPath,
-		CreatedAt:    time.Now(),
-		BuildLog:     []string{},
-		ErrorLog:     []string{},
-		Artifacts:    make(map[string]string),
-		Metadata:     make(map[string]interface{}),
-	}
-
-	// Store build status
-	s.buildMutex.Lock()
-	s.buildStatuses[buildID] = buildStatus
-	s.buildMutex.Unlock()
-
-	// Start build process asynchronously
-	go s.performDesktopGeneration(buildID, config)
+	buildStatus := s.queueDesktopBuild(config, nil, false)
 
 	// Return immediate response
 	response := map[string]interface{}{
-		"build_id":             buildID,
+		"build_id":             buildStatus.BuildID,
 		"status":               "building",
 		"desktop_path":         config.OutputPath,
 		"install_instructions": "Run 'npm install && npm run dev' in the output directory",
 		"test_command":         "npm run dev",
-		"status_url":           fmt.Sprintf("/api/v1/desktop/status/%s", buildID),
+		"status_url":           fmt.Sprintf("/api/v1/desktop/status/%s", buildStatus.BuildID),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -304,9 +223,7 @@ func (s *Server) getBuildStatusHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	buildID := vars["build_id"]
 
-	s.buildMutex.RLock()
-	status, exists := s.buildStatuses[buildID]
-	s.buildMutex.RUnlock()
+	status, exists := s.builds.Get(buildID)
 
 	if !exists {
 		http.Error(w, "Build not found", http.StatusNotFound)
@@ -327,15 +244,8 @@ func (s *Server) buildScenarioDesktopHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Get Vrooli root
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		currentDir, _ := os.Getwd()
-		vrooliRoot = filepath.Join(currentDir, "../../..")
-	}
-
 	// Check if desktop wrapper exists
-	desktopPath := filepath.Join(vrooliRoot, "scenarios", scenarioName, "platforms", "electron")
+	desktopPath := s.standardOutputPath(scenarioName)
 	if _, err := os.Stat(desktopPath); os.IsNotExist(err) {
 		http.Error(w, fmt.Sprintf("Desktop wrapper not found for '%s'. Generate it first.", scenarioName), http.StatusNotFound)
 		return
@@ -381,9 +291,7 @@ func (s *Server) buildScenarioDesktopHandler(w http.ResponseWriter, r *http.Requ
 		Artifacts:          make(map[string]string),
 	}
 
-	s.buildMutex.Lock()
-	s.buildStatuses[buildID] = buildStatus
-	s.buildMutex.Unlock()
+	s.builds.Save(buildStatus)
 
 	s.logger.Info("starting desktop build",
 		"scenario", scenarioName,
@@ -425,15 +333,8 @@ func (s *Server) downloadDesktopHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Get Vrooli root
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		currentDir, _ := os.Getwd()
-		vrooliRoot = filepath.Join(currentDir, "../../..")
-	}
-
 	// Find built package
-	distPath := filepath.Join(vrooliRoot, "scenarios", scenarioName, "platforms", "electron", "dist-electron")
+	distPath := filepath.Join(s.standardOutputPath(scenarioName), "dist-electron")
 	packageFile, err := s.findBuiltPackage(distPath, platform)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Built package not found: %s. Build the desktop app first.", err), http.StatusNotFound)
@@ -451,7 +352,11 @@ func (s *Server) downloadDesktopHandler(w http.ResponseWriter, r *http.Request) 
 	contentType := "application/octet-stream"
 	filename := filepath.Base(packageFile)
 
-	if strings.HasSuffix(packageFile, ".exe") {
+	if strings.HasSuffix(packageFile, ".msi") {
+		contentType = "application/x-msi"
+	} else if strings.HasSuffix(packageFile, ".pkg") {
+		contentType = "application/vnd.apple.installer+xml"
+	} else if strings.HasSuffix(packageFile, ".exe") {
 		contentType = "application/x-msdownload"
 	} else if strings.HasSuffix(packageFile, ".dmg") {
 		contentType = "application/x-apple-diskimage"
@@ -459,6 +364,8 @@ func (s *Server) downloadDesktopHandler(w http.ResponseWriter, r *http.Request) 
 		contentType = "application/x-executable"
 	} else if strings.HasSuffix(packageFile, ".deb") {
 		contentType = "application/vnd.debian.binary-package"
+	} else if strings.HasSuffix(packageFile, ".zip") {
+		contentType = "application/zip"
 	}
 
 	s.logger.Info("serving download",
@@ -491,15 +398,8 @@ func (s *Server) deleteDesktopHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get Vrooli root
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		currentDir, _ := os.Getwd()
-		vrooliRoot = filepath.Join(currentDir, "../../..")
-	}
-
 	// Construct desktop path - MUST be exactly platforms/electron/
-	desktopPath := filepath.Join(vrooliRoot, "scenarios", scenarioName, "platforms", "electron")
+	desktopPath := s.standardOutputPath(scenarioName)
 
 	// Security check: Verify the path is actually inside platforms/electron
 	absDesktopPath, err := filepath.Abs(desktopPath)
@@ -508,8 +408,7 @@ func (s *Server) deleteDesktopHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	expectedPrefix := filepath.Join(vrooliRoot, "scenarios", scenarioName, "platforms", "electron")
-	absExpectedPrefix, _ := filepath.Abs(expectedPrefix)
+	absExpectedPrefix, _ := filepath.Abs(desktopPath)
 	if absDesktopPath != absExpectedPrefix {
 		s.logger.Error("path traversal attempt detected",
 			"scenario", scenarioName,
@@ -691,9 +590,7 @@ func (s *Server) buildDesktopHandler(w http.ResponseWriter, r *http.Request) {
 		ErrorLog:   []string{},
 	}
 
-	s.buildMutex.Lock()
-	s.buildStatuses[buildID] = buildStatus
-	s.buildMutex.Unlock()
+	s.builds.Save(buildStatus)
 
 	// Start build process
 	go s.performDesktopBuild(buildID, &request)
@@ -784,8 +681,7 @@ func (s *Server) buildCompleteWebhookHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Update build status if it exists
-	s.buildMutex.Lock()
-	if status, exists := s.buildStatuses[buildID]; exists {
+	s.builds.Update(buildID, func(status *BuildStatus) {
 		if resultStatus, ok := result["status"].(string); ok {
 			status.Status = resultStatus
 		}
@@ -793,8 +689,7 @@ func (s *Server) buildCompleteWebhookHandler(w http.ResponseWriter, r *http.Requ
 			now := time.Now()
 			status.CompletedAt = &now
 		}
-	}
-	s.buildMutex.Unlock()
+	})
 
 	s.logger.Info("build webhook received",
 		"build_id", buildID,

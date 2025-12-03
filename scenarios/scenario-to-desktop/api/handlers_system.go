@@ -31,8 +31,9 @@ func (s *Server) statusHandler(w http.ResponseWriter, r *http.Request) {
 	building := 0
 	completed := 0
 	failed := 0
+	buildStatuses := s.builds.Snapshot()
 
-	for _, status := range s.buildStatuses {
+	for _, status := range buildStatuses {
 		switch status.Status {
 		case "building":
 			building++
@@ -51,7 +52,7 @@ func (s *Server) statusHandler(w http.ResponseWriter, r *http.Request) {
 			"status":      "running",
 		},
 		"statistics": map[string]interface{}{
-			"total_builds":     len(s.buildStatuses),
+			"total_builds":     len(buildStatuses),
 			"active_builds":    building,
 			"completed_builds": completed,
 			"failed_builds":    failed,

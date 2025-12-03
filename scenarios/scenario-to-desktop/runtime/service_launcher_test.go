@@ -5,6 +5,7 @@ import (
 	"errors"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -46,6 +47,35 @@ func TestExitCode(t *testing.T) {
 
 func intPtr(i int) *int {
 	return &i
+}
+
+type recordingTelemetry struct {
+	events []string
+}
+
+func (r *recordingTelemetry) Record(event string, _ map[string]interface{}) error {
+	r.events = append(r.events, event)
+	return nil
+}
+
+func (r *recordingTelemetry) Has(event string) bool {
+	for _, e := range r.events {
+		if e == event {
+			return true
+		}
+	}
+	return false
+}
+
+func envSliceToMap(env []string) map[string]string {
+	out := make(map[string]string, len(env))
+	for _, kv := range env {
+		parts := strings.SplitN(kv, "=", 2)
+		if len(parts) == 2 {
+			out[parts[0]] = parts[1]
+		}
+	}
+	return out
 }
 
 func TestStartService_DryRun(t *testing.T) {
@@ -350,6 +380,8 @@ type testSupervisorConfig struct {
 	bundlePath    string
 	appData       string
 	procShouldErr bool
+	gpuStatus     gpu.Status
+	telemetry     telemetry.Recorder
 }
 
 // newTestSupervisor creates a fully initialized Supervisor for testing startService.
@@ -370,8 +402,14 @@ func newTestSupervisor(t *testing.T, cfg testSupervisorConfig) *Supervisor {
 		mockPortAllocator.SetPort(svc.ID, "http", 8080)
 	}
 
-	telem := telemetry.NopRecorder{}
-	gpuStatus := gpu.Status{Available: false, Method: "mock", Reason: "test"}
+	telem := cfg.telemetry
+	if telem == nil {
+		telem = telemetry.NopRecorder{}
+	}
+	gpuStatus := cfg.gpuStatus
+	if gpuStatus.Method == "" {
+		gpuStatus = gpu.Status{Available: false, Method: "mock", Reason: "test"}
+	}
 
 	return &Supervisor{
 		opts: Options{
@@ -488,6 +526,148 @@ func TestStartService_WithEnvironment(t *testing.T) {
 	startedCmds := pr.StartedCmds()
 	if len(startedCmds) == 0 {
 		t.Error("startService() should start process with environment")
+	}
+}
+
+func TestStartService_GPURequiredMissing(t *testing.T) {
+	tmp := t.TempDir()
+	binKey := platformBinaryKey()
+	rec := &recordingTelemetry{}
+
+	status := gpu.Status{Available: false, Method: "mock", Reason: "no gpu detected"}
+	m := &manifest.Manifest{
+		App: manifest.App{Name: "test-app", Version: "1.0.0"},
+		Services: []manifest.Service{
+			{
+				ID: "gpu-api",
+				Binaries: map[string]manifest.Binary{
+					binKey: {Path: "bin/api"},
+				},
+				GPU: &manifest.GPURequirements{Requirement: "required"},
+			},
+		},
+	}
+
+	s := newTestSupervisor(t, testSupervisorConfig{
+		manifest:   m,
+		bundlePath: tmp,
+		appData:    tmp,
+		telemetry:  rec,
+		gpuStatus:  status,
+	})
+	s.gpuApplier = gpu.NewApplier(status, rec)
+
+	err := s.startService(context.Background(), m.Services[0])
+	if err == nil {
+		t.Fatal("startService() expected error when GPU is required but unavailable")
+	}
+	if !strings.Contains(err.Error(), "gpu required") {
+		t.Fatalf("startService() error = %v, want gpu required error", err)
+	}
+	if !rec.Has("gpu_required_missing") {
+		t.Errorf("gpu_required_missing telemetry not recorded")
+	}
+	pr := s.procRunner.(*testutil.MockProcessRunner)
+	if len(pr.StartedCmds()) != 0 {
+		t.Errorf("startService() should not launch process when GPU is missing, got %d starts", len(pr.StartedCmds()))
+	}
+}
+
+func TestStartService_GPUOptionalFallback(t *testing.T) {
+	tmp := t.TempDir()
+	binKey := platformBinaryKey()
+	rec := &recordingTelemetry{}
+
+	status := gpu.Status{Available: false, Method: "mock", Reason: "no gpu detected"}
+	m := &manifest.Manifest{
+		App: manifest.App{Name: "test-app", Version: "1.0.0"},
+		Services: []manifest.Service{
+			{
+				ID: "gpu-worker",
+				Binaries: map[string]manifest.Binary{
+					binKey: {Path: "bin/worker"},
+				},
+				GPU: &manifest.GPURequirements{Requirement: "optional_with_cpu_fallback"},
+			},
+		},
+	}
+
+	s := newTestSupervisor(t, testSupervisorConfig{
+		manifest:   m,
+		bundlePath: tmp,
+		appData:    tmp,
+		telemetry:  rec,
+		gpuStatus:  status,
+	})
+	s.gpuApplier = gpu.NewApplier(status, rec)
+
+	if err := s.startService(context.Background(), m.Services[0]); err != nil {
+		t.Fatalf("startService() unexpected error with optional GPU fallback: %v", err)
+	}
+
+	pr := s.procRunner.(*testutil.MockProcessRunner)
+	envCalls := pr.StartedEnvs()
+	if len(envCalls) == 0 {
+		t.Fatal("startService() should start process and record env")
+	}
+	envMap := envSliceToMap(envCalls[0])
+	if envMap["BUNDLE_GPU_MODE"] != "cpu" {
+		t.Errorf("BUNDLE_GPU_MODE = %q, want %q", envMap["BUNDLE_GPU_MODE"], "cpu")
+	}
+	if envMap["BUNDLE_GPU_AVAILABLE"] != "false" {
+		t.Errorf("BUNDLE_GPU_AVAILABLE = %q, want %q", envMap["BUNDLE_GPU_AVAILABLE"], "false")
+	}
+	if !rec.Has("gpu_fallback_cpu") {
+		t.Errorf("gpu_fallback_cpu telemetry not recorded")
+	}
+}
+
+func TestStartService_GPUOptionalWarn(t *testing.T) {
+	tmp := t.TempDir()
+	binKey := platformBinaryKey()
+	rec := &recordingTelemetry{}
+
+	status := gpu.Status{Available: false, Method: "mock", Reason: "no gpu detected"}
+	m := &manifest.Manifest{
+		App: manifest.App{Name: "test-app", Version: "1.0.0"},
+		Services: []manifest.Service{
+			{
+				ID: "gpu-ui",
+				Binaries: map[string]manifest.Binary{
+					binKey: {Path: "bin/ui"},
+				},
+				GPU: &manifest.GPURequirements{Requirement: "optional_but_warn"},
+			},
+		},
+	}
+
+	s := newTestSupervisor(t, testSupervisorConfig{
+		manifest:   m,
+		bundlePath: tmp,
+		appData:    tmp,
+		telemetry:  rec,
+		gpuStatus:  status,
+	})
+	s.gpuApplier = gpu.NewApplier(status, rec)
+
+	if err := s.startService(context.Background(), m.Services[0]); err != nil {
+		t.Fatalf("startService() unexpected error with optional warn GPU: %v", err)
+	}
+
+	pr := s.procRunner.(*testutil.MockProcessRunner)
+	envCalls := pr.StartedEnvs()
+	if len(envCalls) == 0 {
+		t.Fatal("startService() should start process and record env for optional warn")
+	}
+	envMap := envSliceToMap(envCalls[0])
+	if envMap["BUNDLE_GPU_MODE"] != "cpu" {
+		t.Errorf("BUNDLE_GPU_MODE = %q, want %q", envMap["BUNDLE_GPU_MODE"], "cpu")
+	}
+	if envMap["BUNDLE_GPU_AVAILABLE"] != "false" {
+		t.Errorf("BUNDLE_GPU_AVAILABLE = %q, want %q", envMap["BUNDLE_GPU_AVAILABLE"], "false")
+	}
+	if !rec.Has("gpu_optional_unavailable") {
+		t.Errorf("gpu_optional_unavailable telemetry not recorded")
 	}
 }
 

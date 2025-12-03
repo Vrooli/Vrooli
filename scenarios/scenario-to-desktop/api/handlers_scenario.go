@@ -167,9 +167,9 @@ func (s *Server) getScenarioDesktopStatusHandler(w http.ResponseWriter, r *http.
 func detectPlatformFromFilename(name string) string {
 	lower := strings.ToLower(name)
 	switch {
-	case strings.Contains(lower, ".exe") || strings.Contains(lower, "win"):
+	case strings.Contains(lower, ".msi") || strings.Contains(lower, "setup.exe") || strings.Contains(lower, ".exe") || strings.Contains(lower, "win"):
 		return "win"
-	case strings.Contains(lower, ".dmg") || strings.Contains(lower, "mac") || strings.Contains(lower, "darwin"):
+	case strings.Contains(lower, ".pkg") || strings.Contains(lower, ".dmg") || strings.Contains(lower, "mac") || strings.Contains(lower, "darwin"):
 		return "mac"
 	case strings.Contains(lower, ".appimage") || strings.Contains(lower, "linux") || strings.Contains(lower, ".deb") || strings.Contains(lower, ".tar"):
 		return "linux"

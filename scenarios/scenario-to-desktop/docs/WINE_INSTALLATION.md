@@ -2,7 +2,7 @@
 
 ## Overview
 
-Wine is required for building Windows `.exe` installers on Linux. This guide shows how to install Wine **without sudo/root access** using Flatpak.
+Wine is required for building Windows `.msi` installers on Linux. This guide shows how to install Wine **without sudo/root access** using Flatpak.
 
 ## Why Flatpak?
 
@@ -135,7 +135,7 @@ npm run dist:win
 ```
 
 If successful, you'll see:
-- `dist-electron/Picker Wheel Setup 1.0.0.exe` created
+- `dist-electron/Picker Wheel Setup 1.0.0.msi` created
 - No Wine-related errors in build log
 
 ## Troubleshooting

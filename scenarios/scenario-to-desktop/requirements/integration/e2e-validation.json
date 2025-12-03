@@ -121,11 +121,11 @@
     {
       "id": "STD-PLATFORM-WINDOWS",
       "title": "Windows platform build support",
-      "description": "Desktop apps can be packaged as Windows .exe installers",
+      "description": "Desktop apps can be packaged as Windows .msi installers",
       "validation": {
         "type": "build",
         "test_file": "test/e2e/test-platform-builds.sh",
-        "assertion": "electron-builder produces Windows installer (.exe)"
+        "assertion": "electron-builder produces Windows installer (.msi)"
       },
       "status": "partial",
       "notes": "Templates have Windows config in package.json. Full build requires electron-builder."
@@ -133,11 +133,11 @@
     {
       "id": "STD-PLATFORM-MACOS",
       "title": "macOS platform build support",
-      "description": "Desktop apps can be packaged as macOS .dmg or .app bundles",
+      "description": "Desktop apps can be packaged as macOS .pkg installers",
       "validation": {
         "type": "build",
         "test_file": "test/e2e/test-platform-builds.sh",
-        "assertion": "electron-builder produces macOS installer (.dmg)"
+        "assertion": "electron-builder produces macOS installer (.pkg)"
       },
       "status": "partial",
       "notes": "Templates have macOS config in package.json. Full build requires electron-builder on macOS."

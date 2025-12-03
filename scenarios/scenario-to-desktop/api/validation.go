@@ -21,16 +21,15 @@ func (s *Server) validateDesktopConfig(config *DesktopConfig) error {
 		return fmt.Errorf("template_type is required")
 	}
 	// Note: output_path is optional - defaults to standard location if empty
+	isBundled := config.DeploymentMode == "bundled"
 
 	// Validate framework
-	validFrameworks := []string{"electron", "tauri", "neutralino"}
-	if !contains(validFrameworks, config.Framework) {
+	if !isValidFramework(config.Framework) {
 		return fmt.Errorf("invalid framework: %s", config.Framework)
 	}
 
 	// Validate template type
-	validTemplates := []string{"universal", "basic", "advanced", "multi_window", "kiosk"} // basic is alias for universal
-	if !contains(validTemplates, config.TemplateType) {
+	if !isValidTemplateType(config.TemplateType) {
 		return fmt.Errorf("invalid template_type: %s", config.TemplateType)
 	}
 
@@ -50,15 +49,16 @@ func (s *Server) validateDesktopConfig(config *DesktopConfig) error {
 	}
 
 	if config.ServerType == "" {
-		config.ServerType = "external"
+		config.ServerType = defaultServerType
 	}
-	isBundled := config.DeploymentMode == "bundled"
+	if !isValidServerType(config.ServerType) {
+		return fmt.Errorf("invalid server_type: %s", config.ServerType)
+	}
 	if config.DeploymentMode == "" {
-		config.DeploymentMode = "external-server"
+		config.DeploymentMode = defaultDeploymentMode
 		isBundled = false
 	}
-	validDeploymentModes := []string{"external-server", "cloud-api", "bundled"}
-	if !contains(validDeploymentModes, config.DeploymentMode) {
+	if !isValidDeploymentMode(config.DeploymentMode) {
 		return fmt.Errorf("invalid deployment_mode: %s", config.DeploymentMode)
 	}
 	if isBundled && config.BundleManifestPath == "" {

@@ -317,7 +317,7 @@ func createTestBuildStatus(buildID, status string) *BuildStatus {
 func waitForBuildStatus(server *Server, buildID string, expectedStatus string, timeout time.Duration) (*BuildStatus, error) {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		if status, exists := server.buildStatuses[buildID]; exists {
+		if status, exists := server.builds.Get(buildID); exists {
 			if status.Status == expectedStatus {
 				return status, nil
 			}
@@ -331,7 +331,7 @@ func waitForBuildStatus(server *Server, buildID string, expectedStatus string, t
 func assertBuildStatusExists(t *testing.T, server *Server, buildID string) *BuildStatus {
 	t.Helper()
 
-	status, exists := server.buildStatuses[buildID]
+	status, exists := server.builds.Get(buildID)
 	if !exists {
 		t.Fatalf("Expected build status for ID %s to exist", buildID)
 	}

@@ -11,38 +11,39 @@ import (
 
 // performDesktopGeneration performs desktop generation asynchronously
 func (s *Server) performDesktopGeneration(buildID string, config *DesktopConfig) {
-	s.buildMutex.RLock()
-	status := s.buildStatuses[buildID]
-	s.buildMutex.RUnlock()
+	_, exists := s.builds.Get(buildID)
+	if !exists {
+		return
+	}
 
 	defer func() {
 		if r := recover(); r != nil {
-			s.buildMutex.Lock()
-			status.Status = "failed"
-			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Panic: %v", r))
-			s.buildMutex.Unlock()
-			now := time.Now()
-			status.CompletedAt = &now
+			s.builds.Update(buildID, func(status *BuildStatus) {
+				status.Status = "failed"
+				status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Panic: %v", r))
+				now := time.Now()
+				status.CompletedAt = &now
+			})
 		}
 	}()
 
 	// Create configuration JSON file
 	configJSON, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
-		s.buildMutex.Lock()
-		status.Status = "failed"
-		status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Failed to marshal config: %v", err))
-		s.buildMutex.Unlock()
+		s.builds.Update(buildID, func(status *BuildStatus) {
+			status.Status = "failed"
+			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Failed to marshal config: %v", err))
+		})
 		return
 	}
 
 	// Write config to temporary file
 	configPath := filepath.Join(os.TempDir(), fmt.Sprintf("desktop-config-%s.json", buildID))
 	if err := os.WriteFile(configPath, configJSON, 0644); err != nil {
-		s.buildMutex.Lock()
-		status.Status = "failed"
-		status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Failed to write config file: %v", err))
-		s.buildMutex.Unlock()
+		s.builds.Update(buildID, func(status *BuildStatus) {
+			status.Status = "failed"
+			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Failed to write config file: %v", err))
+		})
 		return
 	}
 	defer os.Remove(configPath)
@@ -57,31 +58,31 @@ func (s *Server) performDesktopGeneration(buildID string, config *DesktopConfig)
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	s.buildMutex.Lock()
-	status.BuildLog = append(status.BuildLog, outputStr)
+	s.builds.Update(buildID, func(status *BuildStatus) {
+		status.BuildLog = append(status.BuildLog, outputStr)
 
-	if err != nil {
-		status.Status = "failed"
-		status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Generation failed: %v", err))
-		status.ErrorLog = append(status.ErrorLog, outputStr)
-	} else {
-		status.Status = "ready"
-		status.Artifacts["config_path"] = configPath
-		status.Artifacts["output_path"] = config.OutputPath
-		if config.DeploymentMode == "bundled" && config.BundleManifestPath != "" {
-			pkgResult, pkgErr := packageBundle(config.OutputPath, config.BundleManifestPath, config.Platforms)
-			if pkgErr != nil {
-				status.Status = "failed"
-				status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Bundle packaging failed: %v", pkgErr))
-			} else {
-				status.Metadata["bundle_dir"] = pkgResult.BundleDir
-				status.Metadata["bundle_manifest"] = pkgResult.ManifestPath
-				status.Metadata["runtime_binaries"] = pkgResult.RuntimeBinaries
+		if err != nil {
+			status.Status = "failed"
+			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Generation failed: %v", err))
+			status.ErrorLog = append(status.ErrorLog, outputStr)
+		} else {
+			status.Status = "ready"
+			status.Artifacts["config_path"] = configPath
+			status.Artifacts["output_path"] = config.OutputPath
+			if config.DeploymentMode == "bundled" && config.BundleManifestPath != "" {
+				pkgResult, pkgErr := packageBundle(config.OutputPath, config.BundleManifestPath, config.Platforms)
+				if pkgErr != nil {
+					status.Status = "failed"
+					status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Bundle packaging failed: %v", pkgErr))
+				} else {
+					status.Metadata["bundle_dir"] = pkgResult.BundleDir
+					status.Metadata["bundle_manifest"] = pkgResult.ManifestPath
+					status.Metadata["runtime_binaries"] = pkgResult.RuntimeBinaries
+				}
 			}
 		}
-	}
 
-	now := time.Now()
-	status.CompletedAt = &now
-	s.buildMutex.Unlock()
+		now := time.Now()
+		status.CompletedAt = &now
+	})
 }

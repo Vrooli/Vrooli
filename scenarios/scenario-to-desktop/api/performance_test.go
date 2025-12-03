@@ -154,7 +154,7 @@ func TestStatusEndpointPerformance(t *testing.T) {
 		} else if i%5 == 0 {
 			status = "failed"
 		}
-		server.buildStatuses[buildID] = createTestBuildStatus(buildID, status)
+		server.builds.Save(createTestBuildStatus(buildID, status))
 	}
 
 	t.Run("SequentialRequests", func(t *testing.T) {
@@ -262,8 +262,8 @@ func TestGenerateDesktopPerformance(t *testing.T) {
 		}
 
 		// Verify all builds were created
-		if len(env.Server.buildStatuses) != requestCount {
-			t.Errorf("Expected %d build statuses, got %d", requestCount, len(env.Server.buildStatuses))
+		if env.Server.builds.Len() != requestCount {
+			t.Errorf("Expected %d build statuses, got %d", requestCount, env.Server.builds.Len())
 		}
 	})
 
@@ -325,7 +325,7 @@ func TestBuildStatusPerformance(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		buildID := uuid.New().String()
 		buildIDs[i] = buildID
-		server.buildStatuses[buildID] = createTestBuildStatus(buildID, "ready")
+		server.builds.Save(createTestBuildStatus(buildID, "ready"))
 	}
 
 	t.Run("SequentialLookups", func(t *testing.T) {
@@ -421,8 +421,8 @@ func TestMemoryUsage(t *testing.T) {
 		t.Logf("Created %d build statuses in %v", buildCount, elapsed)
 
 		// Verify all builds exist
-		if len(env.Server.buildStatuses) != buildCount {
-			t.Errorf("Expected %d build statuses, got %d", buildCount, len(env.Server.buildStatuses))
+		if env.Server.builds.Len() != buildCount {
+			t.Errorf("Expected %d build statuses, got %d", buildCount, env.Server.builds.Len())
 		}
 
 		// Test accessing random builds
@@ -527,7 +527,7 @@ func TestWebhookPerformance(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		buildID := uuid.New().String()
 		buildIDs[i] = buildID
-		server.buildStatuses[buildID] = createTestBuildStatus(buildID, "building")
+		server.builds.Save(createTestBuildStatus(buildID, "building"))
 	}
 
 	t.Run("SequentialWebhooks", func(t *testing.T) {
@@ -560,7 +560,7 @@ func TestWebhookPerformance(t *testing.T) {
 
 		// Verify all statuses were updated
 		completedCount := 0
-		for _, status := range server.buildStatuses {
+		for _, status := range server.builds.Snapshot() {
 			if status.Status == "completed" {
 				completedCount++
 			}

@@ -417,6 +417,9 @@ type MockProcessRunner struct {
 	processes    []*MockProcess
 	shouldFail   bool
 	startedCmds  []string
+	startedArgs  [][]string
+	startedEnvs  [][]string
+	startedDirs  []string
 	currentIndex int
 }
 
@@ -447,11 +450,49 @@ func (r *MockProcessRunner) StartedCmds() []string {
 	return r.startedCmds
 }
 
+// StartedEnvs returns all environment lists that were passed to Start.
+func (r *MockProcessRunner) StartedEnvs() [][]string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	envs := make([][]string, 0, len(r.startedEnvs))
+	for _, e := range r.startedEnvs {
+		copyEnv := make([]string, len(e))
+		copy(copyEnv, e)
+		envs = append(envs, copyEnv)
+	}
+	return envs
+}
+
+// StartedArgs returns all argument lists that were passed to Start.
+func (r *MockProcessRunner) StartedArgs() [][]string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	args := make([][]string, 0, len(r.startedArgs))
+	for _, a := range r.startedArgs {
+		copyArgs := make([]string, len(a))
+		copy(copyArgs, a)
+		args = append(args, copyArgs)
+	}
+	return args
+}
+
+// StartedDirs returns all working directories that were passed to Start.
+func (r *MockProcessRunner) StartedDirs() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	dirs := make([]string, len(r.startedDirs))
+	copy(dirs, r.startedDirs)
+	return dirs
+}
+
 // Start launches a mock process.
 func (r *MockProcessRunner) Start(ctx context.Context, cmd string, args []string, env []string, dir string, stdout, stderr io.Writer) (infra.Process, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.startedCmds = append(r.startedCmds, cmd)
+	r.startedArgs = append(r.startedArgs, append([]string{}, args...))
+	r.startedEnvs = append(r.startedEnvs, append([]string{}, env...))
+	r.startedDirs = append(r.startedDirs, dir)
 	if r.shouldFail {
 		return nil, errors.New("start failed")
 	}

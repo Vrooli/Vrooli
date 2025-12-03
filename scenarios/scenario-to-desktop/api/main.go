@@ -31,9 +31,8 @@ func init() {
 type Server struct {
 	router         *mux.Router
 	port           int
-	buildStatuses  map[string]*BuildStatus
+	builds         *BuildStore
 	wineInstalls   map[string]*WineInstallStatus
-	buildMutex     sync.RWMutex
 	wineInstallMux sync.RWMutex
 	templateDir    string
 	logger         *slog.Logger
@@ -50,7 +49,7 @@ func NewServer(port int) *Server {
 	server := &Server{
 		router:        mux.NewRouter(),
 		port:          port,
-		buildStatuses: make(map[string]*BuildStatus),
+		builds:        NewBuildStore(),
 		wineInstalls:  make(map[string]*WineInstallStatus),
 		templateDir:   "../templates", // Templates are in parent directory when running from api/
 		logger:        logger,
