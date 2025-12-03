@@ -1,0 +1,273 @@
+{
+  "$schema": "../../.vrooli/schemas/docs-manifest.schema.json",
+  "version": "1.1.0",
+  "title": "Landing Manager Documentation",
+  "description": "Complete documentation for creating, customizing, and managing landing pages",
+  "baseUrl": "/docs",
+  "defaultDocument": "index.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "description": "Learn how to use Landing Manager",
+      "icon": "rocket",
+      "order": 1,
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Generate your first landing page in 5 minutes",
+          "order": 1,
+          "audience": ["users", "developers", "marketers"]
+        },
+        {
+          "path": "ADMIN_GUIDE.md",
+          "title": "Admin Guide",
+          "description": "Using the admin portal to manage content and analytics",
+          "order": 2,
+          "audience": ["users", "marketers"]
+        },
+        {
+          "path": "CONCEPTS.md",
+          "title": "Core Concepts",
+          "description": "Understanding the architecture and how components work",
+          "order": 3,
+          "audience": ["users", "developers", "agents"]
+        },
+        {
+          "path": "DEPLOYMENT.md",
+          "title": "Deployment Guide",
+          "description": "Deploy your landing page to production",
+          "order": 4,
+          "audience": ["users", "developers"]
+        },
+        {
+          "path": "CONTENT_GUIDE.md",
+          "title": "Content Writing Guide",
+          "description": "Write landing page copy that converts",
+          "order": 5,
+          "audience": ["users", "marketers"]
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "description": "API and configuration reference",
+      "icon": "book",
+      "order": 2,
+      "documents": [
+        {
+          "path": "api/README.md",
+          "title": "API Overview",
+          "description": "REST API introduction and quick reference",
+          "order": 1,
+          "audience": ["developers"]
+        },
+        {
+          "path": "api/landing.md",
+          "title": "Landing Endpoints",
+          "description": "Public landing page configuration APIs",
+          "order": 2,
+          "audience": ["developers"]
+        },
+        {
+          "path": "api/variants.md",
+          "title": "Variant Endpoints",
+          "description": "A/B testing variant management APIs",
+          "order": 3,
+          "audience": ["developers"]
+        },
+        {
+          "path": "api/sections.md",
+          "title": "Section Endpoints",
+          "description": "Content section CRUD APIs",
+          "order": 4,
+          "audience": ["developers"]
+        },
+        {
+          "path": "api/metrics.md",
+          "title": "Metrics Endpoints",
+          "description": "Analytics and event tracking APIs",
+          "order": 5,
+          "audience": ["developers"]
+        },
+        {
+          "path": "api/payments.md",
+          "title": "Payment Endpoints",
+          "description": "Stripe and billing integration APIs",
+          "order": 6,
+          "audience": ["developers"]
+        },
+        {
+          "path": "api/admin.md",
+          "title": "Admin Endpoints",
+          "description": "Admin portal management APIs",
+          "order": 7,
+          "audience": ["developers"]
+        },
+        {
+          "path": "configuration/README.md",
+          "title": "Configuration Guide",
+          "description": "Complete configuration file reference",
+          "order": 8,
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
+      "id": "help",
+      "title": "Help & Support",
+      "description": "Troubleshooting and frequently asked questions",
+      "icon": "help-circle",
+      "order": 3,
+      "documents": [
+        {
+          "path": "TROUBLESHOOTING.md",
+          "title": "Troubleshooting",
+          "description": "Solutions for common issues",
+          "order": 1,
+          "audience": ["users", "developers"]
+        },
+        {
+          "path": "FAQ.md",
+          "title": "FAQ",
+          "description": "Frequently asked questions",
+          "order": 2,
+          "audience": ["users", "developers", "marketers"]
+        }
+      ]
+    },
+    {
+      "id": "integration",
+      "title": "Integration",
+      "description": "Integrating with other systems and tools",
+      "icon": "plug",
+      "order": 4,
+      "documents": [
+        {
+          "path": "bundled-app-entitlements.md",
+          "title": "Bundled Apps",
+          "description": "Integrate bundled apps with subscription verification",
+          "order": 1,
+          "audience": ["developers"]
+        },
+        {
+          "path": "../api/templates/AGENT.md",
+          "title": "Agent Guide",
+          "description": "Guide for AI agents customizing landing pages",
+          "order": 2,
+          "audience": ["developers", "agents"]
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "description": "Developer-only documentation for maintenance and debugging",
+      "icon": "lock",
+      "order": 5,
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "SCREAMING_ARCHITECTURE_AUDIT.md",
+          "title": "Architecture Audit",
+          "description": "Code organization and patterns assessment",
+          "order": 1,
+          "audience": ["developers"],
+          "internal": true
+        },
+        {
+          "path": "SEAMS.md",
+          "title": "Seams",
+          "description": "Testability boundaries for testing",
+          "order": 2,
+          "audience": ["developers"],
+          "internal": true
+        },
+        {
+          "path": "RESEARCH.md",
+          "title": "Research",
+          "description": "Domain research and design decisions",
+          "order": 3,
+          "audience": ["developers"],
+          "internal": true
+        },
+        {
+          "path": "ADMIN_PORTAL_IMPLEMENTATION.md",
+          "title": "Admin Portal Implementation",
+          "description": "Technical implementation details",
+          "order": 4,
+          "audience": ["developers"],
+          "internal": true
+        },
+        {
+          "path": "PROBLEMS.md",
+          "title": "Known Issues",
+          "description": "Tracked problems and debugging info",
+          "order": 5,
+          "audience": ["developers"],
+          "internal": true
+        },
+        {
+          "path": "PROGRESS.md",
+          "title": "Progress Log",
+          "description": "Development history and changelog",
+          "order": 6,
+          "audience": ["developers", "agents"],
+          "internal": true
+        },
+        {
+          "path": "../PRD.md",
+          "title": "PRD",
+          "description": "Product requirements document",
+          "order": 7,
+          "audience": ["product", "developers"],
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "audiences": {
+    "users": {
+      "label": "Users",
+      "description": "Non-technical users who want to create and manage landing pages",
+      "priority": 1
+    },
+    "marketers": {
+      "label": "Marketers",
+      "description": "Marketing professionals focused on conversion optimization",
+      "priority": 2
+    },
+    "developers": {
+      "label": "Developers",
+      "description": "Technical users who want to customize or extend",
+      "priority": 3
+    },
+    "agents": {
+      "label": "AI Agents",
+      "description": "Automated agents that customize landing pages",
+      "priority": 4
+    },
+    "product": {
+      "label": "Product",
+      "description": "Product managers and stakeholders",
+      "priority": 5
+    }
+  },
+  "search": {
+    "enabled": true,
+    "indexFields": ["title", "description", "content"]
+  },
+  "navigation": {
+    "showSidebar": true,
+    "showBreadcrumbs": true,
+    "showTableOfContents": true,
+    "hideInternalByDefault": true
+  },
+  "filters": {
+    "defaultAudience": "users",
+    "showAudienceFilter": true,
+    "showInternalToggle": true
+  }
+}

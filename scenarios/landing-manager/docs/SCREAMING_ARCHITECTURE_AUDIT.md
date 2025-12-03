@@ -1,3 +1,11 @@
+---
+title: "Architecture Audit"
+description: "Code organization and architectural patterns"
+category: "technical"
+order: 1
+audience: ["developers"]
+---
+
 # Screaming Architecture Audit: landing-manager
 
 **Date**: 2025-11-29 (Updated)

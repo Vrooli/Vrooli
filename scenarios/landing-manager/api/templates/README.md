@@ -1,3 +1,11 @@
+---
+title: "Template System"
+description: "Overview of the landing page template system"
+category: "technical"
+order: 5
+audience: ["developers"]
+---
+
 # Landing Page Templates
 
 This directory contains the template system for Landing Manager - a factory that generates landing page scenarios.

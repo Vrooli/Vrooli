@@ -1,3 +1,11 @@
+---
+title: "Known Issues"
+description: "Tracked problems and their status"
+category: "operational"
+order: 3
+audience: ["developers"]
+---
+
 # Problems & Known Issues
 
 > **Last Updated**: 2025-11-27 (Scenario Improver Agent Phase 1 Iteration 10)

@@ -1,3 +1,11 @@
+---
+title: "Admin Portal Implementation"
+description: "Implementation guide for the admin portal"
+category: "technical"
+order: 4
+audience: ["developers"]
+---
+
 # Admin Portal Implementation Guide
 
 > **Status**: Foundation Created (P10)

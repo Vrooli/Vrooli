@@ -1,3 +1,11 @@
+---
+title: "Research"
+description: "Domain research and design decisions for Landing Manager"
+category: "technical"
+order: 3
+audience: ["developers"]
+---
+
 # Research: Landing Manager
 
 > **Generated**: 2025-11-21

@@ -1,3 +1,11 @@
+---
+title: "Agent Guide"
+description: "Guide for AI agents customizing landing page sections"
+category: "integration"
+order: 2
+audience: ["developers", "agents"]
+---
+
 # Agent Guide: Landing Page Sections
 
 **READ THIS FIRST** when customizing landing page sections.

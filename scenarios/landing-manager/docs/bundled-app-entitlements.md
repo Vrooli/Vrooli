@@ -1,3 +1,11 @@
+---
+title: "Bundled App Entitlements"
+description: "Integration guide for bundled apps with subscription verification"
+category: "integration"
+order: 1
+audience: ["developers"]
+---
+
 # Bundled App Entitlements & Offline Guidance
 
 This reference helps bundled apps such as **Browser Automation Studio** integrate with the landing-page stack so they can gate downloads, feature flags, and credit balances without sacrificing offline resilience.

@@ -1,3 +1,11 @@
+---
+title: "Seams"
+description: "Testability boundaries and substitution points"
+category: "technical"
+order: 2
+audience: ["developers"]
+---
+
 # Seams Documentation
 
 > **Last Updated**: 2025-11-29

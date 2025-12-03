@@ -1,3 +1,11 @@
+---
+title: "Landing Manager"
+description: "Factory for generating production-ready SaaS landing pages"
+category: "overview"
+order: 0
+audience: ["users", "developers"]
+---
+
 # Landing Manager
 
 > **Status**: Factory-only runtime; landing/admin logic lives in the template payload and generated scenarios
