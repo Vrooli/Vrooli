@@ -99,13 +99,21 @@ type DeploymentManifest struct {
 }
 
 type DeploymentSummary struct {
-	TotalSecrets          int               `json:"total_secrets"`
-	StrategizedSecrets    int               `json:"strategized_secrets"`
-	RequiresAction        int               `json:"requires_action"`
-	BlockingSecrets       []string          `json:"blocking_secrets"`
-	ClassificationWeights map[string]int    `json:"classification_weights"`
-	StrategyBreakdown     map[string]int    `json:"strategy_breakdown"`
-	ScopeReadiness        map[string]string `json:"scope_readiness"`
+	TotalSecrets          int                    `json:"total_secrets"`
+	StrategizedSecrets    int                    `json:"strategized_secrets"`
+	RequiresAction        int                    `json:"requires_action"`
+	BlockingSecrets       []string               `json:"blocking_secrets"`
+	BlockingSecretDetails []BlockingSecretDetail `json:"blocking_secret_details,omitempty"`
+	ClassificationWeights map[string]int         `json:"classification_weights"`
+	StrategyBreakdown     map[string]int         `json:"strategy_breakdown"`
+	ScopeReadiness        map[string]string      `json:"scope_readiness"`
+}
+
+type BlockingSecretDetail struct {
+	Secret         string   `json:"secret"`
+	Resource       string   `json:"resource"`
+	Source         string   `json:"source"`
+	DependencyPath []string `json:"dependency_path,omitempty"`
 }
 
 type DeploymentSecretEntry struct {

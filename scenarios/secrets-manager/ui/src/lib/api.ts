@@ -246,6 +246,12 @@ export interface DeploymentManifestSummary {
   strategized_secrets: number;
   requires_action: number;
   blocking_secrets: string[];
+  blocking_secret_details?: Array<{
+    secret: string;
+    resource: string;
+    source: string;
+    dependency_path?: string[];
+  }>;
   classification_weights: Record<string, number>;
   strategy_breakdown: Record<string, number>;
   scope_readiness: Record<string, string>;

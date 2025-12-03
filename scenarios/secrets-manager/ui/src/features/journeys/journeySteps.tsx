@@ -382,8 +382,12 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
           Checking {deploymentScenario || "scenario"} readiness...
         </div>
       ) : readinessIsError ? (
-        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-100">
-          {readinessError?.message || "Failed to load readiness."}
+        <div className="space-y-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-100">
+          <p className="font-semibold">Failed to load readiness.</p>
+          <p className="text-xs text-red-100/80">{readinessError?.message}</p>
+          <p className="text-[11px] text-red-100/70">
+            Check that the scenario has a .vrooli/service.json and dependency analyzer data.
+          </p>
         </div>
       ) : readinessSummary ? (
         <div className="space-y-4 rounded-2xl border border-emerald-400/30 bg-emerald-500/5 p-3 text-sm text-white/80">
@@ -461,15 +465,21 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
           ) : (
             <p className="text-xs text-white/60">Select a tier to view readiness details.</p>
           )}
-          {readinessSummary.blocking_secrets?.length ? (
+          {readinessSummary.blocking_secret_details?.length ? (
             <div className="space-y-2 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
               <p className="font-semibold">Top blockers</p>
               <ul className="space-y-1 text-amber-100/80">
-                {readinessSummary.blocking_secrets.slice(0, 3).map((blocker) => {
-                  const [resourceName, secretKey] = blocker.split(":");
+                {readinessSummary.blocking_secret_details.slice(0, 3).map((blocker) => {
+                  const [resourceName, secretKey] = blocker.secret.split(":");
                   return (
-                    <li key={blocker} className="flex items-center justify-between gap-2">
-                      <span>{blocker}</span>
+                    <li key={blocker.secret} className="flex items-center justify-between gap-2">
+                      <div className="flex flex-col">
+                        <span>{blocker.secret}</span>
+                        <span className="text-[10px] text-amber-100/60">
+                          Source: {blocker.source}
+                          {blocker.dependency_path?.length ? ` · Path: ${blocker.dependency_path.join(" → ")}` : ""}
+                        </span>
+                      </div>
                       <Button size="sm" variant="outline" className="text-[11px] px-2 py-1"
                         onClick={() => onOpenResource(resourceName || undefined, secretKey || undefined)}>
                         Open workbench
@@ -478,9 +488,9 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
                   );
                 })}
               </ul>
-              {readinessSummary.blocking_secrets.length > 3 ? (
+              {readinessSummary.blocking_secret_details.length > 3 ? (
                 <p className="text-[11px] text-amber-100/70">
-                  +{readinessSummary.blocking_secrets.length - 3} more blockers
+                  +{readinessSummary.blocking_secret_details.length - 3} more blockers
                 </p>
               ) : null}
             </div>
@@ -658,12 +668,18 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
               </pre>
             </div>
           </details>
-          {manifestData.summary.blocking_secrets?.length ? (() => {
-            const firstBlocker = manifestData.summary.blocking_secrets[0];
-            const [resourceName, secretKey] = firstBlocker.split(":");
+          {manifestData.summary.blocking_secret_details?.length ? (() => {
+            const firstBlocker = manifestData.summary.blocking_secret_details[0];
+            const [resourceName, secretKey] = firstBlocker.secret.split(":");
             return (
               <div className="rounded-2xl border border-amber-400/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-100 space-y-2">
-                <p className="font-semibold">Next action: {firstBlocker}</p>
+                <div className="flex flex-col gap-1">
+                  <p className="font-semibold">Next action: {firstBlocker.secret}</p>
+                  <p className="text-[11px] text-amber-100/70">
+                    Source: {firstBlocker.source}
+                    {firstBlocker.dependency_path?.length ? ` · Path: ${firstBlocker.dependency_path.join(" → ")}` : ""}
+                  </p>
+                </div>
                 <Button
                   variant="outline"
                   size="sm"

@@ -551,6 +551,48 @@ func TestDeploymentSecretsHandler(t *testing.T) {
 	})
 }
 
+// [REQ:SEC-DEP-003] Bundle-ready secrets returned per tier (fallback friendly)
+func TestDeploymentSecretsGetReturnsBundleSecrets(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+	server := newAPIServer(nil, logger)
+	router := server.routes()
+
+	req, err := http.NewRequest("GET", "/api/v1/deployment/secrets/unknown-scenario?tier=tier-2-desktop", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp struct {
+		BundleSecrets []BundleSecretPlan `json:"bundle_secrets"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp.BundleSecrets) == 0 {
+		t.Fatalf("expected bundle_secrets to be populated for fallback manifest")
+	}
+	foundPrompt := false
+	for _, sec := range resp.BundleSecrets {
+		if sec.Class == "user_prompt" {
+			foundPrompt = true
+		}
+		if sec.Target.Type == "" || sec.Target.Name == "" {
+			t.Fatalf("bundle secret missing target data: %+v", sec)
+		}
+	}
+	if !foundPrompt {
+		t.Fatalf("expected at least one user_prompt secret in bundle_secrets")
+	}
+}
+
 // TestVulnerabilitiesHandler tests the vulnerabilities list endpoint
 func TestVulnerabilitiesHandler(t *testing.T) {
 	cleanup := setupTestLogger()
@@ -1110,7 +1152,8 @@ func TestDeriveBundleSecretPlans(t *testing.T) {
 		},
 	}
 
-	plans := deriveBundleSecretPlans(entries)
+	builder := NewBundlePlanBuilder()
+	plans := builder.DeriveBundlePlans(entries)
 	if len(plans) != 2 {
 		t.Fatalf("expected 2 bundle secrets, got %d", len(plans))
 	}

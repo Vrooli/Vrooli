@@ -31,6 +31,12 @@ func newAPIServer(db *sql.DB, logger *Logger) *APIServer {
 		orientationBuilder = NewOrientationBuilder(db, logger)
 	}
 
+	// Create manifest builder for deployment handlers
+	manifestBuilder := NewManifestBuilder(ManifestBuilderConfig{
+		DB:     db,
+		Logger: logger,
+	})
+
 	return &APIServer{
 		db: db,
 		handlers: handlerSet{
@@ -38,7 +44,7 @@ func newAPIServer(db *sql.DB, logger *Logger) *APIServer {
 			vault:       NewVaultHandlers(db, logger, validator),
 			security:    NewSecurityHandlers(db, logger),
 			resources:   NewResourceHandlers(db),
-			deployment:  NewDeploymentHandlers(),
+			deployment:  NewDeploymentHandlers(manifestBuilder),
 			scenarios:   NewScenarioHandlers(),
 			orientation: NewOrientationHandlers(orientationBuilder),
 		},
