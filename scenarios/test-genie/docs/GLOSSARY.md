@@ -2,7 +2,7 @@
 
 Quick reference for Vrooli testing terminology. Use this to understand concepts used throughout the testing documentation.
 
-## 📚 Core Concepts
+## Core Concepts
 
 ### Phase
 One of 6 sequential test stages that progressively validate scenario quality:
@@ -15,7 +15,7 @@ One of 6 sequential test stages that progressively validate scenario quality:
 
 Phases run sequentially and fail-fast - each phase must pass before the next executes.
 
-**See**: [Phased Testing Architecture](architecture/PHASED_TESTING.md)
+**See**: [Phased Testing Guide](guides/phased-testing.md)
 
 ### Requirement
 A product or technical need defined in the PRD or requirement registry. Requirements have:
@@ -26,7 +26,7 @@ A product or technical need defined in the PRD or requirement registry. Requirem
 
 Requirements bridge the gap between PRD and technical implementation.
 
-**See**: [Requirement Tracking Guide](guides/requirement-tracking.md)
+**See**: [Requirements Sync Guide](guides/requirements-sync.md)
 
 ### Validation
 A method of verifying a requirement is met. Three types:
@@ -35,8 +35,6 @@ A method of verifying a requirement is met. Three types:
 - **manual**: Manual verification steps or exploratory testing
 
 Each validation has a **ref** (file path or workflow ID) and **status** (not_implemented, planned, implemented, failing).
-
-**See**: [Requirement Schema Reference](reference/requirement-schema.md)
 
 ### [REQ:ID]
 Tag format for linking tests to requirements. Place in test names:
@@ -50,18 +48,18 @@ t.Run("creates workflow [REQ:BAS-WORKFLOW-PERSIST-CRUD]", func(t *testing.T) { .
 
 The testing system automatically extracts these tags and updates requirement tracking - no manual tracking needed.
 
-**See**: [Requirement Flow](architecture/REQUIREMENT_FLOW.md)
+**See**: [Requirements Sync Guide](guides/requirements-sync.md)
 
 ### Auto-Sync
-Automatic update of requirement files based on live test results. After tests run, `report.js --mode sync`:
+Automatic update of requirement files based on live test results. After tests run, the sync system:
 - Adds missing validation entries for tagged tests
-- Updates validation status (passed → implemented, failed → failing)
+- Updates validation status (passed -> implemented, failed -> failing)
 - Updates requirement status based on validation roll-up
 - Removes orphaned validations (with `--prune-stale`)
 
 Zero manual maintenance required once tests are tagged.
 
-**See**: [Requirement Tracking Guide](guides/requirement-tracking.md#auto-sync-behavior)
+**See**: [Requirements Sync Guide](guides/requirements-sync.md)
 
 ### Phase Results
 JSON output from each phase execution, stored in `coverage/phase-results/<phase>.json`. Contains:
@@ -72,9 +70,7 @@ JSON output from each phase execution, stored in `coverage/phase-results/<phase>
 
 Phase results feed into auto-sync and reporting systems.
 
-**See**: [Requirement Flow](architecture/REQUIREMENT_FLOW.md#stage-4-result-collection)
-
-## 🎯 Status Values
+## Status Values
 
 ### Requirement Status
 Current implementation state:
@@ -93,7 +89,7 @@ Current test implementation state:
 - **implemented**: Test exists and passing (auto-updated by sync)
 - **failing**: Test exists but currently failing (auto-updated by sync)
 
-## 🏆 Criticality Levels
+## Criticality Levels
 
 ### P0 - Critical (Must Have)
 - Core functionality required for MVP
@@ -121,12 +117,10 @@ Current test implementation state:
 Count of P0/P1 requirements with `status != complete`. Use to gate releases:
 ```bash
 # Fail CI if criticality gap > 0
-node scripts/requirements/report.js --scenario my-app --fail-on-critical-gap
+test-genie execute my-scenario --preset comprehensive --fail-on-critical-gap
 ```
 
-**See**: [Requirement Tracking Guide](guides/requirement-tracking.md#criticality-levels)
-
-## 🤖 Tools & Systems
+## Tools & Systems
 
 ### BAS (Browser Automation Studio)
 Vrooli's canonical UI automation system. Write UI tests as **declarative JSON workflows**:
@@ -137,7 +131,7 @@ Vrooli's canonical UI automation system. Write UI tests as **declarative JSON wo
 
 **Self-testing**: BAS tests itself using its own automation capabilities.
 
-**See**: [UI Automation with BAS](guides/ui-automation-with-bas.md)
+**See**: [UI Testability Guide](guides/ui-testability.md)
 
 ### vitest-requirement-reporter
 Custom Vitest reporter (`@vrooli/vitest-requirement-reporter`) that automatically extracts `[REQ:ID]` tags from test names and generates `coverage/vitest-requirements.json` for phase integration.
@@ -160,8 +154,6 @@ export default defineConfig({
 });
 ```
 
-**See**: [@vrooli/vitest-requirement-reporter](../../packages/vitest-requirement-reporter/README.md)
-
 ### Phase Helpers
 Shell library functions for phase lifecycle management (`scripts/scenarios/testing/shell/phase-helpers.sh`):
 - `testing::phase::init` - Initialize phase, load expected requirements
@@ -172,8 +164,6 @@ Shell library functions for phase lifecycle management (`scripts/scenarios/testi
 
 Source in phase scripts: `source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"`
 
-**See**: [Shell Libraries Reference](reference/shell-libraries.md)
-
 ### Requirements Registry
 Structured JSON file(s) mapping PRD requirements to technical validations (stored in the `requirements/` directory with imports).
 
@@ -181,12 +171,31 @@ Registry includes metadata, requirement definitions, validation entries, and par
 
 **Bootstrap**: `vrooli scenario requirements init <scenario-name>`
 
-**See**: [Requirement Schema Reference](reference/requirement-schema.md)
+## Test Presets
 
-## 📊 File Locations
+### Quick Preset
+- Phases: Structure, Dependencies only
+- Timeout: ~45 seconds
+- Use: Fast iteration during development
+
+### Smoke Preset
+- Phases: Structure, Dependencies, Unit
+- Timeout: ~2 minutes
+- Use: Pre-commit validation
+
+### Comprehensive Preset
+- Phases: All 6 phases
+- Timeout: ~10 minutes
+- Use: CI/CD, release validation
+- Triggers: Auto-sync of requirements
+
+**See**: [Presets Reference](reference/presets.md)
+
+## File Locations
 
 ### Configuration
 - `.vrooli/service.json` - Scenario configuration including test lifecycle
+- `.vrooli/testing.json` - Test-specific configuration
 - `vite.config.ts` - Vitest configuration with requirement reporter (UI scenarios)
 
 ### Test Structure
@@ -209,7 +218,7 @@ Registry includes metadata, requirement definitions, validation entries, and par
 - `scripts/requirements/validate.js` - Registry schema validation
 - `scripts/scenarios/testing/` - Shared testing libraries and helpers
 
-## 🔧 Common Commands
+## Common Commands
 
 ### Run Tests
 ```bash
@@ -221,6 +230,9 @@ Registry includes metadata, requirement definitions, validation entries, and par
 
 # Run with Makefile
 cd scenarios/my-scenario && make test
+
+# Use test-genie CLI
+test-genie execute my-scenario --preset comprehensive
 ```
 
 ### Requirement Management
@@ -232,16 +244,10 @@ vrooli scenario requirements init my-scenario
 node scripts/requirements/validate.js --scenario my-scenario
 
 # Generate report
-node scripts/requirements/report.js --scenario my-scenario --format markdown
+vrooli scenario requirements report my-scenario --format markdown
 
-# Auto-sync from test results
-node scripts/requirements/report.js --scenario my-scenario --mode sync
-
-# Sync with orphan removal
-node scripts/requirements/report.js --scenario my-scenario --mode sync --prune-stale
-
-# Fail CI on P0/P1 gaps
-node scripts/requirements/report.js --scenario my-scenario --fail-on-critical-gap
+# Auto-sync from test results (happens automatically with comprehensive preset)
+test-genie execute my-scenario --preset comprehensive
 ```
 
 ### Coverage
@@ -252,24 +258,27 @@ go tool cover -func=coverage.out
 
 # Vitest coverage
 cd ui && npm test -- --coverage
+
+# test-genie coverage analysis
+test-genie coverage my-scenario --depth deep
 ```
 
-## 🔗 Related Documentation
+## Related Documentation
 
 ### Getting Started
-- [Quick Start Guide](guides/quick-start.md) - Write your first test in 5 minutes
+- [QUICKSTART](QUICKSTART.md) - Get started in 5 minutes
 - [Safety Guidelines](safety/GUIDELINES.md) - **CRITICAL** - Prevent data loss
 
 ### Deep Dives
-- [Phased Testing Architecture](architecture/PHASED_TESTING.md) - Complete phase system
-- [Requirement Flow](architecture/REQUIREMENT_FLOW.md) - End-to-end traceability
-- [Requirement Tracking Guide](guides/requirement-tracking.md) - Complete tracking system
+- [Phased Testing Guide](guides/phased-testing.md) - Complete phase system
+- [Requirements Sync Guide](guides/requirements-sync.md) - Requirement tracking
+- [Architecture](concepts/architecture.md) - Go orchestrator design
 
 ### Implementation
-- [Scenario Testing Guide](guides/scenario-testing.md) - Test full-stack apps
 - [Scenario Unit Testing](guides/scenario-unit-testing.md) - Go, Node, Python tests
-- [UI Automation with BAS](guides/ui-automation-with-bas.md) - Workflow-based UI testing
+- [CLI Testing](guides/cli-testing.md) - BATS testing patterns
+- [UI Testability](guides/ui-testability.md) - BAS workflow testing
 
 ---
 
-**💡 Tip**: Use your browser's search (Ctrl+F / Cmd+F) to quickly find terms in this glossary.
+**Tip**: Use your browser's search (Ctrl+F / Cmd+F) to quickly find terms in this glossary.

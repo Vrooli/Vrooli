@@ -2,11 +2,11 @@
 
 This guide provides step-by-step diagnosis and fixes for common testing issues across the entire Vrooli ecosystem - from unit tests to integration testing, Docker issues, and CI/CD problems.
 
-## 🚨 Emergency Quick Fixes
+## Emergency Quick Fixes
 
 ### Test Exits Immediately After First Success
 ```bash
-# Symptom: Script exits right after first ✓ message
+# Symptom: Script exits right after first message
 # Quick Fix: Replace all arithmetic expansions
 sed -i 's/((tests_passed++))/tests_passed=$((tests_passed + 1))/g' test/phases/test-unit.sh
 sed -i 's/((tests_failed++))/tests_failed=$((tests_failed + 1))/g' test/phases/test-unit.sh
@@ -19,7 +19,7 @@ sed -i 's/((tests_failed++))/tests_failed=$((tests_failed + 1))/g' test/phases/t
 head -20 test/phases/test-unit.sh | grep -E "(source|config|lib)"
 ```
 
-## 🔍 Systematic Diagnosis Process
+## Systematic Diagnosis Process
 
 ### Step 1: Identify the Failure Pattern
 
@@ -33,39 +33,39 @@ Look for these patterns in the output:
 #### Pattern A: Immediate Exit After First Test
 ```
 [INFO] Test 1: Core lifecycle functions...
-[SUCCESS] ✓ Install function exists
+[SUCCESS] Install function exists
 [ERROR] unit tests failed
 ```
-→ **Go to [Arithmetic Expansion Issues](#arithmetic-expansion-issues)**
+**Go to [Arithmetic Expansion Issues](#arithmetic-expansion-issues)**
 
 #### Pattern B: Function Not Found Errors
 ```
-[ERROR] ✗ Content add function missing
-[ERROR] ✗ API process file function missing
+[ERROR] Content add function missing
+[ERROR] API process file function missing
 ```
-→ **Go to [Function Name Mismatches](#function-name-mismatches)**
+**Go to [Function Name Mismatches](#function-name-mismatches)**
 
 #### Pattern C: Configuration Variable Errors
 ```
-[ERROR] ✗ Port not configured
-[ERROR] ✗ Base URL not configured
+[ERROR] Port not configured
+[ERROR] Base URL not configured
 ```
-→ **Go to [Configuration Issues](#configuration-issues)**
+**Go to [Configuration Issues](#configuration-issues)**
 
 #### Pattern D: CLI Handler Registration Failures
 ```
-[ERROR] ✗ Install handler not registered
-[ERROR] ✗ Test smoke handler not registered
+[ERROR] Install handler not registered
+[ERROR] Test smoke handler not registered
 ```
-→ **Go to [CLI Framework Issues](#cli-framework-issues)**
+**Go to [CLI Framework Issues](#cli-framework-issues)**
 
 #### Pattern E: Library Sourcing Errors
 ```
 ./test/phases/test-unit.sh: line 32: RESOURCE_PORT: unbound variable
 ```
-→ **Go to [Library Sourcing Issues](#library-sourcing-issues)**
+**Go to [Library Sourcing Issues](#library-sourcing-issues)**
 
-## 🛠️ Detailed Fix Procedures
+## Detailed Fix Procedures
 
 ### Arithmetic Expansion Issues
 
@@ -158,7 +158,7 @@ head -30 test/phases/test-unit.sh | grep -n -E "(source.*defaults|config)"
 ```bash
 # Wrong:
 RESOURCE_PORT=8080
-# Right: 
+# Right:
 export RESOURCE_PORT=8080
 ```
 
@@ -226,7 +226,7 @@ for lib in core install status api content; do
 done
 ```
 
-## 🧪 Test Your Fix
+## Test Your Fix
 
 After applying any fix, verify it works:
 
@@ -240,9 +240,7 @@ After applying any fix, verify it works:
 # - Clear pass/fail summary
 ```
 
-## 📋 Prevention Checklist
-
-Use this checklist when writing new unit tests:
+## Prevention Checklist
 
 ### Before Writing Tests:
 - [ ] List all functions that actually exist: `grep -r "^function_name()" lib/`
@@ -262,7 +260,7 @@ Use this checklist when writing new unit tests:
 - [ ] Verify all expected functions are tested
 - [ ] Ensure proper exit codes (0 for success, 1 for failure)
 
-## 🔧 Debug Tools
+## Debug Tools
 
 ### Enable Debug Mode
 ```bash
@@ -280,9 +278,9 @@ check_functions() {
     local test_file="$1"
     while IFS= read -r func; do
         if declare -f "$func" &>/dev/null; then
-            echo "✓ $func"
+            echo "Found: $func"
         else
-            echo "✗ $func"
+            echo "Missing: $func"
         fi
     done < <(grep -oE '"[^"]*::[^"]*"' "$test_file" | sed 's/"//g')
 }
@@ -298,9 +296,9 @@ check_vars() {
     local test_file="$1"
     while IFS= read -r var; do
         if [[ -n "${!var:-}" ]]; then
-            echo "✓ $var = ${!var}"
+            echo "Set: $var = ${!var}"
         else
-            echo "✗ $var (undefined)"
+            echo "Unset: $var"
         fi
     done < <(grep -oE '\$\{[A-Z_]+[:-]' "$test_file" | sed 's/\${\(.*\)[:-].*/\1/' | sort -u)
 }
@@ -310,36 +308,7 @@ source config/defaults.sh
 check_vars test/phases/test-unit.sh
 ```
 
-## ❓ Still Stuck?
-
-If none of these solutions work:
-
-1. **Compare with a working resource:**
-   ```bash
-   # Find resources with passing unit tests:
-   find /path/to/vrooli/resources -name "test-unit.sh" -exec bash -c 'echo "Testing {}"; timeout 10 bash "{}" && echo "✓ PASSED" || echo "✗ FAILED"' \;
-   ```
-
-2. **Start with a minimal test:**
-   ```bash
-   # Create a minimal test that just counts:
-   tests_passed=0
-   tests_failed=0
-   
-   tests_passed=$((tests_passed + 1))
-   echo "Passed: $tests_passed"
-   ```
-
-3. **Enable maximum debugging:**
-   ```bash
-   set -euxo pipefail  # Add 'x' for trace mode
-   ```
-
-4. **Check resource-specific documentation** in the resource's README or PRD files.
-
-Remember: Unit test failures are almost always implementation bugs, not framework limitations!
-
-## 🐳 Docker & Container Issues
+## Docker & Container Issues
 
 ### Container Won't Start
 **Symptoms:**
@@ -406,7 +375,7 @@ docker system prune -a
 docker build --no-cache -t image-name .
 ```
 
-## 🌐 Network & Connectivity Issues
+## Network & Connectivity Issues
 
 ### API Not Responding
 **Symptoms:**
@@ -479,7 +448,7 @@ sudo iptables -L
 sudo ufw disable
 ```
 
-## 🔧 Environment & Configuration Issues
+## Environment & Configuration Issues
 
 ### Environment Variables Not Set
 **Symptoms:**
@@ -563,7 +532,7 @@ pyenv global 3.9.0
 cat .nvmrc .python-version 2>/dev/null
 ```
 
-## ⚡ Performance & Timeout Issues
+## Performance & Timeout Issues
 
 ### Tests Taking Too Long
 **Symptoms:**
@@ -645,7 +614,7 @@ pkill -f test-process-name
 docker ps -q | xargs -r docker rm -f
 ```
 
-## 🔄 CI/CD & Automation Issues
+## CI/CD & Automation Issues
 
 ### GitHub Actions Failures
 **Symptoms:**
@@ -717,7 +686,7 @@ env:
 if: ${{ secrets.API_KEY != '' }}
 ```
 
-## 🔍 Advanced Debugging Techniques
+## Advanced Debugging Techniques
 
 ### Enable Comprehensive Logging
 ```bash
@@ -763,7 +732,7 @@ env > debug-info/environment.txt
 zip -r debug-info.zip debug-info/
 ```
 
-## 📋 Prevention Checklist
+## Prevention Checklist
 
 ### Before Writing Tests
 - [ ] Read [Safety Guidelines](../safety/GUIDELINES.md)
@@ -783,18 +752,19 @@ zip -r debug-info.zip debug-info/
 - [ ] Check resource cleanup
 - [ ] Document known limitations
 
-## 🆘 When All Else Fails
+## When All Else Fails
 
 1. **Start with minimal reproduction**:
    ```bash
    # Create smallest possible test
-   echo "#!/bin/bash\necho 'test'" > minimal-test.sh
+   echo '#!/bin/bash
+   echo "test"' > minimal-test.sh
    chmod +x minimal-test.sh && ./minimal-test.sh
    ```
 
 2. **Compare with working examples**:
-   - Check [visited-tracker tests](../../../scenarios/visited-tracker/test/)
-   - Use [gold standard examples](../reference/examples.md)
+   - Check [visited-tracker tests](../../../visited-tracker/test/)
+   - Use gold standard examples in the codebase
 
 3. **Get help**:
    - Create GitHub issue with "TESTING" label
@@ -806,16 +776,16 @@ Remember: Most testing issues are environment/configuration problems, not fundam
 ## See Also
 
 ### Related Guides
-- [Quick Start Guide](quick-start.md) - Start with basics
+- [QUICKSTART](../QUICKSTART.md) - Start with basics
 - [Safety Guidelines](../safety/GUIDELINES.md) - Prevent common mistakes
-- [Scenario Testing Guide](scenario-testing.md) - Complete workflow
+- [Phased Testing](phased-testing.md) - Complete workflow
 
 ### Technical Details
-- [Phased Testing Architecture](../architecture/PHASED_TESTING.md) - Understand phase system
-- [Requirement Flow](../architecture/REQUIREMENT_FLOW.md) - Debug requirement tracking issues
-- [Testing Glossary](../GLOSSARY.md) - Look up unfamiliar terms
+- [Architecture](../concepts/architecture.md) - Understand the system
+- [Requirements Sync](requirements-sync.md) - Debug requirement tracking issues
+- [Glossary](../GLOSSARY.md) - Look up unfamiliar terms
 
-### Common Resources
-- [Shell Libraries Reference](../reference/shell-libraries.md) - Helper function docs
-- [Test Runners Reference](../reference/test-runners.md) - Execution methods
-- [Gold Standard Examples](../reference/examples.md) - Learn from working code
+### Reference
+- [CLI Commands](../reference/cli-commands.md) - CLI reference
+- [API Endpoints](../reference/api-endpoints.md) - API reference
+- [Test Runners](../reference/test-runners.md) - Execution methods

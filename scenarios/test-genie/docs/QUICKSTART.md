@@ -83,6 +83,13 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 
 ## Documentation Navigation
 
+### Getting Started
+- [Glossary](GLOSSARY.md) - Testing terminology and definitions
+
+### Safety (Read First!)
+- [Safety Guidelines](safety/GUIDELINES.md) - **CRITICAL** - Prevent data loss in test scripts
+- [BATS Teardown Bug](safety/bats-teardown-bug.md) - Real incident case study
+
 ### Guides (How-To)
 - [Phased Testing](guides/phased-testing.md) - Understanding the 6-phase architecture
 - [Test Generation](guides/test-generation.md) - AI-powered test creation
@@ -90,8 +97,14 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [Scenario Unit Testing](guides/scenario-unit-testing.md) - Go, Node, Python unit tests
 - [CLI Testing](guides/cli-testing.md) - BATS testing for CLIs
 - [UI Testability](guides/ui-testability.md) - Design testable UIs
+- [UI Automation with BAS](guides/ui-automation-with-bas.md) - Browser Automation Studio workflows
+- [UI Smoke Testing](guides/ui-smoke.md) - Fast UI validation with Browserless
+- [Lighthouse Integration](guides/lighthouse.md) - Performance and accessibility testing
 - [Vault Testing](guides/vault-testing.md) - Multi-phase lifecycle validation
 - [Sync Execution](guides/sync-execution.md) - Blocking execution for agents
+- [Validation Best Practices](guides/validation-best-practices.md) - Quality validation guidelines
+- [End-to-End Example](guides/end-to-end-example.md) - Complete PRD to coverage walkthrough
+- [Troubleshooting](guides/troubleshooting.md) - Debug and fix common issues
 
 ### Reference (Technical Details)
 - [API Endpoints](reference/api-endpoints.md) - REST API reference
@@ -99,9 +112,16 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [Presets](reference/presets.md) - Quick/Smoke/Comprehensive definitions
 - [Phase Catalog](reference/phase-catalog.md) - Detailed phase specs
 - [Test Runners](reference/test-runners.md) - Language-specific runners
+- [Shell Libraries](reference/shell-libraries.md) - Testing shell function reference
+- [Requirement Schema](reference/requirement-schema.md) - JSON schema for requirements
+- [Gaming Prevention](reference/gaming-prevention.md) - Test integrity detection
+- [Gold Standard Examples](reference/examples.md) - Exemplary implementations
 
 ### Concepts (Architecture)
 - [Architecture](concepts/architecture.md) - Go orchestrator design
+- [Requirement Flow](concepts/requirement-flow.md) - End-to-end requirement validation
+- [Testing Strategy](concepts/strategy.md) - Three-layer validation approach
+- [Infrastructure](concepts/infrastructure.md) - Testing tools and frameworks
 
 ## Common Tasks
 
@@ -168,7 +188,79 @@ Increase timeout in `.vrooli/testing.json`:
 
 Ensure tests have `[REQ:ID]` tags and run with comprehensive preset.
 
+**For more help:** See the [Troubleshooting Guide](guides/troubleshooting.md) for comprehensive debugging help.
+
 See [PROBLEMS.md](PROBLEMS.md) for known issues.
+
+## Quick Decision Tree
+
+Use this guide to find the right documentation for your task:
+
+```
+START: What are you testing?
+
++-- New to Testing?
+|   +-- Read: QUICKSTART (this doc) + Safety Guidelines
+|
++-- Complete Scenario/App?
+|   +-- First time --> Scenario Unit Testing Guide
+|   +-- Adding tests --> Scenario Unit Testing Guide
+|   +-- Complex multi-component --> Phased Testing Guide
+|
++-- Vrooli Resource?
+|   +-- Resource functions/CLI --> Resource Unit Testing Guide
+|   +-- Resource integration --> Testing Strategy
+|   +-- Cross-resource workflows --> Integration Testing
+|
++-- Specific Code Type?
+|   +-- Go API handlers --> Scenario Unit Testing Guide
+|   +-- Node.js/React UI --> Scenario Unit Testing Guide
+|   +-- Python scripts --> Scenario Unit Testing Guide
+|   +-- Shell scripts --> CLI Testing Guide + Safety Guidelines
+|   +-- Database migrations --> Testing Strategy + Integration
+|
++-- UI Testing?
+|   +-- Browser automation --> UI Automation with BAS
+|   +-- Smoke tests --> UI Smoke Testing
+|   +-- Performance --> Lighthouse Integration
+|   +-- Design for testing --> UI Testability Guide
+|
++-- Performance/Scale Issues?
+|   +-- Tests too slow --> Troubleshooting Guide
+|   +-- Memory/CPU usage --> Performance Testing
+|   +-- Load testing --> Integration Testing + Performance
+|
++-- CI/CD Integration?
+|   +-- Agent automation --> Sync Execution Guide
+|   +-- Test automation --> Test Runners Reference
+|   +-- Build pipeline issues --> Troubleshooting Guide
+|
++-- Safety Concerns?
+|   +-- Tests deleting files --> Safety Guidelines (URGENT)
+|   +-- BATS teardown issues --> BATS Teardown Bug
+|   +-- Script safety --> Safety Guidelines + Linter
+|
++-- Debugging/Issues?
+|   +-- Tests failing --> Troubleshooting Guide
+|   +-- Coverage too low --> Examples + Unit Testing
+|   +-- Flaky tests --> Troubleshooting Guide
+|   +-- Can't find right docs --> This decision tree!
+|
++-- Learning/Examples?
+    +-- See working examples --> Gold Standard Examples
+    +-- Understand architecture --> Architecture Concepts
+    +-- Deep dive into tools --> Shell Libraries + Test Runners
+```
+
+## Critical Warnings
+
+1. **NEVER** use unguarded `rm` commands in test scripts
+2. **ALWAYS** validate variables before file operations
+3. **SET** critical variables before skip conditions in BATS
+4. **USE** the safe templates from `/scripts/scenarios/testing/templates/`
+5. **RUN** the safety linter before committing test scripts
+
+See [Safety Guidelines](safety/GUIDELINES.md) for complete safety rules.
 
 ## Next Steps
 

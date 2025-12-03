@@ -473,21 +473,64 @@ func TestProjectCRUD(t *testing.T) {
 
 Go test parser extracts tags automatically during phase execution.
 
-## See Also
+## Coverage-Driven Development Workflow
 
-### Related Guides
-- [Requirements Sync](requirements-sync.md) - How requirement tracking works
-- [Phased Testing](phased-testing.md) - Complete testing workflow
-- [Scenario Unit Testing](scenario-unit-testing.md) - Manual test authoring guide
-- [UI Testability](ui-testability.md) - BAS workflow testing
+Use test-genie iteratively to systematically improve coverage:
 
-### Reference
-- [API Endpoints](../reference/api-endpoints.md) - REST API reference
-- [CLI Commands](../reference/cli-commands.md) - CLI reference
-- [Presets](../reference/presets.md) - Test preset definitions
+```mermaid
+graph TB
+    A[Check Coverage<br/>test-genie coverage --show-gaps] --> B{Coverage Gaps?}
+    B -->|Yes| C[Generate Tests<br/>test-genie generate]
+    B -->|No| Z[Done!]
+    C --> D[Review Generated Tests<br/>Verify assertions]
+    D --> E[Add [REQ:ID] Tags]
+    E --> F[Run Tests<br/>make test]
+    F --> G{Tests Pass?}
+    G -->|No| H[Fix Tests<br/>Adjust generated code]
+    H --> F
+    G -->|Yes| I[Commit Tests]
+    I --> A
 
-### Concepts
-- [Architecture](../concepts/architecture.md) - Go orchestrator design
+    style A fill:#e1f5ff
+    style C fill:#fff3e0
+    style D fill:#fff9c4
+    style F fill:#e8f5e9
+    style I fill:#c8e6c9
+```
+
+### Systematic Gap-Filling Example
+
+```bash
+# Step 1: Identify gaps
+$ test-genie coverage my-scenario --format json | jq '.uncovered[]'
+"api/handlers/projects.go:45-62"
+"api/services/auth.go:89-102"
+
+# Step 2: Generate tests for specific files
+test-genie generate my-scenario \
+  --types unit \
+  --files "api/handlers/projects.go,api/services/auth.go"
+
+# Step 3: Review and tag generated tests
+# Add [REQ:ID] tags as needed
+
+# Step 4: Verify coverage improved
+make test
+test-genie coverage my-scenario
+```
+
+## Generated Test Review Checklist
+
+Before committing generated tests, verify:
+
+- [ ] **Assertions match expected behavior** (not just "truthy")
+- [ ] **Edge cases covered** (empty, null, boundary values)
+- [ ] **Error scenarios tested** (network failures, validation errors)
+- [ ] **Mocks realistic** (don't mock away important logic)
+- [ ] **Test names descriptive** (explain what's being tested)
+- [ ] **[REQ:ID] tags added** (for requirement tracking)
+- [ ] **No hallucinated imports** (check all imports exist)
+- [ ] **Setup/teardown proper** (resources cleaned up)
 
 ## Quick Start Example
 
@@ -514,3 +557,21 @@ test-genie coverage my-scenario
 ```
 
 **Result**: Comprehensive test suite with automatic requirement tracking, generated in minutes.
+
+## See Also
+
+### Related Guides
+- [Requirements Sync](requirements-sync.md) - How requirement tracking works
+- [Phased Testing](phased-testing.md) - Complete testing workflow
+- [Scenario Unit Testing](scenario-unit-testing.md) - Manual test authoring guide
+- [UI Testability](ui-testability.md) - BAS workflow testing
+- [Troubleshooting](troubleshooting.md) - Debug common issues
+
+### Reference
+- [API Endpoints](../reference/api-endpoints.md) - REST API reference
+- [CLI Commands](../reference/cli-commands.md) - CLI reference
+- [Presets](../reference/presets.md) - Test preset definitions
+- [Glossary](../GLOSSARY.md) - Testing terminology
+
+### Concepts
+- [Architecture](../concepts/architecture.md) - Go orchestrator design

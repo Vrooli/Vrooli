@@ -1,0 +1,438 @@
+# UI Automation with Browser Automation Studio
+
+> **Essential guide for writing UI tests as JSON workflows that integrate with requirement tracking**
+
+## Table of Contents
+- [Overview](#overview)
+- [Why BAS Workflows](#why-bas-workflows)
+- [Workflow Structure](#workflow-structure)
+- [Node Types Reference](#node-types-reference)
+- [Authoring Workflows](#authoring-workflows)
+- [Workflow Lifecycle](#workflow-lifecycle)
+- [Requirements Integration](#requirements-integration)
+- [Storage Location](#storage-location)
+- [Execution Helper](#execution-helper)
+- [Troubleshooting](#troubleshooting)
+- [See Also](#see-also)
+
+## Overview
+
+Browser Automation Studio (BAS) enables **declarative UI testing** through JSON workflows that execute via API. This eliminates Playwright/Puppeteer code while maintaining version control and requirement tracking integration.
+
+**What is BAS workflow testing?**
+- Write UI tests as **declarative JSON workflows** with nodes and edges
+- Execute workflows via **BAS API** (no manual clicking, fully automated)
+- Integrate with **requirement tracking** using `automation` validation type
+- **Self-testing**: BAS validates itself using its own automation capabilities
+
+**Benefits:**
+- **Declarative** - JSON workflows are version-controlled, not imperative code
+- **No Playwright code** - Node configuration instead of page.click() calls
+- **Requirement tracking** - Auto-sync like unit tests (`type: automation`)
+- **Maintainable** - Update UI then regenerate workflow then commit JSON
+- **AI-friendly** - Agents write JSON directly, no framework learning curve
+
+## Why BAS Workflows
+
+**vs. Playwright/Puppeteer**:
+- Playwright: Requires JavaScript knowledge, imperative code, brittle selectors
+- BAS: Declarative JSON, visual editor option, requirement integration built-in
+
+**vs. Manual Testing**:
+- Manual: Not repeatable, can't integrate with CI, no coverage tracking
+- BAS: Automated, versioned, integrated with requirement tracking
+- Manual validations remain a last-resort escape hatch. If you absolutely need one, log it with `vrooli scenario requirements manual-log` so drift detection knows when it expires - but build a BAS workflow as soon as possible.
+
+**For AI Agents**:
+- BAS workflows are **JSON structures** that agents can write directly
+- No need to learn Playwright API or handle async/await patterns
+- Clear node types with typed `data` properties
+- Execution errors include screenshots and DOM snapshots for debugging
+
+## Workflow Structure
+
+### Minimal Example
+
+```json
+{
+  "metadata": {
+    "description": "Test project creation flow",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-home",
+      "type": "navigate",
+      "position": { "x": 0, "y": 0 },
+      "data": {
+        "label": "Navigate to homepage",
+        "destinationType": "scenario",
+        "scenario": "my-scenario",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0"
+      }
+    },
+    {
+      "id": "click-button",
+      "type": "click",
+      "position": { "x": 220, "y": 0 },
+      "data": {
+        "label": "Click create button",
+        "selector": "[data-testid='create-btn']",
+        "waitForSelector": "[data-testid='create-btn']"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1",
+      "source": "navigate-home",
+      "target": "click-button",
+      "type": "smoothstep"
+    }
+  ]
+}
+```
+
+### Key Components
+
+**metadata**: Describes purpose and declares reset scope.
+```json
+{
+  "description": "Human-readable purpose",
+  "version": 1,
+  "reset": "none"
+}
+```
+
+**settings**: Execution environment configuration
+```json
+{
+  "executionViewport": {
+    "width": 1440,
+    "height": 900,
+    "preset": "desktop"
+  }
+}
+```
+
+**nodes**: Array of steps in the workflow
+```json
+{
+  "id": "unique-node-id",
+  "type": "navigate",
+  "position": { "x": 0, "y": 0 },
+  "data": {
+    "label": "Step description"
+  }
+}
+```
+
+**edges**: Connections defining execution order
+```json
+{
+  "id": "unique-edge-id",
+  "source": "source-node-id",
+  "target": "target-node-id",
+  "type": "smoothstep"
+}
+```
+
+## Workflow Stories & Registry Order
+
+- Prefix every folder under `test/playbooks/` with a two-digit ordinal (e.g., `01-foundation`, `02-builder`)
+- After editing or moving a workflow, regenerate the registry: `node scripts/scenarios/testing/playbooks/build-registry.mjs --scenario <path>`
+- `metadata.reset` (`none`, `full`) tells the runner when to reseed
+
+## Node Types Reference
+
+### Navigate Node
+
+```json
+{
+  "type": "navigate",
+  "data": {
+    "label": "Navigate to dashboard",
+    "destinationType": "scenario",
+    "scenario": "my-scenario",
+    "scenarioPath": "/dashboard",
+    "waitUntil": "networkidle0",
+    "timeoutMs": 30000,
+    "waitForMs": 1000
+  }
+}
+```
+
+### Click Node
+
+```json
+{
+  "type": "click",
+  "data": {
+    "label": "Click submit button",
+    "selector": "[data-testid='submit-btn']",
+    "waitForSelector": "[data-testid='submit-btn']",
+    "timeoutMs": 10000,
+    "waitForMs": 500,
+    "clickCount": 1
+  }
+}
+```
+
+### Type Node
+
+```json
+{
+  "type": "type",
+  "data": {
+    "label": "Enter project name",
+    "selector": "[data-testid='project-name-input']",
+    "text": "My Test Project",
+    "clearExisting": true,
+    "delay": 50
+  }
+}
+```
+
+### Assert Node
+
+```json
+{
+  "type": "assert",
+  "data": {
+    "label": "Verify success message",
+    "selector": "[data-testid='success-message']",
+    "assertMode": "exists",
+    "expectedText": "Success!",
+    "timeoutMs": 10000,
+    "failureMessage": "Success message should appear"
+  }
+}
+```
+
+**Assert modes**: `exists`, `not_exists`, `contains_text`, `exact_text`
+
+### Wait Node
+
+```json
+{
+  "type": "wait",
+  "data": {
+    "label": "Wait for animation",
+    "durationMs": 1500
+  }
+}
+```
+
+### Screenshot Node
+
+```json
+{
+  "type": "screenshot",
+  "data": {
+    "label": "Capture dashboard state",
+    "fullPage": true,
+    "captureDomSnapshot": true,
+    "selector": "[data-testid='chart']",
+    "waitForMs": 1000
+  }
+}
+```
+
+## Selector Registry System
+
+BAS uses a **centralized selector registry** to eliminate hardcoded CSS selectors.
+
+### How It Works
+
+**Single Source of Truth**: All selectors defined in `ui/src/consts/selectors.ts`:
+
+```typescript
+const literalSelectors = {
+  dashboard: {
+    newProjectButton: "dashboard-new-project-button",
+  },
+  workflows: {
+    tab: "workflows-tab",
+    newButton: "new-workflow-button",
+  },
+} as const;
+```
+
+**In UI Components**:
+
+```typescript
+import { selectors } from '@/consts/selectors';
+
+<button data-testid={selectors.dashboard.newProjectButton}>
+  New Project
+</button>
+```
+
+**In Workflows**: Reference with `@selector/` prefix:
+
+```json
+{
+  "type": "click",
+  "data": {
+    "selector": "@selector/dashboard.newProjectButton"
+  }
+}
+```
+
+### Dynamic Selectors
+
+```typescript
+const dynamicSelectorDefinitions = {
+  projects: {
+    cardByName: defineDynamicSelector({
+      description: "Project card filtered by name",
+      selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
+      params: { name: { type: "string" } },
+    }),
+  },
+} as const;
+```
+
+In workflows:
+
+```json
+{
+  "selector": "@selector/projects.cardByName(name=My Project)"
+}
+```
+
+## Resilience Settings
+
+Nodes can include a `resilience` object for retries and readiness checks:
+
+```json
+{
+  "type": "click",
+  "data": {
+    "selector": "@selector/cta.primary",
+    "resilience": {
+      "maxAttempts": 3,
+      "delayMs": 1500,
+      "backoffFactor": 1.5,
+      "preconditionSelector": "@selector/app.shell.ready",
+      "preconditionTimeoutMs": 10000,
+      "successSelector": "@selector/onboarding.stepTwo",
+      "successTimeoutMs": 15000
+    }
+  }
+}
+```
+
+## Storage Location
+
+- Each scenario owns automation assets under `scenarios/<name>/test/playbooks/`
+- Use canonical layout: `capabilities/<operational-target>/<surface>/`
+- Keep `test/playbooks/README.md` describing how folders tie back to requirements
+
+## Execution Helper
+
+Use the shared helper:
+
+```bash
+source "${APP_ROOT}/scripts/scenarios/testing/playbooks/browser-automation-studio.sh"
+
+if testing::playbooks::bas::run_workflow \
+    --file "test/playbooks/capabilities/03-execution/telemetry-smoke.json" \
+    --scenario "browser-automation-studio"; then
+  testing::phase::add_requirement --id BAS-EXEC-TELEMETRY --status passed \
+    --evidence "Telemetry workflow executed"
+fi
+```
+
+Or allow the phase helper to execute all validated workflows automatically:
+
+```bash
+testing::phase::run_bas_automation_validations --scenario "$SCENARIO_NAME"
+```
+
+## Requirements Integration
+
+Annotate requirement validations with the `automation` type:
+
+```json
+{
+  "validation": [
+    {
+      "type": "automation",
+      "ref": "test/playbooks/capabilities/02-builder/demo-sanity.json",
+      "scenario": "browser-automation-studio",
+      "phase": "integration",
+      "status": "implemented"
+    }
+  ]
+}
+```
+
+## Troubleshooting
+
+### Workflow Fails to Import
+
+**Causes**: JSON file doesn't exist, syntax error, BAS not running
+
+**Solutions**:
+```bash
+ls -la test/playbooks/ui/projects/create.json
+jq . test/playbooks/ui/projects/create.json
+vrooli scenario status browser-automation-studio
+```
+
+### Selector Not Found
+
+For `@selector/` references, the error message will tell you:
+1. If manifest was auto-regenerated (selector doesn't exist in selectors.ts)
+2. Similar selectors you might have meant
+
+**Solution**: Register selector in `ui/src/consts/selectors.ts` first.
+
+### Workflow Times Out
+
+**Solutions**:
+```json
+{
+  "type": "navigate",
+  "data": {
+    "waitUntil": "load",
+    "waitForMs": 2000
+  }
+}
+```
+
+### Assert Node Fails
+
+```json
+{
+  "assertMode": "contains_text",
+  "expectedText": "Success"
+}
+```
+
+## Reusable Subflows & Seed Data
+
+- **Subflows**: Store under `test/playbooks/__subflows/`. Reference with `@fixture/<slug>`
+- **Seed Data**: Keep in `test/playbooks/__seeds/` with `apply.sh` and `cleanup.sh`
+- **Canonical fixtures**: Use `open-demo-project`, `open-builder-from-demo`, `open-demo-workflow`
+
+## See Also
+
+- [Writing Testable UIs](ui-testability.md) - Design UIs for automation
+- [End-to-End Example](end-to-end-example.md) - Complete flow from PRD to BAS workflow
+- [Requirements Sync](requirements-sync.md) - Understanding `automation` validation type
+- [Phased Testing](phased-testing.md) - How BAS integrates with phases
+- [Validation Best Practices](validation-best-practices.md) - Multi-layer validation strategy
+
+---
+
+**Remember**: BAS workflows are JSON data structures. AI agents can write them directly without learning Playwright APIs or handling async patterns.

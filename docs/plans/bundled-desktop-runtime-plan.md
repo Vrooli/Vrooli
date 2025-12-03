@@ -185,10 +185,59 @@ Goal: deliver true offline/portable desktop bundles (UI + API + resources + secr
 - [x] Schema + samples: Added `docs/deployment/bundle-schema.desktop.v0.1.json` and sample manifests (`desktop-happy.json`, `desktop-playwright.json`) to anchor validation and fixtures.
 - [x] Runtime core: Supervisor loads manifests, allocates ports, runs migrations, enforces readiness/health, persists secrets/migrations, records telemetry, and exposes control API + CLI shim; Playwright env defaults + asset size checks added.
 - [x] Runtime wiring to product UX: Bundled mode now consumes real manifests end-to-end (UI/CLI accept `bundle_manifest_path`, generator packages bundles/runtime, Electron launches the bundled runtime instead of blocking, and dry-run defaults to real service startup).
-
-**Missing / To Do**
 - [x] Manifest assembly: deployment-manager now generates desktop `bundle.json` from scenario-dependency-analyzer bundle skeletons (v0.1) and merges secrets plans; exposed via `/api/v1/bundles/assemble`.
 - [x] Secrets plan + UX: secrets-manager exports bundle-ready secret plans per tier (including fallback when discovery fails); Electron bundled launches now gate on the runtime control API, prompt for `user_prompt` secrets before readiness checks, POST them to `/secrets`, and fail fast with clear messaging if required secrets are withheld.
-- [ ] Telemetry/logs UX: Electron UI should render `/readyz`/`/ports`/`/logs` and automate telemetry upload; deployment-manager UI should ingest and surface bundle telemetry failures.
-- [ ] Packaging completeness polish: scrub remaining exe/dmg references, confirm MSI/PKG/AppImage flows, and document/update the updater channel design (still pending).
-- [ ] GPU visibility/tests: surface GPU availability/requirement status in UI and add runtime tests covering gpu_required/optional paths.
+- [x] Telemetry/logs UX: Electron UI now renders `/readyz` `/ports` and per-service log tails in the diagnostics panel, auto-uploads telemetry when a target URL is configured, and deployment-manager surfaces ingested bundle telemetry with failure breakdowns/events.
+- [x] Packaging completeness polish: scrub remaining exe/dmg references, confirm MSI/PKG/AppImage flows, and document/update the updater channel design (still pending).
+- [x] GPU visibility/tests: surface GPU availability/requirement status in UI and add runtime tests covering gpu_required/optional paths.
+
+**Missing / To Do**
+- Refactoring & test sweeps (per area)
+  Note: complete these by reading the relevant phase doc and applying it to the specified folder. Phase docs are typically written from the perspective of a full scenario, but in this case if a specific folder is specified, we'll be applying the principles of the phase to that specific folder. If no specific folder mentioned, do it on the whole scenario.
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Screaming Architecture Audit — `scenarios/ecosystem-manager/prompts/phases/screaming-architecture-audit.md`
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Boundary of Responsibility Enforcement — `scenarios/ecosystem-manager/prompts/phases/boundary-of-responsibility-enforcement.md`
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Seam Discovery and Enforcement — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Seam Discovery and Enforcement — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Cognitive Load Reduction — `scenarios/ecosystem-manager/prompts/phases/cognitive-load-reduction.md`
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Decision Boundary Extraction — `scenarios/ecosystem-manager/prompts/phases/decision-boundary-extraction.md`
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Refactor — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Refactor — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Test — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Test — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] deployment-manager · Screaming Architecture Audit — `scenarios/ecosystem-manager/prompts/phases/screaming-architecture-audit.md`
+  - [ ] deployment-manager · Boundary of Responsibility Enforcement — `scenarios/ecosystem-manager/prompts/phases/boundary-of-responsibility-enforcement.md`
+  - [ ] deployment-manager · Seam Discovery and Enforcement — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [ ] deployment-manager · Seam Discovery and Enforcement — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [ ] deployment-manager · Cognitive Load Reduction — `scenarios/ecosystem-manager/prompts/phases/cognitive-load-reduction.md`
+  - [ ] deployment-manager · Decision Boundary Extraction — `scenarios/ecosystem-manager/prompts/phases/decision-boundary-extraction.md`
+  - [ ] deployment-manager · Refactor — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [ ] deployment-manager · Refactor — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [ ] deployment-manager · Test — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] deployment-manager · Test — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] scenario-dependency-analyzer · Screaming Architecture Audit — `scenarios/ecosystem-manager/prompts/phases/screaming-architecture-audit.md`
+  - [ ] scenario-dependency-analyzer · Boundary of Responsibility Enforcement — `scenarios/ecosystem-manager/prompts/phases/boundary-of-responsibility-enforcement.md`
+  - [ ] scenario-dependency-analyzer · Seam Discovery and Enforcement — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [ ] scenario-dependency-analyzer · Seam Discovery and Enforcement — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [ ] scenario-dependency-analyzer · Cognitive Load Reduction — `scenarios/ecosystem-manager/prompts/phases/cognitive-load-reduction.md`
+  - [ ] scenario-dependency-analyzer · Decision Boundary Extraction — `scenarios/ecosystem-manager/prompts/phases/decision-boundary-extraction.md`
+  - [ ] scenario-dependency-analyzer · Refactor — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [ ] scenario-dependency-analyzer · Refactor — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [ ] scenario-dependency-analyzer · Test — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] scenario-dependency-analyzer · Test — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] secrets-manager · Screaming Architecture Audit — `scenarios/ecosystem-manager/prompts/phases/screaming-architecture-audit.md`
+  - [ ] secrets-manager · Boundary of Responsibility Enforcement — `scenarios/ecosystem-manager/prompts/phases/boundary-of-responsibility-enforcement.md`
+  - [ ] secrets-manager · Seam Discovery and Enforcement — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [ ] secrets-manager · Seam Discovery and Enforcement — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [ ] secrets-manager · Cognitive Load Reduction — `scenarios/ecosystem-manager/prompts/phases/cognitive-load-reduction.md`
+  - [ ] secrets-manager · Decision Boundary Extraction — `scenarios/ecosystem-manager/prompts/phases/decision-boundary-extraction.md`
+  - [ ] secrets-manager · Refactor — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [ ] secrets-manager · Refactor — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [ ] secrets-manager · Test — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] secrets-manager · Test — `scenarios/ecosystem-manager/prompts/phases/test.md`
+- Bundling delivery gaps
+  - [ ] Implement deployment-manager bundle assembly end-to-end (scenario selection, swaps, secret plans, signed/validated `bundle.json` export).
+  - [ ] Wire secrets-manager outputs into bundle export + first-run enforcement (prompt/generated secrets persisted and validated before service start).
+  - [ ] Make scenario-to-desktop consume validated manifests, stage binaries/assets, and fail fast on missing artifacts; ensure Electron targets the runtime control API.
+  - [ ] Implement installer/updater flows (MSI/PKG/AppImage) and document updater channel design.
+  - [ ] Add deployment-manager telemetry ingestion UI for desktop bundles with failure breakdowns.
+  - [ ] Ship an end-to-end bundled build (UI+API+resources) with secrets, swaps, migrations, and runtime control surface validated.

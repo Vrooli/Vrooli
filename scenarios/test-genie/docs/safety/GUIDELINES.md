@@ -9,12 +9,12 @@ This document outlines critical safety measures to prevent dangerous behaviors i
 **NEVER** use unguarded wildcard patterns in teardown functions:
 
 ```bash
-# ❌ DANGEROUS - Can delete everything if TEST_FILE_PREFIX is empty
+# DANGEROUS - Can delete everything if TEST_FILE_PREFIX is empty
 teardown() {
     rm -f "${TEST_FILE_PREFIX}"*
 }
 
-# ✅ SAFE - Always guard with proper checks
+# SAFE - Always guard with proper checks
 teardown() {
     if [ -n "${TEST_FILE_PREFIX:-}" ] && [ "${TEST_FILE_PREFIX}" != "/" ]; then
         case "${TEST_FILE_PREFIX}" in
@@ -31,12 +31,14 @@ teardown() {
 
 **Why this happens:** BATS teardown functions run even when tests are skipped. If setup() calls `skip` before setting variables, teardown() runs with empty variables.
 
+**See**: [BATS Teardown Bug Case Study](bats-teardown-bug.md) for a real-world incident analysis.
+
 ### 2. Setup Function Order
 
 **ALWAYS** set critical variables before any skip conditions:
 
 ```bash
-# ❌ DANGEROUS - Variables not set if CLI missing
+# DANGEROUS - Variables not set if CLI missing
 setup() {
     if ! command -v my-cli >/dev/null 2>&1; then
         skip "CLI not installed"
@@ -44,7 +46,7 @@ setup() {
     export TEST_FILE_PREFIX="/tmp/my-test"  # Never reached if CLI missing
 }
 
-# ✅ SAFE - Set variables first
+# SAFE - Set variables first
 setup() {
     export TEST_FILE_PREFIX="/tmp/my-test"  # Always set
     if ! command -v my-cli >/dev/null 2>&1; then
@@ -58,10 +60,10 @@ setup() {
 **ALWAYS** validate paths before destructive operations:
 
 ```bash
-# ❌ DANGEROUS - No path validation
+# DANGEROUS - No path validation
 rm -rf "$SOME_DIR"
 
-# ✅ SAFE - Validate path structure
+# SAFE - Validate path structure
 if [ -n "${SOME_DIR:-}" ] && [ "${SOME_DIR}" != "/" ]; then
     case "${SOME_DIR}" in
         /tmp/*)
@@ -80,10 +82,10 @@ fi
 **ALWAYS** use isolated locations for test files:
 
 ```bash
-# ❌ DANGEROUS - Test files in working directory
+# DANGEROUS - Test files in working directory
 TEST_DIR="./test-data"
 
-# ✅ SAFE - Test files isolated under /tmp
+# SAFE - Test files isolated under /tmp
 TEST_DIR="/tmp/my-scenario-test-$$"  # Include PID for uniqueness
 ```
 
@@ -130,16 +132,16 @@ Always include error handling in cleanup:
 ```bash
 cleanup_test_files() {
     local test_prefix="$1"
-    
+
     if ! validate_test_path "$test_prefix"; then
         echo "ERROR: Invalid test path '$test_prefix'" >&2
         return 1
     fi
-    
+
     # Use individual commands with error handling
     rm -f "${test_prefix}"* 2>/dev/null || true
     rm -rf "${test_prefix}-dir" 2>/dev/null || true
-    
+
     # Verify cleanup
     if ls "${test_prefix}"* >/dev/null 2>&1; then
         echo "WARNING: Some test files remain: ${test_prefix}*" >&2
@@ -152,7 +154,7 @@ cleanup_test_files() {
 Before committing test scripts, verify:
 
 - [ ] All `rm` commands are guarded with path validation
-- [ ] BATS setup() sets variables before skip conditions  
+- [ ] BATS setup() sets variables before skip conditions
 - [ ] BATS teardown() validates variables before cleanup
 - [ ] Test files are created under `/tmp` or other safe location
 - [ ] Wildcard patterns (`*`) are never used with empty variables
@@ -166,7 +168,7 @@ Before committing test scripts, verify:
 # VULNERABLE
 rm -f "$PREFIX"*
 
-# SAFE  
+# SAFE
 [ -n "$PREFIX" ] && rm -f "$PREFIX"*
 ```
 
@@ -252,18 +254,18 @@ redis-cli --scan --pattern "${TEST_NAMESPACE}:*" | xargs redis-cli DEL
 ```bash
 cleanup_database() {
     local schema="$1"
-    
+
     # Validate schema name format (test-only)
     if [[ ! "$schema" =~ ^test-[0-9]+-[0-9]+$ ]]; then
         echo "ERROR: Refusing to drop non-test schema: $schema"
         return 1
     fi
-    
+
     # Additional safety: Check for test marker
-    local marker=$(psql -t -c "SELECT 1 FROM information_schema.schemata 
-                               WHERE schema_name='$schema' 
+    local marker=$(psql -t -c "SELECT 1 FROM information_schema.schemata
+                               WHERE schema_name='$schema'
                                AND schema_name LIKE 'test-%'")
-    
+
     if [ "$marker" = "1" ]; then
         psql -c "DROP SCHEMA $schema CASCADE"
     fi
@@ -273,17 +275,17 @@ cleanup_database() {
 #### 4. Resource Cleanup Anti-Patterns
 
 ```bash
-# ❌ DANGEROUS - No validation
+# DANGEROUS - No validation
 cleanup() {
     docker rm -f $(docker ps -q)  # Kills ALL containers!
     psql -c "DROP SCHEMA public CASCADE"  # Drops production schema!
 }
 
-# ✅ SAFE - Targeted cleanup
+# SAFE - Targeted cleanup
 cleanup() {
     # Only remove test containers
     docker ps --filter "label=test-run=$TEST_ID" -q | xargs -r docker rm -f
-    
+
     # Only drop test schemas
     psql -c "DROP SCHEMA IF EXISTS test_${TEST_ID} CASCADE"
 }
@@ -337,17 +339,17 @@ export API_PORT
 run_exclusive_test() {
     local lockfile="/tmp/test-resource.lock"
     local lock_fd=200
-    
+
     # Acquire lock
     exec {lock_fd}>>"$lockfile"
     flock -x "$lock_fd" || {
         echo "Failed to acquire lock"
         return 1
     }
-    
+
     # Run test with exclusive access
     run_test_that_needs_exclusive_resource
-    
+
     # Lock automatically released when script exits
 }
 ```
@@ -359,22 +361,22 @@ run_exclusive_test() {
 run_isolated_test() {
     # Start new process group
     set -m
-    
+
     # Run test in background
     (
         # All child processes in same group
         trap 'kill -TERM -$$' EXIT
-        
+
         # Start test services
         ./start-test-services.sh &
-        
+
         # Run tests
         ./run-tests.sh
     ) &
-    
+
     TEST_PGID=$!
     wait $TEST_PGID
-    
+
     # Cleanup entire process group if needed
     kill -TERM -$TEST_PGID 2>/dev/null || true
 }
@@ -386,13 +388,13 @@ run_isolated_test() {
 # Each test gets its own database
 setup_test_database() {
     local test_db="testdb_${TEST_ID}"
-    
+
     # Create isolated database
     createdb "$test_db"
-    
+
     # Run migrations
     psql -d "$test_db" -f schema.sql
-    
+
     # Export for test use
     export DATABASE_URL="postgresql://localhost/$test_db"
 }
@@ -425,7 +427,7 @@ Create tests that verify safety measures work:
 TEST_FILE_PREFIX="" teardown_function
 # Should not delete any files
 
-# Test invalid path handling  
+# Test invalid path handling
 TEST_FILE_PREFIX="/etc" teardown_function
 # Should refuse to delete
 
@@ -438,15 +440,9 @@ TEST_FILE_PREFIX="/etc" teardown_function
 When using templates:
 
 1. **Customize thoroughly** - Don't leave placeholder values
-2. **Test with missing dependencies** - Ensure graceful degradation  
+2. **Test with missing dependencies** - Ensure graceful degradation
 3. **Verify cleanup** - Check that test files are properly removed
 4. **Test failure modes** - Ensure safety when tests fail
-
-## 📚 Related Resources
-
-- [BATS Testing Framework](https://bats-core.readthedocs.io/)
-- [Shell Script Safety](https://mywiki.wooledge.org/BashPitfalls)
-- [Testing Templates](/scripts/scenarios/testing/templates/README.md)
 
 ## 🐛 Reporting Safety Issues
 
@@ -459,3 +455,9 @@ If you discover unsafe patterns in existing test scripts:
 5. **Document**: Update this guide if needed
 
 Remember: **Data safety is more important than test convenience.**
+
+## See Also
+
+- [BATS Teardown Bug Case Study](bats-teardown-bug.md) - Real incident analysis
+- [CLI Testing Guide](../guides/cli-testing.md) - BATS testing patterns
+- [Troubleshooting](../guides/troubleshooting.md) - Debug common issues

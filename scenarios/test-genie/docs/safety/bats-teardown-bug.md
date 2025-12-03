@@ -34,10 +34,10 @@ BATS (Bash Automated Testing System) has a specific lifecycle that created this 
 Test Execution Flow:
 ├─ setup()       # Runs before each test
 │  ├─ Check CLI availability
-│  ├─ skip if not found  ← STOPS HERE
+│  ├─ skip if not found  <- STOPS HERE
 │  └─ Set TEST_FILE_PREFIX (never reached)
 ├─ @test         # Skipped
-└─ teardown()    # STILL RUNS! ← DANGER
+└─ teardown()    # STILL RUNS! <- DANGER
    └─ rm -f "${TEST_FILE_PREFIX}"*
       └─ Expands to: rm -f *
 ```
@@ -48,7 +48,7 @@ Three conditions combined to create the bug:
 
 1. **Variable expansion with wildcards**
    ```bash
-   "${EMPTY_VAR}"* → * → matches everything
+   "${EMPTY_VAR}"* -> * -> matches everything
    ```
 
 2. **BATS teardown always runs**
@@ -79,7 +79,7 @@ teardown() {
 setup() {
     # Set variable FIRST
     export TEST_FILE_PREFIX="/tmp/visited-tracker-cli-test"
-    
+
     # Then check skip conditions
     if ! command -v visited-tracker >/dev/null 2>&1; then
         skip "visited-tracker CLI not installed"
@@ -151,10 +151,10 @@ setup() {
     # 1. Set ALL variables first
     export VAR1="value1"
     export VAR2="value2"
-    
+
     # 2. Then check conditions
     [ -f /some/file ] || skip "Missing file"
-    
+
     # 3. Then do setup work
     mkdir -p "$TEST_DIR"
 }
@@ -162,11 +162,11 @@ setup() {
 
 ### 3. Defense in Depth
 Don't rely on a single safety measure:
-- ✅ Variable validation
-- ✅ Path restrictions  
-- ✅ Error handling
-- ✅ Linting
-- ✅ Code review
+- Variable validation
+- Path restrictions
+- Error handling
+- Linting
+- Code review
 
 ### 4. Test the Failure Paths
 ```bash
@@ -190,7 +190,7 @@ TEST_FILE_PREFIX="" ./teardown_function
 
 ### What Was Actually Lost
 - Makefile (recovered from git)
-- README.md (recovered from git)  
+- README.md (recovered from git)
 - PRD.md (recovered from git)
 - Developer time (~2 hours)
 - Confidence in test suite
@@ -253,8 +253,8 @@ The incident led to comprehensive safety improvements:
 
 **Key Takeaway**: In testing, as in production, the principle of "do no harm" must come first. A test that might delete production files is worse than no test at all.
 
-## References
+## See Also
 
-- [BATS Documentation](https://bats-core.readthedocs.io/)
-- [Shell Parameter Expansion](https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html)
-- [Safety Guidelines](GUIDELINES.md)
+- [Safety Guidelines](GUIDELINES.md) - Complete safety reference
+- [CLI Testing Guide](../guides/cli-testing.md) - BATS testing patterns
+- [BATS Documentation](https://bats-core.readthedocs.io/) - Official BATS docs

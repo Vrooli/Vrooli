@@ -9,7 +9,19 @@
       "title": "Getting Started",
       "icon": "rocket",
       "documents": [
-        { "path": "QUICKSTART.md", "title": "Quick Start", "description": "Get up and running with Test Genie" }
+        { "path": "QUICKSTART.md", "title": "Quick Start", "description": "Get up and running with Test Genie" },
+        { "path": "GLOSSARY.md", "title": "Glossary", "description": "Testing terminology and definitions" }
+      ]
+    },
+    {
+      "id": "safety",
+      "title": "Safety",
+      "icon": "shield",
+      "description": "Critical safety guidelines for test scripts",
+      "documents": [
+        { "path": "safety/README.md", "title": "Safety Overview", "description": "Quick safety checklist" },
+        { "path": "safety/GUIDELINES.md", "title": "Safety Guidelines", "description": "Complete safety rules and patterns" },
+        { "path": "safety/bats-teardown-bug.md", "title": "BATS Teardown Bug", "description": "Real incident case study" }
       ]
     },
     {
@@ -25,9 +37,14 @@
         { "path": "guides/resource-unit-testing.md", "title": "Resource Unit Testing", "description": "Testing Vrooli resources" },
         { "path": "guides/cli-testing.md", "title": "CLI Testing", "description": "BATS testing for command-line tools" },
         { "path": "guides/ui-testability.md", "title": "Writing Testable UIs", "description": "Design UIs for browser automation" },
+        { "path": "guides/ui-automation-with-bas.md", "title": "UI Automation with BAS", "description": "Browser Automation Studio workflow testing" },
+        { "path": "guides/ui-smoke.md", "title": "UI Smoke Testing", "description": "Fast UI validation with Browserless" },
+        { "path": "guides/lighthouse.md", "title": "Lighthouse Integration", "description": "Performance and accessibility testing" },
         { "path": "guides/vault-testing.md", "title": "Vault Testing", "description": "Multi-phase lifecycle validation" },
         { "path": "guides/sync-execution.md", "title": "Synchronous Execution", "description": "Blocking test execution for agents" },
-        { "path": "guides/test-genie-integration.md", "title": "Test Genie Integration", "description": "Integrating Test Genie with your workflow" }
+        { "path": "guides/validation-best-practices.md", "title": "Validation Best Practices", "description": "Quality validation guidelines" },
+        { "path": "guides/end-to-end-example.md", "title": "End-to-End Example", "description": "Complete PRD to coverage walkthrough" },
+        { "path": "guides/troubleshooting.md", "title": "Troubleshooting", "description": "Debug and fix common test issues" }
       ]
     },
     {
@@ -41,7 +58,13 @@
         { "path": "reference/presets.md", "title": "Test Presets", "description": "Quick, Smoke, Comprehensive presets" },
         { "path": "reference/phase-catalog.md", "title": "Phase Catalog", "description": "Detailed phase definitions" },
         { "path": "reference/test-runners.md", "title": "Test Runners", "description": "Language-specific test runner APIs" },
-        { "path": "reference/sync-execution-cheatsheet.md", "title": "Sync Execution Cheatsheet", "description": "Quick reference for sync API" }
+        { "path": "reference/shell-libraries.md", "title": "Shell Libraries", "description": "Testing shell function reference" },
+        { "path": "reference/requirement-schema.md", "title": "Requirement Schema", "description": "JSON schema for requirement registry" },
+        { "path": "reference/gaming-prevention.md", "title": "Gaming Prevention", "description": "Test integrity detection system" },
+        { "path": "reference/examples.md", "title": "Gold Standard Examples", "description": "Exemplary testing implementations" },
+        { "path": "reference/sync-execution-cheatsheet.md", "title": "Sync Execution Cheatsheet", "description": "Quick reference for sync API" },
+        { "path": "reference/vitest-requirement-reporter.md", "title": "Vitest Requirement Reporter", "description": "Custom reporter for requirement coverage tracking" },
+        { "path": "reference/workflow-runner.md", "title": "Workflow Runner", "description": "Generic BAS workflow execution infrastructure" }
       ]
     },
     {
@@ -50,7 +73,10 @@
       "icon": "lightbulb",
       "description": "Architecture and design concepts",
       "documents": [
-        { "path": "concepts/architecture.md", "title": "Architecture", "description": "Go orchestrator design" }
+        { "path": "concepts/architecture.md", "title": "Architecture", "description": "Go orchestrator design" },
+        { "path": "concepts/requirement-flow.md", "title": "Requirement Flow", "description": "End-to-end requirement validation" },
+        { "path": "concepts/strategy.md", "title": "Testing Strategy", "description": "Three-layer validation approach" },
+        { "path": "concepts/infrastructure.md", "title": "Infrastructure", "description": "Testing tools and frameworks" }
       ]
     },
     {
@@ -73,12 +99,13 @@
       "description": "Developer-only documentation",
       "documents": [
         { "path": "internal/requirements-sync-plan.md", "title": "Requirements Sync Plan", "description": "Detailed Go implementation design" },
-        { "path": "internal/go-migration.md", "title": "Go Migration", "description": "Bash to Go migration guide" }
+        { "path": "internal/go-migration.md", "title": "Go Migration", "description": "Bash to Go migration guide" },
+        { "path": "internal/requirements-system-architecture.md", "title": "Requirements System Architecture", "description": "Modular architecture of the requirements tracking system" }
       ]
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "guides", "reference"],
+    "primary": ["getting-started", "safety", "guides", "reference"],
     "secondary": ["concepts", "standard"],
     "hidden": ["internal"]
   }

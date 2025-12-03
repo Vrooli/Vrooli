@@ -1,10 +1,15 @@
 # Gold Standard Testing Examples
 
-This document showcases exemplary testing implementations from the Vrooli codebase that demonstrate best practices.
+**Status**: Active
+**Last Updated**: 2025-12-02
 
-## 🏆 Visited Tracker - Complete Testing Suite
+---
 
-**Location:** `/scenarios/visited-tracker/`
+This document showcases exemplary testing implementations that demonstrate best practices.
+
+## Visited Tracker - Complete Testing Suite
+
+**Location**: `/scenarios/visited-tracker/`
 
 ### Why It's Gold Standard
 - **79.4% Go coverage** with comprehensive test cases
@@ -16,6 +21,7 @@ This document showcases exemplary testing implementations from the Vrooli codeba
 ### Key Files
 
 #### API Testing (`api/TESTING_GUIDE.md`)
+
 Demonstrates:
 - Comprehensive handler testing with httptest
 - Table-driven tests for multiple scenarios
@@ -48,7 +54,7 @@ func TestVisitHandler(t *testing.T) {
             expectedBody:   "Invalid request",
         },
     }
-    
+
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             // Test implementation
@@ -58,6 +64,7 @@ func TestVisitHandler(t *testing.T) {
 ```
 
 #### CLI Testing (`cli/visited-tracker.bats`)
+
 Demonstrates:
 - **Safe variable handling** - Variables set before skip conditions
 - **Guarded teardown** - Multiple validation layers
@@ -70,7 +77,7 @@ Demonstrates:
 setup() {
     # Variables FIRST (critical!)
     export TEST_FILE_PREFIX="/tmp/visited-tracker-cli-test"
-    
+
     # Skip conditions AFTER
     if ! command -v visited-tracker >/dev/null 2>&1; then
         skip "visited-tracker CLI not installed"
@@ -85,9 +92,11 @@ teardown() {
 }
 ```
 
-## 🥈 Browser Automation Studio - UI Testing Excellence
+---
 
-**Location:** `/scenarios/browser-automation-studio/`
+## Browser Automation Studio - UI Testing Excellence
+
+**Location**: `/scenarios/browser-automation-studio/`
 
 ### Why It's Notable
 - **Puppeteer integration** for browser testing
@@ -98,6 +107,7 @@ teardown() {
 ### Key Patterns
 
 #### UI Workflow Testing
+
 ```json
 {
   "name": "user-login-flow",
@@ -127,10 +137,13 @@ teardown() {
 }
 ```
 
-## 🥉 Resource Testing Examples
+---
+
+## Resource Testing Examples
 
 ### PostgreSQL Integration Testing
-**Location:** `/resources/postgres/test/`
+
+**Location**: `/resources/postgres/test/`
 
 Demonstrates:
 - Database connection validation
@@ -142,19 +155,20 @@ Demonstrates:
 # Example: PostgreSQL health check
 test_postgres_health() {
     local db_url="postgresql://user:pass@localhost:5432/testdb"
-    
+
     if psql "$db_url" -c "SELECT 1" >/dev/null 2>&1; then
-        echo "✅ PostgreSQL is healthy"
+        echo "PostgreSQL is healthy"
         return 0
     else
-        echo "❌ PostgreSQL connection failed"
+        echo "PostgreSQL connection failed"
         return 1
     fi
 }
 ```
 
 ### Redis Integration Testing
-**Location:** `/resources/redis/test/`
+
+**Location**: `/resources/redis/test/`
 
 Demonstrates:
 - Key-value operation testing
@@ -167,21 +181,24 @@ Demonstrates:
 test_redis_operations() {
     # Set a key
     redis-cli SET test:key "value" || return 1
-    
+
     # Get the key
     value=$(redis-cli GET test:key)
     [ "$value" = "value" ] || return 1
-    
+
     # Clean up
     redis-cli DEL test:key
-    
-    echo "✅ Redis operations working"
+
+    echo "Redis operations working"
 }
 ```
 
-## 📝 Testing Anti-Patterns to Avoid
+---
 
-### ❌ The File Deletion Bug
+## Testing Anti-Patterns to Avoid
+
+### The File Deletion Bug
+
 **What NOT to do:**
 ```bash
 # DANGEROUS - Can delete everything
@@ -190,7 +207,8 @@ teardown() {
 }
 ```
 
-### ❌ Hardcoded Ports
+### Hardcoded Ports
+
 **What NOT to do:**
 ```bash
 # WRONG - Port might be different
@@ -204,7 +222,8 @@ source "$APP_ROOT/scripts/scenarios/testing/shell/connectivity.sh"
 API_URL=$(testing::connectivity::get_api_url)
 ```
 
-### ❌ Assuming Test Order
+### Assuming Test Order
+
 **What NOT to do:**
 ```bash
 @test "step 1" {
@@ -216,7 +235,9 @@ API_URL=$(testing::connectivity::get_api_url)
 }
 ```
 
-## 🎯 Best Practices Demonstrated
+---
+
+## Best Practices Demonstrated
 
 ### 1. Comprehensive Coverage
 - Test success paths
@@ -235,7 +256,7 @@ API_URL=$(testing::connectivity::get_api_url)
 - Helpful error messages
 
 ### 4. Performance
-- Fast-running tests (<5s each)
+- Fast-running tests (< 5s each)
 - Parallel execution where possible
 - Minimal external dependencies
 
@@ -244,46 +265,41 @@ API_URL=$(testing::connectivity::get_api_url)
 - DRY principle
 - Well-documented
 
-## 📊 Coverage Standards
+---
+
+## Coverage Standards
 
 ### Bronze Level (50-70%)
 ```bash
-# Basic happy path coverage
 go test ./... -cover
-# PASS
 # coverage: 55.2% of statements
 ```
 
 ### Silver Level (70-80%)
 ```bash
-# Includes error cases
 go test ./... -cover
-# PASS
 # coverage: 74.8% of statements
 ```
 
 ### Gold Level (80-90%)
 ```bash
-# Comprehensive coverage
 go test ./... -cover
-# PASS
 # coverage: 85.3% of statements
 ```
 
 ### Diamond Level (90%+)
 ```bash
-# Near-complete coverage
 go test ./... -cover
-# PASS
 # coverage: 92.7% of statements
 ```
 
-## 🔗 Quick Links to Examples
+---
+
+## Quick Links to Examples
 
 ### Complete Test Suites
 - [Visited Tracker Tests](/scenarios/visited-tracker/test/)
-- [AI Chatbot Manager Tests](/scenarios/ai-chatbot-manager/test/)
-- [Browser Automation Studio](/scenarios/browser-automation-studio/) (test structure in development)
+- [Browser Automation Studio](/scenarios/browser-automation-studio/test/)
 
 ### Specific Test Types
 - [Go Handler Tests](/scenarios/visited-tracker/api/main_test.go)
@@ -293,51 +309,45 @@ go test ./... -cover
 ### Test Helpers
 - [HTTP Test Helpers](/scenarios/visited-tracker/api/test_helpers.go)
 - [Shell Test Libraries](/scripts/scenarios/testing/shell/)
-- [BATS Safe Template](/scripts/scenarios/testing/templates/bats/cli-test.bats.template)
 
-## 📚 Learning Path
+---
 
-1. **Start Here:** [Quick Start Guide](../guides/quick-start.md)
-2. **Understand Safety:** [Safety Guidelines](../safety/GUIDELINES.md)
-3. **Study Examples:** This document
-4. **Implement:** Use templates and examples
-5. **Validate:** Run safety linter
-6. **Iterate:** Improve coverage incrementally
-
-## 🏅 Achieving Gold Standard
+## Achieving Gold Standard
 
 To achieve gold standard testing:
 
-1. **Structure** ✓
-   - All required files present
-   - Proper directory organization
-   - Modern configuration (service.json)
+### 1. Structure
+- All required files present
+- Proper directory organization
+- Modern configuration (service.json)
 
-2. **Coverage** ✓
-   - Unit tests >80%
-   - Integration tests for all endpoints
-   - CLI tests with BATS
-   - Business logic validation
+### 2. Coverage
+- Unit tests > 80%
+- Integration tests for all endpoints
+- CLI tests with BATS
+- Business logic validation
 
-3. **Safety** ✓
-   - No dangerous patterns
-   - Proper variable validation
-   - Path restrictions to /tmp
-   - Error handling
+### 3. Safety
+- No dangerous patterns
+- Proper variable validation
+- Path restrictions to /tmp
+- Error handling
 
-4. **Documentation** ✓
-   - README with test instructions
-   - Inline code comments
-   - Test case descriptions
+### 4. Documentation
+- README with test instructions
+- Inline code comments
+- Test case descriptions
 
-5. **Performance** ✓
-   - Tests complete in <5 minutes
-   - Individual tests <5 seconds
-   - Parallel execution where possible
+### 5. Performance
+- Tests complete in < 5 minutes
+- Individual tests < 5 seconds
+- Parallel execution where possible
+
+---
 
 ## See Also
 
-- [Testing Architecture](../architecture/PHASED_TESTING.md)
-- [Safety Guidelines](../safety/GUIDELINES.md)
-- [Test Runners](test-runners.md)
-- [Shell Libraries](shell-libraries.md)
+- [Testing Strategy](../concepts/strategy.md) - Three-layer approach
+- [Safety Guidelines](../safety/GUIDELINES.md) - Critical safety rules
+- [Test Runners](test-runners.md) - Language-specific runners
+- [Shell Libraries](shell-libraries.md) - Helper functions

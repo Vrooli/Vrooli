@@ -1,8 +1,16 @@
-import { useState } from "react";
-import { Copy, Check, ExternalLink } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Copy, Check } from "lucide-react";
+import mermaid from "mermaid";
 import { Button } from "../../components/ui/button";
 import { Breadcrumb } from "../../components/layout/Breadcrumb";
 import { selectors } from "../../consts/selectors";
+
+// Initialize mermaid
+mermaid.initialize({
+  startOnLoad: false,
+  theme: "dark",
+  securityLevel: "loose",
+});
 
 interface MarkdownViewerProps {
   content: string;
@@ -12,13 +20,34 @@ interface MarkdownViewerProps {
   onBack: () => void;
 }
 
-// Simple markdown to HTML converter for basic rendering
-// In production, you'd use react-markdown with plugins
-function parseMarkdown(markdown: string): string {
-  if (!markdown) return "";
+interface MermaidBlock {
+  id: string;
+  code: string;
+}
 
-  let html = markdown
-    // Code blocks (must come first)
+// Extract mermaid blocks and return both the modified markdown and the blocks
+function extractMermaidBlocks(markdown: string): { html: string; blocks: MermaidBlock[] } {
+  const blocks: MermaidBlock[] = [];
+  let counter = 0;
+
+  const html = markdown.replace(/```mermaid\n([\s\S]*?)```/g, (_, code) => {
+    const id = `mermaid-${Date.now()}-${counter++}`;
+    blocks.push({ id, code: code.trim() });
+    return `<div class="mermaid-container my-4 p-4 bg-slate-900/50 rounded-lg border border-white/10 overflow-x-auto"><div id="${id}" class="mermaid-placeholder flex items-center justify-center py-8 text-slate-400">Loading diagram...</div></div>`;
+  });
+
+  return { html, blocks };
+}
+
+// Simple markdown to HTML converter with mermaid support
+function parseMarkdown(markdown: string): { html: string; mermaidBlocks: MermaidBlock[] } {
+  if (!markdown) return { html: "", mermaidBlocks: [] };
+
+  // First extract mermaid blocks
+  const { html: withoutMermaid, blocks } = extractMermaidBlocks(markdown);
+
+  let html = withoutMermaid
+    // Other code blocks
     .replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) =>
       `<pre class="bg-black/50 rounded-lg p-4 overflow-x-auto text-sm"><code class="language-${lang || "text"}">${escapeHtml(code.trim())}</code></pre>`
     )
@@ -54,7 +83,7 @@ function parseMarkdown(markdown: string): string {
     html = `<p class="my-3">${html}</p>`;
   }
 
-  return html;
+  return { html, mermaidBlocks: blocks };
 }
 
 function escapeHtml(text: string): string {
@@ -66,6 +95,114 @@ function escapeHtml(text: string): string {
     .replace(/'/g, "&#039;");
 }
 
+// Dark theme colors
+const darkTheme = {
+  bgDark: "#1e293b",      // slate-800 - node backgrounds
+  bgDarker: "#0f172a",    // slate-900 - cluster backgrounds
+  textLight: "#f1f5f9",   // slate-100 - primary text
+  textMuted: "#cbd5e1",   // slate-300 - secondary text
+  cyan: "#22d3ee",        // cyan-400 - accent/borders
+  lineMuted: "#94a3b8",   // slate-400 - lines/arrows
+  borderMedium: "#334155", // slate-700 - borders
+};
+
+// Post-process SVG to apply dark theme colors directly
+function applyDarkThemeToSvg(svg: string): string {
+  // Parse SVG as DOM to modify it
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svg, "image/svg+xml");
+  const svgEl = doc.querySelector("svg");
+  if (!svgEl) return svg;
+
+  // Remove any background from the SVG itself
+  svgEl.style.backgroundColor = "transparent";
+
+  // Helper to set styles on elements
+  const setFill = (el: Element, color: string) => {
+    (el as HTMLElement).style.fill = color;
+    el.setAttribute("fill", color);
+  };
+
+  const setStroke = (el: Element, color: string) => {
+    (el as HTMLElement).style.stroke = color;
+    el.setAttribute("stroke", color);
+  };
+
+  // Fix all rect elements (node backgrounds, clusters, etc.)
+  doc.querySelectorAll("rect").forEach((rect) => {
+    const currentFill = rect.getAttribute("fill") || window.getComputedStyle(rect).fill;
+    // Skip transparent or none fills
+    if (currentFill === "none" || currentFill === "transparent") return;
+
+    // Check if it's a cluster/subgraph rect (usually has class containing 'cluster')
+    const isCluster = rect.closest(".cluster") !== null;
+    // Check for label backgrounds
+    const isLabel = rect.closest(".edgeLabel, .labelBkg") !== null;
+
+    if (isCluster) {
+      setFill(rect, darkTheme.bgDarker);
+      setStroke(rect, darkTheme.borderMedium);
+    } else if (isLabel) {
+      setFill(rect, darkTheme.bgDarker);
+    } else {
+      // Regular node
+      setFill(rect, darkTheme.bgDark);
+      setStroke(rect, darkTheme.cyan);
+    }
+  });
+
+  // Fix polygon elements (diamond shapes, arrows, etc.)
+  doc.querySelectorAll("polygon").forEach((poly) => {
+    const currentFill = poly.getAttribute("fill");
+    if (currentFill === "none" || currentFill === "transparent") return;
+    setFill(poly, darkTheme.bgDark);
+    setStroke(poly, darkTheme.cyan);
+  });
+
+  // Fix circle and ellipse elements
+  doc.querySelectorAll("circle, ellipse").forEach((el) => {
+    const currentFill = el.getAttribute("fill");
+    if (currentFill === "none" || currentFill === "transparent") return;
+    setFill(el, darkTheme.bgDark);
+    setStroke(el, darkTheme.cyan);
+  });
+
+  // Fix all text elements
+  doc.querySelectorAll("text, tspan").forEach((text) => {
+    setFill(text, darkTheme.textLight);
+    (text as HTMLElement).style.color = darkTheme.textLight;
+  });
+
+  // Fix foreignObject divs and spans (for HTML labels)
+  doc.querySelectorAll("foreignObject div, foreignObject span, foreignObject p").forEach((el) => {
+    (el as HTMLElement).style.color = darkTheme.textLight;
+    (el as HTMLElement).style.fill = darkTheme.textLight;
+  });
+
+  // Fix paths (edges/arrows) - but not marker paths
+  doc.querySelectorAll("path:not(marker path)").forEach((path) => {
+    const stroke = path.getAttribute("stroke");
+    if (stroke && stroke !== "none") {
+      setStroke(path, darkTheme.lineMuted);
+    }
+  });
+
+  // Fix marker elements (arrowheads)
+  doc.querySelectorAll("marker path").forEach((path) => {
+    setFill(path, darkTheme.lineMuted);
+    setStroke(path, darkTheme.lineMuted);
+  });
+
+  // Fix line elements
+  doc.querySelectorAll("line").forEach((line) => {
+    setStroke(line, darkTheme.lineMuted);
+  });
+
+  // Serialize back to string
+  const serializer = new XMLSerializer();
+  return serializer.serializeToString(doc);
+}
+
 export function MarkdownViewer({
   content,
   path,
@@ -74,6 +211,49 @@ export function MarkdownViewer({
   onBack
 }: MarkdownViewerProps) {
   const [copied, setCopied] = useState(false);
+  const [mermaidBlocks, setMermaidBlocks] = useState<MermaidBlock[]>([]);
+  const [htmlContent, setHtmlContent] = useState("");
+  const articleRef = useRef<HTMLElement>(null);
+
+  // Parse markdown and extract mermaid blocks
+  useEffect(() => {
+    if (!content) {
+      setHtmlContent("");
+      setMermaidBlocks([]);
+      return;
+    }
+    const { html, mermaidBlocks: blocks } = parseMarkdown(content);
+    setHtmlContent(html);
+    setMermaidBlocks(blocks);
+  }, [content]);
+
+  // Render mermaid diagrams after content is inserted into DOM
+  useEffect(() => {
+    if (mermaidBlocks.length === 0 || !articleRef.current) return;
+
+    const renderDiagrams = async () => {
+      for (const block of mermaidBlocks) {
+        const element = document.getElementById(block.id);
+        if (!element) continue;
+
+        try {
+          const { svg } = await mermaid.render(`${block.id}-svg`, block.code);
+          // Post-process the SVG to apply dark theme
+          const styledSvg = applyDarkThemeToSvg(svg);
+          element.innerHTML = styledSvg;
+          element.classList.remove("mermaid-placeholder");
+        } catch (err) {
+          console.error(`Failed to render mermaid diagram ${block.id}:`, err);
+          element.innerHTML = `<div class="text-red-400 text-sm p-4">Failed to render diagram. Check console for details.</div>`;
+          element.classList.remove("mermaid-placeholder");
+        }
+      }
+    };
+
+    // Small delay to ensure DOM is ready
+    const timeoutId = setTimeout(renderDiagrams, 10);
+    return () => clearTimeout(timeoutId);
+  }, [mermaidBlocks, htmlContent]);
 
   const handleCopyPath = async () => {
     const fullPath = `scenarios/test-genie/docs/${path}`;
@@ -129,8 +309,6 @@ export function MarkdownViewer({
     );
   }
 
-  const htmlContent = parseMarkdown(content);
-
   return (
     <div
       className="flex-1 rounded-2xl border border-white/10 bg-white/[0.02] p-6 overflow-hidden"
@@ -161,6 +339,7 @@ export function MarkdownViewer({
 
       {/* Content */}
       <article
+        ref={articleRef}
         className="prose prose-invert prose-sm max-w-none overflow-y-auto max-h-[calc(100vh-300px)]"
         dangerouslySetInnerHTML={{ __html: htmlContent }}
       />
