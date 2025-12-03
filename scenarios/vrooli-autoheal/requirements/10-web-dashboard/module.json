@@ -1,0 +1,111 @@
+{
+  "module": "web-dashboard",
+  "description": "React dashboard for health visualization",
+  "prd_refs": [
+    "OT-P1-007"
+  ],
+  "requirements": [
+    {
+      "id": "UI-HEALTH-001",
+      "title": "Current health status display",
+      "description": "Dashboard shows current status (ok/warning/critical) for all checks",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "UI-HEALTH-002",
+      "title": "Health status color coding",
+      "description": "Green for ok, amber for warning, red for critical",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "UI-EVENTS-001",
+      "title": "Recent events timeline",
+      "description": "Show recent health check results and auto-heal actions",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "UI-ACTIONS-001",
+      "title": "Auto-heal action log",
+      "description": "Display log of automatic recovery actions taken",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "UI-REFRESH-001",
+      "title": "Auto-refresh status",
+      "description": "Dashboard automatically refreshes status at configurable interval",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "UI-RESPONSIVE-001",
+      "title": "Responsive design",
+      "description": "Dashboard works on desktop and tablet screen sizes",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    }
+  ]
+}

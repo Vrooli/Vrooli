@@ -1,0 +1,172 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "vrooli-autoheal",
+    "displayName": "Vrooli Autoheal",
+    "description": "Self-healing supervisor that bootstraps, monitors, and auto-repairs Vrooli infrastructure across platforms",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "infrastructure",
+    "tags": [
+      "vrooli-helper",
+      "emergency-response",
+      "infrastructure",
+      "self-healing",
+      "watchdog",
+      "health-monitoring",
+      "cross-platform",
+      "bootstrap",
+      "auto-repair",
+      "react-ui",
+      "go-api",
+      "typescript",
+      "vite"
+    ],
+    "importance": "critical",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/vrooli-autoheal"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server for health status and configuration",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React dashboard for health visualization",
+      "range": "35000-39999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Autoheal service health checks",
+      "startup_grace_period": 15000,
+      "checks": [
+        {
+          "name": "api",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    },
+    "setup": {
+      "description": "Build API & UI, install CLI",
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x vrooli-autoheal && ./install.sh",
+          "description": "Install CLI into ~/.vrooli/bin"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o vrooli-autoheal-api ./cmd/server",
+          "description": "Compile Go API server"
+        },
+        {
+          "name": "install-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and UI server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./vrooli-autoheal-api",
+          "background": true,
+          "description": "Start Go API server"
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true,
+          "description": "Serve production UI bundle",
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "test": {
+      "description": "Execute phased test suite",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "cd test && ./run-tests.sh",
+          "description": "Run structure/unit/integration/business/performance phases"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'vrooli-autoheal-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'vrooli-autoheal.*server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Health check history and configuration storage",
+        "schema": "vrooli_autoheal"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "description": "Real-time status pub/sub (optional, fallback to polling)"
+      }
+    },
+    "scenarios": {}
+  }
+}

@@ -1,0 +1,187 @@
+// Package checks provides the health check registry
+// [REQ:HEALTH-REGISTRY-001] [REQ:HEALTH-REGISTRY-002] [REQ:HEALTH-REGISTRY-003] [REQ:HEALTH-REGISTRY-004]
+package checks
+
+import (
+	"context"
+	"sync"
+	"time"
+
+	"vrooli-autoheal/internal/platform"
+)
+
+// Registry manages health checks
+type Registry struct {
+	mu       sync.RWMutex
+	checks   map[string]Check
+	results  map[string]Result
+	lastRun  map[string]time.Time
+	platform *platform.Capabilities
+}
+
+// NewRegistry creates a new health check registry
+func NewRegistry() *Registry {
+	return &Registry{
+		checks:   make(map[string]Check),
+		results:  make(map[string]Result),
+		lastRun:  make(map[string]time.Time),
+		platform: platform.Detect(),
+	}
+}
+
+// Register adds a health check to the registry
+func (r *Registry) Register(check Check) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.checks[check.ID()] = check
+}
+
+// Unregister removes a health check from the registry
+func (r *Registry) Unregister(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.checks, id)
+	delete(r.results, id)
+	delete(r.lastRun, id)
+}
+
+// shouldRunCheck determines if a check should run based on platform and interval
+func (r *Registry) shouldRunCheck(check Check, forceAll bool) bool {
+	// Check platform compatibility
+	platforms := check.Platforms()
+	if len(platforms) > 0 {
+		compatible := false
+		for _, p := range platforms {
+			if p == r.platform.Platform {
+				compatible = true
+				break
+			}
+		}
+		if !compatible {
+			return false
+		}
+	}
+
+	// If forceAll, skip interval check
+	if forceAll {
+		return true
+	}
+
+	// Check interval
+	r.mu.RLock()
+	lastRun, exists := r.lastRun[check.ID()]
+	r.mu.RUnlock()
+
+	if !exists {
+		return true
+	}
+
+	interval := time.Duration(check.IntervalSeconds()) * time.Second
+	return time.Since(lastRun) >= interval
+}
+
+// RunAll executes all registered checks that should run
+func (r *Registry) RunAll(ctx context.Context, forceAll bool) []Result {
+	r.mu.RLock()
+	checks := make([]Check, 0, len(r.checks))
+	for _, check := range r.checks {
+		if r.shouldRunCheck(check, forceAll) {
+			checks = append(checks, check)
+		}
+	}
+	r.mu.RUnlock()
+
+	results := make([]Result, 0, len(checks))
+	for _, check := range checks {
+		select {
+		case <-ctx.Done():
+			return results
+		default:
+			result := r.runCheck(ctx, check)
+			results = append(results, result)
+		}
+	}
+
+	return results
+}
+
+// runCheck executes a single check and stores the result
+func (r *Registry) runCheck(ctx context.Context, check Check) Result {
+	start := time.Now()
+	result := check.Run(ctx)
+	result.Duration = time.Since(start)
+	result.Timestamp = start
+
+	r.mu.Lock()
+	r.results[check.ID()] = result
+	r.lastRun[check.ID()] = start
+	r.mu.Unlock()
+
+	return result
+}
+
+// GetResult returns the last result for a specific check
+func (r *Registry) GetResult(checkID string) (Result, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	result, exists := r.results[checkID]
+	return result, exists
+}
+
+// GetAllResults returns all stored check results
+func (r *Registry) GetAllResults() []Result {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	results := make([]Result, 0, len(r.results))
+	for _, result := range r.results {
+		results = append(results, result)
+	}
+	return results
+}
+
+// GetSummary returns an aggregate health summary
+func (r *Registry) GetSummary() Summary {
+	results := r.GetAllResults()
+
+	summary := Summary{
+		Status:     StatusOK,
+		TotalCount: len(results),
+		Checks:     results,
+		Timestamp:  time.Now(),
+	}
+
+	for _, result := range results {
+		switch result.Status {
+		case StatusOK:
+			summary.OkCount++
+		case StatusWarning:
+			summary.WarnCount++
+			if summary.Status == StatusOK {
+				summary.Status = StatusWarning
+			}
+		case StatusCritical:
+			summary.CritCount++
+			summary.Status = StatusCritical
+		}
+	}
+
+	return summary
+}
+
+// ListChecks returns info about all registered checks
+func (r *Registry) ListChecks() []Info {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	infos := make([]Info, 0, len(r.checks))
+	for _, check := range r.checks {
+		infos = append(infos, Info{
+			ID:              check.ID(),
+			Description:     check.Description(),
+			IntervalSeconds: check.IntervalSeconds(),
+			Platforms:       check.Platforms(),
+		})
+	}
+	return infos
+}

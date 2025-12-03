@@ -1,0 +1,21 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-cli-interface/module.json",
+    "02-platform-detection/module.json",
+    "03-health-registry/module.json",
+    "04-core-bootstrap/module.json",
+    "05-resource-monitoring/module.json",
+    "06-scenario-monitoring/module.json",
+    "07-os-watchdog/module.json",
+    "08-persistence/module.json",
+    "09-infrastructure-checks/module.json",
+    "10-web-dashboard/module.json",
+    "11-future-features/module.json"
+  ],
+  "requirements": []
+}

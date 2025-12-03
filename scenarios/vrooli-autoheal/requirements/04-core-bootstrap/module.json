@@ -1,0 +1,111 @@
+{
+  "module": "core-bootstrap",
+  "description": "Bootstrap Vrooli environment from cold state",
+  "prd_refs": [
+    "OT-P0-005"
+  ],
+  "requirements": [
+    {
+      "id": "BOOT-DB-001",
+      "title": "Database reachability check",
+      "description": "Verify database is running and responsive before other checks",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "BOOT-DB-002",
+      "title": "Database auto-start",
+      "description": "If database is down, attempt to start it via vrooli resource start postgres",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "BOOT-CORE-001",
+      "title": "Core resource list configuration",
+      "description": "Config-driven list of core resources that must be running",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "BOOT-CORE-002",
+      "title": "Core resource startup",
+      "description": "Start missing core resources in dependency order",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "BOOT-SCENARIO-001",
+      "title": "Critical scenario list configuration",
+      "description": "Config-driven list of critical scenarios that must be running",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "BOOT-SCENARIO-002",
+      "title": "Critical scenario startup",
+      "description": "Start missing critical scenarios after resources are ready",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    }
+  ]
+}

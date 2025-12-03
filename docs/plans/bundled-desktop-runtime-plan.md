@@ -197,13 +197,21 @@ Goal: deliver true offline/portable desktop bundles (UI + API + resources + secr
   - [x] scenario-to-desktop (generator/api/ui/templates) · Screaming Architecture Audit — `scenarios/ecosystem-manager/prompts/phases/screaming-architecture-audit.md`
   - [x] scenario-to-desktop (generator/api/ui/templates) · Boundary of Responsibility Enforcement — `scenarios/ecosystem-manager/prompts/phases/boundary-of-responsibility-enforcement.md`
   - [x] scenario-to-desktop (generator/api/ui/templates) · Seam Discovery and Enforcement (first pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
-  - [ ] scenario-to-desktop (generator/api/ui/templates) · Seam Discovery and Enforcement (second pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
-  - [ ] scenario-to-desktop (generator/api/ui/templates) · Cognitive Load Reduction — `scenarios/ecosystem-manager/prompts/phases/cognitive-load-reduction.md`
-  - [ ] scenario-to-desktop (generator/api/ui/templates) · Decision Boundary Extraction — `scenarios/ecosystem-manager/prompts/phases/decision-boundary-extraction.md`
-  - [ ] scenario-to-desktop (generator/api/ui/templates) · Refactor (first pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
-  - [ ] scenario-to-desktop (generator/api/ui/templates) · Refactor (second pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
-  - [ ] scenario-to-desktop (generator/api/ui/templates) · Test (first pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
-  - [ ] scenario-to-desktop (generator/api/ui/templates) · Test (second pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [x] scenario-to-desktop (generator/api/ui/templates) · Seam Discovery and Enforcement (second pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [x] scenario-to-desktop (generator/api/ui/templates) · Cognitive Load Reduction — `scenarios/ecosystem-manager/prompts/phases/cognitive-load-reduction.md`
+  - [x] scenario-to-desktop (generator/api/ui/templates) · Decision Boundary Extraction — `scenarios/ecosystem-manager/prompts/phases/decision-boundary-extraction.md`
+  - [x] scenario-to-desktop (generator/api/ui/templates) · Refactor (first pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [x] scenario-to-desktop (generator/api/ui/templates) · Refactor (second pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [x] scenario-to-desktop (generator/api/ui/templates) · Test (first pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [x] scenario-to-desktop (generator/api/ui/templates) · Test (second pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [x] scenario-to-desktop (generator/api/ui/templates) · Test (third pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [x] scenario-to-desktop (generator/api/ui/templates) · Test (fourth pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [x] scenario-to-desktop (generator/api/ui/templates) · Test (fifth pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [x] scenario-to-desktop (generator/api/ui/templates) · Test (sixth pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [x] scenario-to-desktop (generator/api/ui/templates) · Test (seventh pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [x] scenario-to-desktop (generator/api/ui/templates) · Test (eigth pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Test (ninth pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Test (tenth pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
   - [ ] deployment-manager · Screaming Architecture Audit — `scenarios/ecosystem-manager/prompts/phases/screaming-architecture-audit.md`
   - [ ] deployment-manager · Boundary of Responsibility Enforcement — `scenarios/ecosystem-manager/prompts/phases/boundary-of-responsibility-enforcement.md`
   - [ ] deployment-manager · Seam Discovery and Enforcement (first pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`

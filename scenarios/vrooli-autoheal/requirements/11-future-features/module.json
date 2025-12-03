@@ -1,0 +1,116 @@
+{
+  "module": "future-features",
+  "description": "P2 expansion ideas for future development",
+  "prd_refs": [
+    "OT-P2-001",
+    "OT-P2-002",
+    "OT-P2-003",
+    "OT-P2-004",
+    "OT-P2-005",
+    "OT-P2-006"
+  ],
+  "requirements": [
+    {
+      "id": "FUTURE-CERT-001",
+      "title": "Certificate expiration monitoring",
+      "description": "Check SSL certificates and warn before expiration",
+      "prd_ref": "OT-P2-001",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "FUTURE-DISPLAY-001",
+      "title": "Display manager health",
+      "description": "Monitor GDM/lightdm/sddm for Linux desktop systems",
+      "prd_ref": "OT-P2-002",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "FUTURE-WEBHOOK-001",
+      "title": "Webhook notifications",
+      "description": "Send alerts to Slack/Discord/email on critical failures",
+      "prd_ref": "OT-P2-003",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "FUTURE-PLUGIN-001",
+      "title": "Custom check plugins",
+      "description": "Allow external health check definitions via config files",
+      "prd_ref": "OT-P2-004",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "FUTURE-AI-001",
+      "title": "AI root cause analysis",
+      "description": "Use Ollama to analyze failure patterns and suggest fixes",
+      "prd_ref": "OT-P2-005",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "FUTURE-MOBILE-001",
+      "title": "Mobile status app",
+      "description": "Push notifications and status monitoring on mobile devices",
+      "prd_ref": "OT-P2-006",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    }
+  ]
+}

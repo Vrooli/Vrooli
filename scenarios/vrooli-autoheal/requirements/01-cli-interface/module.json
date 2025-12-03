@@ -1,0 +1,130 @@
+{
+  "module": "cli-interface",
+  "description": "CLI commands for autoheal operations (tick, loop, status)",
+  "prd_refs": [
+    "OT-P0-001",
+    "OT-P0-002",
+    "OT-P0-010"
+  ],
+  "requirements": [
+    {
+      "id": "CLI-TICK-001",
+      "title": "Tick command executes single health cycle",
+      "description": "vrooli autoheal tick runs platform detection, bootstrap, watchdog verification, and all health checks once",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "CLI-TICK-002",
+      "title": "Tick command emits structured output",
+      "description": "Tick outputs JSON-formatted health results when --json flag is provided",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "CLI-LOOP-001",
+      "title": "Loop command runs continuously",
+      "description": "vrooli autoheal loop repeatedly calls tick logic at configurable interval",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "CLI-LOOP-002",
+      "title": "Loop interval is configurable",
+      "description": "--interval-seconds flag allows setting loop interval (default 60s)",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "CLI-LOOP-003",
+      "title": "Loop handles errors gracefully",
+      "description": "Transient errors are logged and loop continues; only fatal errors cause exit",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "CLI-STATUS-001",
+      "title": "Status command shows health summary",
+      "description": "vrooli autoheal status displays last-known health results from persisted data",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "CLI-STATUS-002",
+      "title": "Status supports JSON output",
+      "description": "--json flag outputs machine-readable health summary",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    }
+  ]
+}

@@ -1,0 +1,480 @@
+#!/bin/bash
+# vrooli-autoheal - Command-line interface for Vrooli Autoheal
+# [REQ:CLI-TICK-001] [REQ:CLI-TICK-002] [REQ:CLI-LOOP-001] [REQ:CLI-LOOP-002] [REQ:CLI-LOOP-003]
+# [REQ:CLI-STATUS-001] [REQ:CLI-STATUS-002]
+
+set -euo pipefail
+
+readonly CLI_NAME="vrooli-autoheal"
+readonly CLI_VERSION="1.0.0"
+readonly CONFIG_DIR="$HOME/.${CLI_NAME}"
+readonly CONFIG_FILE="$CONFIG_DIR/config.json"
+readonly SCENARIO_ID="vrooli-autoheal"
+readonly DEFAULT_INTERVAL=60
+CONFIG_API_BASE=""
+API_BASE=""
+API_TOKEN=""
+
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly CYAN='\033[0;36m'
+readonly NC='\033[0m'
+
+init_config() {
+    if [[ ! -d "$CONFIG_DIR" ]]; then
+        mkdir -p "$CONFIG_DIR"
+    fi
+
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        cat > "$CONFIG_FILE" <<JSON
+{
+  "api_base": "",
+  "api_token": "",
+  "output_format": "json",
+  "loop_interval": $DEFAULT_INTERVAL,
+  "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+}
+JSON
+        echo -e "${GREEN}Created${NC} configuration at $CONFIG_FILE"
+    fi
+}
+
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        CONFIG_API_BASE=$(jq -r '.api_base // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+        API_TOKEN=$(jq -r '.api_token // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+    else
+        CONFIG_API_BASE=""
+        API_TOKEN=""
+    fi
+}
+
+detect_api_port() {
+    if command -v vrooli >/dev/null 2>&1; then
+        vrooli scenario port "$SCENARIO_ID" API_PORT 2>/dev/null || true
+    fi
+}
+
+detect_api_base() {
+    if [[ -n "${API_BASE_URL:-}" ]]; then
+        echo "${API_BASE_URL%/}"
+        return 0
+    fi
+
+    if [[ -n "${API_PORT:-}" ]]; then
+        echo "http://${API_HOST:-localhost}:${API_PORT}/api/v1"
+        return 0
+    fi
+
+    local detected_port
+    detected_port="$(detect_api_port)"
+    if [[ -n "$detected_port" ]]; then
+        echo "http://localhost:${detected_port}/api/v1"
+        return 0
+    fi
+
+    return 1
+}
+
+normalize_api_base() {
+    local value="$1"
+    if [[ -z "$value" || "$value" == "null" ]]; then
+        return 1
+    fi
+    echo "${value%/}"
+}
+
+resolve_api_base() {
+    local candidate
+
+    if candidate=$(normalize_api_base "$1" 2>/dev/null); then
+        echo "$candidate"
+        return 0
+    fi
+
+    local detected
+    if detected=$(detect_api_base); then
+        echo "$detected"
+        return 0
+    fi
+
+    return 1
+}
+
+ensure_api_base() {
+    if [[ -z "$API_BASE" ]]; then
+        if ! API_BASE=$(resolve_api_base "$CONFIG_API_BASE"); then
+            echo -e "${RED}Unable to determine API base URL.${NC}" >&2
+            echo "Ensure the scenario is running via 'vrooli scenario start $SCENARIO_ID'" >&2
+            echo "Or configure it with '$CLI_NAME configure api_base <url>'" >&2
+            exit 1
+        fi
+    fi
+}
+
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local url="${API_BASE}${endpoint}"
+
+    local headers=(-H 'Content-Type: application/json')
+    if [[ -n "${API_TOKEN:-}" ]]; then
+        headers+=(-H "Authorization: Bearer $API_TOKEN")
+    fi
+
+    local response
+    local http_code
+
+    # Use temporary file for response body
+    local tmp_file=$(mktemp)
+    http_code=$(curl -s -w "%{http_code}" -o "$tmp_file" -X "$method" "${headers[@]}" "$url" 2>/dev/null || echo "000")
+    response=$(cat "$tmp_file")
+    rm -f "$tmp_file"
+
+    if [[ "$http_code" == "000" ]]; then
+        echo '{"error": "Connection failed", "code": 0}'
+        return 1
+    fi
+
+    echo "$response"
+    return 0
+}
+
+# Print a status indicator based on status string
+status_icon() {
+    case "$1" in
+        ok|healthy) echo -e "${GREEN}●${NC}" ;;
+        warning)    echo -e "${YELLOW}●${NC}" ;;
+        critical)   echo -e "${RED}●${NC}" ;;
+        *)          echo -e "${BLUE}○${NC}" ;;
+    esac
+}
+
+cmd_tick() {
+    local force_flag=""
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --force) force_flag="?force=true"; shift ;;
+            --json)  json_output=true; shift ;;
+            *)       shift ;;
+        esac
+    done
+
+    ensure_api_base
+
+    echo -e "${BLUE}Running health check cycle...${NC}"
+
+    response=$(api_request POST "/tick${force_flag}" || echo '{}')
+
+    if [[ "$json_output" == true ]]; then
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+        return 0
+    fi
+
+    # Parse and display results
+    local overall_status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
+    local ok_count=$(echo "$response" | jq -r '.summary.ok // 0' 2>/dev/null)
+    local warn_count=$(echo "$response" | jq -r '.summary.warning // 0' 2>/dev/null)
+    local crit_count=$(echo "$response" | jq -r '.summary.critical // 0' 2>/dev/null)
+    local total_count=$(echo "$response" | jq -r '.summary.total // 0' 2>/dev/null)
+
+    echo ""
+    echo -e "$(status_icon "$overall_status") Overall Status: ${overall_status^^}"
+    echo -e "  ${GREEN}OK${NC}: $ok_count  ${YELLOW}Warning${NC}: $warn_count  ${RED}Critical${NC}: $crit_count  Total: $total_count"
+    echo ""
+
+    # Display individual results
+    echo "$response" | jq -r '.results[]? | "\(.checkId)|\(.status)|\(.message)"' 2>/dev/null | while IFS='|' read -r check_id status message; do
+        echo -e "  $(status_icon "$status") $check_id: $message"
+    done
+
+    echo ""
+    echo -e "${GREEN}Tick completed${NC}"
+}
+
+cmd_loop() {
+    local interval=$DEFAULT_INTERVAL
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --interval-seconds=*) interval="${1#*=}"; shift ;;
+            --interval)           interval="$2"; shift 2 ;;
+            --json)               json_output=true; shift ;;
+            *)                    shift ;;
+        esac
+    done
+
+    ensure_api_base
+
+    echo -e "${BLUE}Starting autoheal loop (interval: ${interval}s)${NC}"
+    echo -e "Press Ctrl+C to stop"
+    echo ""
+
+    # Handle graceful shutdown
+    trap 'echo -e "\n${YELLOW}Stopping loop...${NC}"; exit 0' SIGINT SIGTERM
+
+    local tick_count=0
+    while true; do
+        tick_count=$((tick_count + 1))
+        local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
+        echo -e "${CYAN}[$timestamp] Tick #$tick_count${NC}"
+
+        response=$(api_request POST "/tick" 2>/dev/null || echo '{}')
+
+        if [[ "$json_output" == true ]]; then
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+        else
+            local status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
+            local ok=$(echo "$response" | jq -r '.summary.ok // 0' 2>/dev/null)
+            local warn=$(echo "$response" | jq -r '.summary.warning // 0' 2>/dev/null)
+            local crit=$(echo "$response" | jq -r '.summary.critical // 0' 2>/dev/null)
+
+            echo -e "  $(status_icon "$status") Status: ${status^^} | OK: $ok | Warn: $warn | Crit: $crit"
+
+            # Show critical issues
+            if [[ "$crit" -gt 0 ]]; then
+                echo "$response" | jq -r '.results[]? | select(.status == "critical") | "    \(.checkId): \(.message)"' 2>/dev/null
+            fi
+        fi
+
+        echo ""
+        sleep "$interval"
+    done
+}
+
+cmd_status() {
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --json) json_output=true; shift ;;
+            *)      shift ;;
+        esac
+    done
+
+    ensure_api_base
+
+    response=$(api_request GET "/status" || echo '{}')
+
+    if [[ "$json_output" == true ]]; then
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+        return 0
+    fi
+
+    # Parse status
+    local overall_status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
+    local platform=$(echo "$response" | jq -r '.platform.platform // "unknown"' 2>/dev/null)
+    local has_docker=$(echo "$response" | jq -r '.platform.hasDocker // false' 2>/dev/null)
+    local has_systemd=$(echo "$response" | jq -r '.platform.supportsSystemd // false' 2>/dev/null)
+    local is_wsl=$(echo "$response" | jq -r '.platform.isWsl // false' 2>/dev/null)
+    local ok_count=$(echo "$response" | jq -r '.summary.ok // 0' 2>/dev/null)
+    local warn_count=$(echo "$response" | jq -r '.summary.warning // 0' 2>/dev/null)
+    local crit_count=$(echo "$response" | jq -r '.summary.critical // 0' 2>/dev/null)
+    local total_count=$(echo "$response" | jq -r '.summary.total // 0' 2>/dev/null)
+    local timestamp=$(echo "$response" | jq -r '.timestamp // ""' 2>/dev/null)
+
+    echo ""
+    echo -e "${BLUE}Vrooli Autoheal Status${NC}"
+    echo "════════════════════════════════════════"
+    echo ""
+    echo -e "$(status_icon "$overall_status") Overall: ${overall_status^^}"
+    echo ""
+    echo -e "${CYAN}Platform:${NC}"
+    echo "  OS: $platform"
+    [[ "$is_wsl" == "true" ]] && echo "  WSL: yes"
+    [[ "$has_docker" == "true" ]] && echo "  Docker: available"
+    [[ "$has_systemd" == "true" ]] && echo "  Systemd: available"
+    echo ""
+    echo -e "${CYAN}Summary:${NC}"
+    echo -e "  ${GREEN}OK${NC}: $ok_count  ${YELLOW}Warning${NC}: $warn_count  ${RED}Critical${NC}: $crit_count  Total: $total_count"
+    echo ""
+
+    # Show checks if any have run
+    if [[ "$total_count" -gt 0 ]]; then
+        echo -e "${CYAN}Health Checks:${NC}"
+        echo "$response" | jq -r '.checks[]? | "\(.checkId)|\(.status)|\(.message)"' 2>/dev/null | while IFS='|' read -r check_id status message; do
+            echo -e "  $(status_icon "$status") $check_id"
+            echo "      $message"
+        done
+        echo ""
+    else
+        echo -e "${YELLOW}No health checks have run yet.${NC}"
+        echo "Run '$CLI_NAME tick' to execute health checks."
+        echo ""
+    fi
+
+    if [[ -n "$timestamp" && "$timestamp" != "null" ]]; then
+        echo "Last updated: $timestamp"
+    fi
+}
+
+cmd_platform() {
+    ensure_api_base
+
+    response=$(api_request GET "/platform" || echo '{}')
+    echo "$response" | jq '.' 2>/dev/null || echo "$response"
+}
+
+cmd_checks() {
+    ensure_api_base
+
+    response=$(api_request GET "/checks" || echo '[]')
+
+    echo -e "${BLUE}Registered Health Checks${NC}"
+    echo "════════════════════════════════════════"
+    echo ""
+
+    echo "$response" | jq -r '.[]? | "\(.id)|\(.description)|\(.intervalSeconds)"' 2>/dev/null | while IFS='|' read -r id desc interval; do
+        echo -e "  ${CYAN}$id${NC}"
+        echo "    $desc"
+        echo "    Interval: ${interval}s"
+        echo ""
+    done
+}
+
+cmd_configure() {
+    local key="${1:-}"
+    local value="${2:-}"
+
+    if [[ -z "$key" ]]; then
+        cat "$CONFIG_FILE" | jq '.' 2>/dev/null || cat "$CONFIG_FILE"
+        return 0
+    fi
+
+    case "$key" in
+        api|api_base)
+            jq --arg v "$value" '.api_base = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}API base set to:${NC} $value"
+            CONFIG_API_BASE="$value"
+            ;;
+        token|api_token)
+            jq --arg v "$value" '.api_token = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}API token updated${NC}"
+            API_TOKEN="$value"
+            ;;
+        interval|loop_interval)
+            jq --argjson v "$value" '.loop_interval = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}Loop interval set to:${NC} ${value}s"
+            ;;
+        *)
+            echo -e "${RED}Unknown configuration key:${NC} $key"
+            echo "Valid keys: api_base, api_token, loop_interval"
+            return 1
+            ;;
+    esac
+}
+
+cmd_version() {
+    echo "$CLI_NAME version $CLI_VERSION"
+    if [[ -n "$API_BASE" ]]; then
+        echo "API endpoint: $API_BASE"
+    else
+        echo "API endpoint: (auto-detect when scenario is running)"
+    fi
+}
+
+cmd_help() {
+    cat <<'EOF'
+vrooli-autoheal - Self-healing supervisor for Vrooli infrastructure
+
+Usage: vrooli-autoheal <command> [options]
+
+Commands:
+  tick [--force] [--json]
+      Run a single health check cycle. Use --force to run all checks
+      regardless of interval. Use --json for structured output.
+
+  loop [--interval-seconds=60] [--json]
+      Run continuously, executing health checks at the specified interval.
+      Press Ctrl+C to stop gracefully.
+
+  status [--json]
+      Show current health status summary. Use --json for structured output.
+
+  platform
+      Show detected platform capabilities.
+
+  checks
+      List all registered health checks.
+
+  configure [key] [value]
+      View or update CLI configuration.
+      Keys: api_base, api_token, loop_interval
+
+  version
+      Show CLI version.
+
+  help
+      Show this help message.
+
+Examples:
+  vrooli-autoheal tick                    # Run one health check cycle
+  vrooli-autoheal tick --force            # Force all checks to run
+  vrooli-autoheal loop --interval-seconds=30  # Run every 30 seconds
+  vrooli-autoheal status --json           # Get status as JSON
+EOF
+}
+
+main() {
+    init_config
+    load_config
+
+    local command="${1:-help}"
+    shift || true
+
+    # Check for environment variable overrides
+    local env_prefix="$(echo "$CLI_NAME" | tr '[:lower:]' '[:upper:]' | tr -c 'A-Z0-9' '_')"
+    local env_api_base_var="${env_prefix}_API_BASE"
+    local env_api_token_var="${env_prefix}_API_TOKEN"
+
+    local env_api_base="${!env_api_base_var:-}"
+    local env_api_token="${!env_api_token_var:-}"
+
+    if [[ -n "$env_api_token" ]]; then
+        API_TOKEN="$env_api_token"
+    fi
+
+    if [[ -n "$env_api_base" ]]; then
+        API_BASE="${env_api_base%/}"
+    fi
+
+    case "$command" in
+        tick)
+            cmd_tick "$@"
+            ;;
+        loop)
+            cmd_loop "$@"
+            ;;
+        status)
+            cmd_status "$@"
+            ;;
+        platform)
+            cmd_platform
+            ;;
+        checks)
+            cmd_checks
+            ;;
+        configure|config)
+            cmd_configure "$@"
+            ;;
+        version|--version|-v)
+            cmd_version
+            ;;
+        help|--help|-h)
+            cmd_help
+            ;;
+        *)
+            echo -e "${RED}Unknown command:${NC} $command"
+            echo "Run '$CLI_NAME help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

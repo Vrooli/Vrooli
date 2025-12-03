@@ -1,0 +1,112 @@
+{
+  "module": "persistence",
+  "description": "Health check result storage and history",
+  "prd_refs": [
+    "OT-P0-009",
+    "OT-P1-006"
+  ],
+  "requirements": [
+    {
+      "id": "PERSIST-STORE-001",
+      "title": "Store health check results",
+      "description": "Persist each health check result with check_id, status, message, timestamp",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "PERSIST-QUERY-001",
+      "title": "Query last-known status",
+      "description": "Retrieve most recent health result for each check",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "PERSIST-QUERY-002",
+      "title": "Query overall health summary",
+      "description": "Aggregate results into ok/warning/critical counts",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "PERSIST-HISTORY-001",
+      "title": "Store 24-hour history",
+      "description": "Retain health check history for past 24 hours for trend analysis",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "PERSIST-HISTORY-002",
+      "title": "History cleanup",
+      "description": "Automatically purge health records older than retention window",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "PERSIST-ACTIONS-001",
+      "title": "Store auto-heal actions",
+      "description": "Log all auto-heal actions (restarts, fixes) with timestamps",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    }
+  ]
+}

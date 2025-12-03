@@ -1,0 +1,37 @@
+{
+  "selectors": {
+    "dashboard": {
+      "testId": "autoheal-dashboard",
+      "selector": "[data-testid=\"autoheal-dashboard\"]"
+    },
+    "runTickButton": {
+      "testId": "autoheal-run-tick-button",
+      "selector": "[data-testid=\"autoheal-run-tick-button\"]"
+    },
+    "checkCard": {
+      "testId": "autoheal-check-card",
+      "selector": "[data-testid=\"autoheal-check-card\"]"
+    },
+    "summary.total": {
+      "testId": "autoheal-summary-total",
+      "selector": "[data-testid=\"autoheal-summary-total\"]"
+    },
+    "summary.ok": {
+      "testId": "autoheal-summary-ok",
+      "selector": "[data-testid=\"autoheal-summary-ok\"]"
+    },
+    "summary.warning": {
+      "testId": "autoheal-summary-warning",
+      "selector": "[data-testid=\"autoheal-summary-warning\"]"
+    },
+    "summary.critical": {
+      "testId": "autoheal-summary-critical",
+      "selector": "[data-testid=\"autoheal-summary-critical\"]"
+    },
+    "platform": {
+      "testId": "autoheal-platform-info",
+      "selector": "[data-testid=\"autoheal-platform-info\"]"
+    }
+  },
+  "dynamicSelectors": {}
+}
