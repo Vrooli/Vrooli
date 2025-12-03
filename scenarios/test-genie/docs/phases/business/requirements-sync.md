@@ -235,14 +235,14 @@ result, err := service.Validate(ctx, scenarioDir)
 ## See Also
 
 ### Related Guides
-- [Phased Testing](phased-testing.md) - 7-phase testing architecture
-- [Test Generation](test-generation.md) - AI-powered test creation with `[REQ:ID]` tags
-- [Scenario Unit Testing](scenario-unit-testing.md) - Writing tagged unit tests
+- [Business Phase](README.md) - Business phase overview
+- [Phases Overview](../README.md) - 7-phase testing architecture
+- [Test Generation](../../guides/test-generation.md) - AI-powered test creation with `[REQ:ID]` tags
+- [Scenario Unit Testing](../unit/scenario-unit-testing.md) - Writing tagged unit tests
 
 ### Reference
-- [API Endpoints](../reference/api-endpoints.md) - REST API reference
-- [Phase Catalog](../reference/phase-catalog.md) - Phase definitions
-- [Presets](../reference/presets.md) - Test preset configurations
+- [API Endpoints](../../reference/api-endpoints.md) - REST API reference
+- [Presets](../../reference/presets.md) - Test preset configurations
 
 ### Concepts
-- [Architecture](../concepts/architecture.md) - Go orchestrator design
+- [Architecture](../../concepts/architecture.md) - Go orchestrator design

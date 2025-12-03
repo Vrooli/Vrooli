@@ -257,6 +257,6 @@ type Orchestrator interface {
 
 ## See Also
 
-- [Phase Catalog](../reference/phase-catalog.md) - Phase definitions
+- [Phases Overview](../phases/README.md) - Phase definitions
 - [API Endpoints](../reference/api-endpoints.md) - REST API reference
 - [SEAMS](../SEAMS.md) - Architectural boundaries and extension points

@@ -102,6 +102,62 @@ export async function runTick(force = false): Promise<TickResponse> {
   return apiRequest<TickResponse>(endpoint, { method: "POST" });
 }
 
+export interface HistoryEntry {
+  checkId: string;
+  status: HealthStatus;
+  message: string;
+  details?: Record<string, unknown>;
+  timestamp: string;
+  duration: number;
+}
+
+export interface CheckHistoryResponse {
+  checkId: string;
+  history: HistoryEntry[];
+  count: number;
+}
+
+export async function fetchCheckHistory(checkId: string): Promise<CheckHistoryResponse> {
+  return apiRequest<CheckHistoryResponse>(`/checks/${encodeURIComponent(checkId)}/history`);
+}
+
+// Timeline API types
+export interface TimelineEvent {
+  checkId: string;
+  status: HealthStatus;
+  message: string;
+  details?: Record<string, unknown>;
+  timestamp: string;
+}
+
+export interface TimelineResponse {
+  events: TimelineEvent[];
+  count: number;
+  summary: {
+    ok: number;
+    warning: number;
+    critical: number;
+  };
+}
+
+export async function fetchTimeline(): Promise<TimelineResponse> {
+  return apiRequest<TimelineResponse>("/timeline");
+}
+
+// Uptime stats API types
+export interface UptimeStatsResponse {
+  totalEvents: number;
+  okEvents: number;
+  warningEvents: number;
+  criticalEvents: number;
+  uptimePercentage: number;
+  windowHours: number;
+}
+
+export async function fetchUptimeStats(): Promise<UptimeStatsResponse> {
+  return apiRequest<UptimeStatsResponse>("/uptime");
+}
+
 // ============================================================================
 // Status Classification Helpers
 // These provide a central place for status-based decisions in the UI

@@ -439,14 +439,14 @@ jobs:
 ## See Also
 
 ### Related Guides
-- [Phased Testing](phased-testing.md) - How CLI tests fit into the 7-phase architecture
-- [Scenario Unit Testing](scenario-unit-testing.md) - Testing application code
-- [UI Testability](ui-testability.md) - Testing UI components
+- [Integration Phase](README.md) - Integration phase overview
+- [Phases Overview](../README.md) - 7-phase architecture
+- [Scenario Unit Testing](../unit/scenario-unit-testing.md) - Testing application code
+- [UI Testability](../../guides/ui-testability.md) - Testing UI components
 
 ### Reference
-- [Test Runners](../reference/test-runners.md) - All test runner documentation
-- [Phase Catalog](../reference/phase-catalog.md) - Phase definitions
-- [Presets](../reference/presets.md) - Test preset configurations
+- [Test Runners](../unit/test-runners.md) - All test runner documentation
+- [Presets](../../reference/presets.md) - Test preset configurations
 
 ### External Resources
 - [BATS Official Docs](https://bats-core.readthedocs.io/) - External framework documentation

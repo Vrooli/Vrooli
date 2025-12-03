@@ -1240,15 +1240,15 @@ def test_process_file(configured_manager):
 ## See Also
 
 ### Related Guides
-- [Phased Testing](phased-testing.md) - How unit phase fits into 7-phase architecture
-- [Requirements Sync](requirements-sync.md) - Link tests to requirements with `[REQ:ID]`
-- [CLI Testing](cli-testing.md) - BATS testing for command-line tools
-- [UI Testability](ui-testability.md) - Writing testable UIs
+- [Unit Phase](README.md) - Unit phase overview
+- [Phases Overview](../README.md) - 7-phase architecture
+- [Requirements Sync](../business/requirements-sync.md) - Link tests to requirements with `[REQ:ID]`
+- [CLI Testing](../integration/cli-testing.md) - BATS testing for command-line tools
+- [UI Testability](../../guides/ui-testability.md) - Writing testable UIs
 
 ### Reference
-- [Test Runners](../reference/test-runners.md) - Language-specific test runners
-- [Phase Catalog](../reference/phase-catalog.md) - All phase definitions
-- [Presets](../reference/presets.md) - Quick/Smoke/Comprehensive presets
+- [Test Runners](test-runners.md) - Language-specific test runners
+- [Presets](../../reference/presets.md) - Quick/Smoke/Comprehensive presets
 
 ### Concepts
-- [Architecture](../concepts/architecture.md) - Go orchestrator design
+- [Architecture](../../concepts/architecture.md) - Go orchestrator design

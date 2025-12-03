@@ -414,6 +414,6 @@ node scripts/requirements/validate.js --scenario <name>
 ## See Also
 
 - [Requirement Flow Architecture](../concepts/requirement-flow.md) - End-to-end flow
-- [Requirements Sync Guide](../guides/requirements-sync.md) - How sync works
+- [Requirements Sync Guide](../phases/business/requirements-sync.md) - How sync works
 - [Validation Best Practices](../guides/validation-best-practices.md) - Quality guidelines
 - [Gaming Prevention](gaming-prevention.md) - Detection system

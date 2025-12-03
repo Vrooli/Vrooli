@@ -394,6 +394,6 @@ Requirements can accumulate validations over time:
 ## See Also
 
 - [Phased Testing Guide](../guides/phased-testing.md) - How phases execute
-- [Requirements Sync Guide](../guides/requirements-sync.md) - How sync works
+- [Requirements Sync Guide](../phases/business/requirements-sync.md) - How sync works
 - [Requirement Schema Reference](../reference/requirement-schema.md) - JSON schema
 - [Architecture](architecture.md) - Go orchestrator design

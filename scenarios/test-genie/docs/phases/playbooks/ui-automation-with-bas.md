@@ -424,11 +424,12 @@ For `@selector/` references, the error message will tell you:
 
 ## See Also
 
-- [Writing Testable UIs](ui-testability.md) - Design UIs for automation
-- [End-to-End Example](end-to-end-example.md) - Complete flow from PRD to BAS workflow
-- [Requirements Sync](requirements-sync.md) - Understanding `automation` validation type
-- [Phased Testing](phased-testing.md) - How BAS integrates with phases
-- [Validation Best Practices](validation-best-practices.md) - Multi-layer validation strategy
+- [Playbooks Phase](README.md) - Playbooks phase overview
+- [Writing Testable UIs](../../guides/ui-testability.md) - Design UIs for automation
+- [End-to-End Example](../../guides/end-to-end-example.md) - Complete flow from PRD to BAS workflow
+- [Requirements Sync](../business/requirements-sync.md) - Understanding `automation` validation type
+- [Phases Overview](../README.md) - How BAS integrates with phases
+- [Validation Best Practices](../../guides/validation-best-practices.md) - Multi-layer validation strategy
 
 ---
 

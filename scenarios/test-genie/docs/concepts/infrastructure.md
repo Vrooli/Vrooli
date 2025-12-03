@@ -136,7 +136,7 @@ curl "http://localhost:${API_PORT}/api/v1/executions/{id}"
 ## See Also
 
 - [Architecture](architecture.md) - Go orchestrator design details
-- [Phase Catalog](../reference/phase-catalog.md) - Phase specifications
+- [Phases Overview](../phases/README.md) - Phase specifications
 - [CLI Commands](../reference/cli-commands.md) - Full CLI reference
 - [API Endpoints](../reference/api-endpoints.md) - REST API reference
 - [Safety Guidelines](../safety/GUIDELINES.md) - Safe testing patterns

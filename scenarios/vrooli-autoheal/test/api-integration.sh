@@ -417,6 +417,96 @@ test_check_result_endpoint() {
     echo "$response" > "$ARTIFACT_DIR/check-result-response.json"
 }
 
+# Test: Timeline endpoint returns aggregated events
+# [REQ:UI-EVENTS-001]
+test_timeline_endpoint() {
+    local port="$1"
+    local response
+
+    response=$(curl -s "http://localhost:${port}/api/v1/timeline")
+
+    # Check count field
+    local count
+    count=$(echo "$response" | jq -r '.count // -1')
+    if [[ "$count" -ge 0 ]]; then
+        pass "Timeline endpoint returns event count: $count"
+    else
+        fail "Timeline endpoint count" "Missing or invalid"
+    fi
+
+    # Check events array exists
+    local events_type
+    events_type=$(echo "$response" | jq -r 'if .events | type == "array" then "array" else "other" end')
+    if [[ "$events_type" == "array" ]]; then
+        pass "Timeline endpoint returns events array"
+    else
+        fail "Timeline endpoint events" "Expected array, got $events_type"
+    fi
+
+    # Check summary exists
+    local summary_ok
+    summary_ok=$(echo "$response" | jq -r '.summary.ok // -1')
+    if [[ "$summary_ok" -ge 0 ]]; then
+        pass "Timeline endpoint includes summary"
+    else
+        fail "Timeline endpoint summary" "Missing or invalid"
+    fi
+
+    # Save response artifact
+    echo "$response" > "$ARTIFACT_DIR/timeline-response.json"
+}
+
+# Test: Uptime stats endpoint returns statistics
+# [REQ:PERSIST-HISTORY-001]
+test_uptime_endpoint() {
+    local port="$1"
+    local response
+
+    response=$(curl -s "http://localhost:${port}/api/v1/uptime")
+
+    # Check uptimePercentage field
+    local uptime
+    uptime=$(echo "$response" | jq -r '.uptimePercentage // -1')
+    if [[ $(echo "$uptime >= 0" | bc -l) -eq 1 ]]; then
+        pass "Uptime endpoint returns percentage: ${uptime}%"
+    else
+        fail "Uptime endpoint percentage" "Missing or invalid: $uptime"
+    fi
+
+    # Check totalEvents field
+    local total
+    total=$(echo "$response" | jq -r '.totalEvents // -1')
+    if [[ "$total" -ge 0 ]]; then
+        pass "Uptime endpoint returns totalEvents: $total"
+    else
+        fail "Uptime endpoint totalEvents" "Missing or invalid"
+    fi
+
+    # Check windowHours field
+    local window
+    window=$(echo "$response" | jq -r '.windowHours // -1')
+    if [[ "$window" -gt 0 ]]; then
+        pass "Uptime endpoint returns windowHours: ${window}h"
+    else
+        fail "Uptime endpoint windowHours" "Missing or invalid"
+    fi
+
+    # Check breakdown counts add up
+    local ok warn crit
+    ok=$(echo "$response" | jq -r '.okEvents // 0')
+    warn=$(echo "$response" | jq -r '.warningEvents // 0')
+    crit=$(echo "$response" | jq -r '.criticalEvents // 0')
+    local sum=$((ok + warn + crit))
+    if [[ "$sum" -eq "$total" ]]; then
+        pass "Uptime breakdown matches total ($ok + $warn + $crit = $total)"
+    else
+        fail "Uptime breakdown" "$ok + $warn + $crit != $total"
+    fi
+
+    # Save response artifact
+    echo "$response" > "$ARTIFACT_DIR/uptime-response.json"
+}
+
 # Test: UI health check
 # [REQ:UI-HEALTH-001]
 test_ui_health() {
@@ -495,6 +585,14 @@ main() {
     echo ""
     echo "=== Check Result Endpoint Tests ==="
     test_check_result_endpoint "$api_port"
+
+    echo ""
+    echo "=== Timeline Endpoint Tests ==="
+    test_timeline_endpoint "$api_port"
+
+    echo ""
+    echo "=== Uptime Endpoint Tests ==="
+    test_uptime_endpoint "$api_port"
 
     echo ""
     echo "=== UI Tests ==="

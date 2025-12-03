@@ -16,7 +16,7 @@ One of 7 sequential test stages that progressively validate scenario quality:
 
 Phases run sequentially and fail-fast - each phase must pass before the next executes.
 
-**See**: [Phased Testing Guide](guides/phased-testing.md)
+**See**: [Phases Overview](phases/README.md)
 
 ### Requirement
 A product or technical need defined in the PRD or requirement registry. Requirements have:
@@ -27,7 +27,7 @@ A product or technical need defined in the PRD or requirement registry. Requirem
 
 Requirements bridge the gap between PRD and technical implementation.
 
-**See**: [Requirements Sync Guide](guides/requirements-sync.md)
+**See**: [Requirements Sync Guide](phases/business/requirements-sync.md)
 
 ### Validation
 A method of verifying a requirement is met. Three types:
@@ -49,7 +49,7 @@ t.Run("creates workflow [REQ:BAS-WORKFLOW-PERSIST-CRUD]", func(t *testing.T) { .
 
 The testing system automatically extracts these tags and updates requirement tracking - no manual tracking needed.
 
-**See**: [Requirements Sync Guide](guides/requirements-sync.md)
+**See**: [Requirements Sync Guide](phases/business/requirements-sync.md)
 
 ### Auto-Sync
 Automatic update of requirement files based on live test results. After tests run, the sync system:
@@ -60,7 +60,7 @@ Automatic update of requirement files based on live test results. After tests ru
 
 Zero manual maintenance required once tests are tagged.
 
-**See**: [Requirements Sync Guide](guides/requirements-sync.md)
+**See**: [Requirements Sync Guide](phases/business/requirements-sync.md)
 
 ### Phase Results
 JSON output from each phase execution, stored in `coverage/phase-results/<phase>.json`. Contains:
@@ -265,13 +265,13 @@ test-genie coverage my-scenario --depth deep
 - [Safety Guidelines](safety/GUIDELINES.md) - **CRITICAL** - Prevent data loss
 
 ### Deep Dives
-- [Phased Testing Guide](guides/phased-testing.md) - Complete phase system
-- [Requirements Sync Guide](guides/requirements-sync.md) - Requirement tracking
+- [Phases Overview](phases/README.md) - Complete phase system
+- [Requirements Sync Guide](phases/business/requirements-sync.md) - Requirement tracking
 - [Architecture](concepts/architecture.md) - Go orchestrator design
 
 ### Implementation
-- [Scenario Unit Testing](guides/scenario-unit-testing.md) - Go, Node, Python tests
-- [CLI Testing](guides/cli-testing.md) - BATS testing patterns
+- [Scenario Unit Testing](phases/unit/scenario-unit-testing.md) - Go, Node, Python tests
+- [CLI Testing](phases/integration/cli-testing.md) - BATS testing patterns
 - [UI Testability](guides/ui-testability.md) - BAS workflow testing
 
 ---

@@ -25,6 +25,31 @@
       ]
     },
     {
+      "id": "phases",
+      "title": "Phases",
+      "icon": "layers",
+      "description": "7-phase testing architecture documentation",
+      "documents": [
+        { "path": "phases/README.md", "title": "Phases Overview", "description": "7-phase architecture with execution flow" },
+        { "path": "phases/structure/README.md", "title": "Structure Phase", "description": "File and configuration validation" },
+        { "path": "phases/structure/cli-approaches.md", "title": "CLI Approaches", "description": "Legacy vs cross-platform CLI patterns" },
+        { "path": "phases/structure/ui-smoke.md", "title": "UI Smoke Testing", "description": "Fast UI validation with Browserless" },
+        { "path": "phases/dependencies/README.md", "title": "Dependencies Phase", "description": "Runtime and tool availability checks" },
+        { "path": "phases/unit/README.md", "title": "Unit Phase", "description": "Language-specific unit test execution" },
+        { "path": "phases/unit/scenario-unit-testing.md", "title": "Scenario Unit Testing", "description": "Unit testing for Go, Node.js, Python" },
+        { "path": "phases/unit/test-runners.md", "title": "Test Runners", "description": "Language-specific test runner APIs" },
+        { "path": "phases/integration/README.md", "title": "Integration Phase", "description": "API and CLI connectivity testing" },
+        { "path": "phases/integration/cli-testing.md", "title": "CLI Testing", "description": "BATS testing for command-line tools" },
+        { "path": "phases/playbooks/README.md", "title": "Playbooks Phase", "description": "BAS browser automation workflows" },
+        { "path": "phases/playbooks/ui-automation-with-bas.md", "title": "UI Automation with BAS", "description": "Browser Automation Studio workflow testing" },
+        { "path": "phases/business/README.md", "title": "Business Phase", "description": "Requirement coverage validation" },
+        { "path": "phases/business/requirements-sync.md", "title": "Requirements Sync", "description": "Automatic requirement tracking from tests" },
+        { "path": "phases/performance/README.md", "title": "Performance Phase", "description": "Benchmarks and performance testing" },
+        { "path": "phases/performance/lighthouse.md", "title": "Lighthouse Integration", "description": "Performance and accessibility testing" },
+        { "path": "phases/performance/performance-testing.md", "title": "Performance Testing", "description": "Build benchmarks and regression detection" }
+      ]
+    },
+    {
       "id": "guides",
       "title": "Guides",
       "icon": "book",
@@ -32,13 +57,9 @@
       "documents": [
         { "path": "guides/phased-testing.md", "title": "Phased Testing", "description": "Understanding the 7-phase testing architecture" },
         { "path": "guides/test-generation.md", "title": "Test Generation", "description": "AI-powered test generation with Test Genie" },
-        { "path": "guides/requirements-sync.md", "title": "Requirements Sync", "description": "Automatic requirement tracking from tests" },
-        { "path": "guides/scenario-unit-testing.md", "title": "Scenario Unit Testing", "description": "Unit testing for Go, Node.js, Python scenarios" },
-        { "path": "guides/cli-testing.md", "title": "CLI Testing", "description": "BATS testing for command-line tools" },
         { "path": "guides/ui-testability.md", "title": "Writing Testable UIs", "description": "Design UIs for browser automation" },
-        { "path": "guides/ui-automation-with-bas.md", "title": "UI Automation with BAS", "description": "Browser Automation Studio workflow testing" },
-        { "path": "guides/ui-smoke.md", "title": "UI Smoke Testing", "description": "Fast UI validation with Browserless" },
-        { "path": "guides/lighthouse.md", "title": "Lighthouse Integration", "description": "Performance and accessibility testing" },
+        { "path": "guides/custom-presets.md", "title": "Custom Presets", "description": "Create tailored test presets for CI/CD" },
+        { "path": "guides/dashboard-guide.md", "title": "Dashboard Guide", "description": "Using the web dashboard UI" },
         { "path": "guides/vault-testing.md", "title": "Vault Testing", "description": "Multi-phase lifecycle validation" },
         { "path": "guides/sync-execution.md", "title": "Synchronous Execution", "description": "Blocking test execution for agents" },
         { "path": "guides/validation-best-practices.md", "title": "Validation Best Practices", "description": "Quality validation guidelines" },
@@ -55,8 +76,6 @@
         { "path": "reference/api-endpoints.md", "title": "API Reference", "description": "REST API endpoint documentation" },
         { "path": "reference/cli-commands.md", "title": "CLI Commands", "description": "test-genie CLI reference" },
         { "path": "reference/presets.md", "title": "Test Presets", "description": "Quick, Smoke, Comprehensive presets" },
-        { "path": "reference/phase-catalog.md", "title": "Phase Catalog", "description": "Detailed phase definitions" },
-        { "path": "reference/test-runners.md", "title": "Test Runners", "description": "Language-specific test runner APIs" },
         { "path": "reference/requirement-schema.md", "title": "Requirement Schema", "description": "JSON schema for requirement registry" },
         { "path": "reference/gaming-prevention.md", "title": "Gaming Prevention", "description": "Test integrity detection system" },
         { "path": "reference/examples.md", "title": "Gold Standard Examples", "description": "Exemplary testing implementations" },
@@ -91,7 +110,7 @@
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "safety", "guides", "reference"],
+    "primary": ["getting-started", "safety", "phases", "guides", "reference"],
     "secondary": ["concepts", "standard"]
   }
 }

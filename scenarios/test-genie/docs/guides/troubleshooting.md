@@ -1041,12 +1041,12 @@ zip -r debug-info.zip debug-info/
 
 ### Technical Details
 - [Architecture](../concepts/architecture.md) - Understand the system
-- [Requirements Sync](requirements-sync.md) - Debug requirement tracking issues
+- [Requirements Sync](../phases/business/requirements-sync.md) - Debug requirement tracking issues
 - [Glossary](../GLOSSARY.md) - Look up unfamiliar terms
-- [Scenario Unit Testing](scenario-unit-testing.md) - Writing effective tests
+- [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Writing effective tests
 
 ### Reference
 - [CLI Commands](../reference/cli-commands.md) - CLI reference
 - [API Endpoints](../reference/api-endpoints.md) - API reference
-- [Test Runners](../reference/test-runners.md) - Execution methods
-- [Phase Catalog](../reference/phase-catalog.md) - Phase specifications
+- [Test Runners](../phases/unit/test-runners.md) - Execution methods
+- [Phases Overview](../phases/README.md) - Phase specifications

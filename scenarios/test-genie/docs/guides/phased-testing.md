@@ -49,7 +49,7 @@ graph TB
 | **Business** | 180s | Validate requirements coverage | Yes |
 | **Performance** | 60s | Run benchmarks (optional) | Yes |
 
-See [Phase Catalog](../reference/phase-catalog.md) for detailed phase definitions.
+See [Phases Overview](../phases/README.md) for detailed phase definitions.
 
 ## Running Tests with Test Genie
 
@@ -280,7 +280,7 @@ Customize test-genie behavior per scenario:
 }
 ```
 
-See [Phase Catalog](../reference/phase-catalog.md) for all configuration options.
+See [Phases Overview](../phases/README.md) for all configuration options.
 
 ## Requirements Tracking
 
@@ -360,22 +360,30 @@ Before considering a scenario test-ready:
 
 ## See Also
 
+### Phase Documentation
+- [Phases Overview](../phases/README.md) - Complete phase reference with mermaid diagrams
+- [Structure Phase](../phases/structure/README.md) - File and CLI validation
+- [Unit Phase](../phases/unit/README.md) - Test runners and coverage
+- [Integration Phase](../phases/integration/README.md) - CLI and API testing
+- [Playbooks Phase](../phases/playbooks/README.md) - BAS browser automation
+- [Business Phase](../phases/business/README.md) - Requirements validation
+- [Performance Phase](../phases/performance/README.md) - Build benchmarks and Lighthouse
+
 ### Related Guides
-- [Requirements Sync](requirements-sync.md) - Automatic requirement tracking
-- [Scenario Unit Testing](scenario-unit-testing.md) - Writing effective unit tests
-- [Performance Testing](performance-testing.md) - Build benchmarks and Lighthouse audits
+- [Requirements Sync](../phases/business/requirements-sync.md) - Automatic requirement tracking
+- [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Writing effective unit tests
+- [Performance Testing](../phases/performance/performance-testing.md) - Build benchmarks and Lighthouse audits
 - [Custom Presets](custom-presets.md) - Create tailored presets for CI/CD
 - [Dashboard Guide](dashboard-guide.md) - Using the web UI
-- [CLI Testing](cli-testing.md) - BATS testing for CLIs
+- [CLI Testing](../phases/integration/cli-testing.md) - BATS testing for CLIs
 - [UI Testability](ui-testability.md) - Design testable UIs
 - [Sync Execution](sync-execution.md) - API usage for CI/CD
 - [Troubleshooting](troubleshooting.md) - Debug common issues
 
 ### Reference
-- [Phase Catalog](../reference/phase-catalog.md) - Detailed phase definitions
 - [Presets](../reference/presets.md) - Preset configurations
 - [API Endpoints](../reference/api-endpoints.md) - REST API reference
-- [Test Runners](../reference/test-runners.md) - Language-specific runners
+- [Test Runners](../phases/unit/test-runners.md) - Language-specific runners
 
 ### Concepts
 - [Architecture](../concepts/architecture.md) - Go orchestrator design

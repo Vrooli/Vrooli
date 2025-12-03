@@ -8,7 +8,11 @@ import * as api from './lib/api';
 // Mock the API module - include helper functions that are used directly in App.tsx
 vi.mock('./lib/api', () => ({
   fetchStatus: vi.fn(),
+  fetchChecks: vi.fn(),
   runTick: vi.fn(),
+  fetchTimeline: vi.fn(),
+  fetchUptimeStats: vi.fn(),
+  fetchCheckHistory: vi.fn(),
   // Include the helper functions that App.tsx uses
   groupChecksByStatus: (checks: { status: string }[]) => ({
     critical: checks.filter((c) => c.status === "critical"),
@@ -24,6 +28,32 @@ vi.mock('./lib/api', () => ({
     }
   },
 }));
+
+const mockTimelineResponse: api.TimelineResponse = {
+  events: [
+    { checkId: 'infra-network', status: 'ok', message: 'Network OK', timestamp: new Date().toISOString() },
+    { checkId: 'infra-dns', status: 'ok', message: 'DNS OK', timestamp: new Date().toISOString() },
+  ],
+  count: 2,
+  summary: { ok: 2, warning: 0, critical: 0 },
+};
+
+const mockUptimeStatsResponse: api.UptimeStatsResponse = {
+  totalEvents: 100,
+  okEvents: 90,
+  warningEvents: 10,
+  criticalEvents: 0,
+  uptimePercentage: 90.0,
+  windowHours: 24,
+};
+
+const mockChecksMetadata: api.CheckInfo[] = [
+  { id: 'infra-network', description: 'Network connectivity check', intervalSeconds: 30 },
+  { id: 'infra-dns', description: 'DNS resolution check', intervalSeconds: 30 },
+  { id: 'infra-docker', description: 'Docker daemon health', intervalSeconds: 60 },
+  { id: 'infra-cloudflared', description: 'Cloudflared tunnel health', intervalSeconds: 60 },
+  { id: 'infra-rdp', description: 'Remote desktop service health', intervalSeconds: 60 },
+];
 
 const mockStatusResponse: api.StatusResponse = {
   status: 'ok',
@@ -107,6 +137,11 @@ function renderWithProviders(ui: React.ReactElement) {
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default mocks for all API calls - can be overridden in specific tests
+    vi.mocked(api.fetchChecks).mockResolvedValue(mockChecksMetadata);
+    vi.mocked(api.fetchTimeline).mockResolvedValue(mockTimelineResponse);
+    vi.mocked(api.fetchUptimeStats).mockResolvedValue(mockUptimeStatsResponse);
+    vi.mocked(api.fetchCheckHistory).mockResolvedValue({ checkId: 'test', history: [], count: 0 });
   });
 
   // [REQ:UI-HEALTH-001] Dashboard shows current status for all checks
@@ -226,5 +261,43 @@ describe('App', () => {
     // Verify responsive container exists with min-h-screen (responsive) class
     const container = screen.getByTestId('autoheal-dashboard');
     expect(container).toHaveClass('min-h-screen');
+  });
+
+  // [REQ:UI-EVENTS-001] Recent events timeline
+  it('shows events timeline section', async () => {
+    vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
+
+    renderWithProviders(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Recent Events')).toBeInTheDocument();
+    }, { timeout: 2000 });
+  });
+
+  // [REQ:PERSIST-HISTORY-001] Uptime statistics
+  it('shows uptime statistics', async () => {
+    vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
+
+    renderWithProviders(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Uptime/)).toBeInTheDocument();
+    }, { timeout: 2000 });
+
+    // Check that uptime percentage is displayed
+    await waitFor(() => {
+      expect(screen.getByText('90.0%')).toBeInTheDocument();
+    });
+  });
+
+  // [REQ:UI-EVENTS-001] Events timeline filter
+  it('shows events filter button', async () => {
+    vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
+
+    renderWithProviders(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('All')).toBeInTheDocument();
+    }, { timeout: 2000 });
   });
 });

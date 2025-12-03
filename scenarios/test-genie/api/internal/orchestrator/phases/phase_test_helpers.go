@@ -44,17 +44,13 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 		"requirements",
 		"ui",
 		"docs",
-		filepath.Join("test", "phases"),
-		filepath.Join("test", "lib"),
+		"test",
 		".vrooli",
 	}
 	for _, rel := range requiredDirs {
 		if err := os.MkdirAll(filepath.Join(scenarioDir, rel), 0o755); err != nil {
 			t.Fatalf("failed to create %s: %v", rel, err)
 		}
-	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "test", "run-tests.sh"), []byte("echo ok"), 0o755); err != nil {
-		t.Fatalf("failed to seed run-tests.sh: %v", err)
 	}
 	cliScript := func(name string) []byte {
 		return []byte(fmt.Sprintf(`#!/usr/bin/env bash
@@ -69,28 +65,16 @@ fi
 exit 0
 `, name, name))
 	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "test-genie"), cliScript("test-genie"), 0o755); err != nil {
-		t.Fatalf("failed to seed cli binary: %v", err)
-	}
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", name), cliScript(name), 0o755); err != nil {
 		t.Fatalf("failed to seed scenario cli binary: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "test-genie.bats"), []byte("#!/usr/bin/env bats\n"), 0o644); err != nil {
-		t.Fatalf("failed to seed cli bats file: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", name+".bats"), []byte("#!/usr/bin/env bats\n"), 0o644); err != nil {
 		t.Fatalf("failed to seed scenario bats file: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "test", "lib", "runtime.sh"), []byte("#!/usr/bin/env bash\n"), 0o755); err != nil {
-		t.Fatalf("failed to seed runtime script: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "test", "lib", "orchestrator.sh"), []byte("#!/usr/bin/env bash\n"), 0o755); err != nil {
-		t.Fatalf("failed to seed orchestrator script: %v", err)
-	}
 	if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "service.json"), []byte(`{"service":{"name":"`+name+`"}}`), 0o644); err != nil {
 		t.Fatalf("failed to seed service.json: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "testing.json"), []byte(`{"structure":{}}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "testing.json"), []byte(`{"structure":{"ui_smoke":{"enabled":false}}}`), 0o644); err != nil {
 		t.Fatalf("failed to seed testing.json: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(scenarioDir, "requirements", "index.json"), []byte(`{"modules":["01-internal-orchestrator"]}`), 0o644); err != nil {

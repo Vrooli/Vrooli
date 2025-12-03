@@ -1,14 +1,21 @@
 // Vrooli Autoheal Dashboard
 // [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-EVENTS-001] [REQ:UI-REFRESH-001] [REQ:UI-RESPONSIVE-001]
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { RefreshCw, Play, Shield, AlertCircle, CheckCircle, AlertTriangle, HardDrive, Activity } from "lucide-react";
 import { Button } from "./components/ui/button";
-import { fetchStatus, runTick, groupChecksByStatus, statusToEmoji } from "./lib/api";
+import { fetchStatus, fetchChecks, runTick, groupChecksByStatus, statusToEmoji } from "./lib/api";
+import type { CheckInfo, HealthResult } from "./lib/api";
 import { selectors } from "./consts/selectors";
-import { StatusBadge, SummaryCard, CheckCard, PlatformInfo } from "./components";
+import { StatusBadge, SummaryCard, CheckCard, PlatformInfo, EventsTimeline, UptimeStats } from "./components";
 
 const AUTO_REFRESH_INTERVAL = 30000; // 30 seconds
+
+// Extended type for checks with metadata
+interface EnrichedCheck extends HealthResult {
+  description?: string;
+  intervalSeconds?: number;
+}
 
 export default function App() {
   const queryClient = useQueryClient();
@@ -20,12 +27,47 @@ export default function App() {
     refetchInterval: autoRefresh ? AUTO_REFRESH_INTERVAL : false,
   });
 
+  // Fetch check metadata (description, interval) - doesn't need to refresh as often
+  const { data: checksMetadata } = useQuery({
+    queryKey: ["checks-metadata"],
+    queryFn: fetchChecks,
+    staleTime: 60000, // Cache for 60s since check metadata rarely changes
+  });
+
+  // Build a lookup map of check metadata
+  const checksMetadataMap = useMemo(() => {
+    const map: Record<string, CheckInfo> = {};
+    if (checksMetadata) {
+      for (const check of checksMetadata) {
+        map[check.id] = check;
+      }
+    }
+    return map;
+  }, [checksMetadata]);
+
   const tickMutation = useMutation({
     mutationFn: () => runTick(true),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["status"] });
     },
   });
+
+  // Enrich checks with metadata (description, interval)
+  // Note: Must be before early returns to maintain hook order
+  const enrichedChecks: EnrichedCheck[] = useMemo(() => {
+    const checks = data?.checks || [];
+    return checks.map((check) => {
+      const metadata = checksMetadataMap[check.checkId];
+      return {
+        ...check,
+        description: metadata?.description,
+        intervalSeconds: metadata?.intervalSeconds,
+      };
+    });
+  }, [data?.checks, checksMetadataMap]);
+
+  // Use centralized grouping helper for consistent status-based classification
+  const { critical: critChecks, warning: warnChecks, ok: okChecks } = groupChecksByStatus(enrichedChecks);
 
   // Update page title based on status using centralized emoji mapping
   useEffect(() => {
@@ -61,10 +103,6 @@ export default function App() {
       </div>
     );
   }
-
-  const checks = data?.checks || [];
-  // Use centralized grouping helper for consistent status-based classification
-  const { critical: critChecks, warning: warnChecks, ok: okChecks } = groupChecksByStatus(checks);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50" data-testid={selectors.dashboard}>
@@ -141,9 +179,9 @@ export default function App() {
             <h2 className="text-lg font-medium flex items-center gap-2">
               <Activity size={20} className="text-blue-400" />
               Health Checks
-              {checks.length === 0 && (
+              {enrichedChecks.length === 0 && checksMetadata && checksMetadata.length > 0 && (
                 <span className="text-sm text-slate-500 font-normal">
-                  (No checks run yet - click &quot;Run Tick&quot;)
+                  ({checksMetadata.length} registered - click &quot;Run Tick&quot; to execute)
                 </span>
               )}
             </h2>
@@ -181,6 +219,9 @@ export default function App() {
 
           {/* Sidebar */}
           <div className="space-y-4">
+            {/* Uptime Stats */}
+            <UptimeStats />
+
             {data?.platform && <PlatformInfo platform={data.platform} />}
 
             {/* Last Updated */}
@@ -196,6 +237,11 @@ export default function App() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Events Timeline - Full Width */}
+        <div className="mt-6">
+          <EventsTimeline />
         </div>
       </main>
     </div>

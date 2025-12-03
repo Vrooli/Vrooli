@@ -9,6 +9,8 @@
 | 2025-12-03 | Improver Agent | Core implementation | Platform detection, health registry, tick/loop/status CLI, React dashboard |
 | 2025-12-03 | Improver Agent | DB + Test Infra | Fixed database schema (health_results, autoheal_actions, autoheal_config tables), installed jsdom/vitest-reporter, created selectors.manifest.json |
 | 2025-12-03 | Improver Agent | Test Suite | Added 48 Go unit tests (platform detection, health registry, checks), 36 API integration tests, 10 UI tests |
+| 2025-12-03 | Improver Agent | Experience Architecture | Events timeline, per-check history, uptime stats - answers "did anything fail overnight?" |
+| 2025-12-03 | Improver Agent | UX Audit | Experience Architecture Audit: Added check history API endpoint, enriched check cards with descriptions/intervals/relative timestamps, improved expand/collapse UX |
 | 2025-12-03 | Improver Agent | Decision Boundary Extraction | Extracted CLI status classifier, RDP/Cloudflared decision functions, UI status helpers; Added 18 new tests |
 | 2025-12-03 | Improver Agent | Architecture Audit | Screaming Architecture refactor - split monolithic main.go (354→155 lines), organized checks by domain (infra/, vrooli/), added config/handlers/persistence packages |
 
@@ -48,6 +50,7 @@
 - `GET /api/v1/platform`: Platform capabilities
 - `GET /api/v1/checks`: List registered checks
 - `GET /api/v1/checks/{id}`: Get specific check result
+- `GET /api/v1/checks/{id}/history`: Get historical results for a check
 
 ### React Dashboard (UI-HEALTH-*, UI-REFRESH-*)
 - Status overview with color-coded indicators (green/amber/red)
@@ -56,12 +59,34 @@
 - Platform capabilities display
 - Auto-refresh every 30 seconds (toggleable)
 - Run Tick button for manual execution
+- Enhanced check cards with:
+  - Description from check metadata
+  - Interval indicator (e.g., "30s", "1m")
+  - Relative timestamp (e.g., "5m ago")
+  - Expandable details section with clear expand/collapse indicator
 
 ### Database Schema (PERSIST-*)
 - `health_results` table for check history
 - `autoheal_actions` table for auto-heal log
 - `autoheal_config` table for settings
 - Cleanup function for 24-hour retention
+
+### Events Timeline (UI-EVENTS-*)
+- Aggregated timeline of all health check events
+- Filter to show only issues (warnings/critical)
+- Shows relative timestamps with expandable details
+- Auto-refreshes every 30 seconds
+
+### Per-Check History (PERSIST-HISTORY-*)
+- Click "History" on any check card to see recent history
+- Lazy-loaded to minimize API calls
+- Shows status transitions and messages over time
+
+### Uptime Statistics (PERSIST-HISTORY-*)
+- 24-hour uptime percentage in sidebar
+- Color-coded status (green >= 95%, amber >= 80%, red < 80%)
+- Breakdown of ok/warning/critical event counts
+- Progress bar visualization
 
 ## Next Steps
 

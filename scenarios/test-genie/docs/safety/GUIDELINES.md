@@ -459,5 +459,5 @@ Remember: **Data safety is more important than test convenience.**
 ## See Also
 
 - [BATS Teardown Bug Case Study](bats-teardown-bug.md) - Real incident analysis
-- [CLI Testing Guide](../guides/cli-testing.md) - BATS testing patterns
+- [CLI Testing Guide](../phases/integration/cli-testing.md) - BATS testing patterns
 - [Troubleshooting](../guides/troubleshooting.md) - Debug common issues

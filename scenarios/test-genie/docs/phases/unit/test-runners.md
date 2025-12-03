@@ -428,7 +428,7 @@ bats --tap test/cli/*.bats
 bats test/cli/my-cli.bats --filter "shows version"
 ```
 
-See [CLI Testing Guide](../guides/cli-testing.md) for writing BATS tests.
+See [CLI Testing Guide](../integration/cli-testing.md) for writing BATS tests.
 
 ## CI/CD Integration
 
@@ -514,8 +514,8 @@ Test runners respect these environment variables:
 
 ## See Also
 
-- [Phased Testing](../guides/phased-testing.md) - Testing architecture overview
-- [Scenario Unit Testing](../guides/scenario-unit-testing.md) - Writing unit tests
-- [CLI Testing](../guides/cli-testing.md) - BATS testing guide
-- [Phase Catalog](phase-catalog.md) - Phase definitions
-- [Presets](presets.md) - Preset configurations
+- [Unit Phase](README.md) - Unit phase overview
+- [Phases Overview](../README.md) - Testing architecture overview
+- [Scenario Unit Testing](scenario-unit-testing.md) - Writing unit tests
+- [CLI Testing](../integration/cli-testing.md) - BATS testing guide
+- [Presets](../../reference/presets.md) - Preset configurations

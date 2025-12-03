@@ -581,7 +581,7 @@ Align preset names with CI terminology:
 
 ### Reference
 - [Presets Reference](../reference/presets.md) - Built-in preset definitions
-- [Phase Catalog](../reference/phase-catalog.md) - All phase specifications
+- [Phases Overview](../phases/README.md) - All phase specifications
 - [CLI Commands](../reference/cli-commands.md) - CLI usage
 
 ### Concepts

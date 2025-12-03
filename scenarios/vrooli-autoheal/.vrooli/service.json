@@ -90,7 +90,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o vrooli-autoheal-api ./cmd/server",
+          "run": "cd api && go mod download && go build -o vrooli-autoheal-api .",
           "description": "Compile Go API server"
         },
         {

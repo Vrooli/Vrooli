@@ -256,5 +256,5 @@ The incident led to comprehensive safety improvements:
 ## See Also
 
 - [Safety Guidelines](GUIDELINES.md) - Complete safety reference
-- [CLI Testing Guide](../guides/cli-testing.md) - BATS testing patterns
+- [CLI Testing Guide](../phases/integration/cli-testing.md) - BATS testing patterns
 - [BATS Documentation](https://bats-core.readthedocs.io/) - Official BATS docs

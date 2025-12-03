@@ -87,15 +87,6 @@ func lintScenarioShellTargets(ctx context.Context, env workspace.Environment, lo
 	} else {
 		logPhaseWarn(logWriter, "cli binary not linted: %v", err)
 	}
-	for _, rel := range []string{
-		filepath.Join("test", "lib", "runtime.sh"),
-		filepath.Join("test", "lib", "orchestrator.sh"),
-	} {
-		abs := filepath.Join(env.ScenarioDir, rel)
-		if _, err := os.Stat(abs); err == nil {
-			shellTargets = append(shellTargets, abs)
-		}
-	}
 	if len(shellTargets) == 0 {
 		return []Observation{NewObservation("no shell entrypoints detected")}, nil
 	}
@@ -112,7 +103,7 @@ func lintScenarioShellTargets(ctx context.Context, env workspace.Environment, lo
 			return nil, &RunReport{
 				Err:                   err,
 				FailureClassification: FailureClassMisconfiguration,
-				Remediation:           "Restore the CLI binary and test/lib scripts so syntax checks can run.",
+				Remediation:           "Restore the CLI binary so syntax checks can run.",
 			}
 		}
 		logPhaseStep(logWriter, "running bash -n %s", target)

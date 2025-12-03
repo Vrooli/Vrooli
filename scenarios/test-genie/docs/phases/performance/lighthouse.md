@@ -284,7 +284,9 @@ vrooli scenario start your-scenario
 
 ## See Also
 
-- [Phased Testing](phased-testing.md) - Performance phase details
-- [UI Smoke Testing](ui-smoke.md) - Fast UI validation
-- [Requirements Sync](requirements-sync.md) - Evidence collection
-- [Troubleshooting](troubleshooting.md) - Debug common issues
+- [Performance Phase](README.md) - Performance phase overview
+- [Performance Testing](performance-testing.md) - Build benchmarks and audits
+- [Phases Overview](../README.md) - 7-phase architecture
+- [UI Smoke Testing](../structure/ui-smoke.md) - Fast UI validation
+- [Requirements Sync](../business/requirements-sync.md) - Evidence collection
+- [Troubleshooting](../../guides/troubleshooting.md) - Debug common issues

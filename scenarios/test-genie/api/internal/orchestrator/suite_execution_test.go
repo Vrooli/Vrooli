@@ -27,15 +27,6 @@ func (s *stubRequirementsSyncer) Sync(ctx context.Context, input reqsync.SyncInp
 	return s.err
 }
 
-func writePhaseScript(t *testing.T, dir, name, content string, exitCode int) {
-	t.Helper()
-	path := filepath.Join(dir, name)
-	payload := fmt.Sprintf("#!/usr/bin/env bash\nset -euo pipefail\n%s\nexit %d\n", content, exitCode)
-	if err := os.WriteFile(path, []byte(payload), 0o755); err != nil {
-		t.Fatalf("failed to write script %s: %v", path, err)
-	}
-}
-
 func createScenarioLayout(t *testing.T, root, name string) string {
 	t.Helper()
 	scenarioDir := filepath.Join(root, name)
@@ -45,8 +36,7 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 		"requirements",
 		"ui",
 		"docs",
-		filepath.Join("test", "phases"),
-		filepath.Join("test", "lib"),
+		"test",
 		filepath.Join("test", "playbooks"),
 		".vrooli",
 	}
@@ -87,19 +77,6 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 	if err := os.WriteFile(filepath.Join(moduleDir, "module.json"), []byte(module), 0o644); err != nil {
 		t.Fatalf("failed to seed module.json: %v", err)
 	}
-	runnerPath := filepath.Join(scenarioDir, "test", "run-tests.sh")
-	f, err := os.OpenFile(runnerPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
-	if err != nil {
-		t.Fatalf("failed to create test runner: %v", err)
-	}
-	defer f.Close()
-	if _, err := f.WriteString("#!/usr/bin/env bash\necho 'using scenario-local orchestrator'\n"); err != nil {
-		t.Fatalf("failed to seed run-tests.sh: %v", err)
-	}
-	cliPath := filepath.Join(scenarioDir, "cli", "test-genie")
-	if err := os.WriteFile(cliPath, []byte("#!/usr/bin/env bash\necho cli\n"), 0o755); err != nil {
-		t.Fatalf("failed to seed cli binary: %v", err)
-	}
 	scenarioCLI := filepath.Join(scenarioDir, "cli", name)
 	if err := os.WriteFile(scenarioCLI, []byte("#!/usr/bin/env bash\necho scenario cli\n"), 0o755); err != nil {
 		t.Fatalf("failed to seed scenario cli: %v", err)
@@ -108,26 +85,14 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 	if err := os.WriteFile(installScript, []byte("#!/usr/bin/env bash\necho install\n"), 0o755); err != nil {
 		t.Fatalf("failed to seed cli/install.sh: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "test-genie.bats"), []byte("#!/usr/bin/env bash\n"), 0o644); err != nil {
-		t.Fatalf("failed to seed cli/test-genie.bats: %v", err)
-	}
-	for _, phase := range []string{"structure", "dependencies", "unit", "integration", "playbooks", "business", "performance"} {
-		writePhaseScript(t, filepath.Join(scenarioDir, "test", "phases"), "test-"+phase+".sh", "echo "+phase, 0)
+	batsFile := filepath.Join(scenarioDir, "cli", name+".bats")
+	if err := os.WriteFile(batsFile, []byte("#!/usr/bin/env bats\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed cli bats file: %v", err)
 	}
 	playbookRegistry := fmt.Sprintf(`{"scenario":"%s","playbooks":[]}`, name)
 	registryPath := filepath.Join(scenarioDir, "test", "playbooks", "registry.json")
 	if err := os.WriteFile(registryPath, []byte(playbookRegistry), 0o644); err != nil {
 		t.Fatalf("failed to seed playbook registry: %v", err)
-	}
-	libDir := filepath.Join(scenarioDir, "test", "lib")
-	libFiles := map[string]string{
-		"runtime.sh":      "#!/usr/bin/env bash\necho runtime\n",
-		"orchestrator.sh": "#!/usr/bin/env bash\necho orchestrator\n",
-	}
-	for name, contents := range libFiles {
-		if err := os.WriteFile(filepath.Join(libDir, name), []byte(contents), 0o755); err != nil {
-			t.Fatalf("failed to seed %s: %v", name, err)
-		}
 	}
 	if err := os.WriteFile(filepath.Join(scenarioDir, "README.md"), []byte("# README\n"), 0o644); err != nil {
 		t.Fatalf("failed to seed README: %v", err)
@@ -139,7 +104,7 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 		t.Fatalf("failed to seed Makefile: %v", err)
 	}
 	testingConfig := filepath.Join(scenarioDir, ".vrooli", "testing.json")
-	if err := os.WriteFile(testingConfig, []byte(`{"structure":{}}`), 0o644); err != nil {
+	if err := os.WriteFile(testingConfig, []byte(`{"structure":{"ui_smoke":{"enabled":false}}}`), 0o644); err != nil {
 		t.Fatalf("failed to seed testing config: %v", err)
 	}
 	return scenarioDir
@@ -154,9 +119,7 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] orchestrator runs go-native phases", func(t *testing.T) {
 		skipPlaybooksForTests(t)
 		root := t.TempDir()
-		scenarioDir := createScenarioLayout(t, root, "demo")
-		phaseDir := filepath.Join(scenarioDir, "test", "phases")
-		writePhaseScript(t, phaseDir, "test-unit.sh", "echo 'unit phase'", 0)
+		createScenarioLayout(t, root, "demo")
 		stubCommandLookup(t, func(name string) (string, error) {
 			return "/tmp/" + name, nil
 		})
@@ -212,10 +175,7 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] full suites trigger requirement sync", func(t *testing.T) {
 		skipPlaybooksForTests(t)
 		root := t.TempDir()
-		scenarioDir := createScenarioLayout(t, root, "demo")
-		phaseDir := filepath.Join(scenarioDir, "test", "phases")
-		writePhaseScript(t, phaseDir, "test-unit.sh", "echo unit", 0)
-
+		createScenarioLayout(t, root, "demo")
 		stubCommandLookup(t, func(name string) (string, error) {
 			return "/tmp/" + name, nil
 		})
@@ -266,8 +226,6 @@ func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
-		phaseDir := filepath.Join(scenarioDir, "test", "phases")
-		writePhaseScript(t, phaseDir, "test-unit.sh", "echo 'unit'", 0)
 		stubCommandLookup(t, func(name string) (string, error) {
 			return "/tmp/" + name, nil
 		})
@@ -306,13 +264,13 @@ func TestSuiteOrchestratorPresetFromFile(t *testing.T) {
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
 		testDir := filepath.Join(scenarioDir, "test")
-		phaseDir := filepath.Join(testDir, "phases")
 
 		if err := os.WriteFile(filepath.Join(testDir, "presets.json"), []byte(`{"focused":["unit"]}`), 0o644); err != nil {
 			t.Fatalf("failed to write preset: %v", err)
 		}
-		writePhaseScript(t, phaseDir, "test-structure.sh", "echo hi", 0)
-		writePhaseScript(t, phaseDir, "test-unit.sh", "echo hi", 0)
+		stubCommandLookup(t, func(name string) (string, error) {
+			return "/tmp/" + name, nil
+		})
 		stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
 			return nil
 		})

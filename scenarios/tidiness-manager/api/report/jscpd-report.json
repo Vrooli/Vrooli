@@ -1,0 +1,961 @@
+{
+  "statistics": {
+    "detectionDate": "2025-12-03T05:01:30.151Z",
+    "formats": {
+      "javascript": {
+        "sources": {
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/wine/WineInstallDialog.tsx": {
+            "lines": 247,
+            "tokens": 2146,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/ui/select.tsx": {
+            "lines": 3,
+            "tokens": 9,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/ui/progress.tsx": {
+            "lines": 3,
+            "tokens": 9,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/ui/label.tsx": {
+            "lines": 3,
+            "tokens": 9,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/ui/input.tsx": {
+            "lines": 4,
+            "tokens": 15,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/ui/checkbox.tsx": {
+            "lines": 3,
+            "tokens": 9,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/ui/card.tsx": {
+            "lines": 36,
+            "tokens": 327,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/ui/button.tsx": {
+            "lines": 0,
+            "tokens": 15,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/ui/badge.tsx": {
+            "lines": 0,
+            "tokens": 13,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/TelemetryUploadCard.tsx": {
+            "lines": 45,
+            "tokens": 481,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/StepCard.tsx": {
+            "lines": 4,
+            "tokens": 22,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/ScenarioInventory.tsx": {
+            "lines": 63,
+            "tokens": 476,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/ScenarioDetails.tsx": {
+            "lines": 80,
+            "tokens": 787,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/ScenarioCard.tsx": {
+            "lines": 69,
+            "tokens": 652,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/RegenerateButton.tsx": {
+            "lines": 59,
+            "tokens": 421,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/PlatformChip.tsx": {
+            "lines": 54,
+            "tokens": 579,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/GenerateDesktopButton.tsx": {
+            "lines": 231,
+            "tokens": 2150,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/DownloadButtons.tsx": {
+            "lines": 39,
+            "tokens": 367,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/DeleteButton.tsx": {
+            "lines": 88,
+            "tokens": 640,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/BuildDesktopButton.tsx": {
+            "lines": 201,
+            "tokens": 1677,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/__tests__/TemplateGrid.test.tsx": {
+            "lines": 37,
+            "tokens": 308,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/TemplateGrid.tsx": {
+            "lines": 31,
+            "tokens": 237,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/StatsPanel.tsx": {
+            "lines": 31,
+            "tokens": 178,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/GeneratorForm.tsx": {
+            "lines": 345,
+            "tokens": 3080,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/BuildStatus.tsx": {
+            "lines": 95,
+            "tokens": 988,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/main.tsx": {
+            "lines": 0,
+            "tokens": 3,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/App.tsx": {
+            "lines": 93,
+            "tokens": 566,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 1864,
+          "tokens": 16164,
+          "sources": 27,
+          "clones": 0,
+          "duplicatedLines": 0,
+          "duplicatedTokens": 0,
+          "percentage": 0,
+          "percentageTokens": 0,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "tsx": {
+        "sources": {
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/wine/WineInstallDialog.tsx": {
+            "lines": 378,
+            "tokens": 3246,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/ui/select.tsx": {
+            "lines": 17,
+            "tokens": 109,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/ui/progress.tsx": {
+            "lines": 24,
+            "tokens": 191,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/ui/label.tsx": {
+            "lines": 15,
+            "tokens": 96,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/ui/input.tsx": {
+            "lines": 16,
+            "tokens": 105,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/ui/checkbox.tsx": {
+            "lines": 20,
+            "tokens": 144,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/ui/card.tsx": {
+            "lines": 45,
+            "tokens": 411,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/ui/button.tsx": {
+            "lines": 34,
+            "tokens": 269,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/ui/badge.tsx": {
+            "lines": 27,
+            "tokens": 207,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/TelemetryUploadCard.tsx": {
+            "lines": 178,
+            "tokens": 1923,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/StepCard.tsx": {
+            "lines": 39,
+            "tokens": 349,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/ScenarioInventory.tsx": {
+            "lines": 201,
+            "tokens": 1855,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/ScenarioDetails.tsx": {
+            "lines": 123,
+            "tokens": 1226,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/ScenarioCard.tsx": {
+            "lines": 124,
+            "tokens": 1218,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/RegenerateButton.tsx": {
+            "lines": 171,
+            "tokens": 1475,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 25,
+            "duplicatedTokens": 142,
+            "percentage": 14.62,
+            "percentageTokens": 9.63,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/PlatformChip.tsx": {
+            "lines": 140,
+            "tokens": 1453,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/GenerateDesktopButton.tsx": {
+            "lines": 388,
+            "tokens": 3775,
+            "sources": 1,
+            "clones": 2,
+            "duplicatedLines": 24,
+            "duplicatedTokens": 211,
+            "percentage": 6.19,
+            "percentageTokens": 5.59,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/DownloadButtons.tsx": {
+            "lines": 100,
+            "tokens": 941,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/DeleteButton.tsx": {
+            "lines": 144,
+            "tokens": 1117,
+            "sources": 1,
+            "clones": 1,
+            "duplicatedLines": 25,
+            "duplicatedTokens": 142,
+            "percentage": 17.36,
+            "percentageTokens": 12.71,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/BuildDesktopButton.tsx": {
+            "lines": 338,
+            "tokens": 3051,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/__tests__/TemplateGrid.test.tsx": {
+            "lines": 82,
+            "tokens": 665,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/__tests__/App.test.tsx": {
+            "lines": 29,
+            "tokens": 313,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/TemplateGrid.tsx": {
+            "lines": 70,
+            "tokens": 588,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/StatsPanel.tsx": {
+            "lines": 58,
+            "tokens": 382,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/GeneratorForm.tsx": {
+            "lines": 681,
+            "tokens": 6082,
+            "sources": 1,
+            "clones": 2,
+            "duplicatedLines": 24,
+            "duplicatedTokens": 211,
+            "percentage": 3.52,
+            "percentageTokens": 3.47,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/BuildStatus.tsx": {
+            "lines": 188,
+            "tokens": 1945,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/main.tsx": {
+            "lines": 19,
+            "tokens": 158,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/App.tsx": {
+            "lines": 141,
+            "tokens": 1016,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 3790,
+          "tokens": 34310,
+          "sources": 28,
+          "clones": 3,
+          "duplicatedLines": 49,
+          "duplicatedTokens": 353,
+          "percentage": 1.29,
+          "percentageTokens": 1.03,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "typescript": {
+        "sources": {
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/utils.ts": {
+            "lines": 22,
+            "tokens": 226,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/types.ts": {
+            "lines": 50,
+            "tokens": 328,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/components/scenario-inventory/index.ts": {
+            "lines": 16,
+            "tokens": 123,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/test-utils/setupTests.ts": {
+            "lines": 7,
+            "tokens": 51,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/lib/utils.ts": {
+            "lines": 5,
+            "tokens": 61,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/lib/api.ts": {
+            "lines": 376,
+            "tokens": 3360,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/domain/deployment.ts": {
+            "lines": 128,
+            "tokens": 866,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          },
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/domain/deployment.test.ts": {
+            "lines": 41,
+            "tokens": 414,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 645,
+          "tokens": 5429,
+          "sources": 8,
+          "clones": 0,
+          "duplicatedLines": 0,
+          "duplicatedTokens": 0,
+          "percentage": 0,
+          "percentageTokens": 0,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      },
+      "css": {
+        "sources": {
+          "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/ui/src/styles.css": {
+            "lines": 11,
+            "tokens": 57,
+            "sources": 1,
+            "clones": 0,
+            "duplicatedLines": 0,
+            "duplicatedTokens": 0,
+            "percentage": 0,
+            "percentageTokens": 0,
+            "newDuplicatedLines": 0,
+            "newClones": 0
+          }
+        },
+        "total": {
+          "lines": 11,
+          "tokens": 57,
+          "sources": 1,
+          "clones": 0,
+          "duplicatedLines": 0,
+          "duplicatedTokens": 0,
+          "percentage": 0,
+          "percentageTokens": 0,
+          "newDuplicatedLines": 0,
+          "newClones": 0
+        }
+      }
+    },
+    "total": {
+      "lines": 6310,
+      "tokens": 55960,
+      "sources": 64,
+      "clones": 3,
+      "duplicatedLines": 49,
+      "duplicatedTokens": 353,
+      "percentage": 0.78,
+      "percentageTokens": 0.63,
+      "newDuplicatedLines": 0,
+      "newClones": 0
+    }
+  },
+  "duplicates": [
+    {
+      "format": "tsx",
+      "lines": 26,
+      "fragment": "</Badge>\n    );\n  }\n\n  if (isFailed) {\n    return (\n      <div className=\"flex gap-2\">\n        <Badge variant=\"destructive\" className=\"gap-1\">\n          <XCircle className=\"h-3 w-3\" />\n          Failed\n        </Badge>\n        <Button\n          variant=\"outline\"\n          size=\"sm\"\n          onClick={() => {\n            deleteMutation.reset();\n            setShowConfirm(true);\n          }}\n        >\n          Retry\n        </Button>\n      </div>\n    );\n  }\n\n  if (isDeleting",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../scenario-to-desktop/ui/src/components/scenario-inventory/DeleteButton.tsx",
+        "start": 36,
+        "end": 61,
+        "startLoc": {
+          "line": 36,
+          "column": 7,
+          "position": 352
+        },
+        "endLoc": {
+          "line": 61,
+          "column": 11,
+          "position": 494
+        }
+      },
+      "secondFile": {
+        "name": "../../scenario-to-desktop/ui/src/components/scenario-inventory/RegenerateButton.tsx",
+        "start": 92,
+        "end": 118,
+        "startLoc": {
+          "line": 92,
+          "column": 7,
+          "position": 929
+        },
+        "endLoc": {
+          "line": 118,
+          "column": 11,
+          "position": 1077
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 15,
+      "fragment": ");\n      }\n      return probeEndpoints({ proxy_url: proxyUrl });\n    },\n    onSuccess: (result) => {\n      setConnectionResult(result);\n      setConnectionError(null);\n    },\n    onError: (error: Error) => {\n      setConnectionError(error.message);\n      setConnectionResult(null);\n    }\n  });\n\n  const selectedScenario",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../scenario-to-desktop/ui/src/components/GeneratorForm.tsx",
+        "start": 208,
+        "end": 222,
+        "startLoc": {
+          "line": 208,
+          "column": 44,
+          "position": 1934
+        },
+        "endLoc": {
+          "line": 222,
+          "column": 17,
+          "position": 2033
+        }
+      },
+      "secondFile": {
+        "name": "../../scenario-to-desktop/ui/src/components/scenario-inventory/GenerateDesktopButton.tsx",
+        "start": 98,
+        "end": 112,
+        "startLoc": {
+          "line": 98,
+          "column": 28,
+          "position": 1078
+        },
+        "endLoc": {
+          "line": 112,
+          "column": 2,
+          "position": 1177
+        }
+      }
+    },
+    {
+      "format": "tsx",
+      "lines": 11,
+      "fragment": "\">Connectivity snapshot</p>\n          <p>\n            UI URL: {connectionResult?.server.status === \"ok\" ? \"reachable\" : connectionResult?.server.message || \"no response\"}\n          </p>\n          <p>\n            API URL: {connectionResult?.api.status === \"ok\" ? \"reachable\" : connectionResult?.api.message || \"no response\"}\n          </p>\n        </div>\n      )}\n\n      <",
+      "tokens": 0,
+      "firstFile": {
+        "name": "../../scenario-to-desktop/ui/src/components/GeneratorForm.tsx",
+        "start": 389,
+        "end": 399,
+        "startLoc": {
+          "line": 389,
+          "column": 29,
+          "position": 3642
+        },
+        "endLoc": {
+          "line": 399,
+          "column": 2,
+          "position": 3754
+        }
+      },
+      "secondFile": {
+        "name": "../../scenario-to-desktop/ui/src/components/scenario-inventory/GenerateDesktopButton.tsx",
+        "start": 277,
+        "end": 282,
+        "startLoc": {
+          "line": 277,
+          "column": 29,
+          "position": 2832
+        },
+        "endLoc": {
+          "line": 282,
+          "column": 3,
+          "position": 2935
+        }
+      }
+    }
+  ]
+}

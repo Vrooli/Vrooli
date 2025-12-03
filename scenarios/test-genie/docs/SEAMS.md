@@ -91,5 +91,5 @@ All seams are designed for testability:
 ## See Also
 
 - [Architecture](concepts/architecture.md) - System design overview
-- [Phase Catalog](reference/phase-catalog.md) - Phase definitions
+- [Phases Overview](phases/README.md) - Phase definitions
 - [API Endpoints](reference/api-endpoints.md) - REST API reference

@@ -7,6 +7,8 @@ import { useScenarios } from "../../hooks/useScenarios";
 import { useUIStore } from "../../stores/uiStore";
 import { PHASES_FOR_GENERATION, PHASE_LABELS } from "../../lib/constants";
 
+const REPO_ROOT = "/home/matthalloran8/Vrooli";
+
 function buildPrompt(
   scenarioName: string,
   selectedPhases: string[],
@@ -29,24 +31,71 @@ function buildPrompt(
     context = `Some tests are failing. Focus on understanding the failures and generating fixes or improved test cases.`;
   }
 
+  const scenarioPath = `${REPO_ROOT}/scenarios/${scenarioName}`;
+  const scenarioDocsPath = `${scenarioPath}/docs`;
+  const prdPath = `${scenarioPath}/PRD.md`;
+  const requirementsPath = `${scenarioPath}/requirements`;
+  const generalTestingDoc = `${REPO_ROOT}/scenarios/test-genie/docs/guides/test-generation.md`;
+  const phaseDocs = selectedPhases
+    .map((phase) => PHASES_FOR_GENERATION.find((p) => p.key === phase))
+    .filter(Boolean)
+    .map((phase) => `${REPO_ROOT}/scenarios/test-genie${phase!.docsPath}`);
+
+  const phaseDocsList =
+    phaseDocs.length > 0 ? phaseDocs.map((doc) => `- ${doc}`).join("\n") : "- (no phase docs selected)";
+
   return `Generate tests for the "${scenarioName}" scenario.
 
-**Test Phases:** ${phaseLabels}
+**Test phases:** ${phaseLabels}
 
-${context ? `**Context:** ${context}\n\n` : ""}**Requirements:**
-1. Follow the existing code patterns and conventions in the scenario
-2. Write clear, maintainable test code with descriptive names
-3. Cover both happy paths and edge cases
-4. Include appropriate assertions and error handling
-5. Add comments explaining the test intent where helpful
+${context ? `**Preset context:** ${context}\n\n` : ""}**Paths (absolute):**
+- Scenario root: ${scenarioPath}
+- PRD: ${prdPath}
+- Requirements: ${requirementsPath}
+- Scenario docs (if present): ${scenarioDocsPath}
 
-**Instructions:**
-1. First, explore the scenario structure at \`scenarios/${scenarioName}/\`
-2. Identify the main components, functions, or modules to test
-3. Generate test files following the scenario's test conventions
-4. Run the tests to verify they pass
+**Docs to review first (absolute):**
+- General test generation guide: ${generalTestingDoc}
+- Phase docs for selected phases:
+${phaseDocsList}
 
-Please generate comprehensive ${phaseLabels.toLowerCase()} for this scenario.`;
+**MUST:**
+- Align to PRD/requirements and existing coding/testing conventions in the scenario
+- Make tests deterministic, isolated, and idempotent (no hidden state, fixed seeds, stable selectors)
+- Add clear assertions and negative cases; keep names descriptive
+- Use existing helpers/fixtures; prefer real interfaces for integration, limited mocking only where already used
+- Mark requirement coverage if applicable (e.g., \`[REQ:ID]\`) and keep coverage neutral or improved
+- Call out any assumptions and uncertain areas explicitly
+
+**NEVER:**
+- Touch files outside the scenario root
+- Add dependencies or change runtime configs
+- Delete or weaken existing tests without explicit rationale
+- Introduce flaky behavior (timing sleeps, random data without seeds, network calls to external services)
+
+**Generation steps:**
+1) Read PRD, requirements, and existing tests to mirror patterns
+2) For each selected phase, target meaningful coverage:
+   - Unit: small, fast, local; no network/filesystem unless already mocked
+   - Integration: exercise real component boundaries; minimal mocking; preserve setup/teardown hygiene
+   - Playbooks (E2E): stable selectors, retries around navigation, capture screenshots/logs on failure hooks
+   - Business: assertions tied to requirements/PRD acceptance criteria
+3) Create or update tests under the scenario using existing structure and naming
+4) Keep changes idempotent and documented (comments only where intent is non-obvious)
+
+**Validation (run after generation):**
+- Execute via test-genie with the selected phases:
+  /home/matthalloran8/Vrooli/scenarios/test-genie/cli/test-genie execute ${scenarioName} --phases ${selectedPhases.join(",")} --sync
+- If preset implies broader coverage, also run:
+  /home/matthalloran8/Vrooli/scenarios/test-genie/cli/test-genie execute ${scenarioName} --preset comprehensive --sync
+- If any failures occur, include logs/output snippets and suggested fixes.
+
+**Return (concise):**
+- Files created/modified (with short rationale)
+- Commands you ran and their results
+- Any blockers, open questions, or assumptions that need confirmation
+
+Please generate comprehensive ${phaseLabels.toLowerCase()} for this scenario while following the above constraints.`;
 }
 
 export function GeneratePage() {

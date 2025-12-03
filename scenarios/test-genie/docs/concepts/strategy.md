@@ -454,7 +454,7 @@ graph LR
 ## See Also
 
 - [Phased Testing Guide](../guides/phased-testing.md) - How phases execute
-- [Scenario Unit Testing](../guides/scenario-unit-testing.md) - Layer 2 implementation
-- [UI Automation with BAS](../guides/ui-automation-with-bas.md) - Layer 3 implementation
+- [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Layer 2 implementation
+- [UI Automation with BAS](../phases/playbooks/ui-automation-with-bas.md) - Layer 3 implementation
 - [Validation Best Practices](../guides/validation-best-practices.md) - Multi-layer requirements
 - [Presets Reference](../reference/presets.md) - Quick/Smoke/Comprehensive definitions

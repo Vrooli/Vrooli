@@ -142,3 +142,77 @@ func (h *Handlers) CheckResult(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
+
+// CheckHistory returns historical results for a specific check
+// [REQ:PERSIST-QUERY-001] [REQ:PERSIST-QUERY-002]
+func (h *Handlers) CheckHistory(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	checkID := vars["checkId"]
+
+	// Default limit to 20 entries
+	limit := 20
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	results, err := h.store.GetRecentResults(ctx, checkID, limit)
+	if err != nil {
+		http.Error(w, "Failed to retrieve history", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"checkId": checkID,
+		"history": results,
+		"count":   len(results),
+	})
+}
+
+// Timeline returns recent events across all checks
+// [REQ:UI-EVENTS-001]
+func (h *Handlers) Timeline(w http.ResponseWriter, r *http.Request) {
+	// Default limit to 50 events
+	limit := 50
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	events, err := h.store.GetTimelineEvents(ctx, limit)
+	if err != nil {
+		http.Error(w, "Failed to retrieve timeline", http.StatusInternalServerError)
+		return
+	}
+
+	// Group events by status for summary
+	summary := map[string]int{"ok": 0, "warning": 0, "critical": 0}
+	for _, e := range events {
+		summary[e.Status]++
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"events":  events,
+		"count":   len(events),
+		"summary": summary,
+	})
+}
+
+// UptimeStats returns uptime statistics over a time window
+// [REQ:PERSIST-HISTORY-001]
+func (h *Handlers) UptimeStats(w http.ResponseWriter, r *http.Request) {
+	// Default to 24 hours
+	windowHours := 24
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	stats, err := h.store.GetUptimeStats(ctx, windowHours)
+	if err != nil {
+		http.Error(w, "Failed to retrieve uptime stats", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
+}

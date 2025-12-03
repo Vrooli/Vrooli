@@ -137,7 +137,7 @@
       "title": "JSON File Persistence",
       "description": "Store campaign data and visit tracking in JSON files for portability and transparency",
       "priority": "P0",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "test",
@@ -150,7 +150,7 @@
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "E2E workflow implicitly validates JSON persistence across operations"
         }
       ]

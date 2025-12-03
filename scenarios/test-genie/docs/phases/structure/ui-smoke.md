@@ -383,12 +383,13 @@ For UI performance metrics, use Lighthouse:
 - Accessibility scores
 - Best practices
 
-See [Lighthouse Integration](lighthouse.md).
+See [Lighthouse Integration](../performance/lighthouse.md).
 
 ## See Also
 
-- [UI Automation with BAS](ui-automation-with-bas.md) - Full UI testing
-- [Writing Testable UIs](ui-testability.md) - Design for automation
-- [Lighthouse Integration](lighthouse.md) - Performance testing
-- [Phased Testing](phased-testing.md) - Phase architecture
-- [Troubleshooting](troubleshooting.md) - Debug common issues
+- [Structure Phase](README.md) - Structure phase overview
+- [UI Automation with BAS](../playbooks/ui-automation-with-bas.md) - Full UI testing
+- [Writing Testable UIs](../../guides/ui-testability.md) - Design for automation
+- [Lighthouse Integration](../performance/lighthouse.md) - Performance testing
+- [Phases Overview](../README.md) - Phase architecture
+- [Troubleshooting](../../guides/troubleshooting.md) - Debug common issues

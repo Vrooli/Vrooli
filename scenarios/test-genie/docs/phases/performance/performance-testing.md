@@ -529,15 +529,15 @@ Add comments explaining threshold choices:
 ## See Also
 
 ### Related Guides
+- [Performance Phase](README.md) - Performance phase overview
 - [Lighthouse Integration](lighthouse.md) - Detailed Lighthouse configuration
-- [Phased Testing](phased-testing.md) - Understanding the 7-phase architecture
-- [Requirements Sync](requirements-sync.md) - Automatic requirement tracking
+- [Phases Overview](../README.md) - Understanding the 7-phase architecture
+- [Requirements Sync](../business/requirements-sync.md) - Automatic requirement tracking
 
 ### Reference
-- [Phase Catalog](../reference/phase-catalog.md) - All phase definitions
-- [Presets](../reference/presets.md) - Preset configurations
-- [API Endpoints](../reference/api-endpoints.md) - REST API for CI/CD
+- [Presets](../../reference/presets.md) - Preset configurations
+- [API Endpoints](../../reference/api-endpoints.md) - REST API for CI/CD
 
 ### Concepts
-- [Architecture](../concepts/architecture.md) - Go orchestrator design
-- [Strategy](../concepts/strategy.md) - Three-layer validation approach
+- [Architecture](../../concepts/architecture.md) - Go orchestrator design
+- [Strategy](../../concepts/strategy.md) - Three-layer validation approach

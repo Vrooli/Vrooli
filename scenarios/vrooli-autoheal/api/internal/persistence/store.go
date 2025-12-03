@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"vrooli-autoheal/internal/checks"
 )
@@ -100,4 +101,93 @@ func (s *Store) CleanupOldResults(ctx context.Context, retentionHours int) (int6
 // Close closes the database connection
 func (s *Store) Close() error {
 	return s.db.Close()
+}
+
+// TimelineEvent represents a single event in the timeline
+type TimelineEvent struct {
+	CheckID   string                 `json:"checkId"`
+	Status    string                 `json:"status"`
+	Message   string                 `json:"message"`
+	Details   map[string]interface{} `json:"details,omitempty"`
+	Timestamp string                 `json:"timestamp"`
+}
+
+// GetTimelineEvents retrieves recent events across all checks, ordered by time
+// [REQ:UI-EVENTS-001]
+func (s *Store) GetTimelineEvents(ctx context.Context, limit int) ([]TimelineEvent, error) {
+	query := `
+		SELECT check_id, status, message, details, created_at
+		FROM health_results
+		ORDER BY created_at DESC
+		LIMIT $1
+	`
+	rows, err := s.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var events []TimelineEvent
+	for rows.Next() {
+		var e TimelineEvent
+		var detailsJSON []byte
+		var timestamp time.Time
+
+		if err := rows.Scan(&e.CheckID, &e.Status, &e.Message, &detailsJSON, &timestamp); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+
+		e.Timestamp = timestamp.UTC().Format(time.RFC3339)
+
+		if len(detailsJSON) > 0 {
+			json.Unmarshal(detailsJSON, &e.Details)
+		}
+
+		events = append(events, e)
+	}
+
+	return events, rows.Err()
+}
+
+// UptimeStats represents uptime statistics over a time window
+type UptimeStats struct {
+	TotalEvents      int     `json:"totalEvents"`
+	OkEvents         int     `json:"okEvents"`
+	WarningEvents    int     `json:"warningEvents"`
+	CriticalEvents   int     `json:"criticalEvents"`
+	UptimePercentage float64 `json:"uptimePercentage"`
+	WindowHours      int     `json:"windowHours"`
+}
+
+// GetUptimeStats calculates uptime statistics over the given time window
+// [REQ:PERSIST-HISTORY-001]
+func (s *Store) GetUptimeStats(ctx context.Context, windowHours int) (*UptimeStats, error) {
+	query := `
+		SELECT
+			COUNT(*) as total,
+			SUM(CASE WHEN status = 'ok' THEN 1 ELSE 0 END) as ok_count,
+			SUM(CASE WHEN status = 'warning' THEN 1 ELSE 0 END) as warning_count,
+			SUM(CASE WHEN status = 'critical' THEN 1 ELSE 0 END) as critical_count
+		FROM health_results
+		WHERE created_at >= NOW() - INTERVAL '1 hour' * $1
+	`
+	var stats UptimeStats
+	err := s.db.QueryRowContext(ctx, query, windowHours).Scan(
+		&stats.TotalEvents,
+		&stats.OkEvents,
+		&stats.WarningEvents,
+		&stats.CriticalEvents,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+
+	stats.WindowHours = windowHours
+	if stats.TotalEvents > 0 {
+		stats.UptimePercentage = float64(stats.OkEvents) / float64(stats.TotalEvents) * 100
+	} else {
+		stats.UptimePercentage = 100 // No data = assume healthy
+	}
+
+	return &stats, nil
 }

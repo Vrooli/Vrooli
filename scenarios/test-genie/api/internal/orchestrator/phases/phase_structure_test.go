@@ -135,9 +135,9 @@ func newStructureTestHarness(t *testing.T) *structureTestHarness {
 		"cli",
 		"docs",
 		"requirements",
-		"test/phases",
+		"test",
 		"ui",
-		filepath.Join(".vrooli"),
+		".vrooli",
 	}
 	for _, dir := range subDirs {
 		mustMkdirAll(t, filepath.Join(scenarioDir, dir))
@@ -146,11 +146,6 @@ func newStructureTestHarness(t *testing.T) *structureTestHarness {
 	writeFile(t, filepath.Join(scenarioDir, "api", "main.go"), "package main\nfunc main() {}\n")
 	writeExecutable(t, filepath.Join(scenarioDir, "cli", "install.sh"), "#!/usr/bin/env bash\n")
 	writeExecutable(t, filepath.Join(scenarioDir, "cli", scenarioName), "#!/usr/bin/env bash\necho cli\n")
-	writeExecutable(t, filepath.Join(scenarioDir, "test", "run-tests.sh"), "#!/usr/bin/env bash\necho local orchestrator\n")
-
-	for _, phase := range []string{"structure", "dependencies", "unit", "integration", "business", "performance"} {
-		writeExecutable(t, filepath.Join(scenarioDir, "test", "phases", "test-"+phase+".sh"), "#!/usr/bin/env bash\n")
-	}
 
 	writeFile(t, filepath.Join(scenarioDir, "README.md"), "# Demo\n")
 	writeFile(t, filepath.Join(scenarioDir, "PRD.md"), "# PRD\n")

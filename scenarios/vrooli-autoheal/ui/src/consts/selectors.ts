@@ -281,6 +281,12 @@ const literalSelectors: LiteralSelectorTree = {
   },
   // Platform info section
   platform: 'autoheal-platform-info',
+  // Events timeline section
+  eventsTimeline: 'autoheal-events-timeline',
+  // Uptime stats section
+  uptimeStats: 'autoheal-uptime-stats',
+  // Check history drawer
+  checkHistory: 'autoheal-check-history',
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {

@@ -32,8 +32,9 @@ func TestRunUnitPhaseSuccess(t *testing.T) {
 	if report.Err != nil {
 		t.Fatalf("expected success, got %v", report.Err)
 	}
-	if len(commands) != 4 {
-		t.Fatalf("expected four commands, got %d", len(commands))
+	// Expect 2 commands: "go test ./..." and "bash -n <cli-binary>"
+	if len(commands) != 2 {
+		t.Fatalf("expected two commands, got %d: %v", len(commands), commands)
 	}
 	if commands[0] != "go test ./..." {
 		t.Fatalf("unexpected first command: %s", commands[0])
@@ -92,15 +93,9 @@ func TestRunUnitPhaseFailsWhenGoTestFails(t *testing.T) {
 func TestRunUnitPhaseSkipsMissingShellTargets(t *testing.T) {
 	root := t.TempDir()
 	scenarioDir := createScenarioLayout(t, root, "demo")
-	for _, rel := range []string{
-		filepath.Join("test", "lib", "runtime.sh"),
-		filepath.Join("test", "lib", "orchestrator.sh"),
-		filepath.Join("cli", "demo"),
-		filepath.Join("cli", "test-genie"),
-	} {
-		if err := os.Remove(filepath.Join(scenarioDir, rel)); err != nil {
-			t.Fatalf("failed to remove %s: %v", rel, err)
-		}
+	// Remove CLI binary to test graceful handling of missing shell targets
+	if err := os.Remove(filepath.Join(scenarioDir, "cli", "demo")); err != nil {
+		t.Fatalf("failed to remove cli/demo: %v", err)
 	}
 	stubCommandLookup(t, func(name string) (string, error) {
 		return "/tmp/" + name, nil

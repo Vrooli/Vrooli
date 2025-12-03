@@ -1,6 +1,6 @@
 # Workflow Runner Reference
 
-> **⚠️ DEPRECATED**: This document describes the legacy bash-based workflow runner. BAS workflows are now executed through the Go-native test-genie orchestrator during the business phase. See [UI Automation with BAS](../guides/ui-automation-with-bas.md) for the current approach.
+> **⚠️ DEPRECATED**: This document describes the legacy bash-based workflow runner. BAS workflows are now executed through the Go-native test-genie orchestrator during the business phase. See [UI Automation with BAS](../phases/playbooks/ui-automation-with-bas.md) for the current approach.
 
 **Status**: Deprecated (Legacy Reference)
 **Last Updated**: 2025-12-02
@@ -349,6 +349,6 @@ Check that:
 
 ## See Also
 
-- [UI Automation with BAS](../guides/ui-automation-with-bas.md) - Authoring workflows
+- [UI Automation with BAS](../phases/playbooks/ui-automation-with-bas.md) - Authoring workflows
 - [UI Testability](../guides/ui-testability.md) - Design UIs for automation
-- [Phase Catalog](phase-catalog.md) - Phase specifications
+- [Phases Overview](../phases/README.md) - Phase specifications

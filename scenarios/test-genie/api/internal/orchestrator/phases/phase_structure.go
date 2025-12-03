@@ -90,6 +90,22 @@ func runStructurePhase(ctx context.Context, env workspace.Environment, logWriter
 	logPhaseSuccess(logWriter, "All required files present (%d)", len(requiredFiles))
 	observations = append(observations, NewSuccessObservation(fmt.Sprintf("All required files present (%d checked)", len(requiredFiles))))
 
+	// Section: CLI Structure
+	observations = append(observations, NewSectionObservation("🖥️", "Validating CLI structure..."))
+	logPhaseInfo(logWriter, "Validating CLI structure...")
+	cliResult := validateCLIStructure(env.ScenarioDir, env.ScenarioName, logWriter)
+	if !cliResult.Valid {
+		logPhaseError(logWriter, "CLI validation failed: %v", cliResult.Error)
+		return RunReport{
+			Err:                   cliResult.Error,
+			FailureClassification: FailureClassMisconfiguration,
+			Remediation:           cliResult.Remediation,
+			Observations:          observations,
+		}
+	}
+	logPhaseSuccess(logWriter, "CLI structure valid (%s approach)", cliResult.Approach)
+	observations = append(observations, cliResult.Observations...)
+
 	// Section: Service Manifest
 	observations = append(observations, NewSectionObservation("📋", "Validating service manifest..."))
 	logPhaseInfo(logWriter, "Validating service manifest...")
@@ -162,7 +178,7 @@ func validateStructureDirs(scenarioDir string, required []string, logWriter io.W
 			return RunReport{
 				Err:                   err,
 				FailureClassification: FailureClassMisconfiguration,
-				Remediation:           fmt.Sprintf("Create the '%s' directory to match the scenario template.", rel),
+				Remediation:           fmt.Sprintf("Create the '%s' directory. See docs/phases/structure/README.md for required structure and customization options.", rel),
 			}
 		}
 		logPhaseStep(logWriter, "  ✓ %s", rel)
@@ -178,7 +194,7 @@ func validateStructureFiles(scenarioDir string, required []string, logWriter io.
 			return RunReport{
 				Err:                   err,
 				FailureClassification: FailureClassMisconfiguration,
-				Remediation:           fmt.Sprintf("Restore the file '%s' so structure validation can pass.", rel),
+				Remediation:           fmt.Sprintf("Create the file '%s'. See docs/phases/structure/README.md for required files and customization options.", rel),
 			}
 		}
 		logPhaseStep(logWriter, "  ✓ %s", rel)
@@ -242,7 +258,9 @@ func validateServiceManifest(manifestPath, scenarioName string, logWriter io.Wri
 func resolveStructureRequirements(scenarioName string, expectations *structureExpectations) (dirs []string, files []string) {
 	dirs = append([]string{}, standardStructureDirs...)
 	files = append([]string{}, standardStructureFiles...)
-	files = append(files, filepath.Join("cli", scenarioName))
+	// Note: cli/<scenario-name> is NOT added here because CLI structure is validated
+	// separately by validateCLIStructure() which handles both legacy (bash script)
+	// and cross-platform (Go binary) approaches.
 
 	if expectations != nil {
 		dirs = append(dirs, expectations.AdditionalDirs...)

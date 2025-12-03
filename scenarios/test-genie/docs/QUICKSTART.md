@@ -91,17 +91,27 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [Safety Guidelines](safety/GUIDELINES.md) - **CRITICAL** - Prevent data loss in test scripts
 - [BATS Teardown Bug](safety/bats-teardown-bug.md) - Real incident case study
 
+### Phase Documentation
+- [Phases Overview](phases/README.md) - 7-phase architecture with mermaid diagrams
+- [Structure Phase](phases/structure/README.md) - File and CLI validation
+- [Unit Phase](phases/unit/README.md) - Test runners and coverage
+- [Integration Phase](phases/integration/README.md) - CLI and API testing
+- [Playbooks Phase](phases/playbooks/README.md) - BAS browser automation
+- [Business Phase](phases/business/README.md) - Requirements validation
+- [Performance Phase](phases/performance/README.md) - Build benchmarks and Lighthouse
+
 ### Guides (How-To)
 - [Phased Testing](guides/phased-testing.md) - Understanding the 7-phase architecture
 - [Test Generation](guides/test-generation.md) - AI-powered test creation
-- [Requirements Sync](guides/requirements-sync.md) - Automatic requirement tracking
-- [Scenario Unit Testing](guides/scenario-unit-testing.md) - Go, Node, Python unit tests
-- [CLI Testing](guides/cli-testing.md) - BATS testing for CLIs
+- [Requirements Sync](phases/business/requirements-sync.md) - Automatic requirement tracking
+- [Scenario Unit Testing](phases/unit/scenario-unit-testing.md) - Go, Node, Python unit tests
+- [CLI Testing](phases/integration/cli-testing.md) - BATS testing for CLIs
 - [UI Testability](guides/ui-testability.md) - Design testable UIs
-- [UI Automation with BAS](guides/ui-automation-with-bas.md) - Browser Automation Studio workflows
-- [UI Smoke Testing](guides/ui-smoke.md) - Fast UI validation with Browserless
-- [Lighthouse Integration](guides/lighthouse.md) - Performance and accessibility testing
-- [Performance Testing](guides/performance-testing.md) - Build benchmarks and regression detection
+- [UI Automation with BAS](phases/playbooks/ui-automation-with-bas.md) - Browser Automation Studio workflows
+- [UI Smoke Testing](phases/structure/ui-smoke.md) - Fast UI validation with Browserless
+- [Lighthouse Integration](phases/performance/lighthouse.md) - Performance and accessibility testing
+- [Performance Testing](phases/performance/performance-testing.md) - Build benchmarks and regression detection
+- [CLI Approaches](phases/structure/cli-approaches.md) - Legacy vs cross-platform CLI patterns
 - [Custom Presets](guides/custom-presets.md) - Create tailored test presets for CI/CD
 - [Dashboard Guide](guides/dashboard-guide.md) - Using the web dashboard UI
 - [Vault Testing](guides/vault-testing.md) - Multi-phase lifecycle validation
@@ -114,8 +124,7 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [API Endpoints](reference/api-endpoints.md) - REST API reference
 - [CLI Commands](reference/cli-commands.md) - test-genie CLI reference
 - [Presets](reference/presets.md) - Quick/Smoke/Comprehensive definitions
-- [Phase Catalog](reference/phase-catalog.md) - Detailed phase specs
-- [Test Runners](reference/test-runners.md) - Language-specific runners
+- [Test Runners](phases/unit/test-runners.md) - Language-specific runners
 - [Requirement Schema](reference/requirement-schema.md) - JSON schema for requirements
 - [Gaming Prevention](reference/gaming-prevention.md) - Test integrity detection
 - [Gold Standard Examples](reference/examples.md) - Exemplary implementations
@@ -153,7 +162,7 @@ Run comprehensive tests to auto-sync:
 test-genie execute my-scenario --preset comprehensive
 ```
 
-See [Requirements Sync Guide](guides/requirements-sync.md).
+See [Requirements Sync Guide](phases/business/requirements-sync.md).
 
 ### Use Sync Execution for CI/Agents
 
@@ -268,6 +277,6 @@ See [Safety Guidelines](safety/GUIDELINES.md) for complete safety rules.
 ## Next Steps
 
 1. **New to testing?** Start with [Phased Testing Guide](guides/phased-testing.md)
-2. **Writing unit tests?** See [Scenario Unit Testing](guides/scenario-unit-testing.md)
+2. **Writing unit tests?** See [Scenario Unit Testing](phases/unit/scenario-unit-testing.md)
 3. **Building CI pipelines?** Check [Sync Execution Guide](guides/sync-execution.md)
 4. **Designing testable UIs?** Read [UI Testability](guides/ui-testability.md)

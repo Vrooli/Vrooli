@@ -79,6 +79,11 @@ func NewSkipObservation(text string) Observation {
 	return Observation{Prefix: "SKIP", Text: text}
 }
 
+// NewInfoObservation creates an informational observation (not success/warning/error).
+func NewInfoObservation(text string) Observation {
+	return Observation{Prefix: "INFO", Text: text}
+}
+
 // NewErrorObservation creates an error observation.
 func NewErrorObservation(text string) Observation {
 	return Observation{Prefix: "ERROR", Text: text}
@@ -106,6 +111,8 @@ func (o Observation) String() string {
 				prefix = "[ERROR] ❌ "
 			case "SKIP":
 				prefix = "[SKIP] ⏭️ "
+			case "INFO":
+				prefix = "[INFO] ℹ️ "
 			default:
 				prefix = "[" + o.Prefix + "] "
 			}

@@ -681,7 +681,7 @@ vault-test:
 ## See Also
 
 - [Phased Testing](phased-testing.md) - Understanding test phases
-- [Phase Catalog](../reference/phase-catalog.md) - Phase definitions
+- [Phases Overview](../phases/README.md) - Phase definitions
 - [Architecture](../concepts/architecture.md) - Go orchestrator design
 - [CLI Commands](../reference/cli-commands.md) - `test-genie vault` reference
 - [Troubleshooting](troubleshooting.md) - Debug common issues

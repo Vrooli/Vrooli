@@ -1,7 +1,7 @@
 {
   "scenario": "test-scenario",
   "report_version": 1,
-  "generated_at": "2025-12-01T20:14:29.046190461Z",
+  "generated_at": "2025-12-02T17:35:28.280480982Z",
   "dependencies": [
     {
       "name": "postgres",
@@ -104,7 +104,7 @@
   },
   "bundle_manifest": {
     "scenario": "test-scenario",
-    "generated_at": "2025-12-01T20:14:29.046190461Z",
+    "generated_at": "2025-12-02T17:35:28.280480982Z",
     "files": [
       {
         "path": ".vrooli/service.json",
