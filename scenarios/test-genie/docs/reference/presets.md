@@ -197,6 +197,7 @@ test-genie execute my-scenario --preset comprehensive --skip-phase performance
 
 ## See Also
 
+- [Custom Presets Guide](../guides/custom-presets.md) - Step-by-step guide to creating custom presets
 - [Phase Catalog](phase-catalog.md) - Detailed phase definitions
 - [Phased Testing](../guides/phased-testing.md) - Understanding phases
 - [CLI Commands](cli-commands.md) - CLI reference

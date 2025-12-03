@@ -5,13 +5,14 @@ Quick reference for Vrooli testing terminology. Use this to understand concepts 
 ## Core Concepts
 
 ### Phase
-One of 6 sequential test stages that progressively validate scenario quality:
+One of 7 sequential test stages that progressively validate scenario quality:
 1. **Structure** (15s) - Files and configuration
 2. **Dependencies** (30s) - Package and resource availability
 3. **Unit** (60s) - Code-level tests
 4. **Integration** (120s) - Component interactions
-5. **Business** (180s) - End-to-end workflows
-6. **Performance** (60s) - Benchmarks and load testing
+5. **E2E** (120s) - BAS browser automation workflows
+6. **Business** (180s) - Requirements coverage validation
+7. **Performance** (60s) - Benchmarks and load testing
 
 Phases run sequentially and fail-fast - each phase must pass before the next executes.
 

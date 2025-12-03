@@ -405,6 +405,510 @@ env:
 if: ${{ secrets.API_KEY != '' }}
 ```
 
+## Go Test Troubleshooting
+
+### Test Discovery Issues
+
+**Symptoms:**
+```
+no Go files in /path/to/api
+no test files
+```
+
+**Diagnosis:**
+```bash
+# Check if Go files exist
+ls api/*.go
+
+# Verify test files exist
+ls api/*_test.go
+
+# Check go.mod location
+cat api/go.mod
+```
+
+**Solutions:**
+```bash
+# Ensure test files follow naming convention
+# Tests must be named *_test.go
+
+# Initialize go.mod if missing
+cd api && go mod init my-scenario/api
+
+# Download dependencies
+go mod tidy
+```
+
+### Build Errors in Tests
+
+**Symptoms:**
+```
+api/handler_test.go:15:2: undefined: someFunction
+cannot find package "github.com/..."
+```
+
+**Diagnosis:**
+```bash
+# Check for compilation errors
+cd api && go build ./...
+
+# Verify imports
+go mod verify
+```
+
+**Solutions:**
+```bash
+# Update dependencies
+go mod tidy
+
+# Clear module cache if corrupted
+go clean -modcache
+go mod download
+
+# Check for circular imports
+go vet ./...
+```
+
+### Coverage Below Threshold
+
+**Symptoms:**
+```
+coverage: 65% of statements
+FAIL: coverage below 70% threshold
+```
+
+**Diagnosis:**
+```bash
+# Generate detailed coverage report
+cd api && go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out -o coverage.html
+open coverage.html
+```
+
+**Solutions:**
+1. Identify uncovered code in the HTML report
+2. Add tests for critical paths
+3. Consider excluding generated code:
+   ```bash
+   go test -coverprofile=coverage.out -coverpkg=./... ./...
+   ```
+4. Adjust threshold if appropriate:
+   ```json
+   {
+     "phases": {
+       "unit": {
+         "coverageWarn": 75,
+         "coverageError": 65
+       }
+     }
+   }
+   ```
+
+### Race Conditions
+
+**Symptoms:**
+```
+WARNING: DATA RACE
+Read at 0x00c0001a0010 by goroutine 15
+```
+
+**Solutions:**
+```bash
+# Run with race detector
+go test -race ./...
+
+# Common fixes:
+# 1. Add mutex locks
+# 2. Use channels for synchronization
+# 3. Use atomic operations for counters
+```
+
+### Test Timeout
+
+**Symptoms:**
+```
+panic: test timed out after 30s
+```
+
+**Solutions:**
+```bash
+# Increase timeout for slow tests
+go test -timeout 120s ./...
+
+# For specific long tests, use subtests with their own timeout
+func TestLongOperation(t *testing.T) {
+    ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+    defer cancel()
+    // ...
+}
+```
+
+---
+
+## Vitest/UI Test Troubleshooting
+
+### Test Discovery Issues
+
+**Symptoms:**
+```
+No tests found
+vitest could not find any test files
+```
+
+**Diagnosis:**
+```bash
+# Check test file locations
+ls ui/src/**/*.test.ts ui/src/**/*.test.tsx
+
+# Verify vitest config
+cat ui/vite.config.ts | grep -A 20 "test:"
+```
+
+**Solutions:**
+```typescript
+// vite.config.ts - ensure test config exists
+export default defineConfig({
+  test: {
+    include: ['src/**/*.{test,spec}.{js,ts,tsx}'],
+    environment: 'jsdom',
+  },
+});
+```
+
+### Module Resolution Errors
+
+**Symptoms:**
+```
+Cannot find module '@/components/Button'
+Failed to resolve import "@/lib/utils"
+```
+
+**Solutions:**
+```bash
+# Check path aliases in vite.config.ts
+# Ensure tsconfig.json paths match
+
+# Verify node_modules
+rm -rf ui/node_modules ui/pnpm-lock.yaml
+cd ui && pnpm install
+```
+
+### React Testing Library Issues
+
+**Symptoms:**
+```
+Unable to find an element with the text: "Submit"
+TestingLibraryElementError: Unable to find role="button"
+```
+
+**Solutions:**
+```typescript
+// Use findBy* for async elements
+const button = await screen.findByRole('button', { name: /submit/i });
+
+// Use waitFor for state changes
+await waitFor(() => {
+  expect(screen.getByText('Success')).toBeInTheDocument();
+});
+
+// Debug the DOM
+screen.debug();
+```
+
+### Store/State Issues
+
+**Symptoms:**
+```
+Cannot read property 'x' of undefined
+Store not initialized
+```
+
+**Solutions:**
+```typescript
+// Wrap tests with providers
+import { renderWithProviders } from '../test-utils';
+
+it('renders component', () => {
+  renderWithProviders(<MyComponent />);
+});
+
+// Reset store between tests
+beforeEach(() => {
+  useStore.setState(initialState);
+});
+```
+
+### Snapshot Mismatches
+
+**Symptoms:**
+```
+Snapshot `Component 1` mismatched
+```
+
+**Solutions:**
+```bash
+# Update snapshots if changes are intentional
+cd ui && pnpm test -- -u
+
+# Review diff carefully before updating
+pnpm test -- --reporter=verbose
+```
+
+### Requirement Reporter Not Working
+
+**Symptoms:**
+- `coverage/vitest-requirements.json` not created
+- Requirements not syncing after tests
+
+**Diagnosis:**
+```bash
+# Check reporter configuration
+grep -r "RequirementReporter" ui/vite.config.ts
+
+# Verify requirement tags exist
+grep -r "\[REQ:" ui/src/**/*.test.ts
+```
+
+**Solutions:**
+```typescript
+// vite.config.ts
+import { RequirementReporter } from './test/reporters/RequirementReporter';
+
+export default defineConfig({
+  test: {
+    reporters: ['default', new RequirementReporter()],
+  },
+});
+```
+
+---
+
+## BAS Automation Troubleshooting
+
+### Workflow Not Found
+
+**Symptoms:**
+```
+workflow "login-flow" not found in playbooks
+no matching playbook for phase
+```
+
+**Diagnosis:**
+```bash
+# List available playbooks
+ls test/playbooks/*.yaml
+
+# Check playbook naming
+cat test/playbooks/registry.json
+```
+
+**Solutions:**
+```bash
+# Ensure playbook exists
+# Naming convention: test/playbooks/<name>.yaml
+
+# Register in registry.json
+{
+  "playbooks": {
+    "login-flow": {
+      "path": "login-flow.yaml",
+      "phase": "e2e"
+    }
+  }
+}
+```
+
+### Selector Not Found
+
+**Symptoms:**
+```
+Element not found: [data-testid="login-button"]
+Timeout waiting for selector
+```
+
+**Diagnosis:**
+```bash
+# Check if UI is running
+curl -I http://localhost:${UI_PORT}
+
+# Verify selector exists in UI code
+grep -r "data-testid=\"login-button\"" ui/src/
+```
+
+**Solutions:**
+1. Verify selector exists in the component
+2. Wait for element to be visible:
+   ```yaml
+   - action: wait_for_selector
+     selector: "[data-testid='login-button']"
+     timeout: 10000
+   ```
+3. Check for dynamic loading:
+   ```yaml
+   - action: wait_for_network_idle
+   ```
+
+### Screenshot/Evidence Issues
+
+**Symptoms:**
+```
+Failed to capture screenshot
+Evidence directory not writable
+```
+
+**Solutions:**
+```bash
+# Create evidence directory
+mkdir -p test/artifacts/screenshots
+
+# Check permissions
+chmod 755 test/artifacts
+
+# Verify browserless is running
+curl http://localhost:3000/json/version
+```
+
+### Browser Connection Failures
+
+**Symptoms:**
+```
+Failed to connect to browser
+WebSocket connection failed
+```
+
+**Solutions:**
+```bash
+# Check browserless resource
+vrooli resource status browserless
+
+# Restart browserless
+vrooli resource restart browserless
+
+# Verify connection
+curl http://localhost:3000/health
+```
+
+---
+
+## Python Test Troubleshooting
+
+### Pytest Not Found
+
+**Symptoms:**
+```
+pytest: command not found
+```
+
+**Solutions:**
+```bash
+# Install pytest
+pip install pytest pytest-cov
+
+# Or use pipenv/poetry
+pipenv install --dev pytest
+poetry add --dev pytest
+```
+
+### Import Errors
+
+**Symptoms:**
+```
+ModuleNotFoundError: No module named 'mypackage'
+```
+
+**Solutions:**
+```bash
+# Install in development mode
+pip install -e .
+
+# Or set PYTHONPATH
+export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+
+# Create pyproject.toml or setup.py for proper installation
+```
+
+### Fixture Issues
+
+**Symptoms:**
+```
+fixture 'db_session' not found
+```
+
+**Solutions:**
+```python
+# Ensure conftest.py is in the test directory
+# test/conftest.py
+import pytest
+
+@pytest.fixture
+def db_session():
+    # Setup
+    yield session
+    # Teardown
+```
+
+---
+
+## Phase-Specific Troubleshooting
+
+### Structure Phase Failures
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "service.json not found" | Missing config | Create `.vrooli/service.json` |
+| "Invalid JSON" | Syntax error | Validate: `jq empty .vrooli/service.json` |
+| "Missing required field" | Incomplete config | Check schema requirements |
+| "README.md not found" | Missing docs | Create README.md in scenario root |
+
+### Dependencies Phase Failures
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "go: not found" | Missing Go | Install Go toolchain |
+| "pnpm: not found" | Missing pnpm | `npm install -g pnpm` |
+| "resource X unavailable" | Resource not running | `vrooli resource start X` |
+
+### Unit Phase Failures
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "no test files" | Missing tests | Add `*_test.go` or `*.test.ts` files |
+| "compilation error" | Code issues | Fix build errors first |
+| "coverage too low" | Insufficient tests | Add tests or adjust threshold |
+
+### Integration Phase Failures
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "connection refused" | Scenario not running | `vrooli scenario start X` |
+| "health check failed" | API error | Check scenario logs |
+| "port discovery failed" | Service not registered | Verify service.json ports |
+
+### E2E Phase Failures
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "browserless unavailable" | Resource down | `vrooli resource start browserless` |
+| "element not found" | UI changed | Update selectors |
+| "timeout exceeded" | Slow UI | Increase wait times |
+
+### Business Phase Failures
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "workflow failed" | Business logic error | Debug the specific workflow |
+| "data integrity issue" | State pollution | Add proper test isolation |
+
+### Performance Phase Failures
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "build exceeded threshold" | Slow compilation | Profile dependencies |
+| "lighthouse failed" | Chrome issue | Install chromium |
+| "score below threshold" | Performance regression | Optimize or adjust threshold |
+
+---
+
 ## Test-Genie Specific Issues
 
 ### Phase Results Not Generated
@@ -531,13 +1035,18 @@ zip -r debug-info.zip debug-info/
 - [QUICKSTART](../QUICKSTART.md) - Start with basics
 - [Safety Guidelines](../safety/GUIDELINES.md) - Prevent common mistakes
 - [Phased Testing](phased-testing.md) - Complete workflow
+- [Performance Testing](performance-testing.md) - Performance phase details
+- [Dashboard Guide](dashboard-guide.md) - UI troubleshooting
+- [Custom Presets](custom-presets.md) - Preset configuration
 
 ### Technical Details
 - [Architecture](../concepts/architecture.md) - Understand the system
 - [Requirements Sync](requirements-sync.md) - Debug requirement tracking issues
 - [Glossary](../GLOSSARY.md) - Look up unfamiliar terms
+- [Scenario Unit Testing](scenario-unit-testing.md) - Writing effective tests
 
 ### Reference
 - [CLI Commands](../reference/cli-commands.md) - CLI reference
 - [API Endpoints](../reference/api-endpoints.md) - API reference
 - [Test Runners](../reference/test-runners.md) - Execution methods
+- [Phase Catalog](../reference/phase-catalog.md) - Phase specifications

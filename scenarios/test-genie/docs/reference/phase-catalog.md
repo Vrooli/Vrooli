@@ -248,4 +248,6 @@ Override phase settings in `.vrooli/testing.json`:
 
 - [Presets](presets.md) - Phase bundles
 - [Phased Testing](../guides/phased-testing.md) - Understanding phases
+- [Performance Testing](../guides/performance-testing.md) - Detailed performance phase guide
+- [Custom Presets](../guides/custom-presets.md) - Creating custom presets
 - [Architecture](../concepts/architecture.md) - Go orchestrator design

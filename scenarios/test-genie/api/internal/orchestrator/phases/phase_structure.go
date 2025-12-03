@@ -11,7 +11,12 @@ import (
 	"strings"
 
 	"test-genie/internal/orchestrator/workspace"
+	"test-genie/internal/uismoke"
 )
+
+// UISmokeModeNative enables the new native Go implementation of UI smoke tests.
+// When false (default during transition), falls back to reading cached results.
+var UISmokeModeNative = os.Getenv("TEST_GENIE_UI_SMOKE_NATIVE") == "true"
 
 var (
 	// standardStructureDirs defines directories required for a well-formed scenario.
@@ -340,6 +345,63 @@ func scanScenarioJSON(root string) (int, []string, error) {
 }
 
 func enforceUISmokeTelemetry(ctx context.Context, env workspace.Environment, logWriter io.Writer) (string, *RunReport) {
+	// Use native Go implementation if enabled
+	if UISmokeModeNative {
+		return runNativeUISmoke(ctx, env, logWriter)
+	}
+
+	// Fall back to reading cached results
+	return readCachedUISmokeTelemetry(ctx, env, logWriter)
+}
+
+// runNativeUISmoke executes the UI smoke test using the new Go implementation.
+func runNativeUISmoke(ctx context.Context, env workspace.Environment, logWriter io.Writer) (string, *RunReport) {
+	logPhaseStep(logWriter, "running native UI smoke test...")
+
+	result, err := uismoke.RunForPhase(ctx, env.ScenarioName, env.ScenarioDir, logWriter)
+	if err != nil {
+		logPhaseWarn(logWriter, "ui smoke execution failed: %v", err)
+		return "", &RunReport{
+			Err:                   err,
+			FailureClassification: FailureClassSystem,
+			Remediation:           "Check browserless availability and scenario UI configuration.",
+		}
+	}
+
+	if result.Skipped {
+		return result.Message, nil
+	}
+
+	if result.Blocked {
+		return "", &RunReport{
+			Err:                   result.ToError(),
+			FailureClassification: FailureClassMisconfiguration,
+			Remediation:           result.Message,
+		}
+	}
+
+	if !result.Success {
+		// Check if it's a bundle staleness issue
+		if fresh, reason := result.GetBundleStatus(); !fresh {
+			return "", &RunReport{
+				Err:                   fmt.Errorf("ui bundle stale: %s", reason),
+				FailureClassification: FailureClassMisconfiguration,
+				Remediation:           "Rebuild or restart the UI so bundles are regenerated before re-running structure tests.",
+			}
+		}
+
+		return "", &RunReport{
+			Err:                   result.ToError(),
+			FailureClassification: FailureClassSystem,
+			Remediation:           "Investigate the UI smoke failure (see artifacts in coverage/<scenario>/ui-smoke/) and fix the underlying issue.",
+		}
+	}
+
+	return result.FormatObservation(), nil
+}
+
+// readCachedUISmokeTelemetry reads UI smoke results from cached scenario status.
+func readCachedUISmokeTelemetry(ctx context.Context, env workspace.Environment, logWriter io.Writer) (string, *RunReport) {
 	status, err := fetchScenarioStatus(ctx, env, logWriter)
 	if err != nil {
 		logPhaseWarn(logWriter, "ui smoke telemetry unavailable: %v", err)

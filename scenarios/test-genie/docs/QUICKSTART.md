@@ -101,6 +101,9 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [UI Automation with BAS](guides/ui-automation-with-bas.md) - Browser Automation Studio workflows
 - [UI Smoke Testing](guides/ui-smoke.md) - Fast UI validation with Browserless
 - [Lighthouse Integration](guides/lighthouse.md) - Performance and accessibility testing
+- [Performance Testing](guides/performance-testing.md) - Build benchmarks and regression detection
+- [Custom Presets](guides/custom-presets.md) - Create tailored test presets for CI/CD
+- [Dashboard Guide](guides/dashboard-guide.md) - Using the web dashboard UI
 - [Vault Testing](guides/vault-testing.md) - Multi-phase lifecycle validation
 - [Sync Execution](guides/sync-execution.md) - Blocking execution for agents
 - [Validation Best Practices](guides/validation-best-practices.md) - Quality validation guidelines

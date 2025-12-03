@@ -88,23 +88,10 @@
         { "path": "SEAMS.md", "title": "Seams", "description": "Integration points and boundaries" },
         { "path": "RESEARCH.md", "title": "Research", "description": "Research notes and findings" }
       ]
-    },
-    {
-      "id": "internal",
-      "title": "Internal",
-      "icon": "lock",
-      "visibility": "developers-only",
-      "description": "Developer-only documentation",
-      "documents": [
-        { "path": "internal/requirements-sync-plan.md", "title": "Requirements Sync Plan", "description": "Detailed Go implementation design" },
-        { "path": "internal/go-migration.md", "title": "Go Migration", "description": "Bash to Go migration guide" },
-        { "path": "internal/requirements-system-architecture.md", "title": "Requirements System Architecture", "description": "Modular architecture of the requirements tracking system" }
-      ]
     }
   ],
   "navigation": {
     "primary": ["getting-started", "safety", "guides", "reference"],
-    "secondary": ["concepts", "standard"],
-    "hidden": ["internal"]
+    "secondary": ["concepts", "standard"]
   }
 }

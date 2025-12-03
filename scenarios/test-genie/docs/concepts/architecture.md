@@ -2,7 +2,7 @@
 
 ## Overview
 
-Test Genie is built as a Go-native testing orchestration platform that replaces the legacy bash-based testing infrastructure. The architecture follows **screaming architecture** principles where package names reveal domain intent.
+Test Genie is a Go-native testing orchestration platform. The architecture follows **screaming architecture** principles where package names reveal domain intent.
 
 ## System Architecture
 
@@ -255,19 +255,8 @@ type Orchestrator interface {
 }
 ```
 
-### 4. Progressive Migration
-
-The Go orchestrator can coexist with bash scripts during migration:
-
-```go
-// Phase can delegate to bash if Go implementation not ready
-if !hasGoImplementation(phase) {
-    return runBashPhase(phase, scenario)
-}
-```
-
 ## See Also
 
 - [Phase Catalog](../reference/phase-catalog.md) - Phase definitions
 - [API Endpoints](../reference/api-endpoints.md) - REST API reference
-- [Requirements Sync Plan](../internal/requirements-sync-plan.md) - Detailed design
+- [SEAMS](../SEAMS.md) - Architectural boundaries and extension points

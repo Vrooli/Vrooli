@@ -1,40 +1,95 @@
 # Test Genie Seams
 
-This scenario exists to erase the historical dependency on `scripts/scenarios/testing`. Every loop should harden the local boundaries that let the Go API own orchestration, while the bash harness shrinks into a compatibility shim.
+This document describes the key architectural boundaries (seams) in Test Genie that enable testing, extensibility, and clean separation of concerns.
 
-## Suite Orchestrator (API)
+## Suite Orchestrator
 
-| Seam | Purpose | Current Status | Next Steps |
-|------|---------|----------------|------------|
-| `SuiteOrchestrator.goPhases` | Central registry that lets the API replace bash phase scripts incrementally | ✅ Structure phase already lived here; ✅ Dependencies phase now implemented in Go so the API validates runtimes/package managers/resources without shelling out | Migrate the remaining phases (unit/integration/business/performance) and keep the bash scripts as thin adapters until they can be deleted |
-| Failure instrumentation | Gives API callers a machine-readable way to understand why a phase failed | ✅ PhaseExecutionResult now includes classification/remediation/observations plus aggregated dependency failure reports | Port the remaining bash-backed phases so every failure path is classified; feed this metadata into the UI dashboards and CLI |
-| `commandLookup` injection | Allows phase runners to stub OS command lookups during tests without spawning shells | ✅ Implemented while porting the dependencies phase so the orchestrator can be tested deterministically; new exported override helpers let both Go unit tests and orchestrator HTTP tests substitute fake executors without reaching into package internals | Extend this seam to other side-effecting helpers (e.g., filesystem probes, external executors) so future phases can be unit-tested without temp scripts |
-| `internal/orchestrator/{phases,workspace,requirements}` packages | Splits the monolithic `suite` package into explicit seams for runners, filesystem manifests, and requirements syncing so orchestration logic can evolve independently of queue/persistence code | ✅ All phase runners now live in `phases`, filesystem + config handling moved to `workspace`, and the Node requirements bridge lives in `requirements`; `suite` now consumes the orchestrator engine through interfaces | Rewire the CLI/bash shims to consume the Go orchestrator via these packages so we can delete duplicate logic in `scripts/scenarios/testing` |
+| Seam | Purpose | Implementation |
+|------|---------|----------------|
+| `SuiteOrchestrator` | Central test execution engine that runs phases sequentially | `internal/orchestrator/orchestrator.go` - Coordinates phase execution, collects results, triggers requirements sync |
+| `PhaseRunner` interface | Pluggable phase implementations | `internal/orchestrator/phases/` - Each phase (structure, dependencies, unit, integration, e2e, business, performance) implements the same interface |
+| `PhaseRegistry` | Declarative phase catalog with metadata | `internal/orchestrator/phases/catalog.go` - Defines ordering, timeouts, and phase categories |
+| `Workspace` | Scenario filesystem abstraction | `internal/orchestrator/workspace/` - Resolves paths, validates structure, loads configs |
 
-### Notes
+## Requirements System
 
-- The Go dependencies phase intentionally mirrors the expectations from `scripts/scenarios/testing/shell/dependencies.sh`: detect which runtimes a scenario needs, verify package managers, and report required resources from `.vrooli/service.json`.
-- Bash phase files still exist because the scenario’s own test suite invokes them directly. They now act as the “legacy seam”; the API is the forward-looking seam.
-
-## Scenario Test Harness
-
-| Seam | Purpose | Observations | Gap |
-|------|---------|--------------|-----|
-| `test/lib/orchestrator.sh` | Scenario-local bash orchestrator used by lifecycle `make test` | Still the entrypoint for lifecycle steps; mirrors CLI UX; provides feature parity for agents that have not switched to the API yet | Needs to call into the API (or the Go binary) once the other phases land so we only maintain logic in one place |
-| Phase scripts | Concrete assertions for structure/dependencies/... | Duplicated logic between bash and Go (structure + dependencies). Bash remains the oracle for lifecycle, Go for API | After Go parity lands for each phase, turn scripts into smoke proxies (call API endpoints) or remove them entirely |
+| Seam | Purpose | Implementation |
+|------|---------|----------------|
+| `requirements.Service` | Unified requirements operations | `internal/requirements/service.go` - Sync, report, validate operations |
+| `discovery.Scanner` | Requirement file enumeration | `internal/requirements/discovery/` - Finds and resolves requirement JSON files |
+| `parsing.Parser` | JSON parsing and normalization | `internal/requirements/parsing/` - Loads and normalizes requirement structures |
+| `evidence.Loader` | Test evidence aggregation | `internal/requirements/evidence/` - Loads phase results, vitest output, manual validations |
+| `enrichment.Enricher` | Live status computation | `internal/requirements/enrichment/` - Merges evidence with requirements |
+| `sync.Syncer` | File synchronization | `internal/requirements/sync/` - Updates requirement files with live status |
+| `reporting.Reporter` | Output generation | `internal/requirements/reporting/` - JSON, Markdown, trace formats |
 
 ## API Runtime & HTTP Surface
 
-| Seam | Purpose | Current Status | Next Steps |
-|------|---------|----------------|------------|
-| `runtime.LoadConfig` | Encapsulates lifecycle env parsing (ports, DB URL, scenarios root) so HTTP handlers never chase globals or stringly-typed paths | ✅ Lives in `internal/app/runtime` now; config resolution is completely isolated from the HTTP package and can be swapped for fixtures in tests | Accept overrides from CLI/test flags so we can spin up the server against temp DBs without exporting fake env vars |
-| `runtime.BuildDependencies` | Single bootstrap point for DB connections, schema migration, orchestrator wiring, and scenario directory repos | ✅ New runtime package returns a `Bootstrapped` struct so CLI/worker processes can reuse the same wiring without importing HTTP code | Split orchestration/bootstrap so the CLI can reuse the same seams when it migrates off `scripts/scenarios/testing` |
-| `httpserver.Dependencies` (`suiteRequestQueue` / `suite.ExecutionHistory` / `suiteExecutor` / `scenarioDirectory` / `phaseCatalog`) | Keeps the HTTP layer transport-focused and lets tests/integration harnesses swap concrete implementations without rewriting handlers | ✅ Server construction moved into `internal/app/httpserver`; tests now live beside the transport package and inject no-op loggers or fake repos as needed | Introduce adapters that proxy to the legacy bash runner so CLI consumers can switch to HTTP without waiting for every phase rewrite |
-| `httpserver.Logger` | Lets transport code write telemetry without binding to the global `log` package (critical when sharing the runner inside other processes) | ✅ Server defaults to `log.Default()` but accepts injected loggers so tests and future embedders can silence or redirect transport logging | Feed structured logs into the UI and CLI so queue/runner events show up without tailing files |
-| `suite.ExecutionHistoryService` | Converts DB-backed execution records into orchestrator payloads so HTTP/CLI callers never read persistence structs directly | ✅ HTTP now depends on the `ExecutionHistory` interface instead of the repository, and new tests stub the interface without touching sqlmock | Reuse the same seam when the CLI embeds the runner so bash components never need to import database types |
+| Seam | Purpose | Implementation |
+|------|---------|----------------|
+| `runtime.LoadConfig` | Environment/config parsing | `internal/app/config.go` - Isolated config resolution, testable without env vars |
+| `runtime.BuildDependencies` | Dependency injection bootstrap | `internal/app/dependencies.go` - Wires DB, orchestrator, services |
+| `httpserver.Dependencies` | HTTP handler dependencies | `internal/app/httpserver/` - Injects services via interfaces for testability |
+| `suite.ExecutionHistory` | Execution record abstraction | `internal/suite/` - Interface-based access to execution data |
 
-## Outstanding Opportunities
+## Phase Runners
 
-1. **Phase Registry Metadata** – The API hard-codes ordering weights. Capturing metadata (category, default timeout, dependency graph) in a declarative registry would let future scenarios extend phases without editing the orchestrator.
-2. **External Command Isolation** – The CLI/business phases still shell out aggressively. Porting them will require abstractions over process execution, filesystem writes, and network connectivity. Introduce seam structs (e.g., `type Commander interface { Run(ctx, cmd, args...) }`) before attempting large migrations.
-3. **Requirements Awareness** – Neither the Go nor bash orchestrators currently enforce `[REQ:ID]` tagging. Once the API can parse requirement registries it should block suites that drift from the registry layout.
+Each phase implements the `PhaseRunner` interface:
+
+```go
+type PhaseRunner interface {
+    Name() string
+    Run(ctx context.Context, workspace *Workspace, opts *RunOptions) (*PhaseResult, error)
+}
+```
+
+| Phase | File | Purpose |
+|-------|------|---------|
+| Structure | `phase_structure.go` | File/config validation |
+| Dependencies | `phase_dependencies.go` | Runtime/tool availability |
+| Unit | `phase_unit.go` | Go, Vitest, Python unit tests |
+| Integration | `phase_integration.go` | API/CLI connectivity |
+| E2E | `phase_playbooks.go` | BAS browser automation |
+| Business | `phase_business.go` | Requirements coverage |
+| Performance | `phase_performance.go` | Benchmarks |
+
+## Command Execution
+
+| Seam | Purpose | Implementation |
+|------|---------|----------------|
+| `CommandLookup` | OS command resolution | Allows stubbing command availability in tests |
+| `Executor` | Process execution | Abstracts shell-out operations for testability |
+
+## Extension Points
+
+### Adding a New Phase
+
+1. Implement `PhaseRunner` interface in `internal/orchestrator/phases/`
+2. Register in `catalog.go` with ordering weight
+3. Add timeout/config support in `.vrooli/testing.json` schema
+
+### Adding Evidence Sources
+
+1. Implement loader in `internal/requirements/evidence/`
+2. Register with `evidence.Loader` aggregator
+3. Add matcher rules in `enrichment/matcher.go`
+
+### Custom Reporting
+
+1. Implement renderer in `internal/requirements/reporting/`
+2. Add format option to `Reporter.Report()` method
+
+## Testing Strategy
+
+All seams are designed for testability:
+
+- **Interfaces**: Core components use interfaces for easy mocking
+- **Dependency injection**: No global state, all dependencies passed explicitly
+- **Command stubs**: OS interactions abstracted for deterministic tests
+- **Fixture support**: Config/workspace can be loaded from test fixtures
+
+## See Also
+
+- [Architecture](concepts/architecture.md) - System design overview
+- [Phase Catalog](reference/phase-catalog.md) - Phase definitions
+- [API Endpoints](reference/api-endpoints.md) - REST API reference

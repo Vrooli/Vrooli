@@ -363,9 +363,13 @@ Before considering a scenario test-ready:
 ### Related Guides
 - [Requirements Sync](requirements-sync.md) - Automatic requirement tracking
 - [Scenario Unit Testing](scenario-unit-testing.md) - Writing effective unit tests
+- [Performance Testing](performance-testing.md) - Build benchmarks and Lighthouse audits
+- [Custom Presets](custom-presets.md) - Create tailored presets for CI/CD
+- [Dashboard Guide](dashboard-guide.md) - Using the web UI
 - [CLI Testing](cli-testing.md) - BATS testing for CLIs
 - [UI Testability](ui-testability.md) - Design testable UIs
 - [Sync Execution](sync-execution.md) - API usage for CI/CD
+- [Troubleshooting](troubleshooting.md) - Debug common issues
 
 ### Reference
 - [Phase Catalog](../reference/phase-catalog.md) - Detailed phase definitions
