@@ -155,14 +155,17 @@ export default defineConfig({
 ```
 
 ### Phase Helpers
-Shell library functions for phase lifecycle management (`scripts/scenarios/testing/shell/phase-helpers.sh`):
+
+> **Note**: Phase helpers are now implemented in Go within the test-genie orchestrator. The bash shell functions below are deprecated.
+
+**Current (Go-Native)**: Phase lifecycle is managed by `api/orchestrator/phases/` with typed `PhaseRunner` interfaces.
+
+**Legacy (Deprecated)**: Shell library functions that were in `scripts/scenarios/testing/shell/phase-helpers.sh`:
 - `testing::phase::init` - Initialize phase, load expected requirements
 - `testing::phase::add_requirement` - Record requirement validation result
 - `testing::phase::add_test` - Track test execution
 - `testing::phase::end_with_summary` - Complete phase with results
 - `testing::phase::run_bas_automation_validations` - Execute BAS workflows
-
-Source in phase scripts: `source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"`
 
 ### Requirements Registry
 Structured JSON file(s) mapping PRD requirements to technical validations (stored in the `requirements/` directory with imports).
@@ -216,7 +219,8 @@ Registry includes metadata, requirement definitions, validation entries, and par
 ### Scripts
 - `scripts/requirements/report.js` - Requirement reporting and sync tool
 - `scripts/requirements/validate.js` - Registry schema validation
-- `scripts/scenarios/testing/` - Shared testing libraries and helpers
+
+> **Note**: The legacy `scripts/scenarios/testing/` bash libraries are deprecated. Test orchestration is now handled by the Go-native test-genie API.
 
 ## Common Commands
 

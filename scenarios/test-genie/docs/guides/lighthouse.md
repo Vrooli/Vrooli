@@ -7,6 +7,8 @@
 
 Complete guide to integrating Lighthouse performance and accessibility testing into Vrooli scenarios.
 
+> **Note**: Lighthouse testing is executed through the Go-native test-genie orchestrator during the performance phase. Configuration is done via `.vrooli/lighthouse.json` in your scenario.
+
 ## Overview
 
 Lighthouse testing provides automated auditing of:
@@ -33,32 +35,9 @@ Lighthouse testing provides automated auditing of:
 2. **Chrome/Chromium** browser installed
 3. **Scenario with UI** component
 
-### Step 1: Install Lighthouse Dependencies
+### Step 1: Create Lighthouse Configuration
 
-```bash
-cd scripts/scenarios/testing/lighthouse
-npm install
-```
-
-### Step 2: Initialize Lighthouse for Your Scenario
-
-```bash
-cd scenarios/your-scenario
-../../scripts/scenarios/testing/lighthouse/config.sh init .
-```
-
-This creates:
-```
-scenarios/your-scenario/
-├── .vrooli/
-│   └── lighthouse.json     # Page definitions and thresholds
-├── test/artifacts/lighthouse/  # Report output directory
-└── .gitignore              # Updated to exclude reports
-```
-
-### Step 3: Configure Pages to Test
-
-Edit `.vrooli/lighthouse.json`:
+Create `.vrooli/lighthouse.json` in your scenario directory:
 
 ```json
 {

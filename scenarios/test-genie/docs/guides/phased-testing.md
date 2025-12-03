@@ -4,9 +4,9 @@ This guide explains Vrooli's comprehensive phased testing architecture and how t
 
 ## Overview
 
-Vrooli uses a **6-phase testing architecture** that progressively validates scenarios from basic structure through performance benchmarks. Test Genie orchestrates these phases through its Go-native API.
+Vrooli uses a **7-phase testing architecture** that progressively validates scenarios from basic structure through performance benchmarks. Test Genie orchestrates these phases through its Go-native API.
 
-## The 6-Phase Architecture
+## The 7-Phase Architecture
 
 ```mermaid
 graph TB
@@ -17,9 +17,10 @@ graph TB
     end
 
     subgraph "Runtime Phases (Scenario Running)"
-        P4[Phase 4: Integration<br/>120s<br/>API, UI, resources]
-        P5[Phase 5: Business<br/>180s<br/>Workflows & journeys]
-        P6[Phase 6: Performance<br/>60s<br/>Benchmarks & load]
+        P4[Phase 4: Integration<br/>120s<br/>API, CLI, BATS]
+        P5[Phase 5: E2E<br/>120s<br/>BAS browser automation]
+        P6[Phase 6: Business<br/>180s<br/>Requirements & coverage]
+        P7[Phase 7: Performance<br/>60s<br/>Benchmarks & load]
     end
 
     P1 --> P2
@@ -27,13 +28,15 @@ graph TB
     P3 --> P4
     P4 --> P5
     P5 --> P6
+    P6 --> P7
 
     style P1 fill:#fff3e0
     style P2 fill:#f3e5f5
     style P3 fill:#e8f5e9
     style P4 fill:#fff9c4
-    style P5 fill:#ffe0b2
-    style P6 fill:#f8bbd0
+    style P5 fill:#e1f5fe
+    style P6 fill:#ffe0b2
+    style P7 fill:#f8bbd0
 ```
 
 | Phase | Timeout | Purpose | Requires Runtime |
@@ -41,9 +44,10 @@ graph TB
 | **Structure** | 15s | Validate files and configuration | No |
 | **Dependencies** | 30s | Check tools and resources | No |
 | **Unit** | 60s | Run unit tests (Go, Node, Python) | No |
-| **Integration** | 120s | Test API/UI connectivity | Yes |
-| **Business** | 180s | Validate end-to-end workflows | Yes |
-| **Performance** | 60s | Run benchmarks | Yes |
+| **Integration** | 120s | Test API endpoints and CLI commands | Yes |
+| **E2E** | 120s | Execute BAS browser automation workflows | Yes |
+| **Business** | 180s | Validate requirements coverage | Yes |
+| **Performance** | 60s | Run benchmarks (optional) | Yes |
 
 See [Phase Catalog](../reference/phase-catalog.md) for detailed phase definitions.
 
@@ -68,7 +72,7 @@ test-genie execute my-scenario --preset comprehensive
 |--------|--------|----------|
 | **Quick** | Structure, Unit | Fast feedback during development |
 | **Smoke** | Structure, Dependencies, Unit, Integration | Pre-push validation |
-| **Comprehensive** | All 6 phases | Full coverage before release |
+| **Comprehensive** | All 7 phases | Full coverage before release |
 
 See [Presets Reference](../reference/presets.md) for detailed preset definitions.
 

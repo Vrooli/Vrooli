@@ -1,15 +1,18 @@
 # Workflow Runner Reference
 
-**Status**: Active
+> **⚠️ DEPRECATED**: This document describes the legacy bash-based workflow runner. BAS workflows are now executed through the Go-native test-genie orchestrator during the business phase. See [UI Automation with BAS](../guides/ui-automation-with-bas.md) for the current approach.
+
+**Status**: Deprecated (Legacy Reference)
 **Last Updated**: 2025-12-02
+**Superseded By**: Go-native orchestrator in `api/orchestrator/phases/business.go`
 
 ---
 
-This document describes the generic workflow runner infrastructure that allows any scenario to define Browser Automation Studio workflow JSON files and have them automatically executed for UI/integration testing.
+This document describes the legacy workflow runner infrastructure. For new development, use the test-genie API or CLI to execute BAS workflows.
 
-## Overview
+## Overview (Legacy)
 
-The `workflow-runner.sh` script provides a universal interface for running BAS workflows from any scenario's test suite. It handles:
+The deprecated `workflow-runner.sh` script provided a universal interface for running BAS workflows. This functionality is now handled by:
 
 - Workflow execution via browser-automation-studio API
 - Runtime workflow validation (schema, structure, selectors)

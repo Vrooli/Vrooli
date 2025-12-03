@@ -280,8 +280,19 @@ func (p *Printer) printPhaseProgress(phasesData []execTypes.Phase) {
 		// Show any observations from the phase
 		if len(phase.Observations) > 0 {
 			for _, obs := range phase.Observations {
-				if obs = strings.TrimSpace(obs); obs != "" {
-					fmt.Fprintf(p.w, "%s %s\n", p.color.Green("✅"), obs)
+				text := strings.TrimSpace(obs.String())
+				if text == "" {
+					continue
+				}
+				if obs.IsSection() {
+					// Section headers get a blank line before them for visual grouping
+					fmt.Fprintf(p.w, "\n%s\n", text)
+				} else if obs.Prefix != "" {
+					// Prefixed observations already include status icon via String()
+					fmt.Fprintf(p.w, "%s\n", text)
+				} else {
+					// Plain observations get a checkmark
+					fmt.Fprintf(p.w, "%s %s\n", p.color.Green("✅"), text)
 				}
 			}
 		}

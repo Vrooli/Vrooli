@@ -62,30 +62,43 @@ func runStructurePhase(ctx context.Context, env workspace.Environment, logWriter
 	}
 
 	requiredDirs, requiredFiles := resolveStructureRequirements(env.ScenarioName, expectations)
-	var observations []string
+	var observations []Observation
 
+	// Section: Scenario Structure
+	observations = append(observations, NewSectionObservation("🏗️", "Validating scenario structure..."))
+
+	// Section: Directories
+	observations = append(observations, NewSectionObservation("🔍", "Checking required directories..."))
 	logPhaseInfo(logWriter, "Checking required directories...")
 	if report := validateStructureDirs(env.ScenarioDir, requiredDirs, logWriter); report.Err != nil {
 		return report
 	}
 	logPhaseSuccess(logWriter, "All required directories present (%d)", len(requiredDirs))
-	observations = append(observations, fmt.Sprintf("directories validated: %d", len(requiredDirs)))
+	observations = append(observations, NewSuccessObservation(fmt.Sprintf("All required directories present (%d checked)", len(requiredDirs))))
 
+	// Section: Files
+	observations = append(observations, NewSectionObservation("🔍", "Checking required files..."))
 	logPhaseInfo(logWriter, "Checking required files...")
 	if report := validateStructureFiles(env.ScenarioDir, requiredFiles, logWriter); report.Err != nil {
 		return report
 	}
 	logPhaseSuccess(logWriter, "All required files present (%d)", len(requiredFiles))
-	observations = append(observations, fmt.Sprintf("files validated: %d", len(requiredFiles)))
+	observations = append(observations, NewSuccessObservation(fmt.Sprintf("All required files present (%d checked)", len(requiredFiles))))
 
+	// Section: Service Manifest
+	observations = append(observations, NewSectionObservation("📋", "Validating service manifest..."))
 	logPhaseInfo(logWriter, "Validating service manifest...")
 	manifestPath := filepath.Join(env.ScenarioDir, ".vrooli", "service.json")
 	if result := validateServiceManifest(manifestPath, env.ScenarioName, logWriter, expectations); result.Err != nil {
 		return result
 	}
 	logPhaseSuccess(logWriter, "service.json validated")
+	observations = append(observations, NewSuccessObservation("service.json name matches scenario directory"))
+	observations = append(observations, NewSuccessObservation("Health checks defined"))
 
+	// Section: JSON Validation
 	if expectations.ValidateJSONFiles {
+		observations = append(observations, NewSectionObservation("📄", "Validating JSON files..."))
 		logPhaseInfo(logWriter, "Validating JSON files...")
 		jsonCount, invalidFiles, err := scanScenarioJSON(env.ScenarioDir)
 		if err != nil {
@@ -107,19 +120,26 @@ func runStructurePhase(ctx context.Context, env workspace.Environment, logWriter
 			}
 		}
 		logPhaseSuccess(logWriter, "All JSON files valid (%d)", jsonCount)
-		observations = append(observations, fmt.Sprintf("json files validated: %d", jsonCount))
+		observations = append(observations, NewSuccessObservation(fmt.Sprintf("All JSON files are valid (%d checked)", jsonCount)))
 	}
 
+	// Section: UI Smoke Test
+	observations = append(observations, NewSectionObservation("🌐", "Running UI smoke test..."))
 	logPhaseInfo(logWriter, "Checking UI smoke telemetry...")
 	if uiObservation, failure := enforceUISmokeTelemetry(ctx, env, logWriter); failure != nil {
 		failure.Observations = append(failure.Observations, observations...)
 		return *failure
 	} else if uiObservation != "" {
 		logPhaseSuccess(logWriter, "%s", uiObservation)
-		observations = append(observations, uiObservation)
+		observations = append(observations, NewSuccessObservation(uiObservation))
 	} else {
 		logPhaseStep(logWriter, "UI smoke telemetry not configured (skipped)")
+		observations = append(observations, NewObservation("UI smoke telemetry not configured (skipped)"))
 	}
+
+	// Final summary
+	totalChecks := len(requiredDirs) + len(requiredFiles) + 2 // +2 for manifest checks
+	observations = append(observations, Observation{Icon: "✅", Text: fmt.Sprintf("Structure validation completed (%d checks)", totalChecks)})
 
 	logPhaseSuccess(logWriter, "Structure validation complete")
 	return RunReport{Observations: observations}

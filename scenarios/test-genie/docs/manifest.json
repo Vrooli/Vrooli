@@ -30,7 +30,7 @@
       "icon": "book",
       "description": "In-depth guides for testing workflows",
       "documents": [
-        { "path": "guides/phased-testing.md", "title": "Phased Testing", "description": "Understanding the 6-phase testing architecture" },
+        { "path": "guides/phased-testing.md", "title": "Phased Testing", "description": "Understanding the 7-phase testing architecture" },
         { "path": "guides/test-generation.md", "title": "Test Generation", "description": "AI-powered test generation with Test Genie" },
         { "path": "guides/requirements-sync.md", "title": "Requirements Sync", "description": "Automatic requirement tracking from tests" },
         { "path": "guides/scenario-unit-testing.md", "title": "Scenario Unit Testing", "description": "Unit testing for Go, Node.js, Python scenarios" },

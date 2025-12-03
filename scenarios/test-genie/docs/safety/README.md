@@ -24,15 +24,10 @@ Before committing test scripts:
 1. **NEVER** use unguarded `rm` commands in test scripts
 2. **ALWAYS** validate variables before file operations
 3. **SET** critical variables before skip conditions in BATS
-4. **USE** the safe templates from `/scripts/scenarios/testing/templates/`
-5. **RUN** the safety linter before committing test scripts
+4. **PREFER** Go tests over bash scripts for new development
+5. **REVIEW** shell scripts carefully before committing
 
-## Safety Linter
-
-```bash
-# Check your test scripts for dangerous patterns
-scripts/scenarios/testing/lint-tests.sh test/
-```
+> **Note**: For new development, prefer Go tests which have safer patterns. Shell scripts are still used for CLI testing (BATS) but require extra care.
 
 ---
 

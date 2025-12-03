@@ -21,7 +21,7 @@ func runDependenciesPhase(ctx context.Context, env workspace.Environment, logWri
 		return RunReport{Err: err, FailureClassification: FailureClassSystem}
 	}
 
-	var observations []string
+	var observations []Observation
 	tracker := &missingDependencyTracker{}
 
 	checkCommand := func(name, reason string) {
@@ -31,7 +31,7 @@ func runDependenciesPhase(ctx context.Context, env workspace.Environment, logWri
 			return
 		}
 		logPhaseStep(logWriter, "command verified: %s", name)
-		observations = append(observations, fmt.Sprintf("command available: %s", name))
+		observations = append(observations, NewSuccessObservation(fmt.Sprintf("command available: %s", name)))
 	}
 
 	for _, cmd := range baselineCommands {
@@ -41,7 +41,7 @@ func runDependenciesPhase(ctx context.Context, env workspace.Environment, logWri
 	runtimes := detectRuntimes(env)
 	if len(runtimes) == 0 {
 		logPhaseWarn(logWriter, "no language runtimes detected for this scenario")
-		observations = append(observations, "no runtime-specific checks detected")
+		observations = append(observations, NewObservation("no runtime-specific checks detected"))
 	}
 	for _, runtime := range runtimes {
 		checkCommand(runtime, fmt.Sprintf("%s runtime required to compile or test scenario code", runtime))
@@ -62,9 +62,9 @@ func runDependenciesPhase(ctx context.Context, env workspace.Environment, logWri
 		checkCommand(manager, fmt.Sprintf("%s package manager required to install JavaScript dependencies", manager))
 	}
 	if len(managers) == 0 && nodeWorkspace {
-		observations = append(observations, "JavaScript workspace detected but package manager requirement defaulted to pnpm")
+		observations = append(observations, NewObservation("JavaScript workspace detected but package manager requirement defaulted to pnpm"))
 	} else if len(managers) == 0 {
-		observations = append(observations, "no JavaScript package managers required")
+		observations = append(observations, NewObservation("no JavaScript package managers required"))
 	}
 
 	requiredResources, err := reportResourceExpectations(env, logWriter)
@@ -77,10 +77,10 @@ func runDependenciesPhase(ctx context.Context, env workspace.Environment, logWri
 		}
 	}
 	if len(requiredResources) == 0 {
-		observations = append(observations, "manifest declares no required resources")
+		observations = append(observations, NewObservation("manifest declares no required resources"))
 	} else {
 		for _, resource := range requiredResources {
-			observations = append(observations, fmt.Sprintf("requires resource: %s", resource))
+			observations = append(observations, NewObservation(fmt.Sprintf("requires resource: %s", resource)))
 		}
 	}
 
@@ -268,20 +268,20 @@ func dedupeStrings(values []string) []string {
 	return result
 }
 
-func enforceResourceTelemetry(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]string, *RunReport) {
+func enforceResourceTelemetry(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]Observation, *RunReport) {
 	status, err := fetchScenarioStatus(ctx, env, logWriter)
 	if err != nil {
 		logPhaseWarn(logWriter, "resource telemetry unavailable: %v", err)
 		return nil, nil
 	}
-	var observations []string
+	var observations []Observation
 	var failures []string
 	for _, resource := range status.Insights.Resources.Items {
 		if !resource.Required {
 			continue
 		}
 		if resource.Running && resource.Healthy {
-			observations = append(observations, fmt.Sprintf("resource healthy: %s", resource.Name))
+			observations = append(observations, NewSuccessObservation(fmt.Sprintf("resource healthy: %s", resource.Name)))
 			continue
 		}
 		failures = append(failures, fmt.Sprintf("%s (running=%t healthy=%t)", resource.Name, resource.Running, resource.Healthy))

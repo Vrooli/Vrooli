@@ -148,7 +148,7 @@ Browser Automation Studio (BAS) enables **declarative UI testing** through JSON 
 ## Workflow Stories & Registry Order
 
 - Prefix every folder under `test/playbooks/` with a two-digit ordinal (e.g., `01-foundation`, `02-builder`)
-- After editing or moving a workflow, regenerate the registry: `node scripts/scenarios/testing/playbooks/build-registry.mjs --scenario <path>`
+- After editing or moving a workflow, regenerate the registry using the playbook build script
 - `metadata.reset` (`none`, `full`) tells the runner when to reseed
 
 ## Node Types Reference
@@ -337,26 +337,23 @@ Nodes can include a `resilience` object for retries and readiness checks:
 - Use canonical layout: `capabilities/<operational-target>/<surface>/`
 - Keep `test/playbooks/README.md` describing how folders tie back to requirements
 
-## Execution Helper
+## Execution
 
-Use the shared helper:
+BAS workflows are executed through test-genie's Go orchestrator during the business phase:
 
+**Via CLI:**
 ```bash
-source "${APP_ROOT}/scripts/scenarios/testing/playbooks/browser-automation-studio.sh"
-
-if testing::playbooks::bas::run_workflow \
-    --file "test/playbooks/capabilities/03-execution/telemetry-smoke.json" \
-    --scenario "browser-automation-studio"; then
-  testing::phase::add_requirement --id BAS-EXEC-TELEMETRY --status passed \
-    --evidence "Telemetry workflow executed"
-fi
+test-genie execute my-scenario --preset comprehensive
 ```
 
-Or allow the phase helper to execute all validated workflows automatically:
-
+**Via API:**
 ```bash
-testing::phase::run_bas_automation_validations --scenario "$SCENARIO_NAME"
+curl -X POST "http://localhost:${API_PORT}/api/v1/test-suite/my-scenario/execute-sync" \
+  -H "Content-Type: application/json" \
+  -d '{"preset": "comprehensive"}'
 ```
+
+The business phase automatically discovers and executes workflows defined in `test/playbooks/` with `automation` validation types.
 
 ## Requirements Integration
 

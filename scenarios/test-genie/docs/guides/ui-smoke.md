@@ -9,6 +9,8 @@
 
 UI smoke testing validates that a scenario's UI is accessible, renders correctly, and has no critical JavaScript errors. It runs during the **structure** phase as a fast sanity check before deeper testing.
 
+> **Note**: UI smoke testing is now executed through the Go-native orchestrator. The bash shell library references in the integration section below are deprecated and retained for historical context only.
+
 ## Quick Start
 
 ### Enable UI Smoke Testing

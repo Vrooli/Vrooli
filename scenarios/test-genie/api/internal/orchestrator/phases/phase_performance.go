@@ -22,7 +22,7 @@ func runPerformancePhase(ctx context.Context, env workspace.Environment, logWrit
 		return RunReport{Err: err, FailureClassification: FailureClassSystem}
 	}
 
-	var observations []string
+	var observations []Observation
 	goObs, goFailure := benchmarkGoBuild(ctx, env, logWriter)
 	if goFailure != nil {
 		goFailure.Observations = append(goFailure.Observations, observations...)
@@ -38,14 +38,14 @@ func runPerformancePhase(ctx context.Context, env workspace.Environment, logWrit
 		}
 		observations = append(observations, uiObs...)
 	} else {
-		observations = append(observations, "ui workspace not detected")
+		observations = append(observations, NewObservation("ui workspace not detected"))
 	}
 
 	logPhaseStep(logWriter, "performance validation complete")
 	return RunReport{Observations: observations}
 }
 
-func benchmarkGoBuild(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]string, *RunReport) {
+func benchmarkGoBuild(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]Observation, *RunReport) {
 	if err := EnsureCommandAvailable("go"); err != nil {
 		return nil, &RunReport{
 			Err:                   err,
@@ -87,7 +87,7 @@ func benchmarkGoBuild(ctx context.Context, env workspace.Environment, logWriter 
 	duration := time.Since(start)
 	seconds := int(duration.Round(time.Second) / time.Second)
 	logPhaseStep(logWriter, "go build completed in %ds", seconds)
-	observations := []string{fmt.Sprintf("go build duration: %ds", seconds)}
+	observations := []Observation{NewSuccessObservation(fmt.Sprintf("go build duration: %ds", seconds))}
 
 	if duration > performanceMaxDuration {
 		return nil, &RunReport{
@@ -100,10 +100,10 @@ func benchmarkGoBuild(ctx context.Context, env workspace.Environment, logWriter 
 	return observations, nil
 }
 
-func benchmarkUIBuild(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]string, *RunReport) {
+func benchmarkUIBuild(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]Observation, *RunReport) {
 	nodeDir := detectNodeWorkspaceDir(env.ScenarioDir)
 	if nodeDir == "" {
-		return []string{"ui workspace not detected"}, nil
+		return []Observation{NewObservation("ui workspace not detected")}, nil
 	}
 
 	manifest, err := loadPackageManifest(filepath.Join(nodeDir, "package.json"))
@@ -119,7 +119,7 @@ func benchmarkUIBuild(ctx context.Context, env workspace.Environment, logWriter 
 		buildScript = manifest.Scripts["build"]
 	}
 	if buildScript == "" {
-		return []string{"ui workspace lacks build script"}, nil
+		return []Observation{NewObservation("ui workspace lacks build script")}, nil
 	}
 
 	manager := detectPackageManager(manifest, nodeDir)
@@ -151,7 +151,7 @@ func benchmarkUIBuild(ctx context.Context, env workspace.Environment, logWriter 
 	duration := time.Since(start)
 	seconds := int(duration.Round(time.Second) / time.Second)
 	logPhaseStep(logWriter, "ui build completed in %ds", seconds)
-	observations := []string{fmt.Sprintf("ui build duration: %ds", seconds)}
+	observations := []Observation{NewSuccessObservation(fmt.Sprintf("ui build duration: %ds", seconds))}
 	if duration > uiBuildMaxDuration {
 		return nil, &RunReport{
 			Err:                   fmt.Errorf("ui build exceeded %s (took %s)", uiBuildMaxDuration, duration),

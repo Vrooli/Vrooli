@@ -4,9 +4,16 @@
 
 test-genie is a Vrooli scenario that **automatically generates comprehensive test suites** for scenarios, resources, and system components. It eliminates the manual effort of test creation while ensuring high coverage and quality, allowing AI agents and developers to focus on implementation rather than test authoring.
 
-**Status**: Active scenario with delegation-based generation
+**Status**: Active - Core orchestration complete, AI generation in development
 **Coverage Target**: 95%+ automated coverage
 **Integration**: Connects to App Issue Tracker for asynchronous test generation
+
+> **Implementation Status**:
+> - ✅ Test execution via CLI and API (fully functional)
+> - ✅ Phase orchestration (all 6 phases in Go)
+> - ✅ Requirements sync from `[REQ:ID]` tags
+> - 🔄 AI-powered test generation (delegation to App Issue Tracker)
+> - 🔄 Coverage gap analysis with AI recommendations
 
 ## What is test-genie?
 

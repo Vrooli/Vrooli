@@ -43,7 +43,7 @@ func runBusinessPhase(ctx context.Context, env workspace.Environment, logWriter 
 		return RunReport{Err: err, FailureClassification: FailureClassSystem}
 	}
 
-	var observations []string
+	var observations []Observation
 	requirementsDir := filepath.Join(env.ScenarioDir, "requirements")
 	if err := workspace.EnsureDir(requirementsDir); err != nil {
 		return RunReport{
@@ -53,7 +53,7 @@ func runBusinessPhase(ctx context.Context, env workspace.Environment, logWriter 
 		}
 	}
 	logPhaseStep(logWriter, "requirements directory validated: %s", requirementsDir)
-	observations = append(observations, "requirements registry found")
+	observations = append(observations, NewSuccessObservation("requirements registry found"))
 
 	indexPath := filepath.Join(requirementsDir, "index.json")
 	if err := workspace.EnsureFile(indexPath); err != nil {
@@ -90,7 +90,7 @@ func runBusinessPhase(ctx context.Context, env workspace.Environment, logWriter 
 			return RunReport{Err: err, FailureClassification: FailureClassSystem}
 		}
 		logPhaseStep(logWriter, "validating module %s", module.Name)
-		observations = append(observations, fmt.Sprintf("module detected: %s", module.Name))
+		observations = append(observations, NewObservation(fmt.Sprintf("module detected: %s", module.Name)))
 		if err := tracker.Audit(module); err != nil {
 			return RunReport{
 				Err:                   err,
@@ -111,7 +111,7 @@ func runBusinessPhase(ctx context.Context, env workspace.Environment, logWriter 
 	}
 
 	logPhaseStep(logWriter, "business validation complete")
-	observations = append(observations, fmt.Sprintf("modules validated: %d", len(modules)))
+	observations = append(observations, NewSuccessObservation(fmt.Sprintf("modules validated: %d", len(modules))))
 	return RunReport{Observations: observations}
 }
 

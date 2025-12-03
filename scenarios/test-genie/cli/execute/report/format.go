@@ -97,15 +97,15 @@ func DescribeLogPath(path string) string {
 	}
 }
 
-// CleanObservations filters empty observations.
-func CleanObservations(obs []string) []string {
+// CleanObservations filters empty observations and returns formatted strings.
+func CleanObservations(obs execTypes.ObservationList) []string {
 	var cleaned []string
 	for _, o := range obs {
-		o = strings.TrimSpace(o)
-		if o == "" {
+		text := strings.TrimSpace(o.String())
+		if text == "" {
 			continue
 		}
-		cleaned = append(cleaned, o)
+		cleaned = append(cleaned, text)
 	}
 	return cleaned
 }

@@ -1,17 +1,47 @@
 # Testing Infrastructure
 
-**Status**: Active
+**Status**: Active (Migrated to Go-Native)
 **Last Updated**: 2025-12-02
 
 ---
 
 ## Overview
 
-This document describes the testing infrastructure components used by Test Genie to execute and manage tests across Vrooli scenarios. It covers the BATS framework, shell libraries, stub utilities, and directory conventions.
+This document describes the testing infrastructure components used by Test Genie to execute and manage tests across Vrooli scenarios.
+
+> **Architecture Note**: Test Genie now uses a **Go-native orchestrator** for all test phases. The legacy bash infrastructure documented in some sections below is retained for historical reference only. See [Architecture](architecture.md) for the current Go-based design.
+
+### Current Architecture (Go-Native)
+
+Test Genie's orchestrator is implemented entirely in Go:
+
+```
+api/
+├── orchestrator/           # Test orchestration engine
+│   ├── phases/            # Phase runners (structure, unit, etc.)
+│   ├── requirements/      # Requirements sync engine
+│   └── workspace.go       # Scenario workspace management
+├── execution/             # Execution history and tracking
+├── queue/                 # Suite request queue
+└── scenarios/             # Scenario catalog and discovery
+```
+
+**Key Benefits of Go-Native:**
+- No external bash dependencies
+- Typed interfaces for all phases
+- Structured logging and error handling
+- Direct API/CLI integration
+- Portable across environments
+
+### Legacy Infrastructure (Deprecated)
+
+The sections below document BATS and bash shell libraries that were used before the Go migration. These are kept for historical reference but **should not be used for new development**.
 
 ---
 
-## BATS Framework
+## Legacy: BATS Framework
+
+> **⚠️ DEPRECATED**: BATS is still used for CLI testing in some scenarios but the shell testing infrastructure has been replaced by Go. For new CLI tests, consider writing Go tests instead.
 
 [BATS (Bash Automated Testing System)](https://github.com/bats-core/bats-core) is the standard framework for testing CLI tools and shell scripts in Vrooli.
 
@@ -115,9 +145,11 @@ load '../node_modules/bats-assert/load'
 
 ---
 
-## Shell Testing Libraries
+## Legacy: Shell Testing Libraries
 
-Test Genie provides shell libraries for common testing operations.
+> **⚠️ DEPRECATED**: These shell libraries have been replaced by Go implementations. See [Architecture](architecture.md) for the Go-native approach. This section is retained for historical reference only.
+
+Test Genie previously provided shell libraries for common testing operations.
 
 ### Directory Structure
 
@@ -171,9 +203,11 @@ testing::dependencies::validate_all --scenario "$scenario_name"
 
 ---
 
-## Binary Stub Framework
+## Legacy: Binary Stub Framework
 
-The stub framework allows testing CLI tools without external dependencies.
+> **⚠️ DEPRECATED**: For Go tests, use standard Go mocking patterns (interfaces, testify/mock). This bash stub framework is retained for historical reference.
+
+The stub framework was used for testing CLI tools without external dependencies.
 
 ### Purpose
 
@@ -304,9 +338,11 @@ coverage/
 
 ---
 
-## Phase Scripts
+## Legacy: Phase Scripts
 
-### Template
+> **⚠️ DEPRECATED**: Phase scripts are now implemented in Go. See `api/orchestrator/phases/` for the current implementation. Bash phase scripts are no longer needed.
+
+### Legacy Template (Historical Reference)
 
 ```bash
 #!/bin/bash

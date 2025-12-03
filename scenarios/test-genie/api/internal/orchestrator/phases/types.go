@@ -45,10 +45,95 @@ type Descriptor struct {
 	DefaultTimeoutSeconds int    `json:"defaultTimeoutSeconds,omitempty"`
 }
 
+// Observation represents a single test observation with optional rich formatting.
+// When marshaled to JSON, if only Text is set, it produces a simple string for backwards compat.
+type Observation struct {
+	Icon    string `json:"icon,omitempty"`    // Emoji indicator (🔍, 🏗️, 🔗, 🧪, etc.)
+	Prefix  string `json:"prefix,omitempty"`  // Status prefix (SUCCESS, WARNING, ERROR)
+	Section string `json:"section,omitempty"` // Section header for grouping
+	Text    string `json:"text"`              // The actual observation message
+}
+
+// NewObservation creates a simple text observation.
+func NewObservation(text string) Observation {
+	return Observation{Text: text}
+}
+
+// NewSectionObservation creates a section header observation.
+func NewSectionObservation(icon, section string) Observation {
+	return Observation{Icon: icon, Section: section}
+}
+
+// NewSuccessObservation creates a success observation.
+func NewSuccessObservation(text string) Observation {
+	return Observation{Prefix: "SUCCESS", Text: text}
+}
+
+// NewWarningObservation creates a warning observation.
+func NewWarningObservation(text string) Observation {
+	return Observation{Prefix: "WARNING", Text: text}
+}
+
+// NewErrorObservation creates an error observation.
+func NewErrorObservation(text string) Observation {
+	return Observation{Prefix: "ERROR", Text: text}
+}
+
+// String returns the observation as a formatted string for logging.
+func (o Observation) String() string {
+	var parts []string
+	if o.Section != "" {
+		if o.Icon != "" {
+			parts = append(parts, o.Icon+" "+o.Section)
+		} else {
+			parts = append(parts, o.Section)
+		}
+	}
+	if o.Text != "" {
+		prefix := ""
+		if o.Prefix != "" {
+			switch o.Prefix {
+			case "SUCCESS":
+				prefix = "[SUCCESS] ✅ "
+			case "WARNING":
+				prefix = "[WARNING] ⚠️ "
+			case "ERROR":
+				prefix = "[ERROR] ❌ "
+			default:
+				prefix = "[" + o.Prefix + "] "
+			}
+		}
+		parts = append(parts, prefix+o.Text)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return parts[0]
+}
+
+// StringsToObservations converts a slice of strings to observations.
+// This is a convenience function for phases that don't need rich formatting.
+func StringsToObservations(strs []string) []Observation {
+	obs := make([]Observation, len(strs))
+	for i, s := range strs {
+		obs[i] = NewObservation(s)
+	}
+	return obs
+}
+
+// ObservationsToStrings converts observations to strings for backwards compatibility.
+func ObservationsToStrings(obs []Observation) []string {
+	strs := make([]string, len(obs))
+	for i, o := range obs {
+		strs[i] = o.String()
+	}
+	return strs
+}
+
 // RunReport captures per-phase execution context that a runner returns.
 type RunReport struct {
 	Err                   error
-	Observations          []string
+	Observations          []Observation
 	FailureClassification string
 	Remediation           string
 }
@@ -77,14 +162,14 @@ type Spec struct {
 
 // ExecutionResult captures per-phase outcome information.
 type ExecutionResult struct {
-	Name            string   `json:"name"`
-	Status          string   `json:"status"`
-	DurationSeconds int      `json:"durationSeconds"`
-	LogPath         string   `json:"logPath"`
-	Error           string   `json:"error,omitempty"`
-	Classification  string   `json:"classification,omitempty"`
-	Remediation     string   `json:"remediation,omitempty"`
-	Observations    []string `json:"observations,omitempty"`
+	Name            string        `json:"name"`
+	Status          string        `json:"status"`
+	DurationSeconds int           `json:"durationSeconds"`
+	LogPath         string        `json:"logPath"`
+	Error           string        `json:"error,omitempty"`
+	Classification  string        `json:"classification,omitempty"`
+	Remediation     string        `json:"remediation,omitempty"`
+	Observations    []Observation `json:"observations,omitempty"`
 }
 
 // NormalizeName standardizes arbitrary input into a canonical Name.

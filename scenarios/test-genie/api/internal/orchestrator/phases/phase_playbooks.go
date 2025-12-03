@@ -73,13 +73,13 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 	if os.Getenv("TEST_GENIE_SKIP_PLAYBOOKS") == "1" {
 		message := "playbooks phase disabled via TEST_GENIE_SKIP_PLAYBOOKS"
 		logPhaseWarn(logWriter, message)
-		return RunReport{Observations: []string{message}}
+		return RunReport{Observations: []Observation{NewObservation(message)}}
 	}
 
 	if !scenarioHasUI(env.ScenarioDir) {
 		message := "ui/ directory missing; skipping UI workflow validation"
 		logPhaseWarn(logWriter, message)
-		return RunReport{Observations: []string{message}}
+		return RunReport{Observations: []Observation{NewObservation(message)}}
 	}
 
 	registry, err := loadPlaybookRegistry(env.TestDir)
@@ -94,7 +94,7 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 	if len(playbooks) == 0 {
 		message := "no workflows registered under test/playbooks/"
 		logPhaseWarn(logWriter, message)
-		return RunReport{Observations: []string{message}}
+		return RunReport{Observations: []Observation{NewObservation(message)}}
 	}
 
 	apiBase, err := ensureBASAPI(ctx, logWriter)
@@ -120,7 +120,7 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 
 	uiBaseURL, _ := resolveScenarioBaseURL(ctx, env.ScenarioName)
 	httpClient := &http.Client{Timeout: 15 * time.Second}
-	var observations []string
+	var observations []Observation
 	results := make([]playbookResult, 0, len(playbooks))
 
 	for _, entry := range playbooks {
@@ -155,9 +155,9 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 
 		results = append(results, playbookResult{Entry: entry, Outcome: outcome})
 		if outcome != nil && outcome.Stats != "" {
-			observations = append(observations, fmt.Sprintf("%s completed %s", entry.File, outcome.Stats))
+			observations = append(observations, NewSuccessObservation(fmt.Sprintf("%s completed %s", entry.File, outcome.Stats)))
 		} else {
-			observations = append(observations, fmt.Sprintf("%s completed", entry.File))
+			observations = append(observations, NewSuccessObservation(fmt.Sprintf("%s completed", entry.File)))
 		}
 		logPhaseStep(logWriter, "workflow %s completed", entry.File)
 	}

@@ -217,9 +217,9 @@ API_URL="http://localhost:8080"
 
 **Do this instead:**
 ```bash
-# RIGHT - Dynamic port discovery
-source "$APP_ROOT/scripts/scenarios/testing/shell/connectivity.sh"
-API_URL=$(testing::connectivity::get_api_url)
+# RIGHT - Dynamic port discovery using vrooli CLI
+API_PORT=$(vrooli scenario port my-scenario API_PORT)
+API_URL="http://localhost:${API_PORT}"
 ```
 
 ### Assuming Test Order
@@ -308,7 +308,6 @@ go test ./... -cover
 
 ### Test Helpers
 - [HTTP Test Helpers](/scenarios/visited-tracker/api/test_helpers.go)
-- [Shell Test Libraries](/scripts/scenarios/testing/shell/)
 
 ---
 

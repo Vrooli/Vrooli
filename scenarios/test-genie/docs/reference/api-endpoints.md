@@ -267,7 +267,7 @@ Execute a test suite for a scenario. This is the primary endpoint for running te
 2. `dependencies` - Confirms required commands/runtimes
 3. `unit` - Executes Go unit tests
 4. `integration` - Runs CLI/BATS tests
-5. `playbooks` - Executes BAS workflows
+5. `e2e` - Executes BAS browser automation workflows
 6. `business` - Audits requirements modules
 7. `performance` - Builds API and checks duration budgets (optional)
 
@@ -284,7 +284,7 @@ Execute a test suite for a scenario. This is the primary endpoint for running te
     "dependencies": "passed",
     "unit": "passed",
     "integration": "passed",
-    "playbooks": "skipped",
+    "e2e": "skipped",
     "business": "passed",
     "performance": "passed"
   },
@@ -427,12 +427,12 @@ Get detailed information about a specific scenario.
   "name": "my-scenario",
   "path": "/home/user/Vrooli/scenarios/my-scenario",
   "hasTests": true,
-  "testTypes": ["unit", "integration", "playbooks"],
+  "testTypes": ["unit", "integration", "e2e"],
   "capabilities": {
     "hasGoAPI": true,
     "hasNodeUI": true,
     "hasCLI": true,
-    "hasBASPlaybooks": true
+    "hasBASWorkflows": true
   },
   "lastExecuted": "2025-01-15T10:35:00Z",
   "lastStatus": "passed",
@@ -535,7 +535,7 @@ Returns the Go-native phase catalog with descriptions and configuration.
       "defaultTimeoutSeconds": 900
     },
     {
-      "name": "playbooks",
+      "name": "e2e",
       "optional": false,
       "description": "Executes Browser Automation Studio workflows declared under test/playbooks/ to validate end-to-end UI flows.",
       "source": "native",
@@ -643,7 +643,7 @@ curl -s http://localhost:8080/api/v1/phases | jq '.items[].name'
 # "dependencies"
 # "unit"
 # "integration"
-# "playbooks"
+# "e2e"
 # "business"
 # "performance"
 ```

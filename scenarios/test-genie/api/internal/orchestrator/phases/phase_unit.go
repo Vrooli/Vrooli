@@ -20,7 +20,7 @@ func runUnitPhase(ctx context.Context, env workspace.Environment, logWriter io.W
 		return RunReport{Err: err, FailureClassification: FailureClassSystem}
 	}
 
-	var observations []string
+	var observations []Observation
 	goObs, goFailure := executeGoUnitTests(ctx, env, logWriter)
 	if goFailure != nil {
 		goFailure.Observations = append(goFailure.Observations, observations...)
@@ -53,7 +53,7 @@ func runUnitPhase(ctx context.Context, env workspace.Environment, logWriter io.W
 	return RunReport{Observations: observations}
 }
 
-func executeGoUnitTests(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]string, *RunReport) {
+func executeGoUnitTests(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]Observation, *RunReport) {
 	apiDir := filepath.Join(env.ScenarioDir, "api")
 	if err := ensureDir(apiDir); err != nil {
 		return nil, &RunReport{
@@ -77,10 +77,10 @@ func executeGoUnitTests(ctx context.Context, env workspace.Environment, logWrite
 			Remediation:           "Fix failing Go tests under api/ before re-running the suite.",
 		}
 	}
-	return []string{"go test ./... passed"}, nil
+	return []Observation{NewSuccessObservation("go test ./... passed")}, nil
 }
 
-func lintScenarioShellTargets(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]string, *RunReport) {
+func lintScenarioShellTargets(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]Observation, *RunReport) {
 	var shellTargets []string
 	if cliPath, err := discoverScenarioCLIBinary(env); err == nil {
 		shellTargets = append(shellTargets, cliPath)
@@ -97,7 +97,7 @@ func lintScenarioShellTargets(ctx context.Context, env workspace.Environment, lo
 		}
 	}
 	if len(shellTargets) == 0 {
-		return []string{"no shell entrypoints detected"}, nil
+		return []Observation{NewObservation("no shell entrypoints detected")}, nil
 	}
 	if err := EnsureCommandAvailable("bash"); err != nil {
 		return nil, &RunReport{
@@ -106,7 +106,7 @@ func lintScenarioShellTargets(ctx context.Context, env workspace.Environment, lo
 			Remediation:           "Install bash so shell entrypoints can be linted.",
 		}
 	}
-	var observations []string
+	var observations []Observation
 	for _, target := range shellTargets {
 		if err := ensureFile(target); err != nil {
 			return nil, &RunReport{
@@ -123,12 +123,12 @@ func lintScenarioShellTargets(ctx context.Context, env workspace.Environment, lo
 				Remediation:           fmt.Sprintf("Fix syntax errors in %s and re-run the suite.", target),
 			}
 		}
-		observations = append(observations, fmt.Sprintf("bash -n verified: %s", target))
+		observations = append(observations, NewSuccessObservation(fmt.Sprintf("bash -n verified: %s", target)))
 	}
 	return observations, nil
 }
 
-func executeNodeUnitTests(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]string, *RunReport) {
+func executeNodeUnitTests(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]Observation, *RunReport) {
 	nodeDir := detectNodeWorkspaceDir(env.ScenarioDir)
 	if nodeDir == "" {
 		return nil, nil
@@ -155,7 +155,7 @@ func executeNodeUnitTests(ctx context.Context, env workspace.Environment, logWri
 		testScript = manifest.Scripts["test"]
 	}
 	if manifest == nil || testScript == "" {
-		return []string{"node workspace detected but package.json lacks a test script"}, nil
+		return []Observation{NewObservation("node workspace detected but package.json lacks a test script")}, nil
 	}
 
 	packageManager := detectPackageManager(manifest, nodeDir)
@@ -188,14 +188,14 @@ func executeNodeUnitTests(ctx context.Context, env workspace.Environment, logWri
 		}
 	}
 
-	observations := []string{fmt.Sprintf("node unit tests passed via %s", packageManager)}
+	observations := []Observation{NewSuccessObservation(fmt.Sprintf("node unit tests passed via %s", packageManager))}
 	if pct := detectNodeCoverage(nodeDir, output); pct != "" {
-		observations = append(observations, fmt.Sprintf("node coverage: %s%% statements", pct))
+		observations = append(observations, NewObservation(fmt.Sprintf("node coverage: %s%% statements", pct)))
 	}
 	return observations, nil
 }
 
-func executePythonUnitTests(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]string, *RunReport) {
+func executePythonUnitTests(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]Observation, *RunReport) {
 	pythonDir := detectPythonWorkspaceDir(env.ScenarioDir)
 	if pythonDir == "" {
 		return nil, nil
@@ -211,7 +211,7 @@ func executePythonUnitTests(ctx context.Context, env workspace.Environment, logW
 	}
 
 	if !hasPythonTests(pythonDir) {
-		return []string{"python workspace detected but no test_*.py files found"}, nil
+		return []Observation{NewObservation("python workspace detected but no test_*.py files found")}, nil
 	}
 
 	usePytest := pythonSupportsModule(ctx, pythonCmd, "pytest")
@@ -224,7 +224,7 @@ func executePythonUnitTests(ctx context.Context, env workspace.Environment, logW
 				Remediation:           "Inspect pytest output above, fix failing tests, and rerun the suite.",
 			}
 		}
-		return []string{"python unit tests passed via pytest"}, nil
+		return []Observation{NewSuccessObservation("python unit tests passed via pytest")}, nil
 	}
 
 	logPhaseStep(logWriter, "running unittest discover under %s", pythonDir)
@@ -235,7 +235,7 @@ func executePythonUnitTests(ctx context.Context, env workspace.Environment, logW
 			Remediation:           "Ensure the default unittest suites pass or install pytest for richer reporting.",
 		}
 	}
-	return []string{"python unit tests passed via unittest"}, nil
+	return []Observation{NewSuccessObservation("python unit tests passed via unittest")}, nil
 }
 
 func detectNodeWorkspaceDir(scenarioDir string) string {

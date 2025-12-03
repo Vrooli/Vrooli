@@ -608,7 +608,7 @@ func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspac
 				Type:      EventObservation,
 				Timestamp: time.Now(),
 				Phase:     def.Name.String(),
-				Message:   obs,
+				Message:   obs.String(),
 			})
 		}
 	}

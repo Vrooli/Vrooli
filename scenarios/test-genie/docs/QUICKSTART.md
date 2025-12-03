@@ -58,16 +58,16 @@ Results are available via:
 |--------|--------|------|----------|
 | **Quick** | Structure, Unit | ~1 min | Fast sanity check |
 | **Smoke** | Structure, Dependencies, Unit, Integration | ~4 min | Pre-push validation |
-| **Comprehensive** | All 6 phases | ~8 min | Full coverage |
+| **Comprehensive** | All 7 phases | ~10 min | Full coverage |
 
 See [Presets Reference](reference/presets.md) for details.
 
 ## Test Phases
 
-Test Genie uses a 6-phase testing architecture:
+Test Genie uses a 7-phase testing architecture:
 
 ```
-Structure → Dependencies → Unit → Integration → Business → Performance
+Structure → Dependencies → Unit → Integration → E2E → Business → Performance
 ```
 
 | Phase | Purpose | Timeout |
@@ -76,8 +76,9 @@ Structure → Dependencies → Unit → Integration → Business → Performance
 | **Dependencies** | Check tools and resources | 30s |
 | **Unit** | Run unit tests (Go, Node, Python) | 60s |
 | **Integration** | Test API/UI connectivity | 120s |
+| **E2E** | Execute BAS browser automation workflows | 120s |
 | **Business** | Validate workflows and rules | 180s |
-| **Performance** | Run benchmarks | 60s |
+| **Performance** | Run benchmarks (optional) | 60s |
 
 See [Phased Testing Guide](guides/phased-testing.md) for the complete architecture.
 
@@ -91,7 +92,7 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [BATS Teardown Bug](safety/bats-teardown-bug.md) - Real incident case study
 
 ### Guides (How-To)
-- [Phased Testing](guides/phased-testing.md) - Understanding the 6-phase architecture
+- [Phased Testing](guides/phased-testing.md) - Understanding the 7-phase architecture
 - [Test Generation](guides/test-generation.md) - AI-powered test creation
 - [Requirements Sync](guides/requirements-sync.md) - Automatic requirement tracking
 - [Scenario Unit Testing](guides/scenario-unit-testing.md) - Go, Node, Python unit tests
@@ -257,8 +258,8 @@ START: What are you testing?
 1. **NEVER** use unguarded `rm` commands in test scripts
 2. **ALWAYS** validate variables before file operations
 3. **SET** critical variables before skip conditions in BATS
-4. **USE** the safe templates from `/scripts/scenarios/testing/templates/`
-5. **RUN** the safety linter before committing test scripts
+4. **PREFER** Go tests over bash scripts for new development
+5. **RUN** the safety linter before committing any shell test scripts
 
 See [Safety Guidelines](safety/GUIDELINES.md) for complete safety rules.
 

@@ -22,7 +22,7 @@ func runIntegrationPhase(ctx context.Context, env workspace.Environment, logWrit
 		return RunReport{Err: err, FailureClassification: FailureClassSystem}
 	}
 
-	var observations []string
+	var observations []Observation
 	cliPath, err := discoverScenarioCLIBinary(env)
 	if err != nil {
 		return RunReport{
@@ -32,7 +32,7 @@ func runIntegrationPhase(ctx context.Context, env workspace.Environment, logWrit
 		}
 	}
 	logPhaseStep(logWriter, "cli binary verified: %s", cliPath)
-	observations = append(observations, "cli binary executable")
+	observations = append(observations, NewSuccessObservation("cli binary executable"))
 
 	if err := phaseCommandExecutor(ctx, "", logWriter, cliPath, "help"); err != nil {
 		return RunReport{
@@ -43,7 +43,7 @@ func runIntegrationPhase(ctx context.Context, env workspace.Environment, logWrit
 		}
 	}
 	logPhaseStep(logWriter, "cli help command succeeded")
-	observations = append(observations, "cli help verified")
+	observations = append(observations, NewSuccessObservation("cli help verified"))
 
 	versionOutput, err := phaseCommandCapture(ctx, "", logWriter, cliPath, "version")
 	if err != nil {
@@ -63,13 +63,13 @@ func runIntegrationPhase(ctx context.Context, env workspace.Environment, logWrit
 		}
 	}
 	logPhaseStep(logWriter, "cli version output: %s", strings.TrimSpace(versionOutput))
-	observations = append(observations, "cli version reported")
+	observations = append(observations, NewSuccessObservation("cli version reported"))
 
 	// Note: We no longer validate test/run-tests.sh --list since the Go orchestrator
 	// implements phases natively. The run-tests.sh script is kept as a thin compatibility
 	// shim but is not required for test execution.
 	logPhaseStep(logWriter, "skipping bash orchestrator validation (Go-native phases)")
-	observations = append(observations, "go-native phase execution")
+	observations = append(observations, NewObservation("go-native phase execution"))
 
 	if err := EnsureCommandAvailable("bats"); err != nil {
 		return RunReport{
@@ -80,7 +80,7 @@ func runIntegrationPhase(ctx context.Context, env workspace.Environment, logWrit
 		}
 	}
 	logPhaseStep(logWriter, "bats command detected")
-	observations = append(observations, "bats runtime available")
+	observations = append(observations, NewSuccessObservation("bats runtime available"))
 
 	cliDir := filepath.Join(env.ScenarioDir, "cli")
 	baseSuite, err := findPrimaryBatsSuite(cliDir, env.ScenarioName)
@@ -102,7 +102,7 @@ func runIntegrationPhase(ctx context.Context, env workspace.Environment, logWrit
 		}
 	}
 	logPhaseStep(logWriter, "%s executed successfully", baseName)
-	observations = append(observations, "primary Bats suite passed")
+	observations = append(observations, NewSuccessObservation("primary Bats suite passed"))
 
 	testSuitesRun, err := runAdditionalBatsSuites(ctx, cliDir, logWriter)
 	if err != nil {
@@ -114,7 +114,7 @@ func runIntegrationPhase(ctx context.Context, env workspace.Environment, logWrit
 		}
 	}
 	if testSuitesRun > 0 {
-		observations = append(observations, fmt.Sprintf("additional Bats suites: %d", testSuitesRun))
+		observations = append(observations, NewObservation(fmt.Sprintf("additional Bats suites: %d", testSuitesRun)))
 	}
 
 	logPhaseStep(logWriter, "integration validation complete")
