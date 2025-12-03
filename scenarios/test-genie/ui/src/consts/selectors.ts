@@ -1,5 +1,5 @@
 /**
- * Browser Automation Studio selector registry
+ * Test Genie selector registry
  *
  * This file is the single source of truth for every selector used by the UI and
  * by Browser Automation Studio workflows. We deliberately model selectors as two
@@ -246,13 +246,6 @@ const createDynamicSelectorFn = (
   };
 };
 
-const defineDynamicSelector = <P extends ParamSchema | undefined>(
-  definition: Omit<DynamicSelectorDefinition<P>, "kind">,
-): DynamicSelectorDefinition<P> => ({
-  ...definition,
-  kind: "dynamic-selector",
-});
-
 const createSelectorRegistry = <
   L extends LiteralSelectorTree,
   D extends DynamicSelectorTree,
@@ -266,41 +259,70 @@ const createSelectorRegistry = <
 };
 
 const literalSelectors: LiteralSelectorTree = {
-  dashboard: {
-    hero: "test-genie-hero",
-    experienceNavigator: "test-genie-experience-navigator",
-    intentSummary: "test-genie-intent-summary",
-    flowHighlights: "test-genie-flow-highlights",
-    flowHighlightsBacklog: "test-genie-flow-highlights-backlog",
-    flowHighlightsRerun: "test-genie-flow-highlights-rerun",
-    scenarioFocus: "test-genie-scenario-focus",
-    queueMetrics: "test-genie-queue-metrics",
-    lastExecution: "test-genie-last-execution",
-    suiteRequestForm: "test-genie-suite-request-form",
-    executionForm: "test-genie-execution-form",
-    suiteRequestsTable: "test-genie-suite-requests-table",
-    executionHistory: "test-genie-execution-history"
+  // Top-level tab navigation
+  tabs: {
+    nav: "test-genie-tab-nav",
+    dashboard: "test-genie-tab-dashboard",
+    runs: "test-genie-tab-runs",
+    generate: "test-genie-tab-generate",
+    docs: "test-genie-tab-docs"
   },
+  // Dashboard page
+  dashboard: {
+    continueSection: "test-genie-continue-section",
+    header: "test-genie-header",
+    guidedFlows: "test-genie-guided-flows",
+    stats: "test-genie-stats",
+    queueHealth: "test-genie-queue-health",
+    lastExecution: "test-genie-last-execution"
+  },
+  // Runs page
+  runs: {
+    subtabScenarios: "test-genie-subtab-scenarios",
+    subtabHistory: "test-genie-subtab-history",
+    scenarioTable: "test-genie-scenario-table",
+    historyTable: "test-genie-history-table",
+    scenarioDetail: "test-genie-scenario-detail",
+    scenarioDetailBack: "test-genie-scenario-detail-back"
+  },
+  // Generate page
+  generate: {
+    phaseSelector: "test-genie-phase-selector",
+    promptEditor: "test-genie-prompt-editor",
+    copyButton: "test-genie-copy-prompt",
+    spawnButton: "test-genie-spawn-agent",
+    presetSelector: "test-genie-preset-selector"
+  },
+  // Docs page
+  docs: {
+    sidebar: "test-genie-docs-sidebar",
+    viewer: "test-genie-docs-viewer",
+    copyPath: "test-genie-docs-copy-path",
+    searchInput: "test-genie-docs-search"
+  },
+  // Forms (used in Dashboard and Runs detail)
+  forms: {
+    queueForm: "test-genie-queue-form",
+    executionForm: "test-genie-execution-form",
+    submitQueue: "test-genie-submit-queue",
+    submitExecution: "test-genie-submit-execution"
+  },
+  // Actions
   actions: {
-    submitSuiteRequest: "test-genie-submit-suite-request",
-    runSuiteExecution: "test-genie-run-suite-execution",
-    runSuiteFromQueue: "test-genie-run-suite-from-queue",
-    flowPrefillRequest: "test-genie-flow-prefill-request",
-    flowRunInlineRequest: "test-genie-flow-run-inline-request",
-    flowPrefillRerun: "test-genie-flow-prefill-rerun",
-    focusScenarioFromQueue: "test-genie-focus-scenario-from-queue",
-    prefillExecutionFromHistory: "test-genie-prefill-from-history",
-    focusExecutionFromHistory: "test-genie-focus-from-history"
+    queueTests: "test-genie-action-queue-tests",
+    runTests: "test-genie-action-run-tests",
+    viewScenario: "test-genie-action-view-scenario",
+    copyPrompt: "test-genie-action-copy-prompt"
   }
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {
   /*
   Example dynamic selectors:
-  projects: {
-    cardByName: defineDynamicSelector({
-      description: 'Project card filtered by name',
-      selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
+  scenarios: {
+    rowByName: defineDynamicSelector({
+      description: 'Scenario row by name',
+      testIdPattern: 'test-genie-scenario-row-${name}',
       params: { name: { type: 'string' } },
     }),
   },
@@ -309,6 +331,56 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
 
-export const selectors = registry.selectors;
+// Export with explicit type to fix inference issues with empty dynamic selectors
+export const selectors = registry.selectors as unknown as {
+  tabs: {
+    nav: string;
+    dashboard: string;
+    runs: string;
+    generate: string;
+    docs: string;
+  };
+  dashboard: {
+    continueSection: string;
+    header: string;
+    guidedFlows: string;
+    stats: string;
+    queueHealth: string;
+    lastExecution: string;
+  };
+  runs: {
+    subtabScenarios: string;
+    subtabHistory: string;
+    scenarioTable: string;
+    historyTable: string;
+    scenarioDetail: string;
+    scenarioDetailBack: string;
+  };
+  generate: {
+    phaseSelector: string;
+    promptEditor: string;
+    copyButton: string;
+    spawnButton: string;
+    presetSelector: string;
+  };
+  docs: {
+    sidebar: string;
+    viewer: string;
+    copyPath: string;
+    searchInput: string;
+  };
+  forms: {
+    queueForm: string;
+    executionForm: string;
+    submitQueue: string;
+    submitExecution: string;
+  };
+  actions: {
+    queueTests: string;
+    runTests: string;
+    viewScenario: string;
+    copyPrompt: string;
+  };
+};
 export type Selectors = typeof selectors;
 export const selectorsManifest = registry.manifest;

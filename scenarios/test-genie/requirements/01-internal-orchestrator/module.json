@@ -12,7 +12,7 @@
       "description": "Implement structure, dependency, unit, integration, and performance runners directly inside the scenario, exposing CLI + API triggers.",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
-      "status": "in_progress",
+      "status": "complete",
       "validation": [
         {
           "type": "test",

@@ -12,7 +12,7 @@
       "description": "Rebuild CLI/API endpoints that analyze codebases, call App Issue Tracker, and emit deterministic local suites when delegation is unavailable.",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
-      "status": "in_progress",
+      "status": "complete",
       "validation": [
         {
           "type": "test",

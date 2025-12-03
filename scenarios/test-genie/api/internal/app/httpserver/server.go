@@ -143,6 +143,10 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/scenarios", s.handleListScenarios).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}", s.handleGetScenario).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/run-tests", s.handleRunScenarioTests).Methods("POST")
+
+	// Docs endpoints for in-app documentation browser
+	apiRouter.HandleFunc("/docs/manifest", s.handleGetDocsManifest).Methods("GET")
+	apiRouter.HandleFunc("/docs/content", s.handleGetDocContent).Methods("GET")
 }
 
 // Start launches the HTTP server with graceful shutdown.

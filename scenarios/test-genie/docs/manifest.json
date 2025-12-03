@@ -1,0 +1,41 @@
+{
+  "version": "1.0.0",
+  "title": "Test Genie Documentation",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "documents": [
+        { "path": "QUICKSTART.md", "title": "Quick Start" }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "documents": [
+        { "path": "synchronous-execution-guide.md", "title": "Synchronous Execution" },
+        { "path": "sync-execution-cheatsheet.md", "title": "Execution Cheatsheet" }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "documents": [
+        { "path": "RESEARCH.md", "title": "Research" },
+        { "path": "SEAMS.md", "title": "Seams" },
+        { "path": "requirements-sync.md", "title": "Requirements Sync" }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "visibility": "developers-only",
+      "documents": [
+        { "path": "PROBLEMS.md", "title": "Known Issues" },
+        { "path": "PROGRESS.md", "title": "Progress Log" },
+        { "path": "REQUIREMENTS_SYNC_PLAN.md", "title": "Requirements Sync Plan" }
+      ]
+    }
+  ]
+}
