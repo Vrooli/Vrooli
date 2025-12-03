@@ -1,5 +1,6 @@
 #!/usr/bin/env bats
-# Tests for vrooli-autoheal CLI
+# Basic CLI tests for vrooli-autoheal
+# Tests basic CLI functionality (help, version, config)
 
 # Test configuration
 readonly TEST_CLI="./vrooli-autoheal"
@@ -8,6 +9,7 @@ readonly TEST_CONFIG_FILE="$TEST_CONFIG_DIR/config.json"
 
 # Setup and teardown
 setup() {
+    cd "$(dirname "$BATS_TEST_FILENAME")" || exit 1
     # Backup existing config if it exists
     if [[ -f "$TEST_CONFIG_FILE" ]]; then
         mv "$TEST_CONFIG_FILE" "$TEST_CONFIG_FILE.bak"
@@ -54,7 +56,7 @@ teardown() {
 @test "configure command can set and retrieve values" {
     run $TEST_CLI configure api_base http://test.example.com
     [ "$status" -eq 0 ]
-    
+
     run $TEST_CLI configure
     [ "$status" -eq 0 ]
     [[ "$output" =~ "test.example.com" ]]

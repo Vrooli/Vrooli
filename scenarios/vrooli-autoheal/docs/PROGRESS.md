@@ -14,6 +14,7 @@
 | 2025-12-03 | Improver Agent | Decision Boundary Extraction | Extracted CLI status classifier, RDP/Cloudflared decision functions, UI status helpers; Added 18 new tests |
 | 2025-12-03 | Improver Agent | Architecture Audit | Screaming Architecture refactor - split monolithic main.go (354→155 lines), organized checks by domain (infra/, vrooli/), added config/handlers/persistence packages |
 | 2025-12-03 | Improver Agent | Failure Topography | Mapped failure modes, fixed swallowed errors, added structured error responses with codes, retry UX in UI |
+| 2025-12-03 | Improver Agent | Test Infrastructure | Fixed UI test REQ tags (moved from comments to test names), split monolithic BATS into focused files, updated requirement modules |
 
 ## Completed Features
 
@@ -205,6 +206,29 @@ All errors are logged with structured format:
 [ERROR] request=123456 component=timeline code=DATABASE_ERROR message="Failed to retrieve events" cause=connection refused
 [WARN] component=tick operation=save_result:infra-network error=deadline exceeded
 ```
+
+## Test Infrastructure
+
+### Test Suite Summary
+- **Go Unit Tests**: 111 tests (69.6% coverage)
+- **UI Tests**: 38 tests (vitest with jest-dom)
+- **CLI Tests**: 17 BATS tests across 4 files
+- **Total**: 166 tests
+
+### Test Files by Type
+- `api/**/*_test.go` - Go unit tests for platform, registry, checks
+- `ui/src/**/*.test.{ts,tsx}` - React component tests
+- `cli/*.bats` - CLI integration tests with REQ tags
+
+### Coverage Tracking
+- UI tests use `[REQ:xxx]` tags in test descriptions for auto-sync
+- CLI tests use `[REQ:xxx]` in test names for tracking
+- Go tests have REQ comments (manual sync needed)
+
+### Completeness Score: 17/100
+- 12/74 requirements passing (16%)
+- 1/25 operational targets passing (4%)
+- Primary gaps: multi-layer validation, API endpoint coverage
 
 ## Implementation Notes
 

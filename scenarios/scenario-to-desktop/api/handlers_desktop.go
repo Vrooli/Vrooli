@@ -158,7 +158,11 @@ func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(response)
 }
 
-func mergeQuickGenerateConfig(config DesktopConfig, request quickGenerateRequest, savedConfig *DesktopConnectionConfig, defaultOutputPath string) DesktopConfig {
+func mergeQuickGenerateConfig(config *DesktopConfig, request quickGenerateRequest, savedConfig *DesktopConnectionConfig, defaultOutputPath string) *DesktopConfig {
+	if config == nil {
+		return nil
+	}
+
 	config.ProxyURL = chooseProxyURL(request, savedConfig)
 	config.VrooliBinaryPath = chooseVrooliBinary(request, savedConfig, config.VrooliBinaryPath)
 	config.DeploymentMode = chooseDeploymentMode(request, savedConfig, config.DeploymentMode)

@@ -15,10 +15,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "unit",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/storage/postgres_test.go",
+          "notes": "Database storage tests pending"
         }
       ],
       "status": "pending"
@@ -32,10 +32,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "unit",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/storage/postgres_test.go",
+          "notes": "Database query tests pending"
         }
       ],
       "status": "pending"
@@ -49,10 +49,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "unit",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/storage/postgres_test.go",
+          "notes": "Summary query tests pending"
         }
       ],
       "status": "pending"
@@ -66,13 +66,12 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.test.tsx"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "PERSIST-HISTORY-002",
@@ -83,10 +82,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "unit",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/storage/postgres_test.go",
+          "notes": "Cleanup tests pending"
         }
       ],
       "status": "pending"
@@ -100,10 +99,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "unit",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/storage/postgres_test.go",
+          "notes": "Action logging tests pending"
         }
       ],
       "status": "pending"

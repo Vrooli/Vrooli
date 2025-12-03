@@ -31,11 +31,13 @@ func (s *Server) handleListScenarioFiles(w http.ResponseWriter, r *http.Request)
 			limit = parsed
 		}
 	}
+	includeHidden := strings.TrimSpace(query.Get("includeHidden")) == "1"
 
-	items, err := s.scenarios.ListFiles(r.Context(), name, scenarios.FileListOptions{
-		Path:   path,
-		Search: search,
-		Limit:  limit,
+	result, err := s.scenarios.ListFilesWithMeta(r.Context(), name, scenarios.FileListOptions{
+		Path:          path,
+		Search:        search,
+		Limit:         limit,
+		IncludeHidden: includeHidden,
 	})
 	if err != nil {
 		s.writeError(w, http.StatusBadRequest, err.Error())
@@ -43,7 +45,8 @@ func (s *Server) handleListScenarioFiles(w http.ResponseWriter, r *http.Request)
 	}
 
 	s.writeJSON(w, http.StatusOK, map[string]interface{}{
-		"items": items,
-		"count": len(items),
+		"items":       result.Items,
+		"count":       len(result.Items),
+		"hiddenCount": result.HiddenCount,
 	})
 }

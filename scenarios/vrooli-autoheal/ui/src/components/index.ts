@@ -7,3 +7,7 @@ export { PlatformInfo } from "./PlatformInfo";
 export { EventsTimeline } from "./EventsTimeline";
 export { UptimeStats } from "./UptimeStats";
 export { ErrorDisplay, InlineError } from "./ErrorDisplay";
+export { TrendsPage } from "./TrendsPage";
+export { UptimeTrendChart } from "./UptimeTrendChart";
+export { CheckTrendGrid } from "./CheckTrendGrid";
+export { CheckDetailModal } from "./CheckDetailModal";

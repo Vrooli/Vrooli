@@ -1,155 +1,163 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
-  "version": "1.0.0",
-  "service": {
-    "parent": "vrooli",
-    "name": "scenario-completeness-scoring",
-    "displayName": "Scenario Completeness Scoring",
-    "description": "Configurable health observatory for measuring and tracking scenario completeness with circuit breaker resilience",
-    "version": "0.0.1",
-    "type": "developer_tools",
-    "category": "developer_tools",
-    "tags": [
-      "scoring",
-      "metrics",
-      "health-monitoring",
-      "circuit-breaker",
-      "react-ui",
-      "go-api"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/scenario-completeness-scoring"
+    "$schema": "../../../../.vrooli/schemas/service.schema.json",
+    "version": "1.0.0",
+    "service": {
+        "parent": "vrooli",
+        "name": "scenario-completeness-scoring",
+        "displayName": "Scenario Completeness Scoring",
+        "description": "Configurable health observatory for measuring and tracking scenario completeness with circuit breaker resilience",
+        "version": "0.0.1",
+        "type": "developer_tools",
+        "category": "developer_tools",
+        "tags": [
+            "scoring",
+            "metrics",
+            "health-monitoring",
+            "circuit-breaker",
+            "react-ui",
+            "go-api"
+        ],
+        "maintainers": [
+            {
+                "name": "Vrooli Team",
+                "email": "support@vrooli.com",
+                "url": "https://github.com/Vrooli"
+            }
+        ],
+        "repository": {
+            "type": "git",
+            "url": "https://github.com/Vrooli/Vrooli",
+            "directory": "/scenarios/scenario-completeness-scoring"
+        },
+        "license": "MIT",
+        "homepage": "https://github.com/Vrooli/Vrooli",
+        "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+        "support": {
+            "issues": "https://github.com/Vrooli/Vrooli/issues"
+        }
     },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    "ports": {
+        "api": {
+            "env_var": "API_PORT",
+            "description": "Go API server",
+            "range": "15000-19999"
+        },
+        "ui": {
+            "env_var": "UI_PORT",
+            "description": "React UI",
+            "range": "35000-39999"
+        },
+        "websocket": {
+            "env_var": "WS_PORT",
+            "description": "WebSocket channel",
+            "range": "25000-29999"
+        }
+    },
+    "lifecycle": {
+        "version": "2.0.0",
+        "health": {
+            "description": "Standard API/UI health checks",
+            "startup_grace_period": 15000,
+            "checks": [
+                {
+                    "name": "api",
+                    "type": "http",
+                    "target": "http://localhost:${API_PORT}/health",
+                    "timeout": 10000,
+                    "interval": 30000,
+                    "critical": true
+                },
+                {
+                    "name": "ui",
+                    "type": "http",
+                    "target": "http://localhost:${UI_PORT}/health",
+                    "timeout": 5000,
+                    "interval": 30000,
+                    "critical": false
+                }
+            ]
+        },
+        "setup": {
+            "description": "Build API & UI, install CLI",
+            "condition": {
+                "checks": [
+                    {
+                        "type": "cli",
+                        "command": "scenario-completeness-scoring"
+                    }
+                ]
+            },
+            "steps": [
+                {
+                    "name": "install-cli",
+                    "run": "cd cli && ./install.sh",
+                    "description": "Install CLI into ~/.vrooli/bin"
+                },
+                {
+                    "name": "build-api",
+                    "run": "cd api && go mod download && go build -o scenario-completeness-scoring-api .",
+                    "description": "Compile Go API server"
+                },
+                {
+                    "name": "install-ui",
+                    "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; else echo 'ui/ not present yet'; fi",
+                    "description": "Install UI dependencies"
+                },
+                {
+                    "name": "build-ui",
+                    "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
+                    "description": "Build production UI bundle"
+                }
+            ]
+        },
+        "develop": {
+            "description": "Launch API and Vite dev server",
+            "steps": [
+                {
+                    "name": "start-api",
+                    "run": "cd api && ./scenario-completeness-scoring-api",
+                    "background": true,
+                    "description": "Start Go API server"
+                },
+                {
+                    "name": "start-ui",
+                    "run": "cd ui && node server.js",
+                    "background": true,
+                    "description": "Serve production UI bundle",
+                    "condition": {
+                        "file_exists": "ui/dist/index.html"
+                    }
+                }
+            ]
+        },
+        "test": {
+            "description": "Execute phased test suite",
+            "steps": [
+                {
+                    "name": "run-tests",
+                    "run": "cd test && ./run-tests.sh",
+                    "description": "Run structure/unit/integration/business/performance phases"
+                }
+            ]
+        },
+        "stop": {
+            "description": "Stop background processes",
+            "steps": [
+                {
+                    "name": "stop-api",
+                    "run": "pkill -f 'scenario-completeness-scoring-api' || true",
+                    "description": "Stop Go API"
+                },
+                {
+                    "name": "stop-ui",
+                    "run": "pkill -f 'node server.js' || true",
+                    "description": "Stop UI server"
+                }
+            ]
+        }
+    },
+    "dependencies": {
+        "resources": {},
+        "scenarios": {}
     }
-  },
-  "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "description": "Go API server",
-      "range": "15000-19999"
-    },
-    "ui": {
-      "env_var": "UI_PORT",
-      "description": "React UI",
-      "range": "35000-39999"
-    },
-    "websocket": {
-      "env_var": "WS_PORT",
-      "description": "WebSocket channel",
-      "range": "25000-29999"
-    }
-  },
-  "lifecycle": {
-    "version": "2.0.0",
-    "health": {
-      "description": "Standard API/UI health checks",
-      "startup_grace_period": 15000,
-      "checks": [
-        {
-          "name": "api",
-          "type": "http",
-          "target": "http://localhost:${API_PORT}/health",
-          "timeout": 10000,
-          "interval": 30000,
-          "critical": true
-        },
-        {
-          "name": "ui",
-          "type": "http",
-          "target": "http://localhost:${UI_PORT}/health",
-          "timeout": 5000,
-          "interval": 30000,
-          "critical": false
-        }
-      ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o scenario-completeness-scoring-api .",
-          "description": "Compile Go API server"
-        },
-        {
-          "name": "install-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./scenario-completeness-scoring-api",
-          "background": true,
-          "description": "Start Go API server"
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "cd test && ./run-tests.sh",
-          "description": "Run structure/unit/integration/business/performance phases"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'scenario-completeness-scoring-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
-    }
-  },
-  "dependencies": {
-    "resources": {},
-    "scenarios": {}
-  }
 }

@@ -9,6 +9,8 @@ import (
 	"time"
 
 	appoptimization "scenario-dependency-analyzer/internal/app/optimization"
+	appconfig "scenario-dependency-analyzer/internal/config"
+	"scenario-dependency-analyzer/internal/deployment"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
@@ -495,16 +497,16 @@ func TestBuildDeploymentReportAggregates(t *testing.T) {
 	}
 	rootPath := writeTestServiceConfig(t, env.ScenariosDir, "root-app", rootCfg)
 
-	rootConfig, err := loadServiceConfigFromFile(rootPath)
+	rootConfig, err := appconfig.LoadServiceConfig(rootPath)
 	if err != nil {
 		t.Fatalf("failed to load root service config: %v", err)
 	}
 
-	report := buildDeploymentReport("root-app", rootPath, env.ScenariosDir, rootConfig)
+	report := deployment.BuildReport("root-app", rootPath, env.ScenariosDir, rootConfig)
 	if report == nil {
 		t.Fatalf("expected deployment report")
 	}
-	if err := persistDeploymentReport(rootPath, report); err != nil {
+	if err := deployment.PersistReport(rootPath, report); err != nil {
 		t.Fatalf("failed to persist deployment report: %v", err)
 	}
 

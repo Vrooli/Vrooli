@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -398,6 +399,101 @@ func TestWaitForDependencies_NoDeps(t *testing.T) {
 		t.Errorf("WaitForDependencies() error = %v for no dependencies", err)
 	}
 }
+
+func TestWaitForDependencies_MissingStatusGetter(t *testing.T) {
+	m := &manifest.Manifest{
+		Services: []manifest.Service{
+			{ID: "api", Dependencies: []string{"db"}},
+		},
+	}
+
+	hm := NewMonitor(MonitorConfig{
+		Manifest: m,
+		Ports:    &testutil.MockPortAllocator{},
+		Dialer:   infra.RealNetworkDialer{},
+		CmdRunner: func() infra.CommandRunner {
+			return testutil.NewMockCommandRunner()
+		}(),
+		FS:    testutil.NewMockFileSystem(),
+		Clock: &advancingClock{now: time.Now(), advance: 10 * time.Second},
+		// StatusGetter intentionally omitted
+	})
+
+	err := hm.WaitForDependencies(context.Background(), &m.Services[0])
+	if err == nil || !strings.Contains(err.Error(), "status getter not configured") {
+		t.Fatalf("WaitForDependencies() error = %v, want status getter error", err)
+	}
+}
+
+func TestWaitForDependencies_TimesOutWhenDependencyStuck(t *testing.T) {
+	m := &manifest.Manifest{
+		Services: []manifest.Service{
+			{ID: "api", Dependencies: []string{"db"}},
+		},
+	}
+
+	statuses := map[string]Status{
+		"db": {Ready: false, Message: "initializing"},
+	}
+
+	clock := &advancingClock{now: time.Now(), advance: 5 * time.Minute}
+	hm := NewMonitor(MonitorConfig{
+		Manifest: m,
+		Ports:    &testutil.MockPortAllocator{},
+		Dialer:   infra.RealNetworkDialer{},
+		CmdRunner: func() infra.CommandRunner {
+			return testutil.NewMockCommandRunner()
+		}(),
+		FS:    testutil.NewMockFileSystem(),
+		Clock: clock,
+		StatusGetter: func(id string) (Status, bool) {
+			st, ok := statuses[id]
+			return st, ok
+		},
+	})
+
+	err := hm.WaitForDependencies(context.Background(), &m.Services[0])
+	if err == nil {
+		t.Fatal("WaitForDependencies() expected timeout error, got nil")
+	}
+	if !strings.Contains(err.Error(), "dependencies not ready") {
+		t.Fatalf("WaitForDependencies() error = %v, want dependencies not ready message", err)
+	}
+}
+
+type advancingClock struct {
+	now     time.Time
+	advance time.Duration
+}
+
+func (c *advancingClock) Now() time.Time {
+	return c.now
+}
+
+func (c *advancingClock) Sleep(d time.Duration) {
+	c.now = c.now.Add(d)
+}
+
+func (c *advancingClock) After(d time.Duration) <-chan time.Time {
+	c.now = c.now.Add(c.advance)
+	ch := make(chan time.Time, 1)
+	ch <- c.now
+	return ch
+}
+
+func (c *advancingClock) NewTicker(d time.Duration) infra.Ticker {
+	return &noopTicker{ch: make(chan time.Time)}
+}
+
+type noopTicker struct {
+	ch chan time.Time
+}
+
+func (n *noopTicker) C() <-chan time.Time {
+	return n.ch
+}
+
+func (n *noopTicker) Stop() {}
 
 func TestWaitForReadiness_Retries(t *testing.T) {
 	clock := testutil.NewMockClock(time.Now())

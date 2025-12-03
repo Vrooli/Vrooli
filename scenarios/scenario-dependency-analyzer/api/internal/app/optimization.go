@@ -16,7 +16,7 @@ func runScenarioOptimization(scenarioName string, req types.OptimizationRequest)
 	}
 	envCfg := appconfig.Load()
 	scenarioPath := filepath.Join(envCfg.ScenariosDir, scenarioName)
-	svcCfg, err := loadServiceConfigFromFile(scenarioPath)
+	svcCfg, err := appconfig.LoadServiceConfig(scenarioPath)
 	if err != nil {
 		svcCfg = nil
 	}

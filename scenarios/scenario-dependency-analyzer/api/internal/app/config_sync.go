@@ -20,7 +20,7 @@ func applyDetectedDiffs(scenarioName string, analysis *types.DependencyAnalysisR
 	updates := map[string]interface{}{}
 	envCfg := appconfig.Load()
 	scenarioPath := filepath.Join(envCfg.ScenariosDir, scenarioName)
-	cfg, err := loadServiceConfigFromFile(scenarioPath)
+	cfg, err := appconfig.LoadServiceConfig(scenarioPath)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func applyOptimizationRecommendations(scenarioName string, recs []types.Optimiza
 	}
 	changed := len(removedResources) > 0 || len(scenariosRemoved) > 0
 	if changed {
-		cfg, err := loadServiceConfigFromFile(scenarioPath)
+		cfg, err := appconfig.LoadServiceConfig(scenarioPath)
 		if err == nil {
 			_ = updateScenarioMetadata(scenarioName, cfg, scenarioPath)
 		}
@@ -305,7 +305,7 @@ func cloneOrderedMap(src *orderedmap.OrderedMap) *orderedmap.OrderedMap {
 
 func resolveScenarioVersionSpec(dependencyName string) (string, string) {
 	scenarioPath := filepath.Join(appconfig.Load().ScenariosDir, dependencyName)
-	cfg, err := loadServiceConfigFromFile(scenarioPath)
+	cfg, err := appconfig.LoadServiceConfig(scenarioPath)
 	if err != nil {
 		return "", ">=0.0.0"
 	}

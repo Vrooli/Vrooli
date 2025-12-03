@@ -12,6 +12,7 @@ import (
 
 	"scenario-dependency-analyzer/internal/app/services"
 	appconfig "scenario-dependency-analyzer/internal/config"
+	"scenario-dependency-analyzer/internal/deployment"
 	"scenario-dependency-analyzer/internal/store"
 	types "scenario-dependency-analyzer/internal/types"
 )
@@ -183,7 +184,7 @@ func (s *scenarioService) ListScenarios() ([]types.ScenarioSummary, error) {
 		summary, ok := metadata[name]
 		if !ok {
 			scenarioPath := filepath.Join(scenariosDir, name)
-			cfg, cfgErr := loadServiceConfigFromFile(scenarioPath)
+			cfg, cfgErr := appconfig.LoadServiceConfig(scenarioPath)
 			if cfgErr != nil {
 				continue
 			}
@@ -204,7 +205,7 @@ func (s *scenarioService) ListScenarios() ([]types.ScenarioSummary, error) {
 func (s *scenarioService) GetScenarioDetail(name string) (*types.ScenarioDetailResponse, error) {
 	envCfg := appconfig.Load()
 	scenarioPath := filepath.Join(envCfg.ScenariosDir, name)
-	cfg, err := loadServiceConfigFromFile(scenarioPath)
+	cfg, err := appconfig.LoadServiceConfig(scenarioPath)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", errScenarioNotFound, err)
 	}
@@ -218,7 +219,7 @@ func (s *scenarioService) GetScenarioDetail(name string) (*types.ScenarioDetailR
 		return nil, err
 	}
 
-	declaredResources := resolvedResourceMap(cfg)
+	declaredResources := appconfig.ResolvedResourceMap(cfg)
 	declaredScenarios := cfg.Dependencies.Scenarios
 	if declaredScenarios == nil {
 		declaredScenarios = map[string]types.ScenarioDependencySpec{}
@@ -253,7 +254,7 @@ func (s *scenarioService) GetScenarioDetail(name string) (*types.ScenarioDetailR
 		OptimizationRecommendations: optRecs,
 	}
 
-	if report := buildDeploymentReport(name, scenarioPath, envCfg.ScenariosDir, cfg); report != nil {
+	if report := deployment.BuildReport(name, scenarioPath, envCfg.ScenariosDir, cfg); report != nil {
 		detail.DeploymentReport = report
 	}
 
@@ -267,16 +268,16 @@ type deploymentService struct {
 func (d *deploymentService) GetDeploymentReport(name string) (*types.DeploymentAnalysisReport, error) {
 	envCfg := appconfig.Load()
 	scenarioPath := filepath.Join(envCfg.ScenariosDir, name)
-	cfg, err := loadServiceConfigFromFile(scenarioPath)
+	cfg, err := appconfig.LoadServiceConfig(scenarioPath)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", errScenarioNotFound, err)
 	}
 
-	report, err := loadPersistedDeploymentReport(scenarioPath)
+	report, err := deployment.LoadReport(scenarioPath)
 	if err != nil {
-		report = buildDeploymentReport(name, scenarioPath, envCfg.ScenariosDir, cfg)
+		report = deployment.BuildReport(name, scenarioPath, envCfg.ScenariosDir, cfg)
 		if report != nil {
-			if persistErr := persistDeploymentReport(scenarioPath, report); persistErr != nil {
+			if persistErr := deployment.PersistReport(scenarioPath, report); persistErr != nil {
 				log.Printf("Warning: failed to persist deployment report for %s: %v", name, persistErr)
 			}
 		}

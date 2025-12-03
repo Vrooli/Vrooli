@@ -1,11 +1,10 @@
 // ErrorDisplay component tests
-// [REQ:FAIL-SAFE-001]
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ErrorDisplay, InlineError } from './ErrorDisplay';
 import { APIError } from '../lib/api';
 
-describe('ErrorDisplay', () => {
+describe('[REQ:FAIL-SAFE-001] ErrorDisplay', () => {
   describe('with generic Error', () => {
     it('displays error message', () => {
       render(<ErrorDisplay error={new Error('Something broke')} />);

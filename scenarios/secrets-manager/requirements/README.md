@@ -9,7 +9,7 @@ This folder tracks the canonical requirements that back the minimal PRD. Keep th
 ## Editing Workflow
 1. Open `requirements/index.json` and add/update requirement objects.
 2. Use stable IDs (`SEC-<DOMAIN>-###`). Update the `prd_ref` to match the relevant OT line.
-3. Leave the `validation` array empty until a specific test or script references `[REQ:ID]` in code/comments.
+3. For P0/P1 requirements, add placeholder validation entries with `"status": "planned"` and a reference to the expected test file. Empty `validation` arrays fail schema validation for critical requirements. For P2 requirements, empty arrays are allowed.
 4. When adding tests, annotate assertions with `[REQ:SEC-XXX-###]` so coverage reporting can tie results back.
 5. Keep the count to a few dozen focused requirements—combine smaller behaviours when possible to avoid noise.
 

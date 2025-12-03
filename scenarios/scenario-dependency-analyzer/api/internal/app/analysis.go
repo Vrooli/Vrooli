@@ -10,6 +10,8 @@ import (
 
 	"github.com/google/uuid"
 
+	appconfig "scenario-dependency-analyzer/internal/config"
+	"scenario-dependency-analyzer/internal/deployment"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
@@ -18,7 +20,7 @@ func (a *Analyzer) AnalyzeScenario(scenarioName string) (*types.DependencyAnalys
 		return nil, fmt.Errorf("analyzer not initialized")
 	}
 	scenarioPath := filepath.Join(a.cfg.ScenariosDir, scenarioName)
-	serviceConfig, err := loadServiceConfigFromFile(scenarioPath)
+	serviceConfig, err := appconfig.LoadServiceConfig(scenarioPath)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +67,7 @@ func (a *Analyzer) AnalyzeScenario(scenarioName string) (*types.DependencyAnalys
 	}
 
 	declaredScenarioDeps := convertDeclaredScenariosToDependencies(scenarioName, response.DeclaredScenarioSpecs)
-	response.ResourceDiff = buildResourceDiff(resolvedResourceMap(serviceConfig), response.DetectedResources)
+	response.ResourceDiff = buildResourceDiff(appconfig.ResolvedResourceMap(serviceConfig), response.DetectedResources)
 	response.ScenarioDiff = buildScenarioDiff(response.DeclaredScenarioSpecs, response.Scenarios)
 
 	if a.store != nil {
@@ -82,9 +84,9 @@ func (a *Analyzer) AnalyzeScenario(scenarioName string) (*types.DependencyAnalys
 		}
 	}
 
-	if deploymentReport := buildDeploymentReport(scenarioName, scenarioPath, a.cfg.ScenariosDir, serviceConfig); deploymentReport != nil {
+	if deploymentReport := deployment.BuildReport(scenarioName, scenarioPath, a.cfg.ScenariosDir, serviceConfig); deploymentReport != nil {
 		response.DeploymentReport = deploymentReport
-		if err := persistDeploymentReport(scenarioPath, deploymentReport); err != nil {
+		if err := deployment.PersistReport(scenarioPath, deploymentReport); err != nil {
 			log.Printf("Warning: failed to persist deployment report: %v", err)
 		}
 	}
@@ -143,7 +145,7 @@ func analyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error)
 }
 
 func extractDeclaredResources(scenarioName string, cfg *types.ServiceConfig) []types.ScenarioDependency {
-	resources := resolvedResourceMap(cfg)
+	resources := appconfig.ResolvedResourceMap(cfg)
 	declared := make([]types.ScenarioDependency, 0, len(resources))
 	for name, resource := range resources {
 		declared = append(declared, types.ScenarioDependency{
@@ -299,12 +301,3 @@ func convertDeclaredScenariosToDependencies(scenarioName string, specs map[strin
 	return deps
 }
 
-func resolvedResourceMap(cfg *types.ServiceConfig) map[string]types.Resource {
-	if cfg.Dependencies.Resources != nil && len(cfg.Dependencies.Resources) > 0 {
-		return cfg.Dependencies.Resources
-	}
-	if cfg.Resources == nil {
-		return map[string]types.Resource{}
-	}
-	return cfg.Resources
-}

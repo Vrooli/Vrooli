@@ -167,6 +167,10 @@ func (s *stubExecutionEngine) Execute(ctx context.Context, req orchestrator.Suit
 	return s.result, s.err
 }
 
+func (s *stubExecutionEngine) ExecuteWithEvents(ctx context.Context, req orchestrator.SuiteExecutionRequest, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
+	return s.result, s.err
+}
+
 type statusChange struct {
 	id     uuid.UUID
 	status string

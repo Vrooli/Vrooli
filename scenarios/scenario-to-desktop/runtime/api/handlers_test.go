@@ -351,6 +351,71 @@ func TestHandleLogs(t *testing.T) {
 		}
 	})
 
+	t.Run("rejects service without log file configured", func(t *testing.T) {
+		m := &manifest.Manifest{
+			SchemaVersion: "desktop.v0.1",
+			Target:        "desktop",
+			App:           manifest.App{Name: "test-app", Version: "1.0.0"},
+			IPC:           manifest.IPC{Host: "127.0.0.1", Port: 47710, AuthTokenRel: "runtime/auth-token"},
+			Telemetry:     manifest.Telemetry{File: "telemetry.jsonl"},
+			Services: []manifest.Service{
+				{
+					ID:        "api",
+					Type:      "api",
+					Binaries:  map[string]manifest.Binary{"linux-x64": {Path: "bin/api"}},
+					Health:    manifest.HealthCheck{Type: "http", Path: "/health", PortName: "http"},
+					Readiness: manifest.ReadinessCheck{Type: "port_open", PortName: "http"},
+					LogDir:    "",
+				},
+			},
+		}
+		rt := testRuntime(t, m)
+		server := NewServer(rt, "test-token")
+
+		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=api", nil)
+		w := httptest.NewRecorder()
+
+		mux := http.NewServeMux()
+		server.RegisterHandlers(mux)
+		mux.ServeHTTP(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("handleLogs() status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		if !strings.Contains(string(body), "no log_dir") {
+			t.Fatalf("handleLogs() expected missing log_dir message, got %q", string(body))
+		}
+	})
+
+	t.Run("rejects when log file missing", func(t *testing.T) {
+		rt := testRuntime(t, nil)
+		server := NewServer(rt, "test-token")
+
+		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=api&lines=5", nil)
+		w := httptest.NewRecorder()
+
+		mux := http.NewServeMux()
+		server.RegisterHandlers(mux)
+		mux.ServeHTTP(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("handleLogs() status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		if !strings.Contains(string(body), "log path unavailable") {
+			t.Fatalf("handleLogs() expected log path unavailable error, got %q", string(body))
+		}
+	})
+
 	t.Run("defaults to 200 lines when not provided", func(t *testing.T) {
 		rt := testRuntime(t, nil)
 		server := NewServer(rt, "test-token")
@@ -671,6 +736,108 @@ func TestHandleSecretsPost(t *testing.T) {
 		want := map[string]string{"api_key": "existing", "db_pass": "new-pass"}
 		if !reflect.DeepEqual(want, loaded) {
 			t.Fatalf("persisted secrets mismatch: got %v, want %v", loaded, want)
+		}
+	})
+
+	t.Run("rejects invalid JSON payload", func(t *testing.T) {
+		required := true
+		m := &manifest.Manifest{
+			SchemaVersion: "desktop.v0.1",
+			Target:        "desktop",
+			App:           manifest.App{Name: "test-app", Version: "1.0.0"},
+			IPC:           manifest.IPC{Host: "127.0.0.1", Port: 47710, AuthTokenRel: "runtime/auth-token"},
+			Telemetry:     manifest.Telemetry{File: "telemetry.jsonl"},
+			Secrets: []manifest.Secret{
+				{ID: "api_key", Class: "api_key", Required: &required, Target: manifest.SecretTarget{Type: "env", Name: "API_KEY"}},
+			},
+			Services: []manifest.Service{
+				{
+					ID:        "api",
+					Type:      "api",
+					Binaries:  map[string]manifest.Binary{"linux-x64": {Path: "bin/api"}},
+					Health:    manifest.HealthCheck{Type: "http"},
+					Readiness: manifest.ReadinessCheck{Type: "port_open"},
+				},
+			},
+		}
+		rt := testRuntime(t, m)
+		server := NewServer(rt, "test-token")
+
+		req := httptest.NewRequest(http.MethodPost, "/secrets", strings.NewReader("{invalid-json}"))
+		w := httptest.NewRecorder()
+
+		mux := http.NewServeMux()
+		server.RegisterHandlers(mux)
+		mux.ServeHTTP(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("handleSecrets POST status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+		}
+		if rt.startCalled {
+			t.Fatalf("handleSecrets POST should not start services on invalid JSON")
+		}
+
+		loaded, err := rt.secretStore.Load()
+		if err != nil {
+			t.Fatalf("Load() after invalid JSON: %v", err)
+		}
+		if len(loaded) != 0 {
+			t.Fatalf("expected no secrets persisted on invalid JSON, got %v", loaded)
+		}
+	})
+
+	t.Run("accepts empty secrets map when all secrets are optional", func(t *testing.T) {
+		required := false
+		m := &manifest.Manifest{
+			SchemaVersion: "desktop.v0.1",
+			Target:        "desktop",
+			App:           manifest.App{Name: "test-app", Version: "1.0.0"},
+			IPC:           manifest.IPC{Host: "127.0.0.1", Port: 47710, AuthTokenRel: "runtime/auth-token"},
+			Telemetry:     manifest.Telemetry{File: "telemetry.jsonl"},
+			Secrets: []manifest.Secret{
+				{ID: "optional_key", Class: "api_key", Required: &required, Target: manifest.SecretTarget{Type: "env", Name: "OPTIONAL_KEY"}},
+			},
+			Services: []manifest.Service{
+				{
+					ID:        "api",
+					Type:      "api",
+					Binaries:  map[string]manifest.Binary{"linux-x64": {Path: "bin/api"}},
+					Health:    manifest.HealthCheck{Type: "http"},
+					Readiness: manifest.ReadinessCheck{Type: "port_open"},
+					Secrets:   []string{"optional_key"},
+				},
+			},
+		}
+		rt := testRuntime(t, m)
+		server := NewServer(rt, "test-token")
+
+		req := httptest.NewRequest(http.MethodPost, "/secrets", strings.NewReader(`{}`))
+		w := httptest.NewRecorder()
+
+		mux := http.NewServeMux()
+		server.RegisterHandlers(mux)
+		mux.ServeHTTP(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("handleSecrets POST status = %d, body = %s", resp.StatusCode, string(body))
+		}
+		if !rt.startCalled {
+			t.Fatalf("handleSecrets POST should start services when only optional secrets are declared")
+		}
+
+		loaded, err := rt.secretStore.Load()
+		if err != nil {
+			t.Fatalf("Load() after optional secrets POST: %v", err)
+		}
+		if len(loaded) != 0 {
+			t.Fatalf("expected empty secrets persisted, got %v", loaded)
 		}
 	})
 }

@@ -1,0 +1,288 @@
+{
+  "$schema": "../../../.vrooli/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "service": "prd-control-tower",
+  "api": {
+    "base_url": "http://localhost:${API_PORT}",
+    "version": "v1",
+    "endpoints": [
+      {
+        "path": "/health",
+        "method": "GET",
+        "description": "Service health check with dependency status",
+        "category": "system"
+      },
+      {
+        "path": "/api/v1/health",
+        "method": "GET",
+        "description": "Legacy health check endpoint",
+        "category": "system"
+      },
+      {
+        "path": "/api/v1/catalog",
+        "method": "GET",
+        "description": "List all scenarios/resources with PRD status",
+        "category": "catalog"
+      },
+      {
+        "path": "/api/v1/catalog/labels",
+        "method": "GET",
+        "description": "Get all catalog labels",
+        "category": "catalog"
+      },
+      {
+        "path": "/api/v1/catalog/{type}/{name}",
+        "method": "GET",
+        "description": "Get published PRD content for a scenario or resource",
+        "category": "catalog"
+      },
+      {
+        "path": "/api/v1/catalog/{type}/{name}/draft",
+        "method": "POST",
+        "description": "Create draft from published PRD",
+        "category": "catalog"
+      },
+      {
+        "path": "/api/v1/catalog/{type}/{name}/visit",
+        "method": "POST",
+        "description": "Record visit count for catalog item",
+        "category": "catalog"
+      },
+      {
+        "path": "/api/v1/catalog/{type}/{name}/labels",
+        "method": "PUT",
+        "description": "Update labels for catalog item",
+        "category": "catalog"
+      },
+      {
+        "path": "/api/v1/catalog/{type}/{name}/requirements",
+        "method": "GET",
+        "description": "Get requirements for scenario/resource",
+        "category": "requirements"
+      },
+      {
+        "path": "/api/v1/catalog/{type}/{name}/requirements",
+        "method": "POST",
+        "description": "Create new requirement",
+        "category": "requirements"
+      },
+      {
+        "path": "/api/v1/catalog/{type}/{name}/requirements/{requirement_id}",
+        "method": "PUT",
+        "description": "Update existing requirement",
+        "category": "requirements"
+      },
+      {
+        "path": "/api/v1/catalog/{type}/{name}/requirements/{requirement_id}",
+        "method": "DELETE",
+        "description": "Delete requirement",
+        "category": "requirements"
+      },
+      {
+        "path": "/api/v1/catalog/{type}/{name}/targets",
+        "method": "GET",
+        "description": "Get operational targets for scenario/resource",
+        "category": "targets"
+      },
+      {
+        "path": "/api/v1/catalog/{type}/{name}/targets",
+        "method": "POST",
+        "description": "Create new operational target",
+        "category": "targets"
+      },
+      {
+        "path": "/api/v1/catalog/{type}/{name}/targets/{target_id}",
+        "method": "PUT",
+        "description": "Update existing operational target",
+        "category": "targets"
+      },
+      {
+        "path": "/api/v1/catalog/{type}/{name}/targets/{target_id}",
+        "method": "DELETE",
+        "description": "Delete operational target",
+        "category": "targets"
+      },
+      {
+        "path": "/api/v1/catalog/{type}/{name}/ecosystem-task",
+        "method": "GET",
+        "description": "Get ecosystem task for scenario/resource",
+        "category": "integration"
+      },
+      {
+        "path": "/api/v1/catalog/{type}/{name}/ecosystem-task",
+        "method": "POST",
+        "description": "Create ecosystem task",
+        "category": "integration"
+      },
+      {
+        "path": "/api/v1/drafts",
+        "method": "GET",
+        "description": "List all drafts with metadata",
+        "category": "drafts"
+      },
+      {
+        "path": "/api/v1/drafts",
+        "method": "POST",
+        "description": "Create new draft",
+        "category": "drafts"
+      },
+      {
+        "path": "/api/v1/drafts/{id}",
+        "method": "GET",
+        "description": "Get draft content and metadata",
+        "category": "drafts"
+      },
+      {
+        "path": "/api/v1/drafts/{id}",
+        "method": "PUT",
+        "description": "Update draft content",
+        "category": "drafts"
+      },
+      {
+        "path": "/api/v1/drafts/{id}",
+        "method": "DELETE",
+        "description": "Delete draft",
+        "category": "drafts"
+      },
+      {
+        "path": "/api/v1/drafts/{id}/targets",
+        "method": "GET",
+        "description": "Get draft operational targets",
+        "category": "drafts"
+      },
+      {
+        "path": "/api/v1/drafts/{id}/targets",
+        "method": "PUT",
+        "description": "Update draft operational targets",
+        "category": "drafts"
+      },
+      {
+        "path": "/api/v1/backlog",
+        "method": "GET",
+        "description": "List backlog entries",
+        "category": "backlog"
+      },
+      {
+        "path": "/api/v1/backlog",
+        "method": "POST",
+        "description": "Create backlog entries",
+        "category": "backlog"
+      },
+      {
+        "path": "/api/v1/backlog/convert",
+        "method": "POST",
+        "description": "Convert multiple backlog entries to drafts",
+        "category": "backlog"
+      },
+      {
+        "path": "/api/v1/backlog/{id}/convert",
+        "method": "POST",
+        "description": "Convert single backlog entry to draft",
+        "category": "backlog"
+      },
+      {
+        "path": "/api/v1/backlog/{id}",
+        "method": "PUT",
+        "description": "Update backlog entry",
+        "category": "backlog"
+      },
+      {
+        "path": "/api/v1/backlog/{id}",
+        "method": "DELETE",
+        "description": "Delete backlog entry",
+        "category": "backlog"
+      },
+      {
+        "path": "/api/v1/drafts/validate",
+        "method": "POST",
+        "description": "Validate PRD content",
+        "category": "validation"
+      },
+      {
+        "path": "/api/v1/drafts/{id}/validate",
+        "method": "POST",
+        "description": "Validate draft PRD",
+        "category": "validation"
+      },
+      {
+        "path": "/api/v1/drafts/{id}/ai/generate-section",
+        "method": "POST",
+        "description": "AI-generate PRD section",
+        "category": "ai"
+      },
+      {
+        "path": "/api/v1/drafts/{id}/publish",
+        "method": "POST",
+        "description": "Publish draft to PRD.md",
+        "category": "drafts"
+      },
+      {
+        "path": "/api/v1/scenario-templates",
+        "method": "GET",
+        "description": "List scenario templates",
+        "category": "templates"
+      },
+      {
+        "path": "/api/v1/scenario-templates/{name}",
+        "method": "GET",
+        "description": "Get scenario template",
+        "category": "templates"
+      },
+      {
+        "path": "/api/v1/scenarios/{name}/exists",
+        "method": "GET",
+        "description": "Check if scenario exists",
+        "category": "validation"
+      },
+      {
+        "path": "/api/v1/quality/{type}/{name}",
+        "method": "GET",
+        "description": "Get quality report for scenario/resource",
+        "category": "quality"
+      },
+      {
+        "path": "/api/v1/quality/{type}/{name}/standards",
+        "method": "GET",
+        "description": "Get quality standards for scenario/resource",
+        "category": "quality"
+      },
+      {
+        "path": "/api/v1/quality/scan",
+        "method": "POST",
+        "description": "Initiate quality scan",
+        "category": "quality"
+      },
+      {
+        "path": "/api/v1/quality/summary",
+        "method": "GET",
+        "description": "Get quality summary across all scenarios",
+        "category": "quality"
+      },
+      {
+        "path": "/api/v1/issues/status",
+        "method": "GET",
+        "description": "Get scenario issues status",
+        "category": "issues"
+      },
+      {
+        "path": "/api/v1/issues/report",
+        "method": "POST",
+        "description": "Submit issue report",
+        "category": "issues"
+      }
+    ]
+  },
+  "ui": {
+    "base_url": "http://localhost:${UI_PORT}",
+    "routes": [
+      {
+        "path": "/",
+        "description": "Scenario Control Center with tabs for catalog, drafts, backlog, and ecosystem tasks"
+      },
+      {
+        "path": "/health",
+        "description": "UI health check endpoint"
+      }
+    ]
+  }
+}

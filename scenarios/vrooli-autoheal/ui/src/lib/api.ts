@@ -248,6 +248,77 @@ export async function fetchUptimeStats(): Promise<UptimeStatsResponse> {
   return apiRequest<UptimeStatsResponse>("/uptime");
 }
 
+// Uptime history API types (time-bucketed data)
+export interface UptimeHistoryBucket {
+  timestamp: string;
+  total: number;
+  ok: number;
+  warning: number;
+  critical: number;
+}
+
+export interface UptimeHistoryResponse {
+  buckets: UptimeHistoryBucket[];
+  overall: {
+    uptimePercentage: number;
+    totalEvents: number;
+  };
+  windowHours: number;
+  bucketCount: number;
+}
+
+export async function fetchUptimeHistory(hours = 24, buckets = 24): Promise<UptimeHistoryResponse> {
+  return apiRequest<UptimeHistoryResponse>(`/uptime/history?hours=${hours}&buckets=${buckets}`);
+}
+
+// ============================================================================
+// Check Trends API - Per-check trend data
+// ============================================================================
+
+export interface CheckTrend {
+  checkId: string;
+  total: number;
+  ok: number;
+  warning: number;
+  critical: number;
+  uptimePercent: number;
+  currentStatus: string;
+  recentStatuses: string[];
+  lastChecked: string;
+}
+
+export interface CheckTrendsResponse {
+  trends: CheckTrend[];
+  windowHours: number;
+  totalChecks: number;
+}
+
+export async function fetchCheckTrends(hours = 24): Promise<CheckTrendsResponse> {
+  return apiRequest<CheckTrendsResponse>(`/checks/trends?hours=${hours}`);
+}
+
+// ============================================================================
+// Incidents API - Status transitions
+// ============================================================================
+
+export interface Incident {
+  timestamp: string;
+  checkId: string;
+  fromStatus: string;
+  toStatus: string;
+  message: string;
+}
+
+export interface IncidentsResponse {
+  incidents: Incident[];
+  windowHours: number;
+  total: number;
+}
+
+export async function fetchIncidents(hours = 24, limit = 50): Promise<IncidentsResponse> {
+  return apiRequest<IncidentsResponse>(`/incidents?hours=${hours}&limit=${limit}`);
+}
+
 // ============================================================================
 // Status Classification Helpers
 // These provide a central place for status-based decisions in the UI

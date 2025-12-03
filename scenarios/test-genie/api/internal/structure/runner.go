@@ -7,6 +7,7 @@ import (
 
 	"test-genie/internal/structure/content"
 	"test-genie/internal/structure/existence"
+	"test-genie/internal/structure/smoke"
 )
 
 // Config holds configuration for structure validation.
@@ -21,7 +22,7 @@ type Config struct {
 	Expectations *Expectations
 }
 
-// Runner orchestrates structure validation across existence and content checks.
+// Runner orchestrates structure validation across existence, content, and smoke checks.
 type Runner struct {
 	config Config
 
@@ -30,6 +31,7 @@ type Runner struct {
 	cliValidator       existence.CLIValidator
 	jsonValidator      content.JSONValidator
 	manifestValidator  content.ManifestValidator
+	smokeValidator     smoke.Validator
 
 	logWriter io.Writer
 }
@@ -70,6 +72,9 @@ func New(config Config, opts ...Option) *Runner {
 			content.WithNameValidation(validateName),
 		)
 	}
+	if r.smokeValidator == nil {
+		r.smokeValidator = smoke.NewValidator(config.ScenarioDir, config.ScenarioName, r.logWriter)
+	}
 
 	return r
 }
@@ -109,6 +114,13 @@ func WithManifestValidator(v content.ManifestValidator) Option {
 	}
 }
 
+// WithSmokeValidator sets a custom smoke validator (for testing).
+func WithSmokeValidator(v smoke.Validator) Option {
+	return func(r *Runner) {
+		r.smokeValidator = v
+	}
+}
+
 // Run executes all structure validations and returns the aggregated result.
 func (r *Runner) Run(ctx context.Context) *RunResult {
 	if err := ctx.Err(); err != nil {
@@ -145,7 +157,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 
 	dirsResult := r.existenceValidator.ValidateDirs(requiredDirs)
 	if !dirsResult.Success {
-		return r.failFromExistence(dirsResult, observations)
+		return r.failFromResult(dirsResult, observations)
 	}
 	summary.DirsChecked = dirsResult.ItemsChecked
 	logSuccess(r.logWriter, "All required directories present (%d)", len(requiredDirs))
@@ -157,7 +169,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 
 	filesResult := r.existenceValidator.ValidateFiles(requiredFiles)
 	if !filesResult.Success {
-		return r.failFromExistence(filesResult, observations)
+		return r.failFromResult(filesResult, observations)
 	}
 	summary.FilesChecked = filesResult.ItemsChecked
 	logSuccess(r.logWriter, "All required files present (%d)", len(requiredFiles))
@@ -169,10 +181,10 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 
 	cliResult := r.cliValidator.Validate()
 	if !cliResult.Result.Success {
-		return r.failFromExistence(cliResult.Result, observations)
+		return r.failFromResult(cliResult.Result, observations)
 	}
 	logSuccess(r.logWriter, "CLI structure valid (%s approach)", cliResult.Approach)
-	observations = append(observations, convertExistenceObservations(cliResult.Result.Observations)...)
+	observations = append(observations, cliResult.Result.Observations...)
 
 	// Section: Service Manifest
 	observations = append(observations, NewSectionObservation("📋", "Validating service manifest..."))
@@ -180,10 +192,10 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 
 	manifestResult := r.manifestValidator.Validate()
 	if !manifestResult.Success {
-		return r.failFromContent(manifestResult, observations)
+		return r.failFromResult(manifestResult, observations)
 	}
 	logSuccess(r.logWriter, "service.json validated")
-	observations = append(observations, convertContentObservations(manifestResult.Observations)...)
+	observations = append(observations, manifestResult.Observations...)
 
 	// Section: JSON Validation (if enabled)
 	if r.config.Expectations == nil || r.config.Expectations.ValidateJSONFiles {
@@ -192,11 +204,30 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 
 		jsonResult := r.jsonValidator.Validate()
 		if !jsonResult.Success {
-			return r.failFromContent(jsonResult, observations)
+			return r.failFromResult(jsonResult, observations)
 		}
 		summary.JSONFilesValid = jsonResult.ItemsChecked
 		logSuccess(r.logWriter, "All JSON files valid (%d)", jsonResult.ItemsChecked)
 		observations = append(observations, NewSuccessObservation(fmt.Sprintf("All JSON files are valid (%d checked)", jsonResult.ItemsChecked)))
+	}
+
+	// Section: UI Smoke Test (if enabled)
+	smokeEnabled := r.config.Expectations == nil || r.config.Expectations.UISmoke.Enabled
+	if smokeEnabled {
+		observations = append(observations, NewSectionObservation("🌐", "Running UI smoke test..."))
+		logInfo(r.logWriter, "Running UI smoke test...")
+
+		smokeResult := r.smokeValidator.Validate(ctx)
+		if !smokeResult.Success {
+			return r.failFromResult(smokeResult, observations)
+		}
+		summary.SmokeChecked = true
+		observations = append(observations, smokeResult.Observations...)
+		if len(smokeResult.Observations) > 0 {
+			logSuccess(r.logWriter, "%s", smokeResult.Observations[0].Message)
+		}
+	} else {
+		observations = append(observations, NewSkipObservation("UI smoke harness disabled via .vrooli/testing.json"))
 	}
 
 	// Final summary
@@ -216,115 +247,15 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	}
 }
 
-// failFromExistence constructs a failure RunResult from an existence.Result.
-func (r *Runner) failFromExistence(result existence.Result, observations []Observation) *RunResult {
+// failFromResult constructs a failure RunResult from a Result.
+// Since all packages now use the same types via type aliases, no conversion is needed.
+func (r *Runner) failFromResult(result Result, observations []Observation) *RunResult {
 	return &RunResult{
 		Success:      false,
 		Error:        result.Error,
-		FailureClass: convertExistenceFailureClass(result.FailureClass),
+		FailureClass: result.FailureClass,
 		Remediation:  result.Remediation,
-		Observations: append(observations, convertExistenceObservations(result.Observations)...),
-	}
-}
-
-// failFromContent constructs a failure RunResult from a content.Result.
-func (r *Runner) failFromContent(result content.Result, observations []Observation) *RunResult {
-	return &RunResult{
-		Success:      false,
-		Error:        result.Error,
-		FailureClass: convertContentFailureClass(result.FailureClass),
-		Remediation:  result.Remediation,
-		Observations: append(observations, convertContentObservations(result.Observations)...),
-	}
-}
-
-// convertExistenceFailureClass converts existence.FailureClass to structure.FailureClass.
-func convertExistenceFailureClass(fc existence.FailureClass) FailureClass {
-	switch fc {
-	case existence.FailureClassMisconfiguration:
-		return FailureClassMisconfiguration
-	case existence.FailureClassSystem:
-		return FailureClassSystem
-	default:
-		return FailureClassSystem
-	}
-}
-
-// convertContentFailureClass converts content.FailureClass to structure.FailureClass.
-func convertContentFailureClass(fc content.FailureClass) FailureClass {
-	switch fc {
-	case content.FailureClassMisconfiguration:
-		return FailureClassMisconfiguration
-	case content.FailureClassSystem:
-		return FailureClassSystem
-	default:
-		return FailureClassSystem
-	}
-}
-
-// convertExistenceObservations converts existence observations to structure observations.
-func convertExistenceObservations(obs []existence.Observation) []Observation {
-	result := make([]Observation, len(obs))
-	for i, o := range obs {
-		result[i] = Observation{
-			Type:    convertExistenceObservationType(o.Type),
-			Icon:    o.Icon,
-			Message: o.Message,
-		}
-	}
-	return result
-}
-
-// convertContentObservations converts content observations to structure observations.
-func convertContentObservations(obs []content.Observation) []Observation {
-	result := make([]Observation, len(obs))
-	for i, o := range obs {
-		result[i] = Observation{
-			Type:    convertContentObservationType(o.Type),
-			Icon:    o.Icon,
-			Message: o.Message,
-		}
-	}
-	return result
-}
-
-// convertExistenceObservationType converts existence.ObservationType to structure.ObservationType.
-func convertExistenceObservationType(t existence.ObservationType) ObservationType {
-	switch t {
-	case existence.ObservationSection:
-		return ObservationSection
-	case existence.ObservationSuccess:
-		return ObservationSuccess
-	case existence.ObservationWarning:
-		return ObservationWarning
-	case existence.ObservationError:
-		return ObservationError
-	case existence.ObservationInfo:
-		return ObservationInfo
-	case existence.ObservationSkip:
-		return ObservationSkip
-	default:
-		return ObservationInfo
-	}
-}
-
-// convertContentObservationType converts content.ObservationType to structure.ObservationType.
-func convertContentObservationType(t content.ObservationType) ObservationType {
-	switch t {
-	case content.ObservationSection:
-		return ObservationSection
-	case content.ObservationSuccess:
-		return ObservationSuccess
-	case content.ObservationWarning:
-		return ObservationWarning
-	case content.ObservationError:
-		return ObservationError
-	case content.ObservationInfo:
-		return ObservationInfo
-	case content.ObservationSkip:
-		return ObservationSkip
-	default:
-		return ObservationInfo
+		Observations: append(observations, result.Observations...),
 	}
 }
 

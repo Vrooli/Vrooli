@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"scenario-dependency-analyzer/internal/deployment"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
@@ -42,7 +43,7 @@ func TestBuildBundleManifestSkeletonValidatesAgainstSchema(t *testing.T) {
 		},
 	}
 
-	manifest := buildBundleManifest("test-scenario", scenarioDir, time.Now(), nodes, cfg)
+	manifest := deployment.BuildBundleManifest("test-scenario", scenarioDir, time.Now(), nodes, cfg)
 	if manifest.Skeleton == nil {
 		t.Fatalf("expected skeleton to be populated")
 	}

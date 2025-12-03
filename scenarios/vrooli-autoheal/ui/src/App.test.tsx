@@ -1,4 +1,3 @@
-// [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-REFRESH-001] [REQ:UI-RESPONSIVE-001]
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -144,8 +143,7 @@ describe('App', () => {
     vi.mocked(api.fetchCheckHistory).mockResolvedValue({ checkId: 'test', history: [], count: 0 });
   });
 
-  // [REQ:UI-HEALTH-001] Dashboard shows current status for all checks
-  it('renders loading state initially', () => {
+  it('[REQ:UI-HEALTH-001] renders loading state initially', () => {
     vi.mocked(api.fetchStatus).mockImplementation(() => new Promise(() => {}));
 
     renderWithProviders(<App />);
@@ -153,8 +151,7 @@ describe('App', () => {
     expect(screen.getByText(/loading health status/i)).toBeInTheDocument();
   });
 
-  // [REQ:UI-HEALTH-001] Dashboard shows current status
-  it('displays health status when data is loaded', async () => {
+  it('[REQ:UI-HEALTH-001] displays health status when data is loaded', async () => {
     vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
 
     renderWithProviders(<App />);
@@ -170,8 +167,7 @@ describe('App', () => {
     expect(screen.getAllByText('Warnings').length).toBeGreaterThan(0);
   });
 
-  // [REQ:UI-HEALTH-002] Status color coding (green for ok, amber for warning, red for critical)
-  it('displays status badge with correct status', async () => {
+  it('[REQ:UI-HEALTH-002] displays status badge with correct status', async () => {
     vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
 
     renderWithProviders(<App />);
@@ -181,8 +177,7 @@ describe('App', () => {
     });
   });
 
-  // [REQ:UI-HEALTH-002] Color coding for different statuses
-  it('groups checks by severity', async () => {
+  it('[REQ:UI-HEALTH-002] groups checks by severity', async () => {
     vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
 
     renderWithProviders(<App />);
@@ -195,8 +190,7 @@ describe('App', () => {
     expect(screen.getAllByText('Warnings').length).toBeGreaterThan(0);
   });
 
-  // [REQ:UI-REFRESH-001] Auto-refresh status
-  it('shows auto-refresh toggle button', async () => {
+  it('[REQ:UI-REFRESH-001] shows auto-refresh toggle button', async () => {
     vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
 
     renderWithProviders(<App />);
@@ -248,8 +242,7 @@ describe('App', () => {
     });
   });
 
-  // [REQ:UI-RESPONSIVE-001] Responsive design
-  it('renders with responsive grid layout', async () => {
+  it('[REQ:UI-RESPONSIVE-001] renders with responsive grid layout', async () => {
     vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
 
     renderWithProviders(<App />);
@@ -263,8 +256,7 @@ describe('App', () => {
     expect(container).toHaveClass('min-h-screen');
   });
 
-  // [REQ:UI-EVENTS-001] Recent events timeline
-  it('shows events timeline section', async () => {
+  it('[REQ:UI-EVENTS-001] shows events timeline section', async () => {
     vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
 
     renderWithProviders(<App />);
@@ -274,8 +266,7 @@ describe('App', () => {
     }, { timeout: 2000 });
   });
 
-  // [REQ:PERSIST-HISTORY-001] Uptime statistics
-  it('shows uptime statistics', async () => {
+  it('[REQ:PERSIST-HISTORY-001] shows uptime statistics', async () => {
     vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
 
     renderWithProviders(<App />);
@@ -290,8 +281,7 @@ describe('App', () => {
     });
   });
 
-  // [REQ:UI-EVENTS-001] Events timeline filter
-  it('shows events filter button', async () => {
+  it('[REQ:UI-EVENTS-001] shows events filter button', async () => {
     vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
 
     renderWithProviders(<App />);

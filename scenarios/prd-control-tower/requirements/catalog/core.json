@@ -11,7 +11,7 @@
       "prd_ref": "Core Components > PRD Catalog Service",
       "title": "Catalog enumerates all scenarios and resources with PRD status",
       "description": "Verifies GET /api/v1/catalog returns complete list of entities by globbing scenarios/*/PRD.md and resources/*/PRD.md, detecting draft presence, and extracting descriptions.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "test",
@@ -31,7 +31,7 @@
           "type": "test",
           "ref": "test/playbooks/capabilities/01-catalog/e2e/catalog-view-and-navigate.json",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "End-to-end validation of catalog enumeration and navigation workflow"
         }
       ]
@@ -42,7 +42,7 @@
       "prd_ref": "Functional Requirements > Must Have > Published PRD viewer (read-only, properly formatted markdown)",
       "title": "Published PRD viewer renders markdown correctly",
       "description": "Confirms GET /api/v1/catalog/{type}/{name} returns PRD content with proper markdown formatting.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "test",
@@ -62,7 +62,7 @@
           "type": "test",
           "ref": "test/playbooks/capabilities/01-catalog/e2e/catalog-view-and-navigate.json",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "E2E validation of navigation to PRD detail view"
         }
       ]
@@ -73,7 +73,7 @@
       "prd_ref": "Catalog View > Status indicators",
       "title": "Catalog displays accurate status badges for each entity",
       "description": "Ensures UI renders ✅ Has PRD, ⚠️ Violations, ❌ Missing, 📝 Draft Pending badges based on API response.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "test",
@@ -93,7 +93,7 @@
           "type": "test",
           "ref": "test/playbooks/capabilities/01-catalog/e2e/catalog-view-and-navigate.json",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "E2E validation of catalog status badges rendering"
         }
       ]

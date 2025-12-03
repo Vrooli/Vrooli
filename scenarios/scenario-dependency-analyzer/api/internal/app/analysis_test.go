@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	appconfig "scenario-dependency-analyzer/internal/config"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
@@ -285,7 +286,7 @@ func TestApplyDetectedDiffsPreservesExistingDependencies(t *testing.T) {
 	data, _ := json.MarshalIndent(serviceConfig, "", "  ")
 	os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "service.json"), data, 0o644)
 
-	cfg, err := loadServiceConfigFromFile(scenarioPath)
+	cfg, err := appconfig.LoadServiceConfig(scenarioPath)
 	if err != nil {
 		t.Fatalf("failed to load service config: %v", err)
 	}
@@ -321,11 +322,11 @@ func TestApplyDetectedDiffsPreservesExistingDependencies(t *testing.T) {
 		t.Fatalf("hook observed zero declared resources before apply")
 	}
 
-	cfg, err = loadServiceConfigFromFile(scenarioPath)
+	cfg, err = appconfig.LoadServiceConfig(scenarioPath)
 	if err != nil {
-		t.Fatalf("loadServiceConfigFromFile failed: %v", err)
+		t.Fatalf("appconfig.LoadServiceConfig failed: %v", err)
 	}
-	resources := resolvedResourceMap(cfg)
+	resources := appconfig.ResolvedResourceMap(cfg)
 	if _, ok := resources["postgres"]; !ok {
 		t.Fatalf("existing resource 'postgres' was removed")
 	}
@@ -377,7 +378,7 @@ func TestScanForResourceUsageDetectsInitialization(t *testing.T) {
 	data, _ := json.MarshalIndent(serviceConfig, "", "  ")
 	os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "service.json"), data, 0o644)
 
-	cfg, err := loadServiceConfigFromFile(scenarioPath)
+	cfg, err := appconfig.LoadServiceConfig(scenarioPath)
 	if err != nil {
 		t.Fatalf("failed to load test service config: %v", err)
 	}
@@ -405,7 +406,7 @@ func TestLoadServiceConfigIncludesDependencies(t *testing.T) {
 	defer cleanup()
 
 	setEnvAndCleanup(t, "VROOLI_SCENARIOS_DIR", repoScenarioPath())
-	cfg, err := loadServiceConfigFromFile(repoScenarioPath("brand-manager"))
+	cfg, err := appconfig.LoadServiceConfig(repoScenarioPath("brand-manager"))
 	if err != nil {
 		t.Fatalf("failed to load brand-manager config: %v", err)
 	}

@@ -140,3 +140,104 @@ func TestResponseContentType(t *testing.T) {
 		t.Errorf("expected Content-Type application/json, got %s", contentType)
 	}
 }
+
+func TestNewServiceUnavailableError(t *testing.T) {
+	cause := errors.New("service down")
+	err := NewServiceUnavailableError("health", "database", cause)
+
+	if err.Code != CodeServiceUnavailable {
+		t.Errorf("expected code %s, got %s", CodeServiceUnavailable, err.Code)
+	}
+	if err.Message != "database is currently unavailable" {
+		t.Errorf("unexpected message: %s", err.Message)
+	}
+	if err.StatusCode() != http.StatusServiceUnavailable {
+		t.Errorf("expected status 503, got %d", err.StatusCode())
+	}
+	if !errors.Is(err, cause) {
+		t.Error("expected cause to be wrapped")
+	}
+}
+
+func TestNewInternalError(t *testing.T) {
+	cause := errors.New("unexpected panic")
+	err := NewInternalError("handler", "process request", cause)
+
+	if err.Code != CodeInternalError {
+		t.Errorf("expected code %s, got %s", CodeInternalError, err.Code)
+	}
+	if err.Message != "process request" {
+		t.Errorf("unexpected message: %s", err.Message)
+	}
+}
+
+func TestAPIErrorError_WithoutCause(t *testing.T) {
+	// Test Error() when there is no cause (else branch)
+	err := NewNotFoundError("component", "resource", "id")
+
+	errStr := err.Error()
+	if !strings.Contains(errStr, "component") {
+		t.Error("expected component in error string")
+	}
+	if !strings.Contains(errStr, "not found") {
+		t.Error("expected message in error string")
+	}
+	// Should not have ":" followed by cause
+	if strings.HasSuffix(errStr, ": <nil>") {
+		t.Error("error string should not end with nil cause")
+	}
+}
+
+func TestAPIErrorStatusCode_UnknownCode(t *testing.T) {
+	// Test with an unknown code to hit default case
+	err := &APIError{Code: Code("UNKNOWN_ERROR")}
+	if got := err.StatusCode(); got != http.StatusInternalServerError {
+		t.Errorf("unknown code should default to 500, got %d", got)
+	}
+}
+
+func TestLogError(t *testing.T) {
+	// Just verify it doesn't panic
+	LogError("test", "some operation", errors.New("test error"))
+}
+
+func TestLogInfo(t *testing.T) {
+	// Test with details
+	LogInfo("test", "operation completed", "detail1", 123)
+
+	// Test without details
+	LogInfo("test", "simple message")
+}
+
+func TestLogAndRespond_NotFoundStatus(t *testing.T) {
+	w := httptest.NewRecorder()
+	apiErr := NewNotFoundError("test", "resource", "missing-id")
+
+	LogAndRespond(w, apiErr)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d", w.Code)
+	}
+}
+
+func TestLogAndRespond_TimeoutStatus(t *testing.T) {
+	w := httptest.NewRecorder()
+	apiErr := NewTimeoutError("test", "slow operation", errors.New("context deadline"))
+
+	LogAndRespond(w, apiErr)
+
+	if w.Code != http.StatusGatewayTimeout {
+		t.Errorf("expected status 504, got %d", w.Code)
+	}
+}
+
+func TestLogAndRespond_ServiceUnavailableStatus(t *testing.T) {
+	w := httptest.NewRecorder()
+	apiErr := NewServiceUnavailableError("test", "external service", nil)
+
+	LogAndRespond(w, apiErr)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("expected status 503, got %d", w.Code)
+	}
+}

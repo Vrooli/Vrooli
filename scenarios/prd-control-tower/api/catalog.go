@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/lib/pq"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 	gmhtml "github.com/yuin/goldmark/renderer/html"
@@ -568,7 +569,7 @@ func enrichEntriesWithVisitsAndLabels(entries []CatalogEntry) {
 		var lastVisited time.Time
 		var labels []string
 
-		if err := rows.Scan(&entityType, &entityName, &visitCount, &lastVisited, &labels); err != nil {
+		if err := rows.Scan(&entityType, &entityName, &visitCount, &lastVisited, pq.Array(&labels)); err != nil {
 			slog.Warn("failed to scan visit data", "error", err)
 			continue
 		}

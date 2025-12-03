@@ -1230,7 +1230,7 @@ tests:
 2. **P2**: Runtime E2E Validation
    - Install electron-builder tooling in CI/CD environment
    - Test full workflow: generate → build → package → launch
-   - Validate cross-platform builds (Windows .exe, macOS .dmg, Linux .AppImage)
+   - Validate cross-platform builds (Windows .msi, macOS .pkg, Linux .AppImage)
    - Capture screenshots of running desktop applications
    - Note: Template generation already validated, this tests full Electron builds
 

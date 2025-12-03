@@ -287,6 +287,17 @@ const literalSelectors: LiteralSelectorTree = {
   uptimeStats: 'autoheal-uptime-stats',
   // Check history drawer
   checkHistory: 'autoheal-check-history',
+  // Tab navigation
+  tabs: {
+    dashboard: 'autoheal-tab-dashboard',
+    trends: 'autoheal-tab-trends',
+  },
+  // Trends page
+  trends: {
+    page: 'autoheal-trends-page',
+    chart: 'autoheal-trends-chart',
+    checkGrid: 'autoheal-trends-check-grid',
+  },
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {

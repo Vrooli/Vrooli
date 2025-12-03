@@ -59,4 +59,32 @@ func TestTailFile(t *testing.T) {
 			t.Error("TailFile() should return error for missing file")
 		}
 	})
+
+	t.Run("ignores trailing newline when slicing", func(t *testing.T) {
+		fs := testutil.NewMockFileSystem()
+		fs.Files["/test.log"] = []byte("line1\nline2\nline3\n")
+
+		got, err := TailFile(fs, "/test.log", 2)
+		if err != nil {
+			t.Fatalf("TailFile() error = %v", err)
+		}
+
+		want := "line2\nline3"
+		if string(got) != want {
+			t.Errorf("TailFile() = %q, want %q", string(got), want)
+		}
+	})
+
+	t.Run("returns empty slice when asked for non-positive lines", func(t *testing.T) {
+		fs := testutil.NewMockFileSystem()
+		fs.Files["/test.log"] = []byte("line1\nline2\n")
+
+		got, err := TailFile(fs, "/test.log", 0)
+		if err != nil {
+			t.Fatalf("TailFile() error = %v", err)
+		}
+		if len(got) != 0 {
+			t.Fatalf("TailFile() = %q, want empty output for non-positive lines", string(got))
+		}
+	})
 }

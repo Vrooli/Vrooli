@@ -6,6 +6,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -17,15 +18,36 @@ import (
 	"vrooli-autoheal/internal/platform"
 )
 
+// StoreInterface defines the database operations needed by handlers
+type StoreInterface interface {
+	Ping(ctx context.Context) error
+	SaveResult(ctx context.Context, result checks.Result) error
+	GetRecentResults(ctx context.Context, checkID string, limit int) ([]checks.Result, error)
+	GetTimelineEvents(ctx context.Context, limit int) ([]persistence.TimelineEvent, error)
+	GetUptimeStats(ctx context.Context, windowHours int) (*persistence.UptimeStats, error)
+	GetUptimeHistory(ctx context.Context, windowHours, bucketCount int) (*persistence.UptimeHistory, error)
+	GetCheckTrends(ctx context.Context, windowHours int) (*persistence.CheckTrendsResponse, error)
+	GetIncidents(ctx context.Context, windowHours, limit int) (*persistence.IncidentsResponse, error)
+}
+
 // Handlers wraps the dependencies needed by HTTP handlers
 type Handlers struct {
 	registry *checks.Registry
-	store    *persistence.Store
+	store    StoreInterface
 	platform *platform.Capabilities
 }
 
 // New creates a new Handlers instance
 func New(registry *checks.Registry, store *persistence.Store, plat *platform.Capabilities) *Handlers {
+	return &Handlers{
+		registry: registry,
+		store:    store,
+		platform: plat,
+	}
+}
+
+// NewWithInterface creates a new Handlers instance with an interface-based store (for testing)
+func NewWithInterface(registry *checks.Registry, store StoreInterface, plat *platform.Capabilities) *Handlers {
 	return &Handlers{
 		registry: registry,
 		store:    store,
@@ -246,5 +268,107 @@ func (h *Handlers) UptimeStats(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(stats); err != nil {
 		apierrors.LogError("uptime", "encode_response", err)
+	}
+}
+
+// UptimeHistory returns time-bucketed uptime data for charting
+// [REQ:PERSIST-HISTORY-001] [REQ:UI-EVENTS-001]
+func (h *Handlers) UptimeHistory(w http.ResponseWriter, r *http.Request) {
+	// Parse query parameters with defaults
+	windowHours := 24
+	bucketCount := 24
+
+	if hoursStr := r.URL.Query().Get("hours"); hoursStr != "" {
+		if parsed, err := parsePositiveInt(hoursStr); err == nil && parsed > 0 && parsed <= 168 {
+			windowHours = parsed
+		}
+	}
+
+	if bucketsStr := r.URL.Query().Get("buckets"); bucketsStr != "" {
+		if parsed, err := parsePositiveInt(bucketsStr); err == nil && parsed > 0 && parsed <= 100 {
+			bucketCount = parsed
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	history, err := h.store.GetUptimeHistory(ctx, windowHours, bucketCount)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("uptime_history", "retrieve uptime history", err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(history); err != nil {
+		apierrors.LogError("uptime_history", "encode_response", err)
+	}
+}
+
+// parsePositiveInt parses a string to a positive integer
+func parsePositiveInt(s string) (int, error) {
+	var n int
+	_, err := fmt.Sscanf(s, "%d", &n)
+	return n, err
+}
+
+// CheckTrends returns per-check trend data
+// [REQ:PERSIST-HISTORY-001]
+func (h *Handlers) CheckTrends(w http.ResponseWriter, r *http.Request) {
+	// Parse query parameters with defaults
+	windowHours := 24
+
+	if hoursStr := r.URL.Query().Get("hours"); hoursStr != "" {
+		if parsed, err := parsePositiveInt(hoursStr); err == nil && parsed > 0 && parsed <= 168 {
+			windowHours = parsed
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	trends, err := h.store.GetCheckTrends(ctx, windowHours)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("check_trends", "retrieve check trends", err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(trends); err != nil {
+		apierrors.LogError("check_trends", "encode_response", err)
+	}
+}
+
+// Incidents returns status transition events
+// [REQ:PERSIST-HISTORY-001]
+func (h *Handlers) Incidents(w http.ResponseWriter, r *http.Request) {
+	// Parse query parameters with defaults
+	windowHours := 24
+	limit := 50
+
+	if hoursStr := r.URL.Query().Get("hours"); hoursStr != "" {
+		if parsed, err := parsePositiveInt(hoursStr); err == nil && parsed > 0 && parsed <= 168 {
+			windowHours = parsed
+		}
+	}
+
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if parsed, err := parsePositiveInt(limitStr); err == nil && parsed > 0 && parsed <= 200 {
+			limit = parsed
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	incidents, err := h.store.GetIncidents(ctx, windowHours, limit)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("incidents", "retrieve incidents", err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(incidents); err != nil {
+		apierrors.LogError("incidents", "encode_response", err)
 	}
 }

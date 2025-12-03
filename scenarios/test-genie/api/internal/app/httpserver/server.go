@@ -63,6 +63,7 @@ type scenarioDirectory interface {
 	GetSummary(ctx context.Context, name string) (*scenarios.ScenarioSummary, error)
 	RunScenarioTests(ctx context.Context, name string, preferred string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error)
 	ListFiles(ctx context.Context, name string, opts scenarios.FileListOptions) ([]scenarios.FileNode, error)
+	ListFilesWithMeta(ctx context.Context, name string, opts scenarios.FileListOptions) (scenarios.FileListResult, error)
 }
 
 type phaseCatalog interface {

@@ -17,12 +17,11 @@
         {
           "type": "test",
           "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "status": "implemented",
+          "ref": "cli/cli-tick.bats"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "CLI-TICK-002",
@@ -34,12 +33,11 @@
         {
           "type": "test",
           "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "status": "implemented",
+          "ref": "cli/cli-tick.bats"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "CLI-LOOP-001",
@@ -52,8 +50,8 @@
           "type": "test",
           "phase": "cli",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "cli/cli-loop.bats",
+          "notes": "Continuous run test pending"
         }
       ],
       "status": "pending"
@@ -68,12 +66,11 @@
         {
           "type": "test",
           "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "status": "implemented",
+          "ref": "cli/cli-loop.bats"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "CLI-LOOP-003",
@@ -85,12 +82,11 @@
         {
           "type": "test",
           "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "status": "implemented",
+          "ref": "cli/cli-loop.bats"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "CLI-STATUS-001",
@@ -102,12 +98,11 @@
         {
           "type": "test",
           "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "status": "implemented",
+          "ref": "cli/cli-status.bats"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "CLI-STATUS-002",
@@ -119,12 +114,11 @@
         {
           "type": "test",
           "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "status": "implemented",
+          "ref": "cli/cli-status.bats"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     }
   ]
 }

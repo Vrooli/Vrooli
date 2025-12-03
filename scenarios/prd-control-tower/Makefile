@@ -121,4 +121,4 @@ lint-ui: ## Lint UI code
 	@echo "$(BLUE)🔍 Linting UI code...$(RESET)"
 	@if [ -d ui ]; then cd ui && npm run lint 2>/dev/null || true; fi
 
-check: lint test ## Run linting and tests
+check: fmt lint test ## Run formatting, linting and tests

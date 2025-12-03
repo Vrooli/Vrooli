@@ -14,13 +14,12 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.test.tsx"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "UI-HEALTH-002",
@@ -31,13 +30,12 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.test.tsx"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "UI-EVENTS-001",
@@ -48,13 +46,12 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.test.tsx"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "UI-ACTIONS-001",
@@ -65,10 +62,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "unit",
           "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "ui/src/App.test.tsx",
+          "notes": "Action log UI pending implementation"
         }
       ],
       "status": "pending"
@@ -82,13 +79,12 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.test.tsx"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "UI-RESPONSIVE-001",
@@ -99,13 +95,12 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.test.tsx"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     }
   ]
 }

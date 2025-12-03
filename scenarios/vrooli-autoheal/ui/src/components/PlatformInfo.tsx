@@ -8,14 +8,14 @@ interface PlatformInfoProps {
 }
 
 export function PlatformInfo({ platform }: PlatformInfoProps) {
-  const capabilities = [
+  const capabilities: string[] = [
     platform.hasDocker && "Docker",
     platform.supportsSystemd && "Systemd",
     platform.supportsLaunchd && "Launchd",
     platform.supportsRdp && "RDP",
     platform.supportsCloudflared && "Cloudflared",
     platform.isWsl && "WSL",
-  ].filter(Boolean);
+  ].filter((cap): cap is string => typeof cap === "string");
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-4">

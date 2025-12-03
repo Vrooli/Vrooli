@@ -1,9 +1,8 @@
 // API client error handling tests
-// [REQ:FAIL-SAFE-001]
 import { describe, it, expect } from 'vitest';
 import { APIError } from './api';
 
-describe('APIError', () => {
+describe('[REQ:FAIL-SAFE-001] APIError', () => {
   describe('constructor', () => {
     it('creates error with correct properties', () => {
       const error = new APIError('Test message', 'DATABASE_ERROR', 500, 'req-123');

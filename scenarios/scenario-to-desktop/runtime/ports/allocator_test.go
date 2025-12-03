@@ -1,7 +1,13 @@
 package ports_test
 
 import (
+	"errors"
+	"fmt"
+	"net"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 
 	"scenario-to-desktop-runtime/infra"
 	"scenario-to-desktop-runtime/manifest"
@@ -260,3 +266,94 @@ func TestManagerSetPorts(t *testing.T) {
 		t.Errorf("Map()[api][http] = %d, want 8080", result["api"]["http"])
 	}
 }
+
+func TestManagerAllocateFailsWhenRangeExhausted(t *testing.T) {
+	manifestWithTinyRange := &manifest.Manifest{
+		Ports: &manifest.PortRules{
+			DefaultRange: &manifest.PortRange{Min: 47000, Max: 47001},
+		},
+		Services: []manifest.Service{
+			{
+				ID: "api",
+				Ports: &manifest.ServicePorts{
+					Requested: []manifest.PortRequest{
+						{Name: "http"},
+					},
+				},
+			},
+		},
+	}
+
+	dialer := &stubDialer{
+		availability: map[int]bool{
+			47000: false,
+			47001: false,
+		},
+	}
+
+	pm := ports.NewManager(manifestWithTinyRange, dialer)
+	err := pm.Allocate()
+	if err == nil {
+		t.Fatalf("Allocate() expected error when range is exhausted")
+	}
+	if !strings.Contains(err.Error(), "no free port in 47000-47001") {
+		t.Fatalf("Allocate() error = %v, want message about exhausted range", err)
+	}
+}
+
+func TestManagerAllocateRejectsInvalidRequestedRange(t *testing.T) {
+	m := &manifest.Manifest{
+		Services: []manifest.Service{
+			{
+				ID: "api",
+				Ports: &manifest.ServicePorts{
+					Requested: []manifest.PortRequest{
+						{Name: "http", Range: manifest.PortRange{Min: 48000, Max: 47000}},
+					},
+				},
+			},
+		},
+	}
+	pm := ports.NewManager(m, &stubDialer{availability: map[int]bool{}})
+
+	err := pm.Allocate()
+	if err == nil {
+		t.Fatalf("Allocate() expected error for invalid requested range")
+	}
+	if !strings.Contains(err.Error(), "invalid range 48000-47000") {
+		t.Fatalf("Allocate() error = %v, want invalid range message", err)
+	}
+}
+
+type stubDialer struct {
+	availability map[int]bool
+}
+
+func (s *stubDialer) Dial(network, address string) (net.Conn, error) {
+	return nil, errors.New("Dial not implemented")
+}
+
+func (s *stubDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
+	return nil, errors.New("DialTimeout not implemented")
+}
+
+func (s *stubDialer) Listen(network, address string) (net.Listener, error) {
+	_, portStr, err := net.SplitHostPort(address)
+	if err != nil {
+		return nil, fmt.Errorf("split host port: %w", err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return nil, fmt.Errorf("parse port: %w", err)
+	}
+	if s.availability[port] {
+		return &noopListener{}, nil
+	}
+	return nil, fmt.Errorf("port %d unavailable", port)
+}
+
+type noopListener struct{}
+
+func (n *noopListener) Accept() (net.Conn, error) { return nil, errors.New("not implemented") }
+func (n *noopListener) Close() error              { return nil }
+func (n *noopListener) Addr() net.Addr            { return &net.TCPAddr{} }

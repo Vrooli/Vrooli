@@ -12,7 +12,9 @@
   },
   "unit": {
     "languages": {
-      "go": {},
+      "go": {
+        "coverage_error_threshold": 65
+      },
       "node": {}
     }
   },

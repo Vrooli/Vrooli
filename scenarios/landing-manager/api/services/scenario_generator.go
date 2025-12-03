@@ -319,6 +319,7 @@ func copyTemplatePayload(scenarioRoot, outputDir string) error {
 		{src: filepath.Join(scenarioRoot, "requirements"), dst: filepath.Join(outputDir, "requirements")},
 		{src: filepath.Join(scenarioRoot, "initialization"), dst: filepath.Join(outputDir, "initialization")},
 		{src: filepath.Join(scenarioRoot, ".vrooli"), dst: filepath.Join(outputDir, ".vrooli")},
+		{src: filepath.Join(scenarioRoot, "docs"), dst: filepath.Join(outputDir, "docs")},
 		{src: filepath.Join(scenarioRoot, "Makefile"), dst: filepath.Join(outputDir, "Makefile")},
 		{src: filepath.Join(scenarioRoot, "PRD.md"), dst: filepath.Join(outputDir, "PRD.md")},
 	}

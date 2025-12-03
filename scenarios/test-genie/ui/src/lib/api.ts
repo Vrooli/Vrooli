@@ -346,17 +346,23 @@ export interface ScenarioFileNode {
   isDir: boolean;
 }
 
+export interface ScenarioFileResult {
+  items: ScenarioFileNode[];
+  hiddenCount: number;
+}
+
 export async function fetchScenarioFiles(
   name: string,
-  params?: { path?: string; search?: string; limit?: number }
-): Promise<ScenarioFileNode[]> {
+  params?: { path?: string; search?: string; limit?: number; includeHidden?: boolean }
+): Promise<ScenarioFileResult> {
   const trimmed = name.trim();
-  if (!trimmed) return [];
+  if (!trimmed) return { items: [], hiddenCount: 0 };
 
   const query = new URLSearchParams();
   if (params?.path) query.set("path", params.path);
   if (params?.search) query.set("search", params.search);
   if (params?.limit) query.set("limit", String(params.limit));
+  if (params?.includeHidden) query.set("includeHidden", "1");
 
   const baseUrl = buildApiUrl(`/scenarios/${encodeURIComponent(trimmed)}/files`, { baseUrl: API_BASE });
   const url = query.toString() ? `${baseUrl}?${query.toString()}` : baseUrl;
@@ -365,6 +371,6 @@ export async function fetchScenarioFiles(
     headers: { "Content-Type": "application/json" },
     cache: "no-store"
   });
-  const payload = await parseResponse<{ items: ScenarioFileNode[]; count: number }>(res);
-  return payload.items ?? [];
+  const payload = await parseResponse<{ items: ScenarioFileNode[]; count: number; hiddenCount?: number }>(res);
+  return { items: payload.items ?? [], hiddenCount: payload.hiddenCount ?? 0 };
 }

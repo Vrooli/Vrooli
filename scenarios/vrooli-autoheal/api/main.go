@@ -94,12 +94,18 @@ func setupRouter(h *apiHandlers.Handlers) *mux.Router {
 	router.HandleFunc("/api/v1/status", h.Status).Methods("GET")
 	router.HandleFunc("/api/v1/tick", h.Tick).Methods("POST")
 	router.HandleFunc("/api/v1/checks", h.ListChecks).Methods("GET")
+	// Note: /checks/trends must be before /checks/{checkId} to match correctly
+	router.HandleFunc("/api/v1/checks/trends", h.CheckTrends).Methods("GET")
 	router.HandleFunc("/api/v1/checks/{checkId}", h.CheckResult).Methods("GET")
 	router.HandleFunc("/api/v1/checks/{checkId}/history", h.CheckHistory).Methods("GET")
 
 	// History and timeline endpoints [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
 	router.HandleFunc("/api/v1/timeline", h.Timeline).Methods("GET")
 	router.HandleFunc("/api/v1/uptime", h.UptimeStats).Methods("GET")
+	router.HandleFunc("/api/v1/uptime/history", h.UptimeHistory).Methods("GET")
+
+	// Incidents endpoint [REQ:PERSIST-HISTORY-001]
+	router.HandleFunc("/api/v1/incidents", h.Incidents).Methods("GET")
 
 	return router
 }

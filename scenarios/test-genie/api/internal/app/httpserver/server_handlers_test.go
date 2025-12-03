@@ -592,6 +592,14 @@ func (s *stubScenarioDirectory) RunScenarioTests(ctx context.Context, name strin
 	return s.runResp, s.runResult, nil
 }
 
+func (s *stubScenarioDirectory) ListFiles(ctx context.Context, name string, opts scenarios.FileListOptions) ([]scenarios.FileNode, error) {
+	return nil, nil
+}
+
+func (s *stubScenarioDirectory) ListFilesWithMeta(ctx context.Context, name string, opts scenarios.FileListOptions) (scenarios.FileListResult, error) {
+	return scenarios.FileListResult{}, nil
+}
+
 type stubSuiteExecutor struct {
 	input  execution.SuiteExecutionInput
 	result *orchestrator.SuiteExecutionResult
@@ -599,6 +607,11 @@ type stubSuiteExecutor struct {
 }
 
 func (s *stubSuiteExecutor) Execute(ctx context.Context, input execution.SuiteExecutionInput) (*orchestrator.SuiteExecutionResult, error) {
+	s.input = input
+	return s.result, s.err
+}
+
+func (s *stubSuiteExecutor) ExecuteWithEvents(ctx context.Context, input execution.SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
 	s.input = input
 	return s.result, s.err
 }
