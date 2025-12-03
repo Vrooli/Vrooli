@@ -439,7 +439,7 @@ jobs:
 ## See Also
 
 ### Related Guides
-- [Phased Testing](phased-testing.md) - How CLI tests fit into the 6-phase architecture
+- [Phased Testing](phased-testing.md) - How CLI tests fit into the 7-phase architecture
 - [Scenario Unit Testing](scenario-unit-testing.md) - Testing application code
 - [UI Testability](ui-testability.md) - Testing UI components
 

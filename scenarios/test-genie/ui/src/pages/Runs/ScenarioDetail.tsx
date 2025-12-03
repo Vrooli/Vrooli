@@ -2,10 +2,12 @@ import { useId, useMemo } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Breadcrumb } from "../../components/layout/Breadcrumb";
+import { ScenarioDetailTabNav } from "../../components/layout/ScenarioDetailTabNav";
 import { StatusPill } from "../../components/cards/StatusPill";
 import { ExecutionCard } from "../../components/cards/ExecutionCard";
 import { PhaseResultCard } from "../../components/cards/PhaseResultCard";
 import { ExecutionForm } from "../../components/forms/ExecutionForm";
+import { RequirementsPanel } from "../../components/requirements";
 import { selectors } from "../../consts/selectors";
 import { useScenarios } from "../../hooks/useScenarios";
 import { useScenarioHistory } from "../../hooks/useExecutions";
@@ -20,7 +22,14 @@ export function ScenarioDetail({ scenarioName }: ScenarioDetailProps) {
   const datalistId = useId();
   const { scenarioDirectoryEntries } = useScenarios();
   const { historyExecutions, isLoading: historyLoading } = useScenarioHistory(scenarioName);
-  const { navigateBack, setRunsSubtab, applyFocusScenario, setExecutionForm } = useUIStore();
+  const {
+    navigateBack,
+    setRunsSubtab,
+    applyFocusScenario,
+    setExecutionForm,
+    scenarioDetailTab,
+    setScenarioDetailTab
+  } = useUIStore();
 
   // Find the scenario summary
   const scenario = useMemo(
@@ -113,6 +122,56 @@ export function ScenarioDetail({ scenarioName }: ScenarioDetailProps) {
         </div>
       </section>
 
+      {/* Tab Navigation */}
+      <ScenarioDetailTabNav
+        activeTab={scenarioDetailTab}
+        onTabChange={setScenarioDetailTab}
+      />
+
+      {/* Tab Content */}
+      {scenarioDetailTab === "overview" && (
+        <OverviewTab
+          scenario={scenario}
+          scenarioOptions={scenarioOptions}
+          datalistId={datalistId}
+          onExecutionSuccess={handleExecutionSuccess}
+        />
+      )}
+
+      {scenarioDetailTab === "requirements" && (
+        <RequirementsPanel scenarioName={scenarioName} />
+      )}
+
+      {scenarioDetailTab === "history" && (
+        <HistoryTab
+          historyExecutions={historyExecutions}
+          historyLoading={historyLoading}
+          applyFocusScenario={applyFocusScenario}
+          setExecutionForm={setExecutionForm}
+        />
+      )}
+
+      {/* Hidden datalist for scenario autocomplete */}
+      <datalist id={datalistId}>
+        {scenarioOptions.map((name) => (
+          <option key={name} value={name} />
+        ))}
+      </datalist>
+    </div>
+  );
+}
+
+// Overview Tab Component
+interface OverviewTabProps {
+  scenario: ReturnType<typeof useScenarios>["scenarioDirectoryEntries"][0] | undefined;
+  scenarioOptions: string[];
+  datalistId: string;
+  onExecutionSuccess: () => void;
+}
+
+function OverviewTab({ scenario, scenarioOptions, datalistId, onExecutionSuccess }: OverviewTabProps) {
+  return (
+    <div className="space-y-6">
       {/* Latest Execution Summary */}
       {scenario?.lastExecutionPhases && scenario.lastExecutionPhases.length > 0 && (
         <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
@@ -131,50 +190,56 @@ export function ScenarioDetail({ scenarioName }: ScenarioDetailProps) {
       )}
 
       {/* Run Tests Form */}
-      <datalist id={datalistId}>
-        {scenarioOptions.map((name) => (
-          <option key={name} value={name} />
-        ))}
-      </datalist>
       <ExecutionForm
         scenarioOptions={scenarioOptions}
         datalistId={datalistId}
-        onSuccess={handleExecutionSuccess}
+        onSuccess={onExecutionSuccess}
       />
-
-      {/* Execution History */}
-      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-        <p className="text-xs uppercase tracking-[0.25em] text-slate-400">History</p>
-        <h2 className="mt-2 text-xl font-semibold">Previous runs</h2>
-
-        {historyLoading && (
-          <p className="mt-4 text-sm text-slate-400">Loading history...</p>
-        )}
-
-        {!historyLoading && historyExecutions.length === 0 && (
-          <p className="mt-4 text-sm text-slate-400">
-            No previous runs for this scenario. Run tests above to start tracking.
-          </p>
-        )}
-
-        <div className="mt-4 space-y-4">
-          {historyExecutions.slice(0, 10).map((execution) => (
-            <ExecutionCard
-              key={execution.executionId}
-              execution={execution}
-              onPrefill={() => {
-                applyFocusScenario(execution.scenarioName);
-                setExecutionForm({
-                  scenarioName: execution.scenarioName,
-                  preset: execution.preset ?? "quick",
-                  failFast: true,
-                  suiteRequestId: execution.suiteRequestId ?? ""
-                });
-              }}
-            />
-          ))}
-        </div>
-      </section>
     </div>
+  );
+}
+
+// History Tab Component
+interface HistoryTabProps {
+  historyExecutions: ReturnType<typeof useScenarioHistory>["historyExecutions"];
+  historyLoading: boolean;
+  applyFocusScenario: (scenario: string) => void;
+  setExecutionForm: (form: { scenarioName: string; preset: string; failFast: boolean; suiteRequestId: string }) => void;
+}
+
+function HistoryTab({ historyExecutions, historyLoading, applyFocusScenario, setExecutionForm }: HistoryTabProps) {
+  return (
+    <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+      <p className="text-xs uppercase tracking-[0.25em] text-slate-400">History</p>
+      <h2 className="mt-2 text-xl font-semibold">Previous runs</h2>
+
+      {historyLoading && (
+        <p className="mt-4 text-sm text-slate-400">Loading history...</p>
+      )}
+
+      {!historyLoading && historyExecutions.length === 0 && (
+        <p className="mt-4 text-sm text-slate-400">
+          No previous runs for this scenario. Run tests to start tracking.
+        </p>
+      )}
+
+      <div className="mt-4 space-y-4">
+        {historyExecutions.slice(0, 10).map((execution) => (
+          <ExecutionCard
+            key={execution.executionId}
+            execution={execution}
+            onPrefill={() => {
+              applyFocusScenario(execution.scenarioName);
+              setExecutionForm({
+                scenarioName: execution.scenarioName,
+                preset: execution.preset ?? "quick",
+                failFast: true,
+                suiteRequestId: execution.suiteRequestId ?? ""
+              });
+            }}
+          />
+        ))}
+      </div>
+    </section>
   );
 }

@@ -156,16 +156,9 @@ export default defineConfig({
 
 ### Phase Helpers
 
-> **Note**: Phase helpers are now implemented in Go within the test-genie orchestrator. The bash shell functions below are deprecated.
+Phase lifecycle is managed by the Go-native test-genie orchestrator at `api/internal/orchestrator/phases/` with typed `PhaseRunner` interfaces.
 
-**Current (Go-Native)**: Phase lifecycle is managed by `api/orchestrator/phases/` with typed `PhaseRunner` interfaces.
-
-**Legacy (Deprecated)**: Shell library functions that were in `scripts/scenarios/testing/shell/phase-helpers.sh`:
-- `testing::phase::init` - Initialize phase, load expected requirements
-- `testing::phase::add_requirement` - Record requirement validation result
-- `testing::phase::add_test` - Track test execution
-- `testing::phase::end_with_summary` - Complete phase with results
-- `testing::phase::run_bas_automation_validations` - Execute BAS workflows
+See [Architecture](concepts/architecture.md) for implementation details.
 
 ### Requirements Registry
 Structured JSON file(s) mapping PRD requirements to technical validations (stored in the `requirements/` directory with imports).
@@ -187,7 +180,7 @@ Registry includes metadata, requirement definitions, validation entries, and par
 - Use: Pre-commit validation
 
 ### Comprehensive Preset
-- Phases: All 6 phases
+- Phases: All 7 phases
 - Timeout: ~10 minutes
 - Use: CI/CD, release validation
 - Triggers: Auto-sync of requirements
@@ -202,9 +195,9 @@ Registry includes metadata, requirement definitions, validation entries, and par
 - `vite.config.ts` - Vitest configuration with requirement reporter (UI scenarios)
 
 ### Test Structure
-- `test/run-tests.sh` - Phase orchestrator, main entry point
-- `test/phases/` - Individual phase scripts (test-structure.sh, test-unit.sh, etc.)
-- `test/playbooks/` - BAS workflow JSON files for UI automation
+- `test/playbooks/` - BAS workflow JSON files for E2E automation
+- `api/*_test.go` - Go unit and integration tests
+- `ui/src/**/*.test.ts` - Vitest unit tests for UI
 
 ### Requirements
 - `requirements/index.json` - Parent requirements with imports (modular)
@@ -216,27 +209,24 @@ Registry includes metadata, requirement definitions, validation entries, and par
 - `ui/coverage/vitest-requirements.json` - Vitest requirement tracking output
 - `api/coverage.out` - Go test coverage data
 
-### Scripts
-- `scripts/requirements/report.js` - Requirement reporting and sync tool
-- `scripts/requirements/validate.js` - Registry schema validation
-
-> **Note**: The legacy `scripts/scenarios/testing/` bash libraries are deprecated. Test orchestration is now handled by the Go-native test-genie API.
+### Orchestration
+All test orchestration is now handled by the Go-native test-genie API. Use `test-genie execute` or the REST API to run tests.
 
 ## Common Commands
 
 ### Run Tests
 ```bash
-# Run all phases
-./test/run-tests.sh
+# Run all phases via CLI
+test-genie execute my-scenario --preset comprehensive
 
 # Run specific phase
-./test/phases/test-unit.sh
+test-genie execute my-scenario --phases unit
 
 # Run with Makefile
 cd scenarios/my-scenario && make test
 
-# Use test-genie CLI
-test-genie execute my-scenario --preset comprehensive
+# Quick iteration during development
+test-genie execute my-scenario --preset quick
 ```
 
 ### Requirement Management

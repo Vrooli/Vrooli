@@ -14,7 +14,7 @@ This document showcases exemplary testing implementations that demonstrate best 
 ### Why It's Gold Standard
 - **79.4% Go coverage** with comprehensive test cases
 - **Safe BATS implementation** following all safety guidelines
-- **Complete phased testing** with all 6 phases implemented
+- **Complete phased testing** with all 7 phases implemented
 - **Reusable test helpers** for HTTP testing
 - **Well-documented** with inline comments and guides
 
@@ -349,4 +349,3 @@ To achieve gold standard testing:
 - [Testing Strategy](../concepts/strategy.md) - Three-layer approach
 - [Safety Guidelines](../safety/GUIDELINES.md) - Critical safety rules
 - [Test Runners](test-runners.md) - Language-specific runners
-- [Shell Libraries](shell-libraries.md) - Helper functions

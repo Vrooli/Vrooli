@@ -148,6 +148,10 @@ func (s *Server) setupRoutes() {
 	// Docs endpoints for in-app documentation browser
 	apiRouter.HandleFunc("/docs/manifest", s.handleGetDocsManifest).Methods("GET")
 	apiRouter.HandleFunc("/docs/content", s.handleGetDocContent).Methods("GET")
+
+	// Requirements endpoints for requirements sync UI
+	apiRouter.HandleFunc("/scenarios/{name}/requirements", s.handleGetScenarioRequirements).Methods("GET")
+	apiRouter.HandleFunc("/scenarios/{name}/requirements/sync", s.handleSyncScenarioRequirements).Methods("POST")
 }
 
 // Start launches the HTTP server with graceful shutdown.

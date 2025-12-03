@@ -352,4 +352,3 @@ Check that:
 - [UI Automation with BAS](../guides/ui-automation-with-bas.md) - Authoring workflows
 - [UI Testability](../guides/ui-testability.md) - Design UIs for automation
 - [Phase Catalog](phase-catalog.md) - Phase specifications
-- [Shell Libraries](shell-libraries.md) - Testing shell function reference

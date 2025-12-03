@@ -235,7 +235,7 @@ result, err := service.Validate(ctx, scenarioDir)
 ## See Also
 
 ### Related Guides
-- [Phased Testing](phased-testing.md) - 6-phase testing architecture
+- [Phased Testing](phased-testing.md) - 7-phase testing architecture
 - [Test Generation](test-generation.md) - AI-powered test creation with `[REQ:ID]` tags
 - [Scenario Unit Testing](scenario-unit-testing.md) - Writing tagged unit tests
 

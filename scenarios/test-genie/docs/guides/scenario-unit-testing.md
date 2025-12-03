@@ -1,6 +1,6 @@
 # Scenario Unit Testing Guide
 
-This guide covers unit testing for **scenario application code** (Go APIs, Node.js UIs, Python services) - not Vrooli resources. For resource testing, see [Resource Unit Testing Guide](resource-unit-testing.md).
+This guide covers unit testing for **scenario application code** (Go APIs, Node.js UIs, Python services).
 
 ## Multi-Framework Integration
 
@@ -1240,10 +1240,9 @@ def test_process_file(configured_manager):
 ## See Also
 
 ### Related Guides
-- [Phased Testing](phased-testing.md) - How unit phase fits into 6-phase architecture
+- [Phased Testing](phased-testing.md) - How unit phase fits into 7-phase architecture
 - [Requirements Sync](requirements-sync.md) - Link tests to requirements with `[REQ:ID]`
 - [CLI Testing](cli-testing.md) - BATS testing for command-line tools
-- [Resource Unit Testing](resource-unit-testing.md) - Testing Vrooli resources
 - [UI Testability](ui-testability.md) - Writing testable UIs
 
 ### Reference

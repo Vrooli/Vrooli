@@ -160,9 +160,9 @@ test-genie execute <scenario-name> [options]
 | `dependencies` | Confirms required commands/runtimes |
 | `unit` | Executes Go unit tests |
 | `integration` | Runs CLI/BATS tests |
-| `playbooks` | Executes BAS workflows |
+| `e2e` | Executes BAS browser automation workflows |
 | `business` | Audits requirements modules |
-| `performance` | Builds API and checks duration budgets |
+| `performance` | Builds API and checks duration budgets (optional) |
 
 ### Examples
 
@@ -200,13 +200,13 @@ test-genie execute my-scenario --preset comprehensive --sync
 ```
 Executing test suite for: my-scenario
   Preset: comprehensive
-  Phases: structure, dependencies, unit, integration, playbooks, business, performance
+  Phases: structure, dependencies, unit, integration, e2e, business, performance
 
 [1/7] structure     PASSED  (5s)
 [2/7] dependencies  PASSED  (12s)
 [3/7] unit          PASSED  (45s)  Coverage: 87%
 [4/7] integration   PASSED  (30s)
-[5/7] playbooks     SKIPPED (no playbooks found)
+[5/7] e2e           SKIPPED (no e2e workflows found)
 [6/7] business      PASSED  (8s)
 [7/7] performance   PASSED  (20s)
 
@@ -559,7 +559,7 @@ structure     No        15m      Validates scenario layout
 dependencies  No        15m      Confirms dependencies
 unit          No        15m      Go unit tests
 integration   No        15m      CLI/BATS tests
-playbooks     No        15m      BAS workflow tests
+e2e           No        15m      BAS browser automation workflows
 business      No        15m      Requirements audit
 performance   Yes       15m      Duration budgets
 ```

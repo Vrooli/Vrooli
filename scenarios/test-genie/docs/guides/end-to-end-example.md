@@ -488,8 +488,8 @@ Phase: performance (60s)
   ✓ Lighthouse: Performance 0.88, Accessibility 0.95
 
 Summary:
-  Total: 6 phases
-  Passed: 6
+  Total: 7 phases
+  Passed: 7
   Failed: 0
   Duration: 4m 32s
 

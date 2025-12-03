@@ -228,3 +228,114 @@ export async function fetchScenarioSummary(name: string): Promise<ScenarioSummar
   }
   return parseResponse<ScenarioSummary>(res);
 }
+
+// Requirements types
+export interface RequirementsSummary {
+  totalRequirements: number;
+  totalValidations: number;
+  completionRate: number;
+  passRate: number;
+  criticalGap: number;
+  byLiveStatus: Record<string, number>;
+  byDeclaredStatus: Record<string, number>;
+}
+
+export interface ModuleSnapshot {
+  name: string;
+  filePath: string;
+  total: number;
+  complete: number;
+  inProgress: number;
+  pending: number;
+  completionRate: number;
+  requirements?: RequirementItem[];
+}
+
+export interface RequirementItem {
+  id: string;
+  title: string;
+  status: string;
+  liveStatus: string;
+  prdRef?: string;
+  criticality?: string;
+  description?: string;
+  validations?: ValidationItem[];
+}
+
+export interface ValidationItem {
+  type: string;
+  ref: string;
+  phase?: string;
+  status: string;
+  liveStatus: string;
+}
+
+export interface SyncStatus {
+  enabled: boolean;
+  lastSyncedAt?: string;
+  filesUpdated: number;
+  validationsAdded: number;
+  validationsRemoved: number;
+  statusesChanged: number;
+  errorCount: number;
+}
+
+export interface RequirementsSnapshot {
+  scenarioName: string;
+  generatedAt: string;
+  summary: RequirementsSummary;
+  modules: ModuleSnapshot[];
+  syncStatus?: SyncStatus;
+}
+
+export interface SyncPreviewResponse {
+  scenarioName: string;
+  changes: Array<{
+    type: string;
+    filePath: string;
+    requirementId?: string;
+    field?: string;
+    oldValue?: string;
+    newValue?: string;
+  }>;
+  summary: {
+    filesAffected: number;
+    statusesWouldChange: number;
+    validationsWouldAdd: number;
+    validationsWouldRemove: number;
+  };
+}
+
+export async function fetchScenarioRequirements(name: string): Promise<RequirementsSnapshot | null> {
+  if (!name.trim()) {
+    return null;
+  }
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(name.trim())}/requirements`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  if (res.status === 404) {
+    return null;
+  }
+  return parseResponse<RequirementsSnapshot>(res);
+}
+
+export interface SyncRequirementsInput {
+  dryRun?: boolean;
+  pruneOrphans?: boolean;
+  discoverNew?: boolean;
+}
+
+export async function syncScenarioRequirements(
+  name: string,
+  input?: SyncRequirementsInput
+): Promise<{ status: string; snapshot?: RequirementsSnapshot } | SyncPreviewResponse> {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(name.trim())}/requirements/sync`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input ?? {})
+  });
+  return parseResponse(res);
+}

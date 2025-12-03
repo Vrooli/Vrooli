@@ -1,171 +1,44 @@
-# Go Migration Guide (Internal)
+# Go Migration (Historical)
 
-> **Audience**: Test Genie developers
+> **Status**: ✅ **Complete** - December 2024
+> **Audience**: Historical reference for test-genie developers
 
-## Overview
+## Summary
 
-This document tracks the completed migration from bash-based testing to Go-native orchestration within test-genie.
+This document records the completed migration from bash-based testing to Go-native orchestration within test-genie.
 
-> **Status**: ✅ **Migration Complete** - All 6 phases are now implemented in Go. The legacy bash infrastructure is deprecated and no longer needed.
+All 7 test phases and supporting components are now implemented in Go. The legacy bash infrastructure has been deprecated and removed.
 
-## Migration Status
+## Implementation Status
 
-### All Phases Complete
+### Phases (All Complete)
 
-| Phase | Go Implementation | Status |
-|-------|-------------------|--------|
-| Structure | `api/orchestrator/phases/structure.go` | ✅ Complete |
-| Dependencies | `api/orchestrator/phases/dependencies.go` | ✅ Complete |
-| Unit | `api/orchestrator/phases/unit.go` | ✅ Complete |
-| Integration | `api/orchestrator/phases/integration.go` | ✅ Complete |
-| Business | `api/orchestrator/phases/business.go` | ✅ Complete |
-| Performance | `api/orchestrator/phases/performance.go` | ✅ Complete |
+| Phase | Implementation |
+|-------|----------------|
+| Structure | `api/internal/orchestrator/phases/phase_structure.go` |
+| Dependencies | `api/internal/orchestrator/phases/phase_dependencies.go` |
+| Unit | `api/internal/orchestrator/phases/phase_unit.go` |
+| Integration | `api/internal/orchestrator/phases/phase_integration.go` |
+| E2E | `api/internal/orchestrator/phases/phase_playbooks.go` |
+| Business | `api/internal/orchestrator/phases/business.go` |
+| Performance | `api/internal/orchestrator/phases/phase_performance.go` |
 
-### Supporting Components
+### Supporting Components (All Complete)
 
-| Component | Go Location | Status |
-|-----------|-------------|--------|
-| Requirements Sync | `api/orchestrator/requirements/` | ✅ Complete |
-| Phase Helpers | `api/orchestrator/phases/` | ✅ Complete |
-| Test Runners | `api/orchestrator/phases/unit.go` | ✅ Complete |
+| Component | Location |
+|-----------|----------|
+| Phase Catalog | `api/internal/orchestrator/phases/catalog.go` |
+| Requirements Sync | `api/internal/requirements/` |
+| Test Runners | Language-specific in phase files |
 
-## Migration Approach
+## Timeline
 
-### 1. Interface-First
-
-Define Go interfaces that match bash script behavior:
-
-```go
-// Before: bash function
-// testing::phase::run_structure() { ... }
-
-// After: Go interface
-type PhaseRunner interface {
-    Run(ctx context.Context, workspace Workspace) (*Result, error)
-}
-```
-
-### 2. Parallel Operation
-
-Run both systems during transition:
-
-```go
-func (o *Orchestrator) RunPhase(phase string, scenario string) (*Result, error) {
-    if goPhase := o.registry.Get(phase); goPhase != nil {
-        return goPhase.Run(ctx, workspace)
-    }
-    // Fallback to bash
-    return o.runBashPhase(phase, scenario)
-}
-```
-
-### 3. Feature Flags
-
-Control migration with environment variables:
-
-```bash
-# Force Go implementation
-export TEST_GENIE_USE_GO_PHASES=true
-
-# Fall back to bash for specific phases
-export TEST_GENIE_BASH_PHASES=integration,performance
-```
-
-## Key Differences
-
-### Exit Code Handling
-
-```bash
-# Bash: Exit codes set directly
-exit 0  # success
-exit 1  # failure
-exit 2  # skipped
-```
-
-```go
-// Go: Return typed results
-return &Result{
-    Status: StatusPassed,
-    Phase:  "unit",
-    Output: output,
-}, nil
-```
-
-### Logging
-
-```bash
-# Bash: Echo to stdout/stderr
-echo "✅ Test passed"
-log::error "Test failed"
-```
-
-```go
-// Go: Structured logging
-logger.Info("test passed", "phase", "unit", "tests", 42)
-logger.Error("test failed", "error", err)
-```
-
-### Configuration
-
-```bash
-# Bash: Source config files
-source "$APP_ROOT/scripts/scenarios/testing/config.sh"
-```
-
-```go
-// Go: Parse .vrooli/testing.json
-config, err := testing.LoadConfig(scenarioDir)
-```
-
-## Testing the Migration
-
-### Unit Tests
-
-Each Go phase has corresponding tests:
-
-```go
-// phases/structure_test.go
-func TestStructurePhase(t *testing.T) {
-    workspace := NewMockWorkspace(t)
-    phase := NewStructurePhase()
-
-    result, err := phase.Run(context.Background(), workspace)
-
-    assert.NoError(t, err)
-    assert.Equal(t, StatusPassed, result.Status)
-}
-```
-
-### Integration Tests
-
-Compare Go and bash output:
-
-```bash
-# Run both implementations
-bash_result=$(./test/phases/test-structure.sh 2>&1)
-go_result=$(go run ./cmd/phase-runner structure 2>&1)
-
-# Compare outputs
-diff <(echo "$bash_result") <(echo "$go_result")
-```
-
-## Rollback Procedure
-
-If Go implementation causes issues:
-
-1. Set environment variable: `export TEST_GENIE_USE_GO_PHASES=false`
-2. Restart test-genie: `make restart`
-3. File issue with reproduction steps
-
-## Deprecation Timeline
-
-| Milestone | Date | Status |
-|-----------|------|--------|
-| Go phases complete | 2024-12-01 | ✅ Done |
-| Bash deprecated | 2025-01-01 | ✅ Done |
-| Legacy cleanup | 2025-02 | ✅ Complete - bash scripts no longer required |
+| Milestone | Date |
+|-----------|------|
+| Go phases complete | December 2024 |
+| Bash deprecated | January 2025 |
+| Legacy cleanup | February 2025 |
 
 ## See Also
 
-- [Architecture](../concepts/architecture.md) - Go architecture overview
-- [Requirements Sync Plan](requirements-sync-plan.md) - Requirements system design
+- [Architecture](../concepts/architecture.md) - Current Go architecture

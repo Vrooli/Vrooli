@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { DashboardTabKey, RunsSubtabKey, QueueFormState, ExecutionFormState } from "../types";
+import type { DashboardTabKey, RunsSubtabKey, ScenarioDetailTabKey, QueueFormState, ExecutionFormState } from "../types";
 
 const DEFAULT_REQUEST_TYPES = ["unit", "integration"];
 
@@ -23,6 +23,7 @@ interface UIState {
   activeTab: DashboardTabKey;
   runsSubtab: RunsSubtabKey;
   selectedScenario: string | null;
+  scenarioDetailTab: ScenarioDetailTabKey;
 
   // Focus state
   focusScenario: string;
@@ -46,6 +47,7 @@ interface UIState {
   setActiveTab: (tab: DashboardTabKey) => void;
   setRunsSubtab: (subtab: RunsSubtabKey) => void;
   setSelectedScenario: (scenario: string | null) => void;
+  setScenarioDetailTab: (tab: ScenarioDetailTabKey) => void;
   setFocusScenario: (scenario: string) => void;
   clearFocusScenario: () => void;
   applyFocusScenario: (scenario: string) => void;
@@ -115,6 +117,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   activeTab: "dashboard",
   runsSubtab: "scenarios",
   selectedScenario: null,
+  scenarioDetailTab: "overview",
   focusScenario: "",
   queueForm: initialQueueForm,
   executionForm: initialExecutionForm,
@@ -136,8 +139,12 @@ export const useUIStore = create<UIState>((set, get) => ({
   },
 
   setSelectedScenario: (scenario) => {
-    set({ selectedScenario: scenario });
+    set({ selectedScenario: scenario, scenarioDetailTab: "overview" });
     get().updateHash();
+  },
+
+  setScenarioDetailTab: (tab) => {
+    set({ scenarioDetailTab: tab });
   },
 
   // Focus actions
@@ -209,7 +216,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   },
 
   navigateBack: () => {
-    set({ selectedScenario: null });
+    set({ selectedScenario: null, scenarioDetailTab: "overview" });
     get().updateHash();
   },
 

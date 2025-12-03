@@ -10,7 +10,7 @@ test-genie is a Vrooli scenario that **automatically generates comprehensive tes
 
 > **Implementation Status**:
 > - ✅ Test execution via CLI and API (fully functional)
-> - ✅ Phase orchestration (all 6 phases in Go)
+> - ✅ Phase orchestration (all 7 phases in Go)
 > - ✅ Requirements sync from `[REQ:ID]` tags
 > - 🔄 AI-powered test generation (delegation to App Issue Tracker)
 > - 🔄 Coverage gap analysis with AI recommendations

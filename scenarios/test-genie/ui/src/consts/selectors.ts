@@ -283,7 +283,23 @@ const literalSelectors: LiteralSelectorTree = {
     scenarioTable: "test-genie-scenario-table",
     historyTable: "test-genie-history-table",
     scenarioDetail: "test-genie-scenario-detail",
-    scenarioDetailBack: "test-genie-scenario-detail-back"
+    scenarioDetailBack: "test-genie-scenario-detail-back",
+    scenarioTabOverview: "test-genie-scenario-tab-overview",
+    scenarioTabRequirements: "test-genie-scenario-tab-requirements",
+    scenarioTabHistory: "test-genie-scenario-tab-history"
+  },
+  // Requirements
+  requirements: {
+    panel: "test-genie-requirements-panel",
+    syncBanner: "test-genie-sync-banner",
+    syncButton: "test-genie-sync-button",
+    coverageStats: "test-genie-coverage-stats",
+    tree: "test-genie-requirements-tree",
+    filterAll: "test-genie-filter-all",
+    filterPassed: "test-genie-filter-passed",
+    filterFailed: "test-genie-filter-failed",
+    filterNotRun: "test-genie-filter-not-run",
+    searchInput: "test-genie-requirements-search"
   },
   // Generate page
   generate: {
@@ -355,6 +371,21 @@ export const selectors = registry.selectors as unknown as {
     historyTable: string;
     scenarioDetail: string;
     scenarioDetailBack: string;
+    scenarioTabOverview: string;
+    scenarioTabRequirements: string;
+    scenarioTabHistory: string;
+  };
+  requirements: {
+    panel: string;
+    syncBanner: string;
+    syncButton: string;
+    coverageStats: string;
+    tree: string;
+    filterAll: string;
+    filterPassed: string;
+    filterFailed: string;
+    filterNotRun: string;
+    searchInput: string;
   };
   generate: {
     phaseSelector: string;

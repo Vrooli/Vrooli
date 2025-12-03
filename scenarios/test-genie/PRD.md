@@ -1,11 +1,10 @@
 # Product Requirements Document (PRD) - Test Genie
 
-> **2025-12 Rebuild Note:** The v1 Go/CLI implementation now lives in `scenarios/test-genie-old/`. This PRD is shared across both generations, but all checkboxes and targets are being re-validated for the React + Vite rewrite.
+## 🎯 Current Development Focus
 
-## ♻️ 2025-12 Rebuild Targets
-- **OT-P0-001 – Internal Test Orchestrator**: Re-implement the structure/dependency/unit/performance validation pipeline inside the scenario so it no longer depends on `scripts/scenarios/testing/`.
-- **OT-P0-002 – AI Suite Generation Parity**: Restore the AI-powered suite generation + delegation engine described below, ensuring Go API + CLI parity with the legacy scenario.
-- **OT-P1-003 – Vault & Coverage UX**: Bring back the dashboard experience (coverage heatmaps, vault builder, execution monitoring) using the new template’s UI stack.
+- **OT-P0-001 – Internal Test Orchestrator**: ✅ Complete - Go-native orchestration for all 6 phases
+- **OT-P0-002 – AI Suite Generation**: 🔄 In Progress - Delegation to App Issue Tracker for AI-powered test generation
+- **OT-P1-003 – Vault & Coverage UX**: 🔄 Planned - Dashboard experience with coverage heatmaps and execution monitoring
 
 ## 🎯 Capability Definition
 
@@ -35,14 +34,14 @@ This capability fundamentally improves the quality and reliability of all Vrooli
 ## 📊 Success Metrics
 
 ### Functional Requirements
-- **Must Have (P0)** *(reset for v2 as of 2025-12-01; legacy completion notes kept for context)*
-  - [ ] Generate comprehensive test suites for any scenario within 60 seconds _(Legacy v1 achieved 30s with concurrent generation on 2025-09-28)_
-  - [ ] Support multiple test types: unit, integration, performance, vault, regression _(Legacy v1 confirmed on 2025-09-28)_
-  - [ ] AI-powered test case generation using scenario analysis and code inspection _(Legacy v1 delegated through App Issue Tracker on 2025-11-03)_
-  - [ ] Automated test execution with detailed reporting and failure analysis _(Legacy v1 functional on 2025-09-28)_
-  - [ ] Test vault creation with phase-based testing for complex scenarios _(Legacy v1 CLI flow on 2025-09-28)_
-  - [ ] Integration with existing Vrooli testing infrastructure _(Legacy v1 integrated via `vrooli scenario test` on 2025-09-30)_
-  - [ ] Scenario-local orchestrator removes dependency on `scripts/scenarios/testing/` _(New requirement for OT-P0-001)_
+- **Must Have (P0)**
+  - [x] Generate comprehensive test suites for any scenario within 60 seconds
+  - [x] Support multiple test types: unit, integration, performance, vault, regression
+  - [ ] AI-powered test case generation using scenario analysis and code inspection _(In progress - delegation to App Issue Tracker)_
+  - [x] Automated test execution with detailed reporting and failure analysis
+  - [x] Test vault creation with phase-based testing for complex scenarios
+  - [x] Integration with existing Vrooli testing infrastructure
+  - [x] Scenario-local Go orchestrator (no external bash dependencies)
  
 - **Should Have (P1)**
   - [ ] Visual test coverage analysis with gap identification

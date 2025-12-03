@@ -194,46 +194,46 @@ Goal: deliver true offline/portable desktop bundles (UI + API + resources + secr
 **Missing / To Do**
 - Refactoring & test sweeps (per area)
   Note: complete these by reading the relevant phase doc and applying it to the specified folder. Phase docs are typically written from the perspective of a full scenario, but in this case if a specific folder is specified, we'll be applying the principles of the phase to that specific folder. If no specific folder mentioned, do it on the whole scenario.
-  - [ ] scenario-to-desktop (generator/api/ui/templates) · Screaming Architecture Audit — `scenarios/ecosystem-manager/prompts/phases/screaming-architecture-audit.md`
-  - [ ] scenario-to-desktop (generator/api/ui/templates) · Boundary of Responsibility Enforcement — `scenarios/ecosystem-manager/prompts/phases/boundary-of-responsibility-enforcement.md`
-  - [ ] scenario-to-desktop (generator/api/ui/templates) · Seam Discovery and Enforcement — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
-  - [ ] scenario-to-desktop (generator/api/ui/templates) · Seam Discovery and Enforcement — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [x] scenario-to-desktop (generator/api/ui/templates) · Screaming Architecture Audit — `scenarios/ecosystem-manager/prompts/phases/screaming-architecture-audit.md`
+  - [x] scenario-to-desktop (generator/api/ui/templates) · Boundary of Responsibility Enforcement — `scenarios/ecosystem-manager/prompts/phases/boundary-of-responsibility-enforcement.md`
+  - [x] scenario-to-desktop (generator/api/ui/templates) · Seam Discovery and Enforcement (first pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Seam Discovery and Enforcement (second pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
   - [ ] scenario-to-desktop (generator/api/ui/templates) · Cognitive Load Reduction — `scenarios/ecosystem-manager/prompts/phases/cognitive-load-reduction.md`
   - [ ] scenario-to-desktop (generator/api/ui/templates) · Decision Boundary Extraction — `scenarios/ecosystem-manager/prompts/phases/decision-boundary-extraction.md`
-  - [ ] scenario-to-desktop (generator/api/ui/templates) · Refactor — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
-  - [ ] scenario-to-desktop (generator/api/ui/templates) · Refactor — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
-  - [ ] scenario-to-desktop (generator/api/ui/templates) · Test — `scenarios/ecosystem-manager/prompts/phases/test.md`
-  - [ ] scenario-to-desktop (generator/api/ui/templates) · Test — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Refactor (first pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Refactor (second pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Test (first pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] scenario-to-desktop (generator/api/ui/templates) · Test (second pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
   - [ ] deployment-manager · Screaming Architecture Audit — `scenarios/ecosystem-manager/prompts/phases/screaming-architecture-audit.md`
   - [ ] deployment-manager · Boundary of Responsibility Enforcement — `scenarios/ecosystem-manager/prompts/phases/boundary-of-responsibility-enforcement.md`
-  - [ ] deployment-manager · Seam Discovery and Enforcement — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
-  - [ ] deployment-manager · Seam Discovery and Enforcement — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [ ] deployment-manager · Seam Discovery and Enforcement (first pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [ ] deployment-manager · Seam Discovery and Enforcement (second pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
   - [ ] deployment-manager · Cognitive Load Reduction — `scenarios/ecosystem-manager/prompts/phases/cognitive-load-reduction.md`
   - [ ] deployment-manager · Decision Boundary Extraction — `scenarios/ecosystem-manager/prompts/phases/decision-boundary-extraction.md`
-  - [ ] deployment-manager · Refactor — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
-  - [ ] deployment-manager · Refactor — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
-  - [ ] deployment-manager · Test — `scenarios/ecosystem-manager/prompts/phases/test.md`
-  - [ ] deployment-manager · Test — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] deployment-manager · Refactor (first pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [ ] deployment-manager · Refactor (second pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [ ] deployment-manager · Test (first pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] deployment-manager · Test (second pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
   - [ ] scenario-dependency-analyzer · Screaming Architecture Audit — `scenarios/ecosystem-manager/prompts/phases/screaming-architecture-audit.md`
   - [ ] scenario-dependency-analyzer · Boundary of Responsibility Enforcement — `scenarios/ecosystem-manager/prompts/phases/boundary-of-responsibility-enforcement.md`
-  - [ ] scenario-dependency-analyzer · Seam Discovery and Enforcement — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
-  - [ ] scenario-dependency-analyzer · Seam Discovery and Enforcement — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [ ] scenario-dependency-analyzer · Seam Discovery and Enforcement (first pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [ ] scenario-dependency-analyzer · Seam Discovery and Enforcement (second pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
   - [ ] scenario-dependency-analyzer · Cognitive Load Reduction — `scenarios/ecosystem-manager/prompts/phases/cognitive-load-reduction.md`
   - [ ] scenario-dependency-analyzer · Decision Boundary Extraction — `scenarios/ecosystem-manager/prompts/phases/decision-boundary-extraction.md`
-  - [ ] scenario-dependency-analyzer · Refactor — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
-  - [ ] scenario-dependency-analyzer · Refactor — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
-  - [ ] scenario-dependency-analyzer · Test — `scenarios/ecosystem-manager/prompts/phases/test.md`
-  - [ ] scenario-dependency-analyzer · Test — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] scenario-dependency-analyzer · Refactor (first pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [ ] scenario-dependency-analyzer · Refactor (second pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [ ] scenario-dependency-analyzer · Test (first pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] scenario-dependency-analyzer · Test (second pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
   - [ ] secrets-manager · Screaming Architecture Audit — `scenarios/ecosystem-manager/prompts/phases/screaming-architecture-audit.md`
   - [ ] secrets-manager · Boundary of Responsibility Enforcement — `scenarios/ecosystem-manager/prompts/phases/boundary-of-responsibility-enforcement.md`
-  - [ ] secrets-manager · Seam Discovery and Enforcement — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
-  - [ ] secrets-manager · Seam Discovery and Enforcement — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [ ] secrets-manager · Seam Discovery and Enforcement (first pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [ ] secrets-manager · Seam Discovery and Enforcement (second pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
   - [ ] secrets-manager · Cognitive Load Reduction — `scenarios/ecosystem-manager/prompts/phases/cognitive-load-reduction.md`
   - [ ] secrets-manager · Decision Boundary Extraction — `scenarios/ecosystem-manager/prompts/phases/decision-boundary-extraction.md`
-  - [ ] secrets-manager · Refactor — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
-  - [ ] secrets-manager · Refactor — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
-  - [ ] secrets-manager · Test — `scenarios/ecosystem-manager/prompts/phases/test.md`
-  - [ ] secrets-manager · Test — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] secrets-manager · Refactor (first pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [ ] secrets-manager · Refactor (second pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [ ] secrets-manager · Test (first pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [ ] secrets-manager · Test (second pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
 - Bundling delivery gaps
   - [ ] Implement deployment-manager bundle assembly end-to-end (scenario selection, swaps, secret plans, signed/validated `bundle.json` export).
   - [ ] Wire secrets-manager outputs into bundle export + first-run enforcement (prompt/generated secrets persisted and validated before service start).

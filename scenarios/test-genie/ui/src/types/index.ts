@@ -2,6 +2,7 @@
 
 export type DashboardTabKey = "dashboard" | "runs" | "generate" | "docs";
 export type RunsSubtabKey = "scenarios" | "history";
+export type ScenarioDetailTabKey = "overview" | "requirements" | "history";
 
 export interface DashboardTab {
   key: DashboardTabKey;

@@ -113,7 +113,6 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [Presets](reference/presets.md) - Quick/Smoke/Comprehensive definitions
 - [Phase Catalog](reference/phase-catalog.md) - Detailed phase specs
 - [Test Runners](reference/test-runners.md) - Language-specific runners
-- [Shell Libraries](reference/shell-libraries.md) - Testing shell function reference
 - [Requirement Schema](reference/requirement-schema.md) - JSON schema for requirements
 - [Gaming Prevention](reference/gaming-prevention.md) - Test integrity detection
 - [Gold Standard Examples](reference/examples.md) - Exemplary implementations

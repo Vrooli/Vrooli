@@ -1,316 +1,35 @@
-# Comprehensive Testing Troubleshooting Guide
+# Troubleshooting Guide
 
-This guide provides step-by-step diagnosis and fixes for common testing issues across the entire Vrooli ecosystem - from unit tests to integration testing, Docker issues, and CI/CD problems.
+This guide provides step-by-step diagnosis and fixes for common testing issues across the Vrooli ecosystem - from test execution to Docker, networking, and CI/CD problems.
 
-## Emergency Quick Fixes
+## Quick Diagnosis
 
-### Test Exits Immediately After First Success
-```bash
-# Symptom: Script exits right after first message
-# Quick Fix: Replace all arithmetic expansions
-sed -i 's/((tests_passed++))/tests_passed=$((tests_passed + 1))/g' test/phases/test-unit.sh
-sed -i 's/((tests_failed++))/tests_failed=$((tests_failed + 1))/g' test/phases/test-unit.sh
-```
-
-### All Function Tests Fail
-```bash
-# Quick Fix: Check if you're sourcing libraries correctly
-# Make sure config comes before libraries:
-head -20 test/phases/test-unit.sh | grep -E "(source|config|lib)"
-```
-
-## Systematic Diagnosis Process
-
-### Step 1: Identify the Failure Pattern
-
-Run your unit test and capture the output:
-```bash
-./cli.sh test unit 2>&1 | tee unit_test_output.log
-```
-
-Look for these patterns in the output:
-
-#### Pattern A: Immediate Exit After First Test
-```
-[INFO] Test 1: Core lifecycle functions...
-[SUCCESS] Install function exists
-[ERROR] unit tests failed
-```
-**Go to [Arithmetic Expansion Issues](#arithmetic-expansion-issues)**
-
-#### Pattern B: Function Not Found Errors
-```
-[ERROR] Content add function missing
-[ERROR] API process file function missing
-```
-**Go to [Function Name Mismatches](#function-name-mismatches)**
-
-#### Pattern C: Configuration Variable Errors
-```
-[ERROR] Port not configured
-[ERROR] Base URL not configured
-```
-**Go to [Configuration Issues](#configuration-issues)**
-
-#### Pattern D: CLI Handler Registration Failures
-```
-[ERROR] Install handler not registered
-[ERROR] Test smoke handler not registered
-```
-**Go to [CLI Framework Issues](#cli-framework-issues)**
-
-#### Pattern E: Library Sourcing Errors
-```
-./test/phases/test-unit.sh: line 32: RESOURCE_PORT: unbound variable
-```
-**Go to [Library Sourcing Issues](#library-sourcing-issues)**
-
-## Detailed Fix Procedures
-
-### Arithmetic Expansion Issues
-
-**Cause:** Using `((variable++))` with `set -e` causes early script termination in some bash versions.
-
-**Diagnosis:**
-```bash
-# Find all problematic arithmetic expansions
-grep -n '((' test/phases/test-unit.sh
-```
-
-**Fix:**
-```bash
-# Replace ALL instances - don't miss any!
-sed -i 's/((tests_passed++))/tests_passed=$((tests_passed + 1))/g' test/phases/test-unit.sh
-sed -i 's/((tests_failed++))/tests_failed=$((tests_failed + 1))/g' test/phases/test-unit.sh
-
-# For any custom counters (like size_valid++):
-sed -i 's/((size_valid++))/size_valid=$((size_valid + 1))/g' test/phases/test-unit.sh
-```
-
-**Verification:**
-```bash
-# Should return no results:
-grep -n '((' test/phases/test-unit.sh | grep -v '$((.*))' | grep -v 'if \[' | grep -v 'for \('
-```
-
-### Function Name Mismatches
-
-**Cause:** Unit test expects function names that don't match the actual implementation.
-
-**Diagnosis:**
-```bash
-# Step 1: See what functions the test expects
-grep -E "test_function_exists.*\".*\"" test/phases/test-unit.sh
-
-# Step 2: See what functions actually exist
-grep -E "^[a-z_]+::[a-z_:]+\(\)" lib/*.sh
-
-# Step 3: Compare them manually or with a script
-```
-
-**Automated Diagnosis Script:**
-```bash
-#!/bin/bash
-echo "=== Functions Expected by Test ==="
-grep -oE '"[^"]*::.*"' test/phases/test-unit.sh | sed 's/"//g' | sort
-
-echo -e "\n=== Functions Actually Implemented ==="
-grep -oE '^[a-z_]+::[a-z_:]+\(\)' lib/*.sh | sed 's/()$//' | sort
-
-echo -e "\n=== Missing Functions ==="
-comm -23 \
-    <(grep -oE '"[^"]*::.*"' test/phases/test-unit.sh | sed 's/"//g' | sort) \
-    <(grep -oE '^[a-z_]+::[a-z_:]+\(\)' lib/*.sh | sed 's/()$//' | sort)
-```
-
-**Fix Options:**
-
-**Option 1: Update Test to Match Implementation**
-```bash
-# Example: Test expects resource::api::process_file but implementation has resource::process_document
-sed -i 's/resource::api::process_file/resource::process_document/g' test/phases/test-unit.sh
-```
-
-**Option 2: Create Function Aliases** (if backward compatibility needed)
-```bash
-# Add to appropriate lib file:
-resource::api::process_file() {
-    resource::process_document "$@"
-}
-```
-
-### Configuration Issues
-
-**Cause:** Configuration variables not properly defined or sourced.
-
-**Diagnosis:**
-```bash
-# Check if config file exists and has the expected variables
-grep -E "^[A-Z_]+=.*" config/defaults.sh
-
-# Check if config is sourced before it's used in test
-head -30 test/phases/test-unit.sh | grep -n -E "(source.*defaults|config)"
-```
-
-**Common Fixes:**
-
-1. **Missing export statements:**
-```bash
-# Wrong:
-RESOURCE_PORT=8080
-# Right:
-export RESOURCE_PORT=8080
-```
-
-2. **Wrong variable names:**
-```bash
-# Check test expectations vs actual config
-grep -E "RESOURCE.*PORT" test/phases/test-unit.sh config/defaults.sh
-```
-
-3. **Config not sourced:**
-```bash
-# Add near top of test file:
-source "${RESOURCE_DIR}/config/defaults.sh"
-```
-
-### CLI Framework Issues
-
-**Cause:** CLI framework not properly initialized or handlers not registered.
-
-**Diagnosis:**
-```bash
-# Check if CLI framework is initialized
-grep -n "cli::init" cli.sh
-
-# Check if handlers are registered after cli::init
-grep -A 10 "cli::init" cli.sh | grep "CLI_COMMAND_HANDLERS"
-
-# Check specific handler registration
-grep "CLI_COMMAND_HANDLERS\[test::smoke\]" cli.sh
-```
-
-**Fix:**
-```bash
-# Ensure handlers are registered AFTER cli::init in cli.sh:
-CLI_COMMAND_HANDLERS["test::smoke"]="resource::test::smoke"
-CLI_COMMAND_HANDLERS["test::unit"]="resource::test::unit"
-CLI_COMMAND_HANDLERS["manage::install"]="resource::install"
-```
-
-### Library Sourcing Issues
-
-**Cause:** Libraries sourced in wrong order or with wrong paths.
-
-**Diagnosis:**
-```bash
-# Check sourcing order in test
-head -40 test/phases/test-unit.sh | grep -E "source.*\.(sh|bash)"
-
-# Check if paths are correct
-ls -la lib/*.sh config/*.sh
-```
-
-**Fix:**
-```bash
-# Correct order (config MUST come before libraries):
-source "${RESOURCE_DIR}/config/defaults.sh"
-source "${RESOURCE_DIR}/lib/core.sh"
-source "${RESOURCE_DIR}/lib/install.sh"
-# ... other libs
-
-# Handle missing libraries gracefully:
-for lib in core install status api content; do
-    lib_file="${RESOURCE_DIR}/lib/${lib}.sh"
-    [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
-done
-```
-
-## Test Your Fix
-
-After applying any fix, verify it works:
+### Check Test Execution Status
 
 ```bash
-# Run unit test
-./cli.sh test unit
+# Run tests and capture output
+test-genie execute my-scenario --preset comprehensive 2>&1 | tee test_output.log
 
-# Should see:
-# - No immediate exits
-# - Proper test counts
-# - Clear pass/fail summary
+# Check phase results
+cat coverage/phase-results/unit.json | jq '.status'
+
+# View detailed errors
+cat coverage/phase-results/unit.json | jq '.errors'
 ```
 
-## Prevention Checklist
+### Common Patterns
 
-### Before Writing Tests:
-- [ ] List all functions that actually exist: `grep -r "^function_name()" lib/`
-- [ ] Check configuration variables: `grep "^export" config/defaults.sh`
-- [ ] Verify CLI handler registration: `grep "CLI_COMMAND_HANDLERS" cli.sh`
-
-### While Writing Tests:
-- [ ] Use safe arithmetic: `var=$((var + 1))` not `((var++))`
-- [ ] Test function existence with: `declare -f function_name`
-- [ ] Source config before libraries
-- [ ] Handle missing libraries gracefully
-- [ ] Use consistent naming patterns
-
-### After Writing Tests:
-- [ ] Run test multiple times to ensure consistency
-- [ ] Check test completes in <60 seconds
-- [ ] Verify all expected functions are tested
-- [ ] Ensure proper exit codes (0 for success, 1 for failure)
-
-## Debug Tools
-
-### Enable Debug Mode
-```bash
-# Run test with full debug output:
-bash -x test/phases/test-unit.sh 2>&1 | tee debug.log
-
-# Or set debug in the test itself:
-set -x  # Add after set -euo pipefail
-```
-
-### Function Existence Checker
-```bash
-# Quick script to check if all expected functions exist:
-check_functions() {
-    local test_file="$1"
-    while IFS= read -r func; do
-        if declare -f "$func" &>/dev/null; then
-            echo "Found: $func"
-        else
-            echo "Missing: $func"
-        fi
-    done < <(grep -oE '"[^"]*::[^"]*"' "$test_file" | sed 's/"//g')
-}
-
-# Usage:
-check_functions test/phases/test-unit.sh
-```
-
-### Variable Checker
-```bash
-# Check if all expected variables are defined:
-check_vars() {
-    local test_file="$1"
-    while IFS= read -r var; do
-        if [[ -n "${!var:-}" ]]; then
-            echo "Set: $var = ${!var}"
-        else
-            echo "Unset: $var"
-        fi
-    done < <(grep -oE '\$\{[A-Z_]+[:-]' "$test_file" | sed 's/\${\(.*\)[:-].*/\1/' | sort -u)
-}
-
-# Usage (run from resource directory after sourcing config):
-source config/defaults.sh
-check_vars test/phases/test-unit.sh
-```
+| Symptom | Likely Cause | Solution |
+|---------|--------------|----------|
+| Phase times out | Service not running | Check scenario is started |
+| Tests pass locally, fail in CI | Environment differences | Verify CI environment matches |
+| Requirement not tracked | Missing `[REQ:ID]` tag | Add requirement tag to test |
+| Coverage shows 0% | Coverage not enabled | Check vitest/go test config |
 
 ## Docker & Container Issues
 
 ### Container Won't Start
+
 **Symptoms:**
 ```
 Error starting userland proxy: listen tcp 0.0.0.0:8080: bind: address already in use
@@ -339,6 +58,7 @@ docker rm -f container-name
 ```
 
 ### Permission Denied in Container
+
 **Symptoms:**
 ```
 Permission denied: /var/lib/resource/data
@@ -358,6 +78,7 @@ user: "${UID:-1000}:${GID:-1000}"
 ```
 
 ### Docker Build Failures
+
 **Symptoms:**
 ```
 ERROR [stage 2/5] COPY . /app/
@@ -378,6 +99,7 @@ docker build --no-cache -t image-name .
 ## Network & Connectivity Issues
 
 ### API Not Responding
+
 **Symptoms:**
 ```
 curl: (7) Failed to connect to localhost port 8080: Connection refused
@@ -408,6 +130,7 @@ grep -E "port|PORT" .env config/*.sh
 ```
 
 ### DNS Resolution Issues
+
 **Symptoms:**
 ```
 getaddrinfo: Name or service not known
@@ -427,6 +150,7 @@ docker run --network vrooli-network ...
 ```
 
 ### Firewall/Security Issues
+
 **Symptoms:**
 ```
 Connection timed out
@@ -451,6 +175,7 @@ sudo ufw disable
 ## Environment & Configuration Issues
 
 ### Environment Variables Not Set
+
 **Symptoms:**
 ```
 Error: DATABASE_URL is required but not set
@@ -470,24 +195,18 @@ declare -x | grep -E "DATABASE|REDIS|API"
 
 **Solutions:**
 ```bash
-# Source configuration
-source config/defaults.sh
-
 # Set missing variables
 export DATABASE_URL="postgresql://localhost:5432/testdb"
 
 # Use .env file
 echo "DATABASE_URL=postgresql://localhost:5432/testdb" >> .env
-
-# Check variable loading order
-grep -n "source\|export" scripts/setup.sh
 ```
 
 ### Path Resolution Issues
+
 **Symptoms:**
 ```
-./test/run-tests.sh: No such file or directory
-scripts/lib/utils/log.sh: No such file or directory
+No such file or directory
 ```
 
 **Solutions:**
@@ -498,7 +217,6 @@ ls -la test/
 
 # Use absolute paths
 APP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "$APP_ROOT/scripts/lib/utils/log.sh"
 
 # Check script permissions
 chmod +x test/run-tests.sh
@@ -508,6 +226,7 @@ ls -la test/ | grep -E "^l"
 ```
 
 ### Version Conflicts
+
 **Symptoms:**
 ```
 Node version v14.x is not supported
@@ -535,6 +254,7 @@ cat .nvmrc .python-version 2>/dev/null
 ## Performance & Timeout Issues
 
 ### Tests Taking Too Long
+
 **Symptoms:**
 ```
 TIMEOUT: Test exceeded 120 seconds
@@ -543,10 +263,7 @@ TIMEOUT: Test exceeded 120 seconds
 **Diagnosis:**
 ```bash
 # Profile test execution
-time ./test/run-tests.sh
-
-# Find slow tests
-bats --timing test/cli/*.bats
+time test-genie execute my-scenario --preset quick
 
 # Check system resources
 top
@@ -556,20 +273,18 @@ df -h
 
 **Solutions:**
 ```bash
-# Increase timeout
-export TEST_TIMEOUT=300
+# Increase timeout via CLI
+test-genie execute my-scenario --timeout 300s
 
-# Run tests in parallel
-bats --jobs 4 test/cli/*.bats
+# Run phases in parallel where possible
+test-genie execute my-scenario --parallel
 
-# Skip slow tests
-export SKIP_SLOW_TESTS=true
-
-# Use test caching
-export ENABLE_TEST_CACHE=true
+# Use quick preset for iteration
+test-genie execute my-scenario --preset quick
 ```
 
 ### Memory Issues
+
 **Symptoms:**
 ```
 OOMKilled
@@ -585,13 +300,14 @@ docker stats
 docker run -m 2g image-name
 
 # Clean up test data
-rm -rf /tmp/test-* test/fixtures/temp/
+rm -rf /tmp/test-* coverage/
 
 # Monitor memory in tests
 ps aux --sort=-%mem | head -10
 ```
 
 ### Resource Leaks
+
 **Symptoms:**
 ```
 Too many open files
@@ -617,6 +333,7 @@ docker ps -q | xargs -r docker rm -f
 ## CI/CD & Automation Issues
 
 ### GitHub Actions Failures
+
 **Symptoms:**
 ```
 Error: Resource not available
@@ -644,6 +361,7 @@ services:
 ```
 
 ### Build Cache Issues
+
 **Symptoms:**
 ```
 Package not found
@@ -666,6 +384,7 @@ Cache miss on dependencies
 ```
 
 ### Secrets & Environment
+
 **Symptoms:**
 ```
 Error: API_KEY is not set
@@ -686,25 +405,80 @@ env:
 if: ${{ secrets.API_KEY != '' }}
 ```
 
-## Advanced Debugging Techniques
+## Test-Genie Specific Issues
+
+### Phase Results Not Generated
+
+**Symptoms:**
+- `coverage/phase-results/` directory is empty
+- Phase status shows "skipped"
+
+**Diagnosis:**
+```bash
+# Check if scenario exists in catalog
+test-genie scenarios list | grep my-scenario
+
+# Verify scenario configuration
+cat scenarios/my-scenario/.vrooli/service.json | jq '.lifecycle.test'
+```
+
+**Solutions:**
+```bash
+# Ensure scenario is registered
+test-genie scenarios refresh
+
+# Check API is running
+curl http://localhost:${TEST_GENIE_PORT}/health
+
+# Run with verbose output
+test-genie execute my-scenario --verbose
+```
+
+### Requirements Not Syncing
+
+**Symptoms:**
+- Requirements status not updating after tests
+- `coverage/vitest-requirements.json` not created
+
+**Diagnosis:**
+```bash
+# Check if vitest reporter is configured
+grep -r "RequirementReporter" ui/vite.config.ts
+
+# Verify requirement tags exist
+grep -r "\[REQ:" ui/src/**/*.test.ts
+```
+
+**Solutions:**
+```bash
+# Run comprehensive preset (triggers sync)
+test-genie execute my-scenario --preset comprehensive
+
+# Force sync manually
+test-genie sync my-scenario --force
+
+# Check reporter output
+cat ui/coverage/vitest-requirements.json | jq .
+```
+
+## Advanced Debugging
 
 ### Enable Comprehensive Logging
+
 ```bash
 # Set debug mode
 export DEBUG=1
 export VERBOSE=1
 
-# Shell tracing
-set -x
-
-# Log everything
-exec > >(tee -a test-debug.log) 2>&1
+# Run with tracing
+test-genie execute my-scenario --verbose --trace
 
 # Docker logging
 docker logs container-name -f --since 5m
 ```
 
 ### Reproduce Issues Locally
+
 ```bash
 # Match CI environment
 export CI=true
@@ -713,22 +487,21 @@ export NODE_ENV=test
 # Use same Docker images
 docker run --rm -it -v "$(pwd):/app" node:18-alpine /bin/bash
 
-# Run single test
-bats test/cli/specific-test.bats --verbose
-
 # Isolate the problem
-bash -x test/phases/test-unit.sh
+test-genie execute my-scenario --phases unit --verbose
 ```
 
-### Get Help from Logs
+### Collect Debug Information
+
 ```bash
 # Collect relevant logs
 mkdir debug-info
-cp test-debug.log debug-info/
-docker logs container-name > debug-info/docker.log
+cp test_output.log debug-info/
+docker logs container-name > debug-info/docker.log 2>&1
 env > debug-info/environment.txt
+test-genie version > debug-info/version.txt
 
-# Create issue with debug info
+# Create archive
 zip -r debug-info.zip debug-info/
 ```
 
@@ -736,42 +509,21 @@ zip -r debug-info.zip debug-info/
 
 ### Before Writing Tests
 - [ ] Read [Safety Guidelines](../safety/GUIDELINES.md)
-- [ ] Use safe BATS templates
-- [ ] Set proper timeouts
+- [ ] Tag tests with requirement IDs
+- [ ] Set appropriate timeouts
 - [ ] Plan cleanup strategy
 
 ### Before Committing
-- [ ] Run safety linter: `scripts/scenarios/testing/lint-tests.sh`
-- [ ] Test locally with clean environment
+- [ ] Run quick preset locally: `test-genie execute my-scenario --preset quick`
 - [ ] Check for hardcoded values (ports, paths)
 - [ ] Verify all tests pass: `make test`
 
 ### Before Production
+- [ ] Run comprehensive preset
 - [ ] Test in CI environment
 - [ ] Verify performance under load
 - [ ] Check resource cleanup
 - [ ] Document known limitations
-
-## When All Else Fails
-
-1. **Start with minimal reproduction**:
-   ```bash
-   # Create smallest possible test
-   echo '#!/bin/bash
-   echo "test"' > minimal-test.sh
-   chmod +x minimal-test.sh && ./minimal-test.sh
-   ```
-
-2. **Compare with working examples**:
-   - Check [visited-tracker tests](../../../visited-tracker/test/)
-   - Use gold standard examples in the codebase
-
-3. **Get help**:
-   - Create GitHub issue with "TESTING" label
-   - Include debug logs and environment info
-   - Mention what you've already tried
-
-Remember: Most testing issues are environment/configuration problems, not fundamental framework issues!
 
 ## See Also
 
