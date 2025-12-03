@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { TimelineEvent, HealthStatus, CheckTrend as APICheckTrend } from "../lib/api";
 import { StatusIcon } from "./StatusIcon";
+import { useCheckMetadata } from "../contexts/CheckMetadataContext";
 
 interface CheckTrendGridProps {
   /** Backend trends data (preferred) */
@@ -54,6 +55,8 @@ function StatusSparkline({ statuses }: { statuses: HealthStatus[] }) {
 }
 
 export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClick }: CheckTrendGridProps) {
+  const { getTitle } = useCheckMetadata();
+
   // Use backend trends if available, otherwise fall back to client-side aggregation
   const trends = useMemo<LocalCheckTrend[]>(() => {
     // If we have backend trends, convert them to local format
@@ -146,10 +149,13 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
 
           {/* Check name */}
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-slate-200 truncate">
-              {trend.checkId}
+            <div className="text-sm font-medium text-slate-200 truncate" title={trend.checkId}>
+              {getTitle(trend.checkId)}
             </div>
             <div className="text-xs text-slate-500">
+              {getTitle(trend.checkId) !== trend.checkId && (
+                <span className="font-mono text-slate-600 mr-2">{trend.checkId}</span>
+              )}
               {trend.total} checks
             </div>
           </div>

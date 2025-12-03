@@ -15,23 +15,72 @@ import (
 type ResourceCheck struct {
 	id           string
 	resourceName string
+	title        string
 	description  string
+	importance   string
 	interval     int
+}
+
+// resourceMetadata contains human-friendly metadata for known resources
+var resourceMetadata = map[string]struct {
+	title       string
+	description string
+	importance  string
+}{
+	"postgres": {
+		title:       "PostgreSQL Database",
+		description: "Checks PostgreSQL database resource via vrooli CLI",
+		importance:  "Required for data persistence in most scenarios",
+	},
+	"redis": {
+		title:       "Redis Cache",
+		description: "Checks Redis cache resource via vrooli CLI",
+		importance:  "Required for session storage and caching",
+	},
+	"ollama": {
+		title:       "Ollama AI",
+		description: "Checks Ollama local AI resource via vrooli CLI",
+		importance:  "Required for local AI inference capabilities",
+	},
+	"qdrant": {
+		title:       "Qdrant Vector DB",
+		description: "Checks Qdrant vector database resource via vrooli CLI",
+		importance:  "Required for semantic search and embeddings",
+	},
 }
 
 // NewResourceCheck creates a check for a Vrooli resource.
 // Resources are treated as critical by default since they are core infrastructure.
 func NewResourceCheck(resourceName string) *ResourceCheck {
+	meta, found := resourceMetadata[resourceName]
+	if !found {
+		// Fallback for unknown resources
+		meta = struct {
+			title       string
+			description string
+			importance  string
+		}{
+			title:       resourceName + " Resource",
+			description: "Monitors " + resourceName + " resource health via vrooli CLI",
+			importance:  "Required for scenarios that depend on this resource",
+		}
+	}
+
 	return &ResourceCheck{
 		id:           "resource-" + resourceName,
 		resourceName: resourceName,
-		description:  "Monitor " + resourceName + " resource health",
+		title:        meta.title,
+		description:  meta.description,
+		importance:   meta.importance,
 		interval:     60,
 	}
 }
 
 func (c *ResourceCheck) ID() string                 { return c.id }
+func (c *ResourceCheck) Title() string              { return c.title }
 func (c *ResourceCheck) Description() string        { return c.description }
+func (c *ResourceCheck) Importance() string         { return c.importance }
+func (c *ResourceCheck) Category() checks.Category  { return checks.CategoryResource }
 func (c *ResourceCheck) IntervalSeconds() int       { return c.interval }
 func (c *ResourceCheck) Platforms() []platform.Type { return nil } // all platforms
 

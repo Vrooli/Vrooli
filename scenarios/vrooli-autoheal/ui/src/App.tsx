@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { RefreshCw, Play, Shield, AlertCircle, CheckCircle, AlertTriangle, HardDrive, Activity, TrendingUp, LayoutDashboard } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { fetchStatus, fetchChecks, runTick, groupChecksByStatus, statusToEmoji } from "./lib/api";
-import type { CheckInfo, HealthResult } from "./lib/api";
+import type { CheckInfo, HealthResult, CheckCategory } from "./lib/api";
 import { selectors } from "./consts/selectors";
 import { StatusBadge, SummaryCard, CheckCard, PlatformInfo, EventsTimeline, UptimeStats, ErrorDisplay, TrendsPage } from "./components";
 import { APIError } from "./lib/api";
@@ -16,7 +16,10 @@ type TabType = "dashboard" | "trends";
 
 // Extended type for checks with metadata
 interface EnrichedCheck extends HealthResult {
+  title?: string;
   description?: string;
+  importance?: string;
+  category?: CheckCategory;
   intervalSeconds?: number;
 }
 
@@ -78,7 +81,7 @@ export default function App() {
     },
   });
 
-  // Enrich checks with metadata (description, interval)
+  // Enrich checks with metadata (title, description, importance, category, interval)
   // Note: Must be before early returns to maintain hook order
   const enrichedChecks: EnrichedCheck[] = useMemo(() => {
     const checks = data?.checks || [];
@@ -86,7 +89,10 @@ export default function App() {
       const metadata = checksMetadataMap[check.checkId];
       return {
         ...check,
+        title: metadata?.title,
         description: metadata?.description,
+        importance: metadata?.importance,
+        category: metadata?.category,
         intervalSeconds: metadata?.intervalSeconds,
       };
     });

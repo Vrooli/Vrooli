@@ -23,10 +23,15 @@ func NewNetworkCheck(target string) *NetworkCheck {
 	return &NetworkCheck{target: target}
 }
 
-func (c *NetworkCheck) ID() string                  { return "infra-network" }
-func (c *NetworkCheck) Description() string         { return "Network connectivity check" }
-func (c *NetworkCheck) IntervalSeconds() int        { return 30 }
-func (c *NetworkCheck) Platforms() []platform.Type  { return nil }
+func (c *NetworkCheck) ID() string          { return "infra-network" }
+func (c *NetworkCheck) Title() string       { return "Internet Connection" }
+func (c *NetworkCheck) Description() string { return "Tests TCP connectivity to Google DNS (8.8.8.8:53)" }
+func (c *NetworkCheck) Importance() string {
+	return "Required for external API calls, package updates, and tunnel connectivity"
+}
+func (c *NetworkCheck) Category() checks.Category  { return checks.CategoryInfrastructure }
+func (c *NetworkCheck) IntervalSeconds() int       { return 30 }
+func (c *NetworkCheck) Platforms() []platform.Type { return nil }
 
 func (c *NetworkCheck) Run(ctx context.Context) checks.Result {
 	result := checks.Result{

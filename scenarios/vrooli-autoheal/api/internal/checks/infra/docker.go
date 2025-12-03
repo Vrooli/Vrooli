@@ -17,10 +17,15 @@ type DockerCheck struct{}
 // NewDockerCheck creates a Docker health check
 func NewDockerCheck() *DockerCheck { return &DockerCheck{} }
 
-func (c *DockerCheck) ID() string                  { return "infra-docker" }
-func (c *DockerCheck) Description() string         { return "Docker daemon health" }
-func (c *DockerCheck) IntervalSeconds() int        { return 60 }
-func (c *DockerCheck) Platforms() []platform.Type  {
+func (c *DockerCheck) ID() string          { return "infra-docker" }
+func (c *DockerCheck) Title() string       { return "Docker Engine" }
+func (c *DockerCheck) Description() string { return "Verifies Docker daemon is running and responsive" }
+func (c *DockerCheck) Importance() string {
+	return "Required for running containers - most Vrooli scenarios depend on Docker"
+}
+func (c *DockerCheck) Category() checks.Category  { return checks.CategoryInfrastructure }
+func (c *DockerCheck) IntervalSeconds() int       { return 60 }
+func (c *DockerCheck) Platforms() []platform.Type {
 	return []platform.Type{platform.Linux, platform.MacOS}
 }
 

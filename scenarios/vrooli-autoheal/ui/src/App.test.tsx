@@ -47,11 +47,11 @@ const mockUptimeStatsResponse: api.UptimeStatsResponse = {
 };
 
 const mockChecksMetadata: api.CheckInfo[] = [
-  { id: 'infra-network', description: 'Network connectivity check', intervalSeconds: 30 },
-  { id: 'infra-dns', description: 'DNS resolution check', intervalSeconds: 30 },
-  { id: 'infra-docker', description: 'Docker daemon health', intervalSeconds: 60 },
-  { id: 'infra-cloudflared', description: 'Cloudflared tunnel health', intervalSeconds: 60 },
-  { id: 'infra-rdp', description: 'Remote desktop service health', intervalSeconds: 60 },
+  { id: 'infra-network', title: 'Internet Connection', description: 'Network connectivity check', importance: 'Required for external API calls', category: 'infrastructure', intervalSeconds: 30 },
+  { id: 'infra-dns', title: 'DNS Resolution', description: 'DNS resolution check', importance: 'Required for hostname resolution', category: 'infrastructure', intervalSeconds: 30 },
+  { id: 'infra-docker', title: 'Docker Engine', description: 'Docker daemon health', importance: 'Required for containers', category: 'infrastructure', intervalSeconds: 60 },
+  { id: 'infra-cloudflared', title: 'Cloudflare Tunnel', description: 'Cloudflared tunnel health', importance: 'Required for external access', category: 'infrastructure', intervalSeconds: 60 },
+  { id: 'infra-rdp', title: 'Remote Desktop', description: 'Remote desktop service health', importance: 'Required for RDP access', category: 'infrastructure', intervalSeconds: 60 },
 ];
 
 const mockStatusResponse: api.StatusResponse = {

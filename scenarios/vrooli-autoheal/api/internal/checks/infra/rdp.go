@@ -51,8 +51,13 @@ func NewRDPCheck(caps *platform.Capabilities) *RDPCheck {
 	return &RDPCheck{caps: caps}
 }
 
-func (c *RDPCheck) ID() string                 { return "infra-rdp" }
-func (c *RDPCheck) Description() string        { return "Remote desktop service health" }
+func (c *RDPCheck) ID() string          { return "infra-rdp" }
+func (c *RDPCheck) Title() string       { return "Remote Desktop" }
+func (c *RDPCheck) Description() string { return "Checks xrdp (Linux) or TermService (Windows) is running" }
+func (c *RDPCheck) Importance() string {
+	return "Required for remote desktop access to this machine"
+}
+func (c *RDPCheck) Category() checks.Category  { return checks.CategoryInfrastructure }
 func (c *RDPCheck) IntervalSeconds() int       { return 60 }
 func (c *RDPCheck) Platforms() []platform.Type { return []platform.Type{platform.Linux, platform.Windows} }
 

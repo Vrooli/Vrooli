@@ -10,6 +10,7 @@ import { UptimeTrendChart } from "./UptimeTrendChart";
 import { CheckTrendGrid } from "./CheckTrendGrid";
 import { CheckDetailModal } from "./CheckDetailModal";
 import { exportTrendDataToCSV } from "../lib/export";
+import { useCheckMetadata } from "../contexts/CheckMetadataContext";
 
 // Helper to detect status transitions (incidents)
 function detectIncidents(events: TimelineEvent[]): Array<{
@@ -90,6 +91,7 @@ const TIME_WINDOWS: TimeWindow[] = [
 export function TrendsPage() {
   const [selectedWindow, setSelectedWindow] = useState<TimeWindow>(TIME_WINDOWS[2]); // Default 24h
   const [selectedCheckId, setSelectedCheckId] = useState<string | null>(null);
+  const { getTitle } = useCheckMetadata();
 
   // Uptime stats for overall percentage
   const { data: uptimeData, isLoading: uptimeLoading, error: uptimeError, refetch: refetchUptime } = useQuery({
@@ -271,7 +273,14 @@ export function TrendsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-slate-200">{incident.checkId}</span>
+                    <div className="min-w-0">
+                      <span className="text-sm font-medium text-slate-200 block truncate" title={incident.checkId}>
+                        {getTitle(incident.checkId)}
+                      </span>
+                      {getTitle(incident.checkId) !== incident.checkId && (
+                        <span className="text-xs text-slate-600 font-mono">{incident.checkId}</span>
+                      )}
+                    </div>
                     <span className="text-xs text-slate-500 flex-shrink-0">
                       {formatRelativeTime(incident.timestamp)}
                     </span>

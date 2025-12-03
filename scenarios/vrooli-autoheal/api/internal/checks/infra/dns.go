@@ -22,10 +22,15 @@ func NewDNSCheck(domain string) *DNSCheck {
 	return &DNSCheck{domain: domain}
 }
 
-func (c *DNSCheck) ID() string                  { return "infra-dns" }
-func (c *DNSCheck) Description() string         { return "DNS resolution check" }
-func (c *DNSCheck) IntervalSeconds() int        { return 30 }
-func (c *DNSCheck) Platforms() []platform.Type  { return nil }
+func (c *DNSCheck) ID() string          { return "infra-dns" }
+func (c *DNSCheck) Title() string       { return "DNS Resolution" }
+func (c *DNSCheck) Description() string { return "Verifies domain name resolution via system DNS" }
+func (c *DNSCheck) Importance() string {
+	return "Required for resolving hostnames - failures break API calls and service discovery"
+}
+func (c *DNSCheck) Category() checks.Category  { return checks.CategoryInfrastructure }
+func (c *DNSCheck) IntervalSeconds() int       { return 30 }
+func (c *DNSCheck) Platforms() []platform.Type { return nil }
 
 func (c *DNSCheck) Run(ctx context.Context) checks.Result {
 	result := checks.Result{

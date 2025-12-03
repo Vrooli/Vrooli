@@ -2,11 +2,12 @@
 // [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useCallback } from "react";
-import { X, Download, Clock, AlertCircle, CheckCircle, AlertTriangle } from "lucide-react";
+import { X, Download, Clock, AlertCircle, CheckCircle, AlertTriangle, Info } from "lucide-react";
 import { fetchCheckHistory, HealthStatus } from "../lib/api";
 import { ErrorDisplay } from "./ErrorDisplay";
 import { StatusIcon } from "./StatusIcon";
 import { exportCheckHistoryToCSV } from "../lib/export";
+import { useCheckMetadata } from "../contexts/CheckMetadataContext";
 
 interface CheckDetailModalProps {
   checkId: string;
@@ -40,6 +41,11 @@ function formatRelativeTime(timestamp: string): string {
 }
 
 export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
+  const { getTitle, getMetadata } = useCheckMetadata();
+  const metadata = getMetadata(checkId);
+  const title = getTitle(checkId);
+  const showCheckId = title !== checkId;
+
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["check-history", checkId],
     queryFn: () => fetchCheckHistory(checkId),
@@ -89,9 +95,14 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <div>
             <h2 id="modal-title" className="text-lg font-semibold text-slate-200">
-              {checkId}
+              {title}
             </h2>
-            <p className="text-xs text-slate-500">Check History & Details</p>
+            {showCheckId && (
+              <p className="text-xs text-slate-600 font-mono">{checkId}</p>
+            )}
+            <p className="text-xs text-slate-500">
+              {metadata?.description || "Check History & Details"}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -124,6 +135,17 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
             <ErrorDisplay error={error} onRetry={() => refetch()} compact />
           ) : (
             <>
+              {/* Importance Notice */}
+              {metadata?.importance && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <Info size={16} className="text-blue-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-blue-300 font-medium">Why This Matters</p>
+                    <p className="text-xs text-blue-200/80 mt-0.5">{metadata.importance}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Stats Summary */}
               {stats && (
                 <div className="grid grid-cols-4 gap-3">

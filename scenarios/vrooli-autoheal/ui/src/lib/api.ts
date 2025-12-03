@@ -6,11 +6,28 @@ const API_BASE = resolveApiBase({ appendSuffix: true });
 
 export type HealthStatus = "ok" | "warning" | "critical";
 
+// Category groups related health checks for UI organization
+export type CheckCategory = "infrastructure" | "resource" | "scenario";
+
+// SubCheck represents a single sub-check within a compound health check
+export interface SubCheck {
+  name: string;
+  passed: boolean;
+  detail?: string;
+}
+
+// HealthMetrics provides structured health information beyond simple status
+export interface HealthMetrics {
+  score?: number; // 0-100, where 100 is fully healthy
+  subChecks?: SubCheck[];
+}
+
 export interface HealthResult {
   checkId: string;
   status: HealthStatus;
   message: string;
   details?: Record<string, unknown>;
+  metrics?: HealthMetrics;
   timestamp: string;
   duration: number;
 }
@@ -52,7 +69,10 @@ export interface TickResponse {
 
 export interface CheckInfo {
   id: string;
+  title: string;
   description: string;
+  importance: string;
+  category: CheckCategory;
   intervalSeconds: number;
   platforms?: string[];
 }

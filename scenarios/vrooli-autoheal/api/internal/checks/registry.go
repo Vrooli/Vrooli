@@ -156,7 +156,10 @@ func (r *Registry) ListChecks() []Info {
 	for _, check := range r.checks {
 		infos = append(infos, Info{
 			ID:              check.ID(),
+			Title:           check.Title(),
 			Description:     check.Description(),
+			Importance:      check.Importance(),
+			Category:        check.Category(),
 			IntervalSeconds: check.IntervalSeconds(),
 			Platforms:       check.Platforms(),
 		})

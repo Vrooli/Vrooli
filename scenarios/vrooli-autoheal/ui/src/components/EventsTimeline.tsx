@@ -7,6 +7,7 @@ import { fetchTimeline, TimelineEvent } from "../lib/api";
 import { StatusIcon } from "./StatusIcon";
 import { ErrorDisplay } from "./ErrorDisplay";
 import { selectors } from "../consts/selectors";
+import { useCheckMetadata } from "../contexts/CheckMetadataContext";
 
 function formatRelativeTime(timestamp: string): string {
   const date = new Date(timestamp);
@@ -140,6 +141,10 @@ export function EventsTimeline() {
 }
 
 function EventRow({ event }: { event: TimelineEvent }) {
+  const { getTitle } = useCheckMetadata();
+  const title = getTitle(event.checkId);
+  const showCheckId = title !== event.checkId; // Only show checkId if we have a different title
+
   return (
     <div className="flex items-start gap-3 p-3 hover:bg-white/[0.02] transition-colors">
       <div className="mt-0.5">
@@ -147,7 +152,14 @@ function EventRow({ event }: { event: TimelineEvent }) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-slate-200 truncate">{event.checkId}</span>
+          <div className="min-w-0">
+            <span className="text-sm font-medium text-slate-200 truncate block" title={event.checkId}>
+              {title}
+            </span>
+            {showCheckId && (
+              <span className="text-xs text-slate-600 font-mono">{event.checkId}</span>
+            )}
+          </div>
           <span className="text-xs text-slate-500 flex-shrink-0" title={new Date(event.timestamp).toLocaleString()}>
             {formatRelativeTime(event.timestamp)}
           </span>

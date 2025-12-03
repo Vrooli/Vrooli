@@ -15,7 +15,9 @@ import (
 type ScenarioCheck struct {
 	id           string
 	scenarioName string
+	title        string
 	description  string
+	importance   string
 	interval     int
 	critical     bool // determines if stopped/failed → critical or warning
 }
@@ -23,17 +25,27 @@ type ScenarioCheck struct {
 // NewScenarioCheck creates a check for a Vrooli scenario.
 // The critical parameter determines if failures should be critical or warning level.
 func NewScenarioCheck(scenarioName string, critical bool) *ScenarioCheck {
+	importance := "Monitors a running Vrooli scenario"
+	if critical {
+		importance = "Critical scenario - downtime affects core functionality"
+	}
+
 	return &ScenarioCheck{
 		id:           "scenario-" + scenarioName,
 		scenarioName: scenarioName,
-		description:  "Monitor " + scenarioName + " scenario health",
+		title:        scenarioName + " Scenario",
+		description:  "Monitors " + scenarioName + " scenario health via vrooli CLI",
+		importance:   importance,
 		interval:     60,
 		critical:     critical,
 	}
 }
 
 func (c *ScenarioCheck) ID() string                 { return c.id }
+func (c *ScenarioCheck) Title() string              { return c.title }
 func (c *ScenarioCheck) Description() string        { return c.description }
+func (c *ScenarioCheck) Importance() string         { return c.importance }
+func (c *ScenarioCheck) Category() checks.Category  { return checks.CategoryScenario }
 func (c *ScenarioCheck) IntervalSeconds() int       { return c.interval }
 func (c *ScenarioCheck) Platforms() []platform.Type { return nil }
 

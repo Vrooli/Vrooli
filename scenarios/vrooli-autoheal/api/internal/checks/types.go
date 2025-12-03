@@ -18,12 +18,39 @@ const (
 	StatusCritical Status = "critical"
 )
 
+// Category groups related health checks for UI organization
+type Category string
+
+const (
+	CategoryInfrastructure Category = "infrastructure"
+	CategoryResource       Category = "resource"
+	CategoryScenario       Category = "scenario"
+)
+
+// SubCheck represents a single sub-check within a compound health check.
+// Used to provide granular visibility into what passed/failed.
+type SubCheck struct {
+	Name   string `json:"name"`
+	Passed bool   `json:"passed"`
+	Detail string `json:"detail,omitempty"`
+}
+
+// HealthMetrics provides structured health information beyond the simple status.
+// This enables partial success reporting and granular health visibility.
+type HealthMetrics struct {
+	// Score is 0-100, where 100 is fully healthy. Optional.
+	Score *int `json:"score,omitempty"`
+	// SubChecks lists individual sub-checks for compound checks
+	SubChecks []SubCheck `json:"subChecks,omitempty"`
+}
+
 // Result is the outcome of running a health check
 type Result struct {
 	CheckID   string                 `json:"checkId"`
 	Status    Status                 `json:"status"`
 	Message   string                 `json:"message"`
 	Details   map[string]interface{} `json:"details,omitempty"`
+	Metrics   *HealthMetrics         `json:"metrics,omitempty"`
 	Timestamp time.Time              `json:"timestamp"`
 	Duration  time.Duration          `json:"duration"`
 }
@@ -31,7 +58,10 @@ type Result struct {
 // Check defines a single health check
 type Check interface {
 	ID() string
-	Description() string
+	Title() string       // Human-friendly name, e.g., "Internet Connection"
+	Description() string // What this check does
+	Importance() string  // Why this check matters / consequence of failure
+	Category() Category  // Grouping: infrastructure, resource, scenario
 	IntervalSeconds() int
 	Platforms() []platform.Type // empty means all platforms
 	Run(ctx context.Context) Result
@@ -40,7 +70,10 @@ type Check interface {
 // Info provides metadata about a registered check
 type Info struct {
 	ID              string          `json:"id"`
+	Title           string          `json:"title"`
 	Description     string          `json:"description"`
+	Importance      string          `json:"importance"`
+	Category        Category        `json:"category"`
 	IntervalSeconds int             `json:"intervalSeconds"`
 	Platforms       []platform.Type `json:"platforms,omitempty"`
 }

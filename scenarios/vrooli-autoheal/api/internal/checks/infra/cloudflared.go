@@ -64,8 +64,13 @@ func NewCloudflaredCheck(caps *platform.Capabilities) *CloudflaredCheck {
 	return &CloudflaredCheck{caps: caps}
 }
 
-func (c *CloudflaredCheck) ID() string                 { return "infra-cloudflared" }
-func (c *CloudflaredCheck) Description() string        { return "Cloudflared tunnel health" }
+func (c *CloudflaredCheck) ID() string          { return "infra-cloudflared" }
+func (c *CloudflaredCheck) Title() string       { return "Cloudflare Tunnel" }
+func (c *CloudflaredCheck) Description() string { return "Verifies cloudflared service is installed and running" }
+func (c *CloudflaredCheck) Importance() string {
+	return "Required for external access to hosted scenarios via Cloudflare Tunnel"
+}
+func (c *CloudflaredCheck) Category() checks.Category  { return checks.CategoryInfrastructure }
 func (c *CloudflaredCheck) IntervalSeconds() int       { return 60 }
 func (c *CloudflaredCheck) Platforms() []platform.Type { return nil }
 
