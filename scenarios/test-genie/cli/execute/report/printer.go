@@ -27,6 +27,7 @@ type Printer struct {
 	failFast            bool
 	descriptorMap       map[string]phases.Descriptor
 	targetDurationByKey map[string]time.Duration
+	streamedObservations bool // true if observations were already streamed via SSE
 }
 
 // New builds a printer instance.
@@ -72,6 +73,12 @@ func (p *Printer) Print(resp execTypes.Response) {
 func (p *Printer) PrintPreExecution(phaseNames []string) {
 	p.printPreHeader(phaseNames)
 	p.printPrePlan(phaseNames)
+}
+
+// SetStreamedObservations marks that observations were already streamed via SSE,
+// so printPhaseProgress should skip re-rendering them.
+func (p *Printer) SetStreamedObservations(streamed bool) {
+	p.streamedObservations = streamed
 }
 
 // PrintResults prints only the results portion (after API call completes).
@@ -277,8 +284,8 @@ func (p *Printer) printPhaseProgress(phasesData []execTypes.Phase) {
 		}
 		fmt.Fprintln(p.w, phaseSeparator)
 
-		// Show any observations from the phase
-		if len(phase.Observations) > 0 {
+		// Show any observations from the phase (skip if already streamed via SSE)
+		if len(phase.Observations) > 0 && !p.streamedObservations {
 			for _, obs := range phase.Observations {
 				text := strings.TrimSpace(obs.String())
 				if text == "" {

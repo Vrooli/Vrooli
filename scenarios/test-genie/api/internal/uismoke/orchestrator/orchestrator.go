@@ -82,7 +82,17 @@ func (o *Orchestrator) Run(ctx context.Context) (*Result, error) {
 		o.log("UI bundle is fresh")
 	}
 
-	// Step 4: Discover UI port
+	// Step 4: Check if UI port is defined in service.json
+	var uiPortDef *UIPortDefinition
+	if o.preflight != nil {
+		var err error
+		uiPortDef, err = o.preflight.CheckUIPortDefined(o.config.ScenarioDir)
+		if err != nil {
+			o.log("UI port definition check failed: %v", err)
+		}
+	}
+
+	// Step 5: Discover UI port
 	uiURL := o.config.ResolveUIURL()
 	if uiURL == "" && o.preflight != nil {
 		port, err := o.preflight.CheckUIPort(ctx, o.config.ScenarioName)
@@ -96,13 +106,27 @@ func (o *Orchestrator) Run(ctx context.Context) (*Result, error) {
 	}
 
 	if uiURL == "" {
-		o.log("No UI port detected, skipping smoke test")
-		result := Skipped(o.config.ScenarioName, "Scenario does not expose a UI port")
+		// If service.json defines a UI port but we couldn't detect it, that's an error
+		if uiPortDef != nil && uiPortDef.Defined {
+			o.log("UI port defined in service.json (%s) but not detected - scenario may not be running", uiPortDef.EnvVar)
+			result := Blocked(o.config.ScenarioName,
+				fmt.Sprintf("UI port is defined in service.json (%s) but not detected.\n"+
+					"  ↳ The scenario may not be running or the UI server failed to start.\n"+
+					"  ↳ Fix: vrooli scenario restart %s\n"+
+					"  ↳ Then check: vrooli scenario logs %s --step start-ui",
+					uiPortDef.EnvVar, o.config.ScenarioName, o.config.ScenarioName))
+			o.persistResult(ctx, result)
+			return result, nil
+		}
+
+		// No UI port defined - this scenario genuinely has no UI
+		o.log("No UI port defined in service.json, skipping smoke test")
+		result := Skipped(o.config.ScenarioName, "Scenario does not define a UI port")
 		o.persistResult(ctx, result)
 		return result, nil
 	}
 
-	// Step 5: Check iframe-bridge dependency
+	// Step 6: Check iframe-bridge dependency
 	var bridgeStatus *BridgeStatus
 	if o.preflight != nil {
 		var err error
@@ -121,7 +145,7 @@ func (o *Orchestrator) Run(ctx context.Context) (*Result, error) {
 		o.log("iframe-bridge dependency present")
 	}
 
-	// Step 6: Execute browser session
+	// Step 7: Execute browser session
 	if o.browser == nil {
 		return nil, fmt.Errorf("browser client not configured")
 	}
@@ -140,7 +164,7 @@ func (o *Orchestrator) Run(ctx context.Context) (*Result, error) {
 		return result, nil
 	}
 
-	// Step 7: Evaluate handshake
+	// Step 8: Evaluate handshake
 	var handshakeResult HandshakeResult
 	if o.handshake != nil {
 		handshakeResult = o.handshake.Evaluate(&response.Handshake)
@@ -153,7 +177,7 @@ func (o *Orchestrator) Run(ctx context.Context) (*Result, error) {
 		}
 	}
 
-	// Step 8: Write artifacts
+	// Step 9: Write artifacts
 	var artifactPaths *ArtifactPaths
 	if o.artifacts != nil {
 		artifactPaths, err = o.artifacts.WriteAll(ctx, o.config.ScenarioDir, o.config.ScenarioName, response)
@@ -162,11 +186,11 @@ func (o *Orchestrator) Run(ctx context.Context) (*Result, error) {
 		}
 	}
 
-	// Step 9: Build final result
+	// Step 10: Build final result
 	duration := time.Since(startTime)
 	result := o.buildResult(response, handshakeResult, bundleStatus, bridgeStatus, artifactPaths, uiURL, duration)
 
-	// Step 10: Persist result
+	// Step 11: Persist result
 	o.persistResult(ctx, result)
 
 	o.log("UI smoke test completed: %s (%dms)", result.Status, result.DurationMs)
@@ -235,6 +259,9 @@ func (o *Orchestrator) persistResult(ctx context.Context, result *Result) {
 	if o.artifacts != nil {
 		if err := o.artifacts.WriteResultJSON(ctx, o.config.ScenarioDir, o.config.ScenarioName, result); err != nil {
 			o.log("Failed to persist result: %v", err)
+		}
+		if err := o.artifacts.WriteReadme(ctx, o.config.ScenarioDir, o.config.ScenarioName, result); err != nil {
+			o.log("Failed to write README: %v", err)
 		}
 	}
 }

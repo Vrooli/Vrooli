@@ -601,17 +601,8 @@ func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspac
 		duration = 0
 	}
 
-	// Emit any final observations from the report
-	if emit != nil {
-		for _, obs := range report.Observations {
-			emit(ExecutionEvent{
-				Type:      EventObservation,
-				Timestamp: time.Now(),
-				Phase:     def.Name.String(),
-				Message:   obs.String(),
-			})
-		}
-	}
+	// Observations are included in the phase result and rendered by the CLI
+	// after phase completion, so we don't stream them here to avoid duplication.
 
 	status := "passed"
 	errMsg := ""

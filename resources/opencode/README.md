@@ -7,6 +7,10 @@ This resource installs the official [OpenCode](https://opencode.ai) CLI so agent
 # Download the latest OpenCode binary and scaffold a config
 resource-opencode manage install
 
+# After install, a shim is placed in ~/.local/bin so you can call the CLI directly
+# (make sure ~/.local/bin is on your PATH)
+opencode --version
+
 # Inspect installation details and config
 resource-opencode status
 

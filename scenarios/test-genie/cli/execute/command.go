@@ -84,6 +84,8 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 			return err
 		}
 
+		// Mark that observations were already streamed, skip re-rendering them
+		pr.SetStreamedObservations(true)
 		// Print final summary (SSE already showed phase progress)
 		pr.PrintResults(resp)
 	} else {

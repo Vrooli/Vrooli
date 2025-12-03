@@ -28,7 +28,8 @@ func TestRunStructurePhaseHonorsAdditionalRequirements(t *testing.T) {
 	h.writeTestingConfig(t, `{
   "structure": {
     "additional_dirs": ["extensions"],
-    "additional_files": ["configs/custom.json"]
+    "additional_files": ["configs/custom.json"],
+    "ui_smoke": {"enabled": false}
   }
 }`)
 	report := runStructurePhase(context.Background(), h.env, io.Discard)
@@ -57,7 +58,8 @@ func TestRunStructurePhaseSupportsExclusions(t *testing.T) {
 	}
 	h.writeTestingConfig(t, `{
   "structure": {
-    "exclude_files": ["PRD.md"]
+    "exclude_files": ["PRD.md"],
+    "ui_smoke": {"enabled": false}
   }
 }`)
 	report := runStructurePhase(context.Background(), h.env, io.Discard)
@@ -85,7 +87,8 @@ func TestRunStructurePhaseCanSkipJSONValidation(t *testing.T) {
   "structure": {
     "validations": {
       "check_json_validity": false
-    }
+    },
+    "ui_smoke": {"enabled": false}
   }
 }`)
 	report := runStructurePhase(context.Background(), h.env, io.Discard)
@@ -104,7 +107,8 @@ func TestRunStructurePhaseCanSkipServiceNameValidation(t *testing.T) {
   "structure": {
     "validations": {
       "service_json_name_matches_directory": false
-    }
+    },
+    "ui_smoke": {"enabled": false}
   }
 }`)
 	report := runStructurePhase(context.Background(), h.env, io.Discard)
@@ -167,6 +171,9 @@ func newStructureTestHarness(t *testing.T) *structureTestHarness {
     "validations": {
       "service_json_name_matches_directory": true,
       "check_json_validity": true
+    },
+    "ui_smoke": {
+      "enabled": false
     }
   }
 }`)

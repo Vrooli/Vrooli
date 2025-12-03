@@ -119,7 +119,7 @@ func TestRunUnitPhaseSkipsMissingShellTargets(t *testing.T) {
 	}
 	found := false
 	for _, obs := range report.Observations {
-		if strings.Contains(obs, "no shell entrypoints") {
+		if strings.Contains(obs.Text, "no shell entrypoints") {
 			found = true
 			break
 		}

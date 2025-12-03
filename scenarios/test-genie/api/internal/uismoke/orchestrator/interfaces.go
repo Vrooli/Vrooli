@@ -257,8 +257,18 @@ type PreflightChecker interface {
 	// Returns 0 if no UI port is detected.
 	CheckUIPort(ctx context.Context, scenarioName string) (int, error)
 
+	// CheckUIPortDefined checks if the scenario's service.json defines a UI port.
+	CheckUIPortDefined(scenarioDir string) (*UIPortDefinition, error)
+
 	// CheckUIDirectory returns true if the scenario has a UI directory.
 	CheckUIDirectory(scenarioDir string) bool
+}
+
+// UIPortDefinition describes whether a scenario defines a UI port in service.json.
+type UIPortDefinition struct {
+	Defined     bool   // True if service.json defines a UI port
+	EnvVar      string // The environment variable name (e.g., "UI_PORT")
+	Description string // Description from service.json
 }
 
 // BrowserClient executes JavaScript in a browser context via Browserless.
@@ -361,6 +371,9 @@ type ArtifactWriter interface {
 
 	// WriteResultJSON writes the final result JSON.
 	WriteResultJSON(ctx context.Context, scenarioDir, scenarioName string, result interface{}) error
+
+	// WriteReadme generates a README.md summarizing the test results.
+	WriteReadme(ctx context.Context, scenarioDir, scenarioName string, result *Result) error
 }
 
 // HandshakeDetector evaluates handshake results from the browser.

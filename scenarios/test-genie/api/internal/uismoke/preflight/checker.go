@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -235,7 +236,7 @@ func (c *Checker) CheckIframeBridge(ctx context.Context, scenarioDir string) (*o
 
 // CheckUIPort discovers and returns the UI port for the scenario.
 func (c *Checker) CheckUIPort(ctx context.Context, scenarioName string) (int, error) {
-	// Try vrooli scenario port command
+	// Method 1: Try vrooli scenario port command
 	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", scenarioName, "UI_PORT")
 	output, err := cmd.Output()
 	if err == nil {
@@ -245,7 +246,94 @@ func (c *Checker) CheckUIPort(ctx context.Context, scenarioName string) (int, er
 		}
 	}
 
+	// Method 2: Try to get all ports and look for UI_PORT
+	cmd = exec.CommandContext(ctx, "vrooli", "scenario", "port", scenarioName)
+	output, err = cmd.Output()
+	if err == nil {
+		for _, line := range strings.Split(string(output), "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "UI_PORT=") {
+				var port int
+				if _, err := fmt.Sscanf(line, "UI_PORT=%d", &port); err == nil && port > 0 {
+					return port, nil
+				}
+			}
+		}
+	}
+
+	// Method 3: Try to parse the scenario logs for UI port
+	cmd = exec.CommandContext(ctx, "vrooli", "scenario", "logs", scenarioName, "--step", "start-ui", "--lines", "50")
+	output, err = cmd.Output()
+	if err == nil {
+		port := parseUIPortFromLogs(string(output))
+		if port > 0 {
+			return port, nil
+		}
+	}
+
 	return 0, nil
+}
+
+// parseUIPortFromLogs looks for common UI port patterns in log output.
+// Returns the most recently mentioned port (last match) since logs may contain restarts.
+func parseUIPortFromLogs(logs string) int {
+	// Common patterns:
+	// "listening on port 38441"
+	// "UI: http://localhost:38441"
+	// "server listening on port 38441"
+	patterns := []string{
+		`listening on port (\d+)`,
+		`UI:\s*http://localhost:(\d+)`,
+		`server.*port\s+(\d+)`,
+	}
+
+	var lastPort int
+	for _, pattern := range patterns {
+		re := regexp.MustCompile(pattern)
+		// Find ALL matches and use the last one (most recent)
+		allMatches := re.FindAllStringSubmatch(logs, -1)
+		for _, matches := range allMatches {
+			if len(matches) >= 2 {
+				var port int
+				if _, err := fmt.Sscanf(matches[1], "%d", &port); err == nil && port > 0 {
+					lastPort = port
+				}
+			}
+		}
+	}
+	return lastPort
+}
+
+// CheckUIPortDefined checks if the scenario's service.json defines a UI port.
+func (c *Checker) CheckUIPortDefined(scenarioDir string) (*orchestrator.UIPortDefinition, error) {
+	serviceJSON := filepath.Join(scenarioDir, ".vrooli", "service.json")
+	data, err := os.ReadFile(serviceJSON)
+	if err != nil {
+		return &orchestrator.UIPortDefinition{Defined: false}, nil
+	}
+
+	var manifest struct {
+		Ports struct {
+			UI *struct {
+				EnvVar      string `json:"env_var"`
+				Description string `json:"description"`
+			} `json:"ui"`
+		} `json:"ports"`
+	}
+
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return &orchestrator.UIPortDefinition{Defined: false}, nil
+	}
+
+	if manifest.Ports.UI != nil && manifest.Ports.UI.EnvVar != "" {
+		return &orchestrator.UIPortDefinition{
+			Defined:     true,
+			EnvVar:      manifest.Ports.UI.EnvVar,
+			Description: manifest.Ports.UI.Description,
+		}, nil
+	}
+
+	return &orchestrator.UIPortDefinition{Defined: false}, nil
 }
 
 // CheckUIDirectory returns true if the scenario has a UI directory.
