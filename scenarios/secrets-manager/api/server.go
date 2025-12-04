@@ -27,9 +27,11 @@ type handlerSet struct {
 func newAPIServer(db *sql.DB, logger *Logger) *APIServer {
 	var validator *SecretValidator
 	var orientationBuilder *OrientationBuilder
+	var campaignStore CampaignStore
 	if db != nil {
 		validator = NewSecretValidator(db)
 		orientationBuilder = NewOrientationBuilder(db, logger)
+		campaignStore = NewDBCampaignStore(db)
 	}
 
 	// Create manifest builder for deployment handlers
@@ -48,7 +50,7 @@ func newAPIServer(db *sql.DB, logger *Logger) *APIServer {
 			deployment:  NewDeploymentHandlers(manifestBuilder),
 			scenarios:   NewScenarioHandlers(),
 			orientation: NewOrientationHandlers(orientationBuilder),
-			campaigns:   NewCampaignHandlers(manifestBuilder),
+			campaigns:   NewCampaignHandlers(manifestBuilder, campaignStore),
 		},
 	}
 }

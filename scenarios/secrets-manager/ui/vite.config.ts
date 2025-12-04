@@ -45,6 +45,9 @@ export default defineConfig(({ mode }) => {
     preview: {
       host: true,
       port: Number(uiPort)
+    },
+    test: {
+      environment: "jsdom"
     }
   };
 });

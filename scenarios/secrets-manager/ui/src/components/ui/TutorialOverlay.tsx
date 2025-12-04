@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, GripVertical } from "lucide-react";
 import { Button } from "./button";
 
@@ -30,32 +30,40 @@ export const TutorialOverlay = ({
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
   const startDrag = (event: React.MouseEvent) => {
+    event.preventDefault();
     setDragging(true);
     setOffset({ x: event.clientX - position.x, y: event.clientY - position.y });
   };
 
-  const handleMove = (event: React.MouseEvent) => {
+  useEffect(() => {
     if (!dragging) return;
-    setPosition({ x: event.clientX - offset.x, y: event.clientY - offset.y });
-  };
+    const handleMove = (event: MouseEvent) => {
+      setPosition({ x: event.clientX - offset.x, y: event.clientY - offset.y });
+    };
+    const stopDrag = () => setDragging(false);
 
-  const stopDrag = () => setDragging(false);
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", stopDrag);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", stopDrag);
+    };
+  }, [dragging, offset.x, offset.y]);
 
   // Scroll to anchor target when provided
-  if (anchorId) {
+  useEffect(() => {
+    if (!anchorId) return;
     const target = document.getElementById(anchorId);
     if (target) {
       target.scrollIntoView({ behavior: "smooth", block: "center" });
     }
-  }
+  }, [anchorId]);
 
   return (
     <div
       className="fixed z-50 w-[360px] rounded-2xl border border-emerald-400/40 bg-slate-900/95 shadow-2xl shadow-emerald-500/20 backdrop-blur"
       style={{ left: position.x, top: position.y }}
-      onMouseMove={handleMove}
-      onMouseUp={stopDrag}
-      onMouseLeave={stopDrag}
     >
       <div
         className="flex items-center justify-between border-b border-white/10 px-3 py-2 cursor-move"

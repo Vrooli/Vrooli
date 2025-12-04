@@ -25,11 +25,16 @@ export const ResourceTable = ({ resourceStatuses, isLoading, onOpenResource }: R
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("missing");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [showActionableOnly, setShowActionableOnly] = useState(false);
 
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
     return resourceStatuses
-      .filter((status) => status.resource_name.toLowerCase().includes(term))
+      .filter((status) => {
+        if (!status.resource_name.toLowerCase().includes(term)) return false;
+        if (showActionableOnly && status.secrets_missing === 0) return false;
+        return true;
+      })
       .sort((a, b) => {
         const dir = sortDir === "asc" ? 1 : -1;
         if (sortKey === "name") {
@@ -40,7 +45,7 @@ export const ResourceTable = ({ resourceStatuses, isLoading, onOpenResource }: R
         }
         return dir * (a.secrets_total - b.secrets_total);
       });
-  }, [resourceStatuses, search, sortDir, sortKey]);
+  }, [resourceStatuses, search, sortDir, sortKey, showActionableOnly]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -68,15 +73,20 @@ export const ResourceTable = ({ resourceStatuses, isLoading, onOpenResource }: R
           <p className="text-2xl font-semibold text-white">All resources, searchable and sortable</p>
           <p className="text-sm text-white/60">Includes healthy resources so you can confirm full coverage.</p>
         </div>
-        <div className="relative w-full max-w-xs">
-          <input
-            type="text"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search resources"
-            className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 pr-10 text-sm text-white placeholder:text-white/40"
-          />
-          <Search className="pointer-events-none absolute right-3 top-2.5 h-4 w-4 text-white/40" />
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+          <div className="relative w-full max-w-xs">
+            <input
+              type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search resources"
+              className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 pr-10 text-sm text-white placeholder:text-white/40"
+            />
+            <Search className="pointer-events-none absolute right-3 top-2.5 h-4 w-4 text-white/40" />
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setShowActionableOnly((v) => !v)}>
+            {showActionableOnly ? "Show all" : "Only action needed"}
+          </Button>
         </div>
       </div>
 

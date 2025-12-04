@@ -1,4 +1,5 @@
 import { Button } from "../../components/ui/button";
+import { ShieldCheck, AlertTriangle, KeyRound } from "lucide-react";
 
 export type JourneyId = "orientation" | "configure-secrets" | "fix-vulnerabilities" | "prep-deployment";
 
@@ -87,6 +88,7 @@ interface JourneyStepOptions {
     low: number;
   };
   onNavigateTab?: (tab: "dashboard" | "resources" | "compliance" | "deployment") => void;
+  onStartTutorial?: (journey: JourneyId, startStep?: number) => void;
 }
 
 export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyStepOptions) => {
@@ -94,17 +96,15 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
 
   const {
     heroStats,
-    manifestData,
-    manifestIsLoading,
-    manifestIsError,
-    manifestError,
-    topResourceNeedingAttention,
-    scenarioSelectionContent,
-    onOpenResource,
+    vulnerabilitySummary,
     onRefetchVulnerabilities,
-    onManifestRequest,
-    onNavigateTab
+    onNavigateTab,
+    onStartTutorial,
+    tierReadiness
   } = options;
+
+  const blockedTiers =
+    tierReadiness?.filter((tier) => tier.ready_percent < 100 || tier.strategized < tier.total) ?? [];
 
   const steps = [] as Array<{ title: string; description: string; content?: React.ReactNode }>;
 
@@ -122,16 +122,34 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
             <h4 className="text-xs uppercase tracking-[0.2em] text-white/60 mb-3">Readiness Snapshot</h4>
             <div className="grid gap-3 md:grid-cols-3 text-sm">
               <div>
-                <p className="text-white/60">Overall Score</p>
+                <div className="flex items-center gap-2 text-white/80">
+                  <ShieldCheck className="h-4 w-4 text-emerald-300" />
+                  <p className="text-white/60">Overall Score</p>
+                </div>
                 <p className="text-2xl font-semibold text-white">{heroStats?.vault_configured ?? 0}%</p>
+                <p className="text-[11px] text-white/50">
+                  % of resources with all required secrets configured. &lt;80% → start Configure Secrets now.
+                </p>
               </div>
               <div>
-                <p className="text-white/60">Risk Score</p>
+                <div className="flex items-center gap-2 text-white/80">
+                  <AlertTriangle className="h-4 w-4 text-amber-200" />
+                  <p className="text-white/60">Risk Score</p>
+                </div>
                 <p className="text-2xl font-semibold text-white">{heroStats?.risk_score ?? 0}</p>
+                <p className="text-[11px] text-white/50">
+                  Higher = more severe vulnerabilities. ≥60 → start Address Vulnerabilities.
+                </p>
               </div>
               <div>
-                <p className="text-white/60">Missing Secrets</p>
+                <div className="flex items-center gap-2 text-white/80">
+                  <KeyRound className="h-4 w-4 text-cyan-200" />
+                  <p className="text-white/60">Missing Secrets</p>
+                </div>
                 <p className="text-2xl font-semibold text-white">{heroStats?.missing_secrets ?? 0}</p>
+                <p className="text-[11px] text-white/50">
+                  Required secrets not present in Vault. &gt;0 blocks services from starting.
+                </p>
               </div>
             </div>
             <div className="mt-3 pt-3 border-t border-white/10 text-xs text-white/50">
@@ -184,26 +202,53 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
 
   if (journeyId === "configure-secrets") {
     steps.push({
-      title: "Audit coverage and jump to workbench",
-      description: "See missing secrets and tier strategies, then open the right resource.",
+      title: "Understand your coverage",
+      description: "See missing secrets and tier strategies, then jump into Resources with guidance if needed.",
       content: (
         <div className="space-y-3">
-          <ul className="space-y-1 text-sm text-white/80">
-            <li>Configured resources: {heroStats?.vault_configured ?? 0}</li>
-            <li>Total resources tracked: {heroStats?.vault_total ?? 0}</li>
-            <li>Missing secrets: {heroStats?.missing_secrets ?? 0}</li>
-          </ul>
+          <div className="grid gap-3 md:grid-cols-3 text-sm">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+              <div className="flex items-center gap-2 text-white/80">
+                <ShieldCheck className="h-4 w-4 text-emerald-300" />
+                <span className="text-white/60">Configured</span>
+              </div>
+              <p className="text-2xl font-semibold text-white">{heroStats?.vault_configured ?? 0}</p>
+              <p className="text-[11px] text-white/50">Resources fully configured. Aim for = total tracked.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+              <div className="flex items-center gap-2 text-white/80">
+                <KeyRound className="h-4 w-4 text-cyan-200" />
+                <span className="text-white/60">Missing secrets</span>
+              </div>
+              <p className="text-2xl font-semibold text-amber-100">{heroStats?.missing_secrets ?? 0}</p>
+              <p className="text-[11px] text-white/50">Any number here blocks services. Fix before shipping.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+              <div className="flex items-center gap-2 text-white/80">
+                <AlertTriangle className="h-4 w-4 text-amber-200" />
+                <span className="text-white/60">Coverage ratio</span>
+              </div>
+              <p className="text-2xl font-semibold text-white">
+                {heroStats && heroStats.vault_total > 0
+                  ? Math.round((heroStats.vault_configured / heroStats.vault_total) * 100)
+                  : 0}
+                %
+              </p>
+              <p className="text-[11px] text-white/50">&lt;80% means many services are unready.</p>
+            </div>
+          </div>
+          <p className="text-xs text-white/60">
+            Meaning: missing secrets = immediate blockers; configured/total shows coverage (shoot for 100%); low coverage or any
+            missing secrets → start Configure Secrets now.
+          </p>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => onNavigateTab?.("resources")}>
-              Open Resources tab
+            <Button size="sm" onClick={() => onStartTutorial?.("configure-secrets", 1)}>
+              Start guided tutorial
             </Button>
-            <Button size="sm" variant="outline" onClick={() => onOpenResource(topResourceNeedingAttention)}>
-              {topResourceNeedingAttention ? `Open ${topResourceNeedingAttention}` : "Top blocker"}
+            <Button size="sm" variant="outline" onClick={() => onNavigateTab?.("resources")}>
+              View Resources tab
             </Button>
           </div>
-          <p className="text-[11px] text-white/60">
-            Use By Tier for strategies and Per Resource for search + sort across everything.
-          </p>
         </div>
       )
     });
@@ -215,15 +260,42 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
       description: "Start with critical/high issues, then medium/low by component.",
       content: (
         <div className="space-y-3">
-          <p className="text-sm text-white/70">
-            Risk score blends severity and count. Critical/high items block launch; medium/low can be scheduled.
+          <div className="grid gap-3 md:grid-cols-2 text-sm">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+              <div className="flex items-center gap-2 text-white/80">
+                <AlertTriangle className="h-4 w-4 text-amber-200" />
+                <span className="text-white/60">Critical / High</span>
+              </div>
+              <p className="text-2xl font-semibold text-amber-100">
+                {(vulnerabilitySummary?.critical ?? 0) + (vulnerabilitySummary?.high ?? 0)}
+              </p>
+              <p className="text-[11px] text-white/50">Launch blockers. If &gt;0, start remediation now.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+              <div className="flex items-center gap-2 text-white/80">
+                <ShieldCheck className="h-4 w-4 text-emerald-300" />
+                <span className="text-white/60">Medium / Low</span>
+              </div>
+              <p className="text-2xl font-semibold text-white">
+                {(vulnerabilitySummary?.medium ?? 0) + (vulnerabilitySummary?.low ?? 0)}
+              </p>
+              <p className="text-[11px] text-white/50">Schedule-able risks. Tackle after blockers.</p>
+            </div>
+          </div>
+          <p className="text-xs text-white/60">
+            Critical/high = launch blockers; medium/low = schedule-able but still risky. If Critical/High &gt; 0, start now.
           </p>
-          <Button size="sm" onClick={() => onNavigateTab?.("compliance")}>
-            Open Compliance tab
-          </Button>
-          <Button variant="outline" size="sm" onClick={onRefetchVulnerabilities}>
-            Re-run scan
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => onStartTutorial?.("fix-vulnerabilities", 1)}>
+              Start guided tutorial
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => onNavigateTab?.("compliance")}>
+              Open Compliance tab
+            </Button>
+            <Button variant="outline" size="sm" onClick={onRefetchVulnerabilities}>
+              Re-run scan
+            </Button>
+          </div>
         </div>
       )
     });
@@ -232,48 +304,62 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
   if (journeyId === "prep-deployment") {
     steps.push({
       title: "Pick a campaign",
-      description: "Choose the scenario and target tier you want to ship.",
+      description: "Assess blockers, then jump into Deployment to continue the campaign.",
       content: (
         <div className="space-y-3">
-          {scenarioSelectionContent || <p className="text-sm text-white/70">Scenario list not available.</p>}
+          <div className="grid gap-3 md:grid-cols-3 text-sm">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+              <div className="flex items-center gap-2 text-white/80">
+                <ShieldCheck className="h-4 w-4 text-emerald-300" />
+                <span className="text-white/60">Tiers tracked</span>
+              </div>
+              <p className="text-2xl font-semibold text-white">{tierReadiness?.length ?? 0}</p>
+              <p className="text-[11px] text-white/50">Tier 1–5 coverage under watch.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+              <div className="flex items-center gap-2 text-white/80">
+                <AlertTriangle className="h-4 w-4 text-amber-200" />
+                <span className="text-white/60">Blocked tiers</span>
+              </div>
+              <p className="text-2xl font-semibold text-amber-100">{blockedTiers.length}</p>
+              <p className="text-[11px] text-white/50">Any blocked tier can’t ship. Clear strategies first.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+              <div className="flex items-center gap-2 text-white/80">
+                <KeyRound className="h-4 w-4 text-cyan-200" />
+                <span className="text-white/60">Missing secrets</span>
+              </div>
+              <p className="text-2xl font-semibold text-white">{heroStats?.missing_secrets ?? 0}</p>
+              <p className="text-[11px] text-white/50">Still missing values block deployment across tiers.</p>
+            </div>
+          </div>
+          {blockedTiers.length > 0 ? (
+            <p className="text-xs text-white/60">
+              Blocked tiers = environments that can’t ship because strategies are missing. Blocked:{" "}
+              {blockedTiers.map((tier) => tier.label).slice(0, 3).join(", ")}
+              {blockedTiers.length > 3 ? "..." : ""}
+            </p>
+          ) : (
+            <p className="text-xs text-white/60">
+              All tiers show full strategy coverage. Next step: generate/export a manifest for your target tier.
+            </p>
+          )}
+          <p className="text-sm text-white/70">
+            When to start: any blocked tier or missing secret → run Prep Deployment now. If none are blocked, you can jump straight
+            to manifest export.
+          </p>
           <p className="text-xs text-white/60">
-            Campaigns are searchable and sortable in the Deployment tab. Select one to load readiness and manifest tools.
-          </p>
-          <Button size="sm" onClick={() => onNavigateTab?.("deployment")}>
-            Go to Deployment
-          </Button>
-        </div>
-      )
-    });
-    steps.push({
-      title: "Check readiness and blockers",
-      description: "Review tier coverage and open the top resource to clear strategies.",
-      content: (
-        <div className="space-y-3">
-          <p className="text-sm text-white/70">
-            Use the campaign stepper: jump to readiness to see strategies per tier, then open the blocker directly.
-          </p>
-          <Button size="sm" variant="outline" onClick={() => onOpenResource(topResourceNeedingAttention)}>
-            {topResourceNeedingAttention ? `Open ${topResourceNeedingAttention}` : "Open resource workbench"}
-          </Button>
-        </div>
-      )
-    });
-    steps.push({
-      title: "Generate and export manifest",
-      description: "Create the deployment manifest for handoff.",
-      content: (
-        <div className="space-y-3">
-          <p className="text-sm text-white/70">
-            After clearing blockers, generate the manifest from the Deployment tab and export it for deployment-manager or
+            Campaigns live in the Deployment tab. Select one, check readiness, then export the manifest for deployment-manager or
             scenario-to-*.
           </p>
-          <Button size="sm" onClick={onManifestRequest} disabled={manifestIsLoading}>
-            {manifestIsLoading ? "Generating…" : manifestData ? "Regenerate manifest" : "Generate manifest"}
-          </Button>
-          {manifestIsError ? (
-            <p className="text-xs text-red-300">{manifestError?.message}</p>
-          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => onStartTutorial?.("prep-deployment", 1)}>
+              Start guided tutorial
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => onNavigateTab?.("deployment")}>
+              Open Deployment tab
+            </Button>
+          </div>
         </div>
       )
     });

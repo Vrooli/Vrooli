@@ -3,7 +3,6 @@ import { RefreshCcw } from "lucide-react";
 import { Header } from "./sections/Header";
 import { OrientationHub } from "./sections/OrientationHub";
 import { DeploymentReadinessPanel, TierReadiness } from "./sections/TierReadiness";
-import { ResourceWorkbench } from "./sections/ResourceWorkbench";
 import { ComplianceOverview } from "./sections/ComplianceOverview";
 import { SecurityTables } from "./sections/SecurityTables";
 import { ResourcePanel } from "./features/resource-panel/ResourcePanel";
@@ -89,8 +88,9 @@ export default function App() {
     search: campaignSearch,
     setSearch: setCampaignSearch,
     query: campaignQuery,
+    readinessQuery: campaignReadinessQuery,
     filtered: filteredCampaigns
-  } = useCampaigns();
+  } = useCampaigns(selectedScenario);
 
   const topResourceNeedingAttention = useMemo(() => {
     if (resourceInsights.length > 0) {
@@ -99,48 +99,6 @@ export default function App() {
     const resourceStatuses = vaultQuery.data?.resource_statuses ?? [];
     return resourceStatuses.find((status) => status.secrets_missing > 0)?.resource_name;
   }, [resourceInsights, vaultQuery.data]);
-
-  const {
-    activeJourney,
-    journeyStep,
-    journeySteps,
-    handleJourneySelect,
-    handleJourneyExit,
-    handleJourneyNext,
-    handleJourneyBack,
-    journeyNextDisabled,
-    deploymentFlow
-  } = useJourneys({
-    selectedScenario,
-    onDeploymentScenarioChange: setSelectedScenario,
-    scenarioSelection: {
-      scenarios,
-      filtered,
-      search: scenarioSearch,
-      isLoading: scenarioQuery.isLoading,
-      selectedScenario,
-      onSearchChange: setScenarioSearch,
-      onSelect: setSelectedScenario
-    },
-    heroStats,
-    orientationData,
-    tierReadiness,
-    topResourceNeedingAttention,
-    onOpenResource: openResourcePanel,
-    onRefetchVulnerabilities: () => vulnerabilityQuery.refetch(),
-    onNavigateTab: (tab) => setActiveTab(tab as ExperienceTab)
-  });
-
-  useEffect(() => {
-    if (!scenarioQuery.data?.scenarios?.length) return;
-    // Prefer secrets-manager if present; otherwise first scenario
-    const preferred = scenarioQuery.data.scenarios.find((scenario) => scenario.name === "secrets-manager");
-    const fallback = scenarioQuery.data.scenarios[0];
-    const nextScenario = preferred?.name || fallback?.name;
-    if (nextScenario && selectedScenario === "secrets-manager" && nextScenario !== selectedScenario) {
-      setSelectedScenario(nextScenario);
-    }
-  }, [scenarioQuery.data?.scenarios, selectedScenario]);
 
   const vulnerabilitySummary = {
     critical: complianceQuery.data?.vulnerability_summary?.critical ?? 0,
@@ -159,30 +117,85 @@ export default function App() {
     vulnerabilitySummary.critical + vulnerabilitySummary.high + vulnerabilitySummary.medium + vulnerabilitySummary.low;
   const missingSecretsCount = heroStats?.missing_secrets ?? missingSecrets.length ?? 0;
 
-  const activeJourneyCard = journeyCards.find((card) => card.id === activeJourney);
-
-  const handleJourneySelectTyped = (journeyId: JourneyId) => {
-    handleJourneySelect(journeyId);
-    if (journeyId === "configure-secrets") {
-      setActiveTab("resources");
-      setTutorialAnchor("anchor-resources");
-      setShowTutorialOverlay(true);
-    } else if (journeyId === "fix-vulnerabilities") {
-      setActiveTab("compliance");
-      setTutorialAnchor("anchor-compliance");
-      setShowTutorialOverlay(true);
-    } else if (journeyId === "prep-deployment") {
-      setActiveTab("deployment");
-      setTutorialAnchor("anchor-deployment");
-      setShowTutorialOverlay(true);
-    } else {
-      setShowTutorialOverlay(false);
-      setTutorialAnchor(undefined);
+  const scrollToAnchor = (anchorId?: string) => {
+    if (typeof document === "undefined" || !anchorId) return;
+    const el = document.getElementById(anchorId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
 
+  const {
+    activeJourney,
+    journeyStep,
+    journeySteps,
+    handleJourneySelect,
+    handleJourneyExit,
+    handleJourneyNext,
+    handleJourneyBack,
+    setJourneyStep,
+    journeyNextDisabled,
+    deploymentFlow
+  } = useJourneys({
+    selectedScenario,
+    onDeploymentScenarioChange: setSelectedScenario,
+    scenarioSelection: {
+      scenarios,
+      filtered,
+      search: scenarioSearch,
+      isLoading: scenarioQuery.isLoading,
+      selectedScenario,
+      onSearchChange: setScenarioSearch,
+      onSelect: setSelectedScenario
+    },
+    heroStats,
+    vulnerabilitySummary,
+    orientationData,
+    tierReadiness,
+    topResourceNeedingAttention,
+    onOpenResource: openResourcePanel,
+    onRefetchVulnerabilities: () => vulnerabilityQuery.refetch(),
+    onNavigateTab: (tab) => setActiveTab(tab as ExperienceTab),
+    onStartTutorial: (journey, startStep = 1) => {
+      const config: Record<JourneyId, { tab: ExperienceTab; anchor?: string }> = {
+        "configure-secrets": { tab: "resources", anchor: "anchor-resources" },
+        "fix-vulnerabilities": { tab: "compliance", anchor: "anchor-compliance" },
+        "prep-deployment": { tab: "deployment", anchor: "anchor-deployment" },
+        orientation: { tab: "dashboard" }
+      };
+      const target = config[journey];
+      if (!target) return;
+      setActiveTab(target.tab);
+      const startIndex = Math.min(startStep, Math.max(journeySteps.length - 1, 0));
+      setJourneyStep(startIndex);
+      setTutorialAnchor(target.anchor);
+      setShowTutorialOverlay(true);
+      scrollToAnchor(target.anchor);
+    }
+  });
+
+  useEffect(() => {
+    if (!scenarioQuery.data?.scenarios?.length) return;
+    // Prefer secrets-manager if present; otherwise first scenario
+    const preferred = scenarioQuery.data.scenarios.find((scenario) => scenario.name === "secrets-manager");
+    const fallback = scenarioQuery.data.scenarios[0];
+    const nextScenario = preferred?.name || fallback?.name;
+    if (nextScenario && selectedScenario === "secrets-manager" && nextScenario !== selectedScenario) {
+      setSelectedScenario(nextScenario);
+    }
+  }, [scenarioQuery.data?.scenarios, selectedScenario]);
+
+  const activeJourneyCard = journeyCards.find((card) => card.id === activeJourney);
+
+  const handleJourneySelectTyped = (journeyId: JourneyId) => {
+    closeTutorialOverlay();
+    setActiveTab("dashboard");
+    handleJourneySelect(journeyId);
+  };
+
   const startPrepDeploymentJourney = () => {
-    setActiveTab("deployment");
+    setActiveTab("dashboard");
+    closeTutorialOverlay();
     handleJourneySelectTyped("prep-deployment");
   };
 
@@ -214,6 +227,17 @@ export default function App() {
     }
   ];
 
+  const handleCampaignStepChange = (index: number) => {
+    setCampaignStep(index);
+    const anchorMap: Record<number, string | undefined> = {
+      0: "anchor-campaigns",
+      1: "anchor-deployment",
+      2: "anchor-resources",
+      3: "anchor-manifest"
+    };
+    scrollToAnchor(anchorMap[index]);
+  };
+
   return (
     <div className="relative min-h-screen bg-slate-950 text-slate-50">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.15),_transparent_50%),radial-gradient(circle_at_bottom,_rgba(59,130,246,0.15),_transparent_60%)]" />
@@ -237,7 +261,6 @@ export default function App() {
         <Header
           isInitialLoading={isInitialLoading}
           isRefreshing={isRefreshing}
-          totalFindings={vulnerabilityQuery.data?.total_count}
           onRefresh={refreshAll}
         />
 
@@ -272,7 +295,7 @@ export default function App() {
             title="Deployment prep needs strategies"
             description="Clear blocked tiers, then generate and export a manifest for the selected campaign."
             actionLabel="Run readiness"
-            onAction={() => setCampaignStep(1)}
+            onAction={() => handleCampaignStepChange(1)}
           />
         ) : null}
 
@@ -322,22 +345,13 @@ export default function App() {
                 onChange={(id) => setResourceTab(id as "tier" | "resource")}
               />
               {resourceTab === "tier" ? (
-                <>
-                  <TierReadiness
-                    tierReadiness={tierReadiness}
-                    isLoading={orientationQuery.isLoading}
-                    onOpenResource={openResourcePanel}
-                    resourceInsights={resourceInsights}
-                    resourceStatuses={resourceStatuses}
-                  />
-
-                  <ResourceWorkbench
-                    resourceInsights={resourceInsights}
-                    resourceStatuses={resourceStatuses}
-                    isLoading={orientationQuery.isLoading}
-                    onOpenResource={openResourcePanel}
-                  />
-                </>
+                <TierReadiness
+                  tierReadiness={tierReadiness}
+                  isLoading={orientationQuery.isLoading}
+                  onOpenResource={openResourcePanel}
+                  resourceInsights={resourceInsights}
+                  resourceStatuses={resourceStatuses}
+                />
               ) : (
                 <ResourceTable
                   resourceStatuses={resourceStatuses}
@@ -352,17 +366,20 @@ export default function App() {
             <>
               <CampaignsPanel
                 campaigns={filteredCampaigns}
-                isLoading={campaignQuery.isLoading}
+                isLoading={campaignQuery.isLoading || campaignReadinessQuery.isLoading}
                 search={campaignSearch}
                 onSearchChange={setCampaignSearch}
                 selectedScenario={selectedScenario}
-                onSelectScenario={setSelectedScenario}
+                onSelectScenario={(scenario) => {
+                  setSelectedScenario(scenario);
+                  handleCampaignStepChange(1);
+                }}
                 defaultBlockedTiers={readinessCount}
               />
 
               <DeploymentStepper
                 activeStep={campaignStep}
-                onStepChange={setCampaignStep}
+                onStepChange={handleCampaignStepChange}
                 onOpenResource={
                   topResourceNeedingAttention ? () => openResourcePanel(topResourceNeedingAttention) : undefined
                 }
@@ -450,6 +467,7 @@ export default function App() {
           subtitle={activeJourneyCard?.description}
           stepLabel={`Step ${journeyStep + 1} of ${journeySteps.length}`}
           content={journeySteps[journeyStep].content}
+          anchorId={tutorialAnchor}
           onClose={closeTutorialOverlay}
           onNext={handleJourneyNext}
           onBack={journeyStep > 0 ? handleJourneyBack : undefined}

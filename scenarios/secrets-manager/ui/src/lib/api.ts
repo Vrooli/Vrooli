@@ -208,6 +208,7 @@ export interface CampaignSummary {
   blockers: number;
   updated_at: string;
   next_action?: string;
+  last_step?: string;
   summary?: {
     strategized_secrets: number;
     total_secrets: number;
@@ -461,5 +462,12 @@ export interface ScenarioSummary {
 export const fetchScenarios = () =>
   jsonFetch<{ scenarios: ScenarioSummary[]; count: number }>("/scenarios");
 
-export const fetchCampaigns = (includeReadiness = true) =>
-  jsonFetch<CampaignListResponse>(`/campaigns${includeReadiness ? "?include_readiness=true" : ""}`);
+export const fetchCampaigns = (options?: { includeReadiness?: boolean; scenario?: string }) => {
+  const includeReadiness = options?.includeReadiness ?? false;
+  const scenario = options?.scenario;
+  const params = new URLSearchParams();
+  if (includeReadiness) params.set("include_readiness", "true");
+  if (scenario) params.set("scenario", scenario);
+  const suffix = params.toString();
+  return jsonFetch<CampaignListResponse>(`/campaigns${suffix ? `?${suffix}` : ""}`);
+};

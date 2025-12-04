@@ -31,8 +31,25 @@ export const CampaignsPanel = ({
       .sort((a, b) => (sortDir === "asc" ? a.scenario.localeCompare(b.scenario) : b.scenario.localeCompare(a.scenario)));
   }, [campaigns, search, sortDir]);
 
+  const aggregate = useMemo(
+    () =>
+      filtered.reduce(
+        (acc, campaign) => {
+          const summary = campaign.summary;
+          acc.count += 1;
+          acc.covered += summary?.strategized_secrets ?? 0;
+          acc.total += summary?.total_secrets ?? 0;
+          const blockers = summary?.requires_action ?? (campaign.blockers > 0 ? campaign.blockers : defaultBlockedTiers);
+          acc.blockers += blockers;
+          return acc;
+        },
+        { count: 0, covered: 0, total: 0, blockers: 0 }
+      ),
+    [filtered, defaultBlockedTiers]
+  );
+
   return (
-    <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+    <section id="anchor-campaigns" className="rounded-3xl border border-white/10 bg-white/5 p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <div className="rounded-full border border-emerald-400/40 bg-emerald-500/10 p-2">
@@ -58,6 +75,21 @@ export const CampaignsPanel = ({
           <Button variant="outline" size="sm" onClick={() => setSortDir((dir) => (dir === "asc" ? "desc" : "asc"))}>
             Sort: {sortDir === "asc" ? "A→Z" : "Z→A"}
           </Button>
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-3 text-sm text-white/70">
+        <div className="rounded-xl border border-white/10 bg-black/30 px-3 py-2">
+          Campaigns: <span className="font-semibold text-white">{aggregate.count}</span>
+        </div>
+        <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2">
+          Coverage:{" "}
+          <span className="font-semibold text-white">
+            {aggregate.total > 0 ? `${aggregate.covered}/${aggregate.total}` : "—"}
+          </span>
+        </div>
+        <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2">
+          Blockers: <span className="font-semibold text-amber-100">{aggregate.blockers}</span>
         </div>
       </div>
 

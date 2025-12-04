@@ -162,7 +162,7 @@ export const DeploymentReadinessPanel = ({
       </div>
 
       <div className="mt-5 grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+        <div id="anchor-manifest" className="rounded-2xl border border-white/10 bg-black/30 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">Manifest generator</p>

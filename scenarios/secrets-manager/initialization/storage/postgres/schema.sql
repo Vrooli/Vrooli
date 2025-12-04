@@ -143,6 +143,22 @@ CREATE TABLE IF NOT EXISTS security_vulnerabilities (
     UNIQUE(fingerprint)
 );
 
+-- Campaigns for deployment readiness (scenario + tier)
+CREATE TABLE IF NOT EXISTS deployment_campaigns (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    scenario VARCHAR(200) NOT NULL,
+    tier VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'unknown',
+    progress INTEGER NOT NULL DEFAULT 0,
+    blockers INTEGER NOT NULL DEFAULT 0,
+    next_action TEXT,
+    last_step TEXT,
+    summary JSONB,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (scenario, tier)
+);
+
 -- View for current secret status summary
 CREATE OR REPLACE VIEW secret_health_summary AS
 SELECT 

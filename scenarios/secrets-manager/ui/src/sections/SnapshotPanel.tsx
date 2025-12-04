@@ -61,18 +61,34 @@ export const SnapshotPanel = ({
         </div>
       </button>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
-        {keyStats.map((stat) => (
-          <div key={stat.label} className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-left">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">{stat.label}</p>
-            {isLoading ? (
-              <Skeleton className="mt-1 h-6 w-16" variant="text" />
-            ) : (
-              <p className="mt-1 text-lg font-semibold text-white">{stat.value}</p>
-            )}
-          </div>
-        ))}
-      </div>
+      {expanded ? (
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          {keyStats.map((stat) => (
+            <div key={stat.label} className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-left">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">{stat.label}</p>
+              {isLoading ? (
+                <Skeleton className="mt-1 h-6 w-16" variant="text" />
+              ) : (
+                <p className="mt-1 text-lg font-semibold text-white">{stat.value}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white/80">
+          {isLoading ? (
+            <Skeleton className="h-6 w-32" variant="text" />
+          ) : (
+            <>
+              <span>Overall {keyStats[0]?.value}</span>
+              <span className="text-white/60">•</span>
+              <span>Missing {keyStats[1]?.value}</span>
+              <span className="text-white/60">•</span>
+              <span>Risk {keyStats[2]?.value}</span>
+            </>
+          )}
+        </div>
+      )}
 
       {expanded ? (
         <div className="mt-4">

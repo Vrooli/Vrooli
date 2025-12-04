@@ -17,6 +17,7 @@ import { ScenarioSelector } from "../sections/ScenarioSelector";
 interface UseJourneysOptions {
   selectedScenario?: string;
   onDeploymentScenarioChange?: (scenario: string) => void;
+  onStartTutorial?: (journey: JourneyId, startStep?: number) => void;
   scenarioSelection?: {
     scenarios: ScenarioSummary[];
     filtered: ScenarioSummary[];
@@ -47,6 +48,12 @@ interface UseJourneysOptions {
   topResourceNeedingAttention?: string;
   onOpenResource: (resourceName?: string, secretKey?: string) => void;
   onRefetchVulnerabilities: () => void;
+  vulnerabilitySummary?: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
   onNavigateTab?: (tab: "dashboard" | "resources" | "compliance" | "deployment") => void;
 }
 
@@ -230,6 +237,7 @@ export const useJourneys = (options: UseJourneysOptions) => {
         manifestIsLoading: manifestMutation.isPending,
         manifestIsError: manifestMutation.isError,
         manifestError: manifestMutation.error ?? undefined,
+        vulnerabilitySummary: options.vulnerabilitySummary,
         readinessSummary: selectedTierSnapshot?.summary,
         readinessGeneratedAt: selectedTierSnapshot?.generatedAt,
         readinessIsLoading: selectedTierSnapshot?.loading,
@@ -260,7 +268,8 @@ export const useJourneys = (options: UseJourneysOptions) => {
         onSetProvisionSecretValue: setProvisionSecretValue,
         onProvisionSubmit: handleProvisionSubmit,
         scenarioSelection: options.scenarioSelection,
-        onNavigateTab: options.onNavigateTab
+        onNavigateTab: options.onNavigateTab,
+        onStartTutorial: options.onStartTutorial
       }),
     [
       activeJourney,
@@ -289,7 +298,9 @@ export const useJourneys = (options: UseJourneysOptions) => {
       handleSetDeploymentScenario,
       handleReadinessRefresh,
       options.scenarioSelection,
-      options.onNavigateTab
+      options.onNavigateTab,
+      options.vulnerabilitySummary,
+      options.onStartTutorial
     ]
   );
 
@@ -323,6 +334,7 @@ export const useJourneys = (options: UseJourneysOptions) => {
     handleJourneyExit,
     handleJourneyNext,
     handleJourneyBack,
+    setJourneyStep,
     journeyNextDisabled,
     deploymentFlow: {
       scenario: deploymentScenario,
