@@ -243,6 +243,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
 
   const connectingNodeId = useRef<string | null>(null);
   const isLoadingFromStore = useRef(false);
+  const hasInitiallyFitView = useRef(false);
 
   // Sync FROM store TO local state (on workflow load)
   useEffect(() => {
@@ -265,6 +266,30 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
       }, 0);
     }
   }, [storeEdges, setEdges]);
+
+  // Auto-zoom to fit all nodes on initial workflow load
+  useEffect(() => {
+    // Only run once per workflow load when we have nodes and instance ready
+    if (
+      !hasInitiallyFitView.current &&
+      storeNodes &&
+      storeNodes.length > 0 &&
+      reactFlowInstance &&
+      typeof reactFlowInstance.fitView === "function"
+    ) {
+      // Small delay to ensure React Flow has rendered the nodes
+      const timeoutId = setTimeout(() => {
+        reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
+        hasInitiallyFitView.current = true;
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [storeNodes, reactFlowInstance]);
+
+  // Reset fit view flag when workflow changes
+  useEffect(() => {
+    hasInitiallyFitView.current = false;
+  }, [currentWorkflow?.id]);
 
   // Sync FROM local state TO store (on any user change, not from store load)
   useEffect(() => {
@@ -934,16 +959,49 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
           ? reactFlowInstance.project(canvasPosition)
           : canvasPosition;
 
+      const newNodeId = `node-${Date.now()}`;
       const newNode: Node = {
-        id: `node-${Date.now()}`,
+        id: newNodeId,
         type,
         position,
         data: { label: type.charAt(0).toUpperCase() + type.slice(1) },
       };
 
+      // Auto-connect: Find nodes that have no outgoing edges (end of chain)
+      // If there's exactly one such node, auto-connect to the new node
+      const currentNodes = nodes;
+      const currentEdges = edges;
+
+      // Get all node IDs that have outgoing edges
+      const nodesWithOutgoingEdges = new Set(currentEdges.map((e) => e.source));
+
+      // Find nodes without outgoing edges (potential chain ends)
+      const chainEndNodes = currentNodes.filter(
+        (node) => !nodesWithOutgoingEdges.has(node.id)
+      );
+
       setNodes((nds) => nds.concat(newNode));
+
+      // If there's exactly one chain end, auto-connect it to the new node
+      if (chainEndNodes.length === 1) {
+        const sourceNode = chainEndNodes[0];
+        const newEdge: Edge = {
+          id: `edge-${sourceNode.id}-${newNodeId}`,
+          source: sourceNode.id,
+          target: newNodeId,
+          type: "smoothstep",
+          animated: true,
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 20,
+            height: 20,
+            color: EDGE_MARKER_COLORS[effectiveTheme],
+          },
+        };
+        setEdges((eds) => eds.concat(newEdge));
+      }
     },
-    [reactFlowInstance, setNodes],
+    [reactFlowInstance, setNodes, setEdges, nodes, edges, effectiveTheme],
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {

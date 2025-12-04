@@ -312,10 +312,14 @@ export const useKeyboardShortcutsStore = create<KeyboardShortcutsState>((set, ge
   },
 
   unregisterAction: (shortcutId) => {
-    const { actions } = get();
-    const newActions = new Map(actions);
-    newActions.delete(shortcutId);
-    set({ actions: newActions });
+    // Defer state update to avoid React error #185 (Maximum update depth exceeded)
+    // This can happen when cleanup runs during render phase due to modal state changes
+    queueMicrotask(() => {
+      const { actions } = get();
+      const newActions = new Map(actions);
+      newActions.delete(shortcutId);
+      set({ actions: newActions });
+    });
   },
 
   setEnabled: (enabled) => set({ enabled }),

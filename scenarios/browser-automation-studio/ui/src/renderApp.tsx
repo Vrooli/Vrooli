@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
 import App from './App';
+import { WebSocketProvider } from './contexts/WebSocketContext';
+import { useExecutionUpdates } from './hooks/useExecutionUpdates';
 import './index.css';
 import { logger } from './utils/logger';
 import { ensureReadyMarker, markAppReady } from './ready';
@@ -73,24 +75,33 @@ function ReadyMarker(): null {
   return null;
 }
 
+// Wrapper component that enables WebSocket-based real-time updates
+function AppWithUpdates(): React.ReactElement {
+  // Listen to WebSocket messages and update stores accordingly
+  useExecutionUpdates();
+  return <App />;
+}
+
 function renderTree(): ReactNode {
   const content = (
     <QueryClientProvider client={queryClient}>
-      <ReadyMarker />
-      <App />
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          className: '',
-          duration: 4000,
-          style: {
-            background: '#1a1d29',
-            color: '#fff',
-            border: '1px solid #2a2d3a',
-          },
-        }}
-      />
-      {/* <ReactQueryDevtools initialIsOpen={false} /> */}
+      <WebSocketProvider>
+        <ReadyMarker />
+        <AppWithUpdates />
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            className: '',
+            duration: 4000,
+            style: {
+              background: '#1a1d29',
+              color: '#fff',
+              border: '1px solid #2a2d3a',
+            },
+          }}
+        />
+        {/* <ReactQueryDevtools initialIsOpen={false} /> */}
+      </WebSocketProvider>
     </QueryClientProvider>
   );
 

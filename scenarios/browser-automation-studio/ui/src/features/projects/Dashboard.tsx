@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Plus,
   WifiOff,
+  Wifi,
   Search,
   Keyboard,
   Bot,
@@ -16,6 +17,7 @@ import {
 import { useProjectStore, Project } from "@stores/projectStore";
 import { useDashboardStore } from "@stores/dashboardStore";
 import { useAICapabilityStore } from "@stores/aiCapabilityStore";
+import { useWebSocket } from "@/contexts/WebSocketContext";
 import { selectors } from "@constants/selectors";
 import { getModifierKey } from "@hooks/useKeyboardShortcuts";
 import { GlobalSearchModal } from "@features/dashboard";
@@ -72,6 +74,7 @@ function Dashboard({
     lastEditedWorkflow,
   } = useDashboardStore();
   const { checkCapability: checkAICapability } = useAICapabilityStore();
+  const { isConnected: isWebSocketConnected } = useWebSocket();
   const [activeTab, setActiveTab] = useState<DashboardTab>('home');
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
@@ -292,6 +295,25 @@ function Dashboard({
               </h1>
             </div>
             <div className="flex items-center gap-2">
+              {/* WebSocket Connection Indicator */}
+              <div
+                className={`hidden sm:flex items-center gap-1.5 px-2 py-1 rounded text-xs ${
+                  isWebSocketConnected
+                    ? 'text-green-400 bg-green-500/10'
+                    : 'text-gray-500 bg-gray-800/50'
+                }`}
+                title={isWebSocketConnected ? 'Real-time updates active' : 'Connecting to real-time updates...'}
+              >
+                {isWebSocketConnected ? (
+                  <Wifi size={12} className="text-green-400" />
+                ) : (
+                  <WifiOff size={12} className="text-gray-500 animate-pulse" />
+                )}
+                <span className="hidden lg:inline">
+                  {isWebSocketConnected ? 'Live' : 'Connecting'}
+                </span>
+              </div>
+
               {/* Running Executions Badge */}
               <RunningExecutionsBadge
                 onViewExecution={handleViewExecution}

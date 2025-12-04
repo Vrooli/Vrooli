@@ -11,9 +11,9 @@ interface TabNavigationProps {
 
 const tabs: Array<{ id: DashboardTab; label: string; icon: React.ReactNode }> = [
   { id: 'home', label: 'Home', icon: <Home size={16} /> },
+  { id: 'projects', label: 'Projects', icon: <FolderOpen size={16} /> },
   { id: 'executions', label: 'Executions', icon: <Activity size={16} /> },
   { id: 'exports', label: 'Exports', icon: <Film size={16} /> },
-  { id: 'projects', label: 'Projects', icon: <FolderOpen size={16} /> },
 ];
 
 export const TabNavigation: React.FC<TabNavigationProps> = ({
