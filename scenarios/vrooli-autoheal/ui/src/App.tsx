@@ -2,17 +2,18 @@
 // [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-EVENTS-001] [REQ:UI-REFRESH-001] [REQ:UI-RESPONSIVE-001]
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { RefreshCw, Play, Shield, AlertCircle, CheckCircle, AlertTriangle, HardDrive, Activity, TrendingUp, LayoutDashboard } from "lucide-react";
+import { RefreshCw, Play, Shield, AlertCircle, CheckCircle, AlertTriangle, HardDrive, Activity, TrendingUp, LayoutDashboard, BookOpen } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { fetchStatus, fetchChecks, runTick, groupChecksByStatus, statusToEmoji } from "./lib/api";
 import type { CheckInfo, HealthResult, CheckCategory } from "./lib/api";
 import { selectors } from "./consts/selectors";
 import { StatusBadge, SummaryCard, CheckCard, PlatformInfo, EventsTimeline, UptimeStats, ErrorDisplay, TrendsPage, SystemProtection } from "./components";
+import { DocsPage } from "./pages/Docs";
 import { APIError } from "./lib/api";
 
 const AUTO_REFRESH_INTERVAL = 30000; // 30 seconds
 
-type TabType = "dashboard" | "trends";
+type TabType = "dashboard" | "trends" | "docs";
 
 // Extended type for checks with metadata
 interface EnrichedCheck extends HealthResult {
@@ -27,6 +28,7 @@ interface EnrichedCheck extends HealthResult {
 function getTabFromHash(): TabType {
   const hash = window.location.hash.slice(1);
   if (hash === "trends") return "trends";
+  if (hash === "docs") return "docs";
   return "dashboard";
 }
 
@@ -200,6 +202,18 @@ export default function App() {
               <TrendingUp size={16} />
               Trends
             </button>
+            <button
+              onClick={() => handleTabChange("docs")}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "docs"
+                  ? "border-blue-400 text-blue-400"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+              data-testid="autoheal-tab-docs"
+            >
+              <BookOpen size={16} />
+              Docs
+            </button>
           </nav>
         </div>
       </header>
@@ -310,8 +324,10 @@ export default function App() {
               <EventsTimeline />
             </div>
           </>
-        ) : (
+        ) : activeTab === "trends" ? (
           <TrendsPage />
+        ) : (
+          <DocsPage />
         )}
       </main>
     </div>

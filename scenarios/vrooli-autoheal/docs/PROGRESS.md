@@ -15,6 +15,7 @@
 | 2025-12-03 | Improver Agent | Architecture Audit | Screaming Architecture refactor - split monolithic main.go (354→155 lines), organized checks by domain (infra/, vrooli/), added config/handlers/persistence packages |
 | 2025-12-03 | Improver Agent | Failure Topography | Mapped failure modes, fixed swallowed errors, added structured error responses with codes, retry UX in UI |
 | 2025-12-03 | Improver Agent | Test Infrastructure | Fixed UI test REQ tags (moved from comments to test names), split monolithic BATS into focused files, updated requirement modules |
+| 2025-12-03 | Improver Agent | Documentation Tab | Added Docs tab with in-app documentation browser, markdown + mermaid rendering, searchable sidebar navigation |
 
 ## Completed Features
 
@@ -53,6 +54,8 @@
 - `GET /api/v1/checks`: List registered checks
 - `GET /api/v1/checks/{id}`: Get specific check result
 - `GET /api/v1/checks/{id}/history`: Get historical results for a check
+- `GET /api/v1/docs/manifest`: Documentation navigation structure
+- `GET /api/v1/docs/content`: Fetch markdown content by path
 
 ### React Dashboard (UI-HEALTH-*, UI-REFRESH-*)
 - Status overview with color-coded indicators (green/amber/red)
@@ -89,6 +92,18 @@
 - Color-coded status (green >= 95%, amber >= 80%, red < 80%)
 - Breakdown of ok/warning/critical event counts
 - Progress bar visualization
+
+### Documentation Tab
+- In-app documentation browser accessible via Docs tab
+- Markdown rendering with syntax highlighting
+- Mermaid diagram support with dark theme styling
+- Searchable sidebar navigation with collapsible sections
+- 11 documentation files covering:
+  - Getting Started (QUICKSTART, GLOSSARY)
+  - Concepts (architecture, health-check-flow, watchdog-design)
+  - Guides (dashboard, adding-checks, watchdog-installation, troubleshooting)
+  - Reference (api-endpoints, cli-commands, check-catalog)
+  - Project Status (PROGRESS, PROBLEMS, SEAMS, RESEARCH)
 
 ## Next Steps
 

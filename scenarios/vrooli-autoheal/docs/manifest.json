@@ -1,0 +1,67 @@
+{
+  "version": "1.0.0",
+  "title": "Autoheal Documentation",
+  "description": "Self-healing infrastructure supervisor documentation",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        { "path": "QUICKSTART.md", "title": "Quick Start", "description": "Get up and running with Autoheal" },
+        { "path": "GLOSSARY.md", "title": "Glossary", "description": "Terminology and definitions" }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "description": "Architecture and design concepts",
+      "documents": [
+        { "path": "concepts/architecture.md", "title": "Architecture", "description": "System design overview" },
+        { "path": "concepts/health-check-flow.md", "title": "Health Check Flow", "description": "How checks execute" },
+        { "path": "concepts/watchdog-design.md", "title": "Watchdog Design", "description": "OS-level protection" }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "book",
+      "description": "Step-by-step how-to guides",
+      "documents": [
+        { "path": "guides/dashboard-guide.md", "title": "Dashboard Guide", "description": "Using the web UI" },
+        { "path": "guides/adding-checks.md", "title": "Adding Health Checks", "description": "Extend with custom checks" },
+        { "path": "guides/watchdog-installation.md", "title": "Watchdog Installation", "description": "Set up OS watchdogs" },
+        { "path": "guides/troubleshooting.md", "title": "Troubleshooting", "description": "Common issues and fixes" }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "code",
+      "description": "Technical reference documentation",
+      "documents": [
+        { "path": "reference/api-endpoints.md", "title": "API Reference", "description": "REST API documentation" },
+        { "path": "reference/cli-commands.md", "title": "CLI Commands", "description": "Command-line reference" },
+        { "path": "reference/check-catalog.md", "title": "Check Catalog", "description": "All available health checks" }
+      ]
+    },
+    {
+      "id": "project-status",
+      "title": "Project Status",
+      "icon": "clipboard",
+      "description": "Standard scenario documentation",
+      "documents": [
+        { "path": "PROGRESS.md", "title": "Progress Log", "description": "Development progress tracking" },
+        { "path": "PROBLEMS.md", "title": "Known Issues", "description": "Current issues and blockers" },
+        { "path": "SEAMS.md", "title": "Seams", "description": "Integration points and boundaries" },
+        { "path": "RESEARCH.md", "title": "Research", "description": "Research notes and findings" }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "guides", "reference"],
+    "secondary": ["project-status"]
+  }
+}

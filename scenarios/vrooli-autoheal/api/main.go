@@ -121,6 +121,10 @@ func setupRouter(h *apiHandlers.Handlers) *mux.Router {
 	router.HandleFunc("/api/v1/watchdog", h.Watchdog).Methods("GET")
 	router.HandleFunc("/api/v1/watchdog/template", h.WatchdogTemplate).Methods("GET")
 
+	// Documentation endpoints
+	router.HandleFunc("/api/v1/docs/manifest", h.DocsManifest).Methods("GET")
+	router.HandleFunc("/api/v1/docs/content", h.DocsContent).Methods("GET")
+
 	return router
 }
 
