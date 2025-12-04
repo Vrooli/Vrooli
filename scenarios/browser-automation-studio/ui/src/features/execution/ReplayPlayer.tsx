@@ -2,15 +2,10 @@ import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode, type
 import clsx from 'clsx';
 import { ChevronDown, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 
-// Unsplash assets (IDs: m_7p45JfXQo, Tn29N3Hpf2E, KfFmwa7m5VQ) licensed for free use
-// Using .href directly is the correct approach for Vite asset resolution
-const resolveReplayAsset = (relativePath: string) => {
-  return new URL(relativePath, import.meta.url).href;
-};
-
-const geometricPrismUrl = resolveReplayAsset('../assets/replay-backgrounds/geometric-prism.jpg');
-const geometricOrbitUrl = resolveReplayAsset('../assets/replay-backgrounds/geometric-orbit.jpg');
-const geometricMosaicUrl = resolveReplayAsset('../assets/replay-backgrounds/geometric-mosaic.jpg');
+// Background images - using ES imports for reliable Vite asset handling
+import geometricPrismUrl from '../../assets/replay-backgrounds/geometric-prism.jpg';
+import geometricOrbitUrl from '../../assets/replay-backgrounds/geometric-orbit.jpg';
+import geometricMosaicUrl from '../../assets/replay-backgrounds/geometric-mosaic.jpg';
 
 const REPLAY_ARROW_CURSOR_PATH = 'M6 3L6 22L10.4 18.1L13.1 26.4L15.9 25.2L13.1 17.5L22 17.5L6 3Z';
 

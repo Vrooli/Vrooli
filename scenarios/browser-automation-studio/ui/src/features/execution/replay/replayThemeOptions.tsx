@@ -16,21 +16,10 @@ import type {
   ReplayCursorClickAnimation,
 } from "../ReplayPlayer";
 
-// Background image URLs (resolved at module load)
-// Using .href directly is the correct approach for Vite asset resolution
-const resolveBackgroundAsset = (relativePath: string) => {
-  return new URL(relativePath, import.meta.url).href;
-};
-
-const geometricPrismUrl = resolveBackgroundAsset(
-  "../../assets/replay-backgrounds/geometric-prism.jpg",
-);
-const geometricOrbitUrl = resolveBackgroundAsset(
-  "../../assets/replay-backgrounds/geometric-orbit.jpg",
-);
-const geometricMosaicUrl = resolveBackgroundAsset(
-  "../../assets/replay-backgrounds/geometric-mosaic.jpg",
-);
+// Background images - using ES imports for reliable Vite asset handling
+import geometricPrismUrl from "../../../assets/replay-backgrounds/geometric-prism.jpg";
+import geometricOrbitUrl from "../../../assets/replay-backgrounds/geometric-orbit.jpg";
+import geometricMosaicUrl from "../../../assets/replay-backgrounds/geometric-mosaic.jpg";
 
 // =============================================================================
 // Chrome Theme Options

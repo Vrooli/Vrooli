@@ -323,7 +323,9 @@ function SettingsPage({ onBack }: SettingsPageProps) {
     customApiEndpoint: false,
   });
 
-  const demoFrames = useMemo(() => createDemoFrames(replay.frameDuration), [replay.frameDuration]);
+  // Use 1.5x frame duration for preview so users can better see their customizations
+  const previewFrameDuration = Math.round(replay.frameDuration * 1.5);
+  const demoFrames = useMemo(() => createDemoFrames(previewFrameDuration), [previewFrameDuration]);
   const allPresets = useMemo(() => getAllPresets(), [getAllPresets, userPresets]);
 
   const activePreset = useMemo(() => {
