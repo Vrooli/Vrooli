@@ -39,7 +39,7 @@ export const SecurityTables = ({
   onComponentFilterChange,
   onSeverityFilterChange
 }: SecurityTablesProps) => (
-  <section className="grid gap-6 lg:grid-cols-2">
+  <section id="anchor-vulns" className="grid gap-6 lg:grid-cols-2">
     <div className="rounded-3xl border border-white/5 bg-white/5 p-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-white">Component Security Status</h2>

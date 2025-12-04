@@ -30,3 +30,10 @@ body::after {
   pointer-events: none;
   opacity: 0.5;
 }
+
+.tutorial-highlight {
+  outline: 2px solid rgba(52, 211, 153, 0.9);
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.2), 0 10px 40px -12px rgba(52, 211, 153, 0.4);
+  border-radius: 12px;
+  transition: box-shadow 0.2s ease, outline-color 0.2s ease;
+}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, GripVertical } from "lucide-react";
+import { X, GripVertical, ChevronDown } from "lucide-react";
 import { Button } from "./button";
 
 interface TutorialOverlayProps {
@@ -12,6 +12,9 @@ interface TutorialOverlayProps {
   onNext?: () => void;
   onBack?: () => void;
   disableNext?: boolean;
+  tutorials?: Array<{ id: string; label: string }>;
+  activeTutorialId?: string | null;
+  onSelectTutorial?: (id: string) => void;
 }
 
 export const TutorialOverlay = ({
@@ -23,11 +26,15 @@ export const TutorialOverlay = ({
   onClose,
   onNext,
   onBack,
-  disableNext
+  disableNext,
+  tutorials = [],
+  activeTutorialId,
+  onSelectTutorial
 }: TutorialOverlayProps) => {
   const [position, setPosition] = useState({ x: 40, y: 120 });
   const [dragging, setDragging] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [showTutorialMenu, setShowTutorialMenu] = useState(false);
 
   const startDrag = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -57,6 +64,10 @@ export const TutorialOverlay = ({
     const target = document.getElementById(anchorId);
     if (target) {
       target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.classList.add("tutorial-highlight");
+      return () => {
+        target.classList.remove("tutorial-highlight");
+      };
     }
   }, [anchorId]);
 
@@ -71,9 +82,38 @@ export const TutorialOverlay = ({
       >
         <div className="flex items-center gap-2">
           <GripVertical className="h-4 w-4 text-emerald-300" />
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">Tutorial</p>
-            <p className="text-sm font-semibold text-white">{title}</p>
+          <div className="relative">
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded-md border border-transparent px-1 py-0.5 text-left transition hover:border-emerald-400/40"
+              onClick={() => setShowTutorialMenu((open) => !open)}
+              disabled={tutorials.length === 0}
+            >
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">Tutorial</p>
+                <p className="text-sm font-semibold text-white">{title}</p>
+              </div>
+              {tutorials.length > 0 ? <ChevronDown className="h-4 w-4 text-emerald-200" /> : null}
+            </button>
+            {showTutorialMenu && tutorials.length > 0 ? (
+              <div className="absolute left-0 top-full z-10 mt-2 w-56 rounded-xl border border-white/10 bg-slate-900 shadow-lg">
+                {tutorials.map((tutorial) => (
+                  <button
+                    key={tutorial.id}
+                    type="button"
+                    className={`block w-full px-3 py-2 text-left text-sm transition hover:bg-white/5 ${
+                      tutorial.id === activeTutorialId ? "text-emerald-200" : "text-white/80"
+                    }`}
+                    onClick={() => {
+                      setShowTutorialMenu(false);
+                      onSelectTutorial?.(tutorial.id);
+                    }}
+                  >
+                    {tutorial.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
         <Button variant="ghost" size="sm" onClick={onClose}>

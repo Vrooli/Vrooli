@@ -24,7 +24,7 @@ export const DeploymentStepper = ({
   hasManifest
 }: DeploymentStepperProps) => {
   return (
-    <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+    <section id="anchor-stepper" className="rounded-3xl border border-white/10 bg-white/5 p-6">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-emerald-300">Campaign Steps</p>

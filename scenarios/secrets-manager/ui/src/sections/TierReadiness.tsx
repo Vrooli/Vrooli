@@ -319,7 +319,7 @@ export const TierReadiness = ({
   const missingCount = resourceStatuses.reduce((acc, status) => acc + status.secrets_missing, 0);
 
   return (
-    <section id="anchor-resources">
+    <section id="anchor-tier">
       <div className="mb-4 flex items-center gap-3">
         <div className="flex-1">
           <div className="flex items-center gap-2">

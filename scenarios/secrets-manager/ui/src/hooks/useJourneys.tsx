@@ -304,12 +304,9 @@ export const useJourneys = (options: UseJourneysOptions) => {
     ]
   );
 
-  useEffect(() => {
-    setJourneyStep(0);
-  }, [activeJourney]);
-
   const handleJourneySelect = useCallback((journey: JourneyId) => {
     setActiveJourney(journey);
+    setJourneyStep(0);
   }, []);
 
   const handleJourneyExit = useCallback(() => {
@@ -324,7 +321,20 @@ export const useJourneys = (options: UseJourneysOptions) => {
     setJourneyStep((value) => Math.max(0, value - 1));
   }, []);
 
-  const journeyNextDisabled = journeySteps.length === 0;
+  let journeyNextDisabled = journeySteps.length === 0;
+  if (activeJourney === "prep-deployment") {
+    const hasManifest = !!manifestMutation.data || manifestMutation.isPending;
+    const selectedTierHasData = !!selectedTierSnapshot?.summary;
+    const selectedTierLoading = !!selectedTierSnapshot?.loading;
+
+    if (journeyStep === 1 && !deploymentScenario) {
+      journeyNextDisabled = true;
+    } else if (journeyStep === 3 && !selectedTierHasData && !selectedTierLoading) {
+      journeyNextDisabled = true;
+    } else if (journeyStep >= 4 && !hasManifest) {
+      journeyNextDisabled = true;
+    }
+  }
 
   return {
     activeJourney,

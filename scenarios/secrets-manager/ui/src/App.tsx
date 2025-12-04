@@ -111,6 +111,26 @@ export default function App() {
   const resourceStatuses = vaultQuery.data?.resource_statuses ?? [];
   const vulnerabilities = vulnerabilityQuery.data?.vulnerabilities ?? [];
 
+  const tutorialAnchors: Partial<Record<JourneyId, Record<number, string | undefined>>> = {
+    "configure-secrets": {
+      1: "anchor-tier",
+      2: "anchor-resources",
+      3: "anchor-resources"
+    },
+    "fix-vulnerabilities": {
+      1: "anchor-compliance",
+      2: "anchor-vulns",
+      3: "anchor-vulns"
+    },
+    "prep-deployment": {
+      0: "anchor-campaigns",
+      1: "anchor-campaigns",
+      2: "anchor-stepper",
+      3: "anchor-deployment",
+      4: "anchor-manifest"
+    }
+  };
+
   const blockedTiers = tierReadiness.filter((tier) => tier.ready_percent < 100 || tier.strategized < tier.total);
   const readinessCount = blockedTiers.length;
   const complianceCount =
@@ -156,22 +176,7 @@ export default function App() {
     onOpenResource: openResourcePanel,
     onRefetchVulnerabilities: () => vulnerabilityQuery.refetch(),
     onNavigateTab: (tab) => setActiveTab(tab as ExperienceTab),
-    onStartTutorial: (journey, startStep = 1) => {
-      const config: Record<JourneyId, { tab: ExperienceTab; anchor?: string }> = {
-        "configure-secrets": { tab: "resources", anchor: "anchor-resources" },
-        "fix-vulnerabilities": { tab: "compliance", anchor: "anchor-compliance" },
-        "prep-deployment": { tab: "deployment", anchor: "anchor-deployment" },
-        orientation: { tab: "dashboard" }
-      };
-      const target = config[journey];
-      if (!target) return;
-      setActiveTab(target.tab);
-      const startIndex = Math.min(startStep, Math.max(journeySteps.length - 1, 0));
-      setJourneyStep(startIndex);
-      setTutorialAnchor(target.anchor);
-      setShowTutorialOverlay(true);
-      scrollToAnchor(target.anchor);
-    }
+    onStartTutorial: (journey, startStep = 0) => startTutorial(journey, startStep)
   });
 
   useEffect(() => {
@@ -203,6 +208,37 @@ export default function App() {
     setShowTutorialOverlay(false);
     setTutorialAnchor(undefined);
   };
+
+  function startTutorial(journey: JourneyId, startStep?: number) {
+    const config: Record<JourneyId, { tab: ExperienceTab; anchor?: string }> = {
+      "configure-secrets": { tab: "resources", anchor: "anchor-tier" },
+      "fix-vulnerabilities": { tab: "compliance", anchor: "anchor-compliance" },
+      "prep-deployment": { tab: "deployment", anchor: "anchor-deployment" },
+      orientation: { tab: "dashboard" }
+    };
+    const target = config[journey];
+    if (!target) return;
+    handleJourneySelect(journey);
+    setActiveTab(target.tab);
+    const skipIntro = journey === "orientation" ? 0 : 1;
+    const startIndex = Math.min(
+      Math.max(skipIntro, startStep ?? skipIntro),
+      Math.max(journeySteps.length - 1, skipIntro)
+    );
+    setJourneyStep(startIndex);
+    const anchor = tutorialAnchors[journey]?.[startIndex] ?? target.anchor;
+    setTutorialAnchor(anchor);
+    setShowTutorialOverlay(true);
+    scrollToAnchor(anchor);
+  }
+
+  useEffect(() => {
+    if (!showTutorialOverlay || !activeJourney) return;
+    const nextAnchor = tutorialAnchors[activeJourney]?.[journeyStep];
+    setTutorialAnchor(nextAnchor);
+    scrollToAnchor(nextAnchor);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showTutorialOverlay, activeJourney, journeyStep]);
 
   const tabs: Array<{ id: ExperienceTab; label: string; badgeCount?: number }> = [
     {
@@ -461,19 +497,30 @@ export default function App() {
         />
       )}
 
-      {showTutorialOverlay && activeJourney && activeJourney !== "orientation" && journeySteps[journeyStep] ? (
+      {showTutorialOverlay && activeJourney && activeJourney !== "orientation" ? (() => {
+        const visibleSteps = journeySteps.slice(1);
+        const visibleIndex = Math.max(0, Math.min(journeyStep - 1, visibleSteps.length - 1));
+        const overlayStepLabel = `Step ${visibleIndex + 1} of ${Math.max(visibleSteps.length, 1)}`;
+        const overlayNextDisabled = journeyNextDisabled || visibleIndex >= visibleSteps.length - 1;
+        const overlayBack = visibleIndex > 0 ? handleJourneyBack : undefined;
+        const overlayContent = visibleSteps[visibleIndex];
+        return (
         <TutorialOverlay
           title={activeJourneyCard?.title || "Tutorial"}
           subtitle={activeJourneyCard?.description}
-          stepLabel={`Step ${journeyStep + 1} of ${journeySteps.length}`}
-          content={journeySteps[journeyStep].content}
+          stepLabel={overlayStepLabel}
+          content={overlayContent?.content}
           anchorId={tutorialAnchor}
           onClose={closeTutorialOverlay}
           onNext={handleJourneyNext}
-          onBack={journeyStep > 0 ? handleJourneyBack : undefined}
-          disableNext={journeyNextDisabled}
+          onBack={overlayBack}
+          disableNext={overlayNextDisabled}
+          tutorials={journeyCards.filter((card) => card.id !== "orientation").map((card) => ({ id: card.id as JourneyId, label: card.title }))}
+          activeTutorialId={activeJourney}
+          onSelectTutorial={(journeyId) => startTutorial(journeyId)}
         />
-      ) : null}
+        );
+      })() : null}
     </div>
   );
 }
