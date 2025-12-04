@@ -303,18 +303,29 @@ func (o *Orchestrator) buildResult(
 		message = fmt.Sprintf("UI exception: %s", response.PageErrors[0].Message)
 	}
 
+	// Count console.error() calls
+	consoleErrorCount := 0
+	for _, entry := range response.Console {
+		if entry.Level == "error" {
+			consoleErrorCount++
+		}
+	}
+
 	result := &Result{
-		Scenario:     o.config.ScenarioName,
-		Status:       status,
-		Message:      message,
-		Timestamp:    time.Now().UTC(),
-		DurationMs:   duration.Milliseconds(),
-		UIURL:        uiURL,
-		Handshake:    handshake,
-		Bundle:       bundle,
-		IframeBridge: bridge,
-		StorageShim:  response.StorageShim,
-		Raw:          response.Raw,
+		Scenario:            o.config.ScenarioName,
+		Status:              status,
+		Message:             message,
+		Timestamp:           time.Now().UTC(),
+		DurationMs:          duration.Milliseconds(),
+		UIURL:               uiURL,
+		Handshake:           handshake,
+		NetworkFailureCount: len(response.Network),
+		PageErrorCount:      len(response.PageErrors),
+		ConsoleErrorCount:   consoleErrorCount,
+		Bundle:              bundle,
+		IframeBridge:        bridge,
+		StorageShim:         response.StorageShim,
+		Raw:                 response.Raw,
 	}
 
 	if artifacts != nil {

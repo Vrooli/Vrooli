@@ -17,16 +17,19 @@ type Request struct {
 
 // Response represents the UI smoke test result.
 type Response struct {
-	Scenario      string          `json:"scenario"`
-	Status        string          `json:"status"`
-	BlockedReason string          `json:"blocked_reason,omitempty"`
-	Message       string          `json:"message"`
-	Timestamp     time.Time       `json:"timestamp"`
-	DurationMs    int64           `json:"duration_ms"`
-	UIURL         string          `json:"ui_url,omitempty"`
-	Handshake     json.RawMessage `json:"handshake,omitempty"`
-	Artifacts     json.RawMessage `json:"artifacts,omitempty"`
-	Bundle        json.RawMessage `json:"bundle,omitempty"`
+	Scenario            string          `json:"scenario"`
+	Status              string          `json:"status"`
+	BlockedReason       string          `json:"blocked_reason,omitempty"`
+	Message             string          `json:"message"`
+	Timestamp           time.Time       `json:"timestamp"`
+	DurationMs          int64           `json:"duration_ms"`
+	UIURL               string          `json:"ui_url,omitempty"`
+	Handshake           json.RawMessage `json:"handshake,omitempty"`
+	NetworkFailureCount int             `json:"network_failure_count"`
+	PageErrorCount      int             `json:"page_error_count"`
+	ConsoleErrorCount   int             `json:"console_error_count"`
+	Artifacts           json.RawMessage `json:"artifacts,omitempty"`
+	Bundle              json.RawMessage `json:"bundle,omitempty"`
 }
 
 // Exit codes compatible with legacy bash implementation.

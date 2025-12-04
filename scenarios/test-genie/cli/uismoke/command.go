@@ -108,13 +108,32 @@ func printResult(resp Response) {
 		}
 		if err := json.Unmarshal(resp.Handshake, &handshake); err == nil {
 			if handshake.Signaled {
-				fmt.Printf("  ✅ Handshake signaled in %dms\n", handshake.DurationMs)
+				fmt.Printf("  ✅ @vrooli/iframe-bridge handshake in %dms\n", handshake.DurationMs)
 			} else if handshake.TimedOut {
-				fmt.Printf("  ⏱️  Handshake timed out after %dms\n", handshake.DurationMs)
+				fmt.Printf("  ⏱️  @vrooli/iframe-bridge timed out after %dms\n", handshake.DurationMs)
 			} else if handshake.Error != "" {
-				fmt.Printf("  ❌ Handshake error: %s\n", handshake.Error)
+				fmt.Printf("  ❌ @vrooli/iframe-bridge error: %s\n", handshake.Error)
 			}
 		}
+	}
+
+	// Print network failure status
+	if resp.NetworkFailureCount == 0 {
+		fmt.Println("  ✅ No network failures")
+	} else {
+		fmt.Printf("  ❌ %d network failure(s) detected (see network.json)\n", resp.NetworkFailureCount)
+	}
+
+	// Print page error status
+	if resp.PageErrorCount == 0 {
+		fmt.Println("  ✅ No JavaScript exceptions")
+	} else {
+		fmt.Printf("  ❌ %d JavaScript exception(s) detected (see console.json)\n", resp.PageErrorCount)
+	}
+
+	// Print console error warning (informational, doesn't fail the test)
+	if resp.ConsoleErrorCount > 0 {
+		fmt.Printf("  ⚠️  %d console error(s) logged (see console.json)\n", resp.ConsoleErrorCount)
 	}
 
 	// Print artifacts if available

@@ -119,12 +119,16 @@ func TestWriter_WriteAll_MinimalResponse(t *testing.T) {
 		t.Fatalf("WriteAll() error = %v", err)
 	}
 
-	// With empty response, paths should be empty
+	// With empty response, most paths should be empty
 	if paths.Screenshot != "" {
 		t.Error("Screenshot path should be empty for no screenshot")
 	}
 	if paths.Console != "" {
 		t.Error("Console path should be empty for no console entries")
+	}
+	// Network is always written (even if empty) for visibility
+	if paths.Network == "" {
+		t.Error("Network path should be set even for empty response")
 	}
 }
 

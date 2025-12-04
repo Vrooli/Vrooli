@@ -192,6 +192,15 @@ type Result struct {
 	// Handshake contains iframe-bridge handshake results.
 	Handshake HandshakeResult `json:"handshake,omitempty"`
 
+	// NetworkFailureCount is the number of failed network requests (4xx/5xx/timeouts).
+	NetworkFailureCount int `json:"network_failure_count"`
+
+	// PageErrorCount is the number of JavaScript exceptions caught.
+	PageErrorCount int `json:"page_error_count"`
+
+	// ConsoleErrorCount is the number of console.error() calls captured.
+	ConsoleErrorCount int `json:"console_error_count"`
+
 	// Artifacts contains paths to generated artifacts.
 	Artifacts ArtifactPaths `json:"artifacts,omitempty"`
 

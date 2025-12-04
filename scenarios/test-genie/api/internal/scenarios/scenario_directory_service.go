@@ -262,16 +262,19 @@ func (s *ScenarioDirectoryService) RunScenarioTests(ctx context.Context, scenari
 
 // UISmokeResult represents the outcome of a UI smoke test.
 type UISmokeResult struct {
-	Scenario      string          `json:"scenario"`
-	Status        string          `json:"status"`
-	BlockedReason string          `json:"blocked_reason,omitempty"`
-	Message       string          `json:"message"`
-	Timestamp     time.Time       `json:"timestamp"`
-	DurationMs    int64           `json:"duration_ms"`
-	UIURL         string          `json:"ui_url,omitempty"`
-	Handshake     json.RawMessage `json:"handshake,omitempty"`
-	Artifacts     json.RawMessage `json:"artifacts,omitempty"`
-	Bundle        json.RawMessage `json:"bundle,omitempty"`
+	Scenario            string          `json:"scenario"`
+	Status              string          `json:"status"`
+	BlockedReason       string          `json:"blocked_reason,omitempty"`
+	Message             string          `json:"message"`
+	Timestamp           time.Time       `json:"timestamp"`
+	DurationMs          int64           `json:"duration_ms"`
+	UIURL               string          `json:"ui_url,omitempty"`
+	Handshake           json.RawMessage `json:"handshake,omitempty"`
+	NetworkFailureCount int             `json:"network_failure_count"`
+	PageErrorCount      int             `json:"page_error_count"`
+	ConsoleErrorCount   int             `json:"console_error_count"`
+	Artifacts           json.RawMessage `json:"artifacts,omitempty"`
+	Bundle              json.RawMessage `json:"bundle,omitempty"`
 }
 
 // RunUISmoke executes a UI smoke test for the specified scenario.
@@ -317,31 +320,7 @@ func (s *ScenarioDirectoryService) RunUISmoke(ctx context.Context, scenario stri
 		return nil, fmt.Errorf("ui smoke test failed: %w", err)
 	}
 
-	// Convert to API response format
-	apiResult := &UISmokeResult{
-		Scenario:      result.Scenario,
-		Status:        string(result.Status),
-		BlockedReason: string(result.BlockedReason),
-		Message:       result.Message,
-		Timestamp:     result.Timestamp,
-		DurationMs:    result.DurationMs,
-		UIURL:         result.UIURL,
-	}
-
-	// Marshal nested structs to JSON
-	if handshakeData, err := json.Marshal(result.Handshake); err == nil {
-		apiResult.Handshake = handshakeData
-	}
-	if artifactsData, err := json.Marshal(result.Artifacts); err == nil {
-		apiResult.Artifacts = artifactsData
-	}
-	if result.Bundle != nil {
-		if bundleData, err := json.Marshal(result.Bundle); err == nil {
-			apiResult.Bundle = bundleData
-		}
-	}
-
-	return apiResult, nil
+	return convertSmokeResult(result), nil
 }
 
 // UISmokeOptions contains options for running a UI smoke test.
@@ -405,15 +384,22 @@ func (s *ScenarioDirectoryService) RunUISmokeWithOpts(ctx context.Context, scena
 		return nil, fmt.Errorf("ui smoke test failed: %w", err)
 	}
 
-	// Convert to API response format
+	return convertSmokeResult(result), nil
+}
+
+// convertSmokeResult converts a smoke.Result to a UISmokeResult API response.
+func convertSmokeResult(result *smoke.Result) *UISmokeResult {
 	apiResult := &UISmokeResult{
-		Scenario:      result.Scenario,
-		Status:        string(result.Status),
-		BlockedReason: string(result.BlockedReason),
-		Message:       result.Message,
-		Timestamp:     result.Timestamp,
-		DurationMs:    result.DurationMs,
-		UIURL:         result.UIURL,
+		Scenario:            result.Scenario,
+		Status:              string(result.Status),
+		BlockedReason:       string(result.BlockedReason),
+		Message:             result.Message,
+		Timestamp:           result.Timestamp,
+		DurationMs:          result.DurationMs,
+		UIURL:               result.UIURL,
+		NetworkFailureCount: result.NetworkFailureCount,
+		PageErrorCount:      result.PageErrorCount,
+		ConsoleErrorCount:   result.ConsoleErrorCount,
 	}
 
 	// Marshal nested structs to JSON
@@ -429,5 +415,5 @@ func (s *ScenarioDirectoryService) RunUISmokeWithOpts(ctx context.Context, scena
 		}
 	}
 
-	return apiResult, nil
+	return apiResult
 }

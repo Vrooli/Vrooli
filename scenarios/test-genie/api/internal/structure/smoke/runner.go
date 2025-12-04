@@ -175,19 +175,22 @@ func (r *Runner) Run(ctx context.Context, scenarioName, scenarioDir string) (*Re
 // convertResult converts an orchestrator.Result to a smoke.Result.
 func convertResult(or *orchestrator.Result) *Result {
 	r := &Result{
-		Scenario:      or.Scenario,
-		Status:        Status(or.Status),
-		BlockedReason: BlockedReason(or.BlockedReason),
-		Message:       or.Message,
-		Timestamp:     or.Timestamp,
-		DurationMs:    or.DurationMs,
-		UIURL:         or.UIURL,
+		Scenario:            or.Scenario,
+		Status:              Status(or.Status),
+		BlockedReason:       BlockedReason(or.BlockedReason),
+		Message:             or.Message,
+		Timestamp:           or.Timestamp,
+		DurationMs:          or.DurationMs,
+		UIURL:               or.UIURL,
 		Handshake: HandshakeResult{
 			Signaled:   or.Handshake.Signaled,
 			TimedOut:   or.Handshake.TimedOut,
 			DurationMs: or.Handshake.DurationMs,
 			Error:      or.Handshake.Error,
 		},
+		NetworkFailureCount: or.NetworkFailureCount,
+		PageErrorCount:      or.PageErrorCount,
+		ConsoleErrorCount:   or.ConsoleErrorCount,
 		Artifacts: ArtifactPaths{
 			Screenshot: or.Artifacts.Screenshot,
 			Console:    or.Artifacts.Console,

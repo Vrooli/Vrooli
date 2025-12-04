@@ -100,18 +100,20 @@ func (w *Writer) WriteAll(ctx context.Context, scenarioDir, scenarioName string,
 		paths.Console = absPath(consolePath)
 	}
 
-	// Write network failures
-	if len(response.Network) > 0 {
-		networkPath := filepath.Join(dir, "network.json")
-		data, err := json.MarshalIndent(response.Network, "", "  ")
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal network: %w", err)
-		}
-		if err := w.fs.WriteFile(networkPath, data, 0o644); err != nil {
-			return nil, fmt.Errorf("failed to write network: %w", err)
-		}
-		paths.Network = absPath(networkPath)
+	// Write network failures (always write, even if empty, for visibility)
+	networkPath := filepath.Join(dir, "network.json")
+	networkData := response.Network
+	if networkData == nil {
+		networkData = []orchestrator.NetworkEntry{}
 	}
+	data, err := json.MarshalIndent(networkData, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal network: %w", err)
+	}
+	if err := w.fs.WriteFile(networkPath, data, 0o644); err != nil {
+		return nil, fmt.Errorf("failed to write network: %w", err)
+	}
+	paths.Network = absPath(networkPath)
 
 	// Write DOM snapshot
 	if response.HTML != "" {
