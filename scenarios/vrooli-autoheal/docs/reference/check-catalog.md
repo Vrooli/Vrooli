@@ -12,7 +12,7 @@ Complete reference of all available health checks.
 |----------|-------|
 | ID | `infra-network` |
 | Category | Infrastructure |
-| Interval | 60 seconds |
+| Interval | 30 seconds |
 | Platforms | All |
 | Importance | Critical |
 
@@ -30,6 +30,8 @@ Complete reference of all available health checks.
 - Check firewall rules for outbound TCP on port 53
 - Verify network interface is up
 - Test manually: `nc -zv 8.8.8.8 53`
+
+[Detailed documentation](checks/infra-network.md)
 
 ---
 
@@ -59,6 +61,8 @@ Complete reference of all available health checks.
 - Check /etc/resolv.conf (Linux)
 - Verify DNS server is reachable
 - Test manually: `nslookup google.com`
+
+[Detailed documentation](checks/infra-dns.md)
 
 ---
 
@@ -90,6 +94,8 @@ Complete reference of all available health checks.
 - Check Docker socket permissions
 - Test manually: `docker info`
 
+[Detailed documentation](checks/infra-docker.md)
+
 ---
 
 ### infra-cloudflared
@@ -119,6 +125,8 @@ Complete reference of all available health checks.
 - Check service: `systemctl status cloudflared`
 - Check tunnel config in ~/.cloudflared/
 - View logs: `journalctl -u cloudflared`
+
+[Detailed documentation](checks/infra-cloudflared.md)
 
 ---
 
@@ -150,6 +158,41 @@ Complete reference of all available health checks.
 - Windows: `Get-Service TermService`
 - Check port 3389 is open
 
+[Detailed documentation](checks/infra-rdp.md)
+
+---
+
+### vrooli-api
+
+**Purpose:** Verify the main Vrooli API is healthy.
+
+| Property | Value |
+|----------|-------|
+| ID | `vrooli-api` |
+| Category | Infrastructure |
+| Interval | 60 seconds |
+| Platforms | All |
+| Importance | Critical |
+
+**What it checks:**
+- HTTP GET to `http://127.0.0.1:8092/health`
+- Parses JSON response for health status
+- Measures response time
+
+**Status mapping:**
+| Status | Condition |
+|--------|-----------|
+| OK | API responds with `ok` or `healthy` |
+| Warning | API responds with `degraded` |
+| Critical | API unreachable or returns error status |
+
+**Troubleshooting:**
+- Check if Vrooli is running: `pgrep -f vrooli`
+- Test endpoint: `curl http://127.0.0.1:8092/health`
+- Start Vrooli: `vrooli develop`
+
+[Detailed documentation](checks/vrooli-api.md)
+
 ---
 
 ## Vrooli Resource Checks
@@ -161,7 +204,7 @@ Complete reference of all available health checks.
 | Property | Value |
 |----------|-------|
 | ID | `resource-postgres` |
-| Category | Vrooli Resources |
+| Category | Resource |
 | Interval | 60 seconds |
 | Platforms | All |
 | Importance | Critical |
@@ -182,6 +225,8 @@ Complete reference of all available health checks.
 - Check logs: `vrooli resource logs postgres`
 - Verify container: `docker ps | grep postgres`
 
+[Detailed documentation](checks/resource-check.md)
+
 ---
 
 ### resource-redis
@@ -191,7 +236,7 @@ Complete reference of all available health checks.
 | Property | Value |
 |----------|-------|
 | ID | `resource-redis` |
-| Category | Vrooli Resources |
+| Category | Resource |
 | Interval | 60 seconds |
 | Platforms | All |
 | Importance | High |
@@ -206,6 +251,85 @@ Complete reference of all available health checks.
 | OK | Resource running |
 | Warning | Resource starting/stopping |
 | Critical | Resource stopped/failed |
+
+---
+
+### resource-ollama
+
+**Purpose:** Verify Ollama AI resource is healthy.
+
+| Property | Value |
+|----------|-------|
+| ID | `resource-ollama` |
+| Category | Resource |
+| Interval | 60 seconds |
+| Platforms | All |
+| Importance | High |
+
+**What it checks:**
+- Runs `vrooli resource status ollama`
+- Parses status output
+
+**Status mapping:**
+| Status | Condition |
+|--------|-----------|
+| OK | Resource running |
+| Warning | Resource starting/stopping |
+| Critical | Resource stopped/failed |
+
+---
+
+### resource-qdrant
+
+**Purpose:** Verify Qdrant vector database resource is healthy.
+
+| Property | Value |
+|----------|-------|
+| ID | `resource-qdrant` |
+| Category | Resource |
+| Interval | 60 seconds |
+| Platforms | All |
+| Importance | High |
+
+**What it checks:**
+- Runs `vrooli resource status qdrant`
+- Parses status output
+
+---
+
+### resource-searxng
+
+**Purpose:** Verify SearXNG metasearch engine resource is healthy.
+
+| Property | Value |
+|----------|-------|
+| ID | `resource-searxng` |
+| Category | Resource |
+| Interval | 60 seconds |
+| Platforms | All |
+| Importance | Medium |
+
+**What it checks:**
+- Runs `vrooli resource status searxng`
+- Parses status output
+
+---
+
+### resource-browserless
+
+**Purpose:** Verify Browserless headless Chrome resource is healthy.
+
+| Property | Value |
+|----------|-------|
+| ID | `resource-browserless` |
+| Category | Resource |
+| Interval | 60 seconds |
+| Platforms | All |
+| Importance | Medium |
+
+**What it checks:**
+- Runs `vrooli resource status browserless`
+- Parses status output
 
 ---
 
@@ -224,8 +348,8 @@ Complete reference of all available health checks.
 | Importance | High |
 
 **What it checks:**
-- Disk usage percentage for root filesystem
-- Inode usage percentage
+- Disk usage percentage for configured partitions
+- Default: `/` partition
 
 **Status mapping:**
 | Status | Condition |
@@ -239,18 +363,51 @@ Complete reference of all available health checks.
 - Find large files: `du -sh /* | sort -rh | head`
 - Clean Docker: `docker system prune`
 
+[Detailed documentation](checks/system-disk.md)
+
+---
+
+### system-inode
+
+**Purpose:** Monitor inode usage to prevent file creation failures.
+
+| Property | Value |
+|----------|-------|
+| ID | `system-inode` |
+| Category | System |
+| Interval | 300 seconds |
+| Platforms | Linux |
+| Importance | Medium |
+
+**What it checks:**
+- Inode usage percentage for configured partitions
+- Default: `/` partition
+
+**Status mapping:**
+| Status | Condition |
+|--------|-----------|
+| OK | Inode usage < 80% |
+| Warning | Inode usage 80-90% |
+| Critical | Inode usage > 90% |
+
+**Troubleshooting:**
+- Check inode usage: `df -i`
+- Find directories with many files: `find / -xdev -type d -exec sh -c 'echo "$(find "$0" -maxdepth 1 | wc -l) $0"' {} \; | sort -rn | head`
+
+[Detailed documentation](checks/system-inode.md)
+
 ---
 
 ### system-swap
 
-**Purpose:** Monitor swap usage.
+**Purpose:** Monitor swap usage as memory pressure indicator.
 
 | Property | Value |
 |----------|-------|
 | ID | `system-swap` |
 | Category | System |
 | Interval | 300 seconds |
-| Platforms | Linux, macOS |
+| Platforms | Linux |
 | Importance | Medium |
 
 **What it checks:**
@@ -261,21 +418,27 @@ Complete reference of all available health checks.
 | Status | Condition |
 |--------|-----------|
 | OK | Swap usage < 50% |
-| Warning | Swap usage 50-80% |
+| Warning | Swap usage 50-80% (or no swap configured) |
 | Critical | Swap usage > 80% |
+
+**Troubleshooting:**
+- Check swap: `free -h`
+- Find memory consumers: `ps aux --sort=-%mem | head`
+
+[Detailed documentation](checks/system-swap.md)
 
 ---
 
 ### system-zombies
 
-**Purpose:** Detect zombie processes.
+**Purpose:** Detect zombie processes indicating resource leaks.
 
 | Property | Value |
 |----------|-------|
 | ID | `system-zombies` |
 | Category | System |
 | Interval | 300 seconds |
-| Platforms | Linux, macOS |
+| Platforms | Linux |
 | Importance | Low |
 
 **What it checks:**
@@ -284,40 +447,47 @@ Complete reference of all available health checks.
 **Status mapping:**
 | Status | Condition |
 |--------|-----------|
-| OK | No zombies |
-| Warning | 1-10 zombies |
-| Critical | > 10 zombies |
+| OK | Less than 5 zombies |
+| Warning | 5-20 zombies |
+| Critical | More than 20 zombies |
 
 **Troubleshooting:**
-- Find zombies: `ps aux | grep defunct`
+- Find zombies: `ps aux | awk '$8=="Z"'`
 - Kill parent process to clean up
+
+[Detailed documentation](checks/system-zombies.md)
 
 ---
 
-## Watchdog Check
+### system-ports
 
-### watchdog-status
-
-**Purpose:** Verify OS watchdog is protecting autoheal.
+**Purpose:** Monitor ephemeral port usage to prevent connection failures.
 
 | Property | Value |
 |----------|-------|
-| ID | `watchdog-status` |
-| Category | Meta |
+| ID | `system-ports` |
+| Category | System |
 | Interval | 300 seconds |
-| Platforms | All |
+| Platforms | Linux |
 | Importance | Medium |
 
 **What it checks:**
-- Watchdog service installed
-- Watchdog service running
+- Ephemeral port range from `/proc/sys/net/ipv4/ip_local_port_range`
+- Active connections using ports in that range
 
 **Status mapping:**
 | Status | Condition |
 |--------|-----------|
-| OK | Watchdog active |
-| Warning | Watchdog not installed |
-| Critical | Watchdog installed but not running |
+| OK | Port usage < 70% |
+| Warning | Port usage 70-85% |
+| Critical | Port usage > 85% |
+
+**Troubleshooting:**
+- Check port range: `cat /proc/sys/net/ipv4/ip_local_port_range`
+- Count connections: `ss -tan | wc -l`
+- Check TIME_WAIT: `ss -tan | grep TIME-WAIT | wc -l`
+
+[Detailed documentation](checks/system-ports.md)
 
 ---
 
@@ -325,9 +495,19 @@ Complete reference of all available health checks.
 
 | Interval | Checks | Use Case |
 |----------|--------|----------|
-| 60s | Network, DNS, Resources | Critical services, fast detection |
+| 30s | Network | Critical connectivity, fast detection |
+| 60s | DNS, Vrooli API, Resources | Core services |
 | 120s | Docker, Cloudflared | Services that recover slowly |
-| 300s | Disk, Swap, Zombies, RDP, Watchdog | Slow-changing metrics |
+| 300s | Disk, Inode, Swap, Zombies, Ports, RDP | Slow-changing metrics |
+
+## Check Categories Summary
+
+| Category | Count | Description |
+|----------|-------|-------------|
+| Infrastructure | 6 | Network, DNS, Docker, Cloudflared, RDP, Vrooli API |
+| Resource | 6 | PostgreSQL, Redis, Ollama, Qdrant, SearXNG, Browserless |
+| System | 5 | Disk, Inode, Swap, Zombies, Ports |
+| **Total** | **17** | |
 
 ## Adding Custom Checks
 

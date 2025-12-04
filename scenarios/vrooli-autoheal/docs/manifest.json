@@ -58,8 +58,14 @@
         { "path": "reference/checks/infra-docker.md", "title": "Docker Engine", "description": "Docker daemon health" },
         { "path": "reference/checks/infra-cloudflared.md", "title": "Cloudflare Tunnel", "description": "Cloudflared service status" },
         { "path": "reference/checks/infra-rdp.md", "title": "Remote Desktop", "description": "RDP service availability" },
+        { "path": "reference/checks/vrooli-api.md", "title": "Vrooli API", "description": "Main Vrooli API health" },
         { "path": "reference/checks/resource-check.md", "title": "Resource Checks", "description": "Vrooli resource monitoring" },
-        { "path": "reference/checks/scenario-check.md", "title": "Scenario Checks", "description": "Scenario health monitoring" }
+        { "path": "reference/checks/scenario-check.md", "title": "Scenario Checks", "description": "Scenario health monitoring" },
+        { "path": "reference/checks/system-disk.md", "title": "Disk Space", "description": "Disk usage monitoring" },
+        { "path": "reference/checks/system-inode.md", "title": "Inode Usage", "description": "Inode exhaustion detection" },
+        { "path": "reference/checks/system-swap.md", "title": "Swap Usage", "description": "Memory pressure monitoring" },
+        { "path": "reference/checks/system-zombies.md", "title": "Zombie Processes", "description": "Defunct process detection" },
+        { "path": "reference/checks/system-ports.md", "title": "Ephemeral Ports", "description": "Port exhaustion monitoring" }
       ]
     },
     {

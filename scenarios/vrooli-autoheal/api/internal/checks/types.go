@@ -25,6 +25,7 @@ const (
 	CategoryInfrastructure Category = "infrastructure"
 	CategoryResource       Category = "resource"
 	CategoryScenario       Category = "scenario"
+	CategorySystem         Category = "system"
 )
 
 // SubCheck represents a single sub-check within a compound health check.

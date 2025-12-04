@@ -13,6 +13,7 @@ import (
 
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/checks/infra"
+	"vrooli-autoheal/internal/checks/system"
 	"vrooli-autoheal/internal/checks/vrooli"
 	"vrooli-autoheal/internal/platform"
 )
@@ -35,9 +36,23 @@ func RegisterDefaultChecks(registry *checks.Registry, caps *platform.Capabilitie
 	registry.Register(infra.NewCloudflaredCheck(caps))
 	registry.Register(infra.NewRDPCheck(caps))
 
-	// Vrooli resource checks
+	// Vrooli API check - monitors the central orchestration layer
+	registry.Register(vrooli.NewAPICheck())
+
+	// Vrooli resource checks - core infrastructure services
 	registry.Register(vrooli.NewResourceCheck("postgres"))
 	registry.Register(vrooli.NewResourceCheck("redis"))
+	registry.Register(vrooli.NewResourceCheck("ollama"))
+	registry.Register(vrooli.NewResourceCheck("qdrant"))
+	registry.Register(vrooli.NewResourceCheck("searxng"))
+	registry.Register(vrooli.NewResourceCheck("browserless"))
+
+	// System checks - host-level health monitoring
+	registry.Register(system.NewDiskCheck())
+	registry.Register(system.NewInodeCheck())
+	registry.Register(system.NewSwapCheck())
+	registry.Register(system.NewZombieCheck())
+	registry.Register(system.NewPortCheck())
 }
 
 // ResultLoader is the interface for loading persisted results.

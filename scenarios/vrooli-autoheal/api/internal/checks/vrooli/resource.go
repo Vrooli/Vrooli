@@ -47,6 +47,16 @@ var resourceMetadata = map[string]struct {
 		description: "Checks Qdrant vector database resource via vrooli CLI",
 		importance:  "Required for semantic search and embeddings",
 	},
+	"searxng": {
+		title:       "SearXNG Search",
+		description: "Checks SearXNG metasearch engine resource via vrooli CLI",
+		importance:  "Required for web search and research capabilities",
+	},
+	"browserless": {
+		title:       "Browserless Chrome",
+		description: "Checks Browserless headless Chrome resource via vrooli CLI",
+		importance:  "Required for web scraping, screenshots, and browser automation",
+	},
 }
 
 // NewResourceCheck creates a check for a Vrooli resource.
