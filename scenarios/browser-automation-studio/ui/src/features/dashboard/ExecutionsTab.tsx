@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Play,
+  Plus,
   Square,
   CheckCircle2,
   XCircle,
@@ -17,6 +18,8 @@ import { formatDistanceToNow } from 'date-fns';
 
 interface ExecutionsTabProps {
   onViewExecution: (executionId: string, workflowId: string) => void;
+  onNavigateToHome?: () => void;
+  onCreateWorkflow?: () => void;
 }
 
 type StatusFilter = 'all' | 'running' | 'completed' | 'failed';
@@ -67,10 +70,15 @@ const statusConfig: Record<string, {
   },
 };
 
-export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({ onViewExecution }) => {
+export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
+  onViewExecution,
+  onNavigateToHome,
+  onCreateWorkflow,
+}) => {
   const {
     recentExecutions,
     runningExecutions,
+    recentWorkflows,
     isLoadingExecutions,
     fetchRecentExecutions,
     fetchRunningExecutions,
@@ -245,10 +253,43 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({ onViewExecution })
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-800 flex items-center justify-center">
               <Play size={24} className="text-gray-600" />
             </div>
-            <h4 className="text-lg font-medium text-white mb-2">No executions yet</h4>
-            <p className="text-gray-400 text-sm">
-              Run a workflow to see execution history here
-            </p>
+            {/* Contextual empty state based on user progress */}
+            {recentWorkflows.length > 0 ? (
+              // User has workflows - encourage running one
+              <>
+                <h4 className="text-lg font-medium text-white mb-2">No executions yet</h4>
+                <p className="text-gray-400 text-sm max-w-md mx-auto mb-6">
+                  You have {recentWorkflows.length} workflow{recentWorkflows.length !== 1 ? 's' : ''} ready to run.
+                  Execute one to see the results here.
+                </p>
+                {onNavigateToHome && (
+                  <button
+                    onClick={onNavigateToHome}
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                  >
+                    <Play size={20} />
+                    Run a Workflow
+                  </button>
+                )}
+              </>
+            ) : (
+              // Brand new user - guide them to create first workflow
+              <>
+                <h4 className="text-lg font-medium text-white mb-2">No executions yet</h4>
+                <p className="text-gray-400 text-sm max-w-md mx-auto mb-6">
+                  Create a workflow first, then run it to see execution history and results.
+                </p>
+                {onCreateWorkflow && (
+                  <button
+                    onClick={onCreateWorkflow}
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                  >
+                    <Plus size={20} />
+                    Create Your First Workflow
+                  </button>
+                )}
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-2">

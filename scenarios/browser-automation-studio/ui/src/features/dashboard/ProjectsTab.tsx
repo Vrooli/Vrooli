@@ -25,6 +25,7 @@ interface ProjectsTabProps {
   onCreateProject: () => void;
   onNavigateToWorkflow: (projectId: string, workflowId: string) => void;
   onRunWorkflow: (workflowId: string) => void;
+  onTryDemo?: () => void;
 }
 
 interface ProjectWorkflow {
@@ -43,6 +44,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
   onCreateProject,
   onNavigateToWorkflow,
   onRunWorkflow,
+  onTryDemo,
 }) => {
   const {
     projects,
@@ -216,9 +218,27 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
               <FolderOpen size={24} className="text-gray-600" />
             </div>
             <h4 className="text-lg font-medium text-white mb-2">No workflows yet</h4>
-            <p className="text-gray-400 text-sm mb-4">
-              Create your first automation to get started
+            <p className="text-gray-400 text-sm max-w-md mx-auto mb-6">
+              Create your first automation to get started with browser recordings and exports.
             </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                onClick={onCreateProject}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+              >
+                <Plus size={20} />
+                Create Your First Workflow
+              </button>
+              {onTryDemo && (
+                <button
+                  onClick={onTryDemo}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium border border-gray-600"
+                >
+                  <Play size={20} />
+                  Try Demo Workflow
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="space-y-2">

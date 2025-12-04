@@ -15,8 +15,11 @@ import {
   XCircle,
   Clock,
   Sparkles,
+  Plus,
+  Play,
 } from 'lucide-react';
 import { useExportStore, type Export } from '@stores/exportStore';
+import { useDashboardStore } from '@stores/dashboardStore';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { ResponsiveDialog } from '@shared/layout';
@@ -24,6 +27,9 @@ import { ResponsiveDialog } from '@shared/layout';
 interface ExportsTabProps {
   onViewExecution: (executionId: string, workflowId: string) => void;
   onNavigateToWorkflow?: (projectId: string, workflowId: string) => void;
+  onNavigateToExecutions?: () => void;
+  onNavigateToHome?: () => void;
+  onCreateWorkflow?: () => void;
 }
 
 const formatConfig: Record<string, {
@@ -103,6 +109,9 @@ const formatDuration = (ms?: number): string => {
 
 export const ExportsTab: React.FC<ExportsTabProps> = ({
   onViewExecution,
+  onNavigateToExecutions,
+  onNavigateToHome,
+  onCreateWorkflow,
 }) => {
   const {
     exports,
@@ -112,6 +121,11 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
     deleteExport,
     updateExport,
   } = useExportStore();
+  const {
+    recentWorkflows,
+    recentExecutions,
+    runningExecutions,
+  } = useDashboardStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedExport, setSelectedExport] = useState<Export | null>(null);
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
@@ -348,11 +362,62 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-800 flex items-center justify-center">
             <Film size={24} className="text-gray-600" />
           </div>
-          <h4 className="text-lg font-medium text-white mb-2">No exports yet</h4>
-          <p className="text-gray-400 text-sm max-w-md mx-auto">
-            Run a workflow and export the replay as a video, GIF, or JSON package.
-            Your exports will appear here for easy access.
-          </p>
+          {/* Contextual empty state based on user progress */}
+          {recentExecutions.length > 0 || runningExecutions.length > 0 ? (
+            // User has executions - guide them to export
+            <>
+              <h4 className="text-lg font-medium text-white mb-2">No exports yet</h4>
+              <p className="text-gray-400 text-sm max-w-md mx-auto mb-6">
+                You've run {recentExecutions.length + runningExecutions.length} workflow
+                {recentExecutions.length + runningExecutions.length !== 1 ? 's' : ''}.
+                Open an execution to export the replay as a video, GIF, or data package.
+              </p>
+              {onNavigateToExecutions && (
+                <button
+                  onClick={onNavigateToExecutions}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                >
+                  <Eye size={20} />
+                  View Executions
+                </button>
+              )}
+            </>
+          ) : recentWorkflows.length > 0 ? (
+            // User has workflows but no executions - encourage running one
+            <>
+              <h4 className="text-lg font-medium text-white mb-2">No exports yet</h4>
+              <p className="text-gray-400 text-sm max-w-md mx-auto mb-6">
+                Run a workflow to generate video replays and data exports.
+                You have {recentWorkflows.length} workflow{recentWorkflows.length !== 1 ? 's' : ''} ready to go.
+              </p>
+              {onNavigateToHome && (
+                <button
+                  onClick={onNavigateToHome}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                >
+                  <Play size={20} />
+                  Run a Workflow
+                </button>
+              )}
+            </>
+          ) : (
+            // Brand new user - guide them to create first workflow
+            <>
+              <h4 className="text-lg font-medium text-white mb-2">Start Creating Exports</h4>
+              <p className="text-gray-400 text-sm max-w-md mx-auto mb-6">
+                Create a workflow using AI, run it, then export the recording as a video, GIF, or JSON package.
+              </p>
+              {onCreateWorkflow && (
+                <button
+                  onClick={onCreateWorkflow}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                >
+                  <Plus size={20} />
+                  Create Your First Workflow
+                </button>
+              )}
+            </>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

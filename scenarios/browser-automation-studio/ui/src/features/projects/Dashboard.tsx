@@ -243,6 +243,8 @@ function Dashboard({
         return (
           <ExecutionsTab
             onViewExecution={handleViewExecution}
+            onNavigateToHome={() => setActiveTab('home')}
+            onCreateWorkflow={onCreateProject}
           />
         );
       case 'exports':
@@ -250,6 +252,9 @@ function Dashboard({
           <ExportsTab
             onViewExecution={handleViewExecution}
             onNavigateToWorkflow={handleNavigateToWorkflow}
+            onNavigateToExecutions={() => setActiveTab('executions')}
+            onNavigateToHome={() => setActiveTab('home')}
+            onCreateWorkflow={onCreateProject}
           />
         );
       case 'projects':
@@ -259,6 +264,7 @@ function Dashboard({
             onCreateProject={onCreateProject}
             onNavigateToWorkflow={handleNavigateToWorkflow}
             onRunWorkflow={handleRunWorkflow}
+            onTryDemo={onTryDemo}
           />
         );
       default:
