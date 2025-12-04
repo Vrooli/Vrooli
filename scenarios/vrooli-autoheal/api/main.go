@@ -69,6 +69,16 @@ func run() error {
 	// Register health checks (delegated to bootstrap module)
 	bootstrap.RegisterDefaultChecks(registry, plat)
 
+	// Pre-populate registry from database so dashboard shows data immediately
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if err := bootstrap.PopulateRecentResults(ctx, registry, store); err != nil {
+		log.Printf("warning: could not pre-populate results: %v", err)
+	}
+	cancel()
+
+	// Schedule initial tick 5 seconds after startup to get fresh results
+	bootstrap.ScheduleInitialTick(registry, store, 5*time.Second)
+
 	// Setup HTTP server
 	h := apiHandlers.New(registry, store, plat)
 	router := setupRouter(h)

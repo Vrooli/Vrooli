@@ -51,6 +51,42 @@ func (s *Store) SaveResult(ctx context.Context, result checks.Result) error {
 	return err
 }
 
+// GetLatestResultPerCheck retrieves the most recent result for each check.
+// Used to pre-populate the registry from the database on startup.
+func (s *Store) GetLatestResultPerCheck(ctx context.Context) ([]checks.Result, error) {
+	query := `
+		SELECT DISTINCT ON (check_id)
+			check_id, status, message, details, duration_ms, created_at
+		FROM health_results
+		ORDER BY check_id, created_at DESC
+	`
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var results []checks.Result
+	for rows.Next() {
+		var r checks.Result
+		var detailsJSON []byte
+		var durationMs int64
+
+		if err := rows.Scan(&r.CheckID, &r.Status, &r.Message, &detailsJSON, &durationMs, &r.Timestamp); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+
+		r.Duration = time.Duration(durationMs) * time.Millisecond
+		if len(detailsJSON) > 0 {
+			json.Unmarshal(detailsJSON, &r.Details)
+		}
+
+		results = append(results, r)
+	}
+
+	return results, rows.Err()
+}
+
 // GetRecentResults retrieves recent health check results
 func (s *Store) GetRecentResults(ctx context.Context, checkID string, limit int) ([]checks.Result, error) {
 	query := `

@@ -129,6 +129,16 @@ func (r *Registry) GetResult(checkID string) (Result, bool) {
 	return result, exists
 }
 
+// SetResult stores a result without running the check.
+// Used to pre-populate the registry from persisted data on startup.
+func (r *Registry) SetResult(result Result) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.results[result.CheckID] = result
+	// Also update lastRun so interval checks work correctly
+	r.lastRun[result.CheckID] = result.Timestamp
+}
+
 // GetAllResults returns all stored check results
 func (r *Registry) GetAllResults() []Result {
 	r.mu.RLock()
