@@ -17,8 +17,54 @@ import (
 	"scenario-to-desktop-runtime/health"
 	"scenario-to-desktop-runtime/infra"
 	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/strutil"
 )
+
+// BundleValidationResult contains the results of bundle validation.
+type BundleValidationResult struct {
+	Valid            bool              `json:"valid"`
+	Errors           []BundleError     `json:"errors,omitempty"`
+	Warnings         []BundleWarning   `json:"warnings,omitempty"`
+	MissingBinaries  []MissingBinary   `json:"missing_binaries,omitempty"`
+	MissingAssets    []MissingAsset    `json:"missing_assets,omitempty"`
+	InvalidChecksums []InvalidChecksum `json:"invalid_checksums,omitempty"`
+}
+
+// BundleError represents a fatal bundle validation error.
+type BundleError struct {
+	Code    string `json:"code"`
+	Service string `json:"service,omitempty"`
+	Path    string `json:"path,omitempty"`
+	Message string `json:"message"`
+}
+
+// BundleWarning represents a non-fatal bundle validation warning.
+type BundleWarning struct {
+	Code    string `json:"code"`
+	Service string `json:"service,omitempty"`
+	Path    string `json:"path,omitempty"`
+	Message string `json:"message"`
+}
+
+// MissingBinary describes a missing service binary.
+type MissingBinary struct {
+	ServiceID string `json:"service_id"`
+	Platform  string `json:"platform"`
+	Path      string `json:"path"`
+}
+
+// MissingAsset describes a missing service asset.
+type MissingAsset struct {
+	ServiceID string `json:"service_id"`
+	Path      string `json:"path"`
+}
+
+// InvalidChecksum describes an asset with an invalid checksum.
+type InvalidChecksum struct {
+	ServiceID string `json:"service_id"`
+	Path      string `json:"path"`
+	Expected  string `json:"expected"`
+	Actual    string `json:"actual"`
+}
 
 // Runtime defines the interface that the API layer uses to interact with the supervisor.
 type Runtime interface {
@@ -46,6 +92,8 @@ type Runtime interface {
 	RecordTelemetry(event string, details map[string]interface{}) error
 	// GPUStatus returns GPU detection info.
 	GPUStatus() gpu.Status
+	// ValidateBundle performs pre-flight bundle validation.
+	ValidateBundle() *BundleValidationResult
 }
 
 // SecretStore defines the interface for secret management used by the API.
@@ -55,6 +103,11 @@ type SecretStore interface {
 	Merge(newSecrets map[string]string) map[string]string
 	MissingRequiredFrom(secrets map[string]string) []string
 	Persist(secrets map[string]string) error
+	// Validate checks secrets against manifest requirements (required, format).
+	// Returns nil if all validations pass, or an error with details.
+	Validate(secrets map[string]string) error
+	// GenerateMissing generates values for per_install_generated secrets that don't exist.
+	GenerateMissing(existingSecrets map[string]string) (map[string]string, error)
 }
 
 // Server handles HTTP requests for the control API.
@@ -80,6 +133,7 @@ func (s *Server) RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/shutdown", s.handleShutdown)
 	mux.HandleFunc("/secrets", s.handleSecrets)
 	mux.HandleFunc("/telemetry", s.handleTelemetry)
+	mux.HandleFunc("/validate", s.handleValidate)
 }
 
 // AuthMiddleware returns middleware that enforces bearer token authentication.
@@ -240,6 +294,7 @@ type secretView struct {
 	Required    bool              `json:"required"`
 	HasValue    bool              `json:"has_value"`
 	Description string            `json:"description,omitempty"`
+	Format      string            `json:"format,omitempty"`
 	Prompt      map[string]string `json:"prompt,omitempty"`
 }
 
@@ -261,6 +316,7 @@ func (s *Server) handleSecretsGet(w http.ResponseWriter) {
 			Required:    required,
 			HasValue:    val != "",
 			Description: sec.Description,
+			Format:      sec.Format,
 			Prompt:      sec.Prompt,
 		})
 	}
@@ -291,29 +347,36 @@ func (s *Server) handleSecretsPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	store := s.runtime.SecretStore()
-	m := s.runtime.Manifest()
 
 	// Merge with existing secrets.
 	merged := store.Merge(payload.Secrets)
 
-	// Validate all required secrets are present.
-	missing := store.MissingRequiredFrom(merged)
-	if len(missing) > 0 {
-		msg := fmt.Sprintf("missing required secrets: %s", strings.Join(missing, ", "))
-		_ = s.runtime.RecordTelemetry("secrets_missing", map[string]interface{}{"missing": missing})
-		writeJSON(w, http.StatusBadRequest, map[string]interface{}{
-			"error":   msg,
-			"missing": missing,
+	// Auto-generate per_install_generated secrets that are missing.
+	generated, err := store.GenerateMissing(merged)
+	if err != nil {
+		_ = s.runtime.RecordTelemetry("secrets_generation_failed", map[string]interface{}{"error": err.Error()})
+		writeJSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"error": fmt.Sprintf("failed to generate secrets: %v", err),
 		})
-
-		// Update status message for affected services.
-		for _, svc := range m.Services {
-			needs := strutil.Intersection(missing, svc.Secrets)
-			if len(needs) > 0 {
-				// Note: Status updates are handled by the runtime, not the API layer
-				// The runtime will pick up on missing secrets when services try to start
-			}
+		return
+	}
+	if len(generated) > 0 {
+		for k, v := range generated {
+			merged[k] = v
 		}
+		_ = s.runtime.RecordTelemetry("secrets_generated", map[string]interface{}{
+			"count": len(generated),
+			"ids":   keys(generated),
+		})
+	}
+
+	// Validate all secrets (required + format).
+	if validationErr := store.Validate(merged); validationErr != nil {
+		_ = s.runtime.RecordTelemetry("secrets_validation_failed", map[string]interface{}{"errors": validationErr.Error()})
+		writeJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"error":             "secret validation failed",
+			"validation_errors": validationErr.Error(),
+		})
 		return
 	}
 
@@ -332,12 +395,45 @@ func (s *Server) handleSecretsPost(w http.ResponseWriter, r *http.Request) {
 	s.runtime.StartServicesIfReady()
 }
 
+// keys returns the keys of a map as a slice.
+func keys(m map[string]string) []string {
+	result := make([]string, 0, len(m))
+	for k := range m {
+		result = append(result, k)
+	}
+	return result
+}
+
 // handleTelemetry returns telemetry file path and upload URL.
 func (s *Server) handleTelemetry(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"path":       s.runtime.TelemetryPath(),
 		"upload_url": s.runtime.TelemetryUploadURL(),
 	})
+}
+
+// handleValidate performs pre-flight bundle validation and returns results.
+// This endpoint verifies all binaries and assets exist before service startup.
+func (s *Server) handleValidate(w http.ResponseWriter, r *http.Request) {
+	result := s.runtime.ValidateBundle()
+
+	// Record validation telemetry.
+	details := map[string]interface{}{
+		"valid":             result.Valid,
+		"error_count":       len(result.Errors),
+		"warning_count":     len(result.Warnings),
+		"missing_binaries":  len(result.MissingBinaries),
+		"missing_assets":    len(result.MissingAssets),
+		"invalid_checksums": len(result.InvalidChecksums),
+	}
+	_ = s.runtime.RecordTelemetry("bundle_validation", details)
+
+	status := http.StatusOK
+	if !result.Valid {
+		status = http.StatusUnprocessableEntity
+	}
+
+	writeJSON(w, status, result)
 }
 
 // writeJSON sends a JSON response with the given status code.

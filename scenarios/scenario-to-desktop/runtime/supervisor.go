@@ -285,6 +285,30 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("load secrets: %w", err)
 	}
+
+	// Auto-generate per_install_generated secrets that don't exist.
+	// This ensures auto-generated secrets are created on first-run and persisted.
+	generated, genErr := s.secretStore.GenerateMissing(loadedSecrets)
+	if genErr != nil {
+		_ = s.recordTelemetry("secrets_generation_failed", map[string]interface{}{"error": genErr.Error()})
+		return fmt.Errorf("generate secrets: %w", genErr)
+	}
+	if len(generated) > 0 {
+		generatedIDs := make([]string, 0, len(generated))
+		for k, v := range generated {
+			loadedSecrets[k] = v
+			generatedIDs = append(generatedIDs, k)
+		}
+		// Persist the newly generated secrets immediately.
+		if persistErr := s.secretStore.Persist(loadedSecrets); persistErr != nil {
+			return fmt.Errorf("persist generated secrets: %w", persistErr)
+		}
+		_ = s.recordTelemetry("secrets_generated", map[string]interface{}{
+			"count": len(generated),
+			"ids":   generatedIDs,
+		})
+	}
+
 	s.secretStore.Set(loadedSecrets)
 
 	// Create migration executor with tracker.

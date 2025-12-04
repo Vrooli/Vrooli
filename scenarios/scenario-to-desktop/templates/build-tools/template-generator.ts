@@ -73,6 +73,28 @@ interface DesktopConfig {
         splashAccentColor?: string;
         [key: string]: any;
     };
+
+    // Update/publish configuration
+    update_config?: {
+        // Update channel: dev, beta, or stable
+        channel?: 'dev' | 'beta' | 'stable';
+        // Provider type: github, generic (self-hosted), or none
+        provider?: 'github' | 'generic' | 'none';
+        // For GitHub provider
+        github?: {
+            owner: string;
+            repo: string;
+            private?: boolean;
+            token?: string; // GH_TOKEN env var name, not actual token
+        };
+        // For generic (self-hosted) provider
+        generic?: {
+            url: string; // Base URL for update server
+            channel_path?: string; // e.g., "/{channel}" to append channel to URL
+        };
+        // Whether to enable auto-update on startup
+        auto_check?: boolean;
+    };
 }
 
 interface TemplateFile {
@@ -335,6 +357,12 @@ class DesktopTemplateGenerator {
             // Distribution
             PUBLISHER_NAME: this.config.author,
             PUBLISH_CONFIG: JSON.stringify(this.getPublishConfig(), null, 2),
+
+            // Update configuration
+            UPDATE_CHANNEL: this.config.update_config?.channel || 'stable',
+            UPDATE_PROVIDER: this.config.update_config?.provider || 'none',
+            UPDATE_AUTO_CHECK: this.config.update_config?.auto_check ?? false,
+            UPDATE_SERVER_URL: this.getUpdateServerUrl(),
         };
         
         // Merge template-specific variables
@@ -346,12 +374,84 @@ class DesktopTemplateGenerator {
     }
     
     private getPublishConfig(): any {
-        // Default publish configuration - can be customized based on deployment needs
-        return {
-            provider: "github",
-            owner: "your-organization",
-            repo: `${this.config.app_name}-desktop`
-        };
+        const updateConfig = this.config.update_config;
+        const provider = updateConfig?.provider || 'none';
+        const channel = updateConfig?.channel || 'stable';
+
+        // If updates are disabled, return null (will be stringified as "null")
+        if (provider === 'none') {
+            return null;
+        }
+
+        // GitHub releases provider
+        if (provider === 'github') {
+            const github = updateConfig?.github;
+            const config: any = {
+                provider: "github",
+                owner: github?.owner || "your-organization",
+                repo: github?.repo || `${this.config.app_name}-desktop`,
+                releaseType: channel === 'stable' ? 'release' : 'prerelease',
+            };
+
+            // Add private repo support if needed
+            if (github?.private) {
+                config.private = true;
+            }
+
+            return config;
+        }
+
+        // Generic (self-hosted) update server
+        if (provider === 'generic') {
+            const generic = updateConfig?.generic;
+            let url = generic?.url || 'https://updates.example.com';
+
+            // Append channel path if configured
+            if (generic?.channel_path) {
+                url = url + generic.channel_path.replace('{channel}', channel);
+            } else {
+                // Default: append channel as path segment
+                url = `${url}/${channel}`;
+            }
+
+            return {
+                provider: "generic",
+                url: url,
+                useMultipleRangeRequest: false, // Better compatibility
+            };
+        }
+
+        return null;
+    }
+
+    private getUpdateServerUrl(): string {
+        const updateConfig = this.config.update_config;
+        const provider = updateConfig?.provider || 'none';
+        const channel = updateConfig?.channel || 'stable';
+
+        if (provider === 'none') {
+            return '';
+        }
+
+        if (provider === 'github') {
+            const github = updateConfig?.github;
+            const owner = github?.owner || 'your-organization';
+            const repo = github?.repo || `${this.config.app_name}-desktop`;
+            return `https://github.com/${owner}/${repo}/releases`;
+        }
+
+        if (provider === 'generic') {
+            const generic = updateConfig?.generic;
+            let url = generic?.url || '';
+            if (generic?.channel_path) {
+                url = url + generic.channel_path.replace('{channel}', channel);
+            } else if (url) {
+                url = `${url}/${channel}`;
+            }
+            return url;
+        }
+
+        return '';
     }
     
     private async generateAdditionalFiles(templateConfig: any): Promise<void> {

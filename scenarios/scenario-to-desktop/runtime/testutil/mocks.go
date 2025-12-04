@@ -642,6 +642,9 @@ type MockSecretStore struct {
 	missingRequired []string
 	loadErr         error
 	persistErr      error
+	validateErr     error
+	generateErr     error
+	generatedResult map[string]string
 	manifest        *manifest.Manifest
 }
 
@@ -772,6 +775,47 @@ func (m *MockSecretStore) Merge(newSecrets map[string]string) map[string]string 
 		merged[k] = v
 	}
 	return merged
+}
+
+// SetValidateErr configures an error to return from Validate.
+func (m *MockSecretStore) SetValidateErr(err error) {
+	m.mu.Lock()
+	m.validateErr = err
+	m.mu.Unlock()
+}
+
+// SetGenerateErr configures an error to return from GenerateMissing.
+func (m *MockSecretStore) SetGenerateErr(err error) {
+	m.mu.Lock()
+	m.generateErr = err
+	m.mu.Unlock()
+}
+
+// SetGeneratedResult configures the result of GenerateMissing.
+func (m *MockSecretStore) SetGeneratedResult(result map[string]string) {
+	m.mu.Lock()
+	m.generatedResult = result
+	m.mu.Unlock()
+}
+
+// Validate returns configured error or nil.
+func (m *MockSecretStore) Validate(secrets map[string]string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.validateErr
+}
+
+// GenerateMissing returns configured result or error.
+func (m *MockSecretStore) GenerateMissing(existingSecrets map[string]string) (map[string]string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.generateErr != nil {
+		return nil, m.generateErr
+	}
+	if m.generatedResult != nil {
+		return m.generatedResult, nil
+	}
+	return map[string]string{}, nil
 }
 
 // =============================================================================

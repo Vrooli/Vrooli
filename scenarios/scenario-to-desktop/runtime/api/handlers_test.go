@@ -87,6 +87,10 @@ func (m *mockRuntime) GPUStatus() gpu.Status {
 	return m.gpuStatus
 }
 
+func (m *mockRuntime) ValidateBundle() *BundleValidationResult {
+	return &BundleValidationResult{Valid: true}
+}
+
 // testRuntime creates a mock runtime configured for testing.
 func testRuntime(t *testing.T, m *manifest.Manifest) *mockRuntime {
 	t.Helper()
@@ -680,8 +684,8 @@ func TestHandleSecretsPost(t *testing.T) {
 		if rt.startCalled {
 			t.Fatalf("handleSecrets POST should not start services when required secrets missing")
 		}
-		if len(rt.telemetryLogs) != 1 || rt.telemetryLogs[0] != "secrets_missing" {
-			t.Fatalf("telemetry logs = %v, want [secrets_missing]", rt.telemetryLogs)
+		if len(rt.telemetryLogs) != 1 || rt.telemetryLogs[0] != "secrets_validation_failed" {
+			t.Fatalf("telemetry logs = %v, want [secrets_validation_failed]", rt.telemetryLogs)
 		}
 	})
 

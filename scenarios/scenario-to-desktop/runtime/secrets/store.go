@@ -29,6 +29,11 @@ type Store interface {
 	FindSecret(id string) *manifest.Secret
 	// Merge combines new secrets with existing ones.
 	Merge(newSecrets map[string]string) map[string]string
+	// Validate checks secrets against manifest requirements (required, format).
+	// Returns nil if all validations pass, or an error with details.
+	Validate(secrets map[string]string) error
+	// GenerateMissing generates values for per_install_generated secrets that don't exist.
+	GenerateMissing(existingSecrets map[string]string) (map[string]string, error)
 }
 
 // Manager implements Store for managing secrets.
@@ -36,6 +41,8 @@ type Manager struct {
 	manifest    *manifest.Manifest
 	fs          infra.FileSystem
 	secretsPath string
+	validator   *Validator
+	generator   *Generator
 
 	mu      sync.RWMutex
 	secrets map[string]string
@@ -47,6 +54,8 @@ func NewManager(m *manifest.Manifest, fs infra.FileSystem, secretsPath string) *
 		manifest:    m,
 		fs:          fs,
 		secretsPath: secretsPath,
+		validator:   NewValidator(m),
+		generator:   NewGenerator(),
 		secrets:     make(map[string]string),
 	}
 }
@@ -162,6 +171,21 @@ func (sm *Manager) Merge(newSecrets map[string]string) map[string]string {
 		merged[k] = v
 	}
 	return merged
+}
+
+// Validate checks secrets against manifest requirements (required, format).
+// Returns nil if all validations pass, or an error with details.
+func (sm *Manager) Validate(secrets map[string]string) error {
+	errs := sm.validator.Validate(secrets)
+	if len(errs) == 0 {
+		return nil
+	}
+	return errs
+}
+
+// GenerateMissing generates values for per_install_generated secrets that don't exist.
+func (sm *Manager) GenerateMissing(existingSecrets map[string]string) (map[string]string, error) {
+	return sm.generator.GenerateSecrets(sm.manifest, existingSecrets)
 }
 
 // Ensure Manager implements Store.

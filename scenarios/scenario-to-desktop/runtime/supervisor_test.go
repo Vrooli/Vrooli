@@ -157,6 +157,10 @@ func (m *mockSupervisorRuntime) GPUStatus() gpu.Status {
 	return m.gpuStatus
 }
 
+func (m *mockSupervisorRuntime) ValidateBundle() *api.BundleValidationResult {
+	return &api.BundleValidationResult{Valid: true}
+}
+
 func TestHandleSecretsGetReturnsStatus(t *testing.T) {
 	manifestData := &manifest.Manifest{
 		App: manifest.App{Name: "demo", Version: "1.0.0"},

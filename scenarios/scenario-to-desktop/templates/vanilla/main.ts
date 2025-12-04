@@ -57,6 +57,18 @@ const BUNDLED_RUNTIME = {
 	DOCS_URL: "docs/deployment/tiers/tier-2-desktop.md",
 };
 
+// Update/auto-updater configuration
+const UPDATE_CONFIG = {
+    // Update channel: dev, beta, or stable
+    CHANNEL: "{{UPDATE_CHANNEL}}" as "dev" | "beta" | "stable",
+    // Provider: github, generic, or none
+    PROVIDER: "{{UPDATE_PROVIDER}}" as "github" | "generic" | "none",
+    // Whether to automatically check for updates on startup
+    AUTO_CHECK: {{UPDATE_AUTO_CHECK}},
+    // Update server URL (for display/logging purposes)
+    SERVER_URL: "{{UPDATE_SERVER_URL}}",
+};
+
 let serverProcess: ChildProcess | null = null;
 let runtimeProcess: ChildProcess | null = null;
 let mainWindow: BrowserWindow | null = null;
@@ -159,6 +171,40 @@ type RuntimeRequestOptions = {
     expectText?: boolean;
     method?: string;
     body?: unknown;
+};
+
+// Bundle manifest types for pre-flight validation
+type BundleManifest = {
+    schema_version: string;
+    target: string;
+    app: { name: string; version: string };
+    ipc: { host: string; port: number };
+    services: BundleService[];
+};
+
+type BundleService = {
+    id: string;
+    binaries: Record<string, { path: string }>;
+    assets?: { path: string; sha256?: string }[];
+    health: { type: string };
+    readiness: { type: string };
+};
+
+type BundleValidationResult = {
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+    missingBinaries: { serviceId: string; platform: string; path: string }[];
+    missingAssets: { serviceId: string; path: string }[];
+};
+
+type RuntimeValidationResponse = {
+    valid: boolean;
+    errors?: Array<{ code: string; service?: string; path?: string; message: string }>;
+    warnings?: Array<{ code: string; service?: string; path?: string; message: string }>;
+    missing_binaries?: Array<{ service_id: string; platform: string; path: string }>;
+    missing_assets?: Array<{ service_id: string; path: string }>;
+    invalid_checksums?: Array<{ service_id: string; path: string; expected: string; actual: string }>;
 };
 
 function getRuntimeAppDataRoot(): string {
@@ -688,6 +734,190 @@ async function pathExists(filePath: string): Promise<boolean> {
     }
 }
 
+// ===== BUNDLE VALIDATION FUNCTIONS =====
+
+/**
+ * Returns the platform key for the current OS/arch in the manifest format.
+ * E.g., "linux-x64", "darwin-arm64", "win-x64"
+ */
+function getBundlePlatformKey(): string {
+    const arch = process.arch === "x64" ? "x64" : process.arch;
+    const os = process.platform === "darwin" ? "darwin" : process.platform === "win32" ? "win" : "linux";
+    return `${os}-${arch}`;
+}
+
+/**
+ * Returns platform key aliases for the manifest (e.g., "mac-x64" for "darwin-x64").
+ */
+function getPlatformKeyAliases(key: string): string[] {
+    const keys = [key];
+    if (key.startsWith("darwin-")) {
+        keys.push("mac-" + key.slice(7));
+    } else if (key.startsWith("mac-")) {
+        keys.push("darwin-" + key.slice(4));
+    } else if (key.startsWith("win-")) {
+        keys.push("windows-" + key.slice(4));
+    } else if (key.startsWith("windows-")) {
+        keys.push("win-" + key.slice(8));
+    }
+    return keys;
+}
+
+/**
+ * Loads and parses the bundle manifest from disk.
+ */
+async function loadBundleManifest(manifestPath: string): Promise<BundleManifest | null> {
+    try {
+        const raw = await fs.readFile(manifestPath, "utf-8");
+        return JSON.parse(raw) as BundleManifest;
+    } catch (error) {
+        console.error("[Desktop App] Failed to load bundle manifest:", error);
+        return null;
+    }
+}
+
+/**
+ * Performs pre-flight validation of the bundle manifest.
+ * Checks that all required binaries and assets exist before spawning the runtime.
+ * This is a fast, Electron-side check that catches obvious issues early.
+ */
+async function validateBundlePreFlight(bundleRoot: string, manifestPath: string): Promise<BundleValidationResult> {
+    const result: BundleValidationResult = {
+        valid: true,
+        errors: [],
+        warnings: [],
+        missingBinaries: [],
+        missingAssets: [],
+    };
+
+    // Load manifest
+    const manifest = await loadBundleManifest(manifestPath);
+    if (!manifest) {
+        result.valid = false;
+        result.errors.push("Failed to load or parse bundle manifest");
+        return result;
+    }
+
+    // Validate schema version and target
+    if (!manifest.schema_version) {
+        result.valid = false;
+        result.errors.push("Manifest missing schema_version");
+    }
+    if (manifest.target !== "desktop") {
+        result.valid = false;
+        result.errors.push(`Invalid manifest target: ${manifest.target} (expected 'desktop')`);
+    }
+    if (!manifest.app?.name || !manifest.app?.version) {
+        result.valid = false;
+        result.errors.push("Manifest missing app.name or app.version");
+    }
+    if (!manifest.ipc?.host || !manifest.ipc?.port) {
+        result.valid = false;
+        result.errors.push("Manifest missing ipc.host or ipc.port");
+    }
+
+    // Early exit if manifest is fundamentally broken
+    if (!result.valid) {
+        return result;
+    }
+
+    // Get platform keys to check
+    const platformKey = getBundlePlatformKey();
+    const platformKeys = getPlatformKeyAliases(platformKey);
+
+    // Check each service
+    for (const service of manifest.services || []) {
+        // Check for service binary
+        let binaryFound = false;
+        let binaryPath = "";
+        for (const pk of platformKeys) {
+            const bin = service.binaries?.[pk];
+            if (bin?.path) {
+                const fullPath = path.join(bundleRoot, bin.path.replace(/\\/g, path.sep));
+                if (await pathExists(fullPath)) {
+                    binaryFound = true;
+                    break;
+                }
+                binaryPath = bin.path;
+            }
+        }
+
+        if (!binaryFound && Object.keys(service.binaries || {}).length > 0) {
+            // Only flag as missing if binaries are defined but none match platform
+            const anyBinary = Object.values(service.binaries || {})[0];
+            result.missingBinaries.push({
+                serviceId: service.id,
+                platform: platformKey,
+                path: binaryPath || anyBinary?.path || "<undefined>",
+            });
+            result.errors.push(`Binary missing for service ${service.id} on platform ${platformKey}`);
+            result.valid = false;
+        }
+
+        // Check for service assets (existence only, checksums verified by runtime)
+        for (const asset of service.assets || []) {
+            const assetPath = path.join(bundleRoot, asset.path.replace(/\\/g, path.sep));
+            if (!(await pathExists(assetPath))) {
+                result.missingAssets.push({
+                    serviceId: service.id,
+                    path: asset.path,
+                });
+                result.errors.push(`Asset missing for service ${service.id}: ${asset.path}`);
+                result.valid = false;
+            }
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Calls the runtime's /validate endpoint for comprehensive validation.
+ * This includes checksum verification that Electron can't do efficiently.
+ */
+async function validateBundleViaRuntime(): Promise<RuntimeValidationResponse | null> {
+    if (!RUNTIME_CONTROL.ENABLED) {
+        return null;
+    }
+    try {
+        const response = await runtimeRequest<RuntimeValidationResponse>("/validate");
+        return response as RuntimeValidationResponse;
+    } catch (error) {
+        console.warn("[Desktop App] Runtime validation unavailable:", error);
+        return null;
+    }
+}
+
+/**
+ * Formats bundle validation errors for display.
+ */
+function formatValidationErrors(result: BundleValidationResult): string {
+    const lines: string[] = [];
+
+    if (result.missingBinaries.length > 0) {
+        lines.push("Missing binaries:");
+        for (const mb of result.missingBinaries) {
+            lines.push(`  - ${mb.serviceId}: ${mb.path} (${mb.platform})`);
+        }
+    }
+
+    if (result.missingAssets.length > 0) {
+        lines.push("Missing assets:");
+        for (const ma of result.missingAssets) {
+            lines.push(`  - ${ma.serviceId}: ${ma.path}`);
+        }
+    }
+
+    if (result.errors.length > 0 && lines.length === 0) {
+        lines.push("Validation errors:");
+        for (const err of result.errors) {
+            lines.push(`  - ${err}`);
+        }
+    }
+
+    return lines.join("\n");
+}
+
 async function locateBinaryInPath(binary: string): Promise<string | null> {
     return new Promise((resolve) => {
         const locator = process.platform === "win32" ? "where" : "which";
@@ -1188,13 +1418,24 @@ function createApplicationMenu() {
             label: "Help",
             submenu: [
                 {
+                    label: "Check for Updates...",
+                    enabled: UPDATE_CONFIG.PROVIDER !== "none",
+                    click: () => {
+                        void checkForUpdatesManually();
+                    }
+                },
+                { type: "separator" },
+                {
                     label: `About ${APP_CONFIG.APP_DISPLAY_NAME}`,
                     click: () => {
+                        const channelInfo = UPDATE_CONFIG.PROVIDER !== "none"
+                            ? `\nUpdate Channel: ${UPDATE_CONFIG.CHANNEL}`
+                            : "";
                         dialog.showMessageBox(mainWindow!, {
                             type: "info",
                             title: `About ${APP_CONFIG.APP_DISPLAY_NAME}`,
                             message: APP_CONFIG.APP_DISPLAY_NAME,
-                            detail: `Version ${APP_CONFIG.APP_VERSION}\n\nBuilt with scenario-to-desktop\n\n${APP_CONFIG.APP_URL || ""}`
+                            detail: `Version ${APP_CONFIG.APP_VERSION}${channelInfo}\n\nBuilt with scenario-to-desktop\n\n${APP_CONFIG.APP_URL || ""}`
                         });
                     }
                 }
@@ -1304,6 +1545,20 @@ async function startBundledRuntime(): Promise<string> {
 		throw new Error(`Bundled manifest missing at ${manifestPath}`);
 	}
 
+	// Pre-flight validation: check manifest structure and required files before spawning runtime
+	console.log("[Desktop App] Performing pre-flight bundle validation...");
+	const validationResult = await validateBundlePreFlight(bundleRoot, manifestPath);
+	if (!validationResult.valid) {
+		const errorDetails = formatValidationErrors(validationResult);
+		await recordTelemetry("bundle_validation_failed", {
+			errors: validationResult.errors,
+			missingBinaries: validationResult.missingBinaries,
+			missingAssets: validationResult.missingAssets,
+		});
+		throw new Error(`Bundle validation failed:\n${errorDetails}\n\nThe bundle may be corrupted or incomplete. Try regenerating or reinstalling the desktop app.`);
+	}
+	console.log("[Desktop App] Pre-flight bundle validation passed");
+
 	const runtimePath = path.join(
 		bundleRoot,
 		"runtime",
@@ -1348,6 +1603,38 @@ async function startBundledRuntime(): Promise<string> {
 
 	await waitForFile(tokenPath, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
 	await waitForRuntimeControl(APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+
+	// Comprehensive validation via runtime API (includes checksum verification)
+	try {
+		const runtimeValidation = await validateBundleViaRuntime();
+		if (runtimeValidation && !runtimeValidation.valid) {
+			const checksumErrors = runtimeValidation.invalid_checksums?.length || 0;
+			const otherErrors = (runtimeValidation.errors?.length || 0) - checksumErrors;
+
+			// Log validation issues
+			console.warn("[Desktop App] Runtime validation found issues:", runtimeValidation);
+			await recordTelemetry("runtime_validation_issues", {
+				valid: false,
+				errorCount: runtimeValidation.errors?.length || 0,
+				warningCount: runtimeValidation.warnings?.length || 0,
+				checksumMismatches: checksumErrors,
+			});
+
+			// If there are critical errors (beyond checksum mismatches), warn the user
+			if (otherErrors > 0) {
+				const errorMessages = runtimeValidation.errors
+					?.filter(e => e.code !== "checksum_mismatch")
+					.map(e => e.message)
+					.join("\n") || "Unknown validation errors";
+				console.error("[Desktop App] Critical validation errors:", errorMessages);
+			}
+		} else if (runtimeValidation?.valid) {
+			console.log("[Desktop App] Runtime bundle validation passed");
+		}
+	} catch (error) {
+		console.warn("[Desktop App] Runtime validation check failed (non-fatal):", error);
+	}
+
 	await ensureRuntimeSecretsIfNeeded();
 
 	const readyDeadline = Date.now() + APP_CONFIG.SERVER_CHECK_TIMEOUT_MS;
@@ -1464,38 +1751,157 @@ async function startScenarioServer() {
 }
 
 function setupAutoUpdater() {
-    if (!APP_CONFIG.ENABLE_AUTO_UPDATER || !app.isPackaged) return;
-    
+    // Skip if auto-updater is disabled, not packaged, or no provider configured
+    if (!APP_CONFIG.ENABLE_AUTO_UPDATER || !app.isPackaged) {
+        console.log("[Desktop App] Auto-updater disabled (not packaged or feature disabled)");
+        return;
+    }
+
+    if (UPDATE_CONFIG.PROVIDER === "none") {
+        console.log("[Desktop App] Auto-updater disabled (no update provider configured)");
+        return;
+    }
+
+    // Configure the updater
     autoUpdater.logger = console;
-    
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+
+    // Set the update channel - electron-updater uses this for GitHub prereleases
+    // and generic server channel directories
+    autoUpdater.channel = UPDATE_CONFIG.CHANNEL;
+
+    // For beta/dev channels on GitHub, allow prereleases
+    if (UPDATE_CONFIG.PROVIDER === "github") {
+        autoUpdater.allowPrerelease = UPDATE_CONFIG.CHANNEL !== "stable";
+    }
+
+    console.log(`[Desktop App] Auto-updater configured:`);
+    console.log(`  Provider: ${UPDATE_CONFIG.PROVIDER}`);
+    console.log(`  Channel: ${UPDATE_CONFIG.CHANNEL}`);
+    console.log(`  Server: ${UPDATE_CONFIG.SERVER_URL || "(configured in app-update.yml)"}`);
+
+    // Event handlers
     autoUpdater.on("checking-for-update", () => {
         console.log("[Desktop App] Checking for update...");
+        recordTelemetry("update_check_started", { channel: UPDATE_CONFIG.CHANNEL });
     });
-    
+
     autoUpdater.on("update-available", (info) => {
-        console.log("[Desktop App] Update available:", info);
+        console.log("[Desktop App] Update available:", info.version);
+        recordTelemetry("update_available", {
+            version: info.version,
+            channel: UPDATE_CONFIG.CHANNEL,
+            releaseDate: info.releaseDate,
+        });
+
+        // Show notification to user
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            dialog.showMessageBox(mainWindow, {
+                type: "info",
+                title: "Update Available",
+                message: `A new version (${info.version}) is available and will be downloaded automatically.`,
+                buttons: ["OK"],
+            });
+        }
     });
-    
+
     autoUpdater.on("update-not-available", (info) => {
-        console.log("[Desktop App] Update not available:", info);
+        console.log("[Desktop App] Already on latest version:", info.version);
     });
-    
+
     autoUpdater.on("error", (err) => {
-        console.error("[Desktop App] Update error:", err);
+        console.error("[Desktop App] Update error:", err.message);
+        recordTelemetry("update_error", {
+            error: err.message,
+            channel: UPDATE_CONFIG.CHANNEL
+        });
     });
-    
+
     autoUpdater.on("download-progress", (progressObj) => {
-        const logMessage = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`;
-        console.log(logMessage);
+        const percent = Math.round(progressObj.percent);
+        const speed = (progressObj.bytesPerSecond / 1024 / 1024).toFixed(2);
+        console.log(`[Desktop App] Download progress: ${percent}% (${speed} MB/s)`);
     });
-    
+
     autoUpdater.on("update-downloaded", (info) => {
-        console.log("[Desktop App] Update downloaded");
-        autoUpdater.quitAndInstall();
+        console.log("[Desktop App] Update downloaded:", info.version);
+        recordTelemetry("update_downloaded", {
+            version: info.version,
+            channel: UPDATE_CONFIG.CHANNEL
+        });
+
+        // Prompt user to restart
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            dialog.showMessageBox(mainWindow, {
+                type: "info",
+                title: "Update Ready",
+                message: `Version ${info.version} has been downloaded. The application will restart to apply the update.`,
+                buttons: ["Restart Now", "Later"],
+                defaultId: 0,
+            }).then(({ response }) => {
+                if (response === 0) {
+                    autoUpdater.quitAndInstall(false, true);
+                }
+            });
+        } else {
+            // No window available, just install on quit
+            console.log("[Desktop App] Update will be installed on next restart");
+        }
     });
-    
-    // Check for updates
-    autoUpdater.checkForUpdatesAndNotify();
+
+    // Check for updates based on configuration
+    if (UPDATE_CONFIG.AUTO_CHECK) {
+        // Delay initial check slightly to let the app fully initialize
+        setTimeout(() => {
+            console.log("[Desktop App] Performing automatic update check...");
+            autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+                console.error("[Desktop App] Failed to check for updates:", err.message);
+            });
+        }, 3000);
+    } else {
+        console.log("[Desktop App] Automatic update check disabled - use menu to check manually");
+    }
+}
+
+// Manual update check (can be triggered from menu)
+async function checkForUpdatesManually(): Promise<void> {
+    if (UPDATE_CONFIG.PROVIDER === "none") {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            dialog.showMessageBox(mainWindow, {
+                type: "info",
+                title: "Updates Disabled",
+                message: "Auto-updates are not configured for this application.",
+                buttons: ["OK"],
+            });
+        }
+        return;
+    }
+
+    try {
+        console.log("[Desktop App] Manual update check triggered");
+        const result = await autoUpdater.checkForUpdates();
+        if (!result?.updateInfo) {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                dialog.showMessageBox(mainWindow, {
+                    type: "info",
+                    title: "No Updates",
+                    message: "You are running the latest version.",
+                    buttons: ["OK"],
+                });
+            }
+        }
+    } catch (err) {
+        console.error("[Desktop App] Manual update check failed:", err);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            dialog.showMessageBox(mainWindow, {
+                type: "error",
+                title: "Update Check Failed",
+                message: `Could not check for updates: ${err instanceof Error ? err.message : String(err)}`,
+                buttons: ["OK"],
+            });
+        }
+    }
 }
 
 // ===== IPC HANDLERS =====
