@@ -521,20 +521,25 @@ install_linux_watchdog() {
         echo -e "${CYAN}Installing user service${NC}"
 
         # Generate user-specific template (no User=root, uses default.target)
-        template='[Unit]
+        # Use VROOLI_ROOT or default to $HOME/Vrooli
+        local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+        local cli_path="$vrooli_root/scenarios/vrooli-autoheal/cli/vrooli-autoheal"
+        template="[Unit]
 Description=Vrooli Autoheal - Self-healing infrastructure supervisor
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/vrooli autoheal loop
+ExecStart=$cli_path loop
 Restart=always
 RestartSec=10
 Environment=VROOLI_LIFECYCLE_MANAGED=true
+Environment=HOME=$HOME
+WorkingDirectory=$vrooli_root/scenarios/vrooli-autoheal
 
 [Install]
-WantedBy=default.target'
+WantedBy=default.target"
     fi
 
     echo "  Service path: $service_path"

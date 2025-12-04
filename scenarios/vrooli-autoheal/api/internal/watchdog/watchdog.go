@@ -178,13 +178,25 @@ func (d *Detector) detectLinux(status *Status) {
 		return
 	}
 
+	// Determine if this is a user service or system service
+	isUserService := strings.Contains(status.ServicePath, ".config/systemd/user")
+
 	// Check if service is enabled
-	cmd := exec.Command("systemctl", "is-enabled", "vrooli-autoheal")
+	var cmd *exec.Cmd
+	if isUserService {
+		cmd = exec.Command("systemctl", "--user", "is-enabled", "vrooli-autoheal")
+	} else {
+		cmd = exec.Command("systemctl", "is-enabled", "vrooli-autoheal")
+	}
 	output, _ := cmd.Output()
 	status.WatchdogEnabled = strings.TrimSpace(string(output)) == "enabled"
 
 	// Check if service is running
-	cmd = exec.Command("systemctl", "is-active", "vrooli-autoheal")
+	if isUserService {
+		cmd = exec.Command("systemctl", "--user", "is-active", "vrooli-autoheal")
+	} else {
+		cmd = exec.Command("systemctl", "is-active", "vrooli-autoheal")
+	}
 	output, _ = cmd.Output()
 	status.WatchdogRunning = strings.TrimSpace(string(output)) == "active"
 }
@@ -278,6 +290,9 @@ func (d *Detector) GetServiceTemplate() (string, error) {
 }
 
 func (d *Detector) getSystemdTemplate() string {
+	// Note: This is a template for documentation/reference.
+	// The CLI install command generates the actual service file with proper paths.
+	// For system-wide installs, the path should be updated by the installer.
 	return `[Unit]
 Description=Vrooli Autoheal - Self-healing infrastructure supervisor
 After=network-online.target docker.service
@@ -285,11 +300,13 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/vrooli autoheal loop
+# Update ExecStart path to match your VROOLI_ROOT installation
+ExecStart=${VROOLI_ROOT}/scenarios/vrooli-autoheal/cli/vrooli-autoheal loop
 Restart=always
 RestartSec=10
 User=root
 Environment=VROOLI_LIFECYCLE_MANAGED=true
+WorkingDirectory=${VROOLI_ROOT}/scenarios/vrooli-autoheal
 
 [Install]
 WantedBy=multi-user.target
