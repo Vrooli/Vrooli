@@ -4,9 +4,9 @@
 
 // Map of doc topics to their file paths
 const DOCS_PATHS: Record<string, string> = {
-  "system-protection": "guides/system-protection.md",
-  "os-watchdog": "guides/system-protection.md",
-  "watchdog": "guides/system-protection.md",
+  "system-protection": "concepts/watchdog-design.md",
+  "os-watchdog": "guides/watchdog-installation.md",
+  "watchdog": "guides/watchdog-installation.md",
   "getting-started": "getting-started.md",
   "configuration": "reference/configuration.md",
   "check-catalog": "reference/check-catalog.md",

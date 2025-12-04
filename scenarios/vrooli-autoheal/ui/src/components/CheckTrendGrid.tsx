@@ -3,6 +3,7 @@
 import { useMemo, useState, useCallback } from "react";
 import { TimelineEvent, HealthStatus, CheckTrend as APICheckTrend } from "../lib/api";
 import { StatusIcon } from "./StatusIcon";
+import { StatusSparkline } from "./StatusSparkline";
 import { useCheckMetadata } from "../contexts/CheckMetadataContext";
 import { ChevronUp, ChevronDown } from "lucide-react";
 
@@ -29,35 +30,6 @@ interface LocalCheckTrend {
 // Sortable column keys
 type SortKey = "checkId" | "total" | "ok" | "warning" | "critical" | "uptimePercent";
 type SortDirection = "asc" | "desc";
-
-// Mini sparkline bar showing recent status history
-function StatusSparkline({ statuses }: { statuses: HealthStatus[] }) {
-  // Show last 12 statuses as small bars
-  const displayStatuses = statuses.slice(0, 12);
-
-  return (
-    <div className="flex items-center gap-0.5">
-      {displayStatuses.map((status, idx) => (
-        <div
-          key={idx}
-          className={`w-1.5 h-4 rounded-sm transition-all ${
-            status === "ok"
-              ? "bg-emerald-500"
-              : status === "warning"
-              ? "bg-amber-500"
-              : "bg-red-500"
-          }`}
-          style={{
-            opacity: 0.4 + (idx / displayStatuses.length) * 0.6,
-          }}
-        />
-      ))}
-      {displayStatuses.length === 0 && (
-        <span className="text-xs text-slate-500">No data</span>
-      )}
-    </div>
-  );
-}
 
 // Sortable column header component
 function SortableHeader({

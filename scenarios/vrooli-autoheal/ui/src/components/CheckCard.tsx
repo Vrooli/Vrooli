@@ -1,13 +1,10 @@
-// Individual health check result card with history drawer
+// Individual health check result card
 // [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-EVENTS-001] [REQ:HEAL-ACTION-001]
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Clock, ChevronDown, ChevronRight, History, Loader2, AlertTriangle, CheckCircle2, XCircle, Info, BookOpen } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle2, XCircle, Info } from "lucide-react";
 import { StatusIcon } from "./StatusIcon";
 import { ActionButtons } from "./ActionButtons";
-import { fetchCheckHistory, type HealthResult, type HistoryEntry, type SubCheck, type CheckCategory } from "../lib/api";
+import { type HealthResult, type SubCheck, type CheckCategory } from "../lib/api";
 import { selectors } from "../consts/selectors";
-import { navigateToCheckDocs } from "../lib/docs";
 
 interface EnrichedCheck extends HealthResult {
   title?: string;
@@ -19,6 +16,7 @@ interface EnrichedCheck extends HealthResult {
 
 interface CheckCardProps {
   check: EnrichedCheck;
+  onInfoClick?: (checkId: string) => void;
 }
 
 function formatRelativeTime(timestamp: string): string {
@@ -43,46 +41,62 @@ function formatInterval(seconds: number): string {
   return `${hours}h`;
 }
 
-type ViewMode = "closed" | "details" | "history";
-
-export function CheckCard({ check }: CheckCardProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>("closed");
-  const hasDetails = check.details && Object.keys(check.details).length > 0;
+export function CheckCard({ check, onInfoClick }: CheckCardProps) {
   const hasSubChecks = check.metrics?.subChecks && check.metrics.subChecks.length > 0;
   const hasScore = check.metrics?.score !== undefined;
   const isNonOk = check.status !== "ok";
 
-  // Only fetch history when the history view is requested
-  const { data: historyData, isLoading: historyLoading } = useQuery({
-    queryKey: ["check-history", check.checkId],
-    queryFn: () => fetchCheckHistory(check.checkId),
-    enabled: viewMode === "history",
-    staleTime: 30000,
-  });
-
-  const toggleView = (mode: ViewMode) => {
-    setViewMode(viewMode === mode ? "closed" : mode);
-  };
-
   // Use title if available, fall back to checkId
   const displayTitle = check.title || check.checkId;
 
+  const handleCardClick = () => {
+    if (onInfoClick) {
+      onInfoClick(check.checkId);
+    }
+  };
+
   return (
     <div
-      className="rounded-lg border border-white/10 bg-white/5 p-4 hover:bg-white/[0.07] transition-colors"
+      className={`rounded-lg border border-white/10 bg-white/5 p-4 transition-colors ${
+        onInfoClick ? "hover:bg-white/[0.07] cursor-pointer" : ""
+      }`}
       data-testid={selectors.checkCard}
+      onClick={handleCardClick}
+      role={onInfoClick ? "button" : undefined}
+      tabIndex={onInfoClick ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (onInfoClick && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onInfoClick(check.checkId);
+        }
+      }}
     >
       <div className="flex items-start gap-3">
         <StatusIcon status={check.status} />
         <div className="flex-1 min-w-0">
-          {/* Header row: Title + timing info */}
+          {/* Header row: Title + Info icon + timing info */}
           <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <h3 className="font-medium text-slate-200 truncate" title={check.checkId}>
-                {displayTitle}
-              </h3>
-              {check.title && (
-                <span className="text-xs text-slate-600 font-mono">{check.checkId}</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="min-w-0">
+                <h3 className="font-medium text-slate-200 truncate" title={check.checkId}>
+                  {displayTitle}
+                </h3>
+                {check.title && (
+                  <span className="text-xs text-slate-600 font-mono">{check.checkId}</span>
+                )}
+              </div>
+              {onInfoClick && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onInfoClick(check.checkId);
+                  }}
+                  className="p-1 rounded hover:bg-white/10 text-slate-500 hover:text-blue-400 transition-colors flex-shrink-0"
+                  title="View details"
+                  aria-label="View check details"
+                >
+                  <Info size={14} />
+                </button>
               )}
             </div>
             <div className="flex items-center gap-3 text-xs text-slate-500 flex-shrink-0">
@@ -131,75 +145,8 @@ export function CheckCard({ check }: CheckCardProps) {
             </div>
           )}
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-3 mt-2">
-            {hasDetails && (
-              <button
-                onClick={() => toggleView("details")}
-                className={`flex items-center gap-1 text-xs transition-colors ${
-                  viewMode === "details" ? "text-blue-400" : "text-slate-500 hover:text-slate-300"
-                }`}
-              >
-                {viewMode === "details" ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                <span>Details</span>
-              </button>
-            )}
-            <button
-              onClick={() => toggleView("history")}
-              className={`flex items-center gap-1 text-xs transition-colors ${
-                viewMode === "history" ? "text-blue-400" : "text-slate-500 hover:text-slate-300"
-              }`}
-              data-testid={selectors.checkHistory}
-            >
-              <History size={12} />
-              <span>History</span>
-            </button>
-            <button
-              onClick={() => navigateToCheckDocs(check.checkId)}
-              className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-400 transition-colors"
-              title="View documentation for this check"
-              data-testid="check-learn-more"
-            >
-              <BookOpen size={12} />
-              <span>Learn more</span>
-            </button>
-          </div>
-
-          {/* Recovery actions (for resource checks) */}
+          {/* Recovery actions (for resource checks) - always visible */}
           <ActionButtons checkId={check.checkId} category={check.category} />
-
-          {/* Expanded details */}
-          {viewMode === "details" && hasDetails && (
-            <div className="mt-3 p-3 rounded-lg bg-black/30 text-xs font-mono">
-              <pre className="overflow-x-auto whitespace-pre-wrap">{JSON.stringify(check.details, null, 2)}</pre>
-            </div>
-          )}
-
-          {/* History drawer */}
-          {viewMode === "history" && (
-            <div className="mt-3 rounded-lg bg-black/30 overflow-hidden">
-              <div className="p-2 border-b border-white/10 text-xs text-slate-400 flex items-center gap-2">
-                <History size={12} />
-                Recent History ({historyData?.count || 0} entries)
-              </div>
-              {historyLoading ? (
-                <div className="p-4 flex items-center justify-center text-slate-500">
-                  <Loader2 size={16} className="animate-spin mr-2" />
-                  Loading history...
-                </div>
-              ) : historyData?.history && historyData.history.length > 0 ? (
-                <div className="max-h-48 overflow-y-auto divide-y divide-white/5">
-                  {historyData.history.map((entry, idx) => (
-                    <HistoryRow key={`${entry.timestamp}-${idx}`} entry={entry} />
-                  ))}
-                </div>
-              ) : (
-                <div className="p-4 text-center text-sm text-slate-500">
-                  No history available
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -218,22 +165,8 @@ function SubCheckRow({ subCheck }: { subCheck: SubCheck }) {
         {subCheck.name}
       </span>
       {subCheck.detail && (
-        <span className="text-slate-500">— {subCheck.detail}</span>
+        <span className="text-slate-500">- {subCheck.detail}</span>
       )}
-    </div>
-  );
-}
-
-function HistoryRow({ entry }: { entry: HistoryEntry }) {
-  return (
-    <div className="flex items-center gap-3 p-2 hover:bg-white/[0.02]">
-      <StatusIcon status={entry.status} size={12} />
-      <div className="flex-1 min-w-0">
-        <p className="text-xs text-slate-300 truncate">{entry.message}</p>
-      </div>
-      <span className="text-xs text-slate-500 flex-shrink-0" title={new Date(entry.timestamp).toLocaleString()}>
-        {formatRelativeTime(entry.timestamp)}
-      </span>
     </div>
   );
 }

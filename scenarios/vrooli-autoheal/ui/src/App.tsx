@@ -7,7 +7,7 @@ import { Button } from "./components/ui/button";
 import { fetchStatus, fetchChecks, runTick, groupChecksByStatus, statusToEmoji } from "./lib/api";
 import type { CheckInfo, HealthResult, CheckCategory } from "./lib/api";
 import { selectors } from "./consts/selectors";
-import { StatusBadge, SummaryCard, CheckCard, PlatformInfo, EventsTimeline, UptimeStats, ErrorDisplay, TrendsPage, SystemProtection, SettingsDialog } from "./components";
+import { StatusBadge, SummaryCard, CheckCard, CheckDetailModal, PlatformInfo, EventsTimeline, UptimeStats, ErrorDisplay, TrendsPage, SystemProtection, SettingsDialog } from "./components";
 import { DocsPage } from "./pages/Docs";
 import { APIError } from "./lib/api";
 
@@ -60,6 +60,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>(getTabFromHash);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<CollapsedGroups>(loadCollapsedState);
+  const [selectedCheckId, setSelectedCheckId] = useState<string | null>(null);
 
   // Persist collapsed state to localStorage
   const toggleGroup = useCallback((group: keyof CollapsedGroups) => {
@@ -326,7 +327,7 @@ export default function App() {
                     {!collapsedGroups.critical && (
                       <div className="space-y-2 ml-1">
                         {critChecks.map((check) => (
-                          <CheckCard key={check.checkId} check={check} />
+                          <CheckCard key={check.checkId} check={check} onInfoClick={setSelectedCheckId} />
                         ))}
                       </div>
                     )}
@@ -354,7 +355,7 @@ export default function App() {
                     {!collapsedGroups.warning && (
                       <div className="space-y-2 ml-1">
                         {warnChecks.map((check) => (
-                          <CheckCard key={check.checkId} check={check} />
+                          <CheckCard key={check.checkId} check={check} onInfoClick={setSelectedCheckId} />
                         ))}
                       </div>
                     )}
@@ -382,7 +383,7 @@ export default function App() {
                     {!collapsedGroups.ok && (
                       <div className="space-y-2 ml-1">
                         {okChecks.map((check) => (
-                          <CheckCard key={check.checkId} check={check} />
+                          <CheckCard key={check.checkId} check={check} onInfoClick={setSelectedCheckId} />
                         ))}
                       </div>
                     )}
@@ -429,6 +430,14 @@ export default function App() {
 
       {/* Settings Dialog */}
       <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      {/* Check Detail Modal */}
+      {selectedCheckId && (
+        <CheckDetailModal
+          checkId={selectedCheckId}
+          onClose={() => setSelectedCheckId(null)}
+        />
+      )}
     </div>
   );
 }

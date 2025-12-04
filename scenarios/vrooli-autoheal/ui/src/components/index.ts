@@ -10,6 +10,7 @@ export { ErrorDisplay, InlineError } from "./ErrorDisplay";
 export { TrendsPage } from "./TrendsPage";
 export { UptimeTrendChart } from "./UptimeTrendChart";
 export { CheckTrendGrid } from "./CheckTrendGrid";
+export { StatusSparkline } from "./StatusSparkline";
 export { CheckDetailModal } from "./CheckDetailModal";
 export { SystemProtection, useProtectionStatus } from "./SystemProtection";
 export { SettingsDialog } from "./SettingsDialog";

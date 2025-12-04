@@ -1,11 +1,13 @@
 // Check detail modal for drill-down view
 // [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useCallback } from "react";
-import { X, Download, Clock, AlertCircle, CheckCircle, AlertTriangle, Info, BookOpen } from "lucide-react";
-import { fetchCheckHistory, HealthStatus } from "../lib/api";
+import { X, Download, Clock, AlertCircle, CheckCircle, AlertTriangle, Info, BookOpen, CheckCircle2, XCircle } from "lucide-react";
+import { fetchCheckHistory, HealthStatus, type HistoryEntry, type SubCheck, type CheckHistoryResponse } from "../lib/api";
 import { ErrorDisplay } from "./ErrorDisplay";
 import { StatusIcon } from "./StatusIcon";
+import { StatusSparkline } from "./StatusSparkline";
+import { ActionButtons } from "./ActionButtons";
 import { exportCheckHistoryToCSV } from "../lib/export";
 import { navigateToCheckDocs } from "../lib/docs";
 import { useCheckMetadata } from "../contexts/CheckMetadataContext";
@@ -14,6 +16,8 @@ interface CheckDetailModalProps {
   checkId: string;
   onClose: () => void;
 }
+
+type TabId = "details" | "history";
 
 function formatTimestamp(timestamp: string): string {
   const date = new Date(timestamp);
@@ -41,13 +45,40 @@ function formatRelativeTime(timestamp: string): string {
   return `${diffDays}d ago`;
 }
 
+function formatInterval(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h`;
+}
+
+// Sub-check row component
+function SubCheckRow({ subCheck }: { subCheck: SubCheck }) {
+  const Icon = subCheck.passed ? CheckCircle2 : XCircle;
+  const colorClass = subCheck.passed ? "text-emerald-400" : "text-red-400";
+
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <Icon size={12} className={colorClass} />
+      <span className={subCheck.passed ? "text-slate-400" : "text-slate-300"}>
+        {subCheck.name}
+      </span>
+      {subCheck.detail && (
+        <span className="text-slate-500">- {subCheck.detail}</span>
+      )}
+    </div>
+  );
+}
+
 export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
   const { getTitle, getMetadata } = useCheckMetadata();
   const metadata = getMetadata(checkId);
   const title = getTitle(checkId);
   const showCheckId = title !== checkId;
+  const [activeTab, setActiveTab] = useState<TabId>("details");
 
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery<CheckHistoryResponse>({
     queryKey: ["check-history", checkId],
     queryFn: () => fetchCheckHistory(checkId),
     refetchInterval: 30000,
@@ -69,16 +100,30 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
   }, [checkId, data?.history]);
 
   // Calculate summary stats
-  const stats = data?.history
-    ? {
-        total: data.history.length,
-        ok: data.history.filter((h) => h.status === "ok").length,
-        warning: data.history.filter((h) => h.status === "warning").length,
-        critical: data.history.filter((h) => h.status === "critical").length,
-      }
-    : null;
+  const stats = useMemo(() => {
+    if (!data?.history) return null;
+    return {
+      total: data.history.length,
+      ok: data.history.filter((h) => h.status === "ok").length,
+      warning: data.history.filter((h) => h.status === "warning").length,
+      critical: data.history.filter((h) => h.status === "critical").length,
+    };
+  }, [data?.history]);
+
+  // Get recent statuses for sparkline
+  const recentStatuses = useMemo(() => {
+    if (!data?.history) return [];
+    return data.history.slice(0, 24).map((h) => h.status as HealthStatus);
+  }, [data?.history]);
+
+  // Get latest entry for details - explicitly typed to satisfy TS
+  const latestEntry = (data?.history?.[0] ?? undefined) as HistoryEntry | undefined;
 
   const uptimePercent = stats && stats.total > 0 ? ((stats.ok / stats.total) * 100).toFixed(1) : "100.0";
+
+  // Check if this check has details or sub-checks
+  const hasDetails = latestEntry?.details && Object.keys(latestEntry.details).length > 0;
+  const hasSubChecks = latestEntry?.details?.subChecks && Array.isArray(latestEntry.details.subChecks);
 
   return (
     <div
@@ -91,7 +136,7 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
       aria-labelledby="modal-title"
       data-testid="check-detail-modal"
     >
-      <div className="bg-slate-900 border border-white/10 rounded-xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
+      <div className="bg-slate-900 border border-white/10 rounded-xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <div>
@@ -187,73 +232,151 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
                 </div>
               )}
 
-              {/* Uptime Bar */}
+              {/* Uptime with Sparkline */}
               {stats && stats.total > 0 && (
                 <div className="p-3 rounded-lg bg-white/5">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-slate-400">Uptime</span>
-                    <span
-                      className={`text-sm font-medium ${
-                        parseFloat(uptimePercent) >= 99
-                          ? "text-emerald-400"
-                          : parseFloat(uptimePercent) >= 90
-                          ? "text-amber-400"
-                          : "text-red-400"
-                      }`}
-                    >
-                      {uptimePercent}%
-                    </span>
-                  </div>
-                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full flex">
-                      <div
-                        className="h-full bg-emerald-500"
-                        style={{ width: `${(stats.ok / stats.total) * 100}%` }}
-                      />
-                      <div
-                        className="h-full bg-amber-500"
-                        style={{ width: `${(stats.warning / stats.total) * 100}%` }}
-                      />
-                      <div
-                        className="h-full bg-red-500"
-                        style={{ width: `${(stats.critical / stats.total) * 100}%` }}
-                      />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-slate-400">Uptime</span>
+                      <span
+                        className={`text-lg font-semibold ${
+                          parseFloat(uptimePercent) >= 99
+                            ? "text-emerald-400"
+                            : parseFloat(uptimePercent) >= 90
+                            ? "text-amber-400"
+                            : "text-red-400"
+                        }`}
+                      >
+                        {uptimePercent}%
+                      </span>
+                      {metadata?.intervalSeconds && (
+                        <span className="text-xs text-slate-500 flex items-center gap-1">
+                          <Clock size={10} />
+                          every {formatInterval(metadata.intervalSeconds)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">Recent:</span>
+                      <StatusSparkline statuses={recentStatuses} maxBars={24} barHeight={20} />
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* History List */}
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium text-slate-400">Recent History</h3>
-                {data?.history && data.history.length > 0 ? (
-                  <div className="space-y-1 max-h-64 overflow-y-auto">
-                    {data.history.map((entry, idx) => (
-                      <div
-                        key={`${entry.timestamp}-${idx}`}
-                        className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
-                      >
-                        <div className="flex-shrink-0 mt-0.5">
-                          <StatusIcon status={entry.status as HealthStatus} size={14} />
-                        </div>
+              {/* Actions (for resource checks) */}
+              {metadata?.category && (
+                <ActionButtons checkId={checkId} category={metadata.category} />
+              )}
+
+              {/* Tab Navigation */}
+              <div className="flex items-center gap-1 border-b border-white/10">
+                <button
+                  onClick={() => setActiveTab("details")}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === "details"
+                      ? "border-blue-400 text-blue-400"
+                      : "border-transparent text-slate-500 hover:text-slate-300"
+                  }`}
+                >
+                  Details
+                </button>
+                <button
+                  onClick={() => setActiveTab("history")}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === "history"
+                      ? "border-blue-400 text-blue-400"
+                      : "border-transparent text-slate-500 hover:text-slate-300"
+                  }`}
+                >
+                  History ({data?.count || 0})
+                </button>
+              </div>
+
+              {/* Tab Content */}
+              {activeTab === "details" && (
+                <div className="space-y-4">
+                  {/* Latest status message */}
+                  {latestEntry ? (
+                    <div className="p-3 rounded-lg bg-white/[0.03]">
+                      <div className="flex items-start gap-2">
+                        <StatusIcon status={latestEntry.status as HealthStatus} size={16} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-slate-300 truncate">{entry.message}</p>
-                          <div className="flex items-center gap-2 text-xs text-slate-500">
-                            <span>{formatTimestamp(entry.timestamp)}</span>
-                            <span className="text-slate-600">({formatRelativeTime(entry.timestamp)})</span>
-                          </div>
+                          <p className="text-sm text-slate-300">{latestEntry.message}</p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {formatTimestamp(latestEntry.timestamp)} ({formatRelativeTime(latestEntry.timestamp)})
+                          </p>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-slate-500">
-                    <Clock size={32} className="mx-auto mb-2 opacity-50" />
-                    <p>No history available</p>
-                    <p className="text-xs mt-1">Run a health check tick to see history</p>
-                  </div>
-                )}
-              </div>
+                    </div>
+                  ) : null}
+
+                  {/* Sub-checks */}
+                  {hasSubChecks && (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium text-slate-400">Sub-checks</h4>
+                      <div className="p-3 rounded-lg bg-white/[0.03] space-y-1.5">
+                        {(latestEntry?.details?.subChecks as SubCheck[]).map((sc, idx) => (
+                          <SubCheckRow key={idx} subCheck={sc} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Raw details */}
+                  {hasDetails && !hasSubChecks && (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium text-slate-400">Raw Details</h4>
+                      <div className="p-3 rounded-lg bg-black/30 text-xs font-mono">
+                        <pre className="overflow-x-auto whitespace-pre-wrap text-slate-400">
+                          {JSON.stringify(latestEntry?.details, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No details available */}
+                  {!hasDetails && !hasSubChecks && !latestEntry && (
+                    <div className="text-center py-8 text-slate-500">
+                      <Info size={32} className="mx-auto mb-2 opacity-50" />
+                      <p>No details available</p>
+                      <p className="text-xs mt-1">Run a health check tick to see details</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === "history" && (
+                <div className="space-y-2">
+                  {data?.history && data.history.length > 0 ? (
+                    <div className="space-y-1 max-h-80 overflow-y-auto">
+                      {data.history.map((entry, idx) => (
+                        <div
+                          key={`${entry.timestamp}-${idx}`}
+                          className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+                        >
+                          <div className="flex-shrink-0 mt-0.5">
+                            <StatusIcon status={entry.status as HealthStatus} size={14} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-slate-300 truncate">{entry.message}</p>
+                            <div className="flex items-center gap-2 text-xs text-slate-500">
+                              <span>{formatTimestamp(entry.timestamp)}</span>
+                              <span className="text-slate-600">({formatRelativeTime(entry.timestamp)})</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-500">
+                      <Clock size={32} className="mx-auto mb-2 opacity-50" />
+                      <p>No history available</p>
+                      <p className="text-xs mt-1">Run a health check tick to see history</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
