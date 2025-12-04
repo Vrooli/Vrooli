@@ -182,6 +182,7 @@ const ALIASES = {
   '@stores': path.resolve(__dirname, './src/stores'),
   '@utils': path.resolve(__dirname, './src/utils'),
   '@constants': path.resolve(__dirname, './src/constants'),
+  '@lib': path.resolve(__dirname, './src/lib'),
 };
 
 export default defineConfig({

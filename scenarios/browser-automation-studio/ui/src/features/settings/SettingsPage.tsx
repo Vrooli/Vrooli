@@ -28,6 +28,7 @@ import {
   Type,
   Accessibility,
   Minimize2,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useSettingsStore, BUILT_IN_PRESETS } from '@stores/settingsStore';
 import type { ApiKeySettings, ThemeMode, FontSize, FontFamily } from '@stores/settingsStore';
@@ -48,10 +49,14 @@ import type {
   ReplayFrame,
 } from '../execution/ReplayPlayer';
 import Tooltip from '@shared/ui/Tooltip';
+import { BrandingTab } from './components/branding';
+import { WatermarkSettings } from '../execution/replay/WatermarkSettings';
+import { IntroCardSettings } from '../execution/replay/IntroCardSettings';
+import { OutroCardSettings } from '../execution/replay/OutroCardSettings';
 
 const ReplayPlayer = lazy(() => import('../execution/ReplayPlayer'));
 
-type SettingsTab = 'display' | 'replay' | 'workflow' | 'apikeys';
+type SettingsTab = 'display' | 'replay' | 'branding' | 'workflow' | 'apikeys';
 
 const SPEED_PROFILE_OPTIONS: Array<{ id: CursorSpeedProfile; label: string; description: string }> = [
   { id: 'linear', label: 'Linear', description: 'Consistent motion between frames' },
@@ -282,6 +287,7 @@ function OptionGrid<T extends string>({ options, value, onChange, columns = 3 }:
 const SETTINGS_TABS: Array<{ id: SettingsTab; label: string; icon: React.ReactNode; description: string }> = [
   { id: 'display', label: 'Display', icon: <Monitor size={18} />, description: 'Appearance and accessibility' },
   { id: 'replay', label: 'Replay', icon: <Film size={18} />, description: 'Customize replay appearance' },
+  { id: 'branding', label: 'Branding', icon: <ImageIcon size={18} />, description: 'Logos and backgrounds' },
   { id: 'workflow', label: 'Workflow Defaults', icon: <Wrench size={18} />, description: 'Default workflow settings' },
   { id: 'apikeys', label: 'API Keys', icon: <Key size={18} />, description: 'Manage API integrations' },
 ];
@@ -681,6 +687,27 @@ function SettingsPage({ onBack }: SettingsPageProps) {
             </button>
           </div>
         </div>
+      </SettingSection>
+
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+          <div className="w-full border-t border-gray-700"></div>
+        </div>
+        <div className="relative flex justify-center">
+          <span className="bg-flow-bg px-3 text-xs text-gray-500 uppercase tracking-wider">Branding</span>
+        </div>
+      </div>
+
+      <SettingSection title="Watermark" tooltip="Add a logo overlay to your replays.">
+        <WatermarkSettings />
+      </SettingSection>
+
+      <SettingSection title="Intro Card" tooltip="Show a title slide before the replay starts." defaultOpen={false}>
+        <IntroCardSettings />
+      </SettingSection>
+
+      <SettingSection title="Outro Card" tooltip="Show a closing slide with CTA after the replay ends." defaultOpen={false}>
+        <OutroCardSettings />
       </SettingSection>
     </div>
   );
@@ -1334,6 +1361,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
         <div className={`flex-1 overflow-y-auto p-4 sm:p-6 ${activeTab === 'replay' ? 'lg:max-w-2xl' : ''}`}>
           {activeTab === 'display' && renderDisplaySettings()}
           {activeTab === 'replay' && renderReplaySettings()}
+          {activeTab === 'branding' && <BrandingTab />}
           {activeTab === 'workflow' && renderWorkflowSettings()}
           {activeTab === 'apikeys' && renderApiKeysSettings()}
         </div>
@@ -1380,6 +1408,9 @@ function SettingsPage({ onBack }: SettingsPageProps) {
                     cursorClickAnimation={replay.cursorClickAnimation}
                     cursorDefaultSpeedProfile={replay.cursorSpeedProfile}
                     cursorDefaultPathStyle={replay.cursorPathStyle}
+                    watermark={replay.watermark}
+                    introCard={replay.introCard}
+                    outroCard={replay.outroCard}
                   />
                 </Suspense>
               </div>

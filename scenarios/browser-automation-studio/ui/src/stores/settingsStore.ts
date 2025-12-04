@@ -72,6 +72,74 @@ const DEFAULT_SPEED_PROFILE: CursorSpeedProfile = 'easeInOut';
 const DEFAULT_PATH_STYLE: CursorPathStyle = 'linear';
 const DEFAULT_FRAME_DURATION = 1600;
 
+// Default branding settings
+const DEFAULT_WATERMARK_SETTINGS: WatermarkSettings = {
+  enabled: false,
+  assetId: null,
+  position: 'bottom-right',
+  size: 12,
+  opacity: 80,
+  margin: 16,
+};
+
+const DEFAULT_INTRO_CARD_SETTINGS: IntroCardSettings = {
+  enabled: false,
+  title: '',
+  subtitle: '',
+  logoAssetId: null,
+  backgroundAssetId: null,
+  backgroundColor: '#0f172a',
+  textColor: '#ffffff',
+  duration: 2000,
+};
+
+const DEFAULT_OUTRO_CARD_SETTINGS: OutroCardSettings = {
+  enabled: false,
+  title: 'Thanks for watching!',
+  ctaText: 'Learn More',
+  ctaUrl: '',
+  logoAssetId: null,
+  backgroundAssetId: null,
+  backgroundColor: '#0f172a',
+  textColor: '#ffffff',
+  duration: 3000,
+};
+
+// Watermark position options
+export type WatermarkPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
+
+export interface WatermarkSettings {
+  enabled: boolean;
+  assetId: string | null;
+  position: WatermarkPosition;
+  size: number; // 5-30 (percentage of container width)
+  opacity: number; // 0-100
+  margin: number; // Pixels from edge (8-48)
+}
+
+export interface IntroCardSettings {
+  enabled: boolean;
+  title: string;
+  subtitle: string;
+  logoAssetId: string | null;
+  backgroundAssetId: string | null;
+  backgroundColor: string; // Hex color fallback
+  textColor: string; // Hex color
+  duration: number; // ms (1000-5000)
+}
+
+export interface OutroCardSettings {
+  enabled: boolean;
+  title: string;
+  ctaText: string;
+  ctaUrl: string;
+  logoAssetId: string | null;
+  backgroundAssetId: string | null;
+  backgroundColor: string;
+  textColor: string;
+  duration: number; // ms (2000-8000)
+}
+
 export interface ReplaySettings {
   chromeTheme: ReplayChromeTheme;
   backgroundTheme: ReplayBackgroundTheme;
@@ -84,6 +152,9 @@ export interface ReplaySettings {
   frameDuration: number;
   autoPlay: boolean;
   loop: boolean;
+  watermark: WatermarkSettings;
+  introCard: IntroCardSettings;
+  outroCard: OutroCardSettings;
 }
 
 export interface WorkflowDefaultSettings {
@@ -145,6 +216,9 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       frameDuration: 1600,
       autoPlay: false,
       loop: true,
+      watermark: { ...DEFAULT_WATERMARK_SETTINGS },
+      introCard: { ...DEFAULT_INTRO_CARD_SETTINGS },
+      outroCard: { ...DEFAULT_OUTRO_CARD_SETTINGS },
     },
   },
   {
@@ -163,6 +237,9 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       frameDuration: 2500,
       autoPlay: true,
       loop: true,
+      watermark: { ...DEFAULT_WATERMARK_SETTINGS },
+      introCard: { ...DEFAULT_INTRO_CARD_SETTINGS },
+      outroCard: { ...DEFAULT_OUTRO_CARD_SETTINGS },
     },
   },
   {
@@ -181,6 +258,9 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       frameDuration: 1200,
       autoPlay: false,
       loop: false,
+      watermark: { ...DEFAULT_WATERMARK_SETTINGS },
+      introCard: { ...DEFAULT_INTRO_CARD_SETTINGS },
+      outroCard: { ...DEFAULT_OUTRO_CARD_SETTINGS },
     },
   },
   {
@@ -199,6 +279,9 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       frameDuration: 2000,
       autoPlay: true,
       loop: true,
+      watermark: { ...DEFAULT_WATERMARK_SETTINGS },
+      introCard: { ...DEFAULT_INTRO_CARD_SETTINGS },
+      outroCard: { ...DEFAULT_OUTRO_CARD_SETTINGS },
     },
   },
   {
@@ -217,6 +300,9 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       frameDuration: 2200,
       autoPlay: true,
       loop: true,
+      watermark: { ...DEFAULT_WATERMARK_SETTINGS },
+      introCard: { ...DEFAULT_INTRO_CARD_SETTINGS },
+      outroCard: { ...DEFAULT_OUTRO_CARD_SETTINGS },
     },
   },
 ];
@@ -244,6 +330,18 @@ interface SettingsStore {
   getEffectiveTheme: () => 'light' | 'dark';
 }
 
+// Load branding settings from localStorage
+const loadBrandingSettings = <T extends object>(key: string, defaults: T): T => {
+  try {
+    const stored = safeGetItem(`${STORAGE_PREFIX}replay.${key}`);
+    if (!stored) return defaults;
+    const parsed = JSON.parse(stored);
+    return { ...defaults, ...parsed };
+  } catch {
+    return defaults;
+  }
+};
+
 const loadReplaySettings = (): ReplaySettings => {
   const storedChrome = safeGetItem(`${STORAGE_PREFIX}replay.chromeTheme`);
   const storedBackground = safeGetItem(`${STORAGE_PREFIX}replay.backgroundTheme`);
@@ -269,11 +367,19 @@ const loadReplaySettings = (): ReplaySettings => {
     frameDuration: storedDuration ? Math.max(800, Math.min(6000, parseInt(storedDuration, 10))) : DEFAULT_FRAME_DURATION,
     autoPlay: storedAutoPlay === 'true',
     loop: storedLoop !== 'false', // Default to true
+    watermark: loadBrandingSettings('watermark', DEFAULT_WATERMARK_SETTINGS),
+    introCard: loadBrandingSettings('introCard', DEFAULT_INTRO_CARD_SETTINGS),
+    outroCard: loadBrandingSettings('outroCard', DEFAULT_OUTRO_CARD_SETTINGS),
   };
 };
 
 const saveReplaySetting = <K extends keyof ReplaySettings>(key: K, value: ReplaySettings[K]): void => {
-  safeSetItem(`${STORAGE_PREFIX}replay.${key}`, String(value));
+  // For nested objects (watermark, introCard, outroCard), serialize as JSON
+  if (typeof value === 'object' && value !== null) {
+    safeSetItem(`${STORAGE_PREFIX}replay.${key}`, JSON.stringify(value));
+  } else {
+    safeSetItem(`${STORAGE_PREFIX}replay.${key}`, String(value));
+  }
 };
 
 const getDefaultReplaySettings = (): ReplaySettings => ({
@@ -288,6 +394,9 @@ const getDefaultReplaySettings = (): ReplaySettings => ({
   frameDuration: DEFAULT_FRAME_DURATION,
   autoPlay: false,
   loop: true,
+  watermark: { ...DEFAULT_WATERMARK_SETTINGS },
+  introCard: { ...DEFAULT_INTRO_CARD_SETTINGS },
+  outroCard: { ...DEFAULT_OUTRO_CARD_SETTINGS },
 });
 
 const getDefaultWorkflowSettings = (): WorkflowDefaultSettings => ({
@@ -450,6 +559,10 @@ const generateRandomSettings = (): ReplaySettings => {
     frameDuration: Math.round((800 + Math.random() * 5200) / 100) * 100, // 800-6000 in 100ms steps
     autoPlay: Math.random() > 0.5,
     loop: Math.random() > 0.3, // 70% chance of loop
+    // Preserve current branding settings when randomizing
+    watermark: { ...DEFAULT_WATERMARK_SETTINGS },
+    introCard: { ...DEFAULT_INTRO_CARD_SETTINGS },
+    outroCard: { ...DEFAULT_OUTRO_CARD_SETTINGS },
   };
 };
 

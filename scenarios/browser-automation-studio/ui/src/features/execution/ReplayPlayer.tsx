@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode, type CSSProperties, type HTMLAttributes } from 'react';
 import clsx from 'clsx';
 import { ChevronDown, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
+import type { WatermarkSettings, IntroCardSettings, OutroCardSettings } from '@stores/settingsStore';
+import { WatermarkOverlay } from './replay/WatermarkOverlay';
+import { IntroCard } from './replay/IntroCard';
+import { OutroCard } from './replay/OutroCard';
 
 // Background images - using ES imports for reliable Vite asset handling
 import geometricPrismUrl from '../../assets/replay-backgrounds/geometric-prism.jpg';
@@ -183,6 +187,9 @@ interface ReplayPlayerProps {
   presentationMode?: ReplayPlayerPresentationMode;
   allowPointerEditing?: boolean;
   presentationDimensions?: ReplayPlayerPresentationDimensions;
+  watermark?: WatermarkSettings;
+  introCard?: IntroCardSettings;
+  outroCard?: OutroCardSettings;
 }
 
 const DEFAULT_DURATION = 1600;
@@ -1183,6 +1190,9 @@ export function ReplayPlayer({
   presentationMode = 'default',
   allowPointerEditing = true,
   presentationDimensions,
+  watermark,
+  introCard,
+  outroCard,
 }: ReplayPlayerProps) {
   const normalizedFrames = useMemo(() => {
     return frames
@@ -1199,6 +1209,19 @@ export function ReplayPlayer({
   const [isPlaying, setIsPlaying] = useState(() => !isExternallyControlled && autoPlay && normalizedFrames.length > 1);
   const [frameProgress, setFrameProgress] = useState(0);
   const [isMetadataCollapsed, setIsMetadataCollapsed] = useState(true);
+
+  // Intro/Outro card state
+  type PlaybackPhase = 'intro' | 'frames' | 'outro';
+  const hasIntroCard = Boolean(introCard?.enabled);
+  const hasOutroCard = Boolean(outroCard?.enabled);
+  const getInitialPhase = (): PlaybackPhase => {
+    if (hasIntroCard) return 'intro';
+    return 'frames';
+  };
+  const [playbackPhase, setPlaybackPhase] = useState<PlaybackPhase>(getInitialPhase);
+  // Card progress tracked for potential future use (e.g., progress bar on intro/outro)
+  const [_cardProgress, setCardProgress] = useState(0);
+  void _cardProgress; // Suppress unused variable warning
   const rafRef = useRef<number | null>(null);
   const durationRef = useRef<number>(DEFAULT_DURATION);
   const [cursorOverrides, setCursorOverrides] = useState<CursorOverrideMap>({});
@@ -1287,12 +1310,16 @@ export function ReplayPlayer({
     if (isExternallyControlled) {
       setCurrentIndex(0);
       setFrameProgress(0);
+      setCardProgress(0);
+      setPlaybackPhase(hasIntroCard ? 'intro' : 'frames');
       setIsPlaying(false);
       return;
     }
     setCurrentIndex(0);
+    setPlaybackPhase(hasIntroCard ? 'intro' : 'frames');
+    setCardProgress(0);
     setIsPlaying(autoPlay && normalizedFrames.length > 1);
-  }, [autoPlay, normalizedFrames.length, isExternallyControlled]);
+  }, [autoPlay, normalizedFrames.length, isExternallyControlled, hasIntroCard]);
 
   useEffect(() => {
     randomSeedsRef.current = {};
@@ -1312,33 +1339,76 @@ export function ReplayPlayer({
   useEffect(() => {
     if (!isPlaying || normalizedFrames.length <= 1 || isExternallyControlled) {
       setFrameProgress(0);
+      setCardProgress(0);
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
       }
       return;
     }
 
-    const playFrame = () => {
-      const frame = normalizedFrames[currentIndex];
-      const frameDuration = frame?.totalDurationMs ?? frame?.durationMs;
-      durationRef.current = clampDuration(frameDuration);
-      setFrameProgress(0);
+    const playPhase = () => {
+      let phaseDuration: number;
+
+      if (playbackPhase === 'intro' && introCard) {
+        phaseDuration = introCard.duration;
+        setCardProgress(0);
+      } else if (playbackPhase === 'outro' && outroCard) {
+        phaseDuration = outroCard.duration;
+        setCardProgress(0);
+      } else {
+        // Frames phase
+        const frame = normalizedFrames[currentIndex];
+        const frameDuration = frame?.totalDurationMs ?? frame?.durationMs;
+        phaseDuration = clampDuration(frameDuration);
+        setFrameProgress(0);
+      }
+
+      durationRef.current = phaseDuration;
       const start = performance.now();
 
       const step = (now: number) => {
         const elapsed = now - start;
         const progress = Math.min(1, elapsed / durationRef.current);
-        setFrameProgress(progress);
+
+        if (playbackPhase === 'intro' || playbackPhase === 'outro') {
+          setCardProgress(progress);
+        } else {
+          setFrameProgress(progress);
+        }
+
         if (elapsed >= durationRef.current) {
-          const atLastFrame = currentIndex >= normalizedFrames.length - 1;
-          if (atLastFrame) {
+          // Phase complete, determine next phase
+          if (playbackPhase === 'intro') {
+            setPlaybackPhase('frames');
+            setCardProgress(0);
+          } else if (playbackPhase === 'frames') {
+            const atLastFrame = currentIndex >= normalizedFrames.length - 1;
+            if (atLastFrame) {
+              if (hasOutroCard) {
+                setPlaybackPhase('outro');
+              } else if (loop) {
+                setCurrentIndex(0);
+                if (hasIntroCard) {
+                  setPlaybackPhase('intro');
+                }
+              } else {
+                setIsPlaying(false);
+              }
+            } else {
+              setCurrentIndex((prev) => Math.min(prev + 1, normalizedFrames.length - 1));
+            }
+          } else if (playbackPhase === 'outro') {
             if (loop) {
               setCurrentIndex(0);
+              if (hasIntroCard) {
+                setPlaybackPhase('intro');
+              } else {
+                setPlaybackPhase('frames');
+              }
+              setCardProgress(0);
             } else {
               setIsPlaying(false);
             }
-          } else {
-            setCurrentIndex((prev) => Math.min(prev + 1, normalizedFrames.length - 1));
           }
           return;
         }
@@ -1348,14 +1418,14 @@ export function ReplayPlayer({
       rafRef.current = requestAnimationFrame(step);
     };
 
-    playFrame();
+    playPhase();
 
     return () => {
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [isPlaying, currentIndex, normalizedFrames, loop, isExternallyControlled]);
+  }, [isPlaying, currentIndex, normalizedFrames, loop, isExternallyControlled, playbackPhase, hasIntroCard, hasOutroCard, introCard, outroCard]);
 
   useEffect(() => {
     return () => {
@@ -2035,6 +2105,9 @@ export function ReplayPlayer({
                     </div>
                   )}
 
+                  {/* Watermark overlay */}
+                  {watermark && <WatermarkOverlay settings={watermark} />}
+
                   <div className="absolute inset-0">
                     {overlayRegions(currentFrame.maskRegions, 'mask')}
                     {overlayRegions(currentFrame.highlightRegions, 'highlight')}
@@ -2088,6 +2161,14 @@ export function ReplayPlayer({
                       </div>
                     )}
                   </div>
+
+                  {/* Intro/Outro card overlays */}
+                  {playbackPhase === 'intro' && introCard && (
+                    <IntroCard settings={introCard} />
+                  )}
+                  {playbackPhase === 'outro' && outroCard && (
+                    <OutroCard settings={outroCard} />
+                  )}
                 </div>
               </div>
             </div>
