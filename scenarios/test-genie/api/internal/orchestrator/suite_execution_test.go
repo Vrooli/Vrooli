@@ -49,13 +49,17 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 	if err := os.WriteFile(apiEntryPoint, []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
 		t.Fatalf("failed to seed api/main.go: %v", err)
 	}
+	goMod := filepath.Join(scenarioDir, "api", "go.mod")
+	if err := os.WriteFile(goMod, []byte("module "+name+"\n\ngo 1.21\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed api/go.mod: %v", err)
+	}
 	manifest := fmt.Sprintf(`{"service":{"name":"%s"},"lifecycle":{"health":{"checks":[{"name":"api"}]}}}`, name)
 	manifestPath := filepath.Join(scenarioDir, ".vrooli", "service.json")
 	if err := os.WriteFile(manifestPath, []byte(manifest), 0o644); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 	indexPath := filepath.Join(scenarioDir, "requirements", "index.json")
-	if err := os.WriteFile(indexPath, []byte(`{"modules":["01-internal-orchestrator"]}`), 0o644); err != nil {
+	if err := os.WriteFile(indexPath, []byte(`{"imports":["01-internal-orchestrator/module.json"]}`), 0o644); err != nil {
 		t.Fatalf("failed to seed requirements index: %v", err)
 	}
 	moduleDir := filepath.Join(scenarioDir, "requirements", "01-internal-orchestrator")
@@ -151,10 +155,10 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		if !result.Success {
 			t.Fatalf("expected success, got failure: %#v", result)
 		}
-		if len(result.Phases) != 7 {
-			t.Fatalf("expected seven phases, got %d", len(result.Phases))
+		if len(result.Phases) != 8 {
+			t.Fatalf("expected eight phases, got %d", len(result.Phases))
 		}
-		expected := []string{"structure", "dependencies", "unit", "integration", "playbooks", "business", "performance"}
+		expected := []string{"structure", "dependencies", "smoke", "unit", "integration", "playbooks", "business", "performance"}
 		for _, phase := range result.Phases {
 			if phase.Status != "passed" {
 				t.Fatalf("phase %s expected passed, got %s", phase.Name, phase.Status)
@@ -343,8 +347,8 @@ func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 				t.Fatalf("expected integration phase to be disabled via testing config")
 			}
 		}
-		if len(result.Phases) != 6 {
-			t.Fatalf("expected six phases after disabling integration, got %d", len(result.Phases))
+		if len(result.Phases) != 7 {
+			t.Fatalf("expected seven phases after disabling integration, got %d", len(result.Phases))
 		}
 	})
 }

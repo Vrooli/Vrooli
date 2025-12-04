@@ -17,7 +17,6 @@ graph TB
         CLI[CLI Validation<br/>Legacy bash or Go cross-platform]
         MANIFEST[Service Manifest<br/>.vrooli/service.json]
         SCHEMA[Schema Validation<br/>.vrooli config files]
-        SMOKE[UI Smoke Test<br/>Basic page load verification]
     end
 
     START[Start] --> DIRS
@@ -25,22 +24,19 @@ graph TB
     FILES --> CLI
     CLI --> MANIFEST
     MANIFEST --> SCHEMA
-    SCHEMA --> SMOKE
-    SMOKE --> DONE[Complete]
+    SCHEMA --> DONE[Complete]
 
     DIRS -.->|missing| FAIL[Fail]
     FILES -.->|missing| FAIL
     CLI -.->|invalid| FAIL
     MANIFEST -.->|invalid| FAIL
     SCHEMA -.->|invalid| FAIL
-    SMOKE -.->|blocked| FAIL
 
     style DIRS fill:#e8f5e9
     style FILES fill:#e8f5e9
     style CLI fill:#fff3e0
     style MANIFEST fill:#e3f2fd
     style SCHEMA fill:#f3e5f5
-    style SMOKE fill:#fff9c4
 ```
 
 ## Required Directories
@@ -136,15 +132,6 @@ Schema validation catches:
 - Unknown properties
 - Constraint violations (min/max values, patterns, etc.)
 
-## UI Smoke Testing
-
-When configured, the structure phase runs a quick UI smoke test to verify:
-- Pages load without crashing
-- No critical JavaScript errors
-- Expected elements are present
-
-See [UI Smoke Testing](ui-smoke.md) for configuration details.
-
 ## Configuration
 
 Customize structure validation in `.vrooli/testing.json`:
@@ -158,9 +145,6 @@ Customize structure validation in `.vrooli/testing.json`:
     "exclude_files": ["deprecated.md"],
     "validations": {
       "service_json_name_matches_directory": true
-    },
-    "ui_smoke": {
-      "enabled": true
     }
   }
 }
@@ -173,7 +157,6 @@ Customize structure validation in `.vrooli/testing.json`:
 | `exclude_dirs` | string[] | `[]` | Skip these directories |
 | `exclude_files` | string[] | `[]` | Skip these files |
 | `validations.service_json_name_matches_directory` | bool | `true` | Enforce name match |
-| `ui_smoke.enabled` | bool | `false` | Run UI smoke test |
 
 ## Exit Codes
 
@@ -195,7 +178,6 @@ Customize structure validation in `.vrooli/testing.json`:
 ## Related Documentation
 
 - [CLI Approaches](cli-approaches.md) - Legacy vs cross-platform CLI patterns
-- [UI Smoke Testing](ui-smoke.md) - Configure UI smoke tests
 
 ## See Also
 

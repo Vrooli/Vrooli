@@ -72,24 +72,15 @@ type ValidationSummary struct {
 	DirsChecked    int
 	FilesChecked   int
 	JSONFilesValid int
-	SmokeChecked   bool
 }
 
 // TotalChecks returns the total number of items checked.
 func (s ValidationSummary) TotalChecks() int {
-	total := s.DirsChecked + s.FilesChecked + s.JSONFilesValid
-	if s.SmokeChecked {
-		total++
-	}
-	return total
+	return s.DirsChecked + s.FilesChecked + s.JSONFilesValid
 }
 
 // String returns a human-readable summary.
 func (s ValidationSummary) String() string {
-	parts := fmt.Sprintf("%d dirs, %d files, %d JSON files",
+	return fmt.Sprintf("%d dirs, %d files, %d JSON files",
 		s.DirsChecked, s.FilesChecked, s.JSONFilesValid)
-	if s.SmokeChecked {
-		parts += ", smoke test"
-	}
-	return parts
 }

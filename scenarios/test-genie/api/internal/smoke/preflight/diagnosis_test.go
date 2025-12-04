@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"test-genie/internal/structure/smoke/orchestrator"
+	"test-genie/internal/smoke/orchestrator"
 )
 
 func TestDefaultHealthThresholds(t *testing.T) {

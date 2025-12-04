@@ -34,13 +34,14 @@ export const PRESET_DETAILS: Record<string, PresetDetail> = {
   comprehensive: {
     label: "Comprehensive",
     description: "Full coverage with all test phases.",
-    phases: ["structure", "dependencies", "unit", "integration", "business", "performance"]
+    phases: ["structure", "dependencies", "smoke", "unit", "integration", "business", "performance"]
   }
 };
 
 export const PHASE_LABELS: Record<string, string> = {
   structure: "Structure validation",
   dependencies: "Dependency audit",
+  smoke: "UI smoke test",
   unit: "Unit tests",
   integration: "Integration suite",
   playbooks: "E2E playbooks",

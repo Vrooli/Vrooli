@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"test-genie/internal/structure/smoke/artifacts"
-	"test-genie/internal/structure/smoke/browser"
-	"test-genie/internal/structure/smoke/handshake"
-	"test-genie/internal/structure/smoke/orchestrator"
-	"test-genie/internal/structure/smoke/preflight"
-	"test-genie/internal/structure/smokeconfig"
+	"test-genie/internal/smoke/artifacts"
+	"test-genie/internal/smoke/browser"
+	"test-genie/internal/smoke/handshake"
+	"test-genie/internal/smoke/orchestrator"
+	"test-genie/internal/smoke/preflight"
+	"test-genie/internal/smoke/smokeconfig"
 )
 
 // Runner provides a high-level API for running UI smoke tests.

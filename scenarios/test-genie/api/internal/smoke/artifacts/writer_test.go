@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"test-genie/internal/structure/smoke/orchestrator"
+	"test-genie/internal/smoke/orchestrator"
 )
 
 // mockFileSystem records filesystem operations for testing.

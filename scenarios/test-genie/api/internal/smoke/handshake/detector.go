@@ -1,7 +1,7 @@
 package handshake
 
 import (
-	"test-genie/internal/structure/smoke/orchestrator"
+	"test-genie/internal/smoke/orchestrator"
 )
 
 // Signal defines a known iframe-bridge handshake signal.

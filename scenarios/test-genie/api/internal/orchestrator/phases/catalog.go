@@ -44,6 +44,12 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Description: "Confirms required commands, runtimes, and declared resources are available.",
 	})
 	register(Spec{
+		Name:        Smoke,
+		Runner:      runSmokePhase,
+		Optional:    true,
+		Description: "Validates UI loads correctly, establishes iframe-bridge communication, and has no critical errors.",
+	})
+	register(Spec{
 		Name:        Unit,
 		Runner:      runUnitPhase,
 		Description: "Executes Go unit tests and shell syntax validation for local entrypoints.",

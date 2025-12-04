@@ -9,7 +9,6 @@ import (
 
 	"test-genie/internal/structure/content"
 	"test-genie/internal/structure/existence"
-	"test-genie/internal/structure/smoke"
 	"test-genie/internal/structure/types"
 )
 
@@ -52,21 +51,12 @@ func (m *mockManifestValidator) Validate() types.Result {
 	return m.result
 }
 
-type mockSmokeValidator struct {
-	result types.Result
-}
-
-func (m *mockSmokeValidator) Validate(ctx context.Context) types.Result {
-	return m.result
-}
-
 // Helper to create a runner with all mocks
 func newMockedRunner(
 	existenceVal *mockExistenceValidator,
 	cliVal *mockCLIValidator,
 	schemaVal *mockSchemaValidator,
 	manifestVal *mockManifestValidator,
-	smokeVal *mockSmokeValidator,
 ) *Runner {
 	return New(
 		Config{
@@ -80,7 +70,6 @@ func newMockedRunner(
 		WithCLIValidator(cliVal),
 		WithSchemaValidator(schemaVal),
 		WithManifestValidator(manifestVal),
-		WithSmokeValidator(smokeVal),
 	)
 }
 
@@ -103,13 +92,6 @@ func TestRunner_AllValidatorsPass(t *testing.T) {
 				types.NewSuccessObservation("Health checks defined"),
 			),
 		},
-		&mockSmokeValidator{
-			result: types.Result{
-				Success:      true,
-				ItemsChecked: 1,
-				Observations: []types.Observation{types.NewSuccessObservation("Smoke passed")},
-			},
-		},
 	)
 
 	result := runner.Run(context.Background())
@@ -129,9 +111,6 @@ func TestRunner_AllValidatorsPass(t *testing.T) {
 	if result.Summary.JSONFilesValid != 10 {
 		t.Errorf("expected 10 JSON files valid, got %d", result.Summary.JSONFilesValid)
 	}
-	if !result.Summary.SmokeChecked {
-		t.Error("expected smoke to be checked")
-	}
 }
 
 func TestRunner_DirectoryValidationFails(t *testing.T) {
@@ -146,7 +125,6 @@ func TestRunner_DirectoryValidationFails(t *testing.T) {
 		&mockCLIValidator{result: existence.CLIResult{Result: types.OK()}},
 		&mockSchemaValidator{result: types.OK()},
 		&mockManifestValidator{result: types.OK()},
-		&mockSmokeValidator{result: types.Result{Success: true}},
 	)
 
 	result := runner.Run(context.Background())
@@ -171,7 +149,6 @@ func TestRunner_FileValidationFails(t *testing.T) {
 		&mockCLIValidator{result: existence.CLIResult{Result: types.OK()}},
 		&mockSchemaValidator{result: types.OK()},
 		&mockManifestValidator{result: types.OK()},
-		&mockSmokeValidator{result: types.Result{Success: true}},
 	)
 
 	result := runner.Run(context.Background())
@@ -198,7 +175,6 @@ func TestRunner_CLIValidationFails(t *testing.T) {
 		},
 		&mockSchemaValidator{result: types.OK()},
 		&mockManifestValidator{result: types.OK()},
-		&mockSmokeValidator{result: types.Result{Success: true}},
 	)
 
 	result := runner.Run(context.Background())
@@ -227,7 +203,7 @@ func TestRunner_ManifestValidationFails(t *testing.T) {
 				"Update service.name to match scenario directory",
 			),
 		},
-		&mockSmokeValidator{result: types.Result{Success: true}},
+		
 	)
 
 	result := runner.Run(context.Background())
@@ -256,7 +232,7 @@ func TestRunner_JSONValidationFails(t *testing.T) {
 			),
 		},
 		&mockManifestValidator{result: types.OK()},
-		&mockSmokeValidator{result: types.Result{Success: true}},
+		
 	)
 
 	result := runner.Run(context.Background())
@@ -266,100 +242,15 @@ func TestRunner_JSONValidationFails(t *testing.T) {
 	}
 }
 
-func TestRunner_SmokeValidationFails(t *testing.T) {
-	runner := newMockedRunner(
-		&mockExistenceValidator{
-			dirsResult:  types.OKWithCount(6),
-			filesResult: types.OKWithCount(7),
-		},
-		&mockCLIValidator{
-			result: existence.CLIResult{
-				Approach: existence.CLIApproachCrossPlatform,
-				Result:   types.OK(),
-			},
-		},
-		&mockSchemaValidator{result: types.OKWithCount(5)},
-		&mockManifestValidator{result: types.OK()},
-		&mockSmokeValidator{
-			result: types.FailSystem(
-				errors.New("UI failed to load"),
-				"Check browserless and UI configuration",
-			),
-		},
-	)
-
-	result := runner.Run(context.Background())
-
-	if result.Success {
-		t.Fatal("expected failure when smoke validation fails")
-	}
-	if result.FailureClass != FailureClassSystem {
-		t.Errorf("expected system failure class, got %s", result.FailureClass)
-	}
-}
-
-func TestRunner_SmokeDisabled(t *testing.T) {
-	expectations := DefaultExpectations()
-	expectations.UISmoke.Enabled = false
-
-	runner := New(
-		Config{
-			ScenarioDir:  "/mock/scenario",
-			ScenarioName: "mock-scenario",
-			Expectations: expectations,
-		},
-		WithLogger(io.Discard),
-		WithExistenceValidator(&mockExistenceValidator{
-			dirsResult:  types.OKWithCount(6),
-			filesResult: types.OKWithCount(7),
-		}),
-		WithCLIValidator(&mockCLIValidator{
-			result: existence.CLIResult{
-				Approach: existence.CLIApproachCrossPlatform,
-				Result:   types.OK(),
-			},
-		}),
-		WithSchemaValidator(&mockSchemaValidator{result: types.OKWithCount(5)}),
-		WithManifestValidator(&mockManifestValidator{result: types.OK()}),
-		WithSmokeValidator(&mockSmokeValidator{
-			result: types.FailSystem(errors.New("should not be called"), ""),
-		}),
-	)
-
-	result := runner.Run(context.Background())
-
-	if !result.Success {
-		t.Fatalf("expected success when smoke disabled, got error: %v", result.Error)
-	}
-	if result.Summary.SmokeChecked {
-		t.Error("expected smoke to be skipped when disabled")
-	}
-
-	// Check for skip observation
-	hasSkipObs := false
-	for _, obs := range result.Observations {
-		if obs.Type == ObservationSkip {
-			hasSkipObs = true
-			break
-		}
-	}
-	if !hasSkipObs {
-		t.Error("expected skip observation for disabled smoke test")
-	}
-}
-
 func TestRunner_SchemaValidationDisabled(t *testing.T) {
 	// When SchemasDir is not set and no schema validator is provided,
 	// schema validation should be skipped.
-	expectations := DefaultExpectations()
-	expectations.UISmoke.Enabled = false
-
 	runner := New(
 		Config{
 			ScenarioDir:  "/mock/scenario",
 			ScenarioName: "mock-scenario",
 			SchemasDir:   "", // No schemas dir = no schema validation
-			Expectations: expectations,
+			Expectations: DefaultExpectations(),
 		},
 		WithLogger(io.Discard),
 		WithExistenceValidator(&mockExistenceValidator{
@@ -374,7 +265,6 @@ func TestRunner_SchemaValidationDisabled(t *testing.T) {
 		}),
 		// Note: No WithSchemaValidator - schema validation is disabled
 		WithManifestValidator(&mockManifestValidator{result: types.OK()}),
-		WithSmokeValidator(&mockSmokeValidator{result: types.Result{Success: true}}),
 	)
 
 	result := runner.Run(context.Background())
@@ -396,7 +286,7 @@ func TestRunner_ContextCancelled(t *testing.T) {
 		&mockCLIValidator{result: existence.CLIResult{Result: types.OK()}},
 		&mockSchemaValidator{result: types.OK()},
 		&mockManifestValidator{result: types.OK()},
-		&mockSmokeValidator{result: types.Result{Success: true}},
+		
 	)
 
 	result := runner.Run(ctx)
@@ -421,17 +311,6 @@ func TestValidationSummary_TotalChecks(t *testing.T) {
 				DirsChecked:    6,
 				FilesChecked:   7,
 				JSONFilesValid: 10,
-				SmokeChecked:   true,
-			},
-			expected: 24, // 6 + 7 + 10 + 1
-		},
-		{
-			name: "no smoke",
-			summary: ValidationSummary{
-				DirsChecked:    6,
-				FilesChecked:   7,
-				JSONFilesValid: 10,
-				SmokeChecked:   false,
 			},
 			expected: 23, // 6 + 7 + 10
 		},
@@ -456,7 +335,6 @@ func TestValidationSummary_String(t *testing.T) {
 		DirsChecked:    6,
 		FilesChecked:   7,
 		JSONFilesValid: 10,
-		SmokeChecked:   true,
 	}
 
 	str := summary.String()
@@ -473,23 +351,6 @@ func TestValidationSummary_String(t *testing.T) {
 	}
 	if !containsStrRunner(str, "10") {
 		t.Error("expected JSON files count in string")
-	}
-	if !containsStrRunner(str, "smoke") {
-		t.Error("expected smoke mention in string")
-	}
-}
-
-func TestValidationSummary_StringNoSmoke(t *testing.T) {
-	summary := ValidationSummary{
-		DirsChecked:    6,
-		FilesChecked:   7,
-		JSONFilesValid: 10,
-		SmokeChecked:   false,
-	}
-
-	str := summary.String()
-	if containsStrRunner(str, "smoke") {
-		t.Error("expected no smoke mention when not checked")
 	}
 }
 
@@ -509,7 +370,7 @@ func BenchmarkRunnerAllPass(b *testing.B) {
 		},
 		&mockSchemaValidator{result: types.OKWithCount(10)},
 		&mockManifestValidator{result: types.OK()},
-		&mockSmokeValidator{result: types.Result{Success: true}},
+		
 	)
 
 	b.ResetTimer()
@@ -518,16 +379,13 @@ func BenchmarkRunnerAllPass(b *testing.B) {
 	}
 }
 
-func BenchmarkRunnerNoSmokeNoSchema(b *testing.B) {
-	expectations := DefaultExpectations()
-	expectations.UISmoke.Enabled = false
-
+func BenchmarkRunnerNoSchema(b *testing.B) {
 	runner := New(
 		Config{
 			ScenarioDir:  "/mock/scenario",
 			ScenarioName: "mock-scenario",
 			SchemasDir:   "", // No schema validation
-			Expectations: expectations,
+			Expectations: DefaultExpectations(),
 		},
 		WithLogger(io.Discard),
 		WithExistenceValidator(&mockExistenceValidator{
@@ -541,7 +399,6 @@ func BenchmarkRunnerNoSmokeNoSchema(b *testing.B) {
 			},
 		}),
 		WithManifestValidator(&mockManifestValidator{result: types.OK()}),
-		WithSmokeValidator(&mockSmokeValidator{result: types.Result{Success: true}}),
 	)
 
 	b.ResetTimer()
@@ -562,7 +419,7 @@ func BenchmarkRunnerEarlyFailure(b *testing.B) {
 		&mockCLIValidator{result: existence.CLIResult{Result: types.OK()}},
 		&mockSchemaValidator{result: types.OK()},
 		&mockManifestValidator{result: types.OK()},
-		&mockSmokeValidator{result: types.Result{Success: true}},
+		
 	)
 
 	b.ResetTimer()
@@ -577,7 +434,6 @@ var (
 	_ existence.CLIValidator           = (*mockCLIValidator)(nil)
 	_ content.SchemaValidatorInterface = (*mockSchemaValidator)(nil)
 	_ content.ManifestValidator        = (*mockManifestValidator)(nil)
-	_ smoke.Validator                  = (*mockSmokeValidator)(nil)
 )
 
 func containsStrRunner(s, substr string) bool {
@@ -614,9 +470,6 @@ func TestNew_DefaultValidators(t *testing.T) {
 	}
 	if runner.manifestValidator == nil {
 		t.Error("expected default manifest validator")
-	}
-	if runner.smokeValidator == nil {
-		t.Error("expected default smoke validator")
 	}
 	// Schema validator should be nil when SchemasDir is empty
 	if runner.schemaValidator != nil {
@@ -692,7 +545,7 @@ func TestNew_PartialOptions(t *testing.T) {
 			ScenarioName: "test-scenario",
 		},
 		WithExistenceValidator(existenceVal),
-		// Not providing CLI, manifest, smoke validators - should use defaults
+		// Not providing CLI, manifest validators - should use defaults
 	)
 
 	// Provided validator should be used
@@ -706,9 +559,6 @@ func TestNew_PartialOptions(t *testing.T) {
 	}
 	if runner.manifestValidator == nil {
 		t.Error("expected default manifest validator")
-	}
-	if runner.smokeValidator == nil {
-		t.Error("expected default smoke validator")
 	}
 }
 
@@ -727,7 +577,7 @@ func TestRunner_LoggingWithNilWriter(t *testing.T) {
 		},
 		&mockSchemaValidator{result: types.OKWithCount(10)},
 		&mockManifestValidator{result: types.OK()},
-		&mockSmokeValidator{result: types.Result{Success: true}},
+		
 	)
 
 	// Set logger to nil explicitly
@@ -746,7 +596,6 @@ func TestRunner_WithAdditionalDirsAndFiles(t *testing.T) {
 	expectations := DefaultExpectations()
 	expectations.AdditionalDirs = []string{"custom-dir"}
 	expectations.AdditionalFiles = []string{"custom-file.md"}
-	expectations.UISmoke.Enabled = false
 
 	runner := New(
 		Config{
@@ -767,7 +616,6 @@ func TestRunner_WithAdditionalDirsAndFiles(t *testing.T) {
 		}),
 		WithSchemaValidator(&mockSchemaValidator{result: types.OK()}),
 		WithManifestValidator(&mockManifestValidator{result: types.OK()}),
-		WithSmokeValidator(&mockSmokeValidator{result: types.Result{Success: true}}),
 	)
 
 	result := runner.Run(context.Background())
@@ -787,7 +635,6 @@ func TestRunner_WithExcludedDirsAndFiles(t *testing.T) {
 	expectations := DefaultExpectations()
 	expectations.ExcludedDirs = []string{"docs"}
 	expectations.ExcludedFiles = []string{"PRD.md"}
-	expectations.UISmoke.Enabled = false
 
 	runner := New(
 		Config{
@@ -808,7 +655,6 @@ func TestRunner_WithExcludedDirsAndFiles(t *testing.T) {
 		}),
 		WithSchemaValidator(&mockSchemaValidator{result: types.OK()}),
 		WithManifestValidator(&mockManifestValidator{result: types.OK()}),
-		WithSmokeValidator(&mockSmokeValidator{result: types.Result{Success: true}}),
 	)
 
 	result := runner.Run(context.Background())

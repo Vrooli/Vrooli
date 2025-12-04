@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"test-genie/internal/structure/smoke/orchestrator"
+	"test-genie/internal/smoke/orchestrator"
 )
 
 // Writer persists test artifacts to the filesystem.

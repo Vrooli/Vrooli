@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"test-genie/internal/shared"
-	"test-genie/internal/structure/smoke"
+	"test-genie/internal/smoke"
 )
 
 type scenarioSummaryStore interface {

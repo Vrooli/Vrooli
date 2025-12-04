@@ -7,7 +7,6 @@ import (
 
 	"test-genie/internal/structure/content"
 	"test-genie/internal/structure/existence"
-	"test-genie/internal/structure/smoke"
 )
 
 // Config holds configuration for structure validation.
@@ -26,7 +25,7 @@ type Config struct {
 	Expectations *Expectations
 }
 
-// Runner orchestrates structure validation across existence, content, and smoke checks.
+// Runner orchestrates structure validation across existence and content checks.
 type Runner struct {
 	config Config
 
@@ -35,7 +34,6 @@ type Runner struct {
 	cliValidator       existence.CLIValidator
 	schemaValidator    content.SchemaValidatorInterface
 	manifestValidator  content.ManifestValidator
-	smokeValidator     smoke.Validator
 
 	logWriter io.Writer
 }
@@ -76,9 +74,6 @@ func New(config Config, opts ...Option) *Runner {
 			content.WithNameValidation(validateName),
 		)
 	}
-	if r.smokeValidator == nil {
-		r.smokeValidator = smoke.NewValidator(config.ScenarioDir, config.ScenarioName, r.logWriter)
-	}
 
 	return r
 }
@@ -115,13 +110,6 @@ func WithSchemaValidator(v content.SchemaValidatorInterface) Option {
 func WithManifestValidator(v content.ManifestValidator) Option {
 	return func(r *Runner) {
 		r.manifestValidator = v
-	}
-}
-
-// WithSmokeValidator sets a custom smoke validator (for testing).
-func WithSmokeValidator(v smoke.Validator) Option {
-	return func(r *Runner) {
-		r.smokeValidator = v
 	}
 }
 
@@ -213,25 +201,6 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		summary.JSONFilesValid = schemaResult.ItemsChecked
 		logSuccess(r.logWriter, "All config files valid (%d)", schemaResult.ItemsChecked)
 		observations = append(observations, schemaResult.Observations...)
-	}
-
-	// Section: UI Smoke Test (if enabled)
-	smokeEnabled := r.config.Expectations == nil || r.config.Expectations.UISmoke.Enabled
-	if smokeEnabled {
-		observations = append(observations, NewSectionObservation("🌐", "Running UI smoke test..."))
-		logInfo(r.logWriter, "Running UI smoke test...")
-
-		smokeResult := r.smokeValidator.Validate(ctx)
-		if !smokeResult.Success {
-			return r.failFromResult(smokeResult, observations)
-		}
-		summary.SmokeChecked = true
-		observations = append(observations, smokeResult.Observations...)
-		if len(smokeResult.Observations) > 0 {
-			logSuccess(r.logWriter, "%s", smokeResult.Observations[0].Message)
-		}
-	} else {
-		observations = append(observations, NewSkipObservation("UI smoke harness disabled via .vrooli/testing.json"))
 	}
 
 	// Final summary

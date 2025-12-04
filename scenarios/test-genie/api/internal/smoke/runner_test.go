@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"test-genie/internal/structure/smoke/browser"
-	"test-genie/internal/structure/smoke/orchestrator"
-	"test-genie/internal/structure/smokeconfig"
+	"test-genie/internal/smoke/browser"
+	"test-genie/internal/smoke/orchestrator"
+	"test-genie/internal/smoke/smokeconfig"
 )
 
 func TestNewRunner(t *testing.T) {

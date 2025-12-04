@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"test-genie/internal/structure/smokeconfig"
 )
 
 // Expectations holds the configuration for structure validation, loaded from
@@ -30,9 +28,6 @@ type Expectations struct {
 
 	// ValidateServiceName controls whether service.json name must match the scenario directory.
 	ValidateServiceName bool
-
-	// UISmoke holds UI smoke test configuration.
-	UISmoke smokeconfig.UISmokeConfig
 }
 
 // configDocument represents the structure of .vrooli/testing.json.
@@ -41,23 +36,15 @@ type configDocument struct {
 }
 
 type configSection struct {
-	AdditionalDirs  []pathEntry      `json:"additional_dirs"`
-	AdditionalFiles []pathEntry      `json:"additional_files"`
-	ExcludeDirs     []pathEntry      `json:"exclude_dirs"`
-	ExcludeFiles    []pathEntry      `json:"exclude_files"`
-	Validations     validationFlags  `json:"validations"`
-	UISmoke         uiSmokeRawConfig `json:"ui_smoke"`
+	AdditionalDirs  []pathEntry     `json:"additional_dirs"`
+	AdditionalFiles []pathEntry     `json:"additional_files"`
+	ExcludeDirs     []pathEntry     `json:"exclude_dirs"`
+	ExcludeFiles    []pathEntry     `json:"exclude_files"`
+	Validations     validationFlags `json:"validations"`
 }
 
 type validationFlags struct {
 	ServiceNameMatchesDirectory *bool `json:"service_json_name_matches_directory"`
-}
-
-type uiSmokeRawConfig struct {
-	Enabled            *bool    `json:"enabled"`
-	TimeoutMs          int64    `json:"timeout_ms"`
-	HandshakeTimeoutMs int64    `json:"handshake_timeout_ms"`
-	HandshakeSignals   []string `json:"handshake_signals"`
 }
 
 // pathEntry supports both string and object forms in JSON:
@@ -114,19 +101,6 @@ func LoadExpectations(scenarioDir string) (*Expectations, error) {
 		exp.ValidateServiceName = *doc.Structure.Validations.ServiceNameMatchesDirectory
 	}
 
-	if doc.Structure.UISmoke.Enabled != nil {
-		exp.UISmoke.Enabled = *doc.Structure.UISmoke.Enabled
-	}
-	if doc.Structure.UISmoke.TimeoutMs > 0 {
-		exp.UISmoke.TimeoutMs = doc.Structure.UISmoke.TimeoutMs
-	}
-	if doc.Structure.UISmoke.HandshakeTimeoutMs > 0 {
-		exp.UISmoke.HandshakeTimeoutMs = doc.Structure.UISmoke.HandshakeTimeoutMs
-	}
-	if len(doc.Structure.UISmoke.HandshakeSignals) > 0 {
-		exp.UISmoke.HandshakeSignals = doc.Structure.UISmoke.HandshakeSignals
-	}
-
 	return exp, nil
 }
 
@@ -134,7 +108,6 @@ func LoadExpectations(scenarioDir string) (*Expectations, error) {
 func DefaultExpectations() *Expectations {
 	return &Expectations{
 		ValidateServiceName: true,
-		UISmoke:             smokeconfig.DefaultUISmokeConfig(),
 	}
 }
 

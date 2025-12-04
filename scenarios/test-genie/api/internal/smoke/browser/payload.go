@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"test-genie/internal/structure/smoke/orchestrator"
+	"test-genie/internal/smoke/orchestrator"
 )
 
 // PayloadGenerator generates JavaScript payloads for Browserless execution.

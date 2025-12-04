@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"test-genie/internal/structure/smoke/orchestrator"
+	"test-genie/internal/smoke/orchestrator"
 )
 
 // HealthThresholds defines thresholds for health checks.

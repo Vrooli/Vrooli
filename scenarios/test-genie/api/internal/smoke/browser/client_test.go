@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"test-genie/internal/structure/smoke/orchestrator"
+	"test-genie/internal/smoke/orchestrator"
 )
 
 func TestNewClient(t *testing.T) {

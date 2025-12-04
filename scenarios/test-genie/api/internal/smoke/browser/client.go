@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"test-genie/internal/structure/smoke/orchestrator"
+	"test-genie/internal/smoke/orchestrator"
 )
 
 // Client communicates with the Browserless API.
