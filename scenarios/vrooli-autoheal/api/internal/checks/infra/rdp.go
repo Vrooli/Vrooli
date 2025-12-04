@@ -1,10 +1,9 @@
 // Package infra provides infrastructure health checks
-// [REQ:INFRA-RDP-001]
+// [REQ:INFRA-RDP-001] [REQ:TEST-SEAM-001]
 package infra
 
 import (
 	"context"
-	"os/exec"
 	"strings"
 
 	"vrooli-autoheal/internal/checks"
@@ -43,23 +42,46 @@ func SelectRDPService(caps *platform.Capabilities) RDPServiceInfo {
 // RDPCheck verifies RDP/xrdp service.
 // Platform capabilities are injected to avoid hidden dependencies and enable testing.
 type RDPCheck struct {
-	caps *platform.Capabilities
+	caps     *platform.Capabilities
+	executor checks.CommandExecutor
+}
+
+// RDPCheckOption configures an RDPCheck.
+type RDPCheckOption func(*RDPCheck)
+
+// WithRDPExecutor sets the command executor (for testing).
+// [REQ:TEST-SEAM-001]
+func WithRDPExecutor(executor checks.CommandExecutor) RDPCheckOption {
+	return func(c *RDPCheck) {
+		c.executor = executor
+	}
 }
 
 // NewRDPCheck creates an RDP health check with injected platform capabilities.
-func NewRDPCheck(caps *platform.Capabilities) *RDPCheck {
-	return &RDPCheck{caps: caps}
+func NewRDPCheck(caps *platform.Capabilities, opts ...RDPCheckOption) *RDPCheck {
+	c := &RDPCheck{
+		caps:     caps,
+		executor: checks.DefaultExecutor,
+	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
-func (c *RDPCheck) ID() string          { return "infra-rdp" }
-func (c *RDPCheck) Title() string       { return "Remote Desktop" }
-func (c *RDPCheck) Description() string { return "Checks xrdp (Linux) or TermService (Windows) is running" }
+func (c *RDPCheck) ID() string    { return "infra-rdp" }
+func (c *RDPCheck) Title() string { return "Remote Desktop" }
+func (c *RDPCheck) Description() string {
+	return "Checks xrdp (Linux) or TermService (Windows) is running"
+}
 func (c *RDPCheck) Importance() string {
 	return "Required for remote desktop access to this machine"
 }
-func (c *RDPCheck) Category() checks.Category  { return checks.CategoryInfrastructure }
-func (c *RDPCheck) IntervalSeconds() int       { return 60 }
-func (c *RDPCheck) Platforms() []platform.Type { return []platform.Type{platform.Linux, platform.Windows} }
+func (c *RDPCheck) Category() checks.Category { return checks.CategoryInfrastructure }
+func (c *RDPCheck) IntervalSeconds() int      { return 60 }
+func (c *RDPCheck) Platforms() []platform.Type {
+	return []platform.Type{platform.Linux, platform.Windows}
+}
 
 func (c *RDPCheck) Run(ctx context.Context) checks.Result {
 	result := checks.Result{
@@ -92,8 +114,7 @@ func (c *RDPCheck) Run(ctx context.Context) checks.Result {
 
 // checkLinuxXRDP checks xrdp service status on Linux systems with systemd
 func (c *RDPCheck) checkLinuxXRDP(ctx context.Context, result checks.Result) checks.Result {
-	cmd := exec.CommandContext(ctx, "systemctl", "is-active", "xrdp")
-	output, err := cmd.Output()
+	output, err := c.executor.Output(ctx, "systemctl", "is-active", "xrdp")
 	status := strings.TrimSpace(string(output))
 	result.Details["status"] = status
 
@@ -109,8 +130,7 @@ func (c *RDPCheck) checkLinuxXRDP(ctx context.Context, result checks.Result) che
 
 // checkWindowsTermService checks TermService status on Windows
 func (c *RDPCheck) checkWindowsTermService(ctx context.Context, result checks.Result) checks.Result {
-	cmd := exec.CommandContext(ctx, "sc", "query", "TermService")
-	output, err := cmd.Output()
+	output, err := c.executor.Output(ctx, "sc", "query", "TermService")
 
 	if err != nil {
 		result.Status = checks.StatusWarning

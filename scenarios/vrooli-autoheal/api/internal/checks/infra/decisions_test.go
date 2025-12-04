@@ -12,10 +12,10 @@ import (
 // TestSelectRDPService tests the RDP service selection decision function
 func TestSelectRDPService(t *testing.T) {
 	tests := []struct {
-		name           string
-		caps           *platform.Capabilities
-		expectedName   string
-		expectedCheck  bool
+		name          string
+		caps          *platform.Capabilities
+		expectedName  string
+		expectedCheck bool
 	}{
 		{
 			name: "linux with systemd",
@@ -102,7 +102,7 @@ func TestSelectCloudflaredVerifyMethod(t *testing.T) {
 		{
 			name: "macos no systemd",
 			caps: &platform.Capabilities{
-				Platform:       platform.MacOS,
+				Platform:        platform.MacOS,
 				SupportsLaunchd: true,
 			},
 			expected: CannotVerifyRunning, // Launchd not supported yet

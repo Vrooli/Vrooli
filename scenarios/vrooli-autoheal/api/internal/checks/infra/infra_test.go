@@ -88,7 +88,7 @@ func TestNetworkCheckRun(t *testing.T) {
 func TestDNSCheckInterface(t *testing.T) {
 	var _ checks.Check = (*DNSCheck)(nil)
 
-	check := NewDNSCheck(testDomain)
+	check := NewDNSCheck(testDomain, testCaps())
 	if check.ID() != "infra-dns" {
 		t.Errorf("ID() = %q, want %q", check.ID(), "infra-dns")
 	}
@@ -103,7 +103,7 @@ func TestDNSCheckInterface(t *testing.T) {
 // TestDNSCheckDomain verifies domain is used exactly as provided
 func TestDNSCheckDomain(t *testing.T) {
 	customDomain := "cloudflare.com"
-	check := NewDNSCheck(customDomain)
+	check := NewDNSCheck(customDomain, testCaps())
 	if check.domain != customDomain {
 		t.Errorf("domain = %q, want %q", check.domain, customDomain)
 	}
@@ -112,7 +112,7 @@ func TestDNSCheckDomain(t *testing.T) {
 // TestDNSCheckRun verifies DNS check execution
 // [REQ:INFRA-DNS-001]
 func TestDNSCheckRun(t *testing.T) {
-	check := NewDNSCheck(testDomain)
+	check := NewDNSCheck(testDomain, testCaps())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -560,5 +560,257 @@ func TestDockerCheckHealable(t *testing.T) {
 		if !actionIDs[expected] {
 			t.Errorf("DockerCheck should have %s action", expected)
 		}
+	}
+}
+
+// =============================================================================
+// Unit Tests with Mock Interfaces
+// =============================================================================
+
+// TestNetworkCheckRunWithMock tests NetworkCheck.Run() using mock dialer
+// [REQ:INFRA-NET-001] [REQ:TEST-SEAM-001]
+func TestNetworkCheckRunWithMock(t *testing.T) {
+	tests := []struct {
+		name           string
+		dialResponse   checks.MockDialResponse
+		expectedStatus checks.Status
+		expectedMsg    string
+	}{
+		{
+			name: "successful connection",
+			dialResponse: checks.MockDialResponse{
+				Conn:  &checks.MockConn{},
+				Error: nil,
+			},
+			expectedStatus: checks.StatusOK,
+			expectedMsg:    "Network connectivity OK",
+		},
+		{
+			name: "connection refused",
+			dialResponse: checks.MockDialResponse{
+				Conn:  nil,
+				Error: checks.ErrConnectionRefused,
+			},
+			expectedStatus: checks.StatusCritical,
+			expectedMsg:    "Network connectivity failed",
+		},
+		{
+			name: "timeout",
+			dialResponse: checks.MockDialResponse{
+				Conn:  nil,
+				Error: checks.ErrTimeout,
+			},
+			expectedStatus: checks.StatusCritical,
+			expectedMsg:    "Network connectivity failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockDialer := checks.NewMockDialer()
+			mockDialer.DefaultResponse = tt.dialResponse
+
+			check := NewNetworkCheck(testTarget, WithDialer(mockDialer))
+			result := check.Run(context.Background())
+
+			if result.Status != tt.expectedStatus {
+				t.Errorf("Status = %v, want %v", result.Status, tt.expectedStatus)
+			}
+			if result.Message != tt.expectedMsg {
+				t.Errorf("Message = %q, want %q", result.Message, tt.expectedMsg)
+			}
+
+			// Verify the mock was called
+			if len(mockDialer.Calls) != 1 {
+				t.Errorf("Expected 1 dial call, got %d", len(mockDialer.Calls))
+			}
+			if len(mockDialer.Calls) > 0 && mockDialer.Calls[0] != testTarget {
+				t.Errorf("Dial target = %q, want %q", mockDialer.Calls[0], testTarget)
+			}
+		})
+	}
+}
+
+// TestNetworkCheckResponseTime tests that response time is recorded
+// [REQ:INFRA-NET-001]
+func TestNetworkCheckResponseTime(t *testing.T) {
+	mockDialer := checks.NewMockDialer()
+	mockDialer.DefaultResponse = checks.MockDialResponse{
+		Conn:  &checks.MockConn{},
+		Error: nil,
+	}
+
+	check := NewNetworkCheck(testTarget, WithDialer(mockDialer))
+	result := check.Run(context.Background())
+
+	if result.Details == nil {
+		t.Fatal("Details should not be nil")
+	}
+	if _, ok := result.Details["responseTimeMs"]; !ok {
+		t.Error("Details should contain responseTimeMs")
+	}
+}
+
+// TestDockerCheckRunWithMock tests DockerCheck.Run() using mock executor
+// [REQ:INFRA-DOCKER-001] [REQ:TEST-SEAM-001]
+func TestDockerCheckRunWithMock(t *testing.T) {
+	tests := []struct {
+		name           string
+		dockerInfo     string
+		execError      error
+		expectedStatus checks.Status
+		expectedMsg    string
+	}{
+		{
+			name:           "docker healthy",
+			dockerInfo:     `{"ServerVersion":"24.0.7","Containers":5,"ContainersRunning":3}`,
+			execError:      nil,
+			expectedStatus: checks.StatusOK,
+			expectedMsg:    "Docker daemon is healthy",
+		},
+		{
+			name:           "docker not responsive",
+			dockerInfo:     "",
+			execError:      checks.ErrConnectionRefused,
+			expectedStatus: checks.StatusCritical,
+			expectedMsg:    "Docker daemon not responsive",
+		},
+		{
+			name:           "docker command not found",
+			dockerInfo:     "",
+			execError:      checks.ErrCommandNotFound,
+			expectedStatus: checks.StatusCritical,
+			expectedMsg:    "Docker daemon not responsive",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExecutor := checks.NewMockExecutor()
+			mockExecutor.Responses["docker info --format {{json .}}"] = checks.MockResponse{
+				Output: []byte(tt.dockerInfo),
+				Error:  tt.execError,
+			}
+
+			check := NewDockerCheckWithOptions(testCaps(), WithDockerExecutor(mockExecutor))
+			result := check.Run(context.Background())
+
+			if result.Status != tt.expectedStatus {
+				t.Errorf("Status = %v, want %v", result.Status, tt.expectedStatus)
+			}
+			if result.Message != tt.expectedMsg {
+				t.Errorf("Message = %q, want %q", result.Message, tt.expectedMsg)
+			}
+
+			// Verify the mock was called
+			if len(mockExecutor.Calls) != 1 {
+				t.Errorf("Expected 1 executor call, got %d", len(mockExecutor.Calls))
+			}
+		})
+	}
+}
+
+// TestDockerCheckParsesInfo tests that Docker info is correctly parsed
+// [REQ:INFRA-DOCKER-001]
+func TestDockerCheckParsesInfo(t *testing.T) {
+	mockExecutor := checks.NewMockExecutor()
+	mockExecutor.Responses["docker info --format {{json .}}"] = checks.MockResponse{
+		Output: []byte(`{"ServerVersion":"24.0.7","Containers":10,"ContainersRunning":5}`),
+		Error:  nil,
+	}
+
+	check := NewDockerCheckWithOptions(testCaps(), WithDockerExecutor(mockExecutor))
+	result := check.Run(context.Background())
+
+	if result.Details == nil {
+		t.Fatal("Details should not be nil")
+	}
+	if version, ok := result.Details["version"].(string); !ok || version != "24.0.7" {
+		t.Errorf("version = %v, want %q", result.Details["version"], "24.0.7")
+	}
+	if containers, ok := result.Details["containers"].(int); !ok || containers != 10 {
+		t.Errorf("containers = %v, want %d", result.Details["containers"], 10)
+	}
+	if running, ok := result.Details["running"].(int); !ok || running != 5 {
+		t.Errorf("running = %v, want %d", result.Details["running"], 5)
+	}
+}
+
+// TestDockerCheckExecuteActionWithMock tests DockerCheck.ExecuteAction() using mock
+// [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
+func TestDockerCheckExecuteActionWithMock(t *testing.T) {
+	tests := []struct {
+		name          string
+		actionID      string
+		cmdKey        string
+		cmdOutput     string
+		cmdError      error
+		expectSuccess bool
+	}{
+		{
+			name:          "prune success",
+			actionID:      "prune",
+			cmdKey:        "docker system prune --force",
+			cmdOutput:     "Deleted 5 containers\nTotal reclaimed space: 1.2GB",
+			cmdError:      nil,
+			expectSuccess: true,
+		},
+		{
+			name:          "prune failure",
+			actionID:      "prune",
+			cmdKey:        "docker system prune --force",
+			cmdOutput:     "",
+			cmdError:      checks.ErrConnectionRefused,
+			expectSuccess: false,
+		},
+		{
+			name:          "info success",
+			actionID:      "info",
+			cmdKey:        "docker info",
+			cmdOutput:     "Docker version 24.0.7",
+			cmdError:      nil,
+			expectSuccess: true,
+		},
+		{
+			name:          "logs success",
+			actionID:      "logs",
+			cmdKey:        "journalctl -u docker -n 100 --no-pager",
+			cmdOutput:     "Docker daemon logs...",
+			cmdError:      nil,
+			expectSuccess: true,
+		},
+		{
+			name:          "unknown action",
+			actionID:      "invalid-action",
+			cmdKey:        "",
+			cmdOutput:     "",
+			cmdError:      nil,
+			expectSuccess: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExecutor := checks.NewMockExecutor()
+			if tt.cmdKey != "" {
+				mockExecutor.Responses[tt.cmdKey] = checks.MockResponse{
+					Output: []byte(tt.cmdOutput),
+					Error:  tt.cmdError,
+				}
+			}
+
+			check := NewDockerCheckWithOptions(testCaps(), WithDockerExecutor(mockExecutor))
+			result := check.ExecuteAction(context.Background(), tt.actionID)
+
+			if result.Success != tt.expectSuccess {
+				t.Errorf("Success = %v, want %v", result.Success, tt.expectSuccess)
+			}
+			if result.ActionID != tt.actionID {
+				t.Errorf("ActionID = %q, want %q", result.ActionID, tt.actionID)
+			}
+			if result.CheckID != check.ID() {
+				t.Errorf("CheckID = %q, want %q", result.CheckID, check.ID())
+			}
+		})
 	}
 }

@@ -1,10 +1,9 @@
 // Package vrooli provides Vrooli-specific health checks
-// [REQ:RESOURCE-CHECK-001] [REQ:HEAL-ACTION-001]
+// [REQ:RESOURCE-CHECK-001] [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 package vrooli
 
 import (
 	"context"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -21,6 +20,17 @@ type ResourceCheck struct {
 	description  string
 	importance   string
 	interval     int
+	executor     checks.CommandExecutor
+}
+
+// ResourceCheckOption configures a ResourceCheck.
+type ResourceCheckOption func(*ResourceCheck)
+
+// WithResourceExecutor sets the command executor (for testing).
+func WithResourceExecutor(executor checks.CommandExecutor) ResourceCheckOption {
+	return func(c *ResourceCheck) {
+		c.executor = executor
+	}
 }
 
 // resourceMetadata contains human-friendly metadata for known resources
@@ -63,7 +73,7 @@ var resourceMetadata = map[string]struct {
 
 // NewResourceCheck creates a check for a Vrooli resource.
 // Resources are treated as critical by default since they are core infrastructure.
-func NewResourceCheck(resourceName string) *ResourceCheck {
+func NewResourceCheck(resourceName string, opts ...ResourceCheckOption) *ResourceCheck {
 	meta, found := resourceMetadata[resourceName]
 	if !found {
 		// Fallback for unknown resources
@@ -78,14 +88,19 @@ func NewResourceCheck(resourceName string) *ResourceCheck {
 		}
 	}
 
-	return &ResourceCheck{
+	c := &ResourceCheck{
 		id:           "resource-" + resourceName,
 		resourceName: resourceName,
 		title:        meta.title,
 		description:  meta.description,
 		importance:   meta.importance,
 		interval:     60,
+		executor:     checks.DefaultExecutor,
 	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 func (c *ResourceCheck) ID() string                 { return c.id }
@@ -102,9 +117,8 @@ func (c *ResourceCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	// Run vrooli resource status
-	cmd := exec.CommandContext(ctx, "vrooli", "resource", "status", c.resourceName)
-	output, err := cmd.CombinedOutput()
+	// Run vrooli resource status using injected executor
+	output, err := c.executor.CombinedOutput(ctx, "vrooli", "resource", "status", c.resourceName)
 
 	result.Details["output"] = string(output)
 
@@ -169,7 +183,7 @@ func (c *ResourceCheck) RecoveryActions(lastResult *checks.Result) []checks.Reco
 			ID:          "stop",
 			Name:        "Stop",
 			Description: "Stop the " + c.resourceName + " resource",
-			Dangerous:   true, // Stopping is dangerous
+			Dangerous:   true,                                    // Stopping is dangerous
 			Available:   isRunning || (!isRunning && !isStopped), // Can stop if running or unknown
 		},
 		{
@@ -201,19 +215,19 @@ func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) chec
 		Timestamp: start,
 	}
 
-	var cmd *exec.Cmd
+	var args []string
 	needsVerification := false
 	switch actionID {
 	case "start":
-		cmd = exec.CommandContext(ctx, "vrooli", "resource", "start", c.resourceName)
+		args = []string{"resource", "start", c.resourceName}
 		needsVerification = true
 	case "stop":
-		cmd = exec.CommandContext(ctx, "vrooli", "resource", "stop", c.resourceName)
+		args = []string{"resource", "stop", c.resourceName}
 	case "restart":
-		cmd = exec.CommandContext(ctx, "vrooli", "resource", "restart", c.resourceName)
+		args = []string{"resource", "restart", c.resourceName}
 		needsVerification = true
 	case "logs":
-		cmd = exec.CommandContext(ctx, "vrooli", "resource", "logs", c.resourceName, "--tail", "50")
+		args = []string{"resource", "logs", c.resourceName, "--tail", "50"}
 	default:
 		result.Success = false
 		result.Error = "unknown action: " + actionID
@@ -222,7 +236,7 @@ func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) chec
 		return result
 	}
 
-	output, err := cmd.CombinedOutput()
+	output, err := c.executor.CombinedOutput(ctx, "vrooli", args...)
 	result.Output = string(output)
 
 	if err != nil {

@@ -1,5 +1,5 @@
 // Package vrooli provides Vrooli-specific health checks
-// [REQ:VROOLI-API-001] [REQ:HEAL-ACTION-001]
+// [REQ:VROOLI-API-001] [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 package vrooli
 
 import (
@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -20,8 +19,10 @@ import (
 
 // APICheck monitors the main Vrooli API health endpoint.
 type APICheck struct {
-	url     string
-	timeout time.Duration
+	url      string
+	timeout  time.Duration
+	client   checks.HTTPDoer
+	executor checks.CommandExecutor
 }
 
 // APICheckOption configures an APICheck.
@@ -41,16 +42,36 @@ func WithAPITimeout(timeout time.Duration) APICheckOption {
 	}
 }
 
+// WithHTTPClient sets the HTTP client (for testing).
+func WithHTTPClient(client checks.HTTPDoer) APICheckOption {
+	return func(c *APICheck) {
+		c.client = client
+	}
+}
+
+// WithAPIExecutor sets the command executor (for testing).
+func WithAPIExecutor(executor checks.CommandExecutor) APICheckOption {
+	return func(c *APICheck) {
+		c.executor = executor
+	}
+}
+
 // NewAPICheck creates a Vrooli API health check.
 // Default URL: http://127.0.0.1:8092/health
 // Default timeout: 5 seconds
 func NewAPICheck(opts ...APICheckOption) *APICheck {
 	c := &APICheck{
-		url:     "http://127.0.0.1:8092/health",
-		timeout: 5 * time.Second,
+		url:      "http://127.0.0.1:8092/health",
+		timeout:  5 * time.Second,
+		client:   &http.Client{Timeout: 5 * time.Second},
+		executor: checks.DefaultExecutor,
 	}
 	for _, opt := range opts {
 		opt(c)
+	}
+	// Update the client timeout if it changed
+	if httpClient, ok := c.client.(*http.Client); ok {
+		httpClient.Timeout = c.timeout
 	}
 	return c
 }
@@ -74,11 +95,6 @@ func (c *APICheck) Run(ctx context.Context) checks.Result {
 		},
 	}
 
-	// Create HTTP client with timeout
-	client := &http.Client{
-		Timeout: c.timeout,
-	}
-
 	// Create request with context
 	req, err := http.NewRequestWithContext(ctx, "GET", c.url, nil)
 	if err != nil {
@@ -88,9 +104,9 @@ func (c *APICheck) Run(ctx context.Context) checks.Result {
 		return result
 	}
 
-	// Execute request
+	// Execute request using injected client
 	start := time.Now()
-	resp, err := client.Do(req)
+	resp, err := c.client.Do(req)
 	elapsed := time.Since(start)
 	result.Details["responseTimeMs"] = elapsed.Milliseconds()
 
@@ -289,14 +305,12 @@ func (c *APICheck) executeRestart(ctx context.Context, start time.Time) checks.A
 		}
 	}
 
-	// Find and kill processes on the port
-	lsofCmd := exec.CommandContext(ctx, "lsof", "-ti", ":"+port)
-	pids, _ := lsofCmd.Output()
+	// Find and kill processes on the port using injected executor
+	pids, _ := c.executor.Output(ctx, "lsof", "-ti", ":"+port)
 	if len(strings.TrimSpace(string(pids))) > 0 {
 		for _, pid := range strings.Fields(strings.TrimSpace(string(pids))) {
 			outputBuilder.WriteString(fmt.Sprintf("Killing PID %s on port %s\n", pid, port))
-			killCmd := exec.CommandContext(ctx, "kill", "-9", pid)
-			killCmd.Run()
+			c.executor.Run(ctx, "kill", "-9", pid)
 		}
 	} else {
 		outputBuilder.WriteString("No processes found on port " + port + "\n")
@@ -309,11 +323,7 @@ func (c *APICheck) executeRestart(ctx context.Context, start time.Time) checks.A
 	outputBuilder.WriteString("\n=== Starting API ===\n")
 
 	// Try vrooli develop first
-	startCmd := exec.CommandContext(ctx, "vrooli", "develop")
-	if vrooliRoot != "" {
-		startCmd.Dir = vrooliRoot
-	}
-	startOutput, err := startCmd.CombinedOutput()
+	startOutput, err := c.executor.CombinedOutput(ctx, "vrooli", "develop")
 	outputBuilder.Write(startOutput)
 
 	result.Duration = time.Since(start)
@@ -325,8 +335,7 @@ func (c *APICheck) executeRestart(ctx context.Context, start time.Time) checks.A
 			restartScript := filepath.Join(vrooliRoot, "scripts", "maintenance", "restart-vrooli-api.sh")
 			if _, statErr := os.Stat(restartScript); statErr == nil {
 				outputBuilder.WriteString("\n=== Trying restart script ===\n")
-				scriptCmd := exec.CommandContext(ctx, "bash", restartScript)
-				scriptOutput, scriptErr := scriptCmd.CombinedOutput()
+				scriptOutput, scriptErr := c.executor.CombinedOutput(ctx, "bash", restartScript)
 				outputBuilder.Write(scriptOutput)
 				result.Output = outputBuilder.String()
 
@@ -371,9 +380,8 @@ func (c *APICheck) executeKillPort(ctx context.Context, start time.Time) checks.
 
 	outputBuilder.WriteString(fmt.Sprintf("Looking for processes on port %s...\n", port))
 
-	// Find processes on the port
-	lsofCmd := exec.CommandContext(ctx, "lsof", "-ti", ":"+port)
-	pids, err := lsofCmd.Output()
+	// Find processes on the port using injected executor
+	pids, err := c.executor.Output(ctx, "lsof", "-ti", ":"+port)
 
 	if err != nil || len(strings.TrimSpace(string(pids))) == 0 {
 		result.Duration = time.Since(start)
@@ -388,11 +396,9 @@ func (c *APICheck) executeKillPort(ctx context.Context, start time.Time) checks.
 		outputBuilder.WriteString(fmt.Sprintf("Killing PID %s... ", pid))
 
 		// Try SIGTERM first
-		killCmd := exec.CommandContext(ctx, "kill", pid)
-		if err := killCmd.Run(); err != nil {
+		if err := c.executor.Run(ctx, "kill", pid); err != nil {
 			// Try SIGKILL
-			killCmd = exec.CommandContext(ctx, "kill", "-9", pid)
-			if err := killCmd.Run(); err != nil {
+			if err := c.executor.Run(ctx, "kill", "-9", pid); err != nil {
 				outputBuilder.WriteString(fmt.Sprintf("FAILED: %v\n", err))
 				continue
 			}
@@ -430,8 +436,7 @@ func (c *APICheck) executeLogs(ctx context.Context, start time.Time) checks.Acti
 	for _, logPath := range logPaths {
 		if _, err := os.Stat(logPath); err == nil {
 			outputBuilder.WriteString(fmt.Sprintf("=== %s (last 100 lines) ===\n", logPath))
-			tailCmd := exec.CommandContext(ctx, "tail", "-100", logPath)
-			tailOutput, _ := tailCmd.Output()
+			tailOutput, _ := c.executor.Output(ctx, "tail", "-100", logPath)
 			outputBuilder.Write(tailOutput)
 			outputBuilder.WriteString("\n\n")
 			foundLogs = true
@@ -440,8 +445,7 @@ func (c *APICheck) executeLogs(ctx context.Context, start time.Time) checks.Acti
 
 	// Also check journalctl for vrooli entries
 	outputBuilder.WriteString("=== System logs (journalctl) ===\n")
-	journalCmd := exec.CommandContext(ctx, "journalctl", "--no-pager", "-n", "50", "-g", "vrooli")
-	journalOutput, _ := journalCmd.CombinedOutput()
+	journalOutput, _ := c.executor.CombinedOutput(ctx, "journalctl", "--no-pager", "-n", "50", "-g", "vrooli")
 	outputBuilder.Write(journalOutput)
 
 	result.Duration = time.Since(start)
@@ -465,11 +469,11 @@ func (c *APICheck) executeDiagnose(ctx context.Context, start time.Time) checks.
 
 	var outputBuilder strings.Builder
 
-	// Health endpoint
+	// Health endpoint - use injected client
 	outputBuilder.WriteString("=== Health Endpoint ===\n")
 	outputBuilder.WriteString(fmt.Sprintf("URL: %s\n", c.url))
-	client := &http.Client{Timeout: c.timeout}
-	resp, err := client.Get(c.url)
+	req, _ := http.NewRequestWithContext(ctx, "GET", c.url, nil)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		outputBuilder.WriteString(fmt.Sprintf("Error: %v\n", err))
 	} else {
@@ -480,7 +484,7 @@ func (c *APICheck) executeDiagnose(ctx context.Context, start time.Time) checks.
 	}
 	outputBuilder.WriteString("\n")
 
-	// Port usage
+	// Port usage - use injected executor
 	outputBuilder.WriteString("=== Port Usage ===\n")
 	port := "8092"
 	if strings.Contains(c.url, ":") {
@@ -489,22 +493,19 @@ func (c *APICheck) executeDiagnose(ctx context.Context, start time.Time) checks.
 			port = strings.Split(parts[2], "/")[0]
 		}
 	}
-	lsofCmd := exec.CommandContext(ctx, "lsof", "-i", ":"+port)
-	lsofOutput, _ := lsofCmd.CombinedOutput()
+	lsofOutput, _ := c.executor.CombinedOutput(ctx, "lsof", "-i", ":"+port)
 	outputBuilder.Write(lsofOutput)
 	outputBuilder.WriteString("\n")
 
 	// Vrooli processes
 	outputBuilder.WriteString("=== Vrooli Processes ===\n")
-	pgrepCmd := exec.CommandContext(ctx, "pgrep", "-af", "vrooli")
-	pgrepOutput, _ := pgrepCmd.CombinedOutput()
+	pgrepOutput, _ := c.executor.CombinedOutput(ctx, "pgrep", "-af", "vrooli")
 	outputBuilder.Write(pgrepOutput)
 	outputBuilder.WriteString("\n")
 
 	// Resource status
 	outputBuilder.WriteString("=== Resource Status ===\n")
-	resourceCmd := exec.CommandContext(ctx, "vrooli", "resource", "status")
-	resourceOutput, _ := resourceCmd.CombinedOutput()
+	resourceOutput, _ := c.executor.CombinedOutput(ctx, "vrooli", "resource", "status")
 	outputBuilder.Write(resourceOutput)
 
 	result.Duration = time.Since(start)

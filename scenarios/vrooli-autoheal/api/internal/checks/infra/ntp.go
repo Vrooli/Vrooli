@@ -1,10 +1,9 @@
 // Package infra provides infrastructure health checks
-// [REQ:INFRA-NTP-001]
+// [REQ:INFRA-NTP-001] [REQ:TEST-SEAM-001]
 package infra
 
 import (
 	"context"
-	"os/exec"
 	"runtime"
 	"strings"
 	"time"
@@ -16,13 +15,32 @@ import (
 // NTPCheck verifies time synchronization via NTP.
 // Accurate time is critical for TLS certificates, distributed systems, and logging.
 type NTPCheck struct {
-	caps *platform.Capabilities
+	caps     *platform.Capabilities
+	executor checks.CommandExecutor
+}
+
+// NTPCheckOption configures an NTPCheck.
+type NTPCheckOption func(*NTPCheck)
+
+// WithNTPExecutor sets the command executor (for testing).
+// [REQ:TEST-SEAM-001]
+func WithNTPExecutor(executor checks.CommandExecutor) NTPCheckOption {
+	return func(c *NTPCheck) {
+		c.executor = executor
+	}
 }
 
 // NewNTPCheck creates an NTP time synchronization check.
 // Platform capabilities are injected for testability.
-func NewNTPCheck(caps *platform.Capabilities) *NTPCheck {
-	return &NTPCheck{caps: caps}
+func NewNTPCheck(caps *platform.Capabilities, opts ...NTPCheckOption) *NTPCheck {
+	c := &NTPCheck{
+		caps:     caps,
+		executor: checks.DefaultExecutor,
+	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 func (c *NTPCheck) ID() string    { return "infra-ntp" }
@@ -51,8 +69,8 @@ func (c *NTPCheck) Run(ctx context.Context) checks.Result {
 		return result
 	}
 
-	// Check if timedatectl is available
-	if _, err := exec.LookPath("timedatectl"); err != nil {
+	// Check if timedatectl is available via executor
+	if err := c.executor.Run(context.Background(), "which", "timedatectl"); err != nil {
 		result.Status = checks.StatusWarning
 		result.Message = "timedatectl not available - cannot verify time sync"
 		result.Details["error"] = "timedatectl not found"
@@ -104,8 +122,7 @@ func (c *NTPCheck) Run(ctx context.Context) checks.Result {
 
 // getNTPSyncStatus checks if NTP is synchronized
 func (c *NTPCheck) getNTPSyncStatus(ctx context.Context) (bool, error) {
-	cmd := exec.CommandContext(ctx, "timedatectl", "show", "-p", "NTPSynchronized", "--value")
-	output, err := cmd.Output()
+	output, err := c.executor.Output(ctx, "timedatectl", "show", "-p", "NTPSynchronized", "--value")
 	if err != nil {
 		return false, err
 	}
@@ -114,8 +131,7 @@ func (c *NTPCheck) getNTPSyncStatus(ctx context.Context) (bool, error) {
 
 // isNTPEnabled checks if NTP service is enabled
 func (c *NTPCheck) isNTPEnabled(ctx context.Context) (bool, error) {
-	cmd := exec.CommandContext(ctx, "timedatectl", "show", "-p", "NTP", "--value")
-	output, err := cmd.Output()
+	output, err := c.executor.Output(ctx, "timedatectl", "show", "-p", "NTP", "--value")
 	if err != nil {
 		return false, err
 	}
@@ -127,14 +143,12 @@ func (c *NTPCheck) getTimeInfo(ctx context.Context) (map[string]string, error) {
 	info := make(map[string]string)
 
 	// Get timezone
-	cmd := exec.CommandContext(ctx, "timedatectl", "show", "-p", "Timezone", "--value")
-	if output, err := cmd.Output(); err == nil {
+	if output, err := c.executor.Output(ctx, "timedatectl", "show", "-p", "Timezone", "--value"); err == nil {
 		info["timezone"] = strings.TrimSpace(string(output))
 	}
 
 	// Get local time
-	cmd = exec.CommandContext(ctx, "date", "+%Y-%m-%dT%H:%M:%S%z")
-	if output, err := cmd.Output(); err == nil {
+	if output, err := c.executor.Output(ctx, "date", "+%Y-%m-%dT%H:%M:%S%z"); err == nil {
 		info["localTime"] = strings.TrimSpace(string(output))
 	}
 
@@ -177,13 +191,14 @@ func (c *NTPCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 		Timestamp: start,
 	}
 
-	var cmd *exec.Cmd
+	var output []byte
+	var err error
 	switch actionID {
 	case "enable-ntp":
-		cmd = exec.CommandContext(ctx, "sudo", "timedatectl", "set-ntp", "true")
+		output, err = c.executor.CombinedOutput(ctx, "sudo", "timedatectl", "set-ntp", "true")
 		result.Message = "Enabling NTP synchronization"
 	case "force-sync":
-		cmd = exec.CommandContext(ctx, "sudo", "systemctl", "restart", "systemd-timesyncd")
+		output, err = c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "systemd-timesyncd")
 		result.Message = "Restarting systemd-timesyncd"
 	default:
 		result.Success = false
@@ -192,7 +207,6 @@ func (c *NTPCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 		return result
 	}
 
-	output, err := cmd.CombinedOutput()
 	result.Output = string(output)
 
 	if err != nil {

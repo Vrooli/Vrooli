@@ -14,6 +14,8 @@ import (
 	"vrooli-autoheal/internal/platform"
 )
 
+// Note: exec import is still used for DetectCloudflaredInstall's exec.LookPath
+
 // cloudflaredErrorThreshold is the number of ERR entries in journalctl
 // that triggers a warning status (matches legacy bash behavior)
 const cloudflaredErrorThreshold = 10
@@ -67,6 +69,8 @@ type CloudflaredCheck struct {
 	localTestPort  int    // Port to test local tunnel connectivity (e.g., 21774 for app-monitor UI)
 	externalURL    string // Optional external tunnel URL to verify end-to-end connectivity
 	connectTimeout time.Duration
+	executor       checks.CommandExecutor
+	httpClient     checks.HTTPDoer
 }
 
 // CloudflaredOption configures a CloudflaredCheck.
@@ -95,6 +99,22 @@ func WithConnectTimeout(timeout time.Duration) CloudflaredOption {
 	}
 }
 
+// WithCloudflaredExecutor sets the command executor (for testing).
+// [REQ:TEST-SEAM-001]
+func WithCloudflaredExecutor(executor checks.CommandExecutor) CloudflaredOption {
+	return func(c *CloudflaredCheck) {
+		c.executor = executor
+	}
+}
+
+// WithCloudflaredHTTPClient sets the HTTP client (for testing).
+// [REQ:TEST-SEAM-001]
+func WithCloudflaredHTTPClient(client checks.HTTPDoer) CloudflaredOption {
+	return func(c *CloudflaredCheck) {
+		c.httpClient = client
+	}
+}
+
 // NewCloudflaredCheck creates a cloudflared health check with injected platform capabilities.
 // Options can configure local port testing and external URL verification.
 func NewCloudflaredCheck(caps *platform.Capabilities, opts ...CloudflaredOption) *CloudflaredCheck {
@@ -102,6 +122,7 @@ func NewCloudflaredCheck(caps *platform.Capabilities, opts ...CloudflaredOption)
 		caps:           caps,
 		localTestPort:  21774, // Default: app-monitor UI port
 		connectTimeout: 5 * time.Second,
+		executor:       checks.DefaultExecutor,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -109,9 +130,11 @@ func NewCloudflaredCheck(caps *platform.Capabilities, opts ...CloudflaredOption)
 	return c
 }
 
-func (c *CloudflaredCheck) ID() string          { return "infra-cloudflared" }
-func (c *CloudflaredCheck) Title() string       { return "Cloudflare Tunnel" }
-func (c *CloudflaredCheck) Description() string { return "Verifies cloudflared service is installed and running" }
+func (c *CloudflaredCheck) ID() string    { return "infra-cloudflared" }
+func (c *CloudflaredCheck) Title() string { return "Cloudflare Tunnel" }
+func (c *CloudflaredCheck) Description() string {
+	return "Verifies cloudflared service is installed and running"
+}
 func (c *CloudflaredCheck) Importance() string {
 	return "Required for external access to hosted scenarios via Cloudflare Tunnel"
 }
@@ -157,8 +180,7 @@ func (c *CloudflaredCheck) Run(ctx context.Context) checks.Result {
 
 // checkSystemdService verifies cloudflared via systemctl
 func (c *CloudflaredCheck) checkSystemdService(ctx context.Context, result checks.Result) checks.Result {
-	cmd := exec.CommandContext(ctx, "systemctl", "is-active", "cloudflared")
-	output, err := cmd.Output()
+	output, err := c.executor.Output(ctx, "systemctl", "is-active", "cloudflared")
 	status := strings.TrimSpace(string(output))
 	result.Details["serviceStatus"] = status
 
@@ -292,8 +314,7 @@ func (c *CloudflaredCheck) countRecentErrors(ctx context.Context) int {
 	// Get the time 5 minutes ago in the format journalctl expects
 	since := time.Now().Add(-5 * time.Minute).Format("2006-01-02 15:04:05")
 
-	cmd := exec.CommandContext(ctx, "journalctl", "-u", "cloudflared", "--since", since, "--no-pager")
-	output, err := cmd.Output()
+	output, err := c.executor.Output(ctx, "journalctl", "-u", "cloudflared", "--since", since, "--no-pager")
 	if err != nil {
 		return 0 // Unable to check logs, assume OK
 	}
@@ -372,8 +393,7 @@ func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) c
 
 	switch actionID {
 	case "start":
-		cmd := exec.CommandContext(ctx, "sudo", "systemctl", "start", "cloudflared")
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "start", "cloudflared")
 		result.Output = string(output)
 		if err != nil {
 			result.Duration = time.Since(start)
@@ -386,8 +406,7 @@ func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) c
 		return c.verifyRecovery(ctx, result, "start", start)
 
 	case "restart":
-		cmd := exec.CommandContext(ctx, "sudo", "systemctl", "restart", "cloudflared")
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "cloudflared")
 		result.Output = string(output)
 		if err != nil {
 			result.Duration = time.Since(start)
@@ -403,8 +422,7 @@ func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) c
 		return c.executeTestTunnel(ctx, start)
 
 	case "logs":
-		cmd := exec.CommandContext(ctx, "journalctl", "-u", "cloudflared", "-n", "100", "--no-pager")
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "journalctl", "-u", "cloudflared", "-n", "100", "--no-pager")
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 		if err != nil {
@@ -496,23 +514,20 @@ func (c *CloudflaredCheck) executeDiagnose(ctx context.Context, start time.Time)
 
 	// Service status
 	outputBuilder.WriteString("=== Service Status ===\n")
-	statusCmd := exec.CommandContext(ctx, "systemctl", "status", "cloudflared")
-	statusOutput, _ := statusCmd.CombinedOutput()
+	statusOutput, _ := c.executor.CombinedOutput(ctx, "systemctl", "status", "cloudflared")
 	outputBuilder.Write(statusOutput)
 	outputBuilder.WriteString("\n\n")
 
 	// Tunnel info
 	outputBuilder.WriteString("=== Tunnel Info ===\n")
-	infoCmd := exec.CommandContext(ctx, "cloudflared", "tunnel", "info")
-	infoOutput, _ := infoCmd.CombinedOutput()
+	infoOutput, _ := c.executor.CombinedOutput(ctx, "cloudflared", "tunnel", "info")
 	outputBuilder.Write(infoOutput)
 	outputBuilder.WriteString("\n\n")
 
 	// Recent logs with errors
 	outputBuilder.WriteString("=== Recent Errors (last 5 minutes) ===\n")
 	since := time.Now().Add(-5 * time.Minute).Format("2006-01-02 15:04:05")
-	logCmd := exec.CommandContext(ctx, "journalctl", "-u", "cloudflared", "--since", since, "--no-pager", "-p", "err")
-	logOutput, _ := logCmd.CombinedOutput()
+	logOutput, _ := c.executor.CombinedOutput(ctx, "journalctl", "-u", "cloudflared", "--since", since, "--no-pager", "-p", "err")
 	if len(strings.TrimSpace(string(logOutput))) > 0 {
 		outputBuilder.Write(logOutput)
 	} else {

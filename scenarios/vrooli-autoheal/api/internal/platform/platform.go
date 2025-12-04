@@ -22,20 +22,20 @@ const (
 
 // Capabilities describes what features are available on the current platform
 type Capabilities struct {
-	Platform              Type   `json:"platform"`
-	SupportsRDP           bool   `json:"supportsRdp"`
-	SupportsSystemd       bool   `json:"supportsSystemd"`
-	SupportsLaunchd       bool   `json:"supportsLaunchd"`
-	SupportsWindowsSvc    bool   `json:"supportsWindowsServices"`
-	IsHeadlessServer      bool   `json:"isHeadlessServer"`
-	HasDocker             bool   `json:"hasDocker"`
-	IsWSL                 bool   `json:"isWsl"`
-	SupportsCloudflared   bool   `json:"supportsCloudflared"`
+	Platform            Type `json:"platform"`
+	SupportsRDP         bool `json:"supportsRdp"`
+	SupportsSystemd     bool `json:"supportsSystemd"`
+	SupportsLaunchd     bool `json:"supportsLaunchd"`
+	SupportsWindowsSvc  bool `json:"supportsWindowsServices"`
+	IsHeadlessServer    bool `json:"isHeadlessServer"`
+	HasDocker           bool `json:"hasDocker"`
+	IsWSL               bool `json:"isWsl"`
+	SupportsCloudflared bool `json:"supportsCloudflared"`
 }
 
 var (
-	once         sync.Once
-	cachedCaps   *Capabilities
+	once       sync.Once
+	cachedCaps *Capabilities
 )
 
 // Detect returns the current platform capabilities (cached after first call)

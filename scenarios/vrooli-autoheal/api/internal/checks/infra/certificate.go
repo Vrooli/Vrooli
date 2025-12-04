@@ -16,12 +16,31 @@ import (
 	"vrooli-autoheal/internal/platform"
 )
 
+// FileReader abstracts file system operations for testing.
+// [REQ:TEST-SEAM-001]
+type FileReader interface {
+	ReadFile(path string) ([]byte, error)
+	Stat(path string) (os.FileInfo, error)
+}
+
+// defaultFileReader implements FileReader using the real filesystem.
+type defaultFileReader struct{}
+
+func (d *defaultFileReader) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
+func (d *defaultFileReader) Stat(path string) (os.FileInfo, error) {
+	return os.Stat(path)
+}
+
 // CertificateCheck monitors SSL/TLS certificate expiration.
 // Currently focuses on cloudflared tunnel certificates but can be extended.
 type CertificateCheck struct {
-	warningDays  int      // Days before expiry to warn
-	criticalDays int      // Days before expiry to go critical
-	certPaths    []string // Paths to check for certificates
+	warningDays  int        // Days before expiry to warn
+	criticalDays int        // Days before expiry to go critical
+	certPaths    []string   // Paths to check for certificates
+	fileReader   FileReader // Injectable file reader for testing
 }
 
 // CertificateCheckOption configures a CertificateCheck.
@@ -48,6 +67,14 @@ func WithCertPaths(paths []string) CertificateCheckOption {
 	}
 }
 
+// WithFileReader sets the file reader for testing.
+// [REQ:TEST-SEAM-001]
+func WithFileReader(fr FileReader) CertificateCheckOption {
+	return func(c *CertificateCheck) {
+		c.fileReader = fr
+	}
+}
+
 // NewCertificateCheck creates a certificate expiration check.
 // Default thresholds: warning at 7 days, critical at 3 days.
 func NewCertificateCheck(opts ...CertificateCheckOption) *CertificateCheck {
@@ -55,6 +82,7 @@ func NewCertificateCheck(opts ...CertificateCheckOption) *CertificateCheck {
 		warningDays:  7,
 		criticalDays: 3,
 		certPaths:    getDefaultCertPaths(),
+		fileReader:   &defaultFileReader{},
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -62,9 +90,11 @@ func NewCertificateCheck(opts ...CertificateCheckOption) *CertificateCheck {
 	return c
 }
 
-func (c *CertificateCheck) ID() string          { return "infra-certificate" }
-func (c *CertificateCheck) Title() string       { return "Certificate Expiration" }
-func (c *CertificateCheck) Description() string { return "Monitors SSL/TLS certificate expiration dates" }
+func (c *CertificateCheck) ID() string    { return "infra-certificate" }
+func (c *CertificateCheck) Title() string { return "Certificate Expiration" }
+func (c *CertificateCheck) Description() string {
+	return "Monitors SSL/TLS certificate expiration dates"
+}
 func (c *CertificateCheck) Importance() string {
 	return "Required for secure connections - expired certificates break HTTPS, tunnels, and API access"
 }
@@ -89,7 +119,7 @@ func (c *CertificateCheck) Run(ctx context.Context) checks.Result {
 		expandedPath := expandPath(certPath)
 
 		// Check if file exists
-		if _, err := os.Stat(expandedPath); os.IsNotExist(err) {
+		if _, err := c.fileReader.Stat(expandedPath); os.IsNotExist(err) {
 			continue // Skip missing files silently
 		}
 
@@ -183,8 +213,8 @@ func (c *CertificateCheck) checkCertificate(path string) (certInfo, error) {
 		Path: path,
 	}
 
-	// Read file
-	data, err := os.ReadFile(path)
+	// Read file using injectable file reader
+	data, err := c.fileReader.ReadFile(path)
 	if err != nil {
 		return info, fmt.Errorf("failed to read certificate: %w", err)
 	}

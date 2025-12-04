@@ -1,12 +1,11 @@
 // Package system provides system-level health checks
-// [REQ:SYSTEM-INODE-001]
+// [REQ:SYSTEM-INODE-001] [REQ:TEST-SEAM-001]
 package system
 
 import (
 	"context"
 	"fmt"
 	"runtime"
-	"syscall"
 
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
@@ -18,6 +17,7 @@ type InodeCheck struct {
 	partitions        []string
 	warningThreshold  int // percentage
 	criticalThreshold int // percentage
+	fsReader          checks.FileSystemReader
 }
 
 // InodeCheckOption configures an InodeCheck.
@@ -38,6 +38,14 @@ func WithInodeThresholds(warning, critical int) InodeCheckOption {
 	}
 }
 
+// WithInodeFileSystemReader sets the filesystem reader (for testing).
+// [REQ:TEST-SEAM-001]
+func WithInodeFileSystemReader(reader checks.FileSystemReader) InodeCheckOption {
+	return func(c *InodeCheck) {
+		c.fsReader = reader
+	}
+}
+
 // NewInodeCheck creates an inode usage check.
 // Default partitions: "/"
 // Default thresholds: warning at 80%, critical at 90%
@@ -46,6 +54,7 @@ func NewInodeCheck(opts ...InodeCheckOption) *InodeCheck {
 		partitions:        []string{"/"},
 		warningThreshold:  80,
 		criticalThreshold: 90,
+		fsReader:          checks.DefaultFileSystemReader,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -53,9 +62,11 @@ func NewInodeCheck(opts ...InodeCheckOption) *InodeCheck {
 	return c
 }
 
-func (c *InodeCheck) ID() string          { return "system-inode" }
-func (c *InodeCheck) Title() string       { return "Inode Usage" }
-func (c *InodeCheck) Description() string { return "Monitors inode usage to prevent file creation failures" }
+func (c *InodeCheck) ID() string    { return "system-inode" }
+func (c *InodeCheck) Title() string { return "Inode Usage" }
+func (c *InodeCheck) Description() string {
+	return "Monitors inode usage to prevent file creation failures"
+}
 func (c *InodeCheck) Importance() string {
 	return "Inode exhaustion causes 'no space left on device' errors even with free disk space"
 }
@@ -82,8 +93,7 @@ func (c *InodeCheck) Run(ctx context.Context) checks.Result {
 	partitionDetails := make([]map[string]interface{}, 0)
 
 	for _, partition := range c.partitions {
-		var stat syscall.Statfs_t
-		err := syscall.Statfs(partition, &stat)
+		stat, err := c.fsReader.Statfs(partition)
 		if err != nil {
 			subChecks = append(subChecks, checks.SubCheck{
 				Name:   partition,
@@ -127,12 +137,12 @@ func (c *InodeCheck) Run(ctx context.Context) checks.Result {
 		})
 
 		partitionDetails = append(partitionDetails, map[string]interface{}{
-			"partition":    partition,
-			"usedPercent":  usedPercent,
-			"usedInodes":   usedInodes,
-			"totalInodes":  totalInodes,
-			"freeInodes":   freeInodes,
-			"status":       string(partStatus),
+			"partition":   partition,
+			"usedPercent": usedPercent,
+			"usedInodes":  usedInodes,
+			"totalInodes": totalInodes,
+			"freeInodes":  freeInodes,
+			"status":      string(partStatus),
 		})
 	}
 

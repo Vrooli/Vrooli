@@ -1,11 +1,10 @@
 // Package infra provides infrastructure health checks
-// [REQ:INFRA-DOCKER-001] [REQ:HEAL-ACTION-001]
+// [REQ:INFRA-DOCKER-001] [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 package infra
 
 import (
 	"context"
 	"encoding/json"
-	"os/exec"
 	"runtime"
 	"time"
 
@@ -15,15 +14,40 @@ import (
 
 // DockerCheck verifies Docker daemon is responsive
 type DockerCheck struct {
-	caps *platform.Capabilities
+	caps     *platform.Capabilities
+	executor checks.CommandExecutor
+}
+
+// DockerCheckOption configures a DockerCheck.
+type DockerCheckOption func(*DockerCheck)
+
+// WithDockerExecutor sets the command executor (for testing).
+func WithDockerExecutor(executor checks.CommandExecutor) DockerCheckOption {
+	return func(c *DockerCheck) {
+		c.executor = executor
+	}
 }
 
 // NewDockerCheck creates a Docker health check
 // Platform capabilities are optional (for recovery actions).
 func NewDockerCheck(caps ...*platform.Capabilities) *DockerCheck {
-	c := &DockerCheck{}
+	c := &DockerCheck{
+		executor: checks.DefaultExecutor,
+	}
 	if len(caps) > 0 {
 		c.caps = caps[0]
+	}
+	return c
+}
+
+// NewDockerCheckWithOptions creates a Docker health check with options.
+func NewDockerCheckWithOptions(caps *platform.Capabilities, opts ...DockerCheckOption) *DockerCheck {
+	c := &DockerCheck{
+		caps:     caps,
+		executor: checks.DefaultExecutor,
+	}
+	for _, opt := range opts {
+		opt(c)
 	}
 	return c
 }
@@ -34,8 +58,8 @@ func (c *DockerCheck) Description() string { return "Verifies Docker daemon is r
 func (c *DockerCheck) Importance() string {
 	return "Required for running containers - most Vrooli scenarios depend on Docker"
 }
-func (c *DockerCheck) Category() checks.Category  { return checks.CategoryInfrastructure }
-func (c *DockerCheck) IntervalSeconds() int       { return 60 }
+func (c *DockerCheck) Category() checks.Category { return checks.CategoryInfrastructure }
+func (c *DockerCheck) IntervalSeconds() int      { return 60 }
 func (c *DockerCheck) Platforms() []platform.Type {
 	return []platform.Type{platform.Linux, platform.MacOS}
 }
@@ -46,8 +70,8 @@ func (c *DockerCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	cmd := exec.CommandContext(ctx, "docker", "info", "--format", "{{json .}}")
-	output, err := cmd.Output()
+	// Use injected executor
+	output, err := c.executor.Output(ctx, "docker", "info", "--format", "{{json .}}")
 
 	if err != nil {
 		result.Status = checks.StatusCritical
@@ -149,8 +173,7 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 
 	switch actionID {
 	case "restart":
-		cmd := exec.CommandContext(ctx, "sudo", "systemctl", "restart", "docker")
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "docker")
 		result.Output = string(output)
 
 		if err != nil {
@@ -165,8 +188,7 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 		return c.verifyRecovery(ctx, result, "restart", start)
 
 	case "start":
-		cmd := exec.CommandContext(ctx, "sudo", "systemctl", "start", "docker")
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "start", "docker")
 		result.Output = string(output)
 
 		if err != nil {
@@ -182,8 +204,7 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 
 	case "prune":
 		// Use docker system prune with --force to avoid interactive prompt
-		cmd := exec.CommandContext(ctx, "docker", "system", "prune", "--force")
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "docker", "system", "prune", "--force")
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 
@@ -199,8 +220,7 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 		return result
 
 	case "logs":
-		cmd := exec.CommandContext(ctx, "journalctl", "-u", "docker", "-n", "100", "--no-pager")
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "journalctl", "-u", "docker", "-n", "100", "--no-pager")
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 
@@ -216,8 +236,7 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 		return result
 
 	case "info":
-		cmd := exec.CommandContext(ctx, "docker", "info")
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "docker", "info")
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 
@@ -234,8 +253,7 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 
 	case "open-desktop":
 		// macOS: open Docker Desktop
-		cmd := exec.CommandContext(ctx, "open", "-a", "Docker")
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "open", "-a", "Docker")
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 

@@ -4,10 +4,10 @@ package userconfig
 
 // Config is the root configuration structure
 type Config struct {
-	Version string            `json:"version"`
-	Global  GlobalConfig      `json:"global,omitempty"`
-	Checks  map[string]Check  `json:"checks,omitempty"`
-	UI      UIConfig          `json:"ui,omitempty"`
+	Version string           `json:"version"`
+	Global  GlobalConfig     `json:"global,omitempty"`
+	Checks  map[string]Check `json:"checks,omitempty"`
+	UI      UIConfig         `json:"ui,omitempty"`
 }
 
 // GlobalConfig contains settings that apply to all checks
@@ -22,11 +22,11 @@ type GlobalConfig struct {
 
 // Check contains per-check configuration
 type Check struct {
-	Enabled         *bool           `json:"enabled,omitempty"`
-	AutoHeal        *bool           `json:"autoHeal,omitempty"`
-	IntervalSeconds *int            `json:"intervalSeconds,omitempty"`
-	Thresholds      *Thresholds     `json:"thresholds,omitempty"`
-	Settings        *CheckSettings  `json:"settings,omitempty"`
+	Enabled         *bool          `json:"enabled,omitempty"`
+	AutoHeal        *bool          `json:"autoHeal,omitempty"`
+	IntervalSeconds *int           `json:"intervalSeconds,omitempty"`
+	Thresholds      *Thresholds    `json:"thresholds,omitempty"`
+	Settings        *CheckSettings `json:"settings,omitempty"`
 }
 
 // Thresholds contains check-specific threshold overrides
@@ -48,10 +48,10 @@ type CheckSettings struct {
 
 // UIConfig contains UI display preferences
 type UIConfig struct {
-	AutoRefreshSeconds  int    `json:"autoRefreshSeconds,omitempty"`
-	Theme               string `json:"theme,omitempty"`
-	ShowDisabledChecks  bool   `json:"showDisabledChecks,omitempty"`
-	DefaultTab          string `json:"defaultTab,omitempty"`
+	AutoRefreshSeconds int    `json:"autoRefreshSeconds,omitempty"`
+	Theme              string `json:"theme,omitempty"`
+	ShowDisabledChecks bool   `json:"showDisabledChecks,omitempty"`
+	DefaultTab         string `json:"defaultTab,omitempty"`
 }
 
 // ValidationError represents a config validation error

@@ -1,5 +1,5 @@
 // Package system provides system-level health checks
-// [REQ:SYSTEM-CLAUDE-CACHE-001] [REQ:HEAL-ACTION-001]
+// [REQ:SYSTEM-CLAUDE-CACHE-001] [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 package system
 
 import (
@@ -22,6 +22,8 @@ type ClaudeCacheCheck struct {
 	todoMaxAgeDays    int // Age in days for todo cleanup
 	historyMaxAgeDays int // Age in days for history cleanup
 	shellMaxAgeDays   int // Age in days for shell snapshot cleanup
+	cacheChecker      checks.CacheChecker
+	homeDirFunc       func() (string, error) // For testing home directory lookup
 }
 
 // ClaudeCacheCheckOption configures a ClaudeCacheCheck.
@@ -35,6 +37,22 @@ func WithClaudeCacheThresholds(warning, critical int) ClaudeCacheCheckOption {
 	}
 }
 
+// WithCacheChecker sets the cache checker (for testing).
+// [REQ:TEST-SEAM-001]
+func WithCacheChecker(checker checks.CacheChecker) ClaudeCacheCheckOption {
+	return func(c *ClaudeCacheCheck) {
+		c.cacheChecker = checker
+	}
+}
+
+// WithHomeDirFunc sets the home directory lookup function (for testing).
+// [REQ:TEST-SEAM-001]
+func WithHomeDirFunc(fn func() (string, error)) ClaudeCacheCheckOption {
+	return func(c *ClaudeCacheCheck) {
+		c.homeDirFunc = fn
+	}
+}
+
 // NewClaudeCacheCheck creates a Claude Code cache check.
 // Default thresholds: warning at 5000 files, critical at 10000 files.
 func NewClaudeCacheCheck(opts ...ClaudeCacheCheckOption) *ClaudeCacheCheck {
@@ -44,6 +62,8 @@ func NewClaudeCacheCheck(opts ...ClaudeCacheCheckOption) *ClaudeCacheCheck {
 		todoMaxAgeDays:    7,
 		historyMaxAgeDays: 30,
 		shellMaxAgeDays:   7,
+		cacheChecker:      checks.DefaultCacheChecker,
+		homeDirFunc:       os.UserHomeDir,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -69,8 +89,8 @@ func (c *ClaudeCacheCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	// Get Claude cache directory
-	home, err := os.UserHomeDir()
+	// Get Claude cache directory via injected function
+	home, err := c.homeDirFunc()
 	if err != nil {
 		result.Status = checks.StatusWarning
 		result.Message = "Could not determine home directory"
@@ -239,12 +259,12 @@ func (c *ClaudeCacheCheck) RecoveryActions(lastResult *checks.Result) []checks.R
 
 	return []checks.RecoveryAction{
 		{
-			ID:          "cleanup-stale",
-			Name:        "Cleanup Stale Files",
+			ID:   "cleanup-stale",
+			Name: "Cleanup Stale Files",
 			Description: fmt.Sprintf("Remove stale files (todos >%dd, history >%dd, shells >%dd)",
 				c.todoMaxAgeDays, c.historyMaxAgeDays, c.shellMaxAgeDays),
-			Dangerous:   false,
-			Available:   hasStaleFiles,
+			Dangerous: false,
+			Available: hasStaleFiles,
 		},
 		{
 			ID:          "cleanup-all",

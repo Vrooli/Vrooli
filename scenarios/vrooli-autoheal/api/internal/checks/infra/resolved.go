@@ -1,10 +1,9 @@
 // Package infra provides infrastructure health checks
-// [REQ:INFRA-RESOLVED-001]
+// [REQ:INFRA-RESOLVED-001] [REQ:TEST-SEAM-001]
 package infra
 
 import (
 	"context"
-	"os/exec"
 	"runtime"
 	"strings"
 	"time"
@@ -16,13 +15,32 @@ import (
 // ResolvedCheck monitors the systemd-resolved DNS service.
 // This service handles DNS resolution on modern Linux systems.
 type ResolvedCheck struct {
-	caps *platform.Capabilities
+	caps     *platform.Capabilities
+	executor checks.CommandExecutor
+}
+
+// ResolvedCheckOption configures a ResolvedCheck.
+type ResolvedCheckOption func(*ResolvedCheck)
+
+// WithResolvedExecutor sets the command executor (for testing).
+// [REQ:TEST-SEAM-001]
+func WithResolvedExecutor(executor checks.CommandExecutor) ResolvedCheckOption {
+	return func(c *ResolvedCheck) {
+		c.executor = executor
+	}
 }
 
 // NewResolvedCheck creates a systemd-resolved health check.
 // Platform capabilities are injected for testability.
-func NewResolvedCheck(caps *platform.Capabilities) *ResolvedCheck {
-	return &ResolvedCheck{caps: caps}
+func NewResolvedCheck(caps *platform.Capabilities, opts ...ResolvedCheckOption) *ResolvedCheck {
+	c := &ResolvedCheck{
+		caps:     caps,
+		executor: checks.DefaultExecutor,
+	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 func (c *ResolvedCheck) ID() string    { return "infra-resolved" }
@@ -109,8 +127,7 @@ func (c *ResolvedCheck) Run(ctx context.Context) checks.Result {
 
 // serviceExists checks if systemd-resolved service exists
 func (c *ResolvedCheck) serviceExists(ctx context.Context) bool {
-	cmd := exec.CommandContext(ctx, "systemctl", "list-unit-files", "systemd-resolved.service")
-	output, err := cmd.Output()
+	output, err := c.executor.Output(ctx, "systemctl", "list-unit-files", "systemd-resolved.service")
 	if err != nil {
 		return false
 	}
@@ -119,16 +136,14 @@ func (c *ResolvedCheck) serviceExists(ctx context.Context) bool {
 
 // getServiceStatus returns the current service status
 func (c *ResolvedCheck) getServiceStatus(ctx context.Context) string {
-	cmd := exec.CommandContext(ctx, "systemctl", "is-active", "systemd-resolved")
-	output, _ := cmd.Output()
+	output, _ := c.executor.Output(ctx, "systemctl", "is-active", "systemd-resolved")
 	return strings.TrimSpace(string(output))
 }
 
 // getResolverStats attempts to get DNS resolution statistics
 func (c *ResolvedCheck) getResolverStats(ctx context.Context) map[string]interface{} {
 	// Try to get stats from resolvectl if available
-	cmd := exec.CommandContext(ctx, "resolvectl", "statistics")
-	output, err := cmd.Output()
+	output, err := c.executor.Output(ctx, "resolvectl", "statistics")
 	if err != nil {
 		return nil
 	}
@@ -207,22 +222,23 @@ func (c *ResolvedCheck) ExecuteAction(ctx context.Context, actionID string) chec
 		Timestamp: start,
 	}
 
-	var cmd *exec.Cmd
+	var output []byte
+	var err error
 	needsVerification := false
 	switch actionID {
 	case "start":
-		cmd = exec.CommandContext(ctx, "sudo", "systemctl", "start", "systemd-resolved")
+		output, err = c.executor.CombinedOutput(ctx, "sudo", "systemctl", "start", "systemd-resolved")
 		result.Message = "Starting systemd-resolved service"
 		needsVerification = true
 	case "restart":
-		cmd = exec.CommandContext(ctx, "sudo", "systemctl", "restart", "systemd-resolved")
+		output, err = c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "systemd-resolved")
 		result.Message = "Restarting systemd-resolved service"
 		needsVerification = true
 	case "flush-cache":
-		cmd = exec.CommandContext(ctx, "sudo", "resolvectl", "flush-caches")
+		output, err = c.executor.CombinedOutput(ctx, "sudo", "resolvectl", "flush-caches")
 		result.Message = "Flushing DNS cache"
 	case "logs":
-		cmd = exec.CommandContext(ctx, "journalctl", "-u", "systemd-resolved", "-n", "50", "--no-pager")
+		output, err = c.executor.CombinedOutput(ctx, "journalctl", "-u", "systemd-resolved", "-n", "50", "--no-pager")
 		result.Message = "Retrieved systemd-resolved logs"
 	default:
 		result.Success = false
@@ -231,7 +247,6 @@ func (c *ResolvedCheck) ExecuteAction(ctx context.Context, actionID string) chec
 		return result
 	}
 
-	output, err := cmd.CombinedOutput()
 	result.Output = string(output)
 
 	if err != nil {

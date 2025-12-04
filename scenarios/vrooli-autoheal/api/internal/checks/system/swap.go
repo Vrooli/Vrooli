@@ -1,15 +1,11 @@
 // Package system provides system-level health checks
-// [REQ:SYSTEM-SWAP-001]
+// [REQ:SYSTEM-SWAP-001] [REQ:TEST-SEAM-001]
 package system
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
 	"runtime"
-	"strconv"
-	"strings"
 
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
@@ -19,6 +15,7 @@ import (
 type SwapCheck struct {
 	warningThreshold  int // percentage
 	criticalThreshold int // percentage
+	procReader        checks.ProcReader
 }
 
 // SwapCheckOption configures a SwapCheck.
@@ -32,12 +29,21 @@ func WithSwapThresholds(warning, critical int) SwapCheckOption {
 	}
 }
 
+// WithSwapProcReader sets the proc reader (for testing).
+// [REQ:TEST-SEAM-001]
+func WithSwapProcReader(reader checks.ProcReader) SwapCheckOption {
+	return func(c *SwapCheck) {
+		c.procReader = reader
+	}
+}
+
 // NewSwapCheck creates a swap usage check.
 // Default thresholds: warning at 50%, critical at 80%
 func NewSwapCheck(opts ...SwapCheckOption) *SwapCheck {
 	c := &SwapCheck{
 		warningThreshold:  50,
 		criticalThreshold: 80,
+		procReader:        checks.DefaultProcReader,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -45,9 +51,11 @@ func NewSwapCheck(opts ...SwapCheckOption) *SwapCheck {
 	return c
 }
 
-func (c *SwapCheck) ID() string          { return "system-swap" }
-func (c *SwapCheck) Title() string       { return "Swap Usage" }
-func (c *SwapCheck) Description() string { return "Monitors swap usage as an indicator of memory pressure" }
+func (c *SwapCheck) ID() string    { return "system-swap" }
+func (c *SwapCheck) Title() string { return "Swap Usage" }
+func (c *SwapCheck) Description() string {
+	return "Monitors swap usage as an indicator of memory pressure"
+}
 func (c *SwapCheck) Importance() string {
 	return "High swap usage indicates memory pressure and can cause severe performance degradation"
 }
@@ -68,14 +76,17 @@ func (c *SwapCheck) Run(ctx context.Context) checks.Result {
 		return result
 	}
 
-	// Read /proc/meminfo to get swap information
-	swapTotal, swapFree, err := readSwapInfo()
+	// Read swap information via injected reader
+	memInfo, err := c.procReader.ReadMeminfo()
 	if err != nil {
 		result.Status = checks.StatusCritical
 		result.Message = "Failed to read swap information"
 		result.Details["error"] = err.Error()
 		return result
 	}
+
+	swapTotal := memInfo.SwapTotal
+	swapFree := memInfo.SwapFree
 
 	result.Details["swapTotalKB"] = swapTotal
 	result.Details["swapFreeKB"] = swapFree
@@ -129,31 +140,4 @@ func (c *SwapCheck) Run(ctx context.Context) checks.Result {
 	}
 
 	return result
-}
-
-// readSwapInfo reads swap total and free from /proc/meminfo
-func readSwapInfo() (total, free uint64, err error) {
-	file, err := os.Open("/proc/meminfo")
-	if err != nil {
-		return 0, 0, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			continue
-		}
-
-		switch fields[0] {
-		case "SwapTotal:":
-			total, _ = strconv.ParseUint(fields[1], 10, 64)
-		case "SwapFree:":
-			free, _ = strconv.ParseUint(fields[1], 10, 64)
-		}
-	}
-
-	return total, free, scanner.Err()
 }

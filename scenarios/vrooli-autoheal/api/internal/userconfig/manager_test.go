@@ -28,8 +28,8 @@ func TestDefaultConfig(t *testing.T) {
 
 func TestGetCheckDefaults(t *testing.T) {
 	tests := []struct {
-		checkID         string
-		expectedEnabled bool
+		checkID          string
+		expectedEnabled  bool
 		expectedAutoHeal bool
 	}{
 		{"infra-network", true, false},
@@ -97,9 +97,9 @@ func TestManagerValidation(t *testing.T) {
 	mgr := NewManager(filepath.Join(tmpDir, "config.json"), filepath.Join(tmpDir, "schema.json"))
 
 	tests := []struct {
-		name    string
-		config  Config
-		valid   bool
+		name   string
+		config Config
+		valid  bool
 	}{
 		{
 			name: "valid config",

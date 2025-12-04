@@ -1,13 +1,10 @@
 // Package system provides system-level health checks
-// [REQ:SYSTEM-ZOMBIES-001] [REQ:HEAL-ACTION-001]
+// [REQ:SYSTEM-ZOMBIES-001] [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 package system
 
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -22,6 +19,8 @@ import (
 type ZombieCheck struct {
 	warningThreshold  int // count
 	criticalThreshold int // count
+	procReader        checks.ProcReader
+	executor          checks.CommandExecutor
 }
 
 // ZombieCheckOption configures a ZombieCheck.
@@ -35,12 +34,30 @@ func WithZombieThresholds(warning, critical int) ZombieCheckOption {
 	}
 }
 
+// WithZombieProcReader sets the proc reader (for testing).
+// [REQ:TEST-SEAM-001]
+func WithZombieProcReader(reader checks.ProcReader) ZombieCheckOption {
+	return func(c *ZombieCheck) {
+		c.procReader = reader
+	}
+}
+
+// WithZombieExecutor sets the command executor (for testing).
+// [REQ:TEST-SEAM-001]
+func WithZombieExecutor(executor checks.CommandExecutor) ZombieCheckOption {
+	return func(c *ZombieCheck) {
+		c.executor = executor
+	}
+}
+
 // NewZombieCheck creates a zombie process check.
 // Default thresholds: warning at 5 zombies, critical at 20 zombies
 func NewZombieCheck(opts ...ZombieCheckOption) *ZombieCheck {
 	c := &ZombieCheck{
 		warningThreshold:  5,
 		criticalThreshold: 20,
+		procReader:        checks.DefaultProcReader,
+		executor:          checks.DefaultExecutor,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -48,9 +65,11 @@ func NewZombieCheck(opts ...ZombieCheckOption) *ZombieCheck {
 	return c
 }
 
-func (c *ZombieCheck) ID() string          { return "system-zombies" }
-func (c *ZombieCheck) Title() string       { return "Zombie Processes" }
-func (c *ZombieCheck) Description() string { return "Detects zombie (defunct) processes that indicate resource leaks" }
+func (c *ZombieCheck) ID() string    { return "system-zombies" }
+func (c *ZombieCheck) Title() string { return "Zombie Processes" }
+func (c *ZombieCheck) Description() string {
+	return "Detects zombie (defunct) processes that indicate resource leaks"
+}
 func (c *ZombieCheck) Importance() string {
 	return "Zombie processes indicate parent processes not reaping children, which can exhaust process table"
 }
@@ -71,7 +90,7 @@ func (c *ZombieCheck) Run(ctx context.Context) checks.Result {
 		return result
 	}
 
-	zombies, zombieInfo, err := countZombies()
+	zombies, zombieInfo, err := c.countZombies()
 	if err != nil {
 		result.Status = checks.StatusCritical
 		result.Message = "Failed to count zombie processes"
@@ -132,14 +151,15 @@ func (c *ZombieCheck) Run(ctx context.Context) checks.Result {
 
 // zombieProcessInfo contains information about a zombie process
 type zombieProcessInfo struct {
-	PID    string `json:"pid"`
-	PPID   string `json:"ppid"`
-	Name   string `json:"name"`
+	PID  string `json:"pid"`
+	PPID string `json:"ppid"`
+	Name string `json:"name"`
 }
 
-// countZombies counts zombie processes by reading /proc
-func countZombies() (int, []zombieProcessInfo, error) {
-	entries, err := os.ReadDir("/proc")
+// countZombies counts zombie processes using the injected ProcReader.
+// [REQ:TEST-SEAM-001]
+func (c *ZombieCheck) countZombies() (int, []zombieProcessInfo, error) {
+	processes, err := c.procReader.ListProcesses()
 	if err != nil {
 		return 0, nil, err
 	}
@@ -147,54 +167,13 @@ func countZombies() (int, []zombieProcessInfo, error) {
 	var zombies []zombieProcessInfo
 	count := 0
 
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		// Skip non-numeric directories (not PIDs)
-		name := entry.Name()
-		if len(name) == 0 || name[0] < '0' || name[0] > '9' {
-			continue
-		}
-
-		statPath := filepath.Join("/proc", name, "stat")
-		data, err := os.ReadFile(statPath)
-		if err != nil {
-			continue // Process may have exited
-		}
-
-		// Parse stat file: pid (comm) state ppid ...
-		line := string(data)
-
-		// Find the closing parenthesis of comm (process name can contain spaces)
-		closeParenIdx := strings.LastIndex(line, ")")
-		if closeParenIdx == -1 || closeParenIdx+2 >= len(line) {
-			continue
-		}
-
-		// State is the first field after ")"
-		remaining := strings.TrimSpace(line[closeParenIdx+1:])
-		fields := strings.Fields(remaining)
-		if len(fields) < 2 {
-			continue
-		}
-
-		state := fields[0]
-		if state == "Z" {
+	for _, proc := range processes {
+		if proc.State == "Z" {
 			count++
-
-			// Extract comm (process name between parentheses)
-			openParenIdx := strings.Index(line, "(")
-			comm := ""
-			if openParenIdx != -1 && closeParenIdx > openParenIdx {
-				comm = line[openParenIdx+1 : closeParenIdx]
-			}
-
 			zombies = append(zombies, zombieProcessInfo{
-				PID:  name,
-				PPID: fields[1],
-				Name: comm,
+				PID:  strconv.Itoa(proc.PID),
+				PPID: strconv.Itoa(proc.PPid),
+				Name: proc.Comm,
 			})
 		}
 	}
@@ -295,7 +274,7 @@ func (c *ZombieCheck) executeReap(ctx context.Context, start time.Time) checks.A
 	time.Sleep(2 * time.Second)
 
 	// Check remaining zombies
-	remainingCount, _, _ := countZombies()
+	remainingCount, _, _ := c.countZombies()
 
 	result.Duration = time.Since(start)
 	result.Output = fmt.Sprintf("Signaled %d parent processes, %d failed\nRemaining zombies: %d",
@@ -321,9 +300,8 @@ func (c *ZombieCheck) executeList(ctx context.Context, start time.Time) checks.A
 		Timestamp: start,
 	}
 
-	// Use ps to get zombie process info
-	cmd := exec.CommandContext(ctx, "ps", "aux")
-	output, err := cmd.Output()
+	// Use ps to get zombie process info via executor
+	output, err := c.executor.Output(ctx, "ps", "aux")
 	if err != nil {
 		result.Success = false
 		result.Error = err.Error()
@@ -353,7 +331,7 @@ func (c *ZombieCheck) executeList(ctx context.Context, start time.Time) checks.A
 
 // getZombieParentPIDs returns unique parent PIDs of all zombie processes
 func (c *ZombieCheck) getZombieParentPIDs() ([]int, error) {
-	_, zombieInfo, err := countZombies()
+	_, zombieInfo, err := c.countZombies()
 	if err != nil {
 		return nil, err
 	}

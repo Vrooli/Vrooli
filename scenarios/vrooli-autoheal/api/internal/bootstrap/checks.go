@@ -12,9 +12,6 @@ import (
 	"time"
 
 	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/checks/infra"
-	"vrooli-autoheal/internal/checks/system"
-	"vrooli-autoheal/internal/checks/vrooli"
 	"vrooli-autoheal/internal/platform"
 )
 
@@ -28,58 +25,28 @@ const (
 // RegisterDefaultChecks adds all standard health checks to the registry.
 // This centralizes check registration, keeping main.go focused on server setup.
 // Platform capabilities are passed to checks that need them for runtime decisions.
+// Uses the default factory for check creation.
 func RegisterDefaultChecks(registry *checks.Registry, caps *platform.Capabilities) {
-	// Infrastructure checks - explicit targets make dependencies clear
-	registry.Register(infra.NewNetworkCheck(DefaultNetworkTarget))
-	registry.Register(infra.NewDNSCheck(DefaultDNSDomain, caps))
-	registry.Register(infra.NewDockerCheck(caps))
-	registry.Register(infra.NewCloudflaredCheck(caps))
-	registry.Register(infra.NewRDPCheck(caps))
-	registry.Register(infra.NewNTPCheck(caps))
-	registry.Register(infra.NewResolvedCheck(caps))
-	registry.Register(infra.NewCertificateCheck())
-	registry.Register(infra.NewDisplayManagerCheck(caps))
+	RegisterChecksWithFactory(registry, caps, NewDefaultCheckFactory())
+}
 
-	// Vrooli API check - monitors the central orchestration layer
-	registry.Register(vrooli.NewAPICheck())
-
-	// Vrooli resource checks - core infrastructure services
-	registry.Register(vrooli.NewResourceCheck("postgres"))
-	registry.Register(vrooli.NewResourceCheck("redis"))
-	registry.Register(vrooli.NewResourceCheck("ollama"))
-	registry.Register(vrooli.NewResourceCheck("qdrant"))
-	registry.Register(vrooli.NewResourceCheck("searxng"))
-	registry.Register(vrooli.NewResourceCheck("browserless"))
-
-	// System checks - host-level health monitoring
-	registry.Register(system.NewDiskCheck())
-	registry.Register(system.NewInodeCheck())
-	registry.Register(system.NewSwapCheck())
-	registry.Register(system.NewZombieCheck())
-	registry.Register(system.NewPortCheck())
-	registry.Register(system.NewClaudeCacheCheck())
-
-	// Vrooli scenario checks - application/microservice health monitoring
-	// Critical scenarios are core to Vrooli's operation
-	criticalScenarios := []string{
-		"app-monitor",        // System health dashboard
-		"ecosystem-manager",  // Scenario improvement queue
-	}
-	for _, name := range criticalScenarios {
-		registry.Register(vrooli.NewScenarioCheck(name, true))
+// RegisterChecksWithFactory adds health checks to the registry using the provided factory.
+// This enables testing check registration with mock factories.
+// [REQ:TEST-SEAM-001]
+func RegisterChecksWithFactory(registry *checks.Registry, caps *platform.Capabilities, factory CheckFactory) {
+	// Infrastructure checks
+	for _, check := range factory.CreateInfrastructureChecks(caps) {
+		registry.Register(check)
 	}
 
-	// Non-critical scenarios - useful but not essential
-	nonCriticalScenarios := []string{
-		"landing-manager",        // Landing page management
-		"browser-automation-studio", // Browser automation
-		"test-genie",             // Test generation
-		"deployment-manager",     // Deployment management
-		"git-control-tower",      // Git operations
-		"tidiness-manager",       // Code quality
+	// System checks
+	for _, check := range factory.CreateSystemChecks() {
+		registry.Register(check)
 	}
-	for _, name := range nonCriticalScenarios {
-		registry.Register(vrooli.NewScenarioCheck(name, false))
+
+	// Vrooli checks (API, resources, scenarios)
+	for _, check := range factory.CreateVrooliChecks() {
+		registry.Register(check)
 	}
 }
 

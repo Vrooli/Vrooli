@@ -4,7 +4,6 @@ package infra
 
 import (
 	"context"
-	"os/exec"
 	"runtime"
 	"strings"
 	"time"
@@ -16,17 +15,38 @@ import (
 // DisplayManagerCheck monitors the display manager (GDM, LightDM, SDDM, etc.)
 // and X11/Wayland responsiveness on Linux systems.
 type DisplayManagerCheck struct {
-	caps *platform.Capabilities
+	caps     *platform.Capabilities
+	executor checks.CommandExecutor
+}
+
+// DisplayManagerOption configures a DisplayManagerCheck.
+type DisplayManagerOption func(*DisplayManagerCheck)
+
+// WithDisplayExecutor sets the command executor for testing.
+// [REQ:TEST-SEAM-001]
+func WithDisplayExecutor(exec checks.CommandExecutor) DisplayManagerOption {
+	return func(c *DisplayManagerCheck) {
+		c.executor = exec
+	}
 }
 
 // NewDisplayManagerCheck creates a display manager health check.
-func NewDisplayManagerCheck(caps *platform.Capabilities) *DisplayManagerCheck {
-	return &DisplayManagerCheck{caps: caps}
+func NewDisplayManagerCheck(caps *platform.Capabilities, opts ...DisplayManagerOption) *DisplayManagerCheck {
+	c := &DisplayManagerCheck{
+		caps:     caps,
+		executor: checks.DefaultExecutor,
+	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
-func (c *DisplayManagerCheck) ID() string          { return "infra-display" }
-func (c *DisplayManagerCheck) Title() string       { return "Display Manager" }
-func (c *DisplayManagerCheck) Description() string { return "Monitors display manager and X11/Wayland status" }
+func (c *DisplayManagerCheck) ID() string    { return "infra-display" }
+func (c *DisplayManagerCheck) Title() string { return "Display Manager" }
+func (c *DisplayManagerCheck) Description() string {
+	return "Monitors display manager and X11/Wayland status"
+}
 func (c *DisplayManagerCheck) Importance() string {
 	return "Required for GUI sessions - failures prevent graphical login and desktop access"
 }
@@ -144,13 +164,11 @@ func (c *DisplayManagerCheck) Run(ctx context.Context) checks.Result {
 // detectActiveDisplayManager finds which display manager is currently active
 func (c *DisplayManagerCheck) detectActiveDisplayManager(ctx context.Context) (string, error) {
 	// First check systemctl for the default display-manager target
-	cmd := exec.CommandContext(ctx, "systemctl", "get-default")
-	output, _ := cmd.Output()
+	output, _ := c.executor.Output(ctx, "systemctl", "get-default")
 	if strings.Contains(string(output), "graphical.target") {
 		// Graphical target is default, look for active display manager
 		for _, dm := range supportedDisplayManagers {
-			cmd := exec.CommandContext(ctx, "systemctl", "is-active", dm)
-			if output, err := cmd.Output(); err == nil {
+			if output, err := c.executor.Output(ctx, "systemctl", "is-active", dm); err == nil {
 				if strings.TrimSpace(string(output)) == "active" {
 					return dm, nil
 				}
@@ -160,8 +178,7 @@ func (c *DisplayManagerCheck) detectActiveDisplayManager(ctx context.Context) (s
 
 	// Fallback: check which display manager service exists and is enabled
 	for _, dm := range supportedDisplayManagers {
-		cmd := exec.CommandContext(ctx, "systemctl", "is-enabled", dm)
-		if output, err := cmd.Output(); err == nil {
+		if output, err := c.executor.Output(ctx, "systemctl", "is-enabled", dm); err == nil {
 			status := strings.TrimSpace(string(output))
 			if status == "enabled" || status == "static" {
 				return dm, nil
@@ -174,8 +191,7 @@ func (c *DisplayManagerCheck) detectActiveDisplayManager(ctx context.Context) (s
 
 // getServiceStatus checks the systemd service status
 func (c *DisplayManagerCheck) getServiceStatus(ctx context.Context, service string) string {
-	cmd := exec.CommandContext(ctx, "systemctl", "is-active", service)
-	output, _ := cmd.Output()
+	output, _ := c.executor.Output(ctx, "systemctl", "is-active", service)
 	return strings.TrimSpace(string(output))
 }
 
@@ -184,8 +200,7 @@ func (c *DisplayManagerCheck) checkX11(ctx context.Context) (string, map[string]
 	details := make(map[string]interface{})
 
 	// Check if DISPLAY is set
-	cmd := exec.CommandContext(ctx, "printenv", "DISPLAY")
-	output, err := cmd.Output()
+	output, err := c.executor.Output(ctx, "printenv", "DISPLAY")
 	display := strings.TrimSpace(string(output))
 
 	if err != nil || display == "" {
@@ -198,8 +213,7 @@ func (c *DisplayManagerCheck) checkX11(ctx context.Context) (string, map[string]
 	details["display"] = display
 
 	// Try xdpyinfo to check X11 responsiveness
-	cmd = exec.CommandContext(ctx, "xdpyinfo")
-	_, err = cmd.Output()
+	_, err = c.executor.Output(ctx, "xdpyinfo")
 	if err != nil {
 		details["responsive"] = false
 		details["error"] = err.Error()
@@ -266,8 +280,7 @@ func (c *DisplayManagerCheck) ExecuteAction(ctx context.Context, actionID string
 
 	switch actionID {
 	case "restart":
-		cmd := exec.CommandContext(ctx, "sudo", "systemctl", "restart", dmName)
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", dmName)
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 
@@ -283,8 +296,7 @@ func (c *DisplayManagerCheck) ExecuteAction(ctx context.Context, actionID string
 		return result
 
 	case "status":
-		cmd := exec.CommandContext(ctx, "systemctl", "status", dmName)
-		output, _ := cmd.CombinedOutput()
+		output, _ := c.executor.CombinedOutput(ctx, "systemctl", "status", dmName)
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 		result.Success = true
@@ -292,8 +304,7 @@ func (c *DisplayManagerCheck) ExecuteAction(ctx context.Context, actionID string
 		return result
 
 	case "logs":
-		cmd := exec.CommandContext(ctx, "journalctl", "-u", dmName, "-n", "100", "--no-pager")
-		output, _ := cmd.CombinedOutput()
+		output, _ := c.executor.CombinedOutput(ctx, "journalctl", "-u", dmName, "-n", "100", "--no-pager")
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 		result.Success = true

@@ -1,11 +1,10 @@
 // Package infra provides infrastructure health checks
-// [REQ:INFRA-DNS-001] [REQ:HEAL-ACTION-001]
+// [REQ:INFRA-DNS-001] [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 package infra
 
 import (
 	"context"
 	"net"
-	"os/exec"
 	"runtime"
 	"time"
 
@@ -16,17 +15,58 @@ import (
 // DNSCheck verifies DNS resolution.
 // Domain is required - operational defaults should be set by the bootstrap layer.
 type DNSCheck struct {
-	domain string
-	caps   *platform.Capabilities
+	domain   string
+	caps     *platform.Capabilities
+	resolver checks.DNSResolver
+	executor checks.CommandExecutor
+}
+
+// DNSCheckOption configures a DNSCheck.
+type DNSCheckOption func(*DNSCheck)
+
+// WithDNSResolver sets the DNS resolver (for testing).
+// [REQ:TEST-SEAM-001]
+func WithDNSResolver(resolver checks.DNSResolver) DNSCheckOption {
+	return func(c *DNSCheck) {
+		c.resolver = resolver
+	}
+}
+
+// WithDNSExecutor sets the command executor (for testing).
+// [REQ:TEST-SEAM-001]
+func WithDNSExecutor(executor checks.CommandExecutor) DNSCheckOption {
+	return func(c *DNSCheck) {
+		c.executor = executor
+	}
+}
+
+// realDNSResolver wraps net.LookupHost for production use.
+type realDNSResolver struct{}
+
+func (r *realDNSResolver) LookupHost(host string) ([]string, error) {
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return nil, err
+	}
+	addrs := make([]string, len(ips))
+	for i, ip := range ips {
+		addrs[i] = ip.String()
+	}
+	return addrs, nil
 }
 
 // NewDNSCheck creates a DNS resolution check.
 // The domain parameter is required (e.g., "google.com").
 // Platform capabilities are optional (for recovery actions).
-func NewDNSCheck(domain string, caps ...*platform.Capabilities) *DNSCheck {
-	c := &DNSCheck{domain: domain}
-	if len(caps) > 0 {
-		c.caps = caps[0]
+func NewDNSCheck(domain string, caps *platform.Capabilities, opts ...DNSCheckOption) *DNSCheck {
+	c := &DNSCheck{
+		domain:   domain,
+		caps:     caps,
+		resolver: &realDNSResolver{},
+		executor: checks.DefaultExecutor,
+	}
+	for _, opt := range opts {
+		opt(c)
 	}
 	return c
 }
@@ -47,7 +87,7 @@ func (c *DNSCheck) Run(ctx context.Context) checks.Result {
 		Details: map[string]interface{}{"domain": c.domain},
 	}
 
-	ips, err := net.LookupIP(c.domain)
+	addrs, err := c.resolver.LookupHost(c.domain)
 	if err != nil {
 		result.Status = checks.StatusCritical
 		result.Message = "DNS resolution failed"
@@ -57,7 +97,7 @@ func (c *DNSCheck) Run(ctx context.Context) checks.Result {
 
 	result.Status = checks.StatusOK
 	result.Message = "DNS resolution OK"
-	result.Details["resolved"] = len(ips)
+	result.Details["resolved"] = len(addrs)
 	return result
 }
 
@@ -106,8 +146,7 @@ func (c *DNSCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 
 	switch actionID {
 	case "restart-resolved":
-		cmd := exec.CommandContext(ctx, "sudo", "systemctl", "restart", "systemd-resolved")
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "systemd-resolved")
 		result.Output = string(output)
 
 		if err != nil {
@@ -122,8 +161,7 @@ func (c *DNSCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 		return c.verifyRecovery(ctx, result, "restart-resolved", start)
 
 	case "flush-cache":
-		cmd := exec.CommandContext(ctx, "sudo", "resolvectl", "flush-caches")
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "sudo", "resolvectl", "flush-caches")
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 
@@ -140,8 +178,7 @@ func (c *DNSCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 
 	case "test-external":
 		// Test DNS resolution using external DNS server
-		cmd := exec.CommandContext(ctx, "nslookup", c.domain, "8.8.8.8")
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "nslookup", c.domain, "8.8.8.8")
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 

@@ -1,5 +1,5 @@
 // Package system provides system-level health checks for disk, memory, and processes
-// [REQ:SYSTEM-DISK-001]
+// [REQ:SYSTEM-DISK-001] [REQ:TEST-SEAM-001]
 package system
 
 import (
@@ -7,17 +7,16 @@ import (
 	"fmt"
 	"runtime"
 
-	"syscall"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 )
 
 // DiskCheck monitors disk space usage on specified partitions.
 type DiskCheck struct {
-	partitions       []string
-	warningThreshold int // percentage
+	partitions        []string
+	warningThreshold  int // percentage
 	criticalThreshold int // percentage
+	fsReader          checks.FileSystemReader
 }
 
 // DiskCheckOption configures a DiskCheck.
@@ -38,14 +37,23 @@ func WithDiskThresholds(warning, critical int) DiskCheckOption {
 	}
 }
 
+// WithFileSystemReader sets the filesystem reader (for testing).
+// [REQ:TEST-SEAM-001]
+func WithFileSystemReader(reader checks.FileSystemReader) DiskCheckOption {
+	return func(c *DiskCheck) {
+		c.fsReader = reader
+	}
+}
+
 // NewDiskCheck creates a disk space check.
 // Default partitions: "/" and "/home"
 // Default thresholds: warning at 80%, critical at 90%
 func NewDiskCheck(opts ...DiskCheckOption) *DiskCheck {
 	c := &DiskCheck{
-		partitions:       []string{"/"},
-		warningThreshold: 80,
+		partitions:        []string{"/"},
+		warningThreshold:  80,
 		criticalThreshold: 90,
+		fsReader:          checks.DefaultFileSystemReader,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -83,8 +91,7 @@ func (c *DiskCheck) runUnix(ctx context.Context, result checks.Result) checks.Re
 	partitionDetails := make([]map[string]interface{}, 0)
 
 	for _, partition := range c.partitions {
-		var stat syscall.Statfs_t
-		err := syscall.Statfs(partition, &stat)
+		stat, err := c.fsReader.Statfs(partition)
 		if err != nil {
 			subChecks = append(subChecks, checks.SubCheck{
 				Name:   partition,

@@ -1,11 +1,10 @@
 // Package vrooli provides Vrooli-specific health checks
-// [REQ:SCENARIO-CHECK-001] [REQ:HEAL-ACTION-001]
+// [REQ:SCENARIO-CHECK-001] [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 package vrooli
 
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -24,17 +23,28 @@ type ScenarioCheck struct {
 	importance   string
 	interval     int
 	critical     bool // determines if stopped/failed → critical or warning
+	executor     checks.CommandExecutor
+}
+
+// ScenarioCheckOption configures a ScenarioCheck.
+type ScenarioCheckOption func(*ScenarioCheck)
+
+// WithScenarioExecutor sets the command executor (for testing).
+func WithScenarioExecutor(executor checks.CommandExecutor) ScenarioCheckOption {
+	return func(c *ScenarioCheck) {
+		c.executor = executor
+	}
 }
 
 // NewScenarioCheck creates a check for a Vrooli scenario.
 // The critical parameter determines if failures should be critical or warning level.
-func NewScenarioCheck(scenarioName string, critical bool) *ScenarioCheck {
+func NewScenarioCheck(scenarioName string, critical bool, opts ...ScenarioCheckOption) *ScenarioCheck {
 	importance := "Monitors a running Vrooli scenario"
 	if critical {
 		importance = "Critical scenario - downtime affects core functionality"
 	}
 
-	return &ScenarioCheck{
+	c := &ScenarioCheck{
 		id:           "scenario-" + scenarioName,
 		scenarioName: scenarioName,
 		title:        scenarioName + " Scenario",
@@ -42,7 +52,12 @@ func NewScenarioCheck(scenarioName string, critical bool) *ScenarioCheck {
 		importance:   importance,
 		interval:     60,
 		critical:     critical,
+		executor:     checks.DefaultExecutor,
 	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 func (c *ScenarioCheck) ID() string                 { return c.id }
@@ -66,9 +81,8 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	// Run vrooli scenario status
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "status", c.scenarioName)
-	output, err := cmd.CombinedOutput()
+	// Run vrooli scenario status using injected executor
+	output, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "status", c.scenarioName)
 
 	result.Details["output"] = string(output)
 	result.Details["critical"] = c.critical
@@ -179,8 +193,7 @@ func (c *ScenarioCheck) ExecuteAction(ctx context.Context, actionID string) chec
 
 	switch actionID {
 	case "start":
-		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "start", c.scenarioName)
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "start", c.scenarioName)
 		result.Output = string(output)
 
 		if err != nil {
@@ -195,8 +208,7 @@ func (c *ScenarioCheck) ExecuteAction(ctx context.Context, actionID string) chec
 		return c.verifyRecovery(ctx, result, "start", start)
 
 	case "stop":
-		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "stop", c.scenarioName)
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "stop", c.scenarioName)
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 
@@ -212,8 +224,7 @@ func (c *ScenarioCheck) ExecuteAction(ctx context.Context, actionID string) chec
 		return result
 
 	case "restart":
-		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "restart", c.scenarioName)
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "restart", c.scenarioName)
 		result.Output = string(output)
 
 		if err != nil {
@@ -234,8 +245,7 @@ func (c *ScenarioCheck) ExecuteAction(ctx context.Context, actionID string) chec
 		return c.executePortCleanup(ctx, start)
 
 	case "logs":
-		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "logs", c.scenarioName, "--tail", "100")
-		output, err := cmd.CombinedOutput()
+		output, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "logs", c.scenarioName, "--tail", "100")
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 
@@ -296,8 +306,7 @@ func (c *ScenarioCheck) executeCleanRestart(ctx context.Context, start time.Time
 
 	// Step 1: Stop the scenario
 	outputBuilder.WriteString("=== Stopping scenario ===\n")
-	stopCmd := exec.CommandContext(ctx, "vrooli", "scenario", "stop", c.scenarioName)
-	stopOutput, _ := stopCmd.CombinedOutput()
+	stopOutput, _ := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "stop", c.scenarioName)
 	outputBuilder.Write(stopOutput)
 	outputBuilder.WriteString("\n")
 
@@ -309,8 +318,7 @@ func (c *ScenarioCheck) executeCleanRestart(ctx context.Context, start time.Time
 
 	// Step 3: Start with --clean-stale flag (if vrooli CLI supports it)
 	outputBuilder.WriteString("=== Starting scenario ===\n")
-	startCmd := exec.CommandContext(ctx, "vrooli", "scenario", "start", c.scenarioName)
-	startOutput, err := startCmd.CombinedOutput()
+	startOutput, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "start", c.scenarioName)
 	outputBuilder.Write(startOutput)
 	result.Output = outputBuilder.String()
 
@@ -337,8 +345,7 @@ func (c *ScenarioCheck) executePortCleanup(ctx context.Context, start time.Time)
 	var outputBuilder strings.Builder
 
 	// Get scenario ports using vrooli CLI
-	portCmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", c.scenarioName)
-	portOutput, err := portCmd.CombinedOutput()
+	portOutput, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "port", c.scenarioName)
 	outputBuilder.WriteString("=== Scenario ports ===\n")
 	outputBuilder.Write(portOutput)
 	outputBuilder.WriteString("\n")
@@ -370,8 +377,7 @@ func (c *ScenarioCheck) executePortCleanup(ctx context.Context, start time.Time)
 		outputBuilder.WriteString(fmt.Sprintf("=== Cleaning port %d ===\n", port))
 
 		// Find process on port using lsof
-		lsofCmd := exec.CommandContext(ctx, "lsof", "-ti", fmt.Sprintf(":%d", port))
-		pidOutput, err := lsofCmd.Output()
+		pidOutput, err := c.executor.Output(ctx, "lsof", "-ti", fmt.Sprintf(":%d", port))
 
 		if err != nil || len(strings.TrimSpace(string(pidOutput))) == 0 {
 			outputBuilder.WriteString("No process found on port\n")
@@ -384,11 +390,9 @@ func (c *ScenarioCheck) executePortCleanup(ctx context.Context, start time.Time)
 			outputBuilder.WriteString(fmt.Sprintf("Killing PID %s... ", pidStr))
 
 			// First try SIGTERM
-			killCmd := exec.CommandContext(ctx, "kill", pidStr)
-			if err := killCmd.Run(); err != nil {
+			if err := c.executor.Run(ctx, "kill", pidStr); err != nil {
 				// If SIGTERM fails, try SIGKILL
-				killCmd = exec.CommandContext(ctx, "kill", "-9", pidStr)
-				if err := killCmd.Run(); err != nil {
+				if err := c.executor.Run(ctx, "kill", "-9", pidStr); err != nil {
 					outputBuilder.WriteString(fmt.Sprintf("FAILED: %v\n", err))
 					continue
 				}
@@ -417,22 +421,19 @@ func (c *ScenarioCheck) executeDiagnose(ctx context.Context, start time.Time) ch
 
 	// Status
 	outputBuilder.WriteString("=== Scenario Status ===\n")
-	statusCmd := exec.CommandContext(ctx, "vrooli", "scenario", "status", c.scenarioName)
-	statusOutput, _ := statusCmd.CombinedOutput()
+	statusOutput, _ := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "status", c.scenarioName)
 	outputBuilder.Write(statusOutput)
 	outputBuilder.WriteString("\n\n")
 
 	// Ports
 	outputBuilder.WriteString("=== Scenario Ports ===\n")
-	portCmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", c.scenarioName)
-	portOutput, _ := portCmd.CombinedOutput()
+	portOutput, _ := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "port", c.scenarioName)
 	outputBuilder.Write(portOutput)
 	outputBuilder.WriteString("\n\n")
 
 	// Recent logs (last 50 lines)
 	outputBuilder.WriteString("=== Recent Logs (last 50 lines) ===\n")
-	logsCmd := exec.CommandContext(ctx, "vrooli", "scenario", "logs", c.scenarioName, "--tail", "50")
-	logsOutput, _ := logsCmd.CombinedOutput()
+	logsOutput, _ := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "logs", c.scenarioName, "--tail", "50")
 	outputBuilder.Write(logsOutput)
 	outputBuilder.WriteString("\n")
 

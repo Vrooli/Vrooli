@@ -538,15 +538,15 @@ func (s *Store) GetIncidents(ctx context.Context, windowHours, limit int) (*Inci
 // ActionLog represents a logged recovery action execution
 // [REQ:HEAL-ACTION-001]
 type ActionLog struct {
-	ID        int64  `json:"id"`
-	CheckID   string `json:"checkId"`
-	ActionID  string `json:"actionId"`
-	Success   bool   `json:"success"`
-	Message   string `json:"message"`
-	Output    string `json:"output,omitempty"`
-	Error     string `json:"error,omitempty"`
-	DurationMs int64 `json:"durationMs"`
-	Timestamp string `json:"timestamp"`
+	ID         int64  `json:"id"`
+	CheckID    string `json:"checkId"`
+	ActionID   string `json:"actionId"`
+	Success    bool   `json:"success"`
+	Message    string `json:"message"`
+	Output     string `json:"output,omitempty"`
+	Error      string `json:"error,omitempty"`
+	DurationMs int64  `json:"durationMs"`
+	Timestamp  string `json:"timestamp"`
 }
 
 // ActionLogsResponse contains action history

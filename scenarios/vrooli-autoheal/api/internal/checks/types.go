@@ -151,13 +151,13 @@ type RecoveryAction struct {
 // ActionResult represents the outcome of executing a recovery action
 // [REQ:HEAL-ACTION-001]
 type ActionResult struct {
-	ActionID  string    `json:"actionId"`
-	CheckID   string    `json:"checkId"`
-	Success   bool      `json:"success"`
-	Message   string    `json:"message"`
-	Output    string    `json:"output,omitempty"` // Command output if any
-	Error     string    `json:"error,omitempty"`  // Error message if failed
-	Timestamp time.Time `json:"timestamp"`
+	ActionID  string        `json:"actionId"`
+	CheckID   string        `json:"checkId"`
+	Success   bool          `json:"success"`
+	Message   string        `json:"message"`
+	Output    string        `json:"output,omitempty"` // Command output if any
+	Error     string        `json:"error,omitempty"`  // Error message if failed
+	Timestamp time.Time     `json:"timestamp"`
 	Duration  time.Duration `json:"duration"`
 }
 
