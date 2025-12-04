@@ -286,14 +286,18 @@ func (r *Registry) SetResult(result Result) {
 	r.lastRun[result.CheckID] = result.Timestamp
 }
 
-// GetAllResults returns all stored check results
+// GetAllResults returns all stored check results for currently registered checks.
+// Results for unregistered checks (orphaned results) are filtered out.
 func (r *Registry) GetAllResults() []Result {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	results := make([]Result, 0, len(r.results))
 	for _, result := range r.results {
-		results = append(results, result)
+		// Only include results for currently registered checks
+		if _, registered := r.checks[result.CheckID]; registered {
+			results = append(results, result)
+		}
 	}
 	return results
 }

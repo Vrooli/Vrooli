@@ -185,7 +185,9 @@ export default function App() {
 
           <div className="flex items-center gap-3">
             {data && <StatusBadge status={data.status} />}
-            <SystemProtection compact />
+
+            {/* Divider between status and actions */}
+            <div className="h-6 w-px bg-white/10" />
 
             <Button
               variant="outline"
