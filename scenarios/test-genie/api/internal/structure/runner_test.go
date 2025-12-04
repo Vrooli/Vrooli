@@ -1,6 +1,7 @@
 package structure
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -492,13 +493,91 @@ func TestValidationSummary_StringNoSmoke(t *testing.T) {
 	}
 }
 
+// Benchmark tests
+
+func BenchmarkRunnerAllPass(b *testing.B) {
+	runner := newMockedRunner(
+		&mockExistenceValidator{
+			dirsResult:  types.OKWithCount(6),
+			filesResult: types.OKWithCount(7),
+		},
+		&mockCLIValidator{
+			result: existence.CLIResult{
+				Approach: existence.CLIApproachCrossPlatform,
+				Result:   types.OK(),
+			},
+		},
+		&mockSchemaValidator{result: types.OKWithCount(10)},
+		&mockManifestValidator{result: types.OK()},
+		&mockSmokeValidator{result: types.Result{Success: true}},
+	)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		runner.Run(context.Background())
+	}
+}
+
+func BenchmarkRunnerNoSmokeNoSchema(b *testing.B) {
+	expectations := DefaultExpectations()
+	expectations.UISmoke.Enabled = false
+
+	runner := New(
+		Config{
+			ScenarioDir:  "/mock/scenario",
+			ScenarioName: "mock-scenario",
+			SchemasDir:   "", // No schema validation
+			Expectations: expectations,
+		},
+		WithLogger(io.Discard),
+		WithExistenceValidator(&mockExistenceValidator{
+			dirsResult:  types.OKWithCount(6),
+			filesResult: types.OKWithCount(7),
+		}),
+		WithCLIValidator(&mockCLIValidator{
+			result: existence.CLIResult{
+				Approach: existence.CLIApproachCrossPlatform,
+				Result:   types.OK(),
+			},
+		}),
+		WithManifestValidator(&mockManifestValidator{result: types.OK()}),
+		WithSmokeValidator(&mockSmokeValidator{result: types.Result{Success: true}}),
+	)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		runner.Run(context.Background())
+	}
+}
+
+func BenchmarkRunnerEarlyFailure(b *testing.B) {
+	runner := newMockedRunner(
+		&mockExistenceValidator{
+			dirsResult: types.FailMisconfiguration(
+				errors.New("missing directory"),
+				"Create required directories",
+			),
+			filesResult: types.OK(),
+		},
+		&mockCLIValidator{result: existence.CLIResult{Result: types.OK()}},
+		&mockSchemaValidator{result: types.OK()},
+		&mockManifestValidator{result: types.OK()},
+		&mockSmokeValidator{result: types.Result{Success: true}},
+	)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		runner.Run(context.Background())
+	}
+}
+
 // Ensure mock types satisfy interfaces at compile time
 var (
-	_ existence.Validator    = (*mockExistenceValidator)(nil)
-	_ existence.CLIValidator = (*mockCLIValidator)(nil)
+	_ existence.Validator              = (*mockExistenceValidator)(nil)
+	_ existence.CLIValidator           = (*mockCLIValidator)(nil)
 	_ content.SchemaValidatorInterface = (*mockSchemaValidator)(nil)
-	_ content.ManifestValidator = (*mockManifestValidator)(nil)
-	_ smoke.Validator        = (*mockSmokeValidator)(nil)
+	_ content.ManifestValidator        = (*mockManifestValidator)(nil)
+	_ smoke.Validator                  = (*mockSmokeValidator)(nil)
 )
 
 func containsStrRunner(s, substr string) bool {
@@ -508,4 +587,233 @@ func containsStrRunner(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// =============================================================================
+// Tests for New() default validator creation
+// =============================================================================
+
+func TestNew_DefaultValidators(t *testing.T) {
+	// Test that New creates default validators when none are provided via options.
+	// We use a temp directory to avoid file system errors from validators.
+	tmpDir := t.TempDir()
+
+	runner := New(Config{
+		ScenarioDir:  tmpDir,
+		ScenarioName: "test-scenario",
+		SchemasDir:   "", // No schemas - schema validator will be nil
+		Expectations: nil,
+	})
+
+	// Verify runner was created with defaults
+	if runner.existenceValidator == nil {
+		t.Error("expected default existence validator")
+	}
+	if runner.cliValidator == nil {
+		t.Error("expected default CLI validator")
+	}
+	if runner.manifestValidator == nil {
+		t.Error("expected default manifest validator")
+	}
+	if runner.smokeValidator == nil {
+		t.Error("expected default smoke validator")
+	}
+	// Schema validator should be nil when SchemasDir is empty
+	if runner.schemaValidator != nil {
+		t.Error("expected nil schema validator when SchemasDir is empty")
+	}
+}
+
+func TestNew_DefaultValidatorsWithSchemasDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	schemasDir := t.TempDir()
+
+	runner := New(Config{
+		ScenarioDir:  tmpDir,
+		ScenarioName: "test-scenario",
+		SchemasDir:   schemasDir,
+		Expectations: nil,
+	})
+
+	// Schema validator should be created when SchemasDir is provided
+	if runner.schemaValidator == nil {
+		t.Error("expected default schema validator when SchemasDir is provided")
+	}
+}
+
+func TestNew_WithExpectationsNameValidationFalse(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	expectations := &Expectations{
+		ValidateServiceName: false,
+	}
+
+	runner := New(Config{
+		ScenarioDir:  tmpDir,
+		ScenarioName: "test-scenario",
+		Expectations: expectations,
+	})
+
+	// Verify runner was created - the manifest validator will have name validation disabled
+	if runner.manifestValidator == nil {
+		t.Error("expected manifest validator to be created")
+	}
+}
+
+func TestNew_WithCustomLogger(t *testing.T) {
+	tmpDir := t.TempDir()
+	var buf bytes.Buffer
+
+	runner := New(
+		Config{
+			ScenarioDir:  tmpDir,
+			ScenarioName: "test-scenario",
+		},
+		WithLogger(&buf),
+	)
+
+	if runner.logWriter != &buf {
+		t.Error("expected custom logger to be set")
+	}
+}
+
+func TestNew_PartialOptions(t *testing.T) {
+	// Test that providing some validators still creates defaults for others
+	tmpDir := t.TempDir()
+
+	existenceVal := &mockExistenceValidator{
+		dirsResult:  types.OK(),
+		filesResult: types.OK(),
+	}
+
+	runner := New(
+		Config{
+			ScenarioDir:  tmpDir,
+			ScenarioName: "test-scenario",
+		},
+		WithExistenceValidator(existenceVal),
+		// Not providing CLI, manifest, smoke validators - should use defaults
+	)
+
+	// Provided validator should be used
+	if runner.existenceValidator != existenceVal {
+		t.Error("expected custom existence validator")
+	}
+
+	// Unprovided validators should have defaults
+	if runner.cliValidator == nil {
+		t.Error("expected default CLI validator")
+	}
+	if runner.manifestValidator == nil {
+		t.Error("expected default manifest validator")
+	}
+	if runner.smokeValidator == nil {
+		t.Error("expected default smoke validator")
+	}
+}
+
+// Test logging with nil writer
+func TestRunner_LoggingWithNilWriter(t *testing.T) {
+	runner := newMockedRunner(
+		&mockExistenceValidator{
+			dirsResult:  types.OKWithCount(6),
+			filesResult: types.OKWithCount(7),
+		},
+		&mockCLIValidator{
+			result: existence.CLIResult{
+				Approach: existence.CLIApproachCrossPlatform,
+				Result:   types.OK(),
+			},
+		},
+		&mockSchemaValidator{result: types.OKWithCount(10)},
+		&mockManifestValidator{result: types.OK()},
+		&mockSmokeValidator{result: types.Result{Success: true}},
+	)
+
+	// Set logger to nil explicitly
+	runner.logWriter = nil
+
+	// Should not panic when logging with nil writer
+	result := runner.Run(context.Background())
+
+	if !result.Success {
+		t.Fatalf("expected success, got error: %v", result.Error)
+	}
+}
+
+// Test additional expectations options
+func TestRunner_WithAdditionalDirsAndFiles(t *testing.T) {
+	expectations := DefaultExpectations()
+	expectations.AdditionalDirs = []string{"custom-dir"}
+	expectations.AdditionalFiles = []string{"custom-file.md"}
+	expectations.UISmoke.Enabled = false
+
+	runner := New(
+		Config{
+			ScenarioDir:  "/mock/scenario",
+			ScenarioName: "mock-scenario",
+			Expectations: expectations,
+		},
+		WithLogger(io.Discard),
+		WithExistenceValidator(&mockExistenceValidator{
+			dirsResult:  types.OKWithCount(7), // 6 default + 1 additional
+			filesResult: types.OKWithCount(8), // 7 default + 1 additional
+		}),
+		WithCLIValidator(&mockCLIValidator{
+			result: existence.CLIResult{
+				Approach: existence.CLIApproachCrossPlatform,
+				Result:   types.OK(),
+			},
+		}),
+		WithSchemaValidator(&mockSchemaValidator{result: types.OK()}),
+		WithManifestValidator(&mockManifestValidator{result: types.OK()}),
+		WithSmokeValidator(&mockSmokeValidator{result: types.Result{Success: true}}),
+	)
+
+	result := runner.Run(context.Background())
+
+	if !result.Success {
+		t.Fatalf("expected success, got error: %v", result.Error)
+	}
+	if result.Summary.DirsChecked != 7 {
+		t.Errorf("expected 7 dirs checked, got %d", result.Summary.DirsChecked)
+	}
+	if result.Summary.FilesChecked != 8 {
+		t.Errorf("expected 8 files checked, got %d", result.Summary.FilesChecked)
+	}
+}
+
+func TestRunner_WithExcludedDirsAndFiles(t *testing.T) {
+	expectations := DefaultExpectations()
+	expectations.ExcludedDirs = []string{"docs"}
+	expectations.ExcludedFiles = []string{"PRD.md"}
+	expectations.UISmoke.Enabled = false
+
+	runner := New(
+		Config{
+			ScenarioDir:  "/mock/scenario",
+			ScenarioName: "mock-scenario",
+			Expectations: expectations,
+		},
+		WithLogger(io.Discard),
+		WithExistenceValidator(&mockExistenceValidator{
+			dirsResult:  types.OKWithCount(5), // 6 default - 1 excluded
+			filesResult: types.OKWithCount(6), // 7 default - 1 excluded
+		}),
+		WithCLIValidator(&mockCLIValidator{
+			result: existence.CLIResult{
+				Approach: existence.CLIApproachCrossPlatform,
+				Result:   types.OK(),
+			},
+		}),
+		WithSchemaValidator(&mockSchemaValidator{result: types.OK()}),
+		WithManifestValidator(&mockManifestValidator{result: types.OK()}),
+		WithSmokeValidator(&mockSmokeValidator{result: types.Result{Success: true}}),
+	)
+
+	result := runner.Run(context.Background())
+
+	if !result.Success {
+		t.Fatalf("expected success, got error: %v", result.Error)
+	}
 }

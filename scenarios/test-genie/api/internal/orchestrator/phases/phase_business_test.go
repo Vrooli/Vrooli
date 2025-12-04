@@ -40,6 +40,11 @@ func TestRunBusinessPhaseFailsWhenModuleIncomplete(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(brokenDir, "module.json"), []byte(payload), 0o644); err != nil {
 		t.Fatalf("failed to write broken module: %v", err)
 	}
+	// Update index.json to include the broken module
+	indexContent := `{"imports":["01-internal-orchestrator/module.json","02-broken/module.json"]}`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "requirements", "index.json"), []byte(indexContent), 0o644); err != nil {
+		t.Fatalf("failed to update requirements index: %v", err)
+	}
 
 	env := workspace.Environment{
 		ScenarioName: "demo",
@@ -50,8 +55,9 @@ func TestRunBusinessPhaseFailsWhenModuleIncomplete(t *testing.T) {
 	if report.Err == nil {
 		t.Fatalf("expected validation failure for malformed module")
 	}
-	if !strings.Contains(report.Err.Error(), "02-broken") {
-		t.Fatalf("expected error to reference module, got %v", report.Err)
+	// The new implementation detects missing ID as an error
+	if !strings.Contains(report.Err.Error(), "missing") && !strings.Contains(report.Err.Error(), "02-broken") {
+		t.Fatalf("expected error about missing fields or module reference, got %v", report.Err)
 	}
 	if report.FailureClassification != FailureClassMisconfiguration {
 		t.Fatalf("expected misconfiguration classification, got %s", report.FailureClassification)

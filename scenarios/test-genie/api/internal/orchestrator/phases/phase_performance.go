@@ -4,161 +4,99 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
-	"time"
 
 	"test-genie/internal/orchestrator/workspace"
+	"test-genie/internal/performance"
 )
 
-var (
-	performanceMaxDuration = 90 * time.Second
-	uiBuildMaxDuration     = 180 * time.Second
-)
-
-// runPerformancePhase ensures core build artifacts complete within acceptable time limits.
+// runPerformancePhase benchmarks build times using the performance package.
+// This includes Go API builds and Node.js UI builds.
 func runPerformancePhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
 	if err := ctx.Err(); err != nil {
 		return RunReport{Err: err, FailureClassification: FailureClassSystem}
 	}
 
-	var observations []Observation
-	goObs, goFailure := benchmarkGoBuild(ctx, env, logWriter)
-	if goFailure != nil {
-		goFailure.Observations = append(goFailure.Observations, observations...)
-		return *goFailure
-	}
-	observations = append(observations, goObs...)
-
-	if hasNodeWorkspace(env) {
-		uiObs, uiFailure := benchmarkUIBuild(ctx, env, logWriter)
-		if uiFailure != nil {
-			uiFailure.Observations = append(uiFailure.Observations, observations...)
-			return *uiFailure
+	// Load expectations from testing.json
+	expectations, err := performance.LoadExpectations(env.ScenarioDir)
+	if err != nil {
+		logPhaseError(logWriter, "Failed to load performance expectations: %v", err)
+		return RunReport{
+			Err:                   err,
+			FailureClassification: FailureClassMisconfiguration,
+			Remediation:           "Fix .vrooli/testing.json so performance settings can be parsed.",
 		}
-		observations = append(observations, uiObs...)
-	} else {
-		observations = append(observations, NewObservation("ui workspace not detected"))
 	}
 
-	logPhaseStep(logWriter, "performance validation complete")
+	// Run performance validation using the dedicated package
+	runner := performance.New(performance.Config{
+		ScenarioDir:  env.ScenarioDir,
+		ScenarioName: env.ScenarioName,
+		Expectations: expectations,
+	}, performance.WithLogger(logWriter))
+
+	result := runner.Run(ctx)
+
+	// Convert observations from performance package to phases package
+	observations := convertPerformanceObservations(result.Observations)
+
+	if !result.Success {
+		return RunReport{
+			Err:                   result.Error,
+			FailureClassification: convertPerformanceFailureClass(result.FailureClass),
+			Remediation:           result.Remediation,
+			Observations:          observations,
+		}
+	}
+
+	// Final summary
+	observations = append(observations, Observation{
+		Icon: "✅",
+		Text: fmt.Sprintf("Performance validation completed (%s)", result.Summary.String()),
+	})
+
+	logPhaseSuccess(logWriter, "Performance validation complete")
 	return RunReport{Observations: observations}
 }
 
-func benchmarkGoBuild(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]Observation, *RunReport) {
-	if err := EnsureCommandAvailable("go"); err != nil {
-		return nil, &RunReport{
-			Err:                   err,
-			FailureClassification: FailureClassMissingDependency,
-			Remediation:           "Install the Go toolchain so API builds can be benchmarked.",
-		}
+// convertPerformanceObservations converts performance.Observation slice to phases.Observation slice.
+func convertPerformanceObservations(obs []performance.Observation) []Observation {
+	result := make([]Observation, len(obs))
+	for i, o := range obs {
+		result[i] = convertPerformanceObservation(o)
 	}
-
-	apiDir := filepath.Join(env.ScenarioDir, "api")
-	if err := ensureDir(apiDir); err != nil {
-		return nil, &RunReport{
-			Err:                   err,
-			FailureClassification: FailureClassMisconfiguration,
-			Remediation:           "Restore the api/ directory before running performance benchmarks.",
-		}
-	}
-
-	tmpFile, err := os.CreateTemp("", "test-genie-perf-*")
-	if err != nil {
-		return nil, &RunReport{
-			Err:                   fmt.Errorf("failed to create temp binary: %w", err),
-			FailureClassification: FailureClassSystem,
-			Remediation:           "Verify the filesystem is writable for performance artifacts.",
-		}
-	}
-	tmpPath := tmpFile.Name()
-	tmpFile.Close()
-	defer os.Remove(tmpPath)
-
-	logPhaseStep(logWriter, "building Go API binary in %s", apiDir)
-	start := time.Now()
-	if err := phaseCommandExecutor(ctx, apiDir, logWriter, "go", "build", "-o", tmpPath, "./..."); err != nil {
-		return nil, &RunReport{
-			Err:                   fmt.Errorf("go build failed: %w", err),
-			FailureClassification: FailureClassSystem,
-			Remediation:           "Fix compilation errors before re-running the performance phase.",
-		}
-	}
-	duration := time.Since(start)
-	seconds := int(duration.Round(time.Second) / time.Second)
-	logPhaseStep(logWriter, "go build completed in %ds", seconds)
-	observations := []Observation{NewSuccessObservation(fmt.Sprintf("go build duration: %ds", seconds))}
-
-	if duration > performanceMaxDuration {
-		return nil, &RunReport{
-			Err:                   fmt.Errorf("go build exceeded %s (took %s)", performanceMaxDuration, duration),
-			FailureClassification: FailureClassSystem,
-			Remediation:           "Investigate slow dependencies or remove unnecessary modules before building.",
-			Observations:          observations,
-		}
-	}
-	return observations, nil
+	return result
 }
 
-func benchmarkUIBuild(ctx context.Context, env workspace.Environment, logWriter io.Writer) ([]Observation, *RunReport) {
-	nodeDir := detectNodeWorkspaceDir(env.ScenarioDir)
-	if nodeDir == "" {
-		return []Observation{NewObservation("ui workspace not detected")}, nil
+// convertPerformanceObservation converts a single performance.Observation to phases.Observation.
+func convertPerformanceObservation(o performance.Observation) Observation {
+	switch o.Type {
+	case performance.ObservationSection:
+		return NewSectionObservation(o.Icon, o.Message)
+	case performance.ObservationSuccess:
+		return NewSuccessObservation(o.Message)
+	case performance.ObservationWarning:
+		return NewWarningObservation(o.Message)
+	case performance.ObservationError:
+		return NewErrorObservation(o.Message)
+	case performance.ObservationInfo:
+		return NewInfoObservation(o.Message)
+	case performance.ObservationSkip:
+		return NewSkipObservation(o.Message)
+	default:
+		return NewObservation(o.Message)
 	}
+}
 
-	manifest, err := loadPackageManifest(filepath.Join(nodeDir, "package.json"))
-	if err != nil {
-		return nil, &RunReport{
-			Err:                   err,
-			FailureClassification: FailureClassMisconfiguration,
-			Remediation:           "Fix package.json so the Node workspace can be parsed.",
-		}
+// convertPerformanceFailureClass converts performance.FailureClass to phases failure classification string.
+func convertPerformanceFailureClass(fc performance.FailureClass) string {
+	switch fc {
+	case performance.FailureClassMisconfiguration:
+		return FailureClassMisconfiguration
+	case performance.FailureClassMissingDependency:
+		return FailureClassMissingDependency
+	case performance.FailureClassSystem:
+		return FailureClassSystem
+	default:
+		return FailureClassSystem
 	}
-	buildScript := ""
-	if manifest != nil {
-		buildScript = manifest.Scripts["build"]
-	}
-	if buildScript == "" {
-		return []Observation{NewObservation("ui workspace lacks build script")}, nil
-	}
-
-	manager := detectPackageManager(manifest, nodeDir)
-	if err := EnsureCommandAvailable(manager); err != nil {
-		return nil, &RunReport{
-			Err:                   err,
-			FailureClassification: FailureClassMissingDependency,
-			Remediation:           fmt.Sprintf("Install %s to run UI build benchmarks.", manager),
-		}
-	}
-	logPhaseStep(logWriter, "running UI build via %s", manager)
-	if _, err := os.Stat(filepath.Join(nodeDir, "node_modules")); os.IsNotExist(err) {
-		if installErr := installNodeDependencies(ctx, nodeDir, manager, logWriter); installErr != nil {
-			return nil, &RunReport{
-				Err:                   fmt.Errorf("%s install failed: %w", manager, installErr),
-				FailureClassification: FailureClassSystem,
-				Remediation:           "Resolve dependency installation issues before benchmarking the UI build.",
-			}
-		}
-	}
-	start := time.Now()
-	if err := phaseCommandExecutor(ctx, nodeDir, logWriter, manager, "run", "build"); err != nil {
-		return nil, &RunReport{
-			Err:                   fmt.Errorf("ui build failed: %w", err),
-			FailureClassification: FailureClassSystem,
-			Remediation:           "Inspect the UI build output above, fix failures, and rerun the suite.",
-		}
-	}
-	duration := time.Since(start)
-	seconds := int(duration.Round(time.Second) / time.Second)
-	logPhaseStep(logWriter, "ui build completed in %ds", seconds)
-	observations := []Observation{NewSuccessObservation(fmt.Sprintf("ui build duration: %ds", seconds))}
-	if duration > uiBuildMaxDuration {
-		return nil, &RunReport{
-			Err:                   fmt.Errorf("ui build exceeded %s (took %s)", uiBuildMaxDuration, duration),
-			FailureClassification: FailureClassSystem,
-			Remediation:           "Investigate slow front-end builds or trim unused dependencies.",
-			Observations:          observations,
-		}
-	}
-	return observations, nil
 }

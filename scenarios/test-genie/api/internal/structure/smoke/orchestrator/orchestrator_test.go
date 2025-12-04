@@ -879,3 +879,351 @@ func containsString(s, sub string) bool {
 	}
 	return false
 }
+
+// =============================================================================
+// Auto-Recovery Tests
+// =============================================================================
+
+func TestOrchestrator_Run_AutoRecovery_Success(t *testing.T) {
+	cfg := validConfig()
+
+	mockHealth := &mockHealthCheckerFull{
+		mockPreflightChecker: mockPreflightChecker{
+			hasUIDir:       true,
+			browserlessErr: context.DeadlineExceeded, // Initial failure
+			bundleStatus:   &BundleStatus{Fresh: true},
+			uiPort:         3000,
+			bridgeStatus:   &BridgeStatus{DependencyPresent: true},
+		},
+		recoveryResult: &RecoveryResult{
+			Attempted: true,
+			Success:   true,
+			Action:    "restarted container",
+		},
+		browserlessRecovered: true, // After recovery, browserless works
+	}
+
+	browser := &mockBrowserClient{
+		response: &BrowserResponse{
+			Success:   true,
+			Handshake: HandshakeRaw{Signaled: true},
+			Raw:       json.RawMessage(`{}`),
+		},
+	}
+
+	payloadGen := &mockPayloadGenerator{}
+
+	orch := New(cfg,
+		WithHealthChecker(mockHealth),
+		WithAutoRecovery(true),
+		WithBrowserClient(browser),
+		WithPayloadGenerator(payloadGen),
+	)
+
+	result, err := orch.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	if result.Status != StatusPassed {
+		t.Errorf("Status = %v, want %v (message: %s)", result.Status, StatusPassed, result.Message)
+	}
+}
+
+func TestOrchestrator_Run_AutoRecovery_Failed(t *testing.T) {
+	cfg := validConfig()
+
+	mockHealth := &mockHealthCheckerFull{
+		mockPreflightChecker: mockPreflightChecker{
+			hasUIDir:       true,
+			browserlessErr: context.DeadlineExceeded,
+			bundleStatus:   &BundleStatus{Fresh: true},
+			uiPort:         3000,
+			bridgeStatus:   &BridgeStatus{DependencyPresent: true},
+		},
+		recoveryResult: &RecoveryResult{
+			Attempted: true,
+			Success:   false,
+			Error:     "container failed to start",
+		},
+		diagnosis: &Diagnosis{
+			Type:           DiagnosisOffline,
+			Message:        "Browserless is offline",
+			Recommendation: "Run: resource-browserless manage start",
+		},
+	}
+
+	orch := New(cfg,
+		WithHealthChecker(mockHealth),
+		WithAutoRecovery(true),
+	)
+
+	result, err := orch.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	if result.Status != StatusBlocked {
+		t.Errorf("Status = %v, want %v", result.Status, StatusBlocked)
+	}
+}
+
+func TestOrchestrator_Run_WithDiagnosis_NoBrowserClient(t *testing.T) {
+	cfg := validConfig()
+
+	mockHealth := &mockHealthCheckerFull{
+		mockPreflightChecker: mockPreflightChecker{
+			hasUIDir:     true,
+			bundleStatus: &BundleStatus{Fresh: true},
+			uiPort:       3000,
+			bridgeStatus: &BridgeStatus{DependencyPresent: true},
+		},
+		diagnosis: &Diagnosis{
+			Type:           DiagnosisProcessLeak,
+			Message:        "Too many Chrome processes",
+			Recommendation: "Restart browserless",
+		},
+	}
+
+	browser := &mockBrowserClient{
+		execErr: context.DeadlineExceeded,
+	}
+
+	payloadGen := &mockPayloadGenerator{}
+
+	orch := New(cfg,
+		WithHealthChecker(mockHealth),
+		WithBrowserClient(browser),
+		WithPayloadGenerator(payloadGen),
+	)
+
+	result, err := orch.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	if result.Status != StatusFailed {
+		t.Errorf("Status = %v, want %v", result.Status, StatusFailed)
+	}
+	// Should contain diagnosis info in message
+	if !containsString(result.Message, "Browserless") {
+		t.Errorf("Message should contain diagnosis, got: %s", result.Message)
+	}
+}
+
+func TestOrchestrator_Run_ConsoleErrorsCounted(t *testing.T) {
+	cfg := validConfig()
+
+	preflight := &mockPreflightChecker{
+		hasUIDir:     true,
+		bundleStatus: &BundleStatus{Fresh: true},
+		uiPort:       3000,
+		bridgeStatus: &BridgeStatus{DependencyPresent: true},
+	}
+
+	browser := &mockBrowserClient{
+		response: &BrowserResponse{
+			Success: true,
+			Handshake: HandshakeRaw{
+				Signaled: true,
+			},
+			Console: []ConsoleEntry{
+				{Level: "error", Message: "Error 1"},
+				{Level: "error", Message: "Error 2"},
+				{Level: "warn", Message: "Warning"},
+				{Level: "log", Message: "Log"},
+			},
+			Raw: json.RawMessage(`{}`),
+		},
+	}
+
+	payloadGen := &mockPayloadGenerator{}
+
+	orch := New(cfg,
+		WithPreflightChecker(preflight),
+		WithBrowserClient(browser),
+		WithPayloadGenerator(payloadGen),
+	)
+
+	result, err := orch.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	if result.ConsoleErrorCount != 2 {
+		t.Errorf("ConsoleErrorCount = %d, want 2", result.ConsoleErrorCount)
+	}
+}
+
+func TestOrchestrator_Run_ArtifactWriteError(t *testing.T) {
+	cfg := validConfig()
+
+	preflight := &mockPreflightChecker{
+		hasUIDir:     true,
+		bundleStatus: &BundleStatus{Fresh: true},
+		uiPort:       3000,
+		bridgeStatus: &BridgeStatus{DependencyPresent: true},
+	}
+
+	browser := &mockBrowserClient{
+		response: &BrowserResponse{
+			Success:   true,
+			Handshake: HandshakeRaw{Signaled: true},
+			Raw:       json.RawMessage(`{}`),
+		},
+	}
+
+	artifacts := &mockArtifactWriter{
+		writeErr: context.DeadlineExceeded,
+	}
+
+	payloadGen := &mockPayloadGenerator{}
+	var logBuf bytes.Buffer
+
+	orch := New(cfg,
+		WithLogger(&logBuf),
+		WithPreflightChecker(preflight),
+		WithBrowserClient(browser),
+		WithArtifactWriter(artifacts),
+		WithPayloadGenerator(payloadGen),
+	)
+
+	result, err := orch.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	// Should still pass even if artifact write fails
+	if result.Status != StatusPassed {
+		t.Errorf("Status = %v, want %v", result.Status, StatusPassed)
+	}
+}
+
+func TestOrchestrator_Run_PersistResultError(t *testing.T) {
+	cfg := validConfig()
+
+	preflight := &mockPreflightChecker{
+		hasUIDir:     true,
+		bundleStatus: &BundleStatus{Fresh: true},
+		uiPort:       3000,
+		bridgeStatus: &BridgeStatus{DependencyPresent: true},
+	}
+
+	browser := &mockBrowserClient{
+		response: &BrowserResponse{
+			Success:   true,
+			Handshake: HandshakeRaw{Signaled: true},
+			Raw:       json.RawMessage(`{}`),
+		},
+	}
+
+	artifacts := &mockArtifactWriter{
+		resultErr:  context.DeadlineExceeded,
+		readmeErr:  context.DeadlineExceeded,
+		paths:      &ArtifactPaths{Screenshot: "test.png"},
+	}
+
+	payloadGen := &mockPayloadGenerator{}
+	var logBuf bytes.Buffer
+
+	orch := New(cfg,
+		WithLogger(&logBuf),
+		WithPreflightChecker(preflight),
+		WithBrowserClient(browser),
+		WithArtifactWriter(artifacts),
+		WithPayloadGenerator(payloadGen),
+	)
+
+	result, err := orch.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	// Should still pass even if persist fails
+	if result.Status != StatusPassed {
+		t.Errorf("Status = %v, want %v", result.Status, StatusPassed)
+	}
+}
+
+func TestOrchestrator_Run_BrowserResponseFailureEmptyError(t *testing.T) {
+	cfg := validConfig()
+
+	preflight := &mockPreflightChecker{
+		hasUIDir:     true,
+		bundleStatus: &BundleStatus{Fresh: true},
+		uiPort:       3000,
+		bridgeStatus: &BridgeStatus{DependencyPresent: true},
+	}
+
+	browser := &mockBrowserClient{
+		response: &BrowserResponse{
+			Success: false,
+			Error:   "", // Empty error
+			Raw:     json.RawMessage(`{}`),
+		},
+	}
+
+	payloadGen := &mockPayloadGenerator{}
+
+	orch := New(cfg,
+		WithPreflightChecker(preflight),
+		WithBrowserClient(browser),
+		WithPayloadGenerator(payloadGen),
+	)
+
+	result, err := orch.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	if result.Status != StatusFailed {
+		t.Errorf("Status = %v, want %v", result.Status, StatusFailed)
+	}
+	// Should have default message when error is empty
+	if result.Message != "Browserless execution failed" {
+		t.Errorf("Message = %q, want default failure message", result.Message)
+	}
+}
+
+// mockHealthCheckerFull is a more complete mock for testing auto-recovery flows.
+type mockHealthCheckerFull struct {
+	mockPreflightChecker
+	healthy              bool
+	healthErr            error
+	diagnostics          *HealthDiagnostics
+	recoveryResult       *RecoveryResult
+	diagnosis            *Diagnosis
+	browserlessRecovered bool
+	checkCount           int
+}
+
+func (m *mockHealthCheckerFull) CheckBrowserless(ctx context.Context) error {
+	m.checkCount++
+	// First check fails, subsequent checks succeed if recovered
+	if m.browserlessRecovered && m.checkCount > 1 {
+		return nil
+	}
+	return m.mockPreflightChecker.CheckBrowserless(ctx)
+}
+
+func (m *mockHealthCheckerFull) IsHealthy(ctx context.Context) (bool, *HealthDiagnostics, error) {
+	return m.healthy, m.diagnostics, m.healthErr
+}
+
+func (m *mockHealthCheckerFull) EnsureHealthy(ctx context.Context, opts AutoRecoveryOptions) (*RecoveryResult, error) {
+	if m.recoveryResult != nil {
+		return m.recoveryResult, nil
+	}
+	return &RecoveryResult{Attempted: false, Success: true}, nil
+}
+
+func (m *mockHealthCheckerFull) DiagnoseBrowserlessFailure(ctx context.Context, scenarioName string) *Diagnosis {
+	if m.diagnosis != nil {
+		return m.diagnosis
+	}
+	return &Diagnosis{
+		Type:           DiagnosisUnknown,
+		Message:        "Unknown failure",
+		Recommendation: "Check logs",
+	}
+}
