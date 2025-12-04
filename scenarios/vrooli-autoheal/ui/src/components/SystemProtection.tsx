@@ -2,7 +2,7 @@
 // [REQ:WATCH-DETECT-001] [REQ:UI-HEALTH-001]
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Shield, CheckCircle, AlertTriangle, XCircle, ChevronDown, ChevronUp, ChevronRight, Copy, Check, RefreshCw, ExternalLink } from "lucide-react";
+import { Shield, CheckCircle, AlertTriangle, XCircle, ChevronDown, ChevronUp, ChevronRight, Copy, Check, RefreshCw, ExternalLink, Terminal } from "lucide-react";
 import { fetchWatchdogStatus, fetchWatchdogTemplate, ProtectionLevel, WatchdogStatus } from "../lib/api";
 import { ErrorDisplay } from "./ErrorDisplay";
 import { selectors } from "../consts/selectors";
@@ -39,6 +39,50 @@ function StatusIndicator({ active, label }: { active: boolean; label: string }) 
         <span className={`w-2 h-2 rounded-full ${active ? "bg-emerald-400" : "bg-slate-600"}`} />
         {active ? "Active" : "Inactive"}
       </span>
+    </div>
+  );
+}
+
+// Lingering warning for Linux user services
+function LingeringWarning({ username }: { username: string }) {
+  const [copied, setCopied] = useState(false);
+  const command = `sudo loginctl enable-linger ${username}`;
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(command);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+      <div className="flex items-start gap-2">
+        <Terminal size={16} className="text-amber-400 mt-0.5 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-amber-400 mb-1">
+            Headless Boot Required
+          </p>
+          <p className="text-xs text-slate-400 mb-2">
+            Your service won&apos;t start at boot without a login session. Enable lingering to fix this:
+          </p>
+          <div className="relative group">
+            <code className="block text-xs bg-slate-900 rounded p-2 pr-10 text-emerald-400 font-mono overflow-x-auto">
+              {command}
+            </code>
+            <button
+              onClick={handleCopy}
+              className="absolute top-1.5 right-1.5 p-1 rounded bg-slate-800 hover:bg-slate-700 transition-colors"
+              title="Copy command"
+            >
+              {copied ? (
+                <Check size={12} className="text-emerald-400" />
+              ) : (
+                <Copy size={12} className="text-slate-400" />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -252,6 +296,15 @@ export function SystemProtection({ compact = false }: SystemProtectionProps) {
         <StatusIndicator active={data.watchdogInstalled} label="OS Watchdog" />
         <StatusIndicator active={data.bootProtectionActive} label="Boot Recovery" />
       </div>
+
+      {/* Lingering Warning - Show for Linux user services without lingering enabled */}
+      {data.watchdogType === "systemd" &&
+        data.watchdogInstalled &&
+        data.isUserService &&
+        !data.lingeringEnabled &&
+        data.username && (
+          <LingeringWarning username={data.username} />
+        )}
 
       {/* Learn More Link */}
       <a

@@ -358,6 +358,12 @@ export interface WatchdogStatus {
   servicePath?: string;
   lastError?: string;
   protectionLevel: ProtectionLevel;
+  /** Whether systemd lingering is enabled (Linux user services only) */
+  lingeringEnabled: boolean;
+  /** Current username, for displaying fix commands */
+  username?: string;
+  /** Whether this is a user-level service vs system-level */
+  isUserService?: boolean;
 }
 
 export interface WatchdogTemplateResponse {

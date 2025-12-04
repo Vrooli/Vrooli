@@ -22,6 +22,12 @@ readonly BLUE='\033[0;34m'
 readonly CYAN='\033[0;36m'
 readonly NC='\033[0m'
 
+# API lifecycle management
+readonly API_BINARY_NAME="vrooli-autoheal-api"
+readonly API_STARTUP_TIMEOUT=60
+readonly API_HEALTH_CHECK_INTERVAL=5
+API_PID=""
+
 init_config() {
     if [[ ! -d "$CONFIG_DIR" ]]; then
         mkdir -p "$CONFIG_DIR"
@@ -84,6 +90,182 @@ normalize_api_base() {
         return 1
     fi
     echo "${value%/}"
+}
+
+# ============================================================================
+# API LIFECYCLE MANAGEMENT
+# These functions ensure the API is running before/during the loop
+# ============================================================================
+
+# Get the scenario root directory
+get_scenario_root() {
+    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+    echo "$vrooli_root/scenarios/vrooli-autoheal"
+}
+
+# Get the API binary path
+get_api_binary_path() {
+    echo "$(get_scenario_root)/api/$API_BINARY_NAME"
+}
+
+# Check if API process is running (by PID or process name)
+is_api_process_running() {
+    # First check our tracked PID
+    if [[ -n "$API_PID" ]] && kill -0 "$API_PID" 2>/dev/null; then
+        return 0
+    fi
+
+    # Fall back to checking by process name
+    if pgrep -f "$API_BINARY_NAME" >/dev/null 2>&1; then
+        # Update our tracked PID
+        API_PID=$(pgrep -f "$API_BINARY_NAME" | head -1)
+        return 0
+    fi
+
+    return 1
+}
+
+# Check if API is healthy (responds to health endpoint)
+is_api_healthy() {
+    local api_url="${API_BASE:-}"
+
+    # Try to detect API base if not set
+    if [[ -z "$api_url" ]]; then
+        local detected_base
+        if detected_base=$(detect_api_base 2>/dev/null); then
+            api_url="$detected_base"
+        else
+            # Fall back to default port from config
+            local port="${API_PORT:-19761}"
+            api_url="http://localhost:${port}/api/v1"
+        fi
+    fi
+
+    # Remove /api/v1 suffix if present to get base URL for health check
+    local health_url="${api_url%/api/v1}/health"
+
+    local response
+    response=$(curl -s --connect-timeout 5 --max-time 10 "$health_url" 2>/dev/null)
+
+    if [[ $? -eq 0 ]] && echo "$response" | grep -q '"status"' 2>/dev/null; then
+        return 0
+    fi
+
+    return 1
+}
+
+# Start the API using vrooli scenario start (proper lifecycle with dependencies)
+start_api() {
+    local scenario_root
+    scenario_root=$(get_scenario_root)
+
+    echo -e "${BLUE}Starting API server via Vrooli lifecycle...${NC}"
+
+    # Check if vrooli command is available
+    if ! command -v vrooli >/dev/null 2>&1; then
+        echo -e "${RED}vrooli command not found. Cannot start API.${NC}" >&2
+        echo -e "${YELLOW}Ensure vrooli is in PATH or run: source ~/.bashrc${NC}" >&2
+        return 1
+    fi
+
+    # Use vrooli scenario start to properly start with all dependencies
+    # This handles database connections, port allocation, etc.
+    local start_output
+    start_output=$(vrooli scenario start "$SCENARIO_ID" 2>&1) || {
+        echo -e "${RED}Failed to start scenario: $start_output${NC}" >&2
+        echo "$start_output" >> "$CONFIG_DIR/api.log"
+        return 1
+    }
+
+    echo "$start_output" >> "$CONFIG_DIR/api.log"
+
+    # Get the API PID from vrooli process tracking
+    local pid_file="$HOME/.vrooli/processes/scenarios/$SCENARIO_ID/start-api.pid"
+    if [[ -f "$pid_file" ]]; then
+        API_PID=$(cat "$pid_file")
+        echo "  API started with PID: $API_PID"
+    fi
+
+    return 0
+}
+
+# Wait for API to become healthy
+wait_for_api_healthy() {
+    local timeout="${1:-$API_STARTUP_TIMEOUT}"
+    local interval="${2:-$API_HEALTH_CHECK_INTERVAL}"
+    local elapsed=0
+
+    echo -e "${CYAN}Waiting for API to become healthy (timeout: ${timeout}s)...${NC}"
+
+    while [[ $elapsed -lt $timeout ]]; do
+        if is_api_healthy; then
+            echo -e "${GREEN}API is healthy${NC}"
+            return 0
+        fi
+
+        sleep "$interval"
+        elapsed=$((elapsed + interval))
+        echo -e "  Waiting... (${elapsed}s/${timeout}s)"
+    done
+
+    echo -e "${RED}API failed to become healthy within ${timeout}s${NC}" >&2
+    return 1
+}
+
+# Ensure API is running and healthy - start if needed
+# [REQ:CLI-LOOP-004] Self-healing API management
+ensure_api_running() {
+    # First check if API is healthy
+    if is_api_healthy; then
+        return 0
+    fi
+
+    echo -e "${YELLOW}API not responding, checking process...${NC}"
+
+    # Check if process is running but unhealthy
+    if is_api_process_running; then
+        echo -e "${YELLOW}API process running (PID: $API_PID) but not healthy${NC}"
+        echo -e "${BLUE}Stopping unhealthy API process...${NC}"
+
+        # Kill the unhealthy process
+        kill "$API_PID" 2>/dev/null || true
+        sleep 2
+
+        # Force kill if still running
+        if kill -0 "$API_PID" 2>/dev/null; then
+            kill -9 "$API_PID" 2>/dev/null || true
+            sleep 1
+        fi
+
+        API_PID=""
+    fi
+
+    # Start the API
+    if ! start_api; then
+        echo -e "${RED}Failed to start API${NC}" >&2
+        return 1
+    fi
+
+    # Wait for it to become healthy
+    if ! wait_for_api_healthy; then
+        echo -e "${RED}API started but failed health check${NC}" >&2
+        return 1
+    fi
+
+    return 0
+}
+
+# Stop the API via vrooli lifecycle
+stop_api() {
+    # Only stop if we actually started the scenario ourselves
+    # (indicated by API_PID being set)
+    if [[ -n "$API_PID" ]]; then
+        echo -e "${BLUE}Stopping API via Vrooli lifecycle...${NC}"
+        if command -v vrooli >/dev/null 2>&1; then
+            vrooli scenario stop "$SCENARIO_ID" 2>/dev/null || true
+        fi
+        API_PID=""
+    fi
 }
 
 resolve_api_base() {
@@ -199,24 +381,56 @@ cmd_tick() {
 cmd_loop() {
     local interval=$DEFAULT_INTERVAL
     local json_output=false
+    local manage_api=true
+    local consecutive_failures=0
+    local max_failures=3
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --interval-seconds=*) interval="${1#*=}"; shift ;;
             --interval)           interval="$2"; shift 2 ;;
             --json)               json_output=true; shift ;;
+            --no-manage-api)      manage_api=false; shift ;;
             *)                    shift ;;
         esac
     done
 
-    ensure_api_base
-
     echo -e "${BLUE}Starting autoheal loop (interval: ${interval}s)${NC}"
+    if [[ "$manage_api" == true ]]; then
+        echo -e "${CYAN}API lifecycle management: ENABLED${NC}"
+    fi
     echo -e "Press Ctrl+C to stop"
     echo ""
 
-    # Handle graceful shutdown
-    trap 'echo -e "\n${YELLOW}Stopping loop...${NC}"; exit 0' SIGINT SIGTERM
+    # Handle graceful shutdown - stop API if we started it
+    cleanup() {
+        echo -e "\n${YELLOW}Stopping loop...${NC}"
+        # Only stop API if we're managing it AND we started it (API_PID is set)
+        if [[ "$manage_api" == true ]] && [[ -n "$API_PID" ]]; then
+            stop_api
+        fi
+        exit 0
+    }
+    trap cleanup SIGINT SIGTERM
+
+    # [REQ:CLI-LOOP-004] Ensure API is running before starting loop
+    if [[ "$manage_api" == true ]]; then
+        echo -e "${BLUE}Ensuring API is running...${NC}"
+        if ! ensure_api_running; then
+            echo -e "${RED}Failed to start API. Loop cannot continue.${NC}" >&2
+            echo -e "${YELLOW}Tip: Check API logs at $CONFIG_DIR/api.log${NC}" >&2
+            exit 1
+        fi
+        echo ""
+    fi
+
+    # Now resolve API base after ensuring API is up
+    if ! API_BASE=$(resolve_api_base "$CONFIG_API_BASE" 2>/dev/null); then
+        echo -e "${RED}Unable to determine API base URL after starting API.${NC}" >&2
+        exit 1
+    fi
+    echo -e "${GREEN}Connected to API at: $API_BASE${NC}"
+    echo ""
 
     local tick_count=0
     while true; do
@@ -227,19 +441,44 @@ cmd_loop() {
 
         response=$(api_request POST "/tick" 2>/dev/null || echo '{}')
 
-        if [[ "$json_output" == true ]]; then
-            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+        # Check if the response indicates API failure
+        local error_msg=$(echo "$response" | jq -r '.error // ""' 2>/dev/null)
+        local tick_status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
+
+        if [[ "$error_msg" == "Connection failed" ]] || [[ "$tick_status" == "unknown" && -z "$(echo "$response" | jq -r '.summary // ""' 2>/dev/null)" ]]; then
+            consecutive_failures=$((consecutive_failures + 1))
+            echo -e "  ${RED}● API connection failed (failure $consecutive_failures/$max_failures)${NC}"
+
+            # [REQ:CLI-LOOP-004] Self-healing: restart API after consecutive failures
+            if [[ "$manage_api" == true ]] && [[ $consecutive_failures -ge $max_failures ]]; then
+                echo -e "${YELLOW}Max consecutive failures reached. Attempting API recovery...${NC}"
+                if ensure_api_running; then
+                    echo -e "${GREEN}API recovered successfully${NC}"
+                    consecutive_failures=0
+                    # Re-resolve API base in case port changed
+                    API_BASE=$(resolve_api_base "$CONFIG_API_BASE" 2>/dev/null) || true
+                else
+                    echo -e "${RED}API recovery failed. Will retry on next tick.${NC}"
+                fi
+            fi
         else
-            local status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
-            local ok=$(echo "$response" | jq -r '.summary.ok // 0' 2>/dev/null)
-            local warn=$(echo "$response" | jq -r '.summary.warning // 0' 2>/dev/null)
-            local crit=$(echo "$response" | jq -r '.summary.critical // 0' 2>/dev/null)
+            # Reset failure counter on successful tick
+            consecutive_failures=0
 
-            echo -e "  $(status_icon "$status") Status: ${status^^} | OK: $ok | Warn: $warn | Crit: $crit"
+            if [[ "$json_output" == true ]]; then
+                echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            else
+                local status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
+                local ok=$(echo "$response" | jq -r '.summary.ok // 0' 2>/dev/null)
+                local warn=$(echo "$response" | jq -r '.summary.warning // 0' 2>/dev/null)
+                local crit=$(echo "$response" | jq -r '.summary.critical // 0' 2>/dev/null)
 
-            # Show critical issues
-            if [[ "$crit" -gt 0 ]]; then
-                echo "$response" | jq -r '.results[]? | select(.status == "critical") | "    \(.checkId): \(.message)"' 2>/dev/null
+                echo -e "  $(status_icon "$status") Status: ${status^^} | OK: $ok | Warn: $warn | Crit: $crit"
+
+                # Show critical issues
+                if [[ "$crit" -gt 0 ]]; then
+                    echo "$response" | jq -r '.results[]? | select(.status == "critical") | "    \(.checkId): \(.message)"' 2>/dev/null
+                fi
             fi
         fi
 
@@ -509,37 +748,95 @@ install_linux_watchdog() {
     local service_path
     local use_sudo=""
     local systemctl_cmd="systemctl"
+    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+    local linger_enabled=false
+
+    # Note: We do NOT hardcode API_PORT - let the CLI auto-detect via vrooli scenario port
+    # This ensures the loop works even if ports are reallocated
 
     if [[ "$system_wide" == "true" ]]; then
         service_path="/etc/systemd/system/vrooli-autoheal.service"
         use_sudo="sudo"
         echo -e "${CYAN}Installing system-wide service (requires sudo)${NC}"
-    else
-        service_path="$HOME/.config/systemd/user/vrooli-autoheal.service"
-        systemctl_cmd="systemctl --user"
-        mkdir -p "$(dirname "$service_path")"
-        echo -e "${CYAN}Installing user service${NC}"
 
-        # Generate user-specific template (no User=root, uses default.target)
-        # Use VROOLI_ROOT or default to $HOME/Vrooli
-        local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+        # System-wide template with User specification
         local cli_path="$vrooli_root/scenarios/vrooli-autoheal/cli/vrooli-autoheal"
         template="[Unit]
 Description=Vrooli Autoheal - Self-healing infrastructure supervisor
 After=network-online.target
 Wants=network-online.target
+# Rate limiting to prevent crash loops (must be in Unit section for systemd 230+)
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
 ExecStart=$cli_path loop
 Restart=always
 RestartSec=10
+# Environment configuration - API_PORT omitted to allow dynamic detection via vrooli
 Environment=VROOLI_LIFECYCLE_MANAGED=true
 Environment=HOME=$HOME
+Environment=VROOLI_ROOT=$vrooli_root
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:$HOME/.vrooli/bin
+WorkingDirectory=$vrooli_root/scenarios/vrooli-autoheal
+User=$USER
+
+[Install]
+WantedBy=multi-user.target"
+    else
+        service_path="$HOME/.config/systemd/user/vrooli-autoheal.service"
+        systemctl_cmd="systemctl --user"
+        mkdir -p "$(dirname "$service_path")"
+        echo -e "${CYAN}Installing user service${NC}"
+
+        # Generate user-specific template with improved configuration
+        local cli_path="$vrooli_root/scenarios/vrooli-autoheal/cli/vrooli-autoheal"
+        template="[Unit]
+Description=Vrooli Autoheal - Self-healing infrastructure supervisor
+After=network-online.target
+Wants=network-online.target
+# Rate limiting to prevent crash loops (must be in Unit section for systemd 230+)
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=$cli_path loop
+Restart=always
+RestartSec=10
+# Environment configuration - API_PORT omitted to allow dynamic detection via vrooli
+Environment=VROOLI_LIFECYCLE_MANAGED=true
+Environment=HOME=$HOME
+Environment=VROOLI_ROOT=$vrooli_root
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:$HOME/.vrooli/bin
 WorkingDirectory=$vrooli_root/scenarios/vrooli-autoheal
 
 [Install]
 WantedBy=default.target"
+
+        # For user services, enable lingering to ensure service starts on boot
+        # even without user login (critical for headless servers)
+        echo -e "${CYAN}Enabling systemd lingering for headless boot support...${NC}"
+        if command -v loginctl >/dev/null 2>&1; then
+            # Check if already enabled
+            local current_linger
+            current_linger=$(loginctl show-user "$USER" 2>/dev/null | grep -i "^Linger=" | cut -d= -f2)
+            if [[ "$current_linger" == "yes" ]]; then
+                echo -e "  ${GREEN}✓${NC} Lingering already enabled"
+                linger_enabled=true
+            else
+                # Try to enable lingering (may require sudo)
+                if sudo loginctl enable-linger "$USER" 2>/dev/null; then
+                    echo -e "  ${GREEN}✓${NC} Lingering enabled"
+                    linger_enabled=true
+                else
+                    echo -e "  ${YELLOW}⚠${NC} Could not enable lingering (may need sudo)"
+                    echo -e "    ${YELLOW}Run: sudo loginctl enable-linger $USER${NC}"
+                    echo -e "    ${YELLOW}Without this, service won't start on headless boot${NC}"
+                fi
+            fi
+        fi
     fi
 
     echo "  Service path: $service_path"
@@ -585,7 +882,21 @@ WantedBy=default.target"
     echo ""
     echo -e "${GREEN}Watchdog installation complete!${NC}"
     echo ""
-    echo "The autoheal service will now start automatically on boot."
+
+    # Boot persistence message depends on service type and lingering
+    if [[ -n "$use_sudo" ]]; then
+        echo "The autoheal service will start automatically on system boot."
+    elif [[ "$linger_enabled" == true ]]; then
+        echo "The autoheal service will start automatically on system boot"
+        echo "(lingering enabled for headless boot support)."
+    else
+        echo -e "${YELLOW}NOTE: Service will start on user login, but NOT on headless boot.${NC}"
+        echo -e "${YELLOW}For headless boot support, run: sudo loginctl enable-linger $USER${NC}"
+    fi
+
+    echo ""
+    echo "The loop now manages API lifecycle automatically - it will start"
+    echo "and restart the API if it crashes or becomes unresponsive."
     echo ""
     echo "Useful commands:"
     if [[ -n "$use_sudo" ]]; then
@@ -867,8 +1178,12 @@ Commands:
       Run a single health check cycle. Use --force to run all checks
       regardless of interval. Use --json for structured output.
 
-  loop [--interval-seconds=60] [--json]
+  loop [--interval-seconds=60] [--json] [--no-manage-api]
       Run continuously, executing health checks at the specified interval.
+      By default, the loop manages the API lifecycle automatically:
+        - Starts the API if not running
+        - Restarts the API if it crashes or becomes unresponsive
+      Use --no-manage-api to disable API lifecycle management.
       Press Ctrl+C to stop gracefully.
 
   status [--json]
@@ -881,6 +1196,7 @@ Commands:
       Install the OS watchdog service for boot persistence.
       Use --system for system-wide installation (requires sudo on Linux).
       Use --force to overwrite existing installation.
+      For user services on Linux, enables lingering for headless boot support.
 
   uninstall [--force]
       Remove the OS watchdog service. Use --force to skip confirmation.
@@ -905,6 +1221,7 @@ Examples:
   vrooli-autoheal tick                    # Run one health check cycle
   vrooli-autoheal tick --force            # Force all checks to run
   vrooli-autoheal loop --interval-seconds=30  # Run every 30 seconds
+  vrooli-autoheal loop --no-manage-api    # Run loop without API management
   vrooli-autoheal status --json           # Get status as JSON
   vrooli-autoheal watchdog                # Check watchdog status
   vrooli-autoheal install                 # Install user-level watchdog

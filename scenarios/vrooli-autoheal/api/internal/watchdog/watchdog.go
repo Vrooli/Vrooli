@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -56,6 +57,16 @@ type Status struct {
 
 	// ProtectionLevel summarizes the protection state
 	ProtectionLevel ProtectionLevel `json:"protectionLevel"`
+
+	// LingeringEnabled indicates if systemd lingering is enabled for the user (Linux only)
+	// When false on a user service, the service won't start at boot without a login session
+	LingeringEnabled bool `json:"lingeringEnabled"`
+
+	// Username is the current user, used for displaying fix commands in the UI
+	Username string `json:"username,omitempty"`
+
+	// IsUserService indicates if this is a user-level service (vs system-level)
+	IsUserService bool `json:"isUserService,omitempty"`
 }
 
 // ProtectionLevel represents the overall protection state
@@ -159,6 +170,12 @@ func (d *Detector) detectLinux(status *Status) {
 
 	status.WatchdogType = WatchdogTypeSystemd
 
+	// Get current user for lingering check and UI display
+	currentUser, err := user.Current()
+	if err == nil {
+		status.Username = currentUser.Username
+	}
+
 	// Check common service file locations
 	servicePaths := []string{
 		"/etc/systemd/system/vrooli-autoheal.service",
@@ -180,6 +197,7 @@ func (d *Detector) detectLinux(status *Status) {
 
 	// Determine if this is a user service or system service
 	isUserService := strings.Contains(status.ServicePath, ".config/systemd/user")
+	status.IsUserService = isUserService
 
 	// Check if service is enabled
 	var cmd *exec.Cmd
@@ -199,6 +217,34 @@ func (d *Detector) detectLinux(status *Status) {
 	}
 	output, _ = cmd.Output()
 	status.WatchdogRunning = strings.TrimSpace(string(output)) == "active"
+
+	// For user services, check if lingering is enabled
+	// Lingering allows user services to run at boot without a login session
+	if isUserService && status.Username != "" {
+		status.LingeringEnabled = d.isLingeringEnabled(status.Username)
+	} else if !isUserService {
+		// System services don't need lingering - they always start at boot
+		status.LingeringEnabled = true
+	}
+}
+
+// isLingeringEnabled checks if systemd lingering is enabled for a user
+// Lingering allows user services to start at boot without requiring a login session
+func (d *Detector) isLingeringEnabled(username string) bool {
+	// Method 1: Check for linger file (most reliable)
+	lingerPath := filepath.Join("/var/lib/systemd/linger", username)
+	if _, err := os.Stat(lingerPath); err == nil {
+		return true
+	}
+
+	// Method 2: Use loginctl as fallback (in case linger directory differs)
+	cmd := exec.Command("loginctl", "show-user", username, "--property=Linger")
+	output, err := cmd.Output()
+	if err == nil {
+		return strings.TrimSpace(string(output)) == "Linger=yes"
+	}
+
+	return false
 }
 
 // detectMacOS checks launchd plist status
