@@ -44,6 +44,8 @@ That loop is spelled out in the [Scenario Docs](./scenarios) section.
 - [Secrets Management](guides/secrets-management.md) — infrastructure vs service vs user secrets lineage.
 - [Deployment Checklist](guides/deployment-checklist.md) — per-tier readiness check.
 - [Packaging Matrix](guides/packaging-matrix.md) — what `scenario-to-*` can actually produce today.
+- [Auto-Update Channels](guides/auto-updates.md) — installer formats (MSI/PKG/AppImage), update channel design (dev/beta/stable), and provider configuration (GitHub/self-hosted).
+- **Bundle manifest v0.1** — `docs/deployment/bundle-schema.desktop.v0.1.json` defines the validated `bundle.json` contract for desktop bundles; sample manifests live in `docs/deployment/examples/manifests/` for a plain SQLite build and a Playwright-enabled build.
 
 ## Providers & Infrastructure Notes
 
@@ -62,6 +64,14 @@ We document the true experience per tier using real scenarios:
 - [Picker Wheel Desktop](examples/picker-wheel-desktop.md) — thin client reality + bundling gaps.
 - [Picker Wheel Cloud](examples/picker-wheel-cloud.md) — what running the scenario on a VPS entails today.
 - [System Monitor Desktop](examples/system-monitor-desktop.md) — another case study for dependency swapping.
+
+## Bundled Runtime Expectations (Desktop/Mobile/Cloud)
+
+- Bundles must be manifest-driven: deployment-manager + scenario-dependency-analyzer emit a `bundle.json` encoding the full DAG, dependency swaps, per-OS binaries/assets, env templates, port ranges, health/readiness, data dirs, and secrets strategy (generate/prompt/remote).
+- A cross-platform runtime executable owns lifecycle, ports, health, logs, telemetry, and shutdown. UI shells (Electron, mobile bridges, cloud runners) only start the runtime and talk to it over a local control channel.
+- Heavy/shared resources must be swapped to bundleable equivalents (e.g., Postgres→SQLite/duckdb, Redis→in-process cache, browserless→bundled Playwright driver/Chromium, Ollama→packaged models) before inclusion.
+- Bundles carry migrations/seed data for swapped stores, keep data/logs under OS app data roots, and include a minimal `vrooli`-compatible shim for essentials like `scenario status/port`.
+- No infrastructure secrets ship in bundles; first-run UX collects or generates only what the manifest flags as local.
 
 ## Historical Docs
 

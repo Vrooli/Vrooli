@@ -1,0 +1,610 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/testing.schema.json",
+  "title": "Vrooli Testing Configuration",
+  "description": "Configuration for scenario testing phases",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "_metadata": {
+      "type": "object",
+      "description": "Human-readable metadata",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Brief description of this testing configuration"
+        },
+        "last_updated": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of last update"
+        },
+        "generated_from": {
+          "type": "string",
+          "description": "Source file this was generated from (if applicable)"
+        }
+      }
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Schema version (semver format)"
+    },
+    "structure": {
+      "type": "object",
+      "description": "Structure validation phase configuration. Uses convention-over-configuration: standard scenario structure is tested by default, only define exceptions here.",
+      "properties": {
+        "exclude_files": {
+          "type": "array",
+          "description": "Files to exclude from default structure checks",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            ["cli/install.sh"]
+          ]
+        },
+        "exclude_dirs": {
+          "type": "array",
+          "description": "Directories to exclude from default structure checks",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            ["ui"]
+          ]
+        },
+        "additional_files": {
+          "type": "array",
+          "description": "Additional files to check beyond the standard structure",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Simple file path (required)"
+              },
+              {
+                "type": "object",
+                "description": "File check with options",
+                "required": ["path"],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "File path relative to scenario root"
+                  },
+                  "optional": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "If true, file is recommended but not required"
+                  },
+                  "requirement": {
+                    "type": "string",
+                    "description": "Requirement ID to associate with this file check"
+                  }
+                }
+              }
+            ]
+          },
+          "examples": [
+            ["ui/tsconfig.json", "initialization/postgres/schema.sql"]
+          ]
+        },
+        "additional_dirs": {
+          "type": "array",
+          "description": "Additional directories to check beyond the standard structure",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Simple directory path (required)"
+              },
+              {
+                "type": "object",
+                "description": "Directory check with options",
+                "required": ["path"],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Directory path relative to scenario root"
+                  },
+                  "optional": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "If true, directory is recommended but not required"
+                  }
+                }
+              }
+            ]
+          },
+          "examples": [
+            ["ui", "initialization"]
+          ]
+        },
+        "ui_smoke": {
+          "type": "object",
+          "description": "Browserless-backed UI smoke harness configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable or disable the shared UI smoke check"
+            },
+            "timeout_ms": {
+              "type": "integer",
+              "minimum": 1000,
+              "default": 90000,
+              "description": "Navigation timeout passed to Browserless (milliseconds)"
+            },
+            "handshake_timeout_ms": {
+              "type": "integer",
+              "minimum": 1000,
+              "default": 15000,
+              "description": "How long to wait for iframe-bridge readiness (milliseconds)"
+            }
+          }
+        },
+        "validations": {
+          "type": "object",
+          "description": "Additional validation checks",
+          "properties": {
+            "service_json_name_matches_directory": {
+              "type": "boolean",
+              "default": true,
+              "description": "Validate that .vrooli/service.json name field matches scenario directory name"
+            },
+            "check_json_validity": {
+              "type": "boolean",
+              "default": true,
+              "description": "Validate that all JSON files are valid"
+            }
+          }
+        }
+      }
+    },
+    "unit": {
+      "type": "object",
+      "description": "Unit test phase configuration. Uses convention: only define languages you want to test. Defaults: go→api, node→ui, python→api",
+      "properties": {
+        "languages": {
+          "type": "object",
+          "description": "Language-specific test configuration. Only include languages that should be tested. Presence of a language key implies enabled=true.",
+          "properties": {
+            "go": {
+              "$ref": "#/definitions/language_config",
+              "description": "Go test configuration (default dir: 'api')"
+            },
+            "node": {
+              "$ref": "#/definitions/language_config",
+              "description": "Node.js/TypeScript test configuration (default dir: 'ui')"
+            },
+            "python": {
+              "$ref": "#/definitions/language_config",
+              "description": "Python test configuration (default dir: 'api')"
+            }
+          }
+        },
+        "options": {
+          "type": "object",
+          "description": "Global unit test options",
+          "properties": {
+            "verbose": {
+              "type": "boolean",
+              "default": false,
+              "description": "Enable verbose test output for all languages"
+            },
+            "fail_fast": {
+              "type": "boolean",
+              "default": false,
+              "description": "Stop testing on first failure"
+            }
+          }
+        }
+      }
+    },
+    "business": {
+      "type": "object",
+      "description": "Business logic validation phase configuration. Validates that core business capabilities are implemented and wired correctly. Uses .vrooli/endpoints.json as primary source of truth.",
+      "properties": {
+        "checks": {
+          "type": "object",
+          "description": "Business validation checks. Each check can be independently enabled/disabled.",
+          "properties": {
+            "endpoints": {
+              "type": "object",
+              "description": "Validate API endpoint presence in codebase",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Enable endpoint validation from .vrooli/endpoints.json"
+                }
+              }
+            },
+            "cli_commands": {
+              "type": "object",
+              "description": "Validate CLI command presence",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Enable CLI command validation from .vrooli/endpoints.json"
+                }
+              }
+            },
+            "websockets": {
+              "type": "object",
+              "description": "Validate WebSocket endpoint presence",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Enable WebSocket validation from .vrooli/endpoints.json"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance validation phase configuration. Presence of this section enables performance testing. Individual checks can be enabled/disabled.",
+      "properties": {
+        "checks": {
+          "type": "object",
+          "description": "Performance validation checks. Each check can be independently enabled/disabled.",
+          "properties": {
+            "lighthouse": {
+              "$ref": "#/definitions/lighthouse_config"
+            },
+            "bundle_size": {
+              "$ref": "#/definitions/bundle_size_config"
+            },
+            "api_benchmarks": {
+              "$ref": "#/definitions/api_benchmarks_config"
+            },
+            "response_time": {
+              "$ref": "#/definitions/response_time_config"
+            },
+            "concurrent_load": {
+              "$ref": "#/definitions/concurrent_load_config"
+            },
+            "memory_usage": {
+              "$ref": "#/definitions/memory_usage_config"
+            }
+          }
+        },
+        "options": {
+          "type": "object",
+          "description": "Global performance test options",
+          "properties": {
+            "require_runtime": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether performance tests require the scenario to be running"
+            },
+            "continue_on_failure": {
+              "type": "boolean",
+              "default": true,
+              "description": "Continue running remaining checks after a check fails"
+            }
+          }
+        }
+      }
+    },
+    "requirements": {
+      "type": "object",
+      "description": "Requirements tracking preferences",
+      "properties": {
+        "enforce": {
+          "type": "boolean",
+          "default": false,
+          "description": "Treat missing requirement coverage as failures"
+        },
+        "sync": {
+          "type": "boolean",
+          "default": true,
+          "description": "Sync requirements registry after test runs"
+        }
+      }
+    },
+    "presets": {
+      "type": "object",
+      "description": "Named phase presets for the test runner",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "phases": {
+      "type": "object",
+      "description": "Per-phase execution overrides such as timeout targets",
+      "properties": {
+        "structure": { "$ref": "#/definitions/phase_options" },
+        "dependencies": { "$ref": "#/definitions/phase_options" },
+        "unit": { "$ref": "#/definitions/phase_options" },
+        "integration": { "$ref": "#/definitions/phase_options" },
+        "business": { "$ref": "#/definitions/phase_options" },
+        "performance": { "$ref": "#/definitions/phase_options" }
+      },
+      "additionalProperties": { "$ref": "#/definitions/phase_options" }
+    }
+  },
+  "definitions": {
+    "phase_options": {
+      "type": "object",
+      "description": "Phase-level preferences",
+      "properties": {
+        "timeout": {
+          "type": "string",
+          "pattern": "^[0-9]+(s|m|h)$",
+          "description": "Target execution time for the phase (e.g., '30s', '2m', '1h')"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable this phase"
+        },
+        "require_runtime": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this phase requires the scenario runtime to be running"
+        }
+      }
+    },
+    "language_config": {
+      "type": "object",
+      "description": "Configuration for a specific language's tests. Presence of this object implies enabled=true. All properties optional with convention defaults.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to run tests for this language (default: true if language key exists)"
+        },
+        "dir": {
+          "type": "string",
+          "description": "Directory containing tests (default: 'api' for go/python, 'ui' for node)"
+        },
+        "coverage": {
+          "type": "object",
+          "description": "Coverage thresholds (applies to Go tests primarily)",
+          "properties": {
+            "warn_threshold": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100,
+              "default": 80,
+              "description": "Coverage percentage that triggers a warning (default: 80)"
+            },
+            "error_threshold": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100,
+              "default": 70,
+              "description": "Coverage percentage below which tests fail (default: 70)"
+            }
+          }
+        }
+      }
+    },
+    "lighthouse_config": {
+      "type": "object",
+      "description": "Lighthouse performance and accessibility audits configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable Lighthouse audits"
+        },
+        "config": {
+          "type": "string",
+          "default": ".vrooli/lighthouse.json",
+          "description": "Path to Lighthouse configuration file (default: .vrooli/lighthouse.json)"
+        }
+      }
+    },
+    "bundle_size_config": {
+      "type": "object",
+      "description": "Bundle size validation configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable bundle size checks"
+        },
+        "targets": {
+          "type": "array",
+          "description": "Bundle targets to validate",
+          "items": {
+            "type": "object",
+            "required": ["name", "path", "max_size_kb"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Human-readable name for this bundle"
+              },
+              "path": {
+                "type": "string",
+                "description": "Path to bundle file or directory (relative to scenario root)"
+              },
+              "max_size_kb": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Maximum bundle size in kilobytes (test fails if exceeded)"
+              },
+              "warn_size_kb": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Warning threshold in kilobytes (default: 80% of max_size_kb)"
+              },
+              "exclude_patterns": {
+                "type": "array",
+                "description": "File patterns to exclude from size calculation",
+                "items": {
+                  "type": "string"
+                },
+                "examples": [["*.map", "*.LICENSE.txt"]]
+              },
+              "requirement": {
+                "type": "string",
+                "description": "Requirement ID to link this check to"
+              }
+            }
+          }
+        }
+      }
+    },
+    "api_benchmarks_config": {
+      "type": "object",
+      "description": "API benchmark testing configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable API benchmarks"
+        },
+        "language": {
+          "type": "string",
+          "enum": ["go", "node", "python"],
+          "default": "go",
+          "description": "Language for benchmark tests"
+        },
+        "dir": {
+          "type": "string",
+          "default": "api",
+          "description": "Directory containing benchmark tests"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 180,
+          "description": "Benchmark timeout in seconds"
+        },
+        "requirement": {
+          "type": "string",
+          "description": "Requirement ID to link benchmark results to"
+        }
+      }
+    },
+    "response_time_config": {
+      "type": "object",
+      "description": "API endpoint response time testing configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable response time checks"
+        },
+        "endpoints": {
+          "type": "array",
+          "description": "Endpoints to test",
+          "items": {
+            "type": "object",
+            "required": ["path", "max_ms"],
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "API endpoint path (e.g., /health, /api/v1/projects)"
+              },
+              "max_ms": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Maximum response time in milliseconds (test fails if exceeded)"
+              },
+              "warn_ms": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Warning threshold in milliseconds (default: 70% of max_ms)"
+              },
+              "iterations": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 10,
+                "description": "Number of requests to average (default: 10)"
+              },
+              "requirement": {
+                "type": "string",
+                "description": "Requirement ID to link this endpoint test to"
+              }
+            }
+          }
+        }
+      }
+    },
+    "concurrent_load_config": {
+      "type": "object",
+      "description": "Concurrent load testing configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable concurrent load tests (requires GNU parallel)"
+        },
+        "requests": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 100,
+          "description": "Total number of concurrent requests to send"
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 10,
+          "description": "Number of requests to run in parallel"
+        },
+        "endpoint": {
+          "type": "string",
+          "default": "/health",
+          "description": "Endpoint to test (default: /health)"
+        },
+        "min_success_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.95,
+          "description": "Minimum success rate (0-1, default: 0.95 = 95%)"
+        },
+        "requirement": {
+          "type": "string",
+          "description": "Requirement ID to link load test results to"
+        }
+      }
+    },
+    "memory_usage_config": {
+      "type": "object",
+      "description": "Memory usage monitoring configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable memory usage checks"
+        },
+        "process_pattern": {
+          "type": "string",
+          "description": "Process name pattern to match (used with pgrep)"
+        },
+        "max_mb": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 500,
+          "description": "Maximum memory usage in MB (test fails if exceeded)"
+        },
+        "warn_mb": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Warning threshold in MB (default: 80% of max_mb)"
+        },
+        "requirement": {
+          "type": "string",
+          "description": "Requirement ID to link memory check to"
+        }
+      }
+    }
+  }
+}

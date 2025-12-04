@@ -18,6 +18,10 @@ type Config struct {
 	// ScenarioName is the name of the scenario (typically the directory name).
 	ScenarioName string
 
+	// SchemasDir is the path to the directory containing JSON schemas.
+	// If empty, schema validation is skipped.
+	SchemasDir string
+
 	// Expectations holds custom validation expectations from .vrooli/testing.json.
 	Expectations *Expectations
 }
@@ -29,7 +33,7 @@ type Runner struct {
 	// Validators (injectable for testing)
 	existenceValidator existence.Validator
 	cliValidator       existence.CLIValidator
-	jsonValidator      content.JSONValidator
+	schemaValidator    content.SchemaValidatorInterface
 	manifestValidator  content.ManifestValidator
 	smokeValidator     smoke.Validator
 
@@ -57,8 +61,8 @@ func New(config Config, opts ...Option) *Runner {
 	if r.cliValidator == nil {
 		r.cliValidator = existence.NewCLIValidator(config.ScenarioDir, config.ScenarioName, r.logWriter)
 	}
-	if r.jsonValidator == nil {
-		r.jsonValidator = content.NewJSONValidator(config.ScenarioDir, r.logWriter)
+	if r.schemaValidator == nil && config.SchemasDir != "" {
+		r.schemaValidator = content.NewSchemaValidator(config.ScenarioDir, config.SchemasDir, r.logWriter)
 	}
 	if r.manifestValidator == nil {
 		validateName := true
@@ -100,10 +104,10 @@ func WithCLIValidator(v existence.CLIValidator) Option {
 	}
 }
 
-// WithJSONValidator sets a custom JSON validator (for testing).
-func WithJSONValidator(v content.JSONValidator) Option {
+// WithSchemaValidator sets a custom schema validator (for testing).
+func WithSchemaValidator(v content.SchemaValidatorInterface) Option {
 	return func(r *Runner) {
-		r.jsonValidator = v
+		r.schemaValidator = v
 	}
 }
 

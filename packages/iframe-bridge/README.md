@@ -2,6 +2,28 @@
 
 Lightweight utilities for passing messages between host scenarios and embedded iframe children.
 
+## Features
+
+### Storage Shimming
+
+When running in sandboxed iframe contexts (like Browserless for UI smoke tests), `localStorage` and `sessionStorage` may be blocked. The bridge automatically shims them with in-memory implementations.
+
+This happens automatically when you call `initIframeBridgeChild()`. You can also call `shimStorage()` explicitly if you need the shim earlier:
+
+```typescript
+import { shimStorage, initIframeBridgeChild } from '@vrooli/iframe-bridge';
+
+// Called automatically by initIframeBridgeChild, but can be called earlier if needed
+shimStorage();
+
+// Normal initialization
+if (window.top !== window.self) {
+  initIframeBridgeChild();
+}
+```
+
+The shim results are available at `window.__VROOLI_UI_SMOKE_STORAGE_PATCH__` for inspection by smoke tests.
+
 ## Development
 
 ```bash

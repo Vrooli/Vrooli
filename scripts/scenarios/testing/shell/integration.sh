@@ -54,42 +54,42 @@ testing::integration::check_bundle_freshness() {
         return 0
     fi
 
-    # Source the ui-smoke helper to access bundle check function
-    local ui_smoke_helper="${APP_ROOT}/scripts/scenarios/testing/shell/ui-smoke.sh"
-    if [[ ! -f "$ui_smoke_helper" ]]; then
+    # Get bundle check config from service.json if available
+    local service_json="$scenario_dir/.vrooli/service.json"
+    local config='{}'
+    if [[ -f "$service_json" ]] && command -v jq >/dev/null 2>&1; then
+        local candidate
+        candidate=$(jq -c '.lifecycle.setup.condition.checks[]? | select(.type == "ui-bundle")' "$service_json" 2>/dev/null | head -n 1)
+        if [[ -n "$candidate" ]]; then
+            config="$candidate"
+        fi
+    fi
+
+    # Call bundle check script directly
+    local bundle_check_script="${APP_ROOT}/scripts/lib/setup-conditions/ui-bundle-check.sh"
+    if [[ ! -f "$bundle_check_script" ]]; then
         if declare -F testing::phase::add_warning >/dev/null 2>&1; then
-            testing::phase::add_warning "UI smoke helper missing; skipping bundle freshness check"
+            testing::phase::add_warning "Bundle check script missing; skipping freshness check"
         else
-            echo "⚠️  UI smoke helper missing; skipping bundle freshness check" >&2
+            echo "⚠️  Bundle check script missing; skipping freshness check" >&2
         fi
         return 0
     fi
 
-    # Source the helper to get access to _check_bundle_freshness function
-    source "$ui_smoke_helper"
+    # Run the check - exit 0 means stale/missing, exit 1 means fresh
+    local check_output
+    local check_result
+    set +e
+    check_output=$(APP_ROOT="$scenario_dir" bash "$bundle_check_script" "$config" 2>&1)
+    check_result=$?
+    set -e
 
-    if ! command -v jq >/dev/null 2>&1; then
-        if declare -F testing::phase::add_warning >/dev/null 2>&1; then
-            testing::phase::add_warning "jq not available; skipping bundle freshness check"
-        else
-            echo "⚠️  jq not available; skipping bundle freshness check" >&2
-        fi
-        return 0
-    fi
-
-    # Check bundle freshness
-    local bundle_info_json
-    bundle_info_json=$(testing::ui_smoke::_check_bundle_freshness "$scenario_dir" 2>/dev/null)
-    local bundle_fresh
-    bundle_fresh=$(echo "$bundle_info_json" | jq -r '
-        if .fresh == false then "false"
-        elif .fresh == true then "true"
-        else "unknown"
-        end' 2>/dev/null || echo "unknown")
-
-    if [[ "$bundle_fresh" = "false" ]]; then
-        local bundle_reason
-        bundle_reason=$(echo "$bundle_info_json" | jq -r '.reason // "UI bundle missing or outdated"')
+    # Exit code 0 = setup needed (bundle stale/missing)
+    # Exit code 1 = bundle is current
+    if [[ $check_result -eq 0 ]]; then
+        local bundle_reason="${check_output:-UI bundle missing or outdated}"
+        # Clean up debug prefix if present
+        bundle_reason="${bundle_reason#\[DEBUG\] }"
 
         # Use log functions if available, otherwise use echo
         if declare -F log::error >/dev/null 2>&1; then

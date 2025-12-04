@@ -184,7 +184,7 @@ scenario::health::check_ui_health() {
 scenario::health::read_ui_smoke_summary() {
     local scenario_name="$1"
     local scenario_dir="${APP_ROOT}/scenarios/${scenario_name}"
-    local summary_file="$scenario_dir/coverage/${scenario_name}/ui-smoke/latest.json"
+    local summary_file="$scenario_dir/coverage/ui-smoke/latest.json"
 
     if [[ -f "$summary_file" ]]; then
         cat "$summary_file"

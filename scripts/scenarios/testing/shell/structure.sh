@@ -7,7 +7,6 @@ set -euo pipefail
 SHELL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SHELL_DIR/config.sh"
 source "$SHELL_DIR/phase-helpers.sh"
-source "$SHELL_DIR/ui-smoke.sh"
 
 _testing_structure_get_mtime() {
   local target="$1"
@@ -230,25 +229,27 @@ testing::structure::run_ui_smoke() {
   local scenario_name="$1"
   local scenario_dir="$2"
 
-  local helper="${APP_ROOT}/scripts/scenarios/testing/shell/ui-smoke.sh"
-  if [[ ! -f "$helper" ]]; then
-    testing::phase::add_warning "UI smoke helper missing; skipping"
-    return 0
-  fi
-
   if ! command -v jq >/dev/null 2>&1; then
     testing::phase::add_warning "jq not available; skipping UI smoke"
     return 0
   fi
 
+  # Use test-genie CLI for UI smoke tests
+  local test_genie_cli="${APP_ROOT}/scenarios/test-genie/cli/test-genie"
+  if [[ ! -x "$test_genie_cli" ]]; then
+    testing::phase::add_warning "test-genie CLI not found at $test_genie_cli; skipping UI smoke"
+    testing::phase::add_warning "Build test-genie with: cd ${APP_ROOT}/scenarios/test-genie && make build"
+    return 0
+  fi
+
   local summary_json
   local smoke_exit_code=0
-  summary_json=$(bash "$helper" --scenario "$scenario_name" --scenario-dir "$scenario_dir" --json) || smoke_exit_code=$?
+  summary_json=$("$test_genie_cli" ui-smoke "$scenario_name" --json 2>&1) || smoke_exit_code=$?
 
   if [[ $smoke_exit_code -ne 0 ]]; then
     testing::structure::_log_ui_smoke "$summary_json"
 
-    # Exit code 60 = bundle stale (message already includes restart guidance from ui-smoke.sh)
+    # Exit code 60 = bundle stale (message already includes restart guidance)
     # Just mark as failed; the detailed message is already shown
     testing::phase::add_test failed
     return 1

@@ -1,14 +1,26 @@
 #!/usr/bin/env bash
 
 # UI Smoke command module
+# Uses test-genie CLI for UI smoke tests
+
 scenario::smoke::run() {
     local scenario_name=""
     local json_output=false
+    local url_override=""
+    local auto_start=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --json)
                 json_output=true
+                shift
+                ;;
+            --url)
+                url_override="$2"
+                shift 2
+                ;;
+            --auto-start)
+                auto_start=true
                 shift
                 ;;
             --help|-h)
@@ -40,51 +52,45 @@ scenario::smoke::run() {
         return 1
     fi
 
-    local smoke_helper="${APP_ROOT}/scripts/scenarios/testing/shell/ui-smoke.sh"
-    if [[ ! -f "$smoke_helper" ]]; then
-        log::error "UI smoke helper not found at $smoke_helper"
+    # Use test-genie CLI for UI smoke tests
+    local test_genie_cli="${APP_ROOT}/scenarios/test-genie/cli/test-genie"
+    if [[ ! -x "$test_genie_cli" ]]; then
+        log::error "test-genie CLI not found at $test_genie_cli"
+        log::info "Build test-genie with: cd ${APP_ROOT}/scenarios/test-genie && make build"
         return 1
+    fi
+
+    local args=("ui-smoke" "$scenario_name")
+    if [[ "$json_output" = true ]]; then
+        args+=("--json")
+    fi
+    if [[ -n "$url_override" ]]; then
+        args+=("--url" "$url_override")
+    fi
+    if [[ "$auto_start" = true ]]; then
+        args+=("--auto-start")
     fi
 
     local summary_json
     local helper_status
-    if [[ "$json_output" = true ]]; then
-        local helper_stderr
-        helper_stderr=$(mktemp)
-        set +e
-        summary_json=$(bash "$smoke_helper" --scenario "$scenario_name" --scenario-dir "$scenario_dir" --json 2>"$helper_stderr")
-        helper_status=$?
-        set -e
-        if [[ $helper_status -ne 0 ]] && [[ -s "$helper_stderr" ]]; then
-            cat "$helper_stderr" >&2
-        fi
-        rm -f "$helper_stderr"
-    else
-        set +e
-        summary_json=$(bash "$smoke_helper" --scenario "$scenario_name" --scenario-dir "$scenario_dir" --json)
-        helper_status=$?
-        set -e
-    fi
-
-    scenario::smoke::emit_output "$summary_json" "$json_output"
-    return $helper_status
-}
-
-scenario::smoke::emit_output() {
-    local summary_json="$1"
-    local json_output="$2"
-
-    if [[ -z "$summary_json" ]]; then
-        log::error "UI smoke harness did not return summary output"
-        return 1
-    fi
+    set +e
+    summary_json=$("$test_genie_cli" "${args[@]}" 2>&1)
+    helper_status=$?
+    set -e
 
     if [[ "$json_output" = true ]]; then
         echo "$summary_json"
-        return 0
+    else
+        # Parse and render the JSON output as text
+        if echo "$summary_json" | jq -e . >/dev/null 2>&1; then
+            scenario::smoke::render_text_summary "$summary_json"
+        else
+            # Not valid JSON - likely an error message
+            echo "$summary_json"
+        fi
     fi
 
-    scenario::smoke::render_text_summary "$summary_json"
+    return $helper_status
 }
 
 scenario::smoke::render_text_summary() {
@@ -155,12 +161,21 @@ scenario::smoke::render_text_summary() {
 
 scenario::smoke::help() {
     cat <<'EOF'
-Usage: vrooli scenario ui-smoke <name> [--json]
+Usage: vrooli scenario ui-smoke <name> [options]
 
 Run the Browserless-backed UI smoke harness for a scenario.
 
 Options:
   --json        Emit JSON summary instead of human-readable output
+  --url <url>   Override UI URL (bypasses auto-detection)
+  --auto-start  Auto-start the scenario if UI port is not detected
   --help        Show this help message
+
+Exit codes:
+  0   Test passed or skipped
+  1   Test failed
+  50  Browserless offline
+  60  UI bundle stale
+  61  UI port not detected
 EOF
 }
