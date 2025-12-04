@@ -13,6 +13,7 @@ import (
 
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
+	"vrooli-autoheal/internal/userconfig"
 )
 
 // Default targets for infrastructure checks - defined here in bootstrap
@@ -28,6 +29,13 @@ const (
 // Uses the default factory for check creation.
 func RegisterDefaultChecks(registry *checks.Registry, caps *platform.Capabilities) {
 	RegisterChecksWithFactory(registry, caps, NewDefaultCheckFactory())
+}
+
+// RegisterChecksFromConfig adds health checks using the user's monitoring configuration.
+// This respects which scenarios and resources the user has configured for monitoring.
+func RegisterChecksFromConfig(registry *checks.Registry, caps *platform.Capabilities, configMgr *userconfig.Manager) {
+	factory := NewCheckFactoryFromConfigManager(configMgr)
+	RegisterChecksWithFactory(registry, caps, factory)
 }
 
 // RegisterChecksWithFactory adds health checks to the registry using the provided factory.

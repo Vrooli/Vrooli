@@ -5,13 +5,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   X, Settings, Save, Upload, Download, RotateCcw, AlertTriangle,
   ChevronDown, ChevronRight, Power, Zap, Clock, Database,
-  CheckCircle, XCircle, Loader2
+  CheckCircle, XCircle, Loader2, Plus, Trash2, AlertCircle, Monitor
 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   fetchConfig, updateConfig, fetchDefaults, exportConfig, importConfig,
   setCheckEnabled, setCheckAutoHeal, bulkUpdateChecks, fetchChecks,
-  Config, CheckConfig, GlobalConfig, DefaultsResponse, CheckInfo
+  fetchMonitoring, addScenario, removeScenario, setScenarioCritical,
+  addResource, removeResource,
+  Config, GlobalConfig, DefaultsResponse, CheckInfo, MonitoringConfig
 } from "../lib/api";
 
 interface SettingsDialogProps {
@@ -19,7 +21,7 @@ interface SettingsDialogProps {
   onClose: () => void;
 }
 
-type SettingsTab = "general" | "checks" | "import-export";
+type SettingsTab = "general" | "checks" | "monitoring" | "import-export";
 
 interface CheckWithConfig extends CheckInfo {
   config: {
@@ -64,6 +66,14 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
     queryFn: fetchChecks,
     enabled: isOpen,
     staleTime: 60000,
+  });
+
+  // Fetch monitoring configuration
+  const { data: monitoring, isLoading: monitoringLoading } = useQuery({
+    queryKey: ["monitoring"],
+    queryFn: fetchMonitoring,
+    enabled: isOpen,
+    staleTime: 30000,
   });
 
   // Initialize local config when API data loads
@@ -118,6 +128,44 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
     mutationFn: bulkUpdateChecks,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["config"] });
+    },
+  });
+
+  // Monitoring mutations
+  const addScenarioMutation = useMutation({
+    mutationFn: ({ name, critical }: { name: string; critical: boolean }) =>
+      addScenario(name, critical),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["monitoring"] });
+    },
+  });
+
+  const removeScenarioMutation = useMutation({
+    mutationFn: (name: string) => removeScenario(name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["monitoring"] });
+    },
+  });
+
+  const setCriticalMutation = useMutation({
+    mutationFn: ({ name, critical }: { name: string; critical: boolean }) =>
+      setScenarioCritical(name, critical),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["monitoring"] });
+    },
+  });
+
+  const addResourceMutation = useMutation({
+    mutationFn: (name: string) => addResource(name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["monitoring"] });
+    },
+  });
+
+  const removeResourceMutation = useMutation({
+    mutationFn: (name: string) => removeResource(name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["monitoring"] });
     },
   });
 
@@ -306,6 +354,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
           {[
             { id: "general", label: "General" },
             { id: "checks", label: "Health Checks" },
+            { id: "monitoring", label: "Monitoring" },
             { id: "import-export", label: "Import / Export" },
           ].map((tab) => (
             <button
@@ -349,6 +398,27 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
               }
               onBulkUpdate={(action) => bulkMutation.mutate(action)}
               isUpdating={toggleEnabledMutation.isPending || toggleAutoHealMutation.isPending || bulkMutation.isPending}
+            />
+          ) : activeTab === "monitoring" ? (
+            <MonitoringSettings
+              monitoring={monitoring}
+              isLoading={monitoringLoading}
+              onAddScenario={(name, critical) =>
+                addScenarioMutation.mutate({ name, critical })
+              }
+              onRemoveScenario={(name) => removeScenarioMutation.mutate(name)}
+              onSetCritical={(name, critical) =>
+                setCriticalMutation.mutate({ name, critical })
+              }
+              onAddResource={(name) => addResourceMutation.mutate(name)}
+              onRemoveResource={(name) => removeResourceMutation.mutate(name)}
+              isUpdating={
+                addScenarioMutation.isPending ||
+                removeScenarioMutation.isPending ||
+                setCriticalMutation.isPending ||
+                addResourceMutation.isPending ||
+                removeResourceMutation.isPending
+              }
             />
           ) : (
             <ImportExportSettings
@@ -730,6 +800,241 @@ function ImportExportSettings({ onExport, onImport, onReset, config }: ImportExp
           </pre>
         </div>
       )}
+    </div>
+  );
+}
+
+// Monitoring Settings Tab
+interface MonitoringSettingsProps {
+  monitoring: MonitoringConfig | undefined;
+  isLoading: boolean;
+  onAddScenario: (name: string, critical: boolean) => void;
+  onRemoveScenario: (name: string) => void;
+  onSetCritical: (name: string, critical: boolean) => void;
+  onAddResource: (name: string) => void;
+  onRemoveResource: (name: string) => void;
+  isUpdating: boolean;
+}
+
+function MonitoringSettings({
+  monitoring,
+  isLoading,
+  onAddScenario,
+  onRemoveScenario,
+  onSetCritical,
+  onAddResource,
+  onRemoveResource,
+  isUpdating,
+}: MonitoringSettingsProps) {
+  const [newScenario, setNewScenario] = useState("");
+  const [newScenarioCritical, setNewScenarioCritical] = useState(false);
+  const [newResource, setNewResource] = useState("");
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="animate-spin text-blue-400" size={32} />
+      </div>
+    );
+  }
+
+  const handleAddScenario = () => {
+    if (newScenario.trim()) {
+      onAddScenario(newScenario.trim(), newScenarioCritical);
+      setNewScenario("");
+      setNewScenarioCritical(false);
+    }
+  };
+
+  const handleAddResource = () => {
+    if (newResource.trim()) {
+      onAddResource(newResource.trim());
+      setNewResource("");
+    }
+  };
+
+  const scenarios = monitoring?.scenarios ? Object.entries(monitoring.scenarios) : [];
+  const resources = monitoring?.resources || [];
+
+  return (
+    <div className="space-y-6">
+      {/* Info Banner */}
+      <div className="rounded-lg border border-blue-500/20 bg-blue-500/10 p-4">
+        <div className="flex items-start gap-3">
+          <Monitor className="text-blue-400 flex-shrink-0 mt-0.5" size={20} />
+          <div>
+            <h4 className="font-medium text-blue-400">Monitoring Configuration</h4>
+            <p className="text-sm text-slate-400 mt-1">
+              Configure which scenarios and resources should be monitored. Critical scenarios
+              will show as errors when unhealthy, while non-critical scenarios show as warnings.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Scenarios Section */}
+      <div className="rounded-lg border border-white/10 bg-white/5 p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Zap className="text-amber-400" size={18} />
+            <h3 className="text-lg font-medium">Monitored Scenarios</h3>
+            <span className="text-xs text-slate-400">({scenarios.length})</span>
+          </div>
+        </div>
+
+        {/* Add Scenario Form */}
+        <div className="flex gap-2 mb-4">
+          <input
+            type="text"
+            value={newScenario}
+            onChange={(e) => setNewScenario(e.target.value)}
+            placeholder="Scenario name (e.g., app-monitor)"
+            className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-blue-400 focus:outline-none"
+            onKeyDown={(e) => e.key === "Enter" && handleAddScenario()}
+          />
+          <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 bg-white/5">
+            <input
+              type="checkbox"
+              checked={newScenarioCritical}
+              onChange={(e) => setNewScenarioCritical(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-blue-500 focus:ring-blue-400"
+            />
+            <span className="text-sm text-slate-400">Critical</span>
+          </label>
+          <Button
+            onClick={handleAddScenario}
+            disabled={!newScenario.trim() || isUpdating}
+            size="sm"
+          >
+            <Plus size={16} className="mr-1" />
+            Add
+          </Button>
+        </div>
+
+        {/* Scenarios List */}
+        <div className="space-y-2">
+          {scenarios.length === 0 ? (
+            <div className="text-center py-4 text-slate-400 text-sm">
+              No scenarios configured for monitoring
+            </div>
+          ) : (
+            scenarios
+              .sort((a, b) => {
+                // Critical first, then alphabetical
+                if (a[1].critical !== b[1].critical) return b[1].critical ? 1 : -1;
+                return a[0].localeCompare(b[0]);
+              })
+              .map(([name, config]) => (
+                <div
+                  key={name}
+                  className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10"
+                >
+                  <div className="flex items-center gap-3">
+                    {config.critical ? (
+                      <AlertCircle className="text-red-400" size={16} />
+                    ) : (
+                      <AlertTriangle className="text-amber-400" size={16} />
+                    )}
+                    <span className="font-medium text-sm">{name}</span>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded ${
+                        config.critical
+                          ? "bg-red-500/20 text-red-400"
+                          : "bg-amber-500/20 text-amber-400"
+                      }`}
+                    >
+                      {config.critical ? "Critical" : "Non-Critical"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* Critical Toggle */}
+                    <button
+                      onClick={() => onSetCritical(name, !config.critical)}
+                      disabled={isUpdating}
+                      className={`relative w-10 h-5 rounded-full transition-colors ${
+                        config.critical ? "bg-red-500" : "bg-slate-600"
+                      }`}
+                      title={config.critical ? "Make non-critical" : "Make critical"}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                          config.critical ? "translate-x-5" : ""
+                        }`}
+                      />
+                    </button>
+                    {/* Remove Button */}
+                    <button
+                      onClick={() => onRemoveScenario(name)}
+                      disabled={isUpdating}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      title="Remove scenario"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))
+          )}
+        </div>
+      </div>
+
+      {/* Resources Section */}
+      <div className="rounded-lg border border-white/10 bg-white/5 p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Database className="text-emerald-400" size={18} />
+            <h3 className="text-lg font-medium">Monitored Resources</h3>
+            <span className="text-xs text-slate-400">({resources.length})</span>
+          </div>
+        </div>
+
+        {/* Add Resource Form */}
+        <div className="flex gap-2 mb-4">
+          <input
+            type="text"
+            value={newResource}
+            onChange={(e) => setNewResource(e.target.value)}
+            placeholder="Resource name (e.g., postgres, redis)"
+            className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-blue-400 focus:outline-none"
+            onKeyDown={(e) => e.key === "Enter" && handleAddResource()}
+          />
+          <Button
+            onClick={handleAddResource}
+            disabled={!newResource.trim() || isUpdating}
+            size="sm"
+          >
+            <Plus size={16} className="mr-1" />
+            Add
+          </Button>
+        </div>
+
+        {/* Resources List */}
+        <div className="flex flex-wrap gap-2">
+          {resources.length === 0 ? (
+            <div className="text-center py-4 text-slate-400 text-sm w-full">
+              No resources configured for monitoring
+            </div>
+          ) : (
+            resources.sort().map((resource) => (
+              <div
+                key={resource}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20"
+              >
+                <Database className="text-emerald-400" size={14} />
+                <span className="text-sm font-medium">{resource}</span>
+                <button
+                  onClick={() => onRemoveResource(resource)}
+                  disabled={isUpdating}
+                  className="p-0.5 rounded text-slate-400 hover:text-red-400 transition-colors"
+                  title="Remove resource"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }

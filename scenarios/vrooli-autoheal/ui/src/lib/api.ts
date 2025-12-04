@@ -692,3 +692,74 @@ export async function bulkUpdateChecks(action: "enableAll" | "disableAll" | "aut
     body: JSON.stringify({ action }),
   });
 }
+
+// ============================================================================
+// Monitoring Configuration API
+// Configure which scenarios and resources are monitored
+// ============================================================================
+
+export interface MonitoredScenario {
+  critical: boolean;
+}
+
+export interface MonitoringConfig {
+  scenarios: Record<string, MonitoredScenario>;
+  resources: string[];
+}
+
+export interface MonitoringResponse {
+  success: boolean;
+  message: string;
+  monitoring: MonitoringConfig;
+}
+
+// Fetch monitoring configuration
+export async function fetchMonitoring(): Promise<MonitoringConfig> {
+  return apiRequest<MonitoringConfig>("/config/monitoring");
+}
+
+// Update entire monitoring configuration
+export async function updateMonitoring(monitoring: MonitoringConfig): Promise<MonitoringResponse> {
+  return apiRequest<MonitoringResponse>("/config/monitoring", {
+    method: "PUT",
+    body: JSON.stringify(monitoring),
+  });
+}
+
+// Add a scenario to monitoring
+export async function addScenario(name: string, critical: boolean): Promise<MonitoringResponse> {
+  return apiRequest<MonitoringResponse>("/config/monitoring/scenarios", {
+    method: "POST",
+    body: JSON.stringify({ name, critical }),
+  });
+}
+
+// Remove a scenario from monitoring
+export async function removeScenario(name: string): Promise<MonitoringResponse> {
+  return apiRequest<MonitoringResponse>(`/config/monitoring/scenarios/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  });
+}
+
+// Set scenario criticality
+export async function setScenarioCritical(name: string, critical: boolean): Promise<MonitoringResponse> {
+  return apiRequest<MonitoringResponse>(`/config/monitoring/scenarios/${encodeURIComponent(name)}/critical`, {
+    method: "PUT",
+    body: JSON.stringify({ critical }),
+  });
+}
+
+// Add a resource to monitoring
+export async function addResource(name: string): Promise<MonitoringResponse> {
+  return apiRequest<MonitoringResponse>("/config/monitoring/resources", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+}
+
+// Remove a resource from monitoring
+export async function removeResource(name: string): Promise<MonitoringResponse> {
+  return apiRequest<MonitoringResponse>(`/config/monitoring/resources/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  });
+}

@@ -8,6 +8,7 @@ import (
 	"vrooli-autoheal/internal/checks/system"
 	"vrooli-autoheal/internal/checks/vrooli"
 	"vrooli-autoheal/internal/platform"
+	"vrooli-autoheal/internal/userconfig"
 )
 
 // CheckFactory defines the interface for creating health checks.
@@ -36,31 +37,29 @@ type DefaultCheckFactory struct {
 }
 
 // NewDefaultCheckFactory creates a factory with standard configuration.
+// Uses the default monitoring config from userconfig package.
 func NewDefaultCheckFactory() *DefaultCheckFactory {
+	monitoring := userconfig.DefaultMonitoring()
+	return NewCheckFactoryFromMonitoring(monitoring)
+}
+
+// NewCheckFactoryFromMonitoring creates a factory from a MonitoringConfig.
+// This allows the factory to be configured dynamically from user settings.
+func NewCheckFactoryFromMonitoring(monitoring userconfig.MonitoringConfig) *DefaultCheckFactory {
 	return &DefaultCheckFactory{
-		networkTarget: DefaultNetworkTarget,
-		dnsDomain:     DefaultDNSDomain,
-		criticalScenarios: []string{
-			"app-monitor",
-			"ecosystem-manager",
-		},
-		nonCriticalScenarios: []string{
-			"landing-manager",
-			"browser-automation-studio",
-			"test-genie",
-			"deployment-manager",
-			"git-control-tower",
-			"tidiness-manager",
-		},
-		resources: []string{
-			"postgres",
-			"redis",
-			"ollama",
-			"qdrant",
-			"searxng",
-			"browserless",
-		},
+		networkTarget:        DefaultNetworkTarget,
+		dnsDomain:            DefaultDNSDomain,
+		criticalScenarios:    monitoring.GetCriticalScenarios(),
+		nonCriticalScenarios: monitoring.GetNonCriticalScenarios(),
+		resources:            monitoring.Resources,
 	}
+}
+
+// NewCheckFactoryFromConfigManager creates a factory that reads from a config manager.
+// This is the preferred method for production use as it respects user configuration.
+func NewCheckFactoryFromConfigManager(mgr *userconfig.Manager) *DefaultCheckFactory {
+	monitoring := mgr.GetMonitoring()
+	return NewCheckFactoryFromMonitoring(monitoring)
 }
 
 // DefaultCheckFactoryOption configures the DefaultCheckFactory

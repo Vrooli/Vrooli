@@ -46,10 +46,38 @@ func DefaultUI() UIConfig {
 // DefaultConfig returns a configuration with all defaults applied
 func DefaultConfig() *Config {
 	return &Config{
-		Version: DefaultVersion,
-		Global:  DefaultGlobal(),
-		Checks:  make(map[string]Check),
-		UI:      DefaultUI(),
+		Version:    DefaultVersion,
+		Global:     DefaultGlobal(),
+		Checks:     make(map[string]Check),
+		UI:         DefaultUI(),
+		Monitoring: DefaultMonitoring(),
+	}
+}
+
+// DefaultMonitoring returns the default monitoring configuration
+// This defines which scenarios and resources are monitored by default
+func DefaultMonitoring() MonitoringConfig {
+	return MonitoringConfig{
+		Scenarios: map[string]MonitoredScenario{
+			// Critical scenarios - will report StatusCritical when stopped
+			"app-monitor":       {Critical: true},
+			"ecosystem-manager": {Critical: true},
+			// Non-critical scenarios - will report StatusWarning when stopped
+			"landing-manager":           {Critical: false},
+			"browser-automation-studio": {Critical: false},
+			"test-genie":                {Critical: false},
+			"deployment-manager":        {Critical: false},
+			"git-control-tower":         {Critical: false},
+			"tidiness-manager":          {Critical: false},
+		},
+		Resources: []string{
+			"postgres",
+			"redis",
+			"ollama",
+			"qdrant",
+			"searxng",
+			"browserless",
+		},
 	}
 }
 

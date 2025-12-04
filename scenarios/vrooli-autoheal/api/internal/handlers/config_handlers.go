@@ -7,6 +7,8 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/checks/vrooli"
 	apierrors "vrooli-autoheal/internal/errors"
 	"vrooli-autoheal/internal/userconfig"
 )
@@ -14,12 +16,14 @@ import (
 // ConfigHandlers wraps handlers for configuration management
 type ConfigHandlers struct {
 	configMgr *userconfig.Manager
+	registry  *checks.Registry
 }
 
 // NewConfigHandlers creates a new ConfigHandlers instance
-func NewConfigHandlers(configMgr *userconfig.Manager) *ConfigHandlers {
+func NewConfigHandlers(configMgr *userconfig.Manager, registry *checks.Registry) *ConfigHandlers {
 	return &ConfigHandlers{
 		configMgr: configMgr,
+		registry:  registry,
 	}
 }
 
@@ -270,8 +274,198 @@ func (h *ConfigHandlers) GetDefaults(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"global": userconfig.DefaultGlobal(),
-		"ui":     userconfig.DefaultUI(),
-		"checks": defaults,
+		"global":     userconfig.DefaultGlobal(),
+		"ui":         userconfig.DefaultUI(),
+		"checks":     defaults,
+		"monitoring": userconfig.DefaultMonitoring(),
+	})
+}
+
+// GetMonitoring returns the monitoring configuration
+// GET /api/v1/config/monitoring
+func (h *ConfigHandlers) GetMonitoring(w http.ResponseWriter, r *http.Request) {
+	monitoring := h.configMgr.GetMonitoring()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(monitoring)
+}
+
+// UpdateMonitoring replaces the monitoring configuration
+// PUT /api/v1/config/monitoring
+func (h *ConfigHandlers) UpdateMonitoring(w http.ResponseWriter, r *http.Request) {
+	var monitoring userconfig.MonitoringConfig
+	if err := json.NewDecoder(r.Body).Decode(&monitoring); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("monitoring", "parse request body", err))
+		return
+	}
+
+	if err := h.configMgr.SetMonitoring(monitoring); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("monitoring", "update configuration", err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":    true,
+		"message":    "Monitoring configuration updated successfully",
+		"monitoring": h.configMgr.GetMonitoring(),
+	})
+}
+
+// AddScenario adds a scenario to monitoring
+// POST /api/v1/config/monitoring/scenarios
+func (h *ConfigHandlers) AddScenario(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name     string `json:"name"`
+		Critical bool   `json:"critical"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("monitoring", "parse request body", err))
+		return
+	}
+
+	if req.Name == "" {
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("monitoring", "scenario name is required", nil))
+		return
+	}
+
+	if err := h.configMgr.AddScenario(req.Name, req.Critical); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("monitoring", "add scenario", err))
+		return
+	}
+
+	// Dynamically register the check so it takes effect immediately
+	if h.registry != nil {
+		check := vrooli.NewScenarioCheck(req.Name, req.Critical)
+		h.registry.Register(check)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":    true,
+		"message":    "Scenario added to monitoring",
+		"monitoring": h.configMgr.GetMonitoring(),
+	})
+}
+
+// RemoveScenario removes a scenario from monitoring
+// DELETE /api/v1/config/monitoring/scenarios/{name}
+func (h *ConfigHandlers) RemoveScenario(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	if err := h.configMgr.RemoveScenario(name); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("monitoring", "remove scenario", err))
+		return
+	}
+
+	// Dynamically unregister the check so it takes effect immediately
+	if h.registry != nil {
+		checkID := "scenario-" + name
+		h.registry.Unregister(checkID)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":    true,
+		"message":    "Scenario removed from monitoring",
+		"monitoring": h.configMgr.GetMonitoring(),
+	})
+}
+
+// SetScenarioCritical sets the criticality of a scenario
+// PUT /api/v1/config/monitoring/scenarios/{name}/critical
+func (h *ConfigHandlers) SetScenarioCritical(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	var req struct {
+		Critical bool `json:"critical"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("monitoring", "parse request body", err))
+		return
+	}
+
+	if err := h.configMgr.SetScenarioCritical(name, req.Critical); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("monitoring", "set scenario criticality", err))
+		return
+	}
+
+	// Re-register the check with updated criticality
+	if h.registry != nil {
+		checkID := "scenario-" + name
+		h.registry.Unregister(checkID)
+		check := vrooli.NewScenarioCheck(name, req.Critical)
+		h.registry.Register(check)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":    true,
+		"message":    "Scenario criticality updated",
+		"name":       name,
+		"critical":   req.Critical,
+		"monitoring": h.configMgr.GetMonitoring(),
+	})
+}
+
+// AddResource adds a resource to monitoring
+// POST /api/v1/config/monitoring/resources
+func (h *ConfigHandlers) AddResource(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("monitoring", "parse request body", err))
+		return
+	}
+
+	if req.Name == "" {
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("monitoring", "resource name is required", nil))
+		return
+	}
+
+	if err := h.configMgr.AddResource(req.Name); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("monitoring", "add resource", err))
+		return
+	}
+
+	// Dynamically register the check so it takes effect immediately
+	if h.registry != nil {
+		check := vrooli.NewResourceCheck(req.Name)
+		h.registry.Register(check)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":    true,
+		"message":    "Resource added to monitoring",
+		"monitoring": h.configMgr.GetMonitoring(),
+	})
+}
+
+// RemoveResource removes a resource from monitoring
+// DELETE /api/v1/config/monitoring/resources/{name}
+func (h *ConfigHandlers) RemoveResource(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	if err := h.configMgr.RemoveResource(name); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("monitoring", "remove resource", err))
+		return
+	}
+
+	// Dynamically unregister the check so it takes effect immediately
+	if h.registry != nil {
+		checkID := "resource-" + name
+		h.registry.Unregister(checkID)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":    true,
+		"message":    "Resource removed from monitoring",
+		"monitoring": h.configMgr.GetMonitoring(),
 	})
 }

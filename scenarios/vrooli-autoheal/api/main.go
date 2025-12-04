@@ -90,8 +90,8 @@ func run() error {
 	// Wire config manager into registry for enable/autoHeal checks
 	registry.SetConfigProvider(configMgr)
 
-	// Register health checks (delegated to bootstrap module)
-	bootstrap.RegisterDefaultChecks(registry, plat)
+	// Register health checks using user's monitoring config (delegated to bootstrap module)
+	bootstrap.RegisterChecksFromConfig(registry, plat, configMgr)
 
 	// Pre-populate registry from database so dashboard shows data immediately
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -105,7 +105,7 @@ func run() error {
 
 	// Setup HTTP server
 	h := apiHandlers.New(registry, store, plat)
-	configHandlers := apiHandlers.NewConfigHandlers(configMgr)
+	configHandlers := apiHandlers.NewConfigHandlers(configMgr, registry)
 	router := setupRouter(h, configHandlers)
 
 	log.Printf("starting server | service=vrooli-autoheal-api port=%s platform=%s", cfg.Port, plat.Platform)
@@ -170,6 +170,15 @@ func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers) *mux.R
 	router.HandleFunc("/api/v1/config/checks/{checkId}", ch.GetCheckConfig).Methods("GET")
 	router.HandleFunc("/api/v1/config/checks/{checkId}/enabled", ch.UpdateCheckEnabled).Methods("PUT")
 	router.HandleFunc("/api/v1/config/checks/{checkId}/autoheal", ch.UpdateCheckAutoHeal).Methods("PUT")
+
+	// Monitoring configuration routes (which scenarios/resources to monitor)
+	router.HandleFunc("/api/v1/config/monitoring", ch.GetMonitoring).Methods("GET")
+	router.HandleFunc("/api/v1/config/monitoring", ch.UpdateMonitoring).Methods("PUT")
+	router.HandleFunc("/api/v1/config/monitoring/scenarios", ch.AddScenario).Methods("POST")
+	router.HandleFunc("/api/v1/config/monitoring/scenarios/{name}", ch.RemoveScenario).Methods("DELETE")
+	router.HandleFunc("/api/v1/config/monitoring/scenarios/{name}/critical", ch.SetScenarioCritical).Methods("PUT")
+	router.HandleFunc("/api/v1/config/monitoring/resources", ch.AddResource).Methods("POST")
+	router.HandleFunc("/api/v1/config/monitoring/resources/{name}", ch.RemoveResource).Methods("DELETE")
 
 	return router
 }

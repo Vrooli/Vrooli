@@ -189,6 +189,82 @@ func (m *Manager) GetUI() UIConfig {
 	return m.config.UI
 }
 
+// GetMonitoring returns the monitoring configuration
+func (m *Manager) GetMonitoring() MonitoringConfig {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.config.Monitoring
+}
+
+// SetMonitoring replaces the monitoring configuration and saves
+func (m *Manager) SetMonitoring(monitoring MonitoringConfig) error {
+	m.mu.Lock()
+	m.config.Monitoring = monitoring
+	m.mu.Unlock()
+	return m.Save()
+}
+
+// AddScenario adds a scenario to monitoring
+func (m *Manager) AddScenario(name string, critical bool) error {
+	m.mu.Lock()
+	if m.config.Monitoring.Scenarios == nil {
+		m.config.Monitoring.Scenarios = make(map[string]MonitoredScenario)
+	}
+	m.config.Monitoring.Scenarios[name] = MonitoredScenario{Critical: critical}
+	m.mu.Unlock()
+	return m.Save()
+}
+
+// RemoveScenario removes a scenario from monitoring
+func (m *Manager) RemoveScenario(name string) error {
+	m.mu.Lock()
+	if m.config.Monitoring.Scenarios != nil {
+		delete(m.config.Monitoring.Scenarios, name)
+	}
+	m.mu.Unlock()
+	return m.Save()
+}
+
+// SetScenarioCritical sets the criticality of a monitored scenario
+func (m *Manager) SetScenarioCritical(name string, critical bool) error {
+	m.mu.Lock()
+	if m.config.Monitoring.Scenarios == nil {
+		m.config.Monitoring.Scenarios = make(map[string]MonitoredScenario)
+	}
+	m.config.Monitoring.Scenarios[name] = MonitoredScenario{Critical: critical}
+	m.mu.Unlock()
+	return m.Save()
+}
+
+// AddResource adds a resource to monitoring
+func (m *Manager) AddResource(name string) error {
+	m.mu.Lock()
+	// Check if already exists
+	for _, r := range m.config.Monitoring.Resources {
+		if r == name {
+			m.mu.Unlock()
+			return nil // Already exists
+		}
+	}
+	m.config.Monitoring.Resources = append(m.config.Monitoring.Resources, name)
+	m.mu.Unlock()
+	return m.Save()
+}
+
+// RemoveResource removes a resource from monitoring
+func (m *Manager) RemoveResource(name string) error {
+	m.mu.Lock()
+	var filtered []string
+	for _, r := range m.config.Monitoring.Resources {
+		if r != name {
+			filtered = append(filtered, r)
+		}
+	}
+	m.config.Monitoring.Resources = filtered
+	m.mu.Unlock()
+	return m.Save()
+}
+
 // SetCheckEnabled enables or disables a check
 func (m *Manager) SetCheckEnabled(checkID string, enabled bool) error {
 	m.mu.Lock()
@@ -437,6 +513,12 @@ func (m *Manager) mergeConfig(file *Config) {
 	m.config.UI.ShowDisabledChecks = file.UI.ShowDisabledChecks
 	if file.UI.DefaultTab != "" {
 		m.config.UI.DefaultTab = file.UI.DefaultTab
+	}
+
+	// Monitoring config - if file has monitoring config, use it entirely
+	// (don't merge partially - either use file config or defaults)
+	if file.Monitoring.Scenarios != nil || file.Monitoring.Resources != nil {
+		m.config.Monitoring = file.Monitoring
 	}
 }
 
