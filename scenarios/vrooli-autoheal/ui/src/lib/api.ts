@@ -513,3 +513,182 @@ export async function fetchActionHistory(checkId?: string): Promise<ActionLogsRe
     : "/actions/history";
   return apiRequest<ActionLogsResponse>(endpoint);
 }
+
+// ============================================================================
+// Configuration API
+// [REQ:CONFIG-*]
+// ============================================================================
+
+export interface Thresholds {
+  warningPercent?: number;
+  criticalPercent?: number;
+  warningCount?: number;
+  criticalCount?: number;
+  partitions?: string[];
+}
+
+export interface CheckSettings {
+  tunnelTestUrl?: string;
+  cleanPortsBeforeRestart?: boolean;
+  captureLogsOnFailure?: boolean;
+  logLinesToCapture?: number;
+}
+
+export interface CheckConfig {
+  enabled?: boolean;
+  autoHeal?: boolean;
+  intervalSeconds?: number;
+  thresholds?: Thresholds;
+  settings?: CheckSettings;
+}
+
+export interface GlobalConfig {
+  gracePeriodSeconds: number;
+  tickIntervalSeconds: number;
+  verifyDelaySeconds: number;
+  maxRestartAttempts: number;
+  restartCooldownSeconds: number;
+  historyRetentionHours: number;
+}
+
+export interface UIConfig {
+  autoRefreshSeconds: number;
+  theme: "system" | "light" | "dark";
+  showDisabledChecks: boolean;
+  defaultTab: "dashboard" | "trends" | "docs";
+}
+
+export interface Config {
+  version: string;
+  global: GlobalConfig;
+  checks?: Record<string, CheckConfig>; // Optional - may be empty/undefined if no overrides
+  ui: UIConfig;
+}
+
+export interface ValidationError {
+  path: string;
+  message: string;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  errors?: ValidationError[];
+}
+
+export interface ConfigResponse {
+  success: boolean;
+  message: string;
+  config: Config;
+}
+
+export interface CheckConfigResponse {
+  checkId: string;
+  config: {
+    enabled: boolean;
+    autoHeal: boolean;
+    intervalSeconds: number;
+    thresholds: Thresholds;
+    settings: CheckSettings;
+  };
+}
+
+export interface CheckDefaults {
+  enabled: boolean;
+  autoHeal: boolean;
+  intervalSeconds: number;
+  thresholds?: Thresholds;
+}
+
+export interface DefaultsResponse {
+  global: GlobalConfig;
+  ui: UIConfig;
+  checks: Record<string, CheckDefaults>;
+}
+
+// Fetch current configuration
+export async function fetchConfig(): Promise<Config> {
+  return apiRequest<Config>("/config");
+}
+
+// Update entire configuration
+export async function updateConfig(config: Config): Promise<ConfigResponse> {
+  return apiRequest<ConfigResponse>("/config", {
+    method: "PUT",
+    body: JSON.stringify(config),
+  });
+}
+
+// Validate configuration without saving
+export async function validateConfig(config: Config): Promise<ValidationResult> {
+  return apiRequest<ValidationResult>("/config/validate", {
+    method: "POST",
+    body: JSON.stringify(config),
+  });
+}
+
+// Get JSON schema
+export async function fetchConfigSchema(): Promise<Record<string, unknown>> {
+  return apiRequest<Record<string, unknown>>("/config/schema");
+}
+
+// Export configuration as downloadable JSON
+export async function exportConfig(): Promise<Blob> {
+  const url = buildApiUrl("/config/export", { baseUrl: API_BASE });
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new APIError("Failed to export configuration", "EXPORT_ERROR", res.status);
+  }
+  return res.blob();
+}
+
+// Import configuration from JSON
+export async function importConfig(configJson: string): Promise<ConfigResponse> {
+  return apiRequest<ConfigResponse>("/config/import", {
+    method: "POST",
+    body: configJson,
+  });
+}
+
+// Get default values for all settings
+export async function fetchDefaults(): Promise<DefaultsResponse> {
+  return apiRequest<DefaultsResponse>("/config/defaults");
+}
+
+// Get global configuration
+export async function fetchGlobalConfig(): Promise<GlobalConfig> {
+  return apiRequest<GlobalConfig>("/config/global");
+}
+
+// Get UI configuration
+export async function fetchUIConfig(): Promise<UIConfig> {
+  return apiRequest<UIConfig>("/config/ui");
+}
+
+// Get effective configuration for a specific check
+export async function fetchCheckConfig(checkId: string): Promise<CheckConfigResponse> {
+  return apiRequest<CheckConfigResponse>(`/config/checks/${encodeURIComponent(checkId)}`);
+}
+
+// Update check enabled state
+export async function setCheckEnabled(checkId: string, enabled: boolean): Promise<{ success: boolean; checkId: string; enabled: boolean }> {
+  return apiRequest(`/config/checks/${encodeURIComponent(checkId)}/enabled`, {
+    method: "PUT",
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+// Update check autoHeal state
+export async function setCheckAutoHeal(checkId: string, autoHeal: boolean): Promise<{ success: boolean; checkId: string; autoHeal: boolean }> {
+  return apiRequest(`/config/checks/${encodeURIComponent(checkId)}/autoheal`, {
+    method: "PUT",
+    body: JSON.stringify({ autoHeal }),
+  });
+}
+
+// Bulk update all checks
+export async function bulkUpdateChecks(action: "enableAll" | "disableAll" | "autoHealAll" | "disableAutoHealAll"): Promise<ConfigResponse> {
+  return apiRequest<ConfigResponse>("/config/checks/bulk", {
+    method: "PUT",
+    body: JSON.stringify({ action }),
+  });
+}

@@ -135,6 +135,20 @@ func NewServiceUnavailableError(component string, service string, cause error) *
 	}
 }
 
+// NewValidationError creates an error for invalid input.
+func NewValidationError(component string, operation string, cause error) *APIError {
+	msg := fmt.Sprintf("Failed to %s", operation)
+	if cause != nil {
+		msg = fmt.Sprintf("Failed to %s: %v", operation, cause)
+	}
+	return &APIError{
+		Code:      CodeValidation,
+		Message:   msg,
+		cause:     cause,
+		component: component,
+	}
+}
+
 // LogAndRespond logs the error with full context and writes a safe response.
 // This is the primary function for handling errors in HTTP handlers.
 //

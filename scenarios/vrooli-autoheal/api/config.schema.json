@@ -1,0 +1,191 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/autoheal-config.v1.json",
+  "title": "Vrooli Autoheal Configuration",
+  "description": "Configuration schema for vrooli-autoheal self-healing infrastructure supervisor",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version for forward compatibility",
+      "const": "1.0"
+    },
+    "global": {
+      "type": "object",
+      "description": "Global settings that apply to all checks",
+      "properties": {
+        "gracePeriodSeconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 600,
+          "default": 60,
+          "description": "Wait time after boot before checking (prevents false positives during startup)"
+        },
+        "tickIntervalSeconds": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 3600,
+          "default": 60,
+          "description": "How often to run health check cycles"
+        },
+        "verifyDelaySeconds": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 300,
+          "default": 30,
+          "description": "Wait time after restart before re-checking health"
+        },
+        "maxRestartAttempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 3,
+          "description": "Maximum restart attempts before giving up"
+        },
+        "restartCooldownSeconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 3600,
+          "default": 300,
+          "description": "Minimum time between restarts of the same service"
+        },
+        "historyRetentionHours": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 168,
+          "default": 24,
+          "description": "How long to keep check history in database"
+        }
+      },
+      "additionalProperties": false
+    },
+    "checks": {
+      "type": "object",
+      "description": "Per-check configuration",
+      "additionalProperties": {
+        "$ref": "#/$defs/checkConfig"
+      }
+    },
+    "ui": {
+      "type": "object",
+      "description": "UI display preferences",
+      "properties": {
+        "autoRefreshSeconds": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 300,
+          "default": 30,
+          "description": "Dashboard auto-refresh interval"
+        },
+        "theme": {
+          "type": "string",
+          "enum": ["system", "light", "dark"],
+          "default": "system",
+          "description": "Color theme preference"
+        },
+        "showDisabledChecks": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to show checks that are disabled in the dashboard"
+        },
+        "defaultTab": {
+          "type": "string",
+          "enum": ["dashboard", "trends", "docs"],
+          "default": "dashboard",
+          "description": "Default tab when opening the UI"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["version"],
+  "additionalProperties": false,
+  "$defs": {
+    "checkConfig": {
+      "type": "object",
+      "description": "Configuration for a single health check",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this check is active"
+        },
+        "autoHeal": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to automatically execute recovery actions on failure"
+        },
+        "intervalSeconds": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 86400,
+          "description": "Override default check interval (seconds)"
+        },
+        "thresholds": {
+          "type": "object",
+          "description": "Check-specific threshold overrides",
+          "properties": {
+            "warningPercent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Percentage threshold for warning status"
+            },
+            "criticalPercent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Percentage threshold for critical status"
+            },
+            "warningCount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Count threshold for warning status"
+            },
+            "criticalCount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Count threshold for critical status"
+            },
+            "partitions": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Disk partitions to monitor (for disk checks)"
+            }
+          },
+          "additionalProperties": false
+        },
+        "settings": {
+          "type": "object",
+          "description": "Check-specific settings",
+          "properties": {
+            "tunnelTestUrl": {
+              "type": "string",
+              "format": "uri",
+              "description": "External URL to verify cloudflared tunnel connectivity"
+            },
+            "cleanPortsBeforeRestart": {
+              "type": "boolean",
+              "default": true,
+              "description": "Kill stale port listeners before restarting scenarios"
+            },
+            "captureLogsOnFailure": {
+              "type": "boolean",
+              "default": true,
+              "description": "Capture logs when restart fails"
+            },
+            "logLinesToCapture": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 1000,
+              "default": 100,
+              "description": "Number of log lines to capture on failure"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -17,6 +17,7 @@ type Registry struct {
 	results  map[string]Result
 	lastRun  map[string]time.Time
 	platform *platform.Capabilities
+	config   ConfigProvider
 }
 
 // NewRegistry creates a new health check registry with the given platform capabilities.
@@ -46,8 +47,23 @@ func (r *Registry) Unregister(id string) {
 	delete(r.lastRun, id)
 }
 
-// shouldRunCheck determines if a check should run based on platform and interval
+// SetConfigProvider sets the configuration provider for the registry.
+// This controls which checks run and which have auto-heal enabled.
+// [REQ:CONFIG-CHECK-001]
+func (r *Registry) SetConfigProvider(cp ConfigProvider) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.config = cp
+}
+
+// shouldRunCheck determines if a check should run based on config, platform, and interval
+// [REQ:CONFIG-CHECK-001]
 func (r *Registry) shouldRunCheck(check Check, forceAll bool) bool {
+	// Check if check is enabled in config (if config provider is set)
+	if r.config != nil && !r.config.IsCheckEnabled(check.ID()) {
+		return false
+	}
+
 	// Check platform compatibility
 	platforms := check.Platforms()
 	if len(platforms) > 0 {
@@ -203,4 +219,94 @@ func (r *Registry) GetHealableCheck(id string) (HealableCheck, bool) {
 func (r *Registry) IsHealable(id string) bool {
 	_, ok := r.GetHealableCheck(id)
 	return ok
+}
+
+// IsAutoHealEnabled returns whether auto-healing is enabled for a check
+// Returns false if no config provider is set or if the check doesn't support healing
+// [REQ:CONFIG-CHECK-001]
+func (r *Registry) IsAutoHealEnabled(id string) bool {
+	if r.config == nil {
+		return false
+	}
+	// Check if auto-heal is enabled AND the check is healable
+	if !r.config.IsAutoHealEnabled(id) {
+		return false
+	}
+	return r.IsHealable(id)
+}
+
+// AutoHealResult represents the outcome of an auto-heal attempt
+type AutoHealResult struct {
+	CheckID      string       `json:"checkId"`
+	Attempted    bool         `json:"attempted"`
+	ActionResult ActionResult `json:"actionResult,omitempty"`
+	Reason       string       `json:"reason,omitempty"` // Why it wasn't attempted
+}
+
+// RunAutoHeal attempts to auto-heal any critical checks that have auto-heal enabled.
+// It runs the first available recovery action for each failing check.
+// Returns a list of auto-heal results.
+// [REQ:CONFIG-CHECK-001] [REQ:HEAL-ACTION-001]
+func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHealResult {
+	autoHealResults := make([]AutoHealResult, 0)
+
+	for _, result := range results {
+		// Only auto-heal critical checks
+		if result.Status != StatusCritical {
+			continue
+		}
+
+		// Check if auto-heal is enabled for this check
+		if !r.IsAutoHealEnabled(result.CheckID) {
+			autoHealResults = append(autoHealResults, AutoHealResult{
+				CheckID:   result.CheckID,
+				Attempted: false,
+				Reason:    "auto-heal not enabled for this check",
+			})
+			continue
+		}
+
+		// Get the healable check
+		healable, ok := r.GetHealableCheck(result.CheckID)
+		if !ok {
+			autoHealResults = append(autoHealResults, AutoHealResult{
+				CheckID:   result.CheckID,
+				Attempted: false,
+				Reason:    "check does not support healing",
+			})
+			continue
+		}
+
+		// Get available recovery actions
+		actions := healable.RecoveryActions(&result)
+
+		// Find the first available, non-dangerous action
+		var selectedAction *RecoveryAction
+		for _, action := range actions {
+			if action.Available && !action.Dangerous {
+				selectedAction = &action
+				break
+			}
+		}
+
+		if selectedAction == nil {
+			autoHealResults = append(autoHealResults, AutoHealResult{
+				CheckID:   result.CheckID,
+				Attempted: false,
+				Reason:    "no safe recovery action available",
+			})
+			continue
+		}
+
+		// Execute the recovery action
+		actionResult := healable.ExecuteAction(ctx, selectedAction.ID)
+
+		autoHealResults = append(autoHealResults, AutoHealResult{
+			CheckID:      result.CheckID,
+			Attempted:    true,
+			ActionResult: actionResult,
+		})
+	}
+
+	return autoHealResults
 }

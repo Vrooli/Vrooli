@@ -2,12 +2,12 @@
 // [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-EVENTS-001] [REQ:UI-REFRESH-001] [REQ:UI-RESPONSIVE-001]
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { RefreshCw, Play, Shield, AlertCircle, CheckCircle, AlertTriangle, HardDrive, Activity, TrendingUp, LayoutDashboard, BookOpen } from "lucide-react";
+import { RefreshCw, Play, Shield, AlertCircle, CheckCircle, AlertTriangle, HardDrive, Activity, TrendingUp, LayoutDashboard, BookOpen, Settings } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { fetchStatus, fetchChecks, runTick, groupChecksByStatus, statusToEmoji } from "./lib/api";
 import type { CheckInfo, HealthResult, CheckCategory } from "./lib/api";
 import { selectors } from "./consts/selectors";
-import { StatusBadge, SummaryCard, CheckCard, PlatformInfo, EventsTimeline, UptimeStats, ErrorDisplay, TrendsPage, SystemProtection } from "./components";
+import { StatusBadge, SummaryCard, CheckCard, PlatformInfo, EventsTimeline, UptimeStats, ErrorDisplay, TrendsPage, SystemProtection, SettingsDialog } from "./components";
 import { DocsPage } from "./pages/Docs";
 import { APIError } from "./lib/api";
 
@@ -37,6 +37,7 @@ export default function App() {
   const queryClient = useQueryClient();
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>(getTabFromHash);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Sync tab state with URL hash
   const handleTabChange = useCallback((tab: TabType) => {
@@ -153,6 +154,15 @@ export default function App() {
           <div className="flex items-center gap-3">
             {data && <StatusBadge status={data.status} />}
             <SystemProtection compact />
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSettingsOpen(true)}
+              data-testid="settings-button"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
 
             <Button
               variant="outline"
@@ -331,6 +341,9 @@ export default function App() {
           <DocsPage />
         )}
       </main>
+
+      {/* Settings Dialog */}
+      <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

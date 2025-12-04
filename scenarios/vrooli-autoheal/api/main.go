@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	apiHandlers "vrooli-autoheal/internal/handlers"
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"
+	"vrooli-autoheal/internal/userconfig"
 )
 
 func main() {
@@ -50,6 +52,25 @@ func run() error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	// Initialize user configuration manager
+	// Config path: ~/.vrooli-autoheal/config.json or VROOLI_AUTOHEAL_CONFIG env var
+	configPath := os.Getenv("VROOLI_AUTOHEAL_CONFIG")
+	if configPath == "" {
+		configPath = userconfig.DefaultConfigPath()
+	}
+	// Schema path is relative to the binary or in the api directory
+	schemaPath := filepath.Join(filepath.Dir(os.Args[0]), "config.schema.json")
+	if _, err := os.Stat(schemaPath); os.IsNotExist(err) {
+		// Try in current working directory
+		schemaPath = "config.schema.json"
+	}
+
+	configMgr := userconfig.NewManager(configPath, schemaPath)
+	if err := configMgr.Load(); err != nil {
+		log.Printf("warning: could not load user config: %v (using defaults)", err)
+	}
+	log.Printf("user config loaded from %s", configMgr.GetConfigPath())
+
 	// Connect to database
 	db, err := sql.Open("postgres", cfg.DatabaseURL)
 	if err != nil {
@@ -66,6 +87,9 @@ func run() error {
 	plat := platform.Detect()
 	registry := checks.NewRegistry(plat)
 
+	// Wire config manager into registry for enable/autoHeal checks
+	registry.SetConfigProvider(configMgr)
+
 	// Register health checks (delegated to bootstrap module)
 	bootstrap.RegisterDefaultChecks(registry, plat)
 
@@ -81,7 +105,8 @@ func run() error {
 
 	// Setup HTTP server
 	h := apiHandlers.New(registry, store, plat)
-	router := setupRouter(h)
+	configHandlers := apiHandlers.NewConfigHandlers(configMgr)
+	router := setupRouter(h, configHandlers)
 
 	log.Printf("starting server | service=vrooli-autoheal-api port=%s platform=%s", cfg.Port, plat.Platform)
 
@@ -89,7 +114,7 @@ func run() error {
 }
 
 // setupRouter configures HTTP routes
-func setupRouter(h *apiHandlers.Handlers) *mux.Router {
+func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers) *mux.Router {
 	router := mux.NewRouter()
 	router.Use(loggingMiddleware)
 
@@ -129,6 +154,22 @@ func setupRouter(h *apiHandlers.Handlers) *mux.Router {
 	// Documentation endpoints
 	router.HandleFunc("/api/v1/docs/manifest", h.DocsManifest).Methods("GET")
 	router.HandleFunc("/api/v1/docs/content", h.DocsContent).Methods("GET")
+
+	// Configuration endpoints [REQ:CONFIG-*]
+	router.HandleFunc("/api/v1/config", ch.GetConfig).Methods("GET")
+	router.HandleFunc("/api/v1/config", ch.UpdateConfig).Methods("PUT")
+	router.HandleFunc("/api/v1/config/validate", ch.ValidateConfig).Methods("POST")
+	router.HandleFunc("/api/v1/config/schema", ch.GetSchema).Methods("GET")
+	router.HandleFunc("/api/v1/config/export", ch.ExportConfig).Methods("GET")
+	router.HandleFunc("/api/v1/config/import", ch.ImportConfig).Methods("POST")
+	router.HandleFunc("/api/v1/config/defaults", ch.GetDefaults).Methods("GET")
+	router.HandleFunc("/api/v1/config/global", ch.GetGlobalConfig).Methods("GET")
+	router.HandleFunc("/api/v1/config/ui", ch.GetUIConfig).Methods("GET")
+	// Per-check config routes - must come after /config/bulk
+	router.HandleFunc("/api/v1/config/checks/bulk", ch.BulkUpdateChecks).Methods("PUT")
+	router.HandleFunc("/api/v1/config/checks/{checkId}", ch.GetCheckConfig).Methods("GET")
+	router.HandleFunc("/api/v1/config/checks/{checkId}/enabled", ch.UpdateCheckEnabled).Methods("PUT")
+	router.HandleFunc("/api/v1/config/checks/{checkId}/autoheal", ch.UpdateCheckAutoHeal).Methods("PUT")
 
 	return router
 }

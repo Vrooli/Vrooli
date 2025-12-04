@@ -171,3 +171,13 @@ type HealableCheck interface {
 	// ExecuteAction runs the specified recovery action
 	ExecuteAction(ctx context.Context, actionID string) ActionResult
 }
+
+// ConfigProvider provides check configuration for the registry.
+// This interface decouples the registry from the userconfig package.
+// [REQ:CONFIG-CHECK-001]
+type ConfigProvider interface {
+	// IsCheckEnabled returns whether a check should run
+	IsCheckEnabled(checkID string) bool
+	// IsAutoHealEnabled returns whether auto-healing is enabled for a check
+	IsAutoHealEnabled(checkID string) bool
+}

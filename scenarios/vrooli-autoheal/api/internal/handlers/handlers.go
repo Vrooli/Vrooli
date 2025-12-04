@@ -165,6 +165,28 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Run auto-heal for critical checks with auto-heal enabled
+	// [REQ:CONFIG-CHECK-001] [REQ:HEAL-ACTION-001]
+	autoHealResults := h.registry.RunAutoHeal(ctx, results)
+
+	// Log auto-heal actions to database
+	for _, ahr := range autoHealResults {
+		if ahr.Attempted {
+			if err := h.store.SaveActionLog(
+				ctx,
+				ahr.ActionResult.CheckID,
+				ahr.ActionResult.ActionID,
+				ahr.ActionResult.Success,
+				"[auto-heal] "+ahr.ActionResult.Message,
+				ahr.ActionResult.Output,
+				ahr.ActionResult.Error,
+				ahr.ActionResult.Duration.Milliseconds(),
+			); err != nil {
+				apierrors.LogError("tick", "save_autoheal_log:"+ahr.CheckID, err)
+			}
+		}
+	}
+
 	// Get updated summary
 	summary := h.registry.GetSummary()
 
@@ -178,6 +200,7 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 			"critical": summary.CritCount,
 		},
 		"results":   results,
+		"autoHeal":  autoHealResults,
 		"timestamp": time.Now().UTC(),
 	}
 
