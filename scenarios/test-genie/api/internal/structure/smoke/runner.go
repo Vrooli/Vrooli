@@ -2,10 +2,9 @@ package smoke
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"os"
-	"path/filepath"
+	"strings"
 	"time"
 
 	"test-genie/internal/structure/smoke/artifacts"
@@ -13,24 +12,43 @@ import (
 	"test-genie/internal/structure/smoke/handshake"
 	"test-genie/internal/structure/smoke/orchestrator"
 	"test-genie/internal/structure/smoke/preflight"
+	"test-genie/internal/structure/smokeconfig"
 )
 
 // Runner provides a high-level API for running UI smoke tests.
 type Runner struct {
-	browserlessURL string
-	logger         io.Writer
+	browserlessURL      string
+	logger              io.Writer
+	timeout             time.Duration
+	uiURL               string // Optional override for UI URL (skips auto-detection)
+	autoRecoveryEnabled bool   // Enable auto-recovery (default: true)
+	sharedMode          bool   // Shared mode prevents restart if sessions are active
+	autoStart           bool   // Auto-start scenario if UI port not detected
 }
 
 // NewRunner creates a new Runner.
 func NewRunner(browserlessURL string, opts ...RunnerOption) *Runner {
 	r := &Runner{
-		browserlessURL: browserlessURL,
-		logger:         io.Discard,
+		browserlessURL:      browserlessURL,
+		logger:              io.Discard,
+		autoRecoveryEnabled: true,  // Enable auto-recovery by default
+		sharedMode:          isSharedModeFromEnv(), // Read from BAS_BROWSERLESS_SHARED env var
 	}
 	for _, opt := range opts {
 		opt(r)
 	}
 	return r
+}
+
+// isSharedModeFromEnv checks the BAS_BROWSERLESS_SHARED environment variable.
+// Returns true if the env var is set to a truthy value (true, 1, yes).
+func isSharedModeFromEnv() bool {
+	val := os.Getenv("BAS_BROWSERLESS_SHARED")
+	if val == "" {
+		return false
+	}
+	val = strings.ToLower(val)
+	return val == "true" || val == "1" || val == "yes"
 }
 
 // RunnerOption configures a Runner.
@@ -43,6 +61,42 @@ func WithRunnerLogger(w io.Writer) RunnerOption {
 	}
 }
 
+// WithRunnerTimeout sets a custom timeout for the runner.
+func WithRunnerTimeout(timeout time.Duration) RunnerOption {
+	return func(r *Runner) {
+		r.timeout = timeout
+	}
+}
+
+// WithUIURL sets a custom UI URL, bypassing auto-detection.
+func WithUIURL(url string) RunnerOption {
+	return func(r *Runner) {
+		r.uiURL = url
+	}
+}
+
+// WithAutoRecovery enables or disables automatic browserless recovery.
+func WithAutoRecovery(enabled bool) RunnerOption {
+	return func(r *Runner) {
+		r.autoRecoveryEnabled = enabled
+	}
+}
+
+// WithSharedMode enables shared mode, which prevents browserless restart
+// if other sessions are active.
+func WithSharedMode(enabled bool) RunnerOption {
+	return func(r *Runner) {
+		r.sharedMode = enabled
+	}
+}
+
+// WithAutoStart enables automatic scenario startup if UI port is not detected.
+func WithAutoStart(enabled bool) RunnerOption {
+	return func(r *Runner) {
+		r.autoStart = enabled
+	}
+}
+
 // Run executes a UI smoke test for the given scenario.
 func (r *Runner) Run(ctx context.Context, scenarioName, scenarioDir string) (*Result, error) {
 	cfg := orchestrator.Config{
@@ -52,32 +106,63 @@ func (r *Runner) Run(ctx context.Context, scenarioName, scenarioDir string) (*Re
 		Timeout:          DefaultTimeout,
 		HandshakeTimeout: DefaultHandshakeTimeout,
 		Viewport:         orchestrator.Viewport{Width: DefaultViewportWidth, Height: DefaultViewportHeight},
+		UIURL:            r.uiURL,     // Use custom URL if provided (bypasses auto-detection)
+		AutoStart:        r.autoStart, // Enable auto-start if requested
 	}
 
-	// Load configuration from testing.json if available
-	if testingConfig := loadTestingConfig(scenarioDir); testingConfig != nil {
-		if testingConfig.Timeout > 0 {
-			cfg.Timeout = testingConfig.Timeout
-		}
-		if testingConfig.HandshakeTimeout > 0 {
-			cfg.HandshakeTimeout = testingConfig.HandshakeTimeout
-		}
-		if len(testingConfig.HandshakeSignals) > 0 {
-			cfg.HandshakeSignals = testingConfig.HandshakeSignals
-		}
-		if !testingConfig.Enabled {
-			return Skipped(scenarioName, "UI smoke harness disabled via .vrooli/testing.json"), nil
-		}
+	// Apply runner-level timeout override (from CLI --timeout flag)
+	if r.timeout > 0 {
+		cfg.Timeout = r.timeout
 	}
 
-	orch := orchestrator.New(cfg,
+	// Load configuration from testing.json if available (only override if not already set by CLI)
+	smokeCfg := smokeconfig.LoadUISmokeConfig(scenarioDir)
+	if smokeCfg.TimeoutMs > 0 && r.timeout == 0 {
+		cfg.Timeout = time.Duration(smokeCfg.TimeoutMs) * time.Millisecond
+	}
+	if smokeCfg.HandshakeTimeoutMs > 0 {
+		cfg.HandshakeTimeout = time.Duration(smokeCfg.HandshakeTimeoutMs) * time.Millisecond
+	}
+	if len(smokeCfg.HandshakeSignals) > 0 {
+		cfg.HandshakeSignals = smokeCfg.HandshakeSignals
+	}
+	if !smokeCfg.Enabled {
+		return Skipped(scenarioName, "UI smoke harness disabled via .vrooli/testing.json"), nil
+	}
+
+	// Create the preflight checker (which also implements HealthChecker)
+	checker := preflight.NewChecker(r.browserlessURL)
+
+	// Build orchestrator options
+	orchOpts := []orchestrator.Option{
 		orchestrator.WithLogger(r.logger),
-		orchestrator.WithPreflightChecker(preflight.NewChecker(r.browserlessURL)),
+		orchestrator.WithPreflightChecker(checker),
 		orchestrator.WithBrowserClient(browser.NewClient(r.browserlessURL, browser.WithTimeout(cfg.Timeout+cfg.HandshakeTimeout+20*time.Second))),
 		orchestrator.WithArtifactWriter(artifacts.NewWriter()),
 		orchestrator.WithHandshakeDetector(handshake.NewDetector()),
 		orchestrator.WithPayloadGenerator(browser.NewPayloadGenerator()),
-	)
+	}
+
+	// Enable auto-recovery with health checker if requested
+	if r.autoRecoveryEnabled {
+		orchOpts = append(orchOpts,
+			orchestrator.WithHealthChecker(checker),
+			orchestrator.WithAutoRecoveryOptions(orchestrator.AutoRecoveryOptions{
+				SharedMode:    r.sharedMode,
+				MaxRetries:    1,
+				ContainerName: "vrooli-browserless",
+			}),
+		)
+	}
+
+	// Enable auto-start if requested
+	if r.autoStart {
+		orchOpts = append(orchOpts,
+			orchestrator.WithScenarioStarter(orchestrator.NewDefaultScenarioStarter()),
+		)
+	}
+
+	orch := orchestrator.New(cfg, orchOpts...)
 
 	orchResult, err := orch.Run(ctx)
 	if err != nil {
@@ -90,12 +175,13 @@ func (r *Runner) Run(ctx context.Context, scenarioName, scenarioDir string) (*Re
 // convertResult converts an orchestrator.Result to a smoke.Result.
 func convertResult(or *orchestrator.Result) *Result {
 	r := &Result{
-		Scenario:   or.Scenario,
-		Status:     Status(or.Status),
-		Message:    or.Message,
-		Timestamp:  or.Timestamp,
-		DurationMs: or.DurationMs,
-		UIURL:      or.UIURL,
+		Scenario:      or.Scenario,
+		Status:        Status(or.Status),
+		BlockedReason: BlockedReason(or.BlockedReason),
+		Message:       or.Message,
+		Timestamp:     or.Timestamp,
+		DurationMs:    or.DurationMs,
+		UIURL:         or.UIURL,
 		Handshake: HandshakeResult{
 			Signaled:   or.Handshake.Signaled,
 			TimedOut:   or.Handshake.TimedOut,
@@ -146,60 +232,4 @@ func convertStorageShim(entries []orchestrator.StorageShimEntry) []StorageShimEn
 		}
 	}
 	return result
-}
-
-// testingConfig holds UI smoke settings from .vrooli/testing.json.
-type testingConfig struct {
-	Enabled          bool
-	Timeout          time.Duration
-	HandshakeTimeout time.Duration
-	HandshakeSignals []string
-}
-
-// rawTestingJSON represents the structure of .vrooli/testing.json.
-type rawTestingJSON struct {
-	Structure struct {
-		UISmoke struct {
-			Enabled            *bool    `json:"enabled"`
-			TimeoutMs          int64    `json:"timeout_ms"`
-			HandshakeTimeoutMs int64    `json:"handshake_timeout_ms"`
-			HandshakeSignals   []string `json:"handshake_signals"`
-		} `json:"ui_smoke"`
-	} `json:"structure"`
-}
-
-// loadTestingConfig loads UI smoke configuration from .vrooli/testing.json.
-func loadTestingConfig(scenarioDir string) *testingConfig {
-	configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil
-	}
-
-	var raw rawTestingJSON
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil
-	}
-
-	cfg := &testingConfig{
-		Enabled: true, // enabled by default
-	}
-
-	if raw.Structure.UISmoke.Enabled != nil {
-		cfg.Enabled = *raw.Structure.UISmoke.Enabled
-	}
-
-	if raw.Structure.UISmoke.TimeoutMs > 0 {
-		cfg.Timeout = time.Duration(raw.Structure.UISmoke.TimeoutMs) * time.Millisecond
-	}
-
-	if raw.Structure.UISmoke.HandshakeTimeoutMs > 0 {
-		cfg.HandshakeTimeout = time.Duration(raw.Structure.UISmoke.HandshakeTimeoutMs) * time.Millisecond
-	}
-
-	if len(raw.Structure.UISmoke.HandshakeSignals) > 0 {
-		cfg.HandshakeSignals = raw.Structure.UISmoke.HandshakeSignals
-	}
-
-	return cfg
 }

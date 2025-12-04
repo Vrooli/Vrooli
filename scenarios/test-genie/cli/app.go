@@ -8,6 +8,7 @@ import (
 	"test-genie/cli/generate"
 	"test-genie/cli/runlocal"
 	"test-genie/cli/status"
+	"test-genie/cli/uismoke"
 )
 
 const (
@@ -32,6 +33,7 @@ type App struct {
 	generateClient *generate.Client
 	executeClient  *execute.Client
 	runlocalClient *runlocal.Client
+	uismokeClient  *uismoke.Client
 }
 
 // NewApp creates a new CLI application instance.
@@ -65,6 +67,7 @@ func NewApp() (*App, error) {
 		generateClient: generate.NewClient(core.APIClient),
 		executeClient:  execute.NewClient(core.APIClient, core.HTTPClient),
 		runlocalClient: runlocal.NewClient(core.APIClient),
+		uismokeClient:  uismoke.NewClient(core.APIClient),
 	}
 	app.core.SetCommands(app.registerCommands())
 	return app, nil
@@ -106,6 +109,12 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 				NeedsAPI:    true,
 				Description: "Trigger scenario-local test runner",
 				Run:         func(args []string) error { return runlocal.Run(a.runlocalClient, args) },
+			},
+			{
+				Name:        "ui-smoke",
+				NeedsAPI:    true,
+				Description: "Run UI smoke test for a scenario",
+				Run:         func(args []string) error { return uismoke.Run(a.uismokeClient, args) },
 			},
 		},
 	}

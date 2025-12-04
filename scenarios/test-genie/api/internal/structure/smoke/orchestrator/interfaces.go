@@ -50,6 +50,9 @@ type Config struct {
 	// HandshakeSignals is a list of custom window property paths to check
 	// for the handshake signal. If empty, default signals are used.
 	HandshakeSignals []string
+
+	// AutoStart enables automatic scenario startup if UI port is not detected.
+	AutoStart bool
 }
 
 // Viewport defines browser viewport dimensions.
@@ -134,6 +137,35 @@ const (
 	StatusBlocked Status = "blocked"
 )
 
+// BlockedReason categorizes why a test was blocked.
+type BlockedReason string
+
+const (
+	// BlockedReasonNone indicates no block (test was not blocked).
+	BlockedReasonNone BlockedReason = ""
+	// BlockedReasonBrowserlessOffline indicates Browserless service is unavailable.
+	BlockedReasonBrowserlessOffline BlockedReason = "browserless_offline"
+	// BlockedReasonBundleStale indicates UI bundle is outdated.
+	BlockedReasonBundleStale BlockedReason = "bundle_stale"
+	// BlockedReasonUIPortMissing indicates UI port is defined but not detected.
+	BlockedReasonUIPortMissing BlockedReason = "ui_port_missing"
+)
+
+// ExitCode returns the shell exit code for this blocked reason.
+// Compatible with legacy bash implementation exit codes.
+func (r BlockedReason) ExitCode() int {
+	switch r {
+	case BlockedReasonBrowserlessOffline:
+		return 50
+	case BlockedReasonBundleStale:
+		return 60
+	case BlockedReasonUIPortMissing:
+		return 61
+	default:
+		return 1
+	}
+}
+
 // Result holds the complete outcome of a UI smoke test.
 type Result struct {
 	// Scenario is the name of the tested scenario.
@@ -141,6 +173,9 @@ type Result struct {
 
 	// Status is the overall test outcome.
 	Status Status `json:"status"`
+
+	// BlockedReason categorizes why the test was blocked (only set when Status is "blocked").
+	BlockedReason BlockedReason `json:"blocked_reason,omitempty"`
 
 	// Message provides a human-readable summary.
 	Message string `json:"message"`
@@ -266,6 +301,98 @@ type PreflightChecker interface {
 
 	// CheckUIDirectory returns true if the scenario has a UI directory.
 	CheckUIDirectory(scenarioDir string) bool
+}
+
+// HealthChecker extends PreflightChecker with health diagnostics and recovery capabilities.
+type HealthChecker interface {
+	PreflightChecker
+
+	// IsHealthy checks if browserless is healthy based on resource thresholds.
+	// Returns health status, diagnostics, and any error.
+	IsHealthy(ctx context.Context) (bool, *HealthDiagnostics, error)
+
+	// EnsureHealthy checks browserless health and attempts auto-recovery if unhealthy.
+	// Returns the recovery result and any error.
+	EnsureHealthy(ctx context.Context, opts AutoRecoveryOptions) (*RecoveryResult, error)
+
+	// DiagnoseBrowserlessFailure analyzes a failure and returns structured diagnosis.
+	DiagnoseBrowserlessFailure(ctx context.Context, scenarioName string) *Diagnosis
+}
+
+// HealthDiagnostics contains detailed health metrics from browserless.
+type HealthDiagnostics struct {
+	// ChromeProcessCount is the number of Chrome processes in the container.
+	ChromeProcessCount int `json:"chrome_process_count"`
+	// MemoryUsagePercent is the container memory usage as a percentage.
+	MemoryUsagePercent float64 `json:"memory_usage_percent"`
+	// RunningSessions is the number of active browser sessions.
+	RunningSessions int `json:"running_sessions"`
+	// QueuedSessions is the number of queued browser sessions.
+	QueuedSessions int `json:"queued_sessions"`
+	// MaxConcurrent is the maximum concurrent sessions allowed.
+	MaxConcurrent int `json:"max_concurrent"`
+	// Status is the overall health status.
+	Status string `json:"status"`
+	// ChromeCrashes is the count of recent Chrome crashes.
+	ChromeCrashes int `json:"chrome_crashes"`
+}
+
+// AutoRecoveryOptions configures auto-recovery behavior.
+type AutoRecoveryOptions struct {
+	// SharedMode prevents restart if other sessions are active.
+	SharedMode bool
+	// MaxRetries is the maximum number of recovery attempts.
+	MaxRetries int
+	// ContainerName is the browserless container name.
+	ContainerName string
+}
+
+// RecoveryResult describes the outcome of an auto-recovery attempt.
+type RecoveryResult struct {
+	// Attempted indicates whether recovery was attempted.
+	Attempted bool `json:"attempted"`
+	// Success indicates whether recovery succeeded.
+	Success bool `json:"success"`
+	// Action describes what action was taken.
+	Action string `json:"action"`
+	// Error contains any error message.
+	Error string `json:"error,omitempty"`
+	// DiagnosticsBefore contains health metrics before recovery.
+	DiagnosticsBefore *HealthDiagnostics `json:"diagnostics_before,omitempty"`
+	// DiagnosticsAfter contains health metrics after recovery.
+	DiagnosticsAfter *HealthDiagnostics `json:"diagnostics_after,omitempty"`
+}
+
+// DiagnosisType categorizes the type of browserless failure.
+type DiagnosisType string
+
+const (
+	// DiagnosisProcessLeak indicates accumulated Chrome processes.
+	DiagnosisProcessLeak DiagnosisType = "process_leak"
+	// DiagnosisMemoryExhaustion indicates high memory usage.
+	DiagnosisMemoryExhaustion DiagnosisType = "memory_exhaustion"
+	// DiagnosisChromeCrashes indicates Chrome crash instability.
+	DiagnosisChromeCrashes DiagnosisType = "chrome_crashes"
+	// DiagnosisDegraded indicates general degraded health.
+	DiagnosisDegraded DiagnosisType = "degraded"
+	// DiagnosisUnknown indicates an undiagnosed failure.
+	DiagnosisUnknown DiagnosisType = "unknown"
+	// DiagnosisOffline indicates browserless is not reachable.
+	DiagnosisOffline DiagnosisType = "offline"
+)
+
+// Diagnosis provides structured failure analysis with actionable recommendations.
+type Diagnosis struct {
+	// Type categorizes the failure.
+	Type DiagnosisType `json:"diagnosis"`
+	// Message describes the failure in human-readable terms.
+	Message string `json:"message"`
+	// Recommendation provides actionable steps to resolve the issue.
+	Recommendation string `json:"recommendation"`
+	// IsBrowserlessIssue indicates if the problem is with browserless vs the scenario.
+	IsBrowserlessIssue string `json:"is_browserless_issue"` // "true", "false", "maybe"
+	// Diagnostics contains the raw health metrics.
+	Diagnostics *HealthDiagnostics `json:"diagnostics,omitempty"`
 }
 
 // UIPortDefinition describes whether a scenario defines a UI port in service.json.
@@ -396,7 +523,28 @@ type PortDiscoverer interface {
 // PayloadGenerator generates JavaScript payloads for browser execution.
 type PayloadGenerator interface {
 	// Generate creates a JavaScript payload for the UI smoke test.
+	// viewport specifies the browser viewport dimensions.
 	// customSignals is an optional list of window property paths to check
 	// for the handshake signal. If empty, default signals are used.
-	Generate(uiURL string, timeout, handshakeTimeout interface{}, customSignals []string) string
+	Generate(uiURL string, timeout, handshakeTimeout interface{}, viewport Viewport, customSignals []string) string
+}
+
+// ScenarioStarter starts a scenario and waits for it to be ready.
+type ScenarioStarter interface {
+	// Start starts the scenario and returns when the UI is ready.
+	// Returns the UI port if successfully started, or an error.
+	Start(ctx context.Context, scenarioName string) (int, error)
+
+	// Stop stops a scenario that was auto-started.
+	Stop(ctx context.Context, scenarioName string) error
+}
+
+// ScenarioStartResult contains the result of starting a scenario.
+type ScenarioStartResult struct {
+	// Started indicates whether the scenario was started.
+	Started bool `json:"started"`
+	// UIPort is the detected UI port after starting.
+	UIPort int `json:"ui_port,omitempty"`
+	// Error contains any error message.
+	Error string `json:"error,omitempty"`
 }

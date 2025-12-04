@@ -5,8 +5,11 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"test-genie/internal/structure/smoke/browser"
+	"test-genie/internal/structure/smoke/orchestrator"
+	"test-genie/internal/structure/smokeconfig"
 )
 
 func TestNewRunner(t *testing.T) {
@@ -25,7 +28,52 @@ func TestWithRunnerLogger(t *testing.T) {
 	}
 }
 
-func TestLoadTestingConfig_ValidConfig(t *testing.T) {
+func TestWithRunnerTimeout(t *testing.T) {
+	r := NewRunner("http://localhost:4110", WithRunnerTimeout(60*time.Second))
+
+	if r.timeout != 60*time.Second {
+		t.Errorf("timeout = %v, want %v", r.timeout, 60*time.Second)
+	}
+}
+
+func TestWithUIURL(t *testing.T) {
+	r := NewRunner("http://localhost:4110", WithUIURL("http://custom.example.com:8080"))
+
+	if r.uiURL != "http://custom.example.com:8080" {
+		t.Errorf("uiURL = %q, want %q", r.uiURL, "http://custom.example.com:8080")
+	}
+}
+
+func TestWithUIURL_Empty(t *testing.T) {
+	r := NewRunner("http://localhost:4110", WithUIURL(""))
+
+	if r.uiURL != "" {
+		t.Errorf("uiURL = %q, want empty string", r.uiURL)
+	}
+}
+
+func TestRunner_MultipleOptions(t *testing.T) {
+	r := NewRunner("http://localhost:4110",
+		WithRunnerLogger(os.Stdout),
+		WithRunnerTimeout(120*time.Second),
+		WithUIURL("http://localhost:3000"),
+	)
+
+	if r.browserlessURL != "http://localhost:4110" {
+		t.Errorf("browserlessURL = %q, want %q", r.browserlessURL, "http://localhost:4110")
+	}
+	if r.logger != os.Stdout {
+		t.Error("logger should be set to os.Stdout")
+	}
+	if r.timeout != 120*time.Second {
+		t.Errorf("timeout = %v, want %v", r.timeout, 120*time.Second)
+	}
+	if r.uiURL != "http://localhost:3000" {
+		t.Errorf("uiURL = %q, want %q", r.uiURL, "http://localhost:3000")
+	}
+}
+
+func TestLoadUISmokeConfig_ValidConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	vrooliDir := filepath.Join(tmpDir, ".vrooli")
 	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
@@ -45,23 +93,20 @@ func TestLoadTestingConfig_ValidConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg := loadTestingConfig(tmpDir)
-	if cfg == nil {
-		t.Fatal("loadTestingConfig() returned nil")
-	}
+	cfg := smokeconfig.LoadUISmokeConfig(tmpDir)
 
 	if !cfg.Enabled {
 		t.Error("Enabled should be true")
 	}
-	if cfg.Timeout.Milliseconds() != 120000 {
-		t.Errorf("Timeout = %v, want 120000ms", cfg.Timeout)
+	if cfg.TimeoutMs != 120000 {
+		t.Errorf("TimeoutMs = %d, want 120000", cfg.TimeoutMs)
 	}
-	if cfg.HandshakeTimeout.Milliseconds() != 20000 {
-		t.Errorf("HandshakeTimeout = %v, want 20000ms", cfg.HandshakeTimeout)
+	if cfg.HandshakeTimeoutMs != 20000 {
+		t.Errorf("HandshakeTimeoutMs = %d, want 20000", cfg.HandshakeTimeoutMs)
 	}
 }
 
-func TestLoadTestingConfig_Disabled(t *testing.T) {
+func TestLoadUISmokeConfig_Disabled(t *testing.T) {
 	tmpDir := t.TempDir()
 	vrooliDir := filepath.Join(tmpDir, ".vrooli")
 	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
@@ -79,26 +124,24 @@ func TestLoadTestingConfig_Disabled(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg := loadTestingConfig(tmpDir)
-	if cfg == nil {
-		t.Fatal("loadTestingConfig() returned nil")
-	}
+	cfg := smokeconfig.LoadUISmokeConfig(tmpDir)
 
 	if cfg.Enabled {
 		t.Error("Enabled should be false")
 	}
 }
 
-func TestLoadTestingConfig_NoFile(t *testing.T) {
+func TestLoadUISmokeConfig_NoFile(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	cfg := loadTestingConfig(tmpDir)
-	if cfg != nil {
-		t.Error("loadTestingConfig() should return nil when no testing.json")
+	// When no file exists, defaults are returned (enabled=true)
+	cfg := smokeconfig.LoadUISmokeConfig(tmpDir)
+	if !cfg.Enabled {
+		t.Error("Default config should have Enabled=true")
 	}
 }
 
-func TestLoadTestingConfig_InvalidJSON(t *testing.T) {
+func TestLoadUISmokeConfig_InvalidJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 	vrooliDir := filepath.Join(tmpDir, ".vrooli")
 	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
@@ -109,13 +152,14 @@ func TestLoadTestingConfig_InvalidJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg := loadTestingConfig(tmpDir)
-	if cfg != nil {
-		t.Error("loadTestingConfig() should return nil for invalid JSON")
+	// When JSON is invalid, defaults are returned
+	cfg := smokeconfig.LoadUISmokeConfig(tmpDir)
+	if !cfg.Enabled {
+		t.Error("Invalid JSON should fall back to default (Enabled=true)")
 	}
 }
 
-func TestLoadTestingConfig_DefaultEnabled(t *testing.T) {
+func TestLoadUISmokeConfig_DefaultEnabled(t *testing.T) {
 	tmpDir := t.TempDir()
 	vrooliDir := filepath.Join(tmpDir, ".vrooli")
 	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
@@ -134,10 +178,7 @@ func TestLoadTestingConfig_DefaultEnabled(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg := loadTestingConfig(tmpDir)
-	if cfg == nil {
-		t.Fatal("loadTestingConfig() returned nil")
-	}
+	cfg := smokeconfig.LoadUISmokeConfig(tmpDir)
 
 	if !cfg.Enabled {
 		t.Error("Enabled should default to true")
@@ -167,7 +208,7 @@ func TestConvertStorageShim(t *testing.T) {
 	}
 }
 
-func TestLoadTestingConfig_EmptyUISmoke(t *testing.T) {
+func TestLoadUISmokeConfig_EmptyUISmoke(t *testing.T) {
 	tmpDir := t.TempDir()
 	vrooliDir := filepath.Join(tmpDir, ".vrooli")
 	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
@@ -184,10 +225,7 @@ func TestLoadTestingConfig_EmptyUISmoke(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg := loadTestingConfig(tmpDir)
-	if cfg == nil {
-		t.Fatal("loadTestingConfig() returned nil")
-	}
+	cfg := smokeconfig.LoadUISmokeConfig(tmpDir)
 
 	// Should default to enabled
 	if !cfg.Enabled {
@@ -195,7 +233,7 @@ func TestLoadTestingConfig_EmptyUISmoke(t *testing.T) {
 	}
 }
 
-func TestLoadTestingConfig_NoStructureSection(t *testing.T) {
+func TestLoadUISmokeConfig_NoStructureSection(t *testing.T) {
 	tmpDir := t.TempDir()
 	vrooliDir := filepath.Join(tmpDir, ".vrooli")
 	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
@@ -210,10 +248,7 @@ func TestLoadTestingConfig_NoStructureSection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg := loadTestingConfig(tmpDir)
-	if cfg == nil {
-		t.Fatal("loadTestingConfig() returned nil")
-	}
+	cfg := smokeconfig.LoadUISmokeConfig(tmpDir)
 
 	// Should still return config with defaults
 	if !cfg.Enabled {
@@ -343,7 +378,7 @@ func TestRunner_Skipped(t *testing.T) {
 	}
 }
 
-func TestLoadTestingConfig_CustomHandshakeSignals(t *testing.T) {
+func TestLoadUISmokeConfig_CustomHandshakeSignals(t *testing.T) {
 	tmpDir := t.TempDir()
 	vrooliDir := filepath.Join(tmpDir, ".vrooli")
 	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
@@ -361,10 +396,7 @@ func TestLoadTestingConfig_CustomHandshakeSignals(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg := loadTestingConfig(tmpDir)
-	if cfg == nil {
-		t.Fatal("loadTestingConfig() returned nil")
-	}
+	cfg := smokeconfig.LoadUISmokeConfig(tmpDir)
 
 	if len(cfg.HandshakeSignals) != 3 {
 		t.Fatalf("HandshakeSignals length = %d, want 3", len(cfg.HandshakeSignals))
@@ -405,10 +437,7 @@ func TestCustomHandshakeSignals_EndToEnd(t *testing.T) {
 	}
 
 	// Load config
-	cfg := loadTestingConfig(tmpDir)
-	if cfg == nil {
-		t.Fatal("loadTestingConfig() returned nil")
-	}
+	cfg := smokeconfig.LoadUISmokeConfig(tmpDir)
 
 	// Verify signals were loaded
 	if len(cfg.HandshakeSignals) != 3 {
@@ -417,7 +446,8 @@ func TestCustomHandshakeSignals_EndToEnd(t *testing.T) {
 
 	// Now generate a payload using these signals to verify they're used correctly
 	gen := browser.NewPayloadGenerator()
-	payload := gen.Generate("http://localhost:3000", 90000, 15000, cfg.HandshakeSignals)
+	viewport := orchestrator.Viewport{Width: 1280, Height: 720}
+	payload := gen.Generate("http://localhost:3000", 90000, 15000, viewport, cfg.HandshakeSignals)
 
 	// Verify custom signals are in the payload
 	if !containsString(payload, "customApp.initialized") {
@@ -472,10 +502,7 @@ func TestCustomHandshakeSignals_EmptyArray(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg := loadTestingConfig(tmpDir)
-	if cfg == nil {
-		t.Fatal("loadTestingConfig() returned nil")
-	}
+	cfg := smokeconfig.LoadUISmokeConfig(tmpDir)
 
 	// Empty array means no custom signals
 	if len(cfg.HandshakeSignals) != 0 {
@@ -484,7 +511,8 @@ func TestCustomHandshakeSignals_EmptyArray(t *testing.T) {
 
 	// Generate payload - should use defaults when empty
 	gen := browser.NewPayloadGenerator()
-	payload := gen.Generate("http://localhost:3000", 90000, 15000, cfg.HandshakeSignals)
+	viewport := orchestrator.Viewport{Width: 1280, Height: 720}
+	payload := gen.Generate("http://localhost:3000", 90000, 15000, viewport, cfg.HandshakeSignals)
 
 	// With empty custom signals, defaults should be used
 	if !containsString(payload, "__vrooliBridgeChildInstalled") {
@@ -501,7 +529,8 @@ func TestCustomHandshakeSignals_SpecialCharacters(t *testing.T) {
 	}
 
 	gen := browser.NewPayloadGenerator()
-	payload := gen.Generate("http://localhost:3000", 90000, 15000, signals)
+	viewport := orchestrator.Viewport{Width: 1280, Height: 720}
+	payload := gen.Generate("http://localhost:3000", 90000, 15000, viewport, signals)
 
 	// These should all be treated as nested properties and generate valid JS
 	// The key thing is they shouldn't cause any panic or invalid JS generation
@@ -539,4 +568,92 @@ func containsSubstring(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+func TestIsSharedModeFromEnv(t *testing.T) {
+	tests := []struct {
+		name     string
+		envValue string
+		want     bool
+	}{
+		{"empty", "", false},
+		{"true_lowercase", "true", true},
+		{"true_uppercase", "TRUE", true},
+		{"true_mixed", "True", true},
+		{"one", "1", true},
+		{"yes_lowercase", "yes", true},
+		{"yes_uppercase", "YES", true},
+		{"false", "false", false},
+		{"zero", "0", false},
+		{"no", "no", false},
+		{"random_string", "maybe", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Set env var for test
+			if tc.envValue != "" {
+				os.Setenv("BAS_BROWSERLESS_SHARED", tc.envValue)
+				defer os.Unsetenv("BAS_BROWSERLESS_SHARED")
+			} else {
+				os.Unsetenv("BAS_BROWSERLESS_SHARED")
+			}
+
+			got := isSharedModeFromEnv()
+			if got != tc.want {
+				t.Errorf("isSharedModeFromEnv() = %v, want %v (env=%q)", got, tc.want, tc.envValue)
+			}
+		})
+	}
+}
+
+func TestNewRunner_SharedModeFromEnv(t *testing.T) {
+	// Test that runner picks up BAS_BROWSERLESS_SHARED env var
+	os.Setenv("BAS_BROWSERLESS_SHARED", "true")
+	defer os.Unsetenv("BAS_BROWSERLESS_SHARED")
+
+	r := NewRunner("http://localhost:4110")
+	if !r.sharedMode {
+		t.Error("sharedMode should be true when BAS_BROWSERLESS_SHARED=true")
+	}
+}
+
+func TestNewRunner_SharedModeOverrideByOption(t *testing.T) {
+	// Test that WithSharedMode option can override env var
+	os.Setenv("BAS_BROWSERLESS_SHARED", "false")
+	defer os.Unsetenv("BAS_BROWSERLESS_SHARED")
+
+	// Env says false, but option sets true
+	r := NewRunner("http://localhost:4110", WithSharedMode(true))
+	if !r.sharedMode {
+		t.Error("sharedMode should be true when overridden by option")
+	}
+}
+
+func TestWithAutoRecovery(t *testing.T) {
+	// Test auto recovery enabled by default
+	r := NewRunner("http://localhost:4110")
+	if !r.autoRecoveryEnabled {
+		t.Error("autoRecoveryEnabled should default to true")
+	}
+
+	// Test disabling via option
+	r2 := NewRunner("http://localhost:4110", WithAutoRecovery(false))
+	if r2.autoRecoveryEnabled {
+		t.Error("autoRecoveryEnabled should be false when disabled via option")
+	}
+}
+
+func TestWithAutoStart(t *testing.T) {
+	// Test auto start disabled by default
+	r := NewRunner("http://localhost:4110")
+	if r.autoStart {
+		t.Error("autoStart should default to false")
+	}
+
+	// Test enabling via option
+	r2 := NewRunner("http://localhost:4110", WithAutoStart(true))
+	if !r2.autoStart {
+		t.Error("autoStart should be true when enabled via option")
+	}
 }

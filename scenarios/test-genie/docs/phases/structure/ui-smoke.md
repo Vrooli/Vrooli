@@ -1,34 +1,30 @@
 # UI Smoke Testing Guide
 
 **Status**: Active
-**Last Updated**: 2025-12-02
+**Last Updated**: 2025-12-03
 
 ---
 
 ## Overview
 
-UI smoke testing validates that a scenario's UI is accessible, renders correctly, and has no critical JavaScript errors. It runs during the **structure** phase as a fast sanity check before deeper testing.
+UI smoke testing validates that a scenario's UI is accessible, renders correctly, integrates with the iframe-bridge, and has no critical JavaScript errors. It runs during the **structure** phase as a fast sanity check before deeper testing.
 
-> **Note**: UI smoke testing is now executed through the Go-native orchestrator. The bash shell library references in the integration section below are deprecated and retained for historical context only.
+The UI smoke test is implemented as a Go-native orchestrator that loads the scenario's UI in an iframe via Browserless, validates the iframe-bridge handshake, and captures artifacts.
 
 ## Quick Start
 
 ### Enable UI Smoke Testing
 
-Add UI smoke configuration to `.vrooli/testing.json`:
+UI smoke testing is **enabled by default** for scenarios with a `ui/` directory. To customize settings, add configuration to `.vrooli/testing.json`:
 
 ```json
 {
-  "phases": {
-    "structure": {
-      "uiSmoke": {
-        "enabled": true,
-        "pages": [
-          { "path": "/", "name": "Home" },
-          { "path": "/dashboard", "name": "Dashboard" }
-        ],
-        "timeout": 30000
-      }
+  "structure": {
+    "ui_smoke": {
+      "enabled": true,
+      "timeout_ms": 90000,
+      "handshake_timeout_ms": 15000,
+      "handshake_signals": []
     }
   }
 }
@@ -40,8 +36,8 @@ Add UI smoke configuration to `.vrooli/testing.json`:
 # Run structure phase (includes UI smoke)
 test-genie execute my-scenario --phases structure
 
-# Or directly
-./test/phases/test-structure.sh
+# Check test artifacts
+ls coverage/my-scenario/ui-smoke/
 ```
 
 ## Configuration Reference
@@ -50,346 +46,348 @@ test-genie execute my-scenario --phases structure
 
 ```json
 {
-  "phases": {
-    "structure": {
-      "uiSmoke": {
-        "enabled": true,
-        "pages": [
-          {
-            "path": "/",
-            "name": "Home Page",
-            "waitForSelector": "[data-testid='app-loaded']",
-            "waitForMs": 2000
-          },
-          {
-            "path": "/dashboard",
-            "name": "Dashboard",
-            "requireAuth": false,
-            "skipScreenshot": false
-          }
-        ],
-        "viewport": {
-          "width": 1440,
-          "height": 900
-        },
-        "timeout": 30000,
-        "screenshots": {
-          "enabled": true,
-          "directory": "coverage/screenshots"
-        },
-        "consoleErrors": {
-          "failOnError": true,
-          "ignorePatterns": [
-            "favicon.ico"
-          ]
-        }
-      }
+  "structure": {
+    "ui_smoke": {
+      "enabled": true,
+      "timeout_ms": 90000,
+      "handshake_timeout_ms": 15000,
+      "handshake_signals": [
+        "customApp.ready",
+        "MY_APP_INITIALIZED"
+      ]
     }
   }
 }
 ```
 
-### Page Configuration
+### Configuration Options
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `path` | string | required | URL path to test |
-| `name` | string | path | Display name for reports |
-| `waitForSelector` | string | - | CSS selector to wait for |
-| `waitForMs` | number | 0 | Additional wait after load |
-| `requireAuth` | boolean | false | Skip if auth required |
-| `skipScreenshot` | boolean | false | Don't capture screenshot |
+| `enabled` | boolean | `true` | Enable/disable UI smoke testing |
+| `timeout_ms` | number | `90000` | Overall timeout for the test (ms) |
+| `handshake_timeout_ms` | number | `15000` | Max time to wait for iframe-bridge handshake (ms) |
+| `handshake_signals` | string[] | `[]` | Custom window property paths to check for readiness |
 
-### Global Options
+### Default Handshake Signals
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enabled` | boolean | false | Enable UI smoke testing |
-| `timeout` | number | 30000 | Max time per page (ms) |
-| `viewport.width` | number | 1440 | Browser width |
-| `viewport.height` | number | 900 | Browser height |
+When no custom signals are provided, the following signals are checked (in order):
 
-## What Gets Tested
+1. `window.__vrooliBridgeChildInstalled`
+2. `window.IFRAME_BRIDGE_READY`
+3. `window.IframeBridge.ready`
+4. `window.iframeBridge.ready`
+5. `window.IframeBridge.getState().ready`
 
-### 1. Page Load
+### Custom Handshake Signals
 
-- HTTP response status (expects 200)
-- Page renders without crash
-- No network timeout
-
-### 2. Console Errors
-
-- JavaScript errors captured
-- React/Vue hydration errors detected
-- Unhandled promise rejections caught
-
-### 3. Screenshots
-
-- Visual snapshot captured
-- Stored for regression comparison
-- Available in test artifacts
-
-### 4. DOM Validation
-
-- Expected elements exist (via `waitForSelector`)
-- No blank page (body has content)
-
-## Browserless Integration
-
-UI smoke tests use Browserless for headless browser automation:
-
-```bash
-# Ensure Browserless is running
-vrooli resource status browserless
-
-# Or start it
-vrooli resource start browserless
-```
-
-### Direct API Usage
-
-```bash
-# Navigate and capture screenshot
-curl -X POST "http://localhost:3000/screenshot" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "http://localhost:5173/",
-    "options": {
-      "fullPage": true,
-      "type": "png"
-    }
-  }'
-```
-
-## Results Format
-
-### Phase Results
+You can define custom signals for apps that use different readiness indicators:
 
 ```json
 {
-  "phase": "structure",
+  "structure": {
+    "ui_smoke": {
+      "handshake_signals": [
+        "myApp.initialized",
+        "REACT_APP_READY",
+        "store.getState().isReady"
+      ]
+    }
+  }
+}
+```
+
+Signal patterns supported:
+- **Simple property**: `"MY_FLAG"` checks `window.MY_FLAG === true`
+- **Nested property**: `"app.ready"` checks `window.app && window.app.ready === true`
+- **Method call**: `"store.getState().ready"` checks `window.store && typeof window.store.getState === 'function' && window.store.getState().ready === true`
+
+## Prerequisites
+
+### 1. Browserless Resource
+
+The UI smoke test requires Browserless to be running:
+
+```bash
+# Check status
+resource-browserless manage status
+
+# Start if needed
+resource-browserless manage start
+```
+
+### 2. iframe-bridge Dependency
+
+Your UI must have `@vrooli/iframe-bridge` as a dependency in `ui/package.json`:
+
+```json
+{
+  "dependencies": {
+    "@vrooli/iframe-bridge": "workspace:*"
+  }
+}
+```
+
+**What is iframe-bridge?**
+
+The `@vrooli/iframe-bridge` package provides communication utilities between Vrooli's host environment and scenario UIs embedded in iframes. It handles:
+
+- **Ready signaling**: Notifies the host when the UI has finished initializing
+- **Message passing**: Enables secure cross-origin communication between host and iframe
+- **Storage shimming**: Patches localStorage/sessionStorage for iframe compatibility
+
+When a UI smoke test runs, Browserless loads your UI in a headless browser and waits for the iframe-bridge to signal that the app is ready. If the bridge never signals ready, the test fails.
+
+For detailed implementation guidance, see the [iframe-bridge README](/packages/iframe-bridge/README.md).
+
+### 3. UI Port Definition
+
+Your scenario should define a UI port in `.vrooli/service.json`:
+
+```json
+{
+  "ports": {
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "UI development server port"
+    }
+  }
+}
+```
+
+## Execution Flow
+
+The UI smoke test follows this sequence:
+
+1. **Check UI directory exists** - Skip if no `ui/` directory
+2. **Check Browserless health** - Block if Browserless is offline
+3. **Check bundle freshness** - Block if source files are newer than dist
+4. **Check UI port defined** - Determine if scenario expects a UI
+5. **Discover UI port** - Find the running UI server port
+6. **Check iframe-bridge dependency** - Fail if missing
+7. **Execute browser session** - Load UI in iframe via Browserless
+8. **Evaluate handshake** - Wait for bridge readiness signal
+9. **Write artifacts** - Save screenshot, console logs, etc.
+10. **Build result** - Determine pass/fail status
+
+## Test Results
+
+### Status Values
+
+| Status | Meaning |
+|--------|---------|
+| `passed` | UI loaded successfully with handshake |
+| `failed` | Test encountered errors (JS errors, network failures, no handshake) |
+| `skipped` | Test was skipped (no UI directory or no UI port defined) |
+| `blocked` | Precondition failed (Browserless offline, bundle stale, port not running) |
+
+### Result JSON
+
+Results are stored in `coverage/<scenario>/ui-smoke/latest.json`:
+
+```json
+{
+  "scenario": "my-scenario",
   "status": "passed",
-  "uiSmoke": {
-    "pages": [
-      {
-        "path": "/",
-        "name": "Home",
-        "status": "passed",
-        "loadTimeMs": 1250,
-        "consoleErrors": [],
-        "screenshot": "coverage/screenshots/home.png"
-      },
-      {
-        "path": "/dashboard",
-        "name": "Dashboard",
-        "status": "passed",
-        "loadTimeMs": 890,
-        "consoleErrors": [],
-        "screenshot": "coverage/screenshots/dashboard.png"
-      }
-    ]
+  "message": "UI loaded successfully",
+  "timestamp": "2025-12-03T10:30:00Z",
+  "duration_ms": 3500,
+  "ui_url": "http://localhost:3000",
+  "handshake": {
+    "signaled": true,
+    "timed_out": false,
+    "duration_ms": 1200
+  },
+  "artifacts": {
+    "screenshot": "coverage/my-scenario/ui-smoke/screenshot.png",
+    "console": "coverage/my-scenario/ui-smoke/console.json",
+    "network": "coverage/my-scenario/ui-smoke/network.json",
+    "html": "coverage/my-scenario/ui-smoke/dom.html",
+    "raw": "coverage/my-scenario/ui-smoke/raw.json"
   }
 }
 ```
 
-### Console Errors
+## Artifacts
 
-```json
-{
-  "consoleErrors": [
-    {
-      "type": "error",
-      "text": "Uncaught TypeError: Cannot read property 'map' of undefined",
-      "url": "http://localhost:5173/assets/main-abc123.js",
-      "lineNumber": 42
-    }
-  ]
-}
-```
+All artifacts are stored in `coverage/<scenario>/ui-smoke/`:
 
-## Best Practices
-
-### 1. Test Critical Pages Only
-
-```json
-{
-  "pages": [
-    { "path": "/", "name": "Landing" },
-    { "path": "/dashboard", "name": "Main Dashboard" },
-    { "path": "/settings", "name": "Settings" }
-  ]
-}
-```
-
-Don't test every route - focus on entry points.
-
-### 2. Use waitForSelector
-
-```json
-{
-  "path": "/dashboard",
-  "waitForSelector": "[data-testid='dashboard-loaded']"
-}
-```
-
-Ensures page is fully rendered, not just network idle.
-
-### 3. Handle Auth Gracefully
-
-```json
-{
-  "path": "/admin",
-  "requireAuth": true
-}
-```
-
-Pages requiring auth are skipped in smoke tests (test in integration phase instead).
-
-### 4. Ignore Expected Errors
-
-```json
-{
-  "consoleErrors": {
-    "ignorePatterns": [
-      "favicon.ico",
-      "analytics",
-      "Third-party cookie"
-    ]
-  }
-}
-```
-
-Filter out noise from third-party scripts.
-
-### 5. Set Appropriate Timeouts
-
-```json
-{
-  "timeout": 30000,
-  "pages": [
-    {
-      "path": "/heavy-page",
-      "waitForMs": 5000
-    }
-  ]
-}
-```
-
-Slow pages need longer timeouts.
+| File | Format | Content |
+|------|--------|---------|
+| `screenshot.png` | PNG | UI screenshot at test completion |
+| `console.json` | JSON | All console messages (log/warn/error/info) |
+| `network.json` | JSON | Failed network requests (4xx/5xx/timeouts) |
+| `dom.html` | HTML | Complete DOM snapshot |
+| `raw.json` | JSON | Full Browserless response (minus screenshot) |
+| `latest.json` | JSON | Complete result object with metadata |
+| `README.md` | Markdown | Human-readable summary with troubleshooting |
 
 ## Troubleshooting
 
-### Page Times Out
+### Browserless Offline
 
-**Symptom**: Smoke test fails with timeout error
+**Symptom**: Test blocked with "Browserless resource is offline"
 
-**Causes**:
-1. Page never reaches networkidle
-2. Infinite loading spinner
-3. Scenario not running
-
-**Solutions**:
-```json
-{
-  "path": "/slow-page",
-  "waitForMs": 5000
-}
-```
-
-Or increase global timeout:
-```json
-{
-  "timeout": 60000
-}
-```
-
-### Console Error False Positives
-
-**Symptom**: Tests fail on expected/harmless errors
-
-**Solution**: Add to ignore patterns:
-```json
-{
-  "consoleErrors": {
-    "ignorePatterns": [
-      "specific error message",
-      "third-party-script.js"
-    ]
-  }
-}
-```
-
-### Screenshots Not Captured
-
-**Symptom**: Screenshot directory empty
-
-**Causes**:
-1. Browserless not running
-2. Permission denied
-3. Directory doesn't exist
-
-**Solutions**:
+**Solution**:
 ```bash
-# Check Browserless
-vrooli resource status browserless
-
-# Create directory
-mkdir -p coverage/screenshots
-
-# Check permissions
-ls -la coverage/
+resource-browserless manage start
 ```
+
+### Bundle Stale
+
+**Symptom**: Test blocked with "Source file newer than bundle"
+
+**Solution**:
+```bash
+vrooli scenario restart my-scenario
+```
+
+### Handshake Timeout
+
+**Symptom**: Test failed with "Iframe bridge never signaled ready"
+
+**Why This Fails the Test**:
+
+The iframe-bridge handshake is **required** for UI smoke tests to pass. This is by design because:
+
+1. **Vrooli's architecture** relies on iframe embedding for scenario UIs
+2. **Production readiness** requires proper host-iframe communication
+3. **Silent failures** in the bridge would cause runtime issues
+
+If the handshake times out, it indicates a fundamental integration problem that must be fixed.
+
+**Causes**:
+1. iframe-bridge not properly initialized in your app
+2. App crashes before reaching ready state
+3. Custom signals don't match your app's readiness indicators
+4. JavaScript errors preventing the bridge from initializing
+5. Missing or incorrect `@vrooli/iframe-bridge` import
+
+**Solutions**:
+
+1. **Verify iframe-bridge installation**:
+   ```bash
+   # Check if dependency exists
+   grep iframe-bridge ui/package.json
+
+   # Reinstall if needed
+   cd ui && pnpm add @vrooli/iframe-bridge
+   ```
+
+2. **Ensure proper initialization** in your app entry point:
+   ```typescript
+   // App.tsx or index.tsx - must be called early!
+   import { initIframeBridge } from '@vrooli/iframe-bridge';
+
+   // Call before React renders
+   initIframeBridge();
+   ```
+
+3. **Check console.json artifact** for JavaScript errors:
+   ```bash
+   cat coverage/<scenario>/ui-smoke/console.json | jq '.[] | select(.type == "error")'
+   ```
+
+4. **Use custom handshake signals** if your app uses different readiness indicators:
+   ```json
+   {
+     "structure": {
+       "ui_smoke": {
+         "handshake_signals": ["myApp.ready", "STORE_INITIALIZED"]
+       }
+     }
+   }
+   ```
+
+5. **Increase timeout** if your app legitimately takes longer to initialize:
+   ```json
+   {
+     "structure": {
+       "ui_smoke": {
+         "handshake_timeout_ms": 30000
+       }
+     }
+   }
+   ```
+
+For more information about iframe-bridge, see the [iframe-bridge README](/packages/iframe-bridge/README.md).
+
+### UI Port Not Detected
+
+**Symptom**: Test blocked with "UI port is defined in service.json but not detected"
+
+**Solutions**:
+1. Ensure your scenario is running: `vrooli scenario status my-scenario`
+2. Check UI server logs: `vrooli scenario logs my-scenario --step start-ui`
+3. Restart the scenario: `vrooli scenario restart my-scenario`
+
+### Network Failures
+
+**Symptom**: Test failed with "Network failures (N total)"
+
+**Causes**:
+1. API endpoints returning errors
+2. Missing assets (CSS, JS, images)
+3. CORS issues
+
+**Solutions**:
+1. Check `network.json` artifact for specific failed requests
+2. Ensure all required services are running
+3. Fix any 404s or 500s in your API
 
 ### Blank Screenshots
 
-**Symptom**: Screenshots are empty or white
+**Symptom**: Screenshot shows blank/white page
 
 **Causes**:
-1. Page hasn't rendered yet
+1. Page hasn't fully rendered
 2. CSS loading issues
 3. JavaScript errors preventing render
 
 **Solutions**:
-```json
-{
-  "path": "/",
-  "waitForSelector": "[data-testid='content']",
-  "waitForMs": 2000
-}
+1. Increase `handshake_timeout_ms` to give more time for rendering
+2. Check `console.json` for errors
+3. Check `dom.html` to see actual DOM state
+
+## Storage Shim
+
+The UI smoke test evaluates `window.__VROOLI_UI_SMOKE_STORAGE_PATCH__` to check if the iframe-bridge properly patches localStorage/sessionStorage APIs. This helps detect storage access issues in iframe contexts.
+
+Results are included in the `storage_shim` field of the result JSON.
+
+## Best Practices
+
+### 1. Keep UI Smoke Tests Fast
+
+UI smoke is meant to be a quick sanity check. If your UI takes too long to load:
+- Optimize initial bundle size
+- Defer non-critical resources
+- Use the default timeouts (90s is generous)
+
+### 2. Initialize iframe-bridge Early
+
+Initialize iframe-bridge as early as possible in your app entry point so the readiness signal fires quickly:
+
+```typescript
+// App.tsx or index.tsx
+import { initIframeBridge } from '@vrooli/iframe-bridge';
+
+initIframeBridge();
 ```
 
-## Integration with Other Phases
+### 3. Use Meaningful Handshake Signals
 
-### Structure Phase
+If using custom signals, choose ones that indicate your app is truly ready:
+- After initial data fetches complete
+- After authentication state is resolved
+- After core components have mounted
 
-UI smoke runs as part of structure validation:
-- Fast (< 30s total)
-- No scenario startup required (uses existing)
-- Catches obvious UI breaks
+### 4. Handle Errors Gracefully
 
-### Integration Phase
-
-For deeper UI testing, use BAS workflows:
-- Full user journeys
-- Form submissions
-- State changes
-
-See [UI Automation with BAS](ui-automation-with-bas.md).
-
-### Performance Phase
-
-For UI performance metrics, use Lighthouse:
-- Core Web Vitals
-- Accessibility scores
-- Best practices
-
-See [Lighthouse Integration](../performance/lighthouse.md).
+Unhandled JavaScript errors will cause the test to fail. Ensure your app has proper error boundaries.
 
 ## See Also
 
 - [Structure Phase](README.md) - Structure phase overview
 - [UI Automation with BAS](../playbooks/ui-automation-with-bas.md) - Full UI testing
-- [Writing Testable UIs](../../guides/ui-testability.md) - Design for automation
-- [Lighthouse Integration](../performance/lighthouse.md) - Performance testing
 - [Phases Overview](../README.md) - Phase architecture
-- [Troubleshooting](../../guides/troubleshooting.md) - Debug common issues

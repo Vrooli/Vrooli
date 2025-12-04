@@ -204,7 +204,8 @@ func TestRemoveScreenshotFromJSON(t *testing.T) {
 
 func TestPayloadGenerator_Generate(t *testing.T) {
 	gen := NewPayloadGenerator()
-	payload := gen.Generate("http://localhost:3000", 90*time.Second, 15*time.Second, nil)
+	viewport := orchestrator.Viewport{Width: 1280, Height: 720}
+	payload := gen.Generate("http://localhost:3000", 90*time.Second, 15*time.Second, viewport, nil)
 
 	if len(payload) == 0 {
 		t.Error("expected non-empty payload")
@@ -230,7 +231,8 @@ func TestPayloadGenerator_Generate(t *testing.T) {
 func TestPayloadGenerator_Generate_CustomSignals(t *testing.T) {
 	gen := NewPayloadGenerator()
 	customSignals := []string{"myApp.ready", "MY_CUSTOM_READY"}
-	payload := gen.Generate("http://localhost:3000", 90*time.Second, 15*time.Second, customSignals)
+	viewport := orchestrator.Viewport{Width: 1280, Height: 720}
+	payload := gen.Generate("http://localhost:3000", 90*time.Second, 15*time.Second, viewport, customSignals)
 
 	// Should NOT contain default signals
 	if containsString(payload, "__vrooliBridgeChildInstalled") {
@@ -557,7 +559,8 @@ func TestClient_Health_ContextCancellation(t *testing.T) {
 
 func TestPayloadGenerator_Generate_IntegerTimeouts(t *testing.T) {
 	gen := NewPayloadGenerator()
-	payload := gen.Generate("http://localhost:3000", int64(90000), int(15000), nil)
+	viewport := orchestrator.Viewport{Width: 1280, Height: 720}
+	payload := gen.Generate("http://localhost:3000", int64(90000), int(15000), viewport, nil)
 
 	if len(payload) == 0 {
 		t.Error("expected non-empty payload")
@@ -566,7 +569,8 @@ func TestPayloadGenerator_Generate_IntegerTimeouts(t *testing.T) {
 
 func TestPayloadGenerator_Generate_ZeroTimeout(t *testing.T) {
 	gen := NewPayloadGenerator()
-	payload := gen.Generate("http://localhost:3000", nil, nil, nil)
+	viewport := orchestrator.Viewport{Width: 1280, Height: 720}
+	payload := gen.Generate("http://localhost:3000", nil, nil, viewport, nil)
 
 	if len(payload) == 0 {
 		t.Error("expected non-empty payload")
@@ -841,5 +845,42 @@ func TestClient_DefaultTimeout(t *testing.T) {
 
 	if c.httpClient.Timeout != 120*time.Second {
 		t.Errorf("Default timeout = %v, want %v", c.httpClient.Timeout, 120*time.Second)
+	}
+}
+
+func TestPayloadGenerator_Generate_CustomViewport(t *testing.T) {
+	gen := NewPayloadGenerator()
+
+	// Test with custom viewport dimensions
+	customViewport := orchestrator.Viewport{Width: 1920, Height: 1080}
+	payload := gen.Generate("http://localhost:3000", 90*time.Second, 15*time.Second, customViewport, nil)
+
+	// Check that custom viewport dimensions are in the payload
+	if !containsString(payload, "width: 1920") {
+		t.Error("payload should contain custom viewport width 1920")
+	}
+	if !containsString(payload, "height: 1080") {
+		t.Error("payload should contain custom viewport height 1080")
+	}
+
+	// Verify it doesn't contain default dimensions
+	if containsString(payload, "width: 1280") {
+		t.Error("payload should NOT contain default viewport width when custom is specified")
+	}
+}
+
+func TestPayloadGenerator_Generate_MobileViewport(t *testing.T) {
+	gen := NewPayloadGenerator()
+
+	// Test with mobile viewport dimensions
+	mobileViewport := orchestrator.Viewport{Width: 375, Height: 812}
+	payload := gen.Generate("http://localhost:3000", 90*time.Second, 15*time.Second, mobileViewport, nil)
+
+	// Check that mobile viewport dimensions are in the payload
+	if !containsString(payload, "width: 375") {
+		t.Error("payload should contain mobile viewport width 375")
+	}
+	if !containsString(payload, "height: 812") {
+		t.Error("payload should contain mobile viewport height 812")
 	}
 }

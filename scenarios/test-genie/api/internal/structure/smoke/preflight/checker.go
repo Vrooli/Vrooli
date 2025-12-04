@@ -222,8 +222,7 @@ func (c *Checker) checkBundleTimestamps(scenarioDir string, config *bundleConfig
 	}
 
 	for _, glob := range sourceGlobs {
-		pattern := filepath.Join(scenarioDir, glob)
-		matches, err := filepath.Glob(pattern)
+		matches, err := expandGlob(scenarioDir, glob)
 		if err != nil {
 			continue
 		}
@@ -241,6 +240,69 @@ func (c *Checker) checkBundleTimestamps(scenarioDir string, config *bundleConfig
 	}
 
 	return true, ""
+}
+
+// expandGlob expands a glob pattern that may contain ** for recursive matching.
+// Unlike filepath.Glob, this properly supports ** to match any number of directories.
+func expandGlob(baseDir, pattern string) ([]string, error) {
+	// Check if pattern contains **
+	if !strings.Contains(pattern, "**") {
+		// Use standard filepath.Glob for non-recursive patterns
+		fullPattern := filepath.Join(baseDir, pattern)
+		return filepath.Glob(fullPattern)
+	}
+
+	// Split pattern at **
+	parts := strings.SplitN(pattern, "**", 2)
+	prefix := strings.TrimSuffix(parts[0], string(filepath.Separator))
+	suffix := ""
+	if len(parts) > 1 {
+		suffix = strings.TrimPrefix(parts[1], string(filepath.Separator))
+	}
+
+	// Start directory for walking
+	startDir := filepath.Join(baseDir, prefix)
+	if _, err := os.Stat(startDir); os.IsNotExist(err) {
+		return nil, nil // Directory doesn't exist, return empty matches
+	}
+
+	var matches []string
+	err := filepath.WalkDir(startDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil // Skip files/dirs we can't access
+		}
+
+		// Skip directories themselves, only match files
+		if d.IsDir() {
+			return nil
+		}
+
+		// If there's a suffix pattern, check if the filename matches
+		if suffix != "" {
+			// Get the path relative to startDir
+			relPath, err := filepath.Rel(startDir, path)
+			if err != nil {
+				return nil
+			}
+
+			// Check if the relative path matches the suffix pattern
+			// For patterns like **/*.ts, suffix is "*.ts"
+			// We need to check if the filename matches
+			matched, err := filepath.Match(suffix, filepath.Base(relPath))
+			if err != nil || !matched {
+				// Also try matching the full relative path for patterns like **/foo/bar.ts
+				matched, err = filepath.Match(suffix, relPath)
+				if err != nil || !matched {
+					return nil
+				}
+			}
+		}
+
+		matches = append(matches, path)
+		return nil
+	})
+
+	return matches, err
 }
 
 // CheckIframeBridge verifies @vrooli/iframe-bridge is installed.

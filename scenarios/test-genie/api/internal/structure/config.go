@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"test-genie/internal/structure/smokeconfig"
 )
 
 // Expectations holds the configuration for structure validation, loaded from
@@ -33,19 +35,7 @@ type Expectations struct {
 	ValidateJSONFiles bool
 
 	// UISmoke holds UI smoke test configuration.
-	UISmoke UISmokeConfig
-}
-
-// UISmokeConfig holds UI smoke test settings.
-type UISmokeConfig struct {
-	// Enabled controls whether UI smoke testing runs.
-	Enabled bool
-
-	// TimeoutMs overrides the default UI smoke timeout.
-	TimeoutMs int64
-
-	// HandshakeTimeoutMs overrides the default handshake timeout.
-	HandshakeTimeoutMs int64
+	UISmoke smokeconfig.UISmokeConfig
 }
 
 // configDocument represents the structure of .vrooli/testing.json.
@@ -68,9 +58,10 @@ type validationFlags struct {
 }
 
 type uiSmokeRawConfig struct {
-	Enabled            *bool `json:"enabled"`
-	TimeoutMs          int64 `json:"timeout_ms"`
-	HandshakeTimeoutMs int64 `json:"handshake_timeout_ms"`
+	Enabled            *bool    `json:"enabled"`
+	TimeoutMs          int64    `json:"timeout_ms"`
+	HandshakeTimeoutMs int64    `json:"handshake_timeout_ms"`
+	HandshakeSignals   []string `json:"handshake_signals"`
 }
 
 // pathEntry supports both string and object forms in JSON:
@@ -139,6 +130,9 @@ func LoadExpectations(scenarioDir string) (*Expectations, error) {
 	if doc.Structure.UISmoke.HandshakeTimeoutMs > 0 {
 		exp.UISmoke.HandshakeTimeoutMs = doc.Structure.UISmoke.HandshakeTimeoutMs
 	}
+	if len(doc.Structure.UISmoke.HandshakeSignals) > 0 {
+		exp.UISmoke.HandshakeSignals = doc.Structure.UISmoke.HandshakeSignals
+	}
 
 	return exp, nil
 }
@@ -148,9 +142,7 @@ func DefaultExpectations() *Expectations {
 	return &Expectations{
 		ValidateServiceName: true,
 		ValidateJSONFiles:   true,
-		UISmoke: UISmokeConfig{
-			Enabled: true,
-		},
+		UISmoke:             smokeconfig.DefaultUISmokeConfig(),
 	}
 }
 

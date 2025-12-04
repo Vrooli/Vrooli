@@ -567,6 +567,14 @@ type stubScenarioDirectory struct {
 	runErr       error
 	runName      string
 	runPreferred string
+
+	// UI Smoke fields
+	uiSmokeResp           *scenarios.UISmokeResult
+	uiSmokeErr            error
+	uiSmokeName           string
+	uiSmokeUIURL          string
+	uiSmokeBrowserlessURL string
+	uiSmokeTimeoutMs      int64
 }
 
 func (s *stubScenarioDirectory) ListSummaries(ctx context.Context) ([]scenarios.ScenarioSummary, error) {
@@ -600,6 +608,28 @@ func (s *stubScenarioDirectory) ListFilesWithMeta(ctx context.Context, name stri
 	return scenarios.FileListResult{}, nil
 }
 
+func (s *stubScenarioDirectory) RunUISmoke(ctx context.Context, name string, uiURL string, browserlessURL string, timeoutMs int64) (*scenarios.UISmokeResult, error) {
+	s.uiSmokeName = name
+	s.uiSmokeUIURL = uiURL
+	s.uiSmokeBrowserlessURL = browserlessURL
+	s.uiSmokeTimeoutMs = timeoutMs
+	if s.uiSmokeErr != nil {
+		return nil, s.uiSmokeErr
+	}
+	return s.uiSmokeResp, nil
+}
+
+func (s *stubScenarioDirectory) RunUISmokeWithOpts(ctx context.Context, name string, opts scenarios.UISmokeOptions) (*scenarios.UISmokeResult, error) {
+	s.uiSmokeName = name
+	s.uiSmokeUIURL = opts.URL
+	s.uiSmokeBrowserlessURL = opts.BrowserlessURL
+	s.uiSmokeTimeoutMs = opts.TimeoutMs
+	if s.uiSmokeErr != nil {
+		return nil, s.uiSmokeErr
+	}
+	return s.uiSmokeResp, nil
+}
+
 type stubSuiteExecutor struct {
 	input  execution.SuiteExecutionInput
 	result *orchestrator.SuiteExecutionResult
@@ -614,4 +644,277 @@ func (s *stubSuiteExecutor) Execute(ctx context.Context, input execution.SuiteEx
 func (s *stubSuiteExecutor) ExecuteWithEvents(ctx context.Context, input execution.SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
 	s.input = input
 	return s.result, s.err
+}
+
+// ============================================================================
+// UI Smoke Handler Tests
+// ============================================================================
+
+func TestServer_handleUISmoke_Success(t *testing.T) {
+	scenarioSvc := &stubScenarioDirectory{
+		uiSmokeResp: &scenarios.UISmokeResult{
+			Scenario:   "demo",
+			Status:     "passed",
+			Message:    "UI loaded successfully",
+			Timestamp:  time.Now(),
+			DurationMs: 1500,
+			UIURL:      "http://localhost:3000",
+		},
+	}
+	server := &Server{
+		config:    Config{Port: "0"},
+		router:    mux.NewRouter(),
+		scenarios: scenarioSvc,
+		logger:    log.New(io.Discard, "", 0),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/ui-smoke", nil)
+	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
+	rec := httptest.NewRecorder()
+
+	server.handleUISmoke(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var result scenarios.UISmokeResult
+	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if result.Status != "passed" {
+		t.Errorf("expected status 'passed', got %q", result.Status)
+	}
+	if scenarioSvc.uiSmokeName != "demo" {
+		t.Errorf("expected scenario name 'demo', got %q", scenarioSvc.uiSmokeName)
+	}
+}
+
+func TestServer_handleUISmoke_WithCustomURL(t *testing.T) {
+	scenarioSvc := &stubScenarioDirectory{
+		uiSmokeResp: &scenarios.UISmokeResult{
+			Scenario:   "demo",
+			Status:     "passed",
+			Message:    "UI loaded successfully",
+			UIURL:      "http://custom.example.com:8080",
+		},
+	}
+	server := &Server{
+		config:    Config{Port: "0"},
+		router:    mux.NewRouter(),
+		scenarios: scenarioSvc,
+		logger:    log.New(io.Discard, "", 0),
+	}
+
+	payload := `{"url": "http://custom.example.com:8080", "browserless_url": "http://localhost:4110", "timeout_ms": 120000}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/ui-smoke", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
+	rec := httptest.NewRecorder()
+
+	server.handleUISmoke(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Verify the custom URL was passed through
+	if scenarioSvc.uiSmokeUIURL != "http://custom.example.com:8080" {
+		t.Errorf("expected uiURL 'http://custom.example.com:8080', got %q", scenarioSvc.uiSmokeUIURL)
+	}
+	if scenarioSvc.uiSmokeBrowserlessURL != "http://localhost:4110" {
+		t.Errorf("expected browserlessURL 'http://localhost:4110', got %q", scenarioSvc.uiSmokeBrowserlessURL)
+	}
+	if scenarioSvc.uiSmokeTimeoutMs != 120000 {
+		t.Errorf("expected timeoutMs 120000, got %d", scenarioSvc.uiSmokeTimeoutMs)
+	}
+}
+
+func TestServer_handleUISmoke_MissingScenarioName(t *testing.T) {
+	server := &Server{
+		config:    Config{Port: "0"},
+		router:    mux.NewRouter(),
+		scenarios: &stubScenarioDirectory{},
+		logger:    log.New(io.Discard, "", 0),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios//ui-smoke", nil)
+	req = mux.SetURLVars(req, map[string]string{"name": ""})
+	rec := httptest.NewRecorder()
+
+	server.handleUISmoke(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestServer_handleUISmoke_ScenarioNotFound(t *testing.T) {
+	scenarioSvc := &stubScenarioDirectory{
+		uiSmokeErr: os.ErrNotExist,
+	}
+	server := &Server{
+		config:    Config{Port: "0"},
+		router:    mux.NewRouter(),
+		scenarios: scenarioSvc,
+		logger:    log.New(io.Discard, "", 0),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/nonexistent/ui-smoke", nil)
+	req = mux.SetURLVars(req, map[string]string{"name": "nonexistent"})
+	rec := httptest.NewRecorder()
+
+	server.handleUISmoke(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestServer_handleUISmoke_ValidationError(t *testing.T) {
+	scenarioSvc := &stubScenarioDirectory{
+		uiSmokeErr: shared.NewValidationError("invalid configuration"),
+	}
+	server := &Server{
+		config:    Config{Port: "0"},
+		router:    mux.NewRouter(),
+		scenarios: scenarioSvc,
+		logger:    log.New(io.Discard, "", 0),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/ui-smoke", nil)
+	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
+	rec := httptest.NewRecorder()
+
+	server.handleUISmoke(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestServer_handleUISmoke_InternalError(t *testing.T) {
+	scenarioSvc := &stubScenarioDirectory{
+		uiSmokeErr: errors.New("browserless connection failed"),
+	}
+	server := &Server{
+		config:    Config{Port: "0"},
+		router:    mux.NewRouter(),
+		scenarios: scenarioSvc,
+		logger:    log.New(io.Discard, "", 0),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/ui-smoke", nil)
+	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
+	rec := httptest.NewRecorder()
+
+	server.handleUISmoke(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestServer_handleUISmoke_InvalidJSON(t *testing.T) {
+	scenarioSvc := &stubScenarioDirectory{
+		uiSmokeResp: &scenarios.UISmokeResult{
+			Scenario: "demo",
+			Status:   "passed",
+		},
+	}
+	server := &Server{
+		config:    Config{Port: "0"},
+		router:    mux.NewRouter(),
+		scenarios: scenarioSvc,
+		logger:    log.New(io.Discard, "", 0),
+	}
+
+	// Invalid JSON body
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/ui-smoke", strings.NewReader("not valid json"))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
+	rec := httptest.NewRecorder()
+
+	server.handleUISmoke(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestServer_handleUISmoke_NoScenarioService(t *testing.T) {
+	server := &Server{
+		config:    Config{Port: "0"},
+		router:    mux.NewRouter(),
+		scenarios: nil, // No scenario service
+		logger:    log.New(io.Discard, "", 0),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/ui-smoke", nil)
+	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
+	rec := httptest.NewRecorder()
+
+	server.handleUISmoke(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestServer_handleUISmoke_WhitespaceScenarioName(t *testing.T) {
+	server := &Server{
+		config:    Config{Port: "0"},
+		router:    mux.NewRouter(),
+		scenarios: &stubScenarioDirectory{},
+		logger:    log.New(io.Discard, "", 0),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/test/ui-smoke", nil)
+	req = mux.SetURLVars(req, map[string]string{"name": "   "}) // Whitespace-only name via URL var
+	rec := httptest.NewRecorder()
+
+	server.handleUISmoke(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestServer_handleUISmoke_PartialPayload(t *testing.T) {
+	scenarioSvc := &stubScenarioDirectory{
+		uiSmokeResp: &scenarios.UISmokeResult{
+			Scenario: "demo",
+			Status:   "passed",
+		},
+	}
+	server := &Server{
+		config:    Config{Port: "0"},
+		router:    mux.NewRouter(),
+		scenarios: scenarioSvc,
+		logger:    log.New(io.Discard, "", 0),
+	}
+
+	// Only URL provided, no timeout or browserless URL
+	payload := `{"url": "http://localhost:4000"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/ui-smoke", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
+	rec := httptest.NewRecorder()
+
+	server.handleUISmoke(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Verify only URL was set
+	if scenarioSvc.uiSmokeUIURL != "http://localhost:4000" {
+		t.Errorf("expected uiURL 'http://localhost:4000', got %q", scenarioSvc.uiSmokeUIURL)
+	}
+	if scenarioSvc.uiSmokeBrowserlessURL != "" {
+		t.Errorf("expected browserlessURL to be empty, got %q", scenarioSvc.uiSmokeBrowserlessURL)
+	}
+	if scenarioSvc.uiSmokeTimeoutMs != 0 {
+		t.Errorf("expected timeoutMs to be 0, got %d", scenarioSvc.uiSmokeTimeoutMs)
+	}
 }

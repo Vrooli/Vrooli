@@ -96,7 +96,7 @@ type mockPayloadGenerator struct {
 	payload string
 }
 
-func (m *mockPayloadGenerator) Generate(uiURL string, timeout, handshakeTimeout interface{}, customSignals []string) string {
+func (m *mockPayloadGenerator) Generate(uiURL string, timeout, handshakeTimeout interface{}, viewport Viewport, customSignals []string) string {
 	if m.payload != "" {
 		return m.payload
 	}
@@ -332,8 +332,9 @@ func TestOrchestrator_Run_HandshakeTimeout(t *testing.T) {
 	if result.Status != StatusFailed {
 		t.Errorf("Status = %v, want %v", result.Status, StatusFailed)
 	}
-	if result.Message != "Iframe bridge never signaled ready" {
-		t.Errorf("Message = %q, want %q", result.Message, "Iframe bridge never signaled ready")
+	expectedMsg := "Iframe bridge never signaled ready. See: docs/phases/structure/ui-smoke.md#handshake-timeout"
+	if result.Message != expectedMsg {
+		t.Errorf("Message = %q, want %q", result.Message, expectedMsg)
 	}
 }
 
@@ -772,9 +773,12 @@ func TestResultConstructors(t *testing.T) {
 		t.Errorf("Skipped status = %v, want %v", skipped.Status, StatusSkipped)
 	}
 
-	blocked := Blocked("test", "browserless offline")
+	blocked := Blocked("test", "browserless offline", BlockedReasonBrowserlessOffline)
 	if blocked.Status != StatusBlocked {
 		t.Errorf("Blocked status = %v, want %v", blocked.Status, StatusBlocked)
+	}
+	if blocked.BlockedReason != BlockedReasonBrowserlessOffline {
+		t.Errorf("Blocked reason = %v, want %v", blocked.BlockedReason, BlockedReasonBrowserlessOffline)
 	}
 }
 

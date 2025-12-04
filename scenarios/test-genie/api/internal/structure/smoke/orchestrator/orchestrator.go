@@ -10,13 +10,18 @@ import (
 
 // Orchestrator coordinates the UI smoke test workflow.
 type Orchestrator struct {
-	config     Config
-	preflight  PreflightChecker
-	browser    BrowserClient
-	artifacts  ArtifactWriter
-	handshake  HandshakeDetector
-	logger     io.Writer
-	payloadGen PayloadGenerator
+	config              Config
+	preflight           PreflightChecker
+	healthChecker       HealthChecker
+	browser             BrowserClient
+	artifacts           ArtifactWriter
+	handshake           HandshakeDetector
+	logger              io.Writer
+	payloadGen          PayloadGenerator
+	autoRecoveryEnabled bool
+	autoRecoveryOpts    AutoRecoveryOptions
+	scenarioStarter     ScenarioStarter
+	autoStartedScenario string // Track if we auto-started to cleanup on exit
 }
 
 // New creates a new Orchestrator with the given configuration and options.
@@ -50,14 +55,46 @@ func (o *Orchestrator) Run(ctx context.Context) (*Result, error) {
 		return result, nil
 	}
 
-	// Step 2: Check browserless availability
+	// Step 2: Check browserless availability with auto-recovery
 	if o.preflight != nil {
-		if err := o.preflight.CheckBrowserless(ctx); err != nil {
-			o.log("Browserless check failed: %v", err)
-			result := Blocked(o.config.ScenarioName,
-				"Browserless resource is offline. Run 'resource-browserless manage start' then rerun the smoke test.")
-			o.persistResult(ctx, result)
-			return result, nil
+		browserlessErr := o.preflight.CheckBrowserless(ctx)
+		if browserlessErr != nil {
+			o.log("Browserless check failed: %v", browserlessErr)
+
+			// Attempt auto-recovery if enabled and health checker is available
+			if o.autoRecoveryEnabled && o.healthChecker != nil {
+				o.log("Attempting auto-recovery...")
+				opts := o.autoRecoveryOpts
+				if opts.ContainerName == "" {
+					opts = DefaultAutoRecoveryOptions()
+				}
+
+				recoveryResult, recoveryErr := o.healthChecker.EnsureHealthy(ctx, opts)
+				if recoveryErr == nil && recoveryResult.Success {
+					o.log("Auto-recovery succeeded: %s", recoveryResult.Action)
+					// Retry the browserless check
+					browserlessErr = o.preflight.CheckBrowserless(ctx)
+				} else {
+					if recoveryResult != nil && recoveryResult.Attempted {
+						o.log("Auto-recovery failed: %s", recoveryResult.Error)
+					}
+				}
+			}
+
+			// If still failing, generate detailed diagnosis
+			if browserlessErr != nil {
+				var message string
+				if o.healthChecker != nil {
+					diagnosis := o.healthChecker.DiagnoseBrowserlessFailure(ctx, o.config.ScenarioName)
+					message = fmt.Sprintf("%s\n\n%s", diagnosis.Message, diagnosis.Recommendation)
+				} else {
+					message = "Browserless resource is offline. Run 'resource-browserless manage start' then rerun the smoke test."
+				}
+
+				result := Blocked(o.config.ScenarioName, message, BlockedReasonBrowserlessOffline)
+				o.persistResult(ctx, result)
+				return result, nil
+			}
 		}
 		o.log("Browserless is available")
 	}
@@ -74,7 +111,8 @@ func (o *Orchestrator) Run(ctx context.Context) (*Result, error) {
 			o.log("UI bundle is stale: %s", bundleStatus.Reason)
 			result := Blocked(o.config.ScenarioName,
 				fmt.Sprintf("%s\n  ↳ Fix: vrooli scenario restart %s\n  ↳ Then verify: vrooli scenario ui-smoke %s",
-					bundleStatus.Reason, o.config.ScenarioName, o.config.ScenarioName))
+					bundleStatus.Reason, o.config.ScenarioName, o.config.ScenarioName),
+				BlockedReasonBundleStale)
 			result.Bundle = bundleStatus
 			o.persistResult(ctx, result)
 			return result, nil
@@ -106,24 +144,51 @@ func (o *Orchestrator) Run(ctx context.Context) (*Result, error) {
 	}
 
 	if uiURL == "" {
-		// If service.json defines a UI port but we couldn't detect it, that's an error
+		// If service.json defines a UI port but we couldn't detect it, the scenario may not be running
 		if uiPortDef != nil && uiPortDef.Defined {
 			o.log("UI port defined in service.json (%s) but not detected - scenario may not be running", uiPortDef.EnvVar)
-			result := Blocked(o.config.ScenarioName,
-				fmt.Sprintf("UI port is defined in service.json (%s) but not detected.\n"+
-					"  ↳ The scenario may not be running or the UI server failed to start.\n"+
-					"  ↳ Fix: vrooli scenario restart %s\n"+
-					"  ↳ Then check: vrooli scenario logs %s --step start-ui",
-					uiPortDef.EnvVar, o.config.ScenarioName, o.config.ScenarioName))
+
+			// Attempt auto-start if enabled
+			if o.config.AutoStart && o.scenarioStarter != nil {
+				o.log("Attempting auto-start of scenario %s...", o.config.ScenarioName)
+				port, startErr := o.scenarioStarter.Start(ctx, o.config.ScenarioName)
+				if startErr != nil {
+					o.log("Auto-start failed: %v", startErr)
+				} else {
+					o.autoStartedScenario = o.config.ScenarioName // Track for cleanup
+					uiURL = fmt.Sprintf("http://localhost:%d", port)
+					o.log("Auto-start succeeded, UI available at %s", uiURL)
+				}
+			}
+
+			// If still no UI URL after auto-start attempt, return blocked
+			if uiURL == "" {
+				var message string
+				if o.config.AutoStart {
+					message = fmt.Sprintf("UI port is defined in service.json (%s) but not detected.\n"+
+						"  ↳ Auto-start was attempted but failed.\n"+
+						"  ↳ Fix: vrooli scenario restart %s\n"+
+						"  ↳ Then check: vrooli scenario logs %s --step start-ui",
+						uiPortDef.EnvVar, o.config.ScenarioName, o.config.ScenarioName)
+				} else {
+					message = fmt.Sprintf("UI port is defined in service.json (%s) but not detected.\n"+
+						"  ↳ The scenario may not be running or the UI server failed to start.\n"+
+						"  ↳ Fix: vrooli scenario restart %s\n"+
+						"  ↳ Or use: --auto-start to automatically start the scenario\n"+
+						"  ↳ Then check: vrooli scenario logs %s --step start-ui",
+						uiPortDef.EnvVar, o.config.ScenarioName, o.config.ScenarioName)
+				}
+				result := Blocked(o.config.ScenarioName, message, BlockedReasonUIPortMissing)
+				o.persistResult(ctx, result)
+				return result, nil
+			}
+		} else {
+			// No UI port defined - this scenario genuinely has no UI
+			o.log("No UI port defined in service.json, skipping smoke test")
+			result := Skipped(o.config.ScenarioName, "Scenario does not define a UI port")
 			o.persistResult(ctx, result)
 			return result, nil
 		}
-
-		// No UI port defined - this scenario genuinely has no UI
-		o.log("No UI port defined in service.json, skipping smoke test")
-		result := Skipped(o.config.ScenarioName, "Scenario does not define a UI port")
-		o.persistResult(ctx, result)
-		return result, nil
 	}
 
 	// Step 6: Check iframe-bridge dependency
@@ -153,13 +218,24 @@ func (o *Orchestrator) Run(ctx context.Context) (*Result, error) {
 		return nil, fmt.Errorf("payload generator not configured")
 	}
 
-	payload := o.payloadGen.Generate(uiURL, o.config.Timeout, o.config.HandshakeTimeout, o.config.HandshakeSignals)
+	payload := o.payloadGen.Generate(uiURL, o.config.Timeout, o.config.HandshakeTimeout, o.config.Viewport, o.config.HandshakeSignals)
 	o.log("Executing browser session for %s", uiURL)
 
 	response, err := o.browser.ExecuteFunction(ctx, payload)
 	if err != nil {
 		o.log("Browser execution failed: %v", err)
-		result := Failed(o.config.ScenarioName, fmt.Sprintf("Failed to reach Browserless API: %v", err))
+
+		// Generate detailed diagnosis for browser execution failures
+		var message string
+		if o.healthChecker != nil {
+			diagnosis := o.healthChecker.DiagnoseBrowserlessFailure(ctx, o.config.ScenarioName)
+			message = fmt.Sprintf("Failed to reach Browserless API: %v\n\n%s\n\n%s",
+				err, diagnosis.Message, diagnosis.Recommendation)
+		} else {
+			message = fmt.Sprintf("Failed to reach Browserless API: %v", err)
+		}
+
+		result := Failed(o.config.ScenarioName, message)
 		o.persistResult(ctx, result)
 		return result, nil
 	}
@@ -218,7 +294,7 @@ func (o *Orchestrator) buildResult(
 		}
 	} else if !handshake.Signaled {
 		status = StatusFailed
-		message = "Iframe bridge never signaled ready"
+		message = "Iframe bridge never signaled ready. See: docs/phases/structure/ui-smoke.md#handshake-timeout"
 	} else if len(response.Network) > 0 {
 		status = StatusFailed
 		message = formatNetworkFailures(response.Network)
@@ -313,13 +389,14 @@ func Skipped(scenario, message string) *Result {
 	}
 }
 
-// Blocked creates a blocked result.
-func Blocked(scenario, message string) *Result {
+// Blocked creates a blocked result with the specified reason.
+func Blocked(scenario, message string, reason BlockedReason) *Result {
 	return &Result{
-		Scenario:  scenario,
-		Status:    StatusBlocked,
-		Message:   message,
-		Timestamp: time.Now().UTC(),
+		Scenario:      scenario,
+		Status:        StatusBlocked,
+		BlockedReason: reason,
+		Message:       message,
+		Timestamp:     time.Now().UTC(),
 	}
 }
 

@@ -151,12 +151,36 @@ func TestSkipped(t *testing.T) {
 }
 
 func TestBlocked(t *testing.T) {
-	r := Blocked("my-scenario", "browserless offline")
+	r := Blocked("my-scenario", "browserless offline", BlockedReasonBrowserlessOffline)
 
 	if r.Status != StatusBlocked {
 		t.Errorf("Status = %v, want %v", r.Status, StatusBlocked)
 	}
 	if r.Message != "browserless offline" {
 		t.Errorf("Message = %q, want %q", r.Message, "browserless offline")
+	}
+	if r.BlockedReason != BlockedReasonBrowserlessOffline {
+		t.Errorf("BlockedReason = %v, want %v", r.BlockedReason, BlockedReasonBrowserlessOffline)
+	}
+}
+
+func TestBlockedReason_ExitCode(t *testing.T) {
+	tests := []struct {
+		reason   BlockedReason
+		expected int
+	}{
+		{BlockedReasonBrowserlessOffline, 50},
+		{BlockedReasonBundleStale, 60},
+		{BlockedReasonUIPortMissing, 61},
+		{BlockedReasonNone, 1},
+		{BlockedReason("unknown"), 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.reason), func(t *testing.T) {
+			if got := tt.reason.ExitCode(); got != tt.expected {
+				t.Errorf("ExitCode() = %v, want %v", got, tt.expected)
+			}
+		})
 	}
 }

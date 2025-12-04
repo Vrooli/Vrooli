@@ -31,9 +31,10 @@ var DefaultHandshakeSignals = []string{
 
 // Generate creates a JavaScript payload for the UI smoke test.
 // timeout and handshakeTimeout can be time.Duration or int64 (milliseconds).
+// viewport specifies the browser viewport dimensions.
 // customSignals is an optional list of window property paths to check.
 // If empty, DefaultHandshakeSignals are used.
-func (g *PayloadGenerator) Generate(uiURL string, timeout, handshakeTimeout interface{}, customSignals []string) string {
+func (g *PayloadGenerator) Generate(uiURL string, timeout, handshakeTimeout interface{}, viewport orchestrator.Viewport, customSignals []string) string {
 	urlJSON, _ := json.Marshal(uiURL)
 	timeoutMs := toMilliseconds(timeout)
 	handshakeTimeoutMs := toMilliseconds(handshakeTimeout)
@@ -44,7 +45,7 @@ func (g *PayloadGenerator) Generate(uiURL string, timeout, handshakeTimeout inte
 	}
 	handshakeCheckJS := generateHandshakeCheck(signals)
 
-	return fmt.Sprintf(payloadTemplate, string(urlJSON), handshakeCheckJS, timeoutMs, handshakeTimeoutMs)
+	return fmt.Sprintf(payloadTemplate, handshakeCheckJS, viewport.Width, viewport.Height, string(urlJSON), timeoutMs, handshakeTimeoutMs)
 }
 
 // generateHandshakeCheck creates the JavaScript function body for checking handshake signals.
@@ -197,7 +198,7 @@ const payloadTemplate = `module.exports = async ({ page }) => {
             }
         });
 
-        await page.setViewport({ width: 1280, height: 720 });
+        await page.setViewport({ width: %d, height: %d });
 
         const targetUrl = %s;
         const hostMarkup = ` + "`" + `

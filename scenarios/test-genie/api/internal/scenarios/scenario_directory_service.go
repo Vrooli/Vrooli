@@ -3,14 +3,17 @@ package scenarios
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"test-genie/internal/shared"
+	"test-genie/internal/structure/smoke"
 )
 
 type scenarioSummaryStore interface {
@@ -255,4 +258,176 @@ func (s *ScenarioDirectoryService) RunScenarioTests(ctx context.Context, scenari
 		return nil, nil, err
 	}
 	return cmd, result, nil
+}
+
+// UISmokeResult represents the outcome of a UI smoke test.
+type UISmokeResult struct {
+	Scenario      string          `json:"scenario"`
+	Status        string          `json:"status"`
+	BlockedReason string          `json:"blocked_reason,omitempty"`
+	Message       string          `json:"message"`
+	Timestamp     time.Time       `json:"timestamp"`
+	DurationMs    int64           `json:"duration_ms"`
+	UIURL         string          `json:"ui_url,omitempty"`
+	Handshake     json.RawMessage `json:"handshake,omitempty"`
+	Artifacts     json.RawMessage `json:"artifacts,omitempty"`
+	Bundle        json.RawMessage `json:"bundle,omitempty"`
+}
+
+// RunUISmoke executes a UI smoke test for the specified scenario.
+// If uiURL is provided, it overrides the auto-detected URL.
+// If browserlessURL is provided, it overrides the default Browserless endpoint.
+// If timeoutMs is > 0, it overrides the default timeout.
+func (s *ScenarioDirectoryService) RunUISmoke(ctx context.Context, scenario string, uiURL string, browserlessURL string, timeoutMs int64) (*UISmokeResult, error) {
+	scenario = strings.TrimSpace(scenario)
+	if scenario == "" {
+		return nil, shared.NewValidationError("scenario name is required")
+	}
+	if s.scenariosRoot == "" {
+		return nil, fmt.Errorf("scenarios root is not configured")
+	}
+	dir := filepath.Join(s.scenariosRoot, scenario)
+	info, err := os.Stat(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("scenario directory not found: %w", os.ErrNotExist)
+		}
+		return nil, fmt.Errorf("failed to access scenario directory: %w", err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("scenario path is not a directory")
+	}
+
+	// Use default browserless URL if not provided
+	if browserlessURL == "" {
+		browserlessURL = smoke.DefaultBrowserlessURL
+	}
+
+	opts := []smoke.RunnerOption{smoke.WithRunnerLogger(log.Writer())}
+	if timeoutMs > 0 {
+		opts = append(opts, smoke.WithRunnerTimeout(time.Duration(timeoutMs)*time.Millisecond))
+	}
+	if uiURL != "" {
+		opts = append(opts, smoke.WithUIURL(uiURL))
+	}
+
+	runner := smoke.NewRunner(browserlessURL, opts...)
+	result, err := runner.Run(ctx, scenario, dir)
+	if err != nil {
+		return nil, fmt.Errorf("ui smoke test failed: %w", err)
+	}
+
+	// Convert to API response format
+	apiResult := &UISmokeResult{
+		Scenario:      result.Scenario,
+		Status:        string(result.Status),
+		BlockedReason: string(result.BlockedReason),
+		Message:       result.Message,
+		Timestamp:     result.Timestamp,
+		DurationMs:    result.DurationMs,
+		UIURL:         result.UIURL,
+	}
+
+	// Marshal nested structs to JSON
+	if handshakeData, err := json.Marshal(result.Handshake); err == nil {
+		apiResult.Handshake = handshakeData
+	}
+	if artifactsData, err := json.Marshal(result.Artifacts); err == nil {
+		apiResult.Artifacts = artifactsData
+	}
+	if result.Bundle != nil {
+		if bundleData, err := json.Marshal(result.Bundle); err == nil {
+			apiResult.Bundle = bundleData
+		}
+	}
+
+	return apiResult, nil
+}
+
+// UISmokeOptions contains options for running a UI smoke test.
+type UISmokeOptions struct {
+	URL            string
+	BrowserlessURL string
+	TimeoutMs      int64
+	NoRecovery     bool
+	SharedMode     bool
+	AutoStart      bool
+}
+
+// RunUISmokeWithOpts executes a UI smoke test with full options support.
+func (s *ScenarioDirectoryService) RunUISmokeWithOpts(ctx context.Context, scenario string, opts UISmokeOptions) (*UISmokeResult, error) {
+	scenario = strings.TrimSpace(scenario)
+	if scenario == "" {
+		return nil, shared.NewValidationError("scenario name is required")
+	}
+	if s.scenariosRoot == "" {
+		return nil, fmt.Errorf("scenarios root is not configured")
+	}
+	dir := filepath.Join(s.scenariosRoot, scenario)
+	info, err := os.Stat(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("scenario directory not found: %w", os.ErrNotExist)
+		}
+		return nil, fmt.Errorf("failed to access scenario directory: %w", err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("scenario path is not a directory")
+	}
+
+	// Use default browserless URL if not provided
+	browserlessURL := opts.BrowserlessURL
+	if browserlessURL == "" {
+		browserlessURL = smoke.DefaultBrowserlessURL
+	}
+
+	runnerOpts := []smoke.RunnerOption{smoke.WithRunnerLogger(log.Writer())}
+	if opts.TimeoutMs > 0 {
+		runnerOpts = append(runnerOpts, smoke.WithRunnerTimeout(time.Duration(opts.TimeoutMs)*time.Millisecond))
+	}
+	if opts.URL != "" {
+		runnerOpts = append(runnerOpts, smoke.WithUIURL(opts.URL))
+	}
+	// Apply recovery options
+	if opts.NoRecovery {
+		runnerOpts = append(runnerOpts, smoke.WithAutoRecovery(false))
+	}
+	if opts.SharedMode {
+		runnerOpts = append(runnerOpts, smoke.WithSharedMode(true))
+	}
+	if opts.AutoStart {
+		runnerOpts = append(runnerOpts, smoke.WithAutoStart(true))
+	}
+
+	runner := smoke.NewRunner(browserlessURL, runnerOpts...)
+	result, err := runner.Run(ctx, scenario, dir)
+	if err != nil {
+		return nil, fmt.Errorf("ui smoke test failed: %w", err)
+	}
+
+	// Convert to API response format
+	apiResult := &UISmokeResult{
+		Scenario:      result.Scenario,
+		Status:        string(result.Status),
+		BlockedReason: string(result.BlockedReason),
+		Message:       result.Message,
+		Timestamp:     result.Timestamp,
+		DurationMs:    result.DurationMs,
+		UIURL:         result.UIURL,
+	}
+
+	// Marshal nested structs to JSON
+	if handshakeData, err := json.Marshal(result.Handshake); err == nil {
+		apiResult.Handshake = handshakeData
+	}
+	if artifactsData, err := json.Marshal(result.Artifacts); err == nil {
+		apiResult.Artifacts = artifactsData
+	}
+	if result.Bundle != nil {
+		if bundleData, err := json.Marshal(result.Bundle); err == nil {
+			apiResult.Bundle = bundleData
+		}
+	}
+
+	return apiResult, nil
 }

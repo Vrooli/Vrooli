@@ -1166,3 +1166,419 @@ func TestChecker_CheckUIPort_DiscoveryMethodInError(t *testing.T) {
 		})
 	}
 }
+
+func TestChecker_CheckBundleFreshness_NestedSourceFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create service.json with ** glob pattern for nested source files
+	vrooliDir := filepath.Join(tmpDir, ".vrooli")
+	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	serviceJSON := `{
+		"lifecycle": {
+			"setup": {
+				"condition": {
+					"checks": [
+						{
+							"type": "ui-bundle",
+							"source_globs": ["ui/src/**/*", "ui/package.json"],
+							"dist_path": "ui/dist"
+						}
+					]
+				}
+			}
+		}
+	}`
+	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(serviceJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create deeply nested source directory structure
+	nestedDir := filepath.Join(tmpDir, "ui", "src", "components", "common", "buttons")
+	if err := os.MkdirAll(nestedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a deeply nested source file with old timestamp
+	nestedFile := filepath.Join(nestedDir, "Button.tsx")
+	if err := os.WriteFile(nestedFile, []byte("export const Button = () => null;"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	oldTime := time.Now().Add(-1 * time.Hour)
+	if err := os.Chtimes(nestedFile, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create dist directory with newer timestamp
+	distDir := filepath.Join(tmpDir, "ui", "dist")
+	if err := os.MkdirAll(distDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	indexHTML := filepath.Join(distDir, "index.html")
+	if err := os.WriteFile(indexHTML, []byte("<html></html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	c := NewChecker("http://localhost:4110")
+	status, err := c.CheckBundleFreshness(context.Background(), tmpDir)
+	if err != nil {
+		t.Fatalf("CheckBundleFreshness() error = %v", err)
+	}
+
+	// Bundle should be fresh because dist is newer than nested source file
+	if !status.Fresh {
+		t.Errorf("Fresh should be true when dist is newer than deeply nested source, got reason: %s", status.Reason)
+	}
+}
+
+func TestChecker_CheckBundleFreshness_StaleNestedSourceFile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create service.json with ** glob pattern
+	vrooliDir := filepath.Join(tmpDir, ".vrooli")
+	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	serviceJSON := `{
+		"lifecycle": {
+			"setup": {
+				"condition": {
+					"checks": [
+						{
+							"type": "ui-bundle",
+							"source_globs": ["ui/src/**/*"],
+							"dist_path": "ui/dist"
+						}
+					]
+				}
+			}
+		}
+	}`
+	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(serviceJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create dist directory first with old timestamp
+	distDir := filepath.Join(tmpDir, "ui", "dist")
+	if err := os.MkdirAll(distDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	indexHTML := filepath.Join(distDir, "index.html")
+	if err := os.WriteFile(indexHTML, []byte("<html></html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	oldTime := time.Now().Add(-1 * time.Hour)
+	if err := os.Chtimes(distDir, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create deeply nested source directory with NEWER file (simulating a change)
+	nestedDir := filepath.Join(tmpDir, "ui", "src", "features", "auth", "components")
+	if err := os.MkdirAll(nestedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a new file in deeply nested directory (will have current timestamp)
+	nestedFile := filepath.Join(nestedDir, "LoginForm.tsx")
+	if err := os.WriteFile(nestedFile, []byte("export const LoginForm = () => null;"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	c := NewChecker("http://localhost:4110")
+	status, err := c.CheckBundleFreshness(context.Background(), tmpDir)
+	if err != nil {
+		t.Fatalf("CheckBundleFreshness() error = %v", err)
+	}
+
+	// Bundle should be stale because deeply nested source file is newer
+	if status.Fresh {
+		t.Error("Fresh should be false when deeply nested source file is newer than dist")
+	}
+	if status.Reason == "" {
+		t.Error("Reason should be set when bundle is stale")
+	}
+	// Verify the reason mentions the nested file
+	if !strings.Contains(status.Reason, "LoginForm.tsx") {
+		t.Errorf("Reason should mention the stale file, got: %s", status.Reason)
+	}
+}
+
+func TestExpandGlob_NoDoubleAsterisk(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a file to match
+	if err := os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	matches, err := expandGlob(tmpDir, "*.txt")
+	if err != nil {
+		t.Fatalf("expandGlob() error = %v", err)
+	}
+
+	if len(matches) != 1 {
+		t.Errorf("expected 1 match, got %d", len(matches))
+	}
+}
+
+func TestExpandGlob_DoubleAsteriskMatchesAll(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create nested structure
+	nestedDir := filepath.Join(tmpDir, "a", "b", "c")
+	if err := os.MkdirAll(nestedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(nestedDir, "deep.txt"), []byte("content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "a", "shallow.txt"), []byte("content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	matches, err := expandGlob(tmpDir, "a/**/*")
+	if err != nil {
+		t.Fatalf("expandGlob() error = %v", err)
+	}
+
+	// Should match both files
+	if len(matches) != 2 {
+		t.Errorf("expected 2 matches for **/* pattern, got %d: %v", len(matches), matches)
+	}
+}
+
+func TestExpandGlob_DoubleAsteriskWithExtension(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create nested structure with different file types
+	nestedDir := filepath.Join(tmpDir, "src", "components")
+	if err := os.MkdirAll(nestedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(nestedDir, "Button.tsx"), []byte("content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(nestedDir, "Button.css"), []byte("content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "src", "App.tsx"), []byte("content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	matches, err := expandGlob(tmpDir, "src/**/*.tsx")
+	if err != nil {
+		t.Fatalf("expandGlob() error = %v", err)
+	}
+
+	// Should match only .tsx files
+	if len(matches) != 2 {
+		t.Errorf("expected 2 .tsx matches, got %d: %v", len(matches), matches)
+	}
+
+	for _, match := range matches {
+		if !strings.HasSuffix(match, ".tsx") {
+			t.Errorf("unexpected non-.tsx match: %s", match)
+		}
+	}
+}
+
+func TestExpandGlob_NonExistentDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	matches, err := expandGlob(tmpDir, "nonexistent/**/*")
+	if err != nil {
+		t.Fatalf("expandGlob() should not error for non-existent directory: %v", err)
+	}
+
+	if len(matches) != 0 {
+		t.Errorf("expected 0 matches for non-existent directory, got %d", len(matches))
+	}
+}
+
+func TestChecker_CheckUIDirectory_FileNotDir(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a file named "ui" instead of a directory
+	uiFile := filepath.Join(tmpDir, "ui")
+	if err := os.WriteFile(uiFile, []byte("not a directory"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	c := NewChecker("http://localhost:4110")
+	if c.CheckUIDirectory(tmpDir) {
+		t.Error("CheckUIDirectory() should return false when ui is a file, not a directory")
+	}
+}
+
+func TestChecker_CheckIframeBridge_BothDepsAndDevDeps(t *testing.T) {
+	tmpDir := t.TempDir()
+	uiDir := filepath.Join(tmpDir, "ui")
+	if err := os.Mkdir(uiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Bridge in both deps and devDeps - should prefer deps
+	packageJSON := `{
+		"name": "test-ui",
+		"dependencies": {
+			"@vrooli/iframe-bridge": "^2.0.0"
+		},
+		"devDependencies": {
+			"@vrooli/iframe-bridge": "^1.0.0"
+		}
+	}`
+
+	if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte(packageJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	c := NewChecker("http://localhost:4110")
+	status, err := c.CheckIframeBridge(context.Background(), tmpDir)
+	if err != nil {
+		t.Fatalf("CheckIframeBridge() error = %v", err)
+	}
+
+	if !status.DependencyPresent {
+		t.Error("DependencyPresent should be true")
+	}
+	// Should prefer the version from dependencies (^2.0.0)
+	if status.Version != "^2.0.0" {
+		t.Errorf("Version = %q, want %q (should prefer dependencies over devDependencies)", status.Version, "^2.0.0")
+	}
+}
+
+func TestChecker_NewChecker_TrimsTrailingSlash(t *testing.T) {
+	c := NewChecker("http://localhost:4110/")
+
+	if c.browserlessURL != "http://localhost:4110" {
+		t.Errorf("browserlessURL = %q, want trailing slash removed", c.browserlessURL)
+	}
+}
+
+func TestParseUIPortFromLogs_InvalidPort(t *testing.T) {
+	// Port that's not a valid number
+	logs := `listening on port abc`
+
+	port := parseUIPortFromLogs(logs)
+	if port != 0 {
+		t.Errorf("parseUIPortFromLogs() = %d, want 0 (invalid port)", port)
+	}
+}
+
+func TestParseUIPortFromLogs_NegativePort(t *testing.T) {
+	// Negative port should not match (regex only matches \d+)
+	logs := `listening on port -1`
+
+	port := parseUIPortFromLogs(logs)
+	// The regex \d+ won't match negative numbers, so it should return 0
+	if port != 0 {
+		t.Errorf("parseUIPortFromLogs() = %d, want 0 (negative port)", port)
+	}
+}
+
+func TestChecker_CheckBrowserless_ContextCancelled(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Simulate slow response
+		time.Sleep(100 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	c := NewChecker(server.URL)
+
+	// Create a cancelled context
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := c.CheckBrowserless(ctx)
+	if err == nil {
+		t.Error("CheckBrowserless() should return error for cancelled context")
+	}
+}
+
+func TestChecker_CheckUIPortDefined_EmptyPortsSection(t *testing.T) {
+	tmpDir := t.TempDir()
+	vrooliDir := filepath.Join(tmpDir, ".vrooli")
+	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	serviceJSON := `{
+		"ports": {}
+	}`
+	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(serviceJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	c := NewChecker("http://localhost:4110")
+	result, err := c.CheckUIPortDefined(tmpDir)
+	if err != nil {
+		t.Fatalf("CheckUIPortDefined() error = %v", err)
+	}
+
+	if result.Defined {
+		t.Error("Defined should be false when ports section is empty")
+	}
+}
+
+func TestChecker_CheckBundleFreshness_DefaultSourceGlobs(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create service.json with ui-bundle check but NO source_globs (should use defaults)
+	vrooliDir := filepath.Join(tmpDir, ".vrooli")
+	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	serviceJSON := `{
+		"lifecycle": {
+			"setup": {
+				"condition": {
+					"checks": [
+						{
+							"type": "ui-bundle"
+						}
+					]
+				}
+			}
+		}
+	}`
+	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(serviceJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create dist directory first with old timestamp
+	distDir := filepath.Join(tmpDir, "ui", "dist")
+	if err := os.MkdirAll(distDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	indexHTML := filepath.Join(distDir, "index.html")
+	if err := os.WriteFile(indexHTML, []byte("<html></html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	oldTime := time.Now().Add(-1 * time.Hour)
+	if err := os.Chtimes(distDir, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create source file with default glob pattern (ui/src/**)
+	srcDir := filepath.Join(tmpDir, "ui", "src")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	srcFile := filepath.Join(srcDir, "index.ts")
+	if err := os.WriteFile(srcFile, []byte("export {}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	c := NewChecker("http://localhost:4110")
+	status, err := c.CheckBundleFreshness(context.Background(), tmpDir)
+	if err != nil {
+		t.Fatalf("CheckBundleFreshness() error = %v", err)
+	}
+
+	// Bundle should be stale because default source glob matches newer file
+	if status.Fresh {
+		t.Error("Fresh should be false when using default globs and source is newer")
+	}
+}

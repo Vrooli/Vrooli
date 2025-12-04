@@ -374,3 +374,57 @@ export async function fetchScenarioFiles(
   const payload = await parseResponse<{ items: ScenarioFileNode[]; count: number; hiddenCount?: number }>(res);
   return { items: payload.items ?? [], hiddenCount: payload.hiddenCount ?? 0 };
 }
+
+export interface AgentModel {
+  id: string;
+  name?: string;
+  displayName?: string;
+  provider?: string;
+  description?: string;
+  source?: string;
+}
+
+export interface SpawnAgentsRequest {
+  prompts: string[];
+  model: string;
+  concurrency?: number;
+  maxTurns?: number;
+  timeoutSeconds?: number;
+  allowedTools?: string[];
+  skipPermissions?: boolean;
+}
+
+export interface SpawnAgentsResult {
+  promptIndex: number;
+  status: string;
+  sessionId?: string;
+  output?: string;
+  error?: string;
+}
+
+export interface SpawnAgentsResponse {
+  items: SpawnAgentsResult[];
+  count: number;
+  capped?: boolean;
+}
+
+export async function fetchAgentModels(provider = "openrouter"): Promise<AgentModel[]> {
+  const url = buildApiUrl("/agents/models", { baseUrl: API_BASE });
+  const finalUrl = `${url}?provider=${encodeURIComponent(provider)}`;
+  const res = await fetch(finalUrl, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  const payload = await parseResponse<{ items: AgentModel[]; count: number }>(res);
+  return payload.items ?? [];
+}
+
+export async function spawnAgents(payload: SpawnAgentsRequest): Promise<SpawnAgentsResponse> {
+  const url = buildApiUrl("/agents/spawn", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseResponse<SpawnAgentsResponse>(res);
+}

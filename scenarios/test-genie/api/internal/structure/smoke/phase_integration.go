@@ -11,6 +11,18 @@ import (
 // DefaultBrowserlessURL is the default Browserless service URL.
 const DefaultBrowserlessURL = "http://localhost:4110"
 
+// BrowserlessURLEnvVar is the environment variable name for overriding the Browserless URL.
+const BrowserlessURLEnvVar = "BROWSERLESS_URL"
+
+// GetBrowserlessURL returns the Browserless URL to use, checking the environment
+// variable first and falling back to the default.
+func GetBrowserlessURL() string {
+	if url := os.Getenv(BrowserlessURLEnvVar); url != "" {
+		return url
+	}
+	return DefaultBrowserlessURL
+}
+
 // PhaseResult represents the result of running UI smoke as part of a phase.
 type PhaseResult struct {
 	// Success indicates whether the smoke test passed.
@@ -32,10 +44,7 @@ type PhaseResult struct {
 // RunForPhase executes UI smoke test and returns a result suitable for phase integration.
 // It looks up browserless URL from environment or uses default.
 func RunForPhase(ctx context.Context, scenarioName, scenarioDir string, logWriter io.Writer) (*PhaseResult, error) {
-	browserlessURL := os.Getenv("BROWSERLESS_URL")
-	if browserlessURL == "" {
-		browserlessURL = DefaultBrowserlessURL
-	}
+	browserlessURL := GetBrowserlessURL()
 
 	runner := NewRunner(browserlessURL, WithRunnerLogger(logWriter))
 	result, err := runner.Run(ctx, scenarioName, scenarioDir)

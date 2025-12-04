@@ -305,6 +305,9 @@ const literalSelectors: LiteralSelectorTree = {
   generate: {
     phaseSelector: "test-genie-phase-selector",
     promptEditor: "test-genie-prompt-editor",
+    promptNavigator: "test-genie-prompt-navigator",
+    promptNavItem: "test-genie-prompt-nav-item",
+    copyAllButton: "test-genie-copy-all-prompts",
     copyButton: "test-genie-copy-prompt",
     spawnButton: "test-genie-spawn-agent",
     presetSelector: "test-genie-preset-selector",
@@ -393,6 +396,9 @@ export const selectors = registry.selectors as unknown as {
   generate: {
     phaseSelector: string;
     promptEditor: string;
+    promptNavigator: string;
+    promptNavItem: string;
+    copyAllButton: string;
     copyButton: string;
     spawnButton: string;
     presetSelector: string;

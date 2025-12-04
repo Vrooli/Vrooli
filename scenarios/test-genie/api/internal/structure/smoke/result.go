@@ -19,6 +19,35 @@ const (
 	StatusBlocked Status = "blocked"
 )
 
+// BlockedReason categorizes why a test was blocked.
+type BlockedReason string
+
+const (
+	// BlockedReasonNone indicates no block (test was not blocked).
+	BlockedReasonNone BlockedReason = ""
+	// BlockedReasonBrowserlessOffline indicates Browserless service is unavailable.
+	BlockedReasonBrowserlessOffline BlockedReason = "browserless_offline"
+	// BlockedReasonBundleStale indicates UI bundle is outdated.
+	BlockedReasonBundleStale BlockedReason = "bundle_stale"
+	// BlockedReasonUIPortMissing indicates UI port is defined but not detected.
+	BlockedReasonUIPortMissing BlockedReason = "ui_port_missing"
+)
+
+// ExitCode returns the shell exit code for this blocked reason.
+// Compatible with legacy bash implementation exit codes.
+func (r BlockedReason) ExitCode() int {
+	switch r {
+	case BlockedReasonBrowserlessOffline:
+		return 50
+	case BlockedReasonBundleStale:
+		return 60
+	case BlockedReasonUIPortMissing:
+		return 61
+	default:
+		return 1
+	}
+}
+
 // IsSuccess returns true if the status represents a successful outcome.
 func (s Status) IsSuccess() bool {
 	return s == StatusPassed
@@ -36,6 +65,9 @@ type Result struct {
 
 	// Status is the overall test outcome.
 	Status Status `json:"status"`
+
+	// BlockedReason categorizes why the test was blocked (only set when Status is "blocked").
+	BlockedReason BlockedReason `json:"blocked_reason,omitempty"`
 
 	// Message provides a human-readable summary.
 	Message string `json:"message"`
@@ -200,12 +232,13 @@ func Skipped(scenario, message string) *Result {
 	}
 }
 
-// Blocked creates a blocked result.
-func Blocked(scenario, message string) *Result {
+// Blocked creates a blocked result with the specified reason.
+func Blocked(scenario, message string, reason BlockedReason) *Result {
 	return &Result{
-		Scenario:  scenario,
-		Status:    StatusBlocked,
-		Message:   message,
-		Timestamp: time.Now().UTC(),
+		Scenario:      scenario,
+		Status:        StatusBlocked,
+		BlockedReason: reason,
+		Message:       message,
+		Timestamp:     time.Now().UTC(),
 	}
 }

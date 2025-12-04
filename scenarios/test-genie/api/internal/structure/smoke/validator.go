@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 
 	"test-genie/internal/structure/types"
 )
@@ -31,13 +30,8 @@ func NewValidator(scenarioDir, scenarioName string, logWriter io.Writer, opts ..
 	v := &validator{
 		scenarioDir:    scenarioDir,
 		scenarioName:   scenarioName,
-		browserlessURL: DefaultBrowserlessURL,
+		browserlessURL: GetBrowserlessURL(),
 		logWriter:      logWriter,
-	}
-
-	// Check environment for browserless URL
-	if url := os.Getenv("BROWSERLESS_URL"); url != "" {
-		v.browserlessURL = url
 	}
 
 	for _, opt := range opts {
