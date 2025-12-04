@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -105,6 +106,7 @@ func getVaultSecretsStatusFromCLI(resourceFilter string) (*VaultSecretsStatus, e
 	// Parse the output from resource-vault
 	status := parseVaultCLIOutput(string(output), resourceFilter)
 	status.LastUpdated = time.Now()
+	mergeKnownResources(status, resourceFilter)
 
 	return status, nil
 }
@@ -236,6 +238,94 @@ func parseVaultCLIOutput(output, resourceFilter string) *VaultSecretsStatus {
 	}
 
 	return status
+}
+
+// mergeKnownResources ensures resources without secrets still appear in API responses
+// so the UI can render a complete table. It pulls names from .vrooli/service.json
+// and the resources directory, then appends zero-secret rows where missing.
+func mergeKnownResources(status *VaultSecretsStatus, resourceFilter string) {
+	if status == nil {
+		return
+	}
+
+	existing := make(map[string]struct{}, len(status.ResourceStatuses))
+	for _, rs := range status.ResourceStatuses {
+		existing[strings.ToLower(rs.ResourceName)] = struct{}{}
+	}
+
+	known := listKnownResources()
+	now := time.Now()
+	for _, name := range known {
+		if resourceFilter != "" && resourceFilter != name {
+			continue
+		}
+		key := strings.ToLower(name)
+		if _, ok := existing[key]; ok {
+			continue
+		}
+		status.ResourceStatuses = append(status.ResourceStatuses, VaultResourceStatus{
+			ResourceName:    name,
+			SecretsTotal:    0,
+			SecretsFound:    0,
+			SecretsMissing:  0,
+			SecretsOptional: 0,
+			HealthStatus:    "healthy",
+			LastChecked:     now,
+		})
+		existing[key] = struct{}{}
+	}
+
+	status.TotalResources = len(status.ResourceStatuses)
+	configured := 0
+	for _, rs := range status.ResourceStatuses {
+		if rs.SecretsMissing == 0 {
+			configured++
+		}
+	}
+	status.ConfiguredResources = configured
+}
+
+func listKnownResources() []string {
+	names := map[string]struct{}{}
+
+	// From .vrooli/service.json dependencies.resources
+	servicePath := filepath.Join(getVrooliRoot(), ".vrooli", "service.json")
+	if data, err := os.ReadFile(servicePath); err == nil {
+		var cfg struct {
+			Dependencies struct {
+				Resources map[string]struct {
+					Enabled *bool `json:"enabled"`
+				} `json:"resources"`
+			} `json:"dependencies"`
+		}
+		if err := json.Unmarshal(data, &cfg); err == nil {
+			for name, res := range cfg.Dependencies.Resources {
+				if res.Enabled != nil && !*res.Enabled {
+					continue
+				}
+				if name != "" {
+					names[name] = struct{}{}
+				}
+			}
+		}
+	}
+
+	// From resources directory (covers local resources without secrets)
+	resourcesDir := filepath.Join(getVrooliRoot(), "resources")
+	if entries, err := os.ReadDir(resourcesDir); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				names[entry.Name()] = struct{}{}
+			}
+		}
+	}
+
+	slice := make([]string, 0, len(names))
+	for name := range names {
+		slice = append(slice, name)
+	}
+	sort.Strings(slice)
+	return slice
 }
 
 // Parse vault scan output to extract resource names

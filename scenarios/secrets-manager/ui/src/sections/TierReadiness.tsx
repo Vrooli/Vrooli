@@ -102,7 +102,7 @@ export const DeploymentReadinessPanel = ({
   };
 
   return (
-    <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+    <section id="anchor-deployment" className="rounded-3xl border border-white/10 bg-white/5 p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-emerald-300">Deployment Readiness</p>
@@ -319,7 +319,7 @@ export const TierReadiness = ({
   const missingCount = resourceStatuses.reduce((acc, status) => acc + status.secrets_missing, 0);
 
   return (
-    <section>
+    <section id="anchor-resources">
       <div className="mb-4 flex items-center gap-3">
         <div className="flex-1">
           <div className="flex items-center gap-2">

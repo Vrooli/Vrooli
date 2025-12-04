@@ -4,7 +4,6 @@ import { Header } from "./sections/Header";
 import { OrientationHub } from "./sections/OrientationHub";
 import { DeploymentReadinessPanel, TierReadiness } from "./sections/TierReadiness";
 import { ResourceWorkbench } from "./sections/ResourceWorkbench";
-import { StatusGrid } from "./sections/StatusGrid";
 import { ComplianceOverview } from "./sections/ComplianceOverview";
 import { SecurityTables } from "./sections/SecurityTables";
 import { ResourcePanel } from "./features/resource-panel/ResourcePanel";
@@ -13,12 +12,24 @@ import { useVulnerabilities } from "./hooks/useVulnerabilities";
 import { useResourcePanel } from "./hooks/useResourcePanel";
 import { useJourneys } from "./hooks/useJourneys";
 import { useScenarios } from "./hooks/useScenarios";
+import { useCampaigns } from "./hooks/useCampaigns";
+import { TabNav } from "./components/ui/TabNav";
+import { TabTip } from "./components/ui/TabTip";
+import { SnapshotPanel } from "./sections/SnapshotPanel";
+import { ResourceTable } from "./sections/ResourceTable";
+import { CampaignsPanel } from "./sections/CampaignsPanel";
+import { DeploymentStepper } from "./sections/DeploymentStepper";
 import type { JourneyId } from "./features/journeys/journeySteps";
+import { TutorialOverlay } from "./components/ui/TutorialOverlay";
 
 export default function App() {
-  type ExperienceTab = "overview" | "readiness" | "scenario" | "compliance";
+  type ExperienceTab = "dashboard" | "resources" | "compliance" | "deployment";
 
-  const [activeTab, setActiveTab] = useState<ExperienceTab>("overview");
+  const [activeTab, setActiveTab] = useState<ExperienceTab>("dashboard");
+  const [resourceTab, setResourceTab] = useState<"tier" | "resource">("tier");
+  const [campaignStep, setCampaignStep] = useState(0);
+  const [showTutorialOverlay, setShowTutorialOverlay] = useState(false);
+  const [tutorialAnchor, setTutorialAnchor] = useState<string | undefined>(undefined);
   const [selectedScenario, setSelectedScenario] = useState<string>("secrets-manager");
   const {
     healthQuery,
@@ -67,7 +78,19 @@ export default function App() {
   const tierReadiness = orientationData?.tier_readiness ?? [];
   const resourceInsights = orientationData?.resource_insights ?? [];
 
-  const { search, setSearch, query: scenarioQuery, scenarios, filtered } = useScenarios();
+  const {
+    search: scenarioSearch,
+    setSearch: setScenarioSearch,
+    query: scenarioQuery,
+    scenarios,
+    filtered
+  } = useScenarios();
+  const {
+    search: campaignSearch,
+    setSearch: setCampaignSearch,
+    query: campaignQuery,
+    filtered: filteredCampaigns
+  } = useCampaigns();
 
   const topResourceNeedingAttention = useMemo(() => {
     if (resourceInsights.length > 0) {
@@ -93,10 +116,10 @@ export default function App() {
     scenarioSelection: {
       scenarios,
       filtered,
-      search,
+      search: scenarioSearch,
       isLoading: scenarioQuery.isLoading,
       selectedScenario,
-      onSearchChange: setSearch,
+      onSearchChange: setScenarioSearch,
       onSelect: setSelectedScenario
     },
     heroStats,
@@ -104,7 +127,8 @@ export default function App() {
     tierReadiness,
     topResourceNeedingAttention,
     onOpenResource: openResourcePanel,
-    onRefetchVulnerabilities: () => vulnerabilityQuery.refetch()
+    onRefetchVulnerabilities: () => vulnerabilityQuery.refetch(),
+    onNavigateTab: (tab) => setActiveTab(tab as ExperienceTab)
   });
 
   useEffect(() => {
@@ -130,53 +154,65 @@ export default function App() {
   const vulnerabilities = vulnerabilityQuery.data?.vulnerabilities ?? [];
 
   const blockedTiers = tierReadiness.filter((tier) => tier.ready_percent < 100 || tier.strategized < tier.total);
-  const readinessBadge =
-    blockedTiers.length > 0
-      ? `${blockedTiers.length} tier${blockedTiers.length === 1 ? "" : "s"} need strategies`
-      : undefined;
-  const complianceBadge =
-    vulnerabilitySummary.critical + vulnerabilitySummary.high + vulnerabilitySummary.medium + vulnerabilitySummary.low > 0
-      ? `${vulnerabilitySummary.critical + vulnerabilitySummary.high + vulnerabilitySummary.medium + vulnerabilitySummary.low} findings`
-      : undefined;
+  const readinessCount = blockedTiers.length;
+  const complianceCount =
+    vulnerabilitySummary.critical + vulnerabilitySummary.high + vulnerabilitySummary.medium + vulnerabilitySummary.low;
+  const missingSecretsCount = heroStats?.missing_secrets ?? missingSecrets.length ?? 0;
 
   const activeJourneyCard = journeyCards.find((card) => card.id === activeJourney);
 
   const handleJourneySelectTyped = (journeyId: JourneyId) => {
     handleJourneySelect(journeyId);
+    if (journeyId === "configure-secrets") {
+      setActiveTab("resources");
+      setTutorialAnchor("anchor-resources");
+      setShowTutorialOverlay(true);
+    } else if (journeyId === "fix-vulnerabilities") {
+      setActiveTab("compliance");
+      setTutorialAnchor("anchor-compliance");
+      setShowTutorialOverlay(true);
+    } else if (journeyId === "prep-deployment") {
+      setActiveTab("deployment");
+      setTutorialAnchor("anchor-deployment");
+      setShowTutorialOverlay(true);
+    } else {
+      setShowTutorialOverlay(false);
+      setTutorialAnchor(undefined);
+    }
   };
 
   const startPrepDeploymentJourney = () => {
-    setActiveTab("overview");
+    setActiveTab("deployment");
     handleJourneySelectTyped("prep-deployment");
   };
 
-  const tabs: Array<{ id: ExperienceTab; label: string; description: string; badge?: string }> = [
+  const closeTutorialOverlay = () => {
+    setShowTutorialOverlay(false);
+    setTutorialAnchor(undefined);
+  };
+
+  const tabs: Array<{ id: ExperienceTab; label: string; badgeCount?: number }> = [
     {
-      id: "overview",
-      label: "Orientation",
-      description: "Journeys and live status signals"
+      id: "dashboard",
+      label: "Dashboard",
+      badgeCount: missingSecretsCount > 0 ? missingSecretsCount : undefined
     },
     {
-      id: "readiness",
-      label: "Resource Readiness",
-      description: "Deployment coverage by resource",
-      badge: readinessBadge
-    },
-    {
-      id: "scenario",
-      label: "Scenario Readiness",
-      description: "Manifest readiness by scenario",
-      badge: readinessBadge
+      id: "resources",
+      label: "Resources",
+      badgeCount: readinessCount > 0 ? readinessCount : undefined
     },
     {
       id: "compliance",
       label: "Compliance",
-      description: "Vulnerability and policy posture",
-      badge: complianceBadge
+      badgeCount: complianceCount > 0 ? complianceCount : undefined
+    },
+    {
+      id: "deployment",
+      label: "Deployment",
+      badgeCount: readinessCount > 0 ? readinessCount : undefined
     }
   ];
-
-  const showReadinessTab = () => setActiveTab("readiness");
 
   return (
     <div className="relative min-h-screen bg-slate-950 text-slate-50">
@@ -205,35 +241,56 @@ export default function App() {
           onRefresh={refreshAll}
         />
 
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-2">
-          <div className="grid gap-2 sm:grid-cols-3">
-            {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`rounded-2xl border px-4 py-3 text-left transition ${
-                activeTab === tab.id
-                  ? "border-emerald-400 bg-emerald-500/10 text-white shadow-[0_10px_40px_-15px_rgba(16,185,129,0.4)]"
-                  : "border-white/10 bg-black/20 text-white/70 hover:border-white/30 hover:text-white"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[11px] uppercase tracking-[0.25em]">{tab.label}</p>
-                {tab.badge ? (
-                  <span className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2 py-[2px] text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-100">
-                    {tab.badge}
-                  </span>
-                ) : null}
-              </div>
-              <p className="mt-1 text-sm">{tab.description}</p>
-            </button>
-          ))}
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+          <TabNav tabs={tabs} activeTab={activeTab} onChange={(id) => setActiveTab(id as ExperienceTab)} />
         </div>
-      </div>
+
+        {activeTab === "dashboard" && missingSecretsCount > 0 ? (
+          <TabTip
+            title={`${missingSecretsCount} secret${missingSecretsCount === 1 ? "" : "s"} need attention`}
+            description="Open the Resources tab to see which services are missing secrets and how to fix them."
+            actionLabel="Go to Resources"
+            onAction={() => setActiveTab("resources")}
+          />
+        ) : null}
+        {activeTab === "resources" && readinessCount > 0 ? (
+          <TabTip
+            title={`${readinessCount} tier${readinessCount === 1 ? "" : "s"} need strategies`}
+            description="Start with By Tier to clear blockers, then verify per-resource coverage."
+            actionLabel="View By Tier"
+            onAction={() => setResourceTab("tier")}
+          />
+        ) : null}
+        {activeTab === "compliance" && complianceCount > 0 ? (
+          <TabTip
+            title={`${complianceCount} compliance finding${complianceCount === 1 ? "" : "s"}`}
+            description="Use filters to triage critical and high issues first. Journeys can jump you straight to the right tab."
+          />
+        ) : null}
+        {activeTab === "deployment" && readinessCount > 0 ? (
+          <TabTip
+            title="Deployment prep needs strategies"
+            description="Clear blocked tiers, then generate and export a manifest for the selected campaign."
+            actionLabel="Run readiness"
+            onAction={() => setCampaignStep(1)}
+          />
+        ) : null}
 
         <div className="space-y-8">
-          {activeTab === "overview" && (
+          {activeTab === "dashboard" && (
             <>
+              <SnapshotPanel
+                heroStats={heroStats}
+                updatedAt={orientationData?.updated_at}
+                healthData={healthQuery.data}
+                vaultData={vaultQuery.data}
+                complianceData={complianceQuery.data}
+                vulnerabilityData={vulnerabilityQuery.data}
+                isLoading={
+                  healthQuery.isLoading || vaultQuery.isLoading || complianceQuery.isLoading || vulnerabilityQuery.isLoading
+                }
+              />
+
               <OrientationHub
                 heroStats={heroStats}
                 vulnerabilityInsights={orientationData?.vulnerability_insights ?? []}
@@ -249,48 +306,78 @@ export default function App() {
                 onJourneyNext={handleJourneyNext}
                 onJourneyBack={handleJourneyBack}
                 journeyNextDisabled={journeyNextDisabled}
-              />
-
-              <StatusGrid
-                healthData={healthQuery.data}
-                vaultData={vaultQuery.data}
-                complianceData={complianceQuery.data}
-                vulnerabilityData={vulnerabilityQuery.data}
-                isHealthLoading={healthQuery.isLoading}
-                isVaultLoading={vaultQuery.isLoading}
-                isComplianceLoading={complianceQuery.isLoading}
-                isVulnerabilityLoading={vulnerabilityQuery.isLoading}
+                onShowReadiness={() => setActiveTab("resources")}
               />
             </>
           )}
 
-          {activeTab === "readiness" && (
+          {activeTab === "resources" && (
+            <div className="space-y-4">
+              <TabNav
+                tabs={[
+                  { id: "tier", label: "By Tier" },
+                  { id: "resource", label: "Per Resource" }
+                ]}
+                activeTab={resourceTab}
+                onChange={(id) => setResourceTab(id as "tier" | "resource")}
+              />
+              {resourceTab === "tier" ? (
+                <>
+                  <TierReadiness
+                    tierReadiness={tierReadiness}
+                    isLoading={orientationQuery.isLoading}
+                    onOpenResource={openResourcePanel}
+                    resourceInsights={resourceInsights}
+                    resourceStatuses={resourceStatuses}
+                  />
+
+                  <ResourceWorkbench
+                    resourceInsights={resourceInsights}
+                    resourceStatuses={resourceStatuses}
+                    isLoading={orientationQuery.isLoading}
+                    onOpenResource={openResourcePanel}
+                  />
+                </>
+              ) : (
+                <ResourceTable
+                  resourceStatuses={resourceStatuses}
+                  isLoading={vaultQuery.isLoading}
+                  onOpenResource={openResourcePanel}
+                />
+              )}
+            </div>
+          )}
+
+          {activeTab === "deployment" && (
             <>
-              <TierReadiness
-                tierReadiness={tierReadiness}
-                isLoading={orientationQuery.isLoading}
-                onOpenResource={openResourcePanel}
-                resourceInsights={resourceInsights}
-                resourceStatuses={resourceStatuses}
+              <CampaignsPanel
+                campaigns={filteredCampaigns}
+                isLoading={campaignQuery.isLoading}
+                search={campaignSearch}
+                onSearchChange={setCampaignSearch}
+                selectedScenario={selectedScenario}
+                onSelectScenario={setSelectedScenario}
+                defaultBlockedTiers={readinessCount}
               />
 
-              <ResourceWorkbench
+              <DeploymentStepper
+                activeStep={campaignStep}
+                onStepChange={setCampaignStep}
+                onOpenResource={
+                  topResourceNeedingAttention ? () => openResourcePanel(topResourceNeedingAttention) : undefined
+                }
+                onGenerateManifest={deploymentFlow.onGenerateManifest}
+                hasManifest={!!deploymentFlow.manifestData}
+              />
+
+              <DeploymentReadinessPanel
+                tierReadiness={tierReadiness}
                 resourceInsights={resourceInsights}
-                resourceStatuses={resourceStatuses}
-                isLoading={orientationQuery.isLoading}
+                manifestState={deploymentFlow}
                 onOpenResource={openResourcePanel}
+                onStartJourney={startPrepDeploymentJourney}
               />
             </>
-          )}
-
-          {activeTab === "scenario" && (
-            <DeploymentReadinessPanel
-              tierReadiness={tierReadiness}
-              resourceInsights={resourceInsights}
-              manifestState={deploymentFlow}
-              onOpenResource={openResourcePanel}
-              onStartJourney={startPrepDeploymentJourney}
-            />
           )}
 
           {activeTab === "compliance" && (
@@ -356,6 +443,19 @@ export default function App() {
           onSetStrategyDescription={setStrategyDescription}
         />
       )}
+
+      {showTutorialOverlay && activeJourney && activeJourney !== "orientation" && journeySteps[journeyStep] ? (
+        <TutorialOverlay
+          title={activeJourneyCard?.title || "Tutorial"}
+          subtitle={activeJourneyCard?.description}
+          stepLabel={`Step ${journeyStep + 1} of ${journeySteps.length}`}
+          content={journeySteps[journeyStep].content}
+          onClose={closeTutorialOverlay}
+          onNext={handleJourneyNext}
+          onBack={journeyStep > 0 ? handleJourneyBack : undefined}
+          disableNext={journeyNextDisabled}
+        />
+      ) : null}
     </div>
   );
 }

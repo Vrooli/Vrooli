@@ -8,11 +8,13 @@ import "./styles.css";
 const queryClient = new QueryClient();
 
 if (typeof window !== "undefined" && window.parent !== window) {
-  initIframeBridgeChild({
-    appId: "secrets-manager",
-    enableConsoleCapture: true,
-    enableNetworkCapture: true
-  });
+  initIframeBridgeChild(
+    {
+      appId: "secrets-manager",
+      enableConsoleCapture: true,
+      enableNetworkCapture: true
+    } as any
+  );
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

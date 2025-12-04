@@ -199,6 +199,27 @@ export interface OrientationSummary {
   updated_at: string;
 }
 
+export interface CampaignSummary {
+  id: string;
+  scenario: string;
+  tier: string;
+  status: string;
+  progress: number;
+  blockers: number;
+  updated_at: string;
+  next_action?: string;
+  summary?: {
+    strategized_secrets: number;
+    total_secrets: number;
+    requires_action: number;
+  };
+}
+
+export interface CampaignListResponse {
+  campaigns: CampaignSummary[];
+  count: number;
+}
+
 export interface ResourceSecretDetail {
   id: string;
   secret_key: string;
@@ -439,3 +460,6 @@ export interface ScenarioSummary {
 
 export const fetchScenarios = () =>
   jsonFetch<{ scenarios: ScenarioSummary[]; count: number }>("/scenarios");
+
+export const fetchCampaigns = (includeReadiness = true) =>
+  jsonFetch<CampaignListResponse>(`/campaigns${includeReadiness ? "?include_readiness=true" : ""}`);

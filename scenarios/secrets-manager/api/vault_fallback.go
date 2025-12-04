@@ -379,13 +379,15 @@ func getVaultSecretsStatusFallback(resourceFilter string) (*VaultSecretsStatus, 
 		resourceStatuses = append(resourceStatuses, status)
 	}
 
-	return &VaultSecretsStatus{
-		TotalResources:      len(resourcesWithSecrets),
+	status := &VaultSecretsStatus{
+		TotalResources:      len(resourceStatuses),
 		ConfiguredResources: configuredCount,
 		MissingSecrets:      allMissingSecrets,
 		ResourceStatuses:    resourceStatuses,
 		LastUpdated:         time.Now(),
-	}, nil
+	}
+	mergeKnownResources(status, resourceFilter)
+	return status, nil
 }
 
 // getMockVaultStatus returns mock data for testing when vault is unavailable.

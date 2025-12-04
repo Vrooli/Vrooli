@@ -47,6 +47,7 @@ interface UseJourneysOptions {
   topResourceNeedingAttention?: string;
   onOpenResource: (resourceName?: string, secretKey?: string) => void;
   onRefetchVulnerabilities: () => void;
+  onNavigateTab?: (tab: "dashboard" | "resources" | "compliance" | "deployment") => void;
 }
 
 export const useJourneys = (options: UseJourneysOptions) => {
@@ -72,6 +73,7 @@ export const useJourneys = (options: UseJourneysOptions) => {
       }
     >
   >({});
+  const selectedTierSnapshot = tierSnapshots[deploymentTier];
 
   const manifestMutation = useMutation<DeploymentManifestResponse, Error, DeploymentManifestRequest>({
     mutationFn: (payload) => generateDeploymentManifest(payload)
@@ -205,10 +207,6 @@ export const useJourneys = (options: UseJourneysOptions) => {
     [options]
   );
 
-  const selectedTierSnapshot = tierSnapshots[deploymentTier];
-  const selectedTierHasData = !!selectedTierSnapshot?.summary;
-  const selectedTierLoading = !!selectedTierSnapshot?.loading;
-
   const handleReadinessRefresh = useCallback(() => {
     setReadinessRefreshKey((value) => value + 1);
   }, []);
@@ -261,7 +259,8 @@ export const useJourneys = (options: UseJourneysOptions) => {
         onSetProvisionSecretKey: setProvisionSecretKey,
         onSetProvisionSecretValue: setProvisionSecretValue,
         onProvisionSubmit: handleProvisionSubmit,
-        scenarioSelection: options.scenarioSelection
+        scenarioSelection: options.scenarioSelection,
+        onNavigateTab: options.onNavigateTab
       }),
     [
       activeJourney,
@@ -289,7 +288,8 @@ export const useJourneys = (options: UseJourneysOptions) => {
       handleProvisionSubmit,
       handleSetDeploymentScenario,
       handleReadinessRefresh,
-      options.scenarioSelection
+      options.scenarioSelection,
+      options.onNavigateTab
     ]
   );
 
@@ -313,10 +313,7 @@ export const useJourneys = (options: UseJourneysOptions) => {
     setJourneyStep((value) => Math.max(0, value - 1));
   }, []);
 
-  const journeyNextDisabled =
-    (activeJourney === "prep-deployment" && journeyStep === 0 && !deploymentScenario) ||
-    (activeJourney === "prep-deployment" && journeyStep === 1 && !selectedTierHasData && !selectedTierLoading) ||
-    (activeJourney === "prep-deployment" && journeyStep >= 2 && !manifestMutation.data && !manifestMutation.isPending);
+  const journeyNextDisabled = journeySteps.length === 0;
 
   return {
     activeJourney,

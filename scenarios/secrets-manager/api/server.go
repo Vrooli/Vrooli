@@ -21,6 +21,7 @@ type handlerSet struct {
 	deployment  *DeploymentHandlers
 	scenarios   *ScenarioHandlers
 	orientation *OrientationHandlers
+	campaigns   *CampaignHandlers
 }
 
 func newAPIServer(db *sql.DB, logger *Logger) *APIServer {
@@ -47,6 +48,7 @@ func newAPIServer(db *sql.DB, logger *Logger) *APIServer {
 			deployment:  NewDeploymentHandlers(manifestBuilder),
 			scenarios:   NewScenarioHandlers(),
 			orientation: NewOrientationHandlers(orientationBuilder),
+			campaigns:   NewCampaignHandlers(manifestBuilder),
 		},
 	}
 }
@@ -88,6 +90,10 @@ func (s *APIServer) routes() *mux.Router {
 	// Scenario intelligence (fast list for UI selection)
 	scenarios := api.PathPrefix("/scenarios").Subrouter()
 	s.handlers.scenarios.RegisterRoutes(scenarios)
+
+	// Deployment readiness campaigns
+	campaigns := api.PathPrefix("/campaigns").Subrouter()
+	s.handlers.campaigns.RegisterRoutes(campaigns)
 
 	return r
 }
