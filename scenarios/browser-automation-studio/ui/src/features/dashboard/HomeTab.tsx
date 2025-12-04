@@ -1,12 +1,10 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   Sparkles,
   Plus,
   Play,
   Star,
   StarOff,
-  Clock,
-  ChevronRight,
   Pencil,
   Key,
   CreditCard,
@@ -100,6 +98,46 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       console.error('Failed to stop execution:', error);
     }
   }, [stopExecution, fetchRunningExecutions]);
+
+  // Build unified workflow list: last edited → starred → other recent
+  const unifiedWorkflows = useMemo(() => {
+    const seen = new Set<string>();
+    const result: Array<RecentWorkflow & { isLastEdited?: boolean; isStarred?: boolean }> = [];
+
+    // 1. Last edited workflow first (if exists)
+    if (lastEditedWorkflow) {
+      seen.add(lastEditedWorkflow.id);
+      result.push({ ...lastEditedWorkflow, isLastEdited: true, isStarred: isFavorite(lastEditedWorkflow.id) });
+    }
+
+    // 2. Starred workflows (not already added)
+    for (const fav of favoriteWorkflows) {
+      if (!seen.has(fav.id)) {
+        seen.add(fav.id);
+        // Find the full workflow data from recent if available
+        const recentData = recentWorkflows.find(w => w.id === fav.id);
+        result.push({
+          id: fav.id,
+          name: fav.name,
+          projectId: fav.projectId,
+          projectName: fav.projectName,
+          updatedAt: recentData?.updatedAt ?? fav.addedAt,
+          folderPath: recentData?.folderPath ?? '/',
+          isStarred: true,
+        });
+      }
+    }
+
+    // 3. Other recent workflows (not already added)
+    for (const workflow of recentWorkflows) {
+      if (!seen.has(workflow.id)) {
+        seen.add(workflow.id);
+        result.push({ ...workflow, isStarred: false });
+      }
+    }
+
+    return result.slice(0, 8); // Show up to 8 items
+  }, [lastEditedWorkflow, favoriteWorkflows, recentWorkflows, isFavorite]);
 
   // Render AI-enabled quick start (prominent)
   const renderAIQuickStart = () => (
@@ -243,78 +281,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     </div>
   );
 
-  // Render continue editing banner
-  const renderContinueEditing = () => {
-    if (!lastEditedWorkflow) return null;
-
-    return (
-      <button
-        onClick={() => onNavigateToWorkflow(lastEditedWorkflow.projectId, lastEditedWorkflow.id)}
-        className="w-full flex items-center gap-4 p-4 bg-blue-900/20 hover:bg-blue-900/30 border border-blue-500/30 hover:border-blue-500/50 rounded-lg transition-colors text-left group"
-      >
-        <div className="flex items-center justify-center w-10 h-10 bg-blue-500/20 rounded-lg">
-          <Pencil size={18} className="text-blue-400" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm text-blue-300">Continue editing</div>
-          <div className="font-medium text-white truncate">{lastEditedWorkflow.name}</div>
-          <div className="text-xs text-flow-text-muted mt-0.5">
-            {lastEditedWorkflow.projectName} · Edited {formatDistanceToNow(lastEditedWorkflow.updatedAt, { addSuffix: true })}
-          </div>
-        </div>
-        <ChevronRight size={20} className="text-flow-text-muted group-hover:text-flow-text-secondary transition-colors" />
-      </button>
-    );
-  };
-
-  // Render favorites section
-  const renderFavorites = () => {
-    if (favoriteWorkflows.length === 0) return null;
-
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-flow-text-secondary flex items-center gap-2">
-            <Star size={14} className="text-amber-400" />
-            Favorites
-          </h3>
-        </div>
-        <div className="space-y-2">
-          {favoriteWorkflows.slice(0, 5).map((workflow) => (
-            <div
-              key={workflow.id}
-              className="flex items-center gap-3 p-3 bg-flow-node/50 hover:bg-flow-node border border-flow-border/50 rounded-lg group transition-colors"
-            >
-              <button
-                onClick={() => removeFavorite(workflow.id)}
-                className="text-amber-400 hover:text-amber-300 transition-colors"
-                title="Remove from favorites"
-              >
-                <Star size={16} fill="currentColor" />
-              </button>
-              <button
-                onClick={() => onNavigateToWorkflow(workflow.projectId, workflow.id)}
-                className="flex-1 min-w-0 text-left"
-              >
-                <div className="font-medium text-white truncate group-hover:text-blue-300 transition-colors">
-                  {workflow.name}
-                </div>
-                <div className="text-xs text-flow-text-muted">{workflow.projectName}</div>
-              </button>
-              <button
-                onClick={() => onRunWorkflow(workflow.id)}
-                className="p-2 text-flow-text-muted hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                title="Run workflow"
-              >
-                <Play size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
   // Render running executions widget - prominent display of active executions
   const renderRunningExecutions = () => {
     if (runningExecutions.length === 0) return null;
@@ -390,86 +356,91 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       {/* Quick Start Section - conditional based on AI availability */}
       {aiCapability.available ? renderAIQuickStart() : renderManualQuickStart()}
 
-      {/* Continue Editing Banner */}
-      {renderContinueEditing()}
-
-      {/* Recent Workflows - Elevated as a primary section */}
-      {recentWorkflows.length > 0 && (
+      {/* Unified Workflows List - Last edited → Starred → Recent */}
+      {unifiedWorkflows.length > 0 && (
         <div className="bg-flow-surface border border-flow-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-white flex items-center gap-2">
-              <Clock size={18} className="text-blue-400" />
-              Recent Workflows
+            <h2 className="text-base font-semibold text-white">
+              Your Workflows
             </h2>
             <span className="text-xs text-flow-text-muted">
-              Quick access to your latest work
+              Quick access to your work
             </span>
           </div>
           <div className="space-y-2">
-            {recentWorkflows.slice(0, 5).map((workflow) => {
-              const starred = isFavorite(workflow.id);
-              return (
-                <div
-                  key={workflow.id}
-                  className="flex items-center gap-3 p-3 bg-flow-node/50 hover:bg-flow-node-hover border border-flow-border/40 hover:border-flow-border rounded-lg group transition-all"
+            {unifiedWorkflows.map((workflow) => (
+              <div
+                key={workflow.id}
+                className={`flex items-center gap-3 p-3 rounded-lg group transition-all ${
+                  workflow.isLastEdited
+                    ? 'bg-blue-900/20 hover:bg-blue-900/30 border border-blue-500/30 hover:border-blue-500/50'
+                    : 'bg-flow-node/50 hover:bg-flow-node-hover border border-flow-border/40 hover:border-flow-border'
+                }`}
+              >
+                <button
+                  onClick={() => handleToggleFavorite(workflow)}
+                  className={`flex-shrink-0 transition-colors ${
+                    workflow.isStarred
+                      ? 'text-amber-400 hover:text-amber-300'
+                      : 'text-flow-text-muted hover:text-amber-400'
+                  }`}
+                  title={workflow.isStarred ? 'Remove from favorites' : 'Add to favorites'}
                 >
-                  <button
-                    onClick={() => handleToggleFavorite(workflow)}
-                    className={`flex-shrink-0 transition-colors ${
-                      starred
-                        ? 'text-amber-400 hover:text-amber-300'
-                        : 'text-flow-text-muted hover:text-amber-400'
-                    }`}
-                    title={starred ? 'Remove from favorites' : 'Add to favorites'}
-                  >
-                    {starred ? <Star size={16} fill="currentColor" /> : <StarOff size={16} />}
-                  </button>
+                  {workflow.isStarred ? <Star size={16} fill="currentColor" /> : <StarOff size={16} />}
+                </button>
+                <button
+                  onClick={() => onNavigateToWorkflow(workflow.projectId, workflow.id)}
+                  className="flex-1 min-w-0 text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`font-medium truncate transition-colors ${
+                      workflow.isLastEdited ? 'text-blue-100 group-hover:text-blue-50' : 'text-white group-hover:text-blue-300'
+                    }`}>
+                      {workflow.name}
+                    </span>
+                    {workflow.isLastEdited && (
+                      <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium text-blue-300 bg-blue-500/20 rounded">
+                        Last edited
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-flow-text-muted">
+                    {workflow.projectName} · {formatDistanceToNow(workflow.updatedAt, { addSuffix: true })}
+                  </div>
+                </button>
+                {/* Always visible action buttons */}
+                <div className="flex items-center gap-1 flex-shrink-0">
                   <button
                     onClick={() => onNavigateToWorkflow(workflow.projectId, workflow.id)}
-                    className="flex-1 min-w-0 text-left"
+                    className={`p-2 rounded-lg transition-colors ${
+                      workflow.isLastEdited
+                        ? 'text-blue-300 hover:text-blue-200 hover:bg-blue-500/20'
+                        : 'text-flow-text-muted hover:text-blue-400 hover:bg-blue-500/10'
+                    }`}
+                    title="Edit workflow"
                   >
-                    <div className="font-medium text-white truncate group-hover:text-blue-300 transition-colors">
-                      {workflow.name}
-                    </div>
-                    <div className="text-xs text-flow-text-muted">
-                      {workflow.projectName} · {formatDistanceToNow(workflow.updatedAt, { addSuffix: true })}
-                    </div>
+                    <Pencil size={14} />
                   </button>
-                  {/* Always visible action buttons */}
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => onNavigateToWorkflow(workflow.projectId, workflow.id)}
-                      className="p-2 text-flow-text-muted hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
-                      title="Edit workflow"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      onClick={() => onRunWorkflow(workflow.id)}
-                      className="p-2 text-flow-text-muted hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
-                      title="Run workflow"
-                    >
-                      <Play size={14} />
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => onRunWorkflow(workflow.id)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      workflow.isLastEdited
+                        ? 'text-blue-300 hover:text-green-400 hover:bg-green-500/20'
+                        : 'text-flow-text-muted hover:text-green-400 hover:bg-green-500/10'
+                    }`}
+                    title="Run workflow"
+                  >
+                    <Play size={14} />
+                  </button>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Favorites Section - Secondary but visible */}
-      {favoriteWorkflows.length > 0 && (
-        <div className="bg-flow-node/30 border border-flow-border/50 rounded-lg p-4">
-          {renderFavorites()}
-        </div>
-      )}
-
-      {/* Templates Gallery */}
-      {aiCapability.available && (
-        <TemplatesGallery onUseTemplate={onUseTemplate} />
-      )}
+      {/* Templates Gallery - Available regardless of AI capability */}
+      <TemplatesGallery onUseTemplate={onUseTemplate} />
     </div>
   );
 };
