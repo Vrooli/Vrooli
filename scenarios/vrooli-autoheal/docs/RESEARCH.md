@@ -4,7 +4,7 @@
 
 **Query**: `rg -l 'autoheal' scenarios/`
 
-**Result**: No existing scenarios implement autoheal functionality. The only references are to the legacy bash scripts in `scripts/maintenance/autoheal/`.
+**Result**: This is the only scenario implementing autoheal functionality. The legacy bash scripts (`scripts/maintenance/`) were removed in December 2024 after this scenario reached production-ready status.
 
 ## Related Scenarios
 
@@ -22,11 +22,13 @@
 - **Purpose**: Score scenario quality and completeness
 - **Relationship**: Unrelated - different domain (quality scoring vs infrastructure health)
 
-## Existing Autoheal Implementation
+## Legacy Autoheal Implementation (Removed)
 
-**Location**: `scripts/maintenance/autoheal/`
+> **Note**: The legacy bash scripts were removed in December 2024. This section is preserved for historical reference.
 
-### Current Architecture (Bash)
+**Former Location**: `scripts/maintenance/autoheal/` (deleted)
+
+### Previous Architecture (Bash)
 ```
 vrooli-autoheal.sh (main orchestrator)
 ├── autoheal/config.sh (configuration)

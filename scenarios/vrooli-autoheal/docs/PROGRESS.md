@@ -159,7 +159,8 @@
 
 1. **Core bootstrap logic** - Bootstrap Vrooli from cold state
 2. **OS watchdog installers** - systemd/launchd/Windows service generators
-3. **Migrate from legacy scripts/maintenance/** - Replace cron-based autoheal
+
+> **Note**: Legacy `scripts/maintenance/` was removed December 2024. This scenario is now the production autoheal implementation.
 
 ## Architecture
 

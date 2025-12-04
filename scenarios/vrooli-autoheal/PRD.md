@@ -146,6 +146,6 @@ interface HealthResult {
 
 ### Related Documentation
 
-- Existing autoheal scripts: `scripts/maintenance/autoheal/`
 - Maintenance orchestrator: `scenarios/maintenance-orchestrator/PRD.md`
 - System monitor: `scenarios/system-monitor/PRD.md`
+- Production guide: `docs/operations/production-guide.md`

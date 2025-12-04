@@ -118,7 +118,3 @@ cd test && ./run-tests.sh quick
 
 - **maintenance-orchestrator** - Controls activation of maintenance scenarios
 - **system-monitor** - Metrics and anomaly detection (complements autoheal)
-
-## Legacy Migration
-
-This scenario replaces `scripts/maintenance/autoheal/`. The legacy bash scripts remain for reference but should be deprecated once vrooli-autoheal is production-ready.
