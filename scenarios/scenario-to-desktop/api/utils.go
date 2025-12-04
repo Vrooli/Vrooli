@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func contains(list []string, item string) bool {
@@ -37,4 +38,18 @@ func detectVrooliRoot() string {
 		return "../../.."
 	}
 	return filepath.Clean(filepath.Join(currentDir, "../../.."))
+}
+
+// containsParentRef checks for attempts to traverse upward in a path.
+func containsParentRef(path string) bool {
+	if strings.Contains(path, "..") {
+		return true
+	}
+	parts := strings.Split(path, string(filepath.Separator))
+	for _, part := range parts {
+		if part == ".." || part == "." {
+			return true
+		}
+	}
+	return false
 }

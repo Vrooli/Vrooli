@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { List, Monitor, Zap } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Book, List, Monitor, Zap } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { BuildStatus } from "./components/BuildStatus";
 import { GeneratorForm } from "./components/GeneratorForm";
 import { ScenarioInventory } from "./components/scenario-inventory";
 import { DownloadButtons } from "./components/scenario-inventory/DownloadButtons";
 import { TelemetryUploadCard } from "./components/scenario-inventory/TelemetryUploadCard";
+import { DocsPanel } from "./components/docs/DocsPanel";
 import type { ScenarioDesktopStatus, ScenariosResponse } from "./components/scenario-inventory/types";
 import { StatsPanel } from "./components/StatsPanel";
 import { TemplateGrid } from "./components/TemplateGrid";
@@ -22,7 +23,7 @@ const queryClient = new QueryClient({
   }
 });
 
-type ViewMode = "generator" | "inventory";
+type ViewMode = "generator" | "inventory" | "docs";
 
 function AppContent() {
   const [selectedTemplate, setSelectedTemplate] = useState("basic");
@@ -31,6 +32,11 @@ function AppContent() {
   const [selectionSource, setSelectionSource] = useState<"inventory" | "manual" | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("inventory");
   const [activeStep, setActiveStep] = useState(2);
+  const [userPinnedStep, setUserPinnedStep] = useState(false);
+  const overviewRef = useRef<HTMLDivElement>(null);
+  const configureRef = useRef<HTMLDivElement>(null);
+  const buildRef = useRef<HTMLDivElement>(null);
+  const deliverRef = useRef<HTMLDivElement>(null);
 
   const { data: scenariosData } = useQuery<ScenariosResponse>({
     queryKey: ["scenarios-desktop-status"],
@@ -43,28 +49,53 @@ function AppContent() {
     [scenariosData, selectedScenarioName]
   );
 
+  const recommendedStep = useMemo(() => {
+    if (viewMode !== "generator") return 2;
+    if (selectedScenario?.build_artifacts?.length) return 4;
+    if (currentBuildId) return 3;
+    if (selectedScenarioName) return 2;
+    return 1;
+  }, [viewMode, selectedScenario?.build_artifacts?.length, currentBuildId, selectedScenarioName]);
+
   useEffect(() => {
-    if (viewMode !== "generator") return;
-    if (selectedScenario?.build_artifacts?.length) {
-      setActiveStep(4);
-      return;
-    }
-    if (currentBuildId) {
-      setActiveStep(3);
-      return;
-    }
-    if (selectedScenarioName) {
+    if (viewMode !== "generator") {
+      setUserPinnedStep(false);
       setActiveStep(2);
       return;
     }
-    setActiveStep(1);
-  }, [viewMode, selectedScenario?.build_artifacts?.length, currentBuildId, selectedScenarioName]);
+    // Only update automatically when the user hasn't pinned a step.
+    if (!userPinnedStep) {
+      setActiveStep(recommendedStep);
+    }
+  }, [viewMode, recommendedStep, userPinnedStep]);
 
   const handleInventorySelect = (scenario: ScenarioDesktopStatus) => {
     setSelectedScenarioName(scenario.name);
     setSelectionSource("inventory");
     setViewMode("generator");
-    setActiveStep(2);
+    setUserPinnedStep(false);
+  };
+
+  const scrollTargets: Record<number, RefObject<HTMLDivElement>> = useMemo(
+    () => ({
+      1: overviewRef,
+      2: configureRef,
+      3: buildRef,
+      4: deliverRef
+    }),
+    []
+  );
+
+  const handleStepSelect = (stepId: number) => {
+    setUserPinnedStep(true);
+    setActiveStep(stepId);
+    // Scroll after a short delay to ensure refs are on the page.
+    window.requestAnimationFrame(() => {
+      const target = scrollTargets[stepId]?.current;
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
   };
 
   const steps = [
@@ -75,7 +106,7 @@ function AppContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-slate-50 scroll-smooth">
       <div className="mx-auto max-w-7xl p-6">
         {/* Header */}
         <div className="mb-8 text-center">
@@ -117,51 +148,68 @@ function AppContent() {
               <Zap className="h-4 w-4" />
               Generate Desktop App
             </button>
+            <button
+              type="button"
+              className={cn(
+                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
+                viewMode === "docs"
+                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
+                  : "text-slate-300 hover:text-white"
+              )}
+              onClick={() => setViewMode("docs")}
+            >
+              <Book className="h-4 w-4" />
+              Docs
+            </button>
           </div>
         </div>
 
         {/* Conditional Content */}
         {viewMode === "inventory" ? (
           <ScenarioInventory onScenarioLaunch={handleInventorySelect} />
+        ) : viewMode === "docs" ? (
+          <DocsPanel />
         ) : (
           <>
-            <Stepper steps={steps} activeStep={activeStep} onStepSelect={setActiveStep} />
+            <Stepper steps={steps} activeStep={activeStep} onStepSelect={handleStepSelect} />
 
             <div className="space-y-6">
               {/* Step 1 */}
-              <Card className="border-slate-800/80 bg-slate-900/70">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
-                    Step 1 · Overview
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-6 lg:grid-cols-3">
-                  <div className="lg:col-span-2 space-y-2">
-                    <p className="text-lg font-semibold text-slate-50">
-                      Connect → Build → Deliver with telemetry awareness
-                    </p>
-                    <p className="text-sm text-slate-300">
-                      Start by understanding the journey: we link to your running scenario, package installers across
-                      platforms, then give you downloads and optional telemetry upload so deployment-manager can spot
-                      missing dependencies.
-                    </p>
-                    <a
-                      href="https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm text-blue-300 underline hover:text-blue-200"
-                    >
-                      Read the Desktop tier guide
-                    </a>
-                  </div>
-                  <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                    <StatsPanel />
-                  </div>
-                </CardContent>
-              </Card>
+              <div ref={overviewRef}>
+                <Card className="border-slate-800/80 bg-slate-900/70">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
+                      Step 1 · Overview
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-6 lg:grid-cols-3">
+                    <div className="lg:col-span-2 space-y-2">
+                      <p className="text-lg font-semibold text-slate-50">
+                        Connect → Build → Deliver with telemetry awareness
+                      </p>
+                      <p className="text-sm text-slate-300">
+                        Start by understanding the journey: we link to your running scenario, package installers across
+                        platforms, then give you downloads and optional telemetry upload so deployment-manager can spot
+                        missing dependencies.
+                      </p>
+                      <a
+                        href="https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm text-blue-300 underline hover:text-blue-200"
+                      >
+                        Read the Desktop tier guide
+                      </a>
+                    </div>
+                    <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                      <StatsPanel />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
               {/* Step 2 */}
-              <div className="grid gap-6 lg:grid-cols-2">
+              <div className="grid gap-6 lg:grid-cols-2" ref={configureRef}>
                 <Card className="border-blue-800/70 bg-slate-900/70">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
@@ -201,7 +249,7 @@ function AppContent() {
               </div>
 
               {/* Step 3 */}
-              <Card className="border-slate-800/80 bg-slate-900/70">
+              <Card className="border-slate-800/80 bg-slate-900/70" ref={buildRef}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
                     Step 3 · Build installers
@@ -219,7 +267,7 @@ function AppContent() {
               </Card>
 
               {/* Step 4 */}
-              <Card className="border-slate-800/80 bg-slate-900/70">
+              <Card className="border-slate-800/80 bg-slate-900/70" ref={deliverRef}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
                     Step 4 · Download & Telemetry

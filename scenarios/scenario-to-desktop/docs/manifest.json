@@ -1,0 +1,81 @@
+{
+  "version": "1.0.0",
+  "title": "Scenario-to-Desktop Documentation",
+  "description": "Desktop packaging guide for Vrooli scenarios",
+  "defaultDocument": "OVERVIEW.md",
+  "sections": [
+    {
+      "id": "overview",
+      "title": "Overview",
+      "icon": "info",
+      "documents": [
+        { "path": "OVERVIEW.md", "title": "Current vs Roadmap", "description": "Thin-client reality and bundling status" },
+        { "path": "deployment-modes.md", "title": "Deployment Modes", "description": "Choose deployment_mode and server_type" }
+      ]
+    },
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        { "path": "QUICKSTART.md", "title": "Quick Start", "description": "Thin-client generation via UI/CLI" }
+      ]
+    },
+    {
+      "id": "build",
+      "title": "Build & Troubleshoot",
+      "icon": "package",
+      "documents": [
+        { "path": "build-and-packaging.md", "title": "Build Checklist", "description": "Prereqs, commands, and outputs" },
+        { "path": "DEBUGGING_WINDOWS.md", "title": "Debugging Windows", "description": "Windows build/runtime troubleshooting" },
+        { "path": "WINE_INSTALLATION.md", "title": "Wine (No-Sudo)", "description": "Install Wine via Flatpak for Windows builds" }
+      ]
+    },
+    {
+      "id": "features",
+      "title": "Desktop Features",
+      "icon": "desktop",
+      "documents": [
+        { "path": "desktop-integration-guide.md", "title": "Desktop Feature Cookbook", "description": "File system, menus, tray, notifications" },
+        { "path": "../templates/README.md", "title": "Template System", "description": "Template types and generator details" },
+        { "path": "../templates/DESKTOP_WRAPPER_GUIDE.md", "title": "Wrapper Patterns", "description": "Server_type patterns and embeddings" }
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "Operations & Roadmap",
+      "icon": "activity",
+      "documents": [
+        { "path": "telemetry.md", "title": "Telemetry & Ops", "description": "deployment-telemetry.jsonl and auto-manage" },
+        { "path": "../runtime/README.md", "title": "Bundled Runtime (Roadmap)", "description": "Supervisor design for offline bundles" },
+        { "path": "../../../docs/deployment/scenarios/scenario-to-desktop.md", "title": "Deployment Hub", "description": "How desktop fits Tier 1/2 and deployment-manager" }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        { "path": "../README.md", "title": "Scenario README", "description": "Overview, limitations, installer matrix" },
+        { "path": "../PRD.md", "title": "PRD", "description": "Product requirements and success metrics" },
+        { "path": "../TEST_IMPLEMENTATION_SUMMARY.md", "title": "Tests", "description": "Test suite summary (coverage refresh needed)" },
+        { "path": "../requirements/README.md", "title": "Requirements Tracking", "description": "Requirement coverage registry" }
+      ]
+    },
+    {
+      "id": "standard",
+      "title": "Standard",
+      "icon": "clipboard",
+      "documents": [
+        { "path": "../PROGRESS.md", "title": "Progress Log", "description": "Development progress tracking" },
+        { "path": "../PROBLEMS.md", "title": "Known Issues", "description": "Current issues and blockers" },
+        { "path": "SEAMS.md", "title": "Seams", "description": "Integration points and boundaries" },
+        { "path": "../RESEARCH.md", "title": "Research", "description": "Research notes and open questions" }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["overview", "getting-started", "build", "features", "operations", "reference"],
+    "secondary": ["standard"]
+  }
+}

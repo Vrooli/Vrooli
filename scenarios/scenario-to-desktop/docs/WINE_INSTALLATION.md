@@ -187,5 +187,4 @@ If Flatpak is not available, Wine AppImages provide a portable Wine installation
 
 ---
 
-**Last Updated**: 2025-11-15
-**Maintained By**: Vrooli Team
+Refresh this guide after any build-toolchain change or Wine packaging update.

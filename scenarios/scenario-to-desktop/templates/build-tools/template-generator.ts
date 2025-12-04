@@ -36,6 +36,15 @@ interface DesktopConfig {
     auto_manage_tier1?: boolean; // Legacy alias from early builds
     proxy_url?: string;
     vrooli_binary_path?: string;
+    bundle_runtime_root?: string;
+    bundle_ipc?: {
+        host?: string;
+        port?: number;
+        auth_token_path?: string;
+    };
+    bundle_ui_service_id?: string;
+    bundle_ui_port_name?: string;
+    bundle_telemetry_upload_url?: string;
 
     // Template configuration
     framework: 'electron' | 'tauri' | 'neutralino';

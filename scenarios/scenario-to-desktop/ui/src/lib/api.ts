@@ -4,6 +4,39 @@ import type { ScenariosResponse } from "../components/scenario-inventory/types";
 const API_BASE = resolveApiBase({ appendSuffix: true });
 const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
 
+export interface DocsDocument {
+  path: string;
+  title: string;
+  description?: string;
+}
+
+export interface DocsSection {
+  id: string;
+  title: string;
+  icon?: string;
+  description?: string;
+  documents: DocsDocument[];
+}
+
+export interface DocsNavigation {
+  primary?: string[];
+  secondary?: string[];
+}
+
+export interface DocsManifest {
+  version: string;
+  title: string;
+  description?: string;
+  defaultDocument: string;
+  sections: DocsSection[];
+  navigation?: DocsNavigation;
+}
+
+export interface DocsContentResponse {
+  path: string;
+  content: string;
+}
+
 export interface HealthResponse {
   status: string;
   service: string;
@@ -373,5 +406,21 @@ export async function uploadTelemetry(payload: TelemetryUploadRequest): Promise<
     throw new Error(text || "Failed to upload telemetry");
   }
 
+  return response.json();
+}
+
+export async function fetchDocsManifest(): Promise<DocsManifest> {
+  const response = await fetch(buildUrl("/docs/manifest"));
+  if (!response.ok) {
+    throw new Error("Failed to load docs manifest");
+  }
+  return response.json();
+}
+
+export async function fetchDocContent(path: string): Promise<DocsContentResponse> {
+  const response = await fetch(buildUrl(`/docs/content?path=${encodeURIComponent(path)}`));
+  if (!response.ok) {
+    throw new Error("Failed to load document");
+  }
   return response.json();
 }

@@ -88,6 +88,13 @@ The API stores the events under `.vrooli/deployment/telemetry/picker-wheel.jsonl
 - **Proxy connection group** captures the Cloudflare/app-monitor URL right inside the Web UI, shows detected hints, and lets you test the proxy before building. You can also opt-in to have the desktop wrapper run `vrooli setup/start/stop` per build.
 - **Scenario inventory button** now expands into the same mini wizard, so "Generate Desktop" can’t happen without forcing a conscious deployment choice.
 
+## 📚 Documentation
+- Docs manifest for UI tab: `docs/manifest.json`
+- Start here: `docs/QUICKSTART.md` and `docs/deployment-modes.md`
+- Builds and troubleshooting: `docs/build-and-packaging.md`, `docs/DEBUGGING_WINDOWS.md`, `docs/WINE_INSTALLATION.md`
+- Feature cookbook: `docs/desktop-integration-guide.md`
+- Telemetry/ops: `docs/telemetry.md`
+
 ## 🎯 Overview
 
 scenario-to-desktop is a **permanent intelligence capability** for packaging scenarios. In v1 it focuses on rapid thin clients with native menus and distribution scaffolding. Offline capability, auto-updates, and bundled resources are roadmap items coordinated through the deployment hub.
@@ -97,7 +104,7 @@ scenario-to-desktop is a **permanent intelligence capability** for packaging sce
 - **🚀 Instant Desktop Apps**: Convert any scenario to desktop in minutes, not months (as a thin client today)
 - **💼 Professional Quality**: Native menus, OS integration, and future support for code signing/auto-updates
 - **🌍 Cross-Platform**: Windows, macOS, and Linux from a single generation
-- **⚡ Multiple Frameworks**: Electron (primary), Tauri, Neutralino support
+- **⚡ Frameworks**: Electron thin clients today; other frameworks are future stubs
 - **🎨 Template Variety**: Basic, Advanced, Multi-Window, and Kiosk mode applications
 - **🛠️ Complete Toolchain**: Generation, building, testing, packaging, and (future) distribution automation
 - **📊 Scenario Inventory**: NEW - View all scenarios and their desktop deployment status
@@ -123,81 +130,34 @@ scenario-to-desktop/
 
 ## 🚀 Quick Start
 
-### 1. Installation
-
+1) **Start the scenario with lifecycle**  
 ```bash
-# Install the CLI
-cd scenarios/scenario-to-desktop/cli
-./install.sh
-
-# Start the API server
-cd ../api
-make run
-
-# Start the web UI (optional)
-cd ../ui
-npm install && npm start
+cd scenarios/scenario-to-desktop
+make start        # preferred; or: vrooli scenario start scenario-to-desktop
 ```
 
-### 2. Discover Scenarios
+2) **Open the UI → Scenario Inventory**  
+Paste the LAN or Cloudflare/app-monitor proxy URL for the target scenario, keep `Deployment Mode = Thin Client`, pick platforms (Win/macOS/Linux), and click **Generate Desktop**.
 
+3) **Download installers + telemetry**  
+Built artifacts stay listed after refresh; collect `deployment-telemetry.jsonl` via the UI or `scenario-to-desktop telemetry collect`.
+
+4) **Stop when done**  
 ```bash
-# View all scenarios and their desktop status
-# Open the web UI at http://localhost:<UI_PORT>
-# Click "Scenario Inventory" tab to see:
-# - Which scenarios have desktop versions
-# - Which are built and ready to distribute
-# - One-click generation for scenarios without desktop support
+make stop   # or: vrooli scenario stop scenario-to-desktop
 ```
 
-### 3. Generate Your First Desktop App
-
-**🚀 NEW: One-Click Quick Generate** - The system now automatically detects scenario configuration!
-
+CLI-only/manual config example:
 ```bash
-# Method 1: Using the Web UI (Easiest - Recommended!)
-# 1. Open http://localhost:<UI_PORT>
-# 2. Go to "Scenario Inventory" tab
-# 3. Find your scenario and click "Generate Desktop"
-# 4. Watch real-time build progress
-# 5. Desktop app is auto-configured and ready!
+scenario-to-desktop generate <scenario> \
+  --deployment-mode external-server \
+  --server-type external \
+  --server-url https://app-monitor.<domain>/apps/<scenario>/proxy/ \
+  --api-url https://app-monitor.<domain>/apps/<scenario>/proxy/api/ \
+  --auto-manage-vrooli=false
+```
 
-# The system automatically:
-# - Reads scenario's .vrooli/service.json for metadata
-# - Detects UI port, API port, display name, version
-# - Validates that ui/dist/ is built
-# - Copies UI files to electron wrapper
-# - Generates fully-configured desktop app
-
-# Method 2: Using the API directly
-curl -X POST http://localhost:<API_PORT>/api/v1/desktop/generate/quick \
-  -H "Content-Type: application/json" \
-  -d '{"scenario_name": "picker-wheel", "template_type": "basic"}'
-
-# Method 3: Using the CLI (manual config)
-scenario-to-desktop generate picker-wheel
-
-# The desktop wrapper will be created at:
-# scenarios/picker-wheel/platforms/electron/
-
-# Advanced generation with custom options
-scenario-to-desktop generate picker-wheel \
-  --framework electron \
-  --template advanced \
-  --platforms win,mac,linux
-
-> 🔌 **Important**: after generation you must still make the target scenario reachable on your Vrooli server. The desktop build simply proxies to that running instance via the configuration described below.
-
-#### Deployment-aware CLI flags
-
-When you skip the UI and call `scenario-to-desktop generate` directly, the following flags now keep the workflow honest:
-
-- `--deployment-mode <external-server|cloud-api|bundled>` — choose Thin Client today; the other options remain stubs until deployment-manager issues bundle manifests.
-- `--server-type <external|static|node|executable>` — mirrors the UI's server strategy selector.
-- `--server-url` and `--api-url` — required for Thin Client builds so the wrapper knows exactly which Vrooli server host and API proxy to hit.
-- `--auto-manage-vrooli` (alias: `--auto-manage-tier1`) and `--vrooli-binary <path>` — toggle whether the generated Electron app should run `vrooli setup/start/stop` locally.
-
-You can still feed a full JSON config, but if you omit the URLs/intent the CLI refuses to generate so we never ship a "mystery" thin client again.
+Full walkthroughs: see `docs/QUICKSTART.md` and `docs/deployment-modes.md`.
 ```
 
 ### 4. Build Desktop Packages
@@ -234,221 +194,10 @@ npm run dist:win    # Build Windows MSI installer
    - macOS: `<name>-<version>.pkg`
    - Linux: `<name>-<version>.AppImage`, `<name>-<version>.deb`
 
-### 5. Install Wine (For Windows Builds on Linux)
+### 5. Windows builds (pointer)
 
-**🍷 Wine Installation - No Sudo Required!**
-
-Building Windows `.msi` installers on Linux requires Wine. You can install it **without sudo** using Flatpak:
-
-```bash
-# Add Flathub repository (user-space, no sudo)
-flatpak --user remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-
-# Install Wine (user-space, no sudo)
-flatpak --user install flathub org.winehq.Wine
-
-# Verify installation
-flatpak run org.winehq.Wine --version
-```
-
-**Making Wine Available to electron-builder**:
-
-Create a wrapper script so electron-builder can find Wine:
-
-```bash
-# Create wrapper script
-mkdir -p ~/.local/bin
-cat > ~/.local/bin/wine << 'EOF'
-#!/bin/bash
-exec flatpak run org.winehq.Wine "$@"
-EOF
-
-# Make executable
-chmod +x ~/.local/bin/wine
-
-# Add to PATH (add to ~/.bashrc or ~/.zshrc for persistence)
-export PATH="$HOME/.local/bin:$PATH"
-
-# Test it works
-wine --version
-```
-
-Now electron-builder will automatically use Wine for Windows builds!
-
-**Note**: If Flatpak is not available on your system, see [`docs/WINE_INSTALLATION.md`](docs/WINE_INSTALLATION.md) for alternative installation methods.
-
-### 6. Download and Test on Windows
-
-**🪟 Complete Windows Testing Workflow**
-
-scenario-to-desktop is designed to be built on your Linux server and tested on your Windows laptop. Here's the complete workflow:
-
-#### Method 1: Access Through app-monitor Tunnel (Recommended)
-
-```bash
-# On Linux Server:
-# 1. Start app-monitor (if not running)
-vrooli scenario start app-monitor
-
-# 2. Find app-monitor UI port
-vrooli scenario status app-monitor
-# Example output: UI running on port 37842
-
-# 3. Set up SSH tunnel from Windows laptop
-# Run this on your Windows laptop (in PowerShell/WSL/Git Bash):
-ssh -L 8080:localhost:37842 user@your-server-ip
-
-# 4. Access app-monitor from Windows browser
-# Open: http://localhost:8080
-
-# 5. Navigate to scenario-to-desktop
-# In app-monitor, click on "scenario-to-desktop" service
-# This will proxy to the actual scenario-to-desktop UI
-```
-
-#### Method 2: Direct Access (If Firewall Allows)
-
-```bash
-# On Linux Server:
-# 1. Find scenario-to-desktop UI port
-vrooli scenario status scenario-to-desktop
-# Example output: UI running on port 38123
-
-# 2. Access directly from Windows browser
-# Open: http://your-server-ip:38123
-```
-
-#### Download Process
-
-```bash
-# Step 1: Navigate to Scenario Inventory
-1. In scenario-to-desktop UI, click "Scenario Inventory" tab
-2. Find the scenario you want to test (e.g., "picker-wheel")
-3. Verify it has "Built" badge and shows 🪟 Windows platform
-
-# Step 2: Download Windows installer
-1. Click the "🪟 Windows" download button
-2. Browser will download the .msi file (e.g., picker-wheel-1.0.0.msi)
-3. Save to your Windows Downloads folder
-
-# Step 3: Install on Windows
-1. Navigate to Downloads folder
-2. Double-click the `.msi` file
-3. Windows SmartScreen warning will appear:
-   - Click "More info"
-   - Click "Run anyway"
-   (This is normal for unsigned apps)
-4. Follow the installation wizard:
-   - Choose install location
-   - Create desktop shortcut (optional)
-   - Click "Install"
-
-# Step 4: Test the Desktop App
-1. Launch the installed application from Start Menu or Desktop
-2. Verify the app starts successfully
-3. Test all functionality:
-   - UI renders correctly
-   - API calls work (if applicable)
-   - Desktop-specific features work (file save, etc.)
-4. Check for any errors in the app
-```
-
-#### Troubleshooting Windows Installation
-
-**Issue: Windows SmartScreen blocks installation**
-```
-Solution: This is expected for unsigned apps.
-- Click "More info" on the SmartScreen warning
-- Click "Run anyway"
-- App will install normally
-
-For production apps, you should sign the executable with a code signing certificate.
-```
-
-**Issue: "App can't run on your PC"**
-```
-Solution: Architecture mismatch
-- Check if you downloaded the correct architecture
-- electron-builder defaults to x64 (64-bit)
-- If you need ia32 (32-bit), rebuild with --ia32 flag
-```
-
-**Issue: App crashes on startup**
-```
-Solution: Missing dependencies
-- Install Microsoft Visual C++ Redistributable
-- Download from: https://aka.ms/vs/17/release/vc_redist.x64.exe
-- This is automatically included in most Windows 10/11 installations
-```
-
-**Issue: Download fails or times out**
-```
-Solution: Large file size
-- Desktop packages can be 50-150 MB
-- Ensure stable network connection
-- If using SSH tunnel, connection must remain active during download
-- Try Method 2 (Direct Access) if tunnel is unstable
-```
-
-#### Download API Reference
-
-**Download URL Pattern**:
-```
-http://localhost:<API_PORT>/api/v1/desktop/download/<scenario-name>/<platform>
-
-Examples:
-- Windows: GET /api/v1/desktop/download/picker-wheel/win
-- macOS:   GET /api/v1/desktop/download/picker-wheel/mac
-- Linux:   GET /api/v1/desktop/download/picker-wheel/linux
-
-Response: Binary file (application/x-msi for .msi)
-Filename: <scenario-name>-<version>.msi
-```
-
-**Direct Download from Command Line** (if you know the port):
-```bash
-# From Windows PowerShell
-Invoke-WebRequest -Uri "http://your-server:38123/api/v1/desktop/download/picker-wheel/win" -OutFile "picker-wheel.msi"
-
-# From WSL/Git Bash
-curl -O "http://your-server:38123/api/v1/desktop/download/picker-wheel/win"
-```
-
-#### Security Considerations
-
-When testing desktop apps from a remote server:
-
-1. **SSH Tunnel is Recommended**: Encrypts traffic between Windows and Linux server
-2. **Verify Downloads**: Check file size matches expected (shown in UI)
-3. **Unsigned Binaries**: Dev/test builds are unsigned - this is normal
-4. **Firewall Rules**: Only open ports if you trust your network
-5. **Production**: For production, use proper code signing and HTTPS
-
-#### Building Signed Windows Apps
-
-For production distribution, you need to sign the installer:
-
-```bash
-# Step 1: Obtain a code signing certificate
-# - Purchase from: DigiCert, Sectigo, GlobalSign, etc.
-# - Cost: ~$200-400/year
-
-# Step 2: Export certificate with private key as .pfx file
-
-# Step 3: Configure electron-builder in package.json
-{
-  "build": {
-    "win": {
-      "certificateFile": "./cert.pfx",
-      "certificatePassword": "YOUR_PASSWORD",
-      "signDlls": true
-    }
-  }
-}
-
-# Step 4: Build will automatically sign
-npm run dist:win
-```
+- For Windows builds on Linux, follow `docs/WINE_INSTALLATION.md` for a no-sudo Wine setup.
+- For runtime/build troubleshooting on Windows, see `docs/DEBUGGING_WINDOWS.md`.
 
 ### 6. Development and Testing
 
@@ -1169,4 +918,4 @@ cd ui && npm install && npm start
 
 *scenario-to-desktop is part of Vrooli's recursive intelligence system, where every capability built becomes a permanent tool for building even more advanced capabilities. Each desktop app generated contributes to the ever-expanding intelligence of the platform.*
 
-**Version**: 1.0.0 | **Status**: Production Ready | **License**: MIT
+**Version**: 1.0.0 | **Status**: Thin-client only (bundled/cloud modes stubbed) | **License**: MIT

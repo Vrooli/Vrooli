@@ -47,12 +47,12 @@ func NewServer(port int) *Server {
 	}))
 
 	server := &Server{
-		router:        mux.NewRouter(),
-		port:          port,
-		builds:        NewBuildStore(),
-		wineInstalls:  make(map[string]*WineInstallStatus),
-		templateDir:   "../templates", // Templates are in parent directory when running from api/
-		logger:        logger,
+		router:       mux.NewRouter(),
+		port:         port,
+		builds:       NewBuildStore(),
+		wineInstalls: make(map[string]*WineInstallStatus),
+		templateDir:  "../templates", // Templates are in parent directory when running from api/
+		logger:       logger,
 	}
 
 	server.setupRoutes()
@@ -101,6 +101,10 @@ func (s *Server) setupRoutes() {
 
 	// Webhook endpoints
 	s.router.HandleFunc("/api/v1/desktop/webhook/build-complete", s.buildCompleteWebhookHandler).Methods("POST")
+
+	// Docs for in-app browser
+	s.router.HandleFunc("/api/v1/docs/manifest", s.docsManifestHandler).Methods("GET")
+	s.router.HandleFunc("/api/v1/docs/content", s.docsContentHandler).Methods("GET")
 
 	// System capabilities and dependencies
 	s.router.HandleFunc("/api/v1/system/wine/check", s.checkWineHandler).Methods("GET")

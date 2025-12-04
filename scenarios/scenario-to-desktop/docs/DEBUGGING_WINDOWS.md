@@ -234,5 +234,4 @@ When reporting issues, include:
 
 ---
 
-**Last Updated**: 2025-11-15
-**Version**: 1.0.0
+Review this guide after major Electron/template changes or Windows packaging updates.

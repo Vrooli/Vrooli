@@ -2,78 +2,21 @@
 
 ## Overview
 
-This guide shows how to add desktop-specific features to your scenario after generating a desktop app with scenario-to-desktop. The desktop wrapper provides a universal Electron template that works with any Vrooli scenario built with React/Vite/TypeScript.
+This guide is a feature cookbook for enhancing the generated Electron wrapper. Use it after completing the thin-client quickstart in `docs/QUICKSTART.md`.
 
-## Quick Start
-
-### 1. Generate Desktop Wrapper
-
-```bash
-# Method 1: Using the UI (recommended)
-# - Visit http://localhost:<UI_PORT>
-# - Go to "Scenario Inventory" tab
-# - Find your scenario and click "Generate Desktop"
-
-# Method 2: Using the CLI
-scenario-to-desktop generate <your-scenario-name>
-
-# Method 3: Using the API directly
-curl -X POST http://localhost:<API_PORT>/api/v1/desktop/generate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "app_name": "your-scenario-name",
-    "app_display_name": "Your App Name",
-    "framework": "electron",
-    "template_type": "basic"
-  }'
-```
-
-### 2. File Structure
-
-After generation, your scenario will have this structure:
+## File Structure (generated)
 
 ```
-scenarios/<your-scenario>/
-├── api/                    # Your Go API (existing)
-├── cli/                    # Your CLI tool (existing)
-├── ui/                     # Your React web app (existing)
-└── platforms/              # NEW: Deployment targets
-    └── electron/           # Desktop wrapper
-        ├── main.ts        # Electron main process
-        ├── preload.ts     # Bridge between Electron and your UI
-        ├── package.json   # Desktop dependencies
-        ├── tsconfig.json  # TypeScript config
-        ├── splash.html    # Splash screen
-        ├── assets/        # Icons for all platforms
-        │   ├── icon.icns  # macOS icon
-        │   ├── icon.ico   # Windows icon
-        │   └── icon.png   # Linux icon
-        ├── dist/          # Compiled TypeScript (git-ignored)
-        └── dist-electron/ # Built packages (git-ignored)
-```
-
-### 3. Build Your Desktop App
-
-```bash
-# 1. Build your web UI first (required)
-cd ui
-npm run build
-
-# 2. Navigate to desktop wrapper
-cd ../platforms/electron
-
-# 3. Install dependencies
-npm install
-
-# 4. Development mode (with hot reload)
-npm run dev
-
-# 5. Build for distribution
-npm run dist              # Current platform only
-npm run dist:win          # Windows
-npm run dist:mac          # macOS
-npm run dist:linux        # Linux
-npm run dist:all          # All platforms
+scenarios/<scenario>/
+└── platforms/electron/
+    ├── main.ts             # Electron main process
+    ├── preload.ts          # Secure IPC bridge
+    ├── package.json        # Desktop dependencies
+    ├── tsconfig.json
+    ├── splash.html
+    ├── assets/             # Icons for all platforms
+    ├── dist/               # Compiled TypeScript (git-ignored)
+    └── dist-electron/      # Built packages (git-ignored)
 ```
 
 ## Desktop Features

@@ -14,23 +14,22 @@ requirements/
 
 ## Requirements Status
 
-**Overall Progress**: 6/7 P0 requirements complete (85.7%)
+**Overall Progress**: Electron thin-client path is functional; other frameworks and bundled modes remain future work.
 
-### Complete ✅
-- **Template Generation**: All 4 Electron templates working
-- **Development Tooling**: CLI, API, tests all functional
-- **Native Features**: System tray, menus, file dialogs in templates
-- **API Integration**: Secure IPC patterns implemented
-- **Auto-updater**: Hooks in all templates
-- **Multi-framework (Electron)**: Primary framework fully functional
+### Stable Today ✅
+- Template generation for Electron (multiple template configs)
+- Development tooling (CLI, API, UI) and accompanying tests
+- Native features in templates (tray, menus, file dialogs)
+- API integration patterns (secure IPC, external server wiring)
+- Auto-updater hooks available (requires manual signing/publish setup)
 
-### Partial ⚠️
-- **Cross-platform Packaging**: Structure exists, requires electron-builder for full builds
+### Partial / Requires Environment ⚠️
+- Cross-platform packaging depends on electron-builder and platform prerequisites (e.g., Wine for Windows on Linux)
 
 ### Future (P2) 🔮
-- **Tauri/Neutralino**: Alternative frameworks
-- **Code Signing**: Certificate-based signing
-- **App Store Automation**: Automated submission
+- Tauri/Neutralino frameworks
+- Code signing and notarization automation
+- App store submission automation
 
 ## Validation
 
@@ -51,7 +50,7 @@ requirements/
 ### UI Tests
 - **ui/src/components/__tests__/**: 7/7 tests passing
 
-**Total**: 73/73 tests passing (100%)
+**Total**: Tests exist across API/CLI/UI/e2e; rerun suites to refresh pass/fail and coverage before reporting numbers.
 
 ## Reference Implementations
 
@@ -70,4 +69,4 @@ node scripts/requirements/report.js --scenario scenario-to-desktop --format mark
 ```
 
 ## Last Updated
-2025-11-14 - Initial requirements tracking system established
+Needs refresh after the next full test run and requirement sync.
