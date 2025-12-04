@@ -170,9 +170,9 @@ func TestDNSCheckRunWithMock_DefaultResolver(t *testing.T) {
 // [REQ:HEAL-ACTION-001]
 func TestDNSCheckRecoveryActions(t *testing.T) {
 	tests := []struct {
-		name             string
-		caps             *platform.Capabilities
-		expectAvailable  map[string]bool
+		name            string
+		caps            *platform.Capabilities
+		expectAvailable map[string]bool
 	}{
 		{
 			name: "linux with systemd",

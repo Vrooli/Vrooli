@@ -113,9 +113,9 @@ export const TemplatesGallery: React.FC<TemplatesGalleryProps> = ({ onUseTemplat
   const categories = ['testing', 'scraping', 'forms', 'monitoring'] as const;
 
   return (
-    <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
+    <div className="bg-flow-surface border border-flow-border rounded-lg p-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-gray-300">Templates</h3>
+        <h3 className="text-sm font-medium text-flow-text-secondary">Templates</h3>
       </div>
 
       {/* Category filters */}
@@ -124,8 +124,8 @@ export const TemplatesGallery: React.FC<TemplatesGalleryProps> = ({ onUseTemplat
           onClick={() => setSelectedCategory(null)}
           className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
             selectedCategory === null
-              ? 'bg-gray-600 text-white border-gray-500'
-              : 'text-gray-400 border-gray-700 hover:border-gray-600 hover:text-gray-300'
+              ? 'bg-flow-accent text-white border-flow-accent'
+              : 'text-flow-text-secondary border-flow-border hover:border-flow-border-light hover:text-white'
           }`}
         >
           All
@@ -137,7 +137,7 @@ export const TemplatesGallery: React.FC<TemplatesGalleryProps> = ({ onUseTemplat
             className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
               selectedCategory === cat
                 ? categoryColors[cat]
-                : 'text-gray-400 border-gray-700 hover:border-gray-600 hover:text-gray-300'
+                : 'text-flow-text-secondary border-flow-border hover:border-flow-border-light hover:text-white'
             }`}
           >
             {categoryLabels[cat]}
@@ -151,7 +151,7 @@ export const TemplatesGallery: React.FC<TemplatesGalleryProps> = ({ onUseTemplat
           <div
             key={template.id}
             onClick={() => onUseTemplate(template.prompt, template.name)}
-            className="group flex items-start gap-3 p-3 bg-gray-900/50 hover:bg-gray-800/80 border border-gray-700/50 hover:border-gray-600/50 rounded-lg cursor-pointer transition-all"
+            className="group flex items-start gap-3 p-3 bg-flow-node/50 hover:bg-flow-node-hover border border-flow-border/50 hover:border-flow-border rounded-lg cursor-pointer transition-all"
           >
             <div className={`flex items-center justify-center w-9 h-9 rounded-lg ${categoryColors[template.category].split(' ')[0]} ${categoryColors[template.category].split(' ')[1]}`}>
               {template.icon}
@@ -160,7 +160,7 @@ export const TemplatesGallery: React.FC<TemplatesGalleryProps> = ({ onUseTemplat
               <div className="text-sm text-white font-medium truncate group-hover:text-blue-300 transition-colors">
                 {template.name}
               </div>
-              <div className="text-xs text-gray-500 line-clamp-2">
+              <div className="text-xs text-flow-text-muted line-clamp-2">
                 {template.description}
               </div>
             </div>

@@ -617,6 +617,15 @@ function Header({
     }
   }, [currentWorkflow?.id]);
 
+  // Listen for execute-workflow event from keyboard shortcut
+  useEffect(() => {
+    const handleExecuteEvent = () => {
+      void handleExecute();
+    };
+    window.addEventListener('execute-workflow', handleExecuteEvent);
+    return () => window.removeEventListener('execute-workflow', handleExecuteEvent);
+  }, [currentWorkflow, isExecuting, isDirty, startExecution, saveWorkflow]);
+
   return (
     <>
       <header

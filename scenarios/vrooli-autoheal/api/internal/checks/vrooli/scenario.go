@@ -272,23 +272,34 @@ func (c *ScenarioCheck) ExecuteAction(ctx context.Context, actionID string) chec
 }
 
 // verifyRecovery checks that the scenario is actually healthy after a start/restart action
+// Uses polling with timeout instead of fixed sleep for reliable verification.
 func (c *ScenarioCheck) verifyRecovery(ctx context.Context, result checks.ActionResult, actionID string, start time.Time) checks.ActionResult {
-	// Wait for scenario to initialize (scenarios typically need more time than resources)
-	time.Sleep(5 * time.Second)
+	// Configure polling: scenarios typically need more time than resources to initialize
+	pollConfig := checks.PollConfig{
+		Timeout:      45 * time.Second, // Longer timeout for scenarios
+		Interval:     3 * time.Second,
+		InitialDelay: 5 * time.Second, // Initial delay for scenario startup
+	}
 
-	// Check scenario status
-	checkResult := c.Run(ctx)
+	// Poll until healthy or timeout
+	pollResult := checks.PollForSuccess(ctx, c, pollConfig)
 	result.Duration = time.Since(start)
 
-	if checkResult.Status == checks.StatusOK {
+	if pollResult.Success {
 		result.Success = true
-		result.Message = c.scenarioName + " scenario " + actionID + " successful and verified healthy"
-		result.Output += "\n\n=== Verification ===\n" + checkResult.Message
+		result.Message = fmt.Sprintf("%s scenario %s successful and verified healthy", c.scenarioName, actionID)
+		if pollResult.FinalResult != nil {
+			result.Output += "\n\n=== Verification ===\n" + pollResult.FinalResult.Message
+		}
+		result.Output += fmt.Sprintf("\n(verified after %d attempts in %s)", pollResult.Attempts, pollResult.Elapsed.Round(time.Millisecond))
 	} else {
 		result.Success = false
 		result.Error = "Scenario not healthy after " + actionID
-		result.Message = c.scenarioName + " scenario " + actionID + " completed but verification failed"
-		result.Output += "\n\n=== Verification Failed ===\n" + checkResult.Message
+		result.Message = fmt.Sprintf("%s scenario %s completed but verification failed", c.scenarioName, actionID)
+		if pollResult.FinalResult != nil {
+			result.Output += "\n\n=== Verification Failed ===\n" + pollResult.FinalResult.Message
+		}
+		result.Output += fmt.Sprintf("\n(failed after %d attempts in %s)", pollResult.Attempts, pollResult.Elapsed.Round(time.Millisecond))
 	}
 
 	return result

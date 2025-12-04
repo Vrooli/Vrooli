@@ -10,13 +10,13 @@ import (
 
 // mockExecutor implements checks.CommandExecutor for testing.
 type mockExecutor struct {
-	outputResult        []byte
-	outputErr           error
+	outputResult         []byte
+	outputErr            error
 	combinedOutputResult []byte
-	combinedOutputErr   error
-	runErr              error
-	lastCommand         string
-	lastArgs            []string
+	combinedOutputErr    error
+	runErr               error
+	lastCommand          string
+	lastArgs             []string
 }
 
 func (m *mockExecutor) Output(ctx context.Context, name string, args ...string) ([]byte, error) {

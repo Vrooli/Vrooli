@@ -103,14 +103,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   // Render AI-enabled quick start (prominent)
   const renderAIQuickStart = () => (
-    <div className="bg-gradient-to-br from-purple-900/30 via-blue-900/20 to-gray-900 border border-purple-500/30 rounded-xl p-6">
+    <div className="card-gradient-purple border border-purple-500/30 rounded-xl p-6">
       <div className="flex items-center gap-3 mb-4">
         <div className="flex items-center justify-center w-12 h-12 bg-purple-500/20 rounded-xl">
           <Sparkles size={24} className="text-purple-400" />
         </div>
         <div>
           <h2 className="text-lg font-semibold text-white">Create New Automation</h2>
-          <p className="text-sm text-gray-400">Describe what you want to automate in plain English</p>
+          <p className="text-sm text-flow-text-muted">Describe what you want to automate in plain English</p>
         </div>
       </div>
 
@@ -121,13 +121,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="e.g., Log into example.com and take a screenshot of the dashboard..."
-            className="w-full px-4 py-4 pr-28 bg-gray-800/80 border border-gray-600/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/30 transition-colors text-base"
+            className="w-full px-4 py-4 pr-28 bg-flow-node border border-flow-border rounded-lg text-white placeholder-flow-text-muted focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/30 transition-colors text-base"
             disabled={isGenerating}
           />
           <button
             type="submit"
             disabled={!prompt.trim() || isGenerating}
-            className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-flow-text-muted disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center gap-2"
           >
             {isGenerating ? (
               <>
@@ -149,15 +149,15 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           <button
             key={index}
             onClick={() => handleExampleClick(example)}
-            className="px-3 py-1.5 text-xs text-gray-400 bg-gray-800/50 hover:bg-gray-700/50 hover:text-gray-300 border border-gray-700/50 rounded-full transition-colors"
+            className="px-3 py-1.5 text-xs text-flow-text-secondary bg-flow-node/60 hover:bg-flow-node-hover hover:text-white border border-flow-border/50 rounded-full transition-colors"
           >
             {example.length > 40 ? example.slice(0, 40) + '...' : example}
           </button>
         ))}
       </div>
 
-      <div className="flex items-center gap-4 pt-4 border-t border-gray-700/50">
-        <span className="text-xs text-gray-500">or</span>
+      <div className="flex items-center gap-4 pt-4 border-t border-flow-border/50">
+        <span className="text-xs text-flow-text-muted">or</span>
         <button
           onClick={onCreateManual}
           className="text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1.5"
@@ -171,14 +171,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   // Render manual-first quick start (when AI not available)
   const renderManualQuickStart = () => (
-    <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6">
+    <div className="bg-flow-surface border border-flow-border rounded-xl p-6">
       <div className="flex items-center gap-3 mb-4">
         <div className="flex items-center justify-center w-12 h-12 bg-blue-500/20 rounded-xl">
           <Bot size={24} className="text-blue-400" />
         </div>
         <div>
           <h2 className="text-lg font-semibold text-white">Create New Automation</h2>
-          <p className="text-sm text-gray-400">Build visual workflows to automate browser tasks</p>
+          <p className="text-sm text-flow-text-muted">Build visual workflows to automate browser tasks</p>
         </div>
       </div>
 
@@ -190,7 +190,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           <Plus size={20} className="text-blue-400 mt-0.5" />
           <div>
             <div className="font-medium text-white">Create Manually</div>
-            <div className="text-xs text-gray-400 mt-1">
+            <div className="text-xs text-flow-text-muted mt-1">
               Use the visual drag-and-drop workflow builder
             </div>
           </div>
@@ -198,12 +198,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
         <button
           onClick={() => onUseTemplate(examplePrompts[0], 'Login Test')}
-          className="flex items-start gap-3 p-4 bg-gray-700/30 hover:bg-gray-700/50 border border-gray-600/50 hover:border-gray-600 rounded-lg transition-colors text-left"
+          className="flex items-start gap-3 p-4 bg-flow-node/50 hover:bg-flow-node-hover border border-flow-border/50 hover:border-flow-border rounded-lg transition-colors text-left"
         >
-          <FolderOpen size={20} className="text-gray-400 mt-0.5" />
+          <FolderOpen size={20} className="text-flow-text-secondary mt-0.5" />
           <div>
             <div className="font-medium text-white">Start from Template</div>
-            <div className="text-xs text-gray-400 mt-1">
+            <div className="text-xs text-flow-text-muted mt-1">
               Choose from pre-built automation patterns
             </div>
           </div>
@@ -258,11 +258,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         <div className="flex-1 min-w-0">
           <div className="text-sm text-blue-300">Continue editing</div>
           <div className="font-medium text-white truncate">{lastEditedWorkflow.name}</div>
-          <div className="text-xs text-gray-500 mt-0.5">
+          <div className="text-xs text-flow-text-muted mt-0.5">
             {lastEditedWorkflow.projectName} · Edited {formatDistanceToNow(lastEditedWorkflow.updatedAt, { addSuffix: true })}
           </div>
         </div>
-        <ChevronRight size={20} className="text-gray-500 group-hover:text-gray-400 transition-colors" />
+        <ChevronRight size={20} className="text-flow-text-muted group-hover:text-flow-text-secondary transition-colors" />
       </button>
     );
   };
@@ -274,7 +274,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+          <h3 className="text-sm font-medium text-flow-text-secondary flex items-center gap-2">
             <Star size={14} className="text-amber-400" />
             Favorites
           </h3>
@@ -283,7 +283,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           {favoriteWorkflows.slice(0, 5).map((workflow) => (
             <div
               key={workflow.id}
-              className="flex items-center gap-3 p-3 bg-gray-800/50 hover:bg-gray-800 border border-gray-700/50 rounded-lg group transition-colors"
+              className="flex items-center gap-3 p-3 bg-flow-node/50 hover:bg-flow-node border border-flow-border/50 rounded-lg group transition-colors"
             >
               <button
                 onClick={() => removeFavorite(workflow.id)}
@@ -299,11 +299,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div className="font-medium text-white truncate group-hover:text-blue-300 transition-colors">
                   {workflow.name}
                 </div>
-                <div className="text-xs text-gray-500">{workflow.projectName}</div>
+                <div className="text-xs text-flow-text-muted">{workflow.projectName}</div>
               </button>
               <button
                 onClick={() => onRunWorkflow(workflow.id)}
-                className="p-2 text-gray-500 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                className="p-2 text-flow-text-muted hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                 title="Run workflow"
               >
                 <Play size={14} />
@@ -320,7 +320,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     if (runningExecutions.length === 0) return null;
 
     return (
-      <div className="bg-gradient-to-r from-green-900/20 via-emerald-900/15 to-gray-900 border border-green-500/30 rounded-xl p-4">
+      <div className="card-gradient-green border border-green-500/30 rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-white flex items-center gap-2">
             <div className="relative">
@@ -337,7 +337,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           {runningExecutions.slice(0, 3).map((execution) => (
             <div
               key={execution.id}
-              className="flex items-center gap-3 p-3 bg-gray-800/50 border border-green-500/20 rounded-lg group"
+              className="flex items-center gap-3 p-3 bg-flow-node/50 border border-green-500/20 rounded-lg group"
             >
               <div className="flex-shrink-0">
                 <Loader2 size={16} className="text-green-400 animate-spin" />
@@ -346,7 +346,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div className="font-medium text-white text-sm truncate">
                   {execution.workflowName}
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-flow-text-muted">
                   {execution.projectName && `${execution.projectName} · `}
                   Started {formatDistanceToNow(execution.startedAt, { addSuffix: true })}
                 </div>
@@ -354,14 +354,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => onViewExecution(execution.id, execution.workflowId)}
-                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                  className="p-2 text-flow-text-secondary hover:text-white hover:bg-flow-node-hover rounded-lg transition-colors"
                   title="View execution"
                 >
                   <Eye size={14} />
                 </button>
                 <button
                   onClick={() => handleStopExecution(execution.id)}
-                  className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                  className="p-2 text-flow-text-secondary hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
                   title="Stop execution"
                 >
                   <Square size={14} />
@@ -395,13 +395,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
       {/* Recent Workflows - Elevated as a primary section */}
       {recentWorkflows.length > 0 && (
-        <div className="bg-gray-800/40 border border-gray-700/60 rounded-xl p-5">
+        <div className="bg-flow-surface border border-flow-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-white flex items-center gap-2">
               <Clock size={18} className="text-blue-400" />
               Recent Workflows
             </h2>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-flow-text-muted">
               Quick access to your latest work
             </span>
           </div>
@@ -411,14 +411,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               return (
                 <div
                   key={workflow.id}
-                  className="flex items-center gap-3 p-3 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700/40 hover:border-gray-600/60 rounded-lg group transition-all"
+                  className="flex items-center gap-3 p-3 bg-flow-node/50 hover:bg-flow-node-hover border border-flow-border/40 hover:border-flow-border rounded-lg group transition-all"
                 >
                   <button
                     onClick={() => handleToggleFavorite(workflow)}
                     className={`flex-shrink-0 transition-colors ${
                       starred
                         ? 'text-amber-400 hover:text-amber-300'
-                        : 'text-gray-600 hover:text-amber-400'
+                        : 'text-flow-text-muted hover:text-amber-400'
                     }`}
                     title={starred ? 'Remove from favorites' : 'Add to favorites'}
                   >
@@ -431,7 +431,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     <div className="font-medium text-white truncate group-hover:text-blue-300 transition-colors">
                       {workflow.name}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-flow-text-muted">
                       {workflow.projectName} · {formatDistanceToNow(workflow.updatedAt, { addSuffix: true })}
                     </div>
                   </button>
@@ -439,14 +439,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
                       onClick={() => onNavigateToWorkflow(workflow.projectId, workflow.id)}
-                      className="p-2 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                      className="p-2 text-flow-text-muted hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
                       title="Edit workflow"
                     >
                       <Pencil size={14} />
                     </button>
                     <button
                       onClick={() => onRunWorkflow(workflow.id)}
-                      className="p-2 text-gray-500 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
+                      className="p-2 text-flow-text-muted hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
                       title="Run workflow"
                     >
                       <Play size={14} />
@@ -461,7 +461,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
       {/* Favorites Section - Secondary but visible */}
       {favoriteWorkflows.length > 0 && (
-        <div className="bg-gray-800/30 border border-gray-700/50 rounded-lg p-4">
+        <div className="bg-flow-node/30 border border-flow-border/50 rounded-lg p-4">
           {renderFavorites()}
         </div>
       )}

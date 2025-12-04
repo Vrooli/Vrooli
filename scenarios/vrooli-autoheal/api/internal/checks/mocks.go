@@ -400,13 +400,13 @@ func NewMockDNSResolver() *MockDNSResolver {
 
 // CertInfo contains certificate information
 type CertInfo struct {
-	Subject    string
-	Issuer     string
-	NotBefore  time.Time
-	NotAfter   time.Time
-	DNSNames   []string
-	IsValid    bool
-	DaysUntil  int
+	Subject   string
+	Issuer    string
+	NotBefore time.Time
+	NotAfter  time.Time
+	DNSNames  []string
+	IsValid   bool
+	DaysUntil int
 }
 
 // TLSDialer abstracts TLS connection for testability.

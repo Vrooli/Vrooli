@@ -141,7 +141,9 @@ describe("ProjectDetail workflow execution [REQ:BAS-EXEC-TELEMETRY-AUTOMATION]",
       return Promise.reject(new Error(`Unhandled fetch call for ${url}`));
     });
 
-    global.fetch = fetchMock as unknown as typeof fetch;
+    const mockFetch = fetchMock as unknown as typeof fetch;
+    global.fetch = mockFetch;
+    window.fetch = mockFetch;
   });
 
   afterEach(() => {

@@ -601,10 +601,19 @@ interface GeneratorFormProps {
   selectedTemplate: string;
   onTemplateChange: (template: string) => void;
   onBuildStart: (buildId: string) => void;
+  scenarioName: string;
+  onScenarioNameChange: (name: string) => void;
+  selectionSource?: "inventory" | "manual" | null;
 }
 
-export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart }: GeneratorFormProps) {
-  const [scenarioName, setScenarioName] = useState("");
+export function GeneratorForm({
+  selectedTemplate,
+  onTemplateChange,
+  onBuildStart,
+  scenarioName,
+  onScenarioNameChange,
+  selectionSource
+}: GeneratorFormProps) {
   const [useDropdown, setUseDropdown] = useState(true);
   const [framework, setFramework] = useState("electron");
   const [serverType, setServerType] = useState<ServerType>(DEFAULT_SERVER_TYPE);
@@ -745,6 +754,11 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
+    if (!scenarioName) {
+      alert("Please select a scenario before generating a desktop app.");
+      return;
+    }
+
     const validationMessage = validateGeneratorInputs({
       selectedPlatforms: selectedPlatformsList,
       decision: connectionDecision,
@@ -816,20 +830,25 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Rocket className="h-5 w-5" />
-          Generate Desktop App
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <CardTitle className="flex items-center gap-2">
+        <Rocket className="h-5 w-5" />
+        Generate Desktop App
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      <form onSubmit={handleSubmit} className="space-y-4">
+          {selectionSource === "inventory" && scenarioName && (
+            <div className="rounded-lg border border-blue-800/60 bg-blue-950/30 px-3 py-2 text-sm text-blue-100">
+              Loaded from Scenario Inventory: <span className="font-semibold">{scenarioName}</span>. Feel free to tweak settings before generating.
+            </div>
+          )}
           <ScenarioSelector
             scenarioName={scenarioName}
             useDropdown={useDropdown}
             loadingScenarios={loadingScenarios}
             scenariosData={scenariosData}
             selectedScenario={selectedScenario}
-            onScenarioChange={setScenarioName}
+            onScenarioChange={onScenarioNameChange}
             onToggleInput={() => setUseDropdown(!useDropdown)}
             onLoadSaved={
               selectedScenario?.connection_config

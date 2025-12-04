@@ -151,20 +151,20 @@ func TestDisplayManagerCheckRunGDMActive(t *testing.T) {
 func TestDisplayManagerCheckRunDMNotActive(t *testing.T) {
 	mockExec := checks.NewMockExecutor()
 	// Graphical target is default
-	setMockResponse(mockExec,"systemctl get-default", []byte("graphical.target\n"), nil)
+	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
 	// GDM exists but is not active
-	setMockResponse(mockExec,"systemctl is-active gdm", []byte("inactive\n"), errors.New("inactive"))
+	setMockResponse(mockExec, "systemctl is-active gdm", []byte("inactive\n"), errors.New("inactive"))
 	// Check enabled status
-	setMockResponse(mockExec,"systemctl is-enabled gdm", []byte("enabled\n"), nil)
+	setMockResponse(mockExec, "systemctl is-enabled gdm", []byte("enabled\n"), nil)
 	// Other DMs not found
 	for _, dm := range supportedDisplayManagers {
 		if dm != "gdm" {
-			setMockResponse(mockExec,"systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
-			setMockResponse(mockExec,"systemctl is-enabled "+dm, []byte("disabled\n"), errors.New("disabled"))
+			setMockResponse(mockExec, "systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
+			setMockResponse(mockExec, "systemctl is-enabled "+dm, []byte("disabled\n"), errors.New("disabled"))
 		}
 	}
 	// X11 not available
-	setMockResponse(mockExec,"printenv DISPLAY", []byte(""), errors.New("not set"))
+	setMockResponse(mockExec, "printenv DISPLAY", []byte(""), errors.New("not set"))
 
 	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
 	result := check.Run(context.Background())
@@ -179,16 +179,16 @@ func TestDisplayManagerCheckRunDMNotActive(t *testing.T) {
 func TestDisplayManagerCheckRunWithX11(t *testing.T) {
 	mockExec := checks.NewMockExecutor()
 	// Graphical target and GDM active
-	setMockResponse(mockExec,"systemctl get-default", []byte("graphical.target\n"), nil)
-	setMockResponse(mockExec,"systemctl is-active gdm", []byte("active\n"), nil)
+	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
+	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
 	for _, dm := range supportedDisplayManagers {
 		if dm != "gdm" {
-			setMockResponse(mockExec,"systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
+			setMockResponse(mockExec, "systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
 		}
 	}
 	// X11 available and responsive
-	setMockResponse(mockExec,"printenv DISPLAY", []byte(":0\n"), nil)
-	setMockResponse(mockExec,"xdpyinfo", []byte("name of display: :0\n"), nil)
+	setMockResponse(mockExec, "printenv DISPLAY", []byte(":0\n"), nil)
+	setMockResponse(mockExec, "xdpyinfo", []byte("name of display: :0\n"), nil)
 
 	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
 	result := check.Run(context.Background())
@@ -213,16 +213,16 @@ func TestDisplayManagerCheckRunWithX11(t *testing.T) {
 func TestDisplayManagerCheckRunWithX11Unresponsive(t *testing.T) {
 	mockExec := checks.NewMockExecutor()
 	// Graphical target and GDM active
-	setMockResponse(mockExec,"systemctl get-default", []byte("graphical.target\n"), nil)
-	setMockResponse(mockExec,"systemctl is-active gdm", []byte("active\n"), nil)
+	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
+	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
 	for _, dm := range supportedDisplayManagers {
 		if dm != "gdm" {
-			setMockResponse(mockExec,"systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
+			setMockResponse(mockExec, "systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
 		}
 	}
 	// X11 available but unresponsive
-	setMockResponse(mockExec,"printenv DISPLAY", []byte(":0\n"), nil)
-	setMockResponse(mockExec,"xdpyinfo", []byte(""), errors.New("Can't open display"))
+	setMockResponse(mockExec, "printenv DISPLAY", []byte(":0\n"), nil)
+	setMockResponse(mockExec, "xdpyinfo", []byte(""), errors.New("Can't open display"))
 
 	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
 	result := check.Run(context.Background())
@@ -281,15 +281,15 @@ func TestDisplayManagerCheckRecoveryActions(t *testing.T) {
 func TestDisplayManagerCheckExecuteActionStatus(t *testing.T) {
 	mockExec := checks.NewMockExecutor()
 	// Set up GDM as active display manager
-	setMockResponse(mockExec,"systemctl get-default", []byte("graphical.target\n"), nil)
-	setMockResponse(mockExec,"systemctl is-active gdm", []byte("active\n"), nil)
+	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
+	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
 	for _, dm := range supportedDisplayManagers {
 		if dm != "gdm" {
-			setMockResponse(mockExec,"systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
+			setMockResponse(mockExec, "systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
 		}
 	}
 	// Status command
-	setMockResponse(mockExec,"systemctl status gdm", []byte("gdm.service - GNOME Display Manager\n   Active: active (running)\n"), nil)
+	setMockResponse(mockExec, "systemctl status gdm", []byte("gdm.service - GNOME Display Manager\n   Active: active (running)\n"), nil)
 
 	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
 	result := check.ExecuteAction(context.Background(), "status")
@@ -313,15 +313,15 @@ func TestDisplayManagerCheckExecuteActionStatus(t *testing.T) {
 func TestDisplayManagerCheckExecuteActionLogs(t *testing.T) {
 	mockExec := checks.NewMockExecutor()
 	// Set up GDM as active display manager
-	setMockResponse(mockExec,"systemctl get-default", []byte("graphical.target\n"), nil)
-	setMockResponse(mockExec,"systemctl is-active gdm", []byte("active\n"), nil)
+	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
+	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
 	for _, dm := range supportedDisplayManagers {
 		if dm != "gdm" {
-			setMockResponse(mockExec,"systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
+			setMockResponse(mockExec, "systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
 		}
 	}
 	// Logs command
-	setMockResponse(mockExec,"journalctl -u gdm -n 100 --no-pager", []byte("-- Logs begin at ...\nJan 01 12:00:00 gdm[1234]: Starting...\n"), nil)
+	setMockResponse(mockExec, "journalctl -u gdm -n 100 --no-pager", []byte("-- Logs begin at ...\nJan 01 12:00:00 gdm[1234]: Starting...\n"), nil)
 
 	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
 	result := check.ExecuteAction(context.Background(), "logs")
@@ -339,15 +339,15 @@ func TestDisplayManagerCheckExecuteActionLogs(t *testing.T) {
 func TestDisplayManagerCheckExecuteActionRestart(t *testing.T) {
 	mockExec := checks.NewMockExecutor()
 	// Set up GDM as active display manager
-	setMockResponse(mockExec,"systemctl get-default", []byte("graphical.target\n"), nil)
-	setMockResponse(mockExec,"systemctl is-active gdm", []byte("active\n"), nil)
+	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
+	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
 	for _, dm := range supportedDisplayManagers {
 		if dm != "gdm" {
-			setMockResponse(mockExec,"systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
+			setMockResponse(mockExec, "systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
 		}
 	}
 	// Restart command
-	setMockResponse(mockExec,"sudo systemctl restart gdm", []byte(""), nil)
+	setMockResponse(mockExec, "sudo systemctl restart gdm", []byte(""), nil)
 
 	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
 	result := check.ExecuteAction(context.Background(), "restart")
@@ -365,15 +365,15 @@ func TestDisplayManagerCheckExecuteActionRestart(t *testing.T) {
 func TestDisplayManagerCheckExecuteActionRestartFails(t *testing.T) {
 	mockExec := checks.NewMockExecutor()
 	// Set up GDM as active display manager
-	setMockResponse(mockExec,"systemctl get-default", []byte("graphical.target\n"), nil)
-	setMockResponse(mockExec,"systemctl is-active gdm", []byte("active\n"), nil)
+	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
+	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
 	for _, dm := range supportedDisplayManagers {
 		if dm != "gdm" {
-			setMockResponse(mockExec,"systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
+			setMockResponse(mockExec, "systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
 		}
 	}
 	// Restart command fails
-	setMockResponse(mockExec,"sudo systemctl restart gdm", []byte("Failed to restart gdm.service: Access denied\n"), errors.New("exit status 1"))
+	setMockResponse(mockExec, "sudo systemctl restart gdm", []byte("Failed to restart gdm.service: Access denied\n"), errors.New("exit status 1"))
 
 	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
 	result := check.ExecuteAction(context.Background(), "restart")
@@ -390,11 +390,11 @@ func TestDisplayManagerCheckExecuteActionRestartFails(t *testing.T) {
 // [REQ:HEAL-ACTION-001]
 func TestDisplayManagerCheckExecuteActionUnknown(t *testing.T) {
 	mockExec := checks.NewMockExecutor()
-	setMockResponse(mockExec,"systemctl get-default", []byte("graphical.target\n"), nil)
-	setMockResponse(mockExec,"systemctl is-active gdm", []byte("active\n"), nil)
+	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
+	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
 	for _, dm := range supportedDisplayManagers {
 		if dm != "gdm" {
-			setMockResponse(mockExec,"systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
+			setMockResponse(mockExec, "systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
 		}
 	}
 
@@ -426,18 +426,18 @@ func TestDisplayManagerCheckUsesInjectedCaps(t *testing.T) {
 func TestDisplayManagerCheckWithLightDM(t *testing.T) {
 	mockExec := checks.NewMockExecutor()
 	// Graphical target is default
-	setMockResponse(mockExec,"systemctl get-default", []byte("graphical.target\n"), nil)
+	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
 	// GDM is not active, but LightDM is
-	setMockResponse(mockExec,"systemctl is-active gdm", []byte("inactive\n"), errors.New("inactive"))
-	setMockResponse(mockExec,"systemctl is-active gdm3", []byte("inactive\n"), errors.New("inactive"))
-	setMockResponse(mockExec,"systemctl is-active lightdm", []byte("active\n"), nil)
+	setMockResponse(mockExec, "systemctl is-active gdm", []byte("inactive\n"), errors.New("inactive"))
+	setMockResponse(mockExec, "systemctl is-active gdm3", []byte("inactive\n"), errors.New("inactive"))
+	setMockResponse(mockExec, "systemctl is-active lightdm", []byte("active\n"), nil)
 	for _, dm := range supportedDisplayManagers {
 		if dm != "gdm" && dm != "gdm3" && dm != "lightdm" {
-			setMockResponse(mockExec,"systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
+			setMockResponse(mockExec, "systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
 		}
 	}
 	// No X11
-	setMockResponse(mockExec,"printenv DISPLAY", []byte(""), errors.New("not set"))
+	setMockResponse(mockExec, "printenv DISPLAY", []byte(""), errors.New("not set"))
 
 	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
 	result := check.Run(context.Background())

@@ -97,11 +97,20 @@ Build workflows step-by-step, executing after each addition to verify it works. 
 
 ## Keyboard Shortcuts
 
-BAS supports extensive keyboard shortcuts for power users:
+BAS supports extensive keyboard shortcuts for power users. Shortcuts are **context-aware** - different shortcuts are available depending on whether you're on the dashboard, editing a workflow, or in settings.
 
+### Global Shortcuts (Work Everywhere)
 | Shortcut | Action |
 | --- | --- |
-| \`Cmd/Ctrl + K\` | Global search |
+| \`Shift + ?\` | Show keyboard shortcuts |
+| \`Cmd/Ctrl + K\` | Global search / Focus node search |
+| \`Cmd/Ctrl + ,\` | Open settings |
+| \`Escape\` | Close modal or go back |
+| \`G then H\` | Go to dashboard |
+
+### Workflow Builder Shortcuts
+| Shortcut | Action |
+| --- | --- |
 | \`Cmd/Ctrl + S\` | Save workflow |
 | \`Cmd/Ctrl + Enter\` | Execute workflow |
 | \`Cmd/Ctrl + Z\` | Undo |
@@ -109,8 +118,18 @@ BAS supports extensive keyboard shortcuts for power users:
 | \`Delete/Backspace\` | Delete selected nodes |
 | \`Cmd/Ctrl + A\` | Select all nodes |
 | \`Cmd/Ctrl + D\` | Duplicate selected |
+| \`Cmd/Ctrl + =\` | Zoom in |
+| \`Cmd/Ctrl + -\` | Zoom out |
+| \`Cmd/Ctrl + 0\` | Fit view |
+| \`Cmd/Ctrl + Shift + L\` | Toggle canvas lock |
 
-Press \`Cmd/Ctrl + ?\` to see all available shortcuts.
+### Dashboard Shortcuts
+| Shortcut | Action |
+| --- | --- |
+| \`Cmd/Ctrl + Shift + N\` | Create new project |
+| \`Cmd/Ctrl + Shift + T\` | Open guided tour |
+
+Press \`Shift + ?\` to see all available shortcuts for your current context.
 
 ## Next Steps
 

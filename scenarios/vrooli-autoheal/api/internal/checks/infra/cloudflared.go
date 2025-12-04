@@ -1,5 +1,5 @@
 // Package infra provides infrastructure health checks
-// [REQ:INFRA-CLOUDFLARED-001]
+// [REQ:INFRA-CLOUDFLARED-001] [REQ:TEST-SEAM-001]
 package infra
 
 import (
@@ -14,7 +14,21 @@ import (
 	"vrooli-autoheal/internal/platform"
 )
 
-// Note: exec import is still used for DetectCloudflaredInstall's exec.LookPath
+// LookPather abstracts exec.LookPath for testing.
+// [REQ:TEST-SEAM-001]
+type LookPather interface {
+	LookPath(file string) (string, error)
+}
+
+// defaultLookPather implements LookPather using the real exec.LookPath.
+type defaultLookPather struct{}
+
+func (d *defaultLookPather) LookPath(file string) (string, error) {
+	return exec.LookPath(file)
+}
+
+// DefaultLookPather is the default LookPather using exec.LookPath.
+var DefaultLookPather LookPather = &defaultLookPather{}
 
 // cloudflaredErrorThreshold is the number of ERR entries in journalctl
 // that triggers a warning status (matches legacy bash behavior)
@@ -42,8 +56,13 @@ const (
 
 // DetectCloudflaredInstall checks if cloudflared binary is available.
 // This is a prerequisite check - if not installed, we can't do anything else.
-func DetectCloudflaredInstall() CloudflaredInstallState {
-	if _, err := exec.LookPath("cloudflared"); err != nil {
+// The lookPather parameter allows injecting a mock for testing.
+// [REQ:TEST-SEAM-001]
+func DetectCloudflaredInstall(lookPather LookPather) CloudflaredInstallState {
+	if lookPather == nil {
+		lookPather = DefaultLookPather
+	}
+	if _, err := lookPather.LookPath("cloudflared"); err != nil {
 		return CloudflaredNotInstalled
 	}
 	return CloudflaredInstalled
@@ -71,6 +90,7 @@ type CloudflaredCheck struct {
 	connectTimeout time.Duration
 	executor       checks.CommandExecutor
 	httpClient     checks.HTTPDoer
+	lookPather     LookPather // Injectable for testing binary detection
 }
 
 // CloudflaredOption configures a CloudflaredCheck.
@@ -115,6 +135,14 @@ func WithCloudflaredHTTPClient(client checks.HTTPDoer) CloudflaredOption {
 	}
 }
 
+// WithCloudflaredLookPather sets the LookPather for binary detection (for testing).
+// [REQ:TEST-SEAM-001]
+func WithCloudflaredLookPather(lp LookPather) CloudflaredOption {
+	return func(c *CloudflaredCheck) {
+		c.lookPather = lp
+	}
+}
+
 // NewCloudflaredCheck creates a cloudflared health check with injected platform capabilities.
 // Options can configure local port testing and external URL verification.
 func NewCloudflaredCheck(caps *platform.Capabilities, opts ...CloudflaredOption) *CloudflaredCheck {
@@ -123,6 +151,7 @@ func NewCloudflaredCheck(caps *platform.Capabilities, opts ...CloudflaredOption)
 		localTestPort:  21774, // Default: app-monitor UI port
 		connectTimeout: 5 * time.Second,
 		executor:       checks.DefaultExecutor,
+		lookPather:     DefaultLookPather,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -149,7 +178,7 @@ func (c *CloudflaredCheck) Run(ctx context.Context) checks.Result {
 	}
 
 	// First decision: Is cloudflared installed?
-	installState := DetectCloudflaredInstall()
+	installState := DetectCloudflaredInstall(c.lookPather)
 	if installState == CloudflaredNotInstalled {
 		result.Status = checks.StatusWarning
 		result.Message = "Cloudflared not installed"
@@ -278,13 +307,21 @@ func (c *CloudflaredCheck) checkSystemdService(ctx context.Context, result check
 }
 
 // testHTTPConnectivity tests HTTP connectivity to a URL
+// Uses the injected httpClient if available, otherwise creates a default client.
+// [REQ:TEST-SEAM-001]
 func (c *CloudflaredCheck) testHTTPConnectivity(ctx context.Context, url string, description string) (bool, string) {
-	client := &http.Client{
-		Timeout: c.connectTimeout,
-		// Don't follow redirects, just check connectivity
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
+	// Use injected client if available, otherwise create a default
+	var client checks.HTTPDoer
+	if c.httpClient != nil {
+		client = c.httpClient
+	} else {
+		client = &http.Client{
+			Timeout: c.connectTimeout,
+			// Don't follow redirects, just check connectivity
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -563,23 +600,32 @@ func (c *CloudflaredCheck) executeDiagnose(ctx context.Context, start time.Time)
 }
 
 // verifyRecovery checks that cloudflared is actually healthy after a start/restart action
+// Uses polling with timeout instead of fixed sleep for reliable verification.
 func (c *CloudflaredCheck) verifyRecovery(ctx context.Context, result checks.ActionResult, actionID string, start time.Time) checks.ActionResult {
-	// Wait for cloudflared to initialize (tunnels take a few seconds to establish)
-	time.Sleep(5 * time.Second)
+	// Configure polling: cloudflared tunnels can take time to establish
+	pollConfig := checks.PollConfig{
+		Timeout:      30 * time.Second,
+		Interval:     2 * time.Second,
+		InitialDelay: 3 * time.Second, // Initial delay for service startup
+	}
 
-	// Check cloudflared status
-	checkResult := c.Run(ctx)
+	// Poll until healthy or timeout
+	pollResult := checks.PollForSuccess(ctx, c, pollConfig)
 	result.Duration = time.Since(start)
 
-	if checkResult.Status == checks.StatusOK {
+	if pollResult.Success && pollResult.FinalResult != nil {
 		result.Success = true
-		result.Message = "Cloudflared service " + actionID + " successful and verified healthy"
-		result.Output += "\n\n=== Verification ===\n" + checkResult.Message
+		result.Message = fmt.Sprintf("Cloudflared service %s successful and verified healthy (took %d attempts, %.1fs)",
+			actionID, pollResult.Attempts, pollResult.Elapsed.Seconds())
+		result.Output += "\n\n=== Verification ===\n" + pollResult.FinalResult.Message
 	} else {
 		result.Success = false
 		result.Error = "Cloudflared not healthy after " + actionID
-		result.Message = "Cloudflared service " + actionID + " completed but verification failed"
-		result.Output += "\n\n=== Verification Failed ===\n" + checkResult.Message
+		result.Message = fmt.Sprintf("Cloudflared service %s completed but verification failed after %d attempts",
+			actionID, pollResult.Attempts)
+		if pollResult.FinalResult != nil {
+			result.Output += "\n\n=== Verification Failed ===\n" + pollResult.FinalResult.Message
+		}
 	}
 
 	return result

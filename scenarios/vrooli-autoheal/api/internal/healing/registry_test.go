@@ -36,14 +36,14 @@ type mockHealableCheck struct {
 	executeResult checks.ActionResult
 }
 
-func (m *mockHealableCheck) ID() string                                { return m.id }
-func (m *mockHealableCheck) Title() string                             { return "Mock Check" }
-func (m *mockHealableCheck) Description() string                       { return "A mock check" }
-func (m *mockHealableCheck) Importance() string                        { return "For testing" }
-func (m *mockHealableCheck) Category() checks.Category                 { return checks.CategoryInfrastructure }
-func (m *mockHealableCheck) IntervalSeconds() int                      { return 60 }
-func (m *mockHealableCheck) Platforms() []platform.Type                { return nil }
-func (m *mockHealableCheck) Run(ctx context.Context) checks.Result     { return checks.Result{} }
+func (m *mockHealableCheck) ID() string                            { return m.id }
+func (m *mockHealableCheck) Title() string                         { return "Mock Check" }
+func (m *mockHealableCheck) Description() string                   { return "A mock check" }
+func (m *mockHealableCheck) Importance() string                    { return "For testing" }
+func (m *mockHealableCheck) Category() checks.Category             { return checks.CategoryInfrastructure }
+func (m *mockHealableCheck) IntervalSeconds() int                  { return 60 }
+func (m *mockHealableCheck) Platforms() []platform.Type            { return nil }
+func (m *mockHealableCheck) Run(ctx context.Context) checks.Result { return checks.Result{} }
 func (m *mockHealableCheck) RecoveryActions(*checks.Result) []checks.RecoveryAction {
 	return m.actions
 }

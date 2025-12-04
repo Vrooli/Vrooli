@@ -131,9 +131,12 @@ func (f *DefaultCheckFactory) CreateSystemChecks() []checks.Check {
 		system.NewDiskCheck(),
 		system.NewInodeCheck(),
 		system.NewSwapCheck(),
+		system.NewMemoryCheck(), // RAM usage monitoring
 		system.NewZombieCheck(),
 		system.NewPortCheck(),
 		system.NewClaudeCacheCheck(),
+		system.NewGPUCheck(),  // GPU health for AI/ML workloads
+		system.NewLoadCheck(), // System load average monitoring
 	}
 }
 
@@ -161,8 +164,9 @@ func (f *DefaultCheckFactory) CreateVrooliChecks() []checks.Check {
 	return vrooliChecks
 }
 
-// defaultFactory is the global default factory instance
-var defaultFactory = NewDefaultCheckFactory()
+// defaultFactory is the global default factory instance.
+// Stored as interface type to allow mock injection in tests.
+var defaultFactory CheckFactory = NewDefaultCheckFactory()
 
 // GetDefaultFactory returns the global default factory.
 // This can be replaced in tests using SetDefaultFactory.
@@ -171,12 +175,10 @@ func GetDefaultFactory() CheckFactory {
 }
 
 // SetDefaultFactory sets the global default factory.
-// This is primarily intended for testing.
+// This is primarily intended for testing - accepts any CheckFactory implementation.
 // Returns the previous factory for restoration.
 func SetDefaultFactory(f CheckFactory) CheckFactory {
 	prev := defaultFactory
-	if df, ok := f.(*DefaultCheckFactory); ok {
-		defaultFactory = df
-	}
+	defaultFactory = f
 	return prev
 }

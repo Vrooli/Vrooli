@@ -279,11 +279,12 @@ func (c *APICheck) executeRestart(ctx context.Context, start time.Time) checks.A
 	// Try to find the Vrooli root directory
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
-		// Try common locations
+		// Try common locations based on user's home directory
 		homeDir, _ := os.UserHomeDir()
 		possiblePaths := []string{
 			filepath.Join(homeDir, "Vrooli"),
-			"/home/matthalloran8/Vrooli",
+			"/opt/vrooli",
+			"/usr/local/vrooli",
 		}
 		for _, path := range possiblePaths {
 			if _, err := os.Stat(path); err == nil {

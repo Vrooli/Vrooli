@@ -12,7 +12,7 @@
       "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
       "title": "Timeline artifacts persist normalized execution events",
       "description": "Ensures execution artifacts are normalized, stored, and queryable so the replay UI and marketing renderer consume consistent payloads.",
-      "status": "in_progress",
+      "status": "complete",
       "validation": [
         {
           "type": "test",
@@ -25,7 +25,7 @@
           "type": "automation",
           "ref": "test/playbooks/capabilities/05-replay/01-automation/render-check.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "E2E validation that replay artifacts are persisted and accessible for rendering"
         }
       ]
@@ -36,7 +36,7 @@
       "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
       "title": "Replay exports portable bundles for marketing and sharing",
       "description": "Confirms the export endpoint generates self-contained bundles (screenshots, timeline JSON, metadata) that work offline.",
-      "status": "in_progress",
+      "status": "complete",
       "validation": [
         {
           "type": "test",
@@ -56,14 +56,14 @@
           "type": "automation",
           "ref": "test/playbooks/capabilities/05-replay/01-automation/render-check.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "End-to-end validation of replay export and rendering workflow."
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/05-replay/02-ui/execution-result-export.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates execution result export functionality and replay artifact availability in the UI"
         }
       ]

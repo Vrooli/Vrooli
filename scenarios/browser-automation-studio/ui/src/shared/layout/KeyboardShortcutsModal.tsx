@@ -1,39 +1,31 @@
 import { X, Keyboard } from "lucide-react";
 import {
+  type ShortcutDefinition,
   formatShortcut,
-  type KeyboardShortcut,
-} from "@hooks/useKeyboardShortcuts";
+  useKeyboardShortcutsStore,
+} from "@stores/keyboardShortcutsStore";
 import ResponsiveDialog from "./ResponsiveDialog";
 
 interface KeyboardShortcutsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  shortcuts: Omit<KeyboardShortcut, "action">[];
 }
 
 /**
  * Modal displaying all available keyboard shortcuts, grouped by category.
- * Accessible via Cmd/Ctrl + ? or the help button.
+ * Now context-aware - shows only shortcuts relevant to the current view.
+ * Accessible via Shift + ? or the help button.
  */
 function KeyboardShortcutsModal({
   isOpen,
   onClose,
-  shortcuts,
 }: KeyboardShortcutsModalProps) {
-  // Group shortcuts by category
-  const groupedShortcuts = shortcuts.reduce(
-    (acc, shortcut) => {
-      const category = shortcut.category || "General";
-      if (!acc[category]) {
-        acc[category] = [];
-      }
-      acc[category].push(shortcut);
-      return acc;
-    },
-    {} as Record<string, Omit<KeyboardShortcut, "action">[]>
+  // Get shortcuts grouped by category (already filtered by current context)
+  const shortcutsByCategory = useKeyboardShortcutsStore((state) =>
+    state.getShortcutsByCategory()
   );
 
-  const categories = Object.keys(groupedShortcuts).sort();
+  const categories = Object.keys(shortcutsByCategory).sort();
 
   return (
     <ResponsiveDialog
@@ -48,10 +40,10 @@ function KeyboardShortcutsModal({
             <Keyboard size={20} className="text-flow-accent" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-white">
+            <h2 className="text-lg font-semibold text-flow-text">
               Keyboard Shortcuts
             </h2>
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-flow-text-muted">
               Navigate faster with these shortcuts
             </p>
           </div>
@@ -59,7 +51,7 @@ function KeyboardShortcutsModal({
         <button
           type="button"
           onClick={onClose}
-          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+          className="p-2 text-flow-text-muted hover:text-flow-text hover:bg-flow-node-hover rounded-lg transition-colors"
           aria-label="Close keyboard shortcuts"
         >
           <X size={20} />
@@ -67,33 +59,45 @@ function KeyboardShortcutsModal({
       </div>
 
       <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
-        {categories.map((category) => (
-          <div key={category}>
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
-              {category}
-            </h3>
-            <div className="space-y-2">
-              {groupedShortcuts[category].map((shortcut, index) => (
-                <div
-                  key={`${shortcut.key}-${index}`}
-                  className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-gray-800/50 transition-colors"
-                >
-                  <span className="text-sm text-gray-200">
-                    {shortcut.description}
-                  </span>
-                  <kbd className="inline-flex items-center gap-1 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-xs font-mono text-gray-300">
-                    {formatShortcut(shortcut.key, shortcut.modifiers)}
-                  </kbd>
-                </div>
-              ))}
+        {categories.length === 0 ? (
+          <p className="text-sm text-flow-text-muted text-center py-8">
+            No shortcuts available for the current view.
+          </p>
+        ) : (
+          categories.map((category) => (
+            <div key={category}>
+              <h3 className="text-sm font-semibold text-flow-text-muted uppercase tracking-wide mb-3">
+                {category}
+              </h3>
+              <div className="space-y-2">
+                {shortcutsByCategory[category].map(
+                  (shortcut: ShortcutDefinition, index: number) => (
+                    <div
+                      key={`${shortcut.id}-${index}`}
+                      className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-flow-node/50 transition-colors"
+                    >
+                      <span className="text-sm text-flow-text-secondary">
+                        {shortcut.description}
+                      </span>
+                      <kbd className="inline-flex items-center gap-1 px-2 py-1 bg-flow-node border border-flow-border rounded text-xs font-mono text-flow-text-secondary">
+                        {formatShortcut(shortcut)}
+                      </kbd>
+                    </div>
+                  )
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
-      <div className="mt-6 pt-4 border-t border-gray-800">
-        <p className="text-xs text-gray-500 text-center">
-          Press <kbd className="px-1.5 py-0.5 bg-gray-800 rounded text-gray-400">Esc</kbd> to close this dialog
+      <div className="mt-6 pt-4 border-t border-flow-border">
+        <p className="text-xs text-flow-text-muted text-center">
+          Press{" "}
+          <kbd className="px-1.5 py-0.5 bg-flow-node border border-flow-border rounded text-flow-text-secondary">
+            Esc
+          </kbd>{" "}
+          to close this dialog
         </p>
       </div>
     </ResponsiveDialog>

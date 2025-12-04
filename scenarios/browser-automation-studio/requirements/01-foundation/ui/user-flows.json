@@ -12,13 +12,13 @@
       "prd_ref": "Project Management",
       "title": "Project list displays and allows navigation to project detail",
       "description": "Users can view projects on the dashboard and click a project card to navigate to its detail view",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/01-projects/project-list-and-select.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates project grid rendering and navigation to project detail view"
         }
       ]
@@ -29,13 +29,13 @@
       "prd_ref": "Project Management",
       "title": "Project search filters the project list",
       "description": "Users can search for projects by name or description, with results updating in real-time",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/01-projects/project-search-filter.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tests search filtering and clearing search to restore full list"
         }
       ]
@@ -63,13 +63,13 @@
       "prd_ref": "Workflow Builder",
       "title": "Workflow creation and builder loading",
       "description": "Users can create new workflows and have the workflow builder load successfully",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/02-workflows/workflow-create-and-load.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tests workflow creation flow including AI modal bypass and builder loading"
         }
       ]
@@ -80,13 +80,13 @@
       "prd_ref": "Workflow Builder",
       "title": "Workflow selection from project detail",
       "description": "Users can select workflows from the project detail list and load them into the builder",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/02-workflows/workflow-select-from-list.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates workflow list display and navigation to builder with selected workflow"
         }
       ]

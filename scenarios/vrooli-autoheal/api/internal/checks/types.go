@@ -181,3 +181,115 @@ type ConfigProvider interface {
 	// IsAutoHealEnabled returns whether auto-healing is enabled for a check
 	IsAutoHealEnabled(checkID string) bool
 }
+
+// PollConfig configures the polling behavior for recovery verification.
+type PollConfig struct {
+	// Timeout is the maximum time to wait for the check to pass.
+	Timeout time.Duration
+	// Interval is the time between polling attempts.
+	Interval time.Duration
+	// InitialDelay is the time to wait before the first poll (allows service to start).
+	InitialDelay time.Duration
+}
+
+// DefaultPollConfig returns sensible defaults for recovery verification polling.
+func DefaultPollConfig() PollConfig {
+	return PollConfig{
+		Timeout:      30 * time.Second,
+		Interval:     2 * time.Second,
+		InitialDelay: 1 * time.Second,
+	}
+}
+
+// PollResult contains the outcome of a polling operation.
+type PollResult struct {
+	Success     bool
+	FinalResult *Result
+	Attempts    int
+	Elapsed     time.Duration
+}
+
+// PollForSuccess repeatedly runs a check until it passes or times out.
+// This is used by recovery actions to verify that a fix actually worked.
+// [REQ:HEAL-ACTION-001]
+func PollForSuccess(ctx context.Context, check Check, config PollConfig) PollResult {
+	start := time.Now()
+	attempts := 0
+
+	// Initial delay to let the service start
+	if config.InitialDelay > 0 {
+		select {
+		case <-ctx.Done():
+			return PollResult{
+				Success:  false,
+				Elapsed:  time.Since(start),
+				Attempts: attempts,
+			}
+		case <-time.After(config.InitialDelay):
+		}
+	}
+
+	// Create deadline for polling
+	deadline := time.Now().Add(config.Timeout)
+
+	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			return PollResult{
+				Success:  false,
+				Elapsed:  time.Since(start),
+				Attempts: attempts,
+			}
+		default:
+		}
+
+		attempts++
+		result := check.Run(ctx)
+
+		if result.Status == StatusOK {
+			return PollResult{
+				Success:     true,
+				FinalResult: &result,
+				Attempts:    attempts,
+				Elapsed:     time.Since(start),
+			}
+		}
+
+		// Wait before next attempt, but respect deadline
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return PollResult{
+				Success:     false,
+				FinalResult: &result,
+				Attempts:    attempts,
+				Elapsed:     time.Since(start),
+			}
+		}
+
+		waitTime := config.Interval
+		if waitTime > remaining {
+			waitTime = remaining
+		}
+
+		select {
+		case <-ctx.Done():
+			return PollResult{
+				Success:     false,
+				FinalResult: &result,
+				Elapsed:     time.Since(start),
+				Attempts:    attempts,
+			}
+		case <-time.After(waitTime):
+		}
+	}
+
+	// Final attempt at deadline
+	attempts++
+	result := check.Run(ctx)
+	return PollResult{
+		Success:     result.Status == StatusOK,
+		FinalResult: &result,
+		Attempts:    attempts,
+		Elapsed:     time.Since(start),
+	}
+}

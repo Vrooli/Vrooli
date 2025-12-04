@@ -810,10 +810,10 @@ func TestInodeCheck_WithMockReader(t *testing.T) {
 
 // mockProcReader implements checks.ProcReader for testing.
 type mockProcReader struct {
-	memInfo        *checks.MemInfo
-	memInfoErr     error
-	processes      []checks.ProcessInfo
-	processesErr   error
+	memInfo      *checks.MemInfo
+	memInfoErr   error
+	processes    []checks.ProcessInfo
+	processesErr error
 }
 
 func (m *mockProcReader) ReadMeminfo() (*checks.MemInfo, error) {

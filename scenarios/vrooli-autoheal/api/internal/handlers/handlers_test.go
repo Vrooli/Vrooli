@@ -1361,8 +1361,8 @@ func (c *mockHealableCheckCritical) ExecuteAction(ctx context.Context, actionID 
 
 // mockConfigProvider implements checks.ConfigProvider for testing
 type mockConfigProvider struct {
-	enabledChecks   map[string]bool
-	autoHealChecks  map[string]bool
+	enabledChecks  map[string]bool
+	autoHealChecks map[string]bool
 }
 
 func (m *mockConfigProvider) IsCheckEnabled(checkID string) bool {

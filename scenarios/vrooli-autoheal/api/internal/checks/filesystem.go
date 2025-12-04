@@ -4,6 +4,7 @@ package checks
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -12,13 +13,13 @@ import (
 
 // StatfsResult contains filesystem statistics
 type StatfsResult struct {
-	Blocks     uint64 // Total blocks
-	Bfree      uint64 // Free blocks
-	Bavail     uint64 // Available blocks (non-root)
-	Files      uint64 // Total inodes
-	Ffree      uint64 // Free inodes
-	Bsize      int64  // Block size
-	Namemax    uint64 // Max filename length
+	Blocks  uint64 // Total blocks
+	Bfree   uint64 // Free blocks
+	Bavail  uint64 // Available blocks (non-root)
+	Files   uint64 // Total inodes
+	Ffree   uint64 // Free inodes
+	Bsize   int64  // Block size
+	Namemax uint64 // Max filename length
 }
 
 // FileSystemReader abstracts filesystem operations for testability.
@@ -54,16 +55,21 @@ var DefaultFileSystemReader FileSystemReader = &RealFileSystemReader{}
 
 // MemInfo contains memory information from /proc/meminfo
 type MemInfo struct {
-	SwapTotal uint64 // Total swap in KB
-	SwapFree  uint64 // Free swap in KB
+	MemTotal     uint64 // Total RAM in KB
+	MemFree      uint64 // Free RAM in KB
+	MemAvailable uint64 // Available RAM in KB (accounts for buffers/cache)
+	Buffers      uint64 // Buffer memory in KB
+	Cached       uint64 // Cached memory in KB
+	SwapTotal    uint64 // Total swap in KB
+	SwapFree     uint64 // Free swap in KB
 }
 
 // ProcessInfo contains information about a process
 type ProcessInfo struct {
-	PID    int
-	State  string // R=running, S=sleeping, Z=zombie, etc.
-	PPid   int    // Parent PID
-	Comm   string // Command name
+	PID   int
+	State string // R=running, S=sleeping, Z=zombie, etc.
+	PPid  int    // Parent PID
+	Comm  string // Command name
 }
 
 // ProcReader abstracts /proc filesystem access for testability.
@@ -79,7 +85,7 @@ type ProcReader interface {
 // RealProcReader is the production implementation of ProcReader.
 type RealProcReader struct{}
 
-// ReadMeminfo reads swap information from /proc/meminfo.
+// ReadMeminfo reads memory and swap information from /proc/meminfo.
 func (r *RealProcReader) ReadMeminfo() (*MemInfo, error) {
 	file, err := os.Open("/proc/meminfo")
 	if err != nil {
@@ -89,6 +95,8 @@ func (r *RealProcReader) ReadMeminfo() (*MemInfo, error) {
 
 	info := &MemInfo{}
 	scanner := bufio.NewScanner(file)
+	var parseErrors []string
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		fields := strings.Fields(line)
@@ -96,15 +104,65 @@ func (r *RealProcReader) ReadMeminfo() (*MemInfo, error) {
 			continue
 		}
 
-		switch fields[0] {
+		var val uint64
+		var err error
+		fieldName := fields[0]
+
+		switch fieldName {
+		case "MemTotal:":
+			val, err = strconv.ParseUint(fields[1], 10, 64)
+			if err == nil {
+				info.MemTotal = val
+			}
+		case "MemFree:":
+			val, err = strconv.ParseUint(fields[1], 10, 64)
+			if err == nil {
+				info.MemFree = val
+			}
+		case "MemAvailable:":
+			val, err = strconv.ParseUint(fields[1], 10, 64)
+			if err == nil {
+				info.MemAvailable = val
+			}
+		case "Buffers:":
+			val, err = strconv.ParseUint(fields[1], 10, 64)
+			if err == nil {
+				info.Buffers = val
+			}
+		case "Cached:":
+			val, err = strconv.ParseUint(fields[1], 10, 64)
+			if err == nil {
+				info.Cached = val
+			}
 		case "SwapTotal:":
-			info.SwapTotal, _ = strconv.ParseUint(fields[1], 10, 64)
+			val, err = strconv.ParseUint(fields[1], 10, 64)
+			if err == nil {
+				info.SwapTotal = val
+			}
 		case "SwapFree:":
-			info.SwapFree, _ = strconv.ParseUint(fields[1], 10, 64)
+			val, err = strconv.ParseUint(fields[1], 10, 64)
+			if err == nil {
+				info.SwapFree = val
+			}
+		default:
+			continue
+		}
+
+		if err != nil {
+			parseErrors = append(parseErrors, fieldName+" "+err.Error())
 		}
 	}
 
-	return info, scanner.Err()
+	if scanErr := scanner.Err(); scanErr != nil {
+		return info, scanErr
+	}
+
+	// Return parse errors if any critical fields failed
+	if info.MemTotal == 0 && len(parseErrors) > 0 {
+		return info, fmt.Errorf("failed to parse meminfo: %s", strings.Join(parseErrors, "; "))
+	}
+
+	return info, nil
 }
 
 // ListProcesses reads process information from /proc.
@@ -165,7 +223,11 @@ func readProcessStat(pid int) (ProcessInfo, error) {
 		info.State = rest[0]
 	}
 	if len(rest) >= 2 {
-		info.PPid, _ = strconv.Atoi(rest[1])
+		ppid, err := strconv.Atoi(rest[1])
+		if err == nil {
+			info.PPid = ppid
+		}
+		// PPid parse failure is non-fatal - leave as 0
 	}
 
 	return info, nil
@@ -205,8 +267,17 @@ func (r *RealPortReader) ReadPortStats() (*PortInfo, error) {
 		return &PortInfo{TotalPorts: 28232}, nil // Default range
 	}
 
-	lowPort, _ := strconv.Atoi(fields[0])
-	highPort, _ := strconv.Atoi(fields[1])
+	lowPort, err := strconv.Atoi(fields[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse low port %q: %w", fields[0], err)
+	}
+	highPort, err := strconv.Atoi(fields[1])
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse high port %q: %w", fields[1], err)
+	}
+	if highPort < lowPort {
+		return nil, fmt.Errorf("invalid port range: high port %d < low port %d", highPort, lowPort)
+	}
 	totalPorts := highPort - lowPort + 1
 
 	// Count used ports from /proc/net/tcp and /proc/net/tcp6

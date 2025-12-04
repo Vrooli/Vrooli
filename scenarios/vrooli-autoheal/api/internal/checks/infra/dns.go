@@ -4,6 +4,7 @@ package infra
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"runtime"
 	"time"
@@ -16,6 +17,7 @@ import (
 // Domain is required - operational defaults should be set by the bootstrap layer.
 type DNSCheck struct {
 	domain   string
+	timeout  time.Duration
 	caps     *platform.Capabilities
 	resolver checks.DNSResolver
 	executor checks.CommandExecutor
@@ -40,6 +42,13 @@ func WithDNSExecutor(executor checks.CommandExecutor) DNSCheckOption {
 	}
 }
 
+// WithDNSTimeout sets the DNS lookup timeout.
+func WithDNSTimeout(timeout time.Duration) DNSCheckOption {
+	return func(c *DNSCheck) {
+		c.timeout = timeout
+	}
+}
+
 // realDNSResolver wraps net.LookupHost for production use.
 type realDNSResolver struct{}
 
@@ -58,9 +67,11 @@ func (r *realDNSResolver) LookupHost(host string) ([]string, error) {
 // NewDNSCheck creates a DNS resolution check.
 // The domain parameter is required (e.g., "google.com").
 // Platform capabilities are optional (for recovery actions).
+// Default timeout is 5 seconds.
 func NewDNSCheck(domain string, caps *platform.Capabilities, opts ...DNSCheckOption) *DNSCheck {
 	c := &DNSCheck{
 		domain:   domain,
+		timeout:  5 * time.Second,
 		caps:     caps,
 		resolver: &realDNSResolver{},
 		executor: checks.DefaultExecutor,
@@ -84,21 +95,53 @@ func (c *DNSCheck) Platforms() []platform.Type { return nil }
 func (c *DNSCheck) Run(ctx context.Context) checks.Result {
 	result := checks.Result{
 		CheckID: c.ID(),
-		Details: map[string]interface{}{"domain": c.domain},
+		Details: map[string]interface{}{
+			"domain":  c.domain,
+			"timeout": c.timeout.String(),
+		},
 	}
 
-	addrs, err := c.resolver.LookupHost(c.domain)
-	if err != nil {
+	// Create context with timeout if not already set
+	lookupCtx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	// Use a channel to implement timeout for the DNS lookup
+	type lookupResult struct {
+		addrs []string
+		err   error
+	}
+	resultCh := make(chan lookupResult, 1)
+
+	go func() {
+		addrs, err := c.resolver.LookupHost(c.domain)
+		resultCh <- lookupResult{addrs: addrs, err: err}
+	}()
+
+	start := time.Now()
+	select {
+	case <-lookupCtx.Done():
+		elapsed := time.Since(start)
 		result.Status = checks.StatusCritical
-		result.Message = "DNS resolution failed"
-		result.Details["error"] = err.Error()
+		result.Message = "DNS resolution timed out"
+		result.Details["error"] = lookupCtx.Err().Error()
+		result.Details["elapsedMs"] = elapsed.Milliseconds()
+		return result
+	case lr := <-resultCh:
+		elapsed := time.Since(start)
+		result.Details["elapsedMs"] = elapsed.Milliseconds()
+
+		if lr.err != nil {
+			result.Status = checks.StatusCritical
+			result.Message = "DNS resolution failed"
+			result.Details["error"] = lr.err.Error()
+			return result
+		}
+
+		result.Status = checks.StatusOK
+		result.Message = "DNS resolution OK"
+		result.Details["resolved"] = len(lr.addrs)
 		return result
 	}
-
-	result.Status = checks.StatusOK
-	result.Message = "DNS resolution OK"
-	result.Details["resolved"] = len(addrs)
-	return result
 }
 
 // RecoveryActions returns available recovery actions for DNS check
@@ -201,24 +244,33 @@ func (c *DNSCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 	}
 }
 
-// verifyRecovery checks that DNS resolution works after a restart action
+// verifyRecovery checks that DNS resolution works after a restart action using polling
 func (c *DNSCheck) verifyRecovery(ctx context.Context, result checks.ActionResult, actionID string, start time.Time) checks.ActionResult {
-	// Wait for DNS resolver to initialize
-	time.Sleep(2 * time.Second)
+	// Use polling to verify recovery instead of fixed sleep
+	pollConfig := checks.PollConfig{
+		Timeout:      30 * time.Second,
+		Interval:     2 * time.Second,
+		InitialDelay: 2 * time.Second, // DNS resolver needs time to initialize
+	}
 
-	// Check DNS resolution
-	checkResult := c.Run(ctx)
+	pollResult := checks.PollForSuccess(ctx, c, pollConfig)
 	result.Duration = time.Since(start)
 
-	if checkResult.Status == checks.StatusOK {
+	if pollResult.Success {
 		result.Success = true
 		result.Message = "DNS resolver " + actionID + " successful and verified working"
-		result.Output += "\n\n=== Verification ===\n" + checkResult.Message
+		if pollResult.FinalResult != nil {
+			result.Output += "\n\n=== Verification ===\n" + pollResult.FinalResult.Message
+		}
+		result.Output += fmt.Sprintf("\n(verified after %d attempts in %s)", pollResult.Attempts, pollResult.Elapsed.Round(time.Millisecond))
 	} else {
 		result.Success = false
 		result.Error = "DNS not working after " + actionID
 		result.Message = "DNS resolver " + actionID + " completed but verification failed"
-		result.Output += "\n\n=== Verification Failed ===\n" + checkResult.Message
+		if pollResult.FinalResult != nil {
+			result.Output += "\n\n=== Verification Failed ===\n" + pollResult.FinalResult.Message
+		}
+		result.Output += fmt.Sprintf("\n(failed after %d attempts in %s)", pollResult.Attempts, pollResult.Elapsed.Round(time.Millisecond))
 	}
 
 	return result

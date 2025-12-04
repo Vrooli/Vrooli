@@ -8,8 +8,13 @@ import { ProjectModal } from "@features/projects";
 import { GuidedTour, useGuidedTour } from "@features/onboarding";
 import { DocsModal } from "@features/docs";
 
-// Keyboard shortcuts
-import { useKeyboardShortcuts, type KeyboardShortcut } from "@hooks/useKeyboardShortcuts";
+// Keyboard shortcuts - new centralized system
+import {
+  useKeyboardShortcutHandler,
+  useRegisterShortcuts,
+  useShortcutContext,
+} from "@hooks/useKeyboardShortcuts";
+import { type ShortcutContext } from "@stores/keyboardShortcutsStore";
 
 // Lazy load heavy components for better initial load performance
 const WorkflowBuilder = lazy(() => import("@features/workflows/builder/WorkflowBuilder"));
@@ -666,98 +671,96 @@ function App() {
     }
   };
 
-  // Define keyboard shortcuts for the entire application
-  const keyboardShortcuts = useMemo<KeyboardShortcut[]>(
-    () => [
-      {
-        key: "?",
-        modifiers: ["meta"],
-        description: "Show keyboard shortcuts",
-        category: "Help",
-        action: () => setShowKeyboardShortcuts(true),
+  // =========================================================================
+  // Keyboard Shortcuts - Centralized System
+  // =========================================================================
+
+  // Set up the global keyboard shortcut handler (must be called once at root)
+  useKeyboardShortcutHandler();
+
+  // Map current view to shortcut context
+  const shortcutContext = useMemo<ShortcutContext>(() => {
+    // Check for open modals first
+    if (showKeyboardShortcuts || showAIModal || showProjectModal || showDocs || showTour) {
+      return 'modal';
+    }
+    switch (currentView) {
+      case 'dashboard':
+      case 'all-workflows':
+      case 'all-executions':
+        return 'dashboard';
+      case 'project-detail':
+        return 'project-detail';
+      case 'project-workflow':
+        return 'workflow-builder';
+      case 'settings':
+        return 'settings';
+      default:
+        return 'dashboard';
+    }
+  }, [currentView, showKeyboardShortcuts, showAIModal, showProjectModal, showDocs, showTour]);
+
+  // Set the active shortcut context
+  useShortcutContext(shortcutContext);
+
+  // Register all shortcut actions
+  const shortcutActions = useMemo(
+    () => ({
+      // Global shortcuts
+      'show-shortcuts': () => setShowKeyboardShortcuts(true),
+      'close-modal': () => {
+        if (showKeyboardShortcuts) {
+          setShowKeyboardShortcuts(false);
+        } else if (showDocs) {
+          setShowDocs(false);
+        } else if (showAIModal) {
+          setShowAIModal(false);
+        } else if (showProjectModal) {
+          setShowProjectModal(false);
+        } else if (currentView === "project-workflow" && currentProject) {
+          openProject(currentProject);
+        } else if (currentView === "project-detail" || currentView === "settings") {
+          navigateToDashboard();
+        }
       },
-      {
-        key: "t",
-        modifiers: ["meta", "shift"],
-        description: "Open guided tour",
-        category: "Help",
-        action: () => openTour(),
+      'global-search': () => {
+        // In workflow builder context, focus the node palette search
+        // Otherwise, open the dashboard global search modal
+        const nodePaletteSearch = document.querySelector<HTMLInputElement>(
+          '[data-testid="node-palette-search-input"]'
+        );
+        if (nodePaletteSearch && shortcutContext === 'workflow-builder') {
+          nodePaletteSearch.focus();
+        } else {
+          // Dispatch event for Dashboard to open search modal
+          window.dispatchEvent(new CustomEvent('open-global-search'));
+        }
       },
-      {
-        key: "n",
-        modifiers: ["meta"],
-        description: "Create new project/workflow",
-        category: "Navigation",
-        action: () => {
-          if (currentView === "dashboard") {
-            setShowProjectModal(true);
-          } else if (currentView === "project-detail" || currentView === "project-workflow") {
-            setShowAIModal(true);
-          }
-        },
-      },
-      {
-        key: "escape",
-        description: "Close modal or go back",
-        category: "Navigation",
-        action: () => {
-          if (showKeyboardShortcuts) {
-            setShowKeyboardShortcuts(false);
-          } else if (showAIModal) {
-            setShowAIModal(false);
-          } else if (showProjectModal) {
-            setShowProjectModal(false);
-          } else if (currentView === "project-workflow" && currentProject) {
-            openProject(currentProject);
-          } else if (currentView === "project-detail" || currentView === "settings") {
-            navigateToDashboard();
-          }
-        },
-      },
-      {
-        key: "/",
-        modifiers: ["meta"],
-        description: "Focus search",
-        category: "Navigation",
-        action: () => {
-          const searchInput = document.querySelector<HTMLInputElement>(
-            'input[placeholder*="Search"]'
-          );
-          searchInput?.focus();
-        },
-      },
-      {
-        key: "h",
-        modifiers: ["meta"],
-        description: "Go to dashboard",
-        category: "Navigation",
-        action: () => navigateToDashboard(),
-      },
-      {
-        key: ",",
-        modifiers: ["meta"],
-        description: "Open settings",
-        category: "Navigation",
-        action: () => navigateToSettings(),
-      },
-    ],
-    [currentView, currentProject, showKeyboardShortcuts, showAIModal, showProjectModal, navigateToDashboard, navigateToSettings, openProject, openTour]
+      'open-settings': () => navigateToSettings(),
+
+      // Dashboard shortcuts
+      'new-project': () => setShowProjectModal(true),
+      'go-home': () => navigateToDashboard(),
+      'open-tutorial': () => openTour(),
+
+      // Project detail shortcuts
+      'new-workflow': () => setShowAIModal(true),
+    }),
+    [
+      showKeyboardShortcuts,
+      showDocs,
+      showAIModal,
+      showProjectModal,
+      currentView,
+      currentProject,
+      openProject,
+      navigateToDashboard,
+      navigateToSettings,
+      openTour,
+    ]
   );
 
-  // Register keyboard shortcuts
-  useKeyboardShortcuts(keyboardShortcuts);
-
-  // Shortcut definitions for the help modal (without action functions)
-  const shortcutDefinitions = useMemo(
-    () =>
-      keyboardShortcuts.map(({ key, modifiers, description, category }) => ({
-        key,
-        modifiers,
-        description,
-        category,
-      })),
-    [keyboardShortcuts]
-  );
+  useRegisterShortcuts(shortcutActions);
 
   useEffect(() => {
     const resolvePath = async (path: string, replace = false) => {
@@ -920,8 +923,7 @@ function App() {
         <KeyboardShortcutsModal
           isOpen={showKeyboardShortcuts}
           onClose={() => setShowKeyboardShortcuts(false)}
-          shortcuts={shortcutDefinitions}
-        />
+                  />
 
         <DocsModal
           isOpen={showDocs}
@@ -951,8 +953,7 @@ function App() {
         <KeyboardShortcutsModal
           isOpen={showKeyboardShortcuts}
           onClose={() => setShowKeyboardShortcuts(false)}
-          shortcuts={shortcutDefinitions}
-        />
+                  />
 
         <GuidedTour
           isOpen={showTour}
@@ -986,8 +987,7 @@ function App() {
         <KeyboardShortcutsModal
           isOpen={showKeyboardShortcuts}
           onClose={() => setShowKeyboardShortcuts(false)}
-          shortcuts={shortcutDefinitions}
-        />
+                  />
 
         <GuidedTour
           isOpen={showTour}
@@ -1020,8 +1020,7 @@ function App() {
         <KeyboardShortcutsModal
           isOpen={showKeyboardShortcuts}
           onClose={() => setShowKeyboardShortcuts(false)}
-          shortcuts={shortcutDefinitions}
-        />
+                  />
 
         <GuidedTour
           isOpen={showTour}
@@ -1075,8 +1074,7 @@ function App() {
         <KeyboardShortcutsModal
           isOpen={showKeyboardShortcuts}
           onClose={() => setShowKeyboardShortcuts(false)}
-          shortcuts={shortcutDefinitions}
-        />
+                  />
 
         <GuidedTour
           isOpen={showTour}
@@ -1218,8 +1216,7 @@ function App() {
         <KeyboardShortcutsModal
           isOpen={showKeyboardShortcuts}
           onClose={() => setShowKeyboardShortcuts(false)}
-          shortcuts={shortcutDefinitions}
-        />
+                  />
 
         <GuidedTour
           isOpen={showTour}

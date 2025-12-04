@@ -18,6 +18,7 @@ import { useProjectStore, type Project } from '@stores/projectStore';
 import { useDashboardStore, type FavoriteWorkflow } from '@stores/dashboardStore';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
+import { selectors } from '@constants/selectors';
 
 interface ProjectsTabProps {
   onProjectSelect: (project: Project) => void;
@@ -184,22 +185,24 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
         {workflows.length > 5 && (
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search workflows..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-10 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-              >
-                <X size={16} />
-              </button>
-            )}
-          </div>
+          <input
+            type="text"
+            placeholder="Search workflows..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-10 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
+            data-testid={selectors.projects.search.input}
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+              data-testid={selectors.projects.search.clearButton}
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
         )}
 
         {/* Workflows List */}
@@ -304,11 +307,13 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-10 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
+            data-testid={selectors.projects.search.input}
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+              data-testid={selectors.projects.search.clearButton}
             >
               <X size={16} />
             </button>
@@ -328,7 +333,10 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
             <p className="text-gray-400">No projects match "{searchTerm}"</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+            data-testid={selectors.projects.grid}
+          >
             {filteredProjects.map((project) => {
               const isDeleting = deletingProjectId === project.id;
               const isActionsOpen = showActionsFor === project.id;
@@ -342,6 +350,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
                   className={`group relative bg-gray-800/50 border border-gray-700 rounded-xl p-5 cursor-pointer hover:border-flow-accent/60 hover:shadow-lg hover:shadow-blue-500/10 transition-all ${
                     isDeleting ? 'opacity-50 pointer-events-none' : ''
                   }`}
+                  data-testid={selectors.projects.card}
                 >
                   {/* Deleting Overlay */}
                   {isDeleting && (
@@ -357,7 +366,12 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
                         <FolderOpen size={18} className="text-flow-accent" />
                       </div>
                       <div className="min-w-0">
-                        <h3 className="font-semibold text-white truncate">{project.name}</h3>
+                        <h3
+                          className="font-semibold text-white truncate"
+                          data-testid={selectors.projects.cardTitle}
+                        >
+                          {project.name}
+                        </h3>
                         <div className="text-xs text-gray-500">
                           {workflowCount} workflow{workflowCount !== 1 ? 's' : ''}
                         </div>

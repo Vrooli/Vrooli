@@ -349,13 +349,13 @@ type simpleCheck struct {
 	id string
 }
 
-func (c *simpleCheck) ID() string                         { return c.id }
-func (c *simpleCheck) Title() string                      { return "Simple Check " + c.id }
-func (c *simpleCheck) Description() string                { return "A simple test check" }
-func (c *simpleCheck) Importance() string                 { return "For testing" }
-func (c *simpleCheck) Category() checks.Category          { return checks.CategoryInfrastructure }
-func (c *simpleCheck) IntervalSeconds() int               { return 60 }
-func (c *simpleCheck) Platforms() []platform.Type         { return nil }
+func (c *simpleCheck) ID() string                 { return c.id }
+func (c *simpleCheck) Title() string              { return "Simple Check " + c.id }
+func (c *simpleCheck) Description() string        { return "A simple test check" }
+func (c *simpleCheck) Importance() string         { return "For testing" }
+func (c *simpleCheck) Category() checks.Category  { return checks.CategoryInfrastructure }
+func (c *simpleCheck) IntervalSeconds() int       { return 60 }
+func (c *simpleCheck) Platforms() []platform.Type { return nil }
 func (c *simpleCheck) Run(ctx context.Context) checks.Result {
 	return checks.Result{
 		CheckID: c.id,

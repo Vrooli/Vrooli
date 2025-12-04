@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import serviceDefinition from '../../../.vrooli/service.json';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
 import { useSettingsStore } from './settingsStore';
@@ -21,6 +22,50 @@ interface AICapabilityStore {
 const DEFAULT_CAPABILITY: AICapability = {
   available: false,
   reason: 'checking',
+};
+
+type ServiceHealthConfig = {
+  lifecycle?: {
+    health?: {
+      endpoints?: Record<string, unknown>;
+    };
+  };
+};
+
+const SERVICE_HEALTH_ENDPOINTS: Record<string, string> = (() => {
+  const raw = (serviceDefinition as ServiceHealthConfig)?.lifecycle?.health?.endpoints ?? {};
+  return Object.entries(raw).reduce<Record<string, string>>((acc, [key, value]) => {
+    if (typeof value === 'string' && value.trim().length > 0) {
+      acc[key] = value.trim();
+    }
+    return acc;
+  }, {});
+})();
+
+const getPreferredAiStatusPath = (): string | undefined => {
+  if (SERVICE_HEALTH_ENDPOINTS.ai) {
+    return SERVICE_HEALTH_ENDPOINTS.ai;
+  }
+  if (SERVICE_HEALTH_ENDPOINTS.api) {
+    return SERVICE_HEALTH_ENDPOINTS.api;
+  }
+  return '/health';
+};
+
+const buildAbsoluteEndpointUrl = (apiUrl: string, endpointPath: string): string => {
+  if (/^https?:\/\//i.test(endpointPath)) {
+    return endpointPath;
+  }
+
+  const normalizedPath = endpointPath.startsWith('/') ? endpointPath : `/${endpointPath}`;
+
+  try {
+    const parsed = new URL(apiUrl);
+    return `${parsed.protocol}//${parsed.host}${normalizedPath}`;
+  } catch {
+    const stripped = apiUrl.replace(/\/api\/v1\/?$/, '');
+    return `${stripped}${normalizedPath}`;
+  }
 };
 
 export const useAICapabilityStore = create<AICapabilityStore>((set, get) => ({
@@ -53,33 +98,45 @@ export const useAICapabilityStore = create<AICapabilityStore>((set, get) => ({
         return;
       }
 
-      // Check server-side AI availability (for subscription credits)
+      // Check server-side health/AI capability endpoint if declared
       try {
-        const config = await getConfig();
-        const response = await fetch(`${config.API_URL}/ai/status`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const available = Boolean(data.available);
-          const credits = typeof data.credits === 'number' ? data.credits : undefined;
-
-          set({
-            capability: {
-              available,
-              reason: available ? (credits && credits > 0 ? 'has_credits' : 'has_api_key') : 'no_credits',
-              creditsRemaining: credits,
-              apiKeyConfigured: Boolean(data.api_key_configured),
-              lastChecked: new Date(),
-            },
-            isChecking: false,
+        const statusPath = getPreferredAiStatusPath();
+        if (statusPath) {
+          const config = await getConfig();
+          const statusUrl = buildAbsoluteEndpointUrl(config.API_URL, statusPath);
+          const response = await fetch(statusUrl, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
           });
-          return;
+
+          if (response.ok) {
+            let payload: Record<string, unknown> = {};
+            try {
+              payload = await response.json();
+            } catch {
+              // Some health endpoints return plain text; ignore parse errors
+            }
+
+            const available = typeof payload.available === 'boolean' ? payload.available : true;
+            const credits = typeof payload.credits === 'number' ? payload.credits : undefined;
+            const apiKeyConfigured =
+              typeof payload.api_key_configured === 'boolean' ? payload.api_key_configured : available;
+
+            set({
+              capability: {
+                available,
+                reason: available ? (credits && credits > 0 ? 'has_credits' : 'has_api_key') : 'no_credits',
+                creditsRemaining: credits,
+                apiKeyConfigured,
+                lastChecked: new Date(),
+              },
+              isChecking: false,
+            });
+            return;
+          }
         }
       } catch {
-        // Server endpoint might not exist yet - that's ok
+        // Endpoint missing or offline; fall through to default capability
       }
 
       // No AI capability found

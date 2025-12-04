@@ -179,10 +179,10 @@ func TestRDPCheckRunWithMock_MacOS(t *testing.T) {
 // TestSelectRDPServiceWithMock tests RDP service selection logic with various platforms
 func TestSelectRDPServiceWithMock(t *testing.T) {
 	tests := []struct {
-		name             string
-		caps             *platform.Capabilities
-		expectService    string
-		expectCheckable  bool
+		name            string
+		caps            *platform.Capabilities
+		expectService   string
+		expectCheckable bool
 	}{
 		{
 			name: "linux with systemd",

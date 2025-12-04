@@ -1,32 +1,26 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "../ui/card";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Monitor, Package, Search, Download, Loader2, XCircle } from "lucide-react";
 import { ScenarioCard } from "./ScenarioCard";
-import { ScenarioDetails } from "./ScenarioDetails";
 import { fetchScenarioDesktopStatus } from "../../lib/api";
 import type { ScenariosResponse, FilterStatus, ScenarioDesktopStatus } from "./types";
 
-export function ScenarioInventory() {
+interface ScenarioInventoryProps {
+  onScenarioLaunch?: (scenario: ScenarioDesktopStatus) => void;
+}
+
+export function ScenarioInventory({ onScenarioLaunch }: ScenarioInventoryProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
-  const [selectedScenario, setSelectedScenario] = useState<ScenarioDesktopStatus | null>(null);
 
   const { data, isLoading, error } = useQuery<ScenariosResponse>({
     queryKey: ['scenarios-desktop-status'],
     queryFn: fetchScenarioDesktopStatus,
     refetchInterval: 30000, // Refresh every 30 seconds
   });
-
-  useEffect(() => {
-    if (!selectedScenario || !data?.scenarios) return;
-    const updatedScenario = data.scenarios.find((scenario) => scenario.name === selectedScenario.name);
-    if (updatedScenario && updatedScenario !== selectedScenario) {
-      setSelectedScenario(updatedScenario);
-    }
-  }, [data, selectedScenario]);
 
   if (isLoading) {
     return (
@@ -62,10 +56,6 @@ export function ScenarioInventory() {
                          (filterStatus === "web" && !scenario.has_desktop);
     return matchesSearch && matchesFilter;
   }) || [];
-
-  const activeScenario = selectedScenario && filteredScenarios.some((scenario) => scenario.name === selectedScenario.name)
-    ? selectedScenario
-    : null;
 
   return (
     <div className="space-y-6">
@@ -161,22 +151,15 @@ export function ScenarioInventory() {
         </CardContent>
       </Card>
 
-      {/* Scenario Details */}
-      {activeScenario && (
-        <div>
-          <ScenarioDetails
-            scenario={activeScenario}
-            onClose={() => setSelectedScenario(null)}
-          />
-        </div>
-      )}
-
       {/* Scenarios List */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">
             Scenarios ({filteredScenarios.length})
           </h3>
+          <p className="text-sm text-slate-400">
+            Click a scenario to open the desktop builder with it pre-selected.
+          </p>
         </div>
 
         {filteredScenarios.length === 0 ? (
@@ -191,8 +174,7 @@ export function ScenarioInventory() {
             <ScenarioCard
               key={scenario.name}
               scenario={scenario}
-              onSelect={setSelectedScenario}
-              isSelected={activeScenario?.name === scenario.name}
+              onSelect={(chosen) => onScenarioLaunch?.(chosen)}
             />
           ))
         )}

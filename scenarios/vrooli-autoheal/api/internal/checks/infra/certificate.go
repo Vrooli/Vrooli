@@ -1,5 +1,5 @@
 // Package infra provides infrastructure health checks
-// [REQ:INFRA-CERT-001]
+// [REQ:INFRA-CERT-001] [REQ:HEAL-ACTION-001]
 package infra
 
 import (
@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"vrooli-autoheal/internal/checks"
@@ -37,10 +38,12 @@ func (d *defaultFileReader) Stat(path string) (os.FileInfo, error) {
 // CertificateCheck monitors SSL/TLS certificate expiration.
 // Currently focuses on cloudflared tunnel certificates but can be extended.
 type CertificateCheck struct {
-	warningDays  int        // Days before expiry to warn
-	criticalDays int        // Days before expiry to go critical
-	certPaths    []string   // Paths to check for certificates
-	fileReader   FileReader // Injectable file reader for testing
+	warningDays  int                    // Days before expiry to warn
+	criticalDays int                    // Days before expiry to go critical
+	certPaths    []string               // Paths to check for certificates
+	fileReader   FileReader             // Injectable file reader for testing
+	executor     checks.CommandExecutor // Injectable executor for recovery actions
+	caps         *platform.Capabilities // Platform capabilities for recovery actions
 }
 
 // CertificateCheckOption configures a CertificateCheck.
@@ -75,6 +78,21 @@ func WithFileReader(fr FileReader) CertificateCheckOption {
 	}
 }
 
+// WithCertExecutor sets the command executor for recovery actions.
+// [REQ:TEST-SEAM-001]
+func WithCertExecutor(executor checks.CommandExecutor) CertificateCheckOption {
+	return func(c *CertificateCheck) {
+		c.executor = executor
+	}
+}
+
+// WithCertPlatformCaps sets the platform capabilities for recovery actions.
+func WithCertPlatformCaps(caps *platform.Capabilities) CertificateCheckOption {
+	return func(c *CertificateCheck) {
+		c.caps = caps
+	}
+}
+
 // NewCertificateCheck creates a certificate expiration check.
 // Default thresholds: warning at 7 days, critical at 3 days.
 func NewCertificateCheck(opts ...CertificateCheckOption) *CertificateCheck {
@@ -83,6 +101,7 @@ func NewCertificateCheck(opts ...CertificateCheckOption) *CertificateCheck {
 		criticalDays: 3,
 		certPaths:    getDefaultCertPaths(),
 		fileReader:   &defaultFileReader{},
+		executor:     checks.DefaultExecutor,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -113,41 +132,68 @@ func (c *CertificateCheck) Run(ctx context.Context) checks.Result {
 	var worstStatus checks.Status = checks.StatusOK
 	var worstMessage string
 	soonestExpiry := time.Time{}
+	var validCertCount, skippedCount, errorCount int
 
 	for _, certPath := range c.certPaths {
 		// Expand home directory
 		expandedPath := expandPath(certPath)
 
-		// Check if file exists
-		if _, err := c.fileReader.Stat(expandedPath); os.IsNotExist(err) {
-			continue // Skip missing files silently
+		// Handle glob patterns (e.g., "*.crt", "*.pem")
+		// If it's a glob pattern, expand it; otherwise use as-is
+		var paths []string
+		if matches, err := filepath.Glob(expandedPath); err == nil && len(matches) > 0 {
+			paths = matches
+		} else {
+			// Not a glob or no matches - try as literal path
+			paths = []string{expandedPath}
 		}
 
-		// Read and parse certificate
-		info, err := c.checkCertificate(expandedPath)
-		if err != nil {
-			certsChecked = append(certsChecked, certInfo{
-				Path:   certPath,
-				Error:  err.Error(),
-				Status: "error",
-			})
-			continue
-		}
+		for _, path := range paths {
+			// Check if file exists
+			if _, err := c.fileReader.Stat(path); os.IsNotExist(err) {
+				continue // Skip missing files silently
+			}
 
-		certsChecked = append(certsChecked, info)
+			// Read and parse certificate
+			info, err := c.checkCertificate(path)
+			if err != nil {
+				certsChecked = append(certsChecked, certInfo{
+					Path:   path,
+					Error:  err.Error(),
+					Status: "error",
+				})
+				errorCount++
+				// Parse errors should be reported as warnings
+				if worstStatus == checks.StatusOK {
+					worstStatus = checks.StatusWarning
+					worstMessage = fmt.Sprintf("Failed to parse certificate %s", path)
+				}
+				continue
+			}
 
-		// Track soonest expiry
-		if soonestExpiry.IsZero() || info.ExpiresAt.Before(soonestExpiry) {
-			soonestExpiry = info.ExpiresAt
-		}
+			certsChecked = append(certsChecked, info)
 
-		// Update worst status
-		if info.Status == "critical" && worstStatus != checks.StatusCritical {
-			worstStatus = checks.StatusCritical
-			worstMessage = fmt.Sprintf("Certificate %s expires in %d days", info.Path, info.DaysUntilExpiry)
-		} else if info.Status == "warning" && worstStatus == checks.StatusOK {
-			worstStatus = checks.StatusWarning
-			worstMessage = fmt.Sprintf("Certificate %s expires in %d days", info.Path, info.DaysUntilExpiry)
+			// Handle skipped files (non-certificate PEM files like tokens)
+			if info.Status == "skipped" {
+				skippedCount++
+				continue // Don't count skipped files in expiry tracking or status
+			}
+
+			validCertCount++
+
+			// Track soonest expiry (only for valid certificates)
+			if soonestExpiry.IsZero() || info.ExpiresAt.Before(soonestExpiry) {
+				soonestExpiry = info.ExpiresAt
+			}
+
+			// Update worst status based on certificate expiry
+			if info.Status == "critical" && worstStatus != checks.StatusCritical {
+				worstStatus = checks.StatusCritical
+				worstMessage = fmt.Sprintf("Certificate %s expires in %d days", info.Path, info.DaysUntilExpiry)
+			} else if info.Status == "warning" && worstStatus == checks.StatusOK {
+				worstStatus = checks.StatusWarning
+				worstMessage = fmt.Sprintf("Certificate %s expires in %d days", info.Path, info.DaysUntilExpiry)
+			}
 		}
 	}
 
@@ -155,6 +201,9 @@ func (c *CertificateCheck) Run(ctx context.Context) checks.Result {
 	result.Details["warningThresholdDays"] = c.warningDays
 	result.Details["criticalThresholdDays"] = c.criticalDays
 	result.Details["certificatesChecked"] = len(certsChecked)
+	result.Details["validCertificates"] = validCertCount
+	result.Details["skippedFiles"] = skippedCount
+	result.Details["parseErrors"] = errorCount
 
 	if !soonestExpiry.IsZero() {
 		result.Details["soonestExpiry"] = soonestExpiry.Format(time.RFC3339)
@@ -186,9 +235,21 @@ func (c *CertificateCheck) Run(ctx context.Context) checks.Result {
 		return result
 	}
 
+	// If we only found non-certificate files (all skipped), that's OK
+	if validCertCount == 0 && skippedCount > 0 && errorCount == 0 {
+		result.Status = checks.StatusOK
+		result.Message = fmt.Sprintf("No X.509 certificates found (%d non-certificate files skipped)", skippedCount)
+		result.Details["note"] = "Files checked were not X.509 certificates (e.g., tunnel tokens)"
+		return result
+	}
+
 	result.Status = worstStatus
 	if worstStatus == checks.StatusOK {
-		result.Message = fmt.Sprintf("All %d certificates are valid", len(certsChecked))
+		if skippedCount > 0 {
+			result.Message = fmt.Sprintf("All %d certificates are valid (%d non-certificate files skipped)", validCertCount, skippedCount)
+		} else {
+			result.Message = fmt.Sprintf("All %d certificates are valid", validCertCount)
+		}
 	} else {
 		result.Message = worstMessage
 	}
@@ -205,6 +266,17 @@ type certInfo struct {
 	DaysUntilExpiry int       `json:"daysUntilExpiry,omitempty"`
 	Status          string    `json:"status"` // ok, warning, critical, error
 	Error           string    `json:"error,omitempty"`
+}
+
+// knownNonCertTypes are PEM block types that are NOT certificates and should be skipped
+var knownNonCertTypes = map[string]bool{
+	"ARGO TUNNEL TOKEN":     true, // Cloudflare tunnel authentication token
+	"PRIVATE KEY":           true,
+	"RSA PRIVATE KEY":       true,
+	"EC PRIVATE KEY":        true,
+	"ENCRYPTED PRIVATE KEY": true,
+	"PUBLIC KEY":            true,
+	"RSA PUBLIC KEY":        true,
 }
 
 // checkCertificate reads and validates a certificate file
@@ -225,10 +297,17 @@ func (c *CertificateCheck) checkCertificate(path string) (certInfo, error) {
 		return info, fmt.Errorf("failed to parse PEM block")
 	}
 
+	// Check if this is a known non-certificate PEM type
+	if knownNonCertTypes[block.Type] {
+		info.Status = "skipped"
+		info.Error = fmt.Sprintf("File is a %s, not a certificate", block.Type)
+		return info, nil // Return without error - this is expected for token files
+	}
+
 	// Parse certificate
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		return info, fmt.Errorf("failed to parse certificate: %w", err)
+		return info, fmt.Errorf("failed to parse certificate (PEM type: %s): %w", block.Type, err)
 	}
 
 	// Extract info
@@ -290,3 +369,282 @@ func expandPath(path string) string {
 	}
 	return path
 }
+
+// extractCertificatesFromDetails safely extracts certificate info from Details map.
+// Handles both direct []certInfo (in-memory) and []interface{} (after JSON round-trip).
+func extractCertificatesFromDetails(details map[string]interface{}) []certInfo {
+	if details == nil {
+		return nil
+	}
+
+	rawCerts, ok := details["certificates"]
+	if !ok {
+		return nil
+	}
+
+	// Try direct type assertion first (in-memory results)
+	if certs, ok := rawCerts.([]certInfo); ok {
+		return certs
+	}
+
+	// Handle JSON-unmarshaled []interface{} (persisted results)
+	rawSlice, ok := rawCerts.([]interface{})
+	if !ok {
+		return nil
+	}
+
+	var certs []certInfo
+	for _, item := range rawSlice {
+		itemMap, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		cert := certInfo{}
+		if v, ok := itemMap["path"].(string); ok {
+			cert.Path = v
+		}
+		if v, ok := itemMap["subject"].(string); ok {
+			cert.Subject = v
+		}
+		if v, ok := itemMap["issuer"].(string); ok {
+			cert.Issuer = v
+		}
+		if v, ok := itemMap["status"].(string); ok {
+			cert.Status = v
+		}
+		if v, ok := itemMap["error"].(string); ok {
+			cert.Error = v
+		}
+		// Handle daysUntilExpiry (may be float64 from JSON)
+		if v, ok := itemMap["daysUntilExpiry"].(float64); ok {
+			cert.DaysUntilExpiry = int(v)
+		} else if v, ok := itemMap["daysUntilExpiry"].(int); ok {
+			cert.DaysUntilExpiry = v
+		}
+		// Handle expiresAt (time.Time from JSON becomes string)
+		if v, ok := itemMap["expiresAt"].(string); ok {
+			if t, err := time.Parse(time.RFC3339, v); err == nil {
+				cert.ExpiresAt = t
+			}
+		}
+
+		certs = append(certs, cert)
+	}
+
+	return certs
+}
+
+// RecoveryActions returns available recovery actions for certificate issues
+// [REQ:HEAL-ACTION-001]
+func (c *CertificateCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
+	isLinux := runtime.GOOS == "linux"
+	hasSystemd := c.caps != nil && c.caps.SupportsSystemd
+	hasCriticalCert := false
+	hasExpiredCert := false
+
+	// Check if we have critical or expired certificates
+	if lastResult != nil {
+		certs := extractCertificatesFromDetails(lastResult.Details)
+		for _, cert := range certs {
+			if cert.Status == "critical" {
+				hasCriticalCert = true
+				if cert.DaysUntilExpiry <= 0 {
+					hasExpiredCert = true
+				}
+			}
+		}
+	}
+
+	return []checks.RecoveryAction{
+		{
+			ID:          "renew-cloudflared",
+			Name:        "Renew Cloudflared Cert",
+			Description: "Re-authenticate cloudflared to renew tunnel certificate",
+			Dangerous:   false,
+			Available:   isLinux && (hasCriticalCert || hasExpiredCert),
+		},
+		{
+			ID:          "restart-cloudflared",
+			Name:        "Restart Cloudflared",
+			Description: "Restart cloudflared service to pick up renewed certificates",
+			Dangerous:   false,
+			Available:   isLinux && hasSystemd,
+		},
+		{
+			ID:          "check-expiry",
+			Name:        "Check Expiry Details",
+			Description: "Show detailed certificate expiration information",
+			Dangerous:   false,
+			Available:   true,
+		},
+		{
+			ID:          "list-certs",
+			Name:        "List Certificates",
+			Description: "List all certificate files being monitored",
+			Dangerous:   false,
+			Available:   true,
+		},
+	}
+}
+
+// ExecuteAction runs the specified recovery action
+// [REQ:HEAL-ACTION-001]
+func (c *CertificateCheck) ExecuteAction(ctx context.Context, actionID string) checks.ActionResult {
+	start := time.Now()
+	result := checks.ActionResult{
+		ActionID:  actionID,
+		CheckID:   c.ID(),
+		Timestamp: start,
+	}
+
+	switch actionID {
+	case "renew-cloudflared":
+		return c.executeRenewCloudflared(ctx, result, start)
+
+	case "restart-cloudflared":
+		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "cloudflared")
+		result.Duration = time.Since(start)
+		result.Output = string(output)
+
+		if err != nil {
+			result.Success = false
+			result.Error = err.Error()
+			result.Message = "Failed to restart cloudflared service"
+			return result
+		}
+
+		result.Success = true
+		result.Message = "Cloudflared service restarted - certificates will be reloaded"
+		return result
+
+	case "check-expiry":
+		return c.executeCheckExpiry(ctx, result, start)
+
+	case "list-certs":
+		return c.executeListCerts(result, start)
+
+	default:
+		result.Success = false
+		result.Error = "unknown action: " + actionID
+		result.Duration = time.Since(start)
+		return result
+	}
+}
+
+// executeRenewCloudflared attempts to renew cloudflared certificates
+func (c *CertificateCheck) executeRenewCloudflared(ctx context.Context, result checks.ActionResult, start time.Time) checks.ActionResult {
+	var outputBuilder strings.Builder
+
+	outputBuilder.WriteString("=== Cloudflared Certificate Renewal ===\n\n")
+
+	// Step 1: Check current tunnel status
+	outputBuilder.WriteString("Step 1: Checking tunnel status...\n")
+	tunnelOutput, err := c.executor.CombinedOutput(ctx, "cloudflared", "tunnel", "list")
+	if err != nil {
+		outputBuilder.WriteString(fmt.Sprintf("Warning: Could not list tunnels: %v\n", err))
+	} else {
+		outputBuilder.Write(tunnelOutput)
+		outputBuilder.WriteString("\n")
+	}
+
+	// Step 2: Run cloudflared login to refresh credentials
+	outputBuilder.WriteString("\nStep 2: To renew certificates, run:\n")
+	outputBuilder.WriteString("  cloudflared tunnel login\n")
+	outputBuilder.WriteString("\nThis will open a browser for authentication.\n")
+	outputBuilder.WriteString("After authentication, run:\n")
+	outputBuilder.WriteString("  sudo systemctl restart cloudflared\n")
+
+	// Note: We can't run cloudflared tunnel login non-interactively
+	// So we provide instructions instead
+	result.Duration = time.Since(start)
+	result.Output = outputBuilder.String()
+	result.Success = true
+	result.Message = "Certificate renewal instructions provided - manual steps required"
+	return result
+}
+
+// executeCheckExpiry shows detailed certificate information
+func (c *CertificateCheck) executeCheckExpiry(ctx context.Context, result checks.ActionResult, start time.Time) checks.ActionResult {
+	var outputBuilder strings.Builder
+
+	outputBuilder.WriteString("=== Certificate Expiration Details ===\n\n")
+
+	for _, certPath := range c.certPaths {
+		expandedPath := expandPath(certPath)
+
+		// Handle glob patterns
+		paths, err := filepath.Glob(expandedPath)
+		if err != nil || len(paths) == 0 {
+			// Not a glob or no matches, try as literal path
+			paths = []string{expandedPath}
+		}
+
+		for _, path := range paths {
+			if _, err := c.fileReader.Stat(path); os.IsNotExist(err) {
+				continue
+			}
+
+			info, err := c.checkCertificate(path)
+			if err != nil {
+				outputBuilder.WriteString(fmt.Sprintf("Certificate: %s\n", path))
+				outputBuilder.WriteString(fmt.Sprintf("  Error: %v\n\n", err))
+				continue
+			}
+
+			outputBuilder.WriteString(fmt.Sprintf("Certificate: %s\n", path))
+			outputBuilder.WriteString(fmt.Sprintf("  Subject: %s\n", info.Subject))
+			outputBuilder.WriteString(fmt.Sprintf("  Issuer: %s\n", info.Issuer))
+			outputBuilder.WriteString(fmt.Sprintf("  Expires: %s\n", info.ExpiresAt.Format(time.RFC3339)))
+			outputBuilder.WriteString(fmt.Sprintf("  Days Until Expiry: %d\n", info.DaysUntilExpiry))
+			outputBuilder.WriteString(fmt.Sprintf("  Status: %s\n\n", strings.ToUpper(info.Status)))
+		}
+	}
+
+	result.Duration = time.Since(start)
+	result.Output = outputBuilder.String()
+	result.Success = true
+	result.Message = "Certificate expiry details retrieved"
+	return result
+}
+
+// executeListCerts lists all certificate paths being monitored
+func (c *CertificateCheck) executeListCerts(result checks.ActionResult, start time.Time) checks.ActionResult {
+	var outputBuilder strings.Builder
+
+	outputBuilder.WriteString("=== Monitored Certificate Paths ===\n\n")
+	outputBuilder.WriteString(fmt.Sprintf("Warning Threshold: %d days\n", c.warningDays))
+	outputBuilder.WriteString(fmt.Sprintf("Critical Threshold: %d days\n\n", c.criticalDays))
+
+	foundCount := 0
+	for _, certPath := range c.certPaths {
+		expandedPath := expandPath(certPath)
+
+		// Handle glob patterns
+		paths, err := filepath.Glob(expandedPath)
+		if err != nil || len(paths) == 0 {
+			// Not a glob or no matches, try as literal path
+			paths = []string{expandedPath}
+		}
+
+		for _, path := range paths {
+			exists := "NOT FOUND"
+			if _, err := c.fileReader.Stat(path); err == nil {
+				exists = "FOUND"
+				foundCount++
+			}
+			outputBuilder.WriteString(fmt.Sprintf("[%s] %s\n", exists, path))
+		}
+	}
+
+	outputBuilder.WriteString(fmt.Sprintf("\nTotal certificates found: %d\n", foundCount))
+
+	result.Duration = time.Since(start)
+	result.Output = outputBuilder.String()
+	result.Success = true
+	result.Message = fmt.Sprintf("Listed %d certificates", foundCount)
+	return result
+}
+
+// Ensure CertificateCheck implements HealableCheck
+var _ checks.HealableCheck = (*CertificateCheck)(nil)

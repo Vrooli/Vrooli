@@ -47,27 +47,28 @@
   }
 
   /* Light theme - RGB values for Tailwind opacity support */
+  /* Uses subtle purple tint for brand cohesion and warmth */
   [data-theme="light"] {
-    --flow-bg: 248 250 252;
-    --flow-bg-secondary: 241 245 249;
-    --flow-node: 255 255 255;
-    --flow-node-hover: 241 245 249;
-    --flow-edge: 148 163 184;
-    --flow-accent: 37 99 235;
-    --flow-accent-hover: 29 78 216;
-    --flow-text: 15 23 42;
-    --flow-text-secondary: 71 85 105;
-    --flow-text-muted: 100 116 139;
-    --flow-border: 203 213 225;
-    --flow-border-light: 226 232 240;
+    --flow-bg: 249 248 252;
+    --flow-bg-secondary: 244 242 249;
+    --flow-node: 253 252 255;
+    --flow-node-hover: 246 244 251;
+    --flow-edge: 148 146 168;
+    --flow-accent: 99 102 241;
+    --flow-accent-hover: 79 70 229;
+    --flow-text: 30 27 46;
+    --flow-text-secondary: 71 69 96;
+    --flow-text-muted: 113 111 138;
+    --flow-border: 214 211 228;
+    --flow-border-light: 232 230 242;
     --flow-success: 22 163 74;
     --flow-warning: 217 119 6;
     --flow-error: 220 38 38;
-    --flow-surface: 255 255 255;
-    --flow-surface-hover: 241 245 249;
-    --scrollbar-bg: 248 250 252;
-    --scrollbar-thumb: 203 213 225;
-    --scrollbar-thumb-hover: 148 163 184;
+    --flow-surface: 253 252 255;
+    --flow-surface-hover: 246 244 251;
+    --scrollbar-bg: 249 248 252;
+    --scrollbar-thumb: 214 211 228;
+    --scrollbar-thumb-hover: 168 164 192;
 
     /* Light theme: invert gray scale semantically
        Dark backgrounds become light, light text becomes dark */
@@ -201,6 +202,21 @@
     color: rgb(var(--flow-text));
     font-family: var(--font-family-base, ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace);
     font-size: var(--font-size-base);
+  }
+
+  /* Light mode subtle dot pattern for texture */
+  [data-theme="light"] body {
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      rgb(147 51 234 / 0.03) 1px,
+      transparent 0
+    );
+    background-size: 24px 24px;
+  }
+
+  /* Ensure dark mode has no pattern (clean look) */
+  [data-theme="dark"] body {
+    background-image: none;
   }
 }
 
@@ -408,6 +424,52 @@
 
   .card-interactive {
     @apply card cursor-pointer hover:border-flow-accent/50 hover:shadow-lg hover:shadow-blue-500/10;
+  }
+
+  /* Gradient cards - theme-aware */
+  .card-gradient-purple {
+    background: linear-gradient(to bottom right,
+      rgb(88 28 135 / 0.3),    /* purple-900/30 */
+      rgb(30 58 138 / 0.2),    /* blue-900/20 */
+      rgb(17 24 39)            /* gray-900 dark */
+    );
+  }
+
+  .card-gradient-green {
+    background: linear-gradient(to right,
+      rgb(20 83 45 / 0.2),     /* green-900/20 */
+      rgb(6 78 59 / 0.15),     /* emerald-900/15 */
+      rgb(17 24 39)            /* gray-900 dark */
+    );
+  }
+
+  /* Light mode gradient overrides - uses purple-tinted base colors */
+  [data-theme="light"] .card-gradient-purple {
+    background: linear-gradient(to bottom right,
+      rgb(147 51 234 / 0.1),   /* purple-600/10 - visible purple tint */
+      rgb(99 102 241 / 0.06),  /* indigo-500/6 - brand accent tint */
+      rgb(253 252 255)         /* purple-tinted white base */
+    );
+    box-shadow: 0 1px 3px rgb(147 51 234 / 0.08);
+  }
+
+  [data-theme="light"] .card-gradient-green {
+    background: linear-gradient(to right,
+      rgb(34 197 94 / 0.1),    /* green-500/10 - visible green tint */
+      rgb(16 185 129 / 0.06),  /* emerald-500/6 - subtle emerald tint */
+      rgb(253 252 255)         /* purple-tinted white base */
+    );
+    box-shadow: 0 1px 3px rgb(34 197 94 / 0.08);
+  }
+
+  /* Light mode card elevation - adds subtle depth */
+  [data-theme="light"] .bg-flow-surface {
+    box-shadow: 0 1px 3px rgb(99 102 241 / 0.06),
+                0 1px 2px rgb(0 0 0 / 0.04);
+  }
+
+  [data-theme="light"] .bg-flow-node {
+    box-shadow: 0 1px 2px rgb(99 102 241 / 0.05);
   }
 }
 

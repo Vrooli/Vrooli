@@ -4,30 +4,100 @@ package checks
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"vrooli-autoheal/internal/platform"
 )
 
+// Auto-heal cooldown configuration
+const (
+	// DefaultHealCooldown is the minimum time between heal attempts for the same check
+	DefaultHealCooldown = 2 * time.Minute
+
+	// MaxConsecutiveFailures is the number of consecutive heal failures before backing off
+	MaxConsecutiveFailures = 3
+
+	// BackoffCooldown is the extended cooldown after MaxConsecutiveFailures
+	BackoffCooldown = 10 * time.Minute
+
+	// MaxBackoffCooldown is the maximum cooldown time after repeated failures
+	MaxBackoffCooldown = 30 * time.Minute
+
+	// DefaultCheckTimeout is the maximum time a single health check can run before timing out
+	DefaultCheckTimeout = 30 * time.Second
+)
+
+// HealTracker tracks the healing state for a single check
+type HealTracker struct {
+	LastAttempt         time.Time `json:"lastAttempt"`
+	LastSuccess         time.Time `json:"lastSuccess"`
+	ConsecutiveFailures int       `json:"consecutiveFailures"`
+	TotalAttempts       int       `json:"totalAttempts"`
+	TotalSuccesses      int       `json:"totalSuccesses"`
+	CooldownUntil       time.Time `json:"cooldownUntil"`
+}
+
+// IsInCooldown returns true if the check is still in cooldown period
+func (ht *HealTracker) IsInCooldown() bool {
+	return time.Now().Before(ht.CooldownUntil)
+}
+
+// CooldownRemaining returns the time remaining in cooldown, or 0 if not in cooldown
+func (ht *HealTracker) CooldownRemaining() time.Duration {
+	if !ht.IsInCooldown() {
+		return 0
+	}
+	return time.Until(ht.CooldownUntil)
+}
+
+// CalculateCooldown determines the next cooldown duration based on failure count
+func CalculateCooldown(consecutiveFailures int) time.Duration {
+	if consecutiveFailures < MaxConsecutiveFailures {
+		return DefaultHealCooldown
+	}
+
+	// Exponential backoff: 2^(failures - MaxConsecutiveFailures) * BackoffCooldown
+	// Capped at MaxBackoffCooldown
+	multiplier := 1 << (consecutiveFailures - MaxConsecutiveFailures) // 2^n
+	cooldown := time.Duration(multiplier) * BackoffCooldown
+
+	if cooldown > MaxBackoffCooldown {
+		return MaxBackoffCooldown
+	}
+	return cooldown
+}
+
+// HealTrackerStore abstracts persistence of heal tracker state.
+// This interface decouples the registry from the persistence package.
+type HealTrackerStore interface {
+	SaveHealTracker(ctx context.Context, checkID string, tracker *HealTracker) error
+	GetAllHealTrackers(ctx context.Context) (map[string]*HealTracker, error)
+	DeleteHealTracker(ctx context.Context, checkID string) error
+}
+
 // Registry manages health checks
 type Registry struct {
-	mu       sync.RWMutex
-	checks   map[string]Check
-	results  map[string]Result
-	lastRun  map[string]time.Time
-	platform *platform.Capabilities
-	config   ConfigProvider
+	mu               sync.RWMutex
+	checks           map[string]Check
+	results          map[string]Result
+	lastRun          map[string]time.Time
+	healTrackers     map[string]*HealTracker // Track healing state per check
+	platform         *platform.Capabilities
+	config           ConfigProvider
+	healTrackerStore HealTrackerStore // Optional persistence for heal trackers
 }
 
 // NewRegistry creates a new health check registry with the given platform capabilities.
 // Platform is injected to allow testing and avoid hidden dependency creation.
 func NewRegistry(plat *platform.Capabilities) *Registry {
 	return &Registry{
-		checks:   make(map[string]Check),
-		results:  make(map[string]Result),
-		lastRun:  make(map[string]time.Time),
-		platform: plat,
+		checks:       make(map[string]Check),
+		results:      make(map[string]Result),
+		lastRun:      make(map[string]time.Time),
+		healTrackers: make(map[string]*HealTracker),
+		platform:     plat,
 	}
 }
 
@@ -54,6 +124,40 @@ func (r *Registry) SetConfigProvider(cp ConfigProvider) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.config = cp
+}
+
+// SetHealTrackerStore sets the store for persisting heal tracker state.
+// When set, heal tracker state will be saved to the database after each heal attempt
+// and loaded on startup via LoadHealTrackers.
+// [REQ:HEAL-ACTION-001]
+func (r *Registry) SetHealTrackerStore(store HealTrackerStore) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.healTrackerStore = store
+}
+
+// LoadHealTrackers loads heal tracker state from the persistence store.
+// Should be called during startup to restore state from the database.
+// [REQ:HEAL-ACTION-001]
+func (r *Registry) LoadHealTrackers(ctx context.Context) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.healTrackerStore == nil {
+		return nil // No store configured, nothing to load
+	}
+
+	trackers, err := r.healTrackerStore.GetAllHealTrackers(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to load heal trackers: %w", err)
+	}
+
+	// Merge loaded trackers into in-memory map
+	for checkID, tracker := range trackers {
+		r.healTrackers[checkID] = tracker
+	}
+
+	return nil
 }
 
 // shouldRunCheck determines if a check should run based on config, platform, and interval
@@ -122,10 +226,37 @@ func (r *Registry) RunAll(ctx context.Context, forceAll bool) []Result {
 	return results
 }
 
-// runCheck executes a single check and stores the result
+// runCheck executes a single check with timeout and stores the result
 func (r *Registry) runCheck(ctx context.Context, check Check) Result {
 	start := time.Now()
-	result := check.Run(ctx)
+
+	// Create per-check timeout context
+	checkCtx, cancel := context.WithTimeout(ctx, DefaultCheckTimeout)
+	defer cancel()
+
+	// Run check with timeout - use channel to capture result
+	resultCh := make(chan Result, 1)
+	go func() {
+		resultCh <- check.Run(checkCtx)
+	}()
+
+	var result Result
+	select {
+	case result = <-resultCh:
+		// Check completed normally
+	case <-checkCtx.Done():
+		// Check timed out
+		result = Result{
+			CheckID: check.ID(),
+			Status:  StatusCritical,
+			Message: fmt.Sprintf("Check timed out after %s", DefaultCheckTimeout),
+			Details: map[string]interface{}{
+				"error":   "timeout",
+				"timeout": DefaultCheckTimeout.String(),
+			},
+		}
+	}
+
 	result.Duration = time.Since(start)
 	result.Timestamp = start
 
@@ -237,14 +368,17 @@ func (r *Registry) IsAutoHealEnabled(id string) bool {
 
 // AutoHealResult represents the outcome of an auto-heal attempt
 type AutoHealResult struct {
-	CheckID      string       `json:"checkId"`
-	Attempted    bool         `json:"attempted"`
-	ActionResult ActionResult `json:"actionResult,omitempty"`
-	Reason       string       `json:"reason,omitempty"` // Why it wasn't attempted
+	CheckID             string        `json:"checkId"`
+	Attempted           bool          `json:"attempted"`
+	ActionResult        ActionResult  `json:"actionResult,omitempty"`
+	Reason              string        `json:"reason,omitempty"`            // Why it wasn't attempted
+	CooldownRemaining   time.Duration `json:"cooldownRemaining,omitempty"` // Time until next attempt allowed
+	ConsecutiveFailures int           `json:"consecutiveFailures,omitempty"`
 }
 
 // RunAutoHeal attempts to auto-heal any critical checks that have auto-heal enabled.
 // It runs the first available recovery action for each failing check.
+// Implements cooldown and rate limiting to prevent thrashing on flapping services.
 // Returns a list of auto-heal results.
 // [REQ:CONFIG-CHECK-001] [REQ:HEAL-ACTION-001]
 func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHealResult {
@@ -262,6 +396,19 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 				CheckID:   result.CheckID,
 				Attempted: false,
 				Reason:    "auto-heal not enabled for this check",
+			})
+			continue
+		}
+
+		// Check cooldown before attempting heal
+		tracker := r.getOrCreateHealTracker(result.CheckID)
+		if tracker.IsInCooldown() {
+			autoHealResults = append(autoHealResults, AutoHealResult{
+				CheckID:             result.CheckID,
+				Attempted:           false,
+				Reason:              fmt.Sprintf("in cooldown (%.0fs remaining)", tracker.CooldownRemaining().Seconds()),
+				CooldownRemaining:   tracker.CooldownRemaining(),
+				ConsecutiveFailures: tracker.ConsecutiveFailures,
 			})
 			continue
 		}
@@ -301,12 +448,118 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 		// Execute the recovery action
 		actionResult := healable.ExecuteAction(ctx, selectedAction.ID)
 
+		// Update heal tracker based on result
+		r.updateHealTracker(result.CheckID, actionResult.Success)
+
+		// Get updated tracker for result
+		updatedTracker := r.getOrCreateHealTracker(result.CheckID)
+
 		autoHealResults = append(autoHealResults, AutoHealResult{
-			CheckID:      result.CheckID,
-			Attempted:    true,
-			ActionResult: actionResult,
+			CheckID:             result.CheckID,
+			Attempted:           true,
+			ActionResult:        actionResult,
+			CooldownRemaining:   updatedTracker.CooldownRemaining(),
+			ConsecutiveFailures: updatedTracker.ConsecutiveFailures,
 		})
 	}
 
 	return autoHealResults
+}
+
+// getOrCreateHealTracker returns the heal tracker for a check, creating one if needed
+func (r *Registry) getOrCreateHealTracker(checkID string) *HealTracker {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	tracker, exists := r.healTrackers[checkID]
+	if !exists {
+		tracker = &HealTracker{}
+		r.healTrackers[checkID] = tracker
+	}
+	return tracker
+}
+
+// updateHealTracker updates the heal tracker after a heal attempt and persists to store
+func (r *Registry) updateHealTracker(checkID string, success bool) {
+	r.mu.Lock()
+
+	tracker, exists := r.healTrackers[checkID]
+	if !exists {
+		tracker = &HealTracker{}
+		r.healTrackers[checkID] = tracker
+	}
+
+	now := time.Now()
+	tracker.LastAttempt = now
+	tracker.TotalAttempts++
+
+	if success {
+		tracker.LastSuccess = now
+		tracker.TotalSuccesses++
+		tracker.ConsecutiveFailures = 0
+		// Still apply a cooldown after success to prevent rapid re-triggering
+		tracker.CooldownUntil = now.Add(DefaultHealCooldown)
+	} else {
+		tracker.ConsecutiveFailures++
+		// Calculate backoff cooldown based on consecutive failures
+		cooldown := CalculateCooldown(tracker.ConsecutiveFailures)
+		tracker.CooldownUntil = now.Add(cooldown)
+	}
+
+	// Persist to store if configured (async to not block)
+	store := r.healTrackerStore
+	trackerCopy := *tracker
+	r.mu.Unlock()
+
+	if store != nil {
+		// Use background context for persistence - don't block on this
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			// Ignore errors - persistence is best-effort, in-memory state is authoritative
+			_ = store.SaveHealTracker(ctx, checkID, &trackerCopy)
+		}()
+	}
+}
+
+// GetHealTracker returns the heal tracker for a check (for API exposure)
+func (r *Registry) GetHealTracker(checkID string) (*HealTracker, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	tracker, exists := r.healTrackers[checkID]
+	if !exists {
+		return nil, false
+	}
+	// Return a copy to prevent external modification
+	trackerCopy := *tracker
+	return &trackerCopy, true
+}
+
+// GetAllHealTrackers returns all heal trackers (for API exposure)
+func (r *Registry) GetAllHealTrackers() map[string]HealTracker {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	result := make(map[string]HealTracker, len(r.healTrackers))
+	for id, tracker := range r.healTrackers {
+		result[id] = *tracker
+	}
+	return result
+}
+
+// ResetHealTracker resets the heal tracker for a check (for manual intervention)
+func (r *Registry) ResetHealTracker(checkID string) {
+	r.mu.Lock()
+	delete(r.healTrackers, checkID)
+	store := r.healTrackerStore
+	r.mu.Unlock()
+
+	// Delete from persistent store if configured (async)
+	if store != nil {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = store.DeleteHealTracker(ctx, checkID)
+		}()
+	}
 }

@@ -5,6 +5,7 @@ package infra
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"runtime"
 	"time"
 
@@ -277,23 +278,34 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 }
 
 // verifyRecovery checks that Docker is actually responsive after a start/restart action
+// Uses polling with timeout instead of fixed sleep for reliable verification.
 func (c *DockerCheck) verifyRecovery(ctx context.Context, result checks.ActionResult, actionID string, start time.Time) checks.ActionResult {
-	// Wait for Docker to initialize
-	time.Sleep(5 * time.Second)
+	// Configure polling: Docker daemon can take a while to fully initialize
+	pollConfig := checks.PollConfig{
+		Timeout:      45 * time.Second, // Docker can be slow to start
+		Interval:     3 * time.Second,
+		InitialDelay: 5 * time.Second, // Initial delay for daemon startup
+	}
 
-	// Check Docker status
-	checkResult := c.Run(ctx)
+	// Poll until healthy or timeout
+	pollResult := checks.PollForSuccess(ctx, c, pollConfig)
 	result.Duration = time.Since(start)
 
-	if checkResult.Status == checks.StatusOK {
+	if pollResult.Success {
 		result.Success = true
-		result.Message = "Docker daemon " + actionID + " successful and verified responsive"
-		result.Output += "\n\n=== Verification ===\n" + checkResult.Message
+		result.Message = fmt.Sprintf("Docker daemon %s successful and verified responsive", actionID)
+		if pollResult.FinalResult != nil {
+			result.Output += "\n\n=== Verification ===\n" + pollResult.FinalResult.Message
+		}
+		result.Output += fmt.Sprintf("\n(verified after %d attempts in %s)", pollResult.Attempts, pollResult.Elapsed.Round(time.Millisecond))
 	} else {
 		result.Success = false
 		result.Error = "Docker not responsive after " + actionID
-		result.Message = "Docker daemon " + actionID + " completed but verification failed"
-		result.Output += "\n\n=== Verification Failed ===\n" + checkResult.Message
+		result.Message = fmt.Sprintf("Docker daemon %s completed but verification failed", actionID)
+		if pollResult.FinalResult != nil {
+			result.Output += "\n\n=== Verification Failed ===\n" + pollResult.FinalResult.Message
+		}
+		result.Output += fmt.Sprintf("\n(failed after %d attempts in %s)", pollResult.Attempts, pollResult.Elapsed.Round(time.Millisecond))
 	}
 
 	return result

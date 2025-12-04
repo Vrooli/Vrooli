@@ -1,13 +1,17 @@
-import { useState } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { StatsPanel } from "./components/StatsPanel";
-import { GeneratorForm } from "./components/GeneratorForm";
-import { TemplateGrid } from "./components/TemplateGrid";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { List, Monitor, Zap } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { BuildStatus } from "./components/BuildStatus";
+import { GeneratorForm } from "./components/GeneratorForm";
 import { ScenarioInventory } from "./components/scenario-inventory";
-import { Card, CardHeader, CardTitle, CardContent } from "./components/ui/card";
-import { Button } from "./components/ui/button";
-import { Monitor, Zap, List } from "lucide-react";
+import { DownloadButtons } from "./components/scenario-inventory/DownloadButtons";
+import { TelemetryUploadCard } from "./components/scenario-inventory/TelemetryUploadCard";
+import type { ScenarioDesktopStatus, ScenariosResponse } from "./components/scenario-inventory/types";
+import { StatsPanel } from "./components/StatsPanel";
+import { TemplateGrid } from "./components/TemplateGrid";
+import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { fetchScenarioDesktopStatus } from "./lib/api";
+import { cn } from "./lib/utils";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,7 +27,52 @@ type ViewMode = "generator" | "inventory";
 function AppContent() {
   const [selectedTemplate, setSelectedTemplate] = useState("basic");
   const [currentBuildId, setCurrentBuildId] = useState<string | null>(null);
+  const [selectedScenarioName, setSelectedScenarioName] = useState("");
+  const [selectionSource, setSelectionSource] = useState<"inventory" | "manual" | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("inventory");
+  const [activeStep, setActiveStep] = useState(2);
+
+  const { data: scenariosData } = useQuery<ScenariosResponse>({
+    queryKey: ["scenarios-desktop-status"],
+    queryFn: fetchScenarioDesktopStatus,
+    refetchInterval: 30000
+  });
+
+  const selectedScenario: ScenarioDesktopStatus | null = useMemo(
+    () => scenariosData?.scenarios.find((s) => s.name === selectedScenarioName) || null,
+    [scenariosData, selectedScenarioName]
+  );
+
+  useEffect(() => {
+    if (viewMode !== "generator") return;
+    if (selectedScenario?.build_artifacts?.length) {
+      setActiveStep(4);
+      return;
+    }
+    if (currentBuildId) {
+      setActiveStep(3);
+      return;
+    }
+    if (selectedScenarioName) {
+      setActiveStep(2);
+      return;
+    }
+    setActiveStep(1);
+  }, [viewMode, selectedScenario?.build_artifacts?.length, currentBuildId, selectedScenarioName]);
+
+  const handleInventorySelect = (scenario: ScenarioDesktopStatus) => {
+    setSelectedScenarioName(scenario.name);
+    setSelectionSource("inventory");
+    setViewMode("generator");
+    setActiveStep(2);
+  };
+
+  const steps = [
+    { id: 1, title: "Overview", description: "How the desktop build works" },
+    { id: 2, title: "Configure", description: "Select scenario, template, and connection" },
+    { id: 3, title: "Build", description: "Kick off installers and watch progress" },
+    { id: 4, title: "Deliver", description: "Download installers and share telemetry" }
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-slate-50">
@@ -40,68 +89,176 @@ function AppContent() {
         </div>
 
         {/* View Mode Selector */}
-        <div className="mb-6 flex justify-center gap-3">
-          <Button
-            variant={viewMode === "inventory" ? "default" : "outline"}
-            onClick={() => setViewMode("inventory")}
-            className="gap-2"
-          >
-            <List className="h-4 w-4" />
-            Scenario Inventory
-          </Button>
-          <Button
-            variant={viewMode === "generator" ? "default" : "outline"}
-            onClick={() => setViewMode("generator")}
-            className="gap-2"
-          >
-            <Zap className="h-4 w-4" />
-            Generate Desktop App
-          </Button>
-        </div>
-
-        {/* System Stats - Only show in generator mode */}
-        {viewMode === "generator" && (
-          <div className="mb-8">
-            <StatsPanel />
+        <div className="mb-6 flex justify-center">
+          <div className="inline-flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900/60 p-1 shadow-lg shadow-blue-950/40">
+            <button
+              type="button"
+              className={cn(
+                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
+                viewMode === "inventory"
+                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
+                  : "text-slate-300 hover:text-white"
+              )}
+              onClick={() => setViewMode("inventory")}
+            >
+              <List className="h-4 w-4" />
+              Scenario Inventory
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
+                viewMode === "generator"
+                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
+                  : "text-slate-300 hover:text-white"
+              )}
+              onClick={() => setViewMode("generator")}
+            >
+              <Zap className="h-4 w-4" />
+              Generate Desktop App
+            </button>
           </div>
-        )}
+        </div>
 
         {/* Conditional Content */}
         {viewMode === "inventory" ? (
-          <ScenarioInventory />
+          <ScenarioInventory onScenarioLaunch={handleInventorySelect} />
         ) : (
           <>
-            {/* Main Content Grid */}
-            <div className="grid gap-6 lg:grid-cols-2">
-              {/* Generator Form */}
-              <div>
-                <GeneratorForm
-                  selectedTemplate={selectedTemplate}
-                  onTemplateChange={setSelectedTemplate}
-                  onBuildStart={setCurrentBuildId}
-                />
+            <Stepper steps={steps} activeStep={activeStep} onStepSelect={setActiveStep} />
+
+            <div className="space-y-6">
+              {/* Step 1 */}
+              <Card className="border-slate-800/80 bg-slate-900/70">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
+                    Step 1 · Overview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-6 lg:grid-cols-3">
+                  <div className="lg:col-span-2 space-y-2">
+                    <p className="text-lg font-semibold text-slate-50">
+                      Connect → Build → Deliver with telemetry awareness
+                    </p>
+                    <p className="text-sm text-slate-300">
+                      Start by understanding the journey: we link to your running scenario, package installers across
+                      platforms, then give you downloads and optional telemetry upload so deployment-manager can spot
+                      missing dependencies.
+                    </p>
+                    <a
+                      href="https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm text-blue-300 underline hover:text-blue-200"
+                    >
+                      Read the Desktop tier guide
+                    </a>
+                  </div>
+                  <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                    <StatsPanel />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Step 2 */}
+              <div className="grid gap-6 lg:grid-cols-2">
+                <Card className="border-blue-800/70 bg-slate-900/70">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
+                      Step 2 · Configure
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <GeneratorForm
+                      selectedTemplate={selectedTemplate}
+                      onTemplateChange={setSelectedTemplate}
+                      onBuildStart={(buildId) => {
+                        setCurrentBuildId(buildId);
+                        setActiveStep(3);
+                      }}
+                      scenarioName={selectedScenarioName}
+                      onScenarioNameChange={(name) => {
+                        setSelectedScenarioName(name);
+                        setSelectionSource("manual");
+                        setActiveStep(name ? 2 : 1);
+                      }}
+                      selectionSource={selectionSource}
+                    />
+                  </CardContent>
+                </Card>
+
+                <Card className="border-slate-800/80 bg-slate-900/70">
+                  <CardHeader>
+                    <CardTitle>Available Templates</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <TemplateGrid
+                      selectedTemplate={selectedTemplate}
+                      onSelect={setSelectedTemplate}
+                    />
+                  </CardContent>
+                </Card>
               </div>
 
-              {/* Template Browser */}
-              <Card>
+              {/* Step 3 */}
+              <Card className="border-slate-800/80 bg-slate-900/70">
                 <CardHeader>
-                  <CardTitle>Available Templates</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
+                    Step 3 · Build installers
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <TemplateGrid
-                    selectedTemplate={selectedTemplate}
-                    onSelect={setSelectedTemplate}
-                  />
+                  {currentBuildId ? (
+                    <BuildStatus buildId={currentBuildId} />
+                  ) : (
+                    <p className="text-sm text-slate-300">
+                      Generate from step 2 to kick off a build. Progress will appear here automatically.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Step 4 */}
+              <Card className="border-slate-800/80 bg-slate-900/70">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
+                    Step 4 · Download & Telemetry
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {!selectedScenarioName && (
+                    <p className="text-sm text-slate-300">
+                      Select a scenario in step 2 to unlock downloads and telemetry uploads.
+                    </p>
+                  )}
+                  {selectedScenarioName && !selectedScenario && (
+                    <p className="text-sm text-slate-300">
+                      Loading scenario details...
+                    </p>
+                  )}
+                  {selectedScenario && (
+                    <>
+                      {(selectedScenario.build_artifacts?.length ?? 0) > 0 ? (
+                        <div className="space-y-4">
+                          <DownloadButtons
+                            scenarioName={selectedScenario.name}
+                            artifacts={selectedScenario.build_artifacts || []}
+                          />
+                          <TelemetryUploadCard
+                            scenarioName={selectedScenario.name}
+                            appDisplayName={selectedScenario.display_name || selectedScenario.name}
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-300">
+                          Build at least one installer to unlock downloads and telemetry uploads.
+                        </p>
+                      )}
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </div>
-
-            {/* Build Status */}
-            {currentBuildId && (
-              <div className="mt-6">
-                <BuildStatus buildId={currentBuildId} />
-              </div>
-            )}
           </>
         )}
 
@@ -128,6 +285,47 @@ function AppContent() {
             </a>
           </p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+interface StepperProps {
+  steps: { id: number; title: string; description: string }[];
+  activeStep: number;
+  onStepSelect: (step: number) => void;
+}
+
+function Stepper({ steps, activeStep, onStepSelect }: StepperProps) {
+  return (
+    <div className="mb-6 overflow-x-auto">
+      <div className="flex min-w-full justify-center gap-3 rounded-xl border border-slate-800/80 bg-slate-900/60 p-3">
+        {steps.map((step) => (
+          <button
+            key={step.id}
+            type="button"
+            onClick={() => onStepSelect(step.id)}
+            className={cn(
+              "flex min-w-[180px] flex-1 flex-col gap-1 rounded-lg border px-4 py-3 text-left transition",
+              activeStep === step.id
+                ? "border-blue-600 bg-blue-950/40 text-white shadow"
+                : "border-slate-800 bg-slate-950/40 text-slate-300 hover:border-slate-600"
+            )}
+          >
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide">
+              <span
+                className={cn(
+                  "flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold",
+                  activeStep === step.id ? "bg-blue-500 text-slate-950" : "bg-slate-800 text-slate-200"
+                )}
+              >
+                {step.id}
+              </span>
+              <span>{step.title}</span>
+            </div>
+            <p className="text-sm text-slate-300">{step.description}</p>
+          </button>
+        ))}
       </div>
     </div>
   );

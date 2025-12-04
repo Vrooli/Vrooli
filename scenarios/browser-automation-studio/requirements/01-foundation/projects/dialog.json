@@ -34,6 +34,20 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Auto-added from vitest evidence"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/projects/ProjectModal.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/shared/layout/ResponsiveDialog.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
         }
       ]
     },
@@ -65,6 +79,20 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Auto-added from vitest evidence"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/projects/ProjectModal.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/shared/layout/ResponsiveDialog.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
         }
       ]
     },
@@ -74,13 +102,13 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "Operators can create a project from the dialog",
       "description": "Confirms validated submissions persist projects, show success toasts, and refresh the project list with the new entry selected.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/01-projects/new-project-create.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "BAS workflow seeds unique project and checks API/UI consistency (pending export)."
         },
         {
@@ -93,6 +121,13 @@
         {
           "type": "test",
           "ref": "ui/src/stores/projectStore.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/projects/ProjectModal.test.tsx",
           "phase": "unit",
           "status": "implemented",
           "notes": "Auto-added from vitest evidence"
@@ -124,6 +159,13 @@
         {
           "type": "test",
           "ref": "ui/src/stores/projectStore.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/projects/ProjectModal.test.tsx",
           "phase": "unit",
           "status": "implemented",
           "notes": "Auto-added from vitest evidence"

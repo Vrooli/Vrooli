@@ -231,11 +231,11 @@
         "description": "Workflow definitions and execution history storage",
         "schema": "browser_automation_studio"
       },
-      "playwright-driver": {
+      "playwright": {
         "type": "playwright",
         "enabled": true,
         "required": true,
-        "description": "Core browser automation engine for workflow execution"
+        "description": "Core browser automation engine for workflow execution (scenario-managed driver)"
       },
       "minio": {
         "type": "minio",

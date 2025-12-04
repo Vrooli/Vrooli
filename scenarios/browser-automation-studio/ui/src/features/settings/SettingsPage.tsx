@@ -998,8 +998,8 @@ function SettingsPage({ onBack }: SettingsPageProps) {
     ];
 
     const fontFamilyOptions: Array<{ id: FontFamily; label: string; preview: string; description: string }> = [
-      { id: 'mono', label: 'Monospace', preview: 'Aa Bb Cc', description: 'Technical feel, fixed-width characters' },
       { id: 'sans', label: 'Sans Serif', preview: 'Aa Bb Cc', description: 'Clean and modern appearance' },
+      { id: 'mono', label: 'Monospace', preview: 'Aa Bb Cc', description: 'Technical feel, fixed-width characters' },
       { id: 'system', label: 'System', preview: 'Aa Bb Cc', description: 'Match your OS default font' },
     ];
 

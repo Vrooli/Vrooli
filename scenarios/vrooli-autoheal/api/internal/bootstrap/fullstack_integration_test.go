@@ -19,12 +19,12 @@ import (
 
 // mockStore implements ResultLoader and ResultSaver for testing
 type mockStore struct {
-	mu           sync.Mutex
-	results      []checks.Result
-	actionLogs   []mockActionLog
-	saveErrors   map[string]error
-	loadResults  []checks.Result
-	loadError    error
+	mu          sync.Mutex
+	results     []checks.Result
+	actionLogs  []mockActionLog
+	saveErrors  map[string]error
+	loadResults []checks.Result
+	loadError   error
 }
 
 type mockActionLog struct {
@@ -98,9 +98,9 @@ func (m *mockStore) GetActionLogs() []mockActionLog {
 
 // mockConfigProvider implements checks.ConfigProvider for testing
 type mockConfigProvider struct {
-	mu              sync.Mutex
-	enabledChecks   map[string]bool
-	autoHealChecks  map[string]bool
+	mu             sync.Mutex
+	enabledChecks  map[string]bool
+	autoHealChecks map[string]bool
 }
 
 func newMockConfigProvider() *mockConfigProvider {
@@ -148,13 +148,15 @@ type mockHealableCheck struct {
 	mu              sync.Mutex
 }
 
-func (c *mockHealableCheck) ID() string                         { return c.id }
-func (c *mockHealableCheck) Title() string                      { return "Mock Healable Check " + c.id }
-func (c *mockHealableCheck) Description() string                { return "A mock healable check for integration testing" }
-func (c *mockHealableCheck) Importance() string                 { return "Required for full-stack testing" }
-func (c *mockHealableCheck) Category() checks.Category          { return checks.CategoryInfrastructure }
-func (c *mockHealableCheck) IntervalSeconds() int               { return 60 }
-func (c *mockHealableCheck) Platforms() []platform.Type         { return nil }
+func (c *mockHealableCheck) ID() string    { return c.id }
+func (c *mockHealableCheck) Title() string { return "Mock Healable Check " + c.id }
+func (c *mockHealableCheck) Description() string {
+	return "A mock healable check for integration testing"
+}
+func (c *mockHealableCheck) Importance() string         { return "Required for full-stack testing" }
+func (c *mockHealableCheck) Category() checks.Category  { return checks.CategoryInfrastructure }
+func (c *mockHealableCheck) IntervalSeconds() int       { return 60 }
+func (c *mockHealableCheck) Platforms() []platform.Type { return nil }
 
 func (c *mockHealableCheck) Run(ctx context.Context) checks.Result {
 	c.mu.Lock()

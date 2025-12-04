@@ -85,6 +85,19 @@ SELECT
     END as overall_status
 FROM latest_health_results;
 
+-- Heal tracker state table for persisting auto-heal cooldown and statistics
+-- [REQ:HEAL-ACTION-001]
+CREATE TABLE IF NOT EXISTS heal_trackers (
+    check_id VARCHAR(100) PRIMARY KEY,
+    last_attempt TIMESTAMP WITH TIME ZONE,
+    last_success TIMESTAMP WITH TIME ZONE,
+    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+    total_attempts INTEGER NOT NULL DEFAULT 0,
+    total_successes INTEGER NOT NULL DEFAULT 0,
+    cooldown_until TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
 -- Function to cleanup old results (keep 24 hours by default)
 CREATE OR REPLACE FUNCTION cleanup_old_results(retention_hours INTEGER DEFAULT 24)
 RETURNS INTEGER AS $$

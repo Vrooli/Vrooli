@@ -311,7 +311,7 @@ const getDefaultApiKeySettings = (): ApiKeySettings => ({
 const getDefaultDisplaySettings = (): DisplaySettings => ({
   themeMode: 'dark',
   fontSize: 'medium',
-  fontFamily: 'mono',
+  fontFamily: 'sans',
   reducedMotion: false,
   highContrast: false,
   compactMode: false,

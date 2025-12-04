@@ -3,7 +3,8 @@
     "description": "Workflow builder canvas and persistence requirements",
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-12-01T01:19:50.603Z"
   },
   "requirements": [
     {
@@ -45,6 +46,13 @@
         {
           "type": "test",
           "ref": "ui/src/components/__tests__/WorkflowBuilder.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/workflows/builder/WorkflowBuilder.test.tsx",
           "phase": "unit",
           "status": "implemented",
           "notes": "Auto-added from vitest evidence"

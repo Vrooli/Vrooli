@@ -91,16 +91,13 @@ function Dashboard({
     return () => clearInterval(interval);
   }, [fetchRunningExecutions]);
 
-  // Global keyboard shortcut for Cmd+K search
+  // Listen for global search event from centralized keyboard shortcut system
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setIsSearchModalOpen(true);
-      }
+    const handleOpenSearch = () => {
+      setIsSearchModalOpen(true);
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('open-global-search', handleOpenSearch);
+    return () => window.removeEventListener('open-global-search', handleOpenSearch);
   }, []);
 
   // Listen for navigate-to-exports events from ExecutionViewer

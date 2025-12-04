@@ -670,3 +670,79 @@ func (s *Store) GetActionLogsForCheck(ctx context.Context, checkID string, limit
 		Total: len(logs),
 	}, nil
 }
+
+// SaveHealTracker persists a heal tracker state to the database
+// [REQ:HEAL-ACTION-001]
+func (s *Store) SaveHealTracker(ctx context.Context, checkID string, tracker *checks.HealTracker) error {
+	query := `
+		INSERT INTO heal_trackers (check_id, last_attempt, last_success, consecutive_failures, total_attempts, total_successes, cooldown_until, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+		ON CONFLICT (check_id) DO UPDATE SET
+			last_attempt = EXCLUDED.last_attempt,
+			last_success = EXCLUDED.last_success,
+			consecutive_failures = EXCLUDED.consecutive_failures,
+			total_attempts = EXCLUDED.total_attempts,
+			total_successes = EXCLUDED.total_successes,
+			cooldown_until = EXCLUDED.cooldown_until,
+			updated_at = NOW()
+	`
+	_, err := s.db.ExecContext(ctx, query,
+		checkID,
+		tracker.LastAttempt,
+		tracker.LastSuccess,
+		tracker.ConsecutiveFailures,
+		tracker.TotalAttempts,
+		tracker.TotalSuccesses,
+		tracker.CooldownUntil,
+	)
+	return err
+}
+
+// GetAllHealTrackers retrieves all heal tracker states from the database
+// Used to restore in-memory state on startup
+// [REQ:HEAL-ACTION-001]
+func (s *Store) GetAllHealTrackers(ctx context.Context) (map[string]*checks.HealTracker, error) {
+	query := `
+		SELECT check_id, last_attempt, last_success, consecutive_failures, total_attempts, total_successes, cooldown_until
+		FROM heal_trackers
+	`
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	trackers := make(map[string]*checks.HealTracker)
+	for rows.Next() {
+		var checkID string
+		var tracker checks.HealTracker
+
+		if err := rows.Scan(
+			&checkID,
+			&tracker.LastAttempt,
+			&tracker.LastSuccess,
+			&tracker.ConsecutiveFailures,
+			&tracker.TotalAttempts,
+			&tracker.TotalSuccesses,
+			&tracker.CooldownUntil,
+		); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+
+		trackers[checkID] = &tracker
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return trackers, nil
+}
+
+// DeleteHealTracker removes a heal tracker from the database
+// [REQ:HEAL-ACTION-001]
+func (s *Store) DeleteHealTracker(ctx context.Context, checkID string) error {
+	query := `DELETE FROM heal_trackers WHERE check_id = $1`
+	_, err := s.db.ExecContext(ctx, query, checkID)
+	return err
+}

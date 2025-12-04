@@ -14,6 +14,27 @@ func TestClassifyCLIOutput(t *testing.T) {
 		output   string
 		expected CLIOutputStatus
 	}{
+		// Explicit Vrooli CLI status patterns (highest priority)
+		{
+			name:     "explicit running status with emoji",
+			output:   "Status:        🟢 RUNNING\nProcess ID:    2 processes",
+			expected: CLIStatusHealthy,
+		},
+		{
+			name:     "explicit stopped status with emoji",
+			output:   "Status:        ⚫ STOPPED\nProcess ID:    0 processes",
+			expected: CLIStatusStopped,
+		},
+		{
+			name:     "running status with error text elsewhere - explicit pattern takes priority",
+			output:   "Status:        🟢 RUNNING\n[ERROR] Requirements: missing\njq: error: syntax error",
+			expected: CLIStatusHealthy,
+		},
+		{
+			name:     "explicit running overrides stopped keyword elsewhere",
+			output:   "Status:        🟢 RUNNING\nNote: stopped for maintenance",
+			expected: CLIStatusHealthy,
+		},
 		// Healthy indicators
 		{
 			name:     "running keyword",

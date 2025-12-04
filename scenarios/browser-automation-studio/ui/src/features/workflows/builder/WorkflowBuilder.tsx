@@ -22,6 +22,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { selectors } from "@constants/selectors";
+import { useRegisterShortcuts } from "@hooks/useKeyboardShortcuts";
 import type {
   ExecutionViewportSettings,
   ViewportPreset,
@@ -719,6 +720,62 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
     setNodes(remainingNodes);
     setEdges(remainingEdges);
   }, [nodes, edges, setNodes, setEdges, saveToHistory]);
+
+  // Select all nodes
+  const selectAll = useCallback(() => {
+    setNodes((nds) => nds.map((node) => ({ ...node, selected: true })));
+    setEdges((eds) => eds.map((edge) => ({ ...edge, selected: true })));
+  }, [setNodes, setEdges]);
+
+  // Get zoom functions from React Flow
+  const { zoomIn, zoomOut, fitView } = reactFlowInstance;
+
+  // Register keyboard shortcuts for workflow builder
+  const shortcutActions = useMemo(
+    () => ({
+      // Editing shortcuts
+      'undo': undo,
+      'redo': redo,
+      'delete-selected': deleteSelected,
+      'delete-selected-alt': deleteSelected,
+      'select-all': selectAll,
+      'duplicate-selected': duplicateSelected,
+      // Canvas shortcuts
+      'zoom-in': () => zoomIn(),
+      'zoom-out': () => zoomOut(),
+      'fit-view': () => fitView(),
+      'toggle-lock': () => setLocked((prev) => !prev),
+      // Workflow shortcuts
+      'save-workflow': () => {
+        // Trigger autosave immediately
+        if (currentWorkflow && isDirty) {
+          scheduleAutosave({ source: "manual", changeDescription: "Manual save" });
+          toast.success("Workflow saved");
+        } else if (currentWorkflow && !isDirty) {
+          toast.success("No changes to save");
+        }
+      },
+      'execute-workflow': () => {
+        // Dispatch event to trigger execution in Header component
+        window.dispatchEvent(new CustomEvent('execute-workflow'));
+      },
+    }),
+    [
+      undo,
+      redo,
+      deleteSelected,
+      selectAll,
+      duplicateSelected,
+      zoomIn,
+      zoomOut,
+      fitView,
+      currentWorkflow,
+      isDirty,
+      scheduleAutosave,
+    ]
+  );
+
+  useRegisterShortcuts(shortcutActions, viewMode === 'visual' && !locked);
 
   const handleViewportSave = useCallback(
     (viewport: ExecutionViewportSettings) => {

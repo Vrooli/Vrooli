@@ -3,9 +3,19 @@
 package vrooli
 
 import (
+	"regexp"
 	"strings"
 
 	"vrooli-autoheal/internal/checks"
+)
+
+// Explicit status patterns from Vrooli CLI output (highest priority)
+// These patterns match the structured status line in CLI output
+var (
+	// Matches "Status:        🟢 RUNNING" or similar running patterns
+	runningStatusPattern = regexp.MustCompile(`(?i)status:\s*[🟢✅]\s*running`)
+	// Matches "Status:        ⚫ STOPPED" or similar stopped patterns
+	stoppedStatusPattern = regexp.MustCompile(`(?i)status:\s*[⚫🔴❌]\s*stopped`)
 )
 
 // CLIOutputStatus represents the detected state from CLI output parsing
@@ -21,33 +31,75 @@ const (
 )
 
 // HealthyIndicators are strings that indicate a healthy/running state
-var HealthyIndicators = []string{"running", "healthy", "started", "active"}
+// Order matters: check more specific phrases first
+var HealthyIndicators = []string{
+	"running",
+	"healthy",
+	"started",
+	"active",
+	"ok",
+	"up",
+	"ready",
+	"available",
+	"online",
+	"listening",
+}
 
 // StoppedIndicators are strings that indicate a stopped/down state
-var StoppedIndicators = []string{"stopped", "not running", "down", "exited", "dead"}
+// Order matters: check more specific phrases first (e.g., "not running" before "running")
+var StoppedIndicators = []string{
+	"not running",
+	"not started",
+	"not found",
+	"not installed",
+	"stopped",
+	"inactive",
+	"failed",
+	"error",
+	"down",
+	"exited",
+	"dead",
+	"crashed",
+	"terminated",
+	"unavailable",
+	"offline",
+	"disabled",
+}
 
 // ClassifyCLIOutput determines the status from Vrooli CLI output.
 // This is the central decision point for interpreting resource/scenario status.
 //
 // Decision logic:
-//   - Check for stopped indicators FIRST (they are more specific, e.g., "not running")
-//   - Then check for healthy indicators
-//   - If neither matches → CLIStatusUnclear
+//  1. Check for explicit Vrooli CLI status patterns FIRST (highest priority)
+//     These are structured patterns like "Status:  🟢 RUNNING" that definitively
+//     indicate the actual running state, regardless of other text in the output.
+//  2. Fall back to generic stopped indicators (e.g., "not running")
+//  3. Fall back to generic healthy indicators
+//  4. If nothing matches → CLIStatusUnclear
 //
-// The indicators are checked case-insensitively.
-// Note: Stopped indicators are checked first because phrases like "not running"
-// contain the word "running" which would otherwise match as healthy.
+// The explicit status patterns take priority because CLI output may contain
+// error messages, warnings, or other text unrelated to the actual running status.
+// For example, "[ERROR] Requirements:" doesn't mean the scenario is stopped.
 func ClassifyCLIOutput(output string) CLIOutputStatus {
+	// Priority 1: Check for explicit Vrooli CLI status patterns (most reliable)
+	// These patterns match the structured "Status:" line in CLI output
+	if runningStatusPattern.MatchString(output) {
+		return CLIStatusHealthy
+	}
+	if stoppedStatusPattern.MatchString(output) {
+		return CLIStatusStopped
+	}
+
 	lower := strings.ToLower(output)
 
-	// Check for stopped indicators FIRST (more specific, e.g., "not running" vs "running")
+	// Priority 2: Check for stopped indicators (more specific phrases like "not running")
 	for _, indicator := range StoppedIndicators {
 		if strings.Contains(lower, indicator) {
 			return CLIStatusStopped
 		}
 	}
 
-	// Check for healthy indicators
+	// Priority 3: Check for healthy indicators
 	for _, indicator := range HealthyIndicators {
 		if strings.Contains(lower, indicator) {
 			return CLIStatusHealthy

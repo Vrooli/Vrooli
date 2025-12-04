@@ -1,10 +1,12 @@
 // Package infra provides infrastructure health checks
-// [REQ:INFRA-RDP-001] [REQ:TEST-SEAM-001]
+// [REQ:INFRA-RDP-001] [REQ:TEST-SEAM-001] [REQ:HEAL-ACTION-001]
 package infra
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"time"
 
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
@@ -148,3 +150,192 @@ func (c *RDPCheck) checkWindowsTermService(ctx context.Context, result checks.Re
 	}
 	return result
 }
+
+// RecoveryActions returns available recovery actions for RDP service issues
+// [REQ:HEAL-ACTION-001]
+func (c *RDPCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
+	serviceInfo := SelectRDPService(c.caps)
+	isRunning := false
+
+	if lastResult != nil {
+		if status, ok := lastResult.Details["status"].(string); ok {
+			isRunning = status == "active" || strings.Contains(status, "RUNNING")
+		}
+	}
+
+	actions := []checks.RecoveryAction{
+		{
+			ID:          "start",
+			Name:        "Start Service",
+			Description: "Start the RDP/xrdp service",
+			Dangerous:   false,
+			Available:   serviceInfo.Checkable && !isRunning,
+		},
+		{
+			ID:          "restart",
+			Name:        "Restart Service",
+			Description: "Restart the RDP/xrdp service",
+			Dangerous:   false,
+			Available:   serviceInfo.Checkable,
+		},
+		{
+			ID:          "status",
+			Name:        "Service Status",
+			Description: "Get detailed service status",
+			Dangerous:   false,
+			Available:   serviceInfo.Checkable,
+		},
+		{
+			ID:          "logs",
+			Name:        "View Logs",
+			Description: "View recent RDP/xrdp logs",
+			Dangerous:   false,
+			Available:   serviceInfo.Checkable && c.caps != nil && c.caps.Platform == platform.Linux,
+		},
+	}
+
+	return actions
+}
+
+// ExecuteAction runs the specified recovery action
+// [REQ:HEAL-ACTION-001]
+func (c *RDPCheck) ExecuteAction(ctx context.Context, actionID string) checks.ActionResult {
+	start := time.Now()
+	result := checks.ActionResult{
+		ActionID:  actionID,
+		CheckID:   c.ID(),
+		Timestamp: start,
+	}
+
+	serviceInfo := SelectRDPService(c.caps)
+	if !serviceInfo.Checkable {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = "RDP service not checkable on this platform"
+		return result
+	}
+
+	switch actionID {
+	case "start":
+		return c.executeServiceAction(ctx, result, "start", serviceInfo, start)
+
+	case "restart":
+		return c.executeServiceAction(ctx, result, "restart", serviceInfo, start)
+
+	case "status":
+		return c.executeStatus(ctx, result, serviceInfo, start)
+
+	case "logs":
+		return c.executeLogs(ctx, result, serviceInfo, start)
+
+	default:
+		result.Success = false
+		result.Error = "unknown action: " + actionID
+		result.Duration = time.Since(start)
+		return result
+	}
+}
+
+// executeServiceAction starts or restarts the RDP service
+func (c *RDPCheck) executeServiceAction(ctx context.Context, result checks.ActionResult, action string, serviceInfo RDPServiceInfo, start time.Time) checks.ActionResult {
+	var output []byte
+	var err error
+
+	if c.caps.Platform == platform.Linux {
+		output, err = c.executor.CombinedOutput(ctx, "sudo", "systemctl", action, serviceInfo.ServiceName)
+	} else if c.caps.Platform == platform.Windows {
+		// Windows: use sc command
+		if action == "restart" {
+			// Windows doesn't have restart, need to stop then start
+			c.executor.CombinedOutput(ctx, "sc", "stop", serviceInfo.ServiceName)
+			time.Sleep(2 * time.Second)
+			output, err = c.executor.CombinedOutput(ctx, "sc", "start", serviceInfo.ServiceName)
+		} else {
+			output, err = c.executor.CombinedOutput(ctx, "sc", action, serviceInfo.ServiceName)
+		}
+	}
+
+	result.Output = string(output)
+
+	if err != nil {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = err.Error()
+		result.Message = "Failed to " + action + " " + serviceInfo.ServiceName
+		return result
+	}
+
+	// Verify service is running
+	return c.verifyRecovery(ctx, result, action, start)
+}
+
+// executeStatus gets detailed service status
+func (c *RDPCheck) executeStatus(ctx context.Context, result checks.ActionResult, serviceInfo RDPServiceInfo, start time.Time) checks.ActionResult {
+	var output []byte
+
+	if c.caps.Platform == platform.Linux {
+		output, _ = c.executor.CombinedOutput(ctx, "systemctl", "status", serviceInfo.ServiceName)
+	} else if c.caps.Platform == platform.Windows {
+		output, _ = c.executor.CombinedOutput(ctx, "sc", "query", serviceInfo.ServiceName)
+	}
+
+	result.Duration = time.Since(start)
+	result.Output = string(output)
+	result.Success = true
+	result.Message = "Service status retrieved"
+	return result
+}
+
+// executeLogs gets recent service logs (Linux only)
+func (c *RDPCheck) executeLogs(ctx context.Context, result checks.ActionResult, serviceInfo RDPServiceInfo, start time.Time) checks.ActionResult {
+	output, err := c.executor.CombinedOutput(ctx, "journalctl", "-u", serviceInfo.ServiceName, "-n", "100", "--no-pager")
+
+	result.Duration = time.Since(start)
+	result.Output = string(output)
+
+	if err != nil {
+		result.Success = false
+		result.Error = err.Error()
+		result.Message = "Failed to retrieve logs"
+		return result
+	}
+
+	result.Success = true
+	result.Message = "Service logs retrieved"
+	return result
+}
+
+// verifyRecovery checks that RDP is working after a recovery action using polling
+func (c *RDPCheck) verifyRecovery(ctx context.Context, result checks.ActionResult, action string, start time.Time) checks.ActionResult {
+	// Use polling to verify recovery instead of fixed sleep
+	pollConfig := checks.PollConfig{
+		Timeout:      30 * time.Second,
+		Interval:     2 * time.Second,
+		InitialDelay: 3 * time.Second, // Service needs time to initialize
+	}
+
+	pollResult := checks.PollForSuccess(ctx, c, pollConfig)
+	result.Duration = time.Since(start)
+
+	if pollResult.Success {
+		result.Success = true
+		result.Message = "RDP service " + action + " successful and verified running"
+		if pollResult.FinalResult != nil {
+			result.Output += "\n\n=== Verification ===\n" + pollResult.FinalResult.Message
+		}
+		result.Output += fmt.Sprintf("\n(verified after %d attempts in %s)", pollResult.Attempts, pollResult.Elapsed.Round(time.Millisecond))
+	} else {
+		result.Success = false
+		result.Error = "RDP not running after " + action
+		result.Message = "RDP service " + action + " completed but verification failed"
+		if pollResult.FinalResult != nil {
+			result.Output += "\n\n=== Verification Failed ===\n" + pollResult.FinalResult.Message
+		}
+		result.Output += fmt.Sprintf("\n(failed after %d attempts in %s)", pollResult.Attempts, pollResult.Elapsed.Round(time.Millisecond))
+	}
+
+	return result
+}
+
+// Ensure RDPCheck implements HealableCheck
+var _ checks.HealableCheck = (*RDPCheck)(nil)

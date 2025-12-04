@@ -340,16 +340,9 @@ function NodePalette() {
     );
   }, [expandedCategories, hydrated]);
 
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
+  // Focus node search when the centralized shortcut system triggers it
+  // The Cmd+K shortcut is now handled globally in App.tsx
+  // which will dispatch focus to this input when in workflow-builder context
 
   const toggleFavorite = (nodeType: string) => {
     setFavorites((prev) => {

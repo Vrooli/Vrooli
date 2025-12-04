@@ -918,10 +918,10 @@ func TestScenarioCheckCleanupPorts(t *testing.T) {
 		expectSuccess bool
 	}{
 		{
-			name:       "no ports to clean",
-			portOutput: "No ports in use",
-			portError:  nil,
-			killOutputs: nil,
+			name:          "no ports to clean",
+			portOutput:    "No ports in use",
+			portError:     nil,
+			killOutputs:   nil,
 			expectSuccess: true,
 		},
 		{
@@ -935,10 +935,10 @@ func TestScenarioCheckCleanupPorts(t *testing.T) {
 			expectSuccess: true,
 		},
 		{
-			name:       "port query fails",
-			portOutput: "",
-			portError:  checks.ErrCommandNotFound,
-			killOutputs: nil,
+			name:          "port query fails",
+			portOutput:    "",
+			portError:     checks.ErrCommandNotFound,
+			killOutputs:   nil,
 			expectSuccess: false,
 		},
 	}
