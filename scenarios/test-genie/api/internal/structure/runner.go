@@ -201,18 +201,18 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	logSuccess(r.logWriter, "service.json validated")
 	observations = append(observations, manifestResult.Observations...)
 
-	// Section: JSON Validation (if enabled)
-	if r.config.Expectations == nil || r.config.Expectations.ValidateJSONFiles {
-		observations = append(observations, NewSectionObservation("📄", "Validating JSON files..."))
-		logInfo(r.logWriter, "Validating JSON files...")
+	// Section: Schema Validation (if schemas directory is configured)
+	if r.schemaValidator != nil {
+		observations = append(observations, NewSectionObservation("📋", "Validating .vrooli config files against schemas..."))
+		logInfo(r.logWriter, "Validating .vrooli config files against schemas...")
 
-		jsonResult := r.jsonValidator.Validate()
-		if !jsonResult.Success {
-			return r.failFromResult(jsonResult, observations)
+		schemaResult := r.schemaValidator.Validate()
+		if !schemaResult.Success {
+			return r.failFromResult(schemaResult, observations)
 		}
-		summary.JSONFilesValid = jsonResult.ItemsChecked
-		logSuccess(r.logWriter, "All JSON files valid (%d)", jsonResult.ItemsChecked)
-		observations = append(observations, NewSuccessObservation(fmt.Sprintf("All JSON files are valid (%d checked)", jsonResult.ItemsChecked)))
+		summary.JSONFilesValid = schemaResult.ItemsChecked
+		logSuccess(r.logWriter, "All config files valid (%d)", schemaResult.ItemsChecked)
+		observations = append(observations, schemaResult.Observations...)
 	}
 
 	// Section: UI Smoke Test (if enabled)

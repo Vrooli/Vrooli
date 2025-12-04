@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/structure"
@@ -31,9 +33,15 @@ func runStructurePhase(ctx context.Context, env workspace.Environment, logWriter
 
 	// Run structure validation using the screaming-architecture package
 	// This now handles existence, content, AND smoke validation
+	schemasDir := filepath.Join(env.AppRoot, "scenarios", "test-genie", "schemas")
+	// Only enable schema validation if the schemas directory exists
+	if info, err := os.Stat(schemasDir); err != nil || !info.IsDir() {
+		schemasDir = ""
+	}
 	runner := structure.New(structure.Config{
 		ScenarioDir:  env.ScenarioDir,
 		ScenarioName: env.ScenarioName,
+		SchemasDir:   schemasDir,
 		Expectations: expectations,
 	}, structure.WithLogger(logWriter))
 

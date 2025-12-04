@@ -16,7 +16,7 @@ graph TB
         FILES[Required Files<br/>README.md, PRD.md, Makefile]
         CLI[CLI Validation<br/>Legacy bash or Go cross-platform]
         MANIFEST[Service Manifest<br/>.vrooli/service.json]
-        JSON[JSON Validation<br/>All .json files]
+        SCHEMA[Schema Validation<br/>.vrooli config files]
         SMOKE[UI Smoke Test<br/>Basic page load verification]
     end
 
@@ -24,22 +24,22 @@ graph TB
     DIRS --> FILES
     FILES --> CLI
     CLI --> MANIFEST
-    MANIFEST --> JSON
-    JSON --> SMOKE
+    MANIFEST --> SCHEMA
+    SCHEMA --> SMOKE
     SMOKE --> DONE[Complete]
 
     DIRS -.->|missing| FAIL[Fail]
     FILES -.->|missing| FAIL
     CLI -.->|invalid| FAIL
     MANIFEST -.->|invalid| FAIL
-    JSON -.->|malformed| FAIL
+    SCHEMA -.->|invalid| FAIL
     SMOKE -.->|blocked| FAIL
 
     style DIRS fill:#e8f5e9
     style FILES fill:#e8f5e9
     style CLI fill:#fff3e0
     style MANIFEST fill:#e3f2fd
-    style JSON fill:#f3e5f5
+    style SCHEMA fill:#f3e5f5
     style SMOKE fill:#fff9c4
 ```
 
@@ -119,15 +119,22 @@ Example:
 }
 ```
 
-## JSON Validation
+## Schema Validation
 
-All `.json` files in the scenario are validated for correct syntax. Skipped directories:
-- `.git`
-- `node_modules`
-- `dist`
-- `build`
-- `coverage`
-- `artifacts`
+The `.vrooli/` configuration files are validated against JSON schemas to ensure they have the correct structure and values:
+
+| Config File | Schema | Required |
+|-------------|--------|----------|
+| `service.json` | `service.schema.json` | Yes |
+| `testing.json` | `testing.schema.json` | No |
+| `endpoints.json` | `endpoints.schema.json` | No |
+| `lighthouse.json` | `lighthouse.schema.json` | No |
+
+Schema validation catches:
+- Missing required fields
+- Invalid field types
+- Unknown properties
+- Constraint violations (min/max values, patterns, etc.)
 
 ## UI Smoke Testing
 
@@ -150,8 +157,7 @@ Customize structure validation in `.vrooli/testing.json`:
     "exclude_dirs": ["legacy"],
     "exclude_files": ["deprecated.md"],
     "validations": {
-      "service_json_name_matches_directory": true,
-      "check_json_validity": true
+      "service_json_name_matches_directory": true
     },
     "ui_smoke": {
       "enabled": true
@@ -167,7 +173,6 @@ Customize structure validation in `.vrooli/testing.json`:
 | `exclude_dirs` | string[] | `[]` | Skip these directories |
 | `exclude_files` | string[] | `[]` | Skip these files |
 | `validations.service_json_name_matches_directory` | bool | `true` | Enforce name match |
-| `validations.check_json_validity` | bool | `true` | Validate JSON syntax |
 | `ui_smoke.enabled` | bool | `false` | Run UI smoke test |
 
 ## Exit Codes
@@ -184,7 +189,7 @@ Customize structure validation in `.vrooli/testing.json`:
 | "Missing directory: api" | Required directory doesn't exist | Create the directory |
 | "Missing file: .vrooli/service.json" | Service manifest not found | Run `vrooli scenario init` |
 | "service.name does not match scenario" | Name mismatch in service.json | Update `service.name` to match directory |
-| "Invalid JSON: config.json" | Malformed JSON file | Fix JSON syntax |
+| "schema validation failed" | Config file doesn't match schema | Check schema error details for specific field issues |
 | "No health checks defined" | Missing health configuration | Add health checks to service.json |
 
 ## Related Documentation

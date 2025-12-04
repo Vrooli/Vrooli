@@ -55,8 +55,6 @@ graph TB
 | Check | Description | Example |
 |-------|-------------|---------|
 | File existence | Required files present | `service.json`, `package.json` |
-| JSON validity | Parseable JSON | No syntax errors |
-| YAML validity | Parseable YAML | No indentation errors |
 | Schema compliance | Config matches schema | Valid `service.json` fields |
 | Required fields | Mandatory fields present | `name`, `version` in service.json |
 

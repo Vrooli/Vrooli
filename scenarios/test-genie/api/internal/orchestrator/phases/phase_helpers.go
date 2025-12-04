@@ -3,6 +3,7 @@ package phases
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -211,6 +212,115 @@ func discoverScenarioCLIBinary(env workspace.Environment) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("no executable CLI binary found under %s", cliDir)
+}
+
+// fileExists checks if a file exists and is not a directory.
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
+// hasNodeWorkspace checks if a Node.js workspace exists in the scenario.
+func hasNodeWorkspace(env workspace.Environment) bool {
+	candidates := []string{
+		filepath.Join(env.ScenarioDir, "package.json"),
+		filepath.Join(env.ScenarioDir, "ui", "package.json"),
+	}
+	for _, path := range candidates {
+		if fileExists(path) {
+			return true
+		}
+	}
+	return false
+}
+
+// Node.js helpers for performance phase
+
+func detectNodeWorkspaceDir(scenarioDir string) string {
+	candidates := []string{
+		filepath.Join(scenarioDir, "ui"),
+		scenarioDir,
+	}
+	for _, candidate := range candidates {
+		if fileExists(filepath.Join(candidate, "package.json")) {
+			return candidate
+		}
+	}
+	return ""
+}
+
+type packageManifest struct {
+	Scripts        map[string]string `json:"scripts"`
+	PackageManager string            `json:"packageManager"`
+}
+
+func loadPackageManifest(path string) (*packageManifest, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var doc packageManifest
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, err
+	}
+	if doc.Scripts == nil {
+		doc.Scripts = make(map[string]string)
+	} else {
+		testScript := strings.TrimSpace(doc.Scripts["test"])
+		if testScript == "" || testScript == `echo "Error: no test specified" && exit 1` {
+			doc.Scripts["test"] = ""
+		} else {
+			doc.Scripts["test"] = testScript
+		}
+	}
+	return &doc, nil
+}
+
+func detectPackageManager(manifest *packageManifest, dir string) string {
+	if manifest != nil {
+		if mgr := parsePackageManager(manifest.PackageManager); mgr != "" {
+			return mgr
+		}
+	}
+	switch {
+	case fileExists(filepath.Join(dir, "pnpm-lock.yaml")):
+		return "pnpm"
+	case fileExists(filepath.Join(dir, "yarn.lock")):
+		return "yarn"
+	default:
+		return "npm"
+	}
+}
+
+func parsePackageManager(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	lowered := strings.ToLower(raw)
+	switch {
+	case strings.HasPrefix(lowered, "pnpm"):
+		return "pnpm"
+	case strings.HasPrefix(lowered, "yarn"):
+		return "yarn"
+	case strings.HasPrefix(lowered, "npm"):
+		return "npm"
+	default:
+		return ""
+	}
+}
+
+func installNodeDependencies(ctx context.Context, dir, manager string, logWriter io.Writer) error {
+	switch manager {
+	case "pnpm":
+		return phaseCommandExecutor(ctx, dir, logWriter, "pnpm", "install", "--frozen-lockfile", "--ignore-scripts")
+	case "yarn":
+		return phaseCommandExecutor(ctx, dir, logWriter, "yarn", "install", "--frozen-lockfile")
+	default:
+		return phaseCommandExecutor(ctx, dir, logWriter, "npm", "install")
+	}
 }
 
 func findPrimaryBatsSuite(cliDir, scenarioName string) (string, error) {

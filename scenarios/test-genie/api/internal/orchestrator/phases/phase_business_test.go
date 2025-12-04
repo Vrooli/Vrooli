@@ -81,3 +81,95 @@ func TestRunBusinessPhaseFailsWhenNoModulesFound(t *testing.T) {
 		t.Fatalf("unexpected error: %v", report.Err)
 	}
 }
+
+func TestRunBusinessPhaseDetectsDuplicateIDs(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := createScenarioLayout(t, root, "demo")
+
+	// Create a second module with a duplicate ID
+	duplicateDir := filepath.Join(scenarioDir, "requirements", "02-duplicate")
+	if err := os.MkdirAll(duplicateDir, 0o755); err != nil {
+		t.Fatalf("failed to create duplicate module dir: %v", err)
+	}
+	// REQ-1 already exists in 01-internal-orchestrator
+	payload := `{"requirements":[{"id":"REQ-1","title":"Duplicate","criticality":"p1","status":"draft","validation":[{"type":"manual","ref":"docs"}]}]}`
+	if err := os.WriteFile(filepath.Join(duplicateDir, "module.json"), []byte(payload), 0o644); err != nil {
+		t.Fatalf("failed to write duplicate module: %v", err)
+	}
+	// Update index.json to include the new module
+	indexContent := `{"imports":["01-internal-orchestrator/module.json","02-duplicate/module.json"]}`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "requirements", "index.json"), []byte(indexContent), 0o644); err != nil {
+		t.Fatalf("failed to update requirements index: %v", err)
+	}
+
+	env := workspace.Environment{
+		ScenarioName: "demo",
+		ScenarioDir:  scenarioDir,
+		TestDir:      filepath.Join(scenarioDir, "test"),
+	}
+	report := runBusinessPhase(context.Background(), env, io.Discard)
+	if report.Err == nil {
+		t.Fatalf("expected validation failure for duplicate IDs")
+	}
+	if !strings.Contains(report.Err.Error(), "duplicate") {
+		t.Fatalf("expected duplicate ID error, got: %v", report.Err)
+	}
+	if report.FailureClassification != FailureClassMisconfiguration {
+		t.Fatalf("expected misconfiguration classification, got %s", report.FailureClassification)
+	}
+}
+
+func TestRunBusinessPhaseDetectsCycles(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := createScenarioLayout(t, root, "demo")
+
+	// Overwrite the module with a cycle (REQ-A -> REQ-B -> REQ-A)
+	moduleDir := filepath.Join(scenarioDir, "requirements", "01-internal-orchestrator")
+	payload := `{"requirements":[
+		{"id":"REQ-A","title":"A","criticality":"p1","status":"draft","children":["REQ-B"],"validation":[{"type":"manual","ref":"docs"}]},
+		{"id":"REQ-B","title":"B","criticality":"p1","status":"draft","children":["REQ-A"],"validation":[{"type":"manual","ref":"docs"}]}
+	]}`
+	if err := os.WriteFile(filepath.Join(moduleDir, "module.json"), []byte(payload), 0o644); err != nil {
+		t.Fatalf("failed to write cyclic module: %v", err)
+	}
+
+	env := workspace.Environment{
+		ScenarioName: "demo",
+		ScenarioDir:  scenarioDir,
+		TestDir:      filepath.Join(scenarioDir, "test"),
+	}
+	report := runBusinessPhase(context.Background(), env, io.Discard)
+	if report.Err == nil {
+		t.Fatalf("expected validation failure for cycle")
+	}
+	if !strings.Contains(report.Err.Error(), "cycle") {
+		t.Fatalf("expected cycle error, got: %v", report.Err)
+	}
+}
+
+func TestRunBusinessPhaseDetectsOrphanedChildren(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := createScenarioLayout(t, root, "demo")
+
+	// Overwrite the module with an orphaned child reference
+	moduleDir := filepath.Join(scenarioDir, "requirements", "01-internal-orchestrator")
+	payload := `{"requirements":[
+		{"id":"REQ-PARENT","title":"Parent","criticality":"p1","status":"draft","children":["REQ-NONEXISTENT"],"validation":[{"type":"manual","ref":"docs"}]}
+	]}`
+	if err := os.WriteFile(filepath.Join(moduleDir, "module.json"), []byte(payload), 0o644); err != nil {
+		t.Fatalf("failed to write module with orphan: %v", err)
+	}
+
+	env := workspace.Environment{
+		ScenarioName: "demo",
+		ScenarioDir:  scenarioDir,
+		TestDir:      filepath.Join(scenarioDir, "test"),
+	}
+	report := runBusinessPhase(context.Background(), env, io.Discard)
+	if report.Err == nil {
+		t.Fatalf("expected validation failure for orphaned child")
+	}
+	if !strings.Contains(report.Err.Error(), "non-existent child") {
+		t.Fatalf("expected orphaned child error, got: %v", report.Err)
+	}
+}

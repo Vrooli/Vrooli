@@ -327,7 +327,7 @@ func flattenValidationErrors(ve *jsonschema.ValidationError, prefix string) []st
 }
 
 // HasErrors returns true if any validation result has errors.
-func HasErrors(results []ValidateResult) bool {
+func HasErrors(results []SchemaValidateResult) bool {
 	for _, r := range results {
 		if r.Error != nil {
 			return true
@@ -337,7 +337,7 @@ func HasErrors(results []ValidateResult) bool {
 }
 
 // FormatResults formats validation results as a human-readable string.
-func FormatResults(results []ValidateResult) string {
+func FormatResults(results []SchemaValidateResult) string {
 	var b strings.Builder
 
 	for _, r := range results {

@@ -31,9 +31,6 @@ type Expectations struct {
 	// ValidateServiceName controls whether service.json name must match the scenario directory.
 	ValidateServiceName bool
 
-	// ValidateJSONFiles controls whether all .json files are syntax-checked.
-	ValidateJSONFiles bool
-
 	// UISmoke holds UI smoke test configuration.
 	UISmoke smokeconfig.UISmokeConfig
 }
@@ -54,7 +51,6 @@ type configSection struct {
 
 type validationFlags struct {
 	ServiceNameMatchesDirectory *bool `json:"service_json_name_matches_directory"`
-	CheckJSONValidity           *bool `json:"check_json_validity"`
 }
 
 type uiSmokeRawConfig struct {
@@ -117,9 +113,6 @@ func LoadExpectations(scenarioDir string) (*Expectations, error) {
 	if doc.Structure.Validations.ServiceNameMatchesDirectory != nil {
 		exp.ValidateServiceName = *doc.Structure.Validations.ServiceNameMatchesDirectory
 	}
-	if doc.Structure.Validations.CheckJSONValidity != nil {
-		exp.ValidateJSONFiles = *doc.Structure.Validations.CheckJSONValidity
-	}
 
 	if doc.Structure.UISmoke.Enabled != nil {
 		exp.UISmoke.Enabled = *doc.Structure.UISmoke.Enabled
@@ -141,7 +134,6 @@ func LoadExpectations(scenarioDir string) (*Expectations, error) {
 func DefaultExpectations() *Expectations {
 	return &Expectations{
 		ValidateServiceName: true,
-		ValidateJSONFiles:   true,
 		UISmoke:             smokeconfig.DefaultUISmokeConfig(),
 	}
 }

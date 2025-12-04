@@ -68,32 +68,34 @@ func TestRunStructurePhaseSupportsExclusions(t *testing.T) {
 	}
 }
 
-func TestRunStructurePhaseDetectsInvalidJSON(t *testing.T) {
+func TestRunStructurePhaseDetectsInvalidServiceJSON(t *testing.T) {
+	// Schema validation validates .vrooli/ config files against their schemas.
+	// Note: This test verifies behavior when schemas are configured.
+	// Without SchemasDir configured, schema validation is skipped.
 	h := newStructureTestHarness(t)
-	writeFile(t, filepath.Join(h.scenarioDir, "ui", "broken.json"), `{"invalid"`)
+
+	// Write invalid service.json (missing required "service" field based on manifest validation)
+	writeFile(t, h.manifestPath, `{"version": "1.0.0"}`)
+
 	report := runStructurePhase(context.Background(), h.env, io.Discard)
+
+	// The manifest validator should fail because service.name is missing
 	if report.Err == nil {
-		t.Fatalf("expected failure for invalid JSON")
-	}
-	if !strings.Contains(report.Err.Error(), "broken.json") {
-		t.Fatalf("expected broken.json to be referenced, got %v", report.Err)
+		t.Fatalf("expected failure for invalid service.json")
 	}
 }
 
-func TestRunStructurePhaseCanSkipJSONValidation(t *testing.T) {
+func TestRunStructurePhaseIgnoresNonConfigJSONFiles(t *testing.T) {
+	// Schema validation only validates .vrooli/ config files.
+	// Broken JSON files elsewhere in the scenario should NOT cause failures.
 	h := newStructureTestHarness(t)
 	writeFile(t, filepath.Join(h.scenarioDir, "ui", "broken.json"), `{"invalid"`)
-	h.writeTestingConfig(t, `{
-  "structure": {
-    "validations": {
-      "check_json_validity": false
-    },
-    "ui_smoke": {"enabled": false}
-  }
-}`)
+
 	report := runStructurePhase(context.Background(), h.env, io.Discard)
+
+	// Should succeed because we only validate .vrooli/ config files now
 	if report.Err != nil {
-		t.Fatalf("expected success when JSON validation disabled: %v", report.Err)
+		t.Fatalf("expected success for broken JSON outside .vrooli/: %v", report.Err)
 	}
 }
 
@@ -164,8 +166,7 @@ func newStructureTestHarness(t *testing.T) *structureTestHarness {
     "additional_dirs": [],
     "additional_files": [],
     "validations": {
-      "service_json_name_matches_directory": true,
-      "check_json_validity": true
+      "service_json_name_matches_directory": true
     },
     "ui_smoke": {
       "enabled": false

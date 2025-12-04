@@ -12,6 +12,10 @@ import (
 	"strings"
 
 	"test-genie/internal/orchestrator/workspace"
+	"test-genie/internal/requirements/discovery"
+	"test-genie/internal/requirements/parsing"
+	"test-genie/internal/requirements/types"
+	"test-genie/internal/requirements/validation"
 )
 
 type requirementModuleFile struct {
@@ -110,9 +114,76 @@ func runBusinessPhase(ctx context.Context, env workspace.Environment, logWriter 
 		}
 	}
 
+	// Run comprehensive structural validation using the validation package
+	logPhaseStep(logWriter, "running structural validation rules...")
+	validationResult := runRequirementsValidation(ctx, env.ScenarioDir, logWriter)
+
+	// Add warnings as observations
+	for _, issue := range validationResult.Warnings() {
+		observations = append(observations, NewWarningObservation(issue.Error()))
+	}
+
+	// Errors cause phase failure
+	if validationResult.HasErrors() {
+		errorMsgs := make([]string, 0, validationResult.ErrorCount())
+		for _, issue := range validationResult.Errors() {
+			errorMsgs = append(errorMsgs, issue.Error())
+			logPhaseError(logWriter, "validation error: %s", issue.Error())
+		}
+		return RunReport{
+			Err:                   fmt.Errorf("structural validation failed: %s", strings.Join(errorMsgs, "; ")),
+			FailureClassification: FailureClassMisconfiguration,
+			Remediation:           "Fix the structural issues in requirement files: duplicate IDs, missing references, cycles in hierarchy.",
+			Observations:          observations,
+		}
+	}
+
 	logPhaseStep(logWriter, "business validation complete")
 	observations = append(observations, NewSuccessObservation(fmt.Sprintf("modules validated: %d", len(modules))))
 	return RunReport{Observations: observations}
+}
+
+// runRequirementsValidation runs the comprehensive validation rules from the validation package.
+func runRequirementsValidation(ctx context.Context, scenarioDir string, logWriter io.Writer) *types.ValidationResult {
+	result := types.NewValidationResult()
+
+	// Discover requirement files
+	discoverer := discovery.NewDefault()
+	files, err := discoverer.Discover(ctx, scenarioDir)
+	if err != nil {
+		// If requirements directory doesn't exist, we've already checked that above
+		if errors.Is(err, discovery.ErrNoRequirementsDir) {
+			return result
+		}
+		logPhaseWarn(logWriter, "requirements discovery failed: %v", err)
+		return result
+	}
+
+	if len(files) == 0 {
+		return result
+	}
+
+	// Parse all requirement files into an index
+	parser := parsing.NewDefault()
+	index, err := parser.ParseAll(ctx, files)
+	if err != nil {
+		logPhaseWarn(logWriter, "requirements parsing failed: %v", err)
+		return result
+	}
+
+	// Log any parsing errors as warnings
+	for _, parseErr := range index.Errors {
+		logPhaseWarn(logWriter, "parsing issue: %v", parseErr)
+	}
+
+	// Run validation rules
+	validator := validation.NewDefault()
+	validationResult := validator.Validate(ctx, index, scenarioDir)
+
+	logPhaseStep(logWriter, "validation rules checked: %d issues found (%d errors, %d warnings)",
+		len(validationResult.Issues), validationResult.ErrorCount(), validationResult.WarningCount())
+
+	return validationResult
 }
 
 func discoverRequirementModules(dir string) ([]requirementModuleRef, error) {

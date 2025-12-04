@@ -35,11 +35,11 @@ func (m *mockCLIValidator) Validate() existence.CLIResult {
 	return m.result
 }
 
-type mockJSONValidator struct {
+type mockSchemaValidator struct {
 	result types.Result
 }
 
-func (m *mockJSONValidator) Validate() types.Result {
+func (m *mockSchemaValidator) Validate() types.Result {
 	return m.result
 }
 
@@ -63,7 +63,7 @@ func (m *mockSmokeValidator) Validate(ctx context.Context) types.Result {
 func newMockedRunner(
 	existenceVal *mockExistenceValidator,
 	cliVal *mockCLIValidator,
-	jsonVal *mockJSONValidator,
+	schemaVal *mockSchemaValidator,
 	manifestVal *mockManifestValidator,
 	smokeVal *mockSmokeValidator,
 ) *Runner {
@@ -71,12 +71,13 @@ func newMockedRunner(
 		Config{
 			ScenarioDir:  "/mock/scenario",
 			ScenarioName: "mock-scenario",
+			SchemasDir:   "/mock/schemas",
 			Expectations: DefaultExpectations(),
 		},
 		WithLogger(io.Discard),
 		WithExistenceValidator(existenceVal),
 		WithCLIValidator(cliVal),
-		WithJSONValidator(jsonVal),
+		WithSchemaValidator(schemaVal),
 		WithManifestValidator(manifestVal),
 		WithSmokeValidator(smokeVal),
 	)
@@ -94,7 +95,7 @@ func TestRunner_AllValidatorsPass(t *testing.T) {
 				Result:   types.OK().WithObservations(types.NewSuccessObservation("CLI valid")),
 			},
 		},
-		&mockJSONValidator{result: types.OKWithCount(10)},
+		&mockSchemaValidator{result: types.OKWithCount(10)},
 		&mockManifestValidator{
 			result: types.OK().WithObservations(
 				types.NewSuccessObservation("Name matches"),
@@ -142,7 +143,7 @@ func TestRunner_DirectoryValidationFails(t *testing.T) {
 			filesResult: types.OK(),
 		},
 		&mockCLIValidator{result: existence.CLIResult{Result: types.OK()}},
-		&mockJSONValidator{result: types.OK()},
+		&mockSchemaValidator{result: types.OK()},
 		&mockManifestValidator{result: types.OK()},
 		&mockSmokeValidator{result: types.Result{Success: true}},
 	)
@@ -167,7 +168,7 @@ func TestRunner_FileValidationFails(t *testing.T) {
 			),
 		},
 		&mockCLIValidator{result: existence.CLIResult{Result: types.OK()}},
-		&mockJSONValidator{result: types.OK()},
+		&mockSchemaValidator{result: types.OK()},
 		&mockManifestValidator{result: types.OK()},
 		&mockSmokeValidator{result: types.Result{Success: true}},
 	)
@@ -194,7 +195,7 @@ func TestRunner_CLIValidationFails(t *testing.T) {
 				),
 			},
 		},
-		&mockJSONValidator{result: types.OK()},
+		&mockSchemaValidator{result: types.OK()},
 		&mockManifestValidator{result: types.OK()},
 		&mockSmokeValidator{result: types.Result{Success: true}},
 	)
@@ -218,7 +219,7 @@ func TestRunner_ManifestValidationFails(t *testing.T) {
 				Result:   types.OK(),
 			},
 		},
-		&mockJSONValidator{result: types.OK()},
+		&mockSchemaValidator{result: types.OK()},
 		&mockManifestValidator{
 			result: types.FailMisconfiguration(
 				errors.New("service name mismatch"),
@@ -247,7 +248,7 @@ func TestRunner_JSONValidationFails(t *testing.T) {
 				Result:   types.OK(),
 			},
 		},
-		&mockJSONValidator{
+		&mockSchemaValidator{
 			result: types.FailMisconfiguration(
 				errors.New("invalid JSON: config.json"),
 				"Fix JSON syntax in config.json",
@@ -276,7 +277,7 @@ func TestRunner_SmokeValidationFails(t *testing.T) {
 				Result:   types.OK(),
 			},
 		},
-		&mockJSONValidator{result: types.OKWithCount(5)},
+		&mockSchemaValidator{result: types.OKWithCount(5)},
 		&mockManifestValidator{result: types.OK()},
 		&mockSmokeValidator{
 			result: types.FailSystem(
@@ -317,7 +318,7 @@ func TestRunner_SmokeDisabled(t *testing.T) {
 				Result:   types.OK(),
 			},
 		}),
-		WithJSONValidator(&mockJSONValidator{result: types.OKWithCount(5)}),
+		WithSchemaValidator(&mockSchemaValidator{result: types.OKWithCount(5)}),
 		WithManifestValidator(&mockManifestValidator{result: types.OK()}),
 		WithSmokeValidator(&mockSmokeValidator{
 			result: types.FailSystem(errors.New("should not be called"), ""),
@@ -346,15 +347,17 @@ func TestRunner_SmokeDisabled(t *testing.T) {
 	}
 }
 
-func TestRunner_JSONValidationDisabled(t *testing.T) {
+func TestRunner_SchemaValidationDisabled(t *testing.T) {
+	// When SchemasDir is not set and no schema validator is provided,
+	// schema validation should be skipped.
 	expectations := DefaultExpectations()
-	expectations.ValidateJSONFiles = false
 	expectations.UISmoke.Enabled = false
 
 	runner := New(
 		Config{
 			ScenarioDir:  "/mock/scenario",
 			ScenarioName: "mock-scenario",
+			SchemasDir:   "", // No schemas dir = no schema validation
 			Expectations: expectations,
 		},
 		WithLogger(io.Discard),
@@ -368,9 +371,7 @@ func TestRunner_JSONValidationDisabled(t *testing.T) {
 				Result:   types.OK(),
 			},
 		}),
-		WithJSONValidator(&mockJSONValidator{
-			result: types.FailMisconfiguration(errors.New("should not be called"), ""),
-		}),
+		// Note: No WithSchemaValidator - schema validation is disabled
 		WithManifestValidator(&mockManifestValidator{result: types.OK()}),
 		WithSmokeValidator(&mockSmokeValidator{result: types.Result{Success: true}}),
 	)
@@ -378,7 +379,7 @@ func TestRunner_JSONValidationDisabled(t *testing.T) {
 	result := runner.Run(context.Background())
 
 	if !result.Success {
-		t.Fatalf("expected success when JSON validation disabled, got error: %v", result.Error)
+		t.Fatalf("expected success when schema validation disabled, got error: %v", result.Error)
 	}
 	if result.Summary.JSONFilesValid != 0 {
 		t.Errorf("expected 0 JSON files checked when disabled, got %d", result.Summary.JSONFilesValid)
@@ -392,7 +393,7 @@ func TestRunner_ContextCancelled(t *testing.T) {
 	runner := newMockedRunner(
 		&mockExistenceValidator{dirsResult: types.OK(), filesResult: types.OK()},
 		&mockCLIValidator{result: existence.CLIResult{Result: types.OK()}},
-		&mockJSONValidator{result: types.OK()},
+		&mockSchemaValidator{result: types.OK()},
 		&mockManifestValidator{result: types.OK()},
 		&mockSmokeValidator{result: types.Result{Success: true}},
 	)
@@ -495,7 +496,7 @@ func TestValidationSummary_StringNoSmoke(t *testing.T) {
 var (
 	_ existence.Validator    = (*mockExistenceValidator)(nil)
 	_ existence.CLIValidator = (*mockCLIValidator)(nil)
-	_ content.JSONValidator  = (*mockJSONValidator)(nil)
+	_ content.SchemaValidatorInterface = (*mockSchemaValidator)(nil)
 	_ content.ManifestValidator = (*mockManifestValidator)(nil)
 	_ smoke.Validator        = (*mockSmokeValidator)(nil)
 )

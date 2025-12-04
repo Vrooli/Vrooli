@@ -121,7 +121,7 @@ Validates scenario layout without running any tests:
 flowchart LR
     A[Check required dirs] --> B[Check required files]
     B --> C[Validate service.json]
-    C --> D[Validate JSON syntax]
+    C --> D[Validate config schemas]
     D --> E[Check UI smoke telemetry]
 ```
 
@@ -130,7 +130,7 @@ flowchart LR
 | Required directories | `api/`, `cli/`, `docs/`, `requirements/`, `test/`, `ui/` |
 | Required files | `README.md`, `PRD.md`, `Makefile`, `.vrooli/service.json`, `.vrooli/testing.json`, `cli/<scenario>` |
 | Manifest validation | `service.name` matches scenario, health checks defined |
-| JSON validation | All `.json` files are syntactically valid |
+| Schema validation | `.vrooli/` config files validated against JSON schemas |
 
 ### dependencies
 

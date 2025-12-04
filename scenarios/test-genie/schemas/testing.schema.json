@@ -155,11 +155,6 @@
               "type": "boolean",
               "default": true,
               "description": "Validate that .vrooli/service.json name field matches scenario directory name"
-            },
-            "check_json_validity": {
-              "type": "boolean",
-              "default": true,
-              "description": "Validate that all JSON files are valid"
             }
           }
         }

@@ -2,7 +2,6 @@ package phases
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -71,7 +70,7 @@ func TestRunDependenciesPhaseFailsWhenRuntimeMissing(t *testing.T) {
 
 	stubCommandLookup(t, func(name string) (string, error) {
 		if name == "go" {
-			return "", fmt.Errorf("not found")
+			return "", &commandNotFoundError{name}
 		}
 		return "/tmp/" + name, nil
 	})
@@ -91,4 +90,81 @@ func TestRunDependenciesPhaseFailsWhenRuntimeMissing(t *testing.T) {
 	if report.FailureClassification != FailureClassMissingDependency {
 		t.Fatalf("expected missing dependency classification, got %s", report.FailureClassification)
 	}
+}
+
+func TestRunDependenciesPhaseFailsOnMissingBaselineCommand(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := createScenarioLayout(t, root, "demo")
+
+	stubCommandLookup(t, func(name string) (string, error) {
+		if name == "jq" {
+			return "", &commandNotFoundError{name}
+		}
+		return "/tmp/" + name, nil
+	})
+
+	env := workspace.Environment{
+		ScenarioName: "demo",
+		ScenarioDir:  scenarioDir,
+		TestDir:      filepath.Join(scenarioDir, "test"),
+	}
+	report := runDependenciesPhase(context.Background(), env, io.Discard)
+	if report.Err == nil {
+		t.Fatalf("expected failure when baseline command is unavailable")
+	}
+	if !strings.Contains(report.Err.Error(), "jq") {
+		t.Fatalf("expected error to mention jq, got: %v", report.Err)
+	}
+}
+
+func TestRunDependenciesPhaseGeneratesObservations(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := createScenarioLayout(t, root, "demo")
+
+	stubCommandLookup(t, func(name string) (string, error) {
+		return "/tmp/" + name, nil
+	})
+
+	env := workspace.Environment{
+		ScenarioName: "demo",
+		ScenarioDir:  scenarioDir,
+		TestDir:      filepath.Join(scenarioDir, "test"),
+	}
+	report := runDependenciesPhase(context.Background(), env, io.Discard)
+	if report.Err != nil {
+		t.Fatalf("unexpected error: %v", report.Err)
+	}
+	if len(report.Observations) == 0 {
+		t.Fatalf("expected observations to be recorded")
+	}
+}
+
+func TestRunDependenciesPhaseWithCancelledContext(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := createScenarioLayout(t, root, "demo")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	env := workspace.Environment{
+		ScenarioName: "demo",
+		ScenarioDir:  scenarioDir,
+		TestDir:      filepath.Join(scenarioDir, "test"),
+	}
+	report := runDependenciesPhase(ctx, env, io.Discard)
+	if report.Err == nil {
+		t.Fatalf("expected failure for cancelled context")
+	}
+	if report.FailureClassification != FailureClassSystem {
+		t.Fatalf("expected system classification, got %s", report.FailureClassification)
+	}
+}
+
+// commandNotFoundError simulates exec.LookPath error.
+type commandNotFoundError struct {
+	name string
+}
+
+func (e *commandNotFoundError) Error() string {
+	return "executable file not found in $PATH: " + e.name
 }

@@ -119,7 +119,7 @@ make logs     # View test logs
 
 **Example failures**:
 - Missing `.vrooli/service.json`
-- Invalid JSON syntax in configuration
+- Schema validation failure in configuration
 - Missing test directory
 
 ### Phase 2: Dependencies Check
